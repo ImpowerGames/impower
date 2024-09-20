@@ -51,6 +51,8 @@ import {
   SerializableHistoryState,
 } from "../types/editor";
 import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
+import { search } from "@codemirror/search";
+import { SearchPanel } from "../panels/SearchPanel";
 
 export const readOnly = new Compartment();
 
@@ -167,6 +169,7 @@ const createEditorView = (
       ...restoredExtensions,
       EditorView.theme(EDITOR_THEME, { dark: true }),
       EDITOR_EXTENSIONS,
+      search({ createPanel: (view) => new SearchPanel(view), top: true }),
       readOnly.of(EditorState.readOnly.of(false)),
       editable.of(EditorView.editable.of(true)),
       versioning(),
@@ -300,7 +303,7 @@ const createEditorView = (
         programContext.program = program;
         if (version === getDocumentVersion(view.state)) {
           view.dispatch(
-            updateVariableWidgets({ variables: program.variables || {} })
+            updateVariableWidgets({ variables: /* program.variables || */ {} })
           );
         }
       }

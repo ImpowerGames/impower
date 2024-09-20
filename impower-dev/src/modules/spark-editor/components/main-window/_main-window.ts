@@ -15,7 +15,7 @@ export default spec({
       <s-split-pane
         id="splitPane"
         grow
-        min-panel-width="336px"
+        min-panel-width="378px"
         resizer-color="scrollbar-track"
         divider-offset="0"
         divider-color="fg-06"

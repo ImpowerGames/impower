@@ -6,12 +6,18 @@ const EDITOR_COLORS = {
 
   bracket: "#FFD700",
 
-  panel: "#1f1f1f",
+  panel: "#001933",
   match: "#18A3FF",
-  selected: "#323232",
-  border: "#FFFFFF1A",
-  hover: "#FFFFFF14",
-  focus: "#0078D4",
+  separator: "#FFFFFF0F",
+  border: "#FFFFFF21",
+  placeholder: "#FFFFFF66",
+  borderHover: "#FFFFFF40",
+  buttonHover: "#FFFFFF0D",
+  selected: "#0DA2E7",
+  focus: "#0DA2E7",
+  checked: "#0078D4",
+  closeButton: "#315881",
+  closeButtonHover: "#3689E2",
 
   invalid: "#F44747",
   constant: "#FFFF00",

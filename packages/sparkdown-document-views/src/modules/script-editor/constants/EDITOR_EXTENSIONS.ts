@@ -31,7 +31,6 @@ import { whitespaceMarkers } from "../../../cm-whitespace-markers/whitespaceMark
 
 const EDITOR_EXTENSIONS = [
   history(),
-  search(),
   breakpoints({ singular: true }),
   lineNumbers(),
   indentUnit.of("  "),
