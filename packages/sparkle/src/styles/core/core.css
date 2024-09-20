@@ -399,7 +399,7 @@
   pointer-events: var(--interactable, auto) !important;
 }
 [interactable="none"] > .root {
-  cursor: none;
+  cursor: default;
 }
 [selectable] > .root {
   user-select: var(--selectable, auto) !important;
