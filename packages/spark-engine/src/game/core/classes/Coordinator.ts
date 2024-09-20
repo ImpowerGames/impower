@@ -206,7 +206,7 @@ export class Coordinator<G extends Game> {
 
     let elapsedMS = 0;
     let ready = false;
-    let displayed = false;
+    let displaying = false;
     let finished = false;
     const totalDurationMS = (instructions.end ?? 0) * 1000;
     const handleTick = (deltaMS: number): void => {
@@ -218,11 +218,11 @@ export class Coordinator<G extends Game> {
           game.context.system.setTimeout(() => {
             // Delay the ui update by the audio outputLatency so that audio and visuals are synced
             updateUI();
-            displayed = true;
+            displaying = true;
           }, game.module.audio.outputLatency * 1000);
         }
       }
-      if (ready && displayed && !finished) {
+      if (ready && displaying && !finished) {
         elapsedMS += deltaMS;
         if (elapsedMS >= totalDurationMS) {
           finished = true;
