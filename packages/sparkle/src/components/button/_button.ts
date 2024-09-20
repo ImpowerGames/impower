@@ -42,6 +42,8 @@ export default spec({
         : "";
     const labelComponent = () =>
       variant === "icon" ? "" : html`<slot class="label" part="label"></slot>`;
+    const inputButtonComponent = () =>
+      type === "file" ? html` <button class="input-button"></button>` : "";
     const inputComponent = () =>
       type === "file"
         ? html`
@@ -58,6 +60,7 @@ export default spec({
     <s-ripple class="ripple" part="ripple" ${rippleAttr}></s-ripple>
     ${iconComponent}
     ${labelComponent}
+    ${inputButtonComponent}
     ${inputComponent}
   </${tag}>
     `;

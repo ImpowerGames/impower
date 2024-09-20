@@ -14,8 +14,8 @@
   --text-wrap: nowrap;
   --transition-property: opacity, transform, filter;
   --duration: 100ms;
-  --color: var(--s-color-primary-60);
-  --text-color: var(--s-color-neutral-60);
+  --active-text-color: var(--s-color-primary-60);
+  --inactive-text-color: var(--s-color-neutral-60);
   --padding-tb: 16px;
   --padding-lr: 20px;
 }
@@ -46,7 +46,7 @@
   font-size: var(--text-size);
   font-weight: var(--text-weight);
   color: var(--inactive-text-color, var(--text-color));
-  background-color: transparent;
+  background-color: var(--color);
   white-space: var(--text-wrap);
   transition-property: var(--transition-property);
   transition-duration: var(--duration);
@@ -73,7 +73,7 @@
   inset: 0;
   border-style: solid;
   border-width: 0 0 var(--indicator-width) 0;
-  border-color: var(--color);
+  border-color: var(--indicator-color);
   pointer-events: none;
 }
 

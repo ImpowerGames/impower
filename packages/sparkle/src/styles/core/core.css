@@ -398,11 +398,14 @@
 [interactable] > .root {
   pointer-events: var(--interactable, auto) !important;
 }
+[interactable="none"] {
+  cursor: none;
+}
 [selectable] > .root {
   user-select: var(--selectable, auto) !important;
 }
 :is([selectable=""], [selectable="auto"]) > .root {
-  cursor: "text";
+  cursor: text;
 }
 
 [text-font] > .root {

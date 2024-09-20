@@ -1,3 +1,4 @@
+import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
@@ -24,6 +25,7 @@ const CHANGED_EVENT = "changed";
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   "indicator-width": getCssSize,
+  "indicator-color": getCssColor,
 };
 
 const DEFAULT_ATTRIBUTES = {
@@ -129,6 +131,16 @@ export default class Tabs
   }
   set indicatorWidth(value) {
     this.setStringAttribute(Tabs.attrs.indicatorWidth, value);
+  }
+
+  /**
+   * The color of the indicator.
+   */
+  get indicatorColor(): SizeName | string | null {
+    return this.getStringAttribute(Tabs.attrs.indicatorColor);
+  }
+  set indicatorColor(value) {
+    this.setStringAttribute(Tabs.attrs.indicatorColor, value);
   }
 
   protected _tabs: Tab[] = [];

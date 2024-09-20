@@ -14,10 +14,14 @@ export default spec({
       <s-router key="logic-panel" directional active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
           <se-header-navigation-placeholder></se-header-navigation-placeholder>
-          <s-tabs color="tab-active" height="panel-nav" active="${panel}">
+          <s-tabs
+            indicator-color="tab-active"
+            height="panel-nav"
+            active="${panel}"
+          >
             <s-tab
-              color="tab-active"
-              text-color="tab-inactive"
+              active-text-color="tab-active"
+              inactive-text-color="tab-inactive"
               p="20"
               child-layout="row"
               value="main"
@@ -29,8 +33,8 @@ export default spec({
               </se-logic-diagnostics-label>
             </s-tab>
             <s-tab
-              color="tab-active"
-              text-color="tab-inactive"
+              active-text-color="tab-active"
+              inactive-text-color="tab-inactive"
               p="20"
               child-layout="row"
               value="scripts"

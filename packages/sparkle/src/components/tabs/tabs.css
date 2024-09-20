@@ -1,6 +1,6 @@
 :host {
   display: contents;
-  --color: var(--s-color-primary-60);
+  --indicator-color: var(--s-color-primary-60);
   --child-layout: column;
   --position: relative;
   --duration: 150ms;
@@ -45,7 +45,7 @@
 
 :host > .root > .indicator {
   position: relative;
-  background-color: var(--color);
+  background-color: var(--indicator-color);
   transition-property: transform;
   transition-duration: var(--duration);
   transition-timing-function: var(--ease);
