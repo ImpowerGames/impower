@@ -61,7 +61,6 @@ export default spec({
               <s-divider bg-color="fg-06"></s-divider>
               <s-tabs indicator="none" height="footer-nav" active="${pane}">
                 <s-tab
-                  color="primary-bg"
                   active-text-color="tab-active"
                   inactive-text-color="tab-inactive"
                   shrink
@@ -73,7 +72,6 @@ export default spec({
                   Logic
                 </s-tab>
                 <s-tab
-                  color="primary-bg"
                   active-text-color="tab-active"
                   inactive-text-color="tab-inactive"
                   shrink
@@ -85,7 +83,6 @@ export default spec({
                   Assets
                 </s-tab>
                 <s-tab
-                  color="primary-bg"
                   active-text-color="tab-active"
                   inactive-text-color="tab-inactive"
                   shrink
