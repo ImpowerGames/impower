@@ -58,9 +58,9 @@ export default spec({
     return html`
     <${tag} class="root" part="root" ${isToggle ? `role="checkbox"` : ""}>
     <s-ripple class="ripple" part="ripple" ${rippleAttr}></s-ripple>
+    ${inputButtonComponent}
     ${iconComponent}
     ${labelComponent}
-    ${inputButtonComponent}
     ${inputComponent}
   </${tag}>
     `;
