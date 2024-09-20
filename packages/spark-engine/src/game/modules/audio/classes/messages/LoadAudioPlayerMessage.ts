@@ -1,5 +1,6 @@
 import { MessageProtocolRequestType } from "../../../../core/classes/MessageProtocolRequestType";
 import { LoadAudioPlayerParams } from "../../types/LoadAudioPlayerParams";
+import { LoadAudioPlayerResult } from "../../types/LoadAudioPlayerResult";
 
 export type LoadAudioPlayerMethod = typeof LoadAudioPlayerMessage.method;
 
@@ -8,7 +9,7 @@ export class LoadAudioPlayerMessage {
   static readonly type = new MessageProtocolRequestType<
     LoadAudioPlayerMethod,
     LoadAudioPlayerParams,
-    LoadAudioPlayerParams
+    LoadAudioPlayerResult
   >(LoadAudioPlayerMessage.method);
 }
 

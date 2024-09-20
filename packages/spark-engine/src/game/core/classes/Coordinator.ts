@@ -213,7 +213,10 @@ export class Coordinator<G extends Game> {
         if (audioTriggerIds.every((n) => game.module.audio.isReady(n))) {
           ready = true;
           game.module.audio.triggerAll(audioTriggerIds);
-          updateUI();
+          game.context.system.setTimeout(() => {
+            // Delay the ui update by the audio outputLatency so that audio and visuals are synced
+            updateUI();
+          }, game.module.audio.outputLatency);
           this._startedExecution = true;
         }
       }

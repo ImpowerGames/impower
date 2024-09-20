@@ -12,6 +12,7 @@ export type GameContext<B = any> = {
     uuid: () => string;
     restore: () => Promise<void>;
     checkpoint: () => void;
+    setTimeout: (handler: Function, timeout?: number, ...args: any[]) => number;
     supports: (module: string) => void;
     resolve?: (path: string) => string;
     fetch?: (url: string) => Promise<string | ArrayBuffer>;

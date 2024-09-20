@@ -187,7 +187,10 @@ export default class AudioScene extends Scene {
     }
     if (LoadAudioPlayerMessage.type.isRequest(msg)) {
       await this.onLoadAudioPlayer(msg.params);
-      return LoadAudioPlayerMessage.type.result(msg.params);
+      return LoadAudioPlayerMessage.type.result({
+        ...msg.params,
+        outputLatency: this._audioContext.outputLatency,
+      });
     }
     if (UpdateAudioPlayersMessage.type.isRequest(msg)) {
       await this.onUpdateAudioPlayers(msg.params);

@@ -172,6 +172,13 @@ export default class Application {
             console.log(message);
           }
         },
+        setTimeout: (
+          handler: Function,
+          timeout?: number,
+          ...args: any[]
+        ): number => {
+          return setTimeout(handler, timeout, ...args);
+        },
       })
       .then(() => {
         if (!game.context.system.previewing) {

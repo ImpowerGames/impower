@@ -101,6 +101,9 @@ export class Game<T extends M = {}> {
         restore: () => this.restore(),
         uuid: () => uuid(),
         supports: (module: string) => this.supports(module),
+        setTimeout: () => {
+          throw new Error("setTimeout not configured");
+        },
       },
     };
     // Create connection for sending and receiving messages
@@ -279,11 +282,13 @@ export class Game<T extends M = {}> {
     resolve: (path: string) => string;
     fetch: (url: string) => Promise<string | ArrayBuffer>;
     log: (message: unknown, severity: "info" | "warning" | "error") => void;
+    setTimeout: (handler: Function, timeout?: number, ...args: any[]) => number;
   }): Promise<void> {
     this._connection.connectOutput(config.send);
     this._context.system.resolve = config.resolve;
     this._context.system.fetch = config.fetch;
     this._context.system.log = config.log;
+    this._context.system.setTimeout = config.setTimeout;
     this._context.system.initialized = true;
     await Promise.all(this._moduleNames.map((k) => this._modules[k]?.onInit()));
   }

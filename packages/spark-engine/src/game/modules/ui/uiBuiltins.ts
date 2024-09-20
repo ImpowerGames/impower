@@ -315,6 +315,7 @@ export const uiBuiltins = () => ({
     }),
     indicator: _style({
       $name: "indicator",
+      opacity: "0",
       line_height: 1,
       width: 16,
       height: 16,

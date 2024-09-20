@@ -40,6 +40,11 @@ export class AudioModule extends Module<
 
   protected _mixerUpdates: AudioMixerUpdate[] = [];
 
+  protected _outputLatency = 0;
+  get outputLatency() {
+    return this._outputLatency;
+  }
+
   override getBuiltins() {
     return audioBuiltins();
   }
@@ -126,10 +131,14 @@ export class AudioModule extends Module<
   }
 
   async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
-    await new Promise<void>((resolve) => {
-      this.emit(LoadAudioPlayerMessage.type.request(data)).then(() => {
+    await new Promise<void>(async (resolve) => {
+      const msg = await this.emit(LoadAudioPlayerMessage.type.request(data));
+      if (LoadAudioPlayerMessage.type.isResponse(msg)) {
+        if (msg.result?.outputLatency != null) {
+          this._outputLatency = msg.result?.outputLatency;
+        }
         resolve();
-      });
+      }
     });
   }
 
