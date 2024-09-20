@@ -87,11 +87,16 @@ export class AudioModule extends Module<
         }
       });
       await this.loadAllAudio(Array.from(audioToLoad));
-      this.update(...updates);
+      this.queueUpdates(...updates);
     }
   }
 
   override onUpdate() {
+    this.updateNow();
+    return true;
+  }
+
+  updateNow() {
     if (this._playerUpdates.length > 0) {
       // Flush updates that should be handled this frame
       this.emit(
@@ -101,7 +106,6 @@ export class AudioModule extends Module<
       );
       this._playerUpdates.length = 0;
     }
-    return true;
   }
 
   getMixer(channel: string | undefined): string {
@@ -112,7 +116,7 @@ export class AudioModule extends Module<
     );
   }
 
-  update(...updates: AudioPlayerUpdate[]) {
+  queueUpdates(...updates: AudioPlayerUpdate[]) {
     updates.forEach((u) => {
       this._playerUpdates.push({
         ...u,
@@ -470,7 +474,8 @@ export class AudioModule extends Module<
     });
     const id = this.nextTriggerId();
     const trigger = () => {
-      this.update(...updates);
+      this.queueUpdates(...updates);
+      this.updateNow();
     };
     this.loadAllAudio(Array.from(audioToLoad)).then(() => {
       this.enableTrigger(id, trigger);
