@@ -26,7 +26,7 @@
 
 :host > .root {
   display: flex;
-  contain: "layout";
+  contain: layout;
   pointer-events: auto;
   flex-direction: var(--child-layout);
   align-items: var(--child-align);
@@ -45,6 +45,7 @@
   border-radius: var(--corner);
   margin: var(--margin);
   max-inline-size: min(90vw, 60ch);
+  will-change: transform, opacity;
 }
 :host(:not([loaded])) > .root {
   opacity: 0;
