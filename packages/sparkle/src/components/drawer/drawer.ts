@@ -104,10 +104,11 @@ export default class Drawer
   };
 
   protected async handleOpen(modal: boolean): Promise<void> {
+    this.root.style.transform = "translateX(0)";
     // Inert causes too many style calculations
     // this.root.inert = false;
     // this.root.hidden = false;
-    this.setAttribute("loaded", "");
+    // this.setAttribute("loaded", "");
     // // TODO: open dialog
     // // if (modal) {
     // //   this.dialog.showModal();
@@ -128,6 +129,7 @@ export default class Drawer
   protected handleClose = async (
     returnValue?: string
   ): Promise<string | undefined> => {
+    this.root.style.transform = "translateX(-100%)";
     // // Inert causes too many style calculations
     // // this.dialog.inert = true;
     // this.open = false;
