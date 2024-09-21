@@ -134,6 +134,9 @@ export default class Ripple extends SparkleElement {
     await new Promise((resolve) => {
       setTimeout(resolve, TOUCH_DELAY_MS);
     });
+    await new Promise((resolve) => {
+      requestAnimationFrame(resolve);
+    });
     if (this.rippleState !== "touch_delay") {
       return;
     }
@@ -255,7 +258,10 @@ export default class Ripple extends SparkleElement {
     this.endPointY = (height - this.initialSize) / 2;
   }
 
-  private startPressAnimation() {
+  private async startPressAnimation() {
+    await new Promise((resolve) => {
+      requestAnimationFrame(resolve);
+    });
     this.pressed = true;
     this.growAnimation?.cancel();
     this.determineRippleSize();
@@ -296,6 +302,9 @@ export default class Ripple extends SparkleElement {
 
     await new Promise((resolve) => {
       setTimeout(resolve, MINIMUM_PRESS_MS - pressAnimationPlayState);
+    });
+    await new Promise((resolve) => {
+      requestAnimationFrame(resolve);
     });
 
     if (this.growAnimation !== animation) {

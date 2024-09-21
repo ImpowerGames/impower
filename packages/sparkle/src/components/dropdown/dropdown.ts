@@ -212,6 +212,8 @@ export default class Dropdown
   };
 
   protected async animateOpen(): Promise<void> {
+    await nextAnimationFrame();
+
     if (this.disabled) {
       return;
     }

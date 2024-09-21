@@ -5,6 +5,7 @@ import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
+import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import spec from "./_drawer";
 
 const CLOSING_EVENT = "closing";
@@ -102,6 +103,8 @@ export default class Drawer
   };
 
   protected async handleOpen(modal: boolean): Promise<void> {
+    await nextAnimationFrame();
+
     this.root.hidden = false;
     this.root.inert = false;
     this.setAttribute("loaded", "");
