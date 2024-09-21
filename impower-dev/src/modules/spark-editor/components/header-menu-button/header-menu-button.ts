@@ -1,4 +1,5 @@
 import { Component } from "../../../../../../packages/spec-component/src/component";
+import type Drawer from "../../../../../../packages/sparkle/src/components/drawer/drawer";
 import spec from "./_header-menu-button";
 
 export default class HeaderMenuButton extends Component(spec) {
@@ -43,15 +44,15 @@ export default class HeaderMenuButton extends Component(spec) {
 
   async openDrawer() {
     window.requestAnimationFrame(() => {
-      const drawerEl = this.ref.drawer;
-      drawerEl.setAttribute("open", "");
+      const drawerEl = this.ref.drawer as Drawer;
+      drawerEl.show();
     });
   }
 
   async closeDrawer() {
     window.requestAnimationFrame(() => {
-      const drawerEl = this.ref.drawer;
-      drawerEl.removeAttribute("open");
+      const drawerEl = this.ref.drawer as Drawer;
+      drawerEl.close();
     });
   }
 }
