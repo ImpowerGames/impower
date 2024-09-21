@@ -18,10 +18,10 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  will-change: transform;
   -webkit-tap-highlight-color: transparent;
   -webkit-mask: inherit;
   mask: inherit;
+  will-change: transform, opacity;
 }
 
 :host > .root::before,
@@ -35,6 +35,7 @@
   border-radius: inherit;
   -webkit-mask: inherit;
   mask: inherit;
+  will-change: transform, opacity;
 }
 
 :host > .root::before {

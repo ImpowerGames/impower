@@ -27,4 +27,5 @@
   border-radius: var(--corner);
   color: transparent;
   animation: var(--animation, var(--s-animation-sheen));
+  will-change: transform, opacity;
 }

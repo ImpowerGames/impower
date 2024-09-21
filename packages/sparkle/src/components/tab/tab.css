@@ -54,7 +54,7 @@
   padding-inline: var(--padding-lr);
   gap: var(--child-gap);
   line-height: 1;
-  will-change: transform;
+  will-change: transform, opacity;
 }
 
 :host([disabled]) > .root {
@@ -92,6 +92,7 @@
   align-items: var(--child-align);
   justify-content: var(--child-justify);
   transition-duration: var(--duration);
+  will-change: transform, opacity;
 }
 
 :host(:not([child-layout="row"])[icon]) > .root > .label {
@@ -117,7 +118,7 @@
   font-size: var(--icon-size, var(--s-icon-size));
   justify-content: center;
   align-items: center;
-  will-change: transform;
+  will-change: transform, opacity;
 }
 
 :host([icon]) > .root > .icon > .inactive-icon {
@@ -128,9 +129,9 @@
   align-items: center;
   width: 100%;
   height: 100%;
-  will-change: transform, opacity;
-  transition-property: none;
   color: var(--inactive-text-color, var(--text-color));
+  transition-property: none;
+  will-change: transform, opacity;
 }
 :host([icon]:not([active])) > .root > .icon > .inactive-icon {
   display: flex;
@@ -147,12 +148,12 @@
   align-items: center;
   width: 100%;
   height: 100%;
-  will-change: transform, opacity;
-  transition-property: none;
   color: var(
     --active-text-color,
     var(--inactive-text-color, var(--text-color))
   );
+  transition-property: none;
+  will-change: transform, opacity;
 }
 :host([icon]:not([active])) > .root > .icon > .active-icon {
   display: none;

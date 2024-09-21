@@ -26,7 +26,6 @@
 
 :host > .root {
   display: flex;
-  contain: layout;
   pointer-events: auto;
   flex-direction: var(--child-layout);
   align-items: var(--child-align);
@@ -46,6 +45,7 @@
   margin: var(--margin);
   max-inline-size: min(90vw, 60ch);
   will-change: transform, opacity;
+  contain: strict;
 }
 :host(:not([loaded])) > .root {
   opacity: 0;
@@ -77,6 +77,8 @@
 
 :host > .root::backdrop {
   background-color: black;
+  will-change: transform, opacity;
+  contain: strict;
 }
 :host(:not([loaded])) > .root::backdrop {
   opacity: 0;

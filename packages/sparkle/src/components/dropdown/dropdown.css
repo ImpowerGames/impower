@@ -29,7 +29,6 @@
 
 :host > .popup {
   display: flex;
-  isolation: isolate;
   position: fixed;
   pointer-events: var(--interactable);
   z-index: var(--z);
@@ -49,7 +48,7 @@
   max-width: var(--auto-size-available-width, none);
   max-height: var(--auto-size-available-height, none);
   filter: var(--shadow);
-  will-change: transform;
+  will-change: transform, opacity;
 }
 
 :host([open]) > .popup {

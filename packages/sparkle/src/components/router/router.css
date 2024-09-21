@@ -30,6 +30,9 @@
   flex: 1 1 100%;
 }
 
+:host > .root > .content > .old-fade {
+  will-change: opacity;
+}
 :host([unmount="on-enter"]) > .root > .content > .old-fade {
   display: contents;
 }
@@ -45,6 +48,9 @@
   animation: var(--exit-fade) both;
 }
 
+:host > .root > .content > .old-fade > .old-transform {
+  will-change: transform;
+}
 :host([unmount="on-enter"]) > .root > .content > .old-fade > .old-transform {
   display: contents;
 }
@@ -124,6 +130,9 @@
   transform-origin: var(--pivot, top center);
 }
 
+:host > .root > .content > .new-fade {
+  will-change: opacity;
+}
 :host([unmount="on-enter"]) > .root > .content > .new-fade {
   display: none;
 }
@@ -139,6 +148,9 @@
   animation: var(--enter-fade) both;
 }
 
+:host > .root > .content > .new-fade > .new-transform {
+  will-change: transform;
+}
 :host([unmount="on-enter"]) > .root > .content > .new-fade > .new-transform {
   display: flex;
   flex: 1 1 100%;

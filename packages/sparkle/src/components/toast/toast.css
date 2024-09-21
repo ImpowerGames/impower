@@ -53,6 +53,9 @@
   );
 }
 
+:host > .popup {
+  will-change: transform, opacity;
+}
 :host([open]) > .popup {
   animation: var(--enter) forwards;
   animation-timing-function: var(--ease);
