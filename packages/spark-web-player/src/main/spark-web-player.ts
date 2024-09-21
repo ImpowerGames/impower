@@ -285,12 +285,11 @@ export default class SparkWebPlayer extends Component(spec) {
           this._app.destroy(true);
           this._app = undefined;
         }
-        // TODO:
-        // this._app = new Application(
-        //   this._game,
-        //   this.ref.gameView,
-        //   this.ref.gameOverlay
-        // );
+        this._app = new Application(
+          this._game,
+          this.ref.gameView,
+          this.ref.gameOverlay
+        );
       }
     }
     return undefined;
