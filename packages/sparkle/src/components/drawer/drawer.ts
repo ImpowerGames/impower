@@ -5,7 +5,6 @@ import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
-import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import spec from "./_drawer";
 
 const CLOSING_EVENT = "closing";
@@ -87,6 +86,8 @@ export default class Drawer
 
   override onParsed() {
     this.root.hidden = !this.open;
+    // TODO: show uninteractable
+    this.dialog.show();
   }
 
   override onDisconnected() {
@@ -107,11 +108,13 @@ export default class Drawer
     // this.root.inert = false;
     this.root.hidden = false;
     this.setAttribute("loaded", "");
-    if (modal) {
-      this.dialog.showModal();
-    } else {
-      this.dialog.show();
-    }
+
+    // TODO: open dialog
+    // if (modal) {
+    //   this.dialog.showModal();
+    // } else {
+    //   this.dialog.show();
+    // }
 
     const focusTarget = this.root.querySelector<HTMLElement>("[focus]");
 
@@ -138,7 +141,8 @@ export default class Drawer
 
     await animationsComplete(this.root);
 
-    this.dialog.close();
+    // TODO: close dialog
+    // this.dialog.close();
     this.root.hidden = true;
 
     this.emit(CLOSED_EVENT);
