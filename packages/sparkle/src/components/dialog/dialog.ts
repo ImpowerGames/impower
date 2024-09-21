@@ -336,8 +336,6 @@ export default class Dialog
   };
 
   protected async animateOpen(modal: boolean): Promise<void> {
-    await nextAnimationFrame();
-
     this.root.hidden = false;
     this.root.inert = false;
     if (modal) {

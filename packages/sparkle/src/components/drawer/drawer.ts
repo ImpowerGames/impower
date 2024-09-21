@@ -103,7 +103,6 @@ export default class Drawer
   };
 
   protected async handleOpen(modal: boolean): Promise<void> {
-    await nextAnimationFrame();
     // Inert causes too many style calculations
     // this.root.inert = false;
     this.root.hidden = false;
