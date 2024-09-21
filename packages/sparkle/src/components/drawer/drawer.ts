@@ -69,16 +69,6 @@ export default class Drawer
     return this.root as HTMLDialogElement;
   }
 
-  override onAttributeChanged(name: string, newValue: string) {
-    if (name === Drawer.attrs.open) {
-      if (newValue != null) {
-        this.handleOpen(true);
-      } else {
-        this.handleClose();
-      }
-    }
-  }
-
   override onConnected() {
     this.dialog.addEventListener("click", this.handleLightDismiss);
     this.dialog.addEventListener("close", this.handleEscapeClose);
@@ -102,6 +92,7 @@ export default class Drawer
   };
 
   protected async handleOpen(modal: boolean): Promise<void> {
+    this.open = true;
     this.root.hidden = false;
     this.root.inert = false;
     this.setAttribute("loaded", "");
@@ -112,7 +103,6 @@ export default class Drawer
     }
 
     const focusTarget = this.root.querySelector<HTMLElement>("[focus]");
-
     if (focusTarget) {
       focusTarget.focus();
     } else {
@@ -129,8 +119,8 @@ export default class Drawer
   protected handleClose = async (
     returnValue?: string
   ): Promise<string | undefined> => {
-    this.dialog.inert = true;
     this.open = false;
+    this.dialog.inert = true;
     this.emit(CLOSING_EVENT);
 
     await animationsComplete(this.root);
