@@ -85,7 +85,7 @@ export default class Drawer
   }
 
   override onParsed() {
-    this.root.hidden = !this.open;
+    // this.root.hidden = !this.open;
     // TODO: show uninteractable
     this.dialog.show();
   }
