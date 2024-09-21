@@ -72,7 +72,7 @@ export default class Drawer
   override onAttributeChanged(name: string, newValue: string) {
     if (name === Drawer.attrs.open) {
       if (newValue != null) {
-        this.handleOpen(false);
+        this.handleOpen(true);
       } else {
         this.handleClose();
       }
@@ -85,9 +85,7 @@ export default class Drawer
   }
 
   override onParsed() {
-    // this.root.hidden = !this.open;
-    // TODO: show uninteractable
-    this.dialog.show();
+    this.root.hidden = !this.open;
   }
 
   override onDisconnected() {
@@ -104,48 +102,43 @@ export default class Drawer
   };
 
   protected async handleOpen(modal: boolean): Promise<void> {
-    window.requestAnimationFrame(() => {
-      this.root.style.transform = "translateX(0)";
-    });
-    // Inert causes too many style calculations
-    // this.root.inert = false;
-    // this.root.hidden = false;
-    // this.setAttribute("loaded", "");
-    // // TODO: open dialog
-    // // if (modal) {
-    // //   this.dialog.showModal();
-    // // } else {
-    // //   this.dialog.show();
-    // // }
-    // const focusTarget = this.root.querySelector<HTMLElement>("[focus]");
-    // if (focusTarget) {
-    //   focusTarget.focus();
-    // } else {
-    //   this.root.querySelector("button")?.focus();
-    // }
-    // this.emit(OPENING_EVENT);
-    // await animationsComplete(this.root);
-    // this.emit(OPENED_EVENT);
+    this.root.hidden = false;
+    this.root.inert = false;
+    this.setAttribute("loaded", "");
+    if (modal) {
+      this.dialog.showModal();
+    } else {
+      this.dialog.show();
+    }
+
+    const focusTarget = this.root.querySelector<HTMLElement>("[focus]");
+
+    if (focusTarget) {
+      focusTarget.focus();
+    } else {
+      this.root.querySelector("button")?.focus();
+    }
+
+    this.emit(OPENING_EVENT);
+
+    await animationsComplete(this.root);
+
+    this.emit(OPENED_EVENT);
   }
 
   protected handleClose = async (
     returnValue?: string
   ): Promise<string | undefined> => {
-    window.requestAnimationFrame(() => {
-      this.root.style.transform = "translateX(-100%)";
-    });
-    // // Inert causes too many style calculations
-    // // this.dialog.inert = true;
-    // this.open = false;
-    // this.emit(CLOSING_EVENT);
+    this.dialog.inert = true;
+    this.open = false;
+    this.emit(CLOSING_EVENT);
 
-    // await animationsComplete(this.root);
+    await animationsComplete(this.root);
 
-    // // TODO: close dialog
-    // // this.dialog.close();
-    // this.root.hidden = true;
+    this.dialog.close();
+    this.root.hidden = true;
 
-    // this.emit(CLOSED_EVENT);
+    this.emit(CLOSED_EVENT);
     return returnValue;
   };
 
