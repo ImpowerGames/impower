@@ -21,7 +21,8 @@
   --exit: var(--s-animation-slide-out-left), var(--s-animation-fade-out);
   --mobile-enter: var(--s-animation-slide-in-right);
   --mobile-exit: var(--s-animation-slide-out-left);
-  --ease: ease-out;
+  --duration: 225ms;
+  --ease: cubic-bezier(0, 0, 0.2, 1);
 }
 
 :host > .root {
@@ -54,10 +55,12 @@
 }
 :host([loaded][open]) > .root {
   animation: var(--enter) forwards;
+  animation-duration: var(--duration);
   animation-timing-function: var(--ease);
 }
 :host([loaded]:not([open])) > .root {
   animation: var(--exit) forwards;
+  animation-duration: var(--duration);
   animation-timing-function: var(--ease);
 }
 @media (width <= 960px) {
@@ -68,10 +71,12 @@
   }
   :host([loaded][open]) > .root {
     animation: var(--mobile-enter) forwards;
+    animation-duration: var(--duration);
     animation-timing-function: var(--ease);
   }
   :host([loaded]:not([open])) > .root {
     animation: var(--mobile-exit) forwards;
+    animation-duration: var(--duration);
     animation-timing-function: var(--ease);
   }
 }
