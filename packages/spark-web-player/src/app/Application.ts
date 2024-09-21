@@ -64,7 +64,7 @@ export default class Application {
     return this._scenes;
   }
 
-  protected _camera: PerspectiveCamera;
+  protected _camera?: PerspectiveCamera;
   get camera() {
     return this._camera;
   }
@@ -88,19 +88,20 @@ export default class Application {
     this._overlay = overlay;
     const width = this._view.clientWidth;
     const height = this._view.clientHeight;
-    try {
-      this._renderer = new WebGLRenderer({
-        antialias: true,
-      });
-      this._canvas = this._renderer.domElement;
-      this._renderer.setSize(width, height);
-    } catch (e) {
-      console.error(e);
-    }
     this._screen = { width, height };
 
-    this._camera = new PerspectiveCamera(50, width / height);
-    this._camera.position.z = 1;
+    // TODO:
+    // try {
+    //   this._renderer = new WebGLRenderer({
+    //     antialias: true,
+    //   });
+    //   this._canvas = this._renderer.domElement;
+    //   this._renderer.setSize(width, height);
+    // } catch (e) {
+    //   console.error(e);
+    // }
+    // this._camera = new PerspectiveCamera(50, width / height);
+    // this._camera.position.z = 1;
 
     this._resizeObserver = new ResizeObserver(([entry]) => {
       const borderBoxSize = entry?.borderBoxSize[0];
@@ -108,8 +109,10 @@ export default class Application {
         const width = borderBoxSize.inlineSize;
         const height = borderBoxSize.blockSize;
         this._screen = { width, height };
-        this._camera.aspect = width / height;
-        this._camera.updateProjectionMatrix();
+        if (this._camera) {
+          this._camera.aspect = width / height;
+          this._camera.updateProjectionMatrix();
+        }
         if (this._renderer) {
           this._renderer.setSize(width, height);
           this._renderer.setPixelRatio(window.devicePixelRatio);
@@ -142,8 +145,8 @@ export default class Application {
 
     if (this._canvas) {
       this._view.appendChild(this._canvas);
-      this.bind();
     }
+    this.bind();
 
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
     game
@@ -243,10 +246,11 @@ export default class Application {
   }
 
   bind() {
-    if (this._canvas) {
-      this._canvas.addEventListener("pointerdown", this.onPointerDownView);
-      this._canvas.addEventListener("pointerup", this.onPointerUpView);
-      this._canvas.addEventListener("click", this.onClickView);
+    const view = this._canvas || this._view;
+    if (view) {
+      view.addEventListener("pointerdown", this.onPointerDownView);
+      view.addEventListener("pointerup", this.onPointerUpView);
+      view.addEventListener("click", this.onClickView);
     }
     if (this._overlay) {
       this._overlay.addEventListener("pointerdown", this.onPointerDownOverlay);
@@ -256,10 +260,11 @@ export default class Application {
   }
 
   unbind() {
-    if (this._canvas) {
-      this._canvas.removeEventListener("pointerdown", this.onPointerDownView);
-      this._canvas.removeEventListener("pointerup", this.onPointerUpView);
-      this._canvas.removeEventListener("click", this.onClickView);
+    const view = this._canvas || this._view;
+    if (view) {
+      view.removeEventListener("pointerdown", this.onPointerDownView);
+      view.removeEventListener("pointerup", this.onPointerUpView);
+      view.removeEventListener("click", this.onClickView);
     }
     if (this._overlay) {
       this._overlay.removeEventListener(
@@ -286,8 +291,8 @@ export default class Application {
     if (this.game) {
       this.game.destroy();
     }
-    if (removeView && this.canvas) {
-      this.canvas.remove();
+    if (removeView && this._canvas) {
+      this._canvas.remove();
     }
   }
 
@@ -386,8 +391,10 @@ export default class Application {
   };
 
   enableOrbitControls() {
-    this._orbit = new OrbitControls(this._camera, this._canvas);
-    this._orbit.saveState();
+    if (this._camera && this._canvas) {
+      this._orbit = new OrbitControls(this._camera, this._canvas);
+      this._orbit.saveState();
+    }
   }
 
   disableOrbitControls() {
