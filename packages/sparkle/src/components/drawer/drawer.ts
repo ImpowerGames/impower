@@ -106,46 +106,40 @@ export default class Drawer
   protected async handleOpen(modal: boolean): Promise<void> {
     // Inert causes too many style calculations
     // this.root.inert = false;
-    this.root.hidden = false;
+    // this.root.hidden = false;
     this.setAttribute("loaded", "");
-
-    // TODO: open dialog
-    // if (modal) {
-    //   this.dialog.showModal();
+    // // TODO: open dialog
+    // // if (modal) {
+    // //   this.dialog.showModal();
+    // // } else {
+    // //   this.dialog.show();
+    // // }
+    // const focusTarget = this.root.querySelector<HTMLElement>("[focus]");
+    // if (focusTarget) {
+    //   focusTarget.focus();
     // } else {
-    //   this.dialog.show();
+    //   this.root.querySelector("button")?.focus();
     // }
-
-    const focusTarget = this.root.querySelector<HTMLElement>("[focus]");
-
-    if (focusTarget) {
-      focusTarget.focus();
-    } else {
-      this.root.querySelector("button")?.focus();
-    }
-
-    this.emit(OPENING_EVENT);
-
-    await animationsComplete(this.root);
-
-    this.emit(OPENED_EVENT);
+    // this.emit(OPENING_EVENT);
+    // await animationsComplete(this.root);
+    // this.emit(OPENED_EVENT);
   }
 
   protected handleClose = async (
     returnValue?: string
   ): Promise<string | undefined> => {
-    // Inert causes too many style calculations
-    // this.dialog.inert = true;
-    this.open = false;
-    this.emit(CLOSING_EVENT);
+    // // Inert causes too many style calculations
+    // // this.dialog.inert = true;
+    // this.open = false;
+    // this.emit(CLOSING_EVENT);
 
-    await animationsComplete(this.root);
+    // await animationsComplete(this.root);
 
-    // TODO: close dialog
-    // this.dialog.close();
-    this.root.hidden = true;
+    // // TODO: close dialog
+    // // this.dialog.close();
+    // this.root.hidden = true;
 
-    this.emit(CLOSED_EVENT);
+    // this.emit(CLOSED_EVENT);
     return returnValue;
   };
 

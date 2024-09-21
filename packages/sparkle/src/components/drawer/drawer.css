@@ -52,6 +52,7 @@
 }
 :host(:not([loaded])) > .root {
   opacity: 0;
+  display: none;
 }
 :host([loaded][open]) > .root {
   animation: var(--enter) forwards;
