@@ -12,7 +12,7 @@
   --height: auto;
   --text-font: var(--s-font-sans);
   --text-wrap: nowrap;
-  --transition-property: transform, background-color, color, border, filter;
+  --transition-property: transform, background-color, color, border, box-shadow;
   --duration: 100ms;
   --spacing: 12px;
   --border-width: 1px;
@@ -91,7 +91,7 @@
   padding-inline: var(--padding-lr);
   will-change: transform;
   color: var(--color);
-  filter: var(--shadow);
+  box-shadow: var(--shadow);
   background-color: var(--background-color);
 }
 

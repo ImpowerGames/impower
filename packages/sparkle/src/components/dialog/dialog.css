@@ -5,7 +5,7 @@
   --child-align: stretch;
   --child-justify: flex-start;
   --child-gap: 16px;
-  --shadow: var(--s-shadow-drop-5);
+  --shadow: var(--s-shadow-box-5);
   --z: var(--s-z-index-dialog);
   --title-text-weight: 400;
   --title-text-size: var(--s-text-2xl-font-size);
@@ -33,7 +33,7 @@
   inset: 0;
   padding: 0;
   overflow: hidden;
-  filter: var(--shadow);
+  box-shadow: var(--shadow);
   z-index: var(--z);
   color: var(--text-color);
   transition: opacity 0.5s var(--ease);

@@ -12,7 +12,7 @@
   --text-size: var(--s-text-sm-font-size);
   --text-weight: 600;
   --text-wrap: nowrap;
-  --transition-property: opacity, transform, filter;
+  --transition-property: opacity, transform, box-shadow;
   --duration: 100ms;
   --active-text-color: var(--s-color-primary-60);
   --inactive-text-color: var(--s-color-neutral-60);

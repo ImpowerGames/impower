@@ -6,7 +6,7 @@
   --child-layout: row;
   --child-align: center;
   --child-justify: center;
-  --shadow: var(--s-shadow-drop-2);
+  --shadow: var(--s-shadow-box-2);
   --background-color: var(--s-color-surface);
   --text-color: var(--s-color-neutral-80);
   --text-font: var(--s-font-sans);
@@ -31,7 +31,7 @@
   position: var(--position);
   flex-direction: var(--child-layout);
   align-items: var(--child-align);
-  filter: var(--shadow);
+  box-shadow: var(--shadow);
   border-style: solid;
   background-color: var(--background-color);
   color: var(--text-color);

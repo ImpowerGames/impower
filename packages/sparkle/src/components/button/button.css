@@ -12,7 +12,7 @@
   --height: auto;
   --text-font: var(--s-font-sans);
   --text-wrap: nowrap;
-  --transition-property: transform, background-color, color, border, filter;
+  --transition-property: transform, background-color, color, border, box-shadow;
   --duration: 100ms;
   --color: var(--s-color-primary-60);
   --text-color: var(--s-color-neutral-0);
@@ -97,16 +97,16 @@
 /* Filled */
 :host(:not([variant])) > .root,
 :host([variant="filled"]) > .root {
-  --shadow: var(--s-shadow-drop-1);
+  --shadow: var(--s-shadow-box-1);
 }
 @media (hover: hover) and (pointer: fine) {
   :host(:not([variant])) > .root:hover,
   :host([variant="filled"]) > .root:hover {
-    --shadow: var(--s-shadow-drop-2);
+    --shadow: var(--s-shadow-box-2);
   }
   :host(:not([variant])) > .root:active,
   :host([variant="filled"]) > .root:active {
-    --shadow: var(--s-shadow-drop-0);
+    --shadow: var(--s-shadow-box-0);
   }
 }
 :host(:not([variant])),
@@ -118,7 +118,7 @@
   color: var(--text-color);
   background-color: var(--color);
   font-weight: var(--text-weight);
-  filter: var(--shadow);
+  box-shadow: var(--shadow);
 }
 
 /* Tonal */
@@ -130,7 +130,7 @@
 :host([variant="tonal"]) > .root {
   color: var(--text-color);
   font-weight: var(--text-weight);
-  filter: var(--shadow);
+  box-shadow: var(--shadow);
   background-color: var(--color);
   border-style: solid;
   border-color: var(--color);
@@ -155,7 +155,7 @@
   --text-color: var(--color);
   font-weight: var(--text-weight);
   color: var(--text-color);
-  filter: var(--shadow);
+  box-shadow: var(--shadow);
   background-color: var(--background-color);
   border-style: solid;
   border-color: var(--color);
@@ -185,7 +185,7 @@
   --text-color: var(--color);
   font-weight: var(--text-weight);
   color: var(--text-color);
-  filter: var(--shadow);
+  box-shadow: var(--shadow);
   background-color: var(--background-color);
 }
 
@@ -201,7 +201,7 @@
   --text-color: var(--color);
   aspect-ratio: var(--aspect);
   color: var(--text-color);
-  filter: var(--shadow);
+  box-shadow: var(--shadow);
   background-color: var(--background-color);
   padding: var(--padding);
   border-radius: var(--corner);

@@ -16,7 +16,7 @@
   --text-leading: var(--s-tooltip-line-height);
   --text-color: var(--s-tooltip-color);
   --corner: var(--s-tooltip-border-radius);
-  --shadow: var(--s-shadow-drop-2);
+  --shadow: var(--s-shadow-box-2);
   --enter: var(--s-animation-enter-fade);
   --exit: var(--s-animation-exit-fade);
   --ease: ease-out;
@@ -47,7 +47,7 @@
   border-radius: var(--corner);
   max-width: var(--auto-size-available-width, none);
   max-height: var(--auto-size-available-height, none);
-  filter: var(--shadow);
+  box-shadow: var(--shadow);
   will-change: transform, opacity;
 }
 

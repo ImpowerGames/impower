@@ -9,7 +9,7 @@
    */
   --arrow-size-diagonal: calc(var(--arrow-size) * 0.7071);
   --arrow-padding-offset: calc(var(--arrow-size-diagonal) - var(--arrow-size));
-  --shadow: var(--s-shadow-drop-2);
+  --shadow: var(--s-shadow-box-2);
 }
 
 :host > .root {
@@ -18,7 +18,7 @@
   isolation: isolate;
   max-width: var(--auto-size-available-width, none);
   max-height: var(--auto-size-available-height, none);
-  filter: var(--shadow);
+  box-shadow: var(--shadow);
 }
 
 :host > .root.fixed {

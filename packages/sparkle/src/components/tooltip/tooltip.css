@@ -16,7 +16,7 @@
   --corner: var(--s-tooltip-border-radius);
   --padding-tb: 4px;
   --padding-lr: 8px;
-  --shadow: var(--s-shadow-drop-2);
+  --shadow: var(--s-shadow-box-2);
   --enter: var(--s-animation-enter-fade);
   --exit: var(--s-animation-exit-fade);
   --ease: ease-out;
@@ -56,7 +56,7 @@
   padding-inline: var(--padding-lr);
   max-width: var(--auto-size-available-width, none);
   max-height: var(--auto-size-available-height, none);
-  filter: var(--shadow);
+  box-shadow: var(--shadow);
 }
 
 :host > .popup.fixed {
