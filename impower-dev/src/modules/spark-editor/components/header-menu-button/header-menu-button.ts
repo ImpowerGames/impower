@@ -41,13 +41,17 @@ export default class HeaderMenuButton extends Component(spec) {
     }
   }
 
-  openDrawer() {
-    const drawerEl = this.ref.drawer;
-    drawerEl.setAttribute("open", "");
+  async openDrawer() {
+    window.requestAnimationFrame(() => {
+      const drawerEl = this.ref.drawer;
+      drawerEl.setAttribute("open", "");
+    });
   }
 
-  closeDrawer() {
-    const drawerEl = this.ref.drawer;
-    drawerEl.removeAttribute("open");
+  async closeDrawer() {
+    window.requestAnimationFrame(() => {
+      const drawerEl = this.ref.drawer;
+      drawerEl.removeAttribute("open");
+    });
   }
 }
