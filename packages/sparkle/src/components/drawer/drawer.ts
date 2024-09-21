@@ -73,7 +73,7 @@ export default class Drawer
   override onAttributeChanged(name: string, newValue: string) {
     if (name === Drawer.attrs.open) {
       if (newValue != null) {
-        this.handleOpen(true);
+        this.handleOpen(false);
       } else {
         this.handleClose();
       }
@@ -104,9 +104,9 @@ export default class Drawer
 
   protected async handleOpen(modal: boolean): Promise<void> {
     await nextAnimationFrame();
-
+    // Inert causes too many style calculations
+    // this.root.inert = false;
     this.root.hidden = false;
-    this.root.inert = false;
     this.setAttribute("loaded", "");
     if (modal) {
       this.dialog.showModal();
@@ -132,7 +132,8 @@ export default class Drawer
   protected handleClose = async (
     returnValue?: string
   ): Promise<string | undefined> => {
-    this.dialog.inert = true;
+    // Inert causes too many style calculations
+    // this.dialog.inert = true;
     this.open = false;
     this.emit(CLOSING_EVENT);
 
