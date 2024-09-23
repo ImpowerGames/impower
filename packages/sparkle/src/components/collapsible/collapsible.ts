@@ -291,7 +291,6 @@ export default class Collapsible
     const margin = window.getComputedStyle(buttonEl).margin;
     const outline = window.getComputedStyle(buttonEl).outline;
     const borderWidth = window.getComputedStyle(buttonEl).borderWidth;
-    const boxShadow = window.getComputedStyle(buttonEl).boxShadow;
     const filter = window.getComputedStyle(buttonEl).filter;
 
     this.root.style.setProperty("overflow-x", overflowX);
@@ -300,7 +299,6 @@ export default class Collapsible
     this.root.style.setProperty("margin", margin);
     this.root.style.setProperty("outline", outline);
     this.root.style.setProperty("border-width", borderWidth);
-    this.root.style.setProperty("box-shadow", boxShadow);
     this.root.style.setProperty("filter", filter);
 
     buttonEl.style.setProperty("overflow-x", "clip");
@@ -325,7 +323,6 @@ export default class Collapsible
     this.root.style.setProperty("margin", null);
     this.root.style.setProperty("outline", null);
     this.root.style.setProperty("border-width", null);
-    this.root.style.setProperty("box-shadow", null);
     this.root.style.setProperty("filter", null);
 
     buttonEl.style.setProperty("overflow-x", null);
@@ -333,8 +330,8 @@ export default class Collapsible
     buttonEl.style.setProperty("margin", null);
     buttonEl.style.setProperty("outline", null);
     buttonEl.style.setProperty("border-width", null);
-    buttonEl.style.setProperty("box-shadow", null);
     buttonEl.style.setProperty("filter", null);
+    buttonEl.style.setProperty("box-shadow", null);
 
     buttonEl.style.setProperty(
       "--overflow-x",
