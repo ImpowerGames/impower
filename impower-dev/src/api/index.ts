@@ -17,8 +17,6 @@ const IS_GOOGLE_CLOUD_RUN = process.env["K_SERVICE"] !== undefined;
 const IS_PRODUCTION =
   process.env["NODE_ENV"] === "production" || IS_GOOGLE_CLOUD_RUN;
 
-const reloader: { reload?: () => void } = {};
-
 const app = IS_PRODUCTION
   ? (Fastify({
       logger: pino({
@@ -87,7 +85,7 @@ export const startServer = async () => {
     app.register(googleDriveSyncProvider);
     app.register(router);
     if (!IS_PRODUCTION) {
-      app.register(livereload, reloader);
+      app.register(livereload);
     }
     await app.ready();
     const port = Number(process.env["PORT"] || 8080);
@@ -113,4 +111,4 @@ process.on("SIGINT", () => {
 
 startServer();
 
-export default { app, reloader };
+export default { app };

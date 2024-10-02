@@ -431,14 +431,19 @@ let pendingBuildTimeout: NodeJS.Timeout | undefined;
 
 const watchFiles = async () => {
   // @ts-expect-error
-  const { app, reloader } = (await import("./out/api/index.js")).default;
+  const { app } = (await import("./out/api/index.js")).default;
   await app.ready();
   const rebuild = async () => {
     await buildAll();
     await new Promise((resolve) => setTimeout(resolve, 100));
-    if ("reload" in reloader && typeof reloader.reload === "function") {
-      reloader.reload();
-    }
+    await fetch(
+      `http://${process.env["HOST"] || "localhost"}:${
+        process.env["PORT"] || 8080
+      }/livereload`,
+      {
+        method: "POST",
+      }
+    );
   };
   console.log(YELLOW, `Watching for changes...`);
   chokidar

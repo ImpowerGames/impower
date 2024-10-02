@@ -9,18 +9,7 @@ const RELOAD_HEADERS = {
 
 const clients: Record<string, FastifyReply> = {};
 
-const reloadClient = (clientId: string) => {
-  const reply = clients[clientId];
-  if (reply) {
-    reply.log.info(`RELOAD ${clientId}`);
-    reply.raw.writeHead(200, RELOAD_HEADERS);
-    reply.raw.write(`data: message\n\n`);
-  }
-};
-
-const livereload: FastifyPluginCallback<{
-  reload?: () => void;
-}> = async (app, opts, next) => {
+const livereload: FastifyPluginCallback = async (app, opts, next) => {
   app.get("/livereload", async (request, reply) => {
     clients[request.id] = reply;
     reply.raw.writeHead(200, RELOAD_HEADERS);
@@ -31,11 +20,16 @@ const livereload: FastifyPluginCallback<{
       delete clients[request.id];
     });
   });
-  opts.reload = () => {
+  app.post("/livereload", async (request, reply) => {
     Object.keys(clients).forEach((clientId) => {
-      reloadClient(clientId);
+      const reply = clients[clientId];
+      if (reply) {
+        reply.log.info(`RELOAD ${clientId}`);
+        reply.raw.writeHead(200, RELOAD_HEADERS);
+        reply.raw.write(`data: message\n\n`);
+      }
     });
-  };
+  });
   next();
 };
 
