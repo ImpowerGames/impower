@@ -86,7 +86,7 @@ export const styleText = (
           continue;
         }
         // Break Tag
-        if (char === "+") {
+        if (char === ">") {
           i += 1;
           continue;
         }
