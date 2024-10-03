@@ -20,7 +20,6 @@ import { getNumberValue } from "../../../core/utils/getNumberValue";
 const MARKERS = ["^", "*", "_", "~~", "::"];
 const CHAR_REGEX =
   /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
-const LINE_BREAK_REGEX = /[\n]|[>]/;
 const PARENTHETICAL_REGEX =
   /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)$/;
 const ASSET_CONTROL_KEYWORDS = [
@@ -260,32 +259,35 @@ export class InterpreterModule extends Module<
     }
     // Queue content
     if (content) {
-      const contentInstructions = this.parse(
-        content,
-        target || defaultTarget,
-        options
-      );
-      if (contentInstructions.text) {
-        if (characterParentheticalInstructions) {
-          // prefix each textbox with character_parenthetical, if specified.
-          this.merge(
-            contentInstructions,
-            characterParentheticalInstructions,
-            true
-          );
+      const contentBoxes = content.split(">");
+      for (const contentBox of contentBoxes) {
+        const contentInstructions = this.parse(
+          contentBox,
+          target || defaultTarget,
+          options
+        );
+        if (contentInstructions.text) {
+          if (characterParentheticalInstructions) {
+            // prefix each textbox with character_parenthetical, if specified.
+            this.merge(
+              contentInstructions,
+              characterParentheticalInstructions,
+              true
+            );
+          }
+          if (characterNameInstructions) {
+            // prefix each textbox with character_name, if specified.
+            this.merge(contentInstructions, characterNameInstructions, true);
+          }
         }
-        if (characterNameInstructions) {
-          // prefix each textbox with character_name, if specified.
-          this.merge(contentInstructions, characterNameInstructions, true);
+        const lastTextbox = this._state.buffer.at(-1);
+        if (lastTextbox && !lastTextbox?.text) {
+          // If previous textbox did not actually contain any text, fold this result into it.
+          this.merge(lastTextbox, contentInstructions);
+        } else {
+          // Otherwise, add this result as a new textbox.
+          this._state.buffer.push(contentInstructions);
         }
-      }
-      const lastTextbox = this._state.buffer.at(-1);
-      if (lastTextbox && !lastTextbox?.text) {
-        // If previous textbox did not actually contain any text, fold this result into it.
-        this.merge(lastTextbox, contentInstructions);
-      } else {
-        // Otherwise, add this result as a new textbox.
-        this._state.buffer.push(contentInstructions);
       }
     }
     // Show choices after last textbox is done typing.
@@ -1101,7 +1103,7 @@ export class InterpreterModule extends Module<
       return linePhrases;
     };
 
-    const lines = content?.trim().split(LINE_BREAK_REGEX);
+    const lines = content?.trim().split("\n");
     for (let l = 0; l < lines.length; l += 1) {
       const line = lines[l]!?.trimStart();
       if (line.match(PARENTHETICAL_REGEX)) {
