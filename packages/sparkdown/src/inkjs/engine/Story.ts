@@ -34,7 +34,6 @@ import { DebugMetadata } from "./DebugMetadata";
 import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
 import { ErrorHandler, ErrorType } from "./Error";
-import { SearchResult } from "./SearchResult";
 import { StructDefinition } from "./StructDefinition";
 
 export { InkList } from "./InkList";
@@ -288,17 +287,21 @@ export class Story extends InkObject {
     if (this._listDefinitions != null) {
       writer.WritePropertyStart("listDefs");
       writer.WriteObjectStart();
+
       for (let def of this._listDefinitions.lists) {
         writer.WritePropertyStart(def.name);
         writer.WriteObjectStart();
+
         for (let [key, value] of def.items) {
           let item = InkListItem.fromSerializedKey(key);
           let val = value;
           writer.WriteIntProperty(item.itemName, val);
         }
+
         writer.WriteObjectEnd();
         writer.WritePropertyEnd();
       }
+
       writer.WriteObjectEnd();
       writer.WritePropertyEnd();
     }
@@ -410,7 +413,9 @@ export class Story extends InkObject {
       this._state.ResetOutput();
 
       if (this._recursiveContinueCount == 1)
-        this._state.variablesState.batchObservingVariableChanges = true;
+        this._state.variablesState.StartVariableObservation();
+    } else if (this._asyncContinueActive && !isAsyncTimeLimited) {
+      this._asyncContinueActive = false;
     }
 
     let durationStopwatch = new Stopwatch();
@@ -439,6 +444,8 @@ export class Story extends InkObject {
     } while (this.canContinue);
 
     durationStopwatch.Stop();
+
+    let changedVariablesToObserve: Map<string, any> | null = null;
 
     if (outputStreamEndsInNewline || !this.canContinue) {
       if (this._stateSnapshotAtLastNewline !== null) {
@@ -479,7 +486,8 @@ export class Story extends InkObject {
       this._sawLookaheadUnsafeFunctionAfterNewline = false;
 
       if (this._recursiveContinueCount == 1)
-        this._state.variablesState.batchObservingVariableChanges = false;
+        changedVariablesToObserve =
+          this._state.variablesState.CompleteVariableObservation();
 
       this._asyncContinueActive = false;
       if (this.onDidContinue !== null) this.onDidContinue();
@@ -533,6 +541,12 @@ export class Story extends InkObject {
 
         throw new StoryException(sb.toString());
       }
+    }
+    if (
+      changedVariablesToObserve != null &&
+      Object.keys(changedVariablesToObserve).length > 0
+    ) {
+      this._state.variablesState.NotifyObservers(changedVariablesToObserve);
     }
   }
 
@@ -661,7 +675,7 @@ export class Story extends InkObject {
 
     let pathLengthToUse = path.length;
 
-    let result: SearchResult | null = null;
+    let result = null;
     if (path.lastComponent === null) {
       return throwNullException("path.lastComponent");
     }
@@ -704,7 +718,7 @@ export class Story extends InkObject {
 
   public StateSnapshot() {
     this._stateSnapshotAtLastNewline = this._state;
-    this._state = this._state.CopyAndStartPatching();
+    this._state = this._state.CopyAndStartPatching(false);
   }
 
   public RestoreStateSnapshot() {
@@ -736,7 +750,7 @@ export class Story extends InkObject {
       );
 
     let stateToSave = this._state;
-    this._state = this._state.CopyAndStartPatching();
+    this._state = this._state.CopyAndStartPatching(true);
     this._asyncSaving = true;
     return stateToSave;
   }
@@ -1270,7 +1284,7 @@ export class Story extends InkObject {
             this.state.PopFromOutputStream(outputCountConsumed);
             // Build string out of the content we collected
             let sb = new StringBuilder();
-            for (let strVal of contentStackForTag) {
+            for (let strVal of contentStackForTag.reverse()) {
               sb.Append(strVal.toString());
             }
             let choiceTag = new Tag(
@@ -1529,7 +1543,7 @@ export class Story extends InkObject {
             );
           }
 
-          let generatedListValue: ListValue | null = null;
+          let generatedListValue = null;
 
           if (this.listDefinitions === null) {
             return throwNullException("this.listDefinitions");
@@ -1661,7 +1675,7 @@ export class Story extends InkObject {
     // Variable reference
     else if (contentObj instanceof VariableReference) {
       let varRef = contentObj;
-      let foundValue: InkObject | null = null;
+      let foundValue = null;
 
       // Explicit read count value
       if (varRef.pathForCount != null) {
@@ -1872,9 +1886,23 @@ export class Story extends InkObject {
       return throwNullException("funcName");
     }
     let funcDef = this._externals.get(funcName);
-    let fallbackFunctionContainer: Container | null = null;
+    let fallbackFunctionContainer = null;
 
     let foundExternal = typeof funcDef !== "undefined";
+
+    if (
+      foundExternal &&
+      !funcDef!.lookAheadSafe &&
+      this._state.inStringEvaluation
+    ) {
+      this.Error(
+        "External function " +
+          funcName +
+          ' could not be called because 1) it wasn\'t marked as lookaheadSafe when BindExternalFunction was called and 2) the story is in the middle of string generation, either because choice text is being generated, or because you have ink like "hello {func()}". You can work around this by generating the result of your function into a temporary variable before the string or choice gets generated: ~ temp x = ' +
+          funcName +
+          "()"
+      );
+    }
 
     if (
       foundExternal &&
@@ -1930,7 +1958,7 @@ export class Story extends InkObject {
     let funcResult = funcDef!.function(args);
 
     // Convert return value (if any) to the a type that the ink engine can use
-    let returnObj: InkObject | null = null;
+    let returnObj = null;
     if (funcResult != null) {
       returnObj = Value.Create(funcResult);
       this.Assert(
@@ -1984,7 +2012,7 @@ export class Story extends InkObject {
           "External function expected " + func.length + " arguments"
         );
 
-        let coercedArgs: any[] = [];
+        let coercedArgs = [];
         for (let i = 0, l = args.length; i < l; i++) {
           coercedArgs[i] = this.TryCoerce(args[i]);
         }
@@ -2410,7 +2438,7 @@ export class Story extends InkObject {
     let randomSeed = sequenceHash + loopIndex + this.state.storySeed;
     let random = new PRNG(Math.floor(randomSeed));
 
-    let unpickedIndices: number[] = [];
+    let unpickedIndices = [];
     for (let i = 0; i < numElements; ++i) {
       unpickedIndices.push(i);
     }

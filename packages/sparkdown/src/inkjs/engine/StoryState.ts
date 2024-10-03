@@ -30,6 +30,7 @@ export class StoryState {
   // v9:  multi-flows
   public readonly kInkSaveStateVersion = 10;
   public readonly kMinCompatibleLoadVersion = 8;
+  public collapseWhitespace = false;
 
   public onDidLoadState: (() => void) | null = null;
 
@@ -227,6 +228,18 @@ export class StoryState {
     }
   }
 
+  get previousPathString() {
+    let pointer = this.previousPointer;
+    if (pointer.isNull) {
+      return null;
+    } else {
+      if (pointer.path === null) {
+        return throwNullException("previousPointer.path");
+      }
+      return pointer.path.toString();
+    }
+  }
+
   get currentPointer() {
     return this.callStack.currentElement.currentPointer.copy();
   }
@@ -291,39 +304,33 @@ export class StoryState {
   private _currentText: string | null = null;
 
   public CleanOutputWhitespace(str: string) {
-    return str;
-    // ENGINE CHANGE: DO NOT COLLAPSE WHITESPACE
-    //
-    // let sb = new StringBuilder();
-
-    // let currentWhitespaceStart = -1;
-    // let startOfLine = 0;
-
-    // for (let i = 0; i < str.length; i++) {
-    //   let c = str.charAt(i);
-
-    //   let isInlineWhitespace = c == " " || c == "\t";
-
-    //   if (isInlineWhitespace && currentWhitespaceStart == -1)
-    //     currentWhitespaceStart = i;
-
-    //   if (!isInlineWhitespace) {
-    //     if (
-    //       c != "\n" &&
-    //       currentWhitespaceStart > 0 &&
-    //       currentWhitespaceStart != startOfLine
-    //     ) {
-    //       sb.Append(" ");
-    //     }
-    //     currentWhitespaceStart = -1;
-    //   }
-
-    //   if (c == "\n") startOfLine = i + 1;
-
-    //   if (!isInlineWhitespace) sb.Append(c);
-    // }
-
-    // return sb.toString();
+    // IMPORTANT ENGINE CHANGE! DO NOT COLLAPSE WHITESPACE BY DEFAULT!
+    if (this.collapseWhitespace) {
+      let sb = new StringBuilder();
+      let currentWhitespaceStart = -1;
+      let startOfLine = 0;
+      for (let i = 0; i < str.length; i++) {
+        let c = str.charAt(i);
+        let isInlineWhitespace = c == " " || c == "\t";
+        if (isInlineWhitespace && currentWhitespaceStart == -1)
+          currentWhitespaceStart = i;
+        if (!isInlineWhitespace) {
+          if (
+            c != "\n" &&
+            currentWhitespaceStart > 0 &&
+            currentWhitespaceStart != startOfLine
+          ) {
+            sb.Append(" ");
+          }
+          currentWhitespaceStart = -1;
+        }
+        if (c == "\n") startOfLine = i + 1;
+        if (!isInlineWhitespace) sb.Append(c);
+      }
+      return sb.toString();
+    } else {
+      return str;
+    }
   }
 
   get currentTags() {
@@ -494,16 +501,31 @@ export class StoryState {
     this._aliveFlowNamesDirty = true;
   }
 
-  public CopyAndStartPatching() {
+  public CopyAndStartPatching(forBackgroundSave: boolean) {
     let copy = new StoryState(this.story);
 
     copy._patch = new StatePatch(this._patch);
 
     copy._currentFlow.name = this._currentFlow.name;
     copy._currentFlow.callStack = new CallStack(this._currentFlow.callStack);
-    copy._currentFlow.currentChoices.push(...this._currentFlow.currentChoices);
     copy._currentFlow.outputStream.push(...this._currentFlow.outputStream);
     copy.OutputStreamDirty();
+
+    // When background saving we need to make copies of choices since they each have
+    // a snapshot of the thread at the time of generation since the game could progress
+    // significantly and threads modified during the save process.
+    // However, when doing internal saving and restoring of snapshots this isn't an issue,
+    // and we can simply ref-copy the choices with their existing threads.
+
+    if (forBackgroundSave) {
+      for (let choice of this._currentFlow.currentChoices) {
+        copy._currentFlow.currentChoices.push(choice.Clone());
+      }
+    } else {
+      copy._currentFlow.currentChoices.push(
+        ...this._currentFlow.currentChoices
+      );
+    }
 
     if (this._namedFlows !== null) {
       copy._namedFlows = new Map();
@@ -1137,10 +1159,10 @@ export class StoryState {
         ) {
           throw new Error(
             "ink arguments when calling EvaluateFunction / ChoosePathStringWithParameters must be" +
-            "number, string, bool or InkList. Argument was " +
-            (nullIfUndefined(arguments[i]) === null)
-              ? "null"
-              : arguments[i].constructor.name
+              "number, string, bool or InkList. Argument was " +
+              (nullIfUndefined(args[i]) === null
+                ? "null"
+                : args[i].constructor.name)
           );
         }
 
