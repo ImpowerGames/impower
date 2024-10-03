@@ -320,13 +320,6 @@ export class InkParser extends StringParser {
     // no excludes here
   );
 
-  public static readonly Latin1Supplement: CharacterRange =
-    CharacterRange.Define(
-      "\u0080",
-      "\u00FF"
-      // no excludes here
-    );
-
   public static readonly Greek: CharacterRange = CharacterRange.Define(
     "\u0370",
     "\u03FF",
@@ -368,6 +361,15 @@ export class InkParser extends StringParser {
     new CharacterSet()
   );
 
+  public static readonly Latin1Supplement: CharacterRange =
+    CharacterRange.Define("\u0080", "\u00FF", new CharacterSet());
+
+  public static readonly Chinese: CharacterRange = CharacterRange.Define(
+    "\u4E00",
+    "\u9FFF",
+    new CharacterSet()
+  );
+
   private readonly ExtendIdentifierCharacterRanges = (
     identifierCharSet: CharacterSet
   ): void => {
@@ -389,13 +391,14 @@ export class InkParser extends StringParser {
     InkParser.LatinBasic,
     InkParser.LatinExtendedA,
     InkParser.LatinExtendedB,
-    InkParser.Latin1Supplement,
     InkParser.Arabic,
     InkParser.Armenian,
     InkParser.Cyrillic,
     InkParser.Greek,
     InkParser.Hebrew,
     InkParser.Korean,
+    InkParser.Latin1Supplement,
+    InkParser.Chinese,
   ];
 
   /**
@@ -431,6 +434,9 @@ export class InkParser extends StringParser {
     ) as Identifier;
 
     this.Whitespace();
+
+    // Allow optional newline right after a choice name
+    if (optionalName != null) this.Newline();
 
     // Optional condition for whether the choice should be shown to the player
     const conditionExpr: Expression = this.Parse(
@@ -1815,17 +1821,17 @@ export class InkParser extends StringParser {
       return divertTarget;
     }
 
-    let prefixOp: Expression = this.OneOf([
+    let prefixOp: string = this.OneOf([
       this.String("-"),
       this.String("!"),
-    ]) as Expression;
+    ]) as string;
 
     // Don't parse like the string rules above, in case its actually
     // a variable that simply starts with "not", e.g. "notable".
     // This rule uses the Identifier rule, which will scan as much text
     // as possible before returning.
     if (prefixOp === null) {
-      prefixOp = this.Parse(this.ExpressionNot) as Expression;
+      prefixOp = this.Parse(this.ExpressionNot) as string;
     }
 
     this.Whitespace();
@@ -1848,7 +1854,7 @@ export class InkParser extends StringParser {
     if (expr === null) {
       return null;
     } else if (prefixOp !== null) {
-      expr = UnaryExpression.WithInner(expr, prefixOp as any) as Expression;
+      expr = UnaryExpression.WithInner(expr, prefixOp) as Expression;
     }
 
     this.Whitespace();
@@ -2063,12 +2069,14 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const args = this.Parse(this.ExpressionFunctionCallArguments);
+    const args = this.Parse(
+      this.ExpressionFunctionCallArguments
+    ) as Expression[];
     if (args === null) {
       return null;
     }
 
-    return new FunctionCall(iden as Identifier, args as any);
+    return new FunctionCall(iden as Identifier, args);
   };
 
   public readonly ExpressionFunctionCallArguments = (): Expression[] | null => {
@@ -2724,7 +2732,10 @@ export class InkParser extends StringParser {
     // Multiple newlines on the output will be removed, so there will be no "leak" for
     // long running calculations. It's disappointingly messy though :-/
     if (result.Find(FunctionCall)() !== null) {
-      result = new ContentList(result as any, new Text("\n"));
+      result = new ContentList(
+        result as unknown as ParsedObject[],
+        new Text("\n")
+      );
     }
 
     this.Expect(this.EndOfLine, "end of line", this.SkipToNextLine);
@@ -2825,12 +2836,15 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const definition = this.ListDefinition();
+    const definition = this.Expect(
+      this.ListDefinition,
+      "list item names"
+    ) as ListDefinition;
 
     if (definition) {
       definition.identifier = new Identifier(varName.name);
       return new VariableAssignment({
-        variableIdentifier: definition.identifier,
+        variableIdentifier: varName,
         listDef: definition,
       });
     }
@@ -2839,11 +2853,11 @@ export class InkParser extends StringParser {
   };
 
   public readonly ListDefinition = (): ListDefinition | null => {
-    this.Whitespace();
+    this.AnyWhitespace();
 
-    const allElements = this.Expect(
-      this.ListItems,
-      "list item names"
+    const allElements = this.SeparatedList(
+      this.ListElementDefinition,
+      this.ListElementDefinitionSeparator
     ) as ListElementDefinition[];
 
     if (allElements === null) {
@@ -2851,13 +2865,6 @@ export class InkParser extends StringParser {
     }
 
     return new ListDefinition(allElements);
-  };
-
-  public readonly ListItems = (): ListElementDefinition[] | null => {
-    return this.SeparatedList(
-      this.ListElementDefinition,
-      this.ListElementDefinitionSeparator
-    ) as ListElementDefinition[];
   };
 
   public readonly ListElementDefinitionSeparator = (): string | null => {
@@ -2940,14 +2947,14 @@ export class InkParser extends StringParser {
 
     this.Expect(
       this.String("="),
-      "'=' for the assignment of a value, e.g. '= 5' (initial values are mandatory)"
+      "the '=' for an assignment of a value, e.g. '= 5' (initial values are mandatory)"
     );
 
     this.Whitespace();
 
     const expr = this.Expect(
       this.Expression,
-      "initial value for CONST"
+      "initial value for "
     ) as Expression;
 
     const check =
@@ -3207,7 +3214,7 @@ export class InkParser extends StringParser {
 
     let contentList = asOrNull(logic, ContentList);
     if (!contentList) {
-      contentList = new ContentList(logic as any);
+      contentList = new ContentList(logic as unknown as ParsedObject[]);
     }
 
     this.Whitespace();
@@ -3280,7 +3287,7 @@ export class InkParser extends StringParser {
       this.InnerExpression,
     ];
 
-    // let wasTagActiveAtStartOfScope = this.tagActive;
+    //let wasTagActiveAtStartOfScope = this.tagActive;
 
     // Adapted from "OneOf" structuring rule except that in
     // order for the rule to succeed, it has to maximally
@@ -3401,7 +3408,9 @@ export class InkParser extends StringParser {
       case SequenceType.Cycle:
       case SequenceType.Stopping:
       case SequenceType.Shuffle:
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       case SequenceType.Shuffle | SequenceType.Stopping:
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       case SequenceType.Shuffle | SequenceType.Once:
         break;
       default:
@@ -3543,10 +3552,12 @@ export class InkParser extends StringParser {
         justHadContent = false;
       } else {
         // Real content
-        const content = contentOrPipe as any;
+        const content = contentOrPipe as unknown as ParsedObject[];
         if (content === null) {
           this.Error(
-            `Expected content, but got ${contentOrPipe} (this is an ink compiler bug!)`
+            `Expected content, but got ${
+              contentOrPipe as unknown as string
+            } (this is an ink compiler bug!)`
           );
         } else {
           result.push(new ContentList(content));
@@ -3667,7 +3678,9 @@ export class InkParser extends StringParser {
   };
 
   public readonly GenerateStatementLevelRules = () => {
-    const levels = Object.values(StatementLevel);
+    const levels: StatementLevel[] = Object.values(
+      StatementLevel
+    ) as StatementLevel[];
 
     this._statementRulesAtLevel = "f"
       .repeat(levels.length)
@@ -3679,8 +3692,7 @@ export class InkParser extends StringParser {
       .split("f")
       .map(() => []);
 
-    for (const l of levels) {
-      const level = l as number;
+    for (const level of levels) {
       const rulesAtLevel: ParseRule[] = [];
       const breakingRules: ParseRule[] = [];
 

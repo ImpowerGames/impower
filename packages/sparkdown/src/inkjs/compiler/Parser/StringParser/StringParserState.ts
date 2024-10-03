@@ -105,7 +105,7 @@ export class StringParserState {
       );
     }
 
-    return this._stack[this._numElements - 1]!;
+    return this._stack[this._numElements - 1];
   };
 
   public readonly PeekPenultimate = (): StringParserElement | null => {

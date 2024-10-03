@@ -181,7 +181,7 @@ export class Story extends FlowBase {
     // List definitions are treated like constants too - they should be usable
     // from other variable declarations.
     this._listDefs = new Map();
-    for (const listDef of this.FindAll(ListDefinition)()) {
+    for (const listDef of this.FindAll<ListDefinition>(ListDefinition)()) {
       if (listDef.identifier?.name) {
         this._listDefs.set(listDef.identifier?.name, listDef);
       }
