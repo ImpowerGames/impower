@@ -691,23 +691,6 @@
   outline-offset: calc((-1 * var(--s-focus-ring-width)) - 2px);
 }
 
-[hidden] {
-  display: none !important;
-}
-
-* [hidden] {
-  display: none !important;
-}
-
-slot {
-  border-radius: inherit;
-  color: inherit;
-}
-
-* slot {
-  border-radius: inherit;
-}
-
 .icon {
   /* use !important to prevent issues with browser extensions that change fonts */
   font-family: var(--s-font-icon) !important;

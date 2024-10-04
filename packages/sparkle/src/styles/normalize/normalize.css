@@ -5,3 +5,16 @@
   min-width: 0;
   max-width: 100%;
 }
+
+[hidden] {
+  display: none !important;
+}
+
+slot {
+  border-radius: inherit;
+  color: inherit;
+}
+
+* slot {
+  border-radius: inherit;
+}
