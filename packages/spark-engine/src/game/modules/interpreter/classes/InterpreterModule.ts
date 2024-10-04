@@ -22,7 +22,7 @@ const CHAR_REGEX =
   /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
 const PARENTHETICAL_REGEX =
   /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)$/;
-const BREAK_BOX_REGEX = /[>][ \t]*$/m;
+const BREAK_BOX_REGEX = /[ \t]+[>][ \t]*$/m;
 const ASSET_CONTROL_KEYWORDS = [
   "set",
   "show",
@@ -837,11 +837,6 @@ export class InterpreterModule extends Module<
                   i = startIndex;
                   escaped = true;
                 }
-                continue;
-              }
-              // Break Tag
-              if (char === ">") {
-                i += 1;
                 continue;
               }
               // Style Tag

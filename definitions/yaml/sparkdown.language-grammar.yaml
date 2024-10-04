@@ -10,9 +10,11 @@ variables:
   IDENTIFIER_START_CHAR:  '0-9_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}'
   IDENTIFIER: '[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*'
+  PROPERTY_IDENTIFIER: '[^:=\r\n]+'
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
+  BREAK: (?:{{WS}}+[>]{{WS}}*$)
   # Whitespace
   WS: '[^\S\n\r]'
   # End Of Line
@@ -382,9 +384,9 @@ repository:
     emit: true
     patterns:
       - { include: "#StructBlankProperty" }
-      - { include: "#StructMapItem" }
+      - { include: "#StructObjectItem" }
       - { include: "#StructScalarItem" }
-      - { include: "#StructMapProperty" }
+      - { include: "#StructObjectProperty" }
       - { include: "#StructScalarProperty" }
       - { include: "#Newline" }
 
@@ -398,10 +400,10 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-  StructMapItem:
+  StructObjectItem:
     tag: meta
-    name: meta.definition.struct.item.map.sd
-    begin: ^({{WS}}*)([-])(?:($|{{WS}}+$)|(?={{WS}}*{{IDENTIFIER}}{{WS}}*[=]))
+    name: meta.definition.struct.item.object.sd
+    begin: ^({{WS}}*)([-])(?:($|{{WS}}+$)|(?={{WS}}*{{PROPERTY_IDENTIFIER}}{{WS}}*[=]))
     beginCaptures:
       1:
         patterns:
@@ -412,29 +414,11 @@ repository:
       3:
         patterns:
           - { include: "#Whitespace" }
-      4:
-        patterns:
-          - { include: "#Whitespace" }
-      5:
-        patterns:
-          - { include: "#DeclarationProperty" }
-      6:
-        patterns:
-          - { include: "#Whitespace" }
-      7:
-        tag: updateOperator
-        name: keyword.operator.assignment.sd
-      8:
-        patterns:
-          - { include: "#Whitespace" }
-      9:
-        patterns:
-          - { include: "#StructFieldValue" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#StructMapItem" }
+      - { include: "#StructObjectItem" }
       - { include: "#StructScalarItem" }
-      - { include: "#StructMapProperty" }
+      - { include: "#StructObjectProperty" }
       - { include: "#StructScalarProperty" }
       - { include: "#AfterDashStructScalarProperty" }
       - { include: "#Newline" }
@@ -460,17 +444,17 @@ repository:
       - { include: "#StructFieldValue" }
     end: (?=$)
 
-  StructMapProperty:
+  StructObjectProperty:
     tag: meta
-    name: meta.definition.struct.property.map.sd
-    begin: ^({{WS}}*)({{IDENTIFIER}}|[0-9])($|{{WS}}*)($|[:])($|{{WS}}*$)
+    name: meta.definition.struct.property.object.sd
+    begin: ^({{WS}}*)({{PROPERTY_IDENTIFIER}})($|{{WS}}*)($|[:])($|{{WS}}*$)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#DeclarationProperty" }
+          - { include: "#DeclarationObjectProperty" }
       3:
         patterns:
           - { include: "#Whitespace" }
@@ -482,9 +466,9 @@ repository:
           - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#StructMapItem" }
+      - { include: "#StructObjectItem" }
       - { include: "#StructScalarItem" }
-      - { include: "#StructMapProperty" }
+      - { include: "#StructObjectProperty" }
       - { include: "#StructScalarProperty" }
       - { include: "#Newline" }
       - { include: "#StructBlankProperty" }
@@ -494,14 +478,14 @@ repository:
   StructScalarProperty:
     tag: meta
     name: meta.definition.struct.property.scalar.sd
-    begin: ^({{WS}}*)({{IDENTIFIER}})($|{{WS}}*)($|[=])($|{{WS}}*)
+    begin: ^({{WS}}*)({{PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#DeclarationProperty" }
+          - { include: "#DeclarationScalarProperty" }
       3:
         patterns:
           - { include: "#Whitespace" }
@@ -519,14 +503,14 @@ repository:
   AfterDashStructScalarProperty:
     tag: meta
     name: meta.definition.struct.property.scalar.sd
-    begin: ({{WS}}*)({{IDENTIFIER}})($|{{WS}}*)($|[=])($|{{WS}}*)
+    begin: ({{WS}}*)({{PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#DeclarationProperty" }
+          - { include: "#DeclarationScalarProperty" }
       3:
         patterns:
           - { include: "#Whitespace" }
@@ -614,11 +598,112 @@ repository:
       - { include: "#VariableName" }
       - { include: "#Unknown" }
 
-  DeclarationProperty:
+  DeclarationObjectProperty:
     emit: true
     patterns:
-      - { include: "#PropertyName" }
+      - { include: "#DeclarationObjectPropertyName" }
       - { include: "#Unknown" }
+
+  DeclarationScalarProperty:
+    emit: true
+    patterns:
+      - { include: "#DeclarationScalarPropertyName" }
+      - { include: "#Unknown" }
+
+  DeclarationObjectPropertyName:
+    match: ({{PROPERTY_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#PropertySelector" }
+
+  PropertySelector:
+    patterns:
+      - { include: "#PropertySelectorHasFunctionCondition" }
+      - { include: "#PropertySelectorGeneralFunctionCondition" }
+      - { include: "#PropertySelectorSimpleCondition" }
+      - { include: "#PropertySelectorUniversalCondition" }
+      - { include: "#PropertySelectorOperator" }
+      - { include: "#PropertySelectorClass" }
+      - { include: "#Whitespace" }
+      - { include: "#Unknown" }
+
+  PropertySelectorHasFunctionCondition:
+    begin: ([@])(has)([(])
+    beginCaptures:
+      1:
+        tag: attributeName
+        name: entity.other.attribute-name.pseudo-class.prefix.sd
+      2:
+        tag: attributeName
+        name: entity.other.attribute-name.pseudo-class.name.sd
+      3:
+        tag: paren
+        name: meta.brace.round.open.sd
+    patterns:
+      - { include: "#PropertySelector" }
+    end: ([)])
+    endCaptures:
+      1:
+        tag: paren
+        name: meta.brace.round.close.sd
+
+  PropertySelectorGeneralFunctionCondition:
+    begin: ([@])({{IDENTIFIER}})([(])
+    beginCaptures:
+      1:
+        tag: attributeName
+        name: entity.other.attribute-name.pseudo-class.prefix.sd
+      2:
+        tag: attributeName
+        name: entity.other.attribute-name.pseudo-class.name.sd
+      3:
+        tag: paren
+        name: meta.brace.round.open.sd
+    patterns:
+      - { include: "#PropertySelectorConstant" }
+    end: ([)])
+    endCaptures:
+      1:
+        tag: paren
+        name: meta.brace.round.close.sd
+
+  PropertySelectorSimpleCondition:
+    match: ([@])({{IDENTIFIER}})
+    captures:
+      1:
+        tag: attributeName
+        name: entity.other.attribute-name.pseudo-class.prefix.sd
+      2:
+        tag: attributeName
+        name: entity.other.attribute-name.pseudo-class.name.sd
+
+  PropertySelectorUniversalCondition:
+    match: ([@])
+    captures:
+      1:
+        tag: attributeName
+        name: entity.other.attribute-name.pseudo-class.prefix.sd
+
+  PropertySelectorOperator:
+    tag: keyword
+    name: keyword.other.selector.sd
+    match: ([>]|[+]|[~])
+
+  PropertySelectorConstant:
+    tag: string
+    name: string.property.selector.constant.sd
+    match: ({{IDENTIFIER}})
+
+  PropertySelectorClass:
+    tag: propertyName
+    name: variable.other.property.sd
+    match: ({{IDENTIFIER}})
+
+  DeclarationScalarPropertyName:
+    tag: propertyName
+    name: variable.other.property.sd
+    match: ({{PROPERTY_IDENTIFIER}})
 
   DeclarationAssignOperator:
     emit: true
@@ -654,7 +739,7 @@ repository:
   Break:
     tag: special(meta)
     name: meta.break.sd
-    match: ({{WS}}*)([>])
+    match: ({{WS}}*)({{BREAK}})
     captures:
       1:
         patterns:
@@ -1965,7 +2050,7 @@ repository:
     end: (?=^{{WS}}*$)
 
   BlockDialogueLineBreak:
-    match: ({{WS}}*)(.*?)([>])({{EOL}})
+    match: ({{WS}}*)(.*?)({{BREAK}})({{EOL}})
     captures:
       1:
         patterns:
@@ -2146,7 +2231,7 @@ repository:
 ########## Parenthetical ##########
 
   ParentheticalLine:
-    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)({{WS}}*)([(][^()]*?[)])({{WS}}*)($|{{EOL}}|(?=[>])|[\\](?:{{WS}}))
+    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)({{WS}}*)([(][^()]*?[)])({{WS}}*)($|{{EOL}}|(?={{BREAK}})|[\\](?:{{WS}}))
     captures:
       1:
         patterns:
@@ -2201,7 +2286,7 @@ repository:
           - { include: "#Newline" }
 
   LineBreak:
-    match: ({{WS}}*)(.*?)([>])({{EOL}})
+    match: ({{WS}}*)(.*?)({{BREAK}})({{EOL}})
     captures:
       1:
         patterns:
@@ -2240,7 +2325,7 @@ repository:
     begin: (?=.+)
     patterns:
       - { include: "#DisplayText" }
-    end: (?=$|[\\](?:$|{{WS}})|[<][>]|[>]|{{EOL}})
+    end: (?=$|[\\](?:$|{{WS}})|[<][>]|{{EOL}})
 
   DisplayText:
     patterns:

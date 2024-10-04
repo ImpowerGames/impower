@@ -85,11 +85,6 @@ export const styleText = (
           }
           continue;
         }
-        // Break Tag
-        if (char === ">") {
-          i += 1;
-          continue;
-        }
         // Style Tag
         const styleMarker = MARKERS.find(
           (marker) => marker === chars.slice(i, i + marker.length).join("")
