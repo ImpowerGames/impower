@@ -14,7 +14,7 @@ variables:
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
-  BREAK: (?:{{WS}}+[>]{{WS}}*$)
+  BREAK: (?:{{WS}}+[>]{{WS}}*)
   # Whitespace
   WS: '[^\S\n\r]'
   # End Of Line
@@ -739,12 +739,9 @@ repository:
   Break:
     tag: special(meta)
     name: meta.break.sd
-    match: ({{WS}}*)({{BREAK}})
+    match: ({{BREAK}})
     captures:
       1:
-        patterns:
-          - { include: "#Whitespace" }
-      2:
         tag: keyword
         name: keyword.other.break.sd
 
@@ -2316,7 +2313,6 @@ repository:
       - { include: "#Annotation" }
       - { include: "#ConditionalBlock" }
       - { include: "#ParentheticalLine" }
-      - { include: "#Break" }
       - { include: "#Chain" }
       - { include: "#Glue" }
       - { include: "#TextChunk" }
