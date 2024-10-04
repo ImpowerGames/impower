@@ -42,6 +42,7 @@ const EDITOR_COLORS = {
   typeName: "#4EC9B0",
   propertyName: "#9CDCFE",
   variableName: "#4FC1FF",
+  attributeName: "#D7BA7D",
   functionName: "#DCDCAA",
   string: "#CE9178",
   number: "#B5CEA8",

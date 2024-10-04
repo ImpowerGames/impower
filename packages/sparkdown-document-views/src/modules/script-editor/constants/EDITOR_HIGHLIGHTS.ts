@@ -33,6 +33,7 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.controlKeyword, color: c.controlKeyword },
   { tag: tags.propertyName, color: c.propertyName },
   { tag: tags.variableName, color: c.variableName },
+  { tag: tags.attributeName, color: c.attributeName },
   { tag: tags.function(tags.variableName), color: c.functionName },
 
   { tag: tags.definition(tags.annotation), color: c.chunkNameDefinition },
