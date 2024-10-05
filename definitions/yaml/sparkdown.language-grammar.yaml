@@ -688,7 +688,7 @@ repository:
   PropertySelectorOperator:
     tag: keyword
     name: keyword.other.selector.sd
-    match: ([>]|[+]|[~])
+    match: ([>]|[+]|[~]|[*]|[&])
 
   PropertySelectorConstant:
     tag: string
