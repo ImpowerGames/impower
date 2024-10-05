@@ -28,7 +28,15 @@ const load = async () => {
     SparkdownScreenplayPreview.init({ graphics }),
     SparkEditor.init({ graphics }),
   ]);
-  document.body.classList.add("ready");
+  // Once all web components (and their constructable stylesheets) are loaded,
+  // the statically-generated stylesheet is no longer needed
+  const ssgStyleSheetElement = document.querySelector('link[href="/ssg.css"]');
+  if (ssgStyleSheetElement) {
+    window.requestAnimationFrame(() => {
+      document.documentElement.style["opacity"] = "1";
+      ssgStyleSheetElement.remove();
+    });
+  }
 };
 
 load();

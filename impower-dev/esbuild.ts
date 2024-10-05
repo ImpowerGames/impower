@@ -265,19 +265,19 @@ const expandPageComponents = async () => {
         }
       );
     });
-    const globalCssInPath = `${publicInDir}/global.css`;
-    const globalCssOutPath = `${publicOutDir}/global.css`;
-    let globalCSS = await fs.promises
-      .readFile(globalCssInPath, "utf-8")
+    const ssgCssInPath = `${publicInDir}/ssg.css`;
+    const ssgCssOutPath = `${publicOutDir}/ssg.css`;
+    let ssgCSS = await fs.promises
+      .readFile(ssgCssInPath, "utf-8")
       .catch(() => "");
     const components: Record<string, ComponentSpec> = {};
-    const componentCSS = new Set<string>();
+    const scopedCssSet = new Set<string>();
     await Promise.all(
       componentBundlePaths.map(async (bundlePath) => {
         const fileName = path.parse(bundlePath).name;
         if (!fileName.startsWith("chunk-")) {
           console.log(SRC_COLOR, `  ${getRelativePath(bundlePath)}`);
-          console.log(OUT_COLOR, `    ⤷ ${getRelativePath(globalCssOutPath)}`);
+          console.log(OUT_COLOR, `    ⤷ ${getRelativePath(ssgCssOutPath)}`);
           const componentBundle = (
             await import(`./${bundlePath.replace(/\\/g, "/")}`)
           ).default;
@@ -296,7 +296,7 @@ const expandPageComponents = async () => {
                 cssArray.forEach((css) => {
                   const scopedCSS =
                     spec.html && spec.tag ? getScopedCSS(css, spec.tag) : css;
-                  componentCSS.add(scopedCSS);
+                  scopedCssSet.add(scopedCSS);
                 });
               }
             });
@@ -304,12 +304,12 @@ const expandPageComponents = async () => {
         }
       })
     );
-    componentCSS.forEach((css) => {
-      globalCSS += css + "\n\n";
+    scopedCssSet.forEach((css) => {
+      ssgCSS += css + "\n\n";
     });
-    globalCSS += "html{opacity:1;}";
+    ssgCSS += "html{opacity:1;}";
     await fs.promises.mkdir(publicOutDir, { recursive: true });
-    await fs.promises.writeFile(globalCssOutPath, globalCSS, "utf-8");
+    await fs.promises.writeFile(ssgCssOutPath, ssgCSS, "utf-8");
     console.log("");
     console.log(STEP_COLOR, "Expanding HTML...");
     await Promise.all(
