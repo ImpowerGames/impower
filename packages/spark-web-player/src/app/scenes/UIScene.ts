@@ -60,7 +60,10 @@ export default class UIScene extends Scene {
         el.className = params.name;
       }
       if (params.content) {
-        el.textContent = getElementContent(params.content, params.breakpoints);
+        el.textContent = getElementContent(params.content, {
+          breakpoints: params.breakpoints,
+          scope: ":host",
+        });
       }
       if (params.style) {
         el.style.cssText = Object.entries(params.style)
@@ -103,10 +106,10 @@ export default class UIScene extends Scene {
       const element = this.getElement(params.element);
       if (element) {
         if (params.content != undefined) {
-          element.textContent = getElementContent(
-            params.content,
-            params.breakpoints
-          );
+          element.textContent = getElementContent(params.content, {
+            breakpoints: params.breakpoints,
+            scope: ":host",
+          });
         }
         if (params.attributes != undefined) {
           if (params.attributes) {

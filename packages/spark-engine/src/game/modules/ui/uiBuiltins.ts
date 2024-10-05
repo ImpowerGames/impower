@@ -15,8 +15,8 @@ export const uiBuiltins = () => ({
   config: {
     ui: {
       ignore: ["default", "text", "image"],
-      style_element_name: "game-style",
-      ui_element_name: "game-ui",
+      style_element_name: "style",
+      ui_element_name: "ui",
       breakpoints: {
         xs: 400,
         sm: 600,
@@ -44,60 +44,47 @@ export const uiBuiltins = () => ({
   style: {
     default: _style({
       $name: "default",
-      xs: {},
-      sm: {},
-      md: {},
-      lg: {},
-      xl: {},
-      hovered: {},
-      pressed: {},
-      focused: {},
-      checked: {},
-      disabled: {},
     }),
-    _is_any: _style({
-      $name: "_is_any",
-      target: "*, *::before, *::after",
+    all: _style({
+      $name: "all",
+      target: "*, ::before, ::after",
       box_sizing: "border-box",
-    }),
-    _is_hidden: _style({
-      $name: "_is_hidden",
-      target: "[hidden]",
-      display: "none",
-    }),
-    _has_text: _style({
-      $name: "_has_text",
-      target: "*:has(> .text)",
+      border_width: "0",
+      border_style: "solid",
+      border_color: "currentColor",
       position: "relative",
+      background_repeat: "no-repeat",
+      display: "flex",
+      flex_direction: "column",
+      align_items: "stretch",
     }),
     stroke: _style({
       $name: "stroke",
-      text_stroke: 2,
-      color: "black",
+      display: "block",
       pointer_events: "none",
       position: "absolute",
       inset: 0,
+      text_stroke: 2,
+      color: "black",
       white_space: "pre-line",
       "*": {
-        position: "relative",
-        display: "inline-block",
+        display: "inline",
       },
     }),
     text: _style({
       $name: "text",
+      display: "block",
       pointer_events: "auto",
-      position: "relative",
-      inset: 0,
       white_space: "pre-line",
       "*": {
-        position: "relative",
-        display: "inline-block",
+        display: "inline",
       },
     }),
     image: _style({
       $name: "image",
-      position: "absolute",
+      display: "block",
       pointer_events: "auto",
+      position: "absolute",
       inset: 0,
       isolation: "isolate",
       "*": {
@@ -129,6 +116,9 @@ export const uiBuiltins = () => ({
       position: "absolute",
       inset: 0,
       pointer_events: "none",
+      "*": {
+        pointer_events: "none",
+      },
     }),
     background: _style({
       $name: "background",
@@ -170,6 +160,7 @@ export const uiBuiltins = () => ({
       font_size: "1.125rem",
       "> *": {
         display: "flex",
+        flex_direction: "row",
         width: "90%",
         max_width: 800,
         background_color: "rgb(0 0 0 / 65%)",
@@ -190,26 +181,32 @@ export const uiBuiltins = () => ({
     choice_0: _style({
       $name: "choice_0",
       display: "flex",
+      flex_direction: "row",
     }),
     choice_1: _style({
       $name: "choice_1",
       display: "flex",
+      flex_direction: "row",
     }),
     choice_2: _style({
       $name: "choice_2",
       display: "flex",
+      flex_direction: "row",
     }),
     choice_3: _style({
       $name: "choice_3",
       display: "flex",
+      flex_direction: "row",
     }),
     choice_4: _style({
       $name: "choice_4",
       display: "flex",
+      flex_direction: "row",
     }),
     choice_5: _style({
       $name: "choice_5",
       display: "flex",
+      flex_direction: "row",
     }),
     textbox: _style({
       $name: "textbox",
@@ -219,7 +216,7 @@ export const uiBuiltins = () => ({
       right: 0,
       display: "flex",
       flex_direction: "column",
-      align_content: "center",
+      align_items: "center",
       color: "white",
       flex: 1,
     }),

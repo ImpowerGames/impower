@@ -1,12 +1,17 @@
 import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
 import { getCSSPropertyName } from "./getCSSPropertyName";
 
-const IDENTIFIER_REGEX = /^[_\p{L}0-9]+$/u;
+const CLASS_REGEX = /^[\p{L}0-9_-]+$/u;
 
 export const getStyleContent = (
   styles: Record<string, any>,
-  breakpoints?: Record<string, number>
+  options?: {
+    breakpoints?: Record<string, number>;
+    scope?: string;
+  }
 ): string => {
+  const breakpoints = options?.breakpoints;
+  const scope = options?.scope;
   let textContent = "";
   Object.entries(styles).forEach(([name, style]) => {
     let styleContent = "";
@@ -30,7 +35,7 @@ export const getStyleContent = (
         (breakpoints?.[k] != null
           ? `@container (max-width: ${breakpoints?.[k]}px)`
           : getCSSPropertyName(k));
-      const selector = target.match(IDENTIFIER_REGEX) ? `.${target}` : target;
+      const selector = target.match(CLASS_REGEX) ? `.${target}` : target;
       let nestedStyleContent = "";
       Object.entries(v).forEach(([nk, nv]) => {
         if (!nk.startsWith("$")) {
@@ -49,8 +54,8 @@ export const getStyleContent = (
     styleContent = styleContent.trim();
     if (styleContent) {
       const target = style["target"] || name;
-      const selector = target.match(IDENTIFIER_REGEX) ? `.${target}` : target;
-      textContent += `${selector} {\n  ${styleContent}\n}\n`;
+      const selector = target.match(CLASS_REGEX) ? `.${target}` : target;
+      textContent += `${scope} ${selector} {\n  ${styleContent}\n}\n`;
     }
   });
   textContent = textContent.trim();

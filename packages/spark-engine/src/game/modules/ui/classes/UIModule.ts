@@ -403,7 +403,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const isLast = i === path.length - 1;
             const parent = path.at(-1);
             const text =
-              isLast && parent === "text" && typeof v === "string"
+              isLast &&
+              (parent === "text" || parent === "stroke") &&
+              typeof v === "string"
                 ? v
                 : undefined;
             const background_image =
@@ -413,13 +415,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             cursor = this.createElement(cursor, {
               type: "div",
               name: part,
-              content: text ? { text } : undefined,
               persistent: text != null || background_image != null,
             });
+            if (text) {
+              cursor = this.createElement(cursor, {
+                type: "span",
+                content: { text },
+                style: { display: "inline" },
+              });
+            }
             if (background_image) {
               cursor = this.createElement(cursor, {
                 type: "span",
-                style: background_image ? { background_image } : undefined,
+                style: { background_image },
               });
             }
           }

@@ -5,7 +5,10 @@ import { getStyleContent } from "./getStyleContent";
 
 export const getElementContent = (
   content: ElementContent,
-  breakpoints?: Record<string, number>
+  options?: {
+    breakpoints?: Record<string, number>;
+    scope?: string;
+  }
 ): string => {
   if (typeof content === "string") {
     return content;
@@ -14,7 +17,7 @@ export const getElementContent = (
     return content.text;
   }
   if ("styles" in content) {
-    return getStyleContent(content.styles, breakpoints);
+    return getStyleContent(content.styles, options);
   }
   if ("fonts" in content) {
     return getFontContent(content.fonts);
