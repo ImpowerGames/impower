@@ -63,22 +63,22 @@ export class StructDefinition extends ParsedObject {
           nextProp && nextProp.level > prop.level && nextProp.index !== null;
         const value = isArray ? [] : prop.value;
         if (parent) {
-          if (parent.value[prop.name] === undefined) {
+          if (parent.value[prop.identifier.name] === undefined) {
             if (
               Array.isArray(parent.value) &&
-              Number.isNaN(Number(prop.name))
+              Number.isNaN(Number(prop.identifier.name))
             ) {
               this.Error(
                 `Property is not an array item (not prefixed with '-')`,
                 prop
               );
             } else {
-              parent.value[prop.name] = value;
+              parent.value[prop.identifier.name] = value;
             }
           } else {
             this.Error(
-              `Struct '${this.identifier}' contains duplicate properties called '${prop.name}'`,
-              prop
+              `Duplicate identifier '${prop.identifier.name}'`,
+              prop.identifier.debugMetadata
             );
           }
         }
@@ -86,22 +86,22 @@ export class StructDefinition extends ParsedObject {
       } else {
         const value = prop.value;
         if (parent) {
-          if (parent.value[prop.name] === undefined) {
+          if (parent.value[prop.identifier.name] === undefined) {
             if (
               Array.isArray(parent.value) &&
-              Number.isNaN(Number(prop.name))
+              Number.isNaN(Number(prop.identifier.name))
             ) {
               this.Error(
                 `Property is not an array item (not prefixed with '-')`,
                 prop
               );
             } else {
-              parent.value[prop.name] = value;
+              parent.value[prop.identifier.name] = value;
             }
           } else {
             this.Error(
-              `Struct '${this.identifier}' contains duplicate properties called '${prop.name}'`,
-              prop
+              `Duplicate identifier '${prop.identifier.name}'`,
+              prop.identifier.debugMetadata
             );
           }
         }

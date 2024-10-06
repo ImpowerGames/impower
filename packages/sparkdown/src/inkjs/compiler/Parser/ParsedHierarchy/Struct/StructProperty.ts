@@ -1,5 +1,6 @@
 import { ParsedObject } from "../Object";
 import { InkObject as RuntimeObject } from "../../../../engine/Object";
+import { Identifier } from "../Identifier";
 
 export class StructProperty extends ParsedObject {
   override get typeName(): string {
@@ -7,7 +8,7 @@ export class StructProperty extends ParsedObject {
   }
 
   constructor(
-    public readonly name: string,
+    public readonly identifier: Identifier,
     public readonly level: number,
     public readonly value: unknown | null = null,
     public readonly index: number | null = null
@@ -19,5 +20,5 @@ export class StructProperty extends ParsedObject {
     throw new Error("Not implemented.");
   };
 
-  public override readonly toString = (): string => this.name;
+  public override readonly toString = (): string => this.identifier.name;
 }

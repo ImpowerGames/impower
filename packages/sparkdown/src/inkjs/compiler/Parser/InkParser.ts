@@ -228,6 +228,14 @@ export class InkParser extends StringParser {
     const id = asOrNull(result, Identifier);
     if (id != null) {
       id.debugMetadata = this.CreateDebugMetadata(stateAtStart, stateAtEnd);
+      const trimmedName = id.name.trimEnd();
+      const colsTrimmedFromEnd = id.name.length - trimmedName.length;
+      // Trim space from end of property name
+      id.name = trimmedName;
+      if (id.debugMetadata) {
+        id.debugMetadata.endCharacterNumber =
+          id.debugMetadata.endCharacterNumber - colsTrimmedFromEnd;
+      }
     }
   };
 
@@ -3125,7 +3133,12 @@ export class InkParser extends StringParser {
             "property to be initialized to a number, string, boolean, or reference"
           ) as unknown | null;
           (elementValue as any)[assignedIdentifier.name] = mapValue;
-          return new StructProperty(String(index), level, elementValue, index);
+          return new StructProperty(
+            new Identifier(String(index)),
+            level,
+            elementValue,
+            index
+          );
         }
       }
       if (!this.Peek(this.EndOfLine)) {
@@ -3135,11 +3148,16 @@ export class InkParser extends StringParser {
           "property to be initialized to a number, string, boolean, or reference"
         ) as unknown | null;
       }
-      return new StructProperty(String(index), level, elementValue, index);
+      return new StructProperty(
+        new Identifier(String(index)),
+        level,
+        elementValue,
+        index
+      );
     }
 
     const identifier = this.Parse(
-      this.IdentifierWithMetadata
+      this.PropertyIdentifierWithMetadata
     ) as Identifier | null;
     if (identifier === null) {
       return null;
@@ -3158,12 +3176,12 @@ export class InkParser extends StringParser {
       elementValue = {};
     }
 
-    return new StructProperty(identifier.name, level, elementValue, null);
+    return new StructProperty(identifier, level, elementValue, null);
   };
 
-  public readonly AssignedIdentifier = (): Identifier | null => {
+  public readonly AssignedPropertyIdentifier = (): Identifier | null => {
     const identifier = this.Parse(
-      this.IdentifierWithMetadata
+      this.PropertyIdentifierWithMetadata
     ) as Identifier | null;
     if (!identifier) {
       return null;
@@ -3367,6 +3385,14 @@ export class InkParser extends StringParser {
     }
 
     return name;
+  };
+
+  public readonly PropertyIdentifierWithMetadata = (): Identifier | null => {
+    const name = this.ParseUntilCharactersFromString(":=\n\r");
+    if (name === null) {
+      return null;
+    }
+    return new Identifier(name);
   };
 
   /**
