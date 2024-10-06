@@ -200,7 +200,6 @@ export const getStyleContent = (
     // Process Nested CSS
     nestedEntries.forEach(([k, v]) => {
       const elementSelector = getCSSSelector(k, breakpoints);
-      console.log(JSON.stringify(k), JSON.stringify(elementSelector));
       let nestedStyleContent = "";
       Object.entries(v).forEach(([nk, nv]) => {
         if (!nk.startsWith("$")) {
@@ -219,7 +218,6 @@ export const getStyleContent = (
     styleContent = styleContent.trim();
     if (styleContent) {
       const elementSelector = getCSSSelector(name, breakpoints);
-      console.log(JSON.stringify(name), JSON.stringify(elementSelector));
       textContent += `${scopeSelector}${elementSelector} {\n  ${styleContent}\n}\n`;
     }
   });
