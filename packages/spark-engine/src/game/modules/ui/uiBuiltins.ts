@@ -45,19 +45,6 @@ export const uiBuiltins = () => ({
     default: _style({
       $name: "default",
     }),
-    all: _style({
-      $name: "all",
-      target: "*, ::before, ::after",
-      box_sizing: "border-box",
-      border_width: "0",
-      border_style: "solid",
-      border_color: "currentColor",
-      position: "relative",
-      background_repeat: "no-repeat",
-      display: "flex",
-      flex_direction: "column",
-      align_items: "stretch",
-    }),
     stroke: _style({
       $name: "stroke",
       display: "block",

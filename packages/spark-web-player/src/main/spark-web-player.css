@@ -7,6 +7,20 @@
   touch-action: none;
 }
 
+:host *,
+:host *::before,
+:host *::after {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: currentColor;
+  background-repeat: no-repeat;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
 :host > .root {
   position: absolute;
   inset: 0;
