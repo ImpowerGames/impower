@@ -57,8 +57,12 @@ export default spec({
         >
           <s-box height="footer-nav"></s-box>
           <s-box position="fixed-bottom">
-            <s-box bg-color="primary-bg">
-              <s-divider bg-color="fg-06"></s-divider>
+            <s-box position="relative" bg-color="primary-bg">
+              <s-divider
+                position="absolute"
+                i="0 0 auto 0"
+                bg-color="fg-06"
+              ></s-divider>
               <s-tabs indicator="none" height="footer-nav" active="${pane}">
                 <s-tab
                   active-text-color="tab-active"
