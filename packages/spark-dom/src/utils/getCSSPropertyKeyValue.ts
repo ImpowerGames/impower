@@ -26,6 +26,12 @@ const createShadows = (r: number, color = "black", unit = "px"): string[] => {
   return shadows;
 };
 
+const isNumber = (value: unknown): value is number => {
+  return !Number.isNaN(Number(value));
+};
+
+const VALUE_AND_UNIT_REGEX = /((?:\d*[.])?\d+)([a-z]+)/;
+
 export const getCSSPropertyKeyValue = (
   name: string,
   value: unknown
@@ -38,10 +44,10 @@ export const getCSSPropertyKeyValue = (
   if (cssValue == null || cssValue === "") {
     return [cssProp, ""];
   }
-  if (cssProp === "animation-duration" && typeof cssValue === "number") {
+  if (cssProp === "animation-duration" && isNumber(cssValue)) {
     return [cssProp, `${cssValue}s`];
   }
-  if (cssProp === "animation-delay" && typeof cssValue === "number") {
+  if (cssProp === "animation-delay" && isNumber(cssValue)) {
     return [cssProp, `${cssValue}s`];
   }
   if (cssProp === "easing") {
@@ -51,21 +57,19 @@ export const getCSSPropertyKeyValue = (
     return ["animation-iteration-count", String(cssValue)];
   }
   if (cssProp === "duration") {
-    const timeValue =
-      typeof cssValue === "number"
-        ? `${cssValue}s`
-        : typeof cssValue === "string"
-        ? cssValue
-        : "0s";
+    const timeValue = isNumber(cssValue)
+      ? `${cssValue}s`
+      : typeof cssValue === "string"
+      ? cssValue
+      : "0s";
     return ["animation-duration", timeValue];
   }
   if (cssProp === "delay") {
-    const timeValue =
-      typeof cssValue === "number"
-        ? `${cssValue}s`
-        : typeof cssValue === "string"
-        ? cssValue
-        : "0s";
+    const timeValue = isNumber(cssValue)
+      ? `${cssValue}s`
+      : typeof cssValue === "string"
+      ? cssValue
+      : "0s";
     return ["animation-delay", timeValue];
   }
   if (cssProp === "src" && typeof cssValue === "string") {
@@ -103,12 +107,12 @@ export const getCSSPropertyKeyValue = (
     if (cssValue === "none" || cssValue === "0" || cssValue === 0) {
       return ["text-shadow", "none"];
     }
-    if (typeof cssValue === "number") {
+    if (isNumber(cssValue)) {
       return ["text-shadow", createTextShadow(cssValue)];
     }
     if (typeof cssValue === "string") {
       const parts = cssValue.split(" ");
-      const match = parts[0]?.match(/((?:\d*[.])?\d+)([a-z]+)/);
+      const match = parts[0]?.match(VALUE_AND_UNIT_REGEX);
       const r = match?.[1];
       const unit = match?.[2];
       const num = Number(r);
@@ -142,10 +146,10 @@ export const getCSSPropertyKeyValue = (
     if (Array.isArray(cssValue)) {
       return [
         cssProp,
-        cssValue.map((x) => (typeof x === "number" ? `${x}px` : x)).join(" "),
+        cssValue.map((x) => (isNumber(x) ? `${x}px` : x)).join(" "),
       ];
     }
-    if (typeof cssValue === "number") {
+    if (isNumber(cssValue)) {
       return [cssProp, `${cssValue}px`];
     }
   }

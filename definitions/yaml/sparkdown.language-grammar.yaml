@@ -7,10 +7,10 @@ uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 flags: mu
 
 variables:
-  IDENTIFIER_START_CHAR:  '0-9_\p{L}'
+  IDENTIFIER_START_CHAR:  '_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}'
   IDENTIFIER: '[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*'
-  PROPERTY_IDENTIFIER: '[^:=\r\n]+'
+  PROPERTY_IDENTIFIER: '[^.:=\r\n]+'
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
@@ -661,7 +661,7 @@ repository:
         name: meta.brace.round.close.sd
 
   PropertySelectorGeneralFunctionCondition:
-    begin: ([@])({{IDENTIFIER}})([(])
+    begin: ([@])({{IDENTIFIER}})?([(])
     beginCaptures:
       1:
         tag: attributeName
@@ -703,8 +703,8 @@ repository:
     match: ([>]|[+]|[~]|[*]|[&])
 
   PropertySelectorConstant:
-    tag: string
-    name: string.property.selector.constant.sd
+    tag: keyword
+    name: keyword.other.selector.constant.sd
     match: ({{IDENTIFIER}})
 
   PropertySelectorClass:

@@ -163,7 +163,7 @@ export const uiBuiltins = () => ({
         background_color: "black",
         transition: "all 0.15s linear",
       },
-      sm: { margin_bottom: "120px", font_size: "1rem" },
+      "@screen(sm)": { margin_bottom: "120px", font_size: "1rem" },
     }),
     choice_0: _style({
       $name: "choice_0",
@@ -216,7 +216,7 @@ export const uiBuiltins = () => ({
       background_image:
         "linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%)",
       height: "240px",
-      sm: { height: "280px" },
+      "@screen(sm)": { height: "280px" },
     }),
     textbox_content: _style({
       $name: "textbox_content",
@@ -231,7 +231,11 @@ export const uiBuiltins = () => ({
       min_height: "200px",
       padding_left: "32px",
       padding_right: "32px",
-      sm: { font_size: "1.125rem", min_height: "240px", padding: "16px" },
+      "@screen(sm)": {
+        font_size: "1.125rem",
+        min_height: "240px",
+        padding: "16px",
+      },
     }),
     character_info: _style({
       $name: "character_info",
@@ -242,7 +246,7 @@ export const uiBuiltins = () => ({
       gap: "8px",
       line_height: "1",
       font_size: "1.875rem",
-      sm: { font_size: "1.5rem" },
+      "@screen(sm)": { font_size: "1.5rem" },
     }),
     character_name: _style({
       $name: "character_name",
@@ -254,13 +258,13 @@ export const uiBuiltins = () => ({
       padding_bottom: "8px",
       font_weight: "400px",
       font_size: "1rem",
-      sm: { font_size: "0.875rem" },
+      "@screen(sm)": { font_size: "0.875rem" },
     }),
     dialogue: _style({
       $name: "dialogue",
       margin: "0 auto",
       width: "68%",
-      sm: { width: "80%" },
+      "@screen(sm)": { width: "80%" },
     }),
     action: _style({
       $name: "action",

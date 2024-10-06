@@ -12,10 +12,10 @@
   "uuid": "E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F",
   "flags": "mu",
   "variables": {
-    "IDENTIFIER_START_CHAR": "0-9_\\p{L}",
+    "IDENTIFIER_START_CHAR": "_\\p{L}",
     "IDENTIFIER_END_CHAR": "0-9_\\p{L}",
     "IDENTIFIER": "[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*",
-    "PROPERTY_IDENTIFIER": "[^:=\\r\\n]+",
+    "PROPERTY_IDENTIFIER": "[^.:=\\r\\n]+",
     "BEFORE_KEYWORD": "(?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\\.\\.\\.)|(?<!\\.))",
     "AFTER_KEYWORD": "(?![{{IDENTIFIER_END_CHAR}}])(?:(?=\\.\\.\\.)|(?!\\.))",
     "TAG_START": "(?:[#]+(?:$|{{WS}}+))",
@@ -439,7 +439,7 @@
     "DefineDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([^\\S\\n\\r]*)(DEFINE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))([0-9_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?:([.])([^\\S\\n\\r]*)($|[0-9_\\p{L}][0-9_\\p{L}]*))?([^\\S\\n\\r]*)($|[:])",
+      "begin": "^([^\\S\\n\\r]*)(DEFINE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?:([.])([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*))?([^\\S\\n\\r]*)($|[:])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -523,7 +523,7 @@
       "end": "^(?=(?!\\1[^\\S\\n\\r]{2,}))"
     },
     "TypeAssignment": {
-      "begin": "([0-9_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)($|[=]|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)($|[=]|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -558,7 +558,7 @@
       "end": "(?=$)"
     },
     "VariableAssignment": {
-      "begin": "([0-9_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)($|[=]|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)($|[=]|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -593,7 +593,7 @@
       "end": "(?=$)"
     },
     "ExternalFunctionDeclaration": {
-      "begin": "([0-9_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -715,7 +715,7 @@
     "StructObjectItem": {
       "tag": "meta",
       "name": "meta.definition.struct.item.object.sd",
-      "begin": "^([^\\S\\n\\r]*)([-])(?:($|[^\\S\\n\\r]+$)|(?=[^\\S\\n\\r]*[^:=\\r\\n]+[^\\S\\n\\r]*[=]))",
+      "begin": "^([^\\S\\n\\r]*)([-])(?:($|[^\\S\\n\\r]+$)|(?=[^\\S\\n\\r]*[^.:=\\r\\n]+[^\\S\\n\\r]*[=]))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -801,7 +801,7 @@
     "StructObjectProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.object.sd",
-      "begin": "^([^\\S\\n\\r]*)([^:=\\r\\n]+)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
+      "begin": "^([^\\S\\n\\r]*)([^.:=\\r\\n]+)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -867,7 +867,7 @@
     "StructScalarProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.scalar.sd",
-      "begin": "^([^\\S\\n\\r]*)([^:=\\r\\n]+)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)",
+      "begin": "^([^\\S\\n\\r]*)([^.:=\\r\\n]+)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -915,7 +915,7 @@
     "AfterDashStructScalarProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.scalar.sd",
-      "begin": "([^\\S\\n\\r]*)([^:=\\r\\n]+)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)([^.:=\\r\\n]+)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -961,7 +961,7 @@
       "end": "(?=$)"
     },
     "FunctionCall": {
-      "begin": "([0-9_\\p{L}][0-9_\\p{L}]*)(?=[(])",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -991,7 +991,7 @@
       }
     },
     "FunctionAccessor": {
-      "begin": "([.]|[?][.])?([0-9_\\p{L}][0-9_\\p{L}]*)(?=[(])",
+      "begin": "([.]|[?][.])?([_\\p{L}][0-9_\\p{L}]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1047,7 +1047,7 @@
       ]
     },
     "AccessPath": {
-      "begin": "(?=[0-9_\\p{L}])",
+      "begin": "(?=[_\\p{L}])",
       "patterns": [
         {
           "include": "#Annotation"
@@ -1056,7 +1056,7 @@
           "include": "#AccessPart"
         }
       ],
-      "end": "(?=$|[^0-9_\\p{L}?!.\\[])"
+      "end": "(?=$|[^_\\p{L}?!.\\[])"
     },
     "AccessPart": {
       "emit": true,
@@ -1126,7 +1126,7 @@
       ]
     },
     "DeclarationObjectPropertyName": {
-      "match": "([^:=\\r\\n]+)",
+      "match": "([^.:=\\r\\n]+)",
       "captures": {
         "1": {
           "patterns": [
@@ -1195,7 +1195,7 @@
       }
     },
     "PropertySelectorGeneralFunctionCondition": {
-      "begin": "([@])([0-9_\\p{L}][0-9_\\p{L}]*)([(])",
+      "begin": "([@])([_\\p{L}][0-9_\\p{L}]*)?([(])",
       "beginCaptures": {
         "1": {
           "tag": "attributeName",
@@ -1224,7 +1224,7 @@
       }
     },
     "PropertySelectorSimpleCondition": {
-      "match": "([@])([0-9_\\p{L}][0-9_\\p{L}]*)",
+      "match": "([@])([_\\p{L}][0-9_\\p{L}]*)",
       "captures": {
         "1": {
           "tag": "attributeName",
@@ -1251,19 +1251,19 @@
       "match": "([>]|[+]|[~]|[*]|[&])"
     },
     "PropertySelectorConstant": {
-      "tag": "string",
-      "name": "string.property.selector.constant.sd",
-      "match": "([0-9_\\p{L}][0-9_\\p{L}]*)"
+      "tag": "keyword",
+      "name": "keyword.other.selector.constant.sd",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "PropertySelectorClass": {
       "tag": "propertyName",
       "name": "variable.other.property.sd",
-      "match": "([0-9_\\p{L}][0-9_\\p{L}]*)"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "DeclarationScalarPropertyName": {
       "tag": "propertyName",
       "name": "variable.other.property.sd",
-      "match": "([^:=\\r\\n]+)"
+      "match": "([^.:=\\r\\n]+)"
     },
     "DeclarationAssignOperator": {
       "emit": true,
@@ -1279,7 +1279,7 @@
     "Label": {
       "tag": "definition(heading)",
       "name": "keyword.control.section.sd",
-      "match": "([(])([^\\S\\n\\r]*)([0-9_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([)])",
+      "match": "([(])([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([)])",
       "captures": {
         "1": {
           "tag": "paren",
@@ -1769,7 +1769,7 @@
       }
     },
     "KnotDeclarationName": {
-      "begin": "([^\\S\\n\\r]*)([0-9_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1801,7 +1801,7 @@
       "end": "(?=$|[=]|[/][/])"
     },
     "StitchDeclarationName": {
-      "begin": "([^\\S\\n\\r]*)([0-9_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1833,7 +1833,7 @@
       "end": "(?=$|[=]|[/][/])"
     },
     "FunctionDeclaration": {
-      "begin": "([^\\S\\n\\r]*)(function)([^\\S\\n\\r]*)([0-9_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)(function)([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3111,7 +3111,7 @@
       }
     },
     "NamespaceAccessor": {
-      "match": "([0-9_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([.]|[?][.])([^\\S\\n\\r]*)($|[0-9_\\p{L}][0-9_\\p{L}]*)(?![(])",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([.]|[?][.])([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*)(?![(])",
       "captures": {
         "1": {
           "patterns": [
@@ -3151,7 +3151,7 @@
       }
     },
     "VariableAccessor": {
-      "match": "([^\\S\\n\\r]*)([.]|[?][.])([^\\S\\n\\r]*)([0-9_\\p{L}][0-9_\\p{L}]*)(?![(])",
+      "match": "([^\\S\\n\\r]*)([.]|[?][.])([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)(?![(])",
       "captures": {
         "1": {
           "patterns": [
@@ -3184,7 +3184,7 @@
       }
     },
     "PropertyAccessor": {
-      "match": "([^\\S\\n\\r]*)([.]|[?][.])([^\\S\\n\\r]*)([0-9_\\p{L}][0-9_\\p{L}]*)(?![(])",
+      "match": "([^\\S\\n\\r]*)([.]|[?][.])([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)(?![(])",
       "captures": {
         "1": {
           "patterns": [
@@ -3219,35 +3219,35 @@
     "IllegalPropertyDeclaration": {
       "tag": "invalid",
       "name": "invalid.illegal.property-declaration.sd",
-      "match": "([0-9_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([:])(.*?)($|(?=[;}]))"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([:])(.*?)($|(?=[;}]))"
     },
     "StructName": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
-      "match": "([0-9_\\p{L}][0-9_\\p{L}]*)(?![(])"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
     },
     "TypeName": {
       "tag": "typeName",
       "name": "support.type.sd",
-      "match": "([0-9_\\p{L}][0-9_\\p{L}]*)"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "VariableName": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
-      "match": "([0-9_\\p{L}][0-9_\\p{L}]*)(?![(])"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
     },
     "PropertyName": {
       "tag": "propertyName",
       "name": "variable.other.property.sd",
-      "match": "([0-9_\\p{L}][0-9_\\p{L}]*)(?![(])"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
     },
     "FunctionName": {
       "tag": "function(variableName)",
       "name": "entity.name.function.sd",
-      "match": "([0-9_\\p{L}][0-9_\\p{L}]*)"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "Identifier": {
-      "match": "([0-9_\\p{L}][0-9_\\p{L}]*)"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "PunctuationAccessor": {
       "match": "(?:([.])|([?][.]))",
@@ -4451,7 +4451,7 @@
     "AssetCommandName": {
       "tag": "variableName",
       "name": "variable.other.constant.asset.name.sd",
-      "match": "([0-9_\\p{L}][0-9_\\p{L}]*)"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "CombineOperator": {
       "tag": "propertyName",
@@ -4638,7 +4638,7 @@
     "NameValue": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
-      "match": "([0-9_\\p{L}][0-9_\\p{L}]*)$"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)$"
     },
     "InvalidValue": {
       "tag": "content",

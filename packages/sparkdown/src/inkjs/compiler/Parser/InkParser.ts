@@ -3388,7 +3388,7 @@ export class InkParser extends StringParser {
   };
 
   public readonly PropertyIdentifierWithMetadata = (): Identifier | null => {
-    const name = this.ParseUntilCharactersFromString(":=\n\r");
+    const name = this.ParseUntilCharactersFromString(".:=\n\r");
     if (name === null) {
       return null;
     }
