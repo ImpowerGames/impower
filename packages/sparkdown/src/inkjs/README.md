@@ -80,8 +80,8 @@ The `\` backslash operator joins text together in a similar way to the `<>` glue
   1. Unlike glue, `\` preserves a single newline between the joined text.
   2. The next line will always be interpreted as plain text, even if it starts with a syntax keyword
     ```
-    And now, for all the points... \
-    DEFINE DISESTABLISHMENTARIANISM.
+    And did you consider that might... \
+    INCLUDE ME??
     ```
   3. If the next line of text is empty, `\` will do nothing.
     ```
@@ -171,41 +171,22 @@ DEFINE character.robert:
   voice = "low"
 ```
 
-At runtime, these types are used to lookup things like `character`, `ui`, `style`, and more.
-
-Just like CONST variables, DEFINEs can't be changed at runtime and aren't saved in the save state. 
-
-So they are mostly used for configuration:
+DEFINEs can't be set at runtime and aren't saved in the save state. 
+So they are mostly useful for configuration:
 
 ```
-define style.dialogue:
+DEFINE style.dialogue:
   color = "#FFFFFF"
   background_color = "#0000FF"
-  text_wrap = "nowrap"
   border = "1px solid #000000"
 ```
 
 ---
 
-### 7. You can access object properties and array elements
-
-Although you cannot change their value, you can read an object's properties with dot notation:
-
-```
-His name is {character.robert.first_name} {character.robert.last_name}.
-But his friends call him {character.robert.nickname}.
-```
-
-And access array elements with bracket notation:
-
-```
-I am most afraid of {fears[0]}.
-```
-
----
-
-### 8. Compiler errors now include exact source location
+### 7. Compiler errors now include exact source location
 
 An additional `source` parameter has been added to the compiler's error handler. 
 
 This parameter includes an error's filename, start line, start column, end line, and end column, so we can display the error in a text editor exactly where it appears in the source file.
+
+Several of the ink compiler's diagnostic messages have also been updated to be more exact in their wording.
