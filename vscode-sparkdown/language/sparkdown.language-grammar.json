@@ -439,7 +439,7 @@
     "DefineDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([^\\S\\n\\r]*)(DEFINE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)([^\\S\\n\\r]*)($|[:])",
+      "begin": "^([^\\S\\n\\r]*)(DEFINE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))([0-9_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?:([.])([^\\S\\n\\r]*)($|[0-9_\\p{L}][0-9_\\p{L}]*))?([^\\S\\n\\r]*)($|[:])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -462,7 +462,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#AccessPath"
+              "include": "#TypeName"
             }
           ]
         },
@@ -474,6 +474,34 @@
           ]
         },
         "6": {
+          "patterns": [
+            {
+              "include": "#PunctuationAccessor"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#VariableName"
+            }
+          ]
+        },
+        "9": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "10": {
           "patterns": [
             {
               "include": "#DeclarationAssignOperator"

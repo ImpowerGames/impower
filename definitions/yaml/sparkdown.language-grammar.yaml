@@ -272,7 +272,7 @@ repository:
   DefineDeclaration:
     tag: meta
     name: meta.definition.type.sd
-    begin: ^({{WS}}*)(DEFINE)({{EOK}})(.*?)({{WS}}*)($|[:])
+    begin: ^({{WS}}*)(DEFINE)({{EOK}})({{IDENTIFIER}})({{WS}}*)(?:([.])({{WS}}*)($|{{IDENTIFIER}}))?({{WS}}*)($|[:])
     beginCaptures:
       1:
         patterns:
@@ -284,12 +284,24 @@ repository:
         patterns:
           - { include: "#EndOfKeyword" }
       4:
-        patterns:
-          - { include: "#AccessPath" }
+        patterns: 
+          - { include: "#TypeName" }
       5:
-        patterns:
+        patterns: 
           - { include: "#Whitespace" }
       6:
+        patterns: 
+          - { include: "#PunctuationAccessor" }
+      7:
+        patterns: 
+          - { include: "#Whitespace" }
+      8:
+        patterns: 
+          - { include: "#VariableName" }
+      9:
+        patterns:
+          - { include: "#Whitespace" }
+      10:
         patterns:
           - { include: "#DeclarationAssignOperator" }
     patterns:
