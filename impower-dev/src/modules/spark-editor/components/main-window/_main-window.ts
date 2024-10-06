@@ -12,6 +12,7 @@ export default spec({
   html: ({ context }) => {
     const pane = context.pane;
     return html`
+      <se-header-navigation></se-header-navigation>
       <s-split-pane
         id="splitPane"
         grow
