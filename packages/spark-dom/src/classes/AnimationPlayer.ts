@@ -5,7 +5,6 @@ import { getMilliseconds } from "../utils/getMilliseconds";
 export interface AnimationInstance {
   element: Element;
   animation: Animation;
-  persist: boolean;
 }
 
 export interface AnimationEffect {
@@ -115,15 +114,11 @@ export default class AnimationPlayer {
         if (animation.timing.fill) {
           convertedTiming.fill = animation.timing.fill;
         }
-        const persist =
-          convertedTiming.fill === "forwards" ||
-          convertedTiming.fill === "both";
         this._instances.push({
           element,
           animation: new Animation(
             new KeyframeEffect(element, convertedKeyframes, convertedTiming)
           ),
-          persist,
         });
       });
     }
@@ -134,12 +129,6 @@ export default class AnimationPlayer {
       this._instances.map(async (instance) => {
         instance.animation.play();
         await instance.animation.finished;
-        const isDisplayed =
-          (instance.element as HTMLElement).offsetParent != null;
-        if (instance.persist && isDisplayed) {
-          instance.animation.commitStyles();
-          instance.animation.cancel();
-        }
       })
     );
   }
