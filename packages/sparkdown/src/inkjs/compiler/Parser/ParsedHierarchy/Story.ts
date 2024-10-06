@@ -25,6 +25,7 @@ import { ClosestFlowBase } from "./Flow/ClosestFlowBase";
 import { FunctionCall } from "./FunctionCall";
 import { Path } from "./Path";
 import { VariableAssignment } from "./Variable/VariableAssignment";
+import { DebugMetadata } from "../../../engine/DebugMetadata";
 
 export class Story extends FlowBase {
   public static readonly IsReservedKeyword = (name?: string): boolean => {
@@ -404,20 +405,22 @@ export class Story extends FlowBase {
 
   public override readonly Error = (
     message: string,
-    source: ParsedObject | null | undefined,
+    source: ParsedObject | DebugMetadata | null | undefined,
     isWarning: boolean | null | undefined
   ) => {
     let errorType: ErrorType = isWarning ? ErrorType.Warning : ErrorType.Error;
 
     if (this._errorHandler !== null) {
-      const metadata = source?.debugMetadata
+      const debugMetadata =
+        source instanceof DebugMetadata ? source : source?.debugMetadata;
+      const metadata = debugMetadata
         ? {
-            fileName: source.debugMetadata.fileName,
-            filePath: source.debugMetadata.filePath,
-            startLineNumber: source.debugMetadata.startLineNumber,
-            endLineNumber: source.debugMetadata.endLineNumber,
-            startCharacterNumber: source.debugMetadata.startCharacterNumber,
-            endCharacterNumber: source.debugMetadata.endCharacterNumber,
+            fileName: debugMetadata.fileName,
+            filePath: debugMetadata.filePath,
+            startLineNumber: debugMetadata.startLineNumber,
+            endLineNumber: debugMetadata.endLineNumber,
+            startCharacterNumber: debugMetadata.startCharacterNumber,
+            endCharacterNumber: debugMetadata.endCharacterNumber,
           }
         : null;
       this._errorHandler(message, errorType, metadata);
@@ -482,13 +485,16 @@ export class Story extends FlowBase {
 
   public readonly NameConflictError = (
     obj: ParsedObject,
-    name: string,
+    identifier: Identifier,
     existingObj: ParsedObject
   ): void => {
     obj.Error(
-      `Duplicate identifier '${name}'. A ${existingObj.typeName.toLowerCase()} named '${name}' was already declared on ${
-        existingObj.debugMetadata
-      }`
+      `Duplicate identifier '${
+        identifier.name
+      }'. A ${existingObj.typeName.toLowerCase()} named '${
+        identifier.name
+      }' was already declared on ${identifier.debugMetadata}`,
+      existingObj
     );
   };
 
@@ -528,7 +534,7 @@ export class Story extends FlowBase {
       knotOrFunction &&
       (knotOrFunction !== obj || symbolType === SymbolType.Arg)
     ) {
-      this.NameConflictError(obj, identifier?.name || "", knotOrFunction);
+      this.NameConflictError(obj, identifier, knotOrFunction);
       return;
     }
 
@@ -543,7 +549,7 @@ export class Story extends FlowBase {
         obj !== value &&
         value.variableAssignment !== obj
       ) {
-        this.NameConflictError(obj, identifier?.name, value);
+        this.NameConflictError(obj, identifier, value);
       }
 
       // We don't check for conflicts between individual elements in
@@ -551,7 +557,7 @@ export class Story extends FlowBase {
       if (!(obj instanceof ListElementDefinition)) {
         for (const item of value.itemDefinitions) {
           if (identifier?.name === item.name) {
-            this.NameConflictError(obj, identifier?.name || "", item);
+            this.NameConflictError(obj, identifier, item);
           }
         }
       }
@@ -568,7 +574,7 @@ export class Story extends FlowBase {
         obj !== value &&
         value.variableAssignment !== obj
       ) {
-        this.NameConflictError(obj, identifier?.name, value);
+        this.NameConflictError(obj, identifier, value);
       }
     }
 
@@ -589,7 +595,7 @@ export class Story extends FlowBase {
       varDecl.listDefinition == null &&
       varDecl.structDefinition == null
     ) {
-      this.NameConflictError(obj, identifier?.name || "", varDecl);
+      this.NameConflictError(obj, identifier, varDecl);
     }
 
     if (symbolType < SymbolType.SubFlowAndWeave) {
@@ -600,7 +606,7 @@ export class Story extends FlowBase {
     const path = new Path(identifier);
     const targetContent = path.ResolveFromContext(obj);
     if (targetContent && targetContent !== obj) {
-      this.NameConflictError(obj, identifier?.name || "", targetContent);
+      this.NameConflictError(obj, identifier, targetContent);
       return;
     }
 
@@ -620,7 +626,7 @@ export class Story extends FlowBase {
           if (arg.identifier?.name === identifier?.name) {
             obj.Error(
               `Duplicate identifier '${identifier}'. A parameter named '${identifier}' has already been declared for ${flow.identifier} on ${flow.debugMetadata}`,
-              varDecl
+              varDecl?.variableIdentifier.debugMetadata
             );
 
             return;

@@ -203,7 +203,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         `Duplicate identifier '${varName}'. A ${varab.typeName.toLowerCase()} named '${varName}' was already declared on ${
           varab.debugMetadata
         }`,
-        varDecl
+        varDecl.variableIdentifier.debugMetadata
       );
 
       return;

@@ -4,8 +4,15 @@ export class Identifier {
   public name: string;
   public debugMetadata: DebugMetadata | null = null;
 
-  constructor(name: string) {
-    this.name = name;
+  constructor(name: string | Identifier) {
+    if (typeof name === "string") {
+      this.name = name;
+    } else {
+      this.name = name.name;
+      if (name.debugMetadata) {
+        this.debugMetadata = new DebugMetadata(name.debugMetadata);
+      }
+    }
   }
 
   get typeName(): string {

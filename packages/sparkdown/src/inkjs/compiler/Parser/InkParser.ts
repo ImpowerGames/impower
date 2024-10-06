@@ -2842,7 +2842,7 @@ export class InkParser extends StringParser {
     ) as ListDefinition;
 
     if (definition) {
-      definition.identifier = new Identifier(varName.name);
+      definition.identifier = new Identifier(varName);
       return new VariableAssignment({
         variableIdentifier: varName,
         listDef: definition,
@@ -2993,7 +2993,7 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const type = this.Identifier();
+    const type = this.Expect(this.IdentifierWithMetadata, "type") as Identifier;
 
     this.Whitespace();
 
@@ -3001,7 +3001,10 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const name = dot ? this.Identifier() ?? "default" : "default";
+    const name =
+      (dot
+        ? (this.Expect(this.IdentifierWithMetadata, "name") as Identifier)
+        : undefined) ?? new Identifier("default");
 
     this.Whitespace();
 
@@ -3010,7 +3013,16 @@ export class InkParser extends StringParser {
     const definition = this.StructProperties();
 
     if (definition) {
-      definition.identifier = new Identifier(type + "." + name);
+      definition.identifier = new Identifier(type?.name + "." + name.name);
+      if (type.debugMetadata) {
+        definition.identifier.debugMetadata = new DebugMetadata(
+          type.debugMetadata
+        );
+        if (name.debugMetadata) {
+          definition.identifier.debugMetadata =
+            definition.identifier.debugMetadata.Merge(name.debugMetadata);
+        }
+      }
       return new VariableAssignment({
         variableIdentifier: definition.identifier,
         structDef: definition,
@@ -3104,8 +3116,8 @@ export class InkParser extends StringParser {
     if (itemDash !== null) {
       this.Whitespace();
       let elementValue: unknown | null = {};
-      if (this.Peek(this.AssignedIdentifier)) {
-        const assignedIdentifier = this.AssignedIdentifier();
+      if (this.Peek(this.AssignedPropertyIdentifier)) {
+        const assignedIdentifier = this.AssignedPropertyIdentifier();
         if (assignedIdentifier) {
           this.Whitespace();
           const mapValue = this.Expect(

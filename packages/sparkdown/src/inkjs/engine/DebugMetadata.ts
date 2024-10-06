@@ -6,6 +6,17 @@ export class DebugMetadata {
   public fileName: string | null = null;
   public filePath: string | null = null;
 
+  constructor(dm?: DebugMetadata) {
+    if (dm) {
+      this.startLineNumber = dm.startLineNumber;
+      this.endLineNumber = dm.endLineNumber;
+      this.startCharacterNumber = dm.startCharacterNumber;
+      this.endCharacterNumber = dm.endCharacterNumber;
+      this.fileName = dm.fileName;
+      this.filePath = dm.filePath;
+    }
+  }
+
   public Merge(dm: DebugMetadata) {
     let newDebugMetadata = new DebugMetadata();
 
