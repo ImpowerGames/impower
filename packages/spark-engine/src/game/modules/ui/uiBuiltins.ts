@@ -210,13 +210,9 @@ export const uiBuiltins = () => ({
     textbox_background: _style({
       $name: "textbox_background",
       position: "absolute",
-      bottom: "0",
-      left: "0",
-      right: "0",
+      inset: "0",
       background_image:
         "linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%)",
-      height: "240px",
-      "@screen(sm)": { height: "280px" },
     }),
     textbox_content: _style({
       $name: "textbox_content",
@@ -229,8 +225,7 @@ export const uiBuiltins = () => ({
       margin: "0 auto",
       font_size: "1.25rem",
       min_height: "200px",
-      padding_left: "32px",
-      padding_right: "32px",
+      padding: "16px 32px",
       "@screen(sm)": {
         font_size: "1.125rem",
         min_height: "240px",
@@ -334,9 +329,6 @@ export const uiBuiltins = () => ({
         portrait: {
           image: {},
         },
-        textbox: {
-          textbox_background: {},
-        },
       },
       choices: {
         choice_0: {
@@ -359,6 +351,7 @@ export const uiBuiltins = () => ({
         },
       },
       textbox: {
+        textbox_background: {},
         textbox_content: {
           character_info: {
             character_name: {
