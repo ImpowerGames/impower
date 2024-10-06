@@ -76,6 +76,7 @@ export default class SparkParser {
     let prevNodeType = "";
     let blockDialoguePrefix = "";
     let structType = "";
+    let propertyName = "";
     const generateID = () => {
       while (true) {
         const id = uuid();
@@ -196,6 +197,12 @@ export default class SparkParser {
         ) {
           structType = text;
         }
+        if (
+          nodeType === "DeclarationScalarPropertyName" ||
+          nodeType === "DeclarationObjectPropertyName"
+        ) {
+          propertyName = text;
+        }
         // Record reference in struct field value
         if (nodeType === "AccessPath" && stack.at(-1) === "StructFieldValue") {
           const selectors = [text];
@@ -205,9 +212,8 @@ export default class SparkParser {
             name = type;
             // Infer type
             if (
-              structType === "image_group" ||
-              structType === "ui" ||
-              structType === "style"
+              propertyName.split("_").includes("image") ||
+              (structType === "image_group" && propertyName === "assets")
             ) {
               selectors.push(
                 `image_group.${name}`,
@@ -215,12 +221,21 @@ export default class SparkParser {
                 `graphic.${name}`
               );
               description = `image named '${name}'`;
-            } else if (structType === "audio_group") {
+            } else if (
+              propertyName.split("_").includes("audio") ||
+              (structType === "audio_group" && propertyName === "assets")
+            ) {
               selectors.push(`audio.${name}`, `synth.${name}`);
               description = `audio named '${name}'`;
-            } else if (structType === "transition") {
+            } else if (
+              propertyName.split("_").includes("animation") ||
+              structType === "transition"
+            ) {
               selectors.push(`animation.${name}`);
               description = `animation named '${name}'`;
+            } else if (propertyName.split("_").includes("font")) {
+              selectors.push(`font.${name}`);
+              description = `font named '${name}'`;
             } else {
               description = `'${name}'`;
             }
@@ -458,7 +473,7 @@ export default class SparkParser {
         ) {
           const severity = DiagnosticSeverity.Error;
           const message =
-            "'fadeto' must be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 1' or 'fadeto 0.5')";
+            "'fadeto' must be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 0.5' or 'fadeto 1')";
           program.diagnostics ??= {};
           program.diagnostics[uri] ??= [];
           program.diagnostics[uri].push({
@@ -581,7 +596,7 @@ export default class SparkParser {
             !lineTextBefore.trim().endsWith("\\") &&
             !lineTextAfter.trim().startsWith("\\")
           ) {
-            // AssetLine and ParentheticalLine should end with implicit \
+            // Dialogue lines should end with implicit \
             // (So they are grouped together with following text line)
             const suffix = ` \\`;
             const markup = suffix;
@@ -590,6 +605,12 @@ export default class SparkParser {
         }
         if (nodeType === "DefineDeclaration") {
           structType = "";
+        }
+        if (
+          nodeType === "StructScalarProperty" ||
+          nodeType === "StructObjectProperty"
+        ) {
+          propertyName = "";
         }
         stack.pop();
       },
