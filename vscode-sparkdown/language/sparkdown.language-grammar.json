@@ -15,7 +15,7 @@
     "IDENTIFIER_START_CHAR": "_\\p{L}",
     "IDENTIFIER_END_CHAR": "0-9_\\p{L}",
     "IDENTIFIER": "[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*",
-    "PROPERTY_IDENTIFIER": "[^.:=\\r\\n]+",
+    "PROPERTY_IDENTIFIER": "[^.=\\r\\n]+?",
     "BEFORE_KEYWORD": "(?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\\.\\.\\.)|(?<!\\.))",
     "AFTER_KEYWORD": "(?![{{IDENTIFIER_END_CHAR}}])(?:(?=\\.\\.\\.)|(?!\\.))",
     "TAG_START": "(?:[#]+(?:$|{{WS}}+))",
@@ -715,7 +715,7 @@
     "StructObjectItem": {
       "tag": "meta",
       "name": "meta.definition.struct.item.object.sd",
-      "begin": "^([^\\S\\n\\r]*)([-])(?:($|[^\\S\\n\\r]+$)|(?=[^\\S\\n\\r]*[^.:=\\r\\n]+[^\\S\\n\\r]*[=]))",
+      "begin": "^([^\\S\\n\\r]*)([-])(?:($|[^\\S\\n\\r]+$)|(?=[^\\S\\n\\r]*[^.=\\r\\n]+?[^\\S\\n\\r]*[=]))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -801,7 +801,7 @@
     "StructObjectProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.object.sd",
-      "begin": "^([^\\S\\n\\r]*)([^.:=\\r\\n]+)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
+      "begin": "^([^\\S\\n\\r]*)([^.=\\r\\n]+?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -813,7 +813,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#DeclarationObjectProperty"
+              "include": "#DeclarationObjectPropertyName"
             }
           ]
         },
@@ -867,7 +867,7 @@
     "StructScalarProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.scalar.sd",
-      "begin": "^([^\\S\\n\\r]*)([^.:=\\r\\n]+)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)",
+      "begin": "^([^\\S\\n\\r]*)([^.=\\r\\n]+?)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -879,7 +879,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#DeclarationScalarProperty"
+              "include": "#DeclarationScalarPropertyName"
             }
           ]
         },
@@ -915,7 +915,7 @@
     "AfterDashStructScalarProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.scalar.sd",
-      "begin": "([^\\S\\n\\r]*)([^.:=\\r\\n]+)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)([^.=\\r\\n]+?)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1103,30 +1103,8 @@
         }
       ]
     },
-    "DeclarationObjectProperty": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#DeclarationObjectPropertyName"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ]
-    },
-    "DeclarationScalarProperty": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#DeclarationScalarPropertyName"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ]
-    },
     "DeclarationObjectPropertyName": {
-      "match": "([^.:=\\r\\n]+)",
+      "match": "(.+)",
       "captures": {
         "1": {
           "patterns": [
@@ -1136,6 +1114,11 @@
           ]
         }
       }
+    },
+    "DeclarationScalarPropertyName": {
+      "tag": "propertyName",
+      "name": "variable.other.property.sd",
+      "match": "(.+)"
     },
     "PropertySelector": {
       "patterns": [
@@ -1248,7 +1231,7 @@
     "PropertySelectorOperator": {
       "tag": "keyword",
       "name": "keyword.other.selector.sd",
-      "match": "([>]|[+]|[~]|[*]|[&])"
+      "match": "([>]|[+]|[~]|[*]|[:]|[&])"
     },
     "PropertySelectorConstant": {
       "tag": "keyword",
@@ -1259,11 +1242,6 @@
       "tag": "propertyName",
       "name": "variable.other.property.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
-    },
-    "DeclarationScalarPropertyName": {
-      "tag": "propertyName",
-      "name": "variable.other.property.sd",
-      "match": "([^.:=\\r\\n]+)"
     },
     "DeclarationAssignOperator": {
       "emit": true,

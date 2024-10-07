@@ -10,7 +10,7 @@ variables:
   IDENTIFIER_START_CHAR:  '_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}'
   IDENTIFIER: '[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*'
-  PROPERTY_IDENTIFIER: '[^.:=\r\n]+'
+  PROPERTY_IDENTIFIER: '[^.=\r\n]+?'
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
@@ -466,7 +466,7 @@ repository:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#DeclarationObjectProperty" }
+          - { include: "#DeclarationObjectPropertyName" }
       3:
         patterns:
           - { include: "#Whitespace" }
@@ -497,7 +497,7 @@ repository:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#DeclarationScalarProperty" }
+          - { include: "#DeclarationScalarPropertyName" }
       3:
         patterns:
           - { include: "#Whitespace" }
@@ -610,24 +610,17 @@ repository:
       - { include: "#VariableName" }
       - { include: "#Unknown" }
 
-  DeclarationObjectProperty:
-    emit: true
-    patterns:
-      - { include: "#DeclarationObjectPropertyName" }
-      - { include: "#Unknown" }
-
-  DeclarationScalarProperty:
-    emit: true
-    patterns:
-      - { include: "#DeclarationScalarPropertyName" }
-      - { include: "#Unknown" }
-
   DeclarationObjectPropertyName:
-    match: ({{PROPERTY_IDENTIFIER}})
+    match: (.+)
     captures:
       1:
         patterns:
           - { include: "#PropertySelector" }
+
+  DeclarationScalarPropertyName:
+    tag: propertyName
+    name: variable.other.property.sd
+    match: (.+)
 
   PropertySelector:
     patterns:
@@ -700,7 +693,7 @@ repository:
   PropertySelectorOperator:
     tag: keyword
     name: keyword.other.selector.sd
-    match: ([>]|[+]|[~]|[*]|[&])
+    match: ([>]|[+]|[~]|[*]|[:]|[&])
 
   PropertySelectorConstant:
     tag: keyword
@@ -711,11 +704,6 @@ repository:
     tag: propertyName
     name: variable.other.property.sd
     match: ({{IDENTIFIER}})
-
-  DeclarationScalarPropertyName:
-    tag: propertyName
-    name: variable.other.property.sd
-    match: ({{PROPERTY_IDENTIFIER}})
 
   DeclarationAssignOperator:
     emit: true

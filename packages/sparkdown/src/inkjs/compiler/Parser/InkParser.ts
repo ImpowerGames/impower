@@ -3387,8 +3387,46 @@ export class InkParser extends StringParser {
     return name;
   };
 
+  public readonly PropertyObjectNameTerminatingColon = (): string | null => {
+    this.Whitespace();
+
+    const colon = this.ParseString(":");
+    if (colon === null) {
+      return null;
+    }
+
+    this.Whitespace();
+
+    const eol = this.EndOfLine();
+    if (eol === null) {
+      return null;
+    }
+
+    return colon;
+  };
+
+  public readonly PropertyNameTerminator = () =>
+    this.OneOf([
+      this.EndOfLine,
+      this.String("."),
+      this.String("="),
+      this.PropertyObjectNameTerminatingColon,
+    ]);
+
+  public readonly PropertyIdentifier = (): string | null => {
+    const name = this.ParseUntil(
+      this.PropertyNameTerminator,
+      new CharacterSet(":.=\n\r"),
+      null
+    );
+    if (name === null) {
+      return null;
+    }
+    return name;
+  };
+
   public readonly PropertyIdentifierWithMetadata = (): Identifier | null => {
-    const name = this.ParseUntilCharactersFromString(".:=\n\r");
+    const name = this.PropertyIdentifier();
     if (name === null) {
       return null;
     }
