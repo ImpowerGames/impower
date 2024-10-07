@@ -265,10 +265,21 @@ export default class WorkspaceWindow {
     this.update({
       ...this.store,
       screen: {
+        ...this.store.screen,
         splitLayout: query.matches,
       },
     });
   };
+
+  refresh() {
+    this.update({
+      ...this.store,
+      screen: {
+        ...this.store.screen,
+        refreshedAt: performance.now(),
+      },
+    });
+  }
 
   getPaneState(pane: PaneType) {
     const paneState = this.store.panes[pane];
