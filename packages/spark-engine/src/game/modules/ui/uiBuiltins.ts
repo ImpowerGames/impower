@@ -296,8 +296,8 @@ export const uiBuiltins = () => ({
       text_align: "center",
       font_weight: "bold",
     }),
-    indicator: _style({
-      $name: "indicator",
+    continue_indicator: _style({
+      $name: "continue_indicator",
       opacity: "0",
       line_height: "1",
       width: "16px",
@@ -380,7 +380,7 @@ export const uiBuiltins = () => ({
             text: {},
           },
         },
-        indicator: {
+        continue_indicator: {
           text: "▼",
         },
       },

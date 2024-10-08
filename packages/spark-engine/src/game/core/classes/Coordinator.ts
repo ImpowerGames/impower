@@ -127,7 +127,7 @@ export class Coordinator<G extends Game> {
 
     const transientLayers: string[] = [];
     for (const [name, writer] of Object.entries(game.context["writer"])) {
-      if ((writer as Writer)?.["clear_on_advance"]) {
+      if ((writer as Writer)?.clear_on_continue) {
         transientLayers.push(name);
       }
     }
@@ -156,7 +156,7 @@ export class Coordinator<G extends Game> {
         indicatorStyle["animation-play-state"] = "paused";
         indicatorStyle["display"] = null;
       }
-      game.module.ui.style.update("indicator", indicatorStyle);
+      game.module.ui.style.update("continue_indicator", indicatorStyle);
 
       // Process button events
       instructions.choices?.forEach((target, index) => {
@@ -200,7 +200,7 @@ export class Coordinator<G extends Game> {
       indicatorStyle["animation-play-state"] = previewing
         ? "paused"
         : "running";
-      game.module.ui.style.update("indicator", indicatorStyle);
+      game.module.ui.style.update("continue_indicator", indicatorStyle);
       this._finishedExecution = true;
     };
 

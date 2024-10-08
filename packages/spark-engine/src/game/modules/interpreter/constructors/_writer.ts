@@ -3,7 +3,7 @@ import { Writer } from "../types/Writer";
 
 export const _writer: Create<Writer> = (obj) => ({
   $type: "writer",
-  clear_on_advance: true,
+  clear_on_continue: true,
   fade_duration: 0,
   animation_offset: 0.06,
   letter_pause: 0,
