@@ -5,4 +5,7 @@ export interface AnimationTiming {
   iterations?: number | "infinite";
   direction?: "alternate" | "alternate-reverse" | "normal" | "reverse";
   fill?: "auto" | "backwards" | "both" | "forwards" | "none";
+  end_delay?: number | string;
+  iteration_start?: number;
+  playback_rate?: number;
 }

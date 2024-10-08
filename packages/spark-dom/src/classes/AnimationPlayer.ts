@@ -105,14 +105,34 @@ export default class AnimationPlayer {
             convertedTiming.iterations = animation.timing.iterations;
           }
         }
-        if (animation.timing.direction) {
+        if (animation.timing.direction != null) {
           convertedTiming.direction = animation.timing.direction;
         }
-        if (animation.timing.easing) {
+        if (animation.timing.easing != null) {
           convertedTiming.easing = animation.timing.easing;
         }
-        if (animation.timing.fill) {
+        if (animation.timing.fill != null) {
           convertedTiming.fill = animation.timing.fill;
+        }
+        if (animation.timing.end_delay != null) {
+          if (typeof animation.timing.end_delay === "number") {
+            // convert seconds to milliseconds
+            convertedTiming.endDelay = animation.timing.end_delay * 1000;
+          } else if (typeof animation.timing.end_delay === "string") {
+            // convert string time value to milliseconds
+            const ms = getMilliseconds(animation.timing.end_delay);
+            if (ms != null) {
+              convertedTiming.endDelay = ms;
+            }
+          } else {
+            convertedTiming.endDelay = animation.timing.end_delay;
+          }
+        }
+        if (animation.timing.iteration_start != null) {
+          convertedTiming.iterationStart = animation.timing.iteration_start;
+        }
+        if (animation.timing.playback_rate != null) {
+          convertedTiming.playbackRate = animation.timing.playback_rate;
         }
         this._instances.push({
           element,
