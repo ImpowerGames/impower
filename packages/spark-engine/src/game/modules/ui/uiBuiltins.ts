@@ -324,7 +324,7 @@ export const uiBuiltins = () => ({
       $name: "stage",
       background: {
         backdrop: {
-          image: "black",
+          image: {},
         },
         portrait: {
           image: {},
