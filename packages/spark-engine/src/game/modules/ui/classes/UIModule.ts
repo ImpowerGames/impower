@@ -1023,9 +1023,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               (a) => getTimeValue(a.timing.duration) ?? 0
             )
           );
-          const over = e.over ?? 0;
+          const over = e.over;
           const transitionSpeed =
-            transition && over > 0 ? transitionDuration / over : 1;
+            transition && over != null && over > 0
+              ? transitionDuration / over
+              : 1;
           // Calculate show settings
           const showWith =
             (transition
