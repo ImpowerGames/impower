@@ -1,4 +1,8 @@
-const selectProperty = <T>(obj: any, propertyPath: string): [T, string] => {
+const selectProperty = <T>(
+  obj: any,
+  propertyPath: string,
+  fuzzy?: boolean
+): [T, string] => {
   if (!propertyPath) {
     return obj;
   }
@@ -32,7 +36,7 @@ const selectProperty = <T>(obj: any, propertyPath: string): [T, string] => {
       if (!target) {
         return [cur, found.join(".")];
       }
-      const match = search(cur, target);
+      const match = search(cur, target, fuzzy);
       if (match === undefined) {
         return [cur, found.join(".")];
       }
@@ -43,13 +47,20 @@ const selectProperty = <T>(obj: any, propertyPath: string): [T, string] => {
   return [cur, found.join(".")];
 };
 
-const search = (obj: any, childName: string): any => {
+const search = (
+  obj: any,
+  nameSelector: string,
+  fuzzy: boolean | undefined
+): any => {
   for (const [k, v] of Object.entries(obj)) {
-    if (k === childName) {
+    if (k === nameSelector) {
+      return v;
+    }
+    if (fuzzy && k.split(" ").includes(nameSelector)) {
       return v;
     }
     if (v && typeof v === "object") {
-      const match = search(v, childName);
+      const match = search(v, nameSelector, fuzzy);
       if (match) {
         return match;
       }

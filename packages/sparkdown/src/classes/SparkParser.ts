@@ -198,6 +198,26 @@ export default class SparkParser {
           structType = text;
         }
         if (
+          nodeType === "VariableName" &&
+          stack.includes("DefineDeclaration_begin")
+        ) {
+          // Check if style name matches an existing ui element
+          if (structType === "style") {
+            const selectors = [`ui..${text}`];
+            const fuzzy = true;
+            const description = `ui element named '${text}'`;
+            program.references ??= {};
+            program.references[uri] ??= {};
+            program.references[uri][lineIndex] ??= [];
+            program.references[uri][lineIndex]!.push({
+              fuzzy,
+              selectors,
+              range,
+              description,
+            });
+          }
+        }
+        if (
           nodeType === "DeclarationScalarPropertyName" ||
           nodeType === "DeclarationObjectPropertyName"
         ) {
@@ -818,12 +838,14 @@ export default class SparkParser {
         for (const [_line, refs] of Object.entries(refsLines)) {
           for (const ref of refs) {
             const selectors = ref.selectors;
+            const fuzzy = ref.fuzzy;
             const range = ref.range;
             const description = ref.description;
             const struct = selectors.find((s) => {
               const [, foundPath] = selectProperty(
                 program.compiled?.structDefs,
-                s
+                s,
+                fuzzy
               );
               return foundPath === s;
             });
