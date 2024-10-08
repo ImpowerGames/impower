@@ -598,9 +598,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (animations) {
       const eventInstance = { ...event };
       if (instant) {
-        eventInstance.after = 0;
-        eventInstance.over = 0;
+        if (eventInstance.after != null && eventInstance.after > 0) {
+          eventInstance.after = 0;
+        }
+        if (eventInstance.over != null && eventInstance.over > 0) {
+          eventInstance.over = 0;
+        }
       }
+      console.log(eventInstance);
       const definition = this.getAnimationDefinition(eventInstance);
       if (definition) {
         animations.push(definition);
@@ -1159,13 +1164,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 over: hideOver,
               };
               $.queueAnimationEvent(hideEvent, instant, targetAnimations);
-            } else {
+            } else if (e.control === "show" || e.control === "set") {
               const showEvent = {
                 name: showWith,
                 after: showAfter,
                 over: showOver,
               };
               $.queueAnimationEvent(showEvent, instant, targetAnimations);
+            } else if (e.control === "animate") {
+              if (e.with) {
+                const animateEvent = {
+                  name: e.with,
+                  after: e.after,
+                  over: e.over,
+                };
+                $.queueAnimationEvent(animateEvent, instant, targetAnimations);
+              }
             }
           }
         }
