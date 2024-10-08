@@ -492,25 +492,30 @@ export default class SparkdownScriptEditor extends Component(spec) {
       DidOpenTextDocumentMessage.method,
       DidOpenTextDocumentMessage.type.notification({ textDocument })
     );
+    const view = this._view;
     // Scroll to visible range
-    window.requestIdleCallback(() => {
+    window.setTimeout(() => {
       window.requestAnimationFrame(() => {
-        this.scrollToRange(visibleRange);
-        this._initialized = true;
+        if (this._view === view) {
+          this.scrollToRange(visibleRange);
+          this._initialized = true;
+        }
       });
-    });
+    }, 100);
     if (document.hasFocus() && this._view && focused) {
       // Try to restore focus
       const timer = window.setInterval(() => {
-        if (!this._view || this._view.hasFocus) {
-          clearInterval(timer);
-          return;
-        }
-        this.focus();
-        this._view.focus();
-        if (selectedRange) {
-          // Only restore selectedRange if was focused
-          this.selectRange(selectedRange, false);
+        if (this._view === view) {
+          if (!this._view || this._view.hasFocus) {
+            clearInterval(timer);
+            return;
+          }
+          this.focus();
+          this._view.focus();
+          if (selectedRange) {
+            // Only restore selectedRange if was focused
+            this.selectRange(selectedRange, false);
+          }
         }
       }, 100);
     }
