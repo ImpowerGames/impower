@@ -202,10 +202,10 @@ export default class SparkParser {
           stack.includes("DefineDeclaration_begin")
         ) {
           // Check if name matches an existing ui element
-          if (structType === "style" || structType === "writer") {
+          if (structType === "writer") {
             const selectors = [`ui..${text}`];
             const fuzzy = true;
-            const description = `ui element named '${text}'`;
+            const description = `any ui element with class '${text}'`;
             program.references ??= {};
             program.references[uri] ??= {};
             program.references[uri][lineIndex] ??= [];
