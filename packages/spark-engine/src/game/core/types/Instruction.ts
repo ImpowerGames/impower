@@ -16,6 +16,7 @@ export interface TextInstruction extends IInstruction {
     text_align?: string;
     white_space?: string;
     background_color?: string;
+    display?: string;
     animation_name?: string;
     animation_timing_function?: string;
     animation_iteration_count?: string | number;

@@ -1238,6 +1238,7 @@ export class InterpreterModule extends Module<
               event.style ??= {};
               const animation = (this.context as any)?.animation?.["wavy"];
               if (animation) {
+                event.style["display"] = "inline-block";
                 event.style["animation_name"] = animation.$name;
                 event.style["animation_timing_function"] =
                   animation.timing.easing;
@@ -1252,6 +1253,7 @@ export class InterpreterModule extends Module<
               event.style ??= {};
               const animation = (this.context as any)?.animation?.["shaky"];
               if (animation) {
+                event.style["display"] = "inline-block";
                 event.style["animation_name"] = animation.$name;
                 event.style["animation_timing_function"] =
                   animation.timing.easing;
