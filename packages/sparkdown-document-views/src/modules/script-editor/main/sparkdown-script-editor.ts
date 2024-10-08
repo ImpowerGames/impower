@@ -493,9 +493,11 @@ export default class SparkdownScriptEditor extends Component(spec) {
       DidOpenTextDocumentMessage.type.notification({ textDocument })
     );
     // Scroll to visible range
-    window.requestAnimationFrame(() => {
-      this.scrollToRange(visibleRange);
-      this._initialized = true;
+    window.requestIdleCallback(() => {
+      window.requestAnimationFrame(() => {
+        this.scrollToRange(visibleRange);
+        this._initialized = true;
+      });
     });
     if (document.hasFocus() && this._view && focused) {
       // Try to restore focus
