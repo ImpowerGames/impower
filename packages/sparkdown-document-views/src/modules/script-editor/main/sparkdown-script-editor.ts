@@ -494,14 +494,12 @@ export default class SparkdownScriptEditor extends Component(spec) {
     );
     const view = this._view;
     // Scroll to visible range
-    window.setTimeout(() => {
-      window.requestAnimationFrame(() => {
-        if (this._view === view) {
-          this.scrollToRange(visibleRange);
-          this._initialized = true;
-        }
-      });
-    }, 100);
+    window.requestAnimationFrame(() => {
+      if (this._view === view) {
+        this.scrollToRange(visibleRange);
+        this._initialized = true;
+      }
+    });
     if (document.hasFocus() && this._view && focused) {
       // Try to restore focus
       const timer = window.setInterval(() => {
