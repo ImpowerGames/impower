@@ -272,7 +272,7 @@ repository:
   DefineDeclaration:
     tag: meta
     name: meta.definition.type.sd
-    begin: ^({{WS}}*)(DEFINE)({{EOK}})({{IDENTIFIER}})({{WS}}*)(?:([.])({{WS}}*)($|{{IDENTIFIER}}))?({{WS}}*)($|[:])
+    begin: ^({{WS}}*)(DEFINE)({{EOK}})($|{{IDENTIFIER}})({{WS}}*)(?:([.])({{WS}}*)($|{{IDENTIFIER}}))?({{WS}}*)($|[:])
     beginCaptures:
       1:
         patterns:
