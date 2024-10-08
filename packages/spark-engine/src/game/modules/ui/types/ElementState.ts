@@ -6,5 +6,4 @@ export interface ElementState {
   content?: ElementContent;
   style?: Record<string, string | number | null> | null;
   attributes?: Record<string, string | null> | null;
-  persistent?: boolean;
 }

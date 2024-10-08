@@ -42,6 +42,9 @@ export const interpreterBuiltins = () => ({
     character_parenthetical: _writer({
       $name: "character_parenthetical",
     }),
+    portrait: _writer({
+      $name: "portrait",
+    }),
   },
   character: {
     default: _character({

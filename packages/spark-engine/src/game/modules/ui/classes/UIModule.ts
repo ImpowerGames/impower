@@ -147,12 +147,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const id = this.generateId();
     const name = state?.name || "";
     const type = state?.type || "div";
-    const persistent = state?.persistent ?? false;
     const content = state?.content;
     const style = state?.style;
     const attributes = state?.attributes;
     const breakpoints = this.context.config?.ui?.breakpoints;
-    const el = new Element(parent, id, type, name, persistent);
+    const el = new Element(parent, id, type, name);
     const isRootElement = !parent;
     if (isRootElement) {
       this._root = el;
@@ -395,8 +394,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (isValidNode) {
         let cursor: Element = uiEl;
         for (let i = 0; i < path.length; i += 1) {
-          const part = path[i]!;
-          const child = cursor.findChild(part);
+          const name = path[i]!;
+          const child = cursor.findChild(name);
           if (child) {
             cursor = child;
           } else {
@@ -414,8 +413,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 : undefined;
             cursor = this.createElement(cursor, {
               type: "div",
-              name: part,
-              persistent: text != null || background_image != null,
+              name,
             });
             if (text) {
               cursor = this.createElement(cursor, {
@@ -904,18 +902,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         });
       }
 
-      clearContent(target: string): void {
+      clear(target: string): void {
         this.saveState(target, null);
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
           this.applyChanges(target, null, true);
         }
       }
 
-      clearTransientLayers(shouldPreserve?: (target: string) => boolean): void {
-        for (const target of this.getTransientLayers()) {
-          if (!shouldPreserve || !shouldPreserve(target)) {
-            this.clearContent(target);
-          }
+      clearAll(targets: string[]): void {
+        for (const target of targets) {
+          this.clear(target);
         }
       }
 
@@ -928,33 +924,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
         }
-      }
-
-      getTransientLayers(): string[] {
-        const targets = new Set<string>();
-        for (const textEl of $.findElements("text")) {
-          if (!textEl.persistent) {
-            const parent = textEl.parent;
-            if (parent) {
-              const target = parent.name;
-              if (target) {
-                targets.add(target);
-              }
-            }
-          }
-        }
-        for (const textEl of $.findElements("stroke")) {
-          if (!textEl.persistent) {
-            const parent = textEl.parent;
-            if (parent) {
-              const target = parent.name;
-              if (target) {
-                targets.add(target);
-              }
-            }
-          }
-        }
-        return Array.from(targets);
       }
     }
     return Text;
@@ -1024,7 +993,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ) {
         let targetRevealed = false;
         for (const e of sequence) {
-          const transitionWith = e.with || targetEl.name || "";
+          const transitionWith = e.with || "";
           const transition = $.context?.transition?.[transitionWith];
           // Calculate transition speed
           const transitionAnimations: Animation[] = [];
@@ -1250,18 +1219,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         });
       }
 
-      clearContent(target: string): void {
+      clear(target: string): void {
         this.saveState(target, null);
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
           this.applyChanges(target, null, true);
         }
       }
 
-      clearTransientLayers(shouldPreserve?: (target: string) => boolean): void {
-        for (const target of this.getTransientLayers()) {
-          if (!shouldPreserve || !shouldPreserve(target)) {
-            this.clearContent(target);
-          }
+      clearAll(targets: string[]): void {
+        for (const target of targets) {
+          this.clear(target);
         }
       }
 
@@ -1274,22 +1241,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
         }
-      }
-
-      getTransientLayers(): string[] {
-        const targets = new Set<string>();
-        for (const imageEl of $.findElements("image")) {
-          if (!imageEl.persistent) {
-            const parent = imageEl.parent;
-            if (parent) {
-              const target = parent.name;
-              if (target) {
-                targets.add(target);
-              }
-            }
-          }
-        }
-        return Array.from(targets);
       }
     }
     return Image;

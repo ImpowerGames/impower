@@ -1,4 +1,5 @@
 export interface Writer {
+  clear_on_advance: boolean;
   fade_duration: number;
   animation_offset: number;
   letter_pause: number;

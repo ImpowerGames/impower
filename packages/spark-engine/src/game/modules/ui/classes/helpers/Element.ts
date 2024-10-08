@@ -24,23 +24,11 @@ export class Element {
     return this._name;
   }
 
-  protected _persistent: boolean;
-  get persistent() {
-    return this._persistent;
-  }
-
-  constructor(
-    parent: Element | null,
-    id: string,
-    type: string,
-    name: string,
-    persistent: boolean
-  ) {
+  constructor(parent: Element | null, id: string, type: string, name: string) {
     this._parent = parent;
     this._id = id;
     this._type = type;
     this._name = name;
-    this._persistent = persistent;
     parent?.appendChild(this);
   }
 
@@ -53,12 +41,20 @@ export class Element {
   }
 
   findChild(selector: string): Element | undefined {
-    return this._children.find((child) => selector === child.name);
+    const exactMatch = this._children.find((child) => child.name === selector);
+    if (exactMatch) {
+      return exactMatch;
+    }
+    const classes = selector.split(" ");
+    return this._children.find((child) =>
+      classes.every((c) => child.name.split(" ").includes(c))
+    );
   }
 
-  findChildren(...selectors: string[]): Element[] {
+  findChildren(selector: string): Element[] {
+    const classes = selector.split(" ");
     return this._children.filter((child) =>
-      selectors.some((name) => name === child.name)
+      classes.every((c) => child.name.split(" ").includes(c))
     );
   }
 

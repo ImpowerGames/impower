@@ -3,6 +3,7 @@ import { EventMessage } from "./messages/EventMessage";
 import { Instructions } from "../types/Instructions";
 import { RequestMessage } from "../types/RequestMessage";
 import { NotificationMessage } from "../types/NotificationMessage";
+import { Writer } from "../../modules/interpreter";
 
 export class Coordinator<G extends Game> {
   protected _game: G;
@@ -124,6 +125,13 @@ export class Coordinator<G extends Game> {
     const instant = options?.instant;
     const previewing = options?.preview;
 
+    const transientLayers: string[] = [];
+    for (const [name, writer] of Object.entries(game.context["writer"])) {
+      if ((writer as Writer)?.["clear_on_advance"]) {
+        transientLayers.push(name);
+      }
+    }
+
     if (!instant) {
       // Stop stale sound and voice audio on new dialogue line
       game.module.audio.stopChannel("sound");
@@ -133,9 +141,9 @@ export class Coordinator<G extends Game> {
     game.module.audio.stopChannel("writer");
 
     const updateUI = () => {
-      game.module.ui.text.clearTransientLayers();
-      game.module.ui.image.clearTransientLayers((target) =>
-        Boolean(instructions.image?.[target])
+      game.module.ui.text.clearAll(transientLayers);
+      game.module.ui.image.clearAll(
+        transientLayers.filter((layer) => !instructions.image?.[layer])
       );
 
       // Display click indicator
@@ -153,8 +161,8 @@ export class Coordinator<G extends Game> {
       // Process button events
       instructions.choices?.forEach((target, index) => {
         const handleClick = (): void => {
-          game.module.ui.text.clearTransientLayers();
-          game.module.ui.image.clearTransientLayers();
+          game.module.ui.text.clearAll(transientLayers);
+          game.module.ui.image.clearAll(transientLayers);
           game.module.ui.unobserve("click", target);
           game.choose(index);
           game.continue();
