@@ -605,7 +605,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           eventInstance.over = 0;
         }
       }
-      console.log(eventInstance);
       const definition = this.getAnimationDefinition(eventInstance);
       if (definition) {
         animations.push(definition);
