@@ -198,26 +198,6 @@ export default class SparkParser {
           structType = text;
         }
         if (
-          nodeType === "VariableName" &&
-          stack.includes("DefineDeclaration_begin")
-        ) {
-          // Check if name matches an existing ui element
-          if (structType === "writer") {
-            const selectors = [`ui..${text}`];
-            const fuzzy = true;
-            const description = `any ui element with class '${text}'`;
-            program.references ??= {};
-            program.references[uri] ??= {};
-            program.references[uri][lineIndex] ??= [];
-            program.references[uri][lineIndex]!.push({
-              fuzzy,
-              selectors,
-              range,
-              description,
-            });
-          }
-        }
-        if (
           nodeType === "DeclarationScalarPropertyName" ||
           nodeType === "DeclarationObjectPropertyName"
         ) {
