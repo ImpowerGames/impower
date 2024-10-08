@@ -7,7 +7,6 @@ export default spec({
   tag: "se-main-window",
   stores: { workspace },
   reducer: ({ stores }) => ({
-    refreshedAt: stores?.workspace?.current?.screen?.refreshedAt || 0,
     pane: stores?.workspace?.current?.pane || "",
   }),
   html: ({ context }) => {

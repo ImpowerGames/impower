@@ -123,7 +123,6 @@ export interface SyncState {
 }
 
 export interface ScreenState {
-  refreshedAt?: number;
   splitLayout?: boolean;
   editingName?: boolean;
   pickingResource?: boolean;

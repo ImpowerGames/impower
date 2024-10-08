@@ -262,24 +262,15 @@ export default class WorkspaceWindow {
   };
 
   protected handleScreenSizeChange = (query: MediaQueryListEvent) => {
+    const splitLayout = query.matches;
     this.update({
       ...this.store,
       screen: {
         ...this.store.screen,
-        splitLayout: query.matches,
+        splitLayout,
       },
     });
   };
-
-  refresh() {
-    this.update({
-      ...this.store,
-      screen: {
-        ...this.store.screen,
-        refreshedAt: performance.now(),
-      },
-    });
-  }
 
   getPaneState(pane: PaneType) {
     const paneState = this.store.panes[pane];

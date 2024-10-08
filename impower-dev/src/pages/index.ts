@@ -35,7 +35,6 @@ const load = async () => {
     window.requestAnimationFrame(() => {
       document.documentElement.style["opacity"] = "1";
       ssgStyleSheetElement.remove();
-      Workspace.window.refresh();
     });
   }
 };
