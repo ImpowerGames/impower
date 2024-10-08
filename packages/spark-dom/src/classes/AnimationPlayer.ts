@@ -125,8 +125,10 @@ export default class AnimationPlayer {
   }
 
   async play(): Promise<void> {
+    const currentTime = document.timeline.currentTime;
     await Promise.allSettled(
       this._instances.map(async (instance) => {
+        instance.animation.startTime = currentTime;
         instance.animation.play();
         await instance.animation.finished;
       })
