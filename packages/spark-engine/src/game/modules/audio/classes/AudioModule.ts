@@ -245,7 +245,7 @@ export class AudioModule extends Module<
     }
     const compiled =
       this.context?.audio?.[name] ||
-      this.context?.audio_group?.[name] ||
+      this.context?.layered_audio?.[name] ||
       this.context?.synth?.[name];
     if (!compiled) {
       return [];

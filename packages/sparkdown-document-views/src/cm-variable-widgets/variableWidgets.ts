@@ -15,7 +15,7 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import AudioPlayer from "../../../spark-dom/src/classes/AudioPlayer";
-import { Audio, type AudioGroup, type Synth } from "../../../spark-engine/src";
+import type { Audio, LayeredAudio, Synth } from "../../../spark-engine/src";
 import { clone } from "../../../spark-engine/src/game/core/utils/clone";
 import { randomizeProperties } from "../../../spark-engine/src/game/core/utils/randomizeProperties";
 import { audioBuiltins } from "../../../spark-engine/src/game/modules/audio/audioBuiltins";
@@ -193,8 +193,8 @@ const playAudioVariable = async (
   playAudio(context, buttonId, dom, toggle, getPlayers, duration, offset);
 };
 
-const playAudioGroupVariable = async (
-  audioGroup: AudioGroup,
+const playLayeredAudioVariable = async (
+  layeredAudio: LayeredAudio,
   fileSystemReader: FileSystemReader,
   context: VariableWidgetContext,
   buttonId: string,
@@ -207,11 +207,11 @@ const playAudioGroupVariable = async (
   const audioContext = context.audioContext;
   const getPlayers = () =>
     Promise.all<AudioPlayer>(
-      audioGroup?.assets?.map(async (a) => {
+      layeredAudio?.assets?.map(async (a) => {
         const url = await fileSystemReader.url(a?.src);
         const buffer = await getAudioBuffer(url, audioContext);
         const player = new AudioPlayer(buffer, audioContext, {
-          cues: audioGroup.cues,
+          cues: layeredAudio.cues,
           volume: a?.volume ?? 1,
         });
         return player;
@@ -592,7 +592,7 @@ const getAudioVariableWidgets = (
   return widgetRanges;
 };
 
-const getAudioGroupVariableWidgets = (
+const getLayeredAudioVariableWidgets = (
   _view: EditorView,
   state: EditorState,
   widgetPos: number,
@@ -608,11 +608,11 @@ const getAudioGroupVariableWidgets = (
     id: variableId,
     widget: new StructPlayWidgetType(variableId, PlayButtonIcon, (e) => {
       const dom = e.target as HTMLElement;
-      const audioGroup =
+      const layeredAudio =
         config.programContext.program?.variables?.[variableId]?.compiled;
-      if (audioGroup) {
-        playAudioGroupVariable(
-          audioGroup,
+      if (layeredAudio) {
+        playLayeredAudioVariable(
+          layeredAudio,
           config.fileSystemReader,
           context,
           variableId,
@@ -638,10 +638,10 @@ const getAudioGroupVariableWidgets = (
             id: fieldId,
             widget: new StructPlayWidgetType(fieldId, PlayButtonIcon, (e) => {
               const dom = e.target as HTMLElement;
-              const audioGroup =
+              const layeredAudio =
                 config.programContext.program?.variables?.[variableId]
                   ?.compiled;
-              const audio = audioGroup?.["assets"]?.[index];
+              const audio = layeredAudio?.["assets"]?.[index];
               if (audio) {
                 playAudioVariable(
                   audio,
@@ -669,12 +669,12 @@ const getAudioGroupVariableWidgets = (
             id: fieldId,
             widget: new StructPlayWidgetType(fieldId, PlayButtonIcon, (e) => {
               const dom = e.target as HTMLElement;
-              const audioGroup =
+              const layeredAudio =
                 config.programContext.program?.variables?.[variableId]
                   ?.compiled;
-              if (audioGroup) {
-                playAudioGroupVariable(
-                  audioGroup,
+              if (layeredAudio) {
+                playLayeredAudioVariable(
+                  layeredAudio,
                   config.fileSystemReader,
                   context,
                   fieldId,
@@ -713,9 +713,15 @@ const createVariableWidgets = (
           ...getAudioVariableWidgets(view, state, to, variableId, variable)
         );
       }
-      if (variable.type === "audio_group" && !variable.implicit) {
+      if (variable.type === "layered_audio" && !variable.implicit) {
         widgetRanges.push(
-          ...getAudioGroupVariableWidgets(view, state, to, variableId, variable)
+          ...getLayeredAudioVariableWidgets(
+            view,
+            state,
+            to,
+            variableId,
+            variable
+          )
         );
       }
     }

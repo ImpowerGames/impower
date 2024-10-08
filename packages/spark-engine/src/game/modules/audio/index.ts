@@ -1,4 +1,4 @@
-export * from "./types/AudioGroup";
+export * from "./types/LayeredAudio";
 export * from "./types/Hertz";
 export * from "./types/Instrument";
 export * from "./types/InstrumentState";

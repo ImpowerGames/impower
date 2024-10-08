@@ -306,12 +306,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
-    const imageGroups = this.context?.image_group;
-    if (imageGroups) {
-      for (const [name] of Object.entries(imageGroups)) {
+    const layeredImages = this.context?.layered_image;
+    if (layeredImages) {
+      for (const [name] of Object.entries(layeredImages)) {
         if (name !== "default") {
           style[this.getImageVarName(name)] = this.getImageAssets(
-            "image_group",
+            "layered_image",
             name
           )
             .map((asset) => this.getImageUrl(asset.src))
@@ -565,7 +565,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   getImageAssets(type: string, name: string) {
     if (!type) {
       const images: Image[] = [];
-      images.push(...this.getImageAssets("image_group", name));
+      images.push(...this.getImageAssets("layered_image", name));
       images.push(...this.getImageAssets("image", name));
       return images;
     }
@@ -575,12 +575,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         return [image];
       }
     }
-    if (type === "image_group") {
-      const imageGroup = this.context?.image_group?.[name];
-      if (imageGroup) {
+    if (type === "layered_image") {
+      const layeredImage = this.context?.layered_image?.[name];
+      if (layeredImage) {
         const images: Image[] = [];
-        if (Array.isArray(imageGroup.assets)) {
-          for (const asset of imageGroup.assets) {
+        if (Array.isArray(layeredImage.assets)) {
+          for (const asset of layeredImage.assets) {
             images.push(...this.getImageAssets(asset.$type, asset.$name));
           }
         }

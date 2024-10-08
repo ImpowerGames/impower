@@ -213,17 +213,17 @@ export default class SparkParser {
             // Infer type
             if (
               propertyName.split("_").includes("image") ||
-              (structType === "image_group" && propertyName === "assets")
+              (structType === "layered_image" && propertyName === "assets")
             ) {
               selectors.push(
-                `image_group.${name}`,
+                `layered_image.${name}`,
                 `image.${name}`,
                 `graphic.${name}`
               );
               description = `image named '${name}'`;
             } else if (
               propertyName.split("_").includes("audio") ||
-              (structType === "audio_group" && propertyName === "assets")
+              (structType === "layered_audio" && propertyName === "assets")
             ) {
               selectors.push(`audio.${name}`, `synth.${name}`);
               description = `audio named '${name}'`;
@@ -286,11 +286,11 @@ export default class SparkParser {
           const prevChar = lineText[transpiledNodeStart - 1];
           const selectors =
             prevChar === "~"
-              ? [`image_filter.${text}`]
-              : [`image_group.${text}`, `image.${text}`, `graphic.${text}`];
+              ? [`layer_filter.${text}`]
+              : [`layered_image.${text}`, `image.${text}`, `graphic.${text}`];
           const description =
             prevChar === "~"
-              ? `image_filter named '${text}'`
+              ? `layer_filter named '${text}'`
               : `image named '${text}'`;
           program.references ??= {};
           program.references[uri] ??= {};
@@ -307,7 +307,7 @@ export default class SparkParser {
           const selectors =
             prevChar === "~"
               ? [`audio_filter.${text}`]
-              : [`audio_group.${text}`, `audio.${text}`, `synth.${text}`];
+              : [`layered_audio.${text}`, `audio.${text}`, `synth.${text}`];
           const description =
             prevChar === "~"
               ? `audio_filter named '${text}'`

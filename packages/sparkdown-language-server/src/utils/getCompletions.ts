@@ -67,33 +67,33 @@ const getImageCompletions = (
 ): CompletionItem[] | null => {
   const imageToken = getLineToken(program, line, "image_tag");
   const completions: Map<string, CompletionItem> = new Map();
-  Object.entries(program?.compiled?.structDefs?.["image_group"] || {}).forEach(
-    ([, v]) => {
-      const name = v.$name;
-      if (name !== "default") {
-        const asset = v as {
-          assets: Asset[];
-          src: string;
-          data?: string;
-          mime?: string;
+  Object.entries(
+    program?.compiled?.structDefs?.["layered_image"] || {}
+  ).forEach(([, v]) => {
+    const name = v.$name;
+    if (name !== "default") {
+      const asset = v as {
+        assets: Asset[];
+        src: string;
+        data?: string;
+        mime?: string;
+      };
+      if (asset) {
+        const completion: CompletionItem = {
+          label: name,
+          labelDetails: { description: "layered_image" },
+          kind: CompletionItemKind.Constructor,
         };
-        if (asset) {
-          const completion: CompletionItem = {
-            label: name,
-            labelDetails: { description: "image_group" },
-            kind: CompletionItemKind.Constructor,
-          };
-          completion.documentation = {
-            kind: MarkupKind.Markdown,
-            value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
-          };
-          if (completion.label && !completions.has(completion.label)) {
-            completions.set(completion.label, completion);
-          }
+        completion.documentation = {
+          kind: MarkupKind.Markdown,
+          value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
+        };
+        if (completion.label && !completions.has(completion.label)) {
+          completions.set(completion.label, completion);
         }
       }
     }
-  );
+  });
   Object.entries(program?.compiled?.structDefs?.["image"] || {}).forEach(
     ([, v]) => {
       const name = v.$name;
@@ -134,7 +134,7 @@ const getImageCompletions = (
   return Array.from(completions.values());
 };
 
-const getImageFilterCompletions = (
+const getLayerFilterCompletions = (
   program: SparkProgram,
   lineText: string
 ): CompletionItem[] | null => {
@@ -143,14 +143,14 @@ const getImageFilterCompletions = (
   const existingTags = lineText.slice(startIndex, endIndex).split("~").slice(1);
 
   const completions: Map<string, CompletionItem> = new Map();
-  Object.entries(program?.compiled?.structDefs?.["image_filter"] || {}).forEach(
+  Object.entries(program?.compiled?.structDefs?.["layer_filter"] || {}).forEach(
     ([, v]) => {
       const name = v.$name;
       if (!existingTags?.includes(name)) {
         if (name && name !== "default") {
           const completion: CompletionItem = {
             label: name,
-            labelDetails: { description: "image_filter" },
+            labelDetails: { description: "layer_filter" },
             kind: CompletionItemKind.Constructor,
           };
           if (completion.label && !completions.has(completion.label)) {
@@ -203,12 +203,12 @@ const getAudioCompletions = (
       }
     }
   });
-  Object.values(program?.compiled?.structDefs?.["audio_group"] || {}).forEach(
+  Object.values(program?.compiled?.structDefs?.["layered_audio"] || {}).forEach(
     (v) => {
       if (v.name !== "default") {
         const completion = {
           label: v.name,
-          labelDetails: { description: "audio_group" },
+          labelDetails: { description: "layered_audio" },
           kind: CompletionItemKind.Constructor,
         };
         if (completion.label && !completions.has(completion.label)) {
@@ -489,7 +489,7 @@ const getCompletions = (
       } else if (scopes.includes("asset_tag_target_separator")) {
         return getElementCompletions(program);
       } else if (triggerCharacter === "~" || lineText.includes("~")) {
-        return getImageFilterCompletions(program, lineText);
+        return getLayerFilterCompletions(program, lineText);
       } else {
         return getImageCompletions(program, line);
       }

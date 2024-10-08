@@ -4,8 +4,7 @@ import { _font } from "./constructors/_font";
 import { _gradient } from "./constructors/_gradient";
 import { _graphic } from "./constructors/_graphic";
 import { _image } from "./constructors/_image";
-import { _imageFilter } from "./constructors/_imageFilter";
-import { _imageGroup } from "./constructors/_imageGroup";
+import { _layeredImage } from "./constructors/_layeredImage";
 import { _shadow } from "./constructors/_shadow";
 import { _style } from "./constructors/_style";
 import { _transition } from "./constructors/_transition";
@@ -31,16 +30,11 @@ export const uiBuiltins = () => ({
       $name: "default",
     }),
   } as Record<string, ReturnType<typeof _image>>,
-  image_group: {
-    default: _imageGroup({
+  layered_image: {
+    default: _layeredImage({
       $name: "default",
     }),
-  } as Record<string, ReturnType<typeof _imageGroup>>,
-  image_filter: {
-    default: _imageFilter({
-      $name: "default",
-    }),
-  } as Record<string, ReturnType<typeof _imageFilter>>,
+  } as Record<string, ReturnType<typeof _layeredImage>>,
   style: {
     default: _style({
       $name: "default",

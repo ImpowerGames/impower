@@ -541,7 +541,7 @@ const populateProgram = (
     if (type === "audio") {
       if (
         !program?.context?.["audio"]?.[name] &&
-        !program?.context?.["audio_group"]?.[name] &&
+        !program?.context?.["layered_audio"]?.[name] &&
         !program?.context?.["synth"]?.[name]
       ) {
         reportMissing(tok, type, name, nameRange, "warning");
@@ -550,7 +550,7 @@ const populateProgram = (
     if (type === "image") {
       if (
         !program?.context?.["image"]?.[name] &&
-        !program?.context?.["image_group"]?.[name]
+        !program?.context?.["layered_image"]?.[name]
       ) {
         reportMissing(tok, type, name, nameRange, "warning");
       }
@@ -1818,10 +1818,7 @@ const populateProgram = (
                 } else {
                   if (prevOperator === "~") {
                     // name is filter
-                    const filterType =
-                      parent.tag === "audio_tag"
-                        ? "audio_filter"
-                        : "image_filter";
+                    const filterType = "layer_filter";
                     const filter = program.context?.[filterType]?.[name];
                     const asset = assetGroups.at(-1);
                     if (asset) {

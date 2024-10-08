@@ -1,4 +1,4 @@
-export interface AudioGroup {
+export interface LayeredAudio {
   assets: string[];
   cues: number[];
 }

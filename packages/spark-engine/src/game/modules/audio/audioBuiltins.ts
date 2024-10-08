@@ -1,5 +1,5 @@
 import { _audio } from "./constructors/_audio";
-import { _audioGroup } from "./constructors/_audioGroup";
+import { _layeredAudio } from "./constructors/_layeredAudio";
 import { _channel } from "./constructors/_channel";
 import { _mixer } from "./constructors/_mixer";
 import { _synth } from "./constructors/_synth";
@@ -10,11 +10,11 @@ export const audioBuiltins = () => ({
       $name: "default",
     }),
   } as Record<string, ReturnType<typeof _audio>>,
-  audio_group: {
-    default: _audioGroup({
+  layered_audio: {
+    default: _layeredAudio({
       $name: "default",
     }),
-  } as Record<string, ReturnType<typeof _audioGroup>>,
+  } as Record<string, ReturnType<typeof _layeredAudio>>,
   synth: {
     default: _synth({
       $name: "default",
