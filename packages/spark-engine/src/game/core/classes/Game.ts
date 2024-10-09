@@ -64,7 +64,7 @@ export class Game<T extends M = {}> {
   constructor(
     program: SparkProgram,
     options?: {
-      previewing?: boolean;
+      previewing?: string;
       simulation?: {
         waypoints?: { file?: string; line: number }[];
         startpoint?: { file?: string; line: number };
@@ -294,7 +294,7 @@ export class Game<T extends M = {}> {
   }
 
   start(save: string = ""): void {
-    this._context.system.previewing = false;
+    this._context.system.previewing = undefined;
     if (save) {
       this.loadSave(save);
     }
@@ -489,16 +489,19 @@ export class Game<T extends M = {}> {
   }
 
   preview(file: string, line: number): void {
-    this._context.system.previewing = true;
     const path = this.getClosestPath(file, line);
-    if (path) {
-      this._story.ResetState();
-      this._story.ChoosePathString(path);
-      this.continue();
-      for (const k of this._moduleNames) {
-        this._modules[k]?.onPreview();
+    // Only update preview if necessary
+    if (path != null && this._context.system.previewing !== path) {
+      this._context.system.previewing = path;
+      if (path) {
+        this._story.ResetState();
+        this._story.ChoosePathString(path);
+        this.continue();
+        for (const k of this._moduleNames) {
+          this._modules[k]?.onPreview();
+        }
+        this._coordinator = null;
       }
-      this._coordinator = null;
     }
   }
 }
