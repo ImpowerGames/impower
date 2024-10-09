@@ -2414,9 +2414,6 @@
           "include": "#InlineDialogue"
         },
         {
-          "include": "#InlineDialogueNoContent"
-        },
-        {
           "include": "#Transition"
         },
         {
@@ -3434,17 +3431,17 @@
     "Dialogue": {
       "patterns": [
         {
-          "include": "#InlineDialogue"
+          "include": "#BlockDialogue"
         },
         {
-          "include": "#BlockDialogue"
+          "include": "#InlineDialogue"
         }
       ]
     },
     "InlineDialogue": {
       "tag": "string",
       "name": "string.dialogue.sd",
-      "begin": "([^\\S\\n\\r]*)([@][^\\S\\n\\r]+)(.*?)([:])($|[^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)([@](?:$|[^\\S\\n\\r]+))($|.*?)($|[:])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3501,33 +3498,10 @@
       ],
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
     },
-    "InlineDialogueNoContent": {
-      "match": "([^\\S\\n\\r]*)([@](?:$|[^\\S\\n\\r]+))($|[^:]+$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "2": {
-          "tag": "definition(typeName)",
-          "name": "entity.name.type.dialogue.character.name.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#DialogueCharacter"
-            }
-          ]
-        }
-      }
-    },
     "BlockDialogue": {
       "tag": "string",
       "name": "string.dialogue.sd",
-      "begin": "([^\\S\\n\\r]*)([@](?:$|[^\\S\\n\\r]+))(.+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "([^\\S\\n\\r]*)([@](?:$|[^\\S\\n\\r]+))([^:]+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [

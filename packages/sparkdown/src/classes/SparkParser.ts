@@ -122,7 +122,9 @@ export default class SparkParser {
           const lineTextAfter = lineText.slice(transpiledNodeEnd);
           const id = generateID();
           const flowMarker = getFlowMarker(id);
-          const markup = ": " + flowMarker + "\\";
+          const colonSeparator =
+            lineTextBefore.trimStart().length === 1 ? " : " : ": ";
+          const markup = colonSeparator + flowMarker + "\\";
           lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
           program.sourceMap ??= {};
           program.sourceMap[uri]![lineIndex] = {
