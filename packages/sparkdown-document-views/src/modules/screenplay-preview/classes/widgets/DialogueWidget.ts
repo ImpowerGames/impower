@@ -4,7 +4,7 @@ import { ReplaceSpec } from "../../types/ReplaceSpec";
 import getFormattedHTML from "../../utils/getFormattedHTML";
 import ReplaceWidget from "../ReplaceWidget";
 
-const DIALOGUE_CONTAINER_WIDTH = "60%";
+const DIALOGUE_CONTAINER_WIDTH = "100%";
 const DUAL_DIALOGUE_CONTAINER_WIDTH = "95%";
 const DUAL_DIALOGUE_BLOCK_WIDTH = "100%";
 
