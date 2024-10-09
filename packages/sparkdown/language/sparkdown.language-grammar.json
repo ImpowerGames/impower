@@ -2411,7 +2411,7 @@
           "include": "#MultilineCloseBraceAhead"
         },
         {
-          "include": "#InlineDialogue"
+          "include": "#Dialogue"
         },
         {
           "include": "#Transition"
@@ -3539,7 +3539,7 @@
           "include": "#BlockDialogueLineContinue"
         }
       ],
-      "end": "(?=^[^\\S\\n\\r]*$)"
+      "end": "(?=^(?!\\1))"
     },
     "BlockDialogueLineBreak": {
       "match": "([^\\S\\n\\r]*)(.*?)((?:[^\\S\\n\\r]+[>][^\\S\\n\\r]*))((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",

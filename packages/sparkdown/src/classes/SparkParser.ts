@@ -24,6 +24,8 @@ const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 
 const NEWLINE_REGEX: RegExp = /\r\n|\r|\n/;
 
+const INDENT_REGEX: RegExp = /^[ \t]*/;
+
 const UUID_MARKER_REGEX = new RegExp(GRAMMAR_DEFINITION.repository.UUID.match);
 
 export default class SparkParser {
@@ -598,11 +600,17 @@ export default class SparkParser {
             !lineTextBefore.trim().endsWith("\\") &&
             !lineTextAfter.trim().startsWith("\\")
           ) {
-            // Dialogue lines should end with implicit \
-            // (So they are grouped together with following text line)
-            const suffix = ` \\`;
-            const markup = suffix;
-            lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+            const indentMatch = lineText.match(INDENT_REGEX);
+            const indent = indentMatch?.[0] || "";
+            const nextLineText = lines[lineIndex + 1] || "";
+            // Check that this dialogue line is not the last in the block
+            if (nextLineText.startsWith(indent)) {
+              // All Dialogue lines (except the last in a block) should end with implicit \
+              // (So they are grouped together with following text line)
+              const suffix = " \\";
+              const markup = suffix;
+              lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+            }
           }
         }
         if (nodeType === "DefineDeclaration") {

@@ -1329,7 +1329,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#MultilineCloseBraceAhead" }
-      - { include: "#InlineDialogue" }
+      - { include: "#Dialogue" }
       - { include: "#Transition" }
       - { include: "#Scene" }
       - { include: "#Action" }
@@ -2030,7 +2030,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockDialogueLineBreak" }
       - { include: "#BlockDialogueLineContinue" }
-    end: (?=^{{WS}}*$)
+    end: (?=^(?!\1))
 
   BlockDialogueLineBreak:
     match: ({{WS}}*)(.*?)({{BREAK}})({{EOL}})
