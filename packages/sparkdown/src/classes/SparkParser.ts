@@ -827,7 +827,20 @@ export default class SparkParser {
             });
             if (!struct) {
               const message = `Cannot find ${description}`;
-              report(message);
+              program.diagnostics ??= {};
+              program.diagnostics[uri] ??= [];
+              program.diagnostics[uri].push({
+                range,
+                severity: DiagnosticSeverity.Warning,
+                message,
+                relatedInformation: [
+                  {
+                    location: { uri, range },
+                    message,
+                  },
+                ],
+                source: LANGUAGE_NAME,
+              });
             }
           }
         }
