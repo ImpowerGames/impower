@@ -2065,7 +2065,7 @@ repository:
   BlockDialogue:
     tag: string
     name: string.dialogue.sd
-    begin: ({{WS}}*)([@](?:$|{{WS}}+))([^:]+?)(?={{EOL}})
+    begin: ({{WS}}*)([@](?:$|{{WS}}+))($|[^:\r\n]+?)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
