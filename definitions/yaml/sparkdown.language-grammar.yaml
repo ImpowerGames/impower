@@ -2004,10 +2004,10 @@ repository:
           - { include: "#Annotation" }
           - { include: "#WriteTarget" }
       4:
-        tag: definition(separator)
+        tag: separator
         name: meta.template.expression.colon.sd
       5:
-        tag: definition(typeName)
+        tag: typeName
         name: entity.name.type.write.target.name.sd
     patterns:
       - { include: "#Annotation" }
@@ -2020,7 +2020,7 @@ repository:
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
       
   WriteTarget:
-    tag: definition(typeName)
+    tag: typeName
     name: entity.name.type.write.target.name.sd
     match: (.+)
 

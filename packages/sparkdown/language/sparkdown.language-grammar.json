@@ -3486,11 +3486,11 @@
           ]
         },
         "4": {
-          "tag": "definition(separator)",
+          "tag": "separator",
           "name": "meta.template.expression.colon.sd"
         },
         "5": {
-          "tag": "definition(typeName)",
+          "tag": "typeName",
           "name": "entity.name.type.write.target.name.sd"
         }
       },
@@ -3520,7 +3520,7 @@
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
     },
     "WriteTarget": {
-      "tag": "definition(typeName)",
+      "tag": "typeName",
       "name": "entity.name.type.write.target.name.sd",
       "match": "(.+)"
     },
