@@ -2030,7 +2030,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockDialogueLineBreak" }
       - { include: "#BlockDialogueLineContinue" }
-    end: (?=^(?!\1))
+    end: (?=^(?!\1))|(?=^$)
 
   BlockDialogueLineBreak:
     match: ({{WS}}*)(.*?)({{BREAK}})({{EOL}})
