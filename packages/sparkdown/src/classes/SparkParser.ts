@@ -359,28 +359,26 @@ export default class SparkParser {
           recordReference(selectors, description);
         }
         // Report invalid property selectors
-        if (
-          nodeType === "PropertySelectorSimpleConditionName" &&
-          !PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(text)
-        ) {
-          const message = PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(
-            text
-          )
-            ? "Conditional selector should be a function"
-            : "Unrecognized conditional selector";
-          reportDiagnostic(message);
+        if (nodeType === "PropertySelectorSimpleConditionName") {
+          if (!PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(text)) {
+            const message = PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(
+              text
+            )
+              ? "Conditional selector should be a function"
+              : "Unrecognized conditional selector";
+            reportDiagnostic(message);
+          }
         }
-        if (
-          nodeType === "PropertySelectorFunctionConditionName" &&
-          !PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(text)
-        ) {
+        if (nodeType === "PropertySelectorFunctionConditionName") {
           selectorFunctionName = text;
-          const message = PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(
-            text
-          )
-            ? "Conditional selector is not a function"
-            : "Unrecognized conditional selector";
-          reportDiagnostic(message);
+          if (!PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(text)) {
+            const message = PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(
+              text
+            )
+              ? "Conditional selector is not a function"
+              : "Unrecognized conditional selector";
+            reportDiagnostic(message);
+          }
         }
         if (nodeType === "PropertySelectorConstant") {
           if (
