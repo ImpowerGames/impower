@@ -640,13 +640,14 @@ repository:
         tag: attributeName
         name: entity.other.attribute-name.pseudo-class.prefix.sd
       2:
-        tag: attributeName
-        name: entity.other.attribute-name.pseudo-class.name.sd
+        patterns:
+          - { include: "#PropertySelectorFunctionConditionName" }
       3:
         tag: paren
         name: meta.brace.round.open.sd
     patterns:
       - { include: "#PropertySelector" }
+      - { include: "#Unknown" }
     end: ([)])
     endCaptures:
       1:
@@ -660,13 +661,14 @@ repository:
         tag: attributeName
         name: entity.other.attribute-name.pseudo-class.prefix.sd
       2:
-        tag: attributeName
-        name: entity.other.attribute-name.pseudo-class.name.sd
+        patterns:
+          - { include: "#PropertySelectorFunctionConditionName" }
       3:
         tag: paren
         name: meta.brace.round.open.sd
     patterns:
       - { include: "#PropertySelectorConstant" }
+      - { include: "#Unknown" }
     end: ([)])
     endCaptures:
       1:
@@ -680,8 +682,8 @@ repository:
         tag: attributeName
         name: entity.other.attribute-name.pseudo-class.prefix.sd
       2:
-        tag: attributeName
-        name: entity.other.attribute-name.pseudo-class.name.sd
+        patterns:
+          - { include: "#PropertySelectorSimpleConditionName" }
 
   PropertySelectorUniversalCondition:
     match: ([@])
@@ -703,6 +705,16 @@ repository:
   PropertySelectorClass:
     tag: propertyName
     name: variable.other.property.sd
+    match: ({{IDENTIFIER}})
+
+  PropertySelectorFunctionConditionName:
+    tag: attributeName
+    name: entity.other.attribute-name.pseudo-class.name.sd
+    match: ({{IDENTIFIER}})
+
+  PropertySelectorSimpleConditionName:
+    tag: attributeName
+    name: entity.other.attribute-name.pseudo-class.name.sd
     match: ({{IDENTIFIER}})
 
   DeclarationAssignOperator:

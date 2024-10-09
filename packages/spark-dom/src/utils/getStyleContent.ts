@@ -88,14 +88,8 @@ const getCSSSelector = (
         case "blank":
           output += ":placeholder-shown";
           break;
-        case "language":
-          output += `:lang(${arg})`;
-          break;
-        case "direction":
-          output += `:dir(${arg})`;
-          break;
-        case "has":
-          output += `:has(${getCSSSelector(arg, breakpoints)})`;
+        case "opened":
+          output += `[open]`;
           break;
         case "before":
           output += "::before";
@@ -118,17 +112,22 @@ const getCSSSelector = (
         case "initial":
           output += "@starting-style";
           break;
+        case "language":
+          output += `:lang(${arg})`;
+          break;
+        case "direction":
+          output += `:dir(${arg})`;
+          break;
         case "screen":
           const breakpoint = breakpoints?.[arg];
-          if (breakpoint != null) {
-            output += `@container(max-width:${breakpoint}px)`;
-          }
+          const size = breakpoint != null ? `${breakpoint}px` : arg;
+          output += `@container(max-width:${size})`;
           break;
         case "theme":
           output += `@media(prefers-color-scheme:${arg})`;
           break;
-        case "opened":
-          output += `[open]`;
+        case "has":
+          output += `:has(${getCSSSelector(arg, breakpoints)})`;
           break;
       }
       i++;

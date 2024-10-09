@@ -1156,8 +1156,11 @@
           "name": "entity.other.attribute-name.pseudo-class.prefix.sd"
         },
         "2": {
-          "tag": "attributeName",
-          "name": "entity.other.attribute-name.pseudo-class.name.sd"
+          "patterns": [
+            {
+              "include": "#PropertySelectorFunctionConditionName"
+            }
+          ]
         },
         "3": {
           "tag": "paren",
@@ -1167,6 +1170,9 @@
       "patterns": [
         {
           "include": "#PropertySelector"
+        },
+        {
+          "include": "#Unknown"
         }
       ],
       "end": "([)])",
@@ -1185,8 +1191,11 @@
           "name": "entity.other.attribute-name.pseudo-class.prefix.sd"
         },
         "2": {
-          "tag": "attributeName",
-          "name": "entity.other.attribute-name.pseudo-class.name.sd"
+          "patterns": [
+            {
+              "include": "#PropertySelectorFunctionConditionName"
+            }
+          ]
         },
         "3": {
           "tag": "paren",
@@ -1196,6 +1205,9 @@
       "patterns": [
         {
           "include": "#PropertySelectorConstant"
+        },
+        {
+          "include": "#Unknown"
         }
       ],
       "end": "([)])",
@@ -1214,8 +1226,11 @@
           "name": "entity.other.attribute-name.pseudo-class.prefix.sd"
         },
         "2": {
-          "tag": "attributeName",
-          "name": "entity.other.attribute-name.pseudo-class.name.sd"
+          "patterns": [
+            {
+              "include": "#PropertySelectorSimpleConditionName"
+            }
+          ]
         }
       }
     },
@@ -1241,6 +1256,16 @@
     "PropertySelectorClass": {
       "tag": "propertyName",
       "name": "variable.other.property.sd",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
+    },
+    "PropertySelectorFunctionConditionName": {
+      "tag": "attributeName",
+      "name": "entity.other.attribute-name.pseudo-class.name.sd",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
+    },
+    "PropertySelectorSimpleConditionName": {
+      "tag": "attributeName",
+      "name": "entity.other.attribute-name.pseudo-class.name.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "DeclarationAssignOperator": {

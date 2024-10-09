@@ -23,10 +23,73 @@ import uuid from "../utils/uuid";
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 
 const NEWLINE_REGEX: RegExp = /\r\n|\r|\n/;
-
 const INDENT_REGEX: RegExp = /^[ \t]*/;
-
 const UUID_MARKER_REGEX = new RegExp(GRAMMAR_DEFINITION.repository.UUID.match);
+
+const IMAGE_COMMAND_CONTROLS = ["set", "show", "hide", "animate"];
+const IMAGE_COMMAND_CLAUSE_KEYWORDS = [
+  "after",
+  "over",
+  "with",
+  "wait",
+  "nowait",
+];
+const AUDIO_COMMAND_CONTROLS = ["start", "stop", "play", "modulate"];
+const AUDIO_COMMAND_CLAUSE_KEYWORDS = [
+  "after",
+  "over",
+  "fadeto",
+  "loop",
+  "noloop",
+  "mute",
+  "unmute",
+  "now",
+];
+const PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES = [
+  "hovered",
+  "focused",
+  "pressed",
+  "disabled",
+  "enabled",
+  "checked",
+  "unchecked",
+  "required",
+  "valid",
+  "invalid",
+  "readonly",
+  "first",
+  "last",
+  "only",
+  "odd",
+  "even",
+  "empty",
+  "blank",
+  "opened",
+  "before",
+  "after",
+  "placeholder",
+  "selection",
+  "marker",
+  "backdrop",
+  "initial",
+];
+const PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES = [
+  "language",
+  "direction",
+  "has",
+  "screen",
+  "theme",
+];
+const PROPERTY_SELECTOR_DIRECTION_ARGUMENTS = ["rtl", "ltr"];
+const PROPERTY_SELECTOR_THEME_ARGUMENTS = ["dark", "light"];
+const PROPERTY_SELECTOR_SCREEN_ARGUMENTS = [
+  "xs",
+  "sm",
+  "md",
+  "lg",
+  "xl",
+  "2xl",
+];
 
 export default class SparkParser {
   protected _config: SparkParserConfig = {};
@@ -75,10 +138,23 @@ export default class SparkParser {
     const fileIndex = Object.keys(program.sourceMap).indexOf(uri);
     let lineIndex = 0;
     let linePos = 0;
+    let range:
+      | {
+          start: {
+            line: number;
+            character: number;
+          };
+          end: {
+            line: number;
+            character: number;
+          };
+        }
+      | undefined = undefined;
     let prevNodeType = "";
     let blockDialoguePrefix = "";
     let structType = "";
     let propertyName = "";
+    let selectorFunctionName = "";
     const generateID = () => {
       while (true) {
         const id = uuid();
@@ -91,6 +167,42 @@ export default class SparkParser {
     };
     const getFlowMarker = (id: string) => {
       return `=${id}=`;
+    };
+    const formatList = (arr: string[]) => {
+      return arr.map((c) => `'${c}'`).join(", ");
+    };
+    const reportDiagnostic = (
+      message: string,
+      severity: DiagnosticSeverity = DiagnosticSeverity.Warning
+    ) => {
+      if (range) {
+        program.diagnostics ??= {};
+        program.diagnostics[uri] ??= [];
+        program.diagnostics[uri].push({
+          range,
+          severity,
+          message,
+          relatedInformation: [
+            {
+              location: { uri, range },
+              message,
+            },
+          ],
+          source: LANGUAGE_NAME,
+        });
+      }
+    };
+    const recordReference = (selectors: string[], description: string) => {
+      if (range) {
+        program.references ??= {};
+        program.references[uri] ??= {};
+        program.references[uri][lineIndex] ??= [];
+        program.references[uri][lineIndex]!.push({
+          range,
+          selectors,
+          description,
+        });
+      }
     };
     tree.iterate({
       enter: (node) => {
@@ -107,7 +219,7 @@ export default class SparkParser {
 
         const lineText = lines[lineIndex] || "";
         const text = lineText.slice(transpiledNodeStart, transpiledNodeEnd);
-        const range = {
+        range = {
           start: {
             line: lineIndex,
             character: sourceNodeStart,
@@ -244,14 +356,60 @@ export default class SparkParser {
               description = `'${name}'`;
             }
           }
-          program.references ??= {};
-          program.references[uri] ??= {};
-          program.references[uri][lineIndex] ??= [];
-          program.references[uri][lineIndex]!.push({
-            selectors,
-            range,
-            description,
-          });
+          recordReference(selectors, description);
+        }
+        // Report invalid property selectors
+        if (
+          nodeType === "PropertySelectorSimpleConditionName" &&
+          !PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(text)
+        ) {
+          const message = PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(
+            text
+          )
+            ? "Conditional selector should be a function"
+            : "Unrecognized conditional selector";
+          reportDiagnostic(message);
+        }
+        if (
+          nodeType === "PropertySelectorFunctionConditionName" &&
+          !PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(text)
+        ) {
+          selectorFunctionName = text;
+          const message = PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(
+            text
+          )
+            ? "Conditional selector is not a function"
+            : "Unrecognized conditional selector";
+          reportDiagnostic(message);
+        }
+        if (nodeType === "PropertySelectorConstant") {
+          if (
+            selectorFunctionName === "direction" &&
+            !PROPERTY_SELECTOR_DIRECTION_ARGUMENTS.includes(text)
+          ) {
+            const message = `Unrecognized direction argument: Supported values are ${formatList(
+              PROPERTY_SELECTOR_DIRECTION_ARGUMENTS
+            )}`;
+            reportDiagnostic(message);
+          }
+          if (
+            selectorFunctionName === "theme" &&
+            !PROPERTY_SELECTOR_THEME_ARGUMENTS.includes(text)
+          ) {
+            const message = `Unrecognized theme argument: Supported values are ${formatList(
+              PROPERTY_SELECTOR_THEME_ARGUMENTS
+            )}`;
+            reportDiagnostic(message);
+          }
+          if (
+            selectorFunctionName === "screen" &&
+            !PROPERTY_SELECTOR_SCREEN_ARGUMENTS.includes(text)
+          ) {
+            const message = `Unrecognized screen argument: Supported values are ${formatList(
+              PROPERTY_SELECTOR_SCREEN_ARGUMENTS
+            )}`;
+            reportDiagnostic(message);
+          }
         }
         // Record image target reference
         if (
@@ -260,14 +418,7 @@ export default class SparkParser {
         ) {
           const selectors = [`ui..${text}`];
           const description = `ui element named '${text}'`;
-          program.references ??= {};
-          program.references[uri] ??= {};
-          program.references[uri][lineIndex] ??= [];
-          program.references[uri][lineIndex]!.push({
-            selectors,
-            range,
-            description,
-          });
+          recordReference(selectors, description);
         }
         // Record audio target reference
         if (
@@ -276,14 +427,7 @@ export default class SparkParser {
         ) {
           const selectors = [`channel.${text}`];
           const description = `channel named '${text}'`;
-          program.references ??= {};
-          program.references[uri] ??= {};
-          program.references[uri][lineIndex] ??= [];
-          program.references[uri][lineIndex]!.push({
-            selectors,
-            range,
-            description,
-          });
+          recordReference(selectors, description);
         }
         // Record image name or filter reference
         if (stack.includes("ImageCommand") && nodeType === "AssetCommandName") {
@@ -296,14 +440,7 @@ export default class SparkParser {
             prevChar === "~"
               ? `layer_filter named '${text}'`
               : `image named '${text}'`;
-          program.references ??= {};
-          program.references[uri] ??= {};
-          program.references[uri][lineIndex] ??= [];
-          program.references[uri][lineIndex]!.push({
-            selectors,
-            range,
-            description,
-          });
+          recordReference(selectors, description);
         }
         // Record audio name or filter reference
         if (stack.includes("AudioCommand") && nodeType === "AssetCommandName") {
@@ -316,158 +453,65 @@ export default class SparkParser {
             prevChar === "~"
               ? `audio_filter named '${text}'`
               : `audio named '${text}'`;
-          program.references ??= {};
-          program.references[uri] ??= {};
-          program.references[uri][lineIndex] ??= [];
-          program.references[uri][lineIndex]!.push({
-            selectors,
-            range,
-            description,
-          });
+          recordReference(selectors, description);
         }
         // Report invalid image control
         if (
           stack.includes("ImageCommand") &&
           nodeType === "AssetCommandControl" &&
-          text !== "set" &&
-          text !== "show" &&
-          text !== "hide" &&
-          text !== "animate"
+          !IMAGE_COMMAND_CONTROLS.includes(text)
         ) {
-          const severity = DiagnosticSeverity.Error;
-          const message =
-            "Invalid visual control: Visual commands only support 'set', 'show', 'hide', or 'animate'";
-          program.diagnostics ??= {};
-          program.diagnostics[uri] ??= [];
-          program.diagnostics[uri].push({
-            range,
-            severity,
-            message,
-            relatedInformation: [
-              {
-                location: { uri, range },
-                message,
-              },
-            ],
-            source: LANGUAGE_NAME,
-          });
+          const message = `Unrecognized visual control: Visual commands only support ${formatList(
+            IMAGE_COMMAND_CONTROLS
+          )}`;
+          reportDiagnostic(message);
         }
         // Report invalid audio control
         if (
           stack.includes("AudioCommand") &&
           nodeType === "AssetCommandControl" &&
-          text !== "start" &&
-          text !== "stop" &&
-          text !== "play" &&
-          text !== "modulate"
+          !AUDIO_COMMAND_CONTROLS.includes(text)
         ) {
-          const severity = DiagnosticSeverity.Error;
-          const message =
-            "Invalid audio control: Audio commands only support 'play', 'start', 'stop', or 'modulate'";
-          program.diagnostics ??= {};
-          program.diagnostics[uri] ??= [];
-          program.diagnostics[uri].push({
-            range,
-            severity,
-            message,
-            relatedInformation: [
-              {
-                location: { uri, range },
-                message,
-              },
-            ],
-            source: LANGUAGE_NAME,
-          });
+          const message = `Unrecognized visual control: Visual commands only support ${formatList(
+            AUDIO_COMMAND_CONTROLS
+          )}`;
+          reportDiagnostic(message);
         }
         if (
           stack.includes("ImageCommand") &&
           nodeType === "InvalidValue" &&
           stack.at(-1) === "AssetCommandClauses"
         ) {
-          const severity = DiagnosticSeverity.Error;
-          const message =
-            "Invalid visual clause: Visual commands only support 'after', 'over', 'with', 'wait', or 'nowait'";
-          program.diagnostics ??= {};
-          program.diagnostics[uri] ??= [];
-          program.diagnostics[uri].push({
-            range,
-            severity,
-            message,
-            relatedInformation: [
-              {
-                location: { uri, range },
-                message,
-              },
-            ],
-            source: LANGUAGE_NAME,
-          });
+          const message = `Unrecognized visual clause: Visual commands only support ${formatList(
+            IMAGE_COMMAND_CLAUSE_KEYWORDS
+          )}`;
+          reportDiagnostic(message);
         }
         if (
           stack.includes("AudioCommand") &&
           nodeType === "InvalidValue" &&
           stack.at(-1) === "AssetCommandClauses"
         ) {
-          const severity = DiagnosticSeverity.Error;
-          const message =
-            "Invalid audio clause: Audio commands only support 'after', 'over', 'fadeto', 'loop', 'noloop', 'mute', 'unmute', or 'now'";
-          program.diagnostics ??= {};
-          program.diagnostics[uri] ??= [];
-          program.diagnostics[uri].push({
-            range,
-            severity,
-            message,
-            relatedInformation: [
-              {
-                location: { uri, range },
-                message,
-              },
-            ],
-            source: LANGUAGE_NAME,
-          });
+          const message = `Unrecognized audio clause: Audio commands only support ${formatList(
+            AUDIO_COMMAND_CLAUSE_KEYWORDS
+          )}`;
+          reportDiagnostic(message);
         }
         if (
           stack.includes("AssetCommandAfterClause") &&
           nodeType === "InvalidValue"
         ) {
-          const severity = DiagnosticSeverity.Error;
           const message =
-            "'after' must be followed by a time value (e.g. 'after 2' or 'after 2s' or 'after 200ms')";
-          program.diagnostics ??= {};
-          program.diagnostics[uri] ??= [];
-          program.diagnostics[uri].push({
-            range,
-            severity,
-            message,
-            relatedInformation: [
-              {
-                location: { uri, range },
-                message,
-              },
-            ],
-            source: LANGUAGE_NAME,
-          });
+            "'after' should be followed by a time value (e.g. 'after 2' or 'after 2s' or 'after 200ms')";
+          reportDiagnostic(message);
         }
         if (
           stack.includes("AssetCommandOverClause") &&
           nodeType === "InvalidValue"
         ) {
-          const severity = DiagnosticSeverity.Error;
           const message =
-            "'over' must be followed by a time value (e.g. 'over 2' or 'over 2s' or 'over 200ms')";
-          program.diagnostics ??= {};
-          program.diagnostics[uri] ??= [];
-          program.diagnostics[uri].push({
-            range,
-            severity,
-            message,
-            relatedInformation: [
-              {
-                location: { uri, range },
-                message,
-              },
-            ],
-            source: LANGUAGE_NAME,
-          });
+            "'over' should be followed by a time value (e.g. 'over 2' or 'over 2s' or 'over 200ms')";
+          reportDiagnostic(message);
         }
         if (
           stack.includes("AssetCommandFadetoClause") &&
@@ -475,46 +519,18 @@ export default class SparkParser {
             (nodeType === "NumberValue" &&
               (Number(text) < 0 || Number(text) > 1)))
         ) {
-          const severity = DiagnosticSeverity.Error;
           const message =
-            "'fadeto' must be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 0.5' or 'fadeto 1')";
-          program.diagnostics ??= {};
-          program.diagnostics[uri] ??= [];
-          program.diagnostics[uri].push({
-            range,
-            severity,
-            message,
-            relatedInformation: [
-              {
-                location: { uri, range },
-                message,
-              },
-            ],
-            source: LANGUAGE_NAME,
-          });
+            "'fadeto' should be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 0.5' or 'fadeto 1')";
+          reportDiagnostic(message);
         }
         if (
           stack.includes("ImageCommand") &&
           stack.includes("AssetCommandWithClause") &&
           nodeType === "InvalidValue"
         ) {
-          const severity = DiagnosticSeverity.Error;
           const message =
-            "'with' must be followed by the name of a transition or animation (e.g. 'with shake')";
-          program.diagnostics ??= {};
-          program.diagnostics[uri] ??= [];
-          program.diagnostics[uri].push({
-            range,
-            severity,
-            message,
-            relatedInformation: [
-              {
-                location: { uri, range },
-                message,
-              },
-            ],
-            source: LANGUAGE_NAME,
-          });
+            "'with' should be followed by the name of a transition or animation (e.g. 'with shake')";
+          reportDiagnostic(message);
         }
         if (
           stack.includes("ImageCommand") &&
@@ -523,37 +539,16 @@ export default class SparkParser {
         ) {
           const selectors = [`transition.${text}`, `animation.${text}`];
           const description = `transition or animation named '${text}'`;
-          program.references ??= {};
-          program.references[uri] ??= {};
-          program.references[uri][lineIndex] ??= [];
-          program.references[uri][lineIndex]!.push({
-            selectors,
-            range,
-            description,
-          });
+          recordReference(selectors, description);
         }
         if (
           stack.includes("AudioCommand") &&
           stack.includes("AssetCommandWithClause") &&
           nodeType === "InvalidValue"
         ) {
-          const severity = DiagnosticSeverity.Error;
           const message =
-            "'with' must be followed by the name of a modulation (e.g. 'with echo')";
-          program.diagnostics ??= {};
-          program.diagnostics[uri] ??= [];
-          program.diagnostics[uri].push({
-            range,
-            severity,
-            message,
-            relatedInformation: [
-              {
-                location: { uri, range },
-                message,
-              },
-            ],
-            source: LANGUAGE_NAME,
-          });
+            "'with' should be followed by the name of a modulation (e.g. 'with echo')";
+          reportDiagnostic(message);
         }
         if (
           stack.includes("AudioCommand") &&
@@ -562,14 +557,7 @@ export default class SparkParser {
         ) {
           const selectors = [`modulation.${text}`];
           const description = `modulation named '${text}'`;
-          program.references ??= {};
-          program.references[uri] ??= {};
-          program.references[uri][lineIndex] ??= [];
-          program.references[uri][lineIndex]!.push({
-            selectors,
-            range,
-            description,
-          });
+          recordReference(selectors, description);
         }
         if (nodeType === "Newline") {
           lineIndex += 1;
@@ -840,22 +828,8 @@ export default class SparkParser {
               return foundPath === s;
             });
             if (!struct) {
-              const severity = DiagnosticSeverity.Warning;
               const message = `Cannot find ${description}`;
-              program.diagnostics ??= {};
-              program.diagnostics[uri] ??= [];
-              program.diagnostics[uri].push({
-                range,
-                severity,
-                message,
-                relatedInformation: [
-                  {
-                    location: { uri, range },
-                    message,
-                  },
-                ],
-                source: LANGUAGE_NAME,
-              });
+              report(message);
             }
           }
         }
