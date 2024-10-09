@@ -188,7 +188,7 @@ export class InterpreterModule extends Module<
     const targetPrefix = this._targetPrefixes.find(
       (p) => p && content.startsWith(p)
     );
-    const target =
+    let target =
       targetPrefix &&
       // (prefix symbol must be followed by space or end-of-line).
       this.KEYWORD_TERMINATOR_CHARS.includes(content[targetPrefix.length])
@@ -201,6 +201,25 @@ export class InterpreterModule extends Module<
     let characterNameInstructions: Instructions | undefined = undefined;
     let characterParentheticalInstructions: Instructions | undefined =
       undefined;
+    // Parse write target
+    if (target === "write") {
+      const nextColonIndex = content.indexOf(":");
+      const nextNewlineIndex = content.indexOf("\n");
+      // target is everything after > until the next colon or the end-of-line.
+      // > target: The text to write.
+      const targetTerminatorIndex =
+        nextColonIndex >= 0
+          ? nextColonIndex
+          : nextNewlineIndex >= 0
+          ? nextNewlineIndex
+          : content.length;
+      const writeTarget = content.slice(0, targetTerminatorIndex).trim();
+      if (writeTarget) {
+        target = writeTarget;
+      }
+      // Trim away write target
+      content = content.slice(targetTerminatorIndex + 1).trimStart();
+    }
     // Parse dialogue character
     if (target === "dialogue") {
       const nextColonIndex = content.indexOf(":");

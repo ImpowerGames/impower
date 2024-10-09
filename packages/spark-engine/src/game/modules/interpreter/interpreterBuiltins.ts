@@ -10,6 +10,7 @@ export const interpreterBuiltins = () => ({
         transition: "%",
         dialogue: "@",
         action: "!",
+        write: ">",
       },
       fallbacks: {
         layer: "portrait",

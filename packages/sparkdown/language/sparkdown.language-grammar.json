@@ -62,6 +62,9 @@
       "include": "#Gather"
     },
     {
+      "include": "#Write"
+    },
+    {
       "include": "#Dialogue"
     },
     {
@@ -1660,6 +1663,9 @@
         },
         {
           "include": "#Tag"
+        },
+        {
+          "include": "#Write"
         },
         {
           "include": "#Dialogue"
@@ -3453,6 +3459,71 @@
         }
       }
     },
+    "Write": {
+      "tag": "string",
+      "name": "string.write.sd",
+      "begin": "([^\\S\\n\\r]*)([>](?:$|[^\\S\\n\\r]+))($|.*?)($|[:])($|[^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "definition(typeName)",
+          "name": "entity.name.type.write.target.name.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            },
+            {
+              "include": "#WriteTarget"
+            }
+          ]
+        },
+        "4": {
+          "tag": "definition(separator)",
+          "name": "meta.template.expression.colon.sd"
+        },
+        "5": {
+          "tag": "definition(typeName)",
+          "name": "entity.name.type.write.target.name.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#LineBreak"
+        },
+        {
+          "include": "#LineChain"
+        },
+        {
+          "include": "#AssetLine"
+        },
+        {
+          "include": "#ParentheticalLine"
+        },
+        {
+          "include": "#LineEnd"
+        }
+      ],
+      "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
+    },
+    "WriteTarget": {
+      "tag": "definition(typeName)",
+      "name": "entity.name.type.write.target.name.sd",
+      "match": "(.+)"
+    },
     "Dialogue": {
       "patterns": [
         {
@@ -3490,8 +3561,8 @@
           ]
         },
         "4": {
-          "tag": "definition(typeName)",
-          "name": "entity.name.type.dialogue.character.name.sd"
+          "tag": "definition(separator)",
+          "name": "meta.template.expression.colon.sd"
         },
         "5": {
           "tag": "definition(typeName)",

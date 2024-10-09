@@ -273,6 +273,7 @@ export default class SparkParser {
         }
         // Annotate line with implicit flow marker
         if (
+          nodeType === "Write_begin" ||
           nodeType === "InlineDialogue_begin" ||
           nodeType === "Transition_begin" ||
           nodeType === "Scene_begin" ||

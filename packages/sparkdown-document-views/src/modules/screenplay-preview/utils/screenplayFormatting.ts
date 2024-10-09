@@ -79,6 +79,7 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.definition(tags.propertyName), display: "none" },
   { tag: tags.definition(tags.punctuation), display: "none" },
   { tag: tags.definition(tags.content), display: "none" },
+  { tag: tags.definition(tags.separator), display: "none" },
   { tag: tags.special(tags.content), display: "none" },
   { tag: tags.comment, display: "none" },
   { tag: tags.blockComment, display: "none" },
