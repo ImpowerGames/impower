@@ -536,9 +536,19 @@ export default class SparkdownScriptEditor extends Component(spec) {
         const startLineNumber = range.start.line + 1;
         const endLineNumber = range.end.line + 1;
         if (startLineNumber <= 1) {
-          scrollY(0, this._possibleScroller, view.scrollDOM);
+          scrollY(
+            0,
+            this._possibleScroller,
+            view.scrollDOM,
+            document.documentElement
+          );
         } else if (endLineNumber >= doc.lines) {
-          scrollY(Infinity, this._possibleScroller, view.scrollDOM);
+          scrollY(
+            Infinity,
+            this._possibleScroller,
+            view.scrollDOM,
+            document.documentElement
+          );
         } else {
           const pos = doc.line(Math.max(1, startLineNumber)).from;
           view.dispatch({
@@ -548,7 +558,12 @@ export default class SparkdownScriptEditor extends Component(spec) {
           });
         }
       } else {
-        scrollY(0, this._possibleScroller, view.scrollDOM);
+        scrollY(
+          0,
+          this._possibleScroller,
+          view.scrollDOM,
+          document.documentElement
+        );
       }
     }
     this.cacheVisibleRange(range);
