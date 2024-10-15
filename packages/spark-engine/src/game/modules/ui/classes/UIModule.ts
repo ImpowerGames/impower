@@ -821,7 +821,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             instant,
             newSpanAnimations
           );
-          if (e.control === "show" && !targetRevealed) {
+          if (
+            (e.control === "show" || e.control === "set") &&
+            !targetRevealed
+          ) {
             if (!enterElements.has(targetEl)) {
               enterElements.set(targetEl, []);
             }
@@ -1140,7 +1143,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               const newSpanAnimations = enterElements.get(newSpanEl)!;
               $.queueAnimationEvent(showEvent, instant, newSpanAnimations);
             }
-            if (e.control === "show" && !targetRevealed) {
+            if (
+              (e.control === "show" || e.control === "set") &&
+              !targetRevealed
+            ) {
               if (!enterElements.has(targetEl)) {
                 enterElements.set(targetEl, []);
               }
