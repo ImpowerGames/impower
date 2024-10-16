@@ -159,16 +159,19 @@ export class Coordinator<G extends Game> {
       game.module.ui.style.update("continue_indicator", indicatorStyle);
 
       // Process button events
-      instructions.choices?.forEach((target, index) => {
-        const handleClick = (): void => {
-          game.module.ui.text.clearAll(transientLayers);
-          game.module.ui.image.clearAll(transientLayers);
-          game.module.ui.unobserve("click", target);
-          game.choose(index);
-          game.continue();
-        };
-        game.module.ui.observe("click", target, handleClick);
-      });
+      const choiceTargets = instructions.choices;
+      if (choiceTargets) {
+        choiceTargets.forEach((target, index) => {
+          const handleClick = (): void => {
+            game.module.ui.text.clearAll(choiceTargets);
+            game.module.ui.image.clearAll(choiceTargets);
+            game.module.ui.unobserve("click", target);
+            game.choose(index);
+            game.continue();
+          };
+          game.module.ui.observe("click", target, handleClick);
+        });
+      }
 
       // Process text events
       if (instructions.text) {
