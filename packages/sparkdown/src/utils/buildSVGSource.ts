@@ -7,15 +7,15 @@ const buildSVGSource = (
     includes?: string[] | undefined;
     excludes?: string[] | undefined;
   },
-  filteredIdPrefix = "filter",
-  filterTagSeparator = "-"
+  filterTag = "filter",
+  defaultTag = "default"
 ) => {
   const mime = "image/svg+xml";
   const filteredText = filter
-    ? filterSVG(svg, filter, filteredIdPrefix, filterTagSeparator)
+    ? filterSVG(svg, filter, filterTag, defaultTag)
     : svg;
-  const data = encodeSVG(filteredText);
-  const src = `data:${mime},${data}`;
+  const encoded = encodeSVG(filteredText);
+  const src = `data:${mime},${encoded}`;
   return src;
 };
 
