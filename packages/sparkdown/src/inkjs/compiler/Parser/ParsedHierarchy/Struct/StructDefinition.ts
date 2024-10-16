@@ -16,8 +16,12 @@ export class StructDefinition extends ParsedObject {
   public variableAssignment: VariableAssignment | null = null;
 
   get runtimeStructDefinition(): RuntimeStructDefinition {
+    const id = this.identifier?.name || "";
     const value = this.BuildValue(this.propertyDefinitions);
-    return new RuntimeStructDefinition(this.identifier?.name || "", value);
+    const [type, name] = id.split(".");
+    value["$type"] = type;
+    value["$name"] = name;
+    return new RuntimeStructDefinition(id, value);
   }
 
   constructor(public propertyDefinitions: StructProperty[]) {
