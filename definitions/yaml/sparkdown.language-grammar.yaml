@@ -297,7 +297,8 @@ repository:
         patterns: 
           - { include: "#Whitespace" }
       8:
-        patterns: 
+        patterns:
+          - { include: "#DefinitionNameKeyword" }
           - { include: "#VariableName" }
       9:
         patterns:
@@ -310,6 +311,11 @@ repository:
       - { include: "#StructField" }
       - { include: "#Unknown" }
     end: ^(?=(?!\1{{WS}}{2,}))
+
+  DefinitionNameKeyword:
+    tag: keyword
+    name: keyword.asset.keyword.none.sd
+    match: ^(default)$
 
   TypeAssignment:
     begin: ({{IDENTIFIER}})({{WS}}*)($|[=]|(?={{EOL}}))
@@ -2514,7 +2520,9 @@ repository:
           - { include: "#Whitespace" }
       5:
         patterns:
-          - { include: "#AssetCommandNames" }
+          - { include: "#AssetCommandName" }
+          - { include: "#AssetCommandAddOperator" }
+          - { include: "#IllegalChar" }
       6:
         patterns:
           - { include: "#Whitespace" }
@@ -2532,31 +2540,52 @@ repository:
     name: entity.name.type.asset.target.sd
     match: (.+)
 
-  AssetCommandNames:
-    match: (.+)
+  AssetCommandName:
+    match: (.+?)(?=$|[+])
     captures:
       1:
         patterns:
           - { include: "#Whitespace" }
-          - { include: "#AssetCommandKeywordNone" }
-          - { include: "#AssetCommandName" }
           - { include: "#StringLiteral" }
-          - { include: "#CombineOperator" }
+          - { include: "#AssetCommandKeywordNone" }
+          - { include: "#AssetCommandFileName" }
+          - { include: "#AssetCommandFilter" }
+          - { include: "#IllegalChar" }
 
   AssetCommandKeywordNone:
     tag: keyword
     name: keyword.asset.keyword.none.sd
     match: (none)
 
-  AssetCommandName:
+  AssetCommandFileName:
     tag: variableName
-    name: variable.other.constant.asset.name.sd
+    name: variable.other.constant.asset.file.sd
     match: ({{IDENTIFIER}})
 
-  CombineOperator:
+  AssetCommandAddOperator:
     tag: propertyName
-    name: variable.other.property.combine.sd
-    match: ([~+-]+)
+    name: variable.other.property.add.sd
+    match: ([+])
+
+  AssetCommandFilter:
+    match: ([~])($|{{IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#AssetCommandFilterOperator" }
+      2:
+        patterns:
+          - { include: "#AssetCommandFilterName" }
+
+  AssetCommandFilterOperator:
+    tag: propertyName
+    name: variable.other.property.filter.sd
+    match: ([~])
+
+  AssetCommandFilterName:
+    tag: variableName
+    name: variable.other.constant.asset.filter.sd
+    match: ({{IDENTIFIER}})
 
   AssetCommandClauses:
     begin: (?=.+$)

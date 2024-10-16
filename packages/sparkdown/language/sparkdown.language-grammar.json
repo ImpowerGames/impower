@@ -493,6 +493,9 @@
         "8": {
           "patterns": [
             {
+              "include": "#DefinitionNameKeyword"
+            },
+            {
               "include": "#VariableName"
             }
           ]
@@ -524,6 +527,11 @@
         }
       ],
       "end": "^(?=(?!\\1[^\\S\\n\\r]{2,}))"
+    },
+    "DefinitionNameKeyword": {
+      "tag": "keyword",
+      "name": "keyword.asset.keyword.none.sd",
+      "match": "^(default)$"
     },
     "TypeAssignment": {
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)($|[=]|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
@@ -4437,7 +4445,13 @@
         "5": {
           "patterns": [
             {
-              "include": "#AssetCommandNames"
+              "include": "#AssetCommandName"
+            },
+            {
+              "include": "#AssetCommandAddOperator"
+            },
+            {
+              "include": "#IllegalChar"
             }
           ]
         },
@@ -4467,8 +4481,8 @@
       "name": "entity.name.type.asset.target.sd",
       "match": "(.+)"
     },
-    "AssetCommandNames": {
-      "match": "(.+)",
+    "AssetCommandName": {
+      "match": "(.+?)(?=$|[+])",
       "captures": {
         "1": {
           "patterns": [
@@ -4476,16 +4490,19 @@
               "include": "#Whitespace"
             },
             {
-              "include": "#AssetCommandKeywordNone"
-            },
-            {
-              "include": "#AssetCommandName"
-            },
-            {
               "include": "#StringLiteral"
             },
             {
-              "include": "#CombineOperator"
+              "include": "#AssetCommandKeywordNone"
+            },
+            {
+              "include": "#AssetCommandFileName"
+            },
+            {
+              "include": "#AssetCommandFilter"
+            },
+            {
+              "include": "#IllegalChar"
             }
           ]
         }
@@ -4496,15 +4513,44 @@
       "name": "keyword.asset.keyword.none.sd",
       "match": "(none)"
     },
-    "AssetCommandName": {
+    "AssetCommandFileName": {
       "tag": "variableName",
-      "name": "variable.other.constant.asset.name.sd",
+      "name": "variable.other.constant.asset.file.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
-    "CombineOperator": {
+    "AssetCommandAddOperator": {
       "tag": "propertyName",
-      "name": "variable.other.property.combine.sd",
-      "match": "([~+-]+)"
+      "name": "variable.other.property.add.sd",
+      "match": "([+])"
+    },
+    "AssetCommandFilter": {
+      "match": "([~])($|[_\\p{L}][0-9_\\p{L}]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetCommandFilterOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#AssetCommandFilterName"
+            }
+          ]
+        }
+      }
+    },
+    "AssetCommandFilterOperator": {
+      "tag": "propertyName",
+      "name": "variable.other.property.filter.sd",
+      "match": "([~])"
+    },
+    "AssetCommandFilterName": {
+      "tag": "variableName",
+      "name": "variable.other.constant.asset.filter.sd",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "AssetCommandClauses": {
       "begin": "(?=.+$)",
