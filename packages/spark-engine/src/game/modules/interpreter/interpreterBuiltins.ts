@@ -1,5 +1,5 @@
 import { _character } from "./constructors/_character";
-import { _layerFilter } from "./constructors/_layerFilter";
+import { _filter } from "./constructors/_filter";
 import { _writer } from "./constructors/_writer";
 
 export const interpreterBuiltins = () => ({
@@ -53,11 +53,11 @@ export const interpreterBuiltins = () => ({
       $name: "default",
     }),
   },
-  layer_filter: {
-    default: _layerFilter({
+  filter: {
+    default: _filter({
       $name: "default",
     }),
-  } as Record<string, ReturnType<typeof _layerFilter>>,
+  } as Record<string, ReturnType<typeof _filter>>,
 });
 
 export type WriterBuiltins = ReturnType<typeof interpreterBuiltins>;

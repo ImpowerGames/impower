@@ -1,6 +1,6 @@
 import { Reference } from "../../../core/types/Reference";
 
-export interface LayerFilter extends Reference<"layer_filter"> {
+export interface Filter extends Reference<"filter"> {
   includes: string[];
   excludes: string[];
 }

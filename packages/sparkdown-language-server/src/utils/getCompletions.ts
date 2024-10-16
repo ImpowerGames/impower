@@ -134,7 +134,7 @@ const getImageCompletions = (
   return Array.from(completions.values());
 };
 
-const getLayerFilterCompletions = (
+const getFilterCompletions = (
   program: SparkProgram,
   lineText: string
 ): CompletionItem[] | null => {
@@ -143,14 +143,14 @@ const getLayerFilterCompletions = (
   const existingTags = lineText.slice(startIndex, endIndex).split("~").slice(1);
 
   const completions: Map<string, CompletionItem> = new Map();
-  Object.entries(program?.compiled?.structDefs?.["layer_filter"] || {}).forEach(
+  Object.entries(program?.compiled?.structDefs?.["filter"] || {}).forEach(
     ([, v]) => {
       const name = v.$name;
       if (!existingTags?.includes(name)) {
         if (name && name !== "default") {
           const completion: CompletionItem = {
             label: name,
-            labelDetails: { description: "layer_filter" },
+            labelDetails: { description: "filter" },
             kind: CompletionItemKind.Constructor,
           };
           if (completion.label && !completions.has(completion.label)) {
@@ -489,7 +489,7 @@ const getCompletions = (
       } else if (scopes.includes("asset_tag_target_separator")) {
         return getElementCompletions(program);
       } else if (triggerCharacter === "~" || lineText.includes("~")) {
-        return getLayerFilterCompletions(program, lineText);
+        return getFilterCompletions(program, lineText);
       } else {
         return getImageCompletions(program, line);
       }

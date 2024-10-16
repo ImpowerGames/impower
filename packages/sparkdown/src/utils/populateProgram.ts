@@ -1818,7 +1818,7 @@ const populateProgram = (
                 } else {
                   if (prevOperator === "~") {
                     // name is filter
-                    const filterType = "layer_filter";
+                    const filterType = "filter";
                     const filter = program.context?.[filterType]?.[name];
                     const asset = assetGroups.at(-1);
                     if (asset) {
