@@ -4,5 +4,6 @@ import { Image } from "../types/Image";
 export const _image: Create<Image> = (obj) => ({
   $type: "image",
   src: "",
+  data: "",
   ...obj,
 });

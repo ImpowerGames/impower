@@ -1,7 +1,7 @@
 import { Module } from "../../../core/classes/Module";
 import type { Instructions } from "../../../core/types/Instructions";
 import {
-  WriterBuiltins as InterpreterBuiltins,
+  InterpreterBuiltins as InterpreterBuiltins,
   interpreterBuiltins,
 } from "../interpreterBuiltins";
 import { Phrase } from "../types/Phrase";
@@ -86,7 +86,7 @@ export class InterpreterModule extends Module<
   setup() {
     this._targetPrefixMap = {};
     for (const [k, v] of Object.entries(
-      this.context.config.interpreter.directives
+      this.context.config?.interpreter.directives || {}
     )) {
       this._targetPrefixMap[v] = k;
     }

@@ -112,7 +112,7 @@ export class Game<T extends M = {}> {
     });
     // Override default modules with custom ones if specified
     const allModules = {
-      ...modules, // custom modules should be first in order
+      ...modules, // custom modules should be first in call order
       ...DEFAULT_MODULES,
       ...modules, // custom modules should override default modules if specified
     };

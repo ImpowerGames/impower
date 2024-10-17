@@ -1,4 +1,4 @@
-import { Create } from "../../../core/types/Create";
+import { Create } from "../types/Create";
 import { Filter } from "../types/Filter";
 
 export const _filter: Create<Filter> = (obj) => ({

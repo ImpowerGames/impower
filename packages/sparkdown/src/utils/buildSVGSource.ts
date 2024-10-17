@@ -1,20 +1,6 @@
-import encodeSVG from "./encodeSVG";
-import filterSVG from "./filterSVG";
-
-const buildSVGSource = (
-  svg: string,
-  filter?: {
-    includes?: string[] | undefined;
-    excludes?: string[] | undefined;
-  },
-  filterTag = "filter",
-  defaultTag = "default"
-) => {
+const buildSVGSource = (svg: string) => {
   const mime = "image/svg+xml";
-  const filteredText = filter
-    ? filterSVG(svg, filter, filterTag, defaultTag)
-    : svg;
-  const encoded = encodeSVG(filteredText);
+  const encoded = encodeURIComponent(svg);
   const src = `data:${mime},${encoded}`;
   return src;
 };

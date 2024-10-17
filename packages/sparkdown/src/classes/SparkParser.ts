@@ -19,6 +19,9 @@ import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
 import selectProperty from "../utils/selectProperty";
 import uuid from "../utils/uuid";
+import filterSVG from "../utils/filterSVG";
+import buildSVGSource from "../utils/buildSVGSource";
+import filterMatchesName from "../utils/filterMatchesName";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 
@@ -90,6 +93,15 @@ const PROPERTY_SELECTOR_SCREEN_ARGUMENTS = [
   "xl",
   "2xl",
 ];
+
+const formatList = (arr: string[]) => {
+  const quotedList = arr.map((c) => `'${c}'`);
+  return quotedList.length === 1
+    ? quotedList[0]
+    : quotedList.length === 2
+    ? `${quotedList[0]} or ${quotedList[1]}`
+    : quotedList.slice(0, -1).join(", ") + `, or ${quotedList.at(-1)}`;
+};
 
 export default class SparkParser {
   protected _config: SparkParserConfig = {};
@@ -168,9 +180,6 @@ export default class SparkParser {
     const getFlowMarker = (id: string) => {
       return `=${id}=`;
     };
-    const formatList = (arr: string[]) => {
-      return arr.map((c) => `'${c}'`).join(", ");
-    };
     const reportDiagnostic = (
       message: string,
       severity: DiagnosticSeverity = DiagnosticSeverity.Warning
@@ -192,17 +201,31 @@ export default class SparkParser {
         });
       }
     };
-    const recordReference = (selectors: string[], description: string) => {
+    const recordReference = (
+      types: string[],
+      selectors: string[],
+      description: string
+    ) => {
       if (range) {
         program.references ??= {};
         program.references[uri] ??= {};
         program.references[uri][lineIndex] ??= [];
         program.references[uri][lineIndex]!.push({
           range,
+          types,
           selectors,
           description,
         });
       }
+    };
+    const define = (type: string, name: string, obj: object) => {
+      program.implicitDefs ??= {};
+      program.implicitDefs[type] ??= {};
+      program.implicitDefs[type][name] ??= {
+        $type: type,
+        $name: name,
+        ...obj,
+      };
     };
     tree.iterate({
       enter: (node) => {
@@ -322,42 +345,59 @@ export default class SparkParser {
         }
         // Record reference in struct field value
         if (nodeType === "AccessPath" && stack.at(-1) === "StructFieldValue") {
+          const types = [];
           const selectors = [text];
           let [type, name] = text.split(".");
-          let description = `${type} named '${name}'`;
           if (type && !name) {
             name = type;
-            // Infer type
-            if (
-              propertyName.split("_").includes("image") ||
-              (structType === "layered_image" && propertyName === "assets")
-            ) {
-              selectors.push(
-                `layered_image.${name}`,
-                `image.${name}`,
-                `graphic.${name}`
-              );
-              description = `image named '${name}'`;
-            } else if (
-              propertyName.split("_").includes("audio") ||
-              (structType === "layered_audio" && propertyName === "assets")
-            ) {
-              selectors.push(`audio.${name}`, `synth.${name}`);
-              description = `audio named '${name}'`;
-            } else if (
-              propertyName.split("_").includes("animation") ||
-              structType === "transition"
-            ) {
-              selectors.push(`animation.${name}`);
-              description = `animation named '${name}'`;
-            } else if (propertyName.split("_").includes("font")) {
-              selectors.push(`font.${name}`);
-              description = `font named '${name}'`;
-            } else {
-              description = `'${name}'`;
-            }
+            type = undefined;
           }
-          recordReference(selectors, description);
+          // TODO: Retrieve expected property type from builtins rather than inferring it from propertyName
+          if (
+            propertyName.split("_").includes("image") ||
+            propertyName.split("_").includes("images") ||
+            (structType === "layered_image" && propertyName === "assets")
+          ) {
+            types.push("filtered_image", "layered_image", "image", "graphic");
+            selectors.push(
+              `filtered_image.${name}`,
+              `layered_image.${name}`,
+              `image.${name}`,
+              `graphic.${name}`
+            );
+            type ??= "image";
+          } else if (
+            propertyName.split("_").includes("audio") ||
+            (structType === "layered_audio" && propertyName === "assets")
+          ) {
+            types.push("audio", "synth");
+            selectors.push(`audio.${name}`, `synth.${name}`);
+            type ??= "audio";
+          } else if (
+            propertyName.split("_").includes("filter") ||
+            propertyName.split("_").includes("filters")
+          ) {
+            types.push("filter");
+            selectors.push(`filter.${name}`);
+            type ??= "filter";
+          } else if (
+            propertyName.split("_").includes("animation") ||
+            propertyName.split("_").includes("animations") ||
+            structType === "transition"
+          ) {
+            types.push("animation");
+            selectors.push(`animation.${name}`);
+            type ??= "animation";
+          } else if (
+            propertyName.split("_").includes("font") ||
+            propertyName.split("_").includes("fonts")
+          ) {
+            types.push("font");
+            selectors.push(`font.${name}`);
+            type ??= "font";
+          }
+          const description = type ? `${type} named '${name}'` : `'${name}'`;
+          recordReference(types, selectors, description);
         }
         // Report invalid property selectors
         if (nodeType === "PropertySelectorSimpleConditionName") {
@@ -415,44 +455,86 @@ export default class SparkParser {
           stack.includes("ImageCommand") &&
           nodeType === "AssetCommandTarget"
         ) {
+          const types: string[] = [];
           const selectors = [`ui..${text}`];
           const description = `ui element named '${text}'`;
-          recordReference(selectors, description);
+          recordReference(types, selectors, description);
         }
         // Record audio target reference
         if (
           stack.includes("AudioCommand") &&
           nodeType === "AssetCommandTarget"
         ) {
+          const types = ["channel"];
           const selectors = [`channel.${text}`];
           const description = `channel named '${text}'`;
-          recordReference(selectors, description);
+          recordReference(types, selectors, description);
         }
-        // Record image name or filter reference
+        // Define implicit filtered_image
         if (stack.includes("ImageCommand") && nodeType === "AssetCommandName") {
-          const prevChar = lineText[transpiledNodeStart - 1];
-          const selectors =
-            prevChar === "~"
-              ? [`layer_filter.${text}`]
-              : [`layered_image.${text}`, `image.${text}`, `graphic.${text}`];
-          const description =
-            prevChar === "~"
-              ? `layer_filter named '${text}'`
-              : `image named '${text}'`;
-          recordReference(selectors, description);
+          if (text.includes("~")) {
+            const parts = text.split("~");
+            const [fileName, ...filterNames] = parts;
+            const sortedFilterNames = filterNames.sort();
+            const name = [fileName, ...sortedFilterNames].join("~");
+            const obj = {
+              image: { $name: fileName },
+              filters: sortedFilterNames.map((filterName) => ({
+                $type: "filter",
+                $name: filterName,
+              })),
+            };
+            define("filtered_image", name, obj);
+          }
         }
-        // Record audio name or filter reference
-        if (stack.includes("AudioCommand") && nodeType === "AssetCommandName") {
-          const prevChar = lineText[transpiledNodeStart - 1];
-          const selectors =
-            prevChar === "~"
-              ? [`audio_filter.${text}`]
-              : [`layered_audio.${text}`, `audio.${text}`, `synth.${text}`];
-          const description =
-            prevChar === "~"
-              ? `audio_filter named '${text}'`
-              : `audio named '${text}'`;
-          recordReference(selectors, description);
+        // Record image file name reference
+        if (
+          stack.includes("ImageCommand") &&
+          nodeType === "AssetCommandFileName"
+        ) {
+          const types = ["filtered_image", "layered_image", "image", "graphic"];
+          const selectors = [
+            `filtered_image.${text}`,
+            `layered_image.${text}`,
+            `image.${text}`,
+            `graphic.${text}`,
+          ];
+          const description = `image named '${text}'`;
+          recordReference(types, selectors, description);
+        }
+        // Record image filter reference
+        if (
+          stack.includes("ImageCommand") &&
+          nodeType === "AssetCommandFilterName"
+        ) {
+          const types = ["filter"];
+          const selectors = [`filter.${text}`];
+          const description = `filter named '${text}'`;
+          recordReference(types, selectors, description);
+        }
+        // Record audio file reference
+        if (
+          stack.includes("AudioCommand") &&
+          nodeType === "AssetCommandFileName"
+        ) {
+          const types = ["layered_audio", "audio", "synth"];
+          const selectors = [
+            `layered_audio.${text}`,
+            `audio.${text}`,
+            `synth.${text}`,
+          ];
+          const description = `audio named '${text}'`;
+          recordReference(types, selectors, description);
+        }
+        // Record audio filter reference
+        if (
+          stack.includes("AudioCommand") &&
+          nodeType === "AssetCommandFilterName"
+        ) {
+          const types = ["filter"];
+          const selectors = [`filter.${text}`];
+          const description = `filter named '${text}'`;
+          recordReference(types, selectors, description);
         }
         // Report invalid image control
         if (
@@ -475,6 +557,16 @@ export default class SparkParser {
             AUDIO_COMMAND_CONTROLS
           )}`;
           reportDiagnostic(message);
+        }
+        // Report invalid image name syntax
+        if (stack.includes("ImageCommand") && nodeType === "IllegalChar") {
+          const message = `Invalid syntax`;
+          reportDiagnostic(message, DiagnosticSeverity.Error);
+        }
+        // Report invalid audio name syntax
+        if (stack.includes("AudioCommand") && nodeType === "IllegalChar") {
+          const message = `Invalid syntax`;
+          reportDiagnostic(message, DiagnosticSeverity.Error);
         }
         if (
           stack.includes("ImageCommand") &&
@@ -536,9 +628,10 @@ export default class SparkParser {
           stack.includes("AssetCommandWithClause") &&
           nodeType === "NameValue"
         ) {
+          const types = ["transition", "animation"];
           const selectors = [`transition.${text}`, `animation.${text}`];
           const description = `transition or animation named '${text}'`;
-          recordReference(selectors, description);
+          recordReference(types, selectors, description);
         }
         if (
           stack.includes("AudioCommand") &&
@@ -554,9 +647,10 @@ export default class SparkParser {
           stack.includes("AssetCommandWithClause") &&
           nodeType === "NameValue"
         ) {
+          const types = ["modulation"];
           const selectors = [`modulation.${text}`];
           const description = `modulation named '${text}'`;
-          recordReference(selectors, description);
+          recordReference(types, selectors, description);
         }
         if (nodeType === "Newline") {
           lineIndex += 1;
@@ -671,6 +765,7 @@ export default class SparkParser {
       program.compiled = compiledJSON ? JSON.parse(compiledJSON) : null;
       this.populateBuiltins(program);
       this.populateAssets(program);
+      this.populateImplicitDefs(program);
       this.validateReferences(program);
       program.uuidToSource ??= {};
       program.uuidToSource = this.sortSources(program.uuidToSource);
@@ -783,6 +878,13 @@ export default class SparkParser {
             program.compiled.structDefs[type] ??= {};
             program.compiled.structDefs[type][name] ??= structuredClone(file);
             const definedFile = program.compiled.structDefs[type][name];
+            // Set $type and $name
+            if (definedFile["$type"] === undefined) {
+              definedFile["$type"] = type;
+            }
+            if (definedFile["$name"] === undefined) {
+              definedFile["$name"] = name;
+            }
             // Infer asset src if not defined
             if (definedFile["src"] === undefined) {
               definedFile["src"] = file["src"];
@@ -803,10 +905,155 @@ export default class SparkParser {
                 }
               }
             }
+            // Process SVGs
+            if (
+              type === "image" &&
+              definedFile["ext"] === "svg" &&
+              definedFile["text"]
+            ) {
+              const text = definedFile["text"];
+              if (typeof text === "string") {
+                // Populate image data with text
+                definedFile["data"] = text;
+                delete definedFile["text"];
+              }
+            }
           }
         }
       }
     }
+  }
+
+  populateImplicitDefs(program: SparkProgram) {
+    if (program.compiled) {
+      const images = program.compiled.structDefs?.["image"];
+      if (images) {
+        for (const image of Object.values(images)) {
+          if (image["data"]) {
+            const type = image["$type"];
+            const name = image["$name"];
+            // Declare implicit filtered_image
+            // (so it only displays default layers by default)
+            const implicitType = "filtered_image";
+            program.implicitDefs ??= {};
+            program.implicitDefs[implicitType] ??= {};
+            program.implicitDefs[implicitType][name] ??= {
+              $type: implicitType,
+              $name: name,
+              image: { $type: type, $name: name },
+              filters: [],
+            };
+          }
+        }
+      }
+      const implicitDefs = program.implicitDefs;
+      if (implicitDefs) {
+        for (const [type, objs] of Object.entries(implicitDefs)) {
+          for (const [name, obj] of Object.entries(objs)) {
+            program.compiled.structDefs ??= {};
+            program.compiled.structDefs[type] ??= {};
+            program.compiled.structDefs[type][name] ??= structuredClone(obj);
+          }
+        }
+      }
+      const filteredImages = program.compiled.structDefs?.["filtered_image"];
+      if (filteredImages) {
+        for (const filteredImage of Object.values(filteredImages)) {
+          console.log("getNestedFilters");
+          const filters = this.getNestedFilters(filteredImage.$name, program);
+          const includes = filters.flatMap((filter) => filter?.includes || []);
+          const excludes = filters.flatMap((filter) => filter?.excludes || []);
+          const combinedFilter = {
+            includes,
+            excludes,
+          };
+          console.log("combinedFilter", combinedFilter);
+          const imageToFilter = this.getRootImage(
+            filteredImage?.image?.$name,
+            program
+          );
+          if (imageToFilter) {
+            if (imageToFilter.$type === "image") {
+              if (imageToFilter.data) {
+                const filteredData = filterSVG(
+                  imageToFilter.data,
+                  combinedFilter
+                );
+                filteredImage.filtered_data = filteredData;
+                filteredImage.filtered_src = buildSVGSource(filteredData);
+              }
+            }
+            if (imageToFilter.$type === "layered_image") {
+              for (const [key, layerImage] of Object.entries(
+                imageToFilter.layers
+              )) {
+                const filteredLayers: { $type: "image"; $name: string }[] = [];
+                const keyIsArrayIndex = !Number.isNaN(Number(key));
+                if (keyIsArrayIndex) {
+                  if (filterMatchesName(layerImage.$name, combinedFilter)) {
+                    filteredLayers.push(layerImage);
+                  }
+                } else {
+                  if (filterMatchesName(key, combinedFilter)) {
+                    filteredLayers.push(layerImage);
+                  }
+                }
+                filteredImage.filtered_layers = filteredLayers;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  getNestedFilters(
+    name: string,
+    program: SparkProgram
+  ): { includes: string[]; excludes: string[] }[] {
+    const filteredImage =
+      program.compiled?.structDefs?.["filtered_image"]?.[name];
+    if (filteredImage) {
+      const filters: { includes: string[]; excludes: string[] }[] =
+        filteredImage?.["filters"].map(
+          (reference: { $type: "filtered_image"; $name: string }) =>
+            program.compiled?.structDefs?.["filter"]?.[reference?.$name]
+        );
+      const imageToFilterName = filteredImage?.["image"]?.["$name"];
+      if (imageToFilterName !== name) {
+        filters.push(...this.getNestedFilters(imageToFilterName, program));
+      }
+      return filters;
+    }
+    return [];
+  }
+
+  getRootImage(
+    name: string,
+    program: SparkProgram
+  ):
+    | { $type: "image"; $name: string; src: string; data: string }
+    | {
+        $type: "layered_image";
+        $name: string;
+        layers: Record<string, { $type: "image"; $name: string }>;
+      }
+    | undefined {
+    const image = program.compiled?.structDefs?.["image"]?.[name];
+    if (image) {
+      return image;
+    }
+    const layeredImage =
+      program.compiled?.structDefs?.["layered_image"]?.[name];
+    if (layeredImage) {
+      return layeredImage;
+    }
+    const filteredImage =
+      program.compiled?.structDefs?.["filtered_image"]?.[name];
+    if (filteredImage) {
+      return this.getRootImage(filteredImage?.["image"]?.["$name"], program);
+    }
+    return undefined;
   }
 
   validateReferences(program: SparkProgram) {
@@ -814,19 +1061,44 @@ export default class SparkParser {
       for (const [uri, refsLines] of Object.entries(program.references)) {
         for (const [_line, refs] of Object.entries(refsLines)) {
           for (const ref of refs) {
+            const types = ref.types;
             const selectors = ref.selectors;
             const fuzzy = ref.fuzzy;
             const range = ref.range;
             const description = ref.description;
-            const struct = selectors.find((s) => {
-              const [, foundPath] = selectProperty(
+            let foundStruct: any = undefined;
+            for (const selector of selectors) {
+              const [obj, foundPath] = selectProperty(
                 program.compiled?.structDefs,
-                s,
+                selector,
                 fuzzy
               );
-              return foundPath === s;
-            });
-            if (!struct) {
+              if (foundPath === selector) {
+                foundStruct = obj;
+                break;
+              }
+            }
+            if (foundStruct) {
+              if (types.length > 0 && !types.includes(foundStruct.$type)) {
+                const message = `Type '${
+                  foundStruct.$type
+                }' is not assignable to type ${formatList(types)}`;
+                program.diagnostics ??= {};
+                program.diagnostics[uri] ??= [];
+                program.diagnostics[uri].push({
+                  range,
+                  severity: DiagnosticSeverity.Warning,
+                  message,
+                  relatedInformation: [
+                    {
+                      location: { uri, range },
+                      message,
+                    },
+                  ],
+                  source: LANGUAGE_NAME,
+                });
+              }
+            } else {
               const message = `Cannot find ${description}`;
               program.diagnostics ??= {};
               program.diagnostics[uri] ??= [];

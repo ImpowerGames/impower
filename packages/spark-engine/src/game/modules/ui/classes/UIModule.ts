@@ -223,18 +223,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected conceal() {
-    const target = this.context.config.ui.ui_element_name;
-    const uiRoot = this._root?.findChild(target);
-    if (uiRoot) {
-      this.updateElement(uiRoot, { style: { opacity: "0" } });
+    const target = this.context.config?.ui?.ui_element_name;
+    if (target) {
+      const uiRoot = this._root?.findChild(target);
+      if (uiRoot) {
+        this.updateElement(uiRoot, { style: { opacity: "0" } });
+      }
     }
   }
 
   protected reveal() {
-    const target = this.context.config.ui.ui_element_name;
-    const uiRoot = this._root?.findChild(target);
-    if (uiRoot) {
-      this.updateElement(uiRoot, { style: { opacity: "1" } });
+    const target = this.context.config?.ui.ui_element_name;
+    if (target) {
+      const uiRoot = this._root?.findChild(target);
+      if (uiRoot) {
+        this.updateElement(uiRoot, { style: { opacity: "1" } });
+      }
     }
   }
 
@@ -242,8 +246,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `--image-${name?.replaceAll(INVALID_VAR_NAME_CHAR, "-")}`;
   }
 
-  getImageUrl(src: string) {
-    return `url("${src}")`;
+  getImageUrl(image: Image) {
+    return `url("${image.src}")`;
   }
 
   getImageVar(name: string) {
@@ -286,21 +290,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return assets.map((asset) => this.getBackgroundImagesFromArgument(asset));
   }
 
-  getOrCreateRootElement(): Element {
-    if (this._root) {
-      return this._root;
-    }
+  createRootStyle() {
     const style: Record<string, string> = {
       position: "absolute",
       inset: "0",
     };
-    // TODO: Declare asset variables in style element instead?
     const images = this.context?.image;
     if (images) {
       for (const [name] of Object.entries(images)) {
         if (name !== "default") {
-          style[this.getImageVarName(name)] = this.getImageAssets("image", name)
-            .map((asset) => this.getImageUrl(asset.src))
+          style[this.getImageVarName(name)] = this.getImageAssets(
+            "filtered_image",
+            name
+          )
+            .map((asset) => this.getImageUrl(asset))
             .reverse()
             .join(", ");
         }
@@ -314,12 +317,34 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             "layered_image",
             name
           )
-            .map((asset) => this.getImageUrl(asset.src))
+            .map((asset) => this.getImageUrl(asset))
             .reverse()
             .join(", ");
         }
       }
     }
+    const filteredImages = this.context?.filtered_image;
+    if (filteredImages) {
+      for (const [name] of Object.entries(filteredImages)) {
+        if (name !== "default") {
+          style[this.getImageVarName(name)] = this.getImageAssets(
+            "filtered_image",
+            name
+          )
+            .map((asset) => this.getImageUrl(asset))
+            .reverse()
+            .join(", ");
+        }
+      }
+    }
+    return style;
+  }
+
+  getOrCreateRootElement(): Element {
+    if (this._root) {
+      return this._root;
+    }
+    const style = this.createRootStyle();
     return this.createElement(null, { style });
   }
 
@@ -327,9 +352,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!this._root) {
       this._root = this.getOrCreateRootElement();
     }
-    const target = this.context.config.ui.style_element_name;
+    const target = this.context.config?.ui.style_element_name;
+    const existingElement = target ? this._root.findChild(target) : undefined;
     return (
-      this._root.findChild(target) ||
+      existingElement ||
       this.createElement(this._root, {
         name: target,
       })
@@ -346,9 +372,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!this._root) {
       this._root = this.getOrCreateRootElement();
     }
-    const target = this.context.config.ui.ui_element_name;
+    const target = this.context.config?.ui.ui_element_name;
+    const existingElement = target ? this._root.findChild(target) : undefined;
     return (
-      this._root.findChild(target) ||
+      existingElement ||
       this.createElement(this._root, {
         name: target,
         style,
@@ -446,10 +473,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (animations) {
       this.constructStyleElement("animations", { animations });
     }
-    // Process Styles
     const styles = this.context?.style;
     if (styles) {
-      this.constructStyleElement("styles", { styles });
+      this.constructStyleElement("styles", {
+        styles: {
+          ...styles,
+        },
+      });
     }
   }
 
@@ -459,7 +489,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ? Object.keys(this.context?.ui || {})
       : structNames;
     for (const structName of validStructNames) {
-      if (structName && !this.context.config.ui.ignore.includes(structName)) {
+      if (structName && !this.context.config?.ui.ignore.includes(structName)) {
         const structObj = this.context?.ui?.[structName];
         if (structObj) {
           const properties = getAllProperties(structObj);
@@ -565,6 +595,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   getImageAssets(type: string, name: string) {
     if (!type) {
       const images: Image[] = [];
+      images.push(...this.getImageAssets("filtered_image", name));
       images.push(...this.getImageAssets("layered_image", name));
       images.push(...this.getImageAssets("image", name));
       return images;
@@ -579,9 +610,30 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const layeredImage = this.context?.layered_image?.[name];
       if (layeredImage) {
         const images: Image[] = [];
-        if (Array.isArray(layeredImage.assets)) {
-          for (const asset of layeredImage.assets) {
-            images.push(...this.getImageAssets(asset.$type, asset.$name));
+        for (const image of Object.values(layeredImage.layers)) {
+          images.push(...this.getImageAssets(image.$type, image.$name));
+        }
+        return images;
+      }
+    }
+    if (type === "filtered_image") {
+      const filteredImage = this.context?.filtered_image?.[name];
+      if (filteredImage) {
+        const images: Image[] = [];
+        if (filteredImage.filtered_data) {
+          images.push({
+            $type: "image",
+            $name: name,
+            src: filteredImage.filtered_src,
+            data: filteredImage.filtered_data,
+          });
+        }
+        if (filteredImage.filtered_layers) {
+          for (const layer of filteredImage.filtered_layers) {
+            const image = this.context?.image?.[layer?.$name];
+            if (image) {
+              images.push(image);
+            }
           }
         }
         return images;

@@ -5,6 +5,7 @@ import { _gradient } from "./constructors/_gradient";
 import { _graphic } from "./constructors/_graphic";
 import { _image } from "./constructors/_image";
 import { _layeredImage } from "./constructors/_layeredImage";
+import { _filteredImage } from "./constructors/_filteredImage";
 import { _shadow } from "./constructors/_shadow";
 import { _style } from "./constructors/_style";
 import { _transition } from "./constructors/_transition";
@@ -35,6 +36,11 @@ export const uiBuiltins = () => ({
       $name: "default",
     }),
   } as Record<string, ReturnType<typeof _layeredImage>>,
+  filtered_image: {
+    default: _filteredImage({
+      $name: "default",
+    }),
+  } as Record<string, ReturnType<typeof _filteredImage>>,
   style: {
     default: _style({
       $name: "default",

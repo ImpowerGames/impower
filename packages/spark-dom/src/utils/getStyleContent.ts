@@ -2,8 +2,17 @@ import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
 
 const getCSSSelector = (
   input: string,
-  breakpoints: Record<string, number> | undefined
+  options?: {
+    breakpoints?: Record<string, number>;
+    scope?: string;
+  }
 ) => {
+  if (!input) {
+    return "";
+  }
+  if (input === options?.scope) {
+    return "";
+  }
   const identifierRegex = /[_\p{L}][_\p{L}0-9]+/uy;
   const whitespaceRegex = /[ \t]+/uy;
   let output = "";
@@ -119,7 +128,7 @@ const getCSSSelector = (
           output += `:dir(${arg})`;
           break;
         case "screen":
-          const breakpoint = breakpoints?.[arg];
+          const breakpoint = options?.breakpoints?.[arg];
           const size = breakpoint != null ? `${breakpoint}px` : arg;
           output += `@container(max-width:${size})`;
           break;
@@ -127,7 +136,7 @@ const getCSSSelector = (
           output += `@media(prefers-color-scheme:${arg})`;
           break;
         case "has":
-          output += `:has(${getCSSSelector(arg, breakpoints)})`;
+          output += `:has(${getCSSSelector(arg, options)})`;
           break;
       }
       i++;
@@ -177,7 +186,6 @@ export const getStyleContent = (
     scope?: string;
   }
 ): string => {
-  const breakpoints = options?.breakpoints;
   const scope = options?.scope;
   const scopeSelector = scope ? scope + " " : "";
   let textContent = "";
@@ -198,7 +206,7 @@ export const getStyleContent = (
     });
     // Process Nested CSS
     nestedEntries.forEach(([k, v]) => {
-      const elementSelector = getCSSSelector(k, breakpoints);
+      const elementSelector = getCSSSelector(k, options);
       let nestedStyleContent = "";
       Object.entries(v).forEach(([nk, nv]) => {
         if (!nk.startsWith("$")) {
@@ -216,7 +224,7 @@ export const getStyleContent = (
     // Concatenate all
     styleContent = styleContent.trim();
     if (styleContent) {
-      const elementSelector = getCSSSelector(name, breakpoints);
+      const elementSelector = getCSSSelector(name, options);
       textContent += `${scopeSelector}${elementSelector} {\n  ${styleContent}\n}\n`;
     }
   });
