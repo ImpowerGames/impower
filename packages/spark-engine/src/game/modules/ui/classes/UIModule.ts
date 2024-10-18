@@ -393,11 +393,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     structName: string,
     content: ElementContent
   ): Element | undefined {
+    const style = {
+      // Required to prevent style content from rendering on screen on mobile
+      display: "none",
+    };
     const parent = this.getOrCreateRootStyleElement();
     return this.createElement(parent, {
       type: "style",
       name: "style-" + structName,
       content,
+      style,
     });
   }
 
