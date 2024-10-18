@@ -48,8 +48,6 @@ import { Image } from "../types/Image";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import { getImageVarName } from "../utils/getImageVarName";
 
-const INVALID_VAR_NAME_CHAR = /[^_\p{L}0-9]+/gu;
-
 export interface UIState {
   text?: Record<string, TextState[]>;
   image?: Record<string, ImageState[]>;
@@ -300,10 +298,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (images) {
       for (const [name] of Object.entries(images)) {
         if (name !== "default") {
-          style[this.getImageVarName(name)] = this.getImageAssets(
-            "filtered_image",
-            name
-          )
+          style[this.getImageVarName(name)] = this.getImageAssets("image", name)
             .map((asset) => this.getImageUrl(asset))
             .reverse()
             .join(", ");
