@@ -266,6 +266,7 @@
   inset: 0;
   cursor: pointer;
   opacity: 0;
+  pointer-events: auto;
 }
 
 :host > .root .input-button {
