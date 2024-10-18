@@ -475,10 +475,11 @@ export default class SparkParser {
           if (text.includes("~")) {
             const parts = text.split("~");
             const [fileName, ...filterNames] = parts;
-            const name = text;
+            const sortedFilterNames = filterNames.sort();
+            const name = [fileName, ...sortedFilterNames].join("~");
             const obj = {
               image: { $name: fileName },
-              filters: filterNames.map((filterName) => ({
+              filters: sortedFilterNames.map((filterName) => ({
                 $type: "filter",
                 $name: filterName,
               })),

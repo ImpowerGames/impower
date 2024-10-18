@@ -1,10 +1,5 @@
 import { getCSSPropertyName } from "./getCSSPropertyName";
-
-const INVALID_VAR_NAME_CHAR = /[^_\p{L}0-9]+/gu;
-
-const getImageVarName = (name: string) => {
-  return `--image-${name?.replaceAll(INVALID_VAR_NAME_CHAR, "-")}`;
-};
+import { getImageVarName } from "../../../spark-engine/src/game/modules/ui/utils/getImageVarName";
 
 const createTextShadow = (r: number, color = "black", unit = "px"): string => {
   return createShadows(r, color, unit).join(", ") || "none";

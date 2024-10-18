@@ -46,6 +46,7 @@ import {
 } from "./messages/UpdateElementMessage";
 import { Image } from "../types/Image";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
+import { getImageVarName } from "../utils/getImageVarName";
 
 const INVALID_VAR_NAME_CHAR = /[^_\p{L}0-9]+/gu;
 
@@ -243,7 +244,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   getImageVarName(name: string) {
-    return `--image-${name?.replaceAll(INVALID_VAR_NAME_CHAR, "-")}`;
+    return getImageVarName(name);
   }
 
   getImageUrl(image: Image) {
