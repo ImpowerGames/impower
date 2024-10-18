@@ -475,11 +475,10 @@ export default class SparkParser {
           if (text.includes("~")) {
             const parts = text.split("~");
             const [fileName, ...filterNames] = parts;
-            const sortedFilterNames = filterNames.sort();
-            const name = [fileName, ...sortedFilterNames].join("~");
+            const name = text;
             const obj = {
               image: { $name: fileName },
-              filters: sortedFilterNames.map((filterName) => ({
+              filters: filterNames.map((filterName) => ({
                 $type: "filter",
                 $name: filterName,
               })),
@@ -959,7 +958,6 @@ export default class SparkParser {
       const filteredImages = program.compiled.structDefs?.["filtered_image"];
       if (filteredImages) {
         for (const filteredImage of Object.values(filteredImages)) {
-          console.log("getNestedFilters");
           const filters = this.getNestedFilters(filteredImage.$name, program);
           const includes = filters.flatMap((filter) => filter?.includes || []);
           const excludes = filters.flatMap((filter) => filter?.excludes || []);
@@ -967,7 +965,6 @@ export default class SparkParser {
             includes,
             excludes,
           };
-          console.log("combinedFilter", combinedFilter);
           const imageToFilter = this.getRootImage(
             filteredImage?.image?.$name,
             program
