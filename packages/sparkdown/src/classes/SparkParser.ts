@@ -830,6 +830,7 @@ export default class SparkParser {
         }
       }
     }
+    console.clear();
     console.log("program", program);
     return program;
   }
