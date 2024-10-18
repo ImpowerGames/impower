@@ -298,10 +298,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (images) {
       for (const [name] of Object.entries(images)) {
         if (name !== "default") {
-          style[this.getImageVarName(name)] = this.getImageAssets("image", name)
-            .map((asset) => this.getImageUrl(asset))
-            .reverse()
-            .join(", ");
+          const varName = this.getImageVarName(name);
+          const varValue = this.getImageVarValue("image", name);
+          if (varValue) {
+            style[varName] = varValue;
+          }
         }
       }
     }
@@ -309,27 +310,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (layeredImages) {
       for (const [name] of Object.entries(layeredImages)) {
         if (name !== "default") {
-          style[this.getImageVarName(name)] = this.getImageAssets(
-            "layered_image",
-            name
-          )
-            .map((asset) => this.getImageUrl(asset))
-            .reverse()
-            .join(", ");
+          const varName = this.getImageVarName(name);
+          const varValue = this.getImageVarValue("layered_image", name);
+          if (varValue) {
+            style[varName] = varValue;
+          }
         }
       }
     }
     const filteredImages = this.context?.filtered_image;
     if (filteredImages) {
       for (const [name] of Object.entries(filteredImages)) {
-        if (name !== "default") {
-          style[this.getImageVarName(name)] = this.getImageAssets(
-            "filtered_image",
-            name
-          )
-            .map((asset) => this.getImageUrl(asset))
-            .reverse()
-            .join(", ");
+        const varName = this.getImageVarName(name);
+        const varValue = this.getImageVarValue("filtered_image", name);
+        if (varValue) {
+          style[varName] = varValue;
         }
       }
     }
@@ -641,6 +636,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     return [];
+  }
+
+  getImageVarValue(type: string, name: string) {
+    return this.getImageAssets(type, name)
+      .map((asset) => this.getImageUrl(asset))
+      .reverse()
+      .join(", ");
   }
 
   queueAnimationEvent(
