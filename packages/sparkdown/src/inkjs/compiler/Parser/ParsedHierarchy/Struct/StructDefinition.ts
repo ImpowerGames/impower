@@ -39,16 +39,16 @@ export class StructDefinition extends ParsedObject {
   }
 
   BuildValue(propertyDefinitions: StructProperty[]) {
-    // console.log(
-    //   propertyDefinitions
-    //     .map(
-    //       (p) =>
-    //         `${" ".repeat(p.level)} ${p.identifier.name} = ${JSON.stringify(
-    //           p.value
-    //         )}`
-    //     )
-    //     .join("\n")
-    // );
+    console.log(
+      propertyDefinitions
+        .map(
+          (p) =>
+            `${" ".repeat(p.level)} ${p.identifier.name} = ${JSON.stringify(
+              p.value
+            )}`
+        )
+        .join("\n")
+    );
     let parentStack: { property: StructProperty | null; value: any }[] = [
       { property: null, value: {} },
     ];
@@ -60,13 +60,17 @@ export class StructDefinition extends ParsedObject {
     for (let i = 0; i < propertyDefinitions.length; i += 1) {
       const prop = propertyDefinitions[i]!;
       const nextProp = propertyDefinitions[i + 1];
-      // Array items (starting with '-') are implicitly indented
-      const valueLevel =
-        prop.identifier.name === "-" ? prop.level + 2 : prop.level;
       while (
         parentStack.length > 0 &&
-        valueLevel <=
-          (parentStack[parentStack.length - 1]?.property?.level ?? 0)
+        prop.level <=
+          (parentStack[parentStack.length - 1]?.property?.level ?? 0) &&
+        // Don't pop if this is an array item is at same indent level as non-array item parent
+        !(
+          parentStack[parentStack.length - 1]?.property?.identifier.name !==
+            "-" &&
+          prop.identifier.name === "-" &&
+          prop.level === parentStack[parentStack.length - 1]?.property?.level
+        )
       ) {
         parentStack.pop();
       }
@@ -108,6 +112,11 @@ export class StructDefinition extends ParsedObject {
               const index = parent.value.length;
               parent.value[index] = value;
             } else {
+              console.log(
+                parent.property?.level,
+                prop.level,
+                parentStack.at(-1)?.value
+              );
               this.Error(`Array item must indented inside of parent`, prop);
             }
           } else if (parent.value[prop.identifier.name] === undefined) {
@@ -121,6 +130,7 @@ export class StructDefinition extends ParsedObject {
         }
       }
     }
+    console.log(parentStack[0]?.value);
     return parentStack[0]?.value;
   }
 }
