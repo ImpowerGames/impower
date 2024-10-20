@@ -3047,27 +3047,19 @@ export class InkParser extends StringParser {
 
     this.Expect(this.EndOfLine, "end of line", this.SkipToNextLine);
 
-    let index = 0;
-
     // Parse indent
     let indent = this.ParseWhitespace();
     let level = indent?.length ?? 0;
     // Parse property
-    const firstElement = this.Parse(() =>
-      this.StructProperty(level, index)
-    ) as StructProperty;
-    if (firstElement === null) {
+    const firstElements = this.Parse(() =>
+      this.StructProperty(level)
+    ) as StructProperty[];
+    if (firstElements === null) {
       return null;
-    }
-    if (firstElement.index === null) {
-      // element is not an array item, so reset index
-      index = 0;
-    } else {
-      index += 1;
     }
 
     const properties: StructProperty[] = [];
-    properties.push(firstElement);
+    properties.push(...firstElements);
 
     do {
       const nextElementRuleId: number = this.BeginRule();
@@ -3085,22 +3077,16 @@ export class InkParser extends StringParser {
       indent = this.ParseWhitespace();
       level = indent?.length ?? 0;
       // Parse property
-      const nextElement = this.Parse(() =>
-        this.StructProperty(level, index)
-      ) as StructProperty;
-      if (nextElement === null) {
+      const nextElements = this.Parse(() =>
+        this.StructProperty(level)
+      ) as StructProperty[];
+      if (nextElements === null) {
         this.FailRule(nextElementRuleId);
         break;
       }
-      if (nextElement.index === null) {
-        // element is not an array item, so reset index
-        index = 0;
-      } else {
-        index += 1;
-      }
 
       this.SucceedRule(nextElementRuleId);
-      properties.push(nextElement);
+      properties.push(...nextElements);
     } while (true);
 
     return new StructDefinition(properties);
@@ -3116,44 +3102,42 @@ export class InkParser extends StringParser {
     return "\n";
   };
 
-  public readonly StructProperty = (
-    level: number,
-    index: number
-  ): StructProperty | null => {
+  public readonly StructProperty = (level: number): StructProperty[] | null => {
     const itemDash = this.ParseString("-");
     if (itemDash !== null) {
       this.Whitespace();
-      let elementValue: unknown | null = {};
-      if (this.Peek(this.AssignedPropertyIdentifier)) {
-        const assignedIdentifier = this.AssignedPropertyIdentifier();
+      if (this.Peek(this.ScalarPropertyIdentifier)) {
+        const assignedIdentifier = this.ScalarPropertyIdentifier();
         if (assignedIdentifier) {
           this.Whitespace();
-          const mapValue = this.Expect(
+          const elementValue = this.Expect(
             this.ValueLiteral,
             "property to be initialized to a number, string, boolean, or reference"
           ) as unknown | null;
-          (elementValue as any)[assignedIdentifier.name] = mapValue;
-          return new StructProperty(
-            new Identifier(String(index)),
-            level,
-            elementValue,
-            index
-          );
+          return [
+            new StructProperty(new Identifier("-"), level, {}),
+            new StructProperty(assignedIdentifier, level + 2, elementValue),
+          ];
+        }
+      }
+      if (this.Peek(this.ObjectPropertyIdentifier)) {
+        const assignedIdentifier = this.ObjectPropertyIdentifier();
+        if (assignedIdentifier) {
+          return [
+            new StructProperty(new Identifier("-"), level, {}),
+            new StructProperty(assignedIdentifier, level + 2, {}),
+          ];
         }
       }
       if (!this.Peek(this.EndOfLine)) {
         this.Whitespace();
-        elementValue = this.Expect(
+        const elementValue = this.Expect(
           this.ValueLiteral,
           "property to be initialized to a number, string, boolean, or reference"
         ) as unknown | null;
+        return [new StructProperty(new Identifier("-"), level, elementValue)];
       }
-      return new StructProperty(
-        new Identifier(String(index)),
-        level,
-        elementValue,
-        index
-      );
+      return [new StructProperty(new Identifier("-"), level, {})];
     }
 
     const identifier = this.Parse(
@@ -3176,10 +3160,10 @@ export class InkParser extends StringParser {
       elementValue = {};
     }
 
-    return new StructProperty(identifier, level, elementValue, null);
+    return [new StructProperty(identifier, level, elementValue)];
   };
 
-  public readonly AssignedPropertyIdentifier = (): Identifier | null => {
+  public readonly ScalarPropertyIdentifier = (): Identifier | null => {
     const identifier = this.Parse(
       this.PropertyIdentifierWithMetadata
     ) as Identifier | null;
@@ -3188,6 +3172,21 @@ export class InkParser extends StringParser {
     }
     this.Whitespace();
     const assignmentOperator = this.ParseString("=");
+    if (!assignmentOperator) {
+      return null;
+    }
+    return identifier;
+  };
+
+  public readonly ObjectPropertyIdentifier = (): Identifier | null => {
+    const identifier = this.Parse(
+      this.PropertyIdentifierWithMetadata
+    ) as Identifier | null;
+    if (!identifier) {
+      return null;
+    }
+    this.Whitespace();
+    const assignmentOperator = this.ParseString(":");
     if (!assignmentOperator) {
       return null;
     }
@@ -3387,36 +3386,18 @@ export class InkParser extends StringParser {
     return name;
   };
 
-  public readonly PropertyObjectNameTerminatingColon = (): string | null => {
-    this.Whitespace();
-
-    const colon = this.ParseString(":");
-    if (colon === null) {
-      return null;
-    }
-
-    this.Whitespace();
-
-    const eol = this.EndOfLine();
-    if (eol === null) {
-      return null;
-    }
-
-    return colon;
-  };
-
   public readonly PropertyNameTerminator = () =>
     this.OneOf([
       this.EndOfLine,
       this.String("."),
+      this.String(":"),
       this.String("="),
-      this.PropertyObjectNameTerminatingColon,
     ]);
 
   public readonly PropertyIdentifier = (): string | null => {
     const name = this.ParseUntil(
       this.PropertyNameTerminator,
-      new CharacterSet(":.=\n\r"),
+      new CharacterSet(".:=\n\r"),
       null
     );
     if (name === null) {

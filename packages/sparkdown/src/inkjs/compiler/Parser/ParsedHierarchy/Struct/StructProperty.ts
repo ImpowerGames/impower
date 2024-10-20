@@ -10,8 +10,7 @@ export class StructProperty extends ParsedObject {
   constructor(
     public readonly identifier: Identifier,
     public readonly level: number,
-    public readonly value: unknown | null = null,
-    public readonly index: number | null = null
+    public readonly value: unknown | null = null
   ) {
     super();
   }

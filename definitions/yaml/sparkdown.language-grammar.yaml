@@ -10,7 +10,7 @@ variables:
   IDENTIFIER_START_CHAR:  '_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}'
   IDENTIFIER: '[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*'
-  PROPERTY_IDENTIFIER: '[^.=\r\n]+?'
+  PROPERTY_IDENTIFIER: '[^.:=\r\n]+?'
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
@@ -308,9 +308,10 @@ repository:
           - { include: "#DeclarationAssignOperator" }
     patterns:
       - { include: "#Annotation" }
+      - { include: "#Newline" }
       - { include: "#StructField" }
       - { include: "#Unknown" }
-    end: ^(?=(?!\1{{WS}}{2,}))
+    end: (?=^(?!\1{{WS}}))
 
   DefinitionNameKeyword:
     tag: keyword
@@ -420,9 +421,15 @@ repository:
           - { include: "#Newline" }
 
   StructObjectItem:
+    patterns:
+      - { include: "#StructObjectItemBlock" }
+      - { include: "#StructObjectItemWithInlineScalarProperty" }
+      - { include: "#StructObjectItemWithInlineObjectProperty" }
+
+  StructObjectItemBlock:
     tag: meta
     name: meta.definition.struct.item.object.sd
-    begin: ^({{WS}}*)([-])(?:($|{{WS}}+$)|(?={{WS}}*{{PROPERTY_IDENTIFIER}}{{WS}}*[=]))
+    begin: ^({{WS}}*)([-])($|{{WS}}+)$
     beginCaptures:
       1:
         patterns:
@@ -439,10 +446,85 @@ repository:
       - { include: "#StructScalarItem" }
       - { include: "#StructObjectProperty" }
       - { include: "#StructScalarProperty" }
-      - { include: "#AfterDashStructScalarProperty" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1(?:{{WS}}{2,})))
+    end: (?=^(?!\1{{WS}}))
+
+  StructObjectItemWithInlineScalarProperty:
+    tag: meta
+    name: meta.definition.struct.item.object.sd
+    begin: ^({{WS}}*)([-])({{WS}}+)({{PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)($|.*)$
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: keyword
+        name: keyword.operator.expression.array.sd
+      3:
+        patterns:
+          - { include: "#Whitespace" }
+      4:
+        patterns:
+          - { include: "#DeclarationScalarPropertyName" }
+      5:
+        patterns:
+          - { include: "#Whitespace" }
+      6:
+        tag: updateOperator
+        name: keyword.operator.assignment.sd
+      7:
+        patterns:
+          - { include: "#Whitespace" }
+      8:
+        patterns:
+          - { include: "#StructFieldValue" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#StructObjectItem" }
+      - { include: "#StructScalarItem" }
+      - { include: "#StructObjectProperty" }
+      - { include: "#StructScalarProperty" }
+      - { include: "#Newline" }
+      - { include: "#Unknown" }
+    end: (?=^(?!\1{{WS}}))
+
+  StructObjectItemWithInlineObjectProperty:
+    tag: meta
+    name: meta.definition.struct.item.object.sd
+    begin: ^({{WS}}*)([-])({{WS}}+)({{PROPERTY_IDENTIFIER}})({{WS}}*)([:])($|{{WS}}*$)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: keyword
+        name: keyword.operator.expression.array.sd
+      3:
+        patterns:
+          - { include: "#Whitespace" }
+      4:
+        patterns:
+          - { include: "#DeclarationObjectPropertyName" }
+      5:
+        patterns:
+          - { include: "#Whitespace" }
+      6:
+        tag: separator
+        name: meta.template.expression.colon.sd
+      7:
+        patterns:
+          - { include: "#Whitespace" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#StructObjectItem" }
+      - { include: "#StructScalarItem" }
+      - { include: "#StructObjectProperty" }
+      - { include: "#StructScalarProperty" }
+      - { include: "#Newline" }
+      - { include: "#StructBlankProperty" }
+      - { include: "#Unknown" }
+    end: (?=^(?!\1{{WS}}))
 
   StructScalarItem:
     tag: meta
@@ -492,7 +574,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#StructBlankProperty" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1(?:{{WS}}{2,})))
+    end: (?=^(?!\1{{WS}}))
 
   StructScalarProperty:
     tag: meta
@@ -519,17 +601,17 @@ repository:
       - { include: "#StructFieldValue" }
     end: (?=$)
 
-  AfterDashStructScalarProperty:
+  AfterDashScalarProperty:
     tag: meta
     name: meta.definition.struct.property.scalar.sd
-    begin: ({{WS}}*)({{PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)
+    begin: ({{PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#DeclarationScalarProperty" }
+          - { include: "#DeclarationScalarPropertyName" }
       3:
         patterns:
           - { include: "#Whitespace" }

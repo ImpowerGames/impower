@@ -39,20 +39,34 @@ export class StructDefinition extends ParsedObject {
   }
 
   BuildValue(propertyDefinitions: StructProperty[]) {
+    // console.log(
+    //   propertyDefinitions
+    //     .map(
+    //       (p) =>
+    //         `${" ".repeat(p.level)} ${p.identifier.name} = ${JSON.stringify(
+    //           p.value
+    //         )}`
+    //     )
+    //     .join("\n")
+    // );
     let parentStack: { property: StructProperty | null; value: any }[] = [
       { property: null, value: {} },
     ];
     const firstProp = propertyDefinitions[0];
-    if (firstProp && firstProp.index !== null) {
+    if (firstProp && firstProp.identifier.name === "-") {
       // Is defining array struct
       parentStack[0]!.value = [];
     }
     for (let i = 0; i < propertyDefinitions.length; i += 1) {
       const prop = propertyDefinitions[i]!;
       const nextProp = propertyDefinitions[i + 1];
+      // Array items (starting with '-') are implicitly indented
+      const valueLevel =
+        prop.identifier.name === "-" ? prop.level + 2 : prop.level;
       while (
-        prop.level <=
-        (parentStack[parentStack.length - 1]?.property?.level ?? 0)
+        parentStack.length > 0 &&
+        valueLevel <=
+          (parentStack[parentStack.length - 1]?.property?.level ?? 0)
       ) {
         parentStack.pop();
       }
@@ -64,21 +78,20 @@ export class StructDefinition extends ParsedObject {
       ) {
         // If first child property is an array item, this property is an array
         const isArray =
-          nextProp && nextProp.level > prop.level && nextProp.index !== null;
+          nextProp &&
+          nextProp.level >= prop.level &&
+          nextProp.identifier.name === "-";
         const value = isArray ? [] : prop.value;
         if (parent) {
-          if (parent.value[prop.identifier.name] === undefined) {
-            if (
-              Array.isArray(parent.value) &&
-              Number.isNaN(Number(prop.identifier.name))
-            ) {
-              this.Error(
-                `Property is not an array item (not prefixed with '-')`,
-                prop
-              );
+          if (prop.identifier.name === "-") {
+            if (Array.isArray(parent.value)) {
+              const index = parent.value.length;
+              parent.value[index] = value;
             } else {
-              parent.value[prop.identifier.name] = value;
+              this.Error(`Array item must indented inside of parent`, prop);
             }
+          } else if (parent.value[prop.identifier.name] === undefined) {
+            parent.value[prop.identifier.name] = value;
           } else {
             this.Error(
               `Duplicate identifier '${prop.identifier.name}'`,
@@ -90,18 +103,15 @@ export class StructDefinition extends ParsedObject {
       } else {
         const value = prop.value;
         if (parent) {
-          if (parent.value[prop.identifier.name] === undefined) {
-            if (
-              Array.isArray(parent.value) &&
-              Number.isNaN(Number(prop.identifier.name))
-            ) {
-              this.Error(
-                `Property is not an array item (not prefixed with '-')`,
-                prop
-              );
+          if (prop.identifier.name === "-") {
+            if (Array.isArray(parent.value)) {
+              const index = parent.value.length;
+              parent.value[index] = value;
             } else {
-              parent.value[prop.identifier.name] = value;
+              this.Error(`Array item must indented inside of parent`, prop);
             }
+          } else if (parent.value[prop.identifier.name] === undefined) {
+            parent.value[prop.identifier.name] = value;
           } else {
             this.Error(
               `Duplicate identifier '${prop.identifier.name}'`,

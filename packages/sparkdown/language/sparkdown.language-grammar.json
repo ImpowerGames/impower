@@ -15,7 +15,7 @@
     "IDENTIFIER_START_CHAR": "_\\p{L}",
     "IDENTIFIER_END_CHAR": "0-9_\\p{L}",
     "IDENTIFIER": "[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*",
-    "PROPERTY_IDENTIFIER": "[^.=\\r\\n]+?",
+    "PROPERTY_IDENTIFIER": "[^.:=\\r\\n]+?",
     "BEFORE_KEYWORD": "(?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\\.\\.\\.)|(?<!\\.))",
     "AFTER_KEYWORD": "(?![{{IDENTIFIER_END_CHAR}}])(?:(?=\\.\\.\\.)|(?!\\.))",
     "TAG_START": "(?:[#]+(?:$|{{WS}}+))",
@@ -520,13 +520,16 @@
           "include": "#Annotation"
         },
         {
+          "include": "#Newline"
+        },
+        {
           "include": "#StructField"
         },
         {
           "include": "#Unknown"
         }
       ],
-      "end": "^(?=(?!\\1[^\\S\\n\\r]{2,}))"
+      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
     },
     "DefinitionNameKeyword": {
       "tag": "keyword",
@@ -724,9 +727,22 @@
       }
     },
     "StructObjectItem": {
+      "patterns": [
+        {
+          "include": "#StructObjectItemBlock"
+        },
+        {
+          "include": "#StructObjectItemWithInlineScalarProperty"
+        },
+        {
+          "include": "#StructObjectItemWithInlineObjectProperty"
+        }
+      ]
+    },
+    "StructObjectItemBlock": {
       "tag": "meta",
       "name": "meta.definition.struct.item.object.sd",
-      "begin": "^([^\\S\\n\\r]*)([-])(?:($|[^\\S\\n\\r]+$)|(?=[^\\S\\n\\r]*[^.=\\r\\n]+?[^\\S\\n\\r]*[=]))",
+      "begin": "^([^\\S\\n\\r]*)([-])($|[^\\S\\n\\r]+)$",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -764,7 +780,85 @@
           "include": "#StructScalarProperty"
         },
         {
-          "include": "#AfterDashStructScalarProperty"
+          "include": "#Newline"
+        },
+        {
+          "include": "#Unknown"
+        }
+      ],
+      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+    },
+    "StructObjectItemWithInlineScalarProperty": {
+      "tag": "meta",
+      "name": "meta.definition.struct.item.object.sd",
+      "begin": "^([^\\S\\n\\r]*)([-])([^\\S\\n\\r]+)([^.:=\\r\\n]+?)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)($|.*)$",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.array.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#DeclarationScalarPropertyName"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.sd"
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#StructFieldValue"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#StructObjectItem"
+        },
+        {
+          "include": "#StructScalarItem"
+        },
+        {
+          "include": "#StructObjectProperty"
+        },
+        {
+          "include": "#StructScalarProperty"
         },
         {
           "include": "#Newline"
@@ -773,7 +867,84 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[^\\S\\n\\r]{2,})))"
+      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+    },
+    "StructObjectItemWithInlineObjectProperty": {
+      "tag": "meta",
+      "name": "meta.definition.struct.item.object.sd",
+      "begin": "^([^\\S\\n\\r]*)([-])([^\\S\\n\\r]+)([^.:=\\r\\n]+?)([^\\S\\n\\r]*)([:])($|[^\\S\\n\\r]*$)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.array.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#DeclarationObjectPropertyName"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "tag": "separator",
+          "name": "meta.template.expression.colon.sd"
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#StructObjectItem"
+        },
+        {
+          "include": "#StructScalarItem"
+        },
+        {
+          "include": "#StructObjectProperty"
+        },
+        {
+          "include": "#StructScalarProperty"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#StructBlankProperty"
+        },
+        {
+          "include": "#Unknown"
+        }
+      ],
+      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
     },
     "StructScalarItem": {
       "tag": "meta",
@@ -812,7 +983,7 @@
     "StructObjectProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.object.sd",
-      "begin": "^([^\\S\\n\\r]*)([^.=\\r\\n]+?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
+      "begin": "^([^\\S\\n\\r]*)([^.:=\\r\\n]+?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -873,12 +1044,12 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[^\\S\\n\\r]{2,})))"
+      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
     },
     "StructScalarProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.scalar.sd",
-      "begin": "^([^\\S\\n\\r]*)([^.=\\r\\n]+?)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)",
+      "begin": "^([^\\S\\n\\r]*)([^.:=\\r\\n]+?)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -923,10 +1094,10 @@
       ],
       "end": "(?=$)"
     },
-    "AfterDashStructScalarProperty": {
+    "AfterDashScalarProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.scalar.sd",
-      "begin": "([^\\S\\n\\r]*)([^.=\\r\\n]+?)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)",
+      "begin": "([^.:=\\r\\n]+?)([^\\S\\n\\r]*)([=])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -938,7 +1109,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#DeclarationScalarProperty"
+              "include": "#DeclarationScalarPropertyName"
             }
           ]
         },
