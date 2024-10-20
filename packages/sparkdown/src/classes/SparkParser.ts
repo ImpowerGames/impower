@@ -713,6 +713,7 @@ export default class SparkParser {
   }
 
   parse(filename: string): SparkProgram {
+    console.clear();
     this._trees.clear();
     const program: SparkProgram = {};
     const transpiledScripts = new Map<string, string>();
@@ -830,7 +831,6 @@ export default class SparkParser {
         }
       }
     }
-    console.clear();
     console.log("program", program);
     return program;
   }
@@ -1009,11 +1009,11 @@ export default class SparkParser {
   getNestedFilters(
     name: string,
     program: SparkProgram
-  ): { includes: string[]; excludes: string[] }[] {
+  ): { includes: unknown[]; excludes: unknown[] }[] {
     const filteredImage =
       program.compiled?.structDefs?.["filtered_image"]?.[name];
     if (filteredImage) {
-      const filters: { includes: string[]; excludes: string[] }[] =
+      const filters: { includes: unknown[]; excludes: unknown[] }[] =
         filteredImage?.["filters"].map(
           (reference: { $type: "filtered_image"; $name: string }) =>
             program.compiled?.structDefs?.["filter"]?.[reference?.$name]

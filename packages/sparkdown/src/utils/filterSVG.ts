@@ -4,7 +4,7 @@ const ID_ATTRIBUTE_REGEX = /(\bid)(\s*)(=)(\s*)(["'])((?:[^"'\\]|\\.)*)(\5)/g;
 
 const filterSVG = (
   svg: string,
-  filter: { includes: string[]; excludes: string[] },
+  filter: { includes: unknown[]; excludes: unknown[] },
   filterableTag = "filter",
   defaultTag = "default"
 ) => {
