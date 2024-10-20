@@ -39,16 +39,16 @@ export class StructDefinition extends ParsedObject {
   }
 
   BuildValue(propertyDefinitions: StructProperty[]) {
-    console.log(
-      propertyDefinitions
-        .map(
-          (p) =>
-            `${" ".repeat(p.level)} ${p.identifier.name} = ${JSON.stringify(
-              p.value
-            )}`
-        )
-        .join("\n")
-    );
+    // console.log(
+    //   propertyDefinitions
+    //     .map(
+    //       (p) =>
+    //         `${" ".repeat(p.level)} ${p.identifier.name} = ${JSON.stringify(
+    //           p.value
+    //         )}`
+    //     )
+    //     .join("\n")
+    // );
     let parentStack: { property: StructProperty | null; value: any }[] = [
       { property: null, value: {} },
     ];
@@ -112,11 +112,6 @@ export class StructDefinition extends ParsedObject {
               const index = parent.value.length;
               parent.value[index] = value;
             } else {
-              console.log(
-                parent.property?.level,
-                prop.level,
-                parentStack.at(-1)?.value
-              );
               this.Error(`Array item must indented inside of parent`, prop);
             }
           } else if (parent.value[prop.identifier.name] === undefined) {
@@ -130,7 +125,7 @@ export class StructDefinition extends ParsedObject {
         }
       }
     }
-    console.log(parentStack[0]?.value);
+    // console.log(parentStack[0]?.value);
     return parentStack[0]?.value;
   }
 }
