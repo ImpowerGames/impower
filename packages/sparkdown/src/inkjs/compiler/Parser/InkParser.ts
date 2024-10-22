@@ -3386,23 +3386,68 @@ export class InkParser extends StringParser {
     return name;
   };
 
-  public readonly PropertyNameTerminator = () =>
+  public readonly PropertyIdentifierPart = () =>
     this.OneOf([
-      this.EndOfLine,
-      this.String("."),
-      this.String(":"),
-      this.String("="),
+      this.ParseWhitespace,
+      this.QuotedPropertyIdentifierString,
+      this.BracketedPropertyIdentifierString,
+      this.ParenPropertyIdentifierString,
+      this.OtherPropertyIdentifierCharacter,
     ]);
 
-  public readonly PropertyIdentifier = (): string | null => {
-    const name = this.ParseUntil(
-      this.PropertyNameTerminator,
-      new CharacterSet(".:=\n\r"),
-      null
-    );
-    if (name === null) {
+  public readonly QuotedPropertyIdentifierString = (): string | null => {
+    const open = this.ParseString('"');
+    if (open === null) {
       return null;
     }
+    const terminator: ParseRule = () =>
+      this.OneOf([this.String('"'), this.EndOfLine]);
+    const text = this.ParseUntil(terminator, new CharacterSet('"\n\r'), null);
+    const close =
+      (this.Expect(this.String('"'), "close quote") as string) ?? "";
+    return open + text + close;
+  };
+
+  public readonly BracketedPropertyIdentifierString = (): string | null => {
+    const open = this.ParseString("[");
+    if (open === null) {
+      return null;
+    }
+    const terminator: ParseRule = () =>
+      this.OneOf([this.String("]"), this.EndOfLine]);
+    const text = this.ParseUntil(terminator, new CharacterSet("]\n\r"), null);
+    const close =
+      (this.Expect(this.String("]"), "close bracket") as string) ?? "";
+    return open + text + close;
+  };
+
+  public readonly ParenPropertyIdentifierString = (): string | null => {
+    const open = this.ParseString("(");
+    if (open === null) {
+      return null;
+    }
+    const terminator: ParseRule = () =>
+      this.OneOf([this.String(")"), this.EndOfLine]);
+    const text = this.ParseUntil(terminator, new CharacterSet(")\n\r"), null);
+    const close =
+      (this.Expect(this.String(")"), "close parenthesis") as string) ?? "";
+    return open + text + close;
+  };
+
+  public readonly OtherPropertyIdentifierCharacter = (): string | null => {
+    const char = this.Peek(() => this.ParseSingleCharacter());
+    if (char === ":" || char === "=" || char === "\r" || char === "\n") {
+      return null;
+    }
+    return this.ParseSingleCharacter();
+  };
+
+  public readonly PropertyIdentifier = (): string | null => {
+    const result = this.OneOrMore(this.PropertyIdentifierPart);
+    if (result === null) {
+      return null;
+    }
+    const name = result.join("");
     return name;
   };
 

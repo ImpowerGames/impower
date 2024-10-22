@@ -10,7 +10,7 @@ variables:
   IDENTIFIER_START_CHAR:  '_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}'
   IDENTIFIER: '[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*'
-  PROPERTY_IDENTIFIER: '[^.:=\r\n]+?'
+  PROPERTY_IDENTIFIER: '(?:["].*?["]|\[.*?\]|\(.*?\)|[^.:=\r\n])+?'
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
@@ -719,6 +719,7 @@ repository:
       - { include: "#PropertySelectorUniversalCondition" }
       - { include: "#PropertySelectorOperator" }
       - { include: "#PropertySelectorClass" }
+      - { include: "#PropertySelectorAttribute" }
       - { include: "#Whitespace" }
       - { include: "#Unknown" }
 
@@ -795,6 +796,11 @@ repository:
     tag: propertyName
     name: variable.other.property.sd
     match: ({{IDENTIFIER}})
+
+  PropertySelectorAttribute:
+    tag: propertyName
+    name: variable.other.property.sd
+    match: (\[)(.*?)(\])
 
   PropertySelectorFunctionConditionName:
     tag: attributeName

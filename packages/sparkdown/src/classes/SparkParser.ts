@@ -770,7 +770,9 @@ export default class SparkParser {
       this.validateReferences(program);
       program.uuidToSource ??= {};
       program.uuidToSource = this.sortSources(program.uuidToSource);
-    } catch {}
+    } catch (e) {
+      console.error(e);
+    }
     for (const error of inkCompiler.errors) {
       program.diagnostics ??= {};
       const diagnostic = this.getDiagnostic(
