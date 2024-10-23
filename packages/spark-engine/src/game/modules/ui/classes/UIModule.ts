@@ -434,6 +434,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               isLast && parent === "image"
                 ? this.getBackgroundImageFromValue(v)
                 : undefined;
+            const mask_image =
+              isLast && parent === "mask"
+                ? this.getBackgroundImageFromValue(v)
+                : undefined;
             cursor = this.createElement(cursor, {
               type: "div",
               name,
@@ -449,6 +453,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               cursor = this.createElement(cursor, {
                 type: "span",
                 style: { background_image },
+              });
+            }
+            if (mask_image) {
+              cursor = this.createElement(cursor, {
+                type: "span",
+                style: { mask_image },
               });
             }
           }
@@ -566,22 +576,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return found;
   }
 
-  protected getContentElement(
+  protected getContentElements(
     element: Element,
-    tag: "image" | "text" | "stroke"
-  ): Element | undefined {
-    return element.findChild(tag);
+    tag: "image" | "text" | "mask" | "stroke"
+  ): Element[] {
+    return element.findChildren(tag);
   }
 
-  protected getOrCreateContentElement(
+  protected getOrCreateContentElements(
     element: Element,
-    tag: "image" | "text" | "stroke"
-  ): Element {
-    const contentChild = element.findChild(tag);
-    if (contentChild) {
-      return contentChild;
+    tag: "image" | "text" | "mask" | "stroke"
+  ): Element[] {
+    const contentChildren = element.findChildren(tag);
+    if (contentChildren) {
+      return contentChildren;
     }
-    return this.createElement(element, { name: tag, type: "div" });
+    return [this.createElement(element, { name: tag, type: "div" })];
   }
 
   findIds(target: string): string[] {
@@ -905,11 +915,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           if (targetEl) {
             $.updateElement(targetEl, {
               style: { display: null },
+              attributes: {
+                text: sequence?.map((t) => t.text).join("") ?? null,
+              },
             });
             if (sequence) {
               // Create and set text
-              const textEl = $.getOrCreateContentElement(targetEl, "text");
-              if (textEl) {
+              const textEls = $.getOrCreateContentElements(targetEl, "text");
+              for (const textEl of textEls) {
                 this.process(
                   targetEl,
                   textEl,
@@ -920,8 +933,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 );
               }
               // Set stroke (if stroke exists)
-              const strokeEl = $.getContentElement(targetEl, "stroke");
-              if (strokeEl) {
+              const strokeEls = $.getContentElements(targetEl, "stroke");
+              for (const strokeEl of strokeEls) {
                 this.process(
                   targetEl,
                   strokeEl,
@@ -933,12 +946,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               }
             } else {
               // Clear text and stroke
-              const textEl = $.getContentElement(targetEl, "text");
-              if (textEl) {
+              const textEls = $.getContentElements(targetEl, "text");
+              for (const textEl of textEls) {
                 $.clearElement(textEl);
               }
-              const strokeEl = $.getContentElement(targetEl, "stroke");
-              if (strokeEl) {
+              const strokeEls = $.getContentElements(targetEl, "stroke");
+              for (const strokeEl of strokeEls) {
                 $.clearElement(strokeEl);
               }
               $.updateElement(targetEl, {
@@ -1048,6 +1061,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected process(
         targetEl: Element,
         contentEl: Element,
+        property: "mask_image" | "background_image",
         sequence: ImageInstruction[],
         instant: boolean,
         enterElements: Map<Element, Animation[]>,
@@ -1143,16 +1157,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               display: null,
               opacity: "0",
             };
-            const background_image = $.getBackgroundImagesFromArguments(
-              e.assets
-            )
+            const imageNames = e.assets.join(" ");
+            const images = $.getBackgroundImagesFromArguments(e.assets)
               .reverse()
               .join(", ");
-            style["background_image"] = background_image;
+            style[property] = images;
             const prevSpanEls = [...contentEl.children];
             const newSpanEl = $.createElement(contentEl, {
               type: "span",
               style,
+              attributes: {
+                image: imageNames,
+              },
             });
             if (!enterElements.has(newSpanEl)) {
               enterElements.set(newSpanEl, []);
@@ -1261,19 +1277,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             });
             // Enqueue image events
             if (sequence) {
-              const imageEl = $.getOrCreateContentElement(targetEl, "image");
-              this.process(
-                targetEl,
-                imageEl,
-                sequence,
-                instant,
-                enterElements,
-                exitElements
-              );
+              const imageEls = $.getOrCreateContentElements(targetEl, "image");
+              for (const imageEl of imageEls) {
+                this.process(
+                  targetEl,
+                  imageEl,
+                  "background_image",
+                  sequence,
+                  instant,
+                  enterElements,
+                  exitElements
+                );
+              }
+              const maskEls = $.getOrCreateContentElements(targetEl, "mask");
+              for (const maskEl of maskEls) {
+                this.process(
+                  targetEl,
+                  maskEl,
+                  "mask_image",
+                  sequence,
+                  instant,
+                  enterElements,
+                  exitElements
+                );
+              }
             } else {
-              const imageEl = $.getContentElement(targetEl, "image");
-              if (imageEl) {
+              const imageEls = $.getContentElements(targetEl, "image");
+              for (const imageEl of imageEls) {
                 $.clearElement(imageEl);
+              }
+              const maskEls = $.getContentElements(targetEl, "mask");
+              for (const maskEl of maskEls) {
+                $.clearElement(maskEl);
               }
             }
           }

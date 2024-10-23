@@ -1652,78 +1652,30 @@ repository:
         tag: string
         name: punctuation.definition.string.begin.sd
     patterns:
+      - { include: "#StringEscape" }
       - { include: "#Annotation" }
       - { include: "#Color" }
-      - { include: "#DoubleQuoteStringContent" }
+      - { include: "#StringCharacter" }
     end: (["])|($)
     endCaptures:
       1:
         tag: string
         name: punctuation.definition.string.end.sd
 
-  DoubleQuoteStringContent:
+  StringEscape:
+    match: (\\)(.)
+    captures:
+      1:
+        tag: definition(escape)
+        name: constant.character.escape.sd
+      2:
+        tag: escape
+        name: constant.character.escape.sd
+
+  StringCharacter:
     tag: string
-    name: string.quoted.double.content.sd
-    match: ((?:[^"\\]|\\.)*)
-    captures:
-      1:
-        patterns:
-          - { include: "#Escape" }
-          - { include: "#VarString" }
-          - { include: "#UrlString" }
-          - { include: "#ImageCommand" }
-          - { include: "#AudioCommand" }
-          - { include: "#InlineTextAndLogic" }
-
-  VarString:
-    match: (var)({{WS}}*)([(])({{WS}}*)(.*?)({{WS}}*)([)])
-    captures:
-      1:
-        tag: keyword
-        name: keyword.other.var.sd
-      2:
-        patterns:
-          - { include: "#Whitespace" }
-      3:
-        tag: keyword
-        name: keyword.other.var.paren.open.sd
-      4:
-        patterns:
-          - { include: "#Whitespace" }
-      5:
-        patterns:
-          - { include: "#AccessPath" }
-      6:
-        patterns:
-          - { include: "#Whitespace" }
-      7:
-        tag: keyword
-        name: keyword.other.var.paren.close.sd
-
-  UrlString:
-    match: (url)({{WS}}*)([(])({{WS}}*)(.*?)({{WS}}*)([)])
-    captures:
-      1:
-        tag: keyword
-        name: keyword.other.url.sd
-      2:
-        patterns:
-          - { include: "#Whitespace" }
-      3:
-        tag: keyword
-        name: keyword.other.url.paren.open.sd
-      4:
-        patterns:
-          - { include: "#Whitespace" }
-      5:
-        patterns:
-          - { include: "#AccessPath" }
-      6:
-        patterns:
-          - { include: "#Whitespace" }
-      7:
-        tag: keyword
-        name: keyword.other.url.paren.close.sd
+    name: string.content.character.sd
+    match: (.)
 
   NumericLiteral:
     patterns:

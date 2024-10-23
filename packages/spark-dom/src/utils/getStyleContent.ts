@@ -19,6 +19,19 @@ const getCSSSelector = (
   let i = 0;
 
   while (i < input.length) {
+    // Output attribute selector as is
+    if (input[i] === "[") {
+      output += input[i];
+      i++;
+      while (i < input.length) {
+        output += input[i];
+        if (input[i] === "]") {
+          break;
+        }
+        i++;
+      }
+      break;
+    }
     // Expand pseudo shorthand
     if (input[i] === "@") {
       let pseudo = "";

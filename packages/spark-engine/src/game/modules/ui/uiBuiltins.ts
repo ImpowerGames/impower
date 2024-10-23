@@ -45,6 +45,15 @@ export const uiBuiltins = () => ({
     default: _style({
       $name: "default",
     }),
+    text: _style({
+      $name: "text",
+      display: "block",
+      pointer_events: "auto",
+      white_space: "pre-line",
+      "*": {
+        display: "inline",
+      },
+    }),
     stroke: _style({
       $name: "stroke",
       display: "block",
@@ -53,15 +62,6 @@ export const uiBuiltins = () => ({
       inset: "0",
       text_stroke: "2",
       color: "black",
-      white_space: "pre-line",
-      "*": {
-        display: "inline",
-      },
-    }),
-    text: _style({
-      $name: "text",
-      display: "block",
-      pointer_events: "auto",
       white_space: "pre-line",
       "*": {
         display: "inline",
@@ -81,6 +81,22 @@ export const uiBuiltins = () => ({
         background_position: "center",
         background_repeat: "no-repeat",
         background_size: "auto 100%",
+      },
+    }),
+    mask: _style({
+      $name: "mask",
+      display: "block",
+      pointer_events: "auto",
+      position: "absolute",
+      inset: 0,
+      isolation: "isolate",
+      "*": {
+        mix_blend_mode: "plus-lighter",
+        position: "absolute",
+        inset: "0",
+        mask_position: "center",
+        mask_repeat: "no-repeat",
+        mask_size: "auto 100%",
       },
     }),
     loading_bar: _style({
