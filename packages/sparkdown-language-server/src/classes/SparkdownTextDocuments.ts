@@ -41,9 +41,8 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
 import debounce from "../utils/debounce";
 import getDocumentDiagnostics from "../utils/getDocumentDiagnostics";
-import throttle from "../utils/throttle";
 
-const PARSE_THROTTLE_DELAY = 100;
+const PARSE_THROTTLE_DELAY = 300;
 
 const globToRegex = (glob: string) => {
   return RegExp(
@@ -289,12 +288,8 @@ export default class SparkdownTextDocuments<
     return uri.split("/").slice(-1).join("").split(".")[1]!;
   }
 
-  debouncedParse = debounce((uri: string) => {
-    this.parse(uri, true);
-  }, PARSE_THROTTLE_DELAY);
-
-  throttledParse = throttle((uri: string) => {
-    this.parse(uri);
+  debouncedParse = debounce((uri: string, force: boolean) => {
+    this.parse(uri, force);
   }, PARSE_THROTTLE_DELAY);
 
   getFiles(): {
@@ -454,7 +449,7 @@ export default class SparkdownTextDocuments<
           const type = this.getFileType(uri);
           if (type !== "script") {
             // When asset url changes, reparse all programs so that asset srcs are up-to-date.
-            this.debouncedParse(this.getMainScriptUri());
+            this.debouncedParse(this.getMainScriptUri(), true);
           }
         }
       )
@@ -480,7 +475,7 @@ export default class SparkdownTextDocuments<
               src,
             });
           });
-          this.debouncedParse(this.getMainScriptUri());
+          this.debouncedParse(this.getMainScriptUri(), true);
         }
       )
     );
@@ -533,7 +528,7 @@ export default class SparkdownTextDocuments<
               this.__onDidChangeContent.fire(
                 Object.freeze({ document: syncedDocument })
               );
-              this.throttledParse(td.uri);
+              this.debouncedParse(td.uri, false);
             }
           }
         }
