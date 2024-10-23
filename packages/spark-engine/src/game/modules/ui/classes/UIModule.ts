@@ -424,18 +424,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           } else {
             const isLast = i === path.length - 1;
             const parent = path.at(-1);
+            const parentClasses = parent?.split(" ") || [];
             const text =
               isLast &&
-              (parent === "text" || parent === "stroke") &&
+              (parentClasses.includes("text") ||
+                parentClasses.includes("stroke")) &&
               typeof v === "string"
                 ? v
                 : undefined;
             const background_image =
-              isLast && parent === "image"
+              isLast && parentClasses.includes("image")
                 ? this.getBackgroundImageFromValue(v)
                 : undefined;
             const mask_image =
-              isLast && parent === "mask"
+              isLast && parentClasses.includes("mask")
                 ? this.getBackgroundImageFromValue(v)
                 : undefined;
             cursor = this.createElement(cursor, {
