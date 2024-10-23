@@ -97,8 +97,14 @@ const getCSSSelector = (
         case "blank":
           output += ":placeholder-shown";
           break;
-        case "opened":
-          output += `[open]`;
+        case "language":
+          output += `:lang(${arg})`;
+          break;
+        case "direction":
+          output += `:dir(${arg})`;
+          break;
+        case "has":
+          output += `:has(${getCSSSelector(arg, options)})`;
           break;
         case "before":
           output += "::before";
@@ -118,14 +124,11 @@ const getCSSSelector = (
         case "backdrop":
           output += "::backdrop";
           break;
+        case "opened":
+          output += `[open]`;
+          break;
         case "initial":
           output += "@starting-style";
-          break;
-        case "language":
-          output += `:lang(${arg})`;
-          break;
-        case "direction":
-          output += `:dir(${arg})`;
           break;
         case "screen":
           const breakpoint = options?.breakpoints?.[arg];
@@ -134,9 +137,6 @@ const getCSSSelector = (
           break;
         case "theme":
           output += `@media(prefers-color-scheme:${arg})`;
-          break;
-        case "has":
-          output += `:has(${getCSSSelector(arg, options)})`;
           break;
       }
       i++;
@@ -174,6 +174,12 @@ const getCSSSelector = (
     // Append char as is
     output += input[i];
     i++;
+  }
+
+  if (output.startsWith(":") || output.startsWith("[")) {
+    // Pseudo and attribute selectors should target the root element by default
+    // (if they aren't already targeting a child element)
+    output = "&" + output;
   }
 
   return output;
