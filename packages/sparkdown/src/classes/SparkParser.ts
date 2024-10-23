@@ -22,6 +22,8 @@ import uuid from "../utils/uuid";
 import filterSVG from "../utils/filterSVG";
 import buildSVGSource from "../utils/buildSVGSource";
 import filterMatchesName from "../utils/filterMatchesName";
+import getAllProperties from "../utils/getAllProperties";
+import setProperty from "../utils/setProperty";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 
@@ -861,12 +863,81 @@ export default class SparkParser {
       program.compiled.structDefs ??= {};
       const builtins = this._config.builtins;
       if (builtins) {
+        const augmentedStructDefs: {
+          [type: string]: { [name: string]: object };
+        } = {};
         for (const [type, objs] of Object.entries(builtins)) {
           for (const [name, obj] of Object.entries(objs)) {
-            program.compiled.structDefs[type] ??= {};
-            program.compiled.structDefs[type][name] ??= structuredClone(obj);
+            augmentedStructDefs[type] ??= {};
+            augmentedStructDefs[type][name] ??= structuredClone(obj);
           }
         }
+        if (program.compiled.structDefs) {
+          for (const [type, structs] of Object.entries(
+            program.compiled.structDefs
+          )) {
+            augmentedStructDefs[type] ??= {};
+            for (const [name, struct] of Object.entries(structs as any)) {
+              if (Array.isArray(struct)) {
+                augmentedStructDefs[type][name] = struct;
+              } else {
+                const builtinDefaultValue = builtins[type]?.["default"];
+                const builtinInheritedValue =
+                  type === "config" ? builtins[type]?.[name] : {};
+                const definedDefaultValue = (structs as any)?.["default"];
+                const constructed = {} as any;
+                for (const [propPath, propValue] of Object.entries(
+                  getAllProperties(builtinDefaultValue)
+                )) {
+                  if (propValue !== undefined) {
+                    setProperty(
+                      constructed,
+                      propPath,
+                      JSON.parse(JSON.stringify(propValue))
+                    );
+                  }
+                }
+                for (const [propPath, propValue] of Object.entries(
+                  getAllProperties(builtinInheritedValue)
+                )) {
+                  if (propValue !== undefined) {
+                    setProperty(
+                      constructed,
+                      propPath,
+                      JSON.parse(JSON.stringify(propValue))
+                    );
+                  }
+                }
+                for (const [propPath, propValue] of Object.entries(
+                  getAllProperties(definedDefaultValue)
+                )) {
+                  if (propValue !== undefined) {
+                    setProperty(
+                      constructed,
+                      propPath,
+                      JSON.parse(JSON.stringify(propValue))
+                    );
+                  }
+                }
+                for (const [propPath, propValue] of Object.entries(
+                  getAllProperties(struct)
+                )) {
+                  if (propValue !== undefined) {
+                    setProperty(
+                      constructed,
+                      propPath,
+                      JSON.parse(JSON.stringify(propValue))
+                    );
+                  }
+                }
+                constructed["$type"] = type;
+                constructed["$name"] = name;
+                augmentedStructDefs[type][name] = constructed;
+              }
+            }
+          }
+        }
+        program.compiled.structDefs = augmentedStructDefs;
       }
     }
   }

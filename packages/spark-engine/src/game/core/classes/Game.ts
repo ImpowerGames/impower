@@ -9,7 +9,6 @@ import { NotificationMessage } from "../types/NotificationMessage";
 import { RequestMessage } from "../types/RequestMessage";
 import { ResponseError } from "../types/ResponseError";
 import { evaluate } from "../utils/evaluate";
-import { getAllProperties } from "../utils/getAllProperties";
 import { setProperty } from "../utils/setProperty";
 import { uuid } from "../utils/uuid";
 import { Connection } from "./Connection";
@@ -105,6 +104,7 @@ export class Game<T extends M = {}> {
           throw new Error("setTimeout not configured");
         },
       },
+      ...(program.compiled?.structDefs || {}),
     };
     // Create connection for sending and receiving messages
     this._connection = new Connection({
@@ -130,23 +130,6 @@ export class Game<T extends M = {}> {
       const name = key as keyof typeof allModules;
       const module = this._modules[name];
       if (module) {
-        const moduleBuiltins = module.getBuiltins();
-        if (moduleBuiltins) {
-          for (const [k, v] of Object.entries(moduleBuiltins)) {
-            if (v && typeof v === "object" && !Array.isArray(v)) {
-              this._context[k] ??= {};
-              for (const [name, value] of Object.entries(v)) {
-                if (this._context[k][name] === undefined) {
-                  this._context[k][name] = value;
-                }
-              }
-            } else {
-              if (this._context[k] === undefined) {
-                this._context[k] = v;
-              }
-            }
-          }
-        }
         const moduleStored = module.getStored();
         if (moduleStored) {
           this._stored.push(...moduleStored);
@@ -154,70 +137,6 @@ export class Game<T extends M = {}> {
       }
     }
     this._moduleNames = moduleNames;
-
-    if (compiled["structDefs"]) {
-      for (const [type, structs] of Object.entries(compiled["structDefs"])) {
-        this._context[type] ??= {};
-        for (const [name, struct] of Object.entries(structs as any)) {
-          if (Array.isArray(struct)) {
-            this._context[type][name] = struct;
-          } else {
-            const builtinDefaultValue = this._context[type]?.["default"];
-            const builtinInheritedValue =
-              type === "config" ? this._context[type]?.[name] : {};
-            const definedDefaultValue = (structs as any)?.["default"];
-            const constructed = {} as any;
-            for (const [propPath, propValue] of Object.entries(
-              getAllProperties(builtinDefaultValue)
-            )) {
-              if (propValue !== undefined) {
-                setProperty(
-                  constructed,
-                  propPath,
-                  JSON.parse(JSON.stringify(propValue))
-                );
-              }
-            }
-            for (const [propPath, propValue] of Object.entries(
-              getAllProperties(builtinInheritedValue)
-            )) {
-              if (propValue !== undefined) {
-                setProperty(
-                  constructed,
-                  propPath,
-                  JSON.parse(JSON.stringify(propValue))
-                );
-              }
-            }
-            for (const [propPath, propValue] of Object.entries(
-              getAllProperties(definedDefaultValue)
-            )) {
-              if (propValue !== undefined) {
-                setProperty(
-                  constructed,
-                  propPath,
-                  JSON.parse(JSON.stringify(propValue))
-                );
-              }
-            }
-            for (const [propPath, propValue] of Object.entries(
-              getAllProperties(struct)
-            )) {
-              if (propValue !== undefined) {
-                setProperty(
-                  constructed,
-                  propPath,
-                  JSON.parse(JSON.stringify(propValue))
-                );
-              }
-            }
-            constructed["$type"] = type;
-            constructed["$name"] = name;
-            this._context[type][name] = constructed;
-          }
-        }
-      }
-    }
   }
 
   getSource(uuid: string) {
