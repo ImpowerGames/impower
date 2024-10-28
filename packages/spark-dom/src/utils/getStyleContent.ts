@@ -13,146 +13,145 @@ const getCSSSelector = (
   if (input === options?.scope) {
     return "";
   }
+
+  const attributeRegex = /(\[)(.*?)($|\])/uy;
+  const pseudoFunctionRegex = /([@])([_\p{L}][_\p{L}0-9]+)?(\()(.*?)($|\))/uy;
+  const pseudoSimpleRegex = /([@])([_\p{L}][_\p{L}0-9]+)/uy;
   const identifierRegex = /[_\p{L}][_\p{L}0-9]+/uy;
   const whitespaceRegex = /[ \t]+/uy;
+
   let output = "";
   let i = 0;
 
   while (i < input.length) {
     // Output attribute selector as is
-    if (input[i] === "[") {
-      output += input[i];
-      i++;
-      while (i < input.length) {
-        output += input[i];
-        if (input[i] === "]") {
-          break;
-        }
-        i++;
-      }
-      break;
+    attributeRegex.lastIndex = i;
+    const attributeMatch = attributeRegex.exec(input);
+    if (attributeMatch) {
+      output += attributeMatch[0];
+      i = attributeRegex.lastIndex;
+      continue;
     }
-    // Expand pseudo shorthand
-    if (input[i] === "@") {
-      let pseudo = "";
-      let arg = "";
-      i++;
-      while (i < input.length) {
-        if (input[i] === " " || input[i] === "\t") {
-          break;
+
+    // Expand pseudo function
+    pseudoFunctionRegex.lastIndex = i;
+    const pseudoFunctionMatch = pseudoFunctionRegex.exec(input);
+    if (pseudoFunctionMatch) {
+      const pseudo = pseudoFunctionMatch[2];
+      const arg = pseudoFunctionMatch[4];
+      if (pseudo && arg) {
+        switch (pseudo) {
+          case "language":
+            output += `:lang(${arg})`;
+            break;
+          case "direction":
+            output += `:dir(${arg})`;
+            break;
+          case "has":
+            output += `:has(${getCSSSelector(arg, options)})`;
+            break;
+          case "screen":
+            const breakpoint = options?.breakpoints?.[arg];
+            const size = breakpoint != null ? `${breakpoint}px` : arg;
+            output += `@container(max-width:${size})`;
+            break;
+          case "theme":
+            output += `@media(prefers-color-scheme:${arg})`;
+            break;
         }
-        if (input[i] === "(") {
-          i++;
-          while (i < input.length) {
-            if (input[i] === ")") {
-              break;
-            }
-            arg += input[i];
-            i++;
-          }
-          break;
+      }
+      i = pseudoFunctionRegex.lastIndex;
+      continue;
+    }
+
+    // Expand pseudo class
+    pseudoSimpleRegex.lastIndex = i;
+    const pseudoSimpleMatch = pseudoSimpleRegex.exec(input);
+    if (pseudoSimpleMatch) {
+      const pseudo = pseudoSimpleMatch[2];
+      if (pseudo) {
+        switch (pseudo) {
+          case "hovered":
+            output += ":hover";
+            break;
+          case "focused":
+            output += ":focus";
+            break;
+          case "pressed":
+            output += ":active";
+            break;
+          case "disabled":
+            output += ":disabled";
+            break;
+          case "enabled":
+            output += ":enabled";
+            break;
+          case "checked":
+            output += ":checked";
+            break;
+          case "unchecked":
+            output += ":not(:checked)";
+            break;
+          case "required":
+            output += ":required";
+            break;
+          case "valid":
+            output += ":valid";
+            break;
+          case "invalid":
+            output += ":invalid";
+            break;
+          case "readonly":
+            output += ":read-only";
+            break;
+          case "first":
+            output += ":first-child";
+            break;
+          case "last":
+            output += ":last-child";
+            break;
+          case "only":
+            output += ":only-child";
+            break;
+          case "odd":
+            output += ":nth-child(odd)";
+            break;
+          case "even":
+            output += ":nth-child(even)";
+            break;
+          case "empty":
+            output += ":nth-child(empty)";
+            break;
+          case "blank":
+            output += ":placeholder-shown";
+            break;
+          case "before":
+            output += "::before";
+            break;
+          case "after":
+            output += "::after";
+            break;
+          case "placeholder":
+            output += "::placeholder";
+            break;
+          case "selection":
+            output += "::selection";
+            break;
+          case "marker":
+            output += "::marker";
+            break;
+          case "backdrop":
+            output += "::backdrop";
+            break;
+          case "opened":
+            output += `[open]`;
+            break;
+          case "initial":
+            output += "@starting-style";
+            break;
         }
-        pseudo += input[i];
-        i++;
       }
-      switch (pseudo) {
-        case "hovered":
-          output += ":hover";
-          break;
-        case "focused":
-          output += ":focus";
-          break;
-        case "pressed":
-          output += ":active";
-          break;
-        case "disabled":
-          output += ":disabled";
-          break;
-        case "enabled":
-          output += ":enabled";
-          break;
-        case "checked":
-          output += ":checked";
-          break;
-        case "unchecked":
-          output += ":not(:checked)";
-          break;
-        case "required":
-          output += ":required";
-          break;
-        case "valid":
-          output += ":valid";
-          break;
-        case "invalid":
-          output += ":invalid";
-          break;
-        case "readonly":
-          output += ":read-only";
-          break;
-        case "first":
-          output += ":first-child";
-          break;
-        case "last":
-          output += ":last-child";
-          break;
-        case "only":
-          output += ":only-child";
-          break;
-        case "odd":
-          output += ":nth-child(odd)";
-          break;
-        case "even":
-          output += ":nth-child(even)";
-          break;
-        case "empty":
-          output += ":nth-child(empty)";
-          break;
-        case "blank":
-          output += ":placeholder-shown";
-          break;
-        case "language":
-          output += `:lang(${arg})`;
-          break;
-        case "direction":
-          output += `:dir(${arg})`;
-          break;
-        case "has":
-          output += `:has(${getCSSSelector(arg, options)})`;
-          break;
-        case "before":
-          output += "::before";
-          break;
-        case "after":
-          output += "::after";
-          break;
-        case "placeholder":
-          output += "::placeholder";
-          break;
-        case "selection":
-          output += "::selection";
-          break;
-        case "marker":
-          output += "::marker";
-          break;
-        case "backdrop":
-          output += "::backdrop";
-          break;
-        case "opened":
-          output += `[open]`;
-          break;
-        case "initial":
-          output += "@starting-style";
-          break;
-        case "screen":
-          const breakpoint = options?.breakpoints?.[arg];
-          const size = breakpoint != null ? `${breakpoint}px` : arg;
-          output += `@container(max-width:${size})`;
-          break;
-        case "theme":
-          output += `@media(prefers-color-scheme:${arg})`;
-          break;
-      }
-      i++;
+      i = pseudoSimpleRegex.lastIndex;
       continue;
     }
 
@@ -172,6 +171,13 @@ const getCSSSelector = (
       if (whitespaceMatch) {
         i = whitespaceRegex.lastIndex;
       }
+      continue;
+    }
+
+    // Unlike normal CSS, # is used to indicate root selector &
+    if (input[i] === "#") {
+      output += "&";
+      i++;
       continue;
     }
 
