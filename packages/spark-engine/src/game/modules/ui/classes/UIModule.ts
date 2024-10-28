@@ -483,11 +483,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     const styles = this.context?.style;
     if (styles) {
-      this.constructStyleElement("styles", {
-        styles: {
-          ...styles,
-        },
-      });
+      this.constructStyleElement("styles", { styles });
     }
   }
 
