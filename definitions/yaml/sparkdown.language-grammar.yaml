@@ -2615,8 +2615,8 @@ repository:
           - { include: "#Whitespace" }
       5:
         patterns:
-          - { include: "#AssetCommandName" }
           - { include: "#AssetCommandAddOperator" }
+          - { include: "#AssetCommandName" }
           - { include: "#IllegalChar" }
       6:
         patterns:

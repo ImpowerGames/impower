@@ -4640,10 +4640,10 @@
         "5": {
           "patterns": [
             {
-              "include": "#AssetCommandName"
+              "include": "#AssetCommandAddOperator"
             },
             {
-              "include": "#AssetCommandAddOperator"
+              "include": "#AssetCommandName"
             },
             {
               "include": "#IllegalChar"
