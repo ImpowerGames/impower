@@ -115,9 +115,7 @@ export class AudioModule extends Module<
 
   getMixer(channel: string | undefined): string {
     return (
-      this.context?.channel?.[channel || "default"]?.mixer ||
-      channel ||
-      "default"
+      this.context?.channel?.[channel || "main"]?.mixer || channel || "main"
     );
   }
 

@@ -6,18 +6,18 @@ import { _synth } from "./constructors/_synth";
 
 export const audioBuiltins = () => ({
   audio: {
-    default: _audio({
-      $name: "default",
+    $default: _audio({
+      $name: "$default",
     }),
   } as Record<string, ReturnType<typeof _audio>>,
   layered_audio: {
-    default: _layeredAudio({
-      $name: "default",
+    $default: _layeredAudio({
+      $name: "$default",
     }),
   } as Record<string, ReturnType<typeof _layeredAudio>>,
   synth: {
-    default: _synth({
-      $name: "default",
+    $default: _synth({
+      $name: "$default",
       envelope: {
         attack: 0.007,
         decay: 0.003,
@@ -60,8 +60,8 @@ export const audioBuiltins = () => ({
     }),
   } as Record<string, ReturnType<typeof _synth>>,
   mixer: {
-    default: _mixer({
-      $name: "default",
+    $default: _mixer({
+      $name: "$default",
     }),
     main: _mixer({
       $name: "main",
@@ -77,9 +77,9 @@ export const audioBuiltins = () => ({
     }),
   } as Record<string, ReturnType<typeof _mixer>>,
   channel: {
-    default: _channel({
-      $name: "default",
-      mixer: "default",
+    $default: _channel({
+      $name: "$default",
+      mixer: "",
     }),
     main: _channel({
       $name: "main",

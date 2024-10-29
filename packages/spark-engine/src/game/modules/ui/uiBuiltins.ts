@@ -14,7 +14,6 @@ import { _ui } from "./constructors/_ui";
 export const uiBuiltins = () => ({
   config: {
     ui: {
-      ignore: ["default", "text", "image"],
       style_element_name: "style",
       ui_element_name: "ui",
       breakpoints: {
@@ -27,23 +26,23 @@ export const uiBuiltins = () => ({
     },
   },
   image: {
-    default: _image({
-      $name: "default",
+    $default: _image({
+      $name: "$default",
     }),
   } as Record<string, ReturnType<typeof _image>>,
   layered_image: {
-    default: _layeredImage({
-      $name: "default",
+    $default: _layeredImage({
+      $name: "$default",
     }),
   } as Record<string, ReturnType<typeof _layeredImage>>,
   filtered_image: {
-    default: _filteredImage({
-      $name: "default",
+    $default: _filteredImage({
+      $name: "$default",
     }),
   } as Record<string, ReturnType<typeof _filteredImage>>,
   style: {
-    default: _style({
-      $name: "default",
+    $default: _style({
+      $name: "$default",
     }),
     text: _style({
       $name: "text",
@@ -327,9 +326,7 @@ export const uiBuiltins = () => ({
     }),
   } as Record<string, ReturnType<typeof _style>>,
   ui: {
-    default: _ui({ $name: "default" }),
-    image: _ui({ $name: "image", image: {} }),
-    text: _ui({ $name: "text", text: {} }),
+    $default: _ui({ $name: "$default" }),
     loading: _ui({
       $name: "loading",
       loading_bar: {
@@ -404,8 +401,8 @@ export const uiBuiltins = () => ({
     }),
   } as Record<string, ReturnType<typeof _ui>>,
   animation: {
-    default: _animation({
-      $name: "default",
+    $default: _animation({
+      $name: "$default",
       keyframes: [],
       timing: {
         delay: 0,
@@ -935,7 +932,7 @@ export const uiBuiltins = () => ({
     }),
   } as Record<string, ReturnType<typeof _animation>>,
   transition: {
-    default: _transition({ $name: "default" }),
+    $default: _transition({ $name: "$default" }),
     fade: _transition({
       $name: "fade",
       on_hide: "fadeout",
@@ -955,10 +952,10 @@ export const uiBuiltins = () => ({
     }),
   } as Record<string, ReturnType<typeof _transition>>,
   font: {
-    default: _font({ $name: "default" }),
+    $default: _font({ $name: "$default" }),
   } as Record<string, ReturnType<typeof _font>>,
   shadow: {
-    default: _shadow({ $name: "default" }),
+    $default: _shadow({ $name: "$default" }),
     xs: _shadow({
       $name: "xs",
       layers: [
@@ -1066,7 +1063,7 @@ export const uiBuiltins = () => ({
     }),
   } as Record<string, ReturnType<typeof _shadow>>,
   ease: {
-    default: _ease({ $name: "default" }),
+    $default: _ease({ $name: "$default" }),
     none: _ease({
       $name: "none",
       x1: 0,
@@ -1155,15 +1152,13 @@ export const uiBuiltins = () => ({
     }),
   } as Record<string, ReturnType<typeof _ease>>,
   gradient: {
-    default: _gradient({ $name: "default" }),
+    $default: _gradient({ $name: "$default" }),
   } as Record<string, ReturnType<typeof _gradient>>,
   graphic: {
-    default: _graphic({
-      $name: "default",
+    $default: _graphic({
+      $name: "$default",
     }),
   } as Record<string, ReturnType<typeof _graphic>>,
-  html: {},
-  css: {},
 });
 
 export type UIBuiltins = ReturnType<typeof uiBuiltins>;

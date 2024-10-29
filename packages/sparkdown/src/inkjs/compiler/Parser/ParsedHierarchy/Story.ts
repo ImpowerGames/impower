@@ -570,7 +570,8 @@ export class Story extends FlowBase {
     // Structs
     for (const [key, value] of this._structDefs) {
       if (
-        (identifier?.name === key || identifier?.name + ".default" === key) &&
+        (identifier?.name === key ||
+          identifier?.name + "." + "$default" === key) &&
         obj !== value &&
         value.variableAssignment !== obj
       ) {

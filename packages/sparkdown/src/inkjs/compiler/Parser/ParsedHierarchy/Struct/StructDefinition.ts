@@ -11,17 +11,37 @@ export class StructDefinition extends ParsedObject {
     return "Define";
   }
 
-  public identifier: Identifier | null = null;
+  public scopedIdentifier: Identifier | null = null;
+
+  public modifier: Identifier | null = null;
+
+  public type: Identifier | null = null;
+
+  public name: Identifier | null = null;
 
   public variableAssignment: VariableAssignment | null = null;
 
   get runtimeStructDefinition(): RuntimeStructDefinition {
-    const id = this.identifier?.name || "";
+    const modifierId = this.modifier?.name || "";
+    const typeId = this.type?.name || "";
+    const nameId = this.name?.name || "";
+    const type = typeId;
+    const nameParts = [];
+    if (modifierId) {
+      nameParts.push("$" + modifierId);
+    }
+    if (nameId) {
+      nameParts.push(nameId);
+    }
+    const name = nameParts.join(":");
     const value = this.BuildValue(this.propertyDefinitions);
-    const [type, name] = id.split(".");
-    value["$type"] = type;
-    value["$name"] = name;
-    return new RuntimeStructDefinition(id, value);
+    if (type) {
+      value["$type"] = type;
+    }
+    if (name) {
+      value["$name"] = name;
+    }
+    return new RuntimeStructDefinition(type, name, value);
   }
 
   constructor(public propertyDefinitions: StructProperty[]) {
@@ -35,7 +55,11 @@ export class StructDefinition extends ParsedObject {
 
   public override ResolveReferences(context: Story): void {
     super.ResolveReferences(context);
-    context.CheckForNamingCollisions(this, this.identifier!, SymbolType.Struct);
+    context.CheckForNamingCollisions(
+      this,
+      this.scopedIdentifier!,
+      SymbolType.Struct
+    );
   }
 
   BuildValue(propertyDefinitions: StructProperty[]) {

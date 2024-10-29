@@ -38,7 +38,7 @@ const declareBuiltins = (
       }
       // Define variables of type
       Object.entries(v).forEach(([name, compiled]) => {
-        if (name && name !== "default") {
+        if (name && name !== "$default") {
           const variableName = name;
           const variableType = k;
           if (typeof compiled === "object" && !Array.isArray(compiled)) {

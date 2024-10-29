@@ -18,8 +18,8 @@ export const interpreterBuiltins = () => ({
     },
   },
   writer: {
-    default: _writer({
-      $name: "default",
+    $default: _writer({
+      $name: "$default",
     }),
     action: _writer({
       $name: "action",
@@ -48,8 +48,8 @@ export const interpreterBuiltins = () => ({
     }),
   },
   character: {
-    default: _character({
-      $name: "default",
+    $default: _character({
+      $name: "$default",
     }),
   },
 });

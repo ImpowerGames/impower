@@ -3001,18 +3001,36 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const type = this.Expect(this.IdentifierWithMetadata, "type") as Identifier;
+    let modifier: Identifier | null = null;
+    let name: Identifier | null = null;
+
+    let type = this.Expect(
+      this.IdentifierWithMetadata,
+      "type"
+    ) as Identifier | null;
 
     this.Whitespace();
-
     const dot = this.ParseString(".");
-
     this.Whitespace();
 
-    const name =
-      (dot
-        ? (this.Expect(this.IdentifierWithMetadata, "name") as Identifier)
-        : undefined) ?? new Identifier("default");
+    if (dot) {
+      name = this.Expect(
+        this.IdentifierWithMetadata,
+        "name"
+      ) as Identifier | null;
+    } else {
+      modifier = type;
+      type = this.IdentifierWithMetadata();
+      this.Whitespace();
+      const dot = this.ParseString(".");
+      this.Whitespace();
+      if (dot) {
+        name = this.Expect(
+          this.IdentifierWithMetadata,
+          "name"
+        ) as Identifier | null;
+      }
+    }
 
     this.Whitespace();
 
@@ -3021,18 +3039,24 @@ export class InkParser extends StringParser {
     const definition = this.StructProperties();
 
     if (definition) {
-      definition.identifier = new Identifier(type?.name + "." + name.name);
-      if (type.debugMetadata) {
-        definition.identifier.debugMetadata = new DebugMetadata(
+      const variableIdentifier = new Identifier(type?.name + "." + name?.name);
+      if (type && type.debugMetadata) {
+        variableIdentifier.debugMetadata = new DebugMetadata(
           type.debugMetadata
         );
-        if (name.debugMetadata) {
-          definition.identifier.debugMetadata =
-            definition.identifier.debugMetadata.Merge(name.debugMetadata);
+      }
+      if (name && name.debugMetadata) {
+        if (variableIdentifier.debugMetadata) {
+          variableIdentifier.debugMetadata =
+            variableIdentifier.debugMetadata.Merge(name.debugMetadata);
         }
       }
+      definition.scopedIdentifier = variableIdentifier;
+      definition.modifier = modifier;
+      definition.type = type;
+      definition.name = name;
       return new VariableAssignment({
-        variableIdentifier: definition.identifier,
+        variableIdentifier,
         structDef: definition,
       });
     }

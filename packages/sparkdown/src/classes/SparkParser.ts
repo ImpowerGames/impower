@@ -881,10 +881,10 @@ export default class SparkParser {
               if (Array.isArray(struct)) {
                 augmentedStructDefs[type][name] = struct;
               } else {
-                const builtinDefaultValue = builtins[type]?.["default"];
+                const builtinDefaultValue = builtins[type]?.["$default"];
                 const builtinInheritedValue =
                   type === "config" ? builtins[type]?.[name] : {};
-                const definedDefaultValue = (structs as any)?.["default"];
+                const definedDefaultValue = (structs as any)?.["$default"];
                 const constructed = {} as any;
                 for (const [propPath, propValue] of Object.entries(
                   getAllProperties(builtinDefaultValue)

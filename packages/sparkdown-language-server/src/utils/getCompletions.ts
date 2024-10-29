@@ -71,7 +71,7 @@ const getImageCompletions = (
     program?.compiled?.structDefs?.["layered_image"] || {}
   ).forEach(([, v]) => {
     const name = v.$name;
-    if (name !== "default") {
+    if (!name.startsWith("$")) {
       const asset = v as {
         assets: Asset[];
         src: string;
@@ -97,7 +97,7 @@ const getImageCompletions = (
   Object.entries(program?.compiled?.structDefs?.["image"] || {}).forEach(
     ([, v]) => {
       const name = v.$name;
-      if (name !== "default") {
+      if (!name.startsWith("$")) {
         const asset = v as Asset;
         if (asset) {
           const completion: CompletionItem = {
@@ -147,7 +147,7 @@ const getFilterCompletions = (
     ([, v]) => {
       const name = v.$name;
       if (!existingTags?.includes(name)) {
-        if (name && name !== "default") {
+        if (!name.startsWith("$")) {
           const completion: CompletionItem = {
             label: name,
             labelDetails: { description: "filter" },
@@ -170,7 +170,7 @@ const getChannelCompletions = (
   Object.entries(program?.compiled?.structDefs?.["channel"] || {}).forEach(
     ([, v]) => {
       const name = v.$name;
-      if (name !== "default") {
+      if (!name.startsWith("$")) {
         const completion: CompletionItem = {
           label: name,
           labelDetails: { description: "channel" },
@@ -192,7 +192,7 @@ const getAudioCompletions = (
   const audioToken = getLineToken(program, line, "audio_tag");
   const completions: Map<string, CompletionItem> = new Map();
   Object.values(program?.compiled?.structDefs?.["audio"] || {}).forEach((v) => {
-    if (v.name !== "default") {
+    if (!v.name.startsWith("$")) {
       const completion = {
         label: v.name,
         labelDetails: { description: "audio" },
@@ -205,7 +205,7 @@ const getAudioCompletions = (
   });
   Object.values(program?.compiled?.structDefs?.["layered_audio"] || {}).forEach(
     (v) => {
-      if (v.name !== "default") {
+      if (!v.name.startsWith("$")) {
         const completion = {
           label: v.name,
           labelDetails: { description: "layered_audio" },
@@ -218,7 +218,7 @@ const getAudioCompletions = (
     }
   );
   Object.values(program?.compiled?.structDefs?.["synth"] || {}).forEach((v) => {
-    if (v.name !== "default") {
+    if (!v.name.startsWith("$")) {
       const completion = {
         label: v.name,
         labelDetails: { description: "synth" },

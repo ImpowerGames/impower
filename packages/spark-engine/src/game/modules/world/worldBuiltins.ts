@@ -3,13 +3,13 @@ import { _entity } from "./constructors/_entity";
 
 export const worldBuiltins = () => ({
   camera: {
-    default: _camera({
-      $name: "default",
+    $default: _camera({
+      $name: "$default",
     }),
   } as Record<string, ReturnType<typeof _camera>>,
   entity: {
-    default: _entity({
-      $name: "default",
+    $default: _entity({
+      $name: "$default",
     }),
   } as Record<string, ReturnType<typeof _entity>>,
 });

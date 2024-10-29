@@ -297,7 +297,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const images = this.context?.image;
     if (images) {
       for (const [name] of Object.entries(images)) {
-        if (name !== "default") {
+        if (!name.startsWith("$")) {
           const varName = this.getImageVarName(name);
           const varValue = this.getImageVarValue("image", name);
           if (varValue) {
@@ -309,7 +309,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const layeredImages = this.context?.layered_image;
     if (layeredImages) {
       for (const [name] of Object.entries(layeredImages)) {
-        if (name !== "default") {
+        if (!name.startsWith("$")) {
           const varName = this.getImageVarName(name);
           const varValue = this.getImageVarValue("layered_image", name);
           if (varValue) {
@@ -321,10 +321,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const filteredImages = this.context?.filtered_image;
     if (filteredImages) {
       for (const [name] of Object.entries(filteredImages)) {
-        const varName = this.getImageVarName(name);
-        const varValue = this.getImageVarValue("filtered_image", name);
-        if (varValue) {
-          style[varName] = varValue;
+        if (!name.startsWith("$")) {
+          const varName = this.getImageVarName(name);
+          const varValue = this.getImageVarValue("filtered_image", name);
+          if (varValue) {
+            style[varName] = varValue;
+          }
         }
       }
     }
@@ -493,7 +495,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ? Object.keys(this.context?.ui || {})
       : structNames;
     for (const structName of validStructNames) {
-      if (structName && !this.context.config?.ui.ignore.includes(structName)) {
+      if (structName && !structName.startsWith("$")) {
         const structObj = this.context?.ui?.[structName];
         if (structObj) {
           const properties = getAllProperties(structObj);

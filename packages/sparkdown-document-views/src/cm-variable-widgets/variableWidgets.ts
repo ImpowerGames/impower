@@ -452,7 +452,7 @@ const getSynthVariableWidgets = (
   const context = VARIABLE_WIDGET_CONTEXT;
   const widgetRanges: Range<Decoration>[] = [];
   const audioObjects = audioBuiltins();
-  const defaultObj = audioObjects.synth["default"];
+  const defaultObj = audioObjects.synth["$default"];
   const validation = SYNTH_VALIDATION;
   const options: StructPresetOption[] = Object.entries({
     default: null,
@@ -468,7 +468,7 @@ const getSynthVariableWidgets = (
         const preset = randomization ? {} : defaultObj;
         if (randomization) {
           const cullProp =
-            label?.toLowerCase() !== "default" ? "on" : undefined;
+            label?.toLowerCase() !== "$default" ? "on" : undefined;
           randomizeProperties(preset, validation, randomization, cullProp);
         }
         const structWidgetPos = view.posAtDOM(dom);

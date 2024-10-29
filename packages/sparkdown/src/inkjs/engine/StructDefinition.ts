@@ -1,7 +1,12 @@
 export class StructDefinition {
-  protected _id: string;
-  get id() {
-    return this._id;
+  protected _type: string;
+  get type() {
+    return this._type;
+  }
+
+  protected _name: string;
+  get name() {
+    return this._name;
   }
 
   protected _value: any;
@@ -9,8 +14,9 @@ export class StructDefinition {
     return this._value;
   }
 
-  constructor(id: string, value: any) {
-    this._id = id || "";
+  constructor(type: string, name: string, value: any) {
+    this._type = type || "";
+    this._name = name || "";
     this._value = value;
   }
 }

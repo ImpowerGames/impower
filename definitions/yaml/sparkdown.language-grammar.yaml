@@ -193,6 +193,7 @@ repository:
       - { include: "#ConstDeclaration" }
       - { include: "#ExternalDeclaration" }
       - { include: "#DefineDeclaration" }
+      - { include: "#DefineModifierDeclaration" }
 
   VarDeclaration:
     tag: meta
@@ -273,7 +274,7 @@ repository:
   DefineDeclaration:
     tag: meta
     name: meta.definition.type.sd
-    begin: ^({{WS}}*)(DEFINE)({{EOK}})($|{{IDENTIFIER}})({{WS}}*)(?:([.])({{WS}}*)($|{{IDENTIFIER}}))?({{WS}}*)($|[:])
+    begin: ^({{WS}}*)(DEFINE)({{EOK}})($|{{IDENTIFIER}})(?:({{WS}}*)([.])({{WS}}*)($|{{IDENTIFIER}}))?({{WS}}*)($|[:])
     beginCaptures:
       1:
         patterns:
@@ -304,6 +305,55 @@ repository:
         patterns:
           - { include: "#Whitespace" }
       10:
+        patterns:
+          - { include: "#DeclarationAssignOperator" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Newline" }
+      - { include: "#StructField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!\1{{WS}}))
+
+  DefineModifierDeclaration:
+    tag: meta
+    name: meta.definition.type.sd
+    begin: ^({{WS}}*)(DEFINE)({{EOK}})({{IDENTIFIER}})({{WS}}+)({{IDENTIFIER}})(?:({{WS}}*)([.])({{WS}}*)($|{{IDENTIFIER}}))?({{WS}}*)($|[:])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: controlKeyword
+        name: keyword.control.definition.object.sd
+      3:
+        patterns:
+          - { include: "#EndOfKeyword" }
+      4:
+        patterns: 
+          - { include: "#ModifierName" }
+      5:
+        patterns:
+          - { include: "#Whitespace" }
+      6:
+        patterns: 
+          - { include: "#TypeName" }
+      7:
+        patterns:
+          - { include: "#Whitespace" }
+      8:
+        patterns: 
+          - { include: "#PunctuationAccessor" }
+      9:
+        patterns:
+          - { include: "#Whitespace" }
+      10:
+        patterns:
+          - { include: "#DefinitionNameKeyword" }
+          - { include: "#VariableName" }
+      11:
+        patterns:
+          - { include: "#Whitespace" }
+      12:
         patterns:
           - { include: "#DeclarationAssignOperator" }
     patterns:
@@ -1884,6 +1934,11 @@ repository:
     tag: variableName
     name: variable.other.constant.sd
     match: ({{IDENTIFIER}})(?![(])
+
+  ModifierName:
+    tag: keyword
+    name: storage.modifier.sd
+    match: ({{IDENTIFIER}})
 
   TypeName:
     tag: typeName

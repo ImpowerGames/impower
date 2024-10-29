@@ -66,7 +66,7 @@ export default class AudioScene extends Scene {
     return audioBuffer;
   }
 
-  getAudioMixer(mixer = "default", volume?: number): AudioMixer {
+  getAudioMixer(mixer = "main", volume?: number): AudioMixer {
     const existingAudioMixer = this._audioMixers.get(mixer);
     if (existingAudioMixer) {
       return existingAudioMixer;
@@ -76,7 +76,7 @@ export default class AudioScene extends Scene {
     return audioMixer;
   }
 
-  getAudioChannel(channel = "default"): Map<string, AudioPlayer> {
+  getAudioChannel(channel = "main"): Map<string, AudioPlayer> {
     const existingAudioChannel = this._audioChannels.get(channel);
     if (existingAudioChannel) {
       return existingAudioChannel;
@@ -87,7 +87,7 @@ export default class AudioScene extends Scene {
   }
 
   destroyAudio(key: string, channel: string | undefined) {
-    const audioChannel = this._audioChannels.get(channel || "default");
+    const audioChannel = this._audioChannels.get(channel || "main");
     if (audioChannel) {
       const audioPlayer = audioChannel.get(key);
       if (audioPlayer) {

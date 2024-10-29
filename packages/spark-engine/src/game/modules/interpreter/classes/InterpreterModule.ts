@@ -410,7 +410,7 @@ export class InterpreterModule extends Module<
         return fallbackValue;
       }
     }
-    return (this.context as any)?.[type]?.["default"];
+    return (this.context as any)?.[type]?.["$default"];
   }
 
   protected lookupContextValueName(
@@ -429,7 +429,7 @@ export class InterpreterModule extends Module<
         return fallbackName;
       }
     }
-    return "default";
+    return "$default";
   }
 
   protected getMinSynthDuration(synth: {

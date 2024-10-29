@@ -201,7 +201,8 @@ export class Story extends InkObject {
     if (structs != null) {
       this._structDefinitions = {};
       for (const struct of structs) {
-        const [type, name] = struct.id.split(".");
+        const type = struct.type;
+        const name = struct.name;
         if (type) {
           this._structDefinitions[type] ??= {};
           if (name) {

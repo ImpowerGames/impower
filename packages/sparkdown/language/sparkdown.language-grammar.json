@@ -300,6 +300,9 @@
         },
         {
           "include": "#DefineDeclaration"
+        },
+        {
+          "include": "#DefineModifierDeclaration"
         }
       ]
     },
@@ -442,7 +445,7 @@
     "DefineDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([^\\S\\n\\r]*)(DEFINE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))($|[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?:([.])([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*))?([^\\S\\n\\r]*)($|[:])",
+      "begin": "^([^\\S\\n\\r]*)(DEFINE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))($|[_\\p{L}][0-9_\\p{L}]*)(?:([^\\S\\n\\r]*)([.])([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*))?([^\\S\\n\\r]*)($|[:])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -508,6 +511,112 @@
           ]
         },
         "10": {
+          "patterns": [
+            {
+              "include": "#DeclarationAssignOperator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#StructField"
+        },
+        {
+          "include": "#Unknown"
+        }
+      ],
+      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+    },
+    "DefineModifierDeclaration": {
+      "tag": "meta",
+      "name": "meta.definition.type.sd",
+      "begin": "^([^\\S\\n\\r]*)(DEFINE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]+)([_\\p{L}][0-9_\\p{L}]*)(?:([^\\S\\n\\r]*)([.])([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*))?([^\\S\\n\\r]*)($|[:])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.definition.object.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EndOfKeyword"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#ModifierName"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#TypeName"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#PunctuationAccessor"
+            }
+          ]
+        },
+        "9": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "10": {
+          "patterns": [
+            {
+              "include": "#DefinitionNameKeyword"
+            },
+            {
+              "include": "#VariableName"
+            }
+          ]
+        },
+        "11": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "12": {
           "patterns": [
             {
               "include": "#DeclarationAssignOperator"
@@ -3320,6 +3429,11 @@
       "tag": "variableName",
       "name": "variable.other.constant.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
+    },
+    "ModifierName": {
+      "tag": "keyword",
+      "name": "storage.modifier.sd",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "TypeName": {
       "tag": "typeName",
