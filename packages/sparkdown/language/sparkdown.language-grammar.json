@@ -3663,6 +3663,16 @@
       }
     },
     "Write": {
+      "patterns": [
+        {
+          "include": "#BlockWrite"
+        },
+        {
+          "include": "#InlineWrite"
+        }
+      ]
+    },
+    "InlineWrite": {
       "tag": "string",
       "name": "string.write.sd",
       "begin": "([^\\S\\n\\r]*)([>](?:$|[^\\S\\n\\r]+))($|.*?)($|[:])($|[^\\S\\n\\r]*)",
@@ -3689,11 +3699,11 @@
           ]
         },
         "4": {
-          "tag": "separator",
+          "tag": "definition(separator)",
           "name": "meta.template.expression.colon.sd"
         },
         "5": {
-          "tag": "typeName",
+          "tag": "definition(typeName)",
           "name": "entity.name.type.write.target.name.sd"
         }
       },
@@ -3721,6 +3731,49 @@
         }
       ],
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
+    },
+    "BlockWrite": {
+      "tag": "string",
+      "name": "string.write.sd",
+      "begin": "([^\\S\\n\\r]*)([>](?:$|[^\\S\\n\\r]+))($|[^:\\r\\n]+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "definition(typeName)",
+          "name": "entity.name.type.write.target.name.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            },
+            {
+              "include": "#WriteTarget"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#BlockLineBreak"
+        },
+        {
+          "include": "#BlockLineContinue"
+        }
+      ],
+      "end": "(?=^(?!\\1))|(?=^$)"
     },
     "WriteTarget": {
       "tag": "typeName",
@@ -3832,85 +3885,13 @@
           "include": "#Newline"
         },
         {
-          "include": "#BlockDialogueLineBreak"
+          "include": "#BlockLineBreak"
         },
         {
-          "include": "#BlockDialogueLineContinue"
+          "include": "#BlockLineContinue"
         }
       ],
       "end": "(?=^(?!\\1))|(?=^$)"
-    },
-    "BlockDialogueLineBreak": {
-      "match": "([^\\S\\n\\r]*)(.*?)((?:[^\\S\\n\\r]+[>][^\\S\\n\\r]*))((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#AssetLine"
-            },
-            {
-              "include": "#ParentheticalLine"
-            },
-            {
-              "include": "#DisplayLine"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Break"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#EndOfLine"
-            }
-          ]
-        }
-      }
-    },
-    "BlockDialogueLineContinue": {
-      "begin": "([^\\S\\n\\r]*)(?=\\S)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#AssetLine"
-        },
-        {
-          "include": "#ParentheticalLine"
-        },
-        {
-          "include": "#DisplayLine"
-        }
-      ],
-      "end": "([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      }
     },
     "DialogueCharacter": {
       "match": "([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)([(][^()]*?[)])?($|[^\\S\\n\\r]*)(\\[.*?\\])?([^\\S\\n\\r]*)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
@@ -4238,6 +4219,78 @@
           "patterns": [
             {
               "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "BlockLineBreak": {
+      "match": "([^\\S\\n\\r]*)(.*?)((?:[^\\S\\n\\r]+[>][^\\S\\n\\r]*))((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#AssetLine"
+            },
+            {
+              "include": "#ParentheticalLine"
+            },
+            {
+              "include": "#DisplayLine"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Break"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        }
+      }
+    },
+    "BlockLineContinue": {
+      "begin": "([^\\S\\n\\r]*)(?=\\S)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#AssetLine"
+        },
+        {
+          "include": "#ParentheticalLine"
+        },
+        {
+          "include": "#DisplayLine"
+        }
+      ],
+      "end": "([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
             }
           ]
         }

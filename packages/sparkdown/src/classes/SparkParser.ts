@@ -165,7 +165,7 @@ export default class SparkParser {
         }
       | undefined = undefined;
     let prevNodeType = "";
-    let blockDialoguePrefix = "";
+    let blockPrefix = "";
     let structType = "";
     let propertyName = "";
     let selectorFunctionName = "";
@@ -256,7 +256,10 @@ export default class SparkParser {
         };
 
         // Annotate dialogue line with implicit flow marker
-        if (nodeType === "BlockDialogue_begin") {
+        if (
+          nodeType === "BlockDialogue_begin" ||
+          nodeType === "BlockWrite_begin"
+        ) {
           const lineTextBefore = lineText.slice(0, transpiledNodeEnd);
           const lineTextAfter = lineText.slice(transpiledNodeEnd);
           const id = generateID();
@@ -272,17 +275,14 @@ export default class SparkParser {
           };
           program.uuidToSource ??= {};
           program.uuidToSource[id] = [fileIndex, lineIndex];
-          blockDialoguePrefix = lineTextBefore;
+          blockPrefix = lineTextBefore;
         }
         // Annotate dialogue line with implicit character name and flow marker
-        if (
-          nodeType === "BlockDialogueLineContinue" ||
-          nodeType === "BlockDialogueLineBreak"
-        ) {
-          if (prevNodeType.startsWith("BlockDialogueLineBreak")) {
+        if (nodeType === "BlockLineContinue" || nodeType === "BlockLineBreak") {
+          if (prevNodeType.startsWith("BlockLineBreak")) {
             const lineTextBefore = lineText.slice(0, transpiledNodeStart);
             const lineTextAfter = lineText.slice(transpiledNodeStart);
-            const prefix = blockDialoguePrefix + ": ";
+            const prefix = blockPrefix + ": ";
             const id = generateID();
             const flowMarker = getFlowMarker(id);
             const markup = prefix + flowMarker;
@@ -298,8 +298,8 @@ export default class SparkParser {
         }
         // Annotate line with implicit flow marker
         if (
-          nodeType === "Write_begin" ||
           nodeType === "InlineDialogue_begin" ||
+          nodeType === "InlineWrite_begin" ||
           nodeType === "Transition_begin" ||
           nodeType === "Scene_begin" ||
           nodeType === "Action_begin"
@@ -672,10 +672,10 @@ export default class SparkParser {
           nodeEndCharacter > after
             ? shift + nodeEndCharacter
             : nodeEndCharacter;
-        if (nodeType === "BlockDialogue_end") {
-          blockDialoguePrefix = "";
+        if (nodeType === "BlockDialogue_end" || nodeType === "BlockWrite_end") {
+          blockPrefix = "";
         }
-        if (nodeType === "BlockDialogueLineContinue") {
+        if (nodeType === "BlockLineContinue") {
           const lineText = lines[lineIndex] || "";
           const lineTextBefore = lineText.slice(0, nodeEnd);
           const lineTextAfter = lineText.slice(nodeEnd);
@@ -688,7 +688,7 @@ export default class SparkParser {
             const nextLineText = lines[lineIndex + 1] || "";
             // Check that this dialogue line is not the last in the block
             if (nextLineText.startsWith(indent)) {
-              // All Dialogue lines (except the last in a block) should end with implicit \
+              // All lines (except the last in a block) should end with implicit \
               // (So they are grouped together with following text line)
               const suffix = " \\";
               const markup = suffix;
