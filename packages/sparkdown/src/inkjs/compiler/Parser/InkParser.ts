@@ -3019,16 +3019,21 @@ export class InkParser extends StringParser {
         "name"
       ) as Identifier | null;
     } else {
-      modifier = type;
-      type = this.IdentifierWithMetadata();
-      this.Whitespace();
-      const dot = this.ParseString(".");
-      this.Whitespace();
-      if (dot) {
-        name = this.Expect(
-          this.IdentifierWithMetadata,
-          "name"
-        ) as Identifier | null;
+      const secondIdentifier = this.IdentifierWithMetadata();
+      if (secondIdentifier) {
+        modifier = type;
+        type = secondIdentifier;
+        this.Whitespace();
+        const dot = this.ParseString(".");
+        this.Whitespace();
+        if (dot) {
+          name = this.Expect(
+            this.IdentifierWithMetadata,
+            "name"
+          ) as Identifier | null;
+        }
+      } else {
+        name = new Identifier("$default");
       }
     }
 
