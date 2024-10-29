@@ -42,6 +42,7 @@ export class Story extends FlowBase {
       case "DEFINE":
       case "function":
       case "system":
+      case "none":
         return true;
     }
 
@@ -510,12 +511,14 @@ export class Story extends FlowBase {
     for (const part of identifier?.name.split(".")) {
       if (Story.IsReservedKeyword(part)) {
         obj.Error(
-          `'${identifier}' cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a reserved keyword`
+          `'${part}' cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a reserved keyword`,
+          identifier?.debugMetadata
         );
         return;
       } else if (FunctionCall.IsBuiltIn(part)) {
         obj.Error(
-          `'${identifier}' cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a built in function`
+          `'${part}' cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a built in function`,
+          identifier?.debugMetadata
         );
 
         return;
