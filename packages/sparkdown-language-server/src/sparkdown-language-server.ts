@@ -22,8 +22,6 @@ import getHover from "./utils/getHover";
 
 console.log("running sparkdown-language-server");
 
-const ALPHABET = "abcdefghijklmnopqrstuvwxyz".split("");
-
 try {
   const messageReader = new BrowserMessageReader(self);
   const messageWriter = new BrowserMessageWriter(self);
