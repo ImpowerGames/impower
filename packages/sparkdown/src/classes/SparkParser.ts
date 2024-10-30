@@ -866,10 +866,10 @@ export default class SparkParser {
         const augmentedStructDefs: {
           [type: string]: { [name: string]: object };
         } = {};
-        for (const [type, objs] of Object.entries(builtins)) {
-          for (const [name, obj] of Object.entries(objs)) {
+        for (const [type, builtinStructs] of Object.entries(builtins)) {
+          for (const [name, builtinStruct] of Object.entries(builtinStructs)) {
             augmentedStructDefs[type] ??= {};
-            augmentedStructDefs[type][name] ??= structuredClone(obj);
+            augmentedStructDefs[type][name] ??= structuredClone(builtinStruct);
           }
         }
         if (program.compiled.structDefs) {
@@ -877,51 +877,65 @@ export default class SparkParser {
             program.compiled.structDefs
           )) {
             augmentedStructDefs[type] ??= {};
-            for (const [name, struct] of Object.entries(structs as any)) {
-              if (Array.isArray(struct)) {
-                augmentedStructDefs[type][name] = struct;
+            for (const [name, definedStruct] of Object.entries(
+              structs as any
+            )) {
+              if (Array.isArray(definedStruct)) {
+                augmentedStructDefs[type][name] = definedStruct;
               } else {
-                const builtinDefaultValue = builtins[type]?.["$default"];
-                const builtinInheritedValue =
-                  type === "config" ? builtins[type]?.[name] : {};
-                const definedDefaultValue = (structs as any)?.["$default"];
+                const isSpecialDefinition =
+                  name.startsWith("$") && name !== "$default";
                 const constructed = {} as any;
-                for (const [propPath, propValue] of Object.entries(
-                  getAllProperties(builtinDefaultValue)
-                )) {
-                  if (propValue !== undefined) {
-                    setProperty(
-                      constructed,
-                      propPath,
-                      JSON.parse(JSON.stringify(propValue))
-                    );
+                if (!isSpecialDefinition) {
+                  const builtinDefaultStruct = builtins[type]?.["$default"];
+                  for (const [propPath, propValue] of Object.entries(
+                    getAllProperties(builtinDefaultStruct)
+                  )) {
+                    if (propValue !== undefined) {
+                      setProperty(
+                        constructed,
+                        propPath,
+                        JSON.parse(JSON.stringify(propValue))
+                      );
+                    }
+                  }
+                }
+                if (type === "config" || isSpecialDefinition) {
+                  const builtinInheritedStruct = builtins[type]?.[name];
+                  for (const [propPath, propValue] of Object.entries(
+                    getAllProperties(builtinInheritedStruct)
+                  )) {
+                    if (propValue !== undefined) {
+                      setProperty(
+                        constructed,
+                        propPath,
+                        JSON.parse(JSON.stringify(propValue))
+                      );
+                    }
+                  }
+                }
+                if (!isSpecialDefinition) {
+                  const definedDefaultStruct = (structs as any)?.["$default"];
+                  for (const [propPath, propValue] of Object.entries(
+                    getAllProperties(definedDefaultStruct)
+                  )) {
+                    if (propValue !== undefined) {
+                      setProperty(
+                        constructed,
+                        propPath,
+                        JSON.parse(JSON.stringify(propValue))
+                      );
+                    }
                   }
                 }
                 for (const [propPath, propValue] of Object.entries(
-                  getAllProperties(builtinInheritedValue)
+                  getAllProperties(definedStruct)
                 )) {
-                  if (propValue !== undefined) {
-                    setProperty(
-                      constructed,
-                      propPath,
-                      JSON.parse(JSON.stringify(propValue))
-                    );
+                  if (isSpecialDefinition) {
+                    // TODO: If constructed value at propPath is defined, report error if propValue type isn't an array of a corresponding type
+                  } else {
+                    // TODO: If constructed value at propPath is defined, report error if propValue type doesn't match
                   }
-                }
-                for (const [propPath, propValue] of Object.entries(
-                  getAllProperties(definedDefaultValue)
-                )) {
-                  if (propValue !== undefined) {
-                    setProperty(
-                      constructed,
-                      propPath,
-                      JSON.parse(JSON.stringify(propValue))
-                    );
-                  }
-                }
-                for (const [propPath, propValue] of Object.entries(
-                  getAllProperties(struct)
-                )) {
                   if (propValue !== undefined) {
                     setProperty(
                       constructed,
