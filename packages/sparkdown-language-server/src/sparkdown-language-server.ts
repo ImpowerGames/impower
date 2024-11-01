@@ -138,9 +138,12 @@ try {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const program = documents.parse(uri);
+    const tree = documents.getLatestTree(uri);
     const result = getCompletions(
       document,
       program,
+      tree,
+      documents.parser.grammar,
       params.position,
       params.context
     );

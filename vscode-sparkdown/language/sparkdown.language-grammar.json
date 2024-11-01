@@ -22,7 +22,36 @@
     "BREAK": "(?:{{WS}}+[>]{{WS}}*)",
     "WS": "[^\\S\\n\\r]",
     "EOL": "(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$|{{WS}}*[/][/].*$)",
-    "EOK": "(?:$|{{WS}}+|(?={{TAG_START}}|[/][/]|[/][*]))"
+    "EOK": "(?:$|{{WS}}+|(?={{TAG_START}}|[/][/]|[/][*]))",
+    "IMAGE_CONTROL_KEYWORDS": [
+      "set",
+      "show",
+      "hide",
+      "animate"
+    ],
+    "IMAGE_CLAUSE_KEYWORDS": [
+      "after",
+      "over",
+      "with",
+      "wait",
+      "nowait"
+    ],
+    "AUDIO_CONTROL_KEYWORDS": [
+      "start",
+      "stop",
+      "play",
+      "modulate"
+    ],
+    "AUDIO_CLAUSE_KEYWORDS": [
+      "after",
+      "over",
+      "fadeto",
+      "loop",
+      "noloop",
+      "mute",
+      "unmute",
+      "now"
+    ]
   },
   "patterns": [
     {
@@ -300,9 +329,6 @@
         },
         {
           "include": "#DefineDeclaration"
-        },
-        {
-          "include": "#DefineModifierDeclaration"
         }
       ]
     },
@@ -445,99 +471,7 @@
     "DefineDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([^\\S\\n\\r]*)(DEFINE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))($|[_\\p{L}][0-9_\\p{L}]*)(?:([^\\S\\n\\r]*)([.])([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*))?([^\\S\\n\\r]*)($|[:])",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.object.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#EndOfKeyword"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#TypeName"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#PunctuationAccessor"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
-              "include": "#DefinitionNameKeyword"
-            },
-            {
-              "include": "#VariableName"
-            }
-          ]
-        },
-        "9": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "10": {
-          "patterns": [
-            {
-              "include": "#DeclarationAssignOperator"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#StructField"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
-    },
-    "DefineModifierDeclaration": {
-      "tag": "meta",
-      "name": "meta.definition.type.sd",
-      "begin": "^([^\\S\\n\\r]*)(DEFINE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]+)([_\\p{L}][0-9_\\p{L}]*)(?:([^\\S\\n\\r]*)([.])([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*))?([^\\S\\n\\r]*)($|[:])",
+      "begin": "^([^\\S\\n\\r]*)(DEFINE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(?:([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]+)(?=[_\\p{L}][0-9_\\p{L}]*))?($|[_\\p{L}][0-9_\\p{L}]*)(?:([^\\S\\n\\r]*)([.])([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*)?)?([^\\S\\n\\r]*)($|[:])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -602,9 +536,6 @@
         "10": {
           "patterns": [
             {
-              "include": "#DefinitionNameKeyword"
-            },
-            {
               "include": "#VariableName"
             }
           ]
@@ -639,11 +570,6 @@
         }
       ],
       "end": "(?=^(?!\\1[^\\S\\n\\r]))"
-    },
-    "DefinitionNameKeyword": {
-      "tag": "keyword",
-      "name": "keyword.asset.keyword.none.sd",
-      "match": "^(default)$"
     },
     "TypeAssignment": {
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)($|[=]|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
@@ -4633,7 +4559,7 @@
       }
     },
     "AssetCommandContent": {
-      "match": "(.*?)($|(?:after|over|fadeto|with|wait|nowait|loop|noloop|mute|unmute|now)(?=$|[^\\S\\n\\r]).*)",
+      "match": "(.*?)($|(?:\\b(?:after|over|with|wait|nowait)\\b|\\b(?:after|over|fadeto|loop|noloop|mute|unmute|now)\\b)(?=$|[^\\S\\n\\r]).*)",
       "captures": {
         "1": {
           "patterns": [
@@ -4648,19 +4574,32 @@
         "2": {
           "patterns": [
             {
-              "include": "#AssetCommandClauses"
+              "include": "#Annotation"
+            },
+            {
+              "include": "#WhitespaceAssetCommandClause"
+            },
+            {
+              "include": "#AssetCommandClauseKeyword"
+            },
+            {
+              "include": "#ConditionalBlock"
+            },
+            {
+              "include": "#TimeValue"
+            },
+            {
+              "include": "#NumberValue"
+            },
+            {
+              "include": "#NameValue"
             }
           ]
         }
       }
     },
-    "AssetCommandFlagClause": {
-      "tag": "keyword",
-      "name": "keyword.asset.arguments.keyword.flag.sd",
-      "match": "((?:wait|nowait|loop|noloop|mute|unmute|now)(?=$|[^\\S\\n\\r]))"
-    },
     "AssetCommandInstruction": {
-      "match": "(?:(\\b(?:set|show|hide|animate|play|start|stop|modulate|write)\\b)([^\\S\\n\\r]*)($|\\S+))?([^\\S\\n\\r]*)($|\\S+)?([^\\S\\n\\r]*)(.*)",
+      "match": "(?:(\\b(?:set|show|hide|animate)\\b|\\b(?:start|stop|play|modulate)\\b)([^\\S\\n\\r]*)($|\\S+))?([^\\S\\n\\r]*)($|\\S+)?([^\\S\\n\\r]*)(.*)",
       "captures": {
         "1": {
           "patterns": [
@@ -4672,7 +4611,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#WhitespaceAssetCommandTarget"
             }
           ]
         },
@@ -4686,7 +4625,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#WhitespaceAssetCommandName"
             }
           ]
         },
@@ -4706,7 +4645,7 @@
         "6": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#WhitespaceAssetCommandClause"
             }
           ]
         },
@@ -4724,10 +4663,25 @@
       "name": "keyword.control.asset.control.sd",
       "match": "(.+)"
     },
+    "WhitespaceAssetCommandTarget": {
+      "tag": "content",
+      "name": "markup.raw.whitespace.sd",
+      "match": "([^\\S\\n\\r]+)"
+    },
+    "WhitespaceAssetCommandName": {
+      "tag": "content",
+      "name": "markup.raw.whitespace.sd",
+      "match": "([^\\S\\n\\r]+)"
+    },
     "AssetCommandTarget": {
       "tag": "typeName",
       "name": "entity.name.type.asset.target.sd",
       "match": "(.+)"
+    },
+    "AssetCommandClauseKeyword": {
+      "tag": "keyword",
+      "name": "keyword.asset.clause.keyword.sd",
+      "match": "(\\b(?:after|over|with|wait|nowait)\\b|\\b(?:after|over|fadeto|loop|noloop|mute|unmute|now)\\b)"
     },
     "AssetCommandName": {
       "match": "(.+?)(?=$|[+])",
@@ -4772,7 +4726,7 @@
       "match": "([+])"
     },
     "AssetCommandFilter": {
-      "match": "([~])($|[_\\p{L}][0-9_\\p{L}]*)",
+      "match": "([~])($|[_\\p{L}][0-9_\\p{L}]*)?",
       "captures": {
         "1": {
           "patterns": [
@@ -4800,167 +4754,15 @@
       "name": "variable.other.constant.asset.filter.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
-    "AssetCommandClauses": {
-      "begin": "(?=.+$)",
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#Whitespace"
-        },
-        {
-          "include": "#AssetCommandAfterClause"
-        },
-        {
-          "include": "#AssetCommandOverClause"
-        },
-        {
-          "include": "#AssetCommandFadetoClause"
-        },
-        {
-          "include": "#AssetCommandWithClause"
-        },
-        {
-          "include": "#AssetCommandFlagClause"
-        },
-        {
-          "include": "#ConditionalBlock"
-        },
-        {
-          "include": "#InvalidValue"
-        }
-      ],
-      "end": "(?=$)"
-    },
-    "AssetCommandAfterClause": {
-      "tag": "meta",
-      "name": "meta.argument.sd",
-      "match": "(after)($|[^\\S\\n\\r])($|\\S+)",
-      "captures": {
-        "1": {
-          "tag": "keyword",
-          "name": "keyword.asset.arguments.keyword.after.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ConditionalBlock"
-            },
-            {
-              "include": "#TimeValue"
-            },
-            {
-              "include": "#InvalidValue"
-            }
-          ]
-        }
-      }
-    },
-    "AssetCommandOverClause": {
-      "tag": "meta",
-      "name": "meta.argument.sd",
-      "match": "(over)($|[^\\S\\n\\r])($|\\S+)",
-      "captures": {
-        "1": {
-          "tag": "keyword",
-          "name": "keyword.asset.arguments.keyword.over.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ConditionalBlock"
-            },
-            {
-              "include": "#TimeValue"
-            },
-            {
-              "include": "#InvalidValue"
-            }
-          ]
-        }
-      }
-    },
-    "AssetCommandFadetoClause": {
-      "tag": "meta",
-      "name": "meta.argument.sd",
-      "match": "(fadeto)($|[^\\S\\n\\r])($|\\S+)",
-      "captures": {
-        "1": {
-          "tag": "keyword",
-          "name": "keyword.asset.arguments.keyword.fadeto.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ConditionalBlock"
-            },
-            {
-              "include": "#NumberValue"
-            },
-            {
-              "include": "#InvalidValue"
-            }
-          ]
-        }
-      }
-    },
-    "AssetCommandWithClause": {
-      "tag": "meta",
-      "name": "meta.argument.sd",
-      "match": "(with)($|[^\\S\\n\\r])($|\\S+)",
-      "captures": {
-        "1": {
-          "tag": "keyword",
-          "name": "keyword.asset.arguments.keyword.with.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ConditionalBlock"
-            },
-            {
-              "include": "#NameValue"
-            },
-            {
-              "include": "#InvalidValue"
-            }
-          ]
-        }
-      }
+    "WhitespaceAssetCommandClause": {
+      "tag": "content",
+      "name": "markup.raw.whitespace.sd",
+      "match": "([^\\S\\n\\r]+)"
     },
     "TimeValue": {
       "tag": "number",
       "name": "constant.numeric.time.sd",
-      "match": "((?:\\d*[.])?\\d+)(ms|s)?$",
+      "match": "((?:\\d*[.])?\\d+)(ms|s)?(?=$|[^\\S\\n\\r])",
       "captures": {
         "1": {
           "tag": "number",
@@ -4975,12 +4777,12 @@
     "NumberValue": {
       "tag": "number",
       "name": "constant.numeric.number.sd",
-      "match": "((?:\\d*[.])?\\d+)$"
+      "match": "((?:\\d*[.])?\\d+)(?=$|[^\\S\\n\\r])"
     },
     "NameValue": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)$"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)(?=$|[^\\S\\n\\r])"
     },
     "InvalidValue": {
       "tag": "content",

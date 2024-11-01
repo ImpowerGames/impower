@@ -87,7 +87,7 @@ declare interface TmGrammar {
   scopeName: string;
   fileTypes: string[];
   uuid: string;
-  variables: MapLike<string>;
+  variables: MapLike<string | string[]>;
   patterns?: AnyTmGrammarRule[];
   repository: MapLike<TmGrammarRepositaryRule>;
 }
@@ -124,7 +124,13 @@ export const updateGrammarVariables = (
     const variable = variables[variableName];
     if (variable) {
       // Replace the pattern with earlier variables
-      const pattern = replacePatternVariables(variable, variableReplacers);
+      const variablePattern = Array.isArray(variable)
+        ? `\\b(?:${variable.join("|")})\\b`
+        : variable;
+      const pattern = replacePatternVariables(
+        variablePattern,
+        variableReplacers
+      );
 
       // When a variable is resolved, it's added to replacers. Then it can be used
       // if another variable depends on it.

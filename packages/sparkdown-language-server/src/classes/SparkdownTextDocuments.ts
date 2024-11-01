@@ -138,11 +138,14 @@ export default class SparkdownTextDocuments<
     return this._program;
   }
 
+  protected readonly _parser: SparkParser;
+  get parser() {
+    return this._parser;
+  }
+
   protected readonly _onDidParse: Emitter<SparkProgramChangeEvent<T>>;
 
   protected readonly _onUpdateDiagnostics: Emitter<SparkProgramChangeEvent<T>>;
-
-  protected readonly _parser: SparkParser;
 
   protected readonly _builtins = DEFAULT_BUILTINS;
 
@@ -345,7 +348,6 @@ export default class SparkdownTextDocuments<
     if (force || docChanged) {
       const targetDocument = this.__syncedDocuments.get(uri);
       const mainDocument = this.__syncedDocuments.get(this.getMainScriptUri());
-      let entryDocument = mainDocument;
       if (mainDocument) {
         this._program = this.parseDocument(mainDocument);
       }
@@ -356,7 +358,6 @@ export default class SparkdownTextDocuments<
         // Target script is not included by main,
         // So it must be parsed on its own to report diagnostics
         if (targetDocument) {
-          entryDocument = targetDocument;
           this._program = this.parseDocument(targetDocument);
         }
       }
@@ -382,6 +383,10 @@ export default class SparkdownTextDocuments<
     const filename = this.getFilenameWithExtension(document.uri);
     const program = this._parser.parse(filename);
     return program;
+  }
+
+  getLatestTree(uri: string) {
+    return this._parser.trees.get(uri);
   }
 
   onCreatedFile(fileUri: string) {

@@ -4,6 +4,7 @@ import {
   CompletionResult,
   insertCompletionText,
   pickedCompletion,
+  snippet,
   startCompletion,
 } from "@codemirror/autocomplete";
 import { Language } from "@codemirror/language";
@@ -19,6 +20,7 @@ import { HoverMessage } from "../../../../spark-editor-protocol/src/protocols/te
 import { PublishDiagnosticsMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import {
   Disposable,
+  InsertTextFormat,
   MarkupContent,
   MessageConnection,
   ServerCapabilities,
@@ -155,7 +157,8 @@ export default class LanguageClientPluginValue implements PluginValue {
     if (!result) {
       return null;
     }
-    const items = "items" in result ? result.items : result;
+    const items = Array.isArray(result) ? result : result.items;
+    const itemDefaults = Array.isArray(result) ? {} : result.itemDefaults;
     let options = items
       .sort((a, b) => {
         if (a.sortText != null && b.sortText != null) {
@@ -170,75 +173,87 @@ export default class LanguageClientPluginValue implements PluginValue {
         }
         return 0;
       })
-      .map(
-        (
-          {
-            detail,
-            label,
-            labelDetails,
-            insertText,
-            filterText,
-            kind,
-            textEdit,
-            documentation,
-            command,
-          },
-          index
-        ) => {
-          const applyText = textEdit?.newText ?? insertText ?? label;
-          const completion: Completion & {
-            command?: {
-              title: string;
-              command: string;
-            };
-          } = {
-            label,
-            detail: labelDetails?.description,
-            apply: (
-              view: EditorView,
-              completion: Completion,
-              from: number,
-              to: number
-            ) => {
+      .map((item, index) => {
+        const {
+          detail,
+          label,
+          labelDetails,
+          insertText,
+          filterText,
+          kind,
+          documentation,
+          command,
+          textEdit,
+        } = item;
+        const insertTextFormat =
+          item.insertTextFormat ?? itemDefaults?.insertTextFormat;
+        const commitCharacters =
+          item.commitCharacters ?? itemDefaults?.commitCharacters;
+        const applyText = textEdit?.newText || insertText || label;
+        const completion: Completion & {
+          command?: {
+            title: string;
+            command: string;
+          };
+        } = {
+          label,
+          detail: labelDetails?.description,
+          apply: (
+            view: EditorView,
+            completion: Completion,
+            from: number,
+            to: number
+          ) => {
+            if (
+              insertTextFormat === (2 satisfies typeof InsertTextFormat.Snippet)
+            ) {
+              snippet(applyText.replaceAll(/\$(\d+)/g, "$${$1}"))(
+                view,
+                completion,
+                from,
+                to
+              );
+            } else {
               view.dispatch({
                 ...insertCompletionText(view.state, applyText, from, to),
                 annotations: pickedCompletion.of(completion),
               });
-              if (command?.command === "editor.action.triggerSuggest") {
-                startCompletion(view);
-              }
-            },
-            type: getClientCompletionType(kind),
-            boost: -index,
-            command,
-          };
+            }
+            if (command?.command === "editor.action.triggerSuggest") {
+              startCompletion(view);
+            }
+          },
+          type: getClientCompletionType(kind),
+          boost: -index,
+          command,
+          commitCharacters,
+        };
 
-          if (filterText != null && filterText !== label) {
-            completion.label = filterText;
-            completion.displayLabel = label;
-          }
-          if (documentation) {
-            completion.info = async () => {
-              let content = documentation;
-              if (typeof content !== "string") {
-                const { value, kind } = await getClientMarkupContent(
-                  content,
-                  this._fileSystemReader
-                );
-                content = { value, kind };
-              }
-              const dom = getClientMarkupDom({
-                detail,
-                content,
-                language: this._language,
-                highlighter: this._highlighter,
-              });
-              return { dom };
-            };
-          }
-          return completion;
+        if (filterText != null && filterText !== label) {
+          completion.label = filterText;
+          completion.displayLabel = label;
         }
-      );
+        if (documentation) {
+          completion.info = async () => {
+            let content = documentation;
+            if (typeof content !== "string") {
+              const { value, kind } = await getClientMarkupContent(
+                content,
+                this._fileSystemReader
+              );
+              content = { value, kind };
+            }
+            const dom = getClientMarkupDom({
+              detail,
+              content,
+              language: this._language,
+              highlighter: this._highlighter,
+            });
+            return { dom };
+          };
+        }
+        return completion;
+      });
     if (options.length === 0) {
       return null;
     }
@@ -247,10 +262,12 @@ export default class LanguageClientPluginValue implements PluginValue {
     const validFor = getClientCompletionValidFor(triggerCharacters);
     const active = clientContext.matchBefore(validFor);
     const from = active?.from ?? clientContext.pos;
+    // TODO: Ensure all options are shown again after backspacing until completed range is empty
     return {
       from,
       validFor,
       options,
+      commitCharacters: itemDefaults?.commitCharacters,
     };
   };
 

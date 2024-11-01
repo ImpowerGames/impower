@@ -1,4 +1,9 @@
-import { CompletionSource, autocompletion } from "@codemirror/autocomplete";
+import {
+  CompletionContext,
+  CompletionResult,
+  CompletionSource,
+  autocompletion,
+} from "@codemirror/autocomplete";
 import { EditorState, TransactionSpec } from "@codemirror/state";
 import { Direction, EditorView, Rect } from "@codemirror/view";
 import { FeatureSupport } from "../../types/FeatureSupport";
@@ -125,19 +130,40 @@ const positionInfo = (
   };
 };
 
+const debounceSource = (source: CompletionSource, wait: number) => {
+  return (context: CompletionContext) => {
+    return new Promise<CompletionResult | null>((resolve) => {
+      const timeoutId = window.setTimeout(async () => {
+        try {
+          const result = await source(context);
+          resolve(result);
+        } catch (error) {
+          resolve(null);
+        }
+      }, wait);
+      const cancel = () => {
+        clearTimeout(timeoutId);
+        resolve(null);
+      };
+      // onDocChange, abort and throw away previous completions
+      // (This way, the language server always uses the latest tree to calculate completions)
+      context.addEventListener("abort", cancel, { onDocChange: true });
+    });
+  };
+};
+
 export default class CompletionSupport implements FeatureSupport {
   sources: CompletionSource[] = [];
 
   addSource(source: CompletionSource): void {
-    this.sources.push(source);
+    this.sources.push(debounceSource(source, 100));
   }
 
   removeSource(source: CompletionSource): void {
-    this.sources.forEach((s, i) => {
-      if (s === source) {
-        this.sources[i] = () => null;
-      }
-    });
+    const index = this.sources.indexOf(source);
+    if (index >= 0) {
+      this.sources.splice(index, 1);
+    }
   }
 
   load() {
@@ -148,6 +174,11 @@ export default class CompletionSupport implements FeatureSupport {
         aboveCursor: true,
         positionInfo,
         filterStrict: true,
+        // Instead of relying on activateOnTypingDelay,
+        // we use `debounceSource` to debounce completions ourselves.
+        // This way we can ensure that the most recent edit takes precedence when calculating document completions.
+        activateOnTypingDelay: 0,
+        updateSyncTime: 1000,
       }),
     ];
   }

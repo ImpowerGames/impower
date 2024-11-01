@@ -18,10 +18,7 @@ import AudioPlayer from "../../../spark-dom/src/classes/AudioPlayer";
 import type { Audio, LayeredAudio, Synth } from "../../../spark-engine/src";
 import { clone } from "../../../spark-engine/src/game/core/utils/clone";
 import { randomizeProperties } from "../../../spark-engine/src/game/core/utils/randomizeProperties";
-import { audioBuiltins } from "../../../spark-engine/src/game/modules/audio/audioBuiltins";
 import { SynthBuffer } from "../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
-import { SYNTH_RANDOMIZATIONS } from "../../../spark-engine/src/game/modules/audio/constants/SYNTH_RANDOMIZATIONS";
-import { SYNTH_VALIDATION } from "../../../spark-engine/src/game/modules/audio/constants/SYNTH_VALIDATION";
 import { SparkProgram, SparkVariable } from "../../../sparkdown/src/index";
 import structStringify from "../../../sparkdown/src/utils/structStringify";
 import { FileSystemReader } from "../cm-language-client/types/FileSystemReader";
@@ -451,12 +448,25 @@ const getSynthVariableWidgets = (
   const config = state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
   const widgetRanges: Range<Decoration>[] = [];
-  const audioObjects = audioBuiltins();
-  const defaultObj = audioObjects.synth["$default"];
-  const validation = SYNTH_VALIDATION;
+  const structDefs = config.programContext.program?.compiled?.structDefs || {};
+  const synthDefs = structDefs["synth"];
+  const defaultObj = synthDefs?.["$default"];
+  const validation = synthDefs?.["$schema"];
+  const randomizations: Record<string, unknown> = {};
+  if (synthDefs) {
+    const randomPrefix = "$random:";
+    for (const [k, v] of Object.entries(synthDefs)) {
+      if (k.startsWith(randomPrefix)) {
+        const [, name] = k.split(randomPrefix);
+        if (name) {
+          randomizations[name] = v;
+        }
+      }
+    }
+  }
   const options: StructPresetOption[] = Object.entries({
     default: null,
-    ...(SYNTH_RANDOMIZATIONS || {}),
+    ...(randomizations || {}),
   }).map(([label, randomization]) => {
     let validLabel = label;
     let validInnerHTML = "";

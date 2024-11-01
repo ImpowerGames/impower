@@ -7,9 +7,9 @@ uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 flags: mu
 
 variables:
-  IDENTIFIER_START_CHAR:  '_\p{L}'
+  IDENTIFIER_START_CHAR: '_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}'
-  IDENTIFIER: '[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*'
+  IDENTIFIER: "[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*"
   PROPERTY_IDENTIFIER: '(?:["].*?["]|\[.*?\]|\(.*?\)|[^.:=\r\n])+?'
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
@@ -18,9 +18,14 @@ variables:
   # Whitespace
   WS: '[^\S\n\r]'
   # End Of Line
-  EOL: '(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$|{{WS}}*[/][/].*$)'
+  EOL: "(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$|{{WS}}*[/][/].*$)"
   # End Of Keyword
-  EOK: '(?:$|{{WS}}+|(?={{TAG_START}}|[/][/]|[/][*]))'
+  EOK: "(?:$|{{WS}}+|(?={{TAG_START}}|[/][/]|[/][*]))"
+  IMAGE_CONTROL_KEYWORDS: ["set", "show", "hide", "animate"]
+  IMAGE_CLAUSE_KEYWORDS: ["after", "over", "with", "wait", "nowait"]
+  AUDIO_CONTROL_KEYWORDS: ["start", "stop", "play", "modulate"]
+  AUDIO_CLAUSE_KEYWORDS:
+    ["after", "over", "fadeto", "loop", "noloop", "mute", "unmute", "now"]
 
 patterns:
   - { include: "#Newline" }
@@ -43,8 +48,7 @@ patterns:
   - { include: "#Action" }
 
 repository:
-
-########## Helpers ##########
+  ########## Helpers ##########
 
   FileSeparator:
     match: ^([/]{4,})({{WS}}*)([^/\s]+)({{WS}}*)([/]{4,})({{WS}}*)$
@@ -52,14 +56,14 @@ repository:
   FileSplitter:
     match: ^((?:[/]{4,})(?:{{WS}}*)(?:[^/\s]+)(?:{{WS}}*)(?:[/]{4,})(?:{{WS}}*))$
 
-########## Annotation ##########
+  ########## Annotation ##########
 
   Annotation:
     patterns:
       - { include: "#Comment" }
       - { include: "#Tag" }
 
-########## Comment ##########
+  ########## Comment ##########
 
   Comment:
     patterns:
@@ -71,7 +75,7 @@ repository:
     name: comment.line.sd
     match: ({{WS}}*)([/][/])(.*?)$(\r\n|\r|\n)?
     captures:
-      1: 
+      1:
         patterns:
           - { include: "#Whitespace" }
       2:
@@ -93,7 +97,7 @@ repository:
     name: comment.block.sd
     begin: ({{WS}}*)([/][*])
     beginCaptures:
-      1: 
+      1:
         patterns:
           - { include: "#Whitespace" }
       2:
@@ -110,17 +114,17 @@ repository:
     name: punctuation.definition.comment.content.sd
     match: (.+?)(?=[*][/])
 
-########## Tag ##########
+  ########## Tag ##########
 
   Tag:
     tag: docComment
     name: comment.line.sd entity.tag.sd
     match: ({{WS}}*)({{TAG_START}})(.*?)(?:(?={{TAG_START}})|$)
     captures:
-      1: 
+      1:
         patterns:
           - { include: "#Whitespace" }
-      2: 
+      2:
         tag: definition(docComment)
         name: punctuation.definition.comment.sd comment.line.sd entity.tag.begin.sd
       3:
@@ -132,7 +136,7 @@ repository:
     name: punctuation.definition.comment.content.sd
     match: (.+?)(?=$|{{TAG_START}})
 
-########## Todo ##########
+  ########## Todo ##########
 
   Todo:
     tag: docComment
@@ -158,7 +162,7 @@ repository:
     name: punctuation.definition.comment.content.sd
     match: (.+$)
 
-########## Include ##########
+  ########## Include ##########
 
   Include:
     tag: meta
@@ -184,7 +188,7 @@ repository:
     name: string.include.sd
     match: (.+?)(?={{EOL}})
 
-########## Declaration: VAR LIST CONST EXTERNAL DEFINE ##########
+  ########## Declaration: VAR LIST CONST EXTERNAL DEFINE ##########
 
   Declaration:
     patterns:
@@ -193,7 +197,6 @@ repository:
       - { include: "#ConstDeclaration" }
       - { include: "#ExternalDeclaration" }
       - { include: "#DefineDeclaration" }
-      - { include: "#DefineModifierDeclaration" }
 
   VarDeclaration:
     tag: meta
@@ -274,7 +277,7 @@ repository:
   DefineDeclaration:
     tag: meta
     name: meta.definition.type.sd
-    begin: ^({{WS}}*)(DEFINE)({{EOK}})($|{{IDENTIFIER}})(?:({{WS}}*)([.])({{WS}}*)($|{{IDENTIFIER}}))?({{WS}}*)($|[:])
+    begin: ^({{WS}}*)(DEFINE)({{EOK}})(?:({{IDENTIFIER}})({{WS}}+)(?={{IDENTIFIER}}))?($|{{IDENTIFIER}})(?:({{WS}}*)([.])({{WS}}*)($|{{IDENTIFIER}})?)?({{WS}}*)($|[:])
     beginCaptures:
       1:
         patterns:
@@ -286,69 +289,25 @@ repository:
         patterns:
           - { include: "#EndOfKeyword" }
       4:
-        patterns: 
-          - { include: "#TypeName" }
-      5:
-        patterns: 
-          - { include: "#Whitespace" }
-      6:
-        patterns: 
-          - { include: "#PunctuationAccessor" }
-      7:
-        patterns: 
-          - { include: "#Whitespace" }
-      8:
         patterns:
-          - { include: "#DefinitionNameKeyword" }
-          - { include: "#VariableName" }
-      9:
-        patterns:
-          - { include: "#Whitespace" }
-      10:
-        patterns:
-          - { include: "#DeclarationAssignOperator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#StructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
-
-  DefineModifierDeclaration:
-    tag: meta
-    name: meta.definition.type.sd
-    begin: ^({{WS}}*)(DEFINE)({{EOK}})({{IDENTIFIER}})({{WS}}+)({{IDENTIFIER}})(?:({{WS}}*)([.])({{WS}}*)($|{{IDENTIFIER}}))?({{WS}}*)($|[:])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: controlKeyword
-        name: keyword.control.definition.object.sd
-      3:
-        patterns:
-          - { include: "#EndOfKeyword" }
-      4:
-        patterns: 
           - { include: "#ModifierName" }
       5:
         patterns:
           - { include: "#Whitespace" }
       6:
-        patterns: 
+        patterns:
           - { include: "#TypeName" }
       7:
         patterns:
           - { include: "#Whitespace" }
       8:
-        patterns: 
+        patterns:
           - { include: "#PunctuationAccessor" }
       9:
         patterns:
           - { include: "#Whitespace" }
       10:
         patterns:
-          - { include: "#DefinitionNameKeyword" }
           - { include: "#VariableName" }
       11:
         patterns:
@@ -362,11 +321,6 @@ repository:
       - { include: "#StructField" }
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
-
-  DefinitionNameKeyword:
-    tag: keyword
-    name: keyword.asset.keyword.none.sd
-    match: ^(default)$
 
   TypeAssignment:
     begin: ({{IDENTIFIER}})({{WS}}*)($|[=]|(?={{EOL}}))
@@ -463,10 +417,10 @@ repository:
   StructBlankProperty:
     match: ^({{WS}}+$)(\r\n|\r|\n)?
     captures:
-      1: 
+      1:
         patterns:
           - { include: "#Indent" }
-      2: 
+      2:
         patterns:
           - { include: "#Newline" }
 
@@ -868,7 +822,7 @@ repository:
       - { include: "#ArrowOperator" }
       - { include: "#AssignEqualOperator" }
 
-########## Label ##########
+  ########## Label ##########
 
   Label:
     tag: definition(heading)
@@ -891,7 +845,7 @@ repository:
         tag: paren
         name: meta.brace.round.close.sd
 
-########## Break ##########
+  ########## Break ##########
 
   Break:
     tag: special(meta)
@@ -902,7 +856,7 @@ repository:
         tag: keyword
         name: keyword.other.break.sd
 
-########## Chain ##########
+  ########## Chain ##########
 
   Chain:
     tag: special(meta)
@@ -919,7 +873,7 @@ repository:
         patterns:
           - { include: "#Whitespace" }
 
-########## Glue ##########
+  ########## Glue ##########
 
   Glue:
     tag: meta
@@ -933,7 +887,7 @@ repository:
         tag: keyword
         name: keyword.other.glue.sd
 
-########## Choice ##########
+  ########## Choice ##########
 
   Choice:
     name: entity.choice.sd
@@ -1000,7 +954,7 @@ repository:
           - { include: "#ConditionalBlock" }
           - { include: "#DisplayText" }
 
-########## Logic ##########
+  ########## Logic ##########
 
   Logic:
     tag: meta
@@ -1065,7 +1019,7 @@ repository:
       - { include: "#Expression" }
     end: (?=$)
 
-########## Gather ##########
+  ########## Gather ##########
 
   Gather:
     begin: ^({{WS}}*)((?:[-]{{EOK}})+)({{WS}}*)([(][^()]*[)])?
@@ -1103,7 +1057,7 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-########## Knot, Stitch, Function ##########
+  ########## Knot, Stitch, Function ##########
 
   Knot:
     begin: ^({{WS}}*)([=]{2,})({{EOK}})
@@ -1210,7 +1164,7 @@ repository:
     name: entity.name.function.sd
     match: (.+)
 
-########## Divert & Thread ##########
+  ########## Divert & Thread ##########
 
   Divert:
     begin: ({{WS}}*)(->|<-)
@@ -1256,7 +1210,7 @@ repository:
     name: entity.name.function.divert.sd
     match: (->(?:->)?|<-)
 
-########## ConditionalBlock (anything within {}) ##########
+  ########## ConditionalBlock (anything within {}) ##########
 
   ConditionalBlock:
     brackets: true
@@ -1514,7 +1468,7 @@ repository:
         patterns:
           - { include: "#Indent" }
 
-########## Expression ##########
+  ########## Expression ##########
 
   Expression:
     patterns:
@@ -1878,51 +1832,51 @@ repository:
     match: ({{IDENTIFIER}})({{WS}}*)([.]|[?][.])({{WS}}*)($|{{IDENTIFIER}})(?![(])
     captures:
       1:
-        patterns: 
+        patterns:
           - { include: "#TypeName" }
       2:
-        patterns: 
+        patterns:
           - { include: "#Whitespace" }
       3:
-        patterns: 
+        patterns:
           - { include: "#PunctuationAccessor" }
       4:
-        patterns: 
+        patterns:
           - { include: "#Whitespace" }
       5:
-        patterns: 
+        patterns:
           - { include: "#VariableName" }
 
   VariableAccessor:
     match: ({{WS}}*)([.]|[?][.])({{WS}}*)({{IDENTIFIER}})(?![(])
     captures:
       1:
-        patterns: 
+        patterns:
           - { include: "#Whitespace" }
       2:
-        patterns: 
+        patterns:
           - { include: "#PunctuationAccessor" }
       3:
-        patterns: 
+        patterns:
           - { include: "#Whitespace" }
       4:
-        patterns: 
+        patterns:
           - { include: "#VariableName" }
 
   PropertyAccessor:
     match: ({{WS}}*)([.]|[?][.])({{WS}}*)({{IDENTIFIER}})(?![(])
     captures:
       1:
-        patterns: 
+        patterns:
           - { include: "#Whitespace" }
       2:
-        patterns: 
+        patterns:
           - { include: "#PunctuationAccessor" }
       3:
-        patterns: 
+        patterns:
           - { include: "#Whitespace" }
       4:
-        patterns: 
+        patterns:
           - { include: "#PropertyName" }
 
   IllegalPropertyDeclaration:
@@ -1998,7 +1952,7 @@ repository:
     match: (hsl)([(][\d]+[\s]+[\d]+[%]?[\s]+[\d]+[%]?(?:[\s]*[/][\s]*[\d.]+[%]?)?[)])
     color: true
 
-########## FrontMatter ##########
+  ########## FrontMatter ##########
 
   FrontMatter:
     tag: meta
@@ -2087,7 +2041,7 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-########## Write ##########
+  ########## Write ##########
 
   Write:
     patterns:
@@ -2124,7 +2078,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
-      
+
   BlockWrite:
     tag: string
     name: string.write.sd
@@ -2152,7 +2106,7 @@ repository:
     name: entity.name.type.write.target.name.sd
     match: (.+)
 
-########## Dialogue ##########
+  ########## Dialogue ##########
 
   Dialogue:
     patterns:
@@ -2189,7 +2143,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
-      
+
   BlockDialogue:
     tag: string
     name: string.dialogue.sd
@@ -2282,7 +2236,7 @@ repository:
   DialogueCharacterPositionContent:
     match: (.+$)
 
-########## Transition ##########
+  ########## Transition ##########
 
   Transition:
     tag: labelName
@@ -2303,7 +2257,7 @@ repository:
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
 
-########## Scene ##########
+  ########## Scene ##########
 
   Scene:
     tag: regexp
@@ -2327,7 +2281,7 @@ repository:
   SceneLocationTime:
     match: INT[.]?[\/]EXT[.]|INT[.]|EXT[.]{{WS}}*(.*?){{WS}}+[-]{{WS}}+(.*?){{WS}}*$
 
-########## Action ##########
+  ########## Action ##########
 
   Action:
     begin: ({{WS}}*)([<][>]|[!](?:$|{{WS}}+))?({{WS}}*)(?=\S)
@@ -2357,7 +2311,7 @@ repository:
     name: markup.raw.text.sd
     match: (.+)
 
-########## Parenthetical ##########
+  ########## Parenthetical ##########
 
   ParentheticalLine:
     match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)({{WS}}*)([(][^()]*?[)])({{WS}}*)($|{{EOL}}|(?={{BREAK}})|[\\](?:{{WS}}))
@@ -2393,7 +2347,7 @@ repository:
         patterns:
           - { include: "#DisplayText" }
 
-########## Text ##########
+  ########## Text ##########
 
   BlockLineBreak:
     match: ({{WS}}*)(.*?)({{BREAK}})({{EOL}})
@@ -2497,7 +2451,7 @@ repository:
       - { include: "#AudioCommand" }
       - { include: "#InlineTextAndLogic" }
 
-########## FlowMarker ##########
+  ########## FlowMarker ##########
 
   FlowMarker:
     tag: macroName
@@ -2522,7 +2476,7 @@ repository:
     name: keyword.source.identifier.sd
     match: ([=])(.*?)([=])
 
-########## Commands ##########
+  ########## Commands ##########
 
   ImageLine:
     match: ^({{WS}}*)(?=\S)((?:\[\[(?:\\.|[^\]])*?\]\]|{{WS}}+)+)({{EOL}})
@@ -2610,7 +2564,7 @@ repository:
           - { include: "#Whitespace" }
 
   AssetCommandContent:
-    match: (.*?)($|(?:after|over|fadeto|with|wait|nowait|loop|noloop|mute|unmute|now)(?=$|{{WS}}).*)
+    match: (.*?)($|(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}).*)
     captures:
       1:
         patterns:
@@ -2618,28 +2572,29 @@ repository:
           - { include: "#AssetCommandInstruction" }
       2:
         patterns:
-          - { include: "#AssetCommandClauses" }
-
-  AssetCommandFlagClause:
-    tag: keyword
-    name: keyword.asset.arguments.keyword.flag.sd
-    match: ((?:wait|nowait|loop|noloop|mute|unmute|now)(?=$|{{WS}}))
+          - { include: "#Annotation" }
+          - { include: "#WhitespaceAssetCommandClause" }
+          - { include: "#AssetCommandClauseKeyword" }
+          - { include: "#ConditionalBlock" }
+          - { include: "#TimeValue" }
+          - { include: "#NumberValue" }
+          - { include: "#NameValue" }
 
   AssetCommandInstruction:
-    match: (?:(\b(?:set|show|hide|animate|play|start|stop|modulate|write)\b)({{WS}}*)($|\S+))?({{WS}}*)($|\S+)?({{WS}}*)(.*)
+    match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}})({{WS}}*)($|\S+))?({{WS}}*)($|\S+)?({{WS}}*)(.*)
     captures:
       1:
         patterns:
           - { include: "#AssetCommandControl" }
       2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#WhitespaceAssetCommandTarget" }
       3:
         patterns:
           - { include: "#AssetCommandTarget" }
       4:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#WhitespaceAssetCommandName" }
       5:
         patterns:
           - { include: "#AssetCommandAddOperator" }
@@ -2647,7 +2602,7 @@ repository:
           - { include: "#IllegalChar" }
       6:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#WhitespaceAssetCommandClause" }
       7:
         patterns:
           - { include: "#InvalidValue" }
@@ -2657,10 +2612,25 @@ repository:
     name: keyword.control.asset.control.sd
     match: (.+)
 
+  WhitespaceAssetCommandTarget:
+    tag: content
+    name: markup.raw.whitespace.sd
+    match: ({{WS}}+)
+
+  WhitespaceAssetCommandName:
+    tag: content
+    name: markup.raw.whitespace.sd
+    match: ({{WS}}+)
+
   AssetCommandTarget:
     tag: typeName
     name: entity.name.type.asset.target.sd
     match: (.+)
+
+  AssetCommandClauseKeyword:
+    tag: keyword
+    name: keyword.asset.clause.keyword.sd
+    match: ({{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})
 
   AssetCommandName:
     match: (.+?)(?=$|[+])
@@ -2690,7 +2660,7 @@ repository:
     match: ([+])
 
   AssetCommandFilter:
-    match: ([~])($|{{IDENTIFIER}})
+    match: ([~])($|{{IDENTIFIER}})?
     captures:
       1:
         patterns:
@@ -2709,92 +2679,15 @@ repository:
     name: variable.other.constant.asset.filter.sd
     match: ({{IDENTIFIER}})
 
-  AssetCommandClauses:
-    begin: (?=.+$)
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Whitespace" }
-      - { include: "#AssetCommandAfterClause" }
-      - { include: "#AssetCommandOverClause" }
-      - { include: "#AssetCommandFadetoClause" }
-      - { include: "#AssetCommandWithClause" }
-      - { include: "#AssetCommandFlagClause" }
-      - { include: "#ConditionalBlock" }
-      - { include: "#InvalidValue" }
-    end: (?=$)
-
-  AssetCommandAfterClause:
-    tag: meta
-    name: meta.argument.sd
-    match: (after)($|{{WS}})($|\S+)
-    captures:
-      1:
-        tag: keyword
-        name: keyword.asset.arguments.keyword.after.sd
-      2:
-        patterns:
-          - { include: "#Whitespace" }
-      3:
-        patterns:
-          - { include: "#ConditionalBlock" }
-          - { include: "#TimeValue" }
-          - { include: "#InvalidValue" }
-
-  AssetCommandOverClause:
-    tag: meta
-    name: meta.argument.sd
-    match: (over)($|{{WS}})($|\S+)
-    captures:
-      1:
-        tag: keyword
-        name: keyword.asset.arguments.keyword.over.sd
-      2:
-        patterns:
-          - { include: "#Whitespace" }
-      3:
-        patterns:
-          - { include: "#ConditionalBlock" }
-          - { include: "#TimeValue" }
-          - { include: "#InvalidValue" }
-
-  AssetCommandFadetoClause:
-    tag: meta
-    name: meta.argument.sd
-    match: (fadeto)($|{{WS}})($|\S+)
-    captures:
-      1:
-        tag: keyword
-        name: keyword.asset.arguments.keyword.fadeto.sd
-      2:
-        patterns:
-          - { include: "#Whitespace" }
-      3:
-        patterns:
-          - { include: "#ConditionalBlock" }
-          - { include: "#NumberValue" }
-          - { include: "#InvalidValue" }
-
-  AssetCommandWithClause:
-    tag: meta
-    name: meta.argument.sd
-    match: (with)($|{{WS}})($|\S+)
-    captures:
-      1:
-        tag: keyword
-        name: keyword.asset.arguments.keyword.with.sd
-      2:
-        patterns:
-          - { include: "#Whitespace" }
-      3:
-        patterns:
-          - { include: "#ConditionalBlock" }
-          - { include: "#NameValue" }
-          - { include: "#InvalidValue" }
+  WhitespaceAssetCommandClause:
+    tag: content
+    name: markup.raw.whitespace.sd
+    match: ({{WS}}+)
 
   TimeValue:
     tag: number
     name: constant.numeric.time.sd
-    match: ((?:\d*[.])?\d+)(ms|s)?$
+    match: ((?:\d*[.])?\d+)(ms|s)?(?=$|{{WS}})
     captures:
       1:
         tag: number
@@ -2806,12 +2699,12 @@ repository:
   NumberValue:
     tag: number
     name: constant.numeric.number.sd
-    match: ((?:\d*[.])?\d+)$
+    match: ((?:\d*[.])?\d+)(?=$|{{WS}})
 
   NameValue:
     tag: variableName
     name: variable.other.constant.sd
-    match: ({{IDENTIFIER}})$
+    match: ({{IDENTIFIER}})(?=$|{{WS}})
 
   InvalidValue:
     tag: content
@@ -2893,7 +2786,7 @@ repository:
         tag: separator
         name: meta.template.expression.comma.sd
 
-########## Text ##########
+  ########## Text ##########
 
   InlineTextAndLogic:
     patterns:
@@ -3096,7 +2989,7 @@ repository:
     name: markup.raw.punctuation.sd
     match: (.)
 
-########## Errors ##########
+  ########## Errors ##########
 
   IllegalExpression:
     tag: invalid

@@ -41,6 +41,7 @@ import createEditorView, {
 import spec from "./_sparkdown-script-editor";
 import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
 import getUnitlessValue from "../../../../../spec-component/src/utils/getUnitlessValue";
+import { getDocumentVersion } from "../../../cm-versioning/versioning";
 
 export default class SparkdownScriptEditor extends Component(spec) {
   static languageServerConnection: MessageConnection;
@@ -384,45 +385,54 @@ export default class SparkdownScriptEditor extends Component(spec) {
             }
           }
         },
-        onEdit: (e) => {
-          const { after, transaction } = e;
-          if (transaction.docChanged) {
+        transactionExtender: (tr) => {
+          if (tr.docChanged) {
             if (this._textDocument) {
-              const changeParams = {
-                textDocument: this._textDocument,
-                contentChanges: [{ text: after.toString() }],
-                // TODO: Figure out how to support incremental changes without it breaking when auto-surrounding text
-                // Incremental changes aren't correctly applied when auto-surrounding text with brackets
-                // So disable incremental changes until auto-surrounding bug is fixed
-                // contentChanges: getServerChanges(before, transaction.changes),
-              };
-              this.emit(
-                DidChangeTextDocumentMessage.method,
-                DidChangeTextDocumentMessage.type.notification(changeParams)
-              );
+              const uri = this._textDocument.uri;
+              const beforeVersion = getDocumentVersion(tr.startState);
+              const afterVersion = beforeVersion + 1;
+              const after = tr.newDoc.toString();
+              // TODO: Figure out how to support incremental changes without it breaking when auto-surrounding text
+              // Incremental changes aren't correctly applied when auto-surrounding text with brackets
+              // So disable incremental changes until surroundBrackets bug is fixed
+              // const contentChanges = getServerChanges(tr.startState.doc, tr.changes),
               SparkdownScriptEditor.languageServerConnection.sendNotification(
                 DidChangeTextDocumentMessage.type,
-                changeParams
+                {
+                  textDocument: {
+                    uri,
+                    version: afterVersion,
+                  },
+                  contentChanges: [{ text: after }],
+                }
               );
-              if (this._textDocument) {
-                const text = e.after.toString();
-                this.emit(
-                  WillSaveTextDocumentMessage.method,
-                  WillSaveTextDocumentMessage.type.notification({
-                    textDocument: this._textDocument,
-                    reason: TextDocumentSaveReason.AfterDelay,
-                  })
-                );
-                this.emit(
-                  DidSaveTextDocumentMessage.method,
-                  DidSaveTextDocumentMessage.type.notification({
-                    textDocument: this._textDocument,
-                    text,
-                  })
-                );
-              }
+              this.emit(
+                DidChangeTextDocumentMessage.method,
+                DidChangeTextDocumentMessage.type.notification({
+                  textDocument: {
+                    uri,
+                    version: afterVersion,
+                  },
+                  contentChanges: [{ text: after }],
+                })
+              );
+              this.emit(
+                WillSaveTextDocumentMessage.method,
+                WillSaveTextDocumentMessage.type.notification({
+                  textDocument: { uri },
+                  reason: TextDocumentSaveReason.AfterDelay,
+                })
+              );
+              this.emit(
+                DidSaveTextDocumentMessage.method,
+                DidSaveTextDocumentMessage.type.notification({
+                  textDocument: { uri },
+                  text: after,
+                })
+              );
             }
           }
+          return null;
         },
         onSelectionChanged: ({ selectedRange, docChanged }) => {
           const uri = this._textDocument?.uri;

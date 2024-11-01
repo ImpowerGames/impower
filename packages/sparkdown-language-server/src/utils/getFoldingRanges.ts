@@ -64,7 +64,7 @@ const getFoldingRanges = (
   if (!program) {
     return result;
   }
-  // Support weave folding
+  // TODO: Support weave folding
   if (program.sections) {
     const sections = Object.values(program.sections);
     const getSectionEndLine = (index: number): number => {

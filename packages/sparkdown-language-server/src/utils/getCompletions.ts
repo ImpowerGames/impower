@@ -15,28 +15,29 @@ import { SparkTokenTagMap } from "@impower/sparkdown/src/types/SparkToken";
 import getProperty from "@impower/sparkdown/src/utils/getProperty";
 import isIdentifier from "@impower/sparkdown/src/utils/isIdentifier";
 import traverse from "@impower/sparkdown/src/utils/traverse";
-import { Asset } from "../types/Asset";
-import getLineText from "./getLineText";
-import getLineTextAfter from "./getLineTextAfter";
-import getLineTextBefore from "./getLineTextBefore";
-import isEmptyLine from "./isEmptyLine";
 
-const getLineToken = <K extends keyof SparkTokenTagMap>(
-  program: SparkProgram,
-  line: number,
-  ...tags: K[]
-): SparkTokenTagMap[K] | undefined => {
-  const lineMetadata = program?.metadata?.lines?.[line];
-  const lineTokens = lineMetadata?.tokens?.map((i) => program?.tokens?.[i]);
-  return (
-    tags.length > 0
-      ? lineTokens?.findLast((t) => tags?.includes(t?.tag as unknown as K))
-      : lineTokens?.at(-1)
-  ) as SparkTokenTagMap[K];
-};
+import type {
+  NodeIterator,
+  Tree,
+  SyntaxNodeRef,
+} from "../../../grammar-compiler/src/compiler/classes/Tree";
+import type { Grammar } from "../../../grammar-compiler/src/grammar";
+import { printTree } from "../../../grammar-compiler/src/compiler";
 
-const getElementCompletions = (
-  program: SparkProgram
+import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
+import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
+
+const IMAGE_CONTROL_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
+const AUDIO_CONTROL_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS;
+const IMAGE_CLAUSE_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS;
+const AUDIO_CLAUSE_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS;
+
+const getImageTargetCompletions = (
+  program: SparkProgram | undefined
 ): CompletionItem[] | null => {
   const completions: Map<string, CompletionItem> = new Map();
   Object.entries(program?.compiled?.structDefs?.["ui"] || {}).forEach(
@@ -61,54 +62,31 @@ const getElementCompletions = (
   return Array.from(completions.values());
 };
 
-const getImageCompletions = (
-  program: SparkProgram,
-  line: number
-): CompletionItem[] | null => {
-  const imageToken = getLineToken(program, line, "image_tag");
+const getImageNameCompletions = (
+  program: SparkProgram | undefined
+): CompletionItem[] => {
   const completions: Map<string, CompletionItem> = new Map();
-  Object.entries(
-    program?.compiled?.structDefs?.["layered_image"] || {}
-  ).forEach(([, v]) => {
-    const name = v.$name;
-    if (!name.startsWith("$")) {
-      const asset = v as {
-        assets: Asset[];
-        src: string;
-        data?: string;
-        mime?: string;
-      };
-      if (asset) {
-        const completion: CompletionItem = {
-          label: name,
-          labelDetails: { description: "layered_image" },
-          kind: CompletionItemKind.Constructor,
-        };
-        completion.documentation = {
-          kind: MarkupKind.Markdown,
-          value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
-        };
-        if (completion.label && !completions.has(completion.label)) {
-          completions.set(completion.label, completion);
-        }
-      }
-    }
-  });
-  Object.entries(program?.compiled?.structDefs?.["image"] || {}).forEach(
-    ([, v]) => {
+  if (program) {
+    Object.entries(
+      program?.compiled?.structDefs?.["filtered_image"] || {}
+    ).forEach(([, v]) => {
       const name = v.$name;
       if (!name.startsWith("$")) {
-        const asset = v as Asset;
-        if (asset) {
+        const struct = v as {
+          filtered_src: string;
+          filtered_data?: string;
+        };
+        const src = struct?.filtered_src;
+        if (struct) {
           const completion: CompletionItem = {
             label: name,
-            labelDetails: { description: "image" },
+            labelDetails: { description: "filtered_image" },
             kind: CompletionItemKind.Constructor,
           };
-          if (asset.src) {
+          if (src) {
             completion.documentation = {
               kind: MarkupKind.Markdown,
-              value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
+              value: `<img src="${src}" alt="${name}" width="300px" />`,
             };
           }
           if (completion.label && !completions.has(completion.label)) {
@@ -116,37 +94,111 @@ const getImageCompletions = (
           }
         }
       }
+    });
+    Object.entries(
+      program?.compiled?.structDefs?.["layered_image"] || {}
+    ).forEach(([, v]) => {
+      const name = v.$name;
+      if (!name.startsWith("$")) {
+        const struct = v as {
+          assets: { src?: string }[];
+        };
+        const src = struct?.assets?.[0]?.src;
+        if (struct) {
+          const completion: CompletionItem = {
+            label: name,
+            labelDetails: { description: "layered_image" },
+            kind: CompletionItemKind.Constructor,
+          };
+          if (src) {
+            completion.documentation = {
+              kind: MarkupKind.Markdown,
+              value: `<img src="${src}" alt="${name}" width="300px" />`,
+            };
+          }
+          if (completion.label && !completions.has(completion.label)) {
+            completions.set(completion.label, completion);
+          }
+        }
+      }
+    });
+    Object.entries(program?.compiled?.structDefs?.["image"] || {}).forEach(
+      ([, v]) => {
+        const name = v.$name;
+        if (!name.startsWith("$")) {
+          const struct = v as { src?: string };
+          const src = struct?.src;
+          if (struct) {
+            const completion: CompletionItem = {
+              label: name,
+              labelDetails: { description: "image" },
+              kind: CompletionItemKind.Constructor,
+            };
+            if (src) {
+              completion.documentation = {
+                kind: MarkupKind.Markdown,
+                value: `<img src="${src}" alt="${name}" width="300px" />`,
+              };
+            }
+            if (completion.label && !completions.has(completion.label)) {
+              completions.set(completion.label, completion);
+            }
+          }
+        }
+      }
+    );
+  }
+  return Array.from(completions.values());
+};
+
+const getImageControlCompletions = (
+  _program: SparkProgram | undefined
+): CompletionItem[] => {
+  const completions: Map<string, CompletionItem> = new Map();
+  const keywords = IMAGE_CONTROL_KEYWORDS;
+  keywords.forEach((label) => {
+    const completion = {
+      label,
+      labelDetails: { description: "control" },
+      kind: CompletionItemKind.Keyword,
+    };
+    if (completion.label && !completions.has(completion.label)) {
+      completions.set(completion.label, completion);
     }
-  );
-  if (!imageToken?.control) {
-    const controls = ["show", "hide", "stack", "animate"];
-    controls.forEach((label) => {
+  });
+  return Array.from(completions.values());
+};
+
+const getImageClauseCompletions = (
+  _program: SparkProgram | undefined,
+  exclude: string[]
+): CompletionItem[] | null => {
+  const completions: Map<string, CompletionItem> = new Map();
+  const keywords = IMAGE_CLAUSE_KEYWORDS;
+  keywords.forEach((label) => {
+    if (!exclude.includes(label)) {
       const completion = {
         label,
-        labelDetails: { description: "control" },
+        labelDetails: { description: "clause" },
         kind: CompletionItemKind.Keyword,
       };
       if (completion.label && !completions.has(completion.label)) {
         completions.set(completion.label, completion);
       }
-    });
-  }
+    }
+  });
   return Array.from(completions.values());
 };
 
 const getFilterCompletions = (
-  program: SparkProgram,
-  lineText: string
+  program: SparkProgram | undefined,
+  exclude: string[]
 ): CompletionItem[] | null => {
-  const startIndex = lineText.indexOf("~");
-  const endIndex = lineText.indexOf(" ", startIndex);
-  const existingTags = lineText.slice(startIndex, endIndex).split("~").slice(1);
-
   const completions: Map<string, CompletionItem> = new Map();
   Object.entries(program?.compiled?.structDefs?.["filter"] || {}).forEach(
     ([, v]) => {
       const name = v.$name;
-      if (!existingTags?.includes(name)) {
+      if (!exclude?.includes(name)) {
         if (!name.startsWith("$")) {
           const completion: CompletionItem = {
             label: name,
@@ -163,8 +215,45 @@ const getFilterCompletions = (
   return Array.from(completions.values());
 };
 
-const getChannelCompletions = (
-  program: SparkProgram
+const getAnimationCompletions = (
+  program: SparkProgram | undefined
+): CompletionItem[] => {
+  const completions: Map<string, CompletionItem> = new Map();
+  Object.entries(program?.compiled?.structDefs?.["transition"] || {}).forEach(
+    ([, v]) => {
+      const name = v.$name;
+      if (!name.startsWith("$")) {
+        const completion: CompletionItem = {
+          label: name,
+          labelDetails: { description: "transition" },
+          kind: CompletionItemKind.Constructor,
+        };
+        if (completion.label && !completions.has(completion.label)) {
+          completions.set(completion.label, completion);
+        }
+      }
+    }
+  );
+  Object.entries(program?.compiled?.structDefs?.["animation"] || {}).forEach(
+    ([, v]) => {
+      const name = v.$name;
+      if (!name.startsWith("$")) {
+        const completion: CompletionItem = {
+          label: name,
+          labelDetails: { description: "animation" },
+          kind: CompletionItemKind.Constructor,
+        };
+        if (completion.label && !completions.has(completion.label)) {
+          completions.set(completion.label, completion);
+        }
+      }
+    }
+  );
+  return Array.from(completions.values());
+};
+
+const getAudioTargetCompletions = (
+  program: SparkProgram | undefined
 ): CompletionItem[] | null => {
   const completions: Map<string, CompletionItem> = new Map();
   Object.entries(program?.compiled?.structDefs?.["channel"] || {}).forEach(
@@ -185,11 +274,9 @@ const getChannelCompletions = (
   return Array.from(completions.values());
 };
 
-const getAudioCompletions = (
-  program: SparkProgram,
-  line: number
-): CompletionItem[] | null => {
-  const audioToken = getLineToken(program, line, "audio_tag");
+const getAudioNameCompletions = (
+  program: SparkProgram | undefined
+): CompletionItem[] => {
   const completions: Map<string, CompletionItem> = new Map();
   Object.values(program?.compiled?.structDefs?.["audio"] || {}).forEach((v) => {
     if (!v.name.startsWith("$")) {
@@ -229,55 +316,68 @@ const getAudioCompletions = (
       }
     }
   });
-  if (!audioToken?.control) {
-    const controls = ["start", "stop", "play", "modulate"];
-    controls.forEach((label) => {
+  return Array.from(completions.values());
+};
+
+const getAudioControlCompletions = (
+  _program: SparkProgram | undefined
+): CompletionItem[] => {
+  const completions: Map<string, CompletionItem> = new Map();
+  const keywords = AUDIO_CONTROL_KEYWORDS;
+  keywords.forEach((label) => {
+    const completion = {
+      label,
+      labelDetails: { description: "control" },
+      kind: CompletionItemKind.Keyword,
+    };
+    if (completion.label && !completions.has(completion.label)) {
+      completions.set(completion.label, completion);
+    }
+  });
+  return Array.from(completions.values());
+};
+
+const getAudioClauseCompletions = (
+  _program: SparkProgram | undefined,
+  exclude: string[]
+): CompletionItem[] | null => {
+  const completions: Map<string, CompletionItem> = new Map();
+  const keywords = AUDIO_CLAUSE_KEYWORDS;
+  keywords.forEach((label) => {
+    if (!exclude.includes(label)) {
       const completion = {
         label,
-        labelDetails: { description: "control" },
+        labelDetails: { description: "clause" },
         kind: CompletionItemKind.Keyword,
       };
       if (completion.label && !completions.has(completion.label)) {
         completions.set(completion.label, completion);
       }
-    });
-  }
+    }
+  });
   return Array.from(completions.values());
 };
 
-const getImageArgumentCompletions = (
-  program: SparkProgram,
-  line: number
-): CompletionItem[] | null => {
-  const imageToken = getLineToken(program, line, "audio_tag");
-  const completions = ["after", "over", "with"];
-  return completions
-    .filter((c) => !imageToken?.args?.includes(c))
-    .map((label) => ({
-      label,
-      insertText: label,
-      kind: CompletionItemKind.Keyword,
-    }));
-};
-
-const getAudioArgumentCompletions = (
-  program: SparkProgram,
-  line: number
-): CompletionItem[] | null => {
-  const audioToken = getLineToken(program, line, "audio_tag");
-  const completions: string[] = [];
-  // TODO: only include completions if prior argument is not a keyword that takes an argument
-  if (audioToken?.control === "modulate") {
-    completions.push("to");
-  }
-  completions.push("after", "over", "mute", "unmute", "loop", "noloop", "now");
-  return completions
-    .filter((c) => !audioToken?.args?.includes(c))
-    .map((label) => ({
-      label,
-      insertText: label,
-      kind: CompletionItemKind.Keyword,
-    }));
+const getModulationCompletions = (
+  program: SparkProgram | undefined
+): CompletionItem[] => {
+  const completions: Map<string, CompletionItem> = new Map();
+  Object.entries(program?.compiled?.structDefs?.["modulation"] || {}).forEach(
+    ([, v]) => {
+      const name = v.$name;
+      if (!name.startsWith("$")) {
+        const completion: CompletionItem = {
+          label: name,
+          labelDetails: { description: "modulation" },
+          kind: CompletionItemKind.Constructor,
+        };
+        if (completion.label && !completions.has(completion.label)) {
+          completions.set(completion.label, completion);
+        }
+      }
+    }
+  );
+  return Array.from(completions.values());
 };
 
 const getCharacterCompletions = (
@@ -457,128 +557,311 @@ const getAccessPathCompletions = (
 const getCompletions = (
   document: TextDocument | undefined,
   program: SparkProgram | undefined,
+  tree: Tree | undefined,
+  grammar: Grammar,
   position: Position,
   context: CompletionContext | undefined
 ): CompletionItem[] | null | undefined => {
   if (!document) {
     return undefined;
   }
-  const line = position?.line;
-  const prevLineText = getLineText(document, position, -1);
-  const lineText = getLineText(document, position);
-  const nextLineText = getLineText(document, position, 1);
-  const beforeText = getLineTextBefore(document, position);
-  const afterText = getLineTextAfter(document, position);
-  const trimmedBeforeText = beforeText.trim();
-  const trimmedAfterText = afterText.trim();
-  const trimmedStartBeforeText = beforeText.trimStart();
-  const lineMetadata = program?.metadata?.lines?.[line];
-  const scopes = lineMetadata?.scopes;
-  const triggerCharacter = context?.triggerCharacter;
-
-  if (!program) {
+  if (!tree) {
     return undefined;
   }
 
-  // console.log(triggerCharacter, lineMetadata, JSON.stringify(beforeText));
+  const side = -1;
 
-  if (scopes) {
-    if (scopes.includes("image_tag")) {
-      if (scopes.includes("asset_tag_arguments")) {
-        return getImageArgumentCompletions(program, line);
-      } else if (scopes.includes("asset_tag_target_separator")) {
-        return getElementCompletions(program);
-      } else if (triggerCharacter === "~" || lineText.includes("~")) {
-        return getFilterCompletions(program, lineText);
-      } else {
-        return getImageCompletions(program, line);
-      }
-    }
-    if (scopes.includes("audio_tag")) {
-      if (scopes.includes("asset_tag_arguments")) {
-        return getAudioArgumentCompletions(program, line);
-      } else if (scopes.includes("asset_tag_target_separator")) {
-        return getChannelCompletions(program);
-      } else {
-        return getAudioCompletions(program, line);
-      }
-    }
-    if (
-      scopes.includes("action") &&
-      scopes.includes("text") &&
-      isEmptyLine(prevLineText) &&
-      isEmptyLine(nextLineText) &&
-      !trimmedBeforeText &&
-      !trimmedAfterText
-    ) {
-      return getCharacterCompletions(position.line, program);
-    }
-    if (
-      scopes.includes("dialogue") &&
-      scopes.includes("dialogue_character_name") &&
-      !trimmedAfterText
-    ) {
-      return getCharacterCompletions(
-        position.line,
-        program,
-        trimmedStartBeforeText
-      );
-    }
-    if (scopes.includes("access_path")) {
-      return getAccessPathCompletions(program, beforeText);
-    }
-    if (
-      (trimmedBeforeText === "define" ||
-        trimmedBeforeText === "store" ||
-        trimmedBeforeText === "set") &&
-      !trimmedAfterText
-    ) {
-      return getTypeOrNameCompletions(program);
-    }
-    if (
-      scopes.includes("struct_map_property_start") &&
-      scopes.includes("property_name")
-    ) {
-      const defineToken = getLineToken(program, line, "define");
-      const structMapPropertyToken = getLineToken(
-        program,
-        line,
-        "struct_map_property"
-      );
-      if (defineToken?.name) {
-        const variable = program?.variables?.[defineToken.name];
-        if (variable && !beforeText.includes(":")) {
-          return getStructMapPropertyNameCompletions(
-            program,
-            variable.type,
-            variable.fields,
-            structMapPropertyToken?.path ?? "",
-            beforeText
+  const getNodeType = (node: SyntaxNodeRef) => ({
+    name: grammar.nodeNames[node.type] as SparkdownNodeName,
+    id: node.type,
+  });
+
+  const getNode = (cursor: SyntaxNodeRef | NodeIterator) => {
+    const node = "node" in cursor ? cursor.node : cursor;
+    return {
+      type: getNodeType(node),
+      from: node.from,
+      to: node.to,
+    };
+  };
+
+  type Node = ReturnType<typeof getNode>;
+
+  const getOtherMatchesInside = (
+    matchTypeName: SparkdownNodeName,
+    parentTypeName: SparkdownNodeName,
+    stack: Node[]
+  ) => {
+    const matches = [];
+    const current = stack[0];
+    const parent = stack.find((n) => n.type.name === parentTypeName);
+    if (current && parent) {
+      const prevCur = tree.cursorAt(current.from - 1, side);
+      while (prevCur.from >= parent.from) {
+        const node = getNode(prevCur);
+        if (node.type.name === matchTypeName) {
+          matches.unshift(
+            document.getText({
+              start: document.positionAt(node.from),
+              end: document.positionAt(node.to),
+            })
           );
         }
+        prevCur.moveTo(prevCur.from - 1, side);
       }
-    }
-    if (scopes.includes("struct_blank_property") && !triggerCharacter) {
-      const defineToken = getLineToken(program, line, "define");
-      const structBlankPropertyToken = getLineToken(
-        program,
-        line,
-        "struct_blank_property"
-      );
-      if (defineToken?.name) {
-        const variable = program?.variables?.[defineToken.name];
-        if (variable && !beforeText.includes(":")) {
-          return getStructMapPropertyNameCompletions(
-            program,
-            variable.type,
-            variable.fields,
-            structBlankPropertyToken?.path ?? "",
-            beforeText
+      const nextCur = tree.cursorAt(current.to + 1, side);
+      while (nextCur.to <= parent.to) {
+        const node = getNode(nextCur);
+        if (node.type.name === matchTypeName) {
+          matches.push(
+            document.getText({
+              start: document.positionAt(node.from),
+              end: document.positionAt(node.to),
+            })
           );
         }
+        nextCur.moveTo(nextCur.to + 1, side);
       }
+    }
+    return matches;
+  };
+
+  const triggerKind = context?.triggerKind;
+  const triggerCharacter = context?.triggerCharacter;
+
+  const pos = document.offsetAt(position);
+  const stackIterator = tree.resolveStack(pos, side);
+  const stack = [] as Node[];
+  for (let cur: NodeIterator | null = stackIterator; cur; cur = cur.next) {
+    stack.push(getNode(cur));
+  }
+
+  console.log(printTree(tree, document.getText(), grammar.nodeNames));
+  console.log(
+    pos,
+    JSON.stringify(triggerCharacter),
+    stack.map((n) => n.type.name)
+  );
+
+  if (!stack[0]) {
+    return null;
+  }
+
+  const prevCur = tree.cursorAt(stack[0].from - 1, side);
+  const prevNode = getNode(prevCur);
+  const prevTypeName = prevNode.type.name;
+  const prevText = document.getText({
+    start: document.positionAt(prevNode.from),
+    end: document.positionAt(prevNode.to),
+  });
+
+  // ImageCommand
+  if (stack.some((n) => n.type.name === "ImageCommand")) {
+    if (stack[0]?.type.name === "ImageCommand_c1") {
+      return [
+        ...getImageNameCompletions(program),
+        ...getImageControlCompletions(program),
+      ];
+    }
+    if (stack[0]?.type.name === "AssetCommandControl") {
+      return getImageControlCompletions(program);
+    }
+    if (stack[0]?.type.name === "WhitespaceAssetCommandTarget") {
+      return getImageTargetCompletions(program);
+    }
+    if (
+      stack[0]?.type.name === "WhitespaceAssetCommandName" ||
+      stack[0]?.type.name === "AssetCommandName" ||
+      stack[0]?.type.name === "AssetCommandFileName"
+    ) {
+      return getImageNameCompletions(program);
+    }
+    if (
+      stack[0]?.type.name === "AssetCommandFilterOperator" ||
+      stack[0]?.type.name === "AssetCommandFilterName"
+    ) {
+      const exclude = getOtherMatchesInside(
+        "AssetCommandFilterName",
+        "AssetCommandContent",
+        stack
+      );
+      return getFilterCompletions(program, exclude);
+    }
+    if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
+      const prevClauseTakesArgument =
+        prevTypeName === "AssetCommandClauseKeyword" &&
+        (prevText === "after" ||
+          prevText === "over" ||
+          prevText === "with" ||
+          prevText === "fadeto");
+      if (!prevClauseTakesArgument) {
+        const exclude = getOtherMatchesInside(
+          "AssetCommandClauseKeyword",
+          "AssetCommandContent",
+          stack
+        );
+        return getImageClauseCompletions(program, exclude);
+      }
+    }
+    if (
+      (stack[0]?.type.name === "WhitespaceAssetCommandClause" &&
+        prevTypeName === "AssetCommandClauseKeyword" &&
+        prevText === "with") ||
+      stack[0]?.type.name === "NameValue"
+    ) {
+      return getAnimationCompletions(program);
     }
   }
+
+  // AudioCommand
+  if (stack.some((n) => n.type.name === "AudioCommand")) {
+    if (stack[0]?.type.name === "AudioCommand_c1") {
+      return [
+        ...getAudioNameCompletions(program),
+        ...getAudioControlCompletions(program),
+      ];
+    }
+    if (stack[0]?.type.name === "AssetCommandControl") {
+      return getAudioControlCompletions(program);
+    }
+    if (stack[0]?.type.name === "WhitespaceAssetCommandTarget") {
+      return getAudioTargetCompletions(program);
+    }
+    if (
+      stack[0]?.type.name === "WhitespaceAssetCommandName" ||
+      stack[0]?.type.name === "AssetCommandName" ||
+      stack[0]?.type.name === "AssetCommandFileName"
+    ) {
+      return getAudioNameCompletions(program);
+    }
+    if (
+      stack[0]?.type.name === "AssetCommandFilterOperator" ||
+      stack[0]?.type.name === "AssetCommandFilterName"
+    ) {
+      const exclude = getOtherMatchesInside(
+        "AssetCommandFilterName",
+        "AssetCommandContent",
+        stack
+      );
+      return getFilterCompletions(program, exclude);
+    }
+    if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
+      const prevClauseTakesArgument =
+        prevTypeName === "AssetCommandClauseKeyword" &&
+        (prevText === "after" ||
+          prevText === "over" ||
+          prevText === "with" ||
+          prevText === "fadeto");
+      if (!prevClauseTakesArgument) {
+        const exclude = getOtherMatchesInside(
+          "AssetCommandClauseKeyword",
+          "AssetCommandContent",
+          stack
+        );
+        return getAudioClauseCompletions(program, exclude);
+      }
+    }
+    if (
+      (stack[0]?.type.name === "WhitespaceAssetCommandClause" &&
+        prevTypeName === "AssetCommandClauseKeyword" &&
+        prevText === "with") ||
+      stack[0]?.type.name === "NameValue"
+    ) {
+      return getModulationCompletions(program);
+    }
+  }
+
+  // const line = position?.line;
+  // const lineText = getLineText(document, position);
+  // const prevLineText = getLineText(document, position, -1);
+  // const nextLineText = getLineText(document, position, 1);
+  // const beforeText = getLineTextBefore(document, position);
+  // const afterText = getLineTextAfter(document, position);
+  // const trimmedBeforeText = beforeText.trim();
+  // const trimmedAfterText = afterText.trim();
+  // const trimmedStartBeforeText = beforeText.trimStart();
+  // const lineMetadata = program?.metadata?.lines?.[line];
+  // const scopes = lineMetadata?.scopes;
+
+  // console.log(triggerCharacter, lineMetadata, JSON.stringify(beforeText));
+
+  // if (scopes) {
+  //   if (
+  //     scopes.includes("action") &&
+  //     scopes.includes("text") &&
+  //     isEmptyLine(prevLineText) &&
+  //     isEmptyLine(nextLineText) &&
+  //     !trimmedBeforeText &&
+  //     !trimmedAfterText
+  //   ) {
+  //     return getCharacterCompletions(position.line, program);
+  //   }
+  //   if (
+  //     scopes.includes("dialogue") &&
+  //     scopes.includes("dialogue_character_name") &&
+  //     !trimmedAfterText
+  //   ) {
+  //     return getCharacterCompletions(
+  //       position.line,
+  //       program,
+  //       trimmedStartBeforeText
+  //     );
+  //   }
+  //   if (scopes.includes("access_path")) {
+  //     return getAccessPathCompletions(program, beforeText);
+  //   }
+  //   if (
+  //     (trimmedBeforeText === "define" ||
+  //       trimmedBeforeText === "store" ||
+  //       trimmedBeforeText === "set") &&
+  //     !trimmedAfterText
+  //   ) {
+  //     return getTypeOrNameCompletions(program);
+  //   }
+  //   if (
+  //     scopes.includes("struct_map_property_start") &&
+  //     scopes.includes("property_name")
+  //   ) {
+  //     const defineToken = getLineToken(program, line, "define");
+  //     const structMapPropertyToken = getLineToken(
+  //       program,
+  //       line,
+  //       "struct_map_property"
+  //     );
+  //     if (defineToken?.name) {
+  //       const variable = program?.variables?.[defineToken.name];
+  //       if (variable && !beforeText.includes(":")) {
+  //         return getStructMapPropertyNameCompletions(
+  //           program,
+  //           variable.type,
+  //           variable.fields,
+  //           structMapPropertyToken?.path ?? "",
+  //           beforeText
+  //         );
+  //       }
+  //     }
+  //   }
+  //   if (scopes.includes("struct_blank_property") && !triggerCharacter) {
+  //     const defineToken = getLineToken(program, line, "define");
+  //     const structBlankPropertyToken = getLineToken(
+  //       program,
+  //       line,
+  //       "struct_blank_property"
+  //     );
+  //     if (defineToken?.name) {
+  //       const variable = program?.variables?.[defineToken.name];
+  //       if (variable && !beforeText.includes(":")) {
+  //         return getStructMapPropertyNameCompletions(
+  //           program,
+  //           variable.type,
+  //           variable.fields,
+  //           structBlankPropertyToken?.path ?? "",
+  //           beforeText
+  //         );
+  //       }
+  //     }
+  //   }
+  // }
   return undefined;
 };
 

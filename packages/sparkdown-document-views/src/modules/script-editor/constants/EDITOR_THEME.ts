@@ -65,7 +65,7 @@ const EDITOR_THEME: {
     },
     "&:focus-visible": {
       outline: "none",
-      borderColor: EDITOR_COLORS.selected,
+      borderColor: EDITOR_COLORS.selectedForeground,
     },
     "&::placeholder": {
       color: EDITOR_COLORS.placeholder,
@@ -531,7 +531,7 @@ const EDITOR_THEME: {
     backgroundColor: EDITOR_COLORS.panel,
   },
   "& .cm-tooltip-autocomplete ul li[aria-selected]": {
-    background: EDITOR_COLORS.selected,
+    background: EDITOR_COLORS.selectedBackground,
   },
   "& .cm-valueInfo": {
     fontFamily: "monospace",

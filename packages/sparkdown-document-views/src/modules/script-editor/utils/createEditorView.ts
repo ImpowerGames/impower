@@ -1,14 +1,13 @@
 import { historyField } from "@codemirror/commands";
 import { syntaxTreeAvailable } from "@codemirror/language";
 import {
-  Annotation,
   Compartment,
   EditorSelection,
   EditorState,
   Range,
   RangeSet,
-  Text,
   Transaction,
+  TransactionSpec,
 } from "@codemirror/state";
 import {
   DecorationSet,
@@ -97,12 +96,13 @@ interface EditorConfig {
   }) => void;
   onBreakpointsChanged?: (ranges: SerializableRange[]) => void;
   onHeightChanged?: () => void;
-  onEdit?: (change: {
-    transaction: Transaction;
-    annotations: Annotation<any>[];
-    before: Text;
-    after: Text;
-  }) => void;
+  changeFilter?: (tr: Transaction) => boolean | readonly number[];
+  transactionFilter?: (
+    tr: Transaction
+  ) => TransactionSpec | readonly TransactionSpec[];
+  transactionExtender?: (
+    tr: Transaction
+  ) => Pick<TransactionSpec, "effects" | "annotations"> | null;
 }
 
 const createEditorView = (
@@ -129,7 +129,9 @@ const createEditorView = (
   const debouncedIdle = debounce(onIdle, stabilizationDuration);
   const getEditorState = config?.getEditorState;
   const setEditorState = config?.setEditorState;
-  const onEdit = config?.onEdit;
+  const changeFilter = config?.changeFilter;
+  const transactionFilter = config?.transactionFilter;
+  const transactionExtender = config?.transactionExtender;
   const doc = config?.textDocument.text ?? "";
   const selection =
     defaultState?.selection != null
@@ -203,6 +205,32 @@ const createEditorView = (
         fileSystemReader,
         programContext,
       }),
+      EditorState.changeFilter.of(
+        (tr: Transaction): boolean | readonly number[] => {
+          if (changeFilter) {
+            return changeFilter(tr);
+          }
+          return true;
+        }
+      ),
+      EditorState.transactionFilter.of(
+        (tr: Transaction): TransactionSpec | readonly TransactionSpec[] => {
+          if (transactionFilter) {
+            return transactionFilter(tr);
+          }
+          return tr;
+        }
+      ),
+      EditorState.transactionExtender.of(
+        (
+          tr: Transaction
+        ): Pick<TransactionSpec, "effects" | "annotations"> | null => {
+          if (transactionExtender) {
+            return transactionExtender(tr);
+          }
+          return null;
+        }
+      ),
       EditorView.updateListener.of((u) => {
         const parsed = syntaxTreeAvailable(u.state);
         if (parsed) {
@@ -301,7 +329,7 @@ const createEditorView = (
   const view: EditorView = new EditorView({
     state: startState,
     parent,
-    dispatch: (tr) => syncDispatch(tr, view, onEdit),
+    dispatchTransactions: (trs, view) => syncDispatch(trs, view),
   });
   const onParse = (e: Event) => {
     if (e instanceof CustomEvent) {
