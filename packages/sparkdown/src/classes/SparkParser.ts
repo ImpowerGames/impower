@@ -636,6 +636,7 @@ export default class SparkParser {
                 "'with' should be followed by the name of a modulation (e.g. 'with echo')";
               reportDiagnostic(message);
             }
+          }
             if (text === "fadeto") {
               if (
                 (valueNodeType !== "ConditionalBlock" &&
@@ -675,7 +676,6 @@ export default class SparkParser {
               }
             }
           }
-        }
         if (stack.includes("ImageCommand") && nodeType === "NameValue") {
           const types = ["transition", "animation"];
           const selectors = [`transition.${text}`, `animation.${text}`];
