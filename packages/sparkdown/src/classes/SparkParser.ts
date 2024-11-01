@@ -637,45 +637,45 @@ export default class SparkParser {
               reportDiagnostic(message);
             }
           }
-            if (text === "fadeto") {
-              if (
-                (valueNodeType !== "ConditionalBlock" &&
-                  valueNodeType !== "NumberValue") ||
-                (valueNodeType === "NumberValue" &&
-                  (Number(text) < 0 || Number(text) > 1))
-              ) {
-                const message = `'${text}' should be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 0.5' or 'fadeto 1')`;
-                reportDiagnostic(message, DiagnosticSeverity.Error, "end");
-              }
-            }
+          if (text === "fadeto") {
             if (
-              text === "wait" ||
-              text === "nowait" ||
-              text === "loop" ||
-              text === "noloop" ||
-              text === "mute" ||
-              text === "unmute" ||
-              text === "now"
+              (valueNodeType !== "ConditionalBlock" &&
+                valueNodeType !== "NumberValue") ||
+              (valueNodeType === "NumberValue" &&
+                (Number(text) < 0 || Number(text) > 1))
             ) {
-              if (
-                valueNode &&
-                (valueNodeType === "ConditionalBlock" ||
-                  valueNodeType === "TimeValue" ||
-                  valueNodeType === "NumberValue")
-              ) {
-                const message = `'${text}' is a flag and should not be followed by a number or time value`;
-                const nodeCharacterOffset = valueNode.to - node.to;
-                const markRange = {
-                  start: { ...range.start },
-                  end: {
-                    line: range.end.line,
-                    character: range.end.character + nodeCharacterOffset,
-                  },
-                };
-                reportDiagnostic(message, DiagnosticSeverity.Error, markRange);
-              }
+              const message = `'${text}' should be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 0.5' or 'fadeto 1')`;
+              reportDiagnostic(message, DiagnosticSeverity.Error, "end");
             }
           }
+          if (
+            text === "wait" ||
+            text === "nowait" ||
+            text === "loop" ||
+            text === "noloop" ||
+            text === "mute" ||
+            text === "unmute" ||
+            text === "now"
+          ) {
+            if (
+              valueNode &&
+              (valueNodeType === "ConditionalBlock" ||
+                valueNodeType === "TimeValue" ||
+                valueNodeType === "NumberValue")
+            ) {
+              const message = `'${text}' is a flag and should not be followed by a number or time value`;
+              const nodeCharacterOffset = valueNode.to - node.to;
+              const markRange = {
+                start: { ...range.start },
+                end: {
+                  line: range.end.line,
+                  character: range.end.character + nodeCharacterOffset,
+                },
+              };
+              reportDiagnostic(message, DiagnosticSeverity.Error, markRange);
+            }
+          }
+        }
         if (stack.includes("ImageCommand") && nodeType === "NameValue") {
           const types = ["transition", "animation"];
           const selectors = [`transition.${text}`, `animation.${text}`];
@@ -1088,37 +1088,59 @@ export default class SparkParser {
             includes,
             excludes,
           };
+          const stack = new Set<{ $type: string; $name: string }>();
           const imageToFilter = this.getRootImage(
             filteredImage?.image?.$name,
-            program
+            program,
+            stack
           );
           if (imageToFilter) {
-            if (imageToFilter.$type === "image") {
-              if (imageToFilter.data) {
-                const filteredData = filterSVG(
-                  imageToFilter.data,
-                  combinedFilter
-                );
-                filteredImage.filtered_data = filteredData;
-                filteredImage.filtered_src = buildSVGSource(filteredData);
-              }
-            }
-            if (imageToFilter.$type === "layered_image") {
-              for (const [key, layerImage] of Object.entries(
-                imageToFilter.layers
-              )) {
-                const filteredLayers: { $type: "image"; $name: string }[] = [];
-                const keyIsArrayIndex = !Number.isNaN(Number(key));
-                if (keyIsArrayIndex) {
-                  if (filterMatchesName(layerImage.$name, combinedFilter)) {
-                    filteredLayers.push(layerImage);
-                  }
-                } else {
-                  if (filterMatchesName(key, combinedFilter)) {
-                    filteredLayers.push(layerImage);
-                  }
+            if (imageToFilter === "circular") {
+              // TODO: lookup property definition location so we can display an error message there
+              // const message = `The image named '${filteredImage?.image?.$name}' circularly references itself.`;
+              // program.diagnostics ??= {};
+              // program.diagnostics[uri] ??= [];
+              // program.diagnostics[uri].push({
+              //   range,
+              //   severity: DiagnosticSeverity.Error,
+              //   message,
+              //   relatedInformation: [
+              //     {
+              //       location: { uri, range },
+              //       message,
+              //     },
+              //   ],
+              //   source: LANGUAGE_NAME,
+              // });
+            } else {
+              if (imageToFilter.$type === "image") {
+                if (imageToFilter.data) {
+                  const filteredData = filterSVG(
+                    imageToFilter.data,
+                    combinedFilter
+                  );
+                  filteredImage.filtered_data = filteredData;
+                  filteredImage.filtered_src = buildSVGSource(filteredData);
                 }
-                filteredImage.filtered_layers = filteredLayers;
+              }
+              if (imageToFilter.$type === "layered_image") {
+                for (const [key, layerImage] of Object.entries(
+                  imageToFilter.layers
+                )) {
+                  const filteredLayers: { $type: "image"; $name: string }[] =
+                    [];
+                  const keyIsArrayIndex = !Number.isNaN(Number(key));
+                  if (keyIsArrayIndex) {
+                    if (filterMatchesName(layerImage.$name, combinedFilter)) {
+                      filteredLayers.push(layerImage);
+                    }
+                  } else {
+                    if (filterMatchesName(key, combinedFilter)) {
+                      filteredLayers.push(layerImage);
+                    }
+                  }
+                  filteredImage.filtered_layers = filteredLayers;
+                }
               }
             }
           }
@@ -1150,7 +1172,8 @@ export default class SparkParser {
 
   getRootImage(
     name: string,
-    program: SparkProgram
+    program: SparkProgram,
+    stack: Set<{ $type: string; $name: string }>
   ):
     | { $type: "image"; $name: string; src: string; data: string }
     | {
@@ -1158,6 +1181,7 @@ export default class SparkParser {
         $name: string;
         layers: Record<string, { $type: "image"; $name: string }>;
       }
+    | "circular"
     | undefined {
     const image = program.compiled?.structDefs?.["image"]?.[name];
     if (image) {
@@ -1171,7 +1195,15 @@ export default class SparkParser {
     const filteredImage =
       program.compiled?.structDefs?.["filtered_image"]?.[name];
     if (filteredImage) {
-      return this.getRootImage(filteredImage?.["image"]?.["$name"], program);
+      if (stack.has(filteredImage)) {
+        return "circular";
+      }
+      stack.add(filteredImage);
+      return this.getRootImage(
+        filteredImage?.["image"]?.["$name"],
+        program,
+        stack
+      );
     }
     return undefined;
   }
