@@ -7,11 +7,7 @@ import {
 } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
 import { lintKeymap } from "@codemirror/lint";
-import {
-  highlightSelectionMatches,
-  search,
-  searchKeymap,
-} from "@codemirror/search";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import { EditorState } from "@codemirror/state";
 import {
   EditorView,
@@ -27,14 +23,14 @@ import {
 import { breakpoints } from "../../../cm-breakpoints/breakpoints";
 import { indentationGuides } from "../../../cm-indentation-guides/indentationGuides";
 import { indentedLineWrapping } from "../../../cm-indented-line-wrapping/indentedLineWrapping";
-import { whitespaceMarkers } from "../../../cm-whitespace-markers/whitespaceMarkers";
+import { highlightExtraWhitespace } from "../../../cm-highlight-extra-whitespace/highlightExtraWhitespace";
 
 const EDITOR_EXTENSIONS = [
   history(),
   breakpoints({ singular: true }),
   lineNumbers(),
   indentUnit.of("  "),
-  whitespaceMarkers(),
+  highlightExtraWhitespace(),
   indentationGuides(),
   indentedLineWrapping(),
   drawSelection(),
