@@ -1,17 +1,41 @@
-import { _animation } from "./constructors/_animation";
-import { _ease } from "./constructors/_ease";
-import { _font } from "./constructors/_font";
-import { _gradient } from "./constructors/_gradient";
-import { _graphic } from "./constructors/_graphic";
-import { _image } from "./constructors/_image";
-import { _layeredImage } from "./constructors/_layeredImage";
-import { _filteredImage } from "./constructors/_filteredImage";
-import { _shadow } from "./constructors/_shadow";
-import { _style } from "./constructors/_style";
-import { _transition } from "./constructors/_transition";
-import { _ui } from "./constructors/_ui";
+import { default_animation } from "./constructors/default_animation";
+import { default_ease } from "./constructors/default_ease";
+import { default_font } from "./constructors/default_font";
+import { default_gradient } from "./constructors/default_gradient";
+import { default_graphic } from "./constructors/default_graphic";
+import { default_image } from "./constructors/default_image";
+import { default_layered_image } from "./constructors/default_layered_image";
+import { default_filtered_image } from "./constructors/default_filtered_image";
+import { default_shadow } from "./constructors/default_shadow";
+import { default_style } from "./constructors/default_style";
+import { default_transition } from "./constructors/default_transition";
+import { default_ui } from "./constructors/default_ui";
+import { schema_ease } from "./constructors/schema_ease";
+import { schema_font } from "./constructors/schema_font";
+import { schema_style } from "./constructors/schema_style";
+import { schema_shadow } from "./constructors/schema_shadow";
+import { schema_graphic } from "./constructors/schema_graphic";
+import { schema_gradient } from "./constructors/schema_gradient";
+import {
+  random_graphic_default,
+  random_graphic_zigzag,
+  random_graphic_bubble,
+  random_graphic_circle,
+  random_graphic_grid,
+  random_graphic_herringbone,
+  random_graphic_flower,
+  random_graphic_equal,
+  random_graphic_mat,
+  random_graphic_memphis,
+  random_graphic_net,
+  random_graphic_octagon,
+  random_graphic_plus,
+  random_graphic_brick,
+  random_graphic_tile,
+  random_graphic_wave,
+} from "./constructors/random_graphic";
 
-export const uiBuiltins = () => ({
+export const uiBuiltinDefinitions = () => ({
   config: {
     ui: {
       style_element_name: "style",
@@ -26,25 +50,17 @@ export const uiBuiltins = () => ({
     },
   },
   image: {
-    $default: _image({
-      $name: "$default",
-    }),
-  } as Record<string, ReturnType<typeof _image>>,
+    $default: default_image(),
+  } as Record<string, ReturnType<typeof default_image>>,
   layered_image: {
-    $default: _layeredImage({
-      $name: "$default",
-    }),
-  } as Record<string, ReturnType<typeof _layeredImage>>,
+    $default: default_layered_image(),
+  } as Record<string, ReturnType<typeof default_layered_image>>,
   filtered_image: {
-    $default: _filteredImage({
-      $name: "$default",
-    }),
-  } as Record<string, ReturnType<typeof _filteredImage>>,
+    $default: default_filtered_image(),
+  } as Record<string, ReturnType<typeof default_filtered_image>>,
   style: {
-    $default: _style({
-      $name: "$default",
-    }),
-    text: _style({
+    $default: default_style(),
+    text: default_style({
       $name: "text",
       display: "block",
       pointer_events: "auto",
@@ -53,7 +69,7 @@ export const uiBuiltins = () => ({
         display: "inline",
       },
     }),
-    stroke: _style({
+    stroke: default_style({
       $name: "stroke",
       display: "block",
       pointer_events: "none",
@@ -66,7 +82,7 @@ export const uiBuiltins = () => ({
         display: "inline",
       },
     }),
-    image: _style({
+    image: default_style({
       $name: "image",
       display: "block",
       pointer_events: "auto",
@@ -82,7 +98,7 @@ export const uiBuiltins = () => ({
         background_size: "auto 100%",
       },
     }),
-    mask: _style({
+    mask: default_style({
       $name: "mask",
       display: "block",
       pointer_events: "auto",
@@ -98,14 +114,14 @@ export const uiBuiltins = () => ({
         mask_size: "auto 100%",
       },
     }),
-    loading_bar: _style({
+    loading_bar: default_style({
       $name: "loading_bar",
       z_index: "1000",
       position: "relative",
       width: "100%",
       height: "4px",
     }),
-    loading_fill: _style({
+    loading_fill: default_style({
       $name: "loading_fill",
       width: "100%",
       height: "100%",
@@ -113,7 +129,7 @@ export const uiBuiltins = () => ({
       transform: "scaleX(var(--loading_progress))",
       transform_origin: "left",
     }),
-    screen: _style({
+    screen: default_style({
       $name: "screen",
       position: "absolute",
       inset: "0",
@@ -122,21 +138,21 @@ export const uiBuiltins = () => ({
         pointer_events: "none",
       },
     }),
-    background: _style({
+    background: default_style({
       $name: "background",
       position: "absolute",
       inset: "0",
       display: "flex",
       flex_direction: "column",
     }),
-    backdrop: _style({
+    backdrop: default_style({
       $name: "backdrop",
       position: "absolute",
       inset: "0",
       background_position: "center",
       background_size: "cover",
     }),
-    portrait: _style({
+    portrait: default_style({
       $name: "portrait",
       position: "absolute",
       top: "10%",
@@ -148,7 +164,7 @@ export const uiBuiltins = () => ({
       background_size: "auto 100%",
       background_position: "center",
     }),
-    choices: _style({
+    choices: default_style({
       $name: "choices",
       position: "relative",
       flex: "1",
@@ -180,37 +196,37 @@ export const uiBuiltins = () => ({
       },
       "@screen(sm)": { margin_bottom: "120px", font_size: "1rem" },
     }),
-    choice_0: _style({
+    choice_0: default_style({
       $name: "choice_0",
       display: "flex",
       flex_direction: "row",
     }),
-    choice_1: _style({
+    choice_1: default_style({
       $name: "choice_1",
       display: "flex",
       flex_direction: "row",
     }),
-    choice_2: _style({
+    choice_2: default_style({
       $name: "choice_2",
       display: "flex",
       flex_direction: "row",
     }),
-    choice_3: _style({
+    choice_3: default_style({
       $name: "choice_3",
       display: "flex",
       flex_direction: "row",
     }),
-    choice_4: _style({
+    choice_4: default_style({
       $name: "choice_4",
       display: "flex",
       flex_direction: "row",
     }),
-    choice_5: _style({
+    choice_5: default_style({
       $name: "choice_5",
       display: "flex",
       flex_direction: "row",
     }),
-    textbox: _style({
+    textbox: default_style({
       $name: "textbox",
       position: "absolute",
       bottom: "0",
@@ -222,14 +238,14 @@ export const uiBuiltins = () => ({
       color: "white",
       flex: 1,
     }),
-    textbox_background: _style({
+    textbox_background: default_style({
       $name: "textbox_background",
       position: "absolute",
       inset: "0",
       background_image:
         "linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%)",
     }),
-    textbox_content: _style({
+    textbox_content: default_style({
       $name: "textbox_content",
       position: "relative",
       flex: "1",
@@ -247,7 +263,7 @@ export const uiBuiltins = () => ({
         padding: "16px",
       },
     }),
-    character_info: _style({
+    character_info: default_style({
       $name: "character_info",
       display: "flex",
       flex_direction: "row",
@@ -258,25 +274,25 @@ export const uiBuiltins = () => ({
       font_size: "1.875rem",
       "@screen(sm)": { font_size: "1.5rem" },
     }),
-    character_name: _style({
+    character_name: default_style({
       $name: "character_name",
       padding_bottom: "8px",
       font_weight: "600px",
     }),
-    character_parenthetical: _style({
+    character_parenthetical: default_style({
       $name: "character_parenthetical",
       padding_bottom: "8px",
       font_weight: "400px",
       font_size: "1rem",
       "@screen(sm)": { font_size: "0.875rem" },
     }),
-    dialogue: _style({
+    dialogue: default_style({
       $name: "dialogue",
       margin: "0 auto",
       width: "68%",
       "@screen(sm)": { width: "80%" },
     }),
-    action: _style({
+    action: default_style({
       $name: "action",
       position: "absolute",
       inset: "0",
@@ -286,7 +302,7 @@ export const uiBuiltins = () => ({
       align_self: "center",
       text_align: "center",
     }),
-    transition: _style({
+    transition: default_style({
       $name: "transition",
       position: "absolute",
       inset: "0",
@@ -300,7 +316,7 @@ export const uiBuiltins = () => ({
       text_align: "right",
       width: "100%",
     }),
-    scene: _style({
+    scene: default_style({
       $name: "scene",
       position: "absolute",
       inset: "0",
@@ -311,7 +327,7 @@ export const uiBuiltins = () => ({
       text_align: "center",
       font_weight: "bold",
     }),
-    continue_indicator: _style({
+    continue_indicator: default_style({
       $name: "continue_indicator",
       opacity: "0",
       line_height: "1",
@@ -324,16 +340,16 @@ export const uiBuiltins = () => ({
       animation: "0.5s infinite bounce",
       animation_play_state: "paused",
     }),
-  } as Record<string, ReturnType<typeof _style>>,
+  } as Record<string, ReturnType<typeof default_style>>,
   ui: {
-    $default: _ui({ $name: "$default" }),
-    loading: _ui({
+    $default: default_ui(),
+    loading: default_ui({
       $name: "loading",
       loading_bar: {
         loading_fill: {},
       },
     }),
-    stage: _ui({
+    stage: default_ui({
       $name: "stage",
       background: {
         backdrop: {
@@ -399,21 +415,10 @@ export const uiBuiltins = () => ({
       },
       screen: {},
     }),
-  } as Record<string, ReturnType<typeof _ui>>,
+  } as Record<string, ReturnType<typeof default_ui>>,
   animation: {
-    $default: _animation({
-      $name: "$default",
-      keyframes: [],
-      timing: {
-        delay: 0,
-        duration: 0,
-        easing: "ease",
-        iterations: 1,
-        fill: "both",
-        direction: "normal",
-      },
-    }),
-    show: _animation({
+    $default: default_animation(),
+    show: default_animation({
       $name: "show",
       keyframes: [{ opacity: "1" }],
       timing: {
@@ -422,7 +427,7 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-    hide: _animation({
+    hide: default_animation({
       $name: "hide",
       keyframes: [{ opacity: "0" }],
       timing: {
@@ -431,7 +436,7 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-    spin: _animation({
+    spin: default_animation({
       $name: "spin",
       keyframes: [{ transform: "rotate(360deg)" }],
       timing: {
@@ -440,7 +445,7 @@ export const uiBuiltins = () => ({
         fill: "none",
       },
     }),
-    ping: _animation({
+    ping: default_animation({
       $name: "ping",
       keyframes: [
         {
@@ -456,7 +461,7 @@ export const uiBuiltins = () => ({
       ],
       timing: {},
     }),
-    bounce: _animation({
+    bounce: default_animation({
       $name: "bounce",
       keyframes: [
         {
@@ -477,7 +482,7 @@ export const uiBuiltins = () => ({
         fill: "none",
       },
     }),
-    wave: _animation({
+    wave: default_animation({
       $name: "wave",
       keyframes: [
         {
@@ -495,7 +500,7 @@ export const uiBuiltins = () => ({
         easing: "ease-in-out",
       },
     }),
-    wavy: _animation({
+    wavy: default_animation({
       $name: "wavy",
       keyframes: [
         {
@@ -515,7 +520,7 @@ export const uiBuiltins = () => ({
         fill: "none",
       },
     }),
-    shaky: _animation({
+    shaky: default_animation({
       $name: "shaky",
       keyframes: [
         {
@@ -570,7 +575,7 @@ export const uiBuiltins = () => ({
         fill: "none",
       },
     }),
-    shake: _animation({
+    shake: default_animation({
       $name: "shake",
       keyframes: [
         {
@@ -613,7 +618,7 @@ export const uiBuiltins = () => ({
         fill: "none",
       },
     }),
-    shaking: _animation({
+    shaking: default_animation({
       $name: "shaking",
       keyframes: [
         {
@@ -656,7 +661,7 @@ export const uiBuiltins = () => ({
         iterations: "infinite",
       },
     }),
-    shiver: _animation({
+    shiver: default_animation({
       $name: "shiver",
       keyframes: [
         {
@@ -699,7 +704,7 @@ export const uiBuiltins = () => ({
         fill: "none",
       },
     }),
-    shivering: _animation({
+    shivering: default_animation({
       $name: "shivering",
       keyframes: [
         {
@@ -743,7 +748,7 @@ export const uiBuiltins = () => ({
         fill: "none",
       },
     }),
-    waitout: _animation({
+    waitout: default_animation({
       $name: "waitout",
       keyframes: [
         {
@@ -756,7 +761,7 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-    waitin: _animation({
+    waitin: default_animation({
       $name: "waitin",
       keyframes: [
         {
@@ -769,7 +774,7 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-    fadeout: _animation({
+    fadeout: default_animation({
       $name: "fadeout",
       keyframes: [
         {
@@ -782,7 +787,7 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-    fadein: _animation({
+    fadein: default_animation({
       $name: "fadein",
       keyframes: [
         {
@@ -795,7 +800,7 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-    pulse: _animation({
+    pulse: default_animation({
       $name: "pulse",
       keyframes: [
         {
@@ -814,7 +819,7 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-    blackout: _animation({
+    blackout: default_animation({
       $name: "blackout",
       keyframes: [
         {
@@ -832,7 +837,7 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-    blackin: _animation({
+    blackin: default_animation({
       $name: "blackin",
       keyframes: [
         {
@@ -850,7 +855,7 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-    blackpulse: _animation({
+    blackpulse: default_animation({
       $name: "blackpulse",
       keyframes: [
         {
@@ -872,7 +877,7 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-    whiteout: _animation({
+    whiteout: default_animation({
       $name: "whiteout",
       keyframes: [
         {
@@ -890,7 +895,7 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-    whitein: _animation({
+    whitein: default_animation({
       $name: "whitein",
       keyframes: [
         {
@@ -908,7 +913,7 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-    whitepulse: _animation({
+    whitepulse: default_animation({
       $name: "whitepulse",
       keyframes: [
         {
@@ -930,33 +935,33 @@ export const uiBuiltins = () => ({
         fill: "both",
       },
     }),
-  } as Record<string, ReturnType<typeof _animation>>,
+  } as Record<string, ReturnType<typeof default_animation>>,
   transition: {
-    $default: _transition({ $name: "$default" }),
-    fade: _transition({
+    $default: default_transition(),
+    fade: default_transition({
       $name: "fade",
       on_hide: "fadeout",
       on_show: "fadein",
     }),
-    screenfade: _transition({
+    screenfade: default_transition({
       $name: "screenfade",
       on_hide: "waitout",
       on_show: "waitin",
       screen: "blackpulse",
     }),
-    screenflash: _transition({
+    screenflash: default_transition({
       $name: "screenflash",
       on_hide: "waitout",
       on_show: "waitin",
       screen: "whitepulse",
     }),
-  } as Record<string, ReturnType<typeof _transition>>,
+  } as Record<string, ReturnType<typeof default_transition>>,
   font: {
-    $default: _font({ $name: "$default" }),
-  } as Record<string, ReturnType<typeof _font>>,
+    $default: default_font(),
+  } as Record<string, ReturnType<typeof default_font>>,
   shadow: {
-    $default: _shadow({ $name: "$default" }),
-    xs: _shadow({
+    $default: default_shadow(),
+    xs: default_shadow({
       $name: "xs",
       layers: [
         {
@@ -977,7 +982,7 @@ export const uiBuiltins = () => ({
         },
       ],
     }),
-    sm: _shadow({
+    sm: default_shadow({
       $name: "sm",
       layers: [
         {
@@ -998,7 +1003,7 @@ export const uiBuiltins = () => ({
         },
       ],
     }),
-    md: _shadow({
+    md: default_shadow({
       $name: "md",
       layers: [
         {
@@ -1019,7 +1024,7 @@ export const uiBuiltins = () => ({
         },
       ],
     }),
-    lg: _shadow({
+    lg: default_shadow({
       $name: "lg",
       layers: [
         {
@@ -1040,7 +1045,7 @@ export const uiBuiltins = () => ({
         },
       ],
     }),
-    xl: _shadow({
+    xl: default_shadow({
       $name: "xl",
       layers: [
         {
@@ -1061,104 +1066,240 @@ export const uiBuiltins = () => ({
         },
       ],
     }),
-  } as Record<string, ReturnType<typeof _shadow>>,
+  } as Record<string, ReturnType<typeof default_shadow>>,
   ease: {
-    $default: _ease({ $name: "$default" }),
-    none: _ease({
+    $default: default_ease(),
+    none: default_ease({
       $name: "none",
       x1: 0,
       y1: 0,
       x2: 0,
       y2: 0,
     }),
-    linear: _ease({
+    linear: default_ease({
       $name: "linear",
       x1: 0,
       y1: 0,
       x2: 1,
       y2: 1,
     }),
-    sine_in: _ease({ $name: "sine_in", x1: 0.12, y1: 0, x2: 0.39, y2: 0 }),
-    sine_out: _ease({ $name: "sine_out", x1: 0.61, y1: 1, x2: 0.88, y2: 1 }),
-    sine_in_out: _ease({
+    sine_in: default_ease({
+      $name: "sine_in",
+      x1: 0.12,
+      y1: 0,
+      x2: 0.39,
+      y2: 0,
+    }),
+    sine_out: default_ease({
+      $name: "sine_out",
+      x1: 0.61,
+      y1: 1,
+      x2: 0.88,
+      y2: 1,
+    }),
+    sine_in_out: default_ease({
       $name: "sine_in_out",
       x1: 0.37,
       y1: 0,
       x2: 0.63,
       y2: 1,
     }),
-    quad_in: _ease({ $name: "quad_in", x1: 0.11, y1: 0, x2: 0.5, y2: 0 }),
-    quad_out: _ease({ $name: "quad_out", x1: 0.5, y1: 1, x2: 0.89, y2: 1 }),
-    quad_in_out: _ease({
+    quad_in: default_ease({
+      $name: "quad_in",
+      x1: 0.11,
+      y1: 0,
+      x2: 0.5,
+      y2: 0,
+    }),
+    quad_out: default_ease({
+      $name: "quad_out",
+      x1: 0.5,
+      y1: 1,
+      x2: 0.89,
+      y2: 1,
+    }),
+    quad_in_out: default_ease({
       $name: "quad_in_out",
       x1: 0.45,
       y1: 0,
       x2: 0.55,
       y2: 1,
     }),
-    cubic_in: _ease({ $name: "cubic_in", x1: 0.32, y1: 0, x2: 0.67, y2: 0 }),
-    cubic_out: _ease({ $name: "cubic_out", x1: 0.33, y1: 1, x2: 0.68, y2: 1 }),
-    cubic_in_out: _ease({
+    cubic_in: default_ease({
+      $name: "cubic_in",
+      x1: 0.32,
+      y1: 0,
+      x2: 0.67,
+      y2: 0,
+    }),
+    cubic_out: default_ease({
+      $name: "cubic_out",
+      x1: 0.33,
+      y1: 1,
+      x2: 0.68,
+      y2: 1,
+    }),
+    cubic_in_out: default_ease({
       $name: "cubic_in_out",
       x1: 0.65,
       y1: 0,
       x2: 0.35,
       y2: 1,
     }),
-    quart_in: _ease({ $name: "quart_in", x1: 0.5, y1: 0, x2: 0.75, y2: 0 }),
-    quart_out: _ease({ $name: "quart_out", x1: 0.25, y1: 1, x2: 0.5, y2: 1 }),
-    quart_in_out: _ease({
+    quart_in: default_ease({
+      $name: "quart_in",
+      x1: 0.5,
+      y1: 0,
+      x2: 0.75,
+      y2: 0,
+    }),
+    quart_out: default_ease({
+      $name: "quart_out",
+      x1: 0.25,
+      y1: 1,
+      x2: 0.5,
+      y2: 1,
+    }),
+    quart_in_out: default_ease({
       $name: "quart_in_out",
       x1: 0.76,
       y1: 0,
       x2: 0.24,
       y2: 1,
     }),
-    quint_in: _ease({ $name: "quint_in", x1: 0.64, y1: 0, x2: 0.78, y2: 0 }),
-    quint_out: _ease({ $name: "quint_out", x1: 0.22, y1: 1, x2: 0.36, y2: 1 }),
-    quint_in_out: _ease({
+    quint_in: default_ease({
+      $name: "quint_in",
+      x1: 0.64,
+      y1: 0,
+      x2: 0.78,
+      y2: 0,
+    }),
+    quint_out: default_ease({
+      $name: "quint_out",
+      x1: 0.22,
+      y1: 1,
+      x2: 0.36,
+      y2: 1,
+    }),
+    quint_in_out: default_ease({
       $name: "quint_in_out",
       x1: 0.83,
       y1: 0,
       x2: 0.17,
       y2: 1,
     }),
-    expo_in: _ease({ $name: "expo_in", x1: 0.7, y1: 0, x2: 0.84, y2: 0 }),
-    expo_out: _ease({ $name: "expo_out", x1: 0.16, y1: 1, x2: 0.3, y2: 1 }),
-    expo_in_out: _ease({
+    expo_in: default_ease({
+      $name: "expo_in",
+      x1: 0.7,
+      y1: 0,
+      x2: 0.84,
+      y2: 0,
+    }),
+    expo_out: default_ease({
+      $name: "expo_out",
+      x1: 0.16,
+      y1: 1,
+      x2: 0.3,
+      y2: 1,
+    }),
+    expo_in_out: default_ease({
       $name: "expo_in_out",
       x1: 0.87,
       y1: 0,
       x2: 0.13,
       y2: 1,
     }),
-    circ_in: _ease({ $name: "circ_in", x1: 0.55, y1: 0, x2: 1, y2: 0.45 }),
-    circ_out: _ease({ $name: "circ_out", x1: 0, y1: 0.55, x2: 0.45, y2: 1 }),
-    circ_in_out: _ease({
+    circ_in: default_ease({
+      $name: "circ_in",
+      x1: 0.55,
+      y1: 0,
+      x2: 1,
+      y2: 0.45,
+    }),
+    circ_out: default_ease({
+      $name: "circ_out",
+      x1: 0,
+      y1: 0.55,
+      x2: 0.45,
+      y2: 1,
+    }),
+    circ_in_out: default_ease({
       $name: "circ_in_out",
       x1: 0.85,
       y1: 0,
       x2: 0.15,
       y2: 1,
     }),
-    back_in: _ease({ $name: "back_in", x1: 0.36, y1: 0, x2: 0.66, y2: -0.56 }),
-    back_out: _ease({ $name: "back_out", x1: 0.34, y1: 1.56, x2: 0.64, y2: 1 }),
-    back_in_out: _ease({
+    back_in: default_ease({
+      $name: "back_in",
+      x1: 0.36,
+      y1: 0,
+      x2: 0.66,
+      y2: -0.56,
+    }),
+    back_out: default_ease({
+      $name: "back_out",
+      x1: 0.34,
+      y1: 1.56,
+      x2: 0.64,
+      y2: 1,
+    }),
+    back_in_out: default_ease({
       $name: "back_in_out",
       x1: 0.68,
       y1: -0.6,
       x2: 0.32,
       y2: 1.6,
     }),
-  } as Record<string, ReturnType<typeof _ease>>,
+  } as Record<string, ReturnType<typeof default_ease>>,
   gradient: {
-    $default: _gradient({ $name: "$default" }),
-  } as Record<string, ReturnType<typeof _gradient>>,
+    $default: default_gradient(),
+  } as Record<string, ReturnType<typeof default_gradient>>,
   graphic: {
-    $default: _graphic({
-      $name: "$default",
-    }),
-  } as Record<string, ReturnType<typeof _graphic>>,
+    $default: default_graphic(),
+  } as Record<string, ReturnType<typeof default_graphic>>,
 });
 
-export type UIBuiltins = ReturnType<typeof uiBuiltins>;
+export const uiSchemaDefinitions = () => ({
+  ease: {
+    $schema: schema_ease(),
+  } as Record<string, ReturnType<typeof schema_ease>>,
+  font: {
+    $schema: schema_font(),
+  } as Record<string, ReturnType<typeof schema_font>>,
+  style: {
+    $schema: schema_style(),
+  } as Record<string, ReturnType<typeof schema_style>>,
+  shadow: {
+    $schema: schema_shadow(),
+  } as Record<string, ReturnType<typeof schema_shadow>>,
+  graphic: {
+    $schema: schema_graphic(),
+  } as Record<string, ReturnType<typeof schema_graphic>>,
+  gradient: {
+    $schema: schema_gradient(),
+  } as Record<string, ReturnType<typeof schema_gradient>>,
+});
+
+export const uiRandomDefinitions = () => ({
+  graphic: {
+    "$random:default": random_graphic_default(),
+    "$random:zigzag": random_graphic_zigzag(),
+    "$random:bubble": random_graphic_bubble(),
+    "$random:circle": random_graphic_circle(),
+    "$random:grid": random_graphic_grid(),
+    "$random:herringbone": random_graphic_herringbone(),
+    "$random:flower": random_graphic_flower(),
+    "$random:equal": random_graphic_equal(),
+    "$random:mat": random_graphic_mat(),
+    "$random:memphis": random_graphic_memphis(),
+    "$random:net": random_graphic_net(),
+    "$random:octagon": random_graphic_octagon(),
+    "$random:plus": random_graphic_plus(),
+    "$random:brick": random_graphic_brick(),
+    "$random:tile": random_graphic_tile(),
+    "$random:wave": random_graphic_wave(),
+  } as Record<string, ReturnType<typeof random_graphic_default>>,
+});
+
+export type UIBuiltins = ReturnType<typeof uiBuiltinDefinitions>;

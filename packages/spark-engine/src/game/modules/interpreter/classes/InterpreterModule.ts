@@ -2,7 +2,7 @@ import { Module } from "../../../core/classes/Module";
 import type { Instructions } from "../../../core/types/Instructions";
 import {
   InterpreterBuiltins as InterpreterBuiltins,
-  interpreterBuiltins,
+  interpreterBuiltinDefinitions,
 } from "../interpreterBuiltins";
 import { Phrase } from "../types/Phrase";
 import { Chunk } from "../types/Chunk";
@@ -72,7 +72,7 @@ export class InterpreterModule extends Module<
   protected _targetPrefixes: string[] = [];
 
   override getBuiltins() {
-    return interpreterBuiltins();
+    return interpreterBuiltinDefinitions();
   }
 
   override getStored() {

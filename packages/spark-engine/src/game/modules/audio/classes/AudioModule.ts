@@ -1,6 +1,6 @@
 import { Module } from "../../../core/classes/Module";
 import { AudioInstruction } from "../../../core/types/Instruction";
-import { AudioBuiltins, audioBuiltins } from "../audioBuiltins";
+import { AudioBuiltins, audioBuiltinDefinitions } from "../audioBuiltins";
 import { AudioMixerUpdate } from "../types/AudioMixerUpdate";
 import { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
 import { ChannelState } from "../types/ChannelState";
@@ -46,7 +46,7 @@ export class AudioModule extends Module<
   }
 
   override getBuiltins() {
-    return audioBuiltins();
+    return audioBuiltinDefinitions();
   }
 
   override getStored() {

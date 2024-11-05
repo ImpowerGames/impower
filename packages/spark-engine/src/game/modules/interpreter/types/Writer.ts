@@ -1,4 +1,6 @@
-export interface Writer {
+import { Reference } from "../../../core/types/Reference";
+
+export interface Writer extends Reference<"writer"> {
   clear_on_continue: boolean;
   fade_duration: number;
   animation_offset: number;

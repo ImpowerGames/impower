@@ -14,7 +14,7 @@ import { ElementContent } from "../types/ElementContent";
 import { ElementState } from "../types/ElementState";
 import { ImageState } from "../types/ImageState";
 import { TextState } from "../types/TextState";
-import { UIBuiltins, uiBuiltins } from "../uiBuiltins";
+import { UIBuiltins, uiBuiltinDefinitions } from "../uiBuiltins";
 import { Element } from "./helpers/Element";
 import {
   AnimateElementsMessage,
@@ -77,7 +77,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override getBuiltins() {
-    return uiBuiltins();
+    return uiBuiltinDefinitions();
   }
 
   override getStored(): string[] {

@@ -1,4 +1,4 @@
-import { CoreBuiltins, coreBuiltins } from "../coreBuiltins";
+import { CoreBuiltins, coreBuiltinDefinitions } from "../coreBuiltins";
 import { Module } from "./Module";
 
 export interface CoreConfig {}
@@ -13,7 +13,7 @@ export class CoreModule extends Module<
   CoreBuiltins
 > {
   override getBuiltins() {
-    return coreBuiltins();
+    return coreBuiltinDefinitions();
   }
 
   override getStored() {

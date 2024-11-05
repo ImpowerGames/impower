@@ -1,5 +1,5 @@
-import { RecursiveRandomization } from "../types/RecursiveRandomization";
-import { RecursiveValidation } from "../types/RecursiveValidation";
+import { Random } from "../types/Random";
+import { Schema } from "../types/Schema";
 import { clampedRandom } from "./clampedRandom";
 import { cull } from "./cull";
 import { getAllProperties } from "./getAllProperties";
@@ -9,8 +9,8 @@ import { setProperty } from "./setProperty";
 
 export const randomizeProperties = <T>(
   obj: T,
-  validation: RecursiveValidation<T>,
-  randomization: RecursiveRandomization<T>,
+  validation: Schema<T>,
+  randomization: Random<T>,
   cullProp?: string,
   rng?: () => number
 ): void => {

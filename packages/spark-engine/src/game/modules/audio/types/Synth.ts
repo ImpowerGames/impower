@@ -1,4 +1,5 @@
 import { RecursivePartial } from "../../../core/types/RecursivePartial";
+import { Reference } from "../../../core/types/Reference";
 import { OscillatorType } from "./OscillatorType";
 
 export interface Modulator {
@@ -10,7 +11,7 @@ export interface Modulator {
   strength_ramp: number;
 }
 
-export interface Synth {
+export interface Synth extends Reference<"synth"> {
   name?: string;
   shape: OscillatorType;
   volume: number;

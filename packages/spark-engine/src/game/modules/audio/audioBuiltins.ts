@@ -1,31 +1,36 @@
-import { _audio } from "./constructors/_audio";
-import { _layeredAudio } from "./constructors/_layeredAudio";
-import { _channel } from "./constructors/_channel";
-import { _mixer } from "./constructors/_mixer";
-import { _synth } from "./constructors/_synth";
+import { default_audio } from "./constructors/default_audio";
+import { default_layered_audio } from "./constructors/default_layered_audio";
+import { default_channel } from "./constructors/default_channel";
+import { default_mixer } from "./constructors/default_mixer";
+import { default_synth } from "./constructors/default_synth";
+import { schema_synth } from "./constructors/schema_synth";
+import {
+  random_synth_beep,
+  random_synth_blip,
+  random_synth_boom,
+  random_synth_clack,
+  random_synth_coin,
+  random_synth_hurt,
+  random_synth_jump,
+  random_synth_lose,
+  random_synth_powerup,
+  random_synth_push,
+  random_synth,
+  random_synth_snap,
+  random_synth_tap,
+  random_synth_zap,
+} from "./constructors/random_synth";
 
-export const audioBuiltins = () => ({
+export const audioBuiltinDefinitions = () => ({
   audio: {
-    $default: _audio({
-      $name: "$default",
-    }),
-  } as Record<string, ReturnType<typeof _audio>>,
+    $default: default_audio(),
+  } as Record<string, ReturnType<typeof default_audio>>,
   layered_audio: {
-    $default: _layeredAudio({
-      $name: "$default",
-    }),
-  } as Record<string, ReturnType<typeof _layeredAudio>>,
+    $default: default_layered_audio(),
+  } as Record<string, ReturnType<typeof default_layered_audio>>,
   synth: {
-    $default: _synth({
-      $name: "$default",
-      envelope: {
-        attack: 0.007,
-        decay: 0.003,
-        sustain: 0.035,
-        release: 0.01,
-      },
-    }),
-    character: _synth({
+    $default: default_synth(),
+    character: default_synth({
       $name: "character",
       shape: "triangle",
       envelope: {
@@ -38,7 +43,7 @@ export const audioBuiltins = () => ({
         frequency: 440,
       },
     }),
-    writer: _synth({
+    writer: default_synth({
       $name: "writer",
       shape: "whitenoise",
       envelope: {
@@ -58,47 +63,67 @@ export const audioBuiltins = () => ({
         on: true,
       },
     }),
-  } as Record<string, ReturnType<typeof _synth>>,
+  } as Record<string, ReturnType<typeof default_synth>>,
   mixer: {
-    $default: _mixer({
-      $name: "$default",
-    }),
-    main: _mixer({
+    $default: default_mixer(),
+    main: default_mixer({
       $name: "main",
     }),
-    music: _mixer({
+    music: default_mixer({
       $name: "music",
     }),
-    sound: _mixer({
+    sound: default_mixer({
       $name: "sound",
     }),
-    writer: _mixer({
+    writer: default_mixer({
       $name: "writer",
     }),
-  } as Record<string, ReturnType<typeof _mixer>>,
+  } as Record<string, ReturnType<typeof default_mixer>>,
   channel: {
-    $default: _channel({
-      $name: "$default",
-      mixer: "",
-    }),
-    main: _channel({
+    $default: default_channel(),
+    main: default_channel({
       $name: "main",
       mixer: "main",
     }),
-    music: _channel({
+    music: default_channel({
       $name: "music",
       mixer: "music",
       loop: true,
     }),
-    sound: _channel({
+    sound: default_channel({
       $name: "sound",
       mixer: "sound",
     }),
-    writer: _channel({
+    writer: default_channel({
       $name: "writer",
       mixer: "sound",
     }),
-  } as Record<string, ReturnType<typeof _channel>>,
+  } as Record<string, ReturnType<typeof default_channel>>,
 });
 
-export type AudioBuiltins = ReturnType<typeof audioBuiltins>;
+export const audioSchemaDefinitions = () => ({
+  synth: {
+    $schema: schema_synth(),
+  } as Record<string, ReturnType<typeof schema_synth>>,
+});
+
+export const audioRandomDefinitions = () => ({
+  synth: {
+    $random: random_synth(),
+    "$random:coin": random_synth_coin(),
+    "$random:jump": random_synth_jump(),
+    "$random:powerup": random_synth_powerup(),
+    "$random:lose": random_synth_lose(),
+    "$random:zap": random_synth_zap(),
+    "$random:hurt": random_synth_hurt(),
+    "$random:boom": random_synth_boom(),
+    "$random:push": random_synth_push(),
+    "$random:blip": random_synth_blip(),
+    "$random:beep": random_synth_beep(),
+    "$random:tap": random_synth_tap(),
+    "$random:snap": random_synth_snap(),
+    "$random:clack": random_synth_clack(),
+  } as Record<string, ReturnType<typeof random_synth>>,
+});
+
+export type AudioBuiltins = ReturnType<typeof audioBuiltinDefinitions>;

@@ -1,11 +1,9 @@
-import { _filter } from "./constructors/_filter";
+import { default_filter } from "./constructors/default_filter";
 
-export const coreBuiltins = () => ({
+export const coreBuiltinDefinitions = () => ({
   filter: {
-    $default: _filter({
-      $name: "$default",
-    }),
-  } as Record<string, ReturnType<typeof _filter>>,
+    $default: default_filter(),
+  } as Record<string, ReturnType<typeof default_filter>>,
 });
 
-export type CoreBuiltins = ReturnType<typeof coreBuiltins>;
+export type CoreBuiltins = ReturnType<typeof coreBuiltinDefinitions>;
