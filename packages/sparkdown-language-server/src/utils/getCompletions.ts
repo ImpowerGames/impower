@@ -36,6 +36,33 @@ const IMAGE_CLAUSE_KEYWORDS =
 const AUDIO_CLAUSE_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS;
 
+const addTextTargetCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  insertTextPrefix = ""
+) => {
+  for (const [, v] of Object.entries(
+    program?.compiled?.structDefs?.["ui"] || {}
+  )) {
+    traverse(v, (fieldPath) => {
+      if (fieldPath.endsWith(".text")) {
+        const layer = fieldPath.split(".").at(-2);
+        if (layer) {
+          const completion: CompletionItem = {
+            label: layer,
+            insertText: insertTextPrefix + layer,
+            labelDetails: { description: "element" },
+            kind: CompletionItemKind.Constructor,
+          };
+          if (completion.label && !completions.has(completion.label)) {
+            completions.set(completion.label, completion);
+          }
+        }
+      }
+    });
+  }
+};
+
 const addImageTargetCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined
@@ -805,6 +832,19 @@ const getCompletions = (
     stack.some((n) => n?.type.name === "DialogueCharacter")
   ) {
     addCharacterCompletions(completions, program, document.uri, position.line);
+    return Array.from(completions.values());
+  }
+
+  // Write
+  if (stack[0]?.type.name === "WriteMark") {
+    addTextTargetCompletions(completions, program, " ");
+    return Array.from(completions.values());
+  }
+  if (
+    stack[0]?.type.name === "WriteMarkSeparator" ||
+    stack.some((n) => n?.type.name === "WriteTarget")
+  ) {
+    addTextTargetCompletions(completions, program);
     return Array.from(completions.values());
   }
 
