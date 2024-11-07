@@ -11,7 +11,6 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import { getAllProperties } from "@impower/spark-engine/src/game/core/utils/getAllProperties";
 import { SparkField } from "@impower/sparkdown/src/types/SparkField";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import { SparkTokenTagMap } from "@impower/sparkdown/src/types/SparkToken";
 import getProperty from "@impower/sparkdown/src/utils/getProperty";
 import isIdentifier from "@impower/sparkdown/src/utils/isIdentifier";
 import traverse from "@impower/sparkdown/src/utils/traverse";
@@ -26,6 +25,7 @@ import { printTree } from "../../../grammar-compiler/src/compiler";
 
 import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
+import { SparkLocation } from "@impower/sparkdown/src/types/SparkLocation";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
@@ -365,62 +365,70 @@ const addModulationCompletions = (
   }
 };
 
+const getClosestLineBefore = (
+  locations: SparkLocation[],
+  uri: string,
+  line: number
+) => {
+  let numLinesBefore: number | undefined = undefined;
+  let closestLineBefore: number | undefined = undefined;
+  for (const location of locations) {
+    if (location.uri === uri) {
+      const d = location.range.start.line - line;
+      if (d < 0) {
+        if (numLinesBefore === undefined || Math.abs(d) < numLinesBefore) {
+          numLinesBefore = Math.abs(d);
+          closestLineBefore = location.range.start.line;
+        }
+      }
+    }
+  }
+  return closestLineBefore;
+};
+
 const addCharacterCompletions = (
   completions: Map<string, CompletionItem>,
-  line: number,
   program: SparkProgram | undefined,
-  beforeText?: string
+  uri: string,
+  line: number,
+  insertTextPrefix: string = ""
 ) => {
-  const characters = Object.values(program?.metadata?.characters || {});
-  const recentCharactersSet = new Set<string>();
-  for (let i = line - 1; i >= 0; i -= 1) {
-    const dialogueCharacterName = program?.metadata?.lines?.[i]?.characterName;
-    if (
-      dialogueCharacterName &&
-      (!beforeText || dialogueCharacterName.startsWith(beforeText))
-    ) {
-      recentCharactersSet.add(dialogueCharacterName);
-    }
+  const recentCharacterEntries = Object.entries(
+    program?.metadata?.characters || {}
+  ).sort((a, b) => {
+    const [, aLocations] = a;
+    const aClosestLineBefore = getClosestLineBefore(aLocations, uri, line);
+    const aDistance =
+      aClosestLineBefore === undefined
+        ? 0
+        : Math.abs(aClosestLineBefore - line);
+    const [, bLocations] = b;
+    const bClosestLineBefore = getClosestLineBefore(bLocations, uri, line);
+    const bDistance =
+      bClosestLineBefore === undefined
+        ? 0
+        : Math.abs(bClosestLineBefore - line);
+    return aDistance - bDistance;
+  });
+  // Most recent character is the least likely to speak again,
+  // So move it to the end of the list
+  const mostRecentEntry = recentCharacterEntries.shift();
+  if (mostRecentEntry) {
+    recentCharacterEntries.push(mostRecentEntry);
   }
-  const recentCharacters = Array.from(recentCharactersSet);
-  if (recentCharacters.length > 1) {
-    const mostRecentCharacter = recentCharacters.shift();
-    if (mostRecentCharacter) {
-      recentCharacters.splice(1, 0, mostRecentCharacter);
-    }
-  }
-  const labelDetails = { description: "character" };
-  const kind = CompletionItemKind.Constant;
-  recentCharacters.forEach((name, index) => {
-    const sortText = index.toString().padStart(3, "0");
+  for (const [name] of recentCharacterEntries) {
+    const labelDetails = { description: "character" };
+    const kind = CompletionItemKind.Constant;
     const completion: CompletionItem = {
       label: name,
-      insertText: name + "\n",
+      insertText: insertTextPrefix + name + "\n",
       labelDetails,
       kind,
-      sortText,
     };
     if (completion.label && !completions.has(completion.label)) {
       completions.set(completion.label, completion);
     }
-  });
-  characters.forEach((character) => {
-    if (
-      character.lines?.[0] !== line &&
-      character.name &&
-      !recentCharactersSet.has(character.name)
-    ) {
-      const completion: CompletionItem = {
-        label: character.name,
-        insertText: character.name + "\n",
-        labelDetails,
-        kind,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
-    }
-  });
+  }
 };
 
 const addStructMapPropertyNameCompletions = (
@@ -625,9 +633,6 @@ const getCompletions = (
 
   const completions: Map<string, CompletionItem> = new Map();
 
-  const triggerKind = context?.triggerKind;
-  const triggerCharacter = context?.triggerCharacter;
-
   const pos = document.offsetAt(position);
   const stackIterator = tree.resolveStack(pos, side);
   const stack = [] as Node[];
@@ -635,12 +640,8 @@ const getCompletions = (
     stack.push(getNode(cur));
   }
 
-  console.log(printTree(tree, document.getText(), grammar.nodeNames));
-  console.log(
-    pos,
-    JSON.stringify(triggerCharacter),
-    stack.map((n) => n.type.name)
-  );
+  // console.log(printTree(tree, document.getText(), grammar.nodeNames));
+  console.log(stack.map((n) => n.type.name));
 
   if (!stack[0]) {
     return null;
@@ -788,6 +789,25 @@ const getCompletions = (
     }
   }
 
+  // Dialogue
+  if (stack[0]?.type.name === "DialogueMark") {
+    addCharacterCompletions(
+      completions,
+      program,
+      document.uri,
+      position.line,
+      " "
+    );
+    return Array.from(completions.values());
+  }
+  if (
+    stack[0]?.type.name === "DialogueMarkSeparator" ||
+    stack.some((n) => n?.type.name === "DialogueCharacter")
+  ) {
+    addCharacterCompletions(completions, program, document.uri, position.line);
+    return Array.from(completions.values());
+  }
+
   // const line = position?.line;
   // const lineText = getLineText(document, position);
   // const prevLineText = getLineText(document, position, -1);
@@ -803,27 +823,6 @@ const getCompletions = (
   // console.log(triggerCharacter, lineMetadata, JSON.stringify(beforeText));
 
   // if (scopes) {
-  //   if (
-  //     scopes.includes("action") &&
-  //     scopes.includes("text") &&
-  //     isEmptyLine(prevLineText) &&
-  //     isEmptyLine(nextLineText) &&
-  //     !trimmedBeforeText &&
-  //     !trimmedAfterText
-  //   ) {
-  //     return getCharacterCompletions(position.line, program);
-  //   }
-  //   if (
-  //     scopes.includes("dialogue") &&
-  //     scopes.includes("dialogue_character_name") &&
-  //     !trimmedAfterText
-  //   ) {
-  //     return getCharacterCompletions(
-  //       position.line,
-  //       program,
-  //       trimmedStartBeforeText
-  //     );
-  //   }
   //   if (scopes.includes("access_path")) {
   //     return getAccessPathCompletions(program, beforeText);
   //   }

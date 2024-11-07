@@ -1,5 +1,6 @@
 import { SparkDiagnostic } from "./SparkDiagnostic";
 import { SparkReference } from "./SparkReference";
+import { SparkLocation } from "./SparkLocation";
 import { SparkTranspilationOffset } from "./SparkTranspilationOffset";
 
 export interface SparkProgram {
@@ -8,7 +9,18 @@ export interface SparkProgram {
     listDefs?: any;
     structDefs?: { [type: string]: { [name: string]: any } };
   };
-  implicitDefs?: { [type: string]: { [name: string]: any } };
+  metadata?: {
+    characters?: Record<string, SparkLocation[]>;
+  };
+  implicitDefs?: {
+    [type: string]: { [name: string]: any };
+  };
+  declarations?: {
+    [accessPath: string]: SparkLocation;
+  };
+  definitions?: {
+    [accessPath: string]: SparkLocation;
+  };
   references?: {
     [uri: string]: { [line: number]: SparkReference[] };
   };

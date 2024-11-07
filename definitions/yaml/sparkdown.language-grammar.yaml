@@ -2051,22 +2051,25 @@ repository:
   InlineWrite:
     tag: string
     name: string.write.sd
-    begin: ({{WS}}*)([>](?:$|{{WS}}+))($|.*?)($|[:])($|{{WS}}*)
+    begin: ({{WS}}*)([>])($|{{WS}}+)($|.*?)($|[:])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: definition(typeName)
-        name: entity.name.type.write.target.name.sd
+        patterns:
+          - { include: "#WriteMark" }
       3:
+        patterns:
+          - { include: "#WriteMarkSeparator" }
+      4:
         patterns:
           - { include: "#Annotation" }
           - { include: "#WriteTarget" }
-      4:
+      5:
         tag: definition(separator)
         name: meta.template.expression.colon.sd
-      5:
+      6:
         tag: definition(typeName)
         name: entity.name.type.write.target.name.sd
     patterns:
@@ -2082,15 +2085,18 @@ repository:
   BlockWrite:
     tag: string
     name: string.write.sd
-    begin: ({{WS}}*)([>](?:$|{{WS}}+))($|[^:\r\n]+?)(?={{EOL}})
+    begin: ({{WS}}*)([>])($|{{WS}}+)($|[^:\r\n]+?)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: definition(typeName)
-        name: entity.name.type.write.target.name.sd
+        patterns:
+          - { include: "#WriteMark" }
       3:
+        patterns:
+          - { include: "#WriteMarkSeparator" }
+      4:
         patterns:
           - { include: "#Annotation" }
           - { include: "#WriteTarget" }
@@ -2100,6 +2106,16 @@ repository:
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!\1))|(?=^$)
+
+  WriteMark:
+    tag: definition(typeName)
+    name: entity.name.type.write.target.name.sd
+    match: (.+)
+
+  WriteMarkSeparator:
+    tag: definition(typeName)
+    name: entity.name.type.write.target.name.sd
+    match: (.+)
 
   WriteTarget:
     tag: typeName
@@ -2116,22 +2132,25 @@ repository:
   InlineDialogue:
     tag: string
     name: string.dialogue.sd
-    begin: ({{WS}}*)([@](?:$|{{WS}}+))($|.*?)($|[:])($|{{WS}}*)
+    begin: ({{WS}}*)([@])($|{{WS}}+)($|.*?)($|[:])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: definition(typeName)
-        name: entity.name.type.dialogue.character.name.sd
+        patterns:
+          - { include: "#DialogueMark" }
       3:
+        patterns:
+          - { include: "#DialogueMarkSeparator" }
+      4:
         patterns:
           - { include: "#Annotation" }
           - { include: "#DialogueCharacter" }
-      4:
+      5:
         tag: definition(separator)
         name: meta.template.expression.colon.sd
-      5:
+      6:
         tag: definition(typeName)
         name: entity.name.type.dialogue.character.name.sd
     patterns:
@@ -2147,15 +2166,18 @@ repository:
   BlockDialogue:
     tag: string
     name: string.dialogue.sd
-    begin: ({{WS}}*)([@](?:$|{{WS}}+))($|[^:\r\n]+?)(?={{EOL}})
+    begin: ({{WS}}*)([@])($|{{WS}}+)($|[^:\r\n]+?)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: definition(typeName)
-        name: entity.name.type.dialogue.character.name.sd
+        patterns:
+          - { include: "#DialogueMark" }
       3:
+        patterns:
+          - { include: "#DialogueMarkSeparator" }
+      4:
         patterns:
           - { include: "#Annotation" }
           - { include: "#DialogueCharacter" }
@@ -2165,6 +2187,16 @@ repository:
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!\1))|(?=^$)
+
+  DialogueMark:
+    tag: definition(typeName)
+    name: entity.name.type.dialogue.character.name.sd
+    match: (.+)
+
+  DialogueMarkSeparator:
+    tag: definition(typeName)
+    name: entity.name.type.dialogue.character.name.sd
+    match: (.+)
 
   DialogueCharacter:
     match: ({{WS}}*)(.*?)({{WS}}*)([(][^()]*?[)])?($|{{WS}}*)(\[.*?\])?({{WS}}*)({{EOL}})
@@ -2241,14 +2273,17 @@ repository:
   Transition:
     tag: labelName
     name: keyword.control.transition.sd
-    begin: ({{WS}}*)([%](?:$|{{WS}}+))
+    begin: ({{WS}}*)([%])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: definition(punctuation)
-        name: punctuation.transition.mark.sd
+        patterns:
+          - { include: "#TransitionMark" }
+      3:
+        patterns:
+          - { include: "#TransitionMarkSeparator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -2256,20 +2291,33 @@ repository:
       - { include: "#LineChain" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
+
+  TransitionMark:
+    tag: definition(punctuation)
+    name: punctuation.transition.mark.sd
+    match: (.+)
+
+  TransitionMarkSeparator:
+    tag: definition(punctuation)
+    name: punctuation.transition.mark.sd
+    match: (.+)
 
   ########## Scene ##########
 
   Scene:
     tag: regexp
     name: string.regexp.scene.sd
-    begin: ({{WS}}*)([$](?:$|{{WS}}+))
+    begin: ({{WS}}*)([$])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: definition(punctuation)
-        name: punctuation.transition.mark.sd
+        patterns:
+          - { include: "#SceneMark" }
+      3:
+        patterns:
+          - { include: "#SceneMarkSeparator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -2277,6 +2325,16 @@ repository:
       - { include: "#LineChain" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
+
+  SceneMark:
+    tag: definition(punctuation)
+    name: punctuation.scene.mark.sd
+    match: (.+)
+
+  SceneMarkSeparator:
+    tag: definition(punctuation)
+    name: punctuation.scene.mark.sd
+    match: (.+)
 
   SceneLocationTime:
     match: INT[.]?[\/]EXT[.]|INT[.]|EXT[.]{{WS}}*(.*?){{WS}}+[-]{{WS}}+(.*?){{WS}}*$
@@ -2284,7 +2342,7 @@ repository:
   ########## Action ##########
 
   Action:
-    begin: ({{WS}}*)([<][>]|[!](?:$|{{WS}}+))?({{WS}}*)(?=\S)
+    begin: ({{WS}}*)(?:([<][>])|([!])($|{{WS}}+))?({{WS}}*)(?=\S)
     beginCaptures:
       1:
         patterns:
@@ -2292,8 +2350,13 @@ repository:
       2:
         patterns:
           - { include: "#Glue" }
-          - { include: "#ActionMark" }
       3:
+        patterns:
+          - { include: "#ActionMark" }
+      4:
+        patterns:
+          - { include: "#ActionMarkSeparator" }
+      5:
         patterns:
           - { include: "#Whitespace" }
     patterns:
@@ -2307,6 +2370,11 @@ repository:
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
 
   ActionMark:
+    tag: definition(content)
+    name: markup.raw.text.sd
+    match: (.+)
+
+  ActionMarkSeparator:
     tag: definition(content)
     name: markup.raw.text.sd
     match: (.+)

@@ -3601,7 +3601,7 @@
     "InlineWrite": {
       "tag": "string",
       "name": "string.write.sd",
-      "begin": "([^\\S\\n\\r]*)([>](?:$|[^\\S\\n\\r]+))($|.*?)($|[:])($|[^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)([>])($|[^\\S\\n\\r]+)($|.*?)($|[:])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3611,10 +3611,20 @@
           ]
         },
         "2": {
-          "tag": "definition(typeName)",
-          "name": "entity.name.type.write.target.name.sd"
+          "patterns": [
+            {
+              "include": "#WriteMark"
+            }
+          ]
         },
         "3": {
+          "patterns": [
+            {
+              "include": "#WriteMarkSeparator"
+            }
+          ]
+        },
+        "4": {
           "patterns": [
             {
               "include": "#Annotation"
@@ -3624,11 +3634,11 @@
             }
           ]
         },
-        "4": {
+        "5": {
           "tag": "definition(separator)",
           "name": "meta.template.expression.colon.sd"
         },
-        "5": {
+        "6": {
           "tag": "definition(typeName)",
           "name": "entity.name.type.write.target.name.sd"
         }
@@ -3661,7 +3671,7 @@
     "BlockWrite": {
       "tag": "string",
       "name": "string.write.sd",
-      "begin": "([^\\S\\n\\r]*)([>](?:$|[^\\S\\n\\r]+))($|[^:\\r\\n]+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "([^\\S\\n\\r]*)([>])($|[^\\S\\n\\r]+)($|[^:\\r\\n]+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3671,10 +3681,20 @@
           ]
         },
         "2": {
-          "tag": "definition(typeName)",
-          "name": "entity.name.type.write.target.name.sd"
+          "patterns": [
+            {
+              "include": "#WriteMark"
+            }
+          ]
         },
         "3": {
+          "patterns": [
+            {
+              "include": "#WriteMarkSeparator"
+            }
+          ]
+        },
+        "4": {
           "patterns": [
             {
               "include": "#Annotation"
@@ -3701,6 +3721,16 @@
       ],
       "end": "(?=^(?!\\1))|(?=^$)"
     },
+    "WriteMark": {
+      "tag": "definition(typeName)",
+      "name": "entity.name.type.write.target.name.sd",
+      "match": "(.+)"
+    },
+    "WriteMarkSeparator": {
+      "tag": "definition(typeName)",
+      "name": "entity.name.type.write.target.name.sd",
+      "match": "(.+)"
+    },
     "WriteTarget": {
       "tag": "typeName",
       "name": "entity.name.type.write.target.name.sd",
@@ -3719,7 +3749,7 @@
     "InlineDialogue": {
       "tag": "string",
       "name": "string.dialogue.sd",
-      "begin": "([^\\S\\n\\r]*)([@](?:$|[^\\S\\n\\r]+))($|.*?)($|[:])($|[^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)([@])($|[^\\S\\n\\r]+)($|.*?)($|[:])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3729,10 +3759,20 @@
           ]
         },
         "2": {
-          "tag": "definition(typeName)",
-          "name": "entity.name.type.dialogue.character.name.sd"
+          "patterns": [
+            {
+              "include": "#DialogueMark"
+            }
+          ]
         },
         "3": {
+          "patterns": [
+            {
+              "include": "#DialogueMarkSeparator"
+            }
+          ]
+        },
+        "4": {
           "patterns": [
             {
               "include": "#Annotation"
@@ -3742,11 +3782,11 @@
             }
           ]
         },
-        "4": {
+        "5": {
           "tag": "definition(separator)",
           "name": "meta.template.expression.colon.sd"
         },
-        "5": {
+        "6": {
           "tag": "definition(typeName)",
           "name": "entity.name.type.dialogue.character.name.sd"
         }
@@ -3779,7 +3819,7 @@
     "BlockDialogue": {
       "tag": "string",
       "name": "string.dialogue.sd",
-      "begin": "([^\\S\\n\\r]*)([@](?:$|[^\\S\\n\\r]+))($|[^:\\r\\n]+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "([^\\S\\n\\r]*)([@])($|[^\\S\\n\\r]+)($|[^:\\r\\n]+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3789,10 +3829,20 @@
           ]
         },
         "2": {
-          "tag": "definition(typeName)",
-          "name": "entity.name.type.dialogue.character.name.sd"
+          "patterns": [
+            {
+              "include": "#DialogueMark"
+            }
+          ]
         },
         "3": {
+          "patterns": [
+            {
+              "include": "#DialogueMarkSeparator"
+            }
+          ]
+        },
+        "4": {
           "patterns": [
             {
               "include": "#Annotation"
@@ -3818,6 +3868,16 @@
         }
       ],
       "end": "(?=^(?!\\1))|(?=^$)"
+    },
+    "DialogueMark": {
+      "tag": "definition(typeName)",
+      "name": "entity.name.type.dialogue.character.name.sd",
+      "match": "(.+)"
+    },
+    "DialogueMarkSeparator": {
+      "tag": "definition(typeName)",
+      "name": "entity.name.type.dialogue.character.name.sd",
+      "match": "(.+)"
     },
     "DialogueCharacter": {
       "match": "([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)([(][^()]*?[)])?($|[^\\S\\n\\r]*)(\\[.*?\\])?([^\\S\\n\\r]*)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
@@ -3950,7 +4010,7 @@
     "Transition": {
       "tag": "labelName",
       "name": "keyword.control.transition.sd",
-      "begin": "([^\\S\\n\\r]*)([%](?:$|[^\\S\\n\\r]+))",
+      "begin": "([^\\S\\n\\r]*)([%])($|[^\\S\\n\\r]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3960,8 +4020,18 @@
           ]
         },
         "2": {
-          "tag": "definition(punctuation)",
-          "name": "punctuation.transition.mark.sd"
+          "patterns": [
+            {
+              "include": "#TransitionMark"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#TransitionMarkSeparator"
+            }
+          ]
         }
       },
       "patterns": [
@@ -3983,10 +4053,20 @@
       ],
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
     },
+    "TransitionMark": {
+      "tag": "definition(punctuation)",
+      "name": "punctuation.transition.mark.sd",
+      "match": "(.+)"
+    },
+    "TransitionMarkSeparator": {
+      "tag": "definition(punctuation)",
+      "name": "punctuation.transition.mark.sd",
+      "match": "(.+)"
+    },
     "Scene": {
       "tag": "regexp",
       "name": "string.regexp.scene.sd",
-      "begin": "([^\\S\\n\\r]*)([$](?:$|[^\\S\\n\\r]+))",
+      "begin": "([^\\S\\n\\r]*)([$])($|[^\\S\\n\\r]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3996,8 +4076,18 @@
           ]
         },
         "2": {
-          "tag": "definition(punctuation)",
-          "name": "punctuation.transition.mark.sd"
+          "patterns": [
+            {
+              "include": "#SceneMark"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#SceneMarkSeparator"
+            }
+          ]
         }
       },
       "patterns": [
@@ -4018,12 +4108,22 @@
         }
       ],
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
+    },
+    "SceneMark": {
+      "tag": "definition(punctuation)",
+      "name": "punctuation.scene.mark.sd",
+      "match": "(.+)"
+    },
+    "SceneMarkSeparator": {
+      "tag": "definition(punctuation)",
+      "name": "punctuation.scene.mark.sd",
+      "match": "(.+)"
     },
     "SceneLocationTime": {
       "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][^\\S\\n\\r]*(.*?)[^\\S\\n\\r]+[-][^\\S\\n\\r]+(.*?)[^\\S\\n\\r]*$"
     },
     "Action": {
-      "begin": "([^\\S\\n\\r]*)([<][>]|[!](?:$|[^\\S\\n\\r]+))?([^\\S\\n\\r]*)(?=\\S)",
+      "begin": "([^\\S\\n\\r]*)(?:([<][>])|([!])($|[^\\S\\n\\r]+))?([^\\S\\n\\r]*)(?=\\S)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4036,13 +4136,24 @@
           "patterns": [
             {
               "include": "#Glue"
-            },
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
             {
               "include": "#ActionMark"
             }
           ]
         },
-        "3": {
+        "4": {
+          "patterns": [
+            {
+              "include": "#ActionMarkSeparator"
+            }
+          ]
+        },
+        "5": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -4076,6 +4187,11 @@
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
     },
     "ActionMark": {
+      "tag": "definition(content)",
+      "name": "markup.raw.text.sd",
+      "match": "(.+)"
+    },
+    "ActionMarkSeparator": {
       "tag": "definition(content)",
       "name": "markup.raw.text.sd",
       "match": "(.+)"
