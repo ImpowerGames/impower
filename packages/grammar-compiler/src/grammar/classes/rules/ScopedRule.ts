@@ -97,9 +97,9 @@ export default class ScopedRule implements Rule {
       return beginMatched;
     }
 
-    const beginChildren: Matched[] = [];
-    let contentChildren: Matched[] = [];
-    const endChildren: Matched[] = [];
+    const wrappedBeginChildren: Matched[] = [];
+    let wrappedContentChildren: Matched[] = [];
+    const wrappedEndChildren: Matched[] = [];
 
     let pos = from;
     let totalLength = 0;
@@ -109,10 +109,11 @@ export default class ScopedRule implements Rule {
     if (!beginMatched) {
       return null;
     }
-    beginChildren.push(beginMatched.children?.[0]!);
+    wrappedBeginChildren.push(beginMatched.children?.[0]!);
     totalLength += beginMatched.length;
     pos += beginMatched.length;
 
+    const contentChildren: Matched[] = [];
     const contentFrom = pos;
     let contentLength = 0;
     // check end
@@ -138,31 +139,50 @@ export default class ScopedRule implements Rule {
       endMatched = this.end(str, pos, state);
     }
     if (contentChildren.length === 1) {
-      contentChildren[0]?.wrap(this.contentRule.node, Wrapping.FULL);
+      const wrapped = contentChildren[0]!.wrap(
+        this.contentRule.node,
+        Wrapping.FULL
+      );
+      wrappedContentChildren = [wrapped];
     } else if (contentChildren.length > 1) {
-      const firstIndex = 0;
-      const lastIndex = contentChildren.length - 1;
-      contentChildren[firstIndex]?.wrap(this.contentRule.node, Wrapping.BEGIN);
-      contentChildren[lastIndex]?.wrap(this.contentRule.node, Wrapping.END);
-      contentChildren = [
+      const wrapped: Matched[] = [];
+      for (let i = 0; i < contentChildren.length; i++) {
+        const contentChild = contentChildren[i];
+        if (contentChild) {
+          if (i === 0) {
+            // first child
+            wrapped.push(
+              contentChild.wrap(this.contentRule.node, Wrapping.BEGIN)
+            );
+          } else if (i === contentChildren.length - 1) {
+            // last child
+            wrapped.push(
+              contentChild.wrap(this.contentRule.node, Wrapping.END)
+            );
+          } else {
+            wrapped.push(contentChild);
+          }
+        }
+      }
+      wrappedContentChildren = [
         Matched.create(
           this.contentRule.node,
           contentFrom,
           contentLength,
-          contentChildren
+          wrapped
         ),
       ];
     }
 
     if (endMatched) {
-      endChildren.push(endMatched.children?.[0]!);
+      wrappedEndChildren.push(endMatched.children?.[0]!);
       totalLength += endMatched.length;
     }
 
     return Matched.create(this.node, from, totalLength, [
-      ...beginChildren,
-      ...contentChildren,
-      ...endChildren,
+      ...wrappedBeginChildren,
+      ...wrappedContentChildren,
+      ...wrappedEndChildren,
     ]);
   }
 
