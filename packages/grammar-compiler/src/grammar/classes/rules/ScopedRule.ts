@@ -98,7 +98,7 @@ export default class ScopedRule implements Rule {
     }
 
     const beginChildren: Matched[] = [];
-    const contentChildren: Matched[] = [];
+    let contentChildren: Matched[] = [];
     const endChildren: Matched[] = [];
 
     let pos = from;
@@ -139,18 +139,20 @@ export default class ScopedRule implements Rule {
     }
     if (contentChildren.length === 1) {
       contentChildren[0]?.wrap(this.contentRule.node, Wrapping.FULL);
-    } else {
+    } else if (contentChildren.length > 1) {
       const firstIndex = 0;
       const lastIndex = contentChildren.length - 1;
       contentChildren[firstIndex]?.wrap(this.contentRule.node, Wrapping.BEGIN);
       contentChildren[lastIndex]?.wrap(this.contentRule.node, Wrapping.END);
+      contentChildren = [
+        Matched.create(
+          this.contentRule.node,
+          contentFrom,
+          contentLength,
+          contentChildren
+        ),
+      ];
     }
-    const contentMatched = Matched.create(
-      this.contentRule.node,
-      contentFrom,
-      contentLength,
-      contentChildren
-    );
 
     if (endMatched) {
       endChildren.push(endMatched.children?.[0]!);
@@ -159,7 +161,7 @@ export default class ScopedRule implements Rule {
 
     return Matched.create(this.node, from, totalLength, [
       ...beginChildren,
-      contentMatched,
+      ...contentChildren,
       ...endChildren,
     ]);
   }
