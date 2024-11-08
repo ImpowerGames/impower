@@ -62,19 +62,23 @@ export default class SwitchRule implements Rule {
     return this.pattern(str, from, state, possiblyIncomplete);
   }
 
+  resolve() {
+    if (!this.rules) {
+      this.rules = this.patterns
+        ? this.repo.getRules(this.patterns, this.id)
+        : [];
+    }
+  }
+
   pattern(
     str: string,
     from: number,
     state: GrammarState,
     possiblyIncomplete?: boolean
   ) {
-    if (!this.rules) {
-      this.rules = this.patterns
-        ? this.repo.getRules(this.patterns, this.id)
-        : [];
-    }
-    for (let i = 0; i < this.rules.length; i++) {
-      const rule = this.rules[i];
+    this.resolve();
+    for (let i = 0; i < this.rules!.length; i++) {
+      const rule = this.rules![i];
       const patternMatched = rule?.match(str, from, state, possiblyIncomplete);
       if (patternMatched) {
         if (this.emit) {

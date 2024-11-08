@@ -7,6 +7,7 @@ import {
   IncludeDefinition,
   MatchRuleDefinition,
   ScopedRuleDefinition,
+  SwitchRuleDefinition,
 } from "../../types/GrammarDefinition";
 import { Rule } from "../../types/Rule";
 import { createID } from "../../utils/createID";
@@ -16,6 +17,7 @@ import GrammarState from "../GrammarState";
 import Matched from "../Matched";
 import RegExpMatcher from "../RegExpMatcher";
 import type MatchRule from "./MatchRule";
+import SwitchRule from "./SwitchRule";
 
 /**
  * A {@link Rule} subclass that uses {@link RegExpMatcher} or
@@ -32,9 +34,7 @@ export default class ScopedRule implements Rule {
 
   endRule: MatchRule;
 
-  patterns?: IncludeDefinition[];
-
-  rules?: Rule[];
+  contentRule: SwitchRule;
 
   constructor(repo: GrammarRepository, def: ScopedRuleDefinition) {
     this.repo = repo;
@@ -49,6 +49,7 @@ export default class ScopedRule implements Rule {
 
     const beginId = this.id + "_begin";
     const endId = this.id + "_end";
+    const contentId = this.id + "_content";
 
     // begin
     const beginRuleItem: MatchRuleDefinition = {
@@ -69,7 +70,11 @@ export default class ScopedRule implements Rule {
     this.endRule = repo.add(endRuleItem, endId);
 
     // patterns
-    this.patterns = def.patterns;
+    const contentRuleItem: SwitchRuleDefinition = {
+      id: contentId,
+      patterns: def.patterns ?? [],
+    };
+    this.contentRule = repo.add(contentRuleItem, contentId);
   }
 
   /**
@@ -92,53 +97,74 @@ export default class ScopedRule implements Rule {
       return beginMatched;
     }
 
-    const children: Matched[] = [];
+    const beginChildren: Matched[] = [];
+    const contentChildren: Matched[] = [];
+    const endChildren: Matched[] = [];
+
     let pos = from;
-    let matchLength = 0;
+    let totalLength = 0;
 
     // check begin
     let beginMatched = this.begin(str, pos, state);
     if (!beginMatched) {
       return null;
     }
-
-    children.push(beginMatched.children?.[0]!);
-    matchLength += beginMatched.length;
+    beginChildren.push(beginMatched.children?.[0]!);
+    totalLength += beginMatched.length;
     pos += beginMatched.length;
 
+    const contentFrom = pos;
+    let contentLength = 0;
     // check end
     let endMatched = this.end(str, pos, state);
     while (!endMatched && pos < str.length) {
       // check patterns
-      const patternMatched = this.pattern(str, pos, state, possiblyIncomplete);
+      const patternMatched = this.content(str, pos, state, possiblyIncomplete);
       if (patternMatched) {
-        children.push(patternMatched);
-        matchLength += patternMatched.length;
-        pos += patternMatched.length;
+        contentChildren.push(patternMatched);
+        const matchLength = patternMatched.length;
+        totalLength += matchLength;
+        contentLength += matchLength;
+        pos += matchLength;
       } else {
         const noneMatched = Matched.create(GrammarNode.None, pos, 1);
-        children.push(noneMatched);
-        matchLength += noneMatched.length;
-        pos += noneMatched.length;
+        contentChildren.push(noneMatched);
+        const matchLength = noneMatched.length;
+        totalLength += matchLength;
+        contentLength += matchLength;
+        pos += matchLength;
       }
       // check end
       endMatched = this.end(str, pos, state);
     }
+    if (contentChildren.length === 1) {
+      contentChildren[0]?.wrap(this.contentRule.node, Wrapping.FULL);
+    } else {
+      const firstIndex = 0;
+      const lastIndex = contentChildren.length - 1;
+      contentChildren[firstIndex]?.wrap(this.contentRule.node, Wrapping.BEGIN);
+      contentChildren[lastIndex]?.wrap(this.contentRule.node, Wrapping.END);
+    }
+    const contentMatched = Matched.create(
+      this.contentRule.node,
+      contentFrom,
+      contentLength,
+      contentChildren
+    );
 
     if (endMatched) {
-      children.push(endMatched.children?.[0]!);
-      matchLength += endMatched.length;
+      endChildren.push(endMatched.children?.[0]!);
+      totalLength += endMatched.length;
     }
 
-    return Matched.create(this.node, from, matchLength, children);
+    return Matched.create(this.node, from, totalLength, [
+      ...beginChildren,
+      contentMatched,
+      ...endChildren,
+    ]);
   }
 
   begin(str: string, from: number, state: GrammarState) {
-    if (!this.rules) {
-      this.rules = this.patterns
-        ? this.repo.getRules(this.patterns, this.id)
-        : [];
-    }
     let beginMatched = this.beginRule.match(str, from, state);
     if (!beginMatched) {
       return null;
@@ -148,7 +174,8 @@ export default class ScopedRule implements Rule {
       captures.push(str.slice(c.from, c.from + c.length));
     });
     beginMatched = beginMatched.wrap(this.node, Wrapping.BEGIN);
-    state.stack.push(this.node, this.rules, this, captures);
+    this.contentRule.resolve();
+    state.stack.push(this.node, this.contentRule.rules!, this, captures);
     return beginMatched;
   }
 
@@ -167,24 +194,12 @@ export default class ScopedRule implements Rule {
     return endMatched;
   }
 
-  pattern(
+  content(
     str: string,
     from: number,
     state: GrammarState,
     possiblyIncomplete?: boolean
   ) {
-    if (!this.rules) {
-      this.rules = this.patterns
-        ? this.repo.getRules(this.patterns, this.id)
-        : [];
-    }
-    for (let i = 0; i < this.rules.length; i++) {
-      const rule = this.rules[i];
-      const patternMatched = rule?.match(str, from, state, possiblyIncomplete);
-      if (patternMatched) {
-        return patternMatched;
-      }
-    }
-    return null;
+    return this.contentRule.match(str, from, state, possiblyIncomplete);
   }
 }

@@ -1,6 +1,10 @@
 import type { NodeID } from "../../core/enums/NodeID";
 
-export type RuleName<T extends string> = T | `${T}_begin` | `${T}_end`;
+export type RuleName<T extends string> =
+  | T
+  | `${T}_begin`
+  | `${T}_content`
+  | `${T}_end`;
 
 export type CaptureName<T extends string> = `${T}_c${number}`;
 
