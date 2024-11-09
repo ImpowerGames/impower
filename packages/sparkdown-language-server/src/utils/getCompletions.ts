@@ -36,6 +36,137 @@ const IMAGE_CLAUSE_KEYWORDS =
 const AUDIO_CLAUSE_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS;
 
+const getClosestLineBefore = (
+  locations: SparkLocation[],
+  uri: string,
+  line: number
+) => {
+  let numLinesBefore: number | undefined = undefined;
+  let closestLineBefore: number | undefined = undefined;
+  for (const location of locations) {
+    if (location.uri === uri) {
+      const d = location.range.start.line - line;
+      if (d < 0) {
+        if (numLinesBefore === undefined || Math.abs(d) < numLinesBefore) {
+          numLinesBefore = Math.abs(d);
+          closestLineBefore = location.range.start.line;
+        }
+      }
+    }
+  }
+  return closestLineBefore;
+};
+
+const rankDistance = (
+  a: [string, SparkLocation[]],
+  b: [string, SparkLocation[]],
+  uri: string,
+  line: number
+) => {
+  const [, aLocations] = a;
+  const aClosestLineBefore = getClosestLineBefore(aLocations, uri, line);
+  const aDistance =
+    aClosestLineBefore === undefined ? 0 : Math.abs(aClosestLineBefore - line);
+  const [, bLocations] = b;
+  const bClosestLineBefore = getClosestLineBefore(bLocations, uri, line);
+  const bDistance =
+    bClosestLineBefore === undefined ? 0 : Math.abs(bClosestLineBefore - line);
+  return aDistance - bDistance;
+};
+
+const addTransitionCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  uri: string,
+  line: number,
+  insertTextPrefix: string = ""
+) => {
+  // Sort by most recently used
+  const mostRecentEntries = Object.entries(
+    program?.metadata?.transitions || {}
+  ).sort((a, b) => rankDistance(a, b, uri, line));
+  // Add completions
+  for (const [name] of mostRecentEntries) {
+    const labelDetails = { description: "transition" };
+    const kind = CompletionItemKind.Constant;
+    const completion: CompletionItem = {
+      label: name,
+      insertText: insertTextPrefix + name + "\n\n",
+      labelDetails,
+      kind,
+    };
+    if (completion.label && !completions.has(completion.label)) {
+      completions.set(completion.label, completion);
+    }
+  }
+};
+
+const addSceneCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  uri: string,
+  line: number,
+  insertTextPrefix: string = ""
+) => {
+  // Sort by most recently used
+  const mostRecentEntries = Object.entries(
+    program?.metadata?.scenes || {}
+  ).sort((a, b) => rankDistance(a, b, uri, line));
+  // Most recent scene is the least likely to be used again,
+  // So move it to the end of the list
+  const mostRecentEntry = mostRecentEntries.shift();
+  if (mostRecentEntry) {
+    mostRecentEntries.push(mostRecentEntry);
+  }
+  // Add completions
+  for (const [name] of mostRecentEntries) {
+    const labelDetails = { description: "scene" };
+    const kind = CompletionItemKind.Constant;
+    const completion: CompletionItem = {
+      label: name,
+      insertText: insertTextPrefix + name + "\n\n",
+      labelDetails,
+      kind,
+    };
+    if (completion.label && !completions.has(completion.label)) {
+      completions.set(completion.label, completion);
+    }
+  }
+};
+
+const addCharacterCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  uri: string,
+  line: number,
+  insertTextPrefix: string = ""
+) => {
+  // Sort by most recently used
+  const mostRecentEntries = Object.entries(
+    program?.metadata?.characters || {}
+  ).sort((a, b) => rankDistance(a, b, uri, line));
+  // Most recent character is the least likely to be used again,
+  // So move it to the end of the list
+  const mostRecentEntry = mostRecentEntries.shift();
+  if (mostRecentEntry) {
+    mostRecentEntries.push(mostRecentEntry);
+  }
+  // Add completions
+  for (const [name] of mostRecentEntries) {
+    const labelDetails = { description: "character" };
+    const kind = CompletionItemKind.Constant;
+    const completion: CompletionItem = {
+      label: name,
+      insertText: insertTextPrefix + name + "\n",
+      labelDetails,
+      kind,
+    };
+    if (completion.label && !completions.has(completion.label)) {
+      completions.set(completion.label, completion);
+    }
+  }
+};
+
 const addTextTargetCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
@@ -388,137 +519,6 @@ const addModulationCompletions = (
       if (completion.label && !completions.has(completion.label)) {
         completions.set(completion.label, completion);
       }
-    }
-  }
-};
-
-const getClosestLineBefore = (
-  locations: SparkLocation[],
-  uri: string,
-  line: number
-) => {
-  let numLinesBefore: number | undefined = undefined;
-  let closestLineBefore: number | undefined = undefined;
-  for (const location of locations) {
-    if (location.uri === uri) {
-      const d = location.range.start.line - line;
-      if (d < 0) {
-        if (numLinesBefore === undefined || Math.abs(d) < numLinesBefore) {
-          numLinesBefore = Math.abs(d);
-          closestLineBefore = location.range.start.line;
-        }
-      }
-    }
-  }
-  return closestLineBefore;
-};
-
-const rankDistance = (
-  a: [string, SparkLocation[]],
-  b: [string, SparkLocation[]],
-  uri: string,
-  line: number
-) => {
-  const [, aLocations] = a;
-  const aClosestLineBefore = getClosestLineBefore(aLocations, uri, line);
-  const aDistance =
-    aClosestLineBefore === undefined ? 0 : Math.abs(aClosestLineBefore - line);
-  const [, bLocations] = b;
-  const bClosestLineBefore = getClosestLineBefore(bLocations, uri, line);
-  const bDistance =
-    bClosestLineBefore === undefined ? 0 : Math.abs(bClosestLineBefore - line);
-  return aDistance - bDistance;
-};
-
-const addTransitionCompletions = (
-  completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
-  uri: string,
-  line: number,
-  insertTextPrefix: string = ""
-) => {
-  // Sort by most recently used
-  const mostRecentEntries = Object.entries(
-    program?.metadata?.transitions || {}
-  ).sort((a, b) => rankDistance(a, b, uri, line));
-  // Add completions
-  for (const [name] of mostRecentEntries) {
-    const labelDetails = { description: "transition" };
-    const kind = CompletionItemKind.Constant;
-    const completion: CompletionItem = {
-      label: name,
-      insertText: insertTextPrefix + name + "\n\n",
-      labelDetails,
-      kind,
-    };
-    if (completion.label && !completions.has(completion.label)) {
-      completions.set(completion.label, completion);
-    }
-  }
-};
-
-const addSceneCompletions = (
-  completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
-  uri: string,
-  line: number,
-  insertTextPrefix: string = ""
-) => {
-  // Sort by most recently used
-  const mostRecentEntries = Object.entries(
-    program?.metadata?.scenes || {}
-  ).sort((a, b) => rankDistance(a, b, uri, line));
-  // Most recent scene is the least likely to be used again,
-  // So move it to the end of the list
-  const mostRecentEntry = mostRecentEntries.shift();
-  if (mostRecentEntry) {
-    mostRecentEntries.push(mostRecentEntry);
-  }
-  // Add completions
-  for (const [name] of mostRecentEntries) {
-    const labelDetails = { description: "scene" };
-    const kind = CompletionItemKind.Constant;
-    const completion: CompletionItem = {
-      label: name,
-      insertText: insertTextPrefix + name + "\n\n",
-      labelDetails,
-      kind,
-    };
-    if (completion.label && !completions.has(completion.label)) {
-      completions.set(completion.label, completion);
-    }
-  }
-};
-
-const addCharacterCompletions = (
-  completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
-  uri: string,
-  line: number,
-  insertTextPrefix: string = ""
-) => {
-  // Sort by most recently used
-  const mostRecentEntries = Object.entries(
-    program?.metadata?.characters || {}
-  ).sort((a, b) => rankDistance(a, b, uri, line));
-  // Most recent character is the least likely to be used again,
-  // So move it to the end of the list
-  const mostRecentEntry = mostRecentEntries.shift();
-  if (mostRecentEntry) {
-    mostRecentEntries.push(mostRecentEntry);
-  }
-  // Add completions
-  for (const [name] of mostRecentEntries) {
-    const labelDetails = { description: "character" };
-    const kind = CompletionItemKind.Constant;
-    const completion: CompletionItem = {
-      label: name,
-      insertText: insertTextPrefix + name + "\n",
-      labelDetails,
-      kind,
-    };
-    if (completion.label && !completions.has(completion.label)) {
-      completions.set(completion.label, completion);
     }
   }
 };
