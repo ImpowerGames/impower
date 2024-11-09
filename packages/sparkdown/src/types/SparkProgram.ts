@@ -11,6 +11,8 @@ export interface SparkProgram {
   };
   metadata?: {
     characters?: Record<string, SparkLocation[]>;
+    scenes?: Record<string, SparkLocation[]>;
+    transitions?: Record<string, SparkLocation[]>;
   };
   implicitDefs?: {
     [type: string]: { [name: string]: any };

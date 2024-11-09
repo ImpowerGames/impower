@@ -97,6 +97,41 @@ const formatList = (arr: string[]) => {
     : quotedList.slice(0, -1).join(", ") + `, or ${quotedList.at(-1)}`;
 };
 
+const getRange = (
+  from: number,
+  to: number,
+  script: string,
+  currentLineIndex: number,
+  currentLinePos: number
+) => {
+  const rangeLength = to - from;
+  const startLineIndex = currentLineIndex;
+  const startLineOffset = from - currentLinePos;
+  let endLineIndex = startLineIndex;
+  let endLinePos = from;
+  for (let i = from; i < from + rangeLength; i++) {
+    if (script[i] === "\r" && script[i + 1] === "\n") {
+      endLinePos = i + 1;
+      endLineIndex++;
+      i++;
+    } else if (script[i] === "\r" || script[i] === "\n") {
+      endLinePos = i;
+      endLineIndex++;
+    }
+  }
+  const endLineOffset = to - endLinePos;
+  return {
+    start: {
+      line: startLineIndex,
+      character: startLineOffset,
+    },
+    end: {
+      line: endLineIndex,
+      character: endLineOffset,
+    },
+  };
+};
+
 export default class SparkParser {
   protected _config: SparkParserConfig = {};
 
@@ -137,6 +172,7 @@ export default class SparkParser {
     const nodeNames = this._grammar.nodeNames;
     const script = this._config?.readFile?.(uri) || "";
     const lines = script.split(NEWLINE_REGEX);
+    const sourceLines = [...lines];
     // Pad script so we ensure all scopes are properly closed before the end of the file.
     const paddedScript = script + "\n\n";
     const tree = this.buildTree(paddedScript);
@@ -244,17 +280,8 @@ export default class SparkParser {
           sourceNodeEnd > after ? shift + sourceNodeEnd : sourceNodeEnd;
 
         const lineText = lines[lineIndex] || "";
-        const text = lineText.slice(transpiledNodeStart, transpiledNodeEnd);
-        range = {
-          start: {
-            line: lineIndex,
-            character: sourceNodeStart,
-          },
-          end: {
-            line: lineIndex,
-            character: sourceNodeEnd,
-          },
-        };
+        const text = script.slice(node.from, node.to);
+        range = getRange(node.from, node.to, script, lineIndex, linePos);
 
         // Annotate dialogue line with implicit flow marker
         if (
@@ -358,7 +385,21 @@ export default class SparkParser {
         ) {
           propertyName = text;
         }
-        // Record character reference
+        // Record transition use
+        if (nodeType === "Transition_content") {
+          program.metadata ??= {};
+          program.metadata.transitions ??= {};
+          program.metadata.transitions[text] ??= [];
+          program.metadata.transitions[text].push({ uri, range });
+        }
+        // Record scene use
+        if (nodeType === "Scene_content") {
+          program.metadata ??= {};
+          program.metadata.scenes ??= {};
+          program.metadata.scenes[text] ??= [];
+          program.metadata.scenes[text].push({ uri, range });
+        }
+        // Record character use
         if (nodeType === "DialogueCharacter") {
           program.metadata ??= {};
           program.metadata.characters ??= {};

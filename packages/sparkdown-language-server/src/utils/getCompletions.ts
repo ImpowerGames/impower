@@ -413,6 +413,83 @@ const getClosestLineBefore = (
   return closestLineBefore;
 };
 
+const rankDistance = (
+  a: [string, SparkLocation[]],
+  b: [string, SparkLocation[]],
+  uri: string,
+  line: number
+) => {
+  const [, aLocations] = a;
+  const aClosestLineBefore = getClosestLineBefore(aLocations, uri, line);
+  const aDistance =
+    aClosestLineBefore === undefined ? 0 : Math.abs(aClosestLineBefore - line);
+  const [, bLocations] = b;
+  const bClosestLineBefore = getClosestLineBefore(bLocations, uri, line);
+  const bDistance =
+    bClosestLineBefore === undefined ? 0 : Math.abs(bClosestLineBefore - line);
+  return aDistance - bDistance;
+};
+
+const addTransitionCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  uri: string,
+  line: number,
+  insertTextPrefix: string = ""
+) => {
+  // Sort by most recently used
+  const mostRecentEntries = Object.entries(
+    program?.metadata?.transitions || {}
+  ).sort((a, b) => rankDistance(a, b, uri, line));
+  // Add completions
+  for (const [name] of mostRecentEntries) {
+    const labelDetails = { description: "transition" };
+    const kind = CompletionItemKind.Constant;
+    const completion: CompletionItem = {
+      label: name,
+      insertText: insertTextPrefix + name + "\n\n",
+      labelDetails,
+      kind,
+    };
+    if (completion.label && !completions.has(completion.label)) {
+      completions.set(completion.label, completion);
+    }
+  }
+};
+
+const addSceneCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  uri: string,
+  line: number,
+  insertTextPrefix: string = ""
+) => {
+  // Sort by most recently used
+  const mostRecentEntries = Object.entries(
+    program?.metadata?.scenes || {}
+  ).sort((a, b) => rankDistance(a, b, uri, line));
+  // Most recent scene is the least likely to be used again,
+  // So move it to the end of the list
+  const mostRecentEntry = mostRecentEntries.shift();
+  if (mostRecentEntry) {
+    mostRecentEntries.push(mostRecentEntry);
+  }
+  // Add completions
+  for (const [name] of mostRecentEntries) {
+    const labelDetails = { description: "scene" };
+    const kind = CompletionItemKind.Constant;
+    const completion: CompletionItem = {
+      label: name,
+      insertText: insertTextPrefix + name + "\n\n",
+      labelDetails,
+      kind,
+    };
+    if (completion.label && !completions.has(completion.label)) {
+      completions.set(completion.label, completion);
+    }
+  }
+};
+
 const addCharacterCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
@@ -420,30 +497,18 @@ const addCharacterCompletions = (
   line: number,
   insertTextPrefix: string = ""
 ) => {
-  const recentCharacterEntries = Object.entries(
+  // Sort by most recently used
+  const mostRecentEntries = Object.entries(
     program?.metadata?.characters || {}
-  ).sort((a, b) => {
-    const [, aLocations] = a;
-    const aClosestLineBefore = getClosestLineBefore(aLocations, uri, line);
-    const aDistance =
-      aClosestLineBefore === undefined
-        ? 0
-        : Math.abs(aClosestLineBefore - line);
-    const [, bLocations] = b;
-    const bClosestLineBefore = getClosestLineBefore(bLocations, uri, line);
-    const bDistance =
-      bClosestLineBefore === undefined
-        ? 0
-        : Math.abs(bClosestLineBefore - line);
-    return aDistance - bDistance;
-  });
-  // Most recent character is the least likely to speak again,
+  ).sort((a, b) => rankDistance(a, b, uri, line));
+  // Most recent character is the least likely to be used again,
   // So move it to the end of the list
-  const mostRecentEntry = recentCharacterEntries.shift();
+  const mostRecentEntry = mostRecentEntries.shift();
   if (mostRecentEntry) {
-    recentCharacterEntries.push(mostRecentEntry);
+    mostRecentEntries.push(mostRecentEntry);
   }
-  for (const [name] of recentCharacterEntries) {
+  // Add completions
+  for (const [name] of mostRecentEntries) {
     const labelDetails = { description: "character" };
     const kind = CompletionItemKind.Constant;
     const completion: CompletionItem = {
@@ -592,7 +657,7 @@ const getCompletions = (
   tree: Tree | undefined,
   grammar: Grammar,
   position: Position,
-  context: CompletionContext | undefined
+  _context: CompletionContext | undefined
 ): CompletionItem[] | null | undefined => {
   if (!document) {
     return undefined;
@@ -668,7 +733,7 @@ const getCompletions = (
   }
 
   // console.log(printTree(tree, document.getText(), grammar.nodeNames));
-  console.log(stack.map((n) => n.type.name));
+  // console.log(stack.map((n) => n.type.name));
 
   if (!stack[0]) {
     return null;
@@ -681,6 +746,70 @@ const getCompletions = (
     start: document.positionAt(prevNode.from),
     end: document.positionAt(prevNode.to),
   });
+
+  // Transition
+  if (stack[0]?.type.name === "TransitionMark") {
+    addTransitionCompletions(
+      completions,
+      program,
+      document.uri,
+      position.line,
+      " "
+    );
+    return Array.from(completions.values());
+  }
+  if (
+    stack[0]?.type.name === "TransitionMarkSeparator" ||
+    stack.some((n) => n?.type.name === "Transition_content")
+  ) {
+    addTransitionCompletions(completions, program, document.uri, position.line);
+    return Array.from(completions.values());
+  }
+
+  // Scene
+  if (stack[0]?.type.name === "SceneMark") {
+    addSceneCompletions(completions, program, document.uri, position.line, " ");
+    return Array.from(completions.values());
+  }
+  if (
+    stack[0]?.type.name === "SceneMarkSeparator" ||
+    stack.some((n) => n?.type.name === "Scene_content")
+  ) {
+    addSceneCompletions(completions, program, document.uri, position.line);
+    return Array.from(completions.values());
+  }
+
+  // Dialogue
+  if (stack[0]?.type.name === "DialogueMark") {
+    addCharacterCompletions(
+      completions,
+      program,
+      document.uri,
+      position.line,
+      " "
+    );
+    return Array.from(completions.values());
+  }
+  if (
+    stack[0]?.type.name === "DialogueMarkSeparator" ||
+    stack.some((n) => n?.type.name === "DialogueCharacter")
+  ) {
+    addCharacterCompletions(completions, program, document.uri, position.line);
+    return Array.from(completions.values());
+  }
+
+  // Write
+  if (stack[0]?.type.name === "WriteMark") {
+    addTextTargetCompletions(completions, program, " ");
+    return Array.from(completions.values());
+  }
+  if (
+    stack[0]?.type.name === "WriteMarkSeparator" ||
+    stack.some((n) => n?.type.name === "WriteTarget")
+  ) {
+    addTextTargetCompletions(completions, program);
+    return Array.from(completions.values());
+  }
 
   // ImageCommand
   if (stack.some((n) => n.type.name === "ImageCommand")) {
@@ -814,38 +943,6 @@ const getCompletions = (
       addModulationCompletions(completions, program);
       return Array.from(completions.values());
     }
-  }
-
-  // Dialogue
-  if (stack[0]?.type.name === "DialogueMark") {
-    addCharacterCompletions(
-      completions,
-      program,
-      document.uri,
-      position.line,
-      " "
-    );
-    return Array.from(completions.values());
-  }
-  if (
-    stack[0]?.type.name === "DialogueMarkSeparator" ||
-    stack.some((n) => n?.type.name === "DialogueCharacter")
-  ) {
-    addCharacterCompletions(completions, program, document.uri, position.line);
-    return Array.from(completions.values());
-  }
-
-  // Write
-  if (stack[0]?.type.name === "WriteMark") {
-    addTextTargetCompletions(completions, program, " ");
-    return Array.from(completions.values());
-  }
-  if (
-    stack[0]?.type.name === "WriteMarkSeparator" ||
-    stack.some((n) => n?.type.name === "WriteTarget")
-  ) {
-    addTextTargetCompletions(completions, program);
-    return Array.from(completions.values());
   }
 
   // const line = position?.line;
