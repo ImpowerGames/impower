@@ -536,11 +536,6 @@ const EDITOR_THEME: {
   "& .cm-valueInfo": {
     fontFamily: "monospace",
   },
-  "& .cm-highlightSpace": {
-    "&::before": {
-      opacity: "0.3",
-    },
-  },
 };
 
 export default EDITOR_THEME;

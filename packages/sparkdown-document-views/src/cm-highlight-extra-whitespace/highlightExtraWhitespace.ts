@@ -21,6 +21,7 @@ const highlightExtraWhitespaceTheme = EditorView.baseTheme({
     bottom: "0",
     pointerEvents: "none",
     whiteSpace: "nowrap",
+    opacity: "0.25",
   },
 });
 
