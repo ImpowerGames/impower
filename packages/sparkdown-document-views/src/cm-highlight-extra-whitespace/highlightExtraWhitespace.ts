@@ -8,6 +8,7 @@ import {
 
 const highlightExtraWhitespaceTheme = EditorView.baseTheme({
   ".cm-highlightSpace": {
+    position: "relative",
     backgroundImage: "none",
     textIndent: "0",
   },
@@ -15,10 +16,11 @@ const highlightExtraWhitespaceTheme = EditorView.baseTheme({
     content: "attr(data-content)",
     position: "absolute",
     top: "0",
-    left: "2px",
+    left: "0",
     right: "0",
     bottom: "0",
     pointerEvents: "none",
+    whiteSpace: "nowrap",
   },
 });
 
