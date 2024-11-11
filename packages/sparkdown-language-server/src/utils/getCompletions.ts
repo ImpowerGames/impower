@@ -525,12 +525,12 @@ const addModulationCompletions = (
 
 const addStructTypeNameCompletions = (
   completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined
+  program: SparkProgram | undefined,
+  nodeText?: string
 ) => {
   if (program?.context) {
     for (const k of Object.keys(program?.context).sort()) {
-      // TODO: Don't show option for type declared on this line
-      if (!k.startsWith("$")) {
+      if (!k.startsWith("$") && k !== nodeText) {
         const description = undefined;
         const kind = CompletionItemKind.TypeParameter;
         const completion: CompletionItem = {
@@ -549,12 +549,12 @@ const addStructTypeNameCompletions = (
 const addStructVariableNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  type: string
+  type: string,
+  nodeText?: string
 ) => {
   if (program?.context?.[type]) {
     for (const k of Object.keys(program?.context?.[type]).sort()) {
-      // TODO: Don't show option for name declared on this line
-      if (!k.startsWith("$")) {
+      if (!k.startsWith("$") && k !== nodeText) {
         const description = undefined;
         const kind = CompletionItemKind.Variable;
         const completion: CompletionItem = {
@@ -750,7 +750,10 @@ const getCompletions = (
 
   const side = -1;
 
-  const getNodeText = (node: SyntaxNode) => {
+  const getNodeText = (node: SyntaxNode | null | undefined) => {
+    if (node == null) {
+      return "";
+    }
     return document.getText({
       start: document.positionAt(node.from),
       end: document.positionAt(node.to),
@@ -1048,7 +1051,11 @@ const getCompletions = (
         n.type.name === "DefineTypeName"
     )
   ) {
-    addStructTypeNameCompletions(completions, program);
+    addStructTypeNameCompletions(
+      completions,
+      program,
+      getNodeText(stack.find((n) => n.type.name === "DefineTypeName"))
+    );
     return Array.from(completions.values());
   }
   if (
@@ -1065,7 +1072,12 @@ const getCompletions = (
       stack
     );
     const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
-    addStructVariableNameCompletions(completions, program, type);
+    addStructVariableNameCompletions(
+      completions,
+      program,
+      type,
+      getNodeText(stack.find((n) => n.type.name === "DefineVariableName"))
+    );
     return Array.from(completions.values());
   }
   const propertyNameNode = stack.find(
