@@ -52,7 +52,7 @@ function matcher(decorator: MatchDecorator): Extension {
 
 const whitespaceHighlighter = matcher(
   new MatchDecorator({
-    regexp: /\t|[ ]{2,}/g,
+    regexp: /\t|[ ]{2,}|[ ]+$/g,
     decoration: (match) => getDecoration(match[0]),
     boundary: /\S/,
   })
