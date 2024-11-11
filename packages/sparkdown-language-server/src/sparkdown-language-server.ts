@@ -150,7 +150,6 @@ try {
       document,
       program,
       tree,
-      documents.parser.grammar,
       params.position,
       params.context
     );

@@ -1,6 +1,7 @@
 import {
   Compiler as GrammarCompiler,
-  SyntaxNodeRef,
+  NodeSet,
+  NodeType,
   Tree,
   printTree,
 } from "../../../grammar-compiler/src/compiler";
@@ -25,6 +26,7 @@ import buildSVGSource from "../utils/buildSVGSource";
 import filterMatchesName from "../utils/filterMatchesName";
 import getAllProperties from "../utils/getAllProperties";
 import setProperty from "../utils/setProperty";
+import { getCharacterIdentifier } from "../utils/getCharacterIdentifier";
 import { SparkReference } from "../types/SparkReference";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
@@ -132,7 +134,50 @@ const getRange = (
   };
 };
 
+/**
+ * Node emitted when a character doesn't match anything in the grammar,
+ * and the parser had to manually advance past it.
+ */
+export const NODE_ERROR_UNRECOGNIZED = NodeType.define({
+  name: "⚠️ ERROR_UNRECOGNIZED",
+  id: NodeID.unrecognized,
+  error: true,
+});
+
+/** Node emitted at the end of incomplete nodes. */
+export const NODE_ERROR_INCOMPLETE = NodeType.define({
+  name: "⚠️ ERROR_INCOMPLETE",
+  id: NodeID.incomplete,
+  error: true,
+});
+
+const getRuleNodeType = (
+  topNode: NodeType,
+  typeIndex: number,
+  typeId: string
+): NodeType => {
+  if (typeIndex === NodeID.none) {
+    return NodeType.none;
+  }
+  if (typeIndex === NodeID.top) {
+    return topNode;
+  }
+  if (typeIndex === NodeID.unrecognized) {
+    return NODE_ERROR_UNRECOGNIZED;
+  }
+  if (typeIndex === NodeID.incomplete) {
+    return NODE_ERROR_INCOMPLETE;
+  }
+  // In CodeMirror, `id` is the unique number identifier and `name` is the unique string identifier
+  // This is different than the parser node that calls `typeIndex` the unique number identifier and `typeId` the unique string identifier
+  return NodeType.define({ id: typeIndex, name: typeId });
+};
+
 export default class SparkParser {
+  protected _nodeTypeProp = "nodeType";
+
+  protected _nodeSet: NodeSet;
+
   protected _config: SparkParserConfig = {};
 
   protected _grammarCompiler: GrammarCompiler;
@@ -149,8 +194,20 @@ export default class SparkParser {
 
   constructor(config: SparkParserConfig) {
     this._config = config || this._config;
-    this._grammar = new Grammar(GRAMMAR_DEFINITION);
-    this._grammarCompiler = new GrammarCompiler(this._grammar);
+    const rootNodeType = NodeType.define({
+      id: NodeID.top,
+      name: name,
+      top: true,
+    });
+    const declarator = (typeIndex: number, typeId: string) => ({
+      [this._nodeTypeProp]: getRuleNodeType(rootNodeType, typeIndex, typeId),
+    });
+    this._grammar = new Grammar(GRAMMAR_DEFINITION, declarator);
+    const nodeTypes = this.grammar.nodes.map(
+      (n) => n.props[this._nodeTypeProp]
+    );
+    this._nodeSet = new NodeSet(nodeTypes);
+    this._grammarCompiler = new GrammarCompiler(this._grammar, this._nodeSet);
   }
 
   configure(config: SparkParserConfig) {
@@ -268,7 +325,7 @@ export default class SparkParser {
     };
     tree.iterate({
       enter: (node) => {
-        const nodeType = nodeNames[node.type]! as SparkdownNodeName;
+        const nodeType = node.type.name as SparkdownNodeName;
         const transpilationOffset = program.sourceMap?.[uri]?.[lineIndex];
         const after = transpilationOffset?.after ?? 0;
         const shift = transpilationOffset?.shift ?? 0;
@@ -361,16 +418,10 @@ export default class SparkParser {
             program.uuidToSource[id] = [fileIndex, lineIndex];
           }
         }
-        if (
-          nodeType === "TypeName" &&
-          stack.includes("DefineDeclaration_begin")
-        ) {
+        if (nodeType === "DefineTypeName") {
           structType = text;
         }
-        if (
-          nodeType === "VariableName" &&
-          stack.includes("DefineDeclaration_begin")
-        ) {
+        if (nodeType === "DefineVariableName") {
           if (
             IMAGE_CLAUSE_KEYWORDS.includes(text) ||
             AUDIO_CLAUSE_KEYWORDS.includes(text)
@@ -405,6 +456,7 @@ export default class SparkParser {
           program.metadata.characters ??= {};
           program.metadata.characters[text] ??= [];
           program.metadata.characters[text].push({ uri, range });
+          define("character", getCharacterIdentifier(text), {});
         }
         // Record reference in struct field value
         if (nodeType === "AccessPath" && stack.at(-1) === "StructFieldValue") {
@@ -635,7 +687,7 @@ export default class SparkParser {
         if (nodeType === "AssetCommandClauseKeyword") {
           const valueNode = node.node.nextSibling?.node.nextSibling;
           const valueNodeType = (
-            valueNode ? this.grammar.nodeNames[valueNode?.type] : ""
+            valueNode ? valueNode.type.name : ""
           ) as SparkdownNodeName;
           if (text === "after") {
             if (
@@ -736,7 +788,7 @@ export default class SparkParser {
         stack.push(nodeType);
       },
       leave: (node) => {
-        const nodeType = nodeNames[node.type]! as SparkdownNodeName;
+        const nodeType = node.type.name as SparkdownNodeName;
         const transpilationOffset = program.sourceMap?.[uri]?.[lineIndex];
         const after = transpilationOffset?.after ?? 0;
         const shift = transpilationOffset?.shift ?? 0;
@@ -781,6 +833,10 @@ export default class SparkParser {
         stack.pop();
       },
     });
+    while (lines.at(-1) === "") {
+      // Remove empty newlines at end of script
+      lines.pop();
+    }
     const transpiled = lines.join("\n");
     // console.log(printTree(tree, script, nodeNames));
     // console.log(transpiled);
@@ -810,7 +866,7 @@ export default class SparkParser {
           if (transpiledScript != null) {
             return transpiledScript;
           }
-          transpiledScript = this.transpile(uri, program)?.trimEnd();
+          transpiledScript = this.transpile(uri, program);
           transpiledScripts.set(uri, transpiledScript);
           return transpiledScript;
         },
@@ -926,110 +982,103 @@ export default class SparkParser {
       topID,
       buffer,
       reused,
+      nodeSet: this._nodeSet,
     });
     // console.warn(printTree(tree, paddedScript, this.grammar.nodeNames));
     return tree;
   }
 
   populateBuiltins(program: SparkProgram) {
-    if (program.compiled) {
-      program.compiled.structDefs ??= {};
-      const builtins = this._config.builtins;
-      if (builtins) {
-        const augmentedStructDefs: {
-          [type: string]: { [name: string]: object };
-        } = {};
-        for (const [type, builtinStructs] of Object.entries(builtins)) {
-          for (const [name, builtinStruct] of Object.entries(builtinStructs)) {
-            augmentedStructDefs[type] ??= {};
-            augmentedStructDefs[type][name] ??= structuredClone(builtinStruct);
-          }
+    program.context ??= {};
+    const builtins = this._config.builtins;
+    if (builtins) {
+      for (const [type, builtinStructs] of Object.entries(builtins)) {
+        for (const [name, builtinStruct] of Object.entries(builtinStructs)) {
+          program.context[type] ??= {};
+          program.context[type][name] ??= structuredClone(builtinStruct);
         }
-        if (program.compiled.structDefs) {
-          for (const [type, structs] of Object.entries(
-            program.compiled.structDefs
-          )) {
-            augmentedStructDefs[type] ??= {};
-            for (const [name, definedStruct] of Object.entries(
-              structs as any
-            )) {
-              if (Array.isArray(definedStruct)) {
-                augmentedStructDefs[type][name] = definedStruct;
-              } else {
-                const isSpecialDefinition =
-                  name.startsWith("$") && name !== "$default";
-                let constructed = {} as any;
-                if (type === "config" || isSpecialDefinition) {
-                  constructed = augmentedStructDefs[type][name] ?? {};
-                }
-                if (!isSpecialDefinition) {
-                  const builtinDefaultStruct = builtins[type]?.["$default"];
-                  if (builtinDefaultStruct) {
-                    for (const [propPath, propValue] of Object.entries(
-                      getAllProperties(builtinDefaultStruct)
-                    )) {
-                      if (propValue !== undefined) {
-                        setProperty(
-                          constructed,
-                          propPath,
-                          JSON.parse(JSON.stringify(propValue))
-                        );
-                      }
-                    }
-                  }
-                  const definedDefaultStruct = (structs as any)?.["$default"];
-                  if (definedDefaultStruct) {
-                    for (const [propPath, propValue] of Object.entries(
-                      getAllProperties(definedDefaultStruct)
-                    )) {
-                      if (propValue !== undefined) {
-                        setProperty(
-                          constructed,
-                          propPath,
-                          JSON.parse(JSON.stringify(propValue))
-                        );
-                      }
-                    }
-                  }
-                }
-                for (const [propPath, propValue] of Object.entries(
-                  getAllProperties(definedStruct)
-                )) {
-                  if (isSpecialDefinition) {
-                    // TODO: If constructed value at propPath is defined, report error if propValue type isn't an array of a corresponding type
-                  } else {
-                    // TODO: If constructed value at propPath is defined, report error if propValue type doesn't match
-                  }
-                  if (propValue !== undefined) {
-                    setProperty(
-                      constructed,
-                      propPath,
-                      JSON.parse(JSON.stringify(propValue))
-                    );
-                  }
-                }
-                constructed["$type"] = type;
-                constructed["$name"] = name;
-                augmentedStructDefs[type][name] = constructed;
+      }
+      if (program?.compiled?.structDefs) {
+        for (const [type, structs] of Object.entries(
+          program.compiled.structDefs
+        )) {
+          program.context[type] ??= {};
+          for (const [name, definedStruct] of Object.entries(structs as any)) {
+            if (Array.isArray(definedStruct)) {
+              program.context[type][name] = definedStruct;
+            } else {
+              const isSpecialDefinition =
+                name.startsWith("$") && name !== "$default";
+              let constructed = {} as any;
+              if (type === "config" || isSpecialDefinition) {
+                constructed = program.context[type][name] ?? {};
               }
+              if (!isSpecialDefinition) {
+                const builtinDefaultStruct = builtins[type]?.["$default"];
+                if (builtinDefaultStruct) {
+                  for (const [propPath, propValue] of Object.entries(
+                    getAllProperties(builtinDefaultStruct)
+                  )) {
+                    if (propValue !== undefined) {
+                      setProperty(
+                        constructed,
+                        propPath,
+                        JSON.parse(JSON.stringify(propValue))
+                      );
+                    }
+                  }
+                }
+                const definedDefaultStruct = (structs as any)?.["$default"];
+                if (definedDefaultStruct) {
+                  for (const [propPath, propValue] of Object.entries(
+                    getAllProperties(definedDefaultStruct)
+                  )) {
+                    if (propValue !== undefined) {
+                      setProperty(
+                        constructed,
+                        propPath,
+                        JSON.parse(JSON.stringify(propValue))
+                      );
+                    }
+                  }
+                }
+              }
+              for (const [propPath, propValue] of Object.entries(
+                getAllProperties(definedStruct)
+              )) {
+                if (isSpecialDefinition) {
+                  // TODO: If constructed value at propPath is defined, report error if propValue type isn't an array of a corresponding type
+                } else {
+                  // TODO: If constructed value at propPath is defined, report error if propValue type doesn't match
+                }
+                if (propValue !== undefined) {
+                  setProperty(
+                    constructed,
+                    propPath,
+                    JSON.parse(JSON.stringify(propValue))
+                  );
+                }
+              }
+              constructed["$type"] = type;
+              constructed["$name"] = name;
+              program.context[type][name] = constructed;
             }
           }
         }
-        program.compiled.structDefs = augmentedStructDefs;
       }
     }
   }
 
   populateAssets(program: SparkProgram) {
     if (program.compiled) {
-      program.compiled.structDefs ??= {};
+      program.context ??= {};
       const files = this._config.files;
       if (files) {
         for (const [type, assets] of Object.entries(files)) {
           for (const [name, file] of Object.entries(assets)) {
-            program.compiled.structDefs[type] ??= {};
-            program.compiled.structDefs[type][name] ??= structuredClone(file);
-            const definedFile = program.compiled.structDefs[type][name];
+            program.context[type] ??= {};
+            program.context[type][name] ??= structuredClone(file);
+            const definedFile = program.context[type][name];
             // Set $type and $name
             if (definedFile["$type"] === undefined) {
               definedFile["$type"] = type;
@@ -1078,7 +1127,7 @@ export default class SparkParser {
 
   populateImplicitDefs(program: SparkProgram) {
     if (program.compiled) {
-      const images = program.compiled.structDefs?.["image"];
+      const images = program.context?.["image"];
       if (images) {
         for (const image of Object.values(images)) {
           if (image["ext"] === "svg" || image["data"]) {
@@ -1102,13 +1151,13 @@ export default class SparkParser {
       if (implicitDefs) {
         for (const [type, objs] of Object.entries(implicitDefs)) {
           for (const [name, obj] of Object.entries(objs)) {
-            program.compiled.structDefs ??= {};
-            program.compiled.structDefs[type] ??= {};
-            program.compiled.structDefs[type][name] ??= structuredClone(obj);
+            program.context ??= {};
+            program.context[type] ??= {};
+            program.context[type][name] ??= structuredClone(obj);
           }
         }
       }
-      const filteredImages = program.compiled.structDefs?.["filtered_image"];
+      const filteredImages = program.context?.["filtered_image"];
       if (filteredImages) {
         for (const filteredImage of Object.values(filteredImages)) {
           const filters = this.getNestedFilters(filteredImage.$name, program);
@@ -1143,7 +1192,10 @@ export default class SparkParser {
               //   source: LANGUAGE_NAME,
               // });
             } else {
-              if (imageToFilter.$type === "image") {
+              if (
+                imageToFilter.$type === "image" &&
+                !imageToFilter.$name.startsWith("$")
+              ) {
                 if (imageToFilter.data) {
                   const filteredData = filterSVG(
                     imageToFilter.data,
@@ -1153,7 +1205,10 @@ export default class SparkParser {
                   filteredImage.filtered_src = buildSVGSource(filteredData);
                 }
               }
-              if (imageToFilter.$type === "layered_image") {
+              if (
+                imageToFilter.$type === "layered_image" &&
+                !imageToFilter.$name.startsWith("$")
+              ) {
                 for (const [key, layerImage] of Object.entries(
                   imageToFilter.layers
                 )) {
@@ -1183,14 +1238,13 @@ export default class SparkParser {
     name: string,
     program: SparkProgram
   ): { includes: unknown[]; excludes: unknown[] }[] {
-    const filteredImage =
-      program.compiled?.structDefs?.["filtered_image"]?.[name];
+    const filteredImage = program.context?.["filtered_image"]?.[name];
     if (filteredImage) {
       const filters: { includes: unknown[]; excludes: unknown[] }[] =
-        filteredImage?.["filters"].map(
+        filteredImage?.["filters"]?.map?.(
           (reference: { $type: "filtered_image"; $name: string }) =>
-            program.compiled?.structDefs?.["filter"]?.[reference?.$name]
-        );
+            program.context?.["filter"]?.[reference?.$name]
+        ) || [];
       const imageToFilterName = filteredImage?.["image"]?.["$name"];
       if (imageToFilterName !== name) {
         filters.push(...this.getNestedFilters(imageToFilterName, program));
@@ -1213,17 +1267,15 @@ export default class SparkParser {
       }
     | "circular"
     | undefined {
-    const image = program.compiled?.structDefs?.["image"]?.[name];
+    const image = program.context?.["image"]?.[name];
     if (image) {
       return image;
     }
-    const layeredImage =
-      program.compiled?.structDefs?.["layered_image"]?.[name];
+    const layeredImage = program.context?.["layered_image"]?.[name];
     if (layeredImage) {
       return layeredImage;
     }
-    const filteredImage =
-      program.compiled?.structDefs?.["filtered_image"]?.[name];
+    const filteredImage = program.context?.["filtered_image"]?.[name];
     if (filteredImage) {
       if (stack.has(filteredImage)) {
         return "circular";
@@ -1253,7 +1305,7 @@ export default class SparkParser {
                 let foundStruct: any = undefined;
                 for (const selector of selectors) {
                   const [obj, foundPath] = selectProperty(
-                    program.compiled?.structDefs,
+                    program.context,
                     selector,
                     fuzzy
                   );

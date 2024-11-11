@@ -57,6 +57,7 @@ import { UnaryExpression } from "./ParsedHierarchy/Expression/UnaryExpression";
 import { asOrNull, filterUndef } from "../../engine/TypeAssertion";
 import { Identifier } from "./ParsedHierarchy/Identifier";
 import { NumberExpression } from "./ParsedHierarchy/Expression/NumberExpression";
+import { ObjectExpression } from "./ParsedHierarchy/Expression/ObjectExpression";
 import { ErrorType } from "./ErrorType";
 import { DefaultFileHandler } from "../FileHandler/DefaultFileHandler";
 import { StructProperty } from "./ParsedHierarchy/Struct/StructProperty";
@@ -1904,41 +1905,6 @@ export class InkParser extends StringParser {
       this.ExpressionString,
     ]) as Expression;
 
-  public readonly ValueStructReference = (): object | null => {
-    const path = this.Interleave<Identifier>(
-      this.IdentifierWithMetadata,
-      this.Exclude(this.Spaced(this.String(".")))
-    );
-
-    if (
-      path === null ||
-      Story.IsReservedKeyword(path[0]?.name) ||
-      path.length > 2
-    ) {
-      return null;
-    }
-
-    if (path.length === 1) {
-      return { $type: "", $name: path[0]?.name || "" };
-    }
-
-    return { $type: path[0]?.name || "", $name: path[1]?.name || "" };
-  };
-
-  public readonly ValueLiteral = ():
-    | string
-    | number
-    | boolean
-    | object
-    | null =>
-    this.OneOf([
-      this.ValueFloat,
-      this.ValueInt,
-      this.ValueBool,
-      this.ValueString,
-      this.ValueStructReference,
-    ]) as string | number | boolean | null;
-
   public readonly ExpressionDivertTarget = (): Expression | null => {
     this.Whitespace();
 
@@ -1961,15 +1927,6 @@ export class InkParser extends StringParser {
     return new NumberExpression(intOrNull, "int");
   };
 
-  public readonly ValueInt = (): number | null => {
-    const intOrNull: number = this.ParseInt() as number;
-    if (intOrNull === null) {
-      return null;
-    }
-
-    return intOrNull;
-  };
-
   public readonly ExpressionFloat = (): NumberExpression | null => {
     const floatOrNull: number = this.ParseFloat() as number;
     if (floatOrNull === null) {
@@ -1977,15 +1934,6 @@ export class InkParser extends StringParser {
     }
 
     return new NumberExpression(floatOrNull, "float");
-  };
-
-  public readonly ValueFloat = (): number | null => {
-    const floatOrNull: number = this.ParseFloat() as number;
-    if (floatOrNull === null) {
-      return null;
-    }
-
-    return floatOrNull;
   };
 
   public readonly ExpressionString = (): StringExpression | null => {
@@ -2015,55 +1963,12 @@ export class InkParser extends StringParser {
     return new StringExpression(textAndLogic);
   };
 
-  public readonly ValueString = (): string | null => {
-    const openQuote = this.ParseString('"');
-    if (openQuote === null) {
-      return null;
-    }
-
-    // Set custom parser state flag so that within the text parser,
-    // it knows to treat the quote character (") as an end character
-    this.parsingStringExpression = true;
-
-    let textAndLogic: ParsedObject[] = this.Parse(
-      this.MixedTextAndLogic
-    ) as ParsedObject[];
-
-    this.Expect(this.String('"'), "close quote for string expression");
-
-    this.parsingStringExpression = false;
-
-    if (textAndLogic === null) {
-      textAndLogic = [new Text("")];
-    } else if (textAndLogic.find((c) => c instanceof Divert)) {
-      this.Error("String expressions cannot contain diverts (->)");
-    } else if (textAndLogic.find((c) => !(c instanceof Text))) {
-      // Ensure string expressions are simple
-      this.Error("Property strings cannot contain any logic.");
-    }
-
-    const text = textAndLogic[0] as Text;
-
-    return text.text;
-  };
-
   public readonly ExpressionBool = (): NumberExpression | null => {
     const id = this.Parse(this.Identifier);
     if (id === "true") {
       return new NumberExpression(true, "bool");
     } else if (id === "false") {
       return new NumberExpression(false, "bool");
-    }
-
-    return null;
-  };
-
-  public readonly ValueBool = (): boolean | null => {
-    const id = this.Parse(this.Identifier);
-    if (id === "true") {
-      return true;
-    } else if (id === "false") {
-      return false;
     }
 
     return null;
@@ -2329,6 +2234,7 @@ export class InkParser extends StringParser {
       includedString =
         this._rootParser.fileHandler.LoadInkFileContents(fullFilename);
     } catch (err) {
+      console.error(err);
       this.Error(`Failed to load: '${filename}'.\nError:${err}`);
     }
 
@@ -3080,12 +2986,8 @@ export class InkParser extends StringParser {
     let indent = this.ParseWhitespace();
     let level = indent?.length ?? 0;
     // Parse property
-    const firstElements = this.Parse(() =>
-      this.StructProperty(level)
-    ) as StructProperty[];
-    if (firstElements === null) {
-      return null;
-    }
+    const firstElements =
+      (this.Parse(() => this.StructProperty(level)) as StructProperty[]) || [];
 
     const properties: StructProperty[] = [];
     properties.push(...firstElements);
@@ -3139,13 +3041,17 @@ export class InkParser extends StringParser {
         const assignedIdentifier = this.ScalarPropertyIdentifier();
         if (assignedIdentifier) {
           this.Whitespace();
-          const elementValue = this.Expect(
-            this.ValueLiteral,
-            "property to be initialized to a number, string, boolean, or reference"
-          ) as unknown | null;
+          const expr = this.Expect(
+            this.Expression,
+            "property to be initialized"
+          ) as Expression | null;
           return [
-            new StructProperty(new Identifier("-"), level, {}),
-            new StructProperty(assignedIdentifier, level + 2, elementValue),
+            new StructProperty(
+              level,
+              new Identifier("-"),
+              new ObjectExpression()
+            ),
+            new StructProperty(level + 2, assignedIdentifier, expr),
           ];
         }
       }
@@ -3153,20 +3059,34 @@ export class InkParser extends StringParser {
         const assignedIdentifier = this.ObjectPropertyIdentifier();
         if (assignedIdentifier) {
           return [
-            new StructProperty(new Identifier("-"), level, {}),
-            new StructProperty(assignedIdentifier, level + 2, {}),
+            new StructProperty(
+              level,
+              new Identifier("-"),
+              new ObjectExpression()
+            ),
+            new StructProperty(
+              level + 2,
+              assignedIdentifier,
+              new ObjectExpression()
+            ),
           ];
         }
       }
       if (!this.Peek(this.EndOfLine)) {
         this.Whitespace();
-        const elementValue = this.Expect(
-          this.ValueLiteral,
-          "property to be initialized to a number, string, boolean, or reference"
-        ) as unknown | null;
-        return [new StructProperty(new Identifier("-"), level, elementValue)];
+        const expr = this.Expect(
+          this.Expression,
+          "property to be initialized"
+        ) as Expression | null;
+        return [new StructProperty(level, new Identifier("-"), expr)];
       }
-      return [new StructProperty(new Identifier("-"), level, {})];
+      return [
+        new StructProperty(level, new Identifier("-"), new ObjectExpression()),
+      ];
+    }
+
+    if (this.Peek(this.EndOfLine)) {
+      return [new StructProperty(level, new Identifier(""))];
     }
 
     const identifier = this.Parse(
@@ -3178,18 +3098,18 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    let elementValue: unknown | null = {};
+    let expr: Expression | null = new ObjectExpression();
     if (this.ParseString("=") !== null) {
       this.Whitespace();
-      elementValue = this.Expect(
-        this.ValueLiteral,
-        "property to be initialized to a number, string, or boolean"
-      ) as unknown | null;
+      expr = this.Expect(
+        this.Expression,
+        "property to be initialized"
+      ) as Expression | null;
     } else if (this.ParseString(":") !== null) {
-      elementValue = {};
+      expr = new ObjectExpression();
     }
 
-    return [new StructProperty(identifier, level, elementValue)];
+    return [new StructProperty(level, identifier, expr)];
   };
 
   public readonly ScalarPropertyIdentifier = (): Identifier | null => {

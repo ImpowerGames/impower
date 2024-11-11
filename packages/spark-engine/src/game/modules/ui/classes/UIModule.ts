@@ -626,7 +626,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const filteredImage = this.context?.filtered_image?.[name];
       if (filteredImage) {
         const images: Image[] = [];
-        if (filteredImage.filtered_data) {
+        if (filteredImage.filtered_src && filteredImage.filtered_data) {
           images.push({
             $type: "image",
             $name: name,

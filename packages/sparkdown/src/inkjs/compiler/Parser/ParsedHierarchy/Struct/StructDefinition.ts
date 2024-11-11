@@ -5,6 +5,7 @@ import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
 import { VariableAssignment } from "../Variable/VariableAssignment";
 import { Identifier } from "../Identifier";
+import { ObjectExpression } from "../Expression/ObjectExpression";
 
 export class StructDefinition extends ParsedObject {
   override get typeName() {
@@ -99,17 +100,13 @@ export class StructDefinition extends ParsedObject {
         parentStack.pop();
       }
       const parent = parentStack[parentStack.length - 1];
-      if (
-        typeof prop.value === "object" &&
-        prop.value &&
-        !("$name" in prop.value)
-      ) {
+      if (prop.expression instanceof ObjectExpression) {
         // If first child property is an array item, this property is an array
         const isArray =
           nextProp &&
           nextProp.level >= prop.level &&
           nextProp.identifier.name === "-";
-        const value = isArray ? [] : prop.value;
+        const value = isArray ? [] : {};
         if (parent) {
           if (prop.identifier.name === "-") {
             if (Array.isArray(parent.value)) {
@@ -118,18 +115,21 @@ export class StructDefinition extends ParsedObject {
             } else {
               this.Error(`Array item must indented inside of parent`, prop);
             }
-          } else if (parent.value[prop.identifier.name] === undefined) {
-            parent.value[prop.identifier.name] = value;
-          } else {
+          } else if (
+            prop.identifier.name &&
+            parent.value[prop.identifier.name] !== undefined
+          ) {
             this.Error(
               `Duplicate identifier '${prop.identifier.name}'`,
               prop.identifier.debugMetadata
             );
+          } else if (prop.identifier.name) {
+            parent.value[prop.identifier.name] = value;
           }
         }
         parentStack.push({ property: prop, value });
       } else {
-        const value = prop.value;
+        const value = prop.GetValue();
         if (parent) {
           if (prop.identifier.name === "-") {
             if (Array.isArray(parent.value)) {
@@ -138,13 +138,16 @@ export class StructDefinition extends ParsedObject {
             } else {
               this.Error(`Array item must indented inside of parent`, prop);
             }
-          } else if (parent.value[prop.identifier.name] === undefined) {
-            parent.value[prop.identifier.name] = value;
-          } else {
+          } else if (
+            prop.identifier.name &&
+            parent.value[prop.identifier.name] !== undefined
+          ) {
             this.Error(
               `Duplicate identifier '${prop.identifier.name}'`,
               prop.identifier.debugMetadata
             );
+          } else if (prop.identifier.name) {
+            parent.value[prop.identifier.name] = value;
           }
         }
       }

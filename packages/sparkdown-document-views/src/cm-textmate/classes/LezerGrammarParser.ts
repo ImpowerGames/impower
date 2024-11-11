@@ -74,7 +74,7 @@ export default class LezerGrammarParser extends Parser {
         [],
         this.nodeSet.types.map((n) => n.name)
       );
-      const compiler = new Compiler(this.grammar, buffer);
+      const compiler = new Compiler(this.grammar, this.nodeSet, buffer);
       const result = compiler.compile(paddedScript);
       if (result) {
         const topID = NodeID.top;

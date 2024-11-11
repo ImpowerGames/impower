@@ -4,7 +4,7 @@
 
 import type { ParserAction } from "../../core";
 
-import TreeBuffer from "./TreeBuffer";
+import { NodeSet, TreeBuffer } from "./Tree";
 
 /**
  * Sets the initial array size for chunks, and how much to grow a chunk's
@@ -177,7 +177,7 @@ export class Chunk {
    *
    * @param nodes - The language node set to use when creating the tree.
    */
-  tryForTree() {
+  tryForTree(nodeSet: NodeSet) {
     if (this.tree === null) {
       return null;
     }
@@ -210,7 +210,7 @@ export class Chunk {
       );
     }
 
-    this.tree = new TreeBuffer(new Uint16Array(buffer), this.length);
+    this.tree = new TreeBuffer(new Uint16Array(buffer), this.length, nodeSet);
 
     return this.tree;
   }

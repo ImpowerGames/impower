@@ -162,7 +162,7 @@ export default class GrammarParse implements PartialParse {
       this.state = this.grammar.startState();
     }
 
-    this.compiler = new Compiler(grammar, this.buffer);
+    this.compiler = new Compiler(grammar, this.nodeSet, this.buffer);
 
     // if we reused left, we'll catch the compiler up to the current position
     if (this.buffer.chunks.length) {

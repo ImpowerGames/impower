@@ -10,8 +10,7 @@ import { ITreeBuffer } from "../types/ITreeBuffer";
 import type { Chunk } from "./Chunk";
 import { ChunkBuffer } from "./ChunkBuffer";
 import { CompileStack } from "./CompileStack";
-import FlatBufferCursor from "./FlatBufferCursor";
-import TreeBuffer from "./TreeBuffer";
+import { FlatBufferCursor, NodeSet, TreeBuffer } from "./Tree";
 
 /**
  * If true, the parser will try to close off incomplete nodes at the end of
@@ -27,6 +26,7 @@ export const COMPILER_ARRAY_INTERVAL = 32768;
 
 export class Compiler {
   declare grammar: Grammar;
+  declare nodeSet: NodeSet;
   declare stack: CompileStack;
   declare buffer: ChunkBuffer;
   declare compiled: Int32Array;
@@ -34,8 +34,9 @@ export class Compiler {
   declare reused: TreeBuffer[];
   declare index: number;
 
-  constructor(grammar: Grammar, buffer?: ChunkBuffer) {
+  constructor(grammar: Grammar, nodeSet: NodeSet, buffer?: ChunkBuffer) {
     this.grammar = grammar;
+    this.nodeSet = nodeSet;
     this.stack = new CompileStack();
     this.buffer = buffer || new ChunkBuffer([], grammar.nodeNames);
     this.compiled = new Int32Array(COMPILER_ARRAY_INTERVAL);
@@ -96,7 +97,7 @@ export class Compiler {
     const from = chunk.from;
     const to = chunk.to;
 
-    if (chunk.tryForTree()) {
+    if (chunk.tryForTree(this.nodeSet)) {
       const tree = chunk.tree!;
       const reusedIndex = this.reused.length;
       this.emitReused(reusedIndex, from, to);

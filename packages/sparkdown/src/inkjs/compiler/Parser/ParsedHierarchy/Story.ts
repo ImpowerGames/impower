@@ -193,8 +193,8 @@ export class Story extends FlowBase {
     // from other variable declarations.
     this._structDefs = new Map();
     for (const structDef of this.FindAll(StructDefinition)()) {
-      if (structDef.identifier?.name) {
-        this._structDefs.set(structDef.identifier?.name, structDef);
+      if (structDef.scopedIdentifier?.name) {
+        this._structDefs.set(structDef.scopedIdentifier?.name, structDef);
       }
     }
 
@@ -436,16 +436,15 @@ export class Story extends FlowBase {
         sb += "ERROR: ";
       }
 
-      if (
-        source &&
-        source.debugMetadata !== null &&
-        source.debugMetadata.startLineNumber >= 1
-      ) {
-        if (source.debugMetadata.fileName != null) {
-          sb += `'${source.debugMetadata.fileName}' `;
+      const debugMetadata =
+        source instanceof DebugMetadata ? source : source?.debugMetadata;
+
+      if (debugMetadata != null && debugMetadata.startLineNumber >= 1) {
+        if (debugMetadata.fileName != null) {
+          sb += `'${debugMetadata.fileName}' `;
         }
 
-        sb += `line ${source.debugMetadata.startLineNumber}: `;
+        sb += `line ${debugMetadata.startLineNumber}: `;
       }
 
       sb += message;

@@ -1,4 +1,5 @@
 import {
+  Command,
   CompletionContext,
   CompletionItem,
   CompletionItemKind,
@@ -8,24 +9,21 @@ import {
 } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import { getAllProperties } from "@impower/spark-engine/src/game/core/utils/getAllProperties";
-import { SparkField } from "@impower/sparkdown/src/types/SparkField";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import getProperty from "@impower/sparkdown/src/utils/getProperty";
 import isIdentifier from "@impower/sparkdown/src/utils/isIdentifier";
-import traverse from "@impower/sparkdown/src/utils/traverse";
 
 import type {
   NodeIterator,
   Tree,
-  SyntaxNodeRef,
+  SyntaxNode,
 } from "../../../grammar-compiler/src/compiler/classes/Tree";
-import type { Grammar } from "../../../grammar-compiler/src/grammar";
-import { printTree } from "../../../grammar-compiler/src/compiler";
+import { printTree } from "../../../grammar-compiler/src/compiler/utils/printTree";
 
 import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 import { SparkLocation } from "@impower/sparkdown/src/types/SparkLocation";
+import getLineText from "./getLineText";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
@@ -35,6 +33,28 @@ const IMAGE_CLAUSE_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS;
 const AUDIO_CLAUSE_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS;
+
+const traverse = <T>(
+  obj: T,
+  process: (fieldPath: string, fieldValue: any) => void,
+  fieldPath: string = ""
+) => {
+  if (obj) {
+    for (let [k, v] of Object.entries(obj)) {
+      const path = `${fieldPath}.${k}`;
+      if (
+        typeof v === "object" &&
+        v &&
+        !("$name" in v) &&
+        Object.keys(v).length > 0
+      ) {
+        traverse(v, process, path);
+      } else {
+        process(path, v);
+      }
+    }
+  }
+};
 
 const getClosestLineBefore = (
   locations: SparkLocation[],
@@ -172,9 +192,7 @@ const addTextTargetCompletions = (
   program: SparkProgram | undefined,
   insertTextPrefix = ""
 ) => {
-  for (const [, v] of Object.entries(
-    program?.compiled?.structDefs?.["ui"] || {}
-  )) {
+  for (const [, v] of Object.entries(program?.context?.["ui"] || {})) {
     traverse(v, (fieldPath) => {
       if (fieldPath.endsWith(".text")) {
         const layer = fieldPath.split(".").at(-2);
@@ -198,9 +216,7 @@ const addImageTargetCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined
 ) => {
-  for (const [, v] of Object.entries(
-    program?.compiled?.structDefs?.["ui"] || {}
-  )) {
+  for (const [, v] of Object.entries(program?.context?.["ui"] || {})) {
     traverse(v, (fieldPath) => {
       if (fieldPath.endsWith(".image")) {
         const layer = fieldPath.split(".").at(-2);
@@ -225,7 +241,7 @@ const addImageNameCompletions = (
 ) => {
   if (program) {
     for (const [name, v] of Object.entries(
-      program?.compiled?.structDefs?.["filtered_image"] || {}
+      program?.context?.["filtered_image"] || {}
     )) {
       if (!name.startsWith("$")) {
         const struct = v as {
@@ -252,7 +268,7 @@ const addImageNameCompletions = (
       }
     }
     for (const [name, v] of Object.entries(
-      program?.compiled?.structDefs?.["layered_image"] || {}
+      program?.context?.["layered_image"] || {}
     )) {
       if (!name.startsWith("$")) {
         const struct = v as {
@@ -277,9 +293,7 @@ const addImageNameCompletions = (
         }
       }
     }
-    for (const [name, v] of Object.entries(
-      program?.compiled?.structDefs?.["image"] || {}
-    )) {
+    for (const [name, v] of Object.entries(program?.context?.["image"] || {})) {
       if (!name.startsWith("$")) {
         const struct = v as { src?: string };
         const src = struct?.src;
@@ -346,9 +360,7 @@ const addFilterCompletions = (
   program: SparkProgram | undefined,
   exclude?: string[]
 ) => {
-  for (const [name] of Object.entries(
-    program?.compiled?.structDefs?.["filter"] || {}
-  )) {
+  for (const [name] of Object.entries(program?.context?.["filter"] || {})) {
     if (!exclude || !exclude?.includes(name)) {
       if (!name.startsWith("$")) {
         const completion: CompletionItem = {
@@ -368,9 +380,7 @@ const addAnimationCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined
 ) => {
-  for (const [name] of Object.entries(
-    program?.compiled?.structDefs?.["transition"] || {}
-  )) {
+  for (const [name] of Object.entries(program?.context?.["transition"] || {})) {
     if (!name.startsWith("$")) {
       const completion: CompletionItem = {
         label: name,
@@ -382,9 +392,7 @@ const addAnimationCompletions = (
       }
     }
   }
-  for (const [name] of Object.entries(
-    program?.compiled?.structDefs?.["animation"] || {}
-  )) {
+  for (const [name] of Object.entries(program?.context?.["animation"] || {})) {
     if (!name.startsWith("$")) {
       const completion: CompletionItem = {
         label: name,
@@ -402,9 +410,7 @@ const addAudioTargetCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined
 ) => {
-  for (const [name] of Object.entries(
-    program?.compiled?.structDefs?.["channel"] || {}
-  )) {
+  for (const [name] of Object.entries(program?.context?.["channel"] || {})) {
     if (!name.startsWith("$")) {
       const completion: CompletionItem = {
         label: name,
@@ -422,9 +428,7 @@ const addAudioNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined
 ) => {
-  for (const [name] of Object.entries(
-    program?.compiled?.structDefs?.["audio"] || {}
-  )) {
+  for (const [name] of Object.entries(program?.context?.["audio"] || {})) {
     if (!name.startsWith("$")) {
       const completion: CompletionItem = {
         label: name,
@@ -437,7 +441,7 @@ const addAudioNameCompletions = (
     }
   }
   for (const [name] of Object.entries(
-    program?.compiled?.structDefs?.["layered_audio"] || {}
+    program?.context?.["layered_audio"] || {}
   )) {
     if (!name.startsWith("$")) {
       const completion: CompletionItem = {
@@ -450,9 +454,7 @@ const addAudioNameCompletions = (
       }
     }
   }
-  for (const [name] of Object.entries(
-    program?.compiled?.structDefs?.["synth"] || {}
-  )) {
+  for (const [name] of Object.entries(program?.context?.["synth"] || {})) {
     if (!name.startsWith("$")) {
       const completion: CompletionItem = {
         label: name,
@@ -507,9 +509,7 @@ const addModulationCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined
 ) => {
-  for (const [name] of Object.entries(
-    program?.compiled?.structDefs?.["modulation"] || {}
-  )) {
+  for (const [name] of Object.entries(program?.context?.["modulation"] || {})) {
     if (!name.startsWith("$")) {
       const completion: CompletionItem = {
         label: name,
@@ -523,86 +523,169 @@ const addModulationCompletions = (
   }
 };
 
-const addStructMapPropertyNameCompletions = (
-  completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
-  type: string,
-  fields: SparkField[] | undefined,
-  path: string,
-  beforeText: string
-) => {
-  if (type) {
-    const parentObj = program?.variables?.[type]?.compiled;
-    const existingProps = new Set<string>();
-    const possibleNames = new Set<string>();
-    const trimmedPath = path.endsWith(".") ? path.slice(0, -1) : path;
-    const prefix = trimmedPath ? `.${trimmedPath}.` : ".";
-    const trimmedText = beforeText.trimStart();
-    const indentLength = beforeText.length - trimmedText.length;
-    const indentedStr = beforeText.slice(0, indentLength) + "  ";
-    const parentProperties = getAllProperties(parentObj);
-    fields?.forEach((field) => {
-      const prop = "." + field.path + "." + field.key;
-      let existingPath = "";
-      prop.split(".").forEach((p) => {
-        if (p) {
-          existingPath += "." + p;
-          existingProps.add(existingPath);
-        }
-      });
-    });
-    Object.entries(parentProperties).forEach(([p, v]) => {
-      if (p.startsWith(prefix)) {
-        const [name, child] = p.slice(prefix.length).split(".");
-        const targetPath = p.slice(0, prefix.length) + name;
-        const description = child ? undefined : typeof v;
-        if (name && Number.isNaN(Number(name))) {
-          if (!existingProps.has(targetPath) && !possibleNames.has(name)) {
-            possibleNames.add(name);
-            // TODO: When inserting string prop (that takes fixed values), use snippet syntax to allow user to choose between all possible string values ${1|one,two,three|}
-            const insertSuffix = child ? `:\n${indentedStr}` : " = ";
-            const completion: CompletionItem = {
-              label: name,
-              insertText: name + insertSuffix,
-              labelDetails: { description },
-              kind: CompletionItemKind.Property,
-              insertTextMode: InsertTextMode.asIs,
-            };
-            if (completion.label && !completions.has(completion.label)) {
-              completions.set(completion.label, completion);
-            }
-          }
-        }
-      }
-    });
-  }
-};
-
-const addTypeOrNameCompletions = (
+const addStructTypeNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined
 ) => {
-  if (program?.compiled?.structDefs) {
-    Object.entries(program.compiled?.structDefs).forEach(([k, v]) => {
-      if (isIdentifier(k)) {
-        const description = typeof v === "object" ? undefined : typeof v;
-        const sortText = typeof v !== "object" ? "0" : "1";
-        const kind =
-          typeof v === "object"
-            ? CompletionItemKind.TypeParameter
-            : CompletionItemKind.Variable;
+  if (program?.context) {
+    for (const k of Object.keys(program?.context).sort()) {
+      // TODO: Don't show option for type declared on this line
+      if (!k.startsWith("$")) {
+        const description = undefined;
+        const kind = CompletionItemKind.TypeParameter;
         const completion: CompletionItem = {
           label: k,
           labelDetails: { description },
           kind,
-          insertTextMode: InsertTextMode.asIs,
-          sortText,
         };
         if (completion.label && !completions.has(completion.label)) {
           completions.set(completion.label, completion);
         }
       }
-    });
+    }
+  }
+};
+
+const addStructVariableNameCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  type: string
+) => {
+  if (program?.context?.[type]) {
+    for (const k of Object.keys(program?.context?.[type]).sort()) {
+      // TODO: Don't show option for name declared on this line
+      if (!k.startsWith("$")) {
+        const description = undefined;
+        const kind = CompletionItemKind.Variable;
+        const completion: CompletionItem = {
+          label: k,
+          labelDetails: { description },
+          kind,
+        };
+        if (completion.label && !completions.has(completion.label)) {
+          completions.set(completion.label, completion);
+        }
+      }
+    }
+  }
+};
+
+const getTypeName = (v: unknown): string => {
+  if (v && typeof v === "object" && Array.isArray(v)) {
+    if (v[0] != null) {
+      return `${getTypeName(v[0])}[]`;
+    }
+    return `object[]`;
+  }
+  if (
+    v &&
+    typeof v === "object" &&
+    "$type" in v &&
+    v.$type &&
+    typeof v.$type === "string"
+  ) {
+    return v.$type;
+  }
+  return typeof v;
+};
+
+const addContextStructPropertyNameCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  type: string,
+  name: string,
+  path: string,
+  lineText: string,
+  existingProps: Set<string>,
+  possibleNames: Set<string>
+) => {
+  const relativePath = path.startsWith(".") ? path : `.${path}`;
+  const pathPrefix = relativePath.slice(0, relativePath.lastIndexOf(".") + 1);
+  const indentLength = lineText.length - lineText.trimStart().length;
+  const indentedStr = lineText.slice(0, indentLength) + "  ";
+  if (type) {
+    const contextStruct = program?.context?.[type]?.[name];
+    if (contextStruct) {
+      traverse(contextStruct, (p: string) => {
+        if (p.startsWith(pathPrefix)) {
+          const [name] = p.slice(pathPrefix.length).split(".");
+          const optionValue = getProperty(contextStruct, pathPrefix + name);
+          const description = getTypeName(optionValue);
+          if (name && Number.isNaN(Number(name))) {
+            if (
+              !existingProps.has(p) &&
+              !possibleNames.has(name) &&
+              !name.startsWith("$")
+            ) {
+              possibleNames.add(name);
+              const isScalarAssignment =
+                !optionValue ||
+                typeof optionValue !== "object" ||
+                "$type" in optionValue ||
+                "$name" in optionValue;
+              const arrayDash = Array.isArray(optionValue) ? "- " : "";
+              const insertSuffix = isScalarAssignment
+                ? " = "
+                : `:\n${indentedStr}${arrayDash}`;
+              const completion: CompletionItem = {
+                label: name,
+                insertText: name + insertSuffix,
+                labelDetails: { description },
+                kind: CompletionItemKind.Property,
+                insertTextMode: InsertTextMode.asIs,
+                command: Command.create(
+                  "suggest",
+                  "editor.action.triggerSuggest"
+                ),
+              };
+              if (completion.label && !completions.has(completion.label)) {
+                completions.set(completion.label, completion);
+              }
+            }
+          }
+        }
+      });
+    }
+  }
+};
+
+const addStructPropertyNameCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  type: string,
+  name: string,
+  path: string,
+  lineText: string
+) => {
+  if (type) {
+    const existingProps = new Set<string>();
+    const possibleNames = new Set<string>();
+    const definedStruct = program?.compiled?.structDefs?.[type]?.[name];
+    if (definedStruct) {
+      traverse(definedStruct, (fieldPath: string) => {
+        existingProps.add(fieldPath);
+      });
+    }
+    addContextStructPropertyNameCompletions(
+      completions,
+      program,
+      type,
+      "$default",
+      path,
+      lineText,
+      existingProps,
+      possibleNames
+    );
+    addContextStructPropertyNameCompletions(
+      completions,
+      program,
+      type,
+      "$optional",
+      path,
+      lineText,
+      existingProps,
+      possibleNames
+    );
   }
 };
 
@@ -622,8 +705,8 @@ const addAccessPathCompletions = (
       : parts.join(".");
   const keyStartsWith =
     parts.length === 1 ? path : path?.endsWith(".") ? parts.at(-1) : "";
-  if (program?.compiled?.structDefs) {
-    const props = getProperty(program.compiled?.structDefs, parentPath);
+  if (program?.context) {
+    const props = getProperty(program.context, parentPath);
     if (props) {
       Object.entries(props).forEach(([k, v]) => {
         if (isIdentifier(k)) {
@@ -655,7 +738,6 @@ const getCompletions = (
   document: TextDocument | undefined,
   program: SparkProgram | undefined,
   tree: Tree | undefined,
-  grammar: Grammar,
   position: Position,
   _context: CompletionContext | undefined
 ): CompletionItem[] | null | undefined => {
@@ -668,26 +750,51 @@ const getCompletions = (
 
   const side = -1;
 
-  const getNodeType = (node: SyntaxNodeRef) => ({
-    name: grammar.nodeNames[node.type] as SparkdownNodeName,
-    id: node.type,
-  });
-
-  const getNode = (cursor: SyntaxNodeRef | NodeIterator) => {
-    const node = "node" in cursor ? cursor.node : cursor;
-    return {
-      type: getNodeType(node),
-      from: node.from,
-      to: node.to,
-    };
+  const getNodeText = (node: SyntaxNode) => {
+    return document.getText({
+      start: document.positionAt(node.from),
+      end: document.positionAt(node.to),
+    });
   };
 
-  type Node = ReturnType<typeof getNode>;
+  const getDescendent = (
+    descendentTypeName: SparkdownNodeName,
+    parent: SyntaxNode
+  ) => {
+    if (parent) {
+      const cur = parent?.node.cursor();
+      while (cur.from <= parent.to) {
+        if (cur.node.type.name === descendentTypeName) {
+          return cur.node;
+        }
+        cur?.next();
+      }
+    }
+    return undefined;
+  };
 
-  const getOtherMatchesInside = (
+  const getDescendentInsideParent = (
+    descendentTypeName: SparkdownNodeName,
+    parentTypeName: SparkdownNodeName,
+    stack: SyntaxNode[]
+  ) => {
+    const parent = stack.find((n) => n.type.name === parentTypeName);
+    if (parent) {
+      const cur = parent?.node.cursor();
+      while (cur.from <= parent.to) {
+        if (cur.node.type.name === descendentTypeName) {
+          return cur.node;
+        }
+        cur?.next();
+      }
+    }
+    return undefined;
+  };
+
+  const getOtherMatchesInsideParent = (
     matchTypeName: SparkdownNodeName,
     parentTypeName: SparkdownNodeName,
-    stack: Node[]
+    stack: SyntaxNode[]
   ) => {
     const matches = [];
     const current = stack[0];
@@ -695,27 +802,17 @@ const getCompletions = (
     if (current && parent) {
       const prevCur = tree.cursorAt(current.from - 1, side);
       while (prevCur.from >= parent.from) {
-        const node = getNode(prevCur);
+        const node = prevCur.node;
         if (node.type.name === matchTypeName) {
-          matches.unshift(
-            document.getText({
-              start: document.positionAt(node.from),
-              end: document.positionAt(node.to),
-            })
-          );
+          matches.unshift(getNodeText(node));
         }
         prevCur.moveTo(prevCur.from - 1, side);
       }
       const nextCur = tree.cursorAt(current.to + 1, side);
       while (nextCur.to <= parent.to) {
-        const node = getNode(nextCur);
+        const node = nextCur.node;
         if (node.type.name === matchTypeName) {
-          matches.push(
-            document.getText({
-              start: document.positionAt(node.from),
-              end: document.positionAt(node.to),
-            })
-          );
+          matches.push(getNodeText(node));
         }
         nextCur.moveTo(nextCur.to + 1, side);
       }
@@ -725,14 +822,15 @@ const getCompletions = (
 
   const completions: Map<string, CompletionItem> = new Map();
 
+  const lineText = getLineText(document, position);
   const pos = document.offsetAt(position);
   const stackIterator = tree.resolveStack(pos, side);
-  const stack = [] as Node[];
+  const stack = [] as SyntaxNode[];
   for (let cur: NodeIterator | null = stackIterator; cur; cur = cur.next) {
-    stack.push(getNode(cur));
+    stack.push(cur.node);
   }
 
-  // console.log(printTree(tree, document.getText(), grammar.nodeNames));
+  // console.log(printTree(tree, document.getText()));
   // console.log(stack.map((n) => n.type.name));
 
   if (!stack[0]) {
@@ -740,12 +838,9 @@ const getCompletions = (
   }
 
   const prevCur = tree.cursorAt(stack[0].from - 1, side);
-  const prevNode = getNode(prevCur);
+  const prevNode = prevCur.node;
   const prevTypeName = prevNode.type.name;
-  const prevText = document.getText({
-    start: document.positionAt(prevNode.from),
-    end: document.positionAt(prevNode.to),
-  });
+  const prevText = getNodeText(prevNode);
 
   // Transition
   if (stack[0]?.type.name === "TransitionMark") {
@@ -842,7 +937,7 @@ const getCompletions = (
       stack[0]?.type.name === "AssetCommandFilterOperator" ||
       stack[0]?.type.name === "AssetCommandFilterName"
     ) {
-      const exclude = getOtherMatchesInside(
+      const exclude = getOtherMatchesInsideParent(
         "AssetCommandFilterName",
         "AssetCommandContent",
         stack
@@ -867,7 +962,7 @@ const getCompletions = (
           prevText === "with" ||
           prevText === "fadeto");
       if (!prevClauseTakesArgument) {
-        const exclude = getOtherMatchesInside(
+        const exclude = getOtherMatchesInsideParent(
           "AssetCommandClauseKeyword",
           "AssetCommandContent",
           stack
@@ -909,7 +1004,7 @@ const getCompletions = (
       stack[0]?.type.name === "AssetCommandFilterOperator" ||
       stack[0]?.type.name === "AssetCommandFilterName"
     ) {
-      const exclude = getOtherMatchesInside(
+      const exclude = getOtherMatchesInsideParent(
         "AssetCommandFilterName",
         "AssetCommandContent",
         stack
@@ -925,7 +1020,7 @@ const getCompletions = (
           prevText === "with" ||
           prevText === "fadeto");
       if (!prevClauseTakesArgument) {
-        const exclude = getOtherMatchesInside(
+        const exclude = getOtherMatchesInsideParent(
           "AssetCommandClauseKeyword",
           "AssetCommandContent",
           stack
@@ -945,8 +1040,113 @@ const getCompletions = (
     }
   }
 
+  // Define
+  if (
+    stack.some(
+      (n) =>
+        n.type.name === "WhitespaceDefineTypeName" ||
+        n.type.name === "DefineTypeName"
+    )
+  ) {
+    addStructTypeNameCompletions(completions, program);
+    return Array.from(completions.values());
+  }
+  if (
+    stack.some(
+      (n) =>
+        n.type.name === "DefinePunctuationAccessor" ||
+        n.type.name === "WhitespaceDefineVariableName" ||
+        n.type.name === "DefineVariableName"
+    )
+  ) {
+    const defineTypeNameNode = getDescendentInsideParent(
+      "DefineTypeName",
+      "DefineDeclaration",
+      stack
+    );
+    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
+    addStructVariableNameCompletions(completions, program, type);
+    return Array.from(completions.values());
+  }
+  const propertyNameNode = stack.find(
+    (n) =>
+      n.type.name === "StructBlankProperty" ||
+      n.type.name === "DeclarationObjectPropertyName" ||
+      n.type.name === "DeclarationScalarPropertyName" ||
+      n.type.name === "StructObjectItemBlock"
+  );
+  if (
+    propertyNameNode &&
+    document.positionAt(propertyNameNode.from).line === position.line
+  ) {
+    const defineTypeNameNode = getDescendentInsideParent(
+      "DefineTypeName",
+      "DefineDeclaration",
+      stack
+    );
+    const defineVariableNameNode = getDescendentInsideParent(
+      "DefineVariableName",
+      "DefineDeclaration",
+      stack
+    );
+    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
+    const name = defineVariableNameNode
+      ? getNodeText(defineVariableNameNode)
+      : "";
+    let stackCursor: SyntaxNode | null = propertyNameNode.node;
+    let path = "";
+    while (stackCursor) {
+      if (stackCursor.type.name === "StructObjectItemBlock") {
+        path = "0" + "." + path;
+      }
+      if (
+        stackCursor.type.name === "StructObjectItemWithInlineScalarProperty"
+      ) {
+        path = "0" + "." + path;
+      }
+      if (
+        stackCursor.type.name === "StructObjectItemWithInlineObjectProperty"
+      ) {
+        path = "0" + "." + path;
+        const beginNode = stackCursor.getChild(
+          "StructObjectItemWithInlineObjectProperty_begin"
+        );
+        if (beginNode) {
+          const nameNode = getDescendent(
+            "DeclarationObjectPropertyName",
+            beginNode
+          );
+          if (nameNode && nameNode.from !== propertyNameNode.from) {
+            path = getNodeText(nameNode) + "." + path;
+          }
+        }
+      }
+      if (stackCursor.type.name === "StructObjectProperty") {
+        const beginNode = stackCursor.getChild("StructObjectProperty_begin");
+        if (beginNode) {
+          const nameNode = getDescendent(
+            "DeclarationObjectPropertyName",
+            beginNode
+          );
+          if (nameNode && nameNode.from !== propertyNameNode.from) {
+            path = getNodeText(nameNode) + "." + path;
+          }
+        }
+      }
+      stackCursor = stackCursor.node.parent;
+    }
+    addStructPropertyNameCompletions(
+      completions,
+      program,
+      type,
+      name,
+      path,
+      lineText
+    );
+    return Array.from(completions.values());
+  }
+
   // const line = position?.line;
-  // const lineText = getLineText(document, position);
   // const prevLineText = getLineText(document, position, -1);
   // const nextLineText = getLineText(document, position, 1);
   // const beforeText = getLineTextBefore(document, position);

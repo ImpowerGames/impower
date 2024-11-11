@@ -91,10 +91,6 @@ export class Compiler {
     this.parsedStory.countAllVisits = this.options.countAllVisits;
     this._runtimeStory = this.parsedStory.ExportRuntime(this.OnError);
 
-    if (this.errors.length > 0) {
-      this._runtimeStory = null;
-    }
-
     if (this._runtimeStory) {
       this._runtimeStory.onWriteRuntimeObject =
         this.options.serializationHandler?.WriteRuntimeObject;

@@ -14,6 +14,9 @@ export interface SparkProgram {
     scenes?: Record<string, SparkLocation[]>;
     transitions?: Record<string, SparkLocation[]>;
   };
+  context?: {
+    [type: string]: { [name: string]: any };
+  };
   implicitDefs?: {
     [type: string]: { [name: string]: any };
   };

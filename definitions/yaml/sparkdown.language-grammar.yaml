@@ -287,28 +287,28 @@ repository:
         name: keyword.control.definition.object.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#WhitespaceDefineTypeName" }
       4:
         patterns:
-          - { include: "#ModifierName" }
+          - { include: "#DefineModifierName" }
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#WhitespaceDefineTypeName" }
       6:
         patterns:
-          - { include: "#TypeName" }
+          - { include: "#DefineTypeName" }
       7:
         patterns:
           - { include: "#Whitespace" }
       8:
         patterns:
-          - { include: "#PunctuationAccessor" }
+          - { include: "#DefinePunctuationAccessor" }
       9:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#WhitespaceDefineVariableName" }
       10:
         patterns:
-          - { include: "#VariableName" }
+          - { include: "#DefineVariableName" }
       11:
         patterns:
           - { include: "#Whitespace" }
@@ -321,6 +321,36 @@ repository:
       - { include: "#StructField" }
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
+
+  DefineModifierName:
+    tag: keyword
+    name: storage.modifier.sd
+    match: (.+)
+
+  WhitespaceDefineTypeName:
+    tag: content
+    name: markup.raw.whitespace.sd
+    match: (.+)
+
+  DefineTypeName:
+    tag: typeName
+    name: support.type.sd
+    match: (.+)
+
+  DefinePunctuationAccessor:
+    match: ([.])
+    tag: separator
+    name: meta.template.expression.accessor.sd
+
+  WhitespaceDefineVariableName:
+    tag: content
+    name: markup.raw.whitespace.sd
+    match: (.+)
+
+  DefineVariableName:
+    tag: variableName
+    name: variable.other.constant.sd
+    match: (.+)
 
   TypeAssignment:
     begin: ({{IDENTIFIER}})({{WS}}*)($|[=]|(?={{EOL}}))
@@ -407,6 +437,7 @@ repository:
   StructField:
     emit: true
     patterns:
+      - { include: "#Annotation" }
       - { include: "#StructBlankProperty" }
       - { include: "#StructObjectItem" }
       - { include: "#StructScalarItem" }
@@ -415,14 +446,11 @@ repository:
       - { include: "#Newline" }
 
   StructBlankProperty:
-    match: ^({{WS}}+$)(\r\n|\r|\n)?
+    match: ^({{WS}}+$)
     captures:
       1:
         patterns:
           - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#Newline" }
 
   StructObjectItem:
     patterns:
@@ -521,12 +549,12 @@ repository:
           - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
+      - { include: "#StructBlankProperty" }
       - { include: "#StructObjectItem" }
       - { include: "#StructScalarItem" }
       - { include: "#StructObjectProperty" }
       - { include: "#StructScalarProperty" }
       - { include: "#Newline" }
-      - { include: "#StructBlankProperty" }
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
 
@@ -571,12 +599,12 @@ repository:
           - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
+      - { include: "#StructBlankProperty" }
       - { include: "#StructObjectItem" }
       - { include: "#StructScalarItem" }
       - { include: "#StructObjectProperty" }
       - { include: "#StructScalarProperty" }
       - { include: "#Newline" }
-      - { include: "#StructBlankProperty" }
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
 
@@ -704,11 +732,9 @@ repository:
       - { include: "#Unknown" }
 
   DeclarationObjectPropertyName:
-    match: (.+)
-    captures:
-      1:
-        patterns:
-          - { include: "#PropertySelector" }
+    emit: true
+    patterns:
+      - { include: "#PropertySelector" }
 
   DeclarationScalarPropertyName:
     tag: propertyName
@@ -1888,11 +1914,6 @@ repository:
     tag: variableName
     name: variable.other.constant.sd
     match: ({{IDENTIFIER}})(?![(])
-
-  ModifierName:
-    tag: keyword
-    name: storage.modifier.sd
-    match: ({{IDENTIFIER}})
 
   TypeName:
     tag: typeName

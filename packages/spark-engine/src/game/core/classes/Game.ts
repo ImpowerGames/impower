@@ -104,7 +104,7 @@ export class Game<T extends M = {}> {
           throw new Error("setTimeout not configured");
         },
       },
-      ...(program.compiled?.structDefs || {}),
+      ...(program.context || {}),
     };
     // Create connection for sending and receiving messages
     this._connection = new Connection({

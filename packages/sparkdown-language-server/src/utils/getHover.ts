@@ -24,8 +24,8 @@ const getHover = (
     if (hoveredOffset >= reference.from && hoveredOffset <= reference.to) {
       const name = reference.name;
       const asset =
-        program.compiled?.structDefs?.["layered_image"]?.[name] ||
-        program.compiled?.structDefs?.["image"]?.[name];
+        program.context?.["layered_image"]?.[name] ||
+        program.context?.["image"]?.[name];
       if (asset) {
         if (asset.src) {
           return {

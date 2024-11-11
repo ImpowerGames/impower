@@ -16,6 +16,7 @@ import { stressPhrases } from "../utils/stressPhrases";
 import { InstructionOptions } from "../types/InstructionOptions";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
+import { getCharacterIdentifier } from "../utils/getCharacterIdentifier";
 
 const MARKERS = ["^", "*", "_", "~~", "::"];
 const CHAR_REGEX =
@@ -97,10 +98,7 @@ export class InterpreterModule extends Module<
    * Coalesce character name into a valid identifier that can be used to lookup the character in context
    * */
   getCharacterIdentifier(characterName: string): string {
-    return characterName
-      .replace(/([ ])/g, "_")
-      .replace(/([.'"`])/g, "")
-      .toLowerCase();
+    return getCharacterIdentifier(characterName);
   }
 
   /**
