@@ -2773,7 +2773,7 @@ repository:
   TimeValue:
     tag: number
     name: constant.numeric.time.sd
-    match: ((?:\d*[.])?\d+)(ms|s)?(?=$|{{WS}})
+    match: ((?:\d*[.])?\d+)(ms|s)(?=$|{{WS}})
     captures:
       1:
         tag: number

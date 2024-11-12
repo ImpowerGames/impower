@@ -691,15 +691,18 @@ export default class SparkParser {
           reportDiagnostic(message, DiagnosticSeverity.Error);
         }
         if (nodeType === "AssetCommandClauseKeyword") {
-          const valueNode = node.node.nextSibling?.node.nextSibling;
-          const valueNodeType = (
-            valueNode ? valueNode.type.name : ""
+          const nextValueNode = node.node.nextSibling?.node.nextSibling;
+          const nextValueNodeType = (
+            nextValueNode ? nextValueNode.type.name : ""
           ) as SparkdownNodeName;
+          const nextValueNodeText = nextValueNode
+            ? script.slice(nextValueNode.from, nextValueNode.to)
+            : "";
           if (text === "after") {
             if (
-              valueNodeType !== "ConditionalBlock" &&
-              valueNodeType !== "TimeValue" &&
-              valueNodeType !== "NumberValue"
+              nextValueNodeType !== "ConditionalBlock" &&
+              nextValueNodeType !== "TimeValue" &&
+              nextValueNodeType !== "NumberValue"
             ) {
               const message = `'${text}' should be followed by a time value (e.g. 'after 2' or 'after 2s' or 'after 200ms')`;
               reportDiagnostic(message, DiagnosticSeverity.Error, "end");
@@ -707,9 +710,9 @@ export default class SparkParser {
           }
           if (text === "over") {
             if (
-              valueNodeType !== "ConditionalBlock" &&
-              valueNodeType !== "TimeValue" &&
-              valueNodeType !== "NumberValue"
+              nextValueNodeType !== "ConditionalBlock" &&
+              nextValueNodeType !== "TimeValue" &&
+              nextValueNodeType !== "NumberValue"
             ) {
               const message = `'${text}' should be followed by a time value (e.g. 'over 2' or 'over 2s' or 'over 200ms')`;
               reportDiagnostic(message, DiagnosticSeverity.Error, "end");
@@ -718,16 +721,16 @@ export default class SparkParser {
           if (text === "with") {
             if (
               stack.includes("ImageCommand") &&
-              valueNodeType !== "ConditionalBlock" &&
-              valueNodeType !== "NameValue"
+              nextValueNodeType !== "ConditionalBlock" &&
+              nextValueNodeType !== "NameValue"
             ) {
               const message = `'${text}' should be followed by the name of a transition or animation (e.g. 'with shake')`;
               reportDiagnostic(message, DiagnosticSeverity.Error, "end");
             }
             if (
               stack.includes("AudioCommand") &&
-              valueNodeType !== "ConditionalBlock" &&
-              valueNodeType !== "NameValue"
+              nextValueNodeType !== "ConditionalBlock" &&
+              nextValueNodeType !== "NameValue"
             ) {
               const message =
                 "'with' should be followed by the name of a modulation (e.g. 'with echo')";
@@ -736,10 +739,11 @@ export default class SparkParser {
           }
           if (text === "fadeto") {
             if (
-              (valueNodeType !== "ConditionalBlock" &&
-                valueNodeType !== "NumberValue") ||
-              (valueNodeType === "NumberValue" &&
-                (Number(text) < 0 || Number(text) > 1))
+              (nextValueNodeType !== "ConditionalBlock" &&
+                nextValueNodeType !== "NumberValue") ||
+              (nextValueNodeType === "NumberValue" &&
+                (Number(nextValueNodeText) < 0 ||
+                  Number(nextValueNodeText) > 1))
             ) {
               const message = `'${text}' should be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 0.5' or 'fadeto 1')`;
               reportDiagnostic(message, DiagnosticSeverity.Error, "end");
@@ -755,13 +759,13 @@ export default class SparkParser {
             text === "now"
           ) {
             if (
-              valueNode &&
-              (valueNodeType === "ConditionalBlock" ||
-                valueNodeType === "TimeValue" ||
-                valueNodeType === "NumberValue")
+              nextValueNode &&
+              (nextValueNodeType === "ConditionalBlock" ||
+                nextValueNodeType === "TimeValue" ||
+                nextValueNodeType === "NumberValue")
             ) {
               const message = `'${text}' is a flag and cannot take an argument`;
-              const nodeCharacterOffset = valueNode.to - node.to;
+              const nodeCharacterOffset = nextValueNode.to - node.to;
               const markRange = {
                 start: { ...range.start },
                 end: {

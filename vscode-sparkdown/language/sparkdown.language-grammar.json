@@ -984,19 +984,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#StructBlankProperty"
-        },
-        {
-          "include": "#StructObjectItem"
-        },
-        {
-          "include": "#StructScalarItem"
-        },
-        {
-          "include": "#StructObjectProperty"
-        },
-        {
-          "include": "#StructScalarProperty"
+          "include": "#StructField"
         },
         {
           "include": "#Newline"
@@ -1084,19 +1072,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#StructBlankProperty"
-        },
-        {
-          "include": "#StructObjectItem"
-        },
-        {
-          "include": "#StructScalarItem"
-        },
-        {
-          "include": "#StructObjectProperty"
-        },
-        {
-          "include": "#StructScalarProperty"
+          "include": "#StructField"
         },
         {
           "include": "#Newline"
@@ -4900,7 +4876,7 @@
     "TimeValue": {
       "tag": "number",
       "name": "constant.numeric.time.sd",
-      "match": "((?:\\d*[.])?\\d+)(ms|s)?(?=$|[^\\S\\n\\r])",
+      "match": "((?:\\d*[.])?\\d+)(ms|s)(?=$|[^\\S\\n\\r])",
       "captures": {
         "1": {
           "tag": "number",
