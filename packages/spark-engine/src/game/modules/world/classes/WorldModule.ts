@@ -5,7 +5,7 @@ import { CameraState } from "../types/CameraState";
 import { EntityState } from "../types/EntityState";
 import { createCameraState } from "../utils/createCameraState";
 import { createEntityState } from "../utils/createEntityState";
-import { WorldBuiltins, worldBuiltins } from "../worldBuiltins";
+import { WorldBuiltins, worldBuiltins } from "../worldBuiltinDefinitions";
 import {
   DestroyCameraMessage,
   DestroyCameraMessageMap,

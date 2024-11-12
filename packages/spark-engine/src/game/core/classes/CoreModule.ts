@@ -1,4 +1,7 @@
-import { CoreBuiltins, coreBuiltinDefinitions } from "../coreBuiltins";
+import {
+  CoreBuiltins,
+  coreBuiltinDefinitions,
+} from "../coreBuiltinDefinitions";
 import { Module } from "./Module";
 
 export interface CoreConfig {}

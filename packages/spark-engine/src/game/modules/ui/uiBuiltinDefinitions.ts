@@ -10,30 +10,6 @@ import { default_shadow } from "./constructors/default_shadow";
 import { default_style } from "./constructors/default_style";
 import { default_transition } from "./constructors/default_transition";
 import { default_ui } from "./constructors/default_ui";
-import { schema_ease } from "./constructors/schema_ease";
-import { schema_font } from "./constructors/schema_font";
-import { schema_style } from "./constructors/schema_style";
-import { schema_shadow } from "./constructors/schema_shadow";
-import { schema_graphic } from "./constructors/schema_graphic";
-import { schema_gradient } from "./constructors/schema_gradient";
-import {
-  random_graphic_default,
-  random_graphic_zigzag,
-  random_graphic_bubble,
-  random_graphic_circle,
-  random_graphic_grid,
-  random_graphic_herringbone,
-  random_graphic_flower,
-  random_graphic_equal,
-  random_graphic_mat,
-  random_graphic_memphis,
-  random_graphic_net,
-  random_graphic_octagon,
-  random_graphic_plus,
-  random_graphic_brick,
-  random_graphic_tile,
-  random_graphic_wave,
-} from "./constructors/random_graphic";
 import { optional_style } from "./constructors/optional_style";
 import { optional_animation } from "./constructors/optional_animation";
 
@@ -1262,48 +1238,6 @@ export const uiBuiltinDefinitions = () => ({
   graphic: {
     $default: default_graphic(),
   } as Record<string, ReturnType<typeof default_graphic>>,
-});
-
-export const uiSchemaDefinitions = () => ({
-  ease: {
-    $schema: schema_ease(),
-  } as Record<string, ReturnType<typeof schema_ease>>,
-  font: {
-    $schema: schema_font(),
-  } as Record<string, ReturnType<typeof schema_font>>,
-  style: {
-    $schema: schema_style(),
-  } as Record<string, ReturnType<typeof schema_style>>,
-  shadow: {
-    $schema: schema_shadow(),
-  } as Record<string, ReturnType<typeof schema_shadow>>,
-  graphic: {
-    $schema: schema_graphic(),
-  } as Record<string, ReturnType<typeof schema_graphic>>,
-  gradient: {
-    $schema: schema_gradient(),
-  } as Record<string, ReturnType<typeof schema_gradient>>,
-});
-
-export const uiRandomDefinitions = () => ({
-  graphic: {
-    "$random:default": random_graphic_default(),
-    "$random:zigzag": random_graphic_zigzag(),
-    "$random:bubble": random_graphic_bubble(),
-    "$random:circle": random_graphic_circle(),
-    "$random:grid": random_graphic_grid(),
-    "$random:herringbone": random_graphic_herringbone(),
-    "$random:flower": random_graphic_flower(),
-    "$random:equal": random_graphic_equal(),
-    "$random:mat": random_graphic_mat(),
-    "$random:memphis": random_graphic_memphis(),
-    "$random:net": random_graphic_net(),
-    "$random:octagon": random_graphic_octagon(),
-    "$random:plus": random_graphic_plus(),
-    "$random:brick": random_graphic_brick(),
-    "$random:tile": random_graphic_tile(),
-    "$random:wave": random_graphic_wave(),
-  } as Record<string, ReturnType<typeof random_graphic_default>>,
 });
 
 export type UIBuiltins = ReturnType<typeof uiBuiltinDefinitions>;

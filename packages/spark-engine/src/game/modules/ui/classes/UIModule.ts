@@ -14,7 +14,7 @@ import { ElementContent } from "../types/ElementContent";
 import { ElementState } from "../types/ElementState";
 import { ImageState } from "../types/ImageState";
 import { TextState } from "../types/TextState";
-import { UIBuiltins, uiBuiltinDefinitions } from "../uiBuiltins";
+import { UIBuiltins, uiBuiltinDefinitions } from "../uiBuiltinDefinitions";
 import { Element } from "./helpers/Element";
 import {
   AnimateElementsMessage,

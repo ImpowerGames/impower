@@ -1,7 +1,5 @@
 import { default_character } from "./constructors/default_character";
 import { default_writer } from "./constructors/default_writer";
-import { schema_character } from "./constructors/schema_character";
-import { schema_writer } from "./constructors/schema_writer";
 
 export const interpreterBuiltinDefinitions = () => ({
   config: {
@@ -50,15 +48,6 @@ export const interpreterBuiltinDefinitions = () => ({
   character: {
     $default: default_character(),
   } as Record<string, ReturnType<typeof default_character>>,
-});
-
-export const interpreterSchemaDefinitions = () => ({
-  writer: {
-    $schema: schema_writer(),
-  } as Record<string, ReturnType<typeof schema_writer>>,
-  character: {
-    $schema: schema_character(),
-  } as Record<string, ReturnType<typeof schema_character>>,
 });
 
 export type InterpreterBuiltins = ReturnType<

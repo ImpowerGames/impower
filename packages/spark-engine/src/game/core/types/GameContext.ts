@@ -1,4 +1,4 @@
-import { CoreBuiltins } from "../coreBuiltins";
+import { CoreBuiltins } from "../coreBuiltinDefinitions";
 
 export type GameContext<B = any> = {
   [K in keyof B]?: B[K];

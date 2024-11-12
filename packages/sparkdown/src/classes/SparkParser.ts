@@ -24,10 +24,10 @@ import uuid from "../utils/uuid";
 import filterSVG from "../utils/filterSVG";
 import buildSVGSource from "../utils/buildSVGSource";
 import filterMatchesName from "../utils/filterMatchesName";
-import getAllProperties from "../utils/getAllProperties";
 import setProperty from "../utils/setProperty";
 import { getCharacterIdentifier } from "../utils/getCharacterIdentifier";
 import { SparkReference } from "../types/SparkReference";
+import traverse from "../utils/traverse";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 
@@ -226,7 +226,7 @@ export default class SparkParser {
   }
 
   transpile(uri: string, program: SparkProgram): string {
-    const nodeNames = this._grammar.nodeNames;
+    performance.mark(`transpile ${uri} start`);
     const script = this._config?.readFile?.(uri) || "";
     const lines = script.split(NEWLINE_REGEX);
     const sourceLines = [...lines];
@@ -840,6 +840,12 @@ export default class SparkParser {
     const transpiled = lines.join("\n");
     // console.log(printTree(tree, script, nodeNames));
     // console.log(transpiled);
+    performance.mark(`transpile ${uri} end`);
+    performance.measure(
+      `transpile ${uri}`,
+      `transpile ${uri} start`,
+      `transpile ${uri} end`
+    );
     return transpiled;
   }
 
@@ -904,66 +910,7 @@ export default class SparkParser {
     } catch (e) {
       console.error(e);
     }
-    for (const error of inkCompiler.errors) {
-      program.diagnostics ??= {};
-      const diagnostic = this.getDiagnostic(
-        error.message,
-        ErrorType.Error,
-        error.source,
-        program
-      );
-      if (diagnostic) {
-        if (diagnostic.relatedInformation) {
-          for (const info of diagnostic.relatedInformation) {
-            const uri = info.location.uri;
-            if (uri) {
-              program.diagnostics[uri] ??= [];
-              program.diagnostics[uri].push(diagnostic);
-            }
-          }
-        }
-      }
-    }
-    for (const warning of inkCompiler.warnings) {
-      program.diagnostics ??= {};
-      const diagnostic = this.getDiagnostic(
-        warning.message,
-        ErrorType.Warning,
-        warning.source,
-        program
-      );
-      if (diagnostic) {
-        if (diagnostic.relatedInformation) {
-          for (const info of diagnostic.relatedInformation) {
-            const uri = info.location.uri;
-            if (uri) {
-              program.diagnostics[uri] ??= [];
-              program.diagnostics[uri].push(diagnostic);
-            }
-          }
-        }
-      }
-    }
-    for (const info of inkCompiler.infos) {
-      program.diagnostics ??= {};
-      const diagnostic = this.getDiagnostic(
-        info.message,
-        ErrorType.Information,
-        info.source,
-        program
-      );
-      if (diagnostic) {
-        if (diagnostic.relatedInformation) {
-          for (const info of diagnostic.relatedInformation) {
-            const uri = info.location.uri;
-            if (uri) {
-              program.diagnostics[uri] ??= [];
-              program.diagnostics[uri].push(diagnostic);
-            }
-          }
-        }
-      }
-    }
+    this.populateDiagnostics(program, inkCompiler);
     // console.log("program", program);
     return program;
   }
@@ -989,6 +936,7 @@ export default class SparkParser {
   }
 
   populateBuiltins(program: SparkProgram) {
+    performance.mark(`populateBuiltins start`);
     program.context ??= {};
     const builtins = this._config.builtins;
     if (builtins) {
@@ -1003,7 +951,7 @@ export default class SparkParser {
           program.compiled.structDefs
         )) {
           program.context[type] ??= {};
-          for (const [name, definedStruct] of Object.entries(structs as any)) {
+          for (const [name, definedStruct] of Object.entries(structs)) {
             if (Array.isArray(definedStruct)) {
               program.context[type][name] = definedStruct;
             } else {
@@ -1016,49 +964,33 @@ export default class SparkParser {
               if (!isSpecialDefinition) {
                 const builtinDefaultStruct = builtins[type]?.["$default"];
                 if (builtinDefaultStruct) {
-                  for (const [propPath, propValue] of Object.entries(
-                    getAllProperties(builtinDefaultStruct)
-                  )) {
-                    if (propValue !== undefined) {
-                      setProperty(
-                        constructed,
-                        propPath,
-                        JSON.parse(JSON.stringify(propValue))
-                      );
-                    }
-                  }
+                  traverse(builtinDefaultStruct, (propPath, propValue) => {
+                    setProperty(
+                      constructed,
+                      propPath,
+                      structuredClone(propValue)
+                    );
+                  });
                 }
-                const definedDefaultStruct = (structs as any)?.["$default"];
+                const definedDefaultStruct = structs?.["$default"];
                 if (definedDefaultStruct) {
-                  for (const [propPath, propValue] of Object.entries(
-                    getAllProperties(definedDefaultStruct)
-                  )) {
-                    if (propValue !== undefined) {
-                      setProperty(
-                        constructed,
-                        propPath,
-                        JSON.parse(JSON.stringify(propValue))
-                      );
-                    }
-                  }
+                  traverse(definedDefaultStruct, (propPath, propValue) => {
+                    setProperty(
+                      constructed,
+                      propPath,
+                      structuredClone(propValue)
+                    );
+                  });
                 }
               }
-              for (const [propPath, propValue] of Object.entries(
-                getAllProperties(definedStruct)
-              )) {
+              traverse(definedStruct, (propPath, propValue) => {
                 if (isSpecialDefinition) {
                   // TODO: If constructed value at propPath is defined, report error if propValue type isn't an array of a corresponding type
                 } else {
                   // TODO: If constructed value at propPath is defined, report error if propValue type doesn't match
                 }
-                if (propValue !== undefined) {
-                  setProperty(
-                    constructed,
-                    propPath,
-                    JSON.parse(JSON.stringify(propValue))
-                  );
-                }
-              }
+                setProperty(constructed, propPath, structuredClone(propValue));
+              });
               constructed["$type"] = type;
               constructed["$name"] = name;
               program.context[type][name] = constructed;
@@ -1067,9 +999,16 @@ export default class SparkParser {
         }
       }
     }
+    performance.mark(`populateBuiltins end`);
+    performance.measure(
+      `populateBuiltins`,
+      `populateBuiltins start`,
+      `populateBuiltins end`
+    );
   }
 
   populateAssets(program: SparkProgram) {
+    performance.mark(`populateAssets start`);
     if (program.compiled) {
       program.context ??= {};
       const files = this._config.files;
@@ -1123,9 +1062,16 @@ export default class SparkParser {
         }
       }
     }
+    performance.mark(`populateAssets end`);
+    performance.measure(
+      `populateAssets`,
+      `populateAssets start`,
+      `populateAssets end`
+    );
   }
 
   populateImplicitDefs(program: SparkProgram) {
+    performance.mark(`populateImplicitDefs start`);
     if (program.compiled) {
       const images = program.context?.["image"];
       if (images) {
@@ -1232,6 +1178,12 @@ export default class SparkParser {
         }
       }
     }
+    performance.mark(`populateImplicitDefs end`);
+    performance.measure(
+      `populateImplicitDefs`,
+      `populateImplicitDefs start`,
+      `populateImplicitDefs end`
+    );
   }
 
   getNestedFilters(
@@ -1291,6 +1243,7 @@ export default class SparkParser {
   }
 
   validateReferences(program: SparkProgram) {
+    performance.mark(`validateReferences start`);
     if (program.references && program.compiled) {
       for (const [uri, refsLines] of Object.entries(program.references)) {
         for (const [_line, refs] of Object.entries(refsLines)) {
@@ -1361,6 +1314,82 @@ export default class SparkParser {
         }
       }
     }
+    performance.mark(`validateReferences end`);
+    performance.measure(
+      `validateReferences`,
+      `validateReferences start`,
+      `validateReferences end`
+    );
+  }
+
+  populateDiagnostics(program: SparkProgram, compiler: InkCompiler) {
+    performance.mark(`populateDiagnostics start`);
+    for (const error of compiler.errors) {
+      program.diagnostics ??= {};
+      const diagnostic = this.getDiagnostic(
+        error.message,
+        ErrorType.Error,
+        error.source,
+        program
+      );
+      if (diagnostic) {
+        if (diagnostic.relatedInformation) {
+          for (const info of diagnostic.relatedInformation) {
+            const uri = info.location.uri;
+            if (uri) {
+              program.diagnostics[uri] ??= [];
+              program.diagnostics[uri].push(diagnostic);
+            }
+          }
+        }
+      }
+    }
+    for (const warning of compiler.warnings) {
+      program.diagnostics ??= {};
+      const diagnostic = this.getDiagnostic(
+        warning.message,
+        ErrorType.Warning,
+        warning.source,
+        program
+      );
+      if (diagnostic) {
+        if (diagnostic.relatedInformation) {
+          for (const info of diagnostic.relatedInformation) {
+            const uri = info.location.uri;
+            if (uri) {
+              program.diagnostics[uri] ??= [];
+              program.diagnostics[uri].push(diagnostic);
+            }
+          }
+        }
+      }
+    }
+    for (const info of compiler.infos) {
+      program.diagnostics ??= {};
+      const diagnostic = this.getDiagnostic(
+        info.message,
+        ErrorType.Information,
+        info.source,
+        program
+      );
+      if (diagnostic) {
+        if (diagnostic.relatedInformation) {
+          for (const info of diagnostic.relatedInformation) {
+            const uri = info.location.uri;
+            if (uri) {
+              program.diagnostics[uri] ??= [];
+              program.diagnostics[uri].push(diagnostic);
+            }
+          }
+        }
+      }
+    }
+    performance.mark(`populateDiagnostics end`);
+    performance.measure(
+      `populateDiagnostics`,
+      `populateDiagnostics start`,
+      `populateDiagnostics end`
+    );
   }
 
   getDiagnostic(
@@ -1433,6 +1462,7 @@ export default class SparkParser {
   }
 
   sortSources<T extends number[]>(data: Record<string, T>): Record<string, T> {
+    performance.mark(`sortSources start`);
     const compare = (a: [string, T], b: [string, T]) => {
       let i = 0;
       const [, aValue] = a;
@@ -1451,6 +1481,8 @@ export default class SparkParser {
     sortedEntries.forEach(function ([key, value]) {
       sorted[key] = value;
     });
+    performance.mark(`sortSources end`);
+    performance.measure(`sortSources`, `sortSources start`, `sortSources end`);
     return sorted;
   }
 }

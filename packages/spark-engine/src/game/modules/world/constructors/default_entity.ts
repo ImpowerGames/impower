@@ -1,8 +1,9 @@
 import { Create } from "../../../core/types/Create";
-import { Camera } from "../types/Camera";
+import { Entity } from "../types/Entity";
 
-export const _camera: Create<Camera> = (obj) => ({
-  $type: "camera",
+export const default_entity: Create<Entity> = (obj) => ({
+  $type: "entity",
+  $name: "$default",
   ...obj,
   transform: {
     position: {
@@ -24,11 +25,6 @@ export const _camera: Create<Camera> = (obj) => ({
       ...(obj?.transform?.scale || {}),
     },
   },
-  depth: "top-down",
-  type: "orthographic",
-  width: 1920,
-  height: 1080,
-  fit: "cover",
-  background: "",
-  color: "#000",
+  symbol: "X",
+  graphic: "",
 });

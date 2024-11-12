@@ -3,7 +3,7 @@ import type { Instructions } from "../../../core/types/Instructions";
 import {
   InterpreterBuiltins as InterpreterBuiltins,
   interpreterBuiltinDefinitions,
-} from "../interpreterBuiltins";
+} from "../interpreterBuiltinDefinitions";
 import { Phrase } from "../types/Phrase";
 import { Chunk } from "../types/Chunk";
 import { Matcher } from "./helpers/Matcher";

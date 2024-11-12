@@ -11,7 +11,7 @@ import { evaluate } from "../../../core/utils/evaluate";
 import { format } from "../../../core/utils/format";
 import { randomizer } from "../../../core/utils/randomizer";
 import { shuffle } from "../../../core/utils/shuffle";
-import { LogicBuiltins, logicBuiltins } from "../logicBuiltins";
+import { LogicBuiltins, logicBuiltins } from "../logicBuiltinDefinitions";
 import { BlockData } from "../types/BlockData";
 import { CommandData } from "../types/CommandData";
 import { DocumentSource } from "../types/DocumentSource";

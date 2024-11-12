@@ -1,4 +1,4 @@
-export const combineBuiltins = (...allModuleBuiltins: any[]) => {
+export const combineStructMap = (...allModuleBuiltins: any[]) => {
   const builtins: any = {};
   if (allModuleBuiltins) {
     for (const moduleBuiltins of allModuleBuiltins) {

@@ -6,10 +6,7 @@ import {
   DidWatchFilesMessage,
   DidWatchFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
-import { DEFAULT_BUILTINS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTINS";
-import { DEFAULT_MODULES } from "@impower/spark-engine/src/game/modules/DEFAULT_MODULES";
-import compile from "@impower/spark-evaluate/src/utils/compile";
-import format from "@impower/spark-evaluate/src/utils/format";
+import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
 import SparkParser from "@impower/sparkdown/src/classes/SparkParser";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
@@ -147,7 +144,7 @@ export default class SparkdownTextDocuments<
 
   protected readonly _onUpdateDiagnostics: Emitter<SparkProgramChangeEvent<T>>;
 
-  protected readonly _builtins = DEFAULT_BUILTINS;
+  protected readonly _builtins = DEFAULT_BUILTIN_DEFINITIONS;
 
   protected _workspaceFolders?: WorkspaceFolder[];
 

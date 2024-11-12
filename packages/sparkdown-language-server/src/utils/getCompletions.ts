@@ -12,6 +12,8 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import getProperty from "@impower/sparkdown/src/utils/getProperty";
 import isIdentifier from "@impower/sparkdown/src/utils/isIdentifier";
+import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
+import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
 
 import type {
   NodeIterator,
@@ -623,7 +625,9 @@ const addContextStructPropertyNameCompletions = (
   const indentLength = lineText.length - lineText.trimStart().length;
   const indentedStr = lineText.slice(0, indentLength) + "  ";
   if (type) {
-    const contextStruct = program?.context?.[type]?.[name];
+    const contextStruct =
+      program?.context?.[type]?.[name] ??
+      DEFAULT_OPTIONAL_DEFINITIONS?.[type]?.[name];
     if (contextStruct) {
       const pathPrefix = contextStruct["$recursive"]
         ? "."
