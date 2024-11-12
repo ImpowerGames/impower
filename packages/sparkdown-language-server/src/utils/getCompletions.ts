@@ -571,12 +571,9 @@ const addStructVariableNameCompletions = (
   }
 };
 
-const getTypeName = (v: unknown): string => {
+const getTypeName = (v: unknown): string | undefined => {
   if (v && typeof v === "object" && Array.isArray(v)) {
-    if (v[0] != null) {
-      return `${getTypeName(v[0])}[]`;
-    }
-    return `object[]`;
+    return undefined;
   }
   if (
     v &&
@@ -588,6 +585,28 @@ const getTypeName = (v: unknown): string => {
     return v.$type;
   }
   return typeof v;
+};
+
+const getTypeKind = (v: unknown): CompletionItemKind | undefined => {
+  if (v && typeof v === "object" && Array.isArray(v)) {
+    return undefined;
+  }
+  if (
+    v &&
+    typeof v === "object" &&
+    "$type" in v &&
+    v.$type &&
+    typeof v.$type === "string"
+  ) {
+    return CompletionItemKind.Constructor;
+  }
+  if (typeof v === "string") {
+    return CompletionItemKind.Text;
+  }
+  if (typeof v === "number") {
+    return CompletionItemKind.Unit;
+  }
+  return undefined;
 };
 
 const addContextStructPropertyNameCompletions = (
@@ -688,6 +707,72 @@ const addStructPropertyNameCompletions = (
       lineText,
       existingProps,
       possibleNames
+    );
+  }
+};
+
+const addContextStructPropertyValueReferenceCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  type: string,
+  name: string,
+  path: string
+) => {
+  const relativePath = path.startsWith(".") ? path : `.${path}`;
+  if (type) {
+    const contextStruct = program?.context?.[type]?.[name];
+    if (contextStruct) {
+      const value = getProperty(contextStruct, relativePath);
+      const description = getTypeName(value);
+      const kind = getTypeKind(value);
+      if (
+        value &&
+        typeof value === "object" &&
+        "$type" in value &&
+        typeof value.$type === "string"
+      ) {
+        const names: string[] = Object.keys(
+          program?.context?.[value.$type] || {}
+        );
+        for (const name of names) {
+          if (!name.startsWith("$")) {
+            const completion: CompletionItem = {
+              label: name,
+              insertText: name,
+              labelDetails: { description },
+              kind,
+            };
+            if (completion.label && !completions.has(completion.label)) {
+              completions.set(completion.label, completion);
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+const addStructPropertyValueCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  type: string,
+  name: string,
+  path: string
+) => {
+  if (type) {
+    addContextStructPropertyValueReferenceCompletions(
+      completions,
+      program,
+      type,
+      "$default",
+      path
+    );
+    addContextStructPropertyValueReferenceCompletions(
+      completions,
+      program,
+      type,
+      "$optional",
+      path
     );
   }
 };
@@ -826,6 +911,52 @@ const getCompletions = (
     return matches;
   };
 
+  const getParentPropertyPath = (propertyNameNode: SyntaxNode) => {
+    let stackCursor: SyntaxNode | null = propertyNameNode.node;
+    let path = "";
+    while (stackCursor) {
+      if (stackCursor.type.name === "StructObjectItemBlock") {
+        path = "0" + "." + path;
+      }
+      if (
+        stackCursor.type.name === "StructObjectItemWithInlineScalarProperty"
+      ) {
+        path = "0" + "." + path;
+      }
+      if (
+        stackCursor.type.name === "StructObjectItemWithInlineObjectProperty"
+      ) {
+        path = "0" + "." + path;
+        const beginNode = stackCursor.getChild(
+          "StructObjectItemWithInlineObjectProperty_begin"
+        );
+        if (beginNode) {
+          const nameNode = getDescendent(
+            "DeclarationObjectPropertyName",
+            beginNode
+          );
+          if (nameNode && nameNode.from !== propertyNameNode.from) {
+            path = getNodeText(nameNode) + "." + path;
+          }
+        }
+      }
+      if (stackCursor.type.name === "StructObjectProperty") {
+        const beginNode = stackCursor.getChild("StructObjectProperty_begin");
+        if (beginNode) {
+          const nameNode = getDescendent(
+            "DeclarationObjectPropertyName",
+            beginNode
+          );
+          if (nameNode && nameNode.from !== propertyNameNode.from) {
+            path = getNodeText(nameNode) + "." + path;
+          }
+        }
+      }
+      stackCursor = stackCursor.node.parent;
+    }
+    return path;
+  };
+
   const completions: Map<string, CompletionItem> = new Map();
 
   const lineText = getLineText(document, position);
@@ -837,7 +968,7 @@ const getCompletions = (
   }
 
   // console.log(printTree(tree, document.getText()));
-  // console.log(stack.map((n) => n.type.name));
+  console.log(stack.map((n) => n.type.name));
 
   if (!stack[0]) {
     return null;
@@ -1099,48 +1230,7 @@ const getCompletions = (
     const name = defineVariableNameNode
       ? getNodeText(defineVariableNameNode)
       : "";
-    let stackCursor: SyntaxNode | null = propertyNameNode.node;
-    let path = "";
-    while (stackCursor) {
-      if (stackCursor.type.name === "StructObjectItemBlock") {
-        path = "0" + "." + path;
-      }
-      if (
-        stackCursor.type.name === "StructObjectItemWithInlineScalarProperty"
-      ) {
-        path = "0" + "." + path;
-      }
-      if (
-        stackCursor.type.name === "StructObjectItemWithInlineObjectProperty"
-      ) {
-        path = "0" + "." + path;
-        const beginNode = stackCursor.getChild(
-          "StructObjectItemWithInlineObjectProperty_begin"
-        );
-        if (beginNode) {
-          const nameNode = getDescendent(
-            "DeclarationObjectPropertyName",
-            beginNode
-          );
-          if (nameNode && nameNode.from !== propertyNameNode.from) {
-            path = getNodeText(nameNode) + "." + path;
-          }
-        }
-      }
-      if (stackCursor.type.name === "StructObjectProperty") {
-        const beginNode = stackCursor.getChild("StructObjectProperty_begin");
-        if (beginNode) {
-          const nameNode = getDescendent(
-            "DeclarationObjectPropertyName",
-            beginNode
-          );
-          if (nameNode && nameNode.from !== propertyNameNode.from) {
-            path = getNodeText(nameNode) + "." + path;
-          }
-        }
-      }
-      stackCursor = stackCursor.node.parent;
-    }
+    const path = getParentPropertyPath(propertyNameNode);
     addStructPropertyNameCompletions(
       completions,
       program,
@@ -1150,6 +1240,41 @@ const getCompletions = (
       lineText
     );
     return Array.from(completions.values());
+  }
+  if (
+    stack.some(
+      (n) =>
+        n.type.name === "WhitespaceStructFieldValue" ||
+        n.type.name === "StructFieldValue"
+    )
+  ) {
+    const defineTypeNameNode = getDescendentInsideParent(
+      "DefineTypeName",
+      "DefineDeclaration",
+      stack
+    );
+    const defineVariableNameNode = getDescendentInsideParent(
+      "DefineVariableName",
+      "DefineDeclaration",
+      stack
+    );
+    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
+    const name = defineVariableNameNode
+      ? getNodeText(defineVariableNameNode)
+      : "";
+    const propertyNameNode = getDescendentInsideParent(
+      "DeclarationScalarPropertyName",
+      "StructField",
+      stack
+    );
+    if (propertyNameNode) {
+      const path =
+        getParentPropertyPath(propertyNameNode) +
+        "." +
+        getNodeText(propertyNameNode);
+      addStructPropertyValueCompletions(completions, program, type, name, path);
+      return Array.from(completions.values());
+    }
   }
 
   // const line = position?.line;
@@ -1163,62 +1288,9 @@ const getCompletions = (
   // const lineMetadata = program?.metadata?.lines?.[line];
   // const scopes = lineMetadata?.scopes;
 
-  // console.log(triggerCharacter, lineMetadata, JSON.stringify(beforeText));
-
   // if (scopes) {
   //   if (scopes.includes("access_path")) {
   //     return getAccessPathCompletions(program, beforeText);
-  //   }
-  //   if (
-  //     (trimmedBeforeText === "define" ||
-  //       trimmedBeforeText === "store" ||
-  //       trimmedBeforeText === "set") &&
-  //     !trimmedAfterText
-  //   ) {
-  //     return getTypeOrNameCompletions(program);
-  //   }
-  //   if (
-  //     scopes.includes("struct_map_property_start") &&
-  //     scopes.includes("property_name")
-  //   ) {
-  //     const defineToken = getLineToken(program, line, "define");
-  //     const structMapPropertyToken = getLineToken(
-  //       program,
-  //       line,
-  //       "struct_map_property"
-  //     );
-  //     if (defineToken?.name) {
-  //       const variable = program?.variables?.[defineToken.name];
-  //       if (variable && !beforeText.includes(":")) {
-  //         return getStructMapPropertyNameCompletions(
-  //           program,
-  //           variable.type,
-  //           variable.fields,
-  //           structMapPropertyToken?.path ?? "",
-  //           beforeText
-  //         );
-  //       }
-  //     }
-  //   }
-  //   if (scopes.includes("struct_blank_property") && !triggerCharacter) {
-  //     const defineToken = getLineToken(program, line, "define");
-  //     const structBlankPropertyToken = getLineToken(
-  //       program,
-  //       line,
-  //       "struct_blank_property"
-  //     );
-  //     if (defineToken?.name) {
-  //       const variable = program?.variables?.[defineToken.name];
-  //       if (variable && !beforeText.includes(":")) {
-  //         return getStructMapPropertyNameCompletions(
-  //           program,
-  //           variable.type,
-  //           variable.fields,
-  //           structBlankPropertyToken?.path ?? "",
-  //           beforeText
-  //         );
-  //       }
-  //     }
   //   }
   // }
   return undefined;

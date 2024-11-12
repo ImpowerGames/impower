@@ -5,7 +5,10 @@ const nameContainsTag = (id: string, tag: unknown) => {
       return new RegExp(`^${groupedPatterns}.*$`).test(id);
     }
   }
-  return new RegExp(`\\b${tag}\\b`).test(id);
+  if (tag) {
+    return new RegExp(`\\b${tag}\\b`).test(id);
+  }
+  return false;
 };
 
 const filterMatchesName = (

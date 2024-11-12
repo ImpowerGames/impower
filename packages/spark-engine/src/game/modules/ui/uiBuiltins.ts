@@ -35,6 +35,7 @@ import {
   random_graphic_wave,
 } from "./constructors/random_graphic";
 import { optional_style } from "./constructors/optional_style";
+import { optional_animation } from "./constructors/optional_animation";
 
 export const uiBuiltinDefinitions = () => ({
   config: {
@@ -420,6 +421,7 @@ export const uiBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_ui>>,
   animation: {
     $default: default_animation(),
+    $optional: optional_animation(),
     show: default_animation({
       $name: "show",
       keyframes: [{ opacity: "1" }],
@@ -942,20 +944,20 @@ export const uiBuiltinDefinitions = () => ({
     $default: default_transition(),
     fade: default_transition({
       $name: "fade",
-      on_hide: "fadeout",
-      on_show: "fadein",
+      on_hide: { $type: "animation", $name: "fadeout" },
+      on_show: { $type: "animation", $name: "fadein" },
     }),
     screenfade: default_transition({
       $name: "screenfade",
-      on_hide: "waitout",
-      on_show: "waitin",
-      screen: "blackpulse",
+      on_hide: { $type: "animation", $name: "waitout" },
+      on_show: { $type: "animation", $name: "waitin" },
+      screen: { $type: "animation", $name: "blackpulse" },
     }),
     screenflash: default_transition({
       $name: "screenflash",
-      on_hide: "waitout",
-      on_show: "waitin",
-      screen: "whitepulse",
+      on_hide: { $type: "animation", $name: "waitout" },
+      on_show: { $type: "animation", $name: "waitin" },
+      screen: { $type: "animation", $name: "whitepulse" },
     }),
   } as Record<string, ReturnType<typeof default_transition>>,
   font: {

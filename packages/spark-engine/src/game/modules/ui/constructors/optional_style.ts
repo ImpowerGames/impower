@@ -1,9 +1,6 @@
 import { Create } from "../../../core/types/Create";
 
-export const optional_style: Create<any> = () => ({
-  $type: "style",
-  $name: "$optional",
-  $recursive: true,
+export const properties_style = () => ({
   position: "",
   width: "",
   height: "",
@@ -59,9 +56,10 @@ export const optional_style: Create<any> = () => ({
   line_height: "",
   letter_spacing: "",
   background_color: "",
-  background_image: "",
+  background_image: { $type: "image", $name: "none" },
   background_position: "",
   background_size: "",
+  mask_image: { $type: "image", $name: "none" },
   clip_path: "",
   outline_color: "",
   outline_width: "",
@@ -90,4 +88,11 @@ export const optional_style: Create<any> = () => ({
   animation_delay: "",
   animation_duration: "",
   animation_timing_function: "",
+});
+
+export const optional_style: Create<any> = () => ({
+  $type: "style",
+  $name: "$optional",
+  $recursive: true,
+  ...properties_style(),
 });

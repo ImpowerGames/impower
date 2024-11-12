@@ -1,9 +1,8 @@
 import { Reference } from "../../../core/types/Reference";
-import { Animation } from "./Animation";
 
 export interface Transition
   extends Reference<"transition">,
-    Record<string, string | Animation | undefined> {
-  on_hide?: string | Animation;
-  on_show?: string | Animation;
+    Record<string, string | Reference<"animation"> | undefined> {
+  on_hide?: Reference<"animation">;
+  on_show?: Reference<"animation">;
 }

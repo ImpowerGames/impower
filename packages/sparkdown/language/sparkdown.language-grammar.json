@@ -893,7 +893,7 @@
         "7": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#WhitespaceStructFieldValue"
             }
           ]
         },
@@ -1026,7 +1026,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#WhitespaceStructFieldValue"
             }
           ]
         }
@@ -1140,7 +1140,7 @@
         "5": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#WhitespaceStructFieldValue"
             }
           ]
         }
@@ -1188,7 +1188,7 @@
         "5": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#WhitespaceStructFieldValue"
             }
           ]
         }
@@ -1269,6 +1269,11 @@
           ]
         }
       }
+    },
+    "WhitespaceStructFieldValue": {
+      "tag": "content",
+      "name": "markup.raw.whitespace.sd",
+      "match": "(.+)"
     },
     "StructFieldValue": {
       "emit": true,

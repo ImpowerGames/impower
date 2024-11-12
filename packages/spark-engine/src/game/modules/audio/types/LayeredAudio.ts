@@ -1,6 +1,6 @@
 import { Reference } from "../../../core/types/Reference";
 
 export interface LayeredAudio extends Reference<"layered_audio"> {
-  assets: string[];
+  assets: (Reference<"audio"> | Reference<"synth">)[];
   cues: number[];
 }

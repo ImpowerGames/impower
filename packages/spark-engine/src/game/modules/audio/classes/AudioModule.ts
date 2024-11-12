@@ -113,17 +113,17 @@ export class AudioModule extends Module<
     }
   }
 
-  getMixer(channel: string | undefined): string {
-    return (
-      this.context?.channel?.[channel || "main"]?.mixer || channel || "main"
-    );
+  getMixerName(channel: string | undefined): string {
+    const mixer = this.context?.channel?.[channel || "main"]?.mixer;
+    const mixerName = (typeof mixer === "string" ? mixer : mixer?.$name) || "";
+    return mixerName || channel || "main";
   }
 
   queueUpdates(...updates: AudioPlayerUpdate[]) {
     updates.forEach((u) => {
       this._playerUpdates.push({
         ...u,
-        mixer: this.getMixer(u.channel),
+        mixer: this.getMixerName(u.channel),
       });
     });
   }
@@ -163,10 +163,11 @@ export class AudioModule extends Module<
   }
 
   protected getChannelLevel(channel: string) {
-    const channelMixerName = this.context?.channel?.[channel]?.mixer || "";
+    const mixer = this.context?.channel?.[channel]?.mixer;
+    const mixerName = (typeof mixer === "string" ? mixer : mixer?.$name) || "";
     return (
       this.getModulatedVolume(this.context?.mixer?.["main"]) *
-      this.getModulatedVolume(this.context?.mixer?.[channelMixerName])
+      this.getModulatedVolume(this.context?.mixer?.[mixerName])
     );
   }
 
@@ -180,7 +181,7 @@ export class AudioModule extends Module<
     }
     const d: LoadAudioPlayerParams = {
       channel,
-      mixer: this.getMixer(channel),
+      mixer: this.getMixerName(channel),
       key: "",
       type: "audio",
       name: "",

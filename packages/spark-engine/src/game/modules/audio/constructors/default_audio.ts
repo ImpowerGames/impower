@@ -7,6 +7,6 @@ export const default_audio: Create<Audio> = (obj) => ({
   src: "",
   volume: 1,
   loop: false,
-  cues: [],
+  cues: [0],
   ...obj,
 });

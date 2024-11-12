@@ -507,7 +507,7 @@ repository:
         name: keyword.operator.assignment.sd
       7:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#WhitespaceStructFieldValue" }
       8:
         patterns:
           - { include: "#StructFieldValue" }
@@ -549,11 +549,7 @@ repository:
           - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#StructBlankProperty" }
-      - { include: "#StructObjectItem" }
-      - { include: "#StructScalarItem" }
-      - { include: "#StructObjectProperty" }
-      - { include: "#StructScalarProperty" }
+      - { include: "#StructField" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
@@ -571,7 +567,7 @@ repository:
         name: keyword.operator.expression.array.sd
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#WhitespaceStructFieldValue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#StructFieldValue" }
@@ -599,11 +595,7 @@ repository:
           - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#StructBlankProperty" }
-      - { include: "#StructObjectItem" }
-      - { include: "#StructScalarItem" }
-      - { include: "#StructObjectProperty" }
-      - { include: "#StructScalarProperty" }
+      - { include: "#StructField" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
@@ -627,7 +619,7 @@ repository:
         name: keyword.operator.assignment.sd
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#WhitespaceStructFieldValue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#StructFieldValue" }
@@ -652,7 +644,7 @@ repository:
         name: keyword.operator.assignment.sd
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#WhitespaceStructFieldValue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#StructFieldValue" }
@@ -690,6 +682,11 @@ repository:
       1:
         patterns:
           - { include: "#PunctuationSemicolon" }
+
+  WhitespaceStructFieldValue:
+    tag: content
+    name: markup.raw.whitespace.sd
+    match: (.+)
 
   StructFieldValue:
     emit: true
