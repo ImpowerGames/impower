@@ -155,10 +155,7 @@ export default class GrammarParse implements PartialParse {
 
     // if we couldn't reuse state, we'll need to startup things with a default state
     if (!this.buffer || !this.state) {
-      this.buffer = new ChunkBuffer(
-        [],
-        this.nodeSet.types.map((n) => n.name)
-      );
+      this.buffer = new ChunkBuffer([]);
       this.state = this.grammar.startState();
     }
 
@@ -312,11 +309,19 @@ export default class GrammarParse implements PartialParse {
       // );
 
       if (this.aheadBuffer) {
+        // const parsedPosBefore = this.parsedPos;
         // TRY TO REUSE STATE AHEAD OF EDITED RANGE
         const reused = this.tryToReuseAhead(this.aheadBuffer);
         if (reused) {
           // can't reuse the buffer more than once (pointless)
           this.aheadBuffer = undefined;
+          // const parsedPosAfter = this.parsedPos;
+          // console.log(
+          //   "REUSED",
+          //   JSON.stringify(
+          //     this.region.input.read(parsedPosBefore, parsedPosAfter)
+          //   )
+          // );
         }
       }
 

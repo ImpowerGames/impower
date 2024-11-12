@@ -24,15 +24,10 @@ export class ChunkBuffer {
   /** The node(s) that are open at the end of this buffer. */
   scopes: ParserAction = [];
 
-  names: string[] = [];
-
   /** @param chunks - The chunks to populate the buffer with. */
-  constructor(chunks?: Chunk[], names?: string[]) {
+  constructor(chunks?: Chunk[]) {
     if (chunks) {
       this.chunks = chunks;
-    }
-    if (names) {
-      this.names = names;
     }
     this.scopes = [];
   }
@@ -191,11 +186,11 @@ export class ChunkBuffer {
     let right: ChunkBuffer;
 
     if (this.chunks.length <= 1) {
-      left = new ChunkBuffer(this.chunks.slice(0), this.names);
-      right = new ChunkBuffer([], this.names); // empty
+      left = new ChunkBuffer(this.chunks.slice(0));
+      right = new ChunkBuffer([]); // empty
     } else {
-      left = new ChunkBuffer(this.chunks.slice(0, index), this.names);
-      right = new ChunkBuffer(this.chunks.slice(index), this.names);
+      left = new ChunkBuffer(this.chunks.slice(0, index));
+      right = new ChunkBuffer(this.chunks.slice(index));
     }
 
     return { left, right };

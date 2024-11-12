@@ -70,10 +70,7 @@ export default class LezerGrammarParser extends Parser {
       const script =
         typeof input === "string" ? input : input.read(0, input.length);
       let paddedScript = script + "\n";
-      const buffer = new ChunkBuffer(
-        [],
-        this.nodeSet.types.map((n) => n.name)
-      );
+      const buffer = new ChunkBuffer([]);
       const compiler = new Compiler(this.grammar, this.nodeSet, buffer);
       const result = compiler.compile(paddedScript);
       if (result) {

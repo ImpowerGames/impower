@@ -38,7 +38,7 @@ export class Compiler {
     this.grammar = grammar;
     this.nodeSet = nodeSet;
     this.stack = new CompileStack();
-    this.buffer = buffer || new ChunkBuffer([], grammar.nodeNames);
+    this.buffer = buffer || new ChunkBuffer([]);
     this.compiled = new Int32Array(COMPILER_ARRAY_INTERVAL);
     this.size = 0;
     this.reused = [];
@@ -55,7 +55,7 @@ export class Compiler {
 
   reset() {
     this.stack = new CompileStack();
-    this.buffer = new ChunkBuffer([], this.grammar.nodeNames);
+    this.buffer = new ChunkBuffer([]);
     this.compiled = new Int32Array(COMPILER_ARRAY_INTERVAL);
     this.size = 0;
     this.reused = [];
