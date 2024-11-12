@@ -525,12 +525,14 @@ const addModulationCompletions = (
 
 const addStructTypeNameCompletions = (
   completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
-  nodeText?: string
+  program: SparkProgram | undefined
 ) => {
   if (program?.context) {
     for (const k of Object.keys(program?.context).sort()) {
-      if (!k.startsWith("$") && k !== nodeText) {
+      if (
+        !k.startsWith("$") &&
+        !program?.compiled?.structDefs?.[k]?.["$default"]
+      ) {
         const description = undefined;
         const kind = CompletionItemKind.TypeParameter;
         const completion: CompletionItem = {
@@ -549,12 +551,11 @@ const addStructTypeNameCompletions = (
 const addStructVariableNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  type: string,
-  nodeText?: string
+  type: string
 ) => {
   if (program?.context?.[type]) {
     for (const k of Object.keys(program?.context?.[type]).sort()) {
-      if (!k.startsWith("$") && k !== nodeText) {
+      if (!k.startsWith("$") && !program?.compiled?.structDefs?.[type]?.[k]) {
         const description = undefined;
         const kind = CompletionItemKind.Variable;
         const completion: CompletionItem = {
@@ -1051,11 +1052,7 @@ const getCompletions = (
         n.type.name === "DefineTypeName"
     )
   ) {
-    addStructTypeNameCompletions(
-      completions,
-      program,
-      getNodeText(stack.find((n) => n.type.name === "DefineTypeName"))
-    );
+    addStructTypeNameCompletions(completions, program);
     return Array.from(completions.values());
   }
   if (
@@ -1072,12 +1069,7 @@ const getCompletions = (
       stack
     );
     const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
-    addStructVariableNameCompletions(
-      completions,
-      program,
-      type,
-      getNodeText(stack.find((n) => n.type.name === "DefineVariableName"))
-    );
+    addStructVariableNameCompletions(completions, program, type);
     return Array.from(completions.values());
   }
   const propertyNameNode = stack.find(
