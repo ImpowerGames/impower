@@ -34,6 +34,7 @@ import {
   random_graphic_tile,
   random_graphic_wave,
 } from "./constructors/random_graphic";
+import { optional_style } from "./constructors/optional_style";
 
 export const uiBuiltinDefinitions = () => ({
   config: {
@@ -60,6 +61,7 @@ export const uiBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_filtered_image>>,
   style: {
     $default: default_style(),
+    $optional: optional_style(),
     text: default_style({
       $name: "text",
       display: "block",

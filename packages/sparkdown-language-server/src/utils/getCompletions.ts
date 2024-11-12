@@ -601,12 +601,14 @@ const addContextStructPropertyNameCompletions = (
   possibleNames: Set<string>
 ) => {
   const relativePath = path.startsWith(".") ? path : `.${path}`;
-  const pathPrefix = relativePath.slice(0, relativePath.lastIndexOf(".") + 1);
   const indentLength = lineText.length - lineText.trimStart().length;
   const indentedStr = lineText.slice(0, indentLength) + "  ";
   if (type) {
     const contextStruct = program?.context?.[type]?.[name];
     if (contextStruct) {
+      const pathPrefix = contextStruct["$recursive"]
+        ? "."
+        : relativePath.slice(0, relativePath.lastIndexOf(".") + 1);
       traverse(contextStruct, (p: string) => {
         if (p.startsWith(pathPrefix)) {
           const [name] = p.slice(pathPrefix.length).split(".");
