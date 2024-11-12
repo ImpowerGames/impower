@@ -226,13 +226,19 @@ export default class SparkParser {
   }
 
   transpile(uri: string, program: SparkProgram): string {
-    performance.mark(`transpile ${uri} start`);
     const script = this._config?.readFile?.(uri) || "";
     const lines = script.split(NEWLINE_REGEX);
     const sourceLines = [...lines];
     // Pad script so we ensure all scopes are properly closed before the end of the file.
     const paddedScript = script + "\n\n";
+    performance.mark(`buildTree ${uri} start`);
     const tree = this.buildTree(paddedScript);
+    performance.mark(`buildTree ${uri} end`);
+    performance.measure(
+      `buildTree ${uri}`,
+      `buildTree ${uri} start`,
+      `buildTree ${uri} end`
+    );
     this._trees.set(uri, tree);
     const stack: SparkdownNodeName[] = [];
     program.sourceMap ??= {};
@@ -323,6 +329,7 @@ export default class SparkParser {
         ...obj,
       };
     };
+    performance.mark(`iterate ${uri} start`);
     tree.iterate({
       enter: (node) => {
         const nodeType = node.type.name as SparkdownNodeName;
@@ -833,6 +840,12 @@ export default class SparkParser {
         stack.pop();
       },
     });
+    performance.mark(`iterate ${uri} end`);
+    performance.measure(
+      `iterate ${uri}`,
+      `iterate ${uri} start`,
+      `iterate ${uri} end`
+    );
     while (lines.at(-1) === "") {
       // Remove empty newlines at end of script
       lines.pop();
@@ -840,12 +853,6 @@ export default class SparkParser {
     const transpiled = lines.join("\n");
     // console.log(printTree(tree, script, nodeNames));
     // console.log(transpiled);
-    performance.mark(`transpile ${uri} end`);
-    performance.measure(
-      `transpile ${uri}`,
-      `transpile ${uri} start`,
-      `transpile ${uri} end`
-    );
     return transpiled;
   }
 
