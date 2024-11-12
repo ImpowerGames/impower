@@ -106,12 +106,11 @@ const getRange = (
   currentLineIndex: number,
   currentLinePos: number
 ) => {
-  const rangeLength = to - from;
   const startLineIndex = currentLineIndex;
   const startLineOffset = from - currentLinePos;
-  let endLineIndex = startLineIndex;
-  let endLinePos = from;
-  for (let i = from; i < from + rangeLength; i++) {
+  let endLineIndex = currentLineIndex;
+  let endLinePos = currentLinePos;
+  for (let i = from; i <= to; i++) {
     if (script[i] === "\r" && script[i + 1] === "\n") {
       endLinePos = i + 1;
       endLineIndex++;
@@ -1427,6 +1426,14 @@ export default class SparkParser {
       if (startCharacter < 0) {
         // This error is occurring in a part of the script that was automatically added during transpilation
         // Assume it will be properly reported elsewhere and do not report it here.
+        console.warn("HIDDEN", message, type, metadata);
+        return null;
+      }
+      if (
+        startLine > endLine ||
+        (startLine === endLine && startCharacter > endCharacter)
+      ) {
+        // This error range is invalid.
         console.warn("HIDDEN", message, type, metadata);
         return null;
       }

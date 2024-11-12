@@ -19,10 +19,7 @@ export const getClientDiagnostics = (
         actions: getClientDiagnosticActions(d.data),
       })
     )
-    .filter(
-      ({ from, to }) =>
-        from !== null && to !== null && from !== undefined && to !== undefined
-    )
+    .filter(({ from, to }) => from != null && to != null && from <= to)
     .sort((a, b) => {
       switch (true) {
         case a.from < b.from:
