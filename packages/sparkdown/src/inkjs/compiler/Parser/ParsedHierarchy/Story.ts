@@ -35,11 +35,19 @@ export class Story extends FlowBase {
       case "not":
       case "return":
       case "else":
-      case "VAR":
-      case "CONST":
       case "temp":
+      case "INCLUDE":
+      case "include":
+      case "EXTERNAL":
+      case "external":
+      case "VAR":
+      case "var":
+      case "CONST":
+      case "const":
       case "LIST":
+      case "list":
       case "DEFINE":
+      case "define":
       case "function":
       case "system":
       case "none":
@@ -172,7 +180,7 @@ export class Story extends FlowBase {
 
       if (existingDefinition) {
         if (!existingDefinition.Equals(constDecl.expression)) {
-          const errorMsg = `Cannot redeclare CONST '${constDecl.constantName}' with a different value. (It is already declared on ${existingDefinition.debugMetadata})`;
+          const errorMsg = `Cannot redeclare const '${constDecl.constantName}' with a different value. (It is already declared on ${existingDefinition.debugMetadata})`;
           this.Error(errorMsg, constDecl, false);
         }
       }
@@ -468,7 +476,7 @@ export class Story extends FlowBase {
   public readonly AddExternal = (decl: ExternalDeclaration): void => {
     if (this.externals.has(decl.name!)) {
       this.Error(
-        `Duplicate EXTERNAL definition of '${decl.name}'`,
+        `Duplicate external definition of '${decl.name}'`,
         decl,
         false
       );
@@ -581,7 +589,7 @@ export class Story extends FlowBase {
       }
     }
 
-    // Don't check for VAR->VAR conflicts because that's handled separately
+    // Don't check for var->var conflicts because that's handled separately
     // (necessary since checking looks up in a dictionary)
     if (symbolType <= SymbolType.Var) {
       return;

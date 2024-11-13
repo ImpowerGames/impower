@@ -2196,7 +2196,10 @@ export class InkParser extends StringParser {
   public readonly IncludeStatement = () => {
     this.Whitespace();
 
-    if (this.ParseString("INCLUDE") === null) {
+    if (
+      this.ParseKeywordString("INCLUDE") === null &&
+      this.ParseKeywordString("include") === null
+    ) {
       return null;
     }
 
@@ -2221,7 +2224,7 @@ export class InkParser extends StringParser {
     this._parsedFiles.add(fullFilename);
 
     if (this.FilenameIsAlreadyOpen(fullFilename)) {
-      this.Error(`Recursive INCLUDE detected: '${fullFilename}'`);
+      this.Error(`Recursive include detected: '${fullFilename}'`);
       this.ParseUntilCharactersFromString("\r\n");
       return new IncludedFile(null);
     } else {
@@ -2521,10 +2524,10 @@ export class InkParser extends StringParser {
   public readonly ExternalDeclaration = (): ExternalDeclaration | null => {
     this.Whitespace();
 
-    const external = this.Parse(
-      this.IdentifierWithMetadata
-    ) as Identifier | null;
-    if (external === null || external.name != "EXTERNAL") {
+    if (
+      this.ParseKeywordString("EXTERNAL") === null &&
+      this.ParseKeywordString("external") === null
+    ) {
       return null;
     }
 
@@ -2540,7 +2543,7 @@ export class InkParser extends StringParser {
 
     let parameterNames = this.Expect(
       this.BracketedKnotDeclArguments,
-      `declaration of arguments for EXTERNAL, even if empty, i.e. 'EXTERNAL ${funcIdentifier}()'`
+      `declaration of arguments for external, even if empty, i.e. 'external ${funcIdentifier}()'`
     ) as Argument[];
 
     if (parameterNames === null) {
@@ -2660,8 +2663,10 @@ export class InkParser extends StringParser {
   public readonly VariableDeclaration = (): ParsedObject | null => {
     this.Whitespace();
 
-    const id = this.Parse(this.Identifier);
-    if (id !== "VAR") {
+    if (
+      this.ParseKeywordString("VAR") === null &&
+      this.ParseKeywordString("var") === null
+    ) {
       return null;
     }
 
@@ -2676,14 +2681,14 @@ export class InkParser extends StringParser {
 
     this.Expect(
       this.String("="),
-      "the variable to be initialized (e.g. 'VAR score = 0')"
+      "the variable to be initialized (e.g. 'var score = 0')"
     );
 
     this.Whitespace();
 
     const definition = this.Expect(
       this.Expression,
-      "the variable to be initialized (e.g. 'VAR score = 0')"
+      "the variable to be initialized (e.g. 'var score = 0')"
     );
 
     const expr = definition as Expression;
@@ -2704,7 +2709,7 @@ export class InkParser extends StringParser {
 
       if (this.Parse(this.ListElementDefinitionSeparator) !== null) {
         this.Error(
-          "Unexpected ','. If you're trying to declare a new list, use the LIST keyword, not VAR"
+          "Unexpected ','. If you're trying to declare a new list, use the list keyword, not var"
         );
       } else if (expr instanceof StringExpression) {
         // Ensure string expressions are simple
@@ -2729,8 +2734,10 @@ export class InkParser extends StringParser {
   public readonly ListDeclaration = (): VariableAssignment | null => {
     this.Whitespace();
 
-    const id = this.Parse(this.Identifier);
-    if (id != "LIST") {
+    if (
+      this.ParseKeywordString("LIST") === null &&
+      this.ParseKeywordString("list") === null
+    ) {
       return null;
     }
 
@@ -2845,8 +2852,10 @@ export class InkParser extends StringParser {
   public readonly ConstDeclaration = (): ParsedObject | null => {
     this.Whitespace();
 
-    const id = this.Parse(this.Identifier);
-    if (id !== "CONST") {
+    if (
+      this.ParseKeywordString("CONST") === null &&
+      this.ParseKeywordString("const") === null
+    ) {
       return null;
     }
 
@@ -2900,8 +2909,10 @@ export class InkParser extends StringParser {
   public readonly DefineDeclaration = (): VariableAssignment | null => {
     this.Whitespace();
 
-    const id = this.Parse(this.Identifier);
-    if (id !== "DEFINE") {
+    if (
+      this.ParseKeywordString("DEFINE") === null &&
+      this.ParseKeywordString("define") === null
+    ) {
       return null;
     }
 

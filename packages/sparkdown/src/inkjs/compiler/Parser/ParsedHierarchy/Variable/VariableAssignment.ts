@@ -28,13 +28,13 @@ export class VariableAssignment extends ParsedObject {
 
   override get typeName() {
     if (this.listDefinition !== null) {
-      return "LIST";
+      return "list";
     } else if (this.structDefinition !== null) {
-      return "DEFINE";
+      return "define";
     } else if (this.isNewTemporaryDeclaration) {
       return "temp";
     } else if (this.isGlobalDeclaration) {
-      return "VAR";
+      return "var";
     }
 
     return "variable assignment";
@@ -135,7 +135,7 @@ export class VariableAssignment extends ParsedObject {
       );
     }
 
-    // Initial VAR x = [intialValue] declaration, not re-assignment
+    // Initial var x = [intialValue] declaration, not re-assignment
     if (this.isGlobalDeclaration) {
       const variableReference = asOrNull(this.expression, VariableReference);
       if (
@@ -144,7 +144,7 @@ export class VariableAssignment extends ParsedObject {
         !variableReference.isListItemReference
       ) {
         this.Error(
-          "A VAR must be initialized to a number, string, boolean, constant, list item, or divert target."
+          "A var must be initialized to a number, string, boolean, constant, list item, or divert target."
         );
       }
     }
@@ -158,7 +158,7 @@ export class VariableAssignment extends ParsedObject {
       if (!resolvedVarAssignment.found) {
         if (this.variableName in this.story.constants) {
           this.Error(
-            `Cannot re-assign a CONST (do you need to use VAR when declaring '${this.variableName}'?)`,
+            `Cannot re-assign a const (do you need to use var when declaring '${this.variableName}'?)`,
             this
           );
         } else {
@@ -177,7 +177,7 @@ export class VariableAssignment extends ParsedObject {
   public readonly toString = (): string =>
     `${
       this.isGlobalDeclaration
-        ? "VAR"
+        ? "var"
         : this.isNewTemporaryDeclaration
         ? "~ temp"
         : ""

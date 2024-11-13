@@ -72,7 +72,7 @@ export class Weave extends ParsedObject {
       return null;
     }
 
-    // Don't count extraneous newlines or VAR/CONST declarations,
+    // Don't count extraneous newlines or var/const declarations,
     // since they're "empty" statements outside of the main flow.
     let lastObject: ParsedObject | null = null;
     for (let ii = this.content.length - 1; ii >= 0; --ii) {

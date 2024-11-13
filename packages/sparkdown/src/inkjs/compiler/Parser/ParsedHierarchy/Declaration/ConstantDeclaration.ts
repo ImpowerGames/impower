@@ -33,7 +33,7 @@ export class ConstantDeclaration extends ParsedObject {
   }
 
   get typeName(): string {
-    return "CONST";
+    return "const";
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject | null => {

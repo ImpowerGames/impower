@@ -146,7 +146,7 @@ export class DivertTarget extends Expression {
 
     // Example ink for this case:
     //
-    //     VAR x = -> blah
+    //     var x = -> blah
     //
     // ...which means that "blah" is expected to be a literal stitch target rather
     // than a variable name. We can't really intelligently recover from this (e.g. if blah happens to
@@ -188,7 +188,7 @@ export class DivertTarget extends Expression {
       // Unfortunately not possible:
       // https://github.com/inkle/ink/issues/538
       //
-      // VAR func = -> double
+      // var func = -> double
       //
       // === function double(ref x)
       //    ~ x = x * 2
@@ -210,7 +210,7 @@ export class DivertTarget extends Expression {
     }
   }
 
-  // Equals override necessary in order to check for CONST multiple definition equality
+  // Equals override necessary in order to check for const multiple definition equality
   public readonly Equals = (obj: ParsedObject): boolean => {
     const otherDivTarget = asOrNull(obj, DivertTarget);
     if (

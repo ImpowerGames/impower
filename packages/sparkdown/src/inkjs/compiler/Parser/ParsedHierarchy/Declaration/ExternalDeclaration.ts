@@ -16,7 +16,7 @@ export class ExternalDeclaration extends ParsedObject implements INamedContent {
   }
 
   get typeName(): string {
-    return "EXTERNAL";
+    return "external";
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
@@ -27,6 +27,6 @@ export class ExternalDeclaration extends ParsedObject implements INamedContent {
   };
 
   public toString(): string {
-    return `EXTERNAL ${this.identifier?.name}`;
+    return `external ${this.identifier?.name}`;
   }
 }

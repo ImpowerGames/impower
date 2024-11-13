@@ -21,7 +21,11 @@ This is called when an InkObject is compiled into a runtime object. It is useful
 
 ## Compiler Changes:
 
-### 1. Whitespace is now required after all choice, logic, gather, and clause operators
+### 1. The keywords `var` `const` `list` `external` and `include` can be lowercase
+
+This helps keep our keyword naming convention consistent across the entire syntax.
+
+### 2. Whitespace is now required after all choice, logic, gather, and clause operators
 
 The space following a choice, logic, gather, and clause operator is no longer optional. 
 
@@ -68,7 +72,7 @@ This allows us to utilize markdown-esque styling syntax at the start of a line w
 
 ---
 
-### 2. Ending a line of text with a `\` backslash will cause the next line of text to display on a new line in the same textbox.
+### 3. Ending a line of text with a `\` backslash will cause the next line of text to display on a new line in the same textbox.
 
 ```
 All the world’s a stage, \
@@ -81,7 +85,7 @@ The `\` backslash operator joins text together in a similar way to the `<>` glue
   2. The next line will always be interpreted as plain text, even if it starts with a syntax keyword
     ```
     And did you consider that might... \
-    INCLUDE ME??
+    include me??
     ```
   3. If the next line of text is empty, `\` will do nothing.
     ```
@@ -90,7 +94,7 @@ The `\` backslash operator joins text together in a similar way to the `<>` glue
     This line will appear in a new textbox.
     ```
 
-### 3. `\ ` can be used to insert a newline in the middle of text
+### 4. `\ ` can be used to insert a newline in the middle of text
 
 (NOTE: For these mid-line breaks, the backslash must be followed by at least one space).
 
@@ -100,7 +104,7 @@ All the world’s a stage, \ And all the men and women merely players.
 
 ---
 
-### 4. Front Matter can be specified by surrounding a block of text with `---`
+### 5. Front Matter can be specified by surrounding a block of text with `---`
 
 Front Matter can be used to conveniently store multiline metadata about a story.
 
@@ -126,17 +130,17 @@ contact:
 
 ---
 
-### 5. You can define objects and arrays with `DEFINE`
+### 6. You can define objects and arrays with `define`
 
 The new compiler supports using yaml-esque syntax to define constant objects and arrays:
 
 ```
-DEFINE alison:
+define alison:
   first_name = "Alison"
   last_name = "Smith"
   nickname = "Allie"
 
-DEFINE fears:
+define fears:
   - "spiders"
   - "heights"
   - "darkness"
@@ -144,38 +148,38 @@ DEFINE fears:
 
 ---
 
-### 6. You can specify an object's type with `DEFINE type.name`
+### 7. You can specify an object's type with `DEFINE type.name`
 
 An object's type can be specified by prefixing its name with a type and a dot separator
 
 This will ensure that the object inherits all properties from the defined type (and overrides them if specified).
 
 ```
-DEFINE character:
+define character:
   first_name = "???"
   last_name = "???"
   nickname = "???"
   voice = "mid"
   color = "#FFFFFF"
 
-DEFINE character.alison:
+define character.alison:
   first_name = "Alison"
   last_name = "Smith"
   nickname = "Alice"
   voice = "high"
 
-DEFINE character.robert:
+define character.robert:
   first_name = "Robert"
   last_name = "Smith"
   nickname = "Bob"
   voice = "low"
 ```
 
-DEFINEs can't be set at runtime and aren't saved in the save state. 
+Defines can't be set at runtime and aren't saved in the save state. 
 So they are mostly useful for configuration:
 
 ```
-DEFINE style.dialogue:
+define style.dialogue:
   color = "#FFFFFF"
   background_color = "#0000FF"
   border = "1px solid #000000"
@@ -183,7 +187,7 @@ DEFINE style.dialogue:
 
 ---
 
-### 7. Compiler errors now include exact source location
+### 8. Compiler errors now include exact source location
 
 An additional `source` parameter has been added to the compiler's error handler. 
 

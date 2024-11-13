@@ -910,7 +910,7 @@ export default class SparkParser {
       }
     );
     const rootFilename = filename || "main.script";
-    const inkCompiler = new InkCompiler(`INCLUDE ${rootFilename}`, options);
+    const inkCompiler = new InkCompiler(`include ${rootFilename}`, options);
     try {
       const compiledJSON = inkCompiler.Compile().ToJson();
       program.compiled = compiledJSON ? JSON.parse(compiledJSON) : null;

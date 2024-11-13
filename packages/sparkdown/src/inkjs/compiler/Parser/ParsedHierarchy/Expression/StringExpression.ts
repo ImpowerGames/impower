@@ -50,7 +50,7 @@ export class StringExpression extends Expression {
     return sb;
   };
 
-  // Equals override necessary in order to check for CONST multiple definition equality
+  // Equals override necessary in order to check for const multiple definition equality
   public Equals(obj: ParsedObject): boolean {
     const otherStr = asOrNull(obj, StringExpression);
     if (otherStr === null) {

@@ -277,7 +277,7 @@
     "Include": {
       "tag": "meta",
       "name": "meta.import.include.sd",
-      "begin": "^([^\\S\\n\\r]*)(INCLUDE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "^([^\\S\\n\\r]*)(INCLUDE|include)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -335,7 +335,7 @@
     "VarDeclaration": {
       "tag": "meta",
       "name": "storage.type.var.sd",
-      "begin": "^([^\\S\\n\\r]*)(VAR)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "^([^\\S\\n\\r]*)(VAR|var)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -369,7 +369,7 @@
     "ListDeclaration": {
       "tag": "meta",
       "name": "storage.type.list.sd",
-      "begin": "^([^\\S\\n\\r]*)(LIST)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "^([^\\S\\n\\r]*)(LIST|list)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -403,7 +403,7 @@
     "ConstDeclaration": {
       "tag": "meta",
       "name": "storage.type.const.sd",
-      "begin": "^([^\\S\\n\\r]*)(CONST)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "^([^\\S\\n\\r]*)(CONST|const)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -437,7 +437,7 @@
     "ExternalDeclaration": {
       "tag": "meta",
       "name": "storage.type.external.sd",
-      "begin": "^([^\\S\\n\\r]*)(EXTERNAL)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "^([^\\S\\n\\r]*)(EXTERNAL|external)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -471,7 +471,7 @@
     "DefineDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([^\\S\\n\\r]*)(DEFINE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(?:([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]+)(?=[_\\p{L}][0-9_\\p{L}]*))?($|[_\\p{L}][0-9_\\p{L}]*)(?:([^\\S\\n\\r]*)([.])([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*)?)?([^\\S\\n\\r]*)($|[:])",
+      "begin": "^([^\\S\\n\\r]*)(DEFINE|define)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(?:([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]+)(?=[_\\p{L}][0-9_\\p{L}]*))?($|[_\\p{L}][0-9_\\p{L}]*)(?:([^\\S\\n\\r]*)([.])([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*)?)?([^\\S\\n\\r]*)($|[:])",
       "beginCaptures": {
         "1": {
           "patterns": [

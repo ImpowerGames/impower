@@ -1572,7 +1572,7 @@ export class Story extends InkObject {
             }
           } else {
             throw new StoryException(
-              "Failed to find LIST called " + listNameVal.value
+              "Failed to find list called " + listNameVal.value
             );
           }
 
@@ -1919,7 +1919,7 @@ export class Story extends InkObject {
         fallbackFunctionContainer = this.KnotContainerWithName(funcName);
         this.Assert(
           fallbackFunctionContainer !== null,
-          "Trying to call EXTERNAL function '" +
+          "Trying to call external function '" +
             funcName +
             "' which has not been bound, and fallback ink function could not be found."
         );
@@ -1935,7 +1935,7 @@ export class Story extends InkObject {
       } else {
         this.Assert(
           false,
-          "Trying to call EXTERNAL function '" +
+          "Trying to call external function '" +
             funcName +
             "' which has not been bound (and ink fallbacks disabled)."
         );

@@ -167,7 +167,7 @@ repository:
   Include:
     tag: meta
     name: meta.import.include.sd
-    begin: ^({{WS}}*)(INCLUDE)({{EOK}})
+    begin: ^({{WS}}*)(INCLUDE|include)({{EOK}})
     beginCaptures:
       1:
         patterns:
@@ -201,7 +201,7 @@ repository:
   VarDeclaration:
     tag: meta
     name: storage.type.var.sd
-    begin: ^({{WS}}*)(VAR)({{EOK}})
+    begin: ^({{WS}}*)(VAR|var)({{EOK}})
     beginCaptures:
       1:
         patterns:
@@ -220,7 +220,7 @@ repository:
   ListDeclaration:
     tag: meta
     name: storage.type.list.sd
-    begin: ^({{WS}}*)(LIST)({{EOK}})
+    begin: ^({{WS}}*)(LIST|list)({{EOK}})
     beginCaptures:
       1:
         patterns:
@@ -239,7 +239,7 @@ repository:
   ConstDeclaration:
     tag: meta
     name: storage.type.const.sd
-    begin: ^({{WS}}*)(CONST)({{EOK}})
+    begin: ^({{WS}}*)(CONST|const)({{EOK}})
     beginCaptures:
       1:
         patterns:
@@ -258,7 +258,7 @@ repository:
   ExternalDeclaration:
     tag: meta
     name: storage.type.external.sd
-    begin: ^({{WS}}*)(EXTERNAL)({{EOK}})
+    begin: ^({{WS}}*)(EXTERNAL|external)({{EOK}})
     beginCaptures:
       1:
         patterns:
@@ -277,7 +277,7 @@ repository:
   DefineDeclaration:
     tag: meta
     name: meta.definition.type.sd
-    begin: ^({{WS}}*)(DEFINE)({{EOK}})(?:({{IDENTIFIER}})({{WS}}+)(?={{IDENTIFIER}}))?($|{{IDENTIFIER}})(?:({{WS}}*)([.])({{WS}}*)($|{{IDENTIFIER}})?)?({{WS}}*)($|[:])
+    begin: ^({{WS}}*)(DEFINE|define)({{EOK}})(?:({{IDENTIFIER}})({{WS}}+)(?={{IDENTIFIER}}))?($|{{IDENTIFIER}})(?:({{WS}}*)([.])({{WS}}*)($|{{IDENTIFIER}})?)?({{WS}}*)($|[:])
     beginCaptures:
       1:
         patterns:
