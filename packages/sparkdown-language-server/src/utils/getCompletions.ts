@@ -631,7 +631,7 @@ const addContextStructPropertyNameCompletions = (
   if (type) {
     const contextStruct =
       program?.context?.[type]?.[name] ??
-      definitions?.optionalDefinitions?.[type]?.["$optional"];
+      definitions?.optionalDefinitions?.[type]?.[name];
     if (contextStruct) {
       const pathPrefix = contextStruct["$recursive"]
         ? "."
@@ -744,7 +744,7 @@ const addContextStructPropertyValueReferenceCompletions = (
   if (type) {
     const contextStruct =
       program?.context?.[type]?.[name] ??
-      definitions?.optionalDefinitions?.[type]?.["$optional"];
+      definitions?.optionalDefinitions?.[type]?.[name];
     if (contextStruct) {
       const value = getProperty(contextStruct, relativePath);
       const description = getTypeName(value);
