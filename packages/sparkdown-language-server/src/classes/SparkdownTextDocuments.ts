@@ -6,7 +6,6 @@ import {
   DidWatchFilesMessage,
   DidWatchFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
-import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
 import SparkParser from "@impower/sparkdown/src/classes/SparkParser";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
@@ -144,7 +143,27 @@ export default class SparkdownTextDocuments<
 
   protected readonly _onUpdateDiagnostics: Emitter<SparkProgramChangeEvent<T>>;
 
-  protected readonly _builtins = DEFAULT_BUILTIN_DEFINITIONS;
+  protected _builtinDefinitions?: { [type: string]: { [name: string]: any } };
+  get builtinDefinitions() {
+    return this._builtinDefinitions;
+  }
+
+  protected _optionalDefinitions?: { [type: string]: { [name: string]: any } };
+  get optionalDefinitions() {
+    return this._optionalDefinitions;
+  }
+
+  protected _schemaDefinitions?: { [type: string]: { [name: string]: any } };
+  get schemaDefinitions() {
+    return this._schemaDefinitions;
+  }
+
+  protected _descriptionDefinitions?: {
+    [type: string]: { [name: string]: any };
+  };
+  get descriptionDefinitions() {
+    return this._descriptionDefinitions;
+  }
 
   protected _workspaceFolders?: WorkspaceFolder[];
 
@@ -163,7 +182,6 @@ export default class SparkdownTextDocuments<
     this._parser = new SparkParser({
       resolveFile: (path: string) => this.resolveFile(path),
       readFile: (uri: string) => this.readFile(uri),
-      builtins: this._builtins,
     });
   }
 
@@ -188,6 +206,25 @@ export default class SparkdownTextDocuments<
     if (fontFiles) {
       this._fontFilePattern = globToRegex(fontFiles);
     }
+  }
+
+  loadBuiltinDefinitions(defs: { [type: string]: { [name: string]: any } }) {
+    this._builtinDefinitions = defs;
+    this._parser.configure({ builtinDefinitions: defs });
+  }
+
+  loadOptionalDefinitions(defs: { [type: string]: { [name: string]: any } }) {
+    this._optionalDefinitions = defs;
+  }
+
+  loadSchemaDefinitions(defs: { [type: string]: { [name: string]: any } }) {
+    this._schemaDefinitions = defs;
+  }
+
+  loadDescriptionDefinitions(defs: {
+    [type: string]: { [name: string]: any };
+  }) {
+    this._descriptionDefinitions = defs;
   }
 
   loadFiles(
@@ -225,7 +262,6 @@ export default class SparkdownTextDocuments<
           }
         }
       });
-      this.parse(this.getMainScriptUri(), true);
     }
   }
 

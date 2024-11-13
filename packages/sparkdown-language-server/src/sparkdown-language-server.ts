@@ -76,6 +76,27 @@ try {
     if (files) {
       documents.loadFiles(files);
     }
+    const builtinDefinitions =
+      params?.initializationOptions?.["builtinDefinitions"];
+    if (builtinDefinitions) {
+      documents.loadBuiltinDefinitions(builtinDefinitions);
+    }
+    const optionalDefinitions =
+      params?.initializationOptions?.["optionalDefinitions"];
+    if (optionalDefinitions) {
+      documents.loadOptionalDefinitions(optionalDefinitions);
+    }
+    const schemaDefinitions =
+      params?.initializationOptions?.["schemaDefinitions"];
+    if (schemaDefinitions) {
+      documents.loadSchemaDefinitions(schemaDefinitions);
+    }
+    const descriptionDefinitions =
+      params?.initializationOptions?.["descriptionDefinitions"];
+    if (descriptionDefinitions) {
+      documents.loadDescriptionDefinitions(descriptionDefinitions);
+    }
+    documents.parse(documents.getMainScriptUri(), true);
     const program = documents.program;
     return { capabilities, program };
   });
@@ -146,10 +167,17 @@ try {
     const document = documents.get(uri);
     const program = documents.parse(uri);
     const tree = documents.getLatestTree(uri);
+    const definitions = {
+      builtinDefinitions: documents.builtinDefinitions,
+      optionalDefinitions: documents.optionalDefinitions,
+      schemaDefinitions: documents.schemaDefinitions,
+      descriptionDefinitions: documents.descriptionDefinitions,
+    };
     const result = getCompletions(
       document,
       program,
       tree,
+      definitions,
       params.position,
       params.context
     );

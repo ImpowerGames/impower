@@ -1,5 +1,5 @@
 export interface SparkParserConfig {
-  builtins?: {
+  builtinDefinitions?: {
     [type: string]: {
       [name: string]: any;
     };

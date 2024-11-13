@@ -12,8 +12,6 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import getProperty from "@impower/sparkdown/src/utils/getProperty";
 import isIdentifier from "@impower/sparkdown/src/utils/isIdentifier";
-import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
-import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
 
 import type {
   NodeIterator,
@@ -614,6 +612,12 @@ const getTypeKind = (v: unknown): CompletionItemKind | undefined => {
 const addContextStructPropertyNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
+  definitions: {
+    builtinDefinitions?: { [type: string]: { [name: string]: any } };
+    optionalDefinitions?: { [type: string]: { [name: string]: any } };
+    schemaDefinitions?: { [type: string]: { [name: string]: any } };
+    descriptionDefinitions?: { [type: string]: { [name: string]: any } };
+  },
   type: string,
   name: string,
   path: string,
@@ -627,7 +631,7 @@ const addContextStructPropertyNameCompletions = (
   if (type) {
     const contextStruct =
       program?.context?.[type]?.[name] ??
-      DEFAULT_OPTIONAL_DEFINITIONS?.[type]?.[name];
+      definitions?.optionalDefinitions?.[type]?.["$optional"];
     if (contextStruct) {
       const pathPrefix = contextStruct["$recursive"]
         ? "."
@@ -678,6 +682,12 @@ const addContextStructPropertyNameCompletions = (
 const addStructPropertyNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
+  definitions: {
+    builtinDefinitions?: { [type: string]: { [name: string]: any } };
+    optionalDefinitions?: { [type: string]: { [name: string]: any } };
+    schemaDefinitions?: { [type: string]: { [name: string]: any } };
+    descriptionDefinitions?: { [type: string]: { [name: string]: any } };
+  },
   type: string,
   name: string,
   path: string,
@@ -695,6 +705,7 @@ const addStructPropertyNameCompletions = (
     addContextStructPropertyNameCompletions(
       completions,
       program,
+      definitions,
       type,
       "$default",
       path,
@@ -705,6 +716,7 @@ const addStructPropertyNameCompletions = (
     addContextStructPropertyNameCompletions(
       completions,
       program,
+      definitions,
       type,
       "$optional",
       path,
@@ -718,13 +730,21 @@ const addStructPropertyNameCompletions = (
 const addContextStructPropertyValueReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
+  definitions: {
+    builtinDefinitions?: { [type: string]: { [name: string]: any } };
+    optionalDefinitions?: { [type: string]: { [name: string]: any } };
+    schemaDefinitions?: { [type: string]: { [name: string]: any } };
+    descriptionDefinitions?: { [type: string]: { [name: string]: any } };
+  },
   type: string,
   name: string,
   path: string
 ) => {
   const relativePath = path.startsWith(".") ? path : `.${path}`;
   if (type) {
-    const contextStruct = program?.context?.[type]?.[name];
+    const contextStruct =
+      program?.context?.[type]?.[name] ??
+      definitions?.optionalDefinitions?.[type]?.["$optional"];
     if (contextStruct) {
       const value = getProperty(contextStruct, relativePath);
       const description = getTypeName(value);
@@ -759,6 +779,12 @@ const addContextStructPropertyValueReferenceCompletions = (
 const addStructPropertyValueCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
+  definitions: {
+    builtinDefinitions?: { [type: string]: { [name: string]: any } };
+    optionalDefinitions?: { [type: string]: { [name: string]: any } };
+    schemaDefinitions?: { [type: string]: { [name: string]: any } };
+    descriptionDefinitions?: { [type: string]: { [name: string]: any } };
+  },
   type: string,
   name: string,
   path: string
@@ -767,6 +793,7 @@ const addStructPropertyValueCompletions = (
     addContextStructPropertyValueReferenceCompletions(
       completions,
       program,
+      definitions,
       type,
       "$default",
       path
@@ -774,6 +801,7 @@ const addStructPropertyValueCompletions = (
     addContextStructPropertyValueReferenceCompletions(
       completions,
       program,
+      definitions,
       type,
       "$optional",
       path
@@ -830,6 +858,12 @@ const getCompletions = (
   document: TextDocument | undefined,
   program: SparkProgram | undefined,
   tree: Tree | undefined,
+  definitions: {
+    builtinDefinitions?: { [type: string]: { [name: string]: any } };
+    optionalDefinitions?: { [type: string]: { [name: string]: any } };
+    schemaDefinitions?: { [type: string]: { [name: string]: any } };
+    descriptionDefinitions?: { [type: string]: { [name: string]: any } };
+  },
   position: Position,
   _context: CompletionContext | undefined
 ): CompletionItem[] | null | undefined => {
@@ -1238,6 +1272,7 @@ const getCompletions = (
     addStructPropertyNameCompletions(
       completions,
       program,
+      definitions,
       type,
       name,
       path,
@@ -1276,7 +1311,14 @@ const getCompletions = (
         getParentPropertyPath(propertyNameNode) +
         "." +
         getNodeText(propertyNameNode);
-      addStructPropertyValueCompletions(completions, program, type, name, path);
+      addStructPropertyValueCompletions(
+        completions,
+        program,
+        definitions,
+        type,
+        name,
+        path
+      );
       return Array.from(completions.values());
     }
   }

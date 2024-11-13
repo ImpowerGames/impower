@@ -210,8 +210,11 @@ export default class SparkParser {
   }
 
   configure(config: SparkParserConfig) {
-    if (config.builtins && config.builtins !== this._config.builtins) {
-      this._config.builtins = config.builtins;
+    if (
+      config.builtinDefinitions &&
+      config.builtinDefinitions !== this._config.builtinDefinitions
+    ) {
+      this._config.builtinDefinitions = config.builtinDefinitions;
     }
     if (config.files && config.files !== this._config.files) {
       this._config.files = config.files;
@@ -948,7 +951,7 @@ export default class SparkParser {
   populateBuiltins(program: SparkProgram) {
     performance.mark(`populateBuiltins start`);
     program.context ??= {};
-    const builtins = this._config.builtins;
+    const builtins = this._config.builtinDefinitions;
     if (builtins) {
       for (const [type, builtinStructs] of Object.entries(builtins)) {
         for (const [name, builtinStruct] of Object.entries(builtinStructs)) {

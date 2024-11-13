@@ -11,6 +11,10 @@ import {
   ServerCapabilities,
 } from "@impower/spark-editor-protocol/src/types";
 import { createBrowserMessageConnection } from "@impower/spark-editor-protocol/src/utils/createBrowserMessageConnection";
+import { DEFAULT_BUILTIN_DEFINITIONS } from "../../../../../packages/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
+import { DEFAULT_OPTIONAL_DEFINITIONS } from "../../../../../packages/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
+import { DEFAULT_SCHEMA_DEFINITIONS } from "../../../../../packages/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
+import { DEFAULT_DESCRIPTION_DEFINITIONS } from "../../../../../packages/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import type { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
 import ConsoleLogger from "./ConsoleLogger";
 import { Workspace } from "./Workspace";
@@ -195,6 +199,10 @@ export default class WorkspaceLanguageServer {
         initializationOptions: {
           settings: Workspace.configuration.settings,
           files,
+          builtinDefinitions: DEFAULT_BUILTIN_DEFINITIONS,
+          optionalDefinitions: DEFAULT_OPTIONAL_DEFINITIONS,
+          schemaDefinitions: DEFAULT_SCHEMA_DEFINITIONS,
+          descriptionDefinitions: DEFAULT_DESCRIPTION_DEFINITIONS,
         },
         workspaceFolders: [
           {
