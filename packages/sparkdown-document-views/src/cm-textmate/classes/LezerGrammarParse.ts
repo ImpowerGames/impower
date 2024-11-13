@@ -190,6 +190,16 @@ export default class GrammarParse implements PartialParse {
     }
 
     this.nextChunk();
+
+    if (this.aheadBuffer) {
+      // TRY TO REUSE STATE AHEAD OF EDITED RANGE
+      const reused = this.tryToReuseAhead(this.aheadBuffer);
+      if (reused) {
+        // can't reuse the buffer more than once (pointless)
+        this.aheadBuffer = undefined;
+      }
+    }
+
     this.compiler.step();
 
     if (this.done) {
@@ -298,30 +308,6 @@ export default class GrammarParse implements PartialParse {
           if (this.buffer.add(t)) {
             addedChunk = true;
           }
-        }
-      }
-
-      // console.log(
-      //   "PARSED",
-      //   JSON.stringify(this.region.input.read(pos, this.parsedPos)),
-      //   this.parsedPos,
-      //   this.aheadBuffer
-      // );
-
-      if (this.aheadBuffer) {
-        // const parsedPosBefore = this.parsedPos;
-        // TRY TO REUSE STATE AHEAD OF EDITED RANGE
-        const reused = this.tryToReuseAhead(this.aheadBuffer);
-        if (reused) {
-          // can't reuse the buffer more than once (pointless)
-          this.aheadBuffer = undefined;
-          // const parsedPosAfter = this.parsedPos;
-          // console.log(
-          //   "REUSED",
-          //   JSON.stringify(
-          //     this.region.input.read(parsedPosBefore, parsedPosAfter)
-          //   )
-          // );
         }
       }
 
