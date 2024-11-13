@@ -211,7 +211,8 @@ export default class GrammarParse implements PartialParse {
 
   private finish(): Tree {
     const start = this.region.original.from;
-    const length = this.region.original.length;
+    const to = Math.min(this.region.original.length, this.parsedPos);
+    const length = to - start;
 
     const result = this.compiler.finish(length);
 
