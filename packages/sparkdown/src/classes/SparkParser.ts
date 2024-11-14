@@ -19,15 +19,17 @@ import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
-import selectProperty from "../utils/selectProperty";
-import uuid from "../utils/uuid";
-import filterSVG from "../utils/filterSVG";
-import buildSVGSource from "../utils/buildSVGSource";
-import filterMatchesName from "../utils/filterMatchesName";
-import setProperty from "../utils/setProperty";
+import { selectProperty } from "../utils/selectProperty";
+import { uuid } from "../utils/uuid";
+import { filterSVG } from "../utils/filterSVG";
+import { buildSVGSource } from "../utils/buildSVGSource";
+import { filterMatchesName } from "../utils/filterMatchesName";
+import { setProperty } from "../utils/setProperty";
 import { getCharacterIdentifier } from "../utils/getCharacterIdentifier";
 import { SparkReference } from "../types/SparkReference";
-import traverse from "../utils/traverse";
+import { traverse } from "../utils/traverse";
+import { getDescendentInsideParent } from "../utils/syntax/getDescendentInsideParent";
+import { getStack } from "../utils/syntax/getStack";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 
