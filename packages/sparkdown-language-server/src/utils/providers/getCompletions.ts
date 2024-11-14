@@ -30,10 +30,14 @@ const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
 const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS;
+
 const IMAGE_CLAUSE_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS;
 const AUDIO_CLAUSE_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS;
+
+const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
+const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
 
 const traverse = <T>(
   obj: T,
@@ -213,10 +217,10 @@ const addStructTypeNameCompletions = (
   program: SparkProgram | undefined
 ) => {
   if (program?.context) {
-    for (const k of Object.keys(program?.context).sort()) {
-      if (!k.startsWith("$")) {
+    for (const type of Object.keys(program?.context).sort()) {
+      if (!type.startsWith("$")) {
         const completion: CompletionItem = {
-          label: k,
+          label: type,
           labelDetails: { description: "type" },
           kind: CompletionItemKind.TypeParameter,
         };
@@ -234,10 +238,13 @@ const addStructVariableNameCompletions = (
   type: string
 ) => {
   if (program?.context?.[type]) {
-    for (const k of Object.keys(program?.context?.[type]).sort()) {
-      if (!k.startsWith("$") && !program?.compiled?.structDefs?.[type]?.[k]) {
+    for (const name of Object.keys(program?.context?.[type]).sort()) {
+      if (
+        !name.startsWith("$") &&
+        !program?.compiled?.structDefs?.[type]?.[name]
+      ) {
         const completion: CompletionItem = {
-          label: k,
+          label: name,
           labelDetails: { description: "name" },
           kind: CompletionItemKind.Variable,
         };
@@ -259,13 +266,14 @@ const addStructReferenceCompletions = (
     for (const type of types) {
       const structs = program?.context?.[type];
       if (structs) {
-        for (const [name, struct] of Object.entries(structs)) {
+        for (const name of Object.keys(structs).sort()) {
           if (!name.startsWith("$") && !exclude?.includes(name)) {
             const completion: CompletionItem = {
               label: name,
               labelDetails: { description: type },
               kind: CompletionItemKind.Constructor,
             };
+            const struct = structs[name];
             const src =
               type === "filtered_image"
                 ? struct?.filtered_src
@@ -290,30 +298,33 @@ const addStructReferenceCompletions = (
   }
 };
 
-const addUIElementCompletions = (
+const addUIElementReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
   contentTypes: ("image" | "text")[],
   insertTextPrefix = ""
 ) => {
   for (const contentType of contentTypes) {
-    for (const [, v] of Object.entries(program?.context?.["ui"] || {})) {
-      traverse(v, (fieldPath) => {
-        if (fieldPath.endsWith(`.${contentType}`)) {
-          const layer = fieldPath.split(".").at(-2);
-          if (layer) {
-            const completion: CompletionItem = {
-              label: layer,
-              insertText: insertTextPrefix + layer,
-              labelDetails: { description: "element" },
-              kind: CompletionItemKind.Constructor,
-            };
-            if (completion.label && !completions.has(completion.label)) {
-              completions.set(completion.label, completion);
+    const uiStructs = program?.context?.["ui"];
+    if (uiStructs) {
+      for (const v of Object.values(uiStructs)) {
+        traverse(v, (fieldPath) => {
+          if (fieldPath.endsWith(`.${contentType}`)) {
+            const layer = fieldPath.split(".").at(-2);
+            if (layer) {
+              const completion: CompletionItem = {
+                label: layer,
+                insertText: insertTextPrefix + layer,
+                labelDetails: { description: "element" },
+                kind: CompletionItemKind.Constructor,
+              };
+              if (completion.label && !completions.has(completion.label)) {
+                completions.set(completion.label, completion);
+              }
             }
           }
-        }
-      });
+        });
+      }
     }
   }
 };
@@ -362,7 +373,7 @@ const getTypeKind = (v: unknown): CompletionItemKind | undefined => {
   return undefined;
 };
 
-const addContextStructPropertyNameCompletions = (
+const addStructPropertyNameContextCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
   definitions: {
@@ -455,7 +466,7 @@ const addStructPropertyNameCompletions = (
         existingProps.add(fieldPath);
       });
     }
-    addContextStructPropertyNameCompletions(
+    addStructPropertyNameContextCompletions(
       completions,
       program,
       definitions,
@@ -466,7 +477,7 @@ const addStructPropertyNameCompletions = (
       existingProps,
       possibleNames
     );
-    addContextStructPropertyNameCompletions(
+    addStructPropertyNameContextCompletions(
       completions,
       program,
       definitions,
@@ -480,7 +491,7 @@ const addStructPropertyNameCompletions = (
   }
 };
 
-const addContextStructPropertyValueReferenceCompletions = (
+const addStructPropertyValueContextCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
   definitions: {
@@ -512,7 +523,7 @@ const addContextStructPropertyValueReferenceCompletions = (
   }
 };
 
-const addSchemaStructPropertyValueReferenceCompletions = (
+const addStructPropertyValueSchemaCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
   definitions: {
@@ -594,7 +605,7 @@ const addStructPropertyValueCompletions = (
   context: CompletionContext | undefined
 ) => {
   if (type) {
-    addSchemaStructPropertyValueReferenceCompletions(
+    addStructPropertyValueSchemaCompletions(
       completions,
       program,
       definitions,
@@ -605,7 +616,7 @@ const addStructPropertyValueCompletions = (
       valueCursorOffset,
       context
     );
-    addContextStructPropertyValueReferenceCompletions(
+    addStructPropertyValueContextCompletions(
       completions,
       program,
       definitions,
@@ -613,7 +624,7 @@ const addStructPropertyValueCompletions = (
       "$default",
       path
     );
-    addContextStructPropertyValueReferenceCompletions(
+    addStructPropertyValueContextCompletions(
       completions,
       program,
       definitions,
@@ -760,14 +771,14 @@ export const getCompletions = (
 
   // Write
   if (stack[0]?.type.name === "WriteMark") {
-    addUIElementCompletions(completions, program, ["text"], " ");
+    addUIElementReferenceCompletions(completions, program, ["text"], " ");
     return Array.from(completions.values());
   }
   if (
     stack[0]?.type.name === "WriteMarkSeparator" ||
     stack.some((n) => n?.type.name === "WriteTarget")
   ) {
-    addUIElementCompletions(completions, program, ["text"]);
+    addUIElementReferenceCompletions(completions, program, ["text"]);
     return Array.from(completions.values());
   }
 
@@ -775,11 +786,7 @@ export const getCompletions = (
   if (stack.some((n) => n.type.name === "ImageCommand")) {
     if (stack[0]?.type.name === "ImageCommand_c1") {
       addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
-      addStructReferenceCompletions(completions, program, [
-        "filtered_image",
-        "layered_image",
-        "image",
-      ]);
+      addStructReferenceCompletions(completions, program, IMAGE_TYPES);
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "AssetCommandControl") {
@@ -790,15 +797,11 @@ export const getCompletions = (
       stack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
       stack[0]?.type.name === "AssetCommandTarget"
     ) {
-      addUIElementCompletions(completions, program, ["image"]);
+      addUIElementReferenceCompletions(completions, program, ["image"]);
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
-      addStructReferenceCompletions(completions, program, [
-        "filtered_image",
-        "layered_image",
-        "image",
-      ]);
+      addStructReferenceCompletions(completions, program, IMAGE_TYPES);
       addKeywordCompletions(completions, "clause", IMAGE_CLAUSE_KEYWORDS);
       return Array.from(completions.values());
     }
@@ -806,11 +809,7 @@ export const getCompletions = (
       stack[0]?.type.name === "AssetCommandName" ||
       stack[0]?.type.name === "AssetCommandFileName"
     ) {
-      addStructReferenceCompletions(completions, program, [
-        "filtered_image",
-        "layered_image",
-        "image",
-      ]);
+      addStructReferenceCompletions(completions, program, IMAGE_TYPES);
       return Array.from(completions.values());
     }
     if (
@@ -869,27 +868,22 @@ export const getCompletions = (
   if (stack.some((n) => n.type.name === "AudioCommand")) {
     if (stack[0]?.type.name === "AudioCommand_c1") {
       addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
-      addStructReferenceCompletions(completions, program, [
-        "layered_audio",
-        "audio",
-        "synth",
-      ]);
+      addStructReferenceCompletions(completions, program, AUDIO_TYPES);
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "AssetCommandControl") {
       addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
       return Array.from(completions.values());
     }
-    if (stack[0]?.type.name === "WhitespaceAssetCommandTarget") {
+    if (
+      stack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
+      stack[0]?.type.name === "AssetCommandTarget"
+    ) {
       addStructReferenceCompletions(completions, program, ["channel"]);
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
-      addStructReferenceCompletions(completions, program, [
-        "layered_audio",
-        "audio",
-        "synth",
-      ]);
+      addStructReferenceCompletions(completions, program, AUDIO_TYPES);
       addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS);
       return Array.from(completions.values());
     }
@@ -897,11 +891,7 @@ export const getCompletions = (
       stack[0]?.type.name === "AssetCommandName" ||
       stack[0]?.type.name === "AssetCommandFileName"
     ) {
-      addStructReferenceCompletions(completions, program, [
-        "layered_audio",
-        "audio",
-        "synth",
-      ]);
+      addStructReferenceCompletions(completions, program, AUDIO_TYPES);
       return Array.from(completions.values());
     }
     if (
