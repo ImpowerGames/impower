@@ -1,4 +1,4 @@
-import type { SparkdownNodeName } from "../../../../sparkdown/src/types/SparkdownNodeName";
+import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
 
 export const getDescendentInsideParent = (

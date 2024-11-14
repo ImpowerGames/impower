@@ -1,15 +1,13 @@
-import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { Tree } from "../../../../grammar-compiler/src/compiler/classes/Tree";
-import type { SparkdownNodeName } from "../../../../sparkdown/src/types/SparkdownNodeName";
+import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
-import { getNodeText } from "./getNodeText";
 
 export const getOtherMatchesInsideParent = (
   matchTypeName: SparkdownNodeName,
   parentTypeName: SparkdownNodeName,
   stack: SparkdownSyntaxNode[],
-  document: TextDocument,
-  tree: Tree
+  tree: Tree,
+  read: (from: number, to: number) => string
 ): string[] => {
   const side = -1;
   const matches = [];
@@ -20,7 +18,7 @@ export const getOtherMatchesInsideParent = (
     while (prevCur.from >= parent.from) {
       const node = prevCur.node;
       if (node.type.name === matchTypeName) {
-        matches.unshift(getNodeText(node, document));
+        matches.unshift(read(node.from, node.to));
       }
       prevCur.moveTo(prevCur.from - 1, side);
     }
@@ -28,7 +26,7 @@ export const getOtherMatchesInsideParent = (
     while (nextCur.to <= parent.to) {
       const node = nextCur.node;
       if (node.type.name === matchTypeName) {
-        matches.push(getNodeText(node, document));
+        matches.push(read(node.from, node.to));
       }
       nextCur.moveTo(nextCur.to + 1, side);
     }

@@ -28,8 +28,6 @@ import { setProperty } from "../utils/setProperty";
 import { getCharacterIdentifier } from "../utils/getCharacterIdentifier";
 import { SparkReference } from "../types/SparkReference";
 import { traverse } from "../utils/traverse";
-import { getDescendentInsideParent } from "../utils/syntax/getDescendentInsideParent";
-import { getStack } from "../utils/syntax/getStack";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 
@@ -333,6 +331,7 @@ export default class SparkParser {
         ...obj,
       };
     };
+    const read = script.slice;
     performance.mark(`iterate ${uri} start`);
     tree.iterate({
       enter: (node) => {
@@ -348,7 +347,7 @@ export default class SparkParser {
           sourceNodeEnd > after ? shift + sourceNodeEnd : sourceNodeEnd;
 
         const lineText = lines[lineIndex] || "";
-        const text = script.slice(node.from, node.to);
+        const text = read(node.from, node.to);
         range = getRange(node.from, node.to, script, lineIndex, linePos);
 
         // Annotate dialogue line with implicit flow marker

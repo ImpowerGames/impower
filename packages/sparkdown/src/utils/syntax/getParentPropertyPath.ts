@@ -1,12 +1,10 @@
-import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { SyntaxNode } from "../../../../grammar-compiler/src/compiler/classes/Tree";
 import type { SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
 import { getDescendent } from "./getDescendent";
-import { getNodeText } from "./getNodeText";
 
 export const getParentPropertyPath = (
   propertyNameNode: SyntaxNode,
-  document: TextDocument
+  read: (from: number, to: number) => string
 ) => {
   let stackCursor: SyntaxNode | null = propertyNameNode.node;
   let path = "";
@@ -28,7 +26,7 @@ export const getParentPropertyPath = (
           beginNode
         );
         if (nameNode && nameNode.from !== propertyNameNode.from) {
-          path = getNodeText(nameNode, document) + "." + path;
+          path = read(nameNode.from, nameNode.to) + "." + path;
         }
       }
     }
@@ -40,7 +38,7 @@ export const getParentPropertyPath = (
           beginNode
         );
         if (nameNode && nameNode.from !== propertyNameNode.from) {
-          path = getNodeText(nameNode, document) + "." + path;
+          path = read(nameNode.from, nameNode.to) + "." + path;
         }
       }
     }

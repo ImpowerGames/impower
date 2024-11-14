@@ -11,19 +11,21 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
 import type { SparkLocation } from "../../../../sparkdown/src/types/SparkLocation";
+import type { SparkdownSyntaxNode } from "../../../../sparkdown/src/types/SparkdownSyntaxNode";
 import { getProperty } from "../../../../sparkdown/src/utils/getProperty";
+import { getStack } from "../../../../sparkdown/src/utils/syntax/getStack";
+import { getParentPropertyPath } from "../../../../sparkdown/src/utils/syntax/getParentPropertyPath";
+import { getDescendentInsideParent } from "../../../../sparkdown/src/utils/syntax/getDescendentInsideParent";
+import { getOtherMatchesInsideParent } from "../../../../sparkdown/src/utils/syntax/getOtherMatchesInsideParent";
 import GRAMMAR_DEFINITION from "../../../../sparkdown/language/sparkdown.language-grammar.json";
 
-import type { Tree } from "../../../../grammar-compiler/src/compiler/classes/Tree";
+import type {
+  SyntaxNode,
+  Tree,
+} from "../../../../grammar-compiler/src/compiler/classes/Tree";
 import { printTree } from "../../../../grammar-compiler/src/compiler/utils/printTree";
 
-import type { SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
 import { getLineText } from "../document/getLineText";
-import { getStack } from "../syntax/getStack";
-import { getNodeText } from "../syntax/getNodeText";
-import { getOtherMatchesInsideParent } from "../syntax/getOtherMatchesInsideParent";
-import { getDescendentInsideParent } from "../syntax/getDescendentInsideParent";
-import { getParentPropertyPath } from "../syntax/getParentPropertyPath";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
@@ -720,15 +722,23 @@ export const getCompletions = (
 
   const completions: Map<string, CompletionItem> = new Map();
 
-  const stack = getStack(tree, document, position);
+  const stack = getStack(tree, document.offsetAt(position));
   if (!stack[0]) {
     return null;
   }
 
+  const read = (from: number, to: number) =>
+    document.getText({
+      start: document.positionAt(from),
+      end: document.positionAt(to),
+    });
+
+  const getNodeText = (node: SyntaxNode) => read(node.from, node.to);
+
   const side = -1;
   const prevCursor = tree.cursorAt(stack[0].from - 1, side);
   const prevNode = prevCursor.node as SparkdownSyntaxNode;
-  const prevText = getNodeText(prevNode, document);
+  const prevText = getNodeText(prevNode);
 
   // console.log(printTree(tree, document.getText()));
   // console.log(stack.map((n) => n.type.name));
@@ -842,8 +852,8 @@ export const getCompletions = (
         "AssetCommandFilterName",
         "AssetCommandContent",
         stack,
-        document,
-        tree
+        tree,
+        read
       );
       addStructReferenceCompletions(completions, program, ["filter"], exclude);
       return Array.from(completions.values());
@@ -872,8 +882,8 @@ export const getCompletions = (
           "AssetCommandClauseKeyword",
           "AssetCommandContent",
           stack,
-          document,
-          tree
+          tree,
+          read
         );
         addKeywordCompletions(
           completions,
@@ -930,8 +940,8 @@ export const getCompletions = (
         "AssetCommandFilterName",
         "AssetCommandContent",
         stack,
-        document,
-        tree
+        tree,
+        read
       );
       addStructReferenceCompletions(completions, program, ["filter"], exclude);
       return Array.from(completions.values());
@@ -948,8 +958,8 @@ export const getCompletions = (
           "AssetCommandClauseKeyword",
           "AssetCommandContent",
           stack,
-          document,
-          tree
+          tree,
+          read
         );
         addKeywordCompletions(
           completions,
@@ -995,9 +1005,7 @@ export const getCompletions = (
       "DefineDeclaration",
       stack
     );
-    const type = defineTypeNameNode
-      ? getNodeText(defineTypeNameNode, document)
-      : "";
+    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
     addStructVariableNameCompletions(completions, program, type);
     return Array.from(completions.values());
   }
@@ -1028,15 +1036,13 @@ export const getCompletions = (
       stack
     );
     const modifier = defineModifierNameNode
-      ? getNodeText(defineModifierNameNode, document)
+      ? getNodeText(defineModifierNameNode)
       : "";
-    const type = defineTypeNameNode
-      ? getNodeText(defineTypeNameNode, document)
-      : "";
+    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
     const name = defineVariableNameNode
-      ? getNodeText(defineVariableNameNode, document)
+      ? getNodeText(defineVariableNameNode)
       : "";
-    const path = getParentPropertyPath(propertyNameNode, document);
+    const path = getParentPropertyPath(propertyNameNode, read);
     const lineText = getLineText(document, position);
     addStructPropertyNameCompletions(
       completions,
@@ -1074,13 +1080,11 @@ export const getCompletions = (
       stack
     );
     const modifier = defineModifierNameNode
-      ? getNodeText(defineModifierNameNode, document)
+      ? getNodeText(defineModifierNameNode)
       : "";
-    const type = defineTypeNameNode
-      ? getNodeText(defineTypeNameNode, document)
-      : "";
+    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
     const name = defineVariableNameNode
-      ? getNodeText(defineVariableNameNode, document)
+      ? getNodeText(defineVariableNameNode)
       : "";
     const propertyNameNode = getDescendentInsideParent(
       "DeclarationScalarPropertyName",
@@ -1092,7 +1096,7 @@ export const getCompletions = (
       "StructField",
       stack
     );
-    const valueText = getNodeText(propertyValueNode, document);
+    const valueText = propertyValueNode ? getNodeText(propertyValueNode) : "";
     const documentCursorOffset = document.offsetAt(position);
     const valueCursorOffset = propertyValueNode
       ? documentCursorOffset < propertyValueNode.from
@@ -1103,9 +1107,9 @@ export const getCompletions = (
       : 0;
     if (propertyNameNode) {
       const path =
-        getParentPropertyPath(propertyNameNode, document) +
+        getParentPropertyPath(propertyNameNode, read) +
         "." +
-        getNodeText(propertyNameNode, document);
+        getNodeText(propertyNameNode);
       addStructPropertyValueCompletions(
         completions,
         program,
@@ -1125,7 +1129,7 @@ export const getCompletions = (
   // Access Path
   const accessPathNode = stack.find((n) => n.type.name === "AccessPath");
   if (accessPathNode) {
-    const path = getNodeText(accessPathNode, document);
+    const path = getNodeText(accessPathNode);
     addAccessPathCompletions(completions, program, path);
     return Array.from(completions.values());
   }
