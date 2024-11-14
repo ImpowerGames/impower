@@ -2972,7 +2972,6 @@ export class InkParser extends StringParser {
         variableName += "." + name.name;
       }
       const variableIdentifier = new Identifier(variableName);
-
       variableIdentifier.debugMetadata = new DebugMetadata(
         (modifier || type || name)?.debugMetadata || undefined
       );
