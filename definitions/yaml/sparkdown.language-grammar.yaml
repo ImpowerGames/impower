@@ -666,7 +666,7 @@ repository:
           - { include: "#PunctuationSemicolon" }
 
   FunctionAccessor:
-    begin: ([.]|[?][.])?({{IDENTIFIER}})(?=[(])
+    begin: ([.])?({{IDENTIFIER}})(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -1852,53 +1852,35 @@ repository:
           - { include: "#PunctuationParenClose" }
 
   NamespaceAccessor:
-    match: ({{IDENTIFIER}})({{WS}}*)([.]|[?][.])({{WS}}*)($|{{IDENTIFIER}})(?![(])
+    match: ({{IDENTIFIER}})([.])($|{{IDENTIFIER}})(?![(])
     captures:
       1:
         patterns:
           - { include: "#TypeName" }
       2:
         patterns:
-          - { include: "#Whitespace" }
-      3:
-        patterns:
           - { include: "#PunctuationAccessor" }
-      4:
-        patterns:
-          - { include: "#Whitespace" }
-      5:
+      3:
         patterns:
           - { include: "#VariableName" }
 
   VariableAccessor:
-    match: ({{WS}}*)([.]|[?][.])({{WS}}*)({{IDENTIFIER}})(?![(])
+    match: ([.])({{IDENTIFIER}})(?![(])
     captures:
       1:
         patterns:
-          - { include: "#Whitespace" }
-      2:
-        patterns:
           - { include: "#PunctuationAccessor" }
-      3:
-        patterns:
-          - { include: "#Whitespace" }
-      4:
+      2:
         patterns:
           - { include: "#VariableName" }
 
   PropertyAccessor:
-    match: ({{WS}}*)([.]|[?][.])({{WS}}*)({{IDENTIFIER}})(?![(])
+    match: ([.])({{IDENTIFIER}})(?![(])
     captures:
       1:
         patterns:
-          - { include: "#Whitespace" }
-      2:
-        patterns:
           - { include: "#PunctuationAccessor" }
-      3:
-        patterns:
-          - { include: "#Whitespace" }
-      4:
+      2:
         patterns:
           - { include: "#PropertyName" }
 
@@ -1936,14 +1918,9 @@ repository:
     match: ({{IDENTIFIER}})
 
   PunctuationAccessor:
-    match: (?:([.])|([?][.]))
-    captures:
-      1:
-        tag: separator
-        name: meta.template.expression.accessor.sd
-      2:
-        tag: separator
-        name: meta.template.expression.accessor.optional.sd
+    match: ([.])
+    tag: separator
+    name: meta.template.expression.accessor.sd
 
   Color:
     emit: true

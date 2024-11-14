@@ -2014,7 +2014,7 @@ export class InkParser extends StringParser {
   public readonly ExpressionVariableName = (): Expression | null => {
     const path = this.Interleave<Identifier>(
       this.IdentifierWithMetadata,
-      this.Exclude(this.Spaced(this.String(".")))
+      this.Exclude(this.String("."))
     );
 
     if (path === null || Story.IsReservedKeyword(path[0]?.name)) {

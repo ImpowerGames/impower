@@ -1210,7 +1210,7 @@
       }
     },
     "FunctionAccessor": {
-      "begin": "([.]|[?][.])?([_\\p{L}][0-9_\\p{L}]*)(?=[(])",
+      "begin": "([.])?([_\\p{L}][0-9_\\p{L}]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3244,7 +3244,7 @@
       }
     },
     "NamespaceAccessor": {
-      "match": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([.]|[?][.])([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*)(?![(])",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)([.])($|[_\\p{L}][0-9_\\p{L}]*)(?![(])",
       "captures": {
         "1": {
           "patterns": [
@@ -3256,25 +3256,11 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
               "include": "#PunctuationAccessor"
             }
           ]
         },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "5": {
+        "3": {
           "patterns": [
             {
               "include": "#VariableName"
@@ -3284,30 +3270,16 @@
       }
     },
     "VariableAccessor": {
-      "match": "([^\\S\\n\\r]*)([.]|[?][.])([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)(?![(])",
+      "match": "([.])([_\\p{L}][0-9_\\p{L}]*)(?![(])",
       "captures": {
         "1": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "2": {
           "patterns": [
             {
               "include": "#PunctuationAccessor"
             }
           ]
         },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
+        "2": {
           "patterns": [
             {
               "include": "#VariableName"
@@ -3317,30 +3289,16 @@
       }
     },
     "PropertyAccessor": {
-      "match": "([^\\S\\n\\r]*)([.]|[?][.])([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)(?![(])",
+      "match": "([.])([_\\p{L}][0-9_\\p{L}]*)(?![(])",
       "captures": {
         "1": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "2": {
           "patterns": [
             {
               "include": "#PunctuationAccessor"
             }
           ]
         },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
+        "2": {
           "patterns": [
             {
               "include": "#PropertyName"
@@ -3383,17 +3341,9 @@
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "PunctuationAccessor": {
-      "match": "(?:([.])|([?][.]))",
-      "captures": {
-        "1": {
-          "tag": "separator",
-          "name": "meta.template.expression.accessor.sd"
-        },
-        "2": {
-          "tag": "separator",
-          "name": "meta.template.expression.accessor.optional.sd"
-        }
-      }
+      "match": "([.])",
+      "tag": "separator",
+      "name": "meta.template.expression.accessor.sd"
     },
     "Color": {
       "emit": true,
