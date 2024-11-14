@@ -382,50 +382,6 @@ const addAudioTargetCompletions = (
   }
 };
 
-const addAudioNameCompletions = (
-  completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined
-) => {
-  for (const [name] of Object.entries(program?.context?.["audio"] || {})) {
-    if (!name.startsWith("$")) {
-      const completion: CompletionItem = {
-        label: name,
-        labelDetails: { description: "audio" },
-        kind: CompletionItemKind.Constructor,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
-    }
-  }
-  for (const [name] of Object.entries(
-    program?.context?.["layered_audio"] || {}
-  )) {
-    if (!name.startsWith("$")) {
-      const completion: CompletionItem = {
-        label: name,
-        labelDetails: { description: "layered_audio" },
-        kind: CompletionItemKind.Constructor,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
-    }
-  }
-  for (const [name] of Object.entries(program?.context?.["synth"] || {})) {
-    if (!name.startsWith("$")) {
-      const completion: CompletionItem = {
-        label: name,
-        labelDetails: { description: "synth" },
-        kind: CompletionItemKind.Constructor,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
-    }
-  }
-};
-
 const addAudioControlCompletions = (
   completions: Map<string, CompletionItem>,
   _program: SparkProgram | undefined
@@ -1063,7 +1019,11 @@ export const getCompletions = (
   if (stack.some((n) => n.type.name === "AudioCommand")) {
     if (stack[0]?.type.name === "AudioCommand_c1") {
       addAudioControlCompletions(completions, program);
-      addAudioNameCompletions(completions, program);
+      addStructReferenceCompletions(completions, program, [
+        "layered_audio",
+        "audio",
+        "synth",
+      ]);
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "AssetCommandControl") {
@@ -1075,7 +1035,11 @@ export const getCompletions = (
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
-      addAudioNameCompletions(completions, program);
+      addStructReferenceCompletions(completions, program, [
+        "layered_audio",
+        "audio",
+        "synth",
+      ]);
       addAudioClauseCompletions(completions, program);
       return Array.from(completions.values());
     }
@@ -1083,7 +1047,11 @@ export const getCompletions = (
       stack[0]?.type.name === "AssetCommandName" ||
       stack[0]?.type.name === "AssetCommandFileName"
     ) {
-      addAudioNameCompletions(completions, program);
+      addStructReferenceCompletions(completions, program, [
+        "layered_audio",
+        "audio",
+        "synth",
+      ]);
       return Array.from(completions.values());
     }
     if (
