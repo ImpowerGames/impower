@@ -7,8 +7,6 @@ import { ProgressValue } from "@impower/spark-editor-protocol/src/types/base/Pro
 import { SparkScreenplayConfig } from "../../../../../packages/sparkdown-screenplay/src";
 import { generateSparkHtmlData } from "../../../../../packages/sparkdown-screenplay/src/utils/generateSparkHtmlData";
 import { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
-import { combineFrontMatter } from "../../../../../packages/sparkdown/src/utils/combineFrontMatter";
-import { combineTokens } from "../../../../../packages/sparkdown/src/utils/combineTokens";
 
 export default class WorkspacePrint {
   protected _screenplayPdfWorker = new Worker("/sparkdown-screenplay-pdf.js");
@@ -127,8 +125,8 @@ export default class WorkspacePrint {
     onProgress?: (value: ProgressValue) => void
   ) {
     const fonts = await this.getFonts();
-    const frontMatter = combineFrontMatter(programs);
-    const tokens = combineTokens(programs);
+    const frontMatter = {}; // TODO: combineFrontMatter(programs);
+    const tokens: any[] = []; // TODO: combineTokens(programs);
     return generateSparkHtmlData(frontMatter, tokens, this.config, fonts);
   }
 }

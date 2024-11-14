@@ -9,8 +9,6 @@ import { generateSparkPdfData } from "../../sparkdown-screenplay/src/utils/gener
 import { pdfGenerate } from "../../sparkdown-screenplay/src/utils/pdfGenerate";
 import { pdfPrintText } from "../../sparkdown-screenplay/src/utils/pdfPrintText";
 import type { SparkProgram } from "../../sparkdown/src/types/SparkProgram";
-import { combineFrontMatter } from "../../sparkdown/src/utils/combineFrontMatter";
-import { combineTokens } from "../../sparkdown/src/utils/combineTokens";
 
 onmessage = async (e) => {
   const message = e.data;
@@ -81,8 +79,8 @@ export const buildPDF = async (
   progress("begin", 0);
 
   // Layout PDF data
-  const frontMatter = combineFrontMatter(programs);
-  const tokens = combineTokens(programs);
+  const frontMatter = {}; // TODO: combineFrontMatter(programs);
+  const tokens: any[] = []; // TODO: combineTokens(programs);
   const pdfData = generateSparkPdfData(frontMatter, tokens, config, fonts);
 
   progress("report", 2);
