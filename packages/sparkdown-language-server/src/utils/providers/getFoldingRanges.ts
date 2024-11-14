@@ -1,11 +1,11 @@
 import { FoldingRange, Range } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
 
 const INDENT_REGEX = /^([ \t]+)/;
 
-const getFoldingRanges = (
+export const getFoldingRanges = (
   document: TextDocument | undefined,
   program: SparkProgram | undefined
 ): FoldingRange[] => {
@@ -92,5 +92,3 @@ const getFoldingRanges = (
   }
   return result;
 };
-
-export default getFoldingRanges;

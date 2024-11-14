@@ -22,9 +22,6 @@
   },
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
-    "@impower/spark-evaluate": "file:../spark-evaluate",
-    "@impower/sparkdown": "file:../sparkdown",
-    "@impower/spark-engine": "file:../spark-engine",
     "colord": "^2.9.3",
     "vscode-languageserver": "^8.1.0",
     "vscode-languageserver-textdocument": "^1.0.8"

@@ -1,4 +1,4 @@
-const throttle = <T extends (...args: any[]) => void>(
+export const throttle = <T extends (...args: any[]) => void>(
   callback: T,
   delay: number
 ) => {
@@ -21,5 +21,3 @@ const throttle = <T extends (...args: any[]) => void>(
     }
   };
 };
-
-export default throttle;

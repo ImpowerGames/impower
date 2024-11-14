@@ -12,13 +12,13 @@ import {
   createConnection,
 } from "vscode-languageserver/browser";
 import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
-import getColorPresentations from "./utils/getColorPresentations";
-import getCompletions from "./utils/getCompletions";
-import getDocumentColors from "./utils/getDocumentColors";
-import getDocumentDiagnostics from "./utils/getDocumentDiagnostics";
-import getDocumentSymbols from "./utils/getDocumentSymbols";
-import getFoldingRanges from "./utils/getFoldingRanges";
-import getHover from "./utils/getHover";
+import { getColorPresentations } from "./utils/providers/getColorPresentations";
+import { getCompletions } from "./utils/providers/getCompletions";
+import { getDocumentColors } from "./utils/providers/getDocumentColors";
+import { getDocumentDiagnostics } from "./utils/providers/getDocumentDiagnostics";
+import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
+import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
+import { getHover } from "./utils/providers/getHover";
 
 console.log("running sparkdown-language-server");
 

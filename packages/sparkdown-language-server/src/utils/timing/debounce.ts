@@ -1,4 +1,4 @@
-const debounce = <T extends (...args: any[]) => void>(
+export const debounce = <T extends (...args: any[]) => void>(
   callback: T,
   delay: number
 ): T => {
@@ -10,5 +10,3 @@ const debounce = <T extends (...args: any[]) => void>(
     }, delay);
   }) as T;
 };
-
-export default debounce;

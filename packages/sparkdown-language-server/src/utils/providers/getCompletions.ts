@@ -9,21 +9,22 @@ import {
 } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import getProperty from "@impower/sparkdown/src/utils/getProperty";
-import isIdentifier from "@impower/sparkdown/src/utils/isIdentifier";
+import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
+import type { SparkLocation } from "../../../../sparkdown/src/types/SparkLocation";
+import getProperty from "../../../../sparkdown/src/utils/getProperty";
+import isIdentifier from "../../../../sparkdown/src/utils/isIdentifier";
+import GRAMMAR_DEFINITION from "../../../../sparkdown/language/sparkdown.language-grammar.json";
 
-import type {
-  NodeIterator,
-  Tree,
-  SyntaxNode,
-} from "../../../grammar-compiler/src/compiler/classes/Tree";
-import { printTree } from "../../../grammar-compiler/src/compiler/utils/printTree";
+import type { Tree } from "../../../../grammar-compiler/src/compiler/classes/Tree";
+import { printTree } from "../../../../grammar-compiler/src/compiler/utils/printTree";
 
-import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
-import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
-import { SparkLocation } from "@impower/sparkdown/src/types/SparkLocation";
-import getLineText from "./getLineText";
+import type { SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
+import { getLineText } from "../document/getLineText";
+import { getStack } from "../syntax/getStack";
+import { getNodeText } from "../syntax/getNodeText";
+import { getOtherMatchesInsideParent } from "../syntax/getOtherMatchesInsideParent";
+import { getDescendentInsideParent } from "../syntax/getDescendentInsideParent";
+import { getParentPropertyPath } from "../syntax/getParentPropertyPath";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
@@ -876,7 +877,7 @@ const addAccessPathCompletions = (
   }
 };
 
-const getCompletions = (
+export const getCompletions = (
   document: TextDocument | undefined,
   program: SparkProgram | undefined,
   tree: Tree | undefined,
@@ -896,148 +897,20 @@ const getCompletions = (
     return undefined;
   }
 
-  const side = -1;
-
-  const getNodeText = (node: SyntaxNode | null | undefined) => {
-    if (node == null) {
-      return "";
-    }
-    return document.getText({
-      start: document.positionAt(node.from),
-      end: document.positionAt(node.to),
-    });
-  };
-
-  const getDescendent = (
-    descendentTypeName: SparkdownNodeName,
-    parent: SyntaxNode
-  ) => {
-    if (parent) {
-      const cur = parent?.node.cursor();
-      while (cur.from <= parent.to) {
-        if (cur.node.type.name === descendentTypeName) {
-          return cur.node;
-        }
-        cur?.next();
-      }
-    }
-    return undefined;
-  };
-
-  const getDescendentInsideParent = (
-    descendentTypeName: SparkdownNodeName,
-    parentTypeName: SparkdownNodeName,
-    stack: SyntaxNode[]
-  ) => {
-    const parent = stack.find((n) => n.type.name === parentTypeName);
-    if (parent) {
-      const cur = parent?.node.cursor();
-      while (cur.from <= parent.to) {
-        if (cur.node.type.name === descendentTypeName) {
-          return cur.node;
-        }
-        cur?.next();
-      }
-    }
-    return undefined;
-  };
-
-  const getOtherMatchesInsideParent = (
-    matchTypeName: SparkdownNodeName,
-    parentTypeName: SparkdownNodeName,
-    stack: SyntaxNode[]
-  ) => {
-    const matches = [];
-    const current = stack[0];
-    const parent = stack.find((n) => n.type.name === parentTypeName);
-    if (current && parent) {
-      const prevCur = tree.cursorAt(current.from - 1, side);
-      while (prevCur.from >= parent.from) {
-        const node = prevCur.node;
-        if (node.type.name === matchTypeName) {
-          matches.unshift(getNodeText(node));
-        }
-        prevCur.moveTo(prevCur.from - 1, side);
-      }
-      const nextCur = tree.cursorAt(current.to + 1, side);
-      while (nextCur.to <= parent.to) {
-        const node = nextCur.node;
-        if (node.type.name === matchTypeName) {
-          matches.push(getNodeText(node));
-        }
-        nextCur.moveTo(nextCur.to + 1, side);
-      }
-    }
-    return matches;
-  };
-
-  const getParentPropertyPath = (propertyNameNode: SyntaxNode) => {
-    let stackCursor: SyntaxNode | null = propertyNameNode.node;
-    let path = "";
-    while (stackCursor) {
-      if (stackCursor.type.name === "StructObjectItemBlock") {
-        path = "0" + "." + path;
-      }
-      if (
-        stackCursor.type.name === "StructObjectItemWithInlineScalarProperty"
-      ) {
-        path = "0" + "." + path;
-      }
-      if (
-        stackCursor.type.name === "StructObjectItemWithInlineObjectProperty"
-      ) {
-        path = "0" + "." + path;
-        const beginNode = stackCursor.getChild(
-          "StructObjectItemWithInlineObjectProperty_begin"
-        );
-        if (beginNode) {
-          const nameNode = getDescendent(
-            "DeclarationObjectPropertyName",
-            beginNode
-          );
-          if (nameNode && nameNode.from !== propertyNameNode.from) {
-            path = getNodeText(nameNode) + "." + path;
-          }
-        }
-      }
-      if (stackCursor.type.name === "StructObjectProperty") {
-        const beginNode = stackCursor.getChild("StructObjectProperty_begin");
-        if (beginNode) {
-          const nameNode = getDescendent(
-            "DeclarationObjectPropertyName",
-            beginNode
-          );
-          if (nameNode && nameNode.from !== propertyNameNode.from) {
-            path = getNodeText(nameNode) + "." + path;
-          }
-        }
-      }
-      stackCursor = stackCursor.node.parent;
-    }
-    return path;
-  };
-
   const completions: Map<string, CompletionItem> = new Map();
 
-  const lineText = getLineText(document, position);
-  const pos = document.offsetAt(position);
-  const stackIterator = tree.resolveStack(pos, side);
-  const stack = [] as SyntaxNode[];
-  for (let cur: NodeIterator | null = stackIterator; cur; cur = cur.next) {
-    stack.push(cur.node);
-  }
-
-  // console.log(printTree(tree, document.getText()));
-  // console.log(stack.map((n) => n.type.name));
-
+  const stack = getStack(tree, document, position);
   if (!stack[0]) {
     return null;
   }
 
-  const prevCur = tree.cursorAt(stack[0].from - 1, side);
-  const prevNode = prevCur.node;
-  const prevTypeName = prevNode.type.name;
-  const prevText = getNodeText(prevNode);
+  const side = -1;
+  const prevCursor = tree.cursorAt(stack[0].from - 1, side);
+  const prevNode = prevCursor.node as SparkdownSyntaxNode;
+  const prevText = getNodeText(prevNode, document);
+
+  // console.log(printTree(tree, document.getText()));
+  // console.log(stack.map((n) => n.type.name));
 
   // Transition
   if (stack[0]?.type.name === "TransitionMark") {
@@ -1149,14 +1022,16 @@ const getCompletions = (
       const exclude = getOtherMatchesInsideParent(
         "AssetCommandFilterName",
         "AssetCommandContent",
-        stack
+        stack,
+        document,
+        tree
       );
       addFilterCompletions(completions, program, exclude);
       return Array.from(completions.values());
     }
     if (
       (stack[0]?.type.name === "WhitespaceAssetCommandClause" &&
-        prevTypeName === "AssetCommandClauseKeyword" &&
+        prevNode?.type.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
       stack[0]?.type.name === "NameValue"
     ) {
@@ -1165,7 +1040,7 @@ const getCompletions = (
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
       const prevClauseTakesArgument =
-        prevTypeName === "AssetCommandClauseKeyword" &&
+        prevNode?.type.name === "AssetCommandClauseKeyword" &&
         (prevText === "after" ||
           prevText === "over" ||
           prevText === "with" ||
@@ -1174,7 +1049,9 @@ const getCompletions = (
         const exclude = getOtherMatchesInsideParent(
           "AssetCommandClauseKeyword",
           "AssetCommandContent",
-          stack
+          stack,
+          document,
+          tree
         );
         addImageClauseCompletions(completions, program, exclude);
       }
@@ -1216,14 +1093,16 @@ const getCompletions = (
       const exclude = getOtherMatchesInsideParent(
         "AssetCommandFilterName",
         "AssetCommandContent",
-        stack
+        stack,
+        document,
+        tree
       );
       addFilterCompletions(completions, program, exclude);
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
       const prevClauseTakesArgument =
-        prevTypeName === "AssetCommandClauseKeyword" &&
+        prevNode?.type.name === "AssetCommandClauseKeyword" &&
         (prevText === "after" ||
           prevText === "over" ||
           prevText === "with" ||
@@ -1232,7 +1111,9 @@ const getCompletions = (
         const exclude = getOtherMatchesInsideParent(
           "AssetCommandClauseKeyword",
           "AssetCommandContent",
-          stack
+          stack,
+          document,
+          tree
         );
         addAudioClauseCompletions(completions, program, exclude);
         return Array.from(completions.values());
@@ -1240,7 +1121,7 @@ const getCompletions = (
     }
     if (
       (stack[0]?.type.name === "WhitespaceAssetCommandClause" &&
-        prevTypeName === "AssetCommandClauseKeyword" &&
+        prevNode?.type.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
       stack[0]?.type.name === "NameValue"
     ) {
@@ -1273,7 +1154,9 @@ const getCompletions = (
       "DefineDeclaration",
       stack
     );
-    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
+    const type = defineTypeNameNode
+      ? getNodeText(defineTypeNameNode, document)
+      : "";
     addStructVariableNameCompletions(completions, program, type);
     return Array.from(completions.values());
   }
@@ -1298,11 +1181,14 @@ const getCompletions = (
       "DefineDeclaration",
       stack
     );
-    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
-    const name = defineVariableNameNode
-      ? getNodeText(defineVariableNameNode)
+    const type = defineTypeNameNode
+      ? getNodeText(defineTypeNameNode, document)
       : "";
-    const path = getParentPropertyPath(propertyNameNode);
+    const name = defineVariableNameNode
+      ? getNodeText(defineVariableNameNode, document)
+      : "";
+    const path = getParentPropertyPath(propertyNameNode, document);
+    const lineText = getLineText(document, position);
     addStructPropertyNameCompletions(
       completions,
       program,
@@ -1332,9 +1218,11 @@ const getCompletions = (
       "DefineDeclaration",
       stack
     );
-    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
+    const type = defineTypeNameNode
+      ? getNodeText(defineTypeNameNode, document)
+      : "";
     const name = defineVariableNameNode
-      ? getNodeText(defineVariableNameNode)
+      ? getNodeText(defineVariableNameNode, document)
       : "";
     const propertyNameNode = getDescendentInsideParent(
       "DeclarationScalarPropertyName",
@@ -1346,7 +1234,7 @@ const getCompletions = (
       "StructField",
       stack
     );
-    const valueText = getNodeText(propertyValueNode);
+    const valueText = getNodeText(propertyValueNode, document);
     const documentCursorOffset = document.offsetAt(position);
     const valueCursorOffset = propertyValueNode
       ? documentCursorOffset < propertyValueNode.from
@@ -1357,9 +1245,9 @@ const getCompletions = (
       : 0;
     if (propertyNameNode) {
       const path =
-        getParentPropertyPath(propertyNameNode) +
+        getParentPropertyPath(propertyNameNode, document) +
         "." +
-        getNodeText(propertyNameNode);
+        getNodeText(propertyNameNode, document);
       addStructPropertyValueCompletions(
         completions,
         program,
@@ -1375,14 +1263,13 @@ const getCompletions = (
     }
   }
 
+  // Access Path
   const accessPathNode = stack.find((n) => n.type.name === "AccessPath");
   if (accessPathNode) {
-    const path = getNodeText(accessPathNode);
+    const path = getNodeText(accessPathNode, document);
     addAccessPathCompletions(completions, program, path);
     return Array.from(completions.values());
   }
 
   return undefined;
 };
-
-export default getCompletions;

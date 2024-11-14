@@ -1,11 +1,11 @@
 import { Hover, MarkupKind, Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import type { SparkReference } from "@impower/sparkdown/src/types/SparkReference";
-import getFencedCode from "./getFencedCode";
+import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
+import type { SparkReference } from "../../../../sparkdown/src/types/SparkReference";
+import { getFencedCode } from "../format/getFencedCode";
 
-const getHover = (
+export const getHover = (
   document: TextDocument | undefined,
   program: SparkProgram | undefined,
   position: Position
@@ -69,5 +69,3 @@ const getHover = (
   }
   return null;
 };
-
-export default getHover;

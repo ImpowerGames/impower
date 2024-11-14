@@ -1,7 +1,7 @@
 import { Position } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 
-const getCharText = (
+export const getCharText = (
   document: TextDocument,
   position: Position,
   charOffset: number = 0
@@ -17,5 +17,3 @@ const getCharText = (
     },
   });
 };
-
-export default getCharText;

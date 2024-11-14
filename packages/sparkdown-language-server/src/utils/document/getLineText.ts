@@ -3,7 +3,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 
 const END_NEWLINE_REGEX = /[\r\n]+$/;
 
-const getLineText = (
+export const getLineText = (
   document: TextDocument,
   position: Position,
   lineOffset: number = 0
@@ -16,5 +16,3 @@ const getLineText = (
     .getText(Range.create(startLine, 0, startLine + 1, 0))
     .replace(END_NEWLINE_REGEX, "");
 };
-
-export default getLineText;

@@ -6,8 +6,8 @@ import {
   DidWatchFilesMessage,
   DidWatchFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
-import SparkParser from "@impower/sparkdown/src/classes/SparkParser";
-import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import SparkParser from "../../../sparkdown/src/classes/SparkParser";
+import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import {
   CancellationToken,
   Connection,
@@ -35,8 +35,8 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
-import debounce from "../utils/debounce";
-import getDocumentDiagnostics from "../utils/getDocumentDiagnostics";
+import { debounce } from "../utils/timing/debounce";
+import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
 
 const PARSE_THROTTLE_DELAY = 300;
 

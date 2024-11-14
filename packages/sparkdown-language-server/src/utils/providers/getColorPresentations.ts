@@ -1,8 +1,7 @@
 import { Color, ColorPresentation } from "vscode-languageserver";
-
 import { RgbaColor, colord } from "colord";
 
-const getColorPresentations = (color: Color): ColorPresentation[] => {
+export const getColorPresentations = (color: Color): ColorPresentation[] => {
   const presentations: ColorPresentation[] = [];
   const rgba: RgbaColor = {
     r: color.red * 255,
@@ -28,5 +27,3 @@ const getColorPresentations = (color: Color): ColorPresentation[] => {
   presentations.push({ label: hslLabel });
   return presentations;
 };
-
-export default getColorPresentations;
