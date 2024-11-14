@@ -1,4 +1,4 @@
-function getRuntimeString(seconds: number): string {
+export const getRuntimeString = (seconds: number): string => {
   const time = new Date();
   time.setHours(0);
   time.setMinutes(0);
@@ -18,6 +18,4 @@ function getRuntimeString(seconds: number): string {
       time.getSeconds().toString().padStart(2, "0")
     );
   }
-}
-
-export default getRuntimeString;
+};

@@ -1,4 +1,7 @@
-const FRONTMATTER_ALIGNMENTS: Record<string, "left" | "right" | "center"> = {
+export const FRONTMATTER_ALIGNMENTS: Record<
+  string,
+  "left" | "right" | "center"
+> = {
   tl: "left",
   tc: "center",
   tr: "right",
@@ -10,5 +13,3 @@ const FRONTMATTER_ALIGNMENTS: Record<string, "left" | "right" | "center"> = {
   footer: "left",
   watermark: "center",
 };
-
-export default FRONTMATTER_ALIGNMENTS;

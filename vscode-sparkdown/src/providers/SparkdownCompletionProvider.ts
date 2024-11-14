@@ -1,5 +1,5 @@
-import TITLE_PAGE_DISPLAY from "@impower/sparkdown/src/constants/TITLE_PAGE_DISPLAY";
-import getCharactersWhoSpokeBeforeLine from "@impower/sparkdown/src/utils/getCharactersWhoSpokeBeforeLine";
+import { TITLE_PAGE_DISPLAY } from "@impower/sparkdown/src/constants/TITLE_PAGE_DISPLAY";
+import { getCharactersWhoSpokeBeforeLine } from "@impower/sparkdown/src/utils/getCharactersWhoSpokeBeforeLine";
 import * as vscode from "vscode";
 import { addForceSymbolToCharacter } from "../utils/addForceSymbolToCharacter";
 import { SparkProgramManager } from "./SparkProgramManager";

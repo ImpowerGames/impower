@@ -8,7 +8,7 @@ import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
-import FRONTMATTER_POSITIONS from "../../../../../sparkdown/src/constants/FRONTMATTER_POSITIONS";
+import { FRONTMATTER_POSITIONS } from "../../../../../sparkdown/src/constants/FRONTMATTER_POSITIONS";
 import { SparkdownNodeName } from "../../../../../sparkdown/src/types/SparkdownNodeName";
 import TextmateLanguageSupport from "../../../cm-textmate/classes/TextmateLanguageSupport";
 import DialogueWidget, {

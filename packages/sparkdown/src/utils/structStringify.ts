@@ -128,7 +128,7 @@ const convert = (
   }
 };
 
-const structStringify = (
+export const structStringify = (
   obj: any,
   lineSeparator = "\n",
   indent = "  ",
@@ -139,5 +139,3 @@ const structStringify = (
   convert(obj, lines, indent, scalarAssignOperator, objectAssignOperator);
   return lines.join(lineSeparator);
 };
-
-export default structStringify;

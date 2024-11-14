@@ -1,4 +1,3 @@
-import { SparkStruct } from "@impower/sparkdown/src/index";
 import * as path from "path";
 import * as vscode from "vscode";
 import { assetExts, audioExts, imageExts } from "../constants/extensions";
@@ -12,7 +11,7 @@ export const updateAssets = async (doc: vscode.TextDocument): Promise<void> => {
     return undefined;
   }
   const assetUris = await vscode.workspace.findFiles(relativePath);
-  const assets: Record<string, SparkStruct> = {};
+  const assets: Record<string, any> = {};
   assetUris.forEach((u) => {
     const parsedPath = path.parse(u.path);
     const name = parsedPath.name;
@@ -25,7 +24,7 @@ export const updateAssets = async (doc: vscode.TextDocument): Promise<void> => {
     if (type) {
       const fileUrl = u.path;
       const structName = name || "";
-      const sparkAsset: SparkStruct = {
+      const sparkAsset = {
         from: -1,
         to: -1,
         line: -1,

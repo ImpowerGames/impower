@@ -11,7 +11,7 @@ const nameContainsTag = (id: string, tag: unknown) => {
   return false;
 };
 
-const filterMatchesName = (
+export const filterMatchesName = (
   name: string,
   filter: { includes: unknown[]; excludes: unknown[] },
   filterableTag = "filter",
@@ -24,5 +24,3 @@ const filterMatchesName = (
         filter.includes.every((tag) => tag && !nameContainsTag(name, tag))))
   );
 };
-
-export default filterMatchesName;

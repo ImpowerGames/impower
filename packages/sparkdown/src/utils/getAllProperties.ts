@@ -1,6 +1,6 @@
-import traverse from "./traverse";
+import { traverse } from "./traverse";
 
-const getAllProperties = <T>(
+export const getAllProperties = <T>(
   obj: T,
   isLeaf?: (fieldPath: string, fieldValue: unknown) => boolean
 ): Record<string, unknown> => {
@@ -14,5 +14,3 @@ const getAllProperties = <T>(
   );
   return props;
 };
-
-export default getAllProperties;

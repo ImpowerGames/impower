@@ -20,7 +20,7 @@ import { clone } from "../../../spark-engine/src/game/core/utils/clone";
 import { randomizeProperties } from "../../../spark-engine/src/game/core/utils/randomizeProperties";
 import { SynthBuffer } from "../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
 import { SparkProgram, SparkVariable } from "../../../sparkdown/src/index";
-import structStringify from "../../../sparkdown/src/utils/structStringify";
+import { structStringify } from "../../../sparkdown/src/utils/structStringify";
 import { FileSystemReader } from "../cm-language-client/types/FileSystemReader";
 import StructKeyboardWidgetType from "./classes/StructKeyboardWidgetType";
 import StructPlayWidgetType, {

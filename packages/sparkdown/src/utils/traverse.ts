@@ -1,4 +1,4 @@
-const traverse = <T>(
+export const traverse = <T>(
   obj: T,
   process: (fieldPath: string, fieldValue: any) => void,
   shouldProcess?: (fieldPath: string, fieldValue: any) => boolean,
@@ -23,5 +23,3 @@ const traverse = <T>(
     });
   }
 };
-
-export default traverse;

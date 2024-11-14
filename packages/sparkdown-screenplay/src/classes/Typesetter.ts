@@ -1,6 +1,6 @@
 import { SparkToken } from "../../../sparkdown/src";
-import FRONTMATTER_ALIGNMENTS from "../../../sparkdown/src/constants/FRONTMATTER_ALIGNMENTS";
-import FRONTMATTER_POSITIONS from "../../../sparkdown/src/constants/FRONTMATTER_POSITIONS";
+import { FRONTMATTER_ALIGNMENTS } from "../../../sparkdown/src/constants/FRONTMATTER_ALIGNMENTS";
+import { FRONTMATTER_POSITIONS } from "../../../sparkdown/src/constants/FRONTMATTER_POSITIONS";
 import { DocumentSpan } from "../types/DocumentSpan";
 import { FormattedText } from "../types/FormattedText";
 import { PrintProfile } from "../types/PrintProfile";

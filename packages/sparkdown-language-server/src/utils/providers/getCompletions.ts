@@ -11,8 +11,7 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
 import type { SparkLocation } from "../../../../sparkdown/src/types/SparkLocation";
-import getProperty from "../../../../sparkdown/src/utils/getProperty";
-import isIdentifier from "../../../../sparkdown/src/utils/isIdentifier";
+import { getProperty } from "../../../../sparkdown/src/utils/getProperty";
 import GRAMMAR_DEFINITION from "../../../../sparkdown/language/sparkdown.language-grammar.json";
 
 import type { Tree } from "../../../../grammar-compiler/src/compiler/classes/Tree";
@@ -672,9 +671,9 @@ const addAccessPathCompletions = (
         parts.length === 1 ? path : path?.endsWith(".") ? parts.at(-1) : "";
       const props = getProperty(program.context, parentPath);
       if (props) {
-        Object.entries(props).forEach(([k, v]) => {
-          if (isIdentifier(k)) {
-            if (!keyStartsWith || k.startsWith(keyStartsWith)) {
+        Object.entries(props).forEach(([propName, v]) => {
+          if (!propName.startsWith("$")) {
+            if (!keyStartsWith || propName.startsWith(keyStartsWith)) {
               const description = typeof v === "object" ? undefined : typeof v;
               const kind =
                 parts.length <= 1
@@ -683,7 +682,7 @@ const addAccessPathCompletions = (
                   ? CompletionItemKind.Variable
                   : CompletionItemKind.Property;
               const completion: CompletionItem = {
-                label: k,
+                label: propName,
                 labelDetails: { description },
                 kind,
                 insertTextMode: InsertTextMode.asIs,

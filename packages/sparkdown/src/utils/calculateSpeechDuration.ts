@@ -4,7 +4,7 @@ const PUNCTUATION_REGEX = /(\.|\?|!|:) |(, )/g;
 /**
  * Calculate an approximation of how long a line of text would take to say
  */
-const calculateSpeechDuration = (dialogue: string): number => {
+export const calculateSpeechDuration = (dialogue: string): number => {
   let duration = 0;
 
   //According to this paper: http://www.office.usp.ac.jp/~klinger.w/2010-An-Analysis-of-Articulation-Rates-in-Movies.pdf
@@ -26,5 +26,3 @@ const calculateSpeechDuration = (dialogue: string): number => {
   }
   return duration;
 };
-
-export default calculateSpeechDuration;

@@ -1,4 +1,4 @@
-const uuid = (
+export const uuid = (
   size = 8,
   alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 ) => {
@@ -9,5 +9,3 @@ const uuid = (
   }
   return id;
 };
-
-export default uuid;

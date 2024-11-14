@@ -1,8 +1,8 @@
-import filterMatchesName from "./filterMatchesName";
+import { filterMatchesName } from "./filterMatchesName";
 
 const ID_ATTRIBUTE_REGEX = /(\bid)(\s*)(=)(\s*)(["'])((?:[^"'\\]|\\.)*)(\5)/g;
 
-const filterSVG = (
+export const filterSVG = (
   svg: string,
   filter: { includes: unknown[]; excludes: unknown[] },
   filterableTag = "filter",
@@ -30,5 +30,3 @@ const filterSVG = (
   );
   return result;
 };
-
-export default filterSVG;

@@ -5,6 +5,4 @@ const IDENTIFIER_REGEX = new RegExp(
   "u"
 );
 
-const isIdentifier = (str: string) => IDENTIFIER_REGEX.test(str);
-
-export default isIdentifier;
+export const isIdentifier = (str: string) => IDENTIFIER_REGEX.test(str);

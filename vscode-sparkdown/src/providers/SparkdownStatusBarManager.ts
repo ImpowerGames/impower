@@ -1,4 +1,4 @@
-import getRuntimeString from "@impower/sparkdown/src/utils/getRuntimeString";
+import { getRuntimeString } from "@impower/sparkdown/src/utils/getRuntimeString";
 import * as vscode from "vscode";
 
 export class SparkdownStatusBarManager {

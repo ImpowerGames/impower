@@ -1,4 +1,4 @@
-const FRONTMATTER_POSITIONS: Record<string, string> = {
+export const FRONTMATTER_POSITIONS: Record<string, string> = {
   title: "cc",
   credit: "cc",
   author: "cc",
@@ -22,5 +22,3 @@ const FRONTMATTER_POSITIONS: Record<string, string> = {
   footer: "footer",
   watermark: "watermark",
 };
-
-export default FRONTMATTER_POSITIONS;

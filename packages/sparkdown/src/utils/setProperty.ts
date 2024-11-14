@@ -1,4 +1,4 @@
-const setProperty = (
+export const setProperty = (
   obj: any,
   propertyPath: string,
   value: unknown,
@@ -40,5 +40,3 @@ const setProperty = (
   }
   return { successfullySet: successfullySetParts.join("."), error };
 };
-
-export default setProperty;
