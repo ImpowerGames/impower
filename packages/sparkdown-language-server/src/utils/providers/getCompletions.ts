@@ -381,10 +381,10 @@ const addStructPropertyNameContextCompletions = (
   lineText: string,
   existingProps: Set<string>
 ) => {
-  const relativePath = path.startsWith(".") ? path : `.${path}`;
-  const indentLength = lineText.length - lineText.trimStart().length;
-  const indent = lineText.slice(0, indentLength) + "  ";
   if (typeStruct) {
+    const relativePath = path.startsWith(".") ? path : `.${path}`;
+    const indentLength = lineText.length - lineText.trimStart().length;
+    const indent = lineText.slice(0, indentLength) + "  ";
     const pathPrefix = typeStruct["$recursive"]
       ? "."
       : relativePath.slice(0, relativePath.lastIndexOf(".") + 1);
@@ -464,6 +464,14 @@ const addStructPropertyNameCompletions = (
     );
     addStructPropertyNameContextCompletions(
       completions,
+      program?.context?.[type]?.[`$optional:${name}`],
+      modifier,
+      path,
+      lineText,
+      existingProps
+    );
+    addStructPropertyNameContextCompletions(
+      completions,
       program?.context?.[type]?.["$optional"],
       modifier,
       path,
@@ -492,8 +500,8 @@ const addStructPropertyValueSchemaCompletions = (
   context: CompletionContext | undefined
 ) => {
   if (!modifier) {
-    const relativePath = path.startsWith(".") ? path : `.${path}`;
     if (schemaStruct) {
+      const relativePath = path.startsWith(".") ? path : `.${path}`;
       const lookupPath = program?.context?.[schemaStruct.$type]?.["$default"]?.[
         "$recursive"
       ]
@@ -549,8 +557,8 @@ const addStructPropertyValueContextCompletions = (
   path: string
 ) => {
   if (!modifier) {
-    const relativePath = path.startsWith(".") ? path : `.${path}`;
     if (typeStruct) {
+      const relativePath = path.startsWith(".") ? path : `.${path}`;
       const value = getProperty(typeStruct, relativePath);
       if (
         value &&
@@ -575,12 +583,23 @@ const addStructPropertyValueCompletions = (
   },
   modifier: string,
   type: string,
+  name: string,
   path: string,
   valueText: string,
   valueCursorOffset: number,
   context: CompletionContext | undefined
 ) => {
   if (type) {
+    addStructPropertyValueSchemaCompletions(
+      completions,
+      program,
+      program?.context?.[type]?.[`$schema:${name}`],
+      modifier,
+      path,
+      valueText,
+      valueCursorOffset,
+      context
+    );
     addStructPropertyValueSchemaCompletions(
       completions,
       program,
@@ -605,6 +624,13 @@ const addStructPropertyValueCompletions = (
       completions,
       program,
       program?.context?.[type]?.["$default"],
+      modifier,
+      path
+    );
+    addStructPropertyValueContextCompletions(
+      completions,
+      program,
+      program?.context?.[type]?.[`$optional:${name}`],
       modifier,
       path
     );
@@ -1043,11 +1069,19 @@ export const getCompletions = (
       "DefineDeclaration",
       stack
     );
+    const defineVariableNameNode = getDescendentInsideParent(
+      "DefineVariableName",
+      "DefineDeclaration",
+      stack
+    );
     const modifier = defineModifierNameNode
       ? getNodeText(defineModifierNameNode, document)
       : "";
     const type = defineTypeNameNode
       ? getNodeText(defineTypeNameNode, document)
+      : "";
+    const name = defineVariableNameNode
+      ? getNodeText(defineVariableNameNode, document)
       : "";
     const propertyNameNode = getDescendentInsideParent(
       "DeclarationScalarPropertyName",
@@ -1079,6 +1113,7 @@ export const getCompletions = (
         definitions,
         modifier,
         type,
+        name,
         path,
         valueText,
         valueCursorOffset,
