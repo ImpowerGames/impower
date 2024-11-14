@@ -784,7 +784,13 @@ export const getCompletions = (
 
   // ImageCommand
   if (stack.some((n) => n.type.name === "ImageCommand")) {
-    if (stack[0]?.type.name === "ImageCommand_c1") {
+    if (
+      stack.some(
+        (n) =>
+          n.type.name === "ImageCommand_c1" ||
+          n.type.name === "AssetCommandContent_c1"
+      )
+    ) {
       addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
       addStructReferenceCompletions(completions, program, IMAGE_TYPES);
       return Array.from(completions.values());
@@ -866,7 +872,13 @@ export const getCompletions = (
 
   // AudioCommand
   if (stack.some((n) => n.type.name === "AudioCommand")) {
-    if (stack[0]?.type.name === "AudioCommand_c1") {
+    if (
+      stack.some(
+        (n) =>
+          n.type.name === "AudioCommand_c1" ||
+          n.type.name === "AssetCommandContent_c1"
+      )
+    ) {
       addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
       addStructReferenceCompletions(completions, program, AUDIO_TYPES);
       return Array.from(completions.values());

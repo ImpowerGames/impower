@@ -2650,13 +2650,16 @@ repository:
           - { include: "#Whitespace" }
 
   AssetCommandContent:
-    match: (.*?)($|(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}).*)
+    match: ({{WS}}*)(.*?)($|(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}).*)
     captures:
       1:
         patterns:
           - { include: "#Whitespace" }
-          - { include: "#AssetCommandInstruction" }
       2:
+        patterns:
+          - { include: "#Whitespace" }
+          - { include: "#AssetCommandInstruction" }
+      3:
         patterns:
           - { include: "#Annotation" }
           - { include: "#WhitespaceAssetCommandClause" }
