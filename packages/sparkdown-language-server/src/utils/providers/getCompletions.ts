@@ -188,65 +188,79 @@ const addCharacterCompletions = (
   }
 };
 
-const addTextTargetCompletions = (
+const addKeywordCompletions = (
   completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
-  insertTextPrefix = ""
+  description: string,
+  keywords: string[],
+  exclude?: string[]
 ) => {
-  for (const [, v] of Object.entries(program?.context?.["ui"] || {})) {
-    traverse(v, (fieldPath) => {
-      if (fieldPath.endsWith(".text")) {
-        const layer = fieldPath.split(".").at(-2);
-        if (layer) {
-          const completion: CompletionItem = {
-            label: layer,
-            insertText: insertTextPrefix + layer,
-            labelDetails: { description: "element" },
-            kind: CompletionItemKind.Constructor,
-          };
-          if (completion.label && !completions.has(completion.label)) {
-            completions.set(completion.label, completion);
-          }
-        }
+  for (const keyword of keywords) {
+    if (!exclude || !exclude.includes(keyword)) {
+      const completion: CompletionItem = {
+        label: keyword,
+        labelDetails: { description },
+        kind: CompletionItemKind.Constant,
+      };
+      if (completion.label && !completions.has(completion.label)) {
+        completions.set(completion.label, completion);
       }
-    });
+    }
   }
 };
 
-const addImageTargetCompletions = (
+const addStructTypeNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined
 ) => {
-  for (const [, v] of Object.entries(program?.context?.["ui"] || {})) {
-    traverse(v, (fieldPath) => {
-      if (fieldPath.endsWith(".image")) {
-        const layer = fieldPath.split(".").at(-2);
-        if (layer) {
-          const completion: CompletionItem = {
-            label: layer,
-            labelDetails: { description: "element" },
-            kind: CompletionItemKind.Constructor,
-          };
-          if (completion.label && !completions.has(completion.label)) {
-            completions.set(completion.label, completion);
-          }
+  if (program?.context) {
+    for (const k of Object.keys(program?.context).sort()) {
+      if (!k.startsWith("$")) {
+        const completion: CompletionItem = {
+          label: k,
+          labelDetails: { description: "type" },
+          kind: CompletionItemKind.TypeParameter,
+        };
+        if (completion.label && !completions.has(completion.label)) {
+          completions.set(completion.label, completion);
         }
       }
-    });
+    }
+  }
+};
+
+const addStructVariableNameCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  type: string
+) => {
+  if (program?.context?.[type]) {
+    for (const k of Object.keys(program?.context?.[type]).sort()) {
+      if (!k.startsWith("$") && !program?.compiled?.structDefs?.[type]?.[k]) {
+        const completion: CompletionItem = {
+          label: k,
+          labelDetails: { description: "name" },
+          kind: CompletionItemKind.Variable,
+        };
+        if (completion.label && !completions.has(completion.label)) {
+          completions.set(completion.label, completion);
+        }
+      }
+    }
   }
 };
 
 const addStructReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  types: string[]
+  types: string[],
+  exclude?: string[]
 ) => {
   if (program) {
     for (const type of types) {
       const structs = program?.context?.[type];
       if (structs) {
         for (const [name, struct] of Object.entries(structs)) {
-          if (!name.startsWith("$")) {
+          if (!name.startsWith("$") && !exclude?.includes(name)) {
             const completion: CompletionItem = {
               label: name,
               labelDetails: { description: type },
@@ -276,219 +290,35 @@ const addStructReferenceCompletions = (
   }
 };
 
-const addImageControlCompletions = (
-  completions: Map<string, CompletionItem>,
-  _program: SparkProgram | undefined
-) => {
-  const keywords = IMAGE_CONTROL_KEYWORDS;
-  for (const keyword of keywords) {
-    const completion: CompletionItem = {
-      label: keyword,
-      labelDetails: { description: "control" },
-      kind: CompletionItemKind.Constant,
-    };
-    if (completion.label && !completions.has(completion.label)) {
-      completions.set(completion.label, completion);
-    }
-  }
-};
-
-const addImageClauseCompletions = (
-  completions: Map<string, CompletionItem>,
-  _program: SparkProgram | undefined,
-  exclude?: string[]
-) => {
-  const keywords = IMAGE_CLAUSE_KEYWORDS;
-  for (const keyword of keywords) {
-    if (!exclude || !exclude.includes(keyword)) {
-      const completion: CompletionItem = {
-        label: keyword,
-        labelDetails: { description: "clause" },
-        kind: CompletionItemKind.Constant,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
-    }
-  }
-};
-
-const addFilterCompletions = (
+const addUIElementCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  exclude?: string[]
+  contentTypes: ("image" | "text")[],
+  insertTextPrefix = ""
 ) => {
-  for (const [name] of Object.entries(program?.context?.["filter"] || {})) {
-    if (!exclude || !exclude?.includes(name)) {
-      if (!name.startsWith("$")) {
-        const completion: CompletionItem = {
-          label: name,
-          labelDetails: { description: "filter" },
-          kind: CompletionItemKind.Constructor,
-        };
-        if (completion.label && !completions.has(completion.label)) {
-          completions.set(completion.label, completion);
+  for (const contentType of contentTypes) {
+    for (const [, v] of Object.entries(program?.context?.["ui"] || {})) {
+      traverse(v, (fieldPath) => {
+        if (fieldPath.endsWith(`.${contentType}`)) {
+          const layer = fieldPath.split(".").at(-2);
+          if (layer) {
+            const completion: CompletionItem = {
+              label: layer,
+              insertText: insertTextPrefix + layer,
+              labelDetails: { description: "element" },
+              kind: CompletionItemKind.Constructor,
+            };
+            if (completion.label && !completions.has(completion.label)) {
+              completions.set(completion.label, completion);
+            }
+          }
         }
-      }
+      });
     }
   }
 };
 
-const addAnimationCompletions = (
-  completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined
-) => {
-  for (const [name] of Object.entries(program?.context?.["transition"] || {})) {
-    if (!name.startsWith("$")) {
-      const completion: CompletionItem = {
-        label: name,
-        labelDetails: { description: "transition" },
-        kind: CompletionItemKind.Constructor,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
-    }
-  }
-  for (const [name] of Object.entries(program?.context?.["animation"] || {})) {
-    if (!name.startsWith("$")) {
-      const completion: CompletionItem = {
-        label: name,
-        labelDetails: { description: "animation" },
-        kind: CompletionItemKind.Constructor,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
-    }
-  }
-};
-
-const addAudioTargetCompletions = (
-  completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined
-) => {
-  for (const [name] of Object.entries(program?.context?.["channel"] || {})) {
-    if (!name.startsWith("$")) {
-      const completion: CompletionItem = {
-        label: name,
-        labelDetails: { description: "channel" },
-        kind: CompletionItemKind.Constructor,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
-    }
-  }
-};
-
-const addAudioControlCompletions = (
-  completions: Map<string, CompletionItem>,
-  _program: SparkProgram | undefined
-) => {
-  const keywords = AUDIO_CONTROL_KEYWORDS;
-  for (const keyword of keywords) {
-    const completion = {
-      label: keyword,
-      labelDetails: { description: "control" },
-      kind: CompletionItemKind.Constant,
-    };
-    if (completion.label && !completions.has(completion.label)) {
-      completions.set(completion.label, completion);
-    }
-  }
-};
-
-const addAudioClauseCompletions = (
-  completions: Map<string, CompletionItem>,
-  _program: SparkProgram | undefined,
-  exclude?: string[]
-) => {
-  const keywords = AUDIO_CLAUSE_KEYWORDS;
-  for (const keyword of keywords) {
-    if (!exclude || !exclude.includes(keyword)) {
-      const completion = {
-        label: keyword,
-        labelDetails: { description: "clause" },
-        kind: CompletionItemKind.Constant,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
-    }
-  }
-};
-
-const addModulationCompletions = (
-  completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined
-) => {
-  for (const [name] of Object.entries(program?.context?.["modulation"] || {})) {
-    if (!name.startsWith("$")) {
-      const completion: CompletionItem = {
-        label: name,
-        labelDetails: { description: "modulation" },
-        kind: CompletionItemKind.Constructor,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
-    }
-  }
-};
-
-const addStructTypeNameCompletions = (
-  completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined
-) => {
-  if (program?.context) {
-    for (const k of Object.keys(program?.context).sort()) {
-      if (
-        !k.startsWith("$") &&
-        !program?.compiled?.structDefs?.[k]?.["$default"]
-      ) {
-        const description = undefined;
-        const kind = CompletionItemKind.TypeParameter;
-        const completion: CompletionItem = {
-          label: k,
-          labelDetails: { description },
-          kind,
-        };
-        if (completion.label && !completions.has(completion.label)) {
-          completions.set(completion.label, completion);
-        }
-      }
-    }
-  }
-};
-
-const addStructVariableNameCompletions = (
-  completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
-  type: string
-) => {
-  if (program?.context?.[type]) {
-    for (const k of Object.keys(program?.context?.[type]).sort()) {
-      if (!k.startsWith("$") && !program?.compiled?.structDefs?.[type]?.[k]) {
-        const description = undefined;
-        const kind = CompletionItemKind.Variable;
-        const completion: CompletionItem = {
-          label: k,
-          labelDetails: { description },
-          kind,
-        };
-        if (completion.label && !completions.has(completion.label)) {
-          completions.set(completion.label, completion);
-        }
-      }
-    }
-  }
-};
-
-const getTypeName = (v: unknown): string | undefined => {
-  if (v && typeof v === "object" && Array.isArray(v)) {
-    return undefined;
-  }
+const getTypeDescription = (v: unknown): string | undefined => {
   if (
     v &&
     typeof v === "object" &&
@@ -498,13 +328,16 @@ const getTypeName = (v: unknown): string | undefined => {
   ) {
     return v.$type;
   }
+  if (v && typeof v === "object" && Array.isArray(v)) {
+    return "[]";
+  }
+  if (typeof v === "object") {
+    return "{}";
+  }
   return typeof v;
 };
 
 const getTypeKind = (v: unknown): CompletionItemKind | undefined => {
-  if (v && typeof v === "object" && Array.isArray(v)) {
-    return undefined;
-  }
   if (
     v &&
     typeof v === "object" &&
@@ -513,6 +346,12 @@ const getTypeKind = (v: unknown): CompletionItemKind | undefined => {
     typeof v.$type === "string"
   ) {
     return CompletionItemKind.Constructor;
+  }
+  if (v && typeof v === "object" && Array.isArray(v)) {
+    return CompletionItemKind.Class;
+  }
+  if (typeof v === "object") {
+    return CompletionItemKind.Class;
   }
   if (typeof v === "string") {
     return CompletionItemKind.Constant;
@@ -554,7 +393,7 @@ const addContextStructPropertyNameCompletions = (
         if (p.startsWith(pathPrefix)) {
           const [name] = p.slice(pathPrefix.length).split(".");
           const optionValue = getProperty(contextStruct, pathPrefix + name);
-          const description = getTypeName(optionValue);
+          const description = getTypeDescription(optionValue);
           if (name && Number.isNaN(Number(name))) {
             if (
               !existingProps.has(p) &&
@@ -921,21 +760,21 @@ export const getCompletions = (
 
   // Write
   if (stack[0]?.type.name === "WriteMark") {
-    addTextTargetCompletions(completions, program, " ");
+    addUIElementCompletions(completions, program, ["text"], " ");
     return Array.from(completions.values());
   }
   if (
     stack[0]?.type.name === "WriteMarkSeparator" ||
     stack.some((n) => n?.type.name === "WriteTarget")
   ) {
-    addTextTargetCompletions(completions, program);
+    addUIElementCompletions(completions, program, ["text"]);
     return Array.from(completions.values());
   }
 
   // ImageCommand
   if (stack.some((n) => n.type.name === "ImageCommand")) {
     if (stack[0]?.type.name === "ImageCommand_c1") {
-      addImageControlCompletions(completions, program);
+      addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
       addStructReferenceCompletions(completions, program, [
         "filtered_image",
         "layered_image",
@@ -944,11 +783,14 @@ export const getCompletions = (
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "AssetCommandControl") {
-      addImageControlCompletions(completions, program);
+      addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
       return Array.from(completions.values());
     }
-    if (stack[0]?.type.name === "WhitespaceAssetCommandTarget") {
-      addImageTargetCompletions(completions, program);
+    if (
+      stack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
+      stack[0]?.type.name === "AssetCommandTarget"
+    ) {
+      addUIElementCompletions(completions, program, ["image"]);
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
@@ -957,7 +799,7 @@ export const getCompletions = (
         "layered_image",
         "image",
       ]);
-      addImageClauseCompletions(completions, program);
+      addKeywordCompletions(completions, "clause", IMAGE_CLAUSE_KEYWORDS);
       return Array.from(completions.values());
     }
     if (
@@ -982,7 +824,7 @@ export const getCompletions = (
         document,
         tree
       );
-      addFilterCompletions(completions, program, exclude);
+      addStructReferenceCompletions(completions, program, ["filter"], exclude);
       return Array.from(completions.values());
     }
     if (
@@ -991,7 +833,10 @@ export const getCompletions = (
         prevText === "with") ||
       stack[0]?.type.name === "NameValue"
     ) {
-      addAnimationCompletions(completions, program);
+      addStructReferenceCompletions(completions, program, [
+        "transition",
+        "animation",
+      ]);
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
@@ -1009,7 +854,12 @@ export const getCompletions = (
           document,
           tree
         );
-        addImageClauseCompletions(completions, program, exclude);
+        addKeywordCompletions(
+          completions,
+          "clause",
+          IMAGE_CLAUSE_KEYWORDS,
+          exclude
+        );
       }
       return Array.from(completions.values());
     }
@@ -1018,7 +868,7 @@ export const getCompletions = (
   // AudioCommand
   if (stack.some((n) => n.type.name === "AudioCommand")) {
     if (stack[0]?.type.name === "AudioCommand_c1") {
-      addAudioControlCompletions(completions, program);
+      addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
       addStructReferenceCompletions(completions, program, [
         "layered_audio",
         "audio",
@@ -1027,11 +877,11 @@ export const getCompletions = (
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "AssetCommandControl") {
-      addAudioControlCompletions(completions, program);
+      addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandTarget") {
-      addAudioTargetCompletions(completions, program);
+      addStructReferenceCompletions(completions, program, ["channel"]);
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
@@ -1040,7 +890,7 @@ export const getCompletions = (
         "audio",
         "synth",
       ]);
-      addAudioClauseCompletions(completions, program);
+      addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS);
       return Array.from(completions.values());
     }
     if (
@@ -1065,7 +915,7 @@ export const getCompletions = (
         document,
         tree
       );
-      addFilterCompletions(completions, program, exclude);
+      addStructReferenceCompletions(completions, program, ["filter"], exclude);
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
@@ -1083,7 +933,12 @@ export const getCompletions = (
           document,
           tree
         );
-        addAudioClauseCompletions(completions, program, exclude);
+        addKeywordCompletions(
+          completions,
+          "clause",
+          AUDIO_CLAUSE_KEYWORDS,
+          exclude
+        );
         return Array.from(completions.values());
       }
     }
@@ -1093,7 +948,7 @@ export const getCompletions = (
         prevText === "with") ||
       stack[0]?.type.name === "NameValue"
     ) {
-      addModulationCompletions(completions, program);
+      addStructReferenceCompletions(completions, program, ["modulation"]);
       return Array.from(completions.values());
     }
   }
