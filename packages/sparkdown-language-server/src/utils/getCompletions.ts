@@ -235,82 +235,39 @@ const addImageTargetCompletions = (
   }
 };
 
-const addImageNameCompletions = (
+const addStructReferenceCompletions = (
   completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined
+  program: SparkProgram | undefined,
+  types: string[]
 ) => {
   if (program) {
-    for (const [name, v] of Object.entries(
-      program?.context?.["filtered_image"] || {}
-    )) {
-      if (!name.startsWith("$")) {
-        const struct = v as {
-          filtered_src: string;
-          filtered_data?: string;
-        };
-        const src = struct?.filtered_src;
-        if (struct) {
-          const completion: CompletionItem = {
-            label: name,
-            labelDetails: { description: "filtered_image" },
-            kind: CompletionItemKind.Constructor,
-          };
-          if (src) {
-            completion.documentation = {
-              kind: MarkupKind.Markdown,
-              value: `<img src="${src}" alt="${name}" width="300px" />`,
+    for (const type of types) {
+      const structs = program?.context?.[type];
+      if (structs) {
+        for (const [name, struct] of Object.entries(structs)) {
+          if (!name.startsWith("$")) {
+            const completion: CompletionItem = {
+              label: name,
+              labelDetails: { description: type },
+              kind: CompletionItemKind.Constructor,
             };
-          }
-          if (completion.label && !completions.has(completion.label)) {
-            completions.set(completion.label, completion);
-          }
-        }
-      }
-    }
-    for (const [name, v] of Object.entries(
-      program?.context?.["layered_image"] || {}
-    )) {
-      if (!name.startsWith("$")) {
-        const struct = v as {
-          assets: { src?: string }[];
-        };
-        const src = struct?.assets?.[0]?.src;
-        if (struct) {
-          const completion: CompletionItem = {
-            label: name,
-            labelDetails: { description: "layered_image" },
-            kind: CompletionItemKind.Constructor,
-          };
-          if (src) {
-            completion.documentation = {
-              kind: MarkupKind.Markdown,
-              value: `<img src="${src}" alt="${name}" width="300px" />`,
-            };
-          }
-          if (completion.label && !completions.has(completion.label)) {
-            completions.set(completion.label, completion);
-          }
-        }
-      }
-    }
-    for (const [name, v] of Object.entries(program?.context?.["image"] || {})) {
-      if (!name.startsWith("$")) {
-        const struct = v as { src?: string };
-        const src = struct?.src;
-        if (struct) {
-          const completion: CompletionItem = {
-            label: name,
-            labelDetails: { description: "image" },
-            kind: CompletionItemKind.Constructor,
-          };
-          if (src) {
-            completion.documentation = {
-              kind: MarkupKind.Markdown,
-              value: `<img src="${src}" alt="${name}" width="300px" />`,
-            };
-          }
-          if (completion.label && !completions.has(completion.label)) {
-            completions.set(completion.label, completion);
+            const src =
+              type === "filtered_image"
+                ? struct?.filtered_src
+                : type === "layered_image"
+                ? struct?.assets?.[0]?.src
+                : type === "image"
+                ? struct?.src
+                : undefined;
+            if (src) {
+              completion.documentation = {
+                kind: MarkupKind.Markdown,
+                value: `<img src="${src}" alt="${name}" width="300px" />`,
+              };
+            }
+            if (completion.label && !completions.has(completion.label)) {
+              completions.set(completion.label, completion);
+            }
           }
         }
       }
@@ -601,7 +558,7 @@ const getTypeKind = (v: unknown): CompletionItemKind | undefined => {
     return CompletionItemKind.Constructor;
   }
   if (typeof v === "string") {
-    return CompletionItemKind.Text;
+    return CompletionItemKind.Constant;
   }
   if (typeof v === "number") {
     return CompletionItemKind.Unit;
@@ -747,27 +704,75 @@ const addContextStructPropertyValueReferenceCompletions = (
       definitions?.optionalDefinitions?.[type]?.[name];
     if (contextStruct) {
       const value = getProperty(contextStruct, relativePath);
-      const description = getTypeName(value);
-      const kind = getTypeKind(value);
       if (
         value &&
         typeof value === "object" &&
         "$type" in value &&
         typeof value.$type === "string"
       ) {
-        const names: string[] = Object.keys(
-          program?.context?.[value.$type] || {}
-        );
-        for (const name of names) {
-          if (!name.startsWith("$")) {
-            const completion: CompletionItem = {
-              label: name,
-              insertText: name,
-              labelDetails: { description },
-              kind,
-            };
-            if (completion.label && !completions.has(completion.label)) {
-              completions.set(completion.label, completion);
+        addStructReferenceCompletions(completions, program, [value.$type]);
+      }
+    }
+  }
+};
+
+const addSchemaStructPropertyValueReferenceCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  definitions: {
+    builtinDefinitions?: { [type: string]: { [name: string]: any } };
+    optionalDefinitions?: { [type: string]: { [name: string]: any } };
+    schemaDefinitions?: { [type: string]: { [name: string]: any } };
+    descriptionDefinitions?: { [type: string]: { [name: string]: any } };
+  },
+  type: string,
+  name: string,
+  path: string,
+  valueText: string,
+  valueCursorOffset: number,
+  context: CompletionContext | undefined
+) => {
+  const relativePath = path.startsWith(".") ? path : `.${path}`;
+  if (type) {
+    const schemaStruct = definitions?.schemaDefinitions?.[type]?.[name];
+    if (schemaStruct) {
+      const lookupPath = schemaStruct["$recursive"]
+        ? relativePath.split(".").at(-1)
+        : relativePath;
+      if (lookupPath) {
+        const value = getProperty(schemaStruct, lookupPath);
+        if (Array.isArray(value)) {
+          for (const option of value) {
+            const kind = getTypeKind(option);
+            if (typeof option === "string") {
+              if (!valueText) {
+                const completion: CompletionItem = {
+                  label: `"${option}"`,
+                  kind,
+                };
+                if (completion.label && !completions.has(completion.label)) {
+                  completions.set(completion.label, completion);
+                }
+              } else if (
+                context?.triggerCharacter === '"' &&
+                valueCursorOffset === 1
+              ) {
+                const completion: CompletionItem = {
+                  label: option,
+                  kind,
+                };
+                if (completion.label && !completions.has(completion.label)) {
+                  completions.set(completion.label, completion);
+                }
+              }
+            } else if (
+              typeof option === "object" &&
+              "$type" in option &&
+              typeof option.$type === "string"
+            ) {
+              addStructReferenceCompletions(completions, program, [
+                option.$type,
+              ]);
             }
           }
         }
@@ -786,10 +791,24 @@ const addStructPropertyValueCompletions = (
     descriptionDefinitions?: { [type: string]: { [name: string]: any } };
   },
   type: string,
-  name: string,
-  path: string
+  _name: string,
+  path: string,
+  valueText: string,
+  valueCursorOffset: number,
+  context: CompletionContext | undefined
 ) => {
   if (type) {
+    addSchemaStructPropertyValueReferenceCompletions(
+      completions,
+      program,
+      definitions,
+      type,
+      "$schema",
+      path,
+      valueText,
+      valueCursorOffset,
+      context
+    );
     addContextStructPropertyValueReferenceCompletions(
       completions,
       program,
@@ -812,44 +831,47 @@ const addStructPropertyValueCompletions = (
 const addAccessPathCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  beforeText: string
+  path: string
 ) => {
-  const match = beforeText.match(/([_\p{L}0-9.]+?)$/u);
-  const path = match?.[1]?.trim();
   const parts = path?.split(".") || [];
-  const parentPath =
-    parts.length === 1
-      ? ""
-      : path?.endsWith(".")
-      ? parts.slice(0, -1).join(".")
-      : parts.join(".");
-  const keyStartsWith =
-    parts.length === 1 ? path : path?.endsWith(".") ? parts.at(-1) : "";
+  const type = parts[0];
   if (program?.context) {
-    const props = getProperty(program.context, parentPath);
-    if (props) {
-      Object.entries(props).forEach(([k, v]) => {
-        if (isIdentifier(k)) {
-          if (!keyStartsWith || k.startsWith(keyStartsWith)) {
-            const description = typeof v === "object" ? undefined : typeof v;
-            const kind =
-              parts.length <= 1
-                ? CompletionItemKind.TypeParameter
-                : parts.length === 2
-                ? CompletionItemKind.Variable
-                : CompletionItemKind.Property;
-            const completion: CompletionItem = {
-              label: k,
-              labelDetails: { description },
-              kind,
-              insertTextMode: InsertTextMode.asIs,
-            };
-            if (completion.label && !completions.has(completion.label)) {
-              completions.set(completion.label, completion);
+    if (parts.length === 2 && type) {
+      addStructReferenceCompletions(completions, program, [type]);
+    } else {
+      const parentPath =
+        parts.length === 1
+          ? ""
+          : path?.endsWith(".")
+          ? parts.slice(0, -1).join(".")
+          : parts.join(".");
+      const keyStartsWith =
+        parts.length === 1 ? path : path?.endsWith(".") ? parts.at(-1) : "";
+      const props = getProperty(program.context, parentPath);
+      if (props) {
+        Object.entries(props).forEach(([k, v]) => {
+          if (isIdentifier(k)) {
+            if (!keyStartsWith || k.startsWith(keyStartsWith)) {
+              const description = typeof v === "object" ? undefined : typeof v;
+              const kind =
+                parts.length <= 1
+                  ? CompletionItemKind.TypeParameter
+                  : parts.length === 2
+                  ? CompletionItemKind.Variable
+                  : CompletionItemKind.Property;
+              const completion: CompletionItem = {
+                label: k,
+                labelDetails: { description },
+                kind,
+                insertTextMode: InsertTextMode.asIs,
+              };
+              if (completion.label && !completions.has(completion.label)) {
+                completions.set(completion.label, completion);
+              }
             }
           }
-        }
-      });
+        });
+      }
     }
   }
 };
@@ -865,7 +887,7 @@ const getCompletions = (
     descriptionDefinitions?: { [type: string]: { [name: string]: any } };
   },
   position: Position,
-  _context: CompletionContext | undefined
+  context: CompletionContext | undefined
 ): CompletionItem[] | null | undefined => {
   if (!document) {
     return undefined;
@@ -1006,7 +1028,7 @@ const getCompletions = (
   }
 
   // console.log(printTree(tree, document.getText()));
-  console.log(stack.map((n) => n.type.name));
+  // console.log(stack.map((n) => n.type.name));
 
   if (!stack[0]) {
     return null;
@@ -1085,7 +1107,11 @@ const getCompletions = (
   if (stack.some((n) => n.type.name === "ImageCommand")) {
     if (stack[0]?.type.name === "ImageCommand_c1") {
       addImageControlCompletions(completions, program);
-      addImageNameCompletions(completions, program);
+      addStructReferenceCompletions(completions, program, [
+        "filtered_image",
+        "layered_image",
+        "image",
+      ]);
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "AssetCommandControl") {
@@ -1097,7 +1123,11 @@ const getCompletions = (
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
-      addImageNameCompletions(completions, program);
+      addStructReferenceCompletions(completions, program, [
+        "filtered_image",
+        "layered_image",
+        "image",
+      ]);
       addImageClauseCompletions(completions, program);
       return Array.from(completions.values());
     }
@@ -1105,7 +1135,11 @@ const getCompletions = (
       stack[0]?.type.name === "AssetCommandName" ||
       stack[0]?.type.name === "AssetCommandFileName"
     ) {
-      addImageNameCompletions(completions, program);
+      addStructReferenceCompletions(completions, program, [
+        "filtered_image",
+        "layered_image",
+        "image",
+      ]);
       return Array.from(completions.values());
     }
     if (
@@ -1285,7 +1319,8 @@ const getCompletions = (
       (n) =>
         n.type.name === "WhitespaceStructFieldValue" ||
         n.type.name === "StructFieldValue"
-    )
+    ) &&
+    !stack.some((n) => n.type.name === "AccessPath")
   ) {
     const defineTypeNameNode = getDescendentInsideParent(
       "DefineTypeName",
@@ -1306,6 +1341,20 @@ const getCompletions = (
       "StructField",
       stack
     );
+    const propertyValueNode = getDescendentInsideParent(
+      "StructFieldValue",
+      "StructField",
+      stack
+    );
+    const valueText = getNodeText(propertyValueNode);
+    const documentCursorOffset = document.offsetAt(position);
+    const valueCursorOffset = propertyValueNode
+      ? documentCursorOffset < propertyValueNode.from
+        ? 0
+        : documentCursorOffset > propertyValueNode.to
+        ? propertyValueNode.to - propertyValueNode.from
+        : documentCursorOffset - propertyValueNode.from
+      : 0;
     if (propertyNameNode) {
       const path =
         getParentPropertyPath(propertyNameNode) +
@@ -1317,28 +1366,22 @@ const getCompletions = (
         definitions,
         type,
         name,
-        path
+        path,
+        valueText,
+        valueCursorOffset,
+        context
       );
       return Array.from(completions.values());
     }
   }
 
-  // const line = position?.line;
-  // const prevLineText = getLineText(document, position, -1);
-  // const nextLineText = getLineText(document, position, 1);
-  // const beforeText = getLineTextBefore(document, position);
-  // const afterText = getLineTextAfter(document, position);
-  // const trimmedBeforeText = beforeText.trim();
-  // const trimmedAfterText = afterText.trim();
-  // const trimmedStartBeforeText = beforeText.trimStart();
-  // const lineMetadata = program?.metadata?.lines?.[line];
-  // const scopes = lineMetadata?.scopes;
+  const accessPathNode = stack.find((n) => n.type.name === "AccessPath");
+  if (accessPathNode) {
+    const path = getNodeText(accessPathNode);
+    addAccessPathCompletions(completions, program, path);
+    return Array.from(completions.values());
+  }
 
-  // if (scopes) {
-  //   if (scopes.includes("access_path")) {
-  //     return getAccessPathCompletions(program, beforeText);
-  //   }
-  // }
   return undefined;
 };
 

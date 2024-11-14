@@ -10,7 +10,7 @@ export const getClientCompletionType = (
   const name =
     COMPLETION_ITEM_KIND_MAP[(kind || "") as CompletionItemKind]?.toLowerCase();
   if (name === "typeparameter") {
-    return "type";
+    return "typeParameter";
   }
   return name;
 };

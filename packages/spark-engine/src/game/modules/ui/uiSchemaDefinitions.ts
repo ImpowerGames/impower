@@ -1,5 +1,6 @@
 import { schema_ease } from "./constructors/schema_ease";
 import { schema_font } from "./constructors/schema_font";
+import { schema_ui } from "./constructors/schema_ui";
 import { schema_style } from "./constructors/schema_style";
 import { schema_shadow } from "./constructors/schema_shadow";
 import { schema_graphic } from "./constructors/schema_graphic";
@@ -12,6 +13,9 @@ export const uiSchemaDefinitions = () => ({
   font: {
     $schema: schema_font(),
   } as Record<string, ReturnType<typeof schema_font>>,
+  ui: {
+    $schema: schema_ui(),
+  } as Record<string, ReturnType<typeof schema_ui>>,
   style: {
     $schema: schema_style(),
   } as Record<string, ReturnType<typeof schema_style>>,
