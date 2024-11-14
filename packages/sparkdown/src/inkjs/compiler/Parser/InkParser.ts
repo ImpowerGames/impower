@@ -2961,7 +2961,17 @@ export class InkParser extends StringParser {
     const definition = this.StructProperties();
 
     if (definition) {
-      const variableIdentifier = new Identifier(type?.name + "." + name?.name);
+      let variableName = "";
+      if (modifier) {
+        variableName += modifier.name + " ";
+      }
+      if (type) {
+        variableName += type.name;
+      }
+      if (name) {
+        variableName += "." + name.name;
+      }
+      const variableIdentifier = new Identifier(variableName);
       if (type && type.debugMetadata) {
         variableIdentifier.debugMetadata = new DebugMetadata(
           type.debugMetadata

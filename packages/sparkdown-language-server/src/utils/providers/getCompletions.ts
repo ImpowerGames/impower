@@ -375,55 +375,43 @@ const getTypeKind = (v: unknown): CompletionItemKind | undefined => {
 
 const addStructPropertyNameContextCompletions = (
   completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
-  definitions: {
-    builtinDefinitions?: { [type: string]: { [name: string]: any } };
-    optionalDefinitions?: { [type: string]: { [name: string]: any } };
-    schemaDefinitions?: { [type: string]: { [name: string]: any } };
-    descriptionDefinitions?: { [type: string]: { [name: string]: any } };
-  },
-  type: string,
-  name: string,
+  typeStruct: any,
+  modifier: string,
   path: string,
   lineText: string,
-  existingProps: Set<string>,
-  possibleNames: Set<string>
+  existingProps: Set<string>
 ) => {
   const relativePath = path.startsWith(".") ? path : `.${path}`;
   const indentLength = lineText.length - lineText.trimStart().length;
-  const indentedStr = lineText.slice(0, indentLength) + "  ";
-  if (type) {
-    const contextStruct =
-      program?.context?.[type]?.[name] ??
-      definitions?.optionalDefinitions?.[type]?.[name];
-    if (contextStruct) {
-      const pathPrefix = contextStruct["$recursive"]
-        ? "."
-        : relativePath.slice(0, relativePath.lastIndexOf(".") + 1);
-      traverse(contextStruct, (p: string) => {
-        if (p.startsWith(pathPrefix)) {
-          const [name] = p.slice(pathPrefix.length).split(".");
-          const optionValue = getProperty(contextStruct, pathPrefix + name);
-          const description = getTypeDescription(optionValue);
-          if (name && Number.isNaN(Number(name))) {
-            if (
-              !existingProps.has(p) &&
-              !possibleNames.has(name) &&
-              !name.startsWith("$")
-            ) {
-              possibleNames.add(name);
-              const isScalarAssignment =
-                !optionValue ||
-                typeof optionValue !== "object" ||
-                "$type" in optionValue ||
-                "$name" in optionValue;
-              const arrayDash = Array.isArray(optionValue) ? "- " : "";
-              const insertSuffix = isScalarAssignment
-                ? " = "
-                : `:\n${indentedStr}${arrayDash}`;
+  const indent = lineText.slice(0, indentLength) + "  ";
+  if (typeStruct) {
+    const pathPrefix = typeStruct["$recursive"]
+      ? "."
+      : relativePath.slice(0, relativePath.lastIndexOf(".") + 1);
+    traverse(typeStruct, (p: string) => {
+      if (p.startsWith(pathPrefix)) {
+        const [propName] = p.slice(pathPrefix.length).split(".");
+        const optionValue = getProperty(typeStruct, pathPrefix + propName);
+        const description = getTypeDescription(optionValue);
+        if (propName && Number.isNaN(Number(propName))) {
+          if (!propName.startsWith("$") && !existingProps.has(p)) {
+            const isArray = Array.isArray(optionValue);
+            const isMap =
+              optionValue &&
+              typeof optionValue === "object" &&
+              !("$type" in optionValue) &&
+              !("$name" in optionValue);
+            if (modifier !== "optional" || isArray || isMap) {
+              const arrayItemDash = "- ";
+              const insertSuffix =
+                isArray || modifier === "schema" || modifier === "random"
+                  ? `:\n${indent}${arrayItemDash}`
+                  : isMap || modifier === "description"
+                  ? `:\n${indent}`
+                  : " = ";
               const completion: CompletionItem = {
-                label: name,
-                insertText: name + insertSuffix,
+                label: propName,
+                insertText: propName + insertSuffix,
                 labelDetails: { description },
                 kind: CompletionItemKind.Property,
                 insertTextMode: InsertTextMode.asIs,
@@ -438,8 +426,8 @@ const addStructPropertyNameContextCompletions = (
             }
           }
         }
-      });
-    }
+      }
+    });
   }
 };
 
@@ -452,6 +440,7 @@ const addStructPropertyNameCompletions = (
     schemaDefinitions?: { [type: string]: { [name: string]: any } };
     descriptionDefinitions?: { [type: string]: { [name: string]: any } };
   },
+  modifier: string,
   type: string,
   name: string,
   path: string,
@@ -459,7 +448,6 @@ const addStructPropertyNameCompletions = (
 ) => {
   if (type) {
     const existingProps = new Set<string>();
-    const possibleNames = new Set<string>();
     const definedStruct = program?.compiled?.structDefs?.[type]?.[name];
     if (definedStruct) {
       traverse(definedStruct, (fieldPath: string) => {
@@ -468,82 +456,47 @@ const addStructPropertyNameCompletions = (
     }
     addStructPropertyNameContextCompletions(
       completions,
-      program,
-      definitions,
-      type,
-      "$default",
+      program?.context?.[type]?.["$default"],
+      modifier,
       path,
       lineText,
-      existingProps,
-      possibleNames
+      existingProps
     );
     addStructPropertyNameContextCompletions(
       completions,
-      program,
-      definitions,
-      type,
-      "$optional",
+      program?.context?.[type]?.["$optional"],
+      modifier,
       path,
       lineText,
-      existingProps,
-      possibleNames
+      existingProps
     );
-  }
-};
-
-const addStructPropertyValueContextCompletions = (
-  completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
-  definitions: {
-    builtinDefinitions?: { [type: string]: { [name: string]: any } };
-    optionalDefinitions?: { [type: string]: { [name: string]: any } };
-    schemaDefinitions?: { [type: string]: { [name: string]: any } };
-    descriptionDefinitions?: { [type: string]: { [name: string]: any } };
-  },
-  type: string,
-  name: string,
-  path: string
-) => {
-  const relativePath = path.startsWith(".") ? path : `.${path}`;
-  if (type) {
-    const contextStruct =
-      program?.context?.[type]?.[name] ??
-      definitions?.optionalDefinitions?.[type]?.[name];
-    if (contextStruct) {
-      const value = getProperty(contextStruct, relativePath);
-      if (
-        value &&
-        typeof value === "object" &&
-        "$type" in value &&
-        typeof value.$type === "string"
-      ) {
-        addStructReferenceCompletions(completions, program, [value.$type]);
-      }
-    }
+    addStructPropertyNameContextCompletions(
+      completions,
+      definitions?.optionalDefinitions?.[type]?.["$optional"],
+      modifier,
+      path,
+      lineText,
+      existingProps
+    );
   }
 };
 
 const addStructPropertyValueSchemaCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  definitions: {
-    builtinDefinitions?: { [type: string]: { [name: string]: any } };
-    optionalDefinitions?: { [type: string]: { [name: string]: any } };
-    schemaDefinitions?: { [type: string]: { [name: string]: any } };
-    descriptionDefinitions?: { [type: string]: { [name: string]: any } };
-  },
-  type: string,
-  name: string,
+  schemaStruct: any,
+  modifier: string,
   path: string,
   valueText: string,
   valueCursorOffset: number,
   context: CompletionContext | undefined
 ) => {
-  const relativePath = path.startsWith(".") ? path : `.${path}`;
-  if (type) {
-    const schemaStruct = definitions?.schemaDefinitions?.[type]?.[name];
+  if (!modifier) {
+    const relativePath = path.startsWith(".") ? path : `.${path}`;
     if (schemaStruct) {
-      const lookupPath = schemaStruct["$recursive"]
+      const lookupPath = program?.context?.[schemaStruct.$type]?.["$default"]?.[
+        "$recursive"
+      ]
         ? relativePath.split(".").at(-1)
         : relativePath;
       if (lookupPath) {
@@ -588,6 +541,29 @@ const addStructPropertyValueSchemaCompletions = (
   }
 };
 
+const addStructPropertyValueContextCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  typeStruct: any,
+  modifier: string,
+  path: string
+) => {
+  if (!modifier) {
+    const relativePath = path.startsWith(".") ? path : `.${path}`;
+    if (typeStruct) {
+      const value = getProperty(typeStruct, relativePath);
+      if (
+        value &&
+        typeof value === "object" &&
+        "$type" in value &&
+        typeof value.$type === "string"
+      ) {
+        addStructReferenceCompletions(completions, program, [value.$type]);
+      }
+    }
+  }
+};
+
 const addStructPropertyValueCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
@@ -597,8 +573,8 @@ const addStructPropertyValueCompletions = (
     schemaDefinitions?: { [type: string]: { [name: string]: any } };
     descriptionDefinitions?: { [type: string]: { [name: string]: any } };
   },
+  modifier: string,
   type: string,
-  _name: string,
   path: string,
   valueText: string,
   valueCursorOffset: number,
@@ -608,9 +584,18 @@ const addStructPropertyValueCompletions = (
     addStructPropertyValueSchemaCompletions(
       completions,
       program,
-      definitions,
-      type,
-      "$schema",
+      program?.context?.[type]?.["$schema"],
+      modifier,
+      path,
+      valueText,
+      valueCursorOffset,
+      context
+    );
+    addStructPropertyValueSchemaCompletions(
+      completions,
+      program,
+      definitions?.schemaDefinitions?.[type]?.["$schema"],
+      modifier,
       path,
       valueText,
       valueCursorOffset,
@@ -619,17 +604,22 @@ const addStructPropertyValueCompletions = (
     addStructPropertyValueContextCompletions(
       completions,
       program,
-      definitions,
-      type,
-      "$default",
+      program?.context?.[type]?.["$default"],
+      modifier,
       path
     );
     addStructPropertyValueContextCompletions(
       completions,
       program,
-      definitions,
-      type,
-      "$optional",
+      program?.context?.[type]?.["$optional"],
+      modifier,
+      path
+    );
+    addStructPropertyValueContextCompletions(
+      completions,
+      program,
+      definitions?.optionalDefinitions?.[type]?.["$optional"],
+      modifier,
       path
     );
   }
@@ -717,6 +707,7 @@ export const getCompletions = (
 
   // console.log(printTree(tree, document.getText()));
   // console.log(stack.map((n) => n.type.name));
+  // console.log("program", program);
 
   // Transition
   if (stack[0]?.type.name === "TransitionMark") {
@@ -996,6 +987,11 @@ export const getCompletions = (
     propertyNameNode &&
     document.positionAt(propertyNameNode.from).line === position.line
   ) {
+    const defineModifierNameNode = getDescendentInsideParent(
+      "DefineModifierName",
+      "DefineDeclaration",
+      stack
+    );
     const defineTypeNameNode = getDescendentInsideParent(
       "DefineTypeName",
       "DefineDeclaration",
@@ -1006,6 +1002,9 @@ export const getCompletions = (
       "DefineDeclaration",
       stack
     );
+    const modifier = defineModifierNameNode
+      ? getNodeText(defineModifierNameNode, document)
+      : "";
     const type = defineTypeNameNode
       ? getNodeText(defineTypeNameNode, document)
       : "";
@@ -1018,6 +1017,7 @@ export const getCompletions = (
       completions,
       program,
       definitions,
+      modifier,
       type,
       name,
       path,
@@ -1033,21 +1033,21 @@ export const getCompletions = (
     ) &&
     !stack.some((n) => n.type.name === "AccessPath")
   ) {
+    const defineModifierNameNode = getDescendentInsideParent(
+      "DefineModifierName",
+      "DefineDeclaration",
+      stack
+    );
     const defineTypeNameNode = getDescendentInsideParent(
       "DefineTypeName",
       "DefineDeclaration",
       stack
     );
-    const defineVariableNameNode = getDescendentInsideParent(
-      "DefineVariableName",
-      "DefineDeclaration",
-      stack
-    );
+    const modifier = defineModifierNameNode
+      ? getNodeText(defineModifierNameNode, document)
+      : "";
     const type = defineTypeNameNode
       ? getNodeText(defineTypeNameNode, document)
-      : "";
-    const name = defineVariableNameNode
-      ? getNodeText(defineVariableNameNode, document)
       : "";
     const propertyNameNode = getDescendentInsideParent(
       "DeclarationScalarPropertyName",
@@ -1077,8 +1077,8 @@ export const getCompletions = (
         completions,
         program,
         definitions,
+        modifier,
         type,
-        name,
         path,
         valueText,
         valueCursorOffset,

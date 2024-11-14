@@ -17,7 +17,6 @@ const TIMING_FUNCTIONS = [
 export const schema_style: Create<Schema<any>> = () => ({
   $type: "style",
   $name: "$schema",
-  $recursive: true,
   position: ["default", "relative", "fixed", "absolute", "sticky"],
   aspect_ratio: ["1/1", "16/9", "9/16", "4/5", "2/3", "2/1"],
   x_overflow: ["visible", "scroll", "clip"],
