@@ -285,7 +285,7 @@ const addImageControlCompletions = (
     const completion: CompletionItem = {
       label: keyword,
       labelDetails: { description: "control" },
-      kind: CompletionItemKind.Keyword,
+      kind: CompletionItemKind.Constant,
     };
     if (completion.label && !completions.has(completion.label)) {
       completions.set(completion.label, completion);
@@ -304,7 +304,7 @@ const addImageClauseCompletions = (
       const completion: CompletionItem = {
         label: keyword,
         labelDetails: { description: "clause" },
-        kind: CompletionItemKind.Keyword,
+        kind: CompletionItemKind.Constant,
       };
       if (completion.label && !completions.has(completion.label)) {
         completions.set(completion.label, completion);
@@ -435,7 +435,7 @@ const addAudioControlCompletions = (
     const completion = {
       label: keyword,
       labelDetails: { description: "control" },
-      kind: CompletionItemKind.Keyword,
+      kind: CompletionItemKind.Constant,
     };
     if (completion.label && !completions.has(completion.label)) {
       completions.set(completion.label, completion);
@@ -454,7 +454,7 @@ const addAudioClauseCompletions = (
       const completion = {
         label: keyword,
         labelDetails: { description: "clause" },
-        kind: CompletionItemKind.Keyword,
+        kind: CompletionItemKind.Constant,
       };
       if (completion.label && !completions.has(completion.label)) {
         completions.set(completion.label, completion);
