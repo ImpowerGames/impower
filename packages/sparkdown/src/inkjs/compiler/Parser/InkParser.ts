@@ -2972,10 +2972,17 @@ export class InkParser extends StringParser {
         variableName += "." + name.name;
       }
       const variableIdentifier = new Identifier(variableName);
+
+      variableIdentifier.debugMetadata = new DebugMetadata(
+        (modifier || type || name)?.debugMetadata || undefined
+      );
+      if (modifier && modifier.debugMetadata) {
+        variableIdentifier.debugMetadata =
+          variableIdentifier.debugMetadata.Merge(modifier.debugMetadata);
+      }
       if (type && type.debugMetadata) {
-        variableIdentifier.debugMetadata = new DebugMetadata(
-          type.debugMetadata
-        );
+        variableIdentifier.debugMetadata =
+          variableIdentifier.debugMetadata.Merge(type.debugMetadata);
       }
       if (name && name.debugMetadata) {
         if (variableIdentifier.debugMetadata) {
