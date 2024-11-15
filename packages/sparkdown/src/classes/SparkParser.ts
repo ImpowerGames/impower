@@ -498,7 +498,7 @@ export default class SparkParser {
         }
 
         // Record reference in struct field value
-        if (nodeType === "AccessPath" && stack.at(-1) === "StructFieldValue") {
+        if (nodeType === "AccessPath" && stack.includes("StructFieldValue")) {
           let [type, name] = text.split(".");
           if (type && !name) {
             name = type;
@@ -921,8 +921,14 @@ export default class SparkParser {
     const rootFilename = filename || "main.script";
     const inkCompiler = new InkCompiler(`include ${rootFilename}`, options);
     try {
-      const compiledJSON = inkCompiler.Compile().ToJson();
-      program.compiled = compiledJSON ? JSON.parse(compiledJSON) : null;
+      const story = inkCompiler.Compile();
+      this.populateDiagnostics(program, inkCompiler);
+      if (story) {
+        const storyJSON = story.ToJson();
+        if (storyJSON) {
+          program.compiled = JSON.parse(storyJSON);
+        }
+      }
       this.populateBuiltins(program);
       this.populateAssets(program);
       this.populateImplicitDefs(program);
@@ -932,7 +938,6 @@ export default class SparkParser {
     } catch (e) {
       console.error(e);
     }
-    this.populateDiagnostics(program, inkCompiler);
     // console.log("program", program);
     return program;
   }
@@ -1398,6 +1403,8 @@ export default class SparkParser {
                 } else {
                   const validDescription = descriptionType
                     ? `${descriptionType} named '${selectorName}'`
+                    : selectorTypes && selectorTypes.length > 0
+                    ? `${selectorTypes[0]} named '${selectorName}'`
                     : expectedSelectorTypes && expectedSelectorTypes.length > 0
                     ? `${expectedSelectorTypes[0]} named '${selectorName}'`
                     : `'${selectorName}'`;

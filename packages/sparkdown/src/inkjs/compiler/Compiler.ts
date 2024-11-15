@@ -51,11 +51,7 @@ export class Compiler {
   }
 
   private _runtimeStory: Story | null = null;
-  get runtimeStory(): Story {
-    if (!this._runtimeStory) {
-      throw new Error("Compilation failed.");
-    }
-
+  get runtimeStory(): Story | null {
     return this._runtimeStory;
   }
 
@@ -78,7 +74,7 @@ export class Compiler {
     this._options = options || new CompilerOptions();
   }
 
-  public readonly Compile = (): Story => {
+  public readonly Compile = (): Story | null => {
     this._parser = new InkParser(
       this.inputString,
       this.options.sourceFilename || null,
@@ -96,20 +92,22 @@ export class Compiler {
         this.options.serializationHandler?.WriteRuntimeObject;
     }
 
-    return this.runtimeStory;
+    return this._runtimeStory;
   };
 
   public readonly RetrieveDebugSourceForLatestContent = (): void => {
-    for (const outputObj of this.runtimeStory.state.outputStream) {
-      const textContent = asOrNull(outputObj, StringValue);
-      if (textContent !== null) {
-        const range = new DebugSourceRange(
-          textContent.value?.length || 0,
-          textContent.debugMetadata,
-          textContent.value || "unknown"
-        );
+    if (this._runtimeStory) {
+      for (const outputObj of this._runtimeStory.state.outputStream) {
+        const textContent = asOrNull(outputObj, StringValue);
+        if (textContent !== null) {
+          const range = new DebugSourceRange(
+            textContent.value?.length || 0,
+            textContent.debugMetadata,
+            textContent.value || "unknown"
+          );
 
-        this.debugSourceRanges.push(range);
+          this.debugSourceRanges.push(range);
+        }
       }
     }
   };
