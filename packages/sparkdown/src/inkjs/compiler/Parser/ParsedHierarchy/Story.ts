@@ -26,6 +26,7 @@ import { FunctionCall } from "./FunctionCall";
 import { Path } from "./Path";
 import { VariableAssignment } from "./Variable/VariableAssignment";
 import { DebugMetadata } from "../../../engine/DebugMetadata";
+import { Stitch } from "./Stitch";
 
 export class Story extends FlowBase {
   public static readonly IsReservedKeyword = (name?: string): boolean => {
@@ -494,15 +495,15 @@ export class Story extends FlowBase {
   public readonly NameConflictError = (
     obj: ParsedObject,
     identifier: Identifier,
-    existingObj: ParsedObject
+    newObj: ParsedObject | Identifier | DebugMetadata
   ): void => {
     obj.Error(
       `Duplicate identifier '${
         identifier.name
-      }'. A ${existingObj.typeName.toLowerCase()} named '${
+      }'. A ${obj.typeName.toLowerCase()} named '${
         identifier.name
-      }' was already declared on ${identifier.debugMetadata}`,
-      existingObj
+      }' already exists on ${identifier.debugMetadata}`,
+      newObj
     );
   };
 
@@ -544,7 +545,19 @@ export class Story extends FlowBase {
       knotOrFunction &&
       (knotOrFunction !== obj || symbolType === SymbolType.Arg)
     ) {
-      this.NameConflictError(obj, identifier, knotOrFunction);
+      if (obj instanceof Stitch && knotOrFunction.identifier) {
+        this.NameConflictError(
+          knotOrFunction,
+          knotOrFunction.identifier,
+          obj.identifier || obj
+        );
+      } else {
+        this.NameConflictError(
+          obj,
+          identifier,
+          knotOrFunction?.identifier || knotOrFunction
+        );
+      }
       return;
     }
 
@@ -606,7 +619,7 @@ export class Story extends FlowBase {
       varDecl.listDefinition == null &&
       varDecl.structDefinition == null
     ) {
-      this.NameConflictError(obj, identifier, varDecl);
+      this.NameConflictError(obj, identifier, varDecl.variableIdentifier);
     }
 
     if (symbolType < SymbolType.SubFlowAndWeave) {
@@ -636,7 +649,7 @@ export class Story extends FlowBase {
         for (const arg of flow.args) {
           if (arg.identifier?.name === identifier?.name) {
             obj.Error(
-              `Duplicate identifier '${identifier}'. A parameter named '${identifier}' has already been declared for ${flow.identifier} on ${flow.debugMetadata}`,
+              `Duplicate identifier '${identifier}'. A parameter named '${identifier}' already exists for ${flow.identifier} on ${flow.debugMetadata}`,
               varDecl?.variableIdentifier.debugMetadata
             );
 

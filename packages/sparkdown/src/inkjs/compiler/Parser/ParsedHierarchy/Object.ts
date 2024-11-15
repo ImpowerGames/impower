@@ -5,6 +5,7 @@ import { InkObject as RuntimeObject } from "../../../engine/Object";
 import { Path as RuntimePath } from "../../../engine/Path";
 import { Story } from "./Story";
 import { asOrNull } from "../../../engine/TypeAssertion";
+import { Identifier } from "./Identifier";
 
 export abstract class ParsedObject {
   public abstract readonly GenerateRuntimeObject: () => RuntimeObject | null;
@@ -217,7 +218,7 @@ export abstract class ParsedObject {
 
   public Error(
     message: string,
-    source: ParsedObject | DebugMetadata | null = null,
+    source: ParsedObject | Identifier | DebugMetadata | null = null,
     isWarning: boolean = false
   ): void {
     if (source === null) {
@@ -229,6 +230,14 @@ export abstract class ParsedObject {
       if (
         (source._alreadyHadError && !isWarning) ||
         (source._alreadyHadWarning && isWarning)
+      ) {
+        return;
+      }
+    }
+    if (source instanceof Identifier) {
+      if (
+        (source.alreadyHadError && !isWarning) ||
+        (source.alreadyHadWarning && isWarning)
       ) {
         return;
       }
@@ -245,6 +254,13 @@ export abstract class ParsedObject {
         source._alreadyHadWarning = true;
       } else {
         source._alreadyHadError = true;
+      }
+    }
+    if (source instanceof Identifier) {
+      if (isWarning) {
+        source.alreadyHadWarning = true;
+      } else {
+        source.alreadyHadError = true;
       }
     }
   }

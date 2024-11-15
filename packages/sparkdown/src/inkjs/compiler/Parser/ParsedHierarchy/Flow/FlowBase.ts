@@ -200,7 +200,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       const varab = this.variableDeclarations.get(varName)!;
 
       this.Error(
-        `Duplicate identifier '${varName}'. A ${varab.typeName.toLowerCase()} named '${varName}' was already declared on ${
+        `Duplicate identifier '${varName}'. A ${varab.typeName.toLowerCase()} named '${varName}' already exists on ${
           varab.debugMetadata
         }`,
         varDecl.variableIdentifier.debugMetadata
@@ -290,10 +290,12 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
           container.namedContent.get(namedChild.name!) || null;
 
         if (existingChild) {
-          const errorMsg = `${this.GetType()} already contains flow named '${
+          const errorMsg = `Duplicate identifier '${
             namedChild.name
-          }' (at ${(existingChild as any as RuntimeObject).debugMetadata})`;
-          this.Error(errorMsg, childFlow);
+          }'. ${this.GetType()} already contains flow named '${
+            namedChild.name
+          }' on ${(existingChild as any as RuntimeObject).debugMetadata}`;
+          this.Error(errorMsg, childFlow?.identifier || childFlow);
         }
 
         container.AddToNamedContentOnly(namedChild);

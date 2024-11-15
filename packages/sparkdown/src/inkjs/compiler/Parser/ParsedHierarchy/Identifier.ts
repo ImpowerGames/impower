@@ -3,6 +3,8 @@ import { DebugMetadata } from "../../../engine/DebugMetadata";
 export class Identifier {
   public name: string;
   public debugMetadata: DebugMetadata | null = null;
+  public alreadyHadError: boolean = false;
+  public alreadyHadWarning: boolean = false;
 
   constructor(name: string | Identifier) {
     if (typeof name === "string") {

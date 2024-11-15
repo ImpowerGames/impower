@@ -816,10 +816,12 @@ export class Weave extends ParsedObject {
         const otherContentWithName =
           flow.ContentWithNameAtLevel(weavePointName);
         if (otherContentWithName && otherContentWithName !== weavePoint) {
-          const errorMsg = `${weavePoint.GetType()} '${weavePointName}' has the same label name as a ${otherContentWithName.GetType()} (on ${
+          const errorMsg = `Duplicate identifier '${weavePointName}'. A ${otherContentWithName
+            .GetType()
+            .toLowerCase()} named '${weavePointName}' already exists on ${
             otherContentWithName.debugMetadata
-          })`;
-          this.Error(errorMsg, weavePoint);
+          }`;
+          this.Error(errorMsg, weavePoint?.identifier || weavePoint);
         }
       }
     }
