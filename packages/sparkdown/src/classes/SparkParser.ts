@@ -890,7 +890,7 @@ export default class SparkParser {
       lines.pop();
     }
     const transpiled = lines.join("\n");
-    console.log(printTree(tree, script));
+    // console.log(printTree(tree, script));
     // console.log(transpiled);
     return transpiled;
   }
