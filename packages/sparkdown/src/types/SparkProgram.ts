@@ -13,6 +13,7 @@ export interface SparkProgram {
     characters?: Record<string, SparkLocation[]>;
     scenes?: Record<string, SparkLocation[]>;
     transitions?: Record<string, SparkLocation[]>;
+    colors?: Record<string, SparkLocation[]>;
   };
   context?: {
     [type: string]: { [name: string]: any };

@@ -460,6 +460,13 @@ export default class SparkParser {
             reportDiagnostic(message, DiagnosticSeverity.Error);
           }
         }
+        // Record color use
+        if (nodeType === "Color") {
+          program.metadata ??= {};
+          program.metadata.colors ??= {};
+          program.metadata.colors[text] ??= [];
+          program.metadata.colors[text].push({ uri, range });
+        }
         // Record transition use
         if (nodeType === "Transition_content") {
           program.metadata ??= {};
@@ -883,7 +890,7 @@ export default class SparkParser {
       lines.pop();
     }
     const transpiled = lines.join("\n");
-    // console.log(printTree(tree, script));
+    console.log(printTree(tree, script));
     // console.log(transpiled);
     return transpiled;
   }

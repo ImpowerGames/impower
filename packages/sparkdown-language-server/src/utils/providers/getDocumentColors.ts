@@ -14,14 +14,19 @@ export const getDocumentColors = (
   if (!document || !colors) {
     return infos;
   }
-  colors.forEach((c) => {
-    const range = Range.create(
-      document.positionAt(c.from),
-      document.positionAt(c.to)
-    );
-    const rgb = colord(c.value).toRgb();
-    const color = Color.create(rgb.r / 255, rgb.g / 255, rgb.b / 255, rgb.a);
-    infos.push({ color, range });
-  });
+  for (const [c, locations] of Object.entries(colors)) {
+    for (const location of locations) {
+      if (location.uri === document.uri) {
+        const rgb = colord(c).toRgb();
+        const color = Color.create(
+          rgb.r / 255,
+          rgb.g / 255,
+          rgb.b / 255,
+          rgb.a
+        );
+        infos.push({ color, range: location.range });
+      }
+    }
+  }
   return infos;
 };
