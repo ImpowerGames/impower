@@ -59,6 +59,8 @@ export class Game<T extends M = {}> {
 
   protected _program: SparkProgram;
 
+  protected _executionTimeout = 1000;
+
   protected _lastExecutedSource: DocumentSource;
 
   get program() {
@@ -68,6 +70,7 @@ export class Game<T extends M = {}> {
   constructor(
     program: SparkProgram,
     options?: {
+      executionTimeout?: number;
       previewing?: string;
       simulation?: {
         waypoints?: { file?: string; line: number }[];
@@ -87,6 +90,9 @@ export class Game<T extends M = {}> {
       file: this._files[0],
       line: 0,
     };
+    if (options?.executionTimeout) {
+      this._executionTimeout = options.executionTimeout;
+    }
 
     // Create story to control flow and state
     this._story = new Story(compiled);
@@ -352,7 +358,7 @@ export class Game<T extends M = {}> {
         }
       }
     } else if (this._story.canContinue) {
-      this._story.ContinueAsync(1000);
+      this._story.ContinueAsync(this._executionTimeout);
       if (!this._story.asyncContinueComplete) {
         this.TimeoutError();
       } else {
