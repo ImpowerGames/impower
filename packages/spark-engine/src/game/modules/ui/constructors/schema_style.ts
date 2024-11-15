@@ -13,6 +13,7 @@ const TIMING_FUNCTIONS = [
   "steps()",
   "cubic-bezier()",
 ];
+const COLORS = [{ $type: "color" }];
 
 export const schema_style: Create<Schema<any>> = () => ({
   $type: "style",
@@ -65,7 +66,7 @@ export const schema_style: Create<Schema<any>> = () => ({
     "around",
     "evenly",
   ],
-  color: ["none", { $type: "color" }],
+  color: COLORS,
   font_family: ["sans", "serif", "mono", { $type: "font" }],
   font_size: [
     "2xs",
@@ -88,12 +89,12 @@ export const schema_style: Create<Schema<any>> = () => ({
   text_wrap: ["visible", "wrap", "clip", "ellipsis"],
   text_transform: ["uppercase", "lowercase", "capitalize"],
   text_decoration_thickness: [1, 0, 10],
-  text_decoration_color: ["none", { $type: "color" }],
+  text_decoration_color: COLORS,
   text_underline_offset: [1, 0, 10],
   text_stroke: [1, 0, 10],
   line_height: [0.01, 0, 2],
   letter_spacing: [0.01, 0, 2],
-  background_color: ["none", { $type: "color" }],
+  background_color: COLORS,
   background_image: [
     "none",
     { $type: "filtered_image" },
@@ -113,9 +114,9 @@ export const schema_style: Create<Schema<any>> = () => ({
     { $type: "gradient" },
   ],
   clip_path: ["circle", { $type: "path" }],
-  outline_color: ["none", { $type: "color" }],
+  outline_color: COLORS,
   outline_width: [1, 0, 10],
-  border_color: ["none", { $type: "color" }],
+  border_color: COLORS,
   border_width: [1, 0, 10],
   box_shadow: [1, 0, 5],
   opacity: [1.01, 0, 1],
