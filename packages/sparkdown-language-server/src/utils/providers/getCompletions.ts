@@ -215,11 +215,12 @@ const addKeywordCompletions = (
 
 const addStructTypeNameCompletions = (
   completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined
+  program: SparkProgram | undefined,
+  typeText: string
 ) => {
   if (program?.context) {
     for (const type of Object.keys(program?.context).sort()) {
-      if (!type.startsWith("$")) {
+      if (!type.startsWith("$") && type !== typeText) {
         const completion: CompletionItem = {
           label: type,
           labelDetails: { description: "type" },
@@ -381,8 +382,10 @@ const addStructPropertyNameContextCompletions = (
   modifier: string,
   path: string,
   lineText: string,
+  cursorPosition: Position,
   existingProps: Set<string>
 ) => {
+  const textAfterCursor = lineText.slice(cursorPosition.character);
   if (typeStruct) {
     const relativePath = path.startsWith(".") ? path : `.${path}`;
     const indentLength = lineText.length - lineText.trimStart().length;
@@ -407,12 +410,13 @@ const addStructPropertyNameContextCompletions = (
               !("$name" in optionValue);
             if (modifier !== "optional" || isArray || isMap) {
               const arrayItemDash = "- ";
-              const insertSuffix =
-                isArray || modifier === "schema" || modifier === "random"
-                  ? `:\n${indent}${arrayItemDash}`
-                  : isMap || modifier === "description"
-                  ? `:\n${indent}`
-                  : " = ";
+              const insertSuffix = textAfterCursor
+                ? ""
+                : isArray || modifier === "schema" || modifier === "random"
+                ? `:\n${indent}${arrayItemDash}`
+                : isMap || modifier === "description"
+                ? `:\n${indent}`
+                : " = ";
               const completion: CompletionItem = {
                 label: propName,
                 insertText: propName + insertSuffix,
@@ -448,7 +452,8 @@ const addStructPropertyNameCompletions = (
   type: string,
   name: string,
   path: string,
-  lineText: string
+  lineText: string,
+  cursorPosition: Position
 ) => {
   if (type) {
     const existingProps = new Set<string>();
@@ -465,6 +470,7 @@ const addStructPropertyNameCompletions = (
       modifier,
       path,
       lineText,
+      cursorPosition,
       existingProps
     );
     addStructPropertyNameContextCompletions(
@@ -474,6 +480,7 @@ const addStructPropertyNameCompletions = (
       modifier,
       path,
       lineText,
+      cursorPosition,
       existingProps
     );
     addStructPropertyNameContextCompletions(
@@ -483,6 +490,7 @@ const addStructPropertyNameCompletions = (
       modifier,
       path,
       lineText,
+      cursorPosition,
       existingProps
     );
     addStructPropertyNameContextCompletions(
@@ -492,6 +500,7 @@ const addStructPropertyNameCompletions = (
       modifier,
       path,
       lineText,
+      cursorPosition,
       existingProps
     );
   }
@@ -996,7 +1005,11 @@ export const getCompletions = (
         n.type.name === "DefineTypeName"
     )
   ) {
-    addStructTypeNameCompletions(completions, program);
+    const defineTypeNameNode = stack.find(
+      (n) => n.type.name === "DefineTypeName"
+    );
+    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
+    addStructTypeNameCompletions(completions, program, type);
     return Array.from(completions.values());
   }
   if (
@@ -1059,7 +1072,8 @@ export const getCompletions = (
       type,
       name,
       path,
-      lineText
+      lineText,
+      position
     );
     return Array.from(completions.values());
   }

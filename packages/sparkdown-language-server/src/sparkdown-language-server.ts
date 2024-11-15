@@ -59,6 +59,7 @@ try {
           "~",
           "-",
           `"`,
+          `=`,
         ],
         completionItem: {
           labelDetailsSupport: true,
