@@ -1,13 +1,13 @@
-import { ExecutionData } from "../../../modules/logic/types/ExecutionData";
+import { DocumentSource } from "../../types/DocumentSource";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidExecuteMethod = typeof DidExecuteMessage.method;
 
 export class DidExecuteMessage {
-  static readonly method = "story/didexecute";
+  static readonly method = "story/didExecute";
   static readonly type = new MessageProtocolNotificationType<
     DidExecuteMethod,
-    ExecutionData
+    { source: DocumentSource }
   >(DidExecuteMessage.method);
 }
 

@@ -1,6 +1,8 @@
 import { Story } from "../../../../../sparkdown/src/inkjs/engine/Story";
 import type { SparkProgram } from "../../../../../sparkdown/src/types/SparkProgram";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
+import { DocumentSource } from "../types/DocumentSource";
+import { ErrorType } from "../types/ErrorType";
 import { GameContext } from "../types/GameContext";
 import { InstanceMap } from "../types/InstanceMap";
 import { Instructions } from "../types/Instructions";
@@ -15,6 +17,7 @@ import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
 import { Module } from "./Module";
 import { DidExecuteMessage } from "./messages/DidExecuteMessage";
+import { RuntimeErrorMessage } from "./messages/RuntimeErrorMessage";
 import { WillExecuteMessage } from "./messages/WillExecuteMessage";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
@@ -56,6 +59,8 @@ export class Game<T extends M = {}> {
 
   protected _program: SparkProgram;
 
+  protected _lastExecutedSource: DocumentSource;
+
   get program() {
     return this._program;
   }
@@ -85,7 +90,11 @@ export class Game<T extends M = {}> {
 
     // Create story to control flow and state
     this._story = new Story(compiled);
+    this._story.onError = (message: string, type: ErrorType) => {
+      this.Error(message, type);
+    };
     // Start story from startpoint
+    this._lastExecutedSource = startpoint;
     const startPath = this.getClosestPath(startpoint.file, startpoint.line);
     if (startPath) {
       this._story.ChoosePathString(startPath);
@@ -343,11 +352,15 @@ export class Game<T extends M = {}> {
         }
       }
     } else if (this._story.canContinue) {
-      this._story.Continue();
-      const currentText = this._story.currentText || "";
-      const currentChoices = this._story.currentChoices.map((c) => c.text);
-      this.module.interpreter.queue(currentText, currentChoices);
-      this.continue();
+      this._story.ContinueAsync(1000);
+      if (!this._story.asyncContinueComplete) {
+        this.TimeoutError();
+      } else {
+        const currentText = this._story.currentText || "";
+        const currentChoices = this._story.currentChoices.map((c) => c.text);
+        this.module.interpreter.queue(currentText, currentChoices);
+        this.continue();
+      }
     }
   }
 
@@ -356,6 +369,7 @@ export class Game<T extends M = {}> {
       for (const s of instructions.uuids) {
         const source = this.getSource(s);
         if (source) {
+          this._lastExecutedSource = source;
           this.connection.emit(
             WillExecuteMessage.type.notification({ source })
           );
@@ -369,10 +383,25 @@ export class Game<T extends M = {}> {
       for (const s of instructions.uuids) {
         const source = this.getSource(s);
         if (source) {
+          this._lastExecutedSource = source;
           this.connection.emit(DidExecuteMessage.type.notification({ source }));
         }
       }
     }
+  }
+
+  protected Error(message: string, type: ErrorType) {
+    this.connection.emit(
+      RuntimeErrorMessage.type.notification({
+        message,
+        type,
+        source: this._lastExecutedSource,
+      })
+    );
+  }
+
+  protected TimeoutError() {
+    this.Error("Execution timed out: Possible infinite loop", ErrorType.Error);
   }
 
   choose(index: number) {
@@ -407,18 +436,23 @@ export class Game<T extends M = {}> {
   }
 
   preview(file: string, line: number): void {
+    this._lastExecutedSource = { file, line };
     const path = this.getClosestPath(file, line);
     // Only update preview if necessary
     if (path != null && this._context.system.previewing !== path) {
       this._context.system.previewing = path;
       if (path) {
-        this._story.ResetState();
-        this._story.ChoosePathString(path);
-        this.continue();
-        for (const k of this._moduleNames) {
-          this._modules[k]?.onPreview();
+        if (!this._story.asyncContinueComplete) {
+          this.TimeoutError();
+        } else {
+          this._story.ResetState();
+          this._story.ChoosePathString(path);
+          this.continue();
+          for (const k of this._moduleNames) {
+            this._modules[k]?.onPreview();
+          }
+          this._coordinator = null;
         }
-        this._coordinator = null;
       }
     }
   }
