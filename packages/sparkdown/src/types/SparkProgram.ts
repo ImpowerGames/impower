@@ -21,10 +21,7 @@ export interface SparkProgram {
     [type: string]: { [name: string]: any };
   };
   declarations?: {
-    [accessPath: string]: SparkLocation;
-  };
-  definitions?: {
-    [accessPath: string]: SparkLocation;
+    [uri: string]: { [line: number]: SparkReference[] };
   };
   references?: {
     [uri: string]: { [line: number]: SparkReference[] };

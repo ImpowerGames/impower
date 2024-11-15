@@ -243,7 +243,6 @@ export default class SparkParser {
   transpile(uri: string, program: SparkProgram): string {
     const script = this._config?.readFile?.(uri) || "";
     const lines = script.split(NEWLINE_REGEX);
-    const sourceLines = [...lines];
     // Pad script so we ensure all scopes are properly closed before the end of the file.
     const paddedScript = script + "\n\n";
     performance.mark(`buildTree ${uri} start`);
@@ -329,6 +328,15 @@ export default class SparkParser {
       program.references[uri] ??= {};
       program.references[uri][lineIndex] ??= [];
       program.references[uri][lineIndex]!.push({
+        range,
+        ...reference,
+      });
+    };
+    const recordDeclaration = (reference: SparkReference) => {
+      program.declarations ??= {};
+      program.declarations[uri] ??= {};
+      program.declarations[uri][lineIndex] ??= [];
+      program.declarations[uri][lineIndex]!.push({
         range,
         ...reference,
       });
@@ -497,6 +505,15 @@ export default class SparkParser {
           propertyPathParts.push(text);
         }
 
+        // Record definition for type checking
+        if (nodeType === "StructFieldValue") {
+          const structProperty = propertyPathParts.join(".");
+          recordDeclaration({
+            structType,
+            structName,
+            structProperty,
+          });
+        }
         // Record reference in struct field value
         if (nodeType === "AccessPath" && stack.includes("StructFieldValue")) {
           let [type, name] = text.split(".");
@@ -932,6 +949,7 @@ export default class SparkParser {
       this.populateBuiltins(program);
       this.populateAssets(program);
       this.populateImplicitDefs(program);
+      this.validateDeclarations(program);
       this.validateReferences(program);
       program.uuidToSource ??= {};
       program.uuidToSource = this.sortSources(program.uuidToSource);
@@ -1269,6 +1287,40 @@ export default class SparkParser {
     return undefined;
   }
 
+  getExpectedPropertyValue(program: SparkProgram, reference: SparkReference) {
+    const structType = reference.structType;
+    const structName = reference.structName;
+    const structProperty = reference.structProperty;
+    // This reference does not specify any possible types, so we'll try to infer them
+    if (structType && structProperty) {
+      // Use the default property value specified in $default and $optional to infer main type
+      const propertyPath = program.context?.[structType]?.["$default"]?.[
+        "$recursive"
+      ]
+        ? structProperty.split(".").at(-1) || ""
+        : structProperty;
+      const expectedPropertyValue =
+        getProperty(
+          program.context?.[structType]?.["$default"],
+          propertyPath
+        ) ??
+        getProperty(
+          program.context?.[structType]?.[`$optional:${structName}`],
+          propertyPath
+        ) ??
+        getProperty(
+          program.context?.[structType]?.["$optional"],
+          propertyPath
+        ) ??
+        getProperty(
+          this._config?.optionalDefinitions?.[structType]?.["$optional"],
+          propertyPath
+        );
+      return expectedPropertyValue;
+    }
+    return undefined;
+  }
+
   getExpectedSelectorTypes(program: SparkProgram, reference: SparkReference) {
     const structType = reference.structType;
     const structName = reference.structName;
@@ -1336,6 +1388,66 @@ export default class SparkParser {
       return Array.from(expectedSelectorTypes);
     }
     return [];
+  }
+
+  validateDeclarations(program: SparkProgram) {
+    performance.mark(`validateDeclarations start`);
+    if (program.declarations && program.compiled) {
+      for (const [uri, refsLines] of Object.entries(program.declarations)) {
+        for (const [_line, refs] of Object.entries(refsLines)) {
+          for (const ref of refs) {
+            const range = ref.range;
+            const structType = ref.structType;
+            const structName = ref.structName || "$default";
+            const structProperty = ref.structProperty;
+            if (range) {
+              if (structType && structProperty) {
+                if (program.context?.[structType]?.[structName]) {
+                  const definedPropertyValue = getProperty(
+                    program.context?.[structType]?.[structName],
+                    structProperty
+                  );
+                  if (definedPropertyValue !== undefined) {
+                    const expectedPropertyValue = this.getExpectedPropertyValue(
+                      program,
+                      ref
+                    );
+                    if (expectedPropertyValue !== undefined) {
+                      if (
+                        typeof definedPropertyValue !==
+                        typeof expectedPropertyValue
+                      ) {
+                        const message = `Cannot assign '${typeof definedPropertyValue}' to '${typeof expectedPropertyValue}' property`;
+                        program.diagnostics ??= {};
+                        program.diagnostics[uri] ??= [];
+                        program.diagnostics[uri].push({
+                          range,
+                          severity: DiagnosticSeverity.Error,
+                          message,
+                          relatedInformation: [
+                            {
+                              location: { uri, range },
+                              message,
+                            },
+                          ],
+                          source: LANGUAGE_NAME,
+                        });
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    performance.mark(`validateDeclarations end`);
+    performance.measure(
+      `validateDeclarations`,
+      `validateDeclarations start`,
+      `validateDeclarations end`
+    );
   }
 
   validateReferences(program: SparkProgram) {
