@@ -376,6 +376,7 @@ const getTypeKind = (v: unknown): CompletionItemKind | undefined => {
 
 const addStructPropertyNameContextCompletions = (
   completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
   typeStruct: any,
   modifier: string,
   path: string,
@@ -386,7 +387,9 @@ const addStructPropertyNameContextCompletions = (
     const relativePath = path.startsWith(".") ? path : `.${path}`;
     const indentLength = lineText.length - lineText.trimStart().length;
     const indent = lineText.slice(0, indentLength) + "  ";
-    const pathPrefix = typeStruct["$recursive"]
+    const pathPrefix = program?.context?.[typeStruct.$type]?.["$default"]?.[
+      "$recursive"
+    ]
       ? "."
       : relativePath.slice(0, relativePath.lastIndexOf(".") + 1);
     traverse(typeStruct, (p: string) => {
@@ -457,6 +460,7 @@ const addStructPropertyNameCompletions = (
     }
     addStructPropertyNameContextCompletions(
       completions,
+      program,
       program?.context?.[type]?.["$default"],
       modifier,
       path,
@@ -465,6 +469,7 @@ const addStructPropertyNameCompletions = (
     );
     addStructPropertyNameContextCompletions(
       completions,
+      program,
       program?.context?.[type]?.[`$optional:${name}`],
       modifier,
       path,
@@ -473,6 +478,7 @@ const addStructPropertyNameCompletions = (
     );
     addStructPropertyNameContextCompletions(
       completions,
+      program,
       program?.context?.[type]?.["$optional"],
       modifier,
       path,
@@ -481,6 +487,7 @@ const addStructPropertyNameCompletions = (
     );
     addStructPropertyNameContextCompletions(
       completions,
+      program,
       definitions?.optionalDefinitions?.[type]?.["$optional"],
       modifier,
       path,

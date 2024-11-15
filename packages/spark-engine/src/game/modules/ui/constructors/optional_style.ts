@@ -93,6 +93,5 @@ export const properties_style = () => ({
 export const optional_style: Create<any> = () => ({
   $type: "style",
   $name: "$optional",
-  $recursive: true,
   ...properties_style(),
 });

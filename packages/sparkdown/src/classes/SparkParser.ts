@@ -19,6 +19,7 @@ import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
+import { getProperty } from "../utils/getProperty";
 import { selectProperty } from "../utils/selectProperty";
 import { uuid } from "../utils/uuid";
 import { filterSVG } from "../utils/filterSVG";
@@ -216,6 +217,18 @@ export default class SparkParser {
     ) {
       this._config.builtinDefinitions = config.builtinDefinitions;
     }
+    if (
+      config.optionalDefinitions &&
+      config.optionalDefinitions !== this._config.optionalDefinitions
+    ) {
+      this._config.optionalDefinitions = config.optionalDefinitions;
+    }
+    if (
+      config.schemaDefinitions &&
+      config.schemaDefinitions !== this._config.schemaDefinitions
+    ) {
+      this._config.schemaDefinitions = config.schemaDefinitions;
+    }
     if (config.files && config.files !== this._config.files) {
       this._config.files = config.files;
     }
@@ -263,8 +276,9 @@ export default class SparkParser {
     let prevNodeType = "";
     let blockPrefix = "";
     let structType = "";
-    let propertyName = "";
+    let structName = "";
     let selectorFunctionName = "";
+    const propertyPathParts: string[] = [];
     const generateID = () => {
       while (true) {
         const id = uuid();
@@ -315,11 +329,8 @@ export default class SparkParser {
       program.references[uri] ??= {};
       program.references[uri][lineIndex] ??= [];
       program.references[uri][lineIndex]!.push({
-        range: reference.range ?? range,
-        fuzzy: reference.fuzzy,
-        types: reference.types,
-        selectors: reference.selectors,
-        description: reference.description,
+        range,
+        ...reference,
       });
     };
     const define = (type: string, name: string, obj: object) => {
@@ -331,7 +342,7 @@ export default class SparkParser {
         ...obj,
       };
     };
-    const read = script.slice;
+    const read = (from: number, to: number) => script.slice(from, to);
     performance.mark(`iterate ${uri} start`);
     tree.iterate({
       enter: (node) => {
@@ -432,6 +443,7 @@ export default class SparkParser {
           structType = text;
         }
         if (nodeType === "DefineVariableName") {
+          structName = text;
           if (
             IMAGE_CLAUSE_KEYWORDS.includes(text) ||
             AUDIO_CLAUSE_KEYWORDS.includes(text)
@@ -439,12 +451,6 @@ export default class SparkParser {
             const message = `'${text}' is not allowed as a defined name`;
             reportDiagnostic(message, DiagnosticSeverity.Error);
           }
-        }
-        if (
-          nodeType === "DeclarationScalarPropertyName" ||
-          nodeType === "DeclarationObjectPropertyName"
-        ) {
-          propertyName = text;
         }
         // Record transition use
         if (nodeType === "Transition_content") {
@@ -468,61 +474,56 @@ export default class SparkParser {
           program.metadata.characters[text].push({ uri, range });
           define("character", getCharacterIdentifier(text), {});
         }
+
+        if (nodeType === "DefineDeclaration") {
+          propertyPathParts.length = 0;
+        }
+        if (nodeType === "StructScalarItem") {
+          propertyPathParts.push("0");
+        }
+        if (nodeType === "StructObjectItemBlock") {
+          propertyPathParts.push("0");
+        }
+        if (nodeType === "StructObjectItemWithInlineObjectProperty") {
+          propertyPathParts.push("0");
+        }
+        if (nodeType === "StructObjectItemWithInlineScalarProperty") {
+          propertyPathParts.push("0");
+        }
+        if (nodeType === "DeclarationObjectPropertyName") {
+          propertyPathParts.push(text);
+        }
+        if (nodeType === "DeclarationScalarPropertyName") {
+          propertyPathParts.push(text);
+        }
+
         // Record reference in struct field value
         if (nodeType === "AccessPath" && stack.at(-1) === "StructFieldValue") {
-          const types = [];
-          const selectors = [text];
           let [type, name] = text.split(".");
           if (type && !name) {
             name = type;
             type = undefined;
           }
-          // TODO: Retrieve expected property type from builtins rather than inferring it from propertyName
-          if (
-            propertyName.split("_").includes("image") ||
-            propertyName.split("_").includes("images") ||
-            (structType === "layered_image" && propertyName === "assets")
-          ) {
-            types.push("filtered_image", "layered_image", "image", "graphic");
-            selectors.push(
-              `filtered_image.${name}`,
-              `layered_image.${name}`,
-              `image.${name}`,
-              `graphic.${name}`
-            );
-            type ??= "image";
-          } else if (
-            propertyName.split("_").includes("audio") ||
-            (structType === "layered_audio" && propertyName === "assets")
-          ) {
-            types.push("audio", "synth");
-            selectors.push(`audio.${name}`, `synth.${name}`);
-            type ??= "audio";
-          } else if (
-            propertyName.split("_").includes("filter") ||
-            propertyName.split("_").includes("filters")
-          ) {
-            types.push("filter");
-            selectors.push(`filter.${name}`);
-            type ??= "filter";
-          } else if (
-            propertyName.split("_").includes("animation") ||
-            propertyName.split("_").includes("animations") ||
-            structType === "transition"
-          ) {
-            types.push("animation");
-            selectors.push(`animation.${name}`);
-            type ??= "animation";
-          } else if (
-            propertyName.split("_").includes("font") ||
-            propertyName.split("_").includes("fonts")
-          ) {
-            types.push("font");
-            selectors.push(`font.${name}`);
-            type ??= "font";
+          const structProperty = propertyPathParts.join(".");
+          if (type) {
+            const selectorTypes = [type];
+            const selectorName = name;
+            recordReference({
+              selectorTypes,
+              selectorName,
+              structType,
+              structName,
+              structProperty,
+            });
+          } else {
+            const selectorName = text;
+            recordReference({
+              selectorName,
+              structType,
+              structName,
+              structProperty,
+            });
           }
-          const description = type ? `${type} named '${name}'` : `'${name}'`;
-          recordReference({ types, selectors, description });
         }
         // Report invalid property selectors
         if (nodeType === "PropertySelectorSimpleConditionName") {
@@ -580,21 +581,25 @@ export default class SparkParser {
           stack.includes("ImageCommand") &&
           nodeType === "AssetCommandTarget"
         ) {
-          const types: string[] = [];
-          const selectors = [`ui..${text}`];
-          const description = `ui element named '${text}'`;
-          const fuzzy = true;
-          recordReference({ types, selectors, description, fuzzy });
+          const selectorTypes: string[] = ["ui."];
+          const selectorName = text;
+          const fuzzySelect = true;
+          const descriptionType = `ui element`;
+          recordReference({
+            selectorTypes,
+            selectorName,
+            fuzzySelect,
+            descriptionType,
+          });
         }
         // Record audio target reference
         if (
           stack.includes("AudioCommand") &&
           nodeType === "AssetCommandTarget"
         ) {
-          const types = ["channel"];
-          const selectors = [`channel.${text}`];
-          const description = `channel named '${text}'`;
-          recordReference({ types, selectors, description });
+          const selectorTypes = ["channel"];
+          const selectorName = text;
+          recordReference({ selectorTypes, selectorName });
         }
         // Define implicit filtered_image
         if (stack.includes("ImageCommand") && nodeType === "AssetCommandName") {
@@ -618,49 +623,43 @@ export default class SparkParser {
           stack.includes("ImageCommand") &&
           nodeType === "AssetCommandFileName"
         ) {
-          const types = ["filtered_image", "layered_image", "image", "graphic"];
-          const selectors = [
-            `filtered_image.${text}`,
-            `layered_image.${text}`,
-            `image.${text}`,
-            `graphic.${text}`,
+          const selectorTypes = [
+            "filtered_image",
+            "layered_image",
+            "image",
+            "graphic",
           ];
-          const description = `image named '${text}'`;
-          recordReference({ types, selectors, description });
+          const selectorName = text;
+          const descriptionType = "image";
+          recordReference({ selectorTypes, selectorName, descriptionType });
         }
         // Record image filter reference
         if (
           stack.includes("ImageCommand") &&
           nodeType === "AssetCommandFilterName"
         ) {
-          const types = ["filter"];
-          const selectors = [`filter.${text}`];
-          const description = `filter named '${text}'`;
-          recordReference({ types, selectors, description });
+          const selectorTypes = ["filter"];
+          const selectorName = text;
+          recordReference({ selectorTypes, selectorName });
         }
         // Record audio file reference
         if (
           stack.includes("AudioCommand") &&
           nodeType === "AssetCommandFileName"
         ) {
-          const types = ["layered_audio", "audio", "synth"];
-          const selectors = [
-            `layered_audio.${text}`,
-            `audio.${text}`,
-            `synth.${text}`,
-          ];
-          const description = `audio named '${text}'`;
-          recordReference({ types, selectors, description });
+          const selectorTypes = ["layered_audio", "audio", "synth"];
+          const selectorName = text;
+          const descriptionType = "audio";
+          recordReference({ selectorTypes, selectorName, descriptionType });
         }
         // Record audio filter reference
         if (
           stack.includes("AudioCommand") &&
           nodeType === "AssetCommandFilterName"
         ) {
-          const types = ["filter"];
-          const selectors = [`filter.${text}`];
-          const description = `filter named '${text}'`;
-          recordReference({ types, selectors, description });
+          const selectorTypes = ["filter"];
+          const selectorName = text;
+          recordReference({ selectorTypes, selectorName });
         }
         // Report invalid image control
         if (
@@ -782,16 +781,15 @@ export default class SparkParser {
           }
         }
         if (stack.includes("ImageCommand") && nodeType === "NameValue") {
-          const types = ["transition", "animation"];
-          const selectors = [`transition.${text}`, `animation.${text}`];
-          const description = `transition or animation named '${text}'`;
-          recordReference({ types, selectors, description });
+          const selectorTypes = ["transition", "animation"];
+          const selectorName = text;
+          const descriptionType = `transition or animation`;
+          recordReference({ selectorTypes, selectorName, descriptionType });
         }
         if (stack.includes("AudioCommand") && nodeType === "NameValue") {
-          const types = ["modulation"];
-          const selectors = [`modulation.${text}`];
-          const description = `modulation named '${text}'`;
-          recordReference({ types, selectors, description });
+          const selectorTypes = ["modulation"];
+          const selectorName = text;
+          recordReference({ selectorTypes, selectorName });
         }
         if (nodeType === "Newline") {
           lineIndex += 1;
@@ -837,12 +835,22 @@ export default class SparkParser {
         }
         if (nodeType === "DefineDeclaration") {
           structType = "";
+          structName = "";
         }
-        if (
-          nodeType === "StructScalarProperty" ||
-          nodeType === "StructObjectProperty"
-        ) {
-          propertyName = "";
+        if (nodeType === "StructObjectItemBlock") {
+          propertyPathParts.pop();
+        }
+        if (nodeType === "StructObjectItemWithInlineObjectProperty") {
+          propertyPathParts.pop();
+        }
+        if (nodeType === "StructObjectItemWithInlineScalarProperty") {
+          propertyPathParts.pop();
+        }
+        if (nodeType === "StructObjectProperty") {
+          propertyPathParts.pop();
+        }
+        if (nodeType === "StructScalarProperty") {
+          propertyPathParts.pop();
         }
         stack.pop();
       },
@@ -858,7 +866,7 @@ export default class SparkParser {
       lines.pop();
     }
     const transpiled = lines.join("\n");
-    // console.log(printTree(tree, script, nodeNames));
+    // console.log(printTree(tree, script));
     // console.log(transpiled);
     return transpiled;
   }
@@ -1256,40 +1264,122 @@ export default class SparkParser {
     return undefined;
   }
 
+  getExpectedSelectorTypes(program: SparkProgram, reference: SparkReference) {
+    const structType = reference.structType;
+    const structName = reference.structName;
+    const structProperty = reference.structProperty;
+    // This reference does not specify any possible types, so we'll try to infer them
+    if (structType && structProperty) {
+      const expectedSelectorTypes = new Set<string>();
+      // Use the default property value specified in $default and $optional to infer main type
+      const propertyPath = program.context?.[structType]?.["$default"]?.[
+        "$recursive"
+      ]
+        ? structProperty.split(".").at(-1) || ""
+        : structProperty;
+      const expectedPropertyValue =
+        getProperty(
+          program.context?.[structType]?.["$default"],
+          propertyPath
+        ) ??
+        getProperty(
+          program.context?.[structType]?.[`$optional:${structName}`],
+          propertyPath
+        ) ??
+        getProperty(
+          program.context?.[structType]?.["$optional"],
+          propertyPath
+        ) ??
+        getProperty(
+          this._config?.optionalDefinitions?.[structType]?.["$optional"],
+          propertyPath
+        );
+      if (
+        expectedPropertyValue &&
+        typeof expectedPropertyValue === "object" &&
+        "$type" in expectedPropertyValue &&
+        typeof expectedPropertyValue.$type === "string"
+      ) {
+        expectedSelectorTypes.add(expectedPropertyValue.$type);
+      }
+      // Use the property value array specified in $schema to infer additional possible types
+      const schemaPropertyValueArrays = [
+        getProperty(
+          program.context?.[structType]?.[`$schema:${structName}`],
+          propertyPath
+        ),
+        getProperty(program.context?.[structType]?.["$schema"], propertyPath),
+        getProperty(
+          this._config?.schemaDefinitions?.[structType]?.["$schema"],
+          propertyPath
+        ),
+      ];
+      for (const schemaPropertyValueArray of schemaPropertyValueArrays) {
+        if (Array.isArray(schemaPropertyValueArray)) {
+          for (const optionValue of schemaPropertyValueArray) {
+            if (
+              optionValue &&
+              typeof optionValue === "object" &&
+              "$type" in optionValue &&
+              typeof optionValue.$type === "string"
+            ) {
+              expectedSelectorTypes.add(optionValue.$type);
+            }
+          }
+        }
+      }
+      return Array.from(expectedSelectorTypes);
+    }
+    return [];
+  }
+
   validateReferences(program: SparkProgram) {
     performance.mark(`validateReferences start`);
     if (program.references && program.compiled) {
       for (const [uri, refsLines] of Object.entries(program.references)) {
         for (const [_line, refs] of Object.entries(refsLines)) {
           for (const ref of refs) {
-            const types = ref.types;
-            const selectors = ref.selectors;
-            const fuzzy = ref.fuzzy;
+            const expectedSelectorTypes = this.getExpectedSelectorTypes(
+              program,
+              ref
+            );
             const range = ref.range;
-            const description = ref.description;
+            const selectorTypes = ref.selectorTypes;
+            const selectorName = ref.selectorName;
+            const fuzzySelect = ref.fuzzySelect;
+            const descriptionType = ref.descriptionType;
             if (range) {
-              if (selectors) {
+              if (selectorName) {
                 let foundStruct: any = undefined;
-                for (const selector of selectors) {
-                  const [obj, foundPath] = selectProperty(
-                    program.context,
-                    selector,
-                    fuzzy
-                  );
-                  if (foundPath === selector) {
-                    foundStruct = obj;
-                    break;
+                const searchSelectorTypes =
+                  selectorTypes && selectorTypes.length > 0
+                    ? selectorTypes
+                    : expectedSelectorTypes;
+                if (searchSelectorTypes) {
+                  for (const selectorType of searchSelectorTypes) {
+                    const selectorPath = `${selectorType}.${selectorName}`;
+                    const [obj, foundPath] = selectProperty(
+                      program.context,
+                      selectorPath,
+                      fuzzySelect
+                    );
+                    if (foundPath === selectorPath) {
+                      foundStruct = obj;
+                      break;
+                    }
                   }
                 }
                 if (foundStruct) {
                   if (
-                    types &&
-                    types.length > 0 &&
-                    !types.includes(foundStruct.$type)
+                    expectedSelectorTypes &&
+                    expectedSelectorTypes.length > 0 &&
+                    !expectedSelectorTypes.includes(foundStruct.$type)
                   ) {
                     const message = `Type '${
                       foundStruct.$type
-                    }' is not assignable to type ${formatList(types)}`;
+                    }' is not assignable to type ${formatList(
+                      expectedSelectorTypes
+                    )}`;
                     program.diagnostics ??= {};
                     program.diagnostics[uri] ??= [];
                     program.diagnostics[uri].push({
@@ -1306,7 +1396,12 @@ export default class SparkParser {
                     });
                   }
                 } else {
-                  const message = `Cannot find ${description}`;
+                  const validDescription = descriptionType
+                    ? `${descriptionType} named '${selectorName}'`
+                    : expectedSelectorTypes && expectedSelectorTypes.length > 0
+                    ? `${expectedSelectorTypes[0]} named '${selectorName}'`
+                    : `'${selectorName}'`;
+                  const message = `Cannot find ${validDescription}`;
                   program.diagnostics ??= {};
                   program.diagnostics[uri] ??= [];
                   program.diagnostics[uri].push({

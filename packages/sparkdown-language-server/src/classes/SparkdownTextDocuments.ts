@@ -215,10 +215,12 @@ export default class SparkdownTextDocuments<
 
   loadOptionalDefinitions(defs: { [type: string]: { [name: string]: any } }) {
     this._optionalDefinitions = defs;
+    this._parser.configure({ optionalDefinitions: defs });
   }
 
   loadSchemaDefinitions(defs: { [type: string]: { [name: string]: any } }) {
     this._schemaDefinitions = defs;
+    this._parser.configure({ schemaDefinitions: defs });
   }
 
   loadDescriptionDefinitions(defs: {

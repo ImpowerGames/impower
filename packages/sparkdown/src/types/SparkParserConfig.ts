@@ -4,6 +4,16 @@ export interface SparkParserConfig {
       [name: string]: any;
     };
   };
+  optionalDefinitions?: {
+    [type: string]: {
+      [name: string]: any;
+    };
+  };
+  schemaDefinitions?: {
+    [type: string]: {
+      [name: string]: any;
+    };
+  };
   files?: {
     [type: string]: {
       [name: string]: {

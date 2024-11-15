@@ -9,7 +9,7 @@ export const schema_ui: Create<Schema<any>> = () => ({
     { $type: "filtered_image" },
     { $type: "layered_image" },
     { $type: "image" },
-    { $type: "pattern" },
+    { $type: "graphic" },
     { $type: "gradient" },
   ],
 });
