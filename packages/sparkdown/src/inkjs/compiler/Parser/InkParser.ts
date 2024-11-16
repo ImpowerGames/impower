@@ -4051,8 +4051,12 @@ export class InkParser extends StringParser {
       return null;
     }
 
-    const terminator = this.ParseKeywordTerminator();
-    if (terminator === null) {
+    if (this.Peek(this.EndOfLine)) {
+      return result;
+    }
+
+    const whitespace = this.ParseWhitespace();
+    if (whitespace === null) {
       return null;
     }
 
