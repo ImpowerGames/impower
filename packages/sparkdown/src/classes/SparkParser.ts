@@ -19,6 +19,7 @@ import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
+import { SparkDeclaration } from "../types/SparkDeclaration";
 import { getProperty } from "../utils/getProperty";
 import { selectProperty } from "../utils/selectProperty";
 import { uuid } from "../utils/uuid";
@@ -29,6 +30,7 @@ import { setProperty } from "../utils/setProperty";
 import { getCharacterIdentifier } from "../utils/getCharacterIdentifier";
 import { SparkReference } from "../types/SparkReference";
 import { traverse } from "../utils/traverse";
+import { getAccessPath } from "../utils/getAccessPath";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 
@@ -260,24 +262,23 @@ export default class SparkParser {
     const fileIndex = Object.keys(program.sourceMap).indexOf(uri);
     let lineIndex = 0;
     let linePos = 0;
-    let range:
-      | {
-          start: {
-            line: number;
-            character: number;
-          };
-          end: {
-            line: number;
-            character: number;
-          };
-        }
-      | undefined = undefined;
+    let range = {
+      start: {
+        line: 0,
+        character: 0,
+      },
+      end: {
+        line: 0,
+        character: 0,
+      },
+    };
     let prevNodeType = "";
     let blockPrefix = "";
+    let structModifier = "";
     let structType = "";
     let structName = "";
     let selectorFunctionName = "";
-    const propertyPathParts: string[] = [];
+    const structPropertyPathParts: string[] = [];
     const generateID = () => {
       while (true) {
         const id = uuid();
@@ -323,20 +324,11 @@ export default class SparkParser {
         });
       }
     };
-    const recordReference = (reference: SparkReference) => {
+    const recordReference = (reference: Partial<SparkReference>) => {
       program.references ??= {};
       program.references[uri] ??= {};
       program.references[uri][lineIndex] ??= [];
       program.references[uri][lineIndex]!.push({
-        range,
-        ...reference,
-      });
-    };
-    const recordDeclaration = (reference: SparkReference) => {
-      program.declarations ??= {};
-      program.declarations[uri] ??= {};
-      program.declarations[uri][lineIndex] ??= [];
-      program.declarations[uri][lineIndex]!.push({
         range,
         ...reference,
       });
@@ -447,6 +439,9 @@ export default class SparkParser {
             program.uuidToSource[id] = [fileIndex, lineIndex];
           }
         }
+        if (nodeType === "DefineModifierName") {
+          structModifier = text;
+        }
         if (nodeType === "DefineTypeName") {
           structType = text;
         }
@@ -490,36 +485,41 @@ export default class SparkParser {
           define("character", getCharacterIdentifier(text), {});
         }
 
-        if (nodeType === "DefineDeclaration") {
-          propertyPathParts.length = 0;
-        }
         if (nodeType === "StructScalarItem") {
-          propertyPathParts.push("0");
+          structPropertyPathParts.push("0");
         }
         if (nodeType === "StructObjectItemBlock") {
-          propertyPathParts.push("0");
+          structPropertyPathParts.push("0");
         }
         if (nodeType === "StructObjectItemWithInlineObjectProperty") {
-          propertyPathParts.push("0");
+          structPropertyPathParts.push("0");
         }
         if (nodeType === "StructObjectItemWithInlineScalarProperty") {
-          propertyPathParts.push("0");
+          structPropertyPathParts.push("0");
         }
         if (nodeType === "DeclarationObjectPropertyName") {
-          propertyPathParts.push(text);
+          structPropertyPathParts.push(text);
         }
         if (nodeType === "DeclarationScalarPropertyName") {
-          propertyPathParts.push(text);
+          structPropertyPathParts.push(text);
         }
 
-        // Record definition for type checking
         if (nodeType === "StructFieldValue") {
-          const structProperty = propertyPathParts.join(".");
-          recordDeclaration({
-            structType,
-            structName,
-            structProperty,
-          });
+          const structProperty = structPropertyPathParts.join(".");
+          const declaration = {
+            modifier: structModifier,
+            type: structType,
+            name: structName,
+            property: structProperty,
+          };
+          const accessPath = getAccessPath(declaration);
+          // Record property declaration for type checking
+          recordReference({ declaration });
+          // Record property location for displaying other errors
+          program.metadata ??= {};
+          program.metadata.properties ??= {};
+          program.metadata.properties[accessPath] ??= [];
+          program.metadata.properties[accessPath].push({ uri, range });
         }
         // Record reference in struct field value
         if (nodeType === "AccessPath" && stack.includes("StructFieldValue")) {
@@ -528,24 +528,28 @@ export default class SparkParser {
             name = type;
             type = undefined;
           }
-          const structProperty = propertyPathParts.join(".");
+          const structProperty = structPropertyPathParts.join(".");
           if (type) {
-            const selectorTypes = [type];
-            const selectorName = name;
+            const types = [type];
             recordReference({
-              selectorTypes,
-              selectorName,
-              structType,
-              structName,
-              structProperty,
+              selector: { types, name },
+              declaration: {
+                modifier: structModifier,
+                type: structType,
+                name: structName,
+                property: structProperty,
+              },
             });
           } else {
-            const selectorName = text;
+            const name = text;
             recordReference({
-              selectorName,
-              structType,
-              structName,
-              structProperty,
+              selector: { name },
+              declaration: {
+                modifier: structModifier,
+                type: structType,
+                name: structName,
+                property: structProperty,
+              },
             });
           }
         }
@@ -605,15 +609,17 @@ export default class SparkParser {
           stack.includes("ImageCommand") &&
           nodeType === "AssetCommandTarget"
         ) {
-          const selectorTypes: string[] = ["ui."];
-          const selectorName = text;
-          const fuzzySelect = true;
-          const descriptionType = `ui element`;
+          const types: string[] = ["ui."];
+          const name = text;
+          const displayType = `ui element`;
+          const fuzzy = true;
           recordReference({
-            selectorTypes,
-            selectorName,
-            fuzzySelect,
-            descriptionType,
+            selector: {
+              types,
+              name,
+              displayType,
+              fuzzy,
+            },
           });
         }
         // Record audio target reference
@@ -621,9 +627,9 @@ export default class SparkParser {
           stack.includes("AudioCommand") &&
           nodeType === "AssetCommandTarget"
         ) {
-          const selectorTypes = ["channel"];
-          const selectorName = text;
-          recordReference({ selectorTypes, selectorName });
+          const types = ["channel"];
+          const name = text;
+          recordReference({ selector: { types, name } });
         }
         // Define implicit filtered_image
         if (stack.includes("ImageCommand") && nodeType === "AssetCommandName") {
@@ -647,43 +653,38 @@ export default class SparkParser {
           stack.includes("ImageCommand") &&
           nodeType === "AssetCommandFileName"
         ) {
-          const selectorTypes = [
-            "filtered_image",
-            "layered_image",
-            "image",
-            "graphic",
-          ];
-          const selectorName = text;
-          const descriptionType = "image";
-          recordReference({ selectorTypes, selectorName, descriptionType });
+          const types = ["filtered_image", "layered_image", "image", "graphic"];
+          const name = text;
+          const displayType = "image";
+          recordReference({ selector: { types, name, displayType } });
         }
         // Record image filter reference
         if (
           stack.includes("ImageCommand") &&
           nodeType === "AssetCommandFilterName"
         ) {
-          const selectorTypes = ["filter"];
-          const selectorName = text;
-          recordReference({ selectorTypes, selectorName });
+          const types = ["filter"];
+          const name = text;
+          recordReference({ selector: { types, name } });
         }
         // Record audio file reference
         if (
           stack.includes("AudioCommand") &&
           nodeType === "AssetCommandFileName"
         ) {
-          const selectorTypes = ["layered_audio", "audio", "synth"];
-          const selectorName = text;
-          const descriptionType = "audio";
-          recordReference({ selectorTypes, selectorName, descriptionType });
+          const types = ["layered_audio", "audio", "synth"];
+          const name = text;
+          const displayType = "audio";
+          recordReference({ selector: { types, name, displayType } });
         }
         // Record audio filter reference
         if (
           stack.includes("AudioCommand") &&
           nodeType === "AssetCommandFilterName"
         ) {
-          const selectorTypes = ["filter"];
-          const selectorName = text;
-          recordReference({ selectorTypes, selectorName });
+          const types = ["filter"];
+          const name = text;
+          recordReference({ selector: { types, name } });
         }
         // Report invalid image control
         if (
@@ -805,15 +806,15 @@ export default class SparkParser {
           }
         }
         if (stack.includes("ImageCommand") && nodeType === "NameValue") {
-          const selectorTypes = ["transition", "animation"];
-          const selectorName = text;
-          const descriptionType = `transition or animation`;
-          recordReference({ selectorTypes, selectorName, descriptionType });
+          const types = ["transition", "animation"];
+          const name = text;
+          const displayType = `transition or animation`;
+          recordReference({ selector: { types, name, displayType } });
         }
         if (stack.includes("AudioCommand") && nodeType === "NameValue") {
-          const selectorTypes = ["modulation"];
-          const selectorName = text;
-          recordReference({ selectorTypes, selectorName });
+          const types = ["modulation"];
+          const name = text;
+          recordReference({ selector: { types, name } });
         }
         if (nodeType === "Newline") {
           lineIndex += 1;
@@ -858,23 +859,25 @@ export default class SparkParser {
           }
         }
         if (nodeType === "DefineDeclaration") {
+          structModifier = "";
           structType = "";
           structName = "";
+          structPropertyPathParts.length = 0;
         }
         if (nodeType === "StructObjectItemBlock") {
-          propertyPathParts.pop();
+          structPropertyPathParts.pop();
         }
         if (nodeType === "StructObjectItemWithInlineObjectProperty") {
-          propertyPathParts.pop();
+          structPropertyPathParts.pop();
         }
         if (nodeType === "StructObjectItemWithInlineScalarProperty") {
-          propertyPathParts.pop();
+          structPropertyPathParts.pop();
         }
         if (nodeType === "StructObjectProperty") {
-          propertyPathParts.pop();
+          structPropertyPathParts.pop();
         }
         if (nodeType === "StructScalarProperty") {
-          propertyPathParts.pop();
+          structPropertyPathParts.pop();
         }
         stack.pop();
       },
@@ -956,7 +959,6 @@ export default class SparkParser {
       this.populateBuiltins(program);
       this.populateAssets(program);
       this.populateImplicitDefs(program);
-      this.validateDeclarations(program);
       this.validateReferences(program);
       program.uuidToSource ??= {};
       program.uuidToSource = this.sortSources(program.uuidToSource);
@@ -1036,11 +1038,6 @@ export default class SparkParser {
                 }
               }
               traverse(definedStruct, (propPath, propValue) => {
-                if (isSpecialDefinition) {
-                  // TODO: If constructed value at propPath is defined, report error if propValue type isn't an array of a corresponding type
-                } else {
-                  // TODO: If constructed value at propPath is defined, report error if propValue type doesn't match
-                }
                 setProperty(constructed, propPath, structuredClone(propValue));
               });
               constructed["$type"] = type;
@@ -1173,22 +1170,31 @@ export default class SparkParser {
           );
           if (imageToFilter) {
             if (imageToFilter === "circular") {
-              // TODO: lookup property definition location so we can display an error message there
-              // const message = `The image named '${filteredImage?.image?.$name}' circularly references itself.`;
-              // program.diagnostics ??= {};
-              // program.diagnostics[uri] ??= [];
-              // program.diagnostics[uri].push({
-              //   range,
-              //   severity: DiagnosticSeverity.Error,
-              //   message,
-              //   relatedInformation: [
-              //     {
-              //       location: { uri, range },
-              //       message,
-              //     },
-              //   ],
-              //   source: LANGUAGE_NAME,
-              // });
+              const message = `The image named '${filteredImage?.image?.$name}' circularly references itself.`;
+              const propertyValueLocations =
+                program.metadata?.properties?.[
+                  `${filteredImage.$type}.${filteredImage.$name}.image`
+                ];
+              if (propertyValueLocations) {
+                for (const location of propertyValueLocations) {
+                  const uri = location.uri;
+                  const range = location.range;
+                  program.diagnostics ??= {};
+                  program.diagnostics[uri] ??= [];
+                  program.diagnostics[uri].push({
+                    range,
+                    severity: DiagnosticSeverity.Error,
+                    message,
+                    relatedInformation: [
+                      {
+                        location: { uri, range },
+                        message,
+                      },
+                    ],
+                    source: LANGUAGE_NAME,
+                  });
+                }
+              }
             } else {
               if (
                 imageToFilter.$type === "image" &&
@@ -1294,11 +1300,13 @@ export default class SparkParser {
     return undefined;
   }
 
-  getExpectedPropertyValue(program: SparkProgram, reference: SparkReference) {
-    const structType = reference.structType;
-    const structName = reference.structName;
-    const structProperty = reference.structProperty;
-    // This reference does not specify any possible types, so we'll try to infer them
+  getExpectedPropertyValue(
+    program: SparkProgram,
+    declaration: SparkDeclaration | undefined
+  ) {
+    const structType = declaration?.type;
+    const structName = declaration?.name;
+    const structProperty = declaration?.property;
     if (structType && structProperty) {
       // Use the default property value specified in $default and $optional to infer main type
       const propertyPath = program.context?.[structType]?.["$default"]?.[
@@ -1328,11 +1336,13 @@ export default class SparkParser {
     return undefined;
   }
 
-  getExpectedSelectorTypes(program: SparkProgram, reference: SparkReference) {
-    const structType = reference.structType;
-    const structName = reference.structName;
-    const structProperty = reference.structProperty;
-    // This reference does not specify any possible types, so we'll try to infer them
+  getExpectedSelectorTypes(
+    program: SparkProgram,
+    declaration: SparkDeclaration | undefined
+  ) {
+    const structType = declaration?.type;
+    const structName = declaration?.name;
+    const structProperty = declaration?.property;
     if (structType && structProperty) {
       const expectedSelectorTypes = new Set<string>();
       // Use the default property value specified in $default and $optional to infer main type
@@ -1397,18 +1407,101 @@ export default class SparkParser {
     return [];
   }
 
-  validateDeclarations(program: SparkProgram) {
-    performance.mark(`validateDeclarations start`);
-    if (program.declarations && program.compiled) {
-      for (const [uri, refsLines] of Object.entries(program.declarations)) {
-        for (const [_line, refs] of Object.entries(refsLines)) {
-          for (const ref of refs) {
-            const range = ref.range;
-            const structType = ref.structType;
-            const structName = ref.structName || "$default";
-            const structProperty = ref.structProperty;
-            if (range) {
+  validateReferences(program: SparkProgram) {
+    performance.mark(`validateReferences start`);
+    if (program.references && program.compiled) {
+      for (const [uri, refsLines] of Object.entries(program.references)) {
+        for (const [_line, references] of Object.entries(refsLines)) {
+          for (const reference of references) {
+            if (reference.selector) {
+              const selector = reference.selector;
+              const declaration = reference.declaration;
+              const range = reference.range;
+              const expectedSelectorTypes = this.getExpectedSelectorTypes(
+                program,
+                declaration
+              );
+              // Validate that reference resolves to existing an struct
+              let foundStruct: any = undefined;
+              const searchSelectorTypes =
+                selector.types && selector.types.length > 0
+                  ? selector.types
+                  : expectedSelectorTypes;
+              if (searchSelectorTypes) {
+                for (const selectorType of searchSelectorTypes) {
+                  const selectorPath = `${selectorType}.${selector.name}`;
+                  const [obj, foundPath] = selectProperty(
+                    program.context,
+                    selectorPath,
+                    selector.fuzzy
+                  );
+                  if (foundPath === selectorPath) {
+                    foundStruct = obj;
+                    break;
+                  }
+                }
+              }
+              if (foundStruct) {
+                // Validate that resolved reference matches expected type
+                if (
+                  expectedSelectorTypes &&
+                  expectedSelectorTypes.length > 0 &&
+                  !expectedSelectorTypes.includes(foundStruct.$type)
+                ) {
+                  // Report type mismatch error
+                  const message = `Type '${
+                    foundStruct.$type
+                  }' is not assignable to type ${formatList(
+                    expectedSelectorTypes
+                  )}`;
+                  program.diagnostics ??= {};
+                  program.diagnostics[uri] ??= [];
+                  program.diagnostics[uri].push({
+                    range,
+                    severity: DiagnosticSeverity.Warning,
+                    message,
+                    relatedInformation: [
+                      {
+                        location: { uri, range },
+                        message,
+                      },
+                    ],
+                    source: LANGUAGE_NAME,
+                  });
+                }
+              } else {
+                // Report missing error
+                const validDescription = selector.displayType
+                  ? `${selector.displayType} named '${selector.name}'`
+                  : selector.types && selector.types.length > 0
+                  ? `${selector.types[0]} named '${selector.name}'`
+                  : expectedSelectorTypes && expectedSelectorTypes.length > 0
+                  ? `${expectedSelectorTypes[0]} named '${selector.name}'`
+                  : `'${selector.name}'`;
+                const message = `Cannot find ${validDescription}`;
+                program.diagnostics ??= {};
+                program.diagnostics[uri] ??= [];
+                program.diagnostics[uri].push({
+                  range,
+                  severity: DiagnosticSeverity.Warning,
+                  message,
+                  relatedInformation: [
+                    {
+                      location: { uri, range },
+                      message,
+                    },
+                  ],
+                  source: LANGUAGE_NAME,
+                });
+              }
+            } else if (reference.declaration) {
+              const declaration = reference.declaration;
+              const range = reference.range;
+              const structType = declaration?.type;
+              const structName = declaration?.name || "$default";
+              const structProperty = declaration?.property;
               if (structType && structProperty) {
+                // Validate struct property types
                 if (program.context?.[structType]?.[structName]) {
                   const definedPropertyValue = getProperty(
                     program.context?.[structType]?.[structName],
@@ -1417,7 +1510,7 @@ export default class SparkParser {
                   if (definedPropertyValue !== undefined) {
                     const expectedPropertyValue = this.getExpectedPropertyValue(
                       program,
-                      ref
+                      declaration
                     );
                     if (expectedPropertyValue !== undefined) {
                       if (
@@ -1442,106 +1535,6 @@ export default class SparkParser {
                       }
                     }
                   }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    performance.mark(`validateDeclarations end`);
-    performance.measure(
-      `validateDeclarations`,
-      `validateDeclarations start`,
-      `validateDeclarations end`
-    );
-  }
-
-  validateReferences(program: SparkProgram) {
-    performance.mark(`validateReferences start`);
-    if (program.references && program.compiled) {
-      for (const [uri, refsLines] of Object.entries(program.references)) {
-        for (const [_line, refs] of Object.entries(refsLines)) {
-          for (const ref of refs) {
-            const expectedSelectorTypes = this.getExpectedSelectorTypes(
-              program,
-              ref
-            );
-            const range = ref.range;
-            const selectorTypes = ref.selectorTypes;
-            const selectorName = ref.selectorName;
-            const fuzzySelect = ref.fuzzySelect;
-            const descriptionType = ref.descriptionType;
-            if (range) {
-              if (selectorName) {
-                let foundStruct: any = undefined;
-                const searchSelectorTypes =
-                  selectorTypes && selectorTypes.length > 0
-                    ? selectorTypes
-                    : expectedSelectorTypes;
-                if (searchSelectorTypes) {
-                  for (const selectorType of searchSelectorTypes) {
-                    const selectorPath = `${selectorType}.${selectorName}`;
-                    const [obj, foundPath] = selectProperty(
-                      program.context,
-                      selectorPath,
-                      fuzzySelect
-                    );
-                    if (foundPath === selectorPath) {
-                      foundStruct = obj;
-                      break;
-                    }
-                  }
-                }
-                if (foundStruct) {
-                  if (
-                    expectedSelectorTypes &&
-                    expectedSelectorTypes.length > 0 &&
-                    !expectedSelectorTypes.includes(foundStruct.$type)
-                  ) {
-                    const message = `Type '${
-                      foundStruct.$type
-                    }' is not assignable to type ${formatList(
-                      expectedSelectorTypes
-                    )}`;
-                    program.diagnostics ??= {};
-                    program.diagnostics[uri] ??= [];
-                    program.diagnostics[uri].push({
-                      range,
-                      severity: DiagnosticSeverity.Warning,
-                      message,
-                      relatedInformation: [
-                        {
-                          location: { uri, range },
-                          message,
-                        },
-                      ],
-                      source: LANGUAGE_NAME,
-                    });
-                  }
-                } else {
-                  const validDescription = descriptionType
-                    ? `${descriptionType} named '${selectorName}'`
-                    : selectorTypes && selectorTypes.length > 0
-                    ? `${selectorTypes[0]} named '${selectorName}'`
-                    : expectedSelectorTypes && expectedSelectorTypes.length > 0
-                    ? `${expectedSelectorTypes[0]} named '${selectorName}'`
-                    : `'${selectorName}'`;
-                  const message = `Cannot find ${validDescription}`;
-                  program.diagnostics ??= {};
-                  program.diagnostics[uri] ??= [];
-                  program.diagnostics[uri].push({
-                    range,
-                    severity: DiagnosticSeverity.Warning,
-                    message,
-                    relatedInformation: [
-                      {
-                        location: { uri, range },
-                        message,
-                      },
-                    ],
-                    source: LANGUAGE_NAME,
-                  });
                 }
               }
             }

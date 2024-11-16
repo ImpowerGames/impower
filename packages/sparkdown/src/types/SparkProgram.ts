@@ -14,15 +14,13 @@ export interface SparkProgram {
     scenes?: Record<string, SparkLocation[]>;
     transitions?: Record<string, SparkLocation[]>;
     colors?: Record<string, SparkLocation[]>;
+    properties?: Record<string, SparkLocation[]>;
   };
   context?: {
     [type: string]: { [name: string]: any };
   };
   implicitDefs?: {
     [type: string]: { [name: string]: any };
-  };
-  declarations?: {
-    [uri: string]: { [line: number]: SparkReference[] };
   };
   references?: {
     [uri: string]: { [line: number]: SparkReference[] };

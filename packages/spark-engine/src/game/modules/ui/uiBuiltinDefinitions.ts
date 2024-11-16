@@ -10,8 +10,6 @@ import { default_shadow } from "./constructors/default_shadow";
 import { default_style } from "./constructors/default_style";
 import { default_transition } from "./constructors/default_transition";
 import { default_ui } from "./constructors/default_ui";
-import { optional_style } from "./constructors/optional_style";
-import { optional_animation } from "./constructors/optional_animation";
 
 export const uiBuiltinDefinitions = () => ({
   config: {
@@ -38,7 +36,6 @@ export const uiBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_filtered_image>>,
   style: {
     $default: default_style(),
-    $optional: optional_style(),
     text: default_style({
       $name: "text",
       display: "block",
@@ -397,7 +394,6 @@ export const uiBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_ui>>,
   animation: {
     $default: default_animation(),
-    $optional: optional_animation(),
     show: default_animation({
       $name: "show",
       keyframes: [{ opacity: "1" }],

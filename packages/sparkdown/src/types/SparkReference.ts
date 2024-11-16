@@ -1,15 +1,9 @@
 import { Range } from "./SparkDiagnostic";
+import { SparkSelector } from "./SparkSelector";
+import { SparkDeclaration } from "./SparkDeclaration";
 
 export interface SparkReference {
-  range?: Range;
-
-  descriptionType?: string;
-
-  selectorTypes?: string[];
-  selectorName?: string;
-  fuzzySelect?: boolean;
-
-  structType?: string;
-  structName?: string;
-  structProperty?: string;
+  range: Range;
+  selector?: SparkSelector;
+  declaration?: SparkDeclaration;
 }
