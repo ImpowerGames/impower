@@ -965,7 +965,7 @@ export default class SparkParser {
     } catch (e) {
       console.error(e);
     }
-    console.log("program", program);
+    // console.log("program", program);
     return program;
   }
 
