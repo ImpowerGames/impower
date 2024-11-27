@@ -1,30 +1,32 @@
 const search = (
   obj: any,
   nameSelector: string,
-  fuzzy: boolean | undefined
-): any => {
+  fuzzy: boolean | undefined,
+  fieldPath: string = ""
+): [any, string] => {
   for (const [k, v] of Object.entries(obj)) {
+    const path = fieldPath ? `${fieldPath}.${k}` : k;
     if (k === nameSelector) {
-      return v;
+      return [v, path];
     }
     if (fuzzy && k.split(" ").includes(nameSelector)) {
-      return v;
+      return [v, path];
     }
     if (v && typeof v === "object") {
-      const match = search(v, nameSelector, fuzzy);
-      if (match) {
-        return match;
+      const [matchValue, matchPath] = search(v, nameSelector, fuzzy, path);
+      if (matchValue !== undefined) {
+        return [matchValue, matchPath];
       }
     }
   }
-  return undefined;
+  return [undefined, fieldPath];
 };
 
 export const selectProperty = <T>(
   obj: any,
   propertyPath: string,
   fuzzy?: boolean
-): [T, string] => {
+): [T | undefined, string] => {
   if (!propertyPath) {
     return obj;
   }
@@ -34,16 +36,16 @@ export const selectProperty = <T>(
   for (let i = 0; i < parts.length; i += 1) {
     const part = parts[i];
     if (cur === undefined) {
-      return [cur, found.join(".")];
+      return [undefined, found.join(".")];
     }
     if (typeof cur !== "object") {
-      return [cur, found.join(".")];
+      return [undefined, found.join(".")];
     }
     if (part) {
       // Continue to next part of path
       const next = cur[part];
       if (next === undefined) {
-        return [cur, found.join(".")];
+        return [undefined, found.join(".")];
       }
       cur = next;
       found.push(part);
@@ -51,19 +53,18 @@ export const selectProperty = <T>(
       // Empty part is treated as a recursive wildcard
       let target = "";
       while (!target && i < parts.length - 1) {
-        found.push(target);
         i += 1;
         target = parts[i] || "";
       }
       if (!target) {
-        return [cur, found.join(".")];
+        return [undefined, found.join(".")];
       }
-      const match = search(cur, target, fuzzy);
-      if (match === undefined) {
-        return [cur, found.join(".")];
+      const [matchValue, matchPath] = search(cur, target, fuzzy);
+      if (matchValue === undefined) {
+        return [undefined, found.join(".")];
       }
-      cur = match;
-      found.push(target);
+      cur = matchValue;
+      found.push(...matchPath.split("."));
     }
   }
   return [cur, found.join(".")];

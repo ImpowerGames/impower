@@ -2,67 +2,72 @@ import { Hover, MarkupKind, Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
-import type { SparkReference } from "../../../../sparkdown/src/types/SparkReference";
 import { getFencedCode } from "../format/getFencedCode";
+import { getProperty } from "../../../../sparkdown/src/utils/getProperty";
 
 export const getHover = (
   document: TextDocument | undefined,
   program: SparkProgram | undefined,
   position: Position
 ): Hover | null => {
-  const references = program?.metadata?.lines?.[position.line]?.references;
-  if (!document || !references) {
+  if (!document || !program) {
     return null;
   }
-  for (let i = 0; i < references.length; i += 1) {
-    const reference = references[i]! as SparkReference;
-    const range = {
-      start: document.positionAt(reference.from),
-      end: document.positionAt(reference.to),
-    };
+  const references = program?.references?.[document?.uri]?.[position.line];
+  if (!references) {
+    return null;
+  }
+  for (const reference of references) {
+    const range = reference.range;
     const hoveredOffset = document.offsetAt(position);
-    if (hoveredOffset >= reference.from && hoveredOffset <= reference.to) {
-      const name = reference.name;
-      const asset =
-        program.context?.["layered_image"]?.[name] ||
-        program.context?.["image"]?.[name];
-      if (asset) {
-        if (asset.src) {
-          return {
-            contents: {
-              kind: MarkupKind.Markdown,
-              value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
-            },
-            range,
-          };
-        }
-      }
-      if (name && !reference.declaration) {
-        const section = program.sections?.[name];
-        if (section) {
-          const fencedCode = getFencedCode(
-            `${"".padStart(section.level, "#")} ${section.name}`
-          );
-          return {
-            contents: {
-              kind: MarkupKind.Markdown,
-              value: fencedCode,
-            },
-            range,
-          };
-        }
-        const variable = program.variables?.[name];
-        if (variable && typeof variable?.compiled !== "object") {
-          const fencedCode = getFencedCode(
-            `: ${JSON.stringify(variable?.compiled)}`
-          );
-          return {
-            contents: {
-              kind: MarkupKind.Markdown,
-              value: fencedCode,
-            },
-            range,
-          };
+    if (
+      hoveredOffset >= document.offsetAt(range.start) &&
+      hoveredOffset <= document.offsetAt(range.end)
+    ) {
+      const resolved = reference.resolved;
+      if (resolved) {
+        const value = getProperty<any>(program.context, resolved);
+        if (value !== undefined) {
+          if (
+            typeof value === "object" &&
+            "$type" in value &&
+            typeof value.$type === "string"
+          ) {
+            const type = value.$type;
+            const src =
+              type === "filtered_image"
+                ? value?.filtered_src
+                : type === "layered_image"
+                ? value?.assets?.[0]?.src
+                : type === "image"
+                ? value?.src
+                : undefined;
+            if (src) {
+              return {
+                contents: {
+                  kind: MarkupKind.Markdown,
+                  value: `<img src="${src}" width="300px" />`,
+                },
+                range,
+              };
+            }
+          } else {
+            return {
+              contents: {
+                kind: MarkupKind.Markdown,
+                value: getFencedCode(`define ${resolved}`),
+              },
+              range,
+            };
+          }
+          // TODO: == knot
+          // TODO: = stitch
+          // TODO: - (label)
+          // TODO: list name
+          // TODO: const name: type
+          // TODO: var name: type
+          // TODO: ~ temp name: type
+          // TODO: (parameter) name: type
         }
       }
     }

@@ -1422,7 +1422,7 @@ export default class SparkParser {
                 declaration
               );
               // Validate that reference resolves to existing an struct
-              let foundStruct: any = undefined;
+              let found: any = undefined;
               const searchSelectorTypes =
                 selector.types && selector.types.length > 0
                   ? selector.types
@@ -1435,22 +1435,25 @@ export default class SparkParser {
                     selectorPath,
                     selector.fuzzy
                   );
-                  if (foundPath === selectorPath) {
-                    foundStruct = obj;
+                  if (obj !== undefined) {
+                    found = obj;
+                    reference.resolved = foundPath;
                     break;
                   }
                 }
               }
-              if (foundStruct) {
+              if (found) {
                 // Validate that resolved reference matches expected type
                 if (
                   expectedSelectorTypes &&
                   expectedSelectorTypes.length > 0 &&
-                  !expectedSelectorTypes.includes(foundStruct.$type)
+                  typeof found === "object" &&
+                  "$type" in found &&
+                  !expectedSelectorTypes.includes(found.$type)
                 ) {
                   // Report type mismatch error
                   const message = `Type '${
-                    foundStruct.$type
+                    found.$type
                   }' is not assignable to type ${formatList(
                     expectedSelectorTypes
                   )}`;
