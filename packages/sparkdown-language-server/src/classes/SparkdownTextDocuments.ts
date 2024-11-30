@@ -229,7 +229,7 @@ export default class SparkdownTextDocuments<
     this._descriptionDefinitions = defs;
   }
 
-  loadFiles(
+  async loadFiles(
     files: Record<
       string,
       {
@@ -247,6 +247,9 @@ export default class SparkdownTextDocuments<
       fileEntries.forEach(([uri, file]) => {
         this._files.set(uri, file);
       });
+      await Promise.all(
+        fileEntries.map(([, file]) => this.cacheFile(file.uri, file.src))
+      );
       this._parser.configure({ files: this.getFiles() });
       fileEntries.forEach(([uri, file]) => {
         const text = file.text;
@@ -424,18 +427,28 @@ export default class SparkdownTextDocuments<
     return this._parser.trees.get(uri);
   }
 
-  onCreatedFile(fileUri: string) {
-    const name = this.getFileName(fileUri);
-    const type = this.getFileType(fileUri);
-    const ext = this.getFileExtension(fileUri);
-    const src = this._urls[fileUri] || fileUri;
-    this._files.set(fileUri, {
-      uri: fileUri,
+  async cacheFile(uri: string, src: string) {
+    const name = this.getFileName(uri);
+    const type = this.getFileType(uri);
+    const ext = this.getFileExtension(uri);
+    const text =
+      src && (type === "script" || type === "text" || ext === "svg")
+        ? await (await fetch(src)).text()
+        : undefined;
+    const file = {
+      uri,
       name,
       type,
       ext,
-      src,
-    });
+      src: src || uri,
+      text,
+    };
+    this._files.set(uri, file);
+    return file;
+  }
+
+  async onCreatedFile(fileUri: string) {
+    await this.cacheFile(fileUri, this._urls[fileUri] || "");
     this._parser.configure({ files: this.getFiles() });
   }
 
@@ -478,16 +491,13 @@ export default class SparkdownTextDocuments<
     disposables.push(
       connection.onNotification(
         DidChangeFileUrlMessage.method,
-        (params: DidChangeFileUrlParams) => {
+        async (params: DidChangeFileUrlParams) => {
           const uri = params.uri;
           const src = params.src;
           this._urls[uri] = src;
-          const existingFile = this._files.get(uri);
-          if (existingFile) {
-            existingFile.src = src;
-          }
-          const type = this.getFileType(uri);
-          if (type !== "script") {
+          const file = await this.cacheFile(uri, src);
+          this._parser.configure({ files: this.getFiles() });
+          if (file.type !== "script") {
             // When asset url changes, reparse all programs so that asset srcs are up-to-date.
             this.debouncedParse(this.getMainScriptUri(), true);
           }
@@ -497,24 +507,14 @@ export default class SparkdownTextDocuments<
     disposables.push(
       connection.onNotification(
         DidWatchFilesMessage.method,
-        (params: DidWatchFilesParams) => {
+        async (params: DidWatchFilesParams) => {
           const files = params.files;
-          files.forEach((file) => {
-            const fileUri = file.uri;
-            const text = file.text;
-            const name = this.getFileName(fileUri);
-            const type = this.getFileType(fileUri);
-            const ext = this.getFileExtension(fileUri);
-            const src = this._urls[fileUri] || fileUri;
-            this._files.set(fileUri, {
-              uri: fileUri,
-              name,
-              type,
-              ext,
-              text,
-              src,
-            });
-          });
+          await Promise.all(
+            files.map((file) =>
+              this.cacheFile(file.uri, this._urls[file.uri] || "")
+            )
+          );
+          this._parser.configure({ files: this.getFiles() });
           this.debouncedParse(this.getMainScriptUri(), true);
         }
       )

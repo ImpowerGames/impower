@@ -29,7 +29,7 @@ try {
 
   const documents = new SparkdownTextDocuments(TextDocument);
 
-  connection.onInitialize((params): InitializeResult => {
+  connection.onInitialize(async (params): Promise<InitializeResult> => {
     const capabilities: ServerCapabilities = {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       foldingRangeProvider: true,
@@ -74,10 +74,6 @@ try {
     if (settings) {
       documents.loadConfiguration(settings);
     }
-    const files = params?.initializationOptions?.["files"];
-    if (files) {
-      documents.loadFiles(files);
-    }
     const builtinDefinitions =
       params?.initializationOptions?.["builtinDefinitions"];
     if (builtinDefinitions) {
@@ -97,6 +93,10 @@ try {
       params?.initializationOptions?.["descriptionDefinitions"];
     if (descriptionDefinitions) {
       documents.loadDescriptionDefinitions(descriptionDefinitions);
+    }
+    const files = params?.initializationOptions?.["files"];
+    if (files) {
+      await documents.loadFiles(files);
     }
     documents.parse(documents.getMainScriptUri(), true);
     const program = documents.program;
