@@ -212,50 +212,46 @@ export default class Dropdown
   };
 
   protected async animateOpen(): Promise<void> {
-    await nextAnimationFrame();
-
     if (this.disabled) {
       return;
     }
 
-    const dialogEl = this.ref.dialog;
+    const el = this.ref.popup;
 
-    dialogEl.style.visibility = "hidden";
-    dialogEl.showModal();
+    el.inert = true;
+    el.hidden = false;
+    el.style.opacity = "0";
+    this.ref.dialog.showModal();
 
-    this.start();
+    await this.start();
 
-    dialogEl.hidden = false;
-    dialogEl.inert = false;
-
-    await nextAnimationFrame();
-
-    dialogEl.style.visibility = "visible";
+    el.setAttribute("anchored", "");
+    el.style.opacity = "1";
 
     this.emit(OPENING_EVENT, { key: this.key });
 
-    await animationsComplete(dialogEl);
+    await animationsComplete(el);
 
     this.emit(OPENED_EVENT, { key: this.key });
+
+    el.inert = false;
   }
 
   async animateClose(): Promise<void> {
     const el = this.ref.popup;
-    if (el) {
-      el.inert = true;
-    }
+    el.inert = true;
 
     this.emit(CLOSING_EVENT, { key: this.key });
 
     await animationsComplete(el);
 
-    if (el) {
-      el.hidden = true;
-    }
+    el.hidden = true;
 
     this.ref.dialog.close();
 
     this.stop();
+
+    el.removeAttribute("anchored");
 
     this.emit(CLOSED_EVENT, { key: this.key });
   }

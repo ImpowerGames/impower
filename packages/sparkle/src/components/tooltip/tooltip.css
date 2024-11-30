@@ -17,8 +17,8 @@
   --padding-tb: 4px;
   --padding-lr: 8px;
   --shadow: var(--s-shadow-box-2);
-  --enter: var(--s-animation-enter-fade);
-  --exit: var(--s-animation-exit-fade);
+  --enter: var(--s-animation-open);
+  --exit: var(--s-animation-close);
   --ease: ease-out;
 }
 
@@ -29,11 +29,11 @@
 :host > .popup {
   will-change: transform, opacity;
 }
-:host([open]) > .popup {
+:host([open]) > .popup[anchored] {
   animation: var(--enter) forwards;
   animation-timing-function: var(--ease);
 }
-:host(:not([open])) > .popup {
+:host(:not([open])) > .popup[anchored] {
   animation: var(--exit) forwards;
   animation-timing-function: var(--ease);
 }

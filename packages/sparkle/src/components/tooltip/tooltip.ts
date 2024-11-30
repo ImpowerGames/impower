@@ -251,37 +251,40 @@ export default class Tooltip
     if (this.disabled) {
       return;
     }
-
-    this.start();
-
     const el = this.ref.popup;
-    if (el) {
-      el.hidden = false;
-      el.inert = false;
-    }
+
+    el.inert = true;
+    el.hidden = false;
+    el.style.opacity = "0";
+
+    await this.start();
+
+    el.setAttribute("anchored", "");
+    el.style.opacity = "1";
 
     this.emit(OPENING_EVENT);
 
     await animationsComplete(el);
 
     this.emit(OPENED_EVENT);
+
+    el.inert = false;
   }
 
   async handleClose(): Promise<void> {
     const el = this.ref.popup;
-    if (el) {
-      el.inert = true;
-    }
+
+    el.inert = true;
 
     this.emit(CLOSING_EVENT);
 
     await animationsComplete(el);
 
-    if (el) {
-      el.hidden = true;
-    }
+    el.hidden = true;
 
     this.stop();
+
+    el.removeAttribute("anchored");
 
     this.emit(CLOSED_EVENT);
   }

@@ -387,7 +387,7 @@ export default class Popup
   }
 
   async setupAnchor() {
-    await this.stop();
+    this.stop();
     await this.start();
   }
 
@@ -408,11 +408,10 @@ export default class Popup
       this._intersectionObserver = new IntersectionObserver(this.update);
       this._intersectionObserver?.observe(anchorEl);
     }
-    this.reposition();
+    await this.reposition();
   }
 
-  protected async stop(): Promise<void> {
-    await nextAnimationFrame();
+  protected stop(): void {
     this.removeAttribute("data-current-placement");
     this.updateRootCssVariable("--auto-size-available-width", null);
     this.updateRootCssVariable("--auto-size-available-height", null);
@@ -546,7 +545,7 @@ export default class Popup
         ? platform.getOffsetParent
         : (element: Element) => platform.getOffsetParent(element, offsetParent);
 
-    computePosition(anchorEl, popupEl, {
+    const { x, y, placement } = await computePosition(anchorEl, popupEl, {
       placement: this.placement,
       middleware,
       strategy: this.strategy,
@@ -554,11 +553,12 @@ export default class Popup
         ...platform,
         getOffsetParent,
       },
-    }).then(({ x, y, middlewareData, placement }) => {
-      this.setAttribute("data-current-placement", placement);
-      popupEl.style.left = `${x}px`;
-      popupEl.style.top = `${y}px`;
     });
+    this.setAttribute("data-current-placement", placement);
+    popupEl.style.left = `${x}px`;
+    popupEl.style.top = `${y}px`;
+
+    await nextAnimationFrame();
 
     this.emit(REPOSITION_EVENT);
   }
