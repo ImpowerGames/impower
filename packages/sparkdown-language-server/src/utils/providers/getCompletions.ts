@@ -40,6 +40,8 @@ const AUDIO_CLAUSE_KEYWORDS =
 const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
 
+const isPrefilteredName = (name: string) => name.includes("~");
+
 const traverse = <T>(
   obj: T,
   process: (fieldPath: string, fieldValue: any) => void,
@@ -262,14 +264,19 @@ const addStructReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
   types: string[],
-  exclude?: string[]
+  exclude?: string[] | ((name: string) => boolean)
 ) => {
   if (program) {
     for (const type of types) {
       const structs = program?.context?.[type];
       if (structs) {
         for (const name of Object.keys(structs).sort()) {
-          if (!name.startsWith("$") && !exclude?.includes(name)) {
+          if (
+            !name.startsWith("$") &&
+            (!exclude ||
+              (Array.isArray(exclude) && !exclude.includes(name)) ||
+              (!Array.isArray(exclude) && !exclude(name)))
+          ) {
             const completion: CompletionItem = {
               label: name,
               labelDetails: { description: type },
@@ -834,7 +841,12 @@ export const getCompletions = (
       )
     ) {
       addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
-      addStructReferenceCompletions(completions, program, IMAGE_TYPES);
+      addStructReferenceCompletions(
+        completions,
+        program,
+        IMAGE_TYPES,
+        isPrefilteredName
+      );
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "AssetCommandControl") {
@@ -849,7 +861,12 @@ export const getCompletions = (
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
-      addStructReferenceCompletions(completions, program, IMAGE_TYPES);
+      addStructReferenceCompletions(
+        completions,
+        program,
+        IMAGE_TYPES,
+        isPrefilteredName
+      );
       addKeywordCompletions(completions, "clause", IMAGE_CLAUSE_KEYWORDS);
       return Array.from(completions.values());
     }
@@ -857,7 +874,12 @@ export const getCompletions = (
       stack[0]?.type.name === "AssetCommandName" ||
       stack[0]?.type.name === "AssetCommandFileName"
     ) {
-      addStructReferenceCompletions(completions, program, IMAGE_TYPES);
+      addStructReferenceCompletions(
+        completions,
+        program,
+        IMAGE_TYPES,
+        isPrefilteredName
+      );
       return Array.from(completions.values());
     }
     if (
