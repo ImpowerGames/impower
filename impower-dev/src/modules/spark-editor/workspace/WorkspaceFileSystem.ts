@@ -63,7 +63,7 @@ export default class WorkspaceFileSystem {
     this.loadInitialFiles.bind(this)
   );
 
-  protected _assetCache: Record<string, HTMLElement> = {};
+  protected _preloaded: Record<string, HTMLElement> = {};
 
   protected _scheme = "file://";
   get scheme() {
@@ -166,7 +166,7 @@ export default class WorkspaceFileSystem {
           this._files[file.newUri] = newFile;
           this.preloadFile(newFile);
           delete this._files[file.oldUri];
-          delete this._assetCache[file.oldUri];
+          delete this._preloaded[file.oldUri];
         }
       });
       const connection = await Workspace.ls.getConnection();
@@ -460,6 +460,7 @@ export default class WorkspaceFileSystem {
   async preloadFile(file: FileData) {
     try {
       await new Promise((resolve, reject) => {
+        /* Preload image so it can be previewed instantly */
         if (file.type === "image") {
           const img = new Image();
           img.src = file.src;
@@ -469,18 +470,20 @@ export default class WorkspaceFileSystem {
           img.onerror = () => {
             reject(img);
           };
-          this._assetCache[file.uri] = img;
-        } else if (file.type === "audio") {
-          const aud = new Audio();
-          aud.src = file.src;
-          aud.onload = () => {
-            resolve(aud);
-          };
-          aud.onerror = () => {
-            reject(aud);
-          };
-          this._assetCache[file.uri] = aud;
+          this._preloaded[file.uri] = img;
         }
+        /* We shouldn't need to preload audio */
+        // else if (file.type === "audio") {
+        //   const aud = new Audio();
+        //   aud.src = file.src;
+        //   aud.onload = () => {
+        //     resolve(aud);
+        //   };
+        //   aud.onerror = () => {
+        //     reject(aud);
+        //   };
+        //   this._preloaded[file.uri] = aud;
+        // }
       });
     } catch (e) {
       console.warn("Could not load: ", file.name, file.src);
