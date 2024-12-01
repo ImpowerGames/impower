@@ -427,13 +427,20 @@ export default class SparkdownTextDocuments<
     return this._parser.trees.get(uri);
   }
 
+  async load(src: string) {
+    try {
+      return await (await fetch(src)).text();
+    } catch {}
+    return undefined;
+  }
+
   async cacheFile(uri: string, src: string) {
     const name = this.getFileName(uri);
     const type = this.getFileType(uri);
     const ext = this.getFileExtension(uri);
     const text =
       src && (type === "script" || type === "text" || ext === "svg")
-        ? await (await fetch(src)).text()
+        ? await this.load(src)
         : undefined;
     const file = {
       uri,
