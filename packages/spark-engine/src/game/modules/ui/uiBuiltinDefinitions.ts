@@ -65,6 +65,7 @@ export const uiBuiltinDefinitions = () => ({
       position: "absolute",
       inset: 0,
       isolation: "isolate",
+      will_change: "transform",
       "*": {
         mix_blend_mode: "plus-lighter",
         position: "absolute",
@@ -72,6 +73,7 @@ export const uiBuiltinDefinitions = () => ({
         background_position: "center",
         background_repeat: "no-repeat",
         background_size: "auto 100%",
+        will_change: "transform",
       },
     }),
     mask: default_style({
@@ -81,6 +83,7 @@ export const uiBuiltinDefinitions = () => ({
       position: "absolute",
       inset: 0,
       isolation: "isolate",
+      will_change: "transform",
       "*": {
         mix_blend_mode: "plus-lighter",
         position: "absolute",
@@ -88,6 +91,7 @@ export const uiBuiltinDefinitions = () => ({
         mask_position: "center",
         mask_repeat: "no-repeat",
         mask_size: "auto 100%",
+        will_change: "transform",
       },
     }),
     loading_bar: default_style({
