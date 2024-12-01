@@ -43,7 +43,7 @@ export const properties_style = () => ({
   overflow_y: "",
   z_index: "",
   color: "",
-  font_family: "",
+  font_family: { $type: "font", $name: "none" },
   font_size: "",
   font_weight: "",
   text_align: "",
