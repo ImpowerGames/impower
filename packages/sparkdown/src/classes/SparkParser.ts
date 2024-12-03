@@ -274,14 +274,14 @@ export default class SparkParser {
     };
     let prevNodeType = "";
     let blockPrefix = "";
-    let structModifier = "";
-    let structType = "";
-    let structName = "";
-    let selectorFunctionName = "";
-    let structPropertyPathParts: {
+    let defineModifier = "";
+    let defineType = "";
+    let defineName = "";
+    let definePropertyPathParts: {
       key: string | number;
       arrayLength?: number;
     }[] = [];
+    let selectorFunctionName = "";
     const generateID = () => {
       while (true) {
         const id = uuid();
@@ -443,7 +443,7 @@ export default class SparkParser {
           }
         }
         if (nodeType === "DefineVariableName") {
-          structName = text;
+          defineName = text;
           if (
             IMAGE_CLAUSE_KEYWORDS.includes(text) ||
             AUDIO_CLAUSE_KEYWORDS.includes(text)
@@ -483,16 +483,16 @@ export default class SparkParser {
         }
         // Record define properties
         if (nodeType === "DefineDeclaration") {
-          structModifier = "";
-          structType = "";
-          structName = "";
-          structPropertyPathParts = [{ key: "" }];
+          defineModifier = "";
+          defineType = "";
+          defineName = "";
+          definePropertyPathParts = [{ key: "" }];
         }
         if (nodeType === "DefineModifierName") {
-          structModifier = text;
+          defineModifier = text;
         }
         if (nodeType === "DefineTypeName") {
-          structType = text;
+          defineType = text;
         }
         if (
           nodeType === "StructScalarItem" ||
@@ -500,10 +500,10 @@ export default class SparkParser {
           nodeType === "StructObjectItemWithInlineScalarProperty" ||
           nodeType === "StructObjectItemWithInlineObjectProperty"
         ) {
-          const parent = structPropertyPathParts.at(-1);
+          const parent = definePropertyPathParts.at(-1);
           if (parent) {
             parent.arrayLength ??= 0;
-            structPropertyPathParts.push({ key: parent.arrayLength });
+            definePropertyPathParts.push({ key: parent.arrayLength });
             parent.arrayLength += 1;
           }
         }
@@ -511,18 +511,18 @@ export default class SparkParser {
           nodeType === "DeclarationScalarPropertyName" ||
           nodeType === "DeclarationObjectPropertyName"
         ) {
-          structPropertyPathParts.push({ key: text });
+          definePropertyPathParts.push({ key: text });
         }
 
         if (nodeType === "StructFieldValue") {
-          const structProperty = structPropertyPathParts
+          const defineProperty = definePropertyPathParts
             .map((p) => p.key)
             .join(".");
           const declaration = {
-            modifier: structModifier,
-            type: structType,
-            name: structName,
-            property: structProperty,
+            modifier: defineModifier,
+            type: defineType,
+            name: defineName,
+            property: defineProperty,
           };
           const accessPath = getAccessPath(declaration);
           // Record property declaration for type checking
@@ -533,21 +533,21 @@ export default class SparkParser {
           program.metadata.properties[accessPath] ??= [];
           program.metadata.properties[accessPath].push({ uri, range });
         }
-        // Record reference in struct field value
+        // Record reference in field value
         if (nodeType === "AccessPath" && stack.includes("StructFieldValue")) {
           let [type, name] = text.split(".");
           if (type && !name) {
             name = type;
             type = "";
           }
-          const structProperty = structPropertyPathParts
+          const defineProperty = definePropertyPathParts
             .map((p) => p.key)
             .join(".");
           const declaration = {
-            modifier: structModifier,
-            type: structType,
-            name: structName,
-            property: structProperty,
+            modifier: defineModifier,
+            type: defineType,
+            name: defineName,
+            property: defineProperty,
           };
           if (type) {
             const types = [type];
@@ -869,10 +869,10 @@ export default class SparkParser {
           }
         }
         if (nodeType === "DefineDeclaration") {
-          structModifier = "";
-          structType = "";
-          structName = "";
-          structPropertyPathParts = [];
+          defineModifier = "";
+          defineType = "";
+          defineName = "";
+          definePropertyPathParts = [];
         }
         if (
           nodeType === "StructScalarItem" ||
@@ -882,13 +882,13 @@ export default class SparkParser {
           nodeType === "StructObjectItemWithInlineScalarProperty_begin" ||
           nodeType === "StructObjectItemWithInlineObjectProperty_end"
         ) {
-          structPropertyPathParts.pop();
+          definePropertyPathParts.pop();
         }
         if (
           nodeType === "StructScalarProperty" ||
           nodeType === "StructObjectProperty"
         ) {
-          structPropertyPathParts.pop();
+          definePropertyPathParts.pop();
         }
         stack.pop();
       },
