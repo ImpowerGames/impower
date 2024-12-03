@@ -15,6 +15,11 @@ export interface SparkProgram {
     transitions?: Record<string, SparkLocation[]>;
     colors?: Record<string, SparkLocation[]>;
     properties?: Record<string, SparkLocation[]>;
+    scopes?: {
+      [path: string]: {
+        [declarationType: string]: SparkLocation[];
+      };
+    };
   };
   context?: {
     [type: string]: { [name: string]: any };

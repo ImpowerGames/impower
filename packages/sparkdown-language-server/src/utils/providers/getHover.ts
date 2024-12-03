@@ -60,14 +60,14 @@ export const getHover = (
               range,
             };
           }
+          // TODO: const name: type
+          // TODO: var name: type
+          // TODO: list name
           // TODO: == knot
           // TODO: = stitch
           // TODO: - (label)
-          // TODO: list name
-          // TODO: const name: type
-          // TODO: var name: type
           // TODO: ~ temp name: type
-          // TODO: (parameter) name: type
+          // TODO: ~ (param) name: type
         }
       }
     }

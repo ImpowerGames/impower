@@ -281,6 +281,9 @@ export default class SparkParser {
       key: string | number;
       arrayLength?: number;
     }[] = [];
+    let scopePathParts: { kind: "" | "knot" | "stitch"; name: string }[] = [
+      { kind: "", name: "" },
+    ];
     let selectorFunctionName = "";
     const generateID = () => {
       while (true) {
@@ -826,6 +829,151 @@ export default class SparkParser {
           const name = text;
           recordReference({ selector: { types, name } });
         }
+        // Record global and scoped declarations
+        if (nodeType === "KnotDeclarationName") {
+          // Global
+          const scopePath = "";
+          program.metadata ??= {};
+          program.metadata.scopes ??= {};
+          program.metadata.scopes[scopePath] ??= {};
+          program.metadata.scopes[scopePath]["knot"] ??= [];
+          program.metadata.scopes[scopePath]["knot"].push({
+            uri,
+            range,
+            text,
+          });
+          scopePathParts = [{ kind: "", name: "" }];
+          scopePathParts.push({ kind: "knot", name: text });
+        }
+        if (nodeType === "StitchDeclarationName") {
+          const prevKind = scopePathParts.at(-1)?.kind || "";
+          if (prevKind === "stitch") {
+            scopePathParts.pop();
+          }
+          // Scoped
+          const scopePath = scopePathParts.map((p) => p.name).join(".");
+          program.metadata ??= {};
+          program.metadata.scopes ??= {};
+          program.metadata.scopes[scopePath] ??= {};
+          program.metadata.scopes[scopePath]["stitch"] ??= [];
+          program.metadata.scopes[scopePath]["stitch"].push({
+            uri,
+            range,
+            text,
+          });
+          scopePathParts.push({ kind: "stitch", name: text });
+        }
+        if (nodeType === "LabelDeclarationName") {
+          // Scoped
+          const scopePath = scopePathParts.map((p) => p.name).join(".");
+          program.metadata ??= {};
+          program.metadata.scopes ??= {};
+          program.metadata.scopes[scopePath] ??= {};
+          program.metadata.scopes[scopePath]["label"] ??= [];
+          program.metadata.scopes[scopePath]["label"].push({
+            uri,
+            range,
+            text,
+          });
+        }
+        if (
+          stack.includes("ConstDeclaration") &&
+          nodeType === "VariableDeclarationName"
+        ) {
+          // Global
+          const scopePath = "";
+          program.metadata ??= {};
+          program.metadata.scopes ??= {};
+          program.metadata.scopes[scopePath] ??= {};
+          program.metadata.scopes[scopePath]["const"] ??= [];
+          program.metadata.scopes[scopePath]["const"].push({
+            uri,
+            range,
+            text,
+          });
+        }
+        if (
+          stack.includes("VarDeclaration") &&
+          nodeType === "VariableDeclarationName"
+        ) {
+          // Global
+          const scopePath = "";
+          program.metadata ??= {};
+          program.metadata.scopes ??= {};
+          program.metadata.scopes[scopePath] ??= {};
+          program.metadata.scopes[scopePath]["var"] ??= [];
+          program.metadata.scopes[scopePath]["var"].push({
+            uri,
+            range,
+            text,
+          });
+        }
+        if (
+          stack.includes("ListDeclaration") &&
+          nodeType === "TypeDeclarationName"
+        ) {
+          // Global
+          const scopePath = "";
+          program.metadata ??= {};
+          program.metadata.scopes ??= {};
+          program.metadata.scopes[scopePath] ??= {};
+          program.metadata.scopes[scopePath]["list"] ??= [];
+          program.metadata.scopes[scopePath]["list"].push({
+            uri,
+            range,
+            text,
+          });
+        }
+        if (
+          stack.includes("DefineDeclaration") &&
+          nodeType === "DefineIdentifier"
+        ) {
+          // Global
+          const scopePath = "";
+          program.metadata ??= {};
+          program.metadata.scopes ??= {};
+          program.metadata.scopes[scopePath] ??= {};
+          program.metadata.scopes[scopePath]["define"] ??= [];
+          program.metadata.scopes[scopePath]["define"].push({
+            uri,
+            range,
+            text,
+          });
+        }
+        if (
+          stack.includes("TempDeclaration") &&
+          nodeType === "VariableDeclarationName"
+        ) {
+          // Scoped
+          const scopePath = scopePathParts.map((p) => p.name).join(".");
+          program.metadata ??= {};
+          program.metadata.scopes ??= {};
+          program.metadata.scopes[scopePath] ??= {};
+          program.metadata.scopes[scopePath]["temp"] ??= [];
+          program.metadata.scopes[scopePath]["temp"].push({
+            uri,
+            range,
+            text,
+          });
+        }
+        if (
+          !stack.includes("FunctionCall") &&
+          stack.includes("FunctionParameters") &&
+          nodeType === "Parameter"
+        ) {
+          // Scoped
+          const scopePath = scopePathParts.map((p) => p.name).join(".");
+          program.metadata ??= {};
+          program.metadata.scopes ??= {};
+          program.metadata.scopes[scopePath] ??= {};
+          program.metadata.scopes[scopePath]["param"] ??= [];
+          program.metadata.scopes[scopePath]["param"].push({
+            uri,
+            range,
+            text,
+          });
+        }
+        // Record Newline
         if (nodeType === "Newline") {
           lineIndex += 1;
           linePos = node.to;
@@ -904,7 +1052,7 @@ export default class SparkParser {
       lines.pop();
     }
     const transpiled = lines.join("\n");
-    // console.log(printTree(tree, script));
+    console.log(printTree(tree, script));
     // console.log(transpiled);
     return transpiled;
   }
@@ -976,7 +1124,7 @@ export default class SparkParser {
     } catch (e) {
       console.error(e);
     }
-    // console.log("program", program);
+    console.log("program", program);
     return program;
   }
 

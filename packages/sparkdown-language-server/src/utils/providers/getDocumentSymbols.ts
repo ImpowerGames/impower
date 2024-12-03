@@ -34,7 +34,7 @@ export const getDocumentSymbols = (
   program: SparkProgram | undefined
 ): DocumentSymbol[] => {
   const symbols: DocumentSymbol[] = [];
-  const structure = program?.metadata?.structure;
+  const structure = program?.metadata?.scopes;
   if (!document || !structure) {
     return symbols;
   }

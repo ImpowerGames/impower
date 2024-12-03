@@ -15,6 +15,7 @@ import type { SparkdownSyntaxNode } from "../../../../sparkdown/src/types/Sparkd
 import { getProperty } from "../../../../sparkdown/src/utils/getProperty";
 import { getStack } from "../../../../sparkdown/src/utils/syntax/getStack";
 import { getParentPropertyPath } from "../../../../sparkdown/src/utils/syntax/getParentPropertyPath";
+import { getParentSectionPath } from "../../../../sparkdown/src/utils/syntax/getParentSectionPath";
 import { getDescendentInsideParent } from "../../../../sparkdown/src/utils/syntax/getDescendentInsideParent";
 import { getOtherMatchesInsideParent } from "../../../../sparkdown/src/utils/syntax/getOtherMatchesInsideParent";
 import GRAMMAR_DEFINITION from "../../../../sparkdown/language/sparkdown.language-grammar.json";
@@ -39,6 +40,7 @@ const AUDIO_CLAUSE_KEYWORDS =
 
 const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
+const FLOW_KEYWORDS = ["DONE", "END"];
 
 const isPrefilteredName = (name: string) => name.includes("~");
 
@@ -119,7 +121,7 @@ const addTransitionCompletions = (
     const kind = CompletionItemKind.Constant;
     const completion: CompletionItem = {
       label: name,
-      insertText: insertTextPrefix + name + "\n",
+      insertText: insertTextPrefix + name,
       labelDetails,
       kind,
     };
@@ -152,7 +154,7 @@ const addSceneCompletions = (
     const kind = CompletionItemKind.Constant;
     const completion: CompletionItem = {
       label: name,
-      insertText: insertTextPrefix + name + "\n",
+      insertText: insertTextPrefix + name,
       labelDetails,
       kind,
     };
@@ -185,7 +187,7 @@ const addCharacterCompletions = (
     const kind = CompletionItemKind.Constant;
     const completion: CompletionItem = {
       label: name,
-      insertText: insertTextPrefix + name + "\n",
+      insertText: insertTextPrefix + name,
       labelDetails,
       kind,
     };
@@ -199,12 +201,14 @@ const addKeywordCompletions = (
   completions: Map<string, CompletionItem>,
   description: string,
   keywords: string[],
-  exclude?: string[]
+  exclude?: string[],
+  insertTextPrefix: string = ""
 ) => {
   for (const keyword of keywords) {
     if (!exclude || !exclude.includes(keyword)) {
       const completion: CompletionItem = {
         label: keyword,
+        insertText: insertTextPrefix + keyword,
         labelDetails: { description },
         kind: CompletionItemKind.Constant,
       };
@@ -696,7 +700,7 @@ const addAccessPathCompletions = (
         parts.length === 1 ? path : path?.endsWith(".") ? parts.at(-1) : "";
       const props = getProperty(program.context, parentPath);
       if (props) {
-        Object.entries(props).forEach(([propName, v]) => {
+        for (const [propName, v] of Object.entries(props)) {
           if (!propName.startsWith("$")) {
             if (!keyStartsWith || propName.startsWith(keyStartsWith)) {
               const description = typeof v === "object" ? undefined : typeof v;
@@ -717,7 +721,93 @@ const addAccessPathCompletions = (
               }
             }
           }
-        });
+        }
+      }
+    }
+  }
+};
+
+const addDivertPathCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  scopePath: string,
+  valueText: string,
+  valueCursorOffset: number,
+  insertTextPrefix: string = ""
+) => {
+  const valueTextBeforeCursor = valueText.slice(0, valueCursorOffset);
+  const valueTextAfterCursor = valueText.slice(valueCursorOffset);
+  if (!valueTextAfterCursor) {
+    if (!valueTextBeforeCursor) {
+      addKeywordCompletions(
+        completions,
+        "terminator",
+        FLOW_KEYWORDS,
+        undefined,
+        insertTextPrefix
+      );
+    }
+    if (program?.metadata?.scopes) {
+      for (const [path, declarations] of Object.entries(
+        program.metadata.scopes
+      )) {
+        if (
+          (!valueTextBeforeCursor && scopePath.startsWith(path)) ||
+          (valueTextBeforeCursor &&
+            path === "." + valueTextBeforeCursor.slice(0, -1))
+        ) {
+          if (declarations["knot"]) {
+            for (const location of declarations["knot"]) {
+              if (location.text) {
+                const description = "knot";
+                const kind = CompletionItemKind.Class;
+                const completion: CompletionItem = {
+                  label: location.text,
+                  insertText: insertTextPrefix + location.text,
+                  labelDetails: { description },
+                  kind,
+                };
+                if (completion.label && !completions.has(completion.label)) {
+                  completions.set(completion.label, completion);
+                }
+              }
+            }
+          }
+          if (declarations["stitch"]) {
+            for (const location of declarations["stitch"]) {
+              if (location.text) {
+                const description = "stitch";
+                const kind = CompletionItemKind.Class;
+                const completion: CompletionItem = {
+                  label: location.text,
+                  insertText: insertTextPrefix + location.text,
+                  labelDetails: { description },
+                  kind,
+                };
+                if (completion.label && !completions.has(completion.label)) {
+                  completions.set(completion.label, completion);
+                }
+              }
+            }
+          }
+          if (declarations["label"]) {
+            for (const location of declarations["label"]) {
+              if (location.text) {
+                const description = "label";
+                const kind = CompletionItemKind.Class;
+                const completion: CompletionItem = {
+                  label: location.text,
+                  insertText: insertTextPrefix + location.text,
+                  labelDetails: { description },
+                  kind,
+                };
+                if (completion.label && !completions.has(completion.label)) {
+                  completions.set(completion.label, completion);
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -756,7 +846,8 @@ export const getCompletions = (
       end: document.positionAt(to),
     });
 
-  const getNodeText = (node: SyntaxNode) => read(node.from, node.to);
+  const getNodeText = (node: SyntaxNode | undefined) =>
+    node ? read(node.from, node.to) : "";
 
   const side = -1;
   const prevCursor = tree.cursorAt(stack[0].from - 1, side);
@@ -1174,6 +1265,60 @@ export const getCompletions = (
   if (accessPathNode) {
     const path = getNodeText(accessPathNode);
     addAccessPathCompletions(completions, program, path);
+    // TODO: const
+    // TODO: var
+    // TODO: list
+    // TODO: temp (in scope)
+    // TODO: param (in scope)
+    return Array.from(completions.values());
+  }
+
+  // Divert Path
+  if (
+    stack[0]?.type.name === "DivertArrow" &&
+    !getNodeText(getDescendentInsideParent("Divert_content", "Divert", stack))
+  ) {
+    addDivertPathCompletions(
+      completions,
+      program,
+      getParentSectionPath(stack, read),
+      "",
+      0,
+      " "
+    );
+    return Array.from(completions.values());
+  }
+  if (
+    stack[0]?.type.name === "WhitespaceDivertPath" &&
+    !getNodeText(getDescendentInsideParent("Divert_content", "Divert", stack))
+  ) {
+    addDivertPathCompletions(
+      completions,
+      program,
+      getParentSectionPath(stack, read),
+      "",
+      0
+    );
+    return Array.from(completions.values());
+  }
+  if (stack[0]?.type.name === "DivertPath") {
+    const node = stack[0];
+    const valueText = getNodeText(node);
+    const documentCursorOffset = document.offsetAt(position);
+    const valueCursorOffset = node
+      ? documentCursorOffset < node.from
+        ? 0
+        : documentCursorOffset > node.to
+        ? node.to - node.from
+        : documentCursorOffset - node.from
+      : 0;
+    addDivertPathCompletions(
+      completions,
+      program,
+      getParentSectionPath(stack, read),
+      valueText,
+      valueCursorOffset
+    );
     return Array.from(completions.values());
   }
 

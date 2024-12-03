@@ -277,7 +277,7 @@ repository:
   DefineDeclaration:
     tag: meta
     name: meta.definition.type.sd
-    begin: ^({{WS}}*)(DEFINE|define)({{EOK}})(?:({{IDENTIFIER}})({{WS}}+)(?={{IDENTIFIER}}))?($|{{IDENTIFIER}})(?:([.])($|{{IDENTIFIER}})?)?(.*?)({{WS}}*)($|[:])
+    begin: ^({{WS}}*)(DEFINE|define)({{EOK}})(.*?)$
     beginCaptures:
       1:
         patterns:
@@ -290,34 +290,48 @@ repository:
           - { include: "#WhitespaceDefineTypeName" }
       4:
         patterns:
-          - { include: "#DefineModifierName" }
-      5:
-        patterns:
-          - { include: "#WhitespaceDefineTypeName" }
-      6:
-        patterns:
-          - { include: "#DefineTypeName" }
-      7:
-        patterns:
-          - { include: "#DefinePunctuationAccessor" }
-      8:
-        patterns:
-          - { include: "#DefineVariableName" }
-      9:
-        patterns:
-          - { include: "#AccessPart" }
-      10:
-        patterns:
-          - { include: "#Whitespace" }
-      11:
-        patterns:
-          - { include: "#DeclarationAssignOperator" }
+          - { include: "#DefineAssignment" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#StructField" }
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
+
+  DefineAssignment:
+    match: (.*?)({{WS}}*)($|[:])
+    captures:
+      1:
+        patterns:
+          - { include: "#DefineIdentifier" }
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+      3:
+        patterns:
+          - { include: "#DeclarationAssignOperator" }
+
+  DefineIdentifier:
+    match: (?:({{IDENTIFIER}})({{WS}}+)(?={{IDENTIFIER}}))?($|{{IDENTIFIER}})(?:([.])($|{{IDENTIFIER}})?)?(.*?)
+    captures:
+      1:
+        patterns:
+          - { include: "#DefineModifierName" }
+      2:
+        patterns:
+          - { include: "#WhitespaceDefineTypeName" }
+      3:
+        patterns:
+          - { include: "#DefineTypeName" }
+      4:
+        patterns:
+          - { include: "#DefinePunctuationAccessor" }
+      5:
+        patterns:
+          - { include: "#DefineVariableName" }
+      6:
+        patterns:
+          - { include: "#AccessPart" }
 
   DefineModifierName:
     tag: keyword
@@ -354,7 +368,7 @@ repository:
     beginCaptures:
       1:
         patterns:
-          - { include: "#TypeName" }
+          - { include: "#TypeDeclarationName" }
       2:
         patterns:
           - { include: "#Whitespace" }
@@ -371,7 +385,7 @@ repository:
     beginCaptures:
       1:
         patterns:
-          - { include: "#VariableName" }
+          - { include: "#VariableDeclarationName" }
       2:
         patterns:
           - { include: "#Whitespace" }
@@ -411,6 +425,8 @@ repository:
         name: meta.brace.round.open.sd
     patterns:
       - { include: "#Annotation" }
+      - { include: "#Whitespace" }
+      - { include: "#PunctuationComma" }
       - { include: "#Parameter" }
     end: ([)])
     endCaptures:
@@ -425,11 +441,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Expression" }
-    end: (?=[)])|([,])
-    endCaptures:
-      1:
-        tag: separator
-        name: meta.template.expression.comma.sd
+    end: (?=(?:{{WS}}*)(?:[)]|[,]))
 
   StructField:
     emit: true
@@ -705,13 +717,13 @@ repository:
       - { include: "#VariableName" }
       - { include: "#PunctuationAccessor" }
 
-  DeclarationType:
+  TypeDeclarationName:
     emit: true
     patterns:
       - { include: "#TypeName" }
       - { include: "#Unknown" }
 
-  DeclarationName:
+  VariableDeclarationName:
     emit: true
     patterns:
       - { include: "#VariableName" }
@@ -849,13 +861,18 @@ repository:
           - { include: "#Whitespace" }
       3:
         patterns:
-          - { include: "#Identifier" }
+          - { include: "#LabelDeclarationName" }
       4:
         patterns:
           - { include: "#Whitespace" }
       5:
         tag: paren
         name: meta.brace.round.close.sd
+
+  LabelDeclarationName:
+    tag: definition(heading)
+    name: keyword.control.section.sd
+    match: (.+)
 
   ########## Break ##########
 
@@ -903,7 +920,7 @@ repository:
 
   Choice:
     name: entity.choice.sd
-    begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)
+    begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)((?:[(])(?:{{WS}}*)(?:{{IDENTIFIER}})(?:{{WS}}*)(?:[)]))?
     beginCaptures:
       1:
         patterns:
@@ -911,9 +928,11 @@ repository:
       2:
         tag: keyword
         name: keyword.operator.expression.list.sd
+      3:
+        patterns:
+          - { include: "#Label" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Label" }
       - { include: "#ConditionalBlock" }
       - { include: "#Divert" }
       - { include: "#ChoiceText" }
@@ -1028,7 +1047,7 @@ repository:
           - { include: "#EndOfKeyword" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Expression" }
+      - { include: "#VariableAssignment" }
     end: (?=$)
 
   ########## Gather ##########
@@ -1086,12 +1105,34 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionDeclaration" }
-      - { include: "#KnotDeclarationName" }
+      - { include: "#KnotDeclaration" }
     end: ([=]{2,})|(?=$)
     endCaptures:
       1:
         tag: definition(heading)
         name: keyword.control.knot.sd
+
+  KnotDeclaration:
+    begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#KnotDeclarationName" }
+      3:
+        patterns:
+          - { include: "#Whitespace" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#FunctionParameters" }
+    end: (?=$|[=]|[/][/])
+
+  KnotDeclarationName:
+    tag: definition(heading)
+    name: keyword.control.section.sd
+    match: (.+)
 
   Stitch:
     begin: ^({{WS}}*)([=])({{EOK}})
@@ -1107,22 +1148,23 @@ repository:
           - { include: "#EndOfKeyword" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#StitchDeclarationName" }
+      - { include: "#FunctionDeclaration" }
+      - { include: "#StitchDeclaration" }
     end: ([=]+)|(?=$)
     endCaptures:
       1:
-        tag: definition(heading)
-        name: keyword.control.stitch.sd
+        patterns:
+          - { include: "#InvalidValue" }
 
-  KnotDeclarationName:
+  StitchDeclaration:
     begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#Whitespace" }
       2:
-        tag: definition(heading)
-        name: keyword.control.section.sd
+        patterns:
+          - { include: "#StitchDeclarationName" }
       3:
         patterns:
           - { include: "#Whitespace" }
@@ -1132,44 +1174,33 @@ repository:
     end: (?=$|[=]|[/][/])
 
   StitchDeclarationName:
-    begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Whitespace" }
-      2:
-        tag: definition(heading)
-        name: keyword.control.section.sd
-      3:
-        patterns:
-          - { include: "#Whitespace" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#FunctionParameters" }
-    end: (?=$|[=]|[/][/])
+    tag: definition(heading)
+    name: keyword.control.section.sd
+    match: (.+)
 
   FunctionDeclaration:
-    begin: ({{WS}}*)(function)({{WS}}*)({{IDENTIFIER}})({{WS}}*)
+    begin: (function)({{WS}}*)({{IDENTIFIER}})({{WS}}*)
     beginCaptures:
       1:
-        patterns:
-          - { include: "#Whitespace" }
-      2:
         tag: controlKeyword
         name: keyword.control.definition.function.sd
-      3:
+      2:
         patterns:
           - { include: "#Whitespace" }
-      4:
+      3:
         patterns:
           - { include: "#FunctionDeclarationName" }
-      5:
+      4:
         patterns:
           - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
-    end: (?=$|[=])
+    end: ([=]{2,})|(?=$)
+    endCaptures:
+      1:
+        tag: definition(heading)
+        name: keyword.control.knot.sd
 
   FunctionDeclarationName:
     tag: function(variableName)
@@ -1179,7 +1210,7 @@ repository:
   ########## Divert & Thread ##########
 
   Divert:
-    begin: ({{WS}}*)(->|<-)
+    begin: ({{WS}}*)(->|<-)({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -1187,6 +1218,9 @@ repository:
       2:
         patterns:
           - { include: "#DivertArrow" }
+      3:
+        patterns:
+          - { include: "#WhitespaceDivertPath" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Whitespace" }
@@ -1211,6 +1245,11 @@ repository:
     tag: keyword
     name: constant.language.done.sd
     match: \b(DONE)\b
+
+  WhitespaceDivertPath:
+    tag: content
+    name: markup.raw.whitespace.sd
+    match: ({{WS}}+)
 
   DivertPath:
     tag: heading

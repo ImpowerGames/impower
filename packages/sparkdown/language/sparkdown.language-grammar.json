@@ -471,7 +471,7 @@
     "DefineDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([^\\S\\n\\r]*)(DEFINE|define)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(?:([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]+)(?=[_\\p{L}][0-9_\\p{L}]*))?($|[_\\p{L}][0-9_\\p{L}]*)(?:([.])($|[_\\p{L}][0-9_\\p{L}]*)?)?(.*?)([^\\S\\n\\r]*)($|[:])",
+      "begin": "^([^\\S\\n\\r]*)(DEFINE|define)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)$",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -494,56 +494,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#DefineModifierName"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#WhitespaceDefineTypeName"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#DefineTypeName"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#DefinePunctuationAccessor"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
-              "include": "#DefineVariableName"
-            }
-          ]
-        },
-        "9": {
-          "patterns": [
-            {
-              "include": "#AccessPart"
-            }
-          ]
-        },
-        "10": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "11": {
-          "patterns": [
-            {
-              "include": "#DeclarationAssignOperator"
+              "include": "#DefineAssignment"
             }
           ]
         }
@@ -563,6 +514,79 @@
         }
       ],
       "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+    },
+    "DefineAssignment": {
+      "match": "(.*?)([^\\S\\n\\r]*)($|[:])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DefineIdentifier"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#DeclarationAssignOperator"
+            }
+          ]
+        }
+      }
+    },
+    "DefineIdentifier": {
+      "match": "(?:([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]+)(?=[_\\p{L}][0-9_\\p{L}]*))?($|[_\\p{L}][0-9_\\p{L}]*)(?:([.])($|[_\\p{L}][0-9_\\p{L}]*)?)?(.*?)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DefineModifierName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#WhitespaceDefineTypeName"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#DefineTypeName"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#DefinePunctuationAccessor"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#DefineVariableName"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#AccessPart"
+            }
+          ]
+        }
+      }
     },
     "DefineModifierName": {
       "tag": "keyword",
@@ -600,7 +624,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#TypeName"
+              "include": "#TypeDeclarationName"
             }
           ]
         },
@@ -635,7 +659,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#VariableName"
+              "include": "#VariableDeclarationName"
             }
           ]
         },
@@ -711,6 +735,12 @@
           "include": "#Annotation"
         },
         {
+          "include": "#Whitespace"
+        },
+        {
+          "include": "#PunctuationComma"
+        },
+        {
           "include": "#Parameter"
         }
       ],
@@ -734,13 +764,7 @@
           "include": "#Expression"
         }
       ],
-      "end": "(?=[)])|([,])",
-      "endCaptures": {
-        "1": {
-          "tag": "separator",
-          "name": "meta.template.expression.comma.sd"
-        }
-      }
+      "end": "(?=(?:[^\\S\\n\\r]*)(?:[)]|[,]))"
     },
     "StructField": {
       "emit": true,
@@ -1274,7 +1298,7 @@
         }
       ]
     },
-    "DeclarationType": {
+    "TypeDeclarationName": {
       "emit": true,
       "patterns": [
         {
@@ -1285,7 +1309,7 @@
         }
       ]
     },
-    "DeclarationName": {
+    "VariableDeclarationName": {
       "emit": true,
       "patterns": [
         {
@@ -1495,7 +1519,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Identifier"
+              "include": "#LabelDeclarationName"
             }
           ]
         },
@@ -1511,6 +1535,11 @@
           "name": "meta.brace.round.close.sd"
         }
       }
+    },
+    "LabelDeclarationName": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
+      "match": "(.+)"
     },
     "Break": {
       "tag": "special(meta)",
@@ -1568,7 +1597,7 @@
     },
     "Choice": {
       "name": "entity.choice.sd",
-      "begin": "([^\\S\\n\\r]*)((?:[*](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+|(?:[+](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+)",
+      "begin": "([^\\S\\n\\r]*)((?:[*](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+|(?:[+](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+)((?:[(])(?:[^\\S\\n\\r]*)(?:[_\\p{L}][0-9_\\p{L}]*)(?:[^\\S\\n\\r]*)(?:[)]))?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1580,14 +1609,18 @@
         "2": {
           "tag": "keyword",
           "name": "keyword.operator.expression.list.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Label"
+            }
+          ]
         }
       },
       "patterns": [
         {
           "include": "#Annotation"
-        },
-        {
-          "include": "#Label"
         },
         {
           "include": "#ConditionalBlock"
@@ -1805,7 +1838,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#Expression"
+          "include": "#VariableAssignment"
         }
       ],
       "end": "(?=$)"
@@ -1922,7 +1955,7 @@
           "include": "#FunctionDeclaration"
         },
         {
-          "include": "#KnotDeclarationName"
+          "include": "#KnotDeclaration"
         }
       ],
       "end": "([=]{2,})|(?=$)",
@@ -1932,6 +1965,46 @@
           "name": "keyword.control.knot.sd"
         }
       }
+    },
+    "KnotDeclaration": {
+      "begin": "([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#KnotDeclarationName"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#FunctionParameters"
+        }
+      ],
+      "end": "(?=$|[=]|[/][/])"
+    },
+    "KnotDeclarationName": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
+      "match": "(.+)"
     },
     "Stitch": {
       "begin": "^([^\\S\\n\\r]*)([=])((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
@@ -1960,18 +2033,24 @@
           "include": "#Annotation"
         },
         {
-          "include": "#StitchDeclarationName"
+          "include": "#FunctionDeclaration"
+        },
+        {
+          "include": "#StitchDeclaration"
         }
       ],
       "end": "([=]+)|(?=$)",
       "endCaptures": {
         "1": {
-          "tag": "definition(heading)",
-          "name": "keyword.control.stitch.sd"
+          "patterns": [
+            {
+              "include": "#InvalidValue"
+            }
+          ]
         }
       }
     },
-    "KnotDeclarationName": {
+    "StitchDeclaration": {
       "begin": "([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
@@ -1982,8 +2061,11 @@
           ]
         },
         "2": {
-          "tag": "definition(heading)",
-          "name": "keyword.control.section.sd"
+          "patterns": [
+            {
+              "include": "#StitchDeclarationName"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -2004,66 +2086,32 @@
       "end": "(?=$|[=]|[/][/])"
     },
     "StitchDeclarationName": {
-      "begin": "([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "2": {
-          "tag": "definition(heading)",
-          "name": "keyword.control.section.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#FunctionParameters"
-        }
-      ],
-      "end": "(?=$|[=]|[/][/])"
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
+      "match": "(.+)"
     },
     "FunctionDeclaration": {
-      "begin": "([^\\S\\n\\r]*)(function)([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "(function)([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "2": {
           "tag": "controlKeyword",
           "name": "keyword.control.definition.function.sd"
         },
-        "3": {
+        "2": {
           "patterns": [
             {
               "include": "#Whitespace"
             }
           ]
         },
-        "4": {
+        "3": {
           "patterns": [
             {
               "include": "#FunctionDeclarationName"
             }
           ]
         },
-        "5": {
+        "4": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -2079,7 +2127,13 @@
           "include": "#FunctionParameters"
         }
       ],
-      "end": "(?=$|[=])"
+      "end": "([=]{2,})|(?=$)",
+      "endCaptures": {
+        "1": {
+          "tag": "definition(heading)",
+          "name": "keyword.control.knot.sd"
+        }
+      }
     },
     "FunctionDeclarationName": {
       "tag": "function(variableName)",
@@ -2087,7 +2141,7 @@
       "match": "(.+)"
     },
     "Divert": {
-      "begin": "([^\\S\\n\\r]*)(->|<-)",
+      "begin": "([^\\S\\n\\r]*)(->|<-)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2100,6 +2154,13 @@
           "patterns": [
             {
               "include": "#DivertArrow"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#WhitespaceDivertPath"
             }
           ]
         }
@@ -2143,6 +2204,11 @@
       "tag": "keyword",
       "name": "constant.language.done.sd",
       "match": "\\b(DONE)\\b"
+    },
+    "WhitespaceDivertPath": {
+      "tag": "content",
+      "name": "markup.raw.whitespace.sd",
+      "match": "([^\\S\\n\\r]+)"
     },
     "DivertPath": {
       "tag": "heading",
