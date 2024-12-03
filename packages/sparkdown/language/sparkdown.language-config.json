@@ -116,12 +116,6 @@
       }
     },
     {
-      "beforeText": "^\\s*(?:[-])\\s+.*$",
-      "action": {
-        "appendText": "- "
-      }
-    },
-    {
       "beforeText": "^\\s*(?:[%]\\s+).*?[\\\\]\\s*$",
       "action": {
         "indent": "indent"

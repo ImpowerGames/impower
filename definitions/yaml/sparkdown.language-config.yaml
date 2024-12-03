@@ -49,9 +49,6 @@ onEnterRules:
   - beforeText: ^\s*(?:[-])\s+.*(?:\s[=]\s).*$
     action: 
       indent: "indent"
-  - beforeText: ^\s*(?:[-])\s+.*$
-    action: 
-      appendText: "- "
   - beforeText: ^\s*(?:[%]\s+).*?[\\]\s*$
     action: 
       indent: "indent"
