@@ -442,12 +442,6 @@ export default class SparkParser {
             program.uuidToSource[id] = [fileIndex, lineIndex];
           }
         }
-        if (nodeType === "DefineModifierName") {
-          structModifier = text;
-        }
-        if (nodeType === "DefineTypeName") {
-          structType = text;
-        }
         if (nodeType === "DefineVariableName") {
           structName = text;
           if (
@@ -487,12 +481,18 @@ export default class SparkParser {
           program.metadata.characters[text].push({ uri, range });
           define("character", getCharacterIdentifier(text), {});
         }
-
+        // Record define properties
         if (nodeType === "DefineDeclaration") {
           structModifier = "";
           structType = "";
           structName = "";
           structPropertyPathParts = [{ key: "" }];
+        }
+        if (nodeType === "DefineModifierName") {
+          structModifier = text;
+        }
+        if (nodeType === "DefineTypeName") {
+          structType = text;
         }
         if (
           nodeType === "StructScalarItem" ||
