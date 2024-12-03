@@ -434,13 +434,11 @@ repository:
   StructField:
     emit: true
     patterns:
-      - { include: "#Annotation" }
       - { include: "#StructBlankProperty" }
       - { include: "#StructObjectItem" }
       - { include: "#StructScalarItem" }
       - { include: "#StructObjectProperty" }
       - { include: "#StructScalarProperty" }
-      - { include: "#Newline" }
 
   StructBlankProperty:
     match: ^({{WS}}+$)
@@ -471,11 +469,8 @@ repository:
           - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#StructObjectItem" }
-      - { include: "#StructScalarItem" }
-      - { include: "#StructObjectProperty" }
-      - { include: "#StructScalarProperty" }
       - { include: "#Newline" }
+      - { include: "#StructField" }
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
 
@@ -510,11 +505,8 @@ repository:
           - { include: "#StructFieldValue" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#StructObjectItem" }
-      - { include: "#StructScalarItem" }
-      - { include: "#StructObjectProperty" }
-      - { include: "#StructScalarProperty" }
       - { include: "#Newline" }
+      - { include: "#StructField" }
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
 
@@ -546,8 +538,8 @@ repository:
           - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#StructField" }
       - { include: "#Newline" }
+      - { include: "#StructField" }
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
 
@@ -592,8 +584,8 @@ repository:
           - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#StructField" }
       - { include: "#Newline" }
+      - { include: "#StructField" }
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
 

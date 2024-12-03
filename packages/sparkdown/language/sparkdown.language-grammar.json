@@ -746,9 +746,6 @@
       "emit": true,
       "patterns": [
         {
-          "include": "#Annotation"
-        },
-        {
           "include": "#StructBlankProperty"
         },
         {
@@ -762,9 +759,6 @@
         },
         {
           "include": "#StructScalarProperty"
-        },
-        {
-          "include": "#Newline"
         }
       ]
     },
@@ -822,19 +816,10 @@
           "include": "#Annotation"
         },
         {
-          "include": "#StructObjectItem"
-        },
-        {
-          "include": "#StructScalarItem"
-        },
-        {
-          "include": "#StructObjectProperty"
-        },
-        {
-          "include": "#StructScalarProperty"
-        },
-        {
           "include": "#Newline"
+        },
+        {
+          "include": "#StructField"
         },
         {
           "include": "#Unknown"
@@ -903,19 +888,10 @@
           "include": "#Annotation"
         },
         {
-          "include": "#StructObjectItem"
-        },
-        {
-          "include": "#StructScalarItem"
-        },
-        {
-          "include": "#StructObjectProperty"
-        },
-        {
-          "include": "#StructScalarProperty"
-        },
-        {
           "include": "#Newline"
+        },
+        {
+          "include": "#StructField"
         },
         {
           "include": "#Unknown"
@@ -977,10 +953,10 @@
           "include": "#Annotation"
         },
         {
-          "include": "#StructField"
+          "include": "#Newline"
         },
         {
-          "include": "#Newline"
+          "include": "#StructField"
         },
         {
           "include": "#Unknown"
@@ -1065,10 +1041,10 @@
           "include": "#Annotation"
         },
         {
-          "include": "#StructField"
+          "include": "#Newline"
         },
         {
-          "include": "#Newline"
+          "include": "#StructField"
         },
         {
           "include": "#Unknown"
