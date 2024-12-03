@@ -497,8 +497,8 @@ export default class SparkParser {
         if (
           nodeType === "StructScalarItem" ||
           nodeType === "StructObjectItemBlock" ||
-          nodeType === "StructObjectItemWithInlineObjectProperty" ||
-          nodeType === "StructObjectItemWithInlineScalarProperty"
+          nodeType === "StructObjectItemWithInlineScalarProperty" ||
+          nodeType === "StructObjectItemWithInlineObjectProperty"
         ) {
           const parent = structPropertyPathParts.at(-1);
           if (parent) {
@@ -508,8 +508,8 @@ export default class SparkParser {
           }
         }
         if (
-          nodeType === "DeclarationObjectPropertyName" ||
-          nodeType === "DeclarationScalarPropertyName"
+          nodeType === "DeclarationScalarPropertyName" ||
+          nodeType === "DeclarationObjectPropertyName"
         ) {
           structPropertyPathParts.push({ key: text });
         }
@@ -877,15 +877,16 @@ export default class SparkParser {
         if (
           nodeType === "StructScalarItem" ||
           nodeType === "StructObjectItemBlock" ||
-          nodeType === "StructObjectItemWithInlineObjectProperty" ||
           nodeType === "StructObjectItemWithInlineScalarProperty" ||
-          nodeType === "StructObjectItemWithInlineScalarProperty_begin"
+          nodeType === "StructObjectItemWithInlineObjectProperty" ||
+          nodeType === "StructObjectItemWithInlineScalarProperty_begin" ||
+          nodeType === "StructObjectItemWithInlineObjectProperty_end"
         ) {
           structPropertyPathParts.pop();
         }
         if (
-          nodeType === "StructObjectProperty" ||
-          nodeType === "StructScalarProperty"
+          nodeType === "StructScalarProperty" ||
+          nodeType === "StructObjectProperty"
         ) {
           structPropertyPathParts.pop();
         }
@@ -995,7 +996,6 @@ export default class SparkParser {
       reused,
       nodeSet: this._nodeSet,
     });
-    // console.warn(printTree(tree, paddedScript, this.grammar.nodeNames));
     return tree;
   }
 
