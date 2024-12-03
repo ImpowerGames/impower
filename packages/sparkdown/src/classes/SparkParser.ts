@@ -878,7 +878,8 @@ export default class SparkParser {
           nodeType === "StructScalarItem" ||
           nodeType === "StructObjectItemBlock" ||
           nodeType === "StructObjectItemWithInlineObjectProperty" ||
-          nodeType === "StructObjectItemWithInlineScalarProperty"
+          nodeType === "StructObjectItemWithInlineScalarProperty" ||
+          nodeType === "StructObjectItemWithInlineScalarProperty_begin"
         ) {
           structPropertyPathParts.pop();
         }
