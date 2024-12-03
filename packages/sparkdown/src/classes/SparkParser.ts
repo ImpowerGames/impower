@@ -198,7 +198,7 @@ export default class SparkParser {
     this._config = config || this._config;
     const rootNodeType = NodeType.define({
       id: NodeID.top,
-      name: name,
+      name: "sparkdown",
       top: true,
     });
     const declarator = (typeIndex: number, typeId: string) => ({
@@ -278,7 +278,10 @@ export default class SparkParser {
     let structType = "";
     let structName = "";
     let selectorFunctionName = "";
-    const structPropertyPathParts: string[] = [];
+    let structPropertyPathParts: {
+      key: string | number;
+      arrayLength?: number;
+    }[] = [];
     const generateID = () => {
       while (true) {
         const id = uuid();
@@ -485,27 +488,36 @@ export default class SparkParser {
           define("character", getCharacterIdentifier(text), {});
         }
 
-        if (nodeType === "StructScalarItem") {
-          structPropertyPathParts.push("0");
+        if (nodeType === "DefineDeclaration") {
+          structModifier = "";
+          structType = "";
+          structName = "";
+          structPropertyPathParts = [{ key: "" }];
         }
-        if (nodeType === "StructObjectItemBlock") {
-          structPropertyPathParts.push("0");
+        if (
+          nodeType === "StructScalarItem" ||
+          nodeType === "StructObjectItemBlock" ||
+          nodeType === "StructObjectItemWithInlineObjectProperty" ||
+          nodeType === "StructObjectItemWithInlineScalarProperty"
+        ) {
+          const parent = structPropertyPathParts.at(-1);
+          if (parent) {
+            parent.arrayLength ??= 0;
+            structPropertyPathParts.push({ key: parent.arrayLength });
+            parent.arrayLength += 1;
+          }
         }
-        if (nodeType === "StructObjectItemWithInlineObjectProperty") {
-          structPropertyPathParts.push("0");
-        }
-        if (nodeType === "StructObjectItemWithInlineScalarProperty") {
-          structPropertyPathParts.push("0");
-        }
-        if (nodeType === "DeclarationObjectPropertyName") {
-          structPropertyPathParts.push(text);
-        }
-        if (nodeType === "DeclarationScalarPropertyName") {
-          structPropertyPathParts.push(text);
+        if (
+          nodeType === "DeclarationObjectPropertyName" ||
+          nodeType === "DeclarationScalarPropertyName"
+        ) {
+          structPropertyPathParts.push({ key: text });
         }
 
         if (nodeType === "StructFieldValue") {
-          const structProperty = structPropertyPathParts.join(".");
+          const structProperty = structPropertyPathParts
+            .map((p) => p.key)
+            .join(".");
           const declaration = {
             modifier: structModifier,
             type: structType,
@@ -526,30 +538,28 @@ export default class SparkParser {
           let [type, name] = text.split(".");
           if (type && !name) {
             name = type;
-            type = undefined;
+            type = "";
           }
-          const structProperty = structPropertyPathParts.join(".");
+          const structProperty = structPropertyPathParts
+            .map((p) => p.key)
+            .join(".");
+          const declaration = {
+            modifier: structModifier,
+            type: structType,
+            name: structName,
+            property: structProperty,
+          };
           if (type) {
             const types = [type];
             recordReference({
               selector: { types, name },
-              declaration: {
-                modifier: structModifier,
-                type: structType,
-                name: structName,
-                property: structProperty,
-              },
+              declaration,
             });
           } else {
             const name = text;
             recordReference({
               selector: { name },
-              declaration: {
-                modifier: structModifier,
-                type: structType,
-                name: structName,
-                property: structProperty,
-              },
+              declaration,
             });
           }
         }
@@ -862,21 +872,20 @@ export default class SparkParser {
           structModifier = "";
           structType = "";
           structName = "";
-          structPropertyPathParts.length = 0;
+          structPropertyPathParts = [];
         }
-        if (nodeType === "StructObjectItemBlock") {
+        if (
+          nodeType === "StructScalarItem" ||
+          nodeType === "StructObjectItemBlock" ||
+          nodeType === "StructObjectItemWithInlineObjectProperty" ||
+          nodeType === "StructObjectItemWithInlineScalarProperty"
+        ) {
           structPropertyPathParts.pop();
         }
-        if (nodeType === "StructObjectItemWithInlineObjectProperty") {
-          structPropertyPathParts.pop();
-        }
-        if (nodeType === "StructObjectItemWithInlineScalarProperty") {
-          structPropertyPathParts.pop();
-        }
-        if (nodeType === "StructObjectProperty") {
-          structPropertyPathParts.pop();
-        }
-        if (nodeType === "StructScalarProperty") {
+        if (
+          nodeType === "StructObjectProperty" ||
+          nodeType === "StructScalarProperty"
+        ) {
           structPropertyPathParts.pop();
         }
         stack.pop();
@@ -1314,22 +1323,29 @@ export default class SparkParser {
       ]
         ? structProperty.split(".").at(-1) || ""
         : structProperty;
+      const trimmedPropertyPath = propertyPath.startsWith(".")
+        ? propertyPath.slice(1)
+        : propertyPath;
+      const expectedPropertyPath = trimmedPropertyPath
+        .split(".")
+        .map((x) => (!Number.isNaN(Number(x)) ? 0 : x))
+        .join(".");
       const expectedPropertyValue =
         getProperty(
           program.context?.[structType]?.["$default"],
-          propertyPath
+          expectedPropertyPath
         ) ??
         getProperty(
           program.context?.[structType]?.[`$optional:${structName}`],
-          propertyPath
+          expectedPropertyPath
         ) ??
         getProperty(
           program.context?.[structType]?.["$optional"],
-          propertyPath
+          expectedPropertyPath
         ) ??
         getProperty(
           this._config?.optionalDefinitions?.[structType]?.["$optional"],
-          propertyPath
+          expectedPropertyPath
         );
       return expectedPropertyValue;
     }
@@ -1351,22 +1367,29 @@ export default class SparkParser {
       ]
         ? structProperty.split(".").at(-1) || ""
         : structProperty;
+      const trimmedPropertyPath = propertyPath.startsWith(".")
+        ? propertyPath.slice(1)
+        : propertyPath;
+      const expectedPropertyPath = trimmedPropertyPath
+        .split(".")
+        .map((x) => (!Number.isNaN(Number(x)) ? 0 : x))
+        .join(".");
       const expectedPropertyValue =
         getProperty(
           program.context?.[structType]?.["$default"],
-          propertyPath
+          expectedPropertyPath
         ) ??
         getProperty(
           program.context?.[structType]?.[`$optional:${structName}`],
-          propertyPath
+          expectedPropertyPath
         ) ??
         getProperty(
           program.context?.[structType]?.["$optional"],
-          propertyPath
+          expectedPropertyPath
         ) ??
         getProperty(
           this._config?.optionalDefinitions?.[structType]?.["$optional"],
-          propertyPath
+          expectedPropertyPath
         );
       if (
         expectedPropertyValue &&
@@ -1380,12 +1403,15 @@ export default class SparkParser {
       const schemaPropertyValueArrays = [
         getProperty(
           program.context?.[structType]?.[`$schema:${structName}`],
-          propertyPath
+          expectedPropertyPath
         ),
-        getProperty(program.context?.[structType]?.["$schema"], propertyPath),
+        getProperty(
+          program.context?.[structType]?.["$schema"],
+          expectedPropertyPath
+        ),
         getProperty(
           this._config?.schemaDefinitions?.[structType]?.["$schema"],
-          propertyPath
+          expectedPropertyPath
         ),
       ];
       for (const schemaPropertyValueArray of schemaPropertyValueArrays) {

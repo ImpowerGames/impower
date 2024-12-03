@@ -11,7 +11,10 @@ export const getAccessPath = (declaration: SparkDeclaration) => {
   const qualifiedName = nameParts.join(":") || "$default";
   const pathParts: string[] = [declaration.type, qualifiedName];
   if (declaration.property) {
-    pathParts.push(declaration.property);
+    const trimmedPropertyPath = declaration.property.startsWith(".")
+      ? declaration.property.slice(1)
+      : declaration.property;
+    pathParts.push(trimmedPropertyPath);
   }
   return pathParts.join(".");
 };
