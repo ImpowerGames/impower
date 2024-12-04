@@ -516,33 +516,7 @@
       "end": "(?=^(?!\\1[^\\S\\n\\r]))"
     },
     "DefineAssignment": {
-      "match": "(.*?)([^\\S\\n\\r]*)($|[:])",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#DefineIdentifier"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#DeclarationAssignOperator"
-            }
-          ]
-        }
-      }
-    },
-    "DefineIdentifier": {
-      "match": "(?:([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]+)(?=[_\\p{L}][0-9_\\p{L}]*))?($|[_\\p{L}][0-9_\\p{L}]*)(?:([.])($|[_\\p{L}][0-9_\\p{L}]*)?)?(.*?)",
+      "match": "(?:([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]+)(?=[_\\p{L}][0-9_\\p{L}]*))?(.*?)([^\\S\\n\\r]*)($|[:])",
       "captures": {
         "1": {
           "patterns": [
@@ -561,25 +535,51 @@
         "3": {
           "patterns": [
             {
-              "include": "#DefineTypeName"
+              "include": "#DefineIdentifier"
             }
           ]
         },
         "4": {
           "patterns": [
             {
-              "include": "#DefinePunctuationAccessor"
+              "include": "#Whitespace"
             }
           ]
         },
         "5": {
           "patterns": [
             {
+              "include": "#DeclarationAssignOperator"
+            }
+          ]
+        }
+      }
+    },
+    "DefineIdentifier": {
+      "match": "([_\\p{L}][0-9_\\p{L}]*)(?:([.])($|[_\\p{L}][0-9_\\p{L}]*)?)?(.*?)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DefineTypeName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#DefinePunctuationAccessor"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
               "include": "#DefineVariableName"
             }
           ]
         },
-        "6": {
+        "4": {
           "patterns": [
             {
               "include": "#AccessPart"
@@ -1733,13 +1733,16 @@
           ]
         },
         "2": {
-          "tag": "keyword",
-          "name": "keyword.other.logic.sd"
+          "patterns": [
+            {
+              "include": "#LogicMark"
+            }
+          ]
         },
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#LogicMarkSeparator"
             }
           ]
         }
@@ -1779,6 +1782,16 @@
         }
       }
     },
+    "LogicMark": {
+      "tag": "keyword",
+      "name": "keyword.other.logic.sd",
+      "match": "(.+)"
+    },
+    "LogicMarkSeparator": {
+      "tag": "definition(punctuation)",
+      "name": "punctuation.logic.mark.sd",
+      "match": "(.+)"
+    },
     "ReturnStatement": {
       "begin": "([^\\S\\n\\r]*)(return)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
@@ -1796,7 +1809,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#ReturnKeywordSeparator"
             }
           ]
         }
@@ -1810,6 +1823,11 @@
         }
       ],
       "end": "(?=$)"
+    },
+    "ReturnKeywordSeparator": {
+      "tag": "definition(punctuation)",
+      "name": "punctuation.return.keyword.sd",
+      "match": "(.+)"
     },
     "TempDeclaration": {
       "begin": "([^\\S\\n\\r]*)(temp)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",

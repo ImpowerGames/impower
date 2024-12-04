@@ -40,6 +40,7 @@ const AUDIO_CLAUSE_KEYWORDS =
 
 const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
+const LOGIC_KEYWORDS = ["temp", "return"];
 const FLOW_KEYWORDS = ["DONE", "END"];
 
 const isPrefilteredName = (name: string) => name.includes("~");
@@ -679,45 +680,141 @@ const addStructPropertyValueCompletions = (
   }
 };
 
-const addAccessPathCompletions = (
+const addMutableAccessPathCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  path: string
+  valueText: string,
+  valueCursorOffset: number,
+  scopePath: string,
+  insertTextPrefix: string = ""
 ) => {
-  const parts = path?.split(".") || [];
-  const type = parts[0];
-  if (program?.context) {
-    if (parts.length === 2 && type) {
-      addStructReferenceCompletions(completions, program, [type]);
-    } else {
-      const parentPath =
-        parts.length === 1
-          ? ""
-          : path?.endsWith(".")
-          ? parts.slice(0, -1).join(".")
-          : parts.join(".");
-      const keyStartsWith =
-        parts.length === 1 ? path : path?.endsWith(".") ? parts.at(-1) : "";
-      const props = getProperty(program.context, parentPath);
-      if (props) {
-        for (const [propName, v] of Object.entries(props)) {
-          if (!propName.startsWith("$")) {
-            if (!keyStartsWith || propName.startsWith(keyStartsWith)) {
-              const description = typeof v === "object" ? undefined : typeof v;
-              const kind =
-                parts.length <= 1
-                  ? CompletionItemKind.TypeParameter
-                  : parts.length === 2
-                  ? CompletionItemKind.Variable
-                  : CompletionItemKind.Property;
-              const completion: CompletionItem = {
-                label: propName,
-                labelDetails: { description },
-                kind,
-                insertTextMode: InsertTextMode.asIs,
-              };
-              if (completion.label && !completions.has(completion.label)) {
-                completions.set(completion.label, completion);
+  const valueTextAfterCursor = valueText.slice(valueCursorOffset);
+  if (!valueTextAfterCursor) {
+    const parts = valueText?.split(".") || [];
+    if (program?.metadata?.scopes) {
+      const types = ["var", "list", "param", "temp"];
+      for (const [path, declarations] of Object.entries(
+        program.metadata.scopes
+      )) {
+        if (
+          (parts.length <= 1 && scopePath.startsWith(path)) ||
+          (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
+        ) {
+          for (const type of types) {
+            if (declarations[type]) {
+              for (const location of declarations[type]) {
+                if (location.text) {
+                  const description = type;
+                  const kind = CompletionItemKind.Class;
+                  const completion: CompletionItem = {
+                    label: location.text,
+                    insertText: insertTextPrefix + location.text,
+                    labelDetails: { description },
+                    kind,
+                  };
+                  if (completion.label && !completions.has(completion.label)) {
+                    completions.set(completion.label, completion);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+const addImmutableAccessPathCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  valueText: string,
+  valueCursorOffset: number,
+  scopePath: string,
+  insertTextPrefix: string = ""
+) => {
+  const valueTextAfterCursor = valueText.slice(valueCursorOffset);
+  if (!valueTextAfterCursor) {
+    const parts = valueText?.split(".") || [];
+    if (program?.metadata?.scopes) {
+      const types = ["const"];
+      for (const [path, declarations] of Object.entries(
+        program.metadata.scopes
+      )) {
+        if (
+          (parts.length <= 1 && scopePath.startsWith(path)) ||
+          (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
+        ) {
+          for (const type of types) {
+            if (declarations[type]) {
+              for (const location of declarations[type]) {
+                if (location.text) {
+                  const description = type;
+                  const kind = CompletionItemKind.Class;
+                  const completion: CompletionItem = {
+                    label: location.text,
+                    insertText: insertTextPrefix + location.text,
+                    labelDetails: { description },
+                    kind,
+                  };
+                  if (completion.label && !completions.has(completion.label)) {
+                    completions.set(completion.label, completion);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+const addStructAccessPathCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  valueText: string,
+  valueCursorOffset: number,
+  insertTextPrefix: string = ""
+) => {
+  const valueTextAfterCursor = valueText.slice(valueCursorOffset);
+  if (!valueTextAfterCursor) {
+    const parts = valueText?.split(".") || [];
+    const type = parts[0];
+    if (program?.context) {
+      if (parts.length === 2 && type) {
+        addStructReferenceCompletions(completions, program, [type]);
+      } else {
+        const parentPath =
+          parts.length === 1
+            ? ""
+            : valueText.endsWith(".")
+            ? valueText.slice(0, -1)
+            : valueText;
+        const props = getProperty(program.context, parentPath);
+        if (props) {
+          for (const [propName, v] of Object.entries(props)) {
+            if (!propName.startsWith("$")) {
+              const keyStartsWith = parts.at(-1) || "";
+              if (!keyStartsWith || propName.startsWith(keyStartsWith)) {
+                const description =
+                  typeof v === "object" ? undefined : typeof v;
+                const kind =
+                  parts.length <= 1
+                    ? CompletionItemKind.TypeParameter
+                    : parts.length === 2
+                    ? CompletionItemKind.Variable
+                    : CompletionItemKind.Property;
+                const completion: CompletionItem = {
+                  label: propName,
+                  insertText: insertTextPrefix + propName,
+                  labelDetails: { description },
+                  kind,
+                  insertTextMode: InsertTextMode.asIs,
+                };
+                if (completion.label && !completions.has(completion.label)) {
+                  completions.set(completion.label, completion);
+                }
               }
             }
           }
@@ -730,15 +827,15 @@ const addAccessPathCompletions = (
 const addDivertPathCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  scopePath: string,
   valueText: string,
   valueCursorOffset: number,
+  scopePath: string,
   insertTextPrefix: string = ""
 ) => {
-  const valueTextBeforeCursor = valueText.slice(0, valueCursorOffset);
   const valueTextAfterCursor = valueText.slice(valueCursorOffset);
   if (!valueTextAfterCursor) {
-    if (!valueTextBeforeCursor) {
+    const parts = valueText?.split(".") || [];
+    if (parts.length <= 1) {
       addKeywordCompletions(
         completions,
         "terminator",
@@ -748,61 +845,29 @@ const addDivertPathCompletions = (
       );
     }
     if (program?.metadata?.scopes) {
+      const types = ["knot", "stitch", "label"];
       for (const [path, declarations] of Object.entries(
         program.metadata.scopes
       )) {
         if (
-          (!valueTextBeforeCursor && scopePath.startsWith(path)) ||
-          (valueTextBeforeCursor &&
-            path === "." + valueTextBeforeCursor.slice(0, -1))
+          (parts.length <= 1 && scopePath.startsWith(path)) ||
+          (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
         ) {
-          if (declarations["knot"]) {
-            for (const location of declarations["knot"]) {
-              if (location.text) {
-                const description = "knot";
-                const kind = CompletionItemKind.Class;
-                const completion: CompletionItem = {
-                  label: location.text,
-                  insertText: insertTextPrefix + location.text,
-                  labelDetails: { description },
-                  kind,
-                };
-                if (completion.label && !completions.has(completion.label)) {
-                  completions.set(completion.label, completion);
-                }
-              }
-            }
-          }
-          if (declarations["stitch"]) {
-            for (const location of declarations["stitch"]) {
-              if (location.text) {
-                const description = "stitch";
-                const kind = CompletionItemKind.Class;
-                const completion: CompletionItem = {
-                  label: location.text,
-                  insertText: insertTextPrefix + location.text,
-                  labelDetails: { description },
-                  kind,
-                };
-                if (completion.label && !completions.has(completion.label)) {
-                  completions.set(completion.label, completion);
-                }
-              }
-            }
-          }
-          if (declarations["label"]) {
-            for (const location of declarations["label"]) {
-              if (location.text) {
-                const description = "label";
-                const kind = CompletionItemKind.Class;
-                const completion: CompletionItem = {
-                  label: location.text,
-                  insertText: insertTextPrefix + location.text,
-                  labelDetails: { description },
-                  kind,
-                };
-                if (completion.label && !completions.has(completion.label)) {
-                  completions.set(completion.label, completion);
+          for (const type of types) {
+            if (declarations[type]) {
+              for (const location of declarations[type]) {
+                if (location.text) {
+                  const description = type;
+                  const kind = CompletionItemKind.Class;
+                  const completion: CompletionItem = {
+                    label: location.text,
+                    insertText: insertTextPrefix + location.text,
+                    labelDetails: { description },
+                    kind,
+                  };
+                  if (completion.label && !completions.has(completion.label)) {
+                    completions.set(completion.label, completion);
+                  }
                 }
               }
             }
@@ -833,6 +898,8 @@ export const getCompletions = (
     return undefined;
   }
 
+  const documentCursorOffset = document.offsetAt(position);
+
   const completions: Map<string, CompletionItem> = new Map();
 
   const stack = getStack(tree, document.offsetAt(position));
@@ -849,14 +916,23 @@ export const getCompletions = (
   const getNodeText = (node: SyntaxNode | undefined) =>
     node ? read(node.from, node.to) : "";
 
+  const getCursorOffset = (node: SyntaxNode | undefined) =>
+    node
+      ? documentCursorOffset < node.from
+        ? 0
+        : documentCursorOffset > node.to
+        ? node.to - node.from
+        : documentCursorOffset - node.from
+      : 0;
+
   const side = -1;
   const prevCursor = tree.cursorAt(stack[0].from - 1, side);
   const prevNode = prevCursor.node as SparkdownSyntaxNode;
   const prevText = getNodeText(prevNode);
 
   // console.log(printTree(tree, document.getText()));
-  // console.log(stack.map((n) => n.type.name));
   // console.log("program", program);
+  // console.log(stack.map((n) => n.type.name));
 
   // Transition
   if (stack[0]?.type.name === "TransitionMark") {
@@ -1232,13 +1308,7 @@ export const getCompletions = (
     );
     const valueText = propertyValueNode ? getNodeText(propertyValueNode) : "";
     const documentCursorOffset = document.offsetAt(position);
-    const valueCursorOffset = propertyValueNode
-      ? documentCursorOffset < propertyValueNode.from
-        ? 0
-        : documentCursorOffset > propertyValueNode.to
-        ? propertyValueNode.to - propertyValueNode.from
-        : documentCursorOffset - propertyValueNode.from
-      : 0;
+    const valueCursorOffset = getCursorOffset(propertyValueNode);
     if (propertyNameNode) {
       const path =
         getParentPropertyPath(propertyNameNode, read) +
@@ -1263,13 +1333,31 @@ export const getCompletions = (
   // Access Path
   const accessPathNode = stack.find((n) => n.type.name === "AccessPath");
   if (accessPathNode) {
-    const path = getNodeText(accessPathNode);
-    addAccessPathCompletions(completions, program, path);
-    // TODO: const
-    // TODO: var
-    // TODO: list
-    // TODO: temp (in scope)
-    // TODO: param (in scope)
+    const valueText = getNodeText(accessPathNode);
+    const valueCursorOffset = getCursorOffset(accessPathNode);
+    if (stack.find((n) => n.type.name === "StructField")) {
+      addStructAccessPathCompletions(
+        completions,
+        program,
+        valueText,
+        valueCursorOffset
+      );
+    } else {
+      addMutableAccessPathCompletions(
+        completions,
+        program,
+        valueText,
+        valueCursorOffset,
+        getParentSectionPath(stack, read)
+      );
+      addImmutableAccessPathCompletions(
+        completions,
+        program,
+        valueText,
+        valueCursorOffset,
+        getParentSectionPath(stack, read)
+      );
+    }
     return Array.from(completions.values());
   }
 
@@ -1281,9 +1369,9 @@ export const getCompletions = (
     addDivertPathCompletions(
       completions,
       program,
-      getParentSectionPath(stack, read),
       "",
       0,
+      getParentSectionPath(stack, read),
       " "
     );
     return Array.from(completions.values());
@@ -1295,29 +1383,21 @@ export const getCompletions = (
     addDivertPathCompletions(
       completions,
       program,
-      getParentSectionPath(stack, read),
       "",
-      0
+      0,
+      getParentSectionPath(stack, read)
     );
     return Array.from(completions.values());
   }
   if (stack[0]?.type.name === "DivertPath") {
-    const node = stack[0];
-    const valueText = getNodeText(node);
-    const documentCursorOffset = document.offsetAt(position);
-    const valueCursorOffset = node
-      ? documentCursorOffset < node.from
-        ? 0
-        : documentCursorOffset > node.to
-        ? node.to - node.from
-        : documentCursorOffset - node.from
-      : 0;
+    const valueText = getNodeText(stack[0]);
+    const valueCursorOffset = getCursorOffset(stack[0]);
     addDivertPathCompletions(
       completions,
       program,
-      getParentSectionPath(stack, read),
       valueText,
-      valueCursorOffset
+      valueCursorOffset,
+      getParentSectionPath(stack, read)
     );
     return Array.from(completions.values());
   }

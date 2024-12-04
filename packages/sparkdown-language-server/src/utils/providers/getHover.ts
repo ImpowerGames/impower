@@ -51,23 +51,16 @@ export const getHover = (
                 range,
               };
             }
-          } else {
-            return {
-              contents: {
-                kind: MarkupKind.Markdown,
-                value: getFencedCode(`define ${resolved}`),
-              },
-              range,
-            };
           }
           // TODO: const name: type
           // TODO: var name: type
           // TODO: list name
+          // TODO: define type.name
           // TODO: == knot
           // TODO: = stitch
           // TODO: - (label)
           // TODO: ~ temp name: type
-          // TODO: ~ (param) name: type
+          // TODO: ~ param name: type
         }
       }
     }

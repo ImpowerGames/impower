@@ -1052,7 +1052,7 @@ export default class SparkParser {
       lines.pop();
     }
     const transpiled = lines.join("\n");
-    console.log(printTree(tree, script));
+    // console.log(printTree(tree, script));
     // console.log(transpiled);
     return transpiled;
   }
@@ -1124,7 +1124,7 @@ export default class SparkParser {
     } catch (e) {
       console.error(e);
     }
-    console.log("program", program);
+    // console.log("program", program);
     return program;
   }
 

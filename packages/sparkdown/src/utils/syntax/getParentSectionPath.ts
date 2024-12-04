@@ -5,7 +5,7 @@ export const getParentSectionPath = (
   stack: SyntaxNode[],
   read: (from: number, to: number) => string
 ) => {
-  let parentPathParts: { kind: "knot" | "stitch"; name: string }[] = [];
+  let parentPathParts: { kind: "" | "knot" | "stitch"; name: string }[] = [];
   let topLevelNode = stack.at(-2)?.prevSibling;
   while (topLevelNode) {
     if (topLevelNode.type.name === "Knot") {
@@ -35,5 +35,6 @@ export const getParentSectionPath = (
     }
     topLevelNode = topLevelNode.prevSibling;
   }
+  parentPathParts.unshift({ kind: "", name: "" });
   return parentPathParts.map((p) => p.name).join(".");
 };

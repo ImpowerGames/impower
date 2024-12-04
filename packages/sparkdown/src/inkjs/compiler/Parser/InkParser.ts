@@ -2613,7 +2613,7 @@ export class InkParser extends StringParser {
     ) as ParsedObject;
 
     // Prevent further errors, already reported expected expression and have skipped to next line.
-    if (result === null) {
+    if (result === null || !(result instanceof ParsedObject)) {
       return new ContentList();
     }
 
@@ -2628,7 +2628,7 @@ export class InkParser extends StringParser {
       !(result instanceof FunctionCall || result instanceof IncDecExpression)
     ) {
       this.Error(
-        "Logic following a '~' can't be that type of expression. It can only be something like:\n\t~ return\n\t~ var x = blah\n\t~ x++\n\t~ myFunction()"
+        "Logic following a '~' can't be that type of expression. It can only be something like:\n\t~ return\n\t~ temp x = blah\n\t~ x++\n\t~ myFunction()"
       );
     }
 

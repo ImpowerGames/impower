@@ -299,20 +299,7 @@ repository:
     end: (?=^(?!\1{{WS}}))
 
   DefineAssignment:
-    match: (.*?)({{WS}}*)($|[:])
-    captures:
-      1:
-        patterns:
-          - { include: "#DefineIdentifier" }
-      2:
-        patterns:
-          - { include: "#Whitespace" }
-      3:
-        patterns:
-          - { include: "#DeclarationAssignOperator" }
-
-  DefineIdentifier:
-    match: (?:({{IDENTIFIER}})({{WS}}+)(?={{IDENTIFIER}}))?($|{{IDENTIFIER}})(?:([.])($|{{IDENTIFIER}})?)?(.*?)
+    match: (?:({{IDENTIFIER}})({{WS}}+)(?={{IDENTIFIER}}))?(.*?)({{WS}}*)($|[:])
     captures:
       1:
         patterns:
@@ -322,14 +309,27 @@ repository:
           - { include: "#WhitespaceDefineTypeName" }
       3:
         patterns:
-          - { include: "#DefineTypeName" }
+          - { include: "#DefineIdentifier" }
       4:
         patterns:
-          - { include: "#DefinePunctuationAccessor" }
+          - { include: "#Whitespace" }
       5:
         patterns:
+          - { include: "#DeclarationAssignOperator" }
+
+  DefineIdentifier:
+    match: ({{IDENTIFIER}})(?:([.])($|{{IDENTIFIER}})?)?(.*?)
+    captures:
+      1:
+        patterns:
+          - { include: "#DefineTypeName" }
+      2:
+        patterns:
+          - { include: "#DefinePunctuationAccessor" }
+      3:
+        patterns:
           - { include: "#DefineVariableName" }
-      6:
+      4:
         patterns:
           - { include: "#AccessPart" }
 
@@ -996,11 +996,11 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: keyword
-        name: keyword.other.logic.sd
+        patterns:
+          - { include: "#LogicMark" }
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#LogicMarkSeparator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Whitespace" }
@@ -1016,6 +1016,16 @@ repository:
         patterns:
           - { include: "#Newline" }
 
+  LogicMark:
+    tag: keyword
+    name: keyword.other.logic.sd
+    match: (.+)
+
+  LogicMarkSeparator:
+    tag: definition(punctuation)
+    name: punctuation.logic.mark.sd
+    match: (.+)
+
   ReturnStatement:
     begin: ({{WS}}*)(return)({{EOK}})
     beginCaptures:
@@ -1027,11 +1037,16 @@ repository:
         name: keyword.control.flow.return.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#ReturnKeywordSeparator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Expression" }
     end: (?=$)
+
+  ReturnKeywordSeparator:
+    tag: definition(punctuation)
+    name: punctuation.return.keyword.sd
+    match: (.+)
 
   TempDeclaration:
     begin: ({{WS}}*)(temp)({{EOK}})
