@@ -570,12 +570,12 @@
           },
           "sparkdown.imageFiles": {
             "type": "string",
-            "default": "*.{png,apng,jpeg,jpg,gif,bmp,svg}",
+            "default": "*.{png,apng,jpeg,jpg,gif,bmp,svg,webp}",
             "description": "Recognized filename patterns for image files"
           },
           "sparkdown.audioFiles": {
-            "type": "array",
-            "default": "*.{mid,wav,mp3,ogg}",
+            "type": "string",
+            "default": "*.{mid,wav,mp3,mp2,ogg,aac,opus,flac}",
             "description": "Recognized filename patterns for audio files"
           }
         }
