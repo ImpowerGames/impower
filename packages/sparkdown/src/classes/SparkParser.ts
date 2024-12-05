@@ -482,7 +482,6 @@ export default class SparkParser {
           program.metadata.characters ??= {};
           program.metadata.characters[text] ??= [];
           program.metadata.characters[text].push({ uri, range });
-          define("character", getCharacterIdentifier(text), {});
         }
         // Record define properties
         if (nodeType === "DefineDeclaration") {
