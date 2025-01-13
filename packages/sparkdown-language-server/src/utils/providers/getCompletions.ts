@@ -946,65 +946,97 @@ export const getCompletions = (
 
   // Transition
   if (stack[0]?.type.name === "TransitionMark") {
-    addTransitionCompletions(
-      completions,
-      program,
-      document.uri,
-      position.line,
-      " "
-    );
+    if (isCursorAfterNodeText(stack[0])) {
+      addTransitionCompletions(
+        completions,
+        program,
+        document.uri,
+        position.line,
+        " "
+      );
+    }
     return Array.from(completions.values());
   }
   if (
     stack[0]?.type.name === "TransitionMarkSeparator" ||
     stack.some((n) => n?.type.name === "Transition_content")
   ) {
-    addTransitionCompletions(completions, program, document.uri, position.line);
+    if (isCursorAfterNodeText(stack[0])) {
+      addTransitionCompletions(
+        completions,
+        program,
+        document.uri,
+        position.line
+      );
+    }
     return Array.from(completions.values());
   }
 
   // Scene
   if (stack[0]?.type.name === "SceneMark") {
-    addSceneCompletions(completions, program, document.uri, position.line, " ");
+    if (isCursorAfterNodeText(stack[0])) {
+      addSceneCompletions(
+        completions,
+        program,
+        document.uri,
+        position.line,
+        " "
+      );
+    }
     return Array.from(completions.values());
   }
   if (
     stack[0]?.type.name === "SceneMarkSeparator" ||
     stack.some((n) => n?.type.name === "Scene_content")
   ) {
-    addSceneCompletions(completions, program, document.uri, position.line);
+    if (isCursorAfterNodeText(stack[0])) {
+      addSceneCompletions(completions, program, document.uri, position.line);
+    }
     return Array.from(completions.values());
   }
 
   // Dialogue
   if (stack[0]?.type.name === "DialogueMark") {
-    addCharacterCompletions(
-      completions,
-      program,
-      document.uri,
-      position.line,
-      " "
-    );
+    if (isCursorAfterNodeText(stack[0])) {
+      addCharacterCompletions(
+        completions,
+        program,
+        document.uri,
+        position.line,
+        " "
+      );
+    }
     return Array.from(completions.values());
   }
   if (
     stack[0]?.type.name === "DialogueMarkSeparator" ||
     stack.some((n) => n?.type.name === "DialogueCharacter")
   ) {
-    addCharacterCompletions(completions, program, document.uri, position.line);
+    if (isCursorAfterNodeText(stack[0])) {
+      addCharacterCompletions(
+        completions,
+        program,
+        document.uri,
+        position.line
+      );
+    }
     return Array.from(completions.values());
   }
 
   // Write
   if (stack[0]?.type.name === "WriteMark") {
-    addUIElementReferenceCompletions(completions, program, ["text"], " ");
+    if (isCursorAfterNodeText(stack[0])) {
+      addUIElementReferenceCompletions(completions, program, ["text"], " ");
+    }
     return Array.from(completions.values());
   }
   if (
     stack[0]?.type.name === "WriteMarkSeparator" ||
     stack.some((n) => n?.type.name === "WriteTarget")
   ) {
-    addUIElementReferenceCompletions(completions, program, ["text"]);
+    if (isCursorAfterNodeText(stack[0])) {
+      addUIElementReferenceCompletions(completions, program, ["text"]);
+    }
     return Array.from(completions.values());
   }
 
