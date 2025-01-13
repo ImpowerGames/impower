@@ -925,6 +925,16 @@ export const getCompletions = (
         : documentCursorOffset - node.from
       : 0;
 
+  const isCursorAfterNodeText = (node: SyntaxNode | undefined) => {
+    if (!node) {
+      return true;
+    }
+    const nodeText = getNodeText(node);
+    const nodeCursorOffset = getCursorOffset(node);
+    const nodeTextAfterCursor = nodeText.slice(nodeCursorOffset);
+    return !nodeTextAfterCursor.trim();
+  };
+
   const side = -1;
   const prevCursor = tree.cursorAt(stack[0].from - 1, side);
   const prevNode = prevCursor.node as SparkdownSyntaxNode;
@@ -1000,67 +1010,83 @@ export const getCompletions = (
 
   // ImageCommand
   if (stack.some((n) => n.type.name === "ImageCommand")) {
-    if (
-      stack.some(
-        (n) =>
-          n.type.name === "ImageCommand_c1" ||
-          n.type.name === "AssetCommandContent_c1"
-      )
-    ) {
-      addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
-      addStructReferenceCompletions(
-        completions,
-        program,
-        IMAGE_TYPES,
-        isPrefilteredName
-      );
+    const beforeImageNode = stack.find(
+      (n) =>
+        n.type.name === "ImageCommand_c1" ||
+        n.type.name === "AssetCommandContent_c1"
+    );
+    if (beforeImageNode) {
+      if (isCursorAfterNodeText(beforeImageNode)) {
+        addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
+        addStructReferenceCompletions(
+          completions,
+          program,
+          IMAGE_TYPES,
+          isPrefilteredName
+        );
+      }
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "AssetCommandControl") {
-      addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
+      if (isCursorAfterNodeText(stack[0])) {
+        addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
+      }
       return Array.from(completions.values());
     }
     if (
       stack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
       stack[0]?.type.name === "AssetCommandTarget"
     ) {
-      addUIElementReferenceCompletions(completions, program, ["image"]);
+      if (isCursorAfterNodeText(stack[0])) {
+        addUIElementReferenceCompletions(completions, program, ["image"]);
+      }
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
-      addStructReferenceCompletions(
-        completions,
-        program,
-        IMAGE_TYPES,
-        isPrefilteredName
-      );
-      addKeywordCompletions(completions, "clause", IMAGE_CLAUSE_KEYWORDS);
+      if (isCursorAfterNodeText(stack[0])) {
+        addStructReferenceCompletions(
+          completions,
+          program,
+          IMAGE_TYPES,
+          isPrefilteredName
+        );
+        addKeywordCompletions(completions, "clause", IMAGE_CLAUSE_KEYWORDS);
+      }
       return Array.from(completions.values());
     }
     if (
       stack[0]?.type.name === "AssetCommandName" ||
       stack[0]?.type.name === "AssetCommandFileName"
     ) {
-      addStructReferenceCompletions(
-        completions,
-        program,
-        IMAGE_TYPES,
-        isPrefilteredName
-      );
+      if (isCursorAfterNodeText(stack[0])) {
+        addStructReferenceCompletions(
+          completions,
+          program,
+          IMAGE_TYPES,
+          isPrefilteredName
+        );
+      }
       return Array.from(completions.values());
     }
     if (
       stack[0]?.type.name === "AssetCommandFilterOperator" ||
       stack[0]?.type.name === "AssetCommandFilterName"
     ) {
-      const exclude = getOtherMatchesInsideParent(
-        "AssetCommandFilterName",
-        "AssetCommandContent",
-        stack,
-        tree,
-        read
-      );
-      addStructReferenceCompletions(completions, program, ["filter"], exclude);
+      if (isCursorAfterNodeText(stack[0])) {
+        const exclude = getOtherMatchesInsideParent(
+          "AssetCommandFilterName",
+          "AssetCommandContent",
+          stack,
+          tree,
+          read
+        );
+        addStructReferenceCompletions(
+          completions,
+          program,
+          ["filter"],
+          exclude
+        );
+      }
       return Array.from(completions.values());
     }
     if (
@@ -1069,33 +1095,37 @@ export const getCompletions = (
         prevText === "with") ||
       stack[0]?.type.name === "NameValue"
     ) {
-      addStructReferenceCompletions(completions, program, [
-        "transition",
-        "animation",
-      ]);
+      if (isCursorAfterNodeText(stack[0])) {
+        addStructReferenceCompletions(completions, program, [
+          "transition",
+          "animation",
+        ]);
+      }
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
-      const prevClauseTakesArgument =
-        prevNode?.type.name === "AssetCommandClauseKeyword" &&
-        (prevText === "after" ||
-          prevText === "over" ||
-          prevText === "with" ||
-          prevText === "fadeto");
-      if (!prevClauseTakesArgument) {
-        const exclude = getOtherMatchesInsideParent(
-          "AssetCommandClauseKeyword",
-          "AssetCommandContent",
-          stack,
-          tree,
-          read
-        );
-        addKeywordCompletions(
-          completions,
-          "clause",
-          IMAGE_CLAUSE_KEYWORDS,
-          exclude
-        );
+      if (isCursorAfterNodeText(stack[0])) {
+        const prevClauseTakesArgument =
+          prevNode?.type.name === "AssetCommandClauseKeyword" &&
+          (prevText === "after" ||
+            prevText === "over" ||
+            prevText === "with" ||
+            prevText === "fadeto");
+        if (!prevClauseTakesArgument) {
+          const exclude = getOtherMatchesInsideParent(
+            "AssetCommandClauseKeyword",
+            "AssetCommandContent",
+            stack,
+            tree,
+            read
+          );
+          addKeywordCompletions(
+            completions,
+            "clause",
+            IMAGE_CLAUSE_KEYWORDS,
+            exclude
+          );
+        }
       }
       return Array.from(completions.values());
     }
@@ -1103,75 +1133,93 @@ export const getCompletions = (
 
   // AudioCommand
   if (stack.some((n) => n.type.name === "AudioCommand")) {
-    if (
-      stack.some(
-        (n) =>
-          n.type.name === "AudioCommand_c1" ||
-          n.type.name === "AssetCommandContent_c1"
-      )
-    ) {
-      addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
-      addStructReferenceCompletions(completions, program, AUDIO_TYPES);
+    const beforeAudioNode = stack.find(
+      (n) =>
+        n.type.name === "AudioCommand_c1" ||
+        n.type.name === "AssetCommandContent_c1"
+    );
+    if (beforeAudioNode) {
+      if (isCursorAfterNodeText(beforeAudioNode)) {
+        addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
+        addStructReferenceCompletions(completions, program, AUDIO_TYPES);
+      }
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "AssetCommandControl") {
-      addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
+      if (isCursorAfterNodeText(stack[0])) {
+        addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
+      }
       return Array.from(completions.values());
     }
     if (
       stack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
       stack[0]?.type.name === "AssetCommandTarget"
     ) {
-      addStructReferenceCompletions(completions, program, ["channel"]);
+      if (isCursorAfterNodeText(stack[0])) {
+        addStructReferenceCompletions(completions, program, ["channel"]);
+      }
       return Array.from(completions.values());
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
-      addStructReferenceCompletions(completions, program, AUDIO_TYPES);
-      addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS);
+      if (isCursorAfterNodeText(stack[0])) {
+        addStructReferenceCompletions(completions, program, AUDIO_TYPES);
+        addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS);
+      }
       return Array.from(completions.values());
     }
     if (
       stack[0]?.type.name === "AssetCommandName" ||
       stack[0]?.type.name === "AssetCommandFileName"
     ) {
-      addStructReferenceCompletions(completions, program, AUDIO_TYPES);
+      if (isCursorAfterNodeText(stack[0])) {
+        addStructReferenceCompletions(completions, program, AUDIO_TYPES);
+      }
       return Array.from(completions.values());
     }
     if (
       stack[0]?.type.name === "AssetCommandFilterOperator" ||
       stack[0]?.type.name === "AssetCommandFilterName"
     ) {
-      const exclude = getOtherMatchesInsideParent(
-        "AssetCommandFilterName",
-        "AssetCommandContent",
-        stack,
-        tree,
-        read
-      );
-      addStructReferenceCompletions(completions, program, ["filter"], exclude);
-      return Array.from(completions.values());
-    }
-    if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
-      const prevClauseTakesArgument =
-        prevNode?.type.name === "AssetCommandClauseKeyword" &&
-        (prevText === "after" ||
-          prevText === "over" ||
-          prevText === "with" ||
-          prevText === "fadeto");
-      if (!prevClauseTakesArgument) {
+      if (isCursorAfterNodeText(stack[0])) {
         const exclude = getOtherMatchesInsideParent(
-          "AssetCommandClauseKeyword",
+          "AssetCommandFilterName",
           "AssetCommandContent",
           stack,
           tree,
           read
         );
-        addKeywordCompletions(
+        addStructReferenceCompletions(
           completions,
-          "clause",
-          AUDIO_CLAUSE_KEYWORDS,
+          program,
+          ["filter"],
           exclude
         );
+      }
+      return Array.from(completions.values());
+    }
+    if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
+      if (isCursorAfterNodeText(stack[0])) {
+        const prevClauseTakesArgument =
+          prevNode?.type.name === "AssetCommandClauseKeyword" &&
+          (prevText === "after" ||
+            prevText === "over" ||
+            prevText === "with" ||
+            prevText === "fadeto");
+        if (!prevClauseTakesArgument) {
+          const exclude = getOtherMatchesInsideParent(
+            "AssetCommandClauseKeyword",
+            "AssetCommandContent",
+            stack,
+            tree,
+            read
+          );
+          addKeywordCompletions(
+            completions,
+            "clause",
+            AUDIO_CLAUSE_KEYWORDS,
+            exclude
+          );
+        }
         return Array.from(completions.values());
       }
     }
@@ -1181,7 +1229,9 @@ export const getCompletions = (
         prevText === "with") ||
       stack[0]?.type.name === "NameValue"
     ) {
-      addStructReferenceCompletions(completions, program, ["modulation"]);
+      if (isCursorAfterNodeText(stack[0])) {
+        addStructReferenceCompletions(completions, program, ["modulation"]);
+      }
       return Array.from(completions.values());
     }
   }
@@ -1194,11 +1244,15 @@ export const getCompletions = (
         n.type.name === "DefineTypeName"
     )
   ) {
-    const defineTypeNameNode = stack.find(
-      (n) => n.type.name === "DefineTypeName"
-    );
-    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
-    addStructTypeNameCompletions(completions, program, type);
+    if (
+      isCursorAfterNodeText(stack.find((n) => n.type.name === "DefineTypeName"))
+    ) {
+      const defineTypeNameNode = stack.find(
+        (n) => n.type.name === "DefineTypeName"
+      );
+      const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
+      addStructTypeNameCompletions(completions, program, type);
+    }
     return Array.from(completions.values());
   }
   if (
@@ -1209,13 +1263,19 @@ export const getCompletions = (
         n.type.name === "DefineVariableName"
     )
   ) {
-    const defineTypeNameNode = getDescendentInsideParent(
-      "DefineTypeName",
-      "DefineDeclaration",
-      stack
-    );
-    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
-    addStructVariableNameCompletions(completions, program, type);
+    if (
+      isCursorAfterNodeText(
+        stack.find((n) => n.type.name === "DefineVariableName")
+      )
+    ) {
+      const defineTypeNameNode = getDescendentInsideParent(
+        "DefineTypeName",
+        "DefineDeclaration",
+        stack
+      );
+      const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
+      addStructVariableNameCompletions(completions, program, type);
+    }
     return Array.from(completions.values());
   }
   const propertyNameNode = stack.find(
@@ -1229,41 +1289,43 @@ export const getCompletions = (
     propertyNameNode &&
     document.positionAt(propertyNameNode.from).line === position.line
   ) {
-    const defineModifierNameNode = getDescendentInsideParent(
-      "DefineModifierName",
-      "DefineDeclaration",
-      stack
-    );
-    const defineTypeNameNode = getDescendentInsideParent(
-      "DefineTypeName",
-      "DefineDeclaration",
-      stack
-    );
-    const defineVariableNameNode = getDescendentInsideParent(
-      "DefineVariableName",
-      "DefineDeclaration",
-      stack
-    );
-    const modifier = defineModifierNameNode
-      ? getNodeText(defineModifierNameNode)
-      : "";
-    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
-    const name = defineVariableNameNode
-      ? getNodeText(defineVariableNameNode)
-      : "";
-    const path = getParentPropertyPath(propertyNameNode, read);
-    const lineText = getLineText(document, position);
-    addStructPropertyNameCompletions(
-      completions,
-      program,
-      definitions,
-      modifier,
-      type,
-      name,
-      path,
-      lineText,
-      position
-    );
+    if (isCursorAfterNodeText(propertyNameNode)) {
+      const defineModifierNameNode = getDescendentInsideParent(
+        "DefineModifierName",
+        "DefineDeclaration",
+        stack
+      );
+      const defineTypeNameNode = getDescendentInsideParent(
+        "DefineTypeName",
+        "DefineDeclaration",
+        stack
+      );
+      const defineVariableNameNode = getDescendentInsideParent(
+        "DefineVariableName",
+        "DefineDeclaration",
+        stack
+      );
+      const modifier = defineModifierNameNode
+        ? getNodeText(defineModifierNameNode)
+        : "";
+      const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
+      const name = defineVariableNameNode
+        ? getNodeText(defineVariableNameNode)
+        : "";
+      const path = getParentPropertyPath(propertyNameNode, read);
+      const lineText = getLineText(document, position);
+      addStructPropertyNameCompletions(
+        completions,
+        program,
+        definitions,
+        modifier,
+        type,
+        name,
+        path,
+        lineText,
+        position
+      );
+    }
     return Array.from(completions.values());
   }
   if (
@@ -1307,7 +1369,6 @@ export const getCompletions = (
       stack
     );
     const valueText = propertyValueNode ? getNodeText(propertyValueNode) : "";
-    const documentCursorOffset = document.offsetAt(position);
     const valueCursorOffset = getCursorOffset(propertyValueNode);
     if (propertyNameNode) {
       const path =
@@ -1366,39 +1427,45 @@ export const getCompletions = (
     stack[0]?.type.name === "DivertArrow" &&
     !getNodeText(getDescendentInsideParent("Divert_content", "Divert", stack))
   ) {
-    addDivertPathCompletions(
-      completions,
-      program,
-      "",
-      0,
-      getParentSectionPath(stack, read),
-      " "
-    );
+    if (isCursorAfterNodeText(stack[0])) {
+      addDivertPathCompletions(
+        completions,
+        program,
+        "",
+        0,
+        getParentSectionPath(stack, read),
+        " "
+      );
+    }
     return Array.from(completions.values());
   }
   if (
     stack[0]?.type.name === "WhitespaceDivertPath" &&
     !getNodeText(getDescendentInsideParent("Divert_content", "Divert", stack))
   ) {
-    addDivertPathCompletions(
-      completions,
-      program,
-      "",
-      0,
-      getParentSectionPath(stack, read)
-    );
+    if (isCursorAfterNodeText(stack[0])) {
+      addDivertPathCompletions(
+        completions,
+        program,
+        "",
+        0,
+        getParentSectionPath(stack, read)
+      );
+    }
     return Array.from(completions.values());
   }
   if (stack[0]?.type.name === "DivertPath") {
-    const valueText = getNodeText(stack[0]);
-    const valueCursorOffset = getCursorOffset(stack[0]);
-    addDivertPathCompletions(
-      completions,
-      program,
-      valueText,
-      valueCursorOffset,
-      getParentSectionPath(stack, read)
-    );
+    if (isCursorAfterNodeText(stack[0])) {
+      const valueText = getNodeText(stack[0]);
+      const valueCursorOffset = getCursorOffset(stack[0]);
+      addDivertPathCompletions(
+        completions,
+        program,
+        valueText,
+        valueCursorOffset,
+        getParentSectionPath(stack, read)
+      );
+    }
     return Array.from(completions.values());
   }
 
