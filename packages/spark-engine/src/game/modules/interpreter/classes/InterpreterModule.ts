@@ -33,6 +33,8 @@ const ASSET_CONTROL_KEYWORDS = [
   "start",
   "stop",
   "modulate",
+  "queue",
+  "await",
   "write",
 ];
 const ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "fadeto", "with"];
@@ -1302,7 +1304,7 @@ export class InterpreterModule extends Module<
           // Image Event
           if (c.tag === "image") {
             const event: ImageInstruction = {
-              control: c.control || "set",
+              control: (c.control || "set") as ImageInstruction["control"],
               assets: c.assets,
             };
             if (time) {
@@ -1332,7 +1334,7 @@ export class InterpreterModule extends Module<
           // Audio Event
           if (c.tag === "audio") {
             const event: AudioInstruction = {
-              control: c.control || "play",
+              control: (c.control || "play") as AudioInstruction["control"],
               assets: c.assets,
             };
             if (time) {

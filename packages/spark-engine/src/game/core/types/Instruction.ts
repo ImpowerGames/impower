@@ -26,6 +26,7 @@ export interface TextInstruction extends IInstruction {
 }
 
 export interface ImageInstruction extends IInstruction {
+  control: "set" | "show" | "hide" | "animate";
   assets?: string[];
   with?: string;
   style?: {
@@ -35,6 +36,7 @@ export interface ImageInstruction extends IInstruction {
 }
 
 export interface AudioInstruction extends IInstruction {
+  control: "play" | "start" | "stop" | "modulate" | "queue" | "await";
   assets?: string[];
   now?: boolean;
   loop?: boolean;

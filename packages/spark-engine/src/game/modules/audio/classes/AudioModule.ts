@@ -4,13 +4,12 @@ import {
   AudioBuiltins,
   audioBuiltinDefinitions,
 } from "../audioBuiltinDefinitions";
-import { AudioMixerUpdate } from "../types/AudioMixerUpdate";
 import { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
 import { ChannelState } from "../types/ChannelState";
 import { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
 import { Synth } from "../types/Synth";
 import { parseTones } from "../utils/parseTones";
-import { LoadAudioMixerMessage } from "./messages/LoadAudioMixerMessage";
+import { ConfigureAudioMixerMessage } from "./messages/ConfigureAudioMixerMessage";
 import {
   LoadAudioPlayerMessage,
   LoadAudioPlayerMessageMap,
@@ -34,14 +33,10 @@ export class AudioModule extends Module<
   AudioMessageMap,
   AudioBuiltins
 > {
-  protected _channelsPlaying: Record<
+  protected _channelsCurrentlyPlaying: Map<
     string,
-    Record<string, LoadAudioPlayerParams>
-  > = {};
-
-  protected _playerUpdates: AudioPlayerUpdate[] = [];
-
-  protected _mixerUpdates: AudioMixerUpdate[] = [];
+    Map<string, LoadAudioPlayerParams>
+  > = new Map();
 
   protected _outputLatency = 0;
   get outputLatency() {
@@ -57,78 +52,60 @@ export class AudioModule extends Module<
   }
 
   override async onRestore() {
-    this._playerUpdates.length = 0;
-    this._mixerUpdates.length = 0;
-    Object.entries(this.context?.mixer || {}).forEach(([key, mixer]) => {
-      if (typeof mixer === "object") {
-        this.emit(LoadAudioMixerMessage.type.request({ key, ...mixer }));
+    if (this.context.mixer) {
+      // TODO: retrieve saved mixer gain from preferences instead
+      for (const [k, v] of Object.entries(this.context.mixer)) {
+        this.configure(k, v.gain);
       }
-    });
+    }
     if (this._state.channels) {
-      const audioToLoad = new Set<LoadAudioPlayerParams>();
       const updates: AudioPlayerUpdate[] = [];
-      Object.keys(this._state.channels).forEach((channel) => {
+      const audioToLoad = new Set<LoadAudioPlayerParams>();
+      for (const channel of Object.keys(this._state.channels)) {
         const channelState = this._state.channels?.[channel];
         if (channelState?.looping) {
-          Object.entries(channelState.looping).forEach(([key, update]) => {
-            const dataArray = this.getAudioData(channel, key);
-            if (dataArray) {
-              dataArray.forEach((d) => {
-                audioToLoad.add(d);
-                // populate update with latest matching cues
-                const syncedTo = update.syncedTo;
-                if (syncedTo) {
-                  const [syncedToType, syncedToName] =
-                    syncedTo?.split(".") || [];
-                  if (syncedToType && syncedToName) {
-                    update.cues = (
-                      this.context?.[syncedToType as keyof AudioBuiltins]?.[
-                        syncedToName
-                      ] as any
-                    )?.cues;
+          for (const state of channelState.looping) {
+            if (state.key) {
+              const dataArray = this.getAudioData(channel, state.key);
+              for (const d of dataArray) {
+                if (state.syncedTo) {
+                  const cues = this.getCues(state.syncedTo);
+                  if (cues) {
+                    d.cues = cues;
                   }
                 }
-                updates.push(update);
-              });
+                audioToLoad.add(d);
+              }
             }
-          });
+            const update: AudioPlayerUpdate = {
+              key: state.key,
+              channel,
+              control: "start",
+              loop: true,
+              now: true,
+              fadeto: state.fadeto,
+            };
+            updates.push(update);
+          }
         }
-      });
+      }
       await this.loadAllAudio(Array.from(audioToLoad));
-      this.queueUpdates(...updates);
+      this.update(updates);
     }
   }
 
-  override onUpdate() {
-    this.updateNow();
-    return true;
-  }
-
-  updateNow() {
-    if (this._playerUpdates.length > 0) {
-      // Flush updates that should be handled this frame
-      this.emit(
-        UpdateAudioPlayersMessage.type.request({
-          updates: [...this._playerUpdates],
-        })
-      );
-      this._playerUpdates.length = 0;
-    }
+  update(updates: AudioPlayerUpdate[]) {
+    this.emit(
+      UpdateAudioPlayersMessage.type.request({
+        updates,
+      })
+    );
   }
 
   getMixerName(channel: string | undefined): string {
-    const mixer = this.context?.channel?.[channel || "main"]?.mixer;
+    const mixer = this.context?.channel?.[channel || "sound"]?.mixer;
     const mixerName = (typeof mixer === "string" ? mixer : mixer?.$name) || "";
-    return mixerName || channel || "main";
-  }
-
-  queueUpdates(...updates: AudioPlayerUpdate[]) {
-    updates.forEach((u) => {
-      this._playerUpdates.push({
-        ...u,
-        mixer: this.getMixerName(u.channel),
-      });
-    });
+    return mixerName || channel || "sound";
   }
 
   async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
@@ -147,31 +124,16 @@ export class AudioModule extends Module<
     await Promise.all(dataArray.map((d) => this.loadAudio(d)));
   }
 
-  protected getModulatedVolume(obj?: { mute?: boolean; volume?: number }) {
-    let v =
-      obj &&
-      typeof obj === "object" &&
-      "volume" in obj &&
-      typeof obj.volume === "number"
-        ? obj.volume
-        : 1;
-    let m =
-      obj && typeof obj === "object" && "mute" in obj
-        ? Boolean(obj.mute)
-        : false;
-    if (m) {
-      return 0;
+  protected getCues(syncedTo: string) {
+    const [syncedToType, syncedToName] = syncedTo?.split(".") || [];
+    if (syncedToType && syncedToName) {
+      return (
+        this.context?.[syncedToType as keyof AudioBuiltins]?.[
+          syncedToName
+        ] as any
+      )?.cues;
     }
-    return v;
-  }
-
-  protected getChannelLevel(channel: string) {
-    const mixer = this.context?.channel?.[channel]?.mixer;
-    const mixerName = (typeof mixer === "string" ? mixer : mixer?.$name) || "";
-    return (
-      this.getModulatedVolume(this.context?.mixer?.["main"]) *
-      this.getModulatedVolume(this.context?.mixer?.[mixerName])
-    );
+    return undefined;
   }
 
   protected getData(
@@ -225,6 +187,12 @@ export class AudioModule extends Module<
         d.syncedTo = `${d.type}.${d.name}`;
         d.cues = resolvedAsset.cues;
       }
+      if ("loop_start" in resolvedAsset) {
+        d.loopStart = resolvedAsset.loop_start;
+      }
+      if ("loop_end" in resolvedAsset) {
+        d.loopEnd = resolvedAsset.loop_end;
+      }
       if ("shape" in resolvedAsset) {
         d.synth = resolvedAsset as Synth;
       }
@@ -257,17 +225,17 @@ export class AudioModule extends Module<
     }
     if (Array.isArray(compiled)) {
       const dataArray: LoadAudioPlayerParams[] = [];
-      compiled.forEach((asset) => {
+      for (const asset of compiled) {
         const d = this.getData(channel, asset, suffix);
         if (d) {
           dataArray.push(d);
         }
-      });
+      }
       return dataArray;
     }
     if ("assets" in compiled && Array.isArray(compiled.assets)) {
       const dataArray: LoadAudioPlayerParams[] = [];
-      compiled.assets.forEach((asset: unknown) => {
+      for (const asset of compiled.assets) {
         const d = this.getData(channel, asset, suffix);
         if (d) {
           if (
@@ -282,7 +250,7 @@ export class AudioModule extends Module<
           }
           dataArray.push(d);
         }
-      });
+      }
       return dataArray;
     }
     const d = this.getData(channel, compiled, suffix);
@@ -312,181 +280,163 @@ export class AudioModule extends Module<
   protected process(
     channel: string,
     event: AudioInstruction,
-    data: LoadAudioPlayerParams
+    data?: LoadAudioPlayerParams
   ): AudioPlayerUpdate {
-    const key = data?.key;
-    const name = data?.name;
-    const cues = data?.cues && data.cues?.length > 0 ? data.cues : undefined;
-    const syncedTo = data?.syncedTo;
-    return {
+    const update: AudioPlayerUpdate = {
       ...event,
+      control: event.control as AudioPlayerUpdate["control"],
       channel,
-      key,
-      name,
-      syncedTo,
-      cues,
     };
+    if (data?.key != null) {
+      update.key = data.key;
+    }
+    if (update.control === "start") {
+      update.loop ??= this.context?.channel?.[channel]?.loop;
+    }
+    return update;
   }
 
-  protected updatePlaying(
+  protected setCurrentlyPlaying(
     channel: string,
     update: AudioPlayerUpdate,
-    data: LoadAudioPlayerParams
+    data?: LoadAudioPlayerParams
   ) {
     if (update.control === "stop") {
-      delete this._channelsPlaying[channel]?.[data.key];
+      if (data?.key) {
+        const playing = this._channelsCurrentlyPlaying.get(channel);
+        playing?.delete(data.key);
+      } else {
+        this._channelsCurrentlyPlaying.delete(channel);
+      }
     } else {
-      this._channelsPlaying[channel] ??= {};
-      const playing = this._channelsPlaying[channel]!;
-      playing[data.key] ??= data;
+      if (data?.key) {
+        const playing =
+          this._channelsCurrentlyPlaying.get(channel) ?? new Map();
+        this._channelsCurrentlyPlaying.set(channel, playing);
+        playing.set(data.key, data);
+      }
     }
   }
 
-  protected saveState(channel: string, update: AudioPlayerUpdate) {
-    const key = update.key;
+  protected saveChannelState(
+    channel: string,
+    update: AudioPlayerUpdate,
+    data?: LoadAudioPlayerParams
+  ) {
     this._state.channels ??= {};
     this._state.channels[channel] ??= {};
-    if (key) {
-      // We are targeting an audio player
-      if (update.control === "stop") {
-        delete this._state?.channels?.[channel]?.looping?.[key];
+    if (
+      update.control === "stop" ||
+      update.control === "await" ||
+      update.loop === false
+    ) {
+      if (data?.key) {
+        const existingUpdateIndex = this._state.channels[
+          channel
+        ].looping?.findIndex((s) => s.key === data.key);
+        if (existingUpdateIndex != null && existingUpdateIndex >= 0) {
+          this._state.channels[channel].looping?.splice(existingUpdateIndex, 1);
+        }
       } else {
-        this._state.channels[channel]!.looping ??= {};
-        this._state.channels[channel]!.looping![key] ??= {
-          control: update.control,
-          channel,
-          key: update.key,
-          name: update.name,
-        };
-        const restoreState = this._state.channels[channel]!.looping![key]!;
-        if (update.control === "start") {
-          restoreState.control = update.control;
-        }
-        if (update.after != null) {
-          restoreState.after = update.after;
-        }
-        if (update.over != null) {
-          restoreState.over = update.over;
-        }
-        if (update.fadeto != null) {
-          restoreState.fadeto = update.fadeto;
-        }
-        if (update.loop != null) {
-          restoreState.loop = update.loop;
-        }
-        if (update.now != null) {
-          restoreState.now = update.now;
-        }
-        if (update.syncedTo != null) {
-          restoreState.syncedTo = update.syncedTo;
-        }
+        delete this._state.channels[channel].looping;
       }
     } else {
-      // We are targeting an audio channel
-      if (update.control === "stop") {
-        delete this._state?.channels?.[channel]?.looping;
-      } else if (update.control === "start") {
-        // `start` cannot be used on channel
-      } else if (update.control === "modulate") {
-        if (update.fadeto != null) {
-          Object.values(this._state.channels[channel]!.looping || {}).forEach(
-            (restoreState) => {
-              if (update.control === "start") {
-                restoreState.control = update.control;
-              }
-              if (update.after != null) {
-                restoreState.after = update.after;
-              }
-              if (update.over != null) {
-                restoreState.over = update.over;
-              }
-              if (update.fadeto != null) {
-                restoreState.fadeto = update.fadeto;
-              }
-              if (update.loop != null) {
-                restoreState.loop = update.loop;
-              }
-              if (update.now != null) {
-                restoreState.now = update.now;
-              }
-              if (update.syncedTo != null) {
-                restoreState.syncedTo = update.syncedTo;
-              }
-            }
-          );
+      if (data?.key) {
+        const existingUpdate = this._state.channels[channel]?.looping?.find(
+          (s) => s.key === data.key
+        );
+        if (existingUpdate) {
+          if (data.syncedTo != null) {
+            existingUpdate.syncedTo ??= data.syncedTo;
+          }
+          if (update.fadeto != null) {
+            existingUpdate.fadeto = update.fadeto;
+          }
+        } else {
+          this._state.channels[channel].looping ??= [];
+          this._state.channels[channel].looping.push({
+            key: data.key,
+            syncedTo: data.syncedTo,
+            fadeto: update.fadeto,
+          });
+        }
+      } else {
+        const playing = this._channelsCurrentlyPlaying.get(channel);
+        if (playing) {
+          for (const d of playing.values()) {
+            this.saveChannelState(channel, update, d);
+          }
         }
       }
     }
   }
 
-  queue(
+  configure(mixer: string, gain: number) {
+    this.emit(
+      ConfigureAudioMixerMessage.type.request({
+        mixer,
+        gain,
+      })
+    );
+  }
+
+  schedule(
     channel: string,
     sequence: AudioInstruction[],
     autoTrigger = false
   ): number {
     const audioToLoad = new Set<LoadAudioPlayerParams>();
     const updates: AudioPlayerUpdate[] = [];
-    sequence.forEach((event) => {
-      if (event.control === "play") {
-        // 'play' is equivalent to calling 'stop' on all audio on the channel,
+    for (const event of sequence) {
+      if (event.control === "queue") {
+        // 'queue' is equivalent to calling 'await' on a channel,
         // and then calling 'start' on the new audio
-        const stopEvent: AudioInstruction = {
+        const awaitUpdate: AudioPlayerUpdate = {
+          control: "await",
+          channel,
+          after: event.after,
+          over: event.over,
+          now: event.now,
+          loop: false,
+        };
+        this.setCurrentlyPlaying(channel, awaitUpdate);
+        this.saveChannelState(channel, awaitUpdate);
+        updates.push(awaitUpdate);
+        event.control = "start";
+      }
+      if (event.control === "play") {
+        // 'play' is equivalent to calling 'stop' on a channel,
+        // and then calling 'start' on the new audio
+        const stopUpdate: AudioPlayerUpdate = {
           control: "stop",
+          channel,
           after: event.after,
           over: event.over,
           now: event.now,
         };
-        const playing = this._channelsPlaying[channel];
-        if (playing) {
-          Object.values(playing).forEach((d) => {
-            const update = this.process(channel, stopEvent, d);
-            this.updatePlaying(channel, update, d);
-            this.saveState(channel, update);
-            updates.push(update);
-          });
-        }
+        this.setCurrentlyPlaying(channel, stopUpdate);
+        this.saveChannelState(channel, stopUpdate);
+        updates.push(stopUpdate);
         event.control = "start";
       }
       if (event.assets && event.assets.length > 0) {
-        this.getAllAudioData(channel, event.assets).forEach((d) => {
-          const channelDef = this.context?.channel?.[channel];
-          d.loop ??= channelDef?.loop;
+        for (const d of this.getAllAudioData(channel, event.assets)) {
           audioToLoad.add(d);
           const update = this.process(channel, event, d);
-          this.updatePlaying(channel, update, d);
-          this.saveState(channel, update);
+          this.setCurrentlyPlaying(channel, update, d);
+          this.saveChannelState(channel, update, d);
           updates.push(update);
-        });
-      } else {
-        if (event.control === "stop") {
-          const playing = this._channelsPlaying[channel];
-          if (playing) {
-            Object.values(playing).forEach((d) => {
-              audioToLoad.add(d);
-              const update = this.process(channel, event, d);
-              this.updatePlaying(channel, update, d);
-              this.saveState(channel, update);
-              updates.push(update);
-            });
-          }
-        } else if (event.control === "modulate") {
-          const playing = this._channelsPlaying[channel];
-          if (playing) {
-            Object.values(playing).forEach((d) => {
-              audioToLoad.add(d);
-              const update = this.process(channel, event, d);
-              this.updatePlaying(channel, update, d);
-              this.saveState(channel, update);
-              updates.push(update);
-            });
-          }
         }
+      } else {
+        const update = this.process(channel, event);
+        this.setCurrentlyPlaying(channel, update);
+        this.saveChannelState(channel, update);
+        updates.push(update);
       }
-    });
+    }
     const id = this.nextTriggerId();
     const trigger = () => {
-      this.queueUpdates(...updates);
-      this.updateNow();
+      this.update(updates);
     };
     this.loadAllAudio(Array.from(audioToLoad)).then(() => {
       this.enableTrigger(id, trigger);
@@ -498,7 +448,7 @@ export class AudioModule extends Module<
   }
 
   stopChannel(channel: string, after?: number, over?: number, now?: boolean) {
-    return this.queue(
+    return this.schedule(
       channel,
       [
         {
@@ -519,7 +469,7 @@ export class AudioModule extends Module<
     over?: number,
     now?: boolean
   ) {
-    return this.queue(
+    return this.schedule(
       channel,
       [
         {

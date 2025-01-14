@@ -6,5 +6,7 @@ export const default_layered_audio: Create<LayeredAudio> = (obj) => ({
   $name: "$default",
   assets: [{ $type: "audio", $name: "none" }],
   cues: [0],
+  loop_start: 0,
+  loop_end: 0,
   ...obj,
 });

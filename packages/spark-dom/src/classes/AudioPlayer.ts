@@ -30,6 +30,9 @@ export default class AudioPlayer {
   }
 
   protected _instances: AudioInstance[] = [];
+  public get instanceCount(): number {
+    return this._instances.length;
+  }
 
   protected _pitchBend = 0;
   public get pitchBend() {
@@ -59,6 +62,28 @@ export default class AudioPlayer {
     });
   }
 
+  protected _loopStart = 0;
+  public get loopStart() {
+    return this._loopStart;
+  }
+  public set loopStart(value) {
+    this._loopStart = value;
+    this._instances.forEach((instance) => {
+      instance.sourceNode.loopStart = value;
+    });
+  }
+
+  protected _loopEnd = 0;
+  public get loopEnd() {
+    return this._loopEnd;
+  }
+  public set loopEnd(value) {
+    this._loopEnd = value;
+    this._instances.forEach((instance) => {
+      instance.sourceNode.loopEnd = value;
+    });
+  }
+
   protected _gain = 1;
   public get gain() {
     return this._gain;
@@ -67,6 +92,18 @@ export default class AudioPlayer {
   protected _cues: number[] = [];
   public get cues() {
     return this._cues;
+  }
+
+  public get playing() {
+    return this._instances.length > 0;
+  }
+
+  protected _onFinished = (_a: this | PromiseLike<this>): void => {};
+  protected _finished = new Promise<this>((resolve) => {
+    this._onFinished = resolve;
+  });
+  public get finished(): Promise<this> {
+    return this._finished;
   }
 
   protected _events: Record<
@@ -83,6 +120,8 @@ export default class AudioPlayer {
       destination?: GainNode | AudioInstance | AudioParam;
       cues?: number[];
       loop?: boolean;
+      loopStart?: number;
+      loopEnd?: number;
       volume?: number;
     }
   ) {
@@ -91,6 +130,8 @@ export default class AudioPlayer {
     this._destination = options?.destination;
     this._cues = options?.cues ?? this._cues;
     this._loop = options?.loop ?? this._loop;
+    this._loopStart = options?.loopStart ?? this._loopStart;
+    this._loopEnd = options?.loopEnd ?? this._loopEnd;
     const volume = options?.volume ?? 1;
     this._volumeNode = this._audioContext.createGain();
     this._volumeNode.gain.value = volume;
@@ -134,6 +175,7 @@ export default class AudioPlayer {
     if (nodeIndex >= 0) {
       this._instances.splice(nodeIndex, 1);
     }
+    this._onFinished(this);
   }
 
   protected _play(
@@ -154,6 +196,10 @@ export default class AudioPlayer {
     };
     // Setup gain node
     gainNode.connect(this._volumeNode);
+    // Setup promise
+    this._finished = new Promise((resolve) => {
+      this._onFinished = resolve;
+    });
     // Setup source node
     sourceNode.detune.value = this._pitchBend * 100;
     sourceNode.loop = this._loop;
@@ -229,13 +275,15 @@ export default class AudioPlayer {
     this._gain = gain ?? 1;
     const startGain = fadeDuration > 0 ? 0 : this._gain;
     const endGain = this._gain;
-    const loopingInstance = this._instances.find(
-      (instance) => instance.sourceNode.loop
-    );
-    if (loopingInstance && this._loop) {
-      loopingInstance.willDisconnect = false;
-      await this._fadeAsync(loopingInstance, when, endGain, fadeDuration);
-      return loopingInstance;
+    if (this._loop) {
+      const loopingInstance = this._instances.find(
+        (instance) => instance.sourceNode.loop
+      );
+      if (loopingInstance) {
+        loopingInstance.willDisconnect = false;
+        await this._fadeAsync(loopingInstance, when, endGain, fadeDuration);
+        return loopingInstance;
+      }
     }
     const instance = this._play(when, offset, duration, startGain);
     instance.willDisconnect = false;

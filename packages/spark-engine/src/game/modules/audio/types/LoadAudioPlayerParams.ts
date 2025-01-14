@@ -13,5 +13,7 @@ export interface LoadAudioPlayerParams {
   tones?: Tone[];
   volume: number;
   loop?: boolean;
+  loopStart?: number;
+  loopEnd?: number;
   syncedTo?: string;
 }

@@ -18,12 +18,9 @@ export default class AudioMixer {
     this._volumeNode.gain.value = value;
   }
 
-  constructor(audioContext: AudioContext, volume?: number) {
+  constructor(audioContext: AudioContext, destination?: AudioNode) {
     this._audioContext = audioContext;
     this._volumeNode = this._audioContext.createGain();
-    if (volume != null) {
-      this._volumeNode.gain.value = volume;
-    }
-    this._volumeNode.connect(this._audioContext.destination);
+    this._volumeNode.connect(destination ?? this._audioContext.destination);
   }
 }

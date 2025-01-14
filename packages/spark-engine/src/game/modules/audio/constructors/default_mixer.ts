@@ -4,7 +4,6 @@ import { Mixer } from "../types/Mixer";
 export const default_mixer: Create<Mixer> = (obj) => ({
   $type: "mixer",
   $name: "$default",
-  volume: 1,
-  mute: false,
+  gain: 1,
   ...obj,
 });

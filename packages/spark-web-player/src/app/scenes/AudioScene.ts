@@ -2,10 +2,11 @@ import AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
 import AudioPlayer from "../../../../spark-dom/src/classes/AudioPlayer";
 import { RequestMessage } from "../../../../spark-engine/src/game/core";
 import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
-import { LoadAudioMixerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioMixerMessage";
+import { ConfigureAudioMixerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/ConfigureAudioMixerMessage";
 import { LoadAudioPlayerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioPlayerMessage";
 import { UpdateAudioPlayersMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/UpdateAudioPlayersMessage";
-import { LoadAudioMixerParams } from "../../../../spark-engine/src/game/modules/audio/types/LoadAudioMixerParams";
+import { AudioPlayerUpdate } from "../../../../spark-engine/src/game/modules/audio/types/AudioPlayerUpdate";
+import { ConfigureAudioMixerParams } from "../../../../spark-engine/src/game/modules/audio/types/ConfigureAudioMixerParams";
 import { LoadAudioPlayerParams } from "../../../../spark-engine/src/game/modules/audio/types/LoadAudioPlayerParams";
 import { UpdateAudioPlayersParams } from "../../../../spark-engine/src/game/modules/audio/types/UpdateAudioPlayersParams";
 import { Disposable } from "../Disposable";
@@ -23,11 +24,11 @@ export default class AudioScene extends Scene {
   override onDispose(): Disposable[] {
     this._audioMixers.clear();
     this._audioBuffers.clear();
-    this._audioChannels.forEach((c) => {
-      c.forEach((p) => {
+    for (const c of this._audioChannels.values()) {
+      for (const p of c.values()) {
         p.dispose();
-      });
-    });
+      }
+    }
     this._audioChannels.clear();
     return super.onDispose();
   }
@@ -66,17 +67,21 @@ export default class AudioScene extends Scene {
     return audioBuffer;
   }
 
-  getAudioMixer(mixer = "main", volume?: number): AudioMixer {
+  getAudioMixer(mixer: string): AudioMixer {
     const existingAudioMixer = this._audioMixers.get(mixer);
     if (existingAudioMixer) {
       return existingAudioMixer;
     }
-    const audioMixer = new AudioMixer(this._audioContext, volume);
+    const destination =
+      mixer === "main"
+        ? this._audioContext.destination
+        : this.getAudioMixer("main").volumeNode;
+    const audioMixer = new AudioMixer(this._audioContext, destination);
     this._audioMixers.set(mixer, audioMixer);
     return audioMixer;
   }
 
-  getAudioChannel(channel = "main"): Map<string, AudioPlayer> {
+  getAudioChannel(channel: string): Map<string, AudioPlayer> {
     const existingAudioChannel = this._audioChannels.get(channel);
     if (existingAudioChannel) {
       return existingAudioChannel;
@@ -86,8 +91,9 @@ export default class AudioScene extends Scene {
     return audioChannel;
   }
 
-  destroyAudio(key: string, channel: string | undefined) {
-    const audioChannel = this._audioChannels.get(channel || "main");
+  // TODO: Destroy old audio to free up memory
+  destroyAudio(key: string, channel: string) {
+    const audioChannel = this._audioChannels.get(channel);
     if (audioChannel) {
       const audioPlayer = audioChannel.get(key);
       if (audioPlayer) {
@@ -112,14 +118,41 @@ export default class AudioScene extends Scene {
       volume: params.volume,
       cues: params.cues,
       loop: params.loop,
+      loopStart: params.loopStart,
+      loopEnd: params.loopEnd,
       destination: audioMixer?.volumeNode,
     });
     audioChannel.set(params.key, audioPlayer);
     return audioPlayer;
   }
 
-  async onLoadAudioMixer(params: LoadAudioMixerParams) {
-    return this.getAudioMixer(params.key, params.volume);
+  async updateAudioPlayer(
+    audioPlayer: AudioPlayer,
+    update: AudioPlayerUpdate,
+    currentTime: number
+  ) {
+    const updateTime = currentTime + (update.after ?? 0);
+    const when = update.now
+      ? updateTime
+      : audioPlayer.getNextCueTime(updateTime);
+    const over = update.over;
+    if (update.loop != null) {
+      audioPlayer.loop = update.loop;
+    }
+    if (update.control === "start") {
+      audioPlayer.start(when, over, undefined, undefined, update.fadeto);
+    }
+    if (update.control === "stop") {
+      audioPlayer.stop(when, over);
+    }
+    if (update.control === "modulate") {
+      audioPlayer.fade(when, over, update.fadeto);
+    }
+  }
+
+  async onConfigureAudioMixer(params: ConfigureAudioMixerParams) {
+    const mixer = this.getAudioMixer(params.mixer);
+    mixer.gain = params.gain;
   }
 
   async onLoadAudioPlayer(params: LoadAudioPlayerParams) {
@@ -127,63 +160,63 @@ export default class AudioScene extends Scene {
   }
 
   async onUpdateAudioPlayers(params: UpdateAudioPlayersParams) {
-    const now = this._audioContext.currentTime;
-    params.updates.forEach((update) => {
+    const currentTime = this._audioContext.currentTime;
+    for (const update of params.updates) {
       const audioChannel = this.getAudioChannel(update.channel);
-      const audioPlayer = audioChannel.get(update.key);
-      if (audioPlayer) {
-        const updateTime = now + (update.after ?? 0);
-        const when = update.now
-          ? updateTime
-          : audioPlayer.getNextCueTime(updateTime);
-        const over = update.over;
-        if (update.loop != null) {
-          audioPlayer.loop = update.loop;
+      if (update.key) {
+        const audioPlayer = audioChannel.get(update.key);
+        if (audioPlayer) {
+          this.updateAudioPlayer(audioPlayer, update, currentTime);
         }
-        if (update.control === "modulate") {
-          audioPlayer.fade(when, over, update.fadeto);
+      } else {
+        for (const audioPlayer of audioChannel.values()) {
+          if (audioPlayer.playing) {
+            this.updateAudioPlayer(audioPlayer, update, currentTime);
+          }
         }
-        if (update.control === "start") {
-          audioPlayer.start(when, over, undefined, undefined, update.fadeto);
-        }
-        if (update.control === "stop") {
-          audioPlayer.stop(when, over);
+        if (update.control === "await") {
+          await Promise.all(
+            audioChannel
+              .values()
+              .filter((p) => p.playing)
+              .map((p) => p.finished)
+          );
         }
       }
-    });
+    }
   }
 
   override onStep(deltaMS: number): void {
     const scheduledTime = this._audioContext.currentTime;
-    this._audioChannels.forEach((c) => {
-      c.forEach((p) => {
+    for (const c of this._audioChannels.values()) {
+      for (const p of c.values()) {
         p.step(scheduledTime, deltaMS);
-      });
-    });
+      }
+    }
   }
 
   override onPause(): void {
     const scheduledTime = this._audioContext.currentTime;
-    this._audioChannels.forEach((c) => {
-      c.forEach((p) => {
+    for (const c of this._audioChannels.values()) {
+      for (const p of c.values()) {
         p.pause(scheduledTime);
-      });
-    });
+      }
+    }
   }
 
   override onUnpause(): void {
     const scheduledTime = this._audioContext.currentTime;
-    this._audioChannels.forEach((c) => {
-      c.forEach((p) => {
+    for (const c of this._audioChannels.values()) {
+      for (const p of c.values()) {
         p.unpause(scheduledTime);
-      });
-    });
+      }
+    }
   }
 
   override async onReceiveRequest(msg: RequestMessage) {
-    if (LoadAudioMixerMessage.type.isRequest(msg)) {
-      await this.onLoadAudioMixer(msg.params);
-      return LoadAudioMixerMessage.type.result(msg.params);
+    if (ConfigureAudioMixerMessage.type.isRequest(msg)) {
+      await this.onConfigureAudioMixer(msg.params);
+      return ConfigureAudioMixerMessage.type.result(msg.params);
     }
     if (LoadAudioPlayerMessage.type.isRequest(msg)) {
       await this.onLoadAudioPlayer(msg.params);

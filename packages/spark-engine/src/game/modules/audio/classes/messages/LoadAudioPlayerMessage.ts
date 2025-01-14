@@ -5,7 +5,7 @@ import { LoadAudioPlayerResult } from "../../types/LoadAudioPlayerResult";
 export type LoadAudioPlayerMethod = typeof LoadAudioPlayerMessage.method;
 
 export class LoadAudioPlayerMessage {
-  static readonly method = "audio/loadPlayer";
+  static readonly method = "audio/load";
   static readonly type = new MessageProtocolRequestType<
     LoadAudioPlayerMethod,
     LoadAudioPlayerParams,

@@ -12,7 +12,6 @@ export type GameContext<B = any> = {
       debugging?: boolean;
       locale?: string;
       uuid: () => string;
-      restore: () => Promise<void>;
       checkpoint: () => void;
       setTimeout: (
         handler: Function,

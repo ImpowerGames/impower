@@ -40,7 +40,9 @@
       "start",
       "stop",
       "play",
-      "modulate"
+      "modulate",
+      "queue",
+      "await"
     ],
     "AUDIO_CLAUSE_KEYWORDS": [
       "after",
@@ -4723,7 +4725,7 @@
       }
     },
     "AssetCommandInstruction": {
-      "match": "(?:(\\b(?:set|show|hide|animate)\\b|\\b(?:start|stop|play|modulate)\\b)([^\\S\\n\\r]*)($|\\S+))?([^\\S\\n\\r]*)($|\\S+)?([^\\S\\n\\r]*)(.*)",
+      "match": "(?:(\\b(?:set|show|hide|animate)\\b|\\b(?:start|stop|play|modulate|queue|await)\\b)([^\\S\\n\\r]*)($|\\S+))?([^\\S\\n\\r]*)($|\\S+)?([^\\S\\n\\r]*)(.*)",
       "captures": {
         "1": {
           "patterns": [

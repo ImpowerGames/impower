@@ -112,7 +112,6 @@ export class Game<T extends M = {}> {
         initialized: false,
         transitions: true,
         checkpoint: () => this.checkpoint(),
-        restore: () => this.restore(),
         uuid: () => uuid(),
         supports: (module: string) => this.supports(module),
         setTimeout: () => {

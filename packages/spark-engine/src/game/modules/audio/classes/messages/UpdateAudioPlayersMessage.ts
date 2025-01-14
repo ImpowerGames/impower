@@ -4,7 +4,7 @@ import { UpdateAudioPlayersParams } from "../../types/UpdateAudioPlayersParams";
 export type UpdateAudioPlayersMethod = typeof UpdateAudioPlayersMessage.method;
 
 export class UpdateAudioPlayersMessage {
-  static readonly method = "audio/updatePlayers";
+  static readonly method = "audio/update";
   static readonly type = new MessageProtocolRequestType<
     UpdateAudioPlayersMethod,
     UpdateAudioPlayersParams,

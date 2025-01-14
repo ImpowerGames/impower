@@ -1,11 +1,10 @@
-import { AudioInstruction } from "../../../core/types/Instruction";
-
-export interface AudioPlayerUpdate extends AudioInstruction {
-  control?: string;
-  channel?: string;
-  mixer?: string;
-  key: string;
-  name?: string;
-  syncedTo?: string;
-  cues?: number[];
+export interface AudioPlayerUpdate {
+  control: "start" | "stop" | "modulate" | "await";
+  channel: string;
+  key?: string;
+  after?: number;
+  over?: number;
+  fadeto?: number;
+  now?: boolean;
+  loop?: boolean;
 }

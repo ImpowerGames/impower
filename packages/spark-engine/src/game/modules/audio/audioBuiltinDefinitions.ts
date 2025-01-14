@@ -64,10 +64,6 @@ export const audioBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_mixer>>,
   channel: {
     $default: default_channel(),
-    main: default_channel({
-      $name: "main",
-      mixer: "main",
-    }),
     music: default_channel({
       $name: "music",
       mixer: "music",

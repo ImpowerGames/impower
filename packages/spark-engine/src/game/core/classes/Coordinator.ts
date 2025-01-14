@@ -192,8 +192,8 @@ export class Coordinator<G extends Game> {
     const audioTriggerIds =
       instant || !instructions.audio
         ? []
-        : Object.entries(instructions.audio).map(([channel, events]) =>
-            game.module.audio.queue(channel, events, instant)
+        : Object.entries(instructions.audio).map(([target, events]) =>
+            game.module.audio.schedule(target, events)
           );
 
     const handleFinished = (): void => {
