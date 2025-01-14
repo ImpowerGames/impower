@@ -101,6 +101,7 @@ export default class AudioPlayer {
   protected _onFinished = (_a: this | PromiseLike<this>): void => {};
   protected _finished = new Promise<this>((resolve) => {
     this._onFinished = resolve;
+    this._onFinished(this);
   });
   public get finished(): Promise<this> {
     return this._finished;
