@@ -3,7 +3,7 @@ import { EventMessage } from "./messages/EventMessage";
 import { Instructions } from "../types/Instructions";
 import { RequestMessage } from "../types/RequestMessage";
 import { NotificationMessage } from "../types/NotificationMessage";
-import { Writer } from "../../modules/interpreter";
+import { Typewriter } from "../../modules/interpreter";
 
 export class Coordinator<G extends Game> {
   protected _game: G;
@@ -126,8 +126,10 @@ export class Coordinator<G extends Game> {
     const previewing = options?.preview;
 
     const transientLayers: string[] = [];
-    for (const [name, writer] of Object.entries(game.context["writer"])) {
-      if ((writer as Writer)?.clear_on_continue) {
+    for (const [name, typewriter] of Object.entries(
+      game.context["typewriter"]
+    )) {
+      if ((typewriter as Typewriter)?.clear_on_continue) {
         transientLayers.push(name);
       }
     }
@@ -137,8 +139,8 @@ export class Coordinator<G extends Game> {
       game.module.audio.stopChannel("sound");
       game.module.audio.stopChannel("voice");
     }
-    // Stop writer audio on instant reveal and new dialogue line
-    game.module.audio.stopChannel("writer");
+    // Stop typewriter audio on instant reveal and new dialogue line
+    game.module.audio.stopChannel("typewriter");
 
     const updateUI = () => {
       game.module.ui.text.clearAll(transientLayers);

@@ -601,19 +601,6 @@ export class InterpreterModule extends Module<
     const character = options?.character;
     const debug = this.context?.system.debugging;
 
-    const textTargetPrefixMap: Record<string, string> = {};
-    const textTargetPrefixKeys: string[] = [];
-    for (const [k, v] of Object.entries(this.context?.writer || {})) {
-      if (
-        typeof v === "object" &&
-        v &&
-        "prefix" in v &&
-        typeof v.prefix === "string"
-      ) {
-        textTargetPrefixMap[v.prefix] = k;
-        textTargetPrefixKeys.push(v.prefix);
-      }
-    }
     let uuids: string[] = [];
     let consecutiveLettersLength = 0;
     let word = "";
@@ -647,30 +634,30 @@ export class InterpreterModule extends Module<
     const processLine = (textLine: string, textTarget: string) => {
       const linePhrases: Phrase[] = [];
 
-      const writer = this.lookupContextValue("writer", textTarget);
-      const writerSynth = this.lookupContextValue(
+      const typewriter = this.lookupContextValue("typewriter", textTarget);
+      const typewriterSynth = this.lookupContextValue(
         "synth",
         textTarget,
-        "writer"
+        "typewriter"
       );
       const characterSynth = character
         ? this.lookupContextValue("synth", character, "character")
         : undefined;
-      const synth = characterSynth ?? writerSynth;
+      const synth = characterSynth ?? typewriterSynth;
       const minSynthDuration = this.getMinSynthDuration(synth);
-      const letterPause = writer?.letter_pause ?? 0;
-      const phrasePause = writer?.phrase_pause_scale ?? 1;
-      const emDashPause = writer?.em_dash_pause_scale ?? 1;
-      const stressPause = writer?.stressed_pause_scale ?? 1;
+      const letterPause = typewriter?.letter_pause ?? 0;
+      const phrasePause = typewriter?.phrase_pause_scale ?? 1;
+      const emDashPause = typewriter?.em_dash_pause_scale ?? 1;
+      const stressPause = typewriter?.stressed_pause_scale ?? 1;
       const syllableLength = Math.max(
-        writer?.min_syllable_length || 0,
+        typewriter?.min_syllable_length || 0,
         Math.round(minSynthDuration / letterPause)
       );
-      const voicedMatcher = writer?.voiced
-        ? new Matcher(writer?.voiced)
+      const voicedMatcher = typewriter?.voiced
+        ? new Matcher(typewriter?.voiced)
         : undefined;
-      const yelledMatcher = writer?.yelled
-        ? new Matcher(writer?.yelled)
+      const yelledMatcher = typewriter?.yelled
+        ? new Matcher(typewriter?.yelled)
         : undefined;
 
       activeMarks.length = 0;
@@ -1150,11 +1137,11 @@ export class InterpreterModule extends Module<
 
     allPhrases.forEach((phrase) => {
       const target = phrase.target || "";
-      const writer = this.lookupContextValue("writer", target);
-      const letterPause = writer?.letter_pause ?? 0;
-      const interjectionPause = writer?.punctuated_pause_scale ?? 1;
-      const punctuatedMatcher = writer?.punctuated
-        ? new Matcher(writer?.punctuated)
+      const typewriter = this.lookupContextValue("typewriter", target);
+      const letterPause = typewriter?.letter_pause ?? 0;
+      const interjectionPause = typewriter?.punctuated_pause_scale ?? 1;
+      const punctuatedMatcher = typewriter?.punctuated
+        ? new Matcher(typewriter?.punctuated)
         : undefined;
       // Erase any syllables that occur on any unvoiced chars at the end of phrases
       // (whitespace, punctuation, etc).
@@ -1170,12 +1157,12 @@ export class InterpreterModule extends Module<
         // Voice any phrases that are entirely composed of ellipsis.
         if (phrase.text) {
           if (punctuatedMatcher?.test(phrase.text)) {
-            const writerSynth = this.lookupContextValue(
+            const typewriterSynth = this.lookupContextValue(
               "synth",
               target,
-              "writer"
+              "typewriter"
             );
-            const minSynthDuration = this.getMinSynthDuration(writerSynth);
+            const minSynthDuration = this.getMinSynthDuration(typewriterSynth);
             for (let c = 0; c < phrase.chunks.length; c += 1) {
               const chunk = phrase.chunks[c]!;
               if (chunk.text && !this.isWhitespace(chunk.text)) {
@@ -1216,10 +1203,10 @@ export class InterpreterModule extends Module<
     > = {};
     allPhrases.forEach((phrase) => {
       const target = phrase.target || "";
-      const writer = this.lookupContextValue("writer", target);
-      const fadeDuration = writer?.fade_duration ?? 0;
-      const letterPause = writer?.letter_pause ?? 0;
-      const animationOffset = writer?.animation_offset ?? 0;
+      const typewriter = this.lookupContextValue("typewriter", target);
+      const fadeDuration = typewriter?.fade_duration ?? 0;
+      const letterPause = typewriter?.letter_pause ?? 0;
+      const animationOffset = typewriter?.animation_offset ?? 0;
       if (phrase.chunks) {
         phrase.chunks.forEach((c) => {
           // Text Event
@@ -1381,7 +1368,10 @@ export class InterpreterModule extends Module<
           // Synth Event
           if (c.duration) {
             if (c.punctuatedSyllable) {
-              const synthName = this.lookupContextValueName("synth", "writer");
+              const synthName = this.lookupContextValueName(
+                "synth",
+                "typewriter"
+              );
               synthEvents[synthName] ??= [];
               synthEvents[synthName]!.push({
                 time,
@@ -1391,7 +1381,11 @@ export class InterpreterModule extends Module<
             } else if (c.voicedSyllable) {
               const synthName = character
                 ? this.lookupContextValueName("synth", character, "character")
-                : this.lookupContextValueName("synth", target || "", "writer");
+                : this.lookupContextValueName(
+                    "synth",
+                    target || "",
+                    "typewriter"
+                  );
               synthEvents[synthName] ??= [];
               synthEvents[synthName]!.push({
                 time,
@@ -1408,8 +1402,8 @@ export class InterpreterModule extends Module<
 
     Object.entries(synthEvents).forEach(([synthName, tones]) => {
       result.audio ??= {};
-      result.audio["writer"] ??= [];
-      result.audio["writer"]!.push({
+      result.audio["typewriter"] ??= [];
+      result.audio["typewriter"]!.push({
         control: "play",
         assets: [
           synthName +

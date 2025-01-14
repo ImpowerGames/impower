@@ -1,10 +1,10 @@
 import { schema_character } from "./constructors/schema_character";
-import { schema_writer } from "./constructors/schema_writer";
+import { schema_typewriter } from "./constructors/schema_typewriter";
 
 export const interpreterSchemaDefinitions = () => ({
-  writer: {
-    $schema: schema_writer(),
-  } as Record<string, ReturnType<typeof schema_writer>>,
+  typewriter: {
+    $schema: schema_typewriter(),
+  } as Record<string, ReturnType<typeof schema_typewriter>>,
   character: {
     $schema: schema_character(),
   } as Record<string, ReturnType<typeof schema_character>>,

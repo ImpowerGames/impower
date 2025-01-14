@@ -4,4 +4,4 @@ export * from "./types/Inflection";
 export * from "./types/Phrase";
 export * from "./types/Prosody";
 export * from "./types/Syllable";
-export * from "./types/Writer";
+export * from "./types/Typewriter";

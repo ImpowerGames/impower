@@ -1,6 +1,6 @@
 import { Reference } from "../../../core/types/Reference";
 
-export interface Writer extends Reference<"writer"> {
+export interface Typewriter extends Reference<"typewriter"> {
   clear_on_continue: boolean;
   fade_duration: number;
   animation_offset: number;
@@ -14,6 +14,6 @@ export interface Writer extends Reference<"writer"> {
   voiced: string;
   /** Words that are pitched up */
   yelled: string;
-  /** Phrases where each char is punctuated with the writer's synth sound */
+  /** Phrases where each char is punctuated with the typewriter's synth sound */
   punctuated: string;
 }

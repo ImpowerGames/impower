@@ -1,8 +1,8 @@
 import { Create } from "../../../core/types/Create";
-import { Writer } from "../types/Writer";
+import { Typewriter } from "../types/Typewriter";
 
-export const default_writer: Create<Writer> = (obj) => ({
-  $type: "writer",
+export const default_typewriter: Create<Typewriter> = (obj) => ({
+  $type: "typewriter",
   $name: "$default",
   clear_on_continue: true,
   fade_duration: 0,

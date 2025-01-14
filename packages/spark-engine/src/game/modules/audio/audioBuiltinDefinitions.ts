@@ -26,8 +26,8 @@ export const audioBuiltinDefinitions = () => ({
         frequency: 440,
       },
     }),
-    writer: default_synth({
-      $name: "writer",
+    typewriter: default_synth({
+      $name: "typewriter",
       shape: "whitenoise",
       envelope: {
         attack: 0.01,
@@ -58,8 +58,8 @@ export const audioBuiltinDefinitions = () => ({
     sound: default_mixer({
       $name: "sound",
     }),
-    writer: default_mixer({
-      $name: "writer",
+    typewriter: default_mixer({
+      $name: "typewriter",
     }),
   } as Record<string, ReturnType<typeof default_mixer>>,
   channel: {
@@ -73,8 +73,8 @@ export const audioBuiltinDefinitions = () => ({
       $name: "sound",
       mixer: "sound",
     }),
-    writer: default_channel({
-      $name: "writer",
+    typewriter: default_channel({
+      $name: "typewriter",
       mixer: "sound",
     }),
   } as Record<string, ReturnType<typeof default_channel>>,
