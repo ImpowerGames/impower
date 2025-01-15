@@ -11,27 +11,33 @@ interface AudioInstance {
   startedAt: number;
   pausedAt?: number;
   willDisconnect?: boolean;
+  ended: Promise<AudioInstance>;
+  onEnded: (value: AudioInstance | PromiseLike<AudioInstance>) => void;
 }
 
 export default class AudioPlayer {
   protected _audioBuffer: AudioBuffer;
-  public get audioBuffer(): AudioBuffer | undefined {
+  public get audioBuffer() {
     return this._audioBuffer;
   }
 
   protected _audioContext: AudioContext;
-  public get context(): AudioContext {
+  public get context() {
     return this._audioContext;
   }
 
   protected _volumeNode: GainNode;
-  public get volumeNode(): GainNode {
+  public get volumeNode() {
     return this._volumeNode;
   }
 
   protected _instances: AudioInstance[] = [];
-  public get instanceCount(): number {
-    return this._instances.length;
+  public get instances() {
+    return this._instances;
+  }
+
+  public get playing() {
+    return this._instances.length > 0;
   }
 
   protected _pitchBend = 0;
@@ -92,19 +98,6 @@ export default class AudioPlayer {
   protected _cues: number[] = [];
   public get cues() {
     return this._cues;
-  }
-
-  public get playing() {
-    return this._instances.length > 0;
-  }
-
-  protected _onFinished = (_a: this | PromiseLike<this>): void => {};
-  protected _finished = new Promise<this>((resolve) => {
-    this._onFinished = resolve;
-    this._onFinished(this);
-  });
-  public get finished(): Promise<this> {
-    return this._finished;
   }
 
   protected _events: Record<
@@ -176,7 +169,7 @@ export default class AudioPlayer {
     if (nodeIndex >= 0) {
       this._instances.splice(nodeIndex, 1);
     }
-    this._onFinished(this);
+    instance.onEnded(instance);
   }
 
   protected _play(
@@ -190,17 +183,16 @@ export default class AudioPlayer {
       gainNode.gain.value = gain;
     }
     const sourceNode = this._audioContext.createBufferSource();
-    const instance: AudioInstance = {
+    const instance = {
       gainNode: gainNode,
       sourceNode: sourceNode,
       startedAt: when,
-    };
+    } as AudioInstance;
+    instance.ended = new Promise<AudioInstance>((resolve) => {
+      instance.onEnded = resolve;
+    });
     // Setup gain node
     gainNode.connect(this._volumeNode);
-    // Setup promise
-    this._finished = new Promise((resolve) => {
-      this._onFinished = resolve;
-    });
     // Setup source node
     sourceNode.detune.value = this._pitchBend * 100;
     sourceNode.loop = this._loop;

@@ -178,8 +178,7 @@ export default class AudioScene extends Scene {
           await Promise.all(
             audioChannel
               .values()
-              .filter((p) => p.playing)
-              .map((p) => p.finished)
+              .flatMap((p) => p.instances.map((instance) => instance.ended))
           );
         }
       }
