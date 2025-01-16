@@ -10,6 +10,7 @@ interface AudioInstance {
   gainNode: GainNode;
   startedAt: number;
   pausedAt?: number;
+  stoppedAt?: number;
   willDisconnect?: boolean;
   ended: Promise<AudioInstance>;
   onEnded: (value: AudioInstance | PromiseLike<AudioInstance>) => void;
@@ -249,6 +250,7 @@ export default class AudioPlayer {
     when = 0,
     fadeDuration = DEFAULT_FADE_DURATION
   ): Promise<number> {
+    instance.stoppedAt = this._audioContext.currentTime;
     instance.willDisconnect = true;
     const fadedAt = await this._fadeAsync(instance, when, 0, fadeDuration);
     if (instance.willDisconnect) {
@@ -265,7 +267,9 @@ export default class AudioPlayer {
     duration?: number,
     gain?: number
   ): Promise<AudioInstance> {
-    this._gain = gain ?? 1;
+    if (gain != null) {
+      this._gain = gain;
+    }
     const startGain = fadeDuration > 0 ? 0 : this._gain;
     const endGain = this._gain;
     if (this._loop) {

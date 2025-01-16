@@ -160,9 +160,9 @@ export default class AudioScene extends Scene {
   }
 
   async onUpdateAudioPlayers(params: UpdateAudioPlayersParams) {
-    const currentTime = this._audioContext.currentTime;
+    let currentTime = this._audioContext.currentTime;
+    const audioChannel = this.getAudioChannel(params.channel);
     for (const update of params.updates) {
-      const audioChannel = this.getAudioChannel(update.channel);
       if (update.key) {
         const audioPlayer = audioChannel.get(update.key);
         if (audioPlayer) {
@@ -170,16 +170,20 @@ export default class AudioScene extends Scene {
         }
       } else {
         for (const audioPlayer of audioChannel.values()) {
-          if (audioPlayer.playing) {
-            this.updateAudioPlayer(audioPlayer, update, currentTime);
-          }
+          this.updateAudioPlayer(audioPlayer, update, currentTime);
         }
         if (update.control === "await") {
-          await Promise.all(
+          const instances = await Promise.all(
             audioChannel
               .values()
               .flatMap((p) => p.instances.map((instance) => instance.ended))
           );
+          if (instances.every((instance) => instance.stoppedAt != null)) {
+            // All instances were forcedly stopped (instead of naturally finishing),
+            // so skip the remaining queued updates
+            break;
+          }
+          currentTime = this._audioContext.currentTime;
         }
       }
     }

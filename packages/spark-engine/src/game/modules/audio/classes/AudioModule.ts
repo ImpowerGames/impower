@@ -59,44 +59,50 @@ export class AudioModule extends Module<
       }
     }
     if (this._state.channels) {
-      const updates: AudioPlayerUpdate[] = [];
-      const audioToLoad = new Set<LoadAudioPlayerParams>();
-      for (const channel of Object.keys(this._state.channels)) {
-        const channelState = this._state.channels?.[channel];
-        if (channelState?.looping) {
-          for (const state of channelState.looping) {
-            if (state.key) {
-              const dataArray = this.getAudioData(channel, state.key);
-              for (const d of dataArray) {
-                if (state.syncedTo) {
-                  const cues = this.getCues(state.syncedTo);
-                  if (cues) {
-                    d.cues = cues;
-                  }
-                }
-                audioToLoad.add(d);
-              }
-            }
-            const update: AudioPlayerUpdate = {
-              key: state.key,
-              channel,
-              control: "start",
-              loop: true,
-              now: true,
-              fadeto: state.fadeto,
-            };
-            updates.push(update);
-          }
-        }
-      }
-      await this.loadAllAudio(Array.from(audioToLoad));
-      this.update(updates);
+      await Promise.all(
+        Object.keys(this._state.channels).map((channel) =>
+          this.restoreChannel(channel)
+        )
+      );
     }
   }
 
-  update(updates: AudioPlayerUpdate[]) {
+  async restoreChannel(channel: string) {
+    const updates: AudioPlayerUpdate[] = [];
+    const audioToLoad = new Set<LoadAudioPlayerParams>();
+    const channelState = this._state.channels?.[channel];
+    if (channelState?.looping) {
+      for (const state of channelState.looping) {
+        if (state.key) {
+          const dataArray = this.getAudioData(channel, state.key);
+          for (const d of dataArray) {
+            if (state.syncedTo) {
+              const cues = this.getCues(state.syncedTo);
+              if (cues) {
+                d.cues = cues;
+              }
+            }
+            audioToLoad.add(d);
+          }
+        }
+        const update: AudioPlayerUpdate = {
+          control: "start",
+          key: state.key,
+          fadeto: state.fadeto,
+          loop: true,
+          now: true,
+        };
+        updates.push(update);
+      }
+    }
+    await this.loadAllAudio(Array.from(audioToLoad));
+    this.update(channel, updates);
+  }
+
+  update(channel: string, updates: AudioPlayerUpdate[]) {
     this.emit(
       UpdateAudioPlayersMessage.type.request({
+        channel,
         updates,
       })
     );
@@ -283,9 +289,12 @@ export class AudioModule extends Module<
     data?: LoadAudioPlayerParams
   ): AudioPlayerUpdate {
     const update: AudioPlayerUpdate = {
-      ...event,
       control: event.control as AudioPlayerUpdate["control"],
-      channel,
+      after: event.after,
+      over: event.over,
+      fadeto: event.fadeto,
+      loop: event.loop,
+      now: event.now,
     };
     if (data?.key != null) {
       update.key = data.key;
@@ -393,11 +402,10 @@ export class AudioModule extends Module<
         // and then calling 'start' on the new audio
         const awaitUpdate: AudioPlayerUpdate = {
           control: "await",
-          channel,
           after: event.after,
           over: event.over,
-          now: event.now,
           loop: false,
+          now: event.now,
         };
         this.setCurrentlyPlaying(channel, awaitUpdate);
         this.saveChannelState(channel, awaitUpdate);
@@ -409,7 +417,6 @@ export class AudioModule extends Module<
         // and then calling 'start' on the new audio
         const stopUpdate: AudioPlayerUpdate = {
           control: "stop",
-          channel,
           after: event.after,
           over: event.over,
           now: event.now,
@@ -436,7 +443,7 @@ export class AudioModule extends Module<
     }
     const id = this.nextTriggerId();
     const trigger = () => {
-      this.update(updates);
+      this.update(channel, updates);
     };
     this.loadAllAudio(Array.from(audioToLoad)).then(() => {
       this.enableTrigger(id, trigger);
