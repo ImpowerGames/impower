@@ -162,6 +162,7 @@ export default class AudioScene extends Scene {
   async onUpdateAudioPlayers(params: UpdateAudioPlayersParams) {
     let currentTime = this._audioContext.currentTime;
     const audioChannel = this.getAudioChannel(params.channel);
+    let queueCreatedAt: number | undefined = undefined;
     for (const update of params.updates) {
       if (update.key) {
         const audioPlayer = audioChannel.get(update.key);
@@ -173,17 +174,34 @@ export default class AudioScene extends Scene {
           this.updateAudioPlayer(audioPlayer, update, currentTime);
         }
         if (update.control === "await") {
-          const instances = await Promise.all(
-            audioChannel
-              .values()
-              .flatMap((p) => p.instances.map((instance) => instance.ended))
-          );
-          if (instances.every((instance) => instance.stoppedAt != null)) {
-            // All instances were forcedly stopped (instead of naturally finishing),
-            // so skip the remaining queued updates
-            break;
+          if (queueCreatedAt === undefined) {
+            queueCreatedAt = currentTime;
           }
-          currentTime = this._audioContext.currentTime;
+          const instances = Array.from(
+            audioChannel.values().flatMap((p) => p.instances)
+          );
+          if (instances.length > 0) {
+            for (const instance of instances) {
+              instance.queueCreatedAt = queueCreatedAt;
+            }
+            await Promise.all(instances.map((instance) => instance.ended));
+            if (
+              // An instance was forcedly stopped (instead of naturally finishing)
+              instances.some((instance) => instance.stoppedAt != null) ||
+              // An instance forcedly disposed (instead of naturally finishing)
+              instances.some((instance) => instance.disposedAt != null) ||
+              // Or a new queue was created (and should take precedence over this one)
+              instances.some(
+                (instance) =>
+                  instance.queueCreatedAt != null &&
+                  instance.queueCreatedAt !== queueCreatedAt
+              )
+            ) {
+              // Skip the remaining queued updates
+              break;
+            }
+            currentTime = this._audioContext.currentTime;
+          }
         }
       }
     }

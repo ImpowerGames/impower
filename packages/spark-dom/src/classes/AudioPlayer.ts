@@ -11,6 +11,8 @@ interface AudioInstance {
   startedAt: number;
   pausedAt?: number;
   stoppedAt?: number;
+  disposedAt?: number;
+  queueCreatedAt?: number;
   willDisconnect?: boolean;
   ended: Promise<AudioInstance>;
   onEnded: (value: AudioInstance | PromiseLike<AudioInstance>) => void;
@@ -160,16 +162,21 @@ export default class AudioPlayer {
   }
 
   dispose() {
-    [...this._instances].forEach((instance) => this._disconnect(instance));
+    [...this._instances].forEach((instance) => this._dispose(instance));
+  }
+
+  protected _dispose(instance: AudioInstance) {
+    instance.disposedAt = this._audioContext.currentTime;
+    this._disconnect(instance);
   }
 
   protected _disconnect(instance: AudioInstance) {
-    instance.sourceNode.stop(0);
-    instance.sourceNode.disconnect();
     const nodeIndex = this._instances.indexOf(instance);
     if (nodeIndex >= 0) {
       this._instances.splice(nodeIndex, 1);
     }
+    instance.sourceNode.stop(0);
+    instance.sourceNode.disconnect();
     instance.onEnded(instance);
   }
 
