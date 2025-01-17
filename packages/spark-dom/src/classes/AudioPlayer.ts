@@ -13,7 +13,6 @@ interface AudioInstance {
   stoppedAt?: number;
   disposedAt?: number;
   queueCreatedAt?: number;
-  willDisconnect?: boolean;
   scheduled?: Map<number, number>;
   ended: Promise<AudioInstance>;
   onEnded: (value: AudioInstance | PromiseLike<AudioInstance>) => void;
@@ -233,16 +232,19 @@ export default class AudioPlayer {
     fadeDuration: number = 0,
     callback?: () => void
   ): void {
-    this._cancelScheduledCallbacks(instance, when);
-    if (callback) {
-      this._scheduleCallback(instance, when + fadeDuration, callback);
-    }
+    // Future value changes scheduled after "when" should be canceled
     instance.gainNode.gain.cancelScheduledValues(when);
     instance.gainNode.gain.setTargetAtTime(
       value,
       when,
       this.secondsToApproximateTimeConstant(fadeDuration)
     );
+    // ALL callbacks should be canceled (not just those scheduled after "when")
+    // in order to prevent the instance from disconnecting/stopping prematurely
+    this._cancelScheduledCallbacks(instance);
+    if (callback) {
+      this._scheduleCallback(instance, when + fadeDuration, callback);
+    }
   }
 
   protected _scheduleCallback(
@@ -258,7 +260,7 @@ export default class AudioPlayer {
 
   protected _cancelScheduledCallbacks(
     instance: AudioInstance,
-    when: number
+    when?: number
   ): void {
     if (instance.scheduled) {
       const oldSortedEventTimes = Array.from(instance.scheduled.keys()).sort();
@@ -266,7 +268,7 @@ export default class AudioPlayer {
       for (let i = 0; i < oldSortedEventTimes.length; i++) {
         const eventTime = oldSortedEventTimes[i]!;
         const eventId = instance.scheduled.get(eventTime)!;
-        if (eventTime >= when) {
+        if (!when || eventTime >= when) {
           window.clearTimeout(eventId);
         } else {
           newScheduled.set(eventTime, eventId);
@@ -293,7 +295,6 @@ export default class AudioPlayer {
         (instance) => instance.sourceNode.loop
       );
       if (loopingInstance) {
-        loopingInstance.willDisconnect = false;
         this._fade(loopingInstance, when, endGain, fadeDuration);
         return loopingInstance;
       }
@@ -301,7 +302,6 @@ export default class AudioPlayer {
     const instance = this._play(when, startGain, offset, duration);
     instance.startedAt = when;
     instance.pausedAt = 0;
-    instance.willDisconnect = false;
     this._fade(instance, when, endGain, fadeDuration);
     return instance;
   }
@@ -309,12 +309,9 @@ export default class AudioPlayer {
   stop(when = 0, fadeDuration = DEFAULT_FADE_DURATION): AudioInstance[] {
     for (const instance of this._instances) {
       instance.stoppedAt = this._audioContext.currentTime;
-      instance.willDisconnect = true;
       this._fade(instance, when, 0, fadeDuration, () => {
-        if (instance.willDisconnect) {
-          // Disconnect node after finished fading out so it can be garbage collected
-          this._disconnect(instance);
-        }
+        // Disconnect node after finished fading out so it can be garbage collected
+        this._disconnect(instance);
       });
     }
     return [...this._instances];
@@ -329,7 +326,6 @@ export default class AudioPlayer {
       this._gain = gain;
     }
     for (const instance of this._instances) {
-      instance.willDisconnect = false;
       this._fade(instance, when, this._gain, fadeDuration);
     }
     return [...this._instances];
@@ -337,7 +333,6 @@ export default class AudioPlayer {
 
   pause(when: number, fadeDuration = DEFAULT_FADE_DURATION): AudioInstance[] {
     for (const instance of this._instances) {
-      instance.willDisconnect = false;
       this._fade(instance, when, 0, fadeDuration, () => {
         instance.sourceNode.stop(0);
       });
@@ -352,7 +347,6 @@ export default class AudioPlayer {
         const offset = instance.startedAt - instance.pausedAt;
         instance.pausedAt = undefined;
         instance.sourceNode.start(0, offset);
-        instance.willDisconnect = false;
         this._fade(instance, when, this._gain, fadeDuration);
       }
     }
