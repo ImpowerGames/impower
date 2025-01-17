@@ -236,7 +236,7 @@ export default class AudioPlayer {
   ): void {
     if (!instance.willDisconnect || cancelsDisconnect) {
       instance.willDisconnect = disconnectWhenDone;
-      // Future value changes scheduled after "when" should be canceled
+      // Future events scheduled after "when" should be canceled
       instance.gainNode.gain.cancelScheduledValues(when);
       instance.gainNode.gain.setTargetAtTime(
         value,
@@ -244,9 +244,7 @@ export default class AudioPlayer {
         this.secondsToApproximateTimeConstant(fadeDuration)
       );
       if (cancelsDisconnect) {
-        // ALL callbacks should be canceled (not just those scheduled after "when")
-        // in order to prevent the instance from disconnecting prematurely
-        this._cancelScheduledCallbacks(instance);
+        this._cancelScheduledCallbacks(instance, when);
       }
       if (disconnectWhenDone) {
         this._scheduleCallback(instance, when + fadeDuration, () =>
@@ -303,7 +301,10 @@ export default class AudioPlayer {
       const loopingInstance = this._instances.find(
         (instance) => instance.sourceNode.loop
       );
-      if (loopingInstance) {
+      if (
+        loopingInstance &&
+        (!loopingInstance.willDisconnect || when === loopingInstance.stoppedAt)
+      ) {
         this._fade(loopingInstance, when, endGain, fadeDuration);
         return loopingInstance;
       }
