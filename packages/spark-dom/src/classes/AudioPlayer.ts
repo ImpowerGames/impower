@@ -303,7 +303,7 @@ export default class AudioPlayer {
       );
       if (
         loopingInstance &&
-        (!loopingInstance.willDisconnect || when === loopingInstance.stoppedAt)
+        (!loopingInstance.willDisconnect || when <= loopingInstance.stoppedAt!)
       ) {
         this._fade(loopingInstance, when, endGain, fadeDuration);
         return loopingInstance;
