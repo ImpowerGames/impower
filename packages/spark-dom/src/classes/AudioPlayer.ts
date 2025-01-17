@@ -308,7 +308,7 @@ export default class AudioPlayer {
 
   stop(when = 0, fadeDuration = DEFAULT_FADE_DURATION): AudioInstance[] {
     for (const instance of this._instances) {
-      instance.stoppedAt = this._audioContext.currentTime;
+      instance.stoppedAt = when;
       this._fade(instance, when, 0, fadeDuration, () => {
         // Disconnect node after finished fading out so it can be garbage collected
         this._disconnect(instance);
