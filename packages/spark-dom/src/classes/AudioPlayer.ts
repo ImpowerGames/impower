@@ -266,9 +266,9 @@ export default class AudioPlayer {
   async start(
     when: number = 0,
     fadeDuration = 0,
+    gain?: number,
     offset?: number,
-    duration?: number,
-    gain?: number
+    duration?: number
   ): Promise<AudioInstance> {
     if (gain != null) {
       this._gain = gain;
@@ -366,7 +366,7 @@ export default class AudioPlayer {
 
   step(when: number, deltaSeconds: number) {
     this.stop();
-    this.start(when, 0, when + deltaSeconds);
+    this.start(when, 0, undefined, when + deltaSeconds);
   }
 
   getStartedAt() {
