@@ -396,7 +396,8 @@ export class AudioModule extends Module<
   ): number {
     const audioToLoad = new Set<LoadAudioPlayerParams>();
     const updates: AudioPlayerUpdate[] = [];
-    for (const event of sequence) {
+    for (const e of sequence) {
+      const event = { ...e };
       if (event.control === "queue") {
         // 'queue' is equivalent to calling 'await' on a channel,
         // and then calling 'start' on the new audio
