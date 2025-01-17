@@ -185,9 +185,9 @@ export default class AudioPlayer {
 
   protected _play(
     when: number = 0,
+    gain?: number,
     offset?: number,
-    duration?: number,
-    gain?: number
+    duration?: number
   ): AudioInstance {
     const gainNode = this._audioContext.createGain();
     if (gain != null) {
@@ -285,7 +285,7 @@ export default class AudioPlayer {
         return loopingInstance;
       }
     }
-    const instance = this._play(when, offset, duration, startGain);
+    const instance = this._play(when, startGain, offset, duration);
     instance.startedAt = when;
     instance.pausedAt = 0;
     instance.willDisconnect = false;
