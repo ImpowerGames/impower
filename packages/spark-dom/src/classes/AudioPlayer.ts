@@ -364,12 +364,12 @@ export default class AudioPlayer {
     this.start(when, 0, undefined, when + deltaSeconds);
   }
 
-  getStartedAt() {
+  getStartTime() {
     return this._instances[0]?.startedAt ?? this._audioContext.currentTime;
   }
 
   getCurrentOffset(from: number) {
-    const startedAt = this.getStartedAt();
+    const startedAt = this.getStartTime();
     const totalOffset = from - startedAt;
     if (this.loop) {
       return totalOffset % this.duration;
@@ -393,7 +393,7 @@ export default class AudioPlayer {
     if (!this._cues || this._cues.length === 0) {
       return from;
     }
-    const startedAt = this.getStartedAt();
+    const startedAt = this.getStartTime();
     return startedAt + this.getNextCueOffset(from);
   }
 }
