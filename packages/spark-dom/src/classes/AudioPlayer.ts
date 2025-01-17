@@ -158,7 +158,9 @@ export default class AudioPlayer {
   }
 
   secondsToApproximateTimeConstant(sec: number = 0) {
-    return (sec * 2) / 10;
+    // https://developer.mozilla.org/en-US/docs/Web/API/AudioParam/setTargetAtTime#choosing_a_good_timeconstant
+    // (At 5 timeConstants, we will be 99.3% of the way to the target value)
+    return sec / 5;
   }
 
   dispose() {
