@@ -344,7 +344,7 @@ export class Game<T extends M = {}> {
 
   continue() {
     this._coordinator = null;
-    if (this.module.interpreter.canFlush()) {
+    if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
       this.checkpoint();
       const instructions = this.module.interpreter.flush();
       if (instructions) {

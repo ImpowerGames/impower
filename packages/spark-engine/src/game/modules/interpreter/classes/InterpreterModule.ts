@@ -336,7 +336,7 @@ export class InterpreterModule extends Module<
    * (Flow should continue until text can be flushed.)
    * @returns True if there is queued text to be flushed to screen, otherwise False.
    */
-  canFlush(): boolean {
+  shouldFlush(): boolean {
     // There is text to display.
     // Or an event takes up time
     // Or we are in preview mode and there is an image to display

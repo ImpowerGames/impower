@@ -73,8 +73,8 @@ export class Coordinator<G extends Game> {
     if (this._finishedExecution && this._timeTypedMS < 0) {
       this._timeTypedMS = this._elapsedMS;
     }
-    // No text or choices to display
-    if (!instructions.text && !waitingForChoice) {
+    // No text or choices to display, and no audio to wait for
+    if (!instructions.text && !waitingForChoice && !instructions.audio) {
       // So just autoadvance when finished
       const totalDurationMS = (instructions.end ?? 0) * 1000;
       if (this._elapsedMS >= totalDurationMS) {
