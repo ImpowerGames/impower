@@ -16,7 +16,7 @@ interface AudioInstance {
   willDisconnect?: boolean;
   ended: Promise<AudioInstance>;
   onEnded: (value: AudioInstance | PromiseLike<AudioInstance>) => void;
-  scheduled?: Record<number, number>;
+  scheduled?: Map<number, number>;
 }
 
 export default class AudioPlayer {
@@ -226,50 +226,63 @@ export default class AudioPlayer {
     return instance;
   }
 
-  protected async _fadeAsync(
+  protected _fade(
     instance: AudioInstance,
     when: number,
     value: number,
-    fadeDuration: number = 0
-  ): Promise<number> {
+    fadeDuration: number = 0,
+    callback?: () => void
+  ): void {
+    this._cancelScheduledCallbacks(instance, when);
+    if (callback) {
+      this._scheduleCallback(instance, when + fadeDuration, callback);
+    }
     instance.gainNode.gain.cancelScheduledValues(when);
     instance.gainNode.gain.setTargetAtTime(
       value,
       when,
       this.secondsToApproximateTimeConstant(fadeDuration)
     );
-    const delay = when - this._audioContext.currentTime;
-    const wait = delay + fadeDuration;
-    if (fadeDuration) {
-      await new Promise((resolve) => {
-        window.setTimeout(resolve, wait * 1000);
-      });
-    }
-    return this._audioContext.currentTime;
   }
 
-  protected async _stopAsync(
+  protected _scheduleCallback(
     instance: AudioInstance,
-    when = 0,
-    fadeDuration = DEFAULT_FADE_DURATION
-  ): Promise<number> {
-    instance.stoppedAt = this._audioContext.currentTime;
-    instance.willDisconnect = true;
-    const fadedAt = await this._fadeAsync(instance, when, 0, fadeDuration);
-    if (instance.willDisconnect) {
-      // Disconnect node after finished fading out so it can be garbage collected
-      this._disconnect(instance);
-    }
-    return fadedAt;
+    when: number,
+    callback: () => void
+  ): void {
+    const delay = when - this._audioContext.currentTime;
+    const id = window.setTimeout(callback, delay * 1000);
+    instance.scheduled ??= new Map();
+    instance.scheduled.set(when, id);
   }
 
-  async start(
+  protected _cancelScheduledCallbacks(
+    instance: AudioInstance,
+    when: number
+  ): void {
+    if (instance.scheduled) {
+      const oldSortedEventTimes = Array.from(instance.scheduled.keys()).sort();
+      const newScheduled = new Map<number, number>();
+      for (let i = 0; i < oldSortedEventTimes.length; i++) {
+        const eventTime = oldSortedEventTimes[i]!;
+        const eventId = instance.scheduled.get(eventTime)!;
+        if (eventTime >= when) {
+          window.clearTimeout(eventId);
+        } else {
+          newScheduled.set(eventTime, eventId);
+        }
+      }
+      instance.scheduled = newScheduled;
+    }
+  }
+
+  start(
     when: number = 0,
     fadeDuration = 0,
     gain?: number,
     offset?: number,
     duration?: number
-  ): Promise<AudioInstance> {
+  ): AudioInstance {
     if (gain != null) {
       this._gain = gain;
     }
@@ -281,7 +294,7 @@ export default class AudioPlayer {
       );
       if (loopingInstance) {
         loopingInstance.willDisconnect = false;
-        await this._fadeAsync(loopingInstance, when, endGain, fadeDuration);
+        this._fade(loopingInstance, when, endGain, fadeDuration);
         return loopingInstance;
       }
     }
@@ -289,79 +302,61 @@ export default class AudioPlayer {
     instance.startedAt = when;
     instance.pausedAt = 0;
     instance.willDisconnect = false;
-    await this._fadeAsync(instance, when, endGain, fadeDuration);
+    this._fade(instance, when, endGain, fadeDuration);
     return instance;
   }
 
-  async stop(
-    when = 0,
-    fadeDuration = DEFAULT_FADE_DURATION
-  ): Promise<number[]> {
-    return Promise.all(
-      [...this._instances].map((instance) =>
-        this._stopAsync(instance, when, fadeDuration)
-      )
-    );
+  stop(when = 0, fadeDuration = DEFAULT_FADE_DURATION): AudioInstance[] {
+    for (const instance of this._instances) {
+      instance.stoppedAt = this._audioContext.currentTime;
+      instance.willDisconnect = true;
+      this._fade(instance, when, 0, fadeDuration, () => {
+        if (instance.willDisconnect) {
+          // Disconnect node after finished fading out so it can be garbage collected
+          this._disconnect(instance);
+        }
+      });
+    }
+    return [...this._instances];
   }
 
-  async fade(
+  fade(
     when: number,
     fadeDuration = DEFAULT_FADE_DURATION,
     gain?: number
-  ): Promise<number[]> {
+  ): AudioInstance[] {
     if (gain != null) {
       this._gain = gain;
     }
-    return Promise.all(
-      this._instances.map((instance) => {
-        instance.willDisconnect = false;
-        return this._fadeAsync(instance, when, this._gain, fadeDuration);
-      })
-    );
+    for (const instance of this._instances) {
+      instance.willDisconnect = false;
+      this._fade(instance, when, this._gain, fadeDuration);
+    }
+    return [...this._instances];
   }
 
-  async pause(
-    when: number,
-    fadeDuration = DEFAULT_FADE_DURATION
-  ): Promise<number[]> {
-    return Promise.all(
-      this._instances.map(async (instance) => {
-        instance.willDisconnect = false;
-        const fadedOutAt = await this._fadeAsync(
-          instance,
-          when,
-          0,
-          fadeDuration
-        );
+  pause(when: number, fadeDuration = DEFAULT_FADE_DURATION): AudioInstance[] {
+    for (const instance of this._instances) {
+      instance.willDisconnect = false;
+      this._fade(instance, when, 0, fadeDuration, () => {
         instance.sourceNode.stop(0);
-        instance.pausedAt = fadedOutAt;
-        return fadedOutAt;
-      })
-    );
+      });
+      instance.pausedAt = when + fadeDuration;
+    }
+    return [...this._instances];
   }
 
-  async unpause(
-    when: number,
-    fadeDuration = DEFAULT_FADE_DURATION
-  ): Promise<number[]> {
-    return Promise.all(
-      this._instances.map(async (instance) => {
-        if (instance.pausedAt != null) {
-          const offset = instance.startedAt - instance.pausedAt;
-          instance.pausedAt = undefined;
-          instance.sourceNode.start(0, offset);
-          instance.willDisconnect = false;
-          const fadedInAt = await this._fadeAsync(
-            instance,
-            when,
-            this._gain,
-            fadeDuration
-          );
-          return fadedInAt;
-        }
-        return 0;
-      })
-    );
+  unpause(when: number, fadeDuration = DEFAULT_FADE_DURATION): AudioInstance[] {
+    for (const instance of this._instances) {
+      if (instance.pausedAt != null) {
+        const offset = instance.startedAt - instance.pausedAt;
+        instance.pausedAt = undefined;
+        instance.sourceNode.start(0, offset);
+        instance.willDisconnect = false;
+        this._fade(instance, when, this._gain, fadeDuration);
+      }
+    }
+    return [...this._instances];
   }
 
   step(when: number, deltaSeconds: number) {
