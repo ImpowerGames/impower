@@ -238,8 +238,8 @@ export default class AudioPlayer {
       when,
       this.secondsToApproximateTimeConstant(fadeDuration)
     );
-    const after = when - this._audioContext.currentTime;
-    const wait = after + fadeDuration;
+    const delay = when - this._audioContext.currentTime;
+    const wait = delay + fadeDuration;
     if (fadeDuration) {
       await new Promise((resolve) => {
         window.setTimeout(resolve, wait * 1000);
