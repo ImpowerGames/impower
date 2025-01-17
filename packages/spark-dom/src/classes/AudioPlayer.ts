@@ -13,6 +13,7 @@ interface AudioInstance {
   stoppedAt?: number;
   disposedAt?: number;
   queueCreatedAt?: number;
+  willDisconnect?: boolean;
   scheduled?: Map<number, number>;
   ended: Promise<AudioInstance>;
   onEnded: (value: AudioInstance | PromiseLike<AudioInstance>) => void;
@@ -230,20 +231,28 @@ export default class AudioPlayer {
     when: number,
     value: number,
     fadeDuration: number = 0,
-    callback?: () => void
+    cancelsDisconnect = true,
+    disconnectWhenDone = false
   ): void {
-    // Future value changes scheduled after "when" should be canceled
-    instance.gainNode.gain.cancelScheduledValues(when);
-    instance.gainNode.gain.setTargetAtTime(
-      value,
-      when,
-      this.secondsToApproximateTimeConstant(fadeDuration)
-    );
-    // ALL callbacks should be canceled (not just those scheduled after "when")
-    // in order to prevent the instance from disconnecting prematurely
-    this._cancelScheduledCallbacks(instance);
-    if (callback) {
-      this._scheduleCallback(instance, when + fadeDuration, callback);
+    if (!instance.willDisconnect || cancelsDisconnect) {
+      instance.willDisconnect = disconnectWhenDone;
+      // Future value changes scheduled after "when" should be canceled
+      instance.gainNode.gain.cancelScheduledValues(when);
+      instance.gainNode.gain.setTargetAtTime(
+        value,
+        when,
+        this.secondsToApproximateTimeConstant(fadeDuration)
+      );
+      if (cancelsDisconnect) {
+        // ALL callbacks should be canceled (not just those scheduled after "when")
+        // in order to prevent the instance from disconnecting prematurely
+        this._cancelScheduledCallbacks(instance);
+      }
+      if (disconnectWhenDone) {
+        this._scheduleCallback(instance, when + fadeDuration, () =>
+          this._disconnect(instance)
+        );
+      }
     }
   }
 
@@ -309,10 +318,7 @@ export default class AudioPlayer {
   stop(when = 0, fadeDuration = DEFAULT_FADE_DURATION): AudioInstance[] {
     for (const instance of this._instances) {
       instance.stoppedAt = when;
-      this._fade(instance, when, 0, fadeDuration, () => {
-        // Disconnect node after finished fading out so it can be garbage collected
-        this._disconnect(instance);
-      });
+      this._fade(instance, when, 0, fadeDuration, true, true);
     }
     return [...this._instances];
   }
@@ -326,7 +332,7 @@ export default class AudioPlayer {
       this._gain = gain;
     }
     for (const instance of this._instances) {
-      this._fade(instance, when, this._gain, fadeDuration);
+      this._fade(instance, when, this._gain, fadeDuration, false);
     }
     return [...this._instances];
   }

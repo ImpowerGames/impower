@@ -361,7 +361,7 @@ export class AudioModule extends Module<
           if (update.fadeto != null) {
             existingUpdate.fadeto = update.fadeto;
           }
-        } else {
+        } else if (update.control === "start") {
           this._state.channels[channel].looping ??= [];
           this._state.channels[channel].looping.push({
             key: data.key,
