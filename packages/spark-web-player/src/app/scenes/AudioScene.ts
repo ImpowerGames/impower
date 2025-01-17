@@ -186,18 +186,17 @@ export default class AudioScene extends Scene {
             }
             await Promise.all(instances.map((instance) => instance.ended));
             if (
-              // An instance was forcedly stopped (instead of naturally finishing)
-              instances.some((instance) => instance.stoppedAt != null) ||
-              // An instance forcedly disposed (instead of naturally finishing)
-              instances.some((instance) => instance.disposedAt != null) ||
-              // Or a new queue was created (and should take precedence over this one)
               instances.some(
                 (instance) =>
-                  instance.queueCreatedAt != null &&
-                  instance.queueCreatedAt !== queueCreatedAt
+                  instance.stoppedAt != null ||
+                  instance.disposedAt != null ||
+                  (instance.queueCreatedAt != null &&
+                    instance.queueCreatedAt !== queueCreatedAt)
               )
             ) {
-              // Skip the remaining queued updates
+              // An instance was forcedly stopped, disposed, or interrupted by a new queue
+              // (instead of naturally finishing).
+              // So, skip the remaining queued updates
               break;
             }
             currentTime = this._audioContext.currentTime;
