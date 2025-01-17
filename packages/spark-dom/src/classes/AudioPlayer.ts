@@ -240,7 +240,7 @@ export default class AudioPlayer {
       this.secondsToApproximateTimeConstant(fadeDuration)
     );
     // ALL callbacks should be canceled (not just those scheduled after "when")
-    // in order to prevent the instance from disconnecting/stopping prematurely
+    // in order to prevent the instance from disconnecting prematurely
     this._cancelScheduledCallbacks(instance);
     if (callback) {
       this._scheduleCallback(instance, when + fadeDuration, callback);
@@ -333,9 +333,8 @@ export default class AudioPlayer {
 
   pause(when: number, fadeDuration = DEFAULT_FADE_DURATION): AudioInstance[] {
     for (const instance of this._instances) {
-      this._fade(instance, when, 0, fadeDuration, () => {
-        instance.sourceNode.stop(0);
-      });
+      this._fade(instance, when, 0, fadeDuration);
+      instance.sourceNode.stop(when + fadeDuration);
       instance.pausedAt = when + fadeDuration;
     }
     return [...this._instances];
