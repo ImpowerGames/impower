@@ -353,9 +353,9 @@ export default class AudioPlayer {
     return [...this._instances];
   }
 
-  step(when: number, deltaSeconds: number) {
+  step(when: number, deltaSeconds: number): AudioInstance {
     this.stop();
-    this.start(when, 0, undefined, when + deltaSeconds);
+    return this.start(when, 0, undefined, when + deltaSeconds);
   }
 
   getStartTime() {
