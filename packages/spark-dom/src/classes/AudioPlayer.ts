@@ -14,9 +14,9 @@ interface AudioInstance {
   disposedAt?: number;
   queueCreatedAt?: number;
   willDisconnect?: boolean;
+  scheduled?: Map<number, number>;
   ended: Promise<AudioInstance>;
   onEnded: (value: AudioInstance | PromiseLike<AudioInstance>) => void;
-  scheduled?: Map<number, number>;
 }
 
 export default class AudioPlayer {
