@@ -170,6 +170,9 @@ export default class AudioScene extends Scene {
           this.updateAudioPlayer(audioPlayer, update, currentTime);
         }
       } else {
+        for (const audioPlayer of audioChannel.values()) {
+          this.updateAudioPlayer(audioPlayer, update, currentTime);
+        }
         if (update.control === "await") {
           if (queueCreatedAt === undefined) {
             queueCreatedAt = currentTime;
