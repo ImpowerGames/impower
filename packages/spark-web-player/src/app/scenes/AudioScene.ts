@@ -185,7 +185,7 @@ export default class AudioScene extends Scene {
             if (
               instances.some(
                 (instance) =>
-                  instance.queueCreatedAt === null ||
+                  instance.queueCreatedAt == null ||
                   instance.queueCreatedAt !== queueCreatedAt
               )
             ) {
