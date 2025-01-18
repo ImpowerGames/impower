@@ -414,7 +414,7 @@ export class AudioModule extends Module<
         event.control = "start";
       }
       if (event.control === "play") {
-        // 'play' is equivalent to calling 'stop' on a channel,
+        // 'play' is equivalent to calling 'stop' on all audio playing on a channel,
         // and then calling 'start' on the new audio
         const stopUpdate: AudioPlayerUpdate = {
           control: "stop",
@@ -422,9 +422,14 @@ export class AudioModule extends Module<
           over: event.over,
           now: event.now,
         };
-        this.setCurrentlyPlaying(channel, stopUpdate);
-        this.saveChannelState(channel, stopUpdate);
-        updates.push(stopUpdate);
+        const playing = this._channelsCurrentlyPlaying.get(channel);
+        if (playing) {
+          for (const d of playing.values()) {
+            this.setCurrentlyPlaying(channel, stopUpdate, d);
+            this.saveChannelState(channel, stopUpdate, d);
+            updates.push(stopUpdate);
+          }
+        }
         event.control = "start";
       }
       if (event.assets && event.assets.length > 0) {
@@ -437,9 +442,14 @@ export class AudioModule extends Module<
         }
       } else {
         const update = this.process(channel, event);
-        this.setCurrentlyPlaying(channel, update);
-        this.saveChannelState(channel, update);
-        updates.push(update);
+        const playing = this._channelsCurrentlyPlaying.get(channel);
+        if (playing) {
+          for (const d of playing.values()) {
+            this.setCurrentlyPlaying(channel, update, d);
+            this.saveChannelState(channel, update, d);
+            updates.push(update);
+          }
+        }
       }
     }
     const id = this.nextTriggerId();
