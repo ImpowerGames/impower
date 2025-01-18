@@ -694,9 +694,7 @@ export default class SparkParser {
           stack.includes("AudioCommand") &&
           nodeType === "AssetCommandFilterName"
         ) {
-          const types = ["filter"];
-          const name = text;
-          recordReference({ selector: { types, name } });
+          // TODO: Validate synth tone format
         }
         // Report invalid image control
         if (

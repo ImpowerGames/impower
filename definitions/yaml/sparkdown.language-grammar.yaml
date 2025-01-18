@@ -2769,7 +2769,7 @@ repository:
     match: ([+])
 
   AssetCommandFilter:
-    match: ([~])($|{{IDENTIFIER}})?
+    match: ([~])($|[^~\s]+)?
     captures:
       1:
         patterns:
@@ -2786,7 +2786,7 @@ repository:
   AssetCommandFilterName:
     tag: variableName
     name: variable.other.constant.asset.filter.sd
-    match: ({{IDENTIFIER}})
+    match: ([^~\s]+)
 
   WhitespaceAssetCommandClause:
     tag: content

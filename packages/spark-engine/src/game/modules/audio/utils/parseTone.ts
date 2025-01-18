@@ -1,10 +1,14 @@
 import { Tone } from "../types/Tone";
 
-const PARAM_REGEX = /([a-z]+)/;
+const PARAM_REGEX = /([a-z])/;
 
 export const parseTone = (str: string): Tone => {
   const tone: Tone = {};
   const tokens = str.split(PARAM_REGEX);
+  const firstArg = tokens[0];
+  if (!Number.isNaN(Number(firstArg))) {
+    tone.duration = Number(firstArg);
+  }
   tokens.forEach((param, index) => {
     if (PARAM_REGEX.test(param)) {
       const value = tokens[index + 1];
@@ -33,7 +37,7 @@ export const parseTone = (str: string): Tone => {
         tone.note = Number(value);
       }
       if (param === "m") {
-        tone.mono;
+        tone.mono = true;
       }
     }
   });

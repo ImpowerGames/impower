@@ -13,6 +13,16 @@ export const audioBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_layered_audio>>,
   synth: {
     $default: default_synth(),
+    none: default_synth({
+      $name: "none",
+      envelope: {
+        attack: 0,
+        decay: 0,
+        sustain: 1,
+        release: 0,
+        level: 0,
+      },
+    }),
     character: default_synth({
       $name: "character",
       shape: "triangle",

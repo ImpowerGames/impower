@@ -4852,7 +4852,7 @@
       "match": "([+])"
     },
     "AssetCommandFilter": {
-      "match": "([~])($|[_\\p{L}][0-9_\\p{L}]*)?",
+      "match": "([~])($|[^~\\s]+)?",
       "captures": {
         "1": {
           "patterns": [
@@ -4878,7 +4878,7 @@
     "AssetCommandFilterName": {
       "tag": "variableName",
       "name": "variable.other.constant.asset.filter.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)"
+      "match": "([^~\\s]+)"
     },
     "WhitespaceAssetCommandClause": {
       "tag": "content",
