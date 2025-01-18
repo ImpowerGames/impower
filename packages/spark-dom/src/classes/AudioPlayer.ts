@@ -170,6 +170,7 @@ export default class AudioPlayer {
 
   protected _dispose(instance: AudioInstance) {
     instance.disposedAt = this._audioContext.currentTime;
+    instance.queueCreatedAt = undefined;
     this._disconnect(instance);
   }
 
@@ -319,6 +320,7 @@ export default class AudioPlayer {
   stop(when = 0, fadeDuration = DEFAULT_FADE_DURATION): AudioInstance[] {
     for (const instance of this._instances) {
       instance.stoppedAt = when;
+      instance.queueCreatedAt = undefined;
       this._fade(instance, when, 0, fadeDuration, true, true);
     }
     return [...this._instances];

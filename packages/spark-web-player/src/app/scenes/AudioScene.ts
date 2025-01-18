@@ -187,8 +187,8 @@ export default class AudioScene extends Scene {
                 (instance) =>
                   instance.stoppedAt != null ||
                   instance.disposedAt != null ||
-                  (instance.queueCreatedAt != null &&
-                    instance.queueCreatedAt !== queueCreatedAt)
+                  instance.queueCreatedAt === null ||
+                  instance.queueCreatedAt !== queueCreatedAt
               )
             ) {
               // An instance was forcedly stopped, disposed, or interrupted by a new queue
