@@ -29,19 +29,21 @@ export const fillArrayWithTone = (
   if (duration) {
     const startIndex = Math.floor(time * sampleRate);
     const endIndex = Math.floor((time + duration) * sampleRate);
-    synthesizeSound(
-      synth,
-      true,
-      true,
-      sampleRate,
-      startIndex,
-      endIndex,
-      soundBuffer,
-      volumeBuffer,
-      pitchBuffer,
-      pitchRange,
-      volume,
-      pitch
-    );
+    if (volume > 0 && synth.envelope.level > 0) {
+      synthesizeSound(
+        synth,
+        true,
+        true,
+        sampleRate,
+        startIndex,
+        endIndex,
+        soundBuffer,
+        volumeBuffer,
+        pitchBuffer,
+        pitchRange,
+        volume,
+        pitch
+      );
+    }
   }
 };
