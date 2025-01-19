@@ -14,9 +14,10 @@ export default spec({
         stores?.workspace?.current?.preview?.modes?.game?.debugging || false,
       loading:
         stores?.workspace?.current?.preview?.modes?.game?.loading || false,
+      horizontalLayout: stores?.workspace?.current?.screen?.horizontalLayout,
     } as const),
   html: ({ context }) => {
-    const { running, paused, debugging, loading } = context;
+    const { running, paused, debugging, loading, horizontalLayout } = context;
     const titleEl = () =>
       html`<s-box
         text-size="md"
@@ -171,13 +172,16 @@ export default spec({
       ${running ? settingsDropdown : modeButton}
     `;
     return html`
-      <s-box bg-color="panel" position="sticky-top">
+      <s-box
+        bg-color="${horizontalLayout ? "panel" : "black"}"
+        position="sticky-top"
+      >
         <se-header-navigation-placeholder></se-header-navigation-placeholder>
         <s-box
           height="panel-nav"
           child-layout="row"
           child-align="center"
-          bg-color="panel"
+          bg-color="${horizontalLayout ? "panel" : "black"}"
           z="1"
           grow
         >
