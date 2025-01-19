@@ -52,7 +52,7 @@ export default class HeaderTitleButton extends Component(spec) {
       if (name != null) {
         await Workspace.window.finishedEditingProjectName(name);
       }
+      this.emit("input/unfocused");
     }
-    this.emit("input/unfocused");
   };
 }
