@@ -655,26 +655,27 @@ export default class WorkspaceWindow {
 
   async finishedEditingProjectName(name: string) {
     const id = this.store.project.id;
+    const validName = name || WorkspaceConstants.DEFAULT_PROJECT_NAME;
     if (id) {
       this.update({
         ...this.store,
         project: {
           ...this.store.project,
-          name,
+          name: validName,
         },
         screen: {
           ...this.store.screen,
           editingName: false,
         },
       });
-      let changedName = name !== this.store.project.name;
+      let changedName = validName !== this.store.project.name;
       if (changedName) {
-        await Workspace.fs.writeProjectMetadata(id, "name", name);
+        await Workspace.fs.writeProjectMetadata(id, "name", validName);
         this.update({
           ...this.store,
           project: {
             ...this.store.project,
-            name,
+            name: validName,
           },
         });
         await this.recordScriptChange();
