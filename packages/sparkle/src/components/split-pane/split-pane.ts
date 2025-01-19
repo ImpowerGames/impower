@@ -124,7 +124,7 @@ export default class SplitPane
    *
    * When not provided, defaults to `slide-down`
    */
-  get responsive(): "hide" | "flip" | "flip-reverse" | null {
+  get responsive(): "hide" | null {
     return this.getStringAttribute(SplitPane.attrs.responsive);
   }
   set responsive(value) {
