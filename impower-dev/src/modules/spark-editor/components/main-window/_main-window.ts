@@ -37,6 +37,7 @@ export default spec({
         </div>
         <div class="scrollable" slot="end">
           <s-box position="relative" grow>
+            <s-box position="absolute" i="48px 0 0 0" bg-color="black"></s-box>
             <se-preview></se-preview>
           </s-box>
         </div>
