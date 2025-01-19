@@ -262,12 +262,12 @@ export default class WorkspaceWindow {
   };
 
   protected handleScreenSizeChange = (query: MediaQueryListEvent) => {
-    const splitLayout = query.matches;
+    const horizontalLayout = query.matches;
     this.update({
       ...this.store,
       screen: {
         ...this.store.screen,
-        splitLayout,
+        horizontalLayout,
       },
     });
   };

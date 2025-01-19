@@ -11,16 +11,18 @@ export default spec({
   reducer: ({ stores }) =>
     ({
       textPulledAt: stores?.workspace?.current?.sync?.textPulledAt || "",
-      splitLayout: stores?.workspace?.current?.screen?.splitLayout,
+      horizontalLayout: stores?.workspace?.current?.screen?.horizontalLayout,
     } as const),
   html: ({ context }) => {
-    const { splitLayout } = context;
+    const { horizontalLayout } = context;
     return html`
       <s-box bg-color="editor-bg" grow>
         <sparkdown-script-editor
           id="sparkdownScriptEditor"
-          scroll-margin="${splitLayout ? "56px 0 60px 0" : "104px 0 60px 0"}"
-          top="${splitLayout ? "48px" : "104px"}"
+          scroll-margin="${horizontalLayout
+            ? "56px 0 60px 0"
+            : "104px 0 60px 0"}"
+          top="${horizontalLayout ? "48px" : "104px"}"
         ></sparkdown-script-editor>
       </s-box>
     `;
