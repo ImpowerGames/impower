@@ -67,11 +67,13 @@ export default class EditToggleButton extends Component(spec) {
   };
 
   startEditing() {
-    this.ref.doneButton.hidden = false;
-    this.ref.menuDropdown.hidden = true;
+    window.requestAnimationFrame(() => {
+      this.ref.doneButton.hidden = false;
+      this.ref.menuDropdown.hidden = true;
+    });
   }
 
-  async finishEditing() {
+  finishEditing() {
     this.ref.doneButton.hidden = true;
     this.ref.menuDropdown.hidden = false;
   }
