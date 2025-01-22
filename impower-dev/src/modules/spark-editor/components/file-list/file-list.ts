@@ -3,6 +3,7 @@ import { Component } from "../../../../../../packages/spec-component/src/compone
 import globToRegex from "../../utils/globToRegex";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_file-list";
+import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 
 export default class FileList extends Component(spec) {
   protected _uris?: string[];
@@ -36,9 +37,27 @@ export default class FileList extends Component(spec) {
         const includeRegex = include ? globToRegex(include) : /.*/;
         const excludeRegex = exclude ? globToRegex(exclude) : undefined;
         const isRelevantChange = changes.some(
-          (file) => includeRegex.test(file.uri) && !excludeRegex?.test(file.uri)
+          (change) =>
+            includeRegex.test(change.uri) && !excludeRegex?.test(change.uri)
         );
-        if (isRelevantChange) {
+        // The order of the files shouldn't shift around while the user is renaming files.
+        const isLocalRename =
+          !params.remote &&
+          changes.every((change) =>
+            // Renaming files emits a Changed and Created event for the new uri
+            change.type === FileChangeType.Created
+              ? changes.some(
+                  (c) =>
+                    c.uri === change.uri && c.type === FileChangeType.Changed
+                )
+              : change.type === FileChangeType.Changed
+              ? changes.some(
+                  (c) =>
+                    c.uri === change.uri && c.type === FileChangeType.Created
+                )
+              : true
+          );
+        if (isRelevantChange && !isLocalRename) {
           this.loadEntries();
         }
       }
@@ -76,6 +95,7 @@ export default class FileList extends Component(spec) {
       const allUris = Object.keys(files);
       return allUris
         .filter((uri) => includeRegex.test(uri) && !excludeRegex?.test(uri))
+        .sort()
         .sort((a, b) => {
           const extA = a.split(".").at(-1) || "";
           const extB = b.split(".").at(-1) || "";

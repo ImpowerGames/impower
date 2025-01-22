@@ -290,6 +290,12 @@ onmessage = async (e) => {
             ...files.map(
               (file): FileEvent => ({
                 uri: file.newUri,
+                type: FileChangeType.Changed,
+              })
+            ),
+            ...files.map(
+              (file): FileEvent => ({
+                uri: file.newUri,
                 type: FileChangeType.Created,
               })
             ),

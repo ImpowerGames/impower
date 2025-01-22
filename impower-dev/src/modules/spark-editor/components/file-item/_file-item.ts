@@ -12,7 +12,6 @@ export default spec({
     const nameComponent = () => (name ? html`<span>${name}</span>` : "");
     const extComponent = () =>
       ext ? html`<span style="opacity:0.3">.${ext}</span>` : "";
-    const nameLabelComponent = () => html`${nameComponent}${extComponent}`;
     const nameInputComponent = () => html`<s-input
       display="inline-block"
       id="nameInput"
@@ -21,11 +20,12 @@ export default spec({
       m="0 -4"
       placeholder-color="fab-bg"
       color="fg"
-      value="${filename}"
-      label="${filename}"
+      value="${name || ""}"
+      label="${name || ""}"
       size="sm"
       width="100%"
     ></s-input>`;
+    const nameLabelComponent = () => html`${nameComponent}${extComponent}`;
     return html`
       <s-button
         id="button"

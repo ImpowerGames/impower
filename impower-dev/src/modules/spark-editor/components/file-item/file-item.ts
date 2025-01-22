@@ -93,9 +93,11 @@ export default class FileItem extends Component(spec) {
 
   finishEditingName() {
     const nameInput = this.ref.nameInput as Input;
-    const newFilename = nameInput.ref.input.value;
+    const newName = nameInput.ref.input.value;
     const oldFilename = this.filename;
-    if (newFilename != null && oldFilename !== newFilename) {
+    const [oldName, oldExt] = oldFilename.split(".");
+    if (newName != null && oldName !== newName) {
+      const newFilename = newName + "." + oldExt;
       this.renameFile(oldFilename, newFilename);
     }
     this.renaming = false;

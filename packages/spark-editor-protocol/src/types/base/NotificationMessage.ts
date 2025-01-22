@@ -10,5 +10,5 @@ export interface NotificationMessage<M extends string = string, P = any>
   /**
    * The notification's params.
    */
-  params: P;
+  params: P & { remote?: boolean };
 }
