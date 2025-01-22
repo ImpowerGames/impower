@@ -271,14 +271,24 @@ export default class SparkdownTextDocuments<
   }
 
   resolveFile(path: string) {
-    const p = path.trim();
-    const impliedSuffix = p.includes(".") ? "" : ".sd";
-    const filename = p + impliedSuffix;
-    const uri = this._workspaceFolders?.[0]?.uri + "/" + filename;
-    if (!this.__syncedDocuments.get(uri) && filename !== "main.sd") {
+    const uri =
+      this.resolveFileUsingImpliedExtension(path, "sd") ||
+      this.resolveFileUsingImpliedExtension(path, "sparkdown");
+    if (!uri) {
       throw new Error(`Cannot find file '${uri}'.`);
     }
     return uri;
+  }
+
+  resolveFileUsingImpliedExtension(path: string, ext: string) {
+    const p = path.trim();
+    const impliedSuffix = p.includes(".") ? "" : `.${ext}`;
+    const filename = p + impliedSuffix;
+    const uri = this._workspaceFolders?.[0]?.uri + "/" + filename;
+    if (filename === `main.${ext}` || this.__syncedDocuments.get(uri)) {
+      return uri;
+    }
+    return "";
   }
 
   readFile(uri: string) {
