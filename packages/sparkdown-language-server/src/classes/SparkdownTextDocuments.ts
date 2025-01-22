@@ -272,10 +272,10 @@ export default class SparkdownTextDocuments<
 
   resolveFile(path: string) {
     const p = path.trim();
-    const suffix = p.endsWith(".script") ? "" : ".script";
-    const name = p + suffix;
-    const uri = this._workspaceFolders?.[0]?.uri + "/" + name;
-    if (!this.__syncedDocuments.get(uri) && name !== "main.script") {
+    const impliedSuffix = p.includes(".") ? "" : ".sd";
+    const filename = p + impliedSuffix;
+    const uri = this._workspaceFolders?.[0]?.uri + "/" + filename;
+    if (!this.__syncedDocuments.get(uri) && filename !== "main.sd") {
       throw new Error(`Cannot find file '${uri}'.`);
     }
     return uri;
@@ -294,7 +294,7 @@ export default class SparkdownTextDocuments<
   }
 
   getMainScriptUri() {
-    return this.resolveFile("main.script");
+    return this.resolveFile("main.sd");
   }
 
   getDirectoryUri(uri: string): string {

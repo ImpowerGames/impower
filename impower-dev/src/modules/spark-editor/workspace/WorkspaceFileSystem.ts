@@ -300,7 +300,7 @@ export default class WorkspaceFileSystem {
 
   async bundleProjectText(projectId: string): Promise<string> {
     const files = await this.getFiles(projectId);
-    const mainScriptUri = this.getFileUri(projectId, "main.script");
+    const mainScriptUri = this.getFileUri(projectId, "main.sd");
     const mainFile = files[mainScriptUri];
     let content = "";
     if (mainFile?.text != null) {
@@ -389,7 +389,7 @@ export default class WorkspaceFileSystem {
       if (isEvenIndex) {
         const uri = filename
           ? this.getFileUri(projectId, filename)
-          : this.getFileUri(projectId, "main.script");
+          : this.getFileUri(projectId, "main.sd");
         chunks[uri] = content.trim();
       } else {
         const match = content.trim().match(FILE_SEPARATOR_REGEX);

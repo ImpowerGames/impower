@@ -1,10 +1,5 @@
 {
-  "fileTypes": [
-    "sparkdown",
-    "sd",
-    "script",
-    "project"
-  ],
+  "fileTypes": ["sd", "sparkdown"],
   "keyEquivalent": "^~S",
   "indentUnit": "  ",
   "name": "Sparkdown",
@@ -23,19 +18,8 @@
     "WS": "[^\\S\\n\\r]",
     "EOL": "(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$|{{WS}}*[/][/].*$)",
     "EOK": "(?:$|{{WS}}+|(?={{TAG_START}}|[/][/]|[/][*]))",
-    "IMAGE_CONTROL_KEYWORDS": [
-      "set",
-      "show",
-      "hide",
-      "animate"
-    ],
-    "IMAGE_CLAUSE_KEYWORDS": [
-      "after",
-      "over",
-      "with",
-      "wait",
-      "nowait"
-    ],
+    "IMAGE_CONTROL_KEYWORDS": ["set", "show", "hide", "animate"],
+    "IMAGE_CLAUSE_KEYWORDS": ["after", "over", "with", "wait", "nowait"],
     "AUDIO_CONTROL_KEYWORDS": [
       "start",
       "stop",

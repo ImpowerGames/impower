@@ -25,7 +25,7 @@ export default spec({
         // If filename is not specified,
         // assume we are displaying diagnostics for all (non-main) scripts
         for (const [uri, fileDiagnostics] of Object.entries(diagnostics)) {
-          if (!uri.endsWith("/" + "main.script")) {
+          if (!uri.endsWith("/" + "main.sd")) {
             relevantDiagnostics.push(...fileDiagnostics);
           }
         }

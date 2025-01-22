@@ -1101,7 +1101,7 @@ export default class SparkParser {
         },
       }
     );
-    const rootFilename = filename || "main.script";
+    const rootFilename = filename || "main.sd";
     const inkCompiler = new InkCompiler(`include ${rootFilename}`, options);
     try {
       const story = inkCompiler.Compile();

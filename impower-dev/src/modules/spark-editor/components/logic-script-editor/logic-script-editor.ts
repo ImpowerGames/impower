@@ -147,7 +147,7 @@ export default class LogicScriptEditor extends Component(spec) {
     const store = this.stores.workspace.current;
     const projectId = store?.project?.id;
     if (projectId) {
-      const filename = this.filename || "main.script";
+      const filename = this.filename || "main.sd";
       const editor = Workspace.window.getActiveEditorForFile(filename);
       if (editor) {
         const uri = editor.uri;

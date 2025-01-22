@@ -18,7 +18,7 @@ export default class LogicList extends Component(spec) {
         this.context.panel = panel;
         Workspace.window.openedPanel("logic", panel);
         if (panel === "main") {
-          Workspace.window.openedFileEditor("main.script");
+          Workspace.window.openedFileEditor("main.sd");
         }
       }
     }

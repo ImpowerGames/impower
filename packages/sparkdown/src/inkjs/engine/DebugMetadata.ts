@@ -56,7 +56,8 @@ export class DebugMetadata {
 
   public toString() {
     if (this.fileName !== null) {
-      return `line ${this.startLineNumber} of '${this.fileName}'`;
+      const name = this.fileName.split(".")[0] || this.fileName;
+      return `line ${this.startLineNumber} of '${name}'`;
     } else {
       return "line " + this.startLineNumber;
     }

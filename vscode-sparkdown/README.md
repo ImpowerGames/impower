@@ -15,7 +15,7 @@ This is an extension for Visual Studio Code which allows you to create `spark` g
 
 # Usage
 
-1. Open any `.script`, `.sparkdown`, or `.sd` file in Visual Studio Code.
+1. Open any `.sd` or `.sparkdown` file in Visual Studio Code.
 
 2. Click the ![Sparkdown](https://raw.githubusercontent.com/ImpowerGames/impower/deploy/dev/.github/images/sparkdown-vscode-icon.png) icon in the activitybar to open the Sparkdown Sidebar.
 

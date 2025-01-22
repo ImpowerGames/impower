@@ -423,10 +423,8 @@
           "sparkdown"
         ],
         "extensions": [
-          ".sparkdown",
           ".sd",
-          ".script",
-          ".project"
+          ".sparkdown"
         ],
         "configuration": "./language/sparkdown.language-config.json",
         "icon": {
@@ -565,7 +563,7 @@
         "properties": {
           "sparkdown.scriptFiles": {
             "type": "string",
-            "default": "*.{sparkdown,sd,script,project}",
+            "default": "*.{sd,sparkdown}",
             "description": "Recognized filename patterns for script files"
           },
           "sparkdown.imageFiles": {

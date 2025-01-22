@@ -306,7 +306,7 @@ export default class WorkspaceWindow {
 
   getPaneType(filenameOrUri: string) {
     const [, ext] = filenameOrUri.split(".");
-    if (ext === "script") {
+    if (ext === "sd" || ext === "sparkdown") {
       return "logic";
     }
     return null;
@@ -317,7 +317,7 @@ export default class WorkspaceWindow {
     if (name === "main") {
       return "main";
     }
-    if (ext === "script") {
+    if (ext === "sd" || ext === "sparkdown") {
       return "scripts";
     }
     return null;

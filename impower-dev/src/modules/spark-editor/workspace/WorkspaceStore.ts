@@ -13,7 +13,7 @@ const cache: WorkspaceCache = {
           scrollIndex: 0,
           activeEditor: {
             open: true,
-            filename: "main.script",
+            filename: "main.sd",
           },
         },
         scripts: {

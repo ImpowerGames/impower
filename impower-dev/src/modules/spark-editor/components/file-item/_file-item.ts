@@ -11,7 +11,9 @@ export default spec({
     const [name, ext] = filename.split(".");
     const nameComponent = () => (name ? html`<span>${name}</span>` : "");
     const extComponent = () =>
-      ext ? html`<span style="opacity:0.3">.${ext}</span>` : "";
+      ext && ext !== "sd" && ext !== "sparkdown"
+        ? html`<span style="opacity:0.3">.${ext}</span>`
+        : "";
     const nameInputComponent = () => html`<s-input
       display="inline-block"
       id="nameInput"

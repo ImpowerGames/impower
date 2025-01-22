@@ -27,7 +27,7 @@ export default spec({
               value="main"
               ${panel === "main" ? "active" : ""}
             >
-              <se-logic-diagnostics-label filename="main.script">
+              <se-logic-diagnostics-label filename="main.sd">
                 <s-icon name="book-closed" m-r="8"></s-icon>
                 Main
               </se-logic-diagnostics-label>
@@ -48,8 +48,7 @@ export default spec({
           </s-tabs>
         </s-box>
         <template value="main">
-          <se-logic-script-editor filename="main.script">
-          </se-logic-script-editor>
+          <se-logic-script-editor filename="main.sd"></se-logic-script-editor>
         </template>
         <template value="scripts">
           <se-logic-scripts-list></se-logic-scripts-list>
