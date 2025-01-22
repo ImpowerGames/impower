@@ -2823,7 +2823,7 @@ repository:
   TextCommand:
     tag: macroName
     name: meta.text.sd
-    match: ([<])((?:\\.|[^>])*?)([>])
+    match: ([<](?!{{WS}}))((?:\\.|[^>])*?)([>])
     captures:
       1:
         tag: keyword

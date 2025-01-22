@@ -609,6 +609,7 @@ export class InterpreterModule extends Module<
     let phrasePauseLength = 0;
     let phraseUnpauseLength = 0;
     let escaped = false;
+    let hidden = false;
     let raw = false;
     let currChunk: Chunk | undefined = undefined;
 
@@ -762,7 +763,7 @@ export class InterpreterModule extends Module<
                 continue;
               }
               // Text Tag
-              if (char === "<") {
+              if (char === "<" && !this.isWhitespace(chars[i + 1])) {
                 let control = "";
                 let arg = "";
                 const startIndex = i;
@@ -778,6 +779,8 @@ export class InterpreterModule extends Module<
                     i += 1;
                   }
                 }
+                control = control.trimEnd();
+                arg = arg.trim();
                 const closed = chars[i] === ">";
                 if (closed) {
                   i += 1;
@@ -805,10 +808,9 @@ export class InterpreterModule extends Module<
                       allPhrases.push(phrase);
                       startNewPhrase();
                     } else if (control === "!") {
-                      // Ignore everything until the end of the line
-                      while (chars[i] && chars[i] !== "\n") {
-                        i += 1;
-                      }
+                      hidden = true;
+                    } else if (control === "/!") {
+                      hidden = false;
                     }
                   }
                 } else {
@@ -881,6 +883,14 @@ export class InterpreterModule extends Module<
             }
           }
           escaped = false;
+
+          if (hidden) {
+            if (char === "\n") {
+              hidden = false;
+            }
+            i += 1;
+            continue;
+          }
 
           const activeCenteredMark = activeMarks.findLast(([m]) =>
             m.startsWith("^")
