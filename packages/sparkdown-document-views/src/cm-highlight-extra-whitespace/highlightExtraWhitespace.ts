@@ -32,9 +32,7 @@ const getDecoration = (space: string) =>
     ? tabDeco
     : Decoration.mark({
         class: "cm-highlightSpace",
-        attributes: {
-          "data-content": space.replace(/[ ]/g, "·"),
-        },
+        attributes: { "data-content": "·" },
       });
 
 function matcher(decorator: MatchDecorator): Extension {
@@ -53,7 +51,7 @@ function matcher(decorator: MatchDecorator): Extension {
 
 const whitespaceHighlighter = matcher(
   new MatchDecorator({
-    regexp: /\t|[ ]{2,}|[ ]+$/g,
+    regexp: /\t|[ ](?=[ ])|(?<=[ ])[ ]|[ ]$/g,
     decoration: (match) => getDecoration(match[0]),
     boundary: /\S/,
   })
