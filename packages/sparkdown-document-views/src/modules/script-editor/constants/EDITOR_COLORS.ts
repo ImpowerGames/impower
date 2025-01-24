@@ -1,8 +1,13 @@
 const EDITOR_COLORS = {
   white: "#FFFFFF",
   foreground: "#CCCCCC",
+  activeLineNumber: "#99D9FF",
   lineNumber: "#2B83B7",
   lineMark: "#66c7ff",
+
+  error: "#ef4343",
+  warning: "#f59f0a",
+  info: "#0da2e7",
 
   bracket: "#FFD700",
 

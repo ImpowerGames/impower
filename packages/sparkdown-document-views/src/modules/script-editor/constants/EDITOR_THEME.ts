@@ -27,6 +27,7 @@ const EDITOR_THEME: {
       inset: "0 0 -4px 0",
       pointerEvents: "none",
     },
+    margin: "6px 2px 0 0",
   },
   "& .cm-content": {
     caretColor: "white",
@@ -93,6 +94,14 @@ const EDITOR_THEME: {
     border: "none",
     opacity: 0.7,
   },
+  "& .cm-activeLineGutter": {
+    backgroundColor: "transparent",
+    color: EDITOR_COLORS.activeLineNumber,
+  },
+  "& .cm-line.cm-activeLine": {
+    backgroundColor: "transparent",
+    outline: "2px solid #FFFFFF0A",
+  },
   "& .cm-gutterElement *": {
     userSelect: "none",
   },
@@ -105,9 +114,6 @@ const EDITOR_THEME: {
   "& .cm-foldGutter .cm-gutterElement span": {
     width: "1em",
     display: "inline-block",
-  },
-  "& .cm-activeLine": {
-    backgroundColor: "#FFFFFF0F",
   },
   "& .cm-foldPlaceholder": {
     backgroundColor: "transparent",
@@ -126,14 +132,43 @@ const EDITOR_THEME: {
     "& .cm-panel": {
       // Top panels should cover up panel header
       marginTop: "-48px",
+      minHeight: "40px",
+    },
+  },
+  "& .cm-panel.cm-gotoLine": {
+    backgroundColor: EDITOR_COLORS.panel,
+    padding: "8px",
+    display: "flex",
+    gap: "8px",
+    "& .cm-textfield": {
+      height: "32px",
+      flex: 1,
+    },
+    "& button": {
+      border: "none",
+      height: "32px",
+      width: "32px",
+      borderRadius: "4px",
+      textIndent: "-99999em",
+      overflow: "hidden",
+      backgroundColor: "transparent",
+      backgroundRepeat: "no-repeat",
+      backgroundPosition: "center",
+      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
+        EDITOR_COLORS.white
+      )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-6 6l6-6m-6-6l6 6"/></svg>')`,
+    },
+    "& button:hover": {
+      backgroundColor: EDITOR_COLORS.buttonHover,
+      color: "white",
     },
   },
   "& .cm-panel.cm-search": {
     backgroundColor: EDITOR_COLORS.panel,
+    padding: "8px 8px 8px 56px",
     float: "right",
     width: "100%",
     position: "relative",
-    padding: "8px 8px 8px 56px",
     "& .cm-textfield": {
       margin: "3px 5px 3px 0px",
     },
@@ -302,11 +337,7 @@ const EDITOR_THEME: {
       },
     },
     "& button[name='close']": {
-      width: "25px",
-      height: "25px",
-      right: "10px",
-      background: "none",
-      backgroundColor: "transparent",
+      display: "none",
     },
     "& button:hover": {
       backgroundColor: EDITOR_COLORS.buttonHover,

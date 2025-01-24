@@ -37,14 +37,9 @@ export default class LintSupport implements FeatureSupport<Diagnostic[]> {
 
   load() {
     return [
-      linter(
-        (view: EditorView) => {
-          return this.pullSources(view);
-        },
-        {
-          autoPanel: true,
-        }
-      ),
+      linter((view: EditorView) => {
+        return this.pullSources(view);
+      }),
     ];
   }
 

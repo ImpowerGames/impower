@@ -49,7 +49,7 @@ const EDITOR_EXTENSIONS = [
     ...lintKeymap,
   ]),
   EditorView.lineWrapping,
-  EditorState.phrases.of({ "No diagnostics": "No errors" }),
+  EditorState.phrases.of({ "No diagnostics": "No problems" }),
 ];
 
 export default EDITOR_EXTENSIONS;

@@ -18,19 +18,33 @@ import {
 
 export class SearchPanel implements Panel {
   dom: HTMLElement;
+
   searchInput: HTMLInputElement;
+
   replaceInput: HTMLInputElement;
+
   caseCheckbox: HTMLInputElement;
+
   caseLabel: HTMLLabelElement;
+
   reCheckbox: HTMLInputElement;
+
   reLabel: HTMLLabelElement;
+
   wordCheckbox: HTMLInputElement;
+
   wordLabel: HTMLLabelElement;
+
   nextButton: HTMLButtonElement;
+
   prevButton: HTMLButtonElement;
+
   allButton: HTMLButtonElement;
+
   replaceButton: HTMLButtonElement;
+
   replaceAllButton: HTMLButtonElement;
+
   closeButton: HTMLButtonElement;
 
   query: SearchQuery;

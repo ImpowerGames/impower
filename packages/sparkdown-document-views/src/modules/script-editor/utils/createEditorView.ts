@@ -14,6 +14,7 @@ import {
   EditorView,
   GutterMarker,
   ViewUpdate,
+  panels,
 } from "@codemirror/view";
 import { DidParseTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import {
@@ -52,6 +53,8 @@ import {
 import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
 import { search } from "@codemirror/search";
 import { SearchPanel } from "../panels/SearchPanel";
+import { statusPanel } from "../panels/StatusPanel";
+import { gotoLinePanel } from "../panels/GotoLinePanel";
 
 export const readOnly = new Compartment();
 
@@ -83,6 +86,8 @@ interface EditorConfig {
   defaultState?: SerializableEditorState;
   stabilizationDuration?: number;
   breakpointRanges?: SerializableRange[];
+  topContainer?: HTMLElement;
+  bottomContainer?: HTMLElement;
   getEditorState?: () => SerializableEditorState;
   setEditorState?: (value: SerializableEditorState) => void;
   onReady?: () => void;
@@ -118,6 +123,8 @@ const createEditorView = (
   const defaultState = config?.defaultState;
   const stabilizationDuration = config?.stabilizationDuration ?? 200;
   const breakpointRanges = config?.breakpointRanges;
+  const topContainer = config.topContainer;
+  const bottomContainer = config.bottomContainer;
   const onReady = config?.onReady;
   const onViewUpdate = config?.onViewUpdate;
   const onBlur = config?.onBlur;
@@ -173,7 +180,10 @@ const createEditorView = (
       ...restoredExtensions,
       EditorView.theme(EDITOR_THEME, { dark: true }),
       EDITOR_EXTENSIONS,
+      panels({ topContainer, bottomContainer }),
       search({ createPanel: (view) => new SearchPanel(view), top: true }),
+      statusPanel(),
+      gotoLinePanel(),
       readOnly.of(EditorState.readOnly.of(false)),
       editable.of(EditorView.editable.of(true)),
       versioning(),
