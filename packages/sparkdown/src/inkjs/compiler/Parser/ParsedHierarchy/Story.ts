@@ -275,10 +275,6 @@ export class Story extends FlowBase {
 
     this.runtimeObject = runtimeStory;
 
-    if (this.hadError) {
-      return null;
-    }
-
     // Optimisation step - inline containers that can be
     this.FlattenContainersIn(rootContainer);
 
@@ -291,10 +287,6 @@ export class Story extends FlowBase {
     // translating into an INKPath. (This also allows us to choose whether
     // we want the paths to be absolute)
     this.ResolveReferences(this);
-
-    if (this.hadError) {
-      return null;
-    }
 
     runtimeStory.ResetState();
 
