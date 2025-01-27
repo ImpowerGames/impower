@@ -55,7 +55,7 @@ export default class FileList extends Component(spec) {
                   (c) =>
                     c.uri === change.uri && c.type === FileChangeType.Created
                 )
-              : true
+              : false
           );
         if (isRelevantChange && !isLocalRename) {
           this.loadEntries();
