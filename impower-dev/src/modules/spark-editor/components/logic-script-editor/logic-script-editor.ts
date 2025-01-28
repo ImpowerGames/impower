@@ -122,7 +122,7 @@ export default class LogicScriptEditor extends Component(spec) {
   }, AUTOSAVE_DELAY);
 
   async save() {
-    if (this._uri && this._version && this._text) {
+    if (this._uri && this._version && this._text != null) {
       await Workspace.fs.writeTextDocument({
         textDocument: {
           uri: this._uri,
