@@ -27,6 +27,7 @@
 @media (max-width: 960px) {
   :host > .root #main {
     position: relative;
+    min-height: 100%;
   }
 }
 
@@ -40,6 +41,7 @@
 }
 @media (max-width: 960px) {
   :host > .root .cm-editor {
+    min-height: 100%;
     max-height: none;
   }
 }
@@ -50,6 +52,7 @@
 @media (max-width: 960px) {
   :host > .root .cm-editor .cm-scroller {
     overflow: visible;
+    min-height: 100%;
     max-height: none;
   }
 }
