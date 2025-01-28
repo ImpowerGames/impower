@@ -40,24 +40,29 @@ export default class FileList extends Component(spec) {
           (change) =>
             includeRegex.test(change.uri) && !excludeRegex?.test(change.uri)
         );
+        const isCreate = changes.every(
+          (change) => change.type === FileChangeType.Created
+        );
+        const isDelete = changes.every(
+          (change) => change.type === FileChangeType.Deleted
+        );
         // The order of the files shouldn't shift around while the user is renaming files.
-        const isLocalRename =
-          !params.remote &&
-          changes.every((change) =>
-            // Renaming files emits a Changed and Created event for the new uri
-            change.type === FileChangeType.Created
-              ? changes.some(
-                  (c) =>
-                    c.uri === change.uri && c.type === FileChangeType.Changed
-                )
-              : change.type === FileChangeType.Changed
-              ? changes.some(
-                  (c) =>
-                    c.uri === change.uri && c.type === FileChangeType.Created
-                )
-              : false
-          );
-        if (isRelevantChange && !isLocalRename) {
+        const isRename = changes.every((change) =>
+          // Renaming files emits a Changed and Created event for the new uri
+          change.type === FileChangeType.Created
+            ? changes.some(
+                (c) => c.uri === change.uri && c.type === FileChangeType.Changed
+              )
+            : change.type === FileChangeType.Changed
+            ? changes.some(
+                (c) => c.uri === change.uri && c.type === FileChangeType.Created
+              )
+            : true
+        );
+        if (
+          isRelevantChange &&
+          (params.remote || isCreate || isDelete || !isRename)
+        ) {
           this.loadEntries();
         }
       }
