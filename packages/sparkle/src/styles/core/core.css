@@ -45,6 +45,17 @@
 [overflow] > .root {
   overflow: var(--overflow, scroll) !important;
 }
+[overflow="scroll"] > .root {
+  pointer-events: auto;
+  min-width: 100%;
+  min-height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  --touch-action: pan-x pan-y;
+}
 
 [overflow-x] > .root {
   overflow-x: var(--overflow-x, scroll) !important;
@@ -372,6 +383,10 @@
 }
 [self-align] > .root {
   align-self: var(--self-align, center) !important;
+}
+
+[flex] > .root {
+  flex: var(--flex, 1) !important;
 }
 
 [grow] > .root {

@@ -7,15 +7,14 @@ const EDITOR_THEME: {
   "*, *::before, *::after": {
     boxSizing: "border-box",
   },
-  "&": {
+  ".cm-editor": {
     color: EDITOR_COLORS.foreground,
     flex: 1,
+    minHeight: "100%",
   },
   "& .cm-scroller": {
     fontFamily: "Courier Prime Sans",
     fontSize: "1rem",
-    position: "relative",
-    overflow: "visible",
     "&::before": {
       // Force scroller to always be able to scroll,
       // even if the content isn't long enough to warrant it.
@@ -27,11 +26,10 @@ const EDITOR_THEME: {
       inset: "0 0 -4px 0",
       pointerEvents: "none",
     },
-    margin: "6px 2px 0 0",
+    padding: "6px 2px 0 0",
   },
   "& .cm-content": {
     caretColor: "white",
-    padding: "0 0 68px 0",
     minHeight: "100%",
   },
   "& label:has(input[type='checkbox'])": {
@@ -72,6 +70,9 @@ const EDITOR_THEME: {
       color: EDITOR_COLORS.placeholder,
     },
   },
+  "&.cm-focused": {
+    outline: "none",
+  },
   "&.cm-focused .cm-cursor": {
     borderLeftColor: "white",
   },
@@ -81,6 +82,12 @@ const EDITOR_THEME: {
   },
   "&.cm-focused .cm-nonmatchingBracket": {
     backgroundColor: "transparent",
+  },
+  "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
+    backgroundColor: "#264F78",
+  },
+  "& .cm-selectionMatch": {
+    backgroundColor: "#62331599",
   },
   "& .cm-snippet .cm-selectionMatch": {
     backgroundColor: "transparent",
@@ -154,13 +161,25 @@ const EDITOR_THEME: {
       backgroundColor: "transparent",
       backgroundRepeat: "no-repeat",
       backgroundPosition: "center",
+      "&:hover": {
+        backgroundColor: EDITOR_COLORS.buttonHover,
+        color: "white",
+      },
+    },
+    "& button[name='close']": {
+      backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
+        EDITOR_COLORS.closeButton
+      )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M 12 12 L 6 6 M 12 12 L 18 6 M 12 12 L 18 18 M 12 12 L 6 18"></path></svg>')`,
+      "&:hover": {
+        backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
+          EDITOR_COLORS.closeButtonHover
+        )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M 12 12 L 6 6 M 12 12 L 18 6 M 12 12 L 18 18 M 12 12 L 6 18"></path></svg>')`,
+      },
+    },
+    "& button[name='submit']": {
       backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
         EDITOR_COLORS.white
       )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-6 6l6-6m-6-6l6 6"/></svg>')`,
-    },
-    "& button:hover": {
-      backgroundColor: EDITOR_COLORS.buttonHover,
-      color: "white",
     },
   },
   "& .cm-panel.cm-search": {

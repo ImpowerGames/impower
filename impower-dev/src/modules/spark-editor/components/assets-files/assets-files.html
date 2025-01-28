@@ -1,15 +1,13 @@
-<s-box p="16 0" grow>
-  <se-file-list exclude="*.{sd,sparkdown,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
-    accept="image/*, audio/*, video/*, font/*">
-    <se-file-list-border slot="empty">
-      <s-icon name="files" icon-size="3rem" m="8" stroke-width="1"></s-icon>
-      <s-box text-size="sm">No Files</s-box>
-    </se-file-list-border>
-    <s-box m="16 24 0 24" corner="8" border-color="white" border-width="1" border-style="dashed" child-align="center"
-      child-justify="center" height="100%" text-size="md" bg-color="fg-04" grow slot="dragover">
-      <s-icon name="files" icon-size="3rem" m="8"></s-icon>
-      <s-box text-size="sm">Drop Files</s-box>
-    </s-box>
-  </se-file-list>
-</s-box>
-<se-file-upload-button>Upload files</se-file-upload-button>
+<se-file-list exclude="*.{sd,sparkdown,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
+  accept="image/*, audio/*, video/*, font/*">
+  <se-file-list-border slot="empty">
+    <s-icon name="files" icon-size="3rem" m="8" stroke-width="1"></s-icon>
+    <s-box text-size="sm">No Files</s-box>
+  </se-file-list-border>
+  <s-box m="16 24 0 24" corner="8" border-color="white" border-width="1" border-style="dashed" child-align="center"
+    child-justify="center" height="100%" text-size="md" bg-color="fg-04" grow slot="dragover">
+    <s-icon name="files" icon-size="3rem" m="8"></s-icon>
+    <s-box text-size="sm">Drop Files</s-box>
+  </s-box>
+  <se-file-upload-button slot="button">Upload files</se-file-upload-button>
+</se-file-list>

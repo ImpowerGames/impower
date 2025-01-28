@@ -14,14 +14,14 @@ export default spec({
     const { horizontalLayout } = context;
     return html`
       <se-preview-screenplay-toolbar></se-preview-screenplay-toolbar>
-      <s-box bg-color="black" grow>
+      <se-scrollable>
         <sparkdown-screenplay-preview
           scroll-margin="${horizontalLayout
             ? "56px 0 60px 0"
             : "104px 0 60px 0"}"
           top="${horizontalLayout ? "48px" : "104px"}"
         ></sparkdown-screenplay-preview>
-      </s-box>
+      </se-scrollable>
     `;
   },
   css,

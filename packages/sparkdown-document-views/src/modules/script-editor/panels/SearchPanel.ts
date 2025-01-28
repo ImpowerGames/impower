@@ -210,6 +210,7 @@ export class SearchPanel implements Panel {
   }
 
   mount() {
+    this.searchInput.focus();
     this.searchInput.select();
   }
 

@@ -3,9 +3,11 @@ import {
   openLintPanel,
   closeLintPanel,
   forEachDiagnostic,
+  linter,
 } from "@codemirror/lint";
-import { openGotoLinePanel } from "./GotoLinePanel";
+import { closeGotoLinePanel, openGotoLinePanel } from "./GotoLinePanel";
 import EDITOR_COLORS from "../constants/EDITOR_COLORS";
+import { EditorState, Extension, StateField } from "@codemirror/state";
 
 export class StatusPanel implements Panel {
   dom: HTMLElement;
@@ -25,6 +27,8 @@ export class StatusPanel implements Panel {
   lineColumnLabel: HTMLSpanElement;
 
   isLintPanelOpen = false;
+
+  isGotoLinePanelOpen = false;
 
   constructor(readonly view: EditorView) {
     this.dom = document.createElement("div");
@@ -52,7 +56,7 @@ export class StatusPanel implements Panel {
     this.gotoLineButton.className = "cm-button";
     this.gotoLineButton.name = "problems";
     this.gotoLineButton.type = "button";
-    this.gotoLineButton.onclick = this.gotoLine.bind(this);
+    this.gotoLineButton.onclick = this.toggleGotoLinePanel.bind(this);
 
     this.lineColumnLabel = document.createElement("span");
     this.lineColumnLabel.className = "cm-statusLabel cm-lineColumnLabel";
@@ -69,20 +73,30 @@ export class StatusPanel implements Panel {
 
   toggleLintPanel() {
     if (this.isLintPanelOpen) {
+      this.isLintPanelOpen = false;
       closeLintPanel(this.view);
-      this.problemsToggleIcon.classList.remove("open");
     } else {
+      this.isLintPanelOpen = true;
       openLintPanel(this.view);
-      this.problemsToggleIcon.classList.add("open");
     }
-    this.isLintPanelOpen = !this.isLintPanelOpen;
   }
 
-  gotoLine() {
-    openGotoLinePanel(this.view);
+  toggleGotoLinePanel() {
+    if (this.isGotoLinePanelOpen) {
+      this.isGotoLinePanelOpen = false;
+      closeGotoLinePanel(this.view);
+    } else {
+      this.isGotoLinePanelOpen = true;
+      openGotoLinePanel(this.view);
+    }
   }
 
   updateProblems(update: ViewUpdate) {
+    if (this.isLintPanelOpen) {
+      this.problemsToggleIcon.classList.add("open");
+    } else {
+      this.problemsToggleIcon.classList.remove("open");
+    }
     let errorCount = 0;
     let warningCount = 0;
     let infoCount = 0;
@@ -163,6 +177,11 @@ export class StatusPanel implements Panel {
   }
 
   update(update: ViewUpdate) {
+    if (update.focusChanged) {
+      if (update.view.hasFocus) {
+        this.isLintPanelOpen = false;
+      }
+    }
     this.updateProblems(update);
     this.updateLineColumn(update);
   }
@@ -214,7 +233,23 @@ const statusPanelTheme = EditorView.baseTheme({
   },
 });
 
-export const statusPanel = () => [
-  showPanel.of((view) => new StatusPanel(view)),
-  statusPanelTheme,
-];
+export function lintPanelOpen(state: EditorState) {
+  const lintState = (
+    (linter(() => []) as Extension[]).at(-1) as Extension[]
+  )[0] as StateField<{ panel?: Panel }>;
+  return state.field(lintState, false)?.panel != null;
+}
+
+export const statusPanel = () => {
+  return [
+    showPanel.of((view) => new StatusPanel(view)),
+    statusPanelTheme,
+    EditorView.updateListener.of((update) => {
+      if (update.focusChanged) {
+        if (update.view.hasFocus) {
+          closeLintPanel(update.view);
+        }
+      }
+    }),
+  ];
+};

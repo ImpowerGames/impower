@@ -113,8 +113,7 @@ export default class Collapsible
     if (!this._sentinelEl) {
       const scrollParent =
         this.closestAncestor(`:is([overflow-x], [overflow-y])`)?.shadowRoot
-          ?.firstElementChild ||
-        getScrollableParent(this.getRootNode().parentElement);
+          ?.firstElementChild || getScrollableParent(this.root);
       if (scrollParent) {
         const sentinelId = this.sentinel;
         const sentinel = scrollParent.querySelector(`#${sentinelId}`);

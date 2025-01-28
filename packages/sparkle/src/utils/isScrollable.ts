@@ -1,8 +1,4 @@
-export const isScrollable = (el: HTMLElement): boolean => {
-  const hasScrollableContent = el.scrollHeight > el.clientHeight;
-
+export const isScrollable = (el: Element): boolean => {
   const overflowYStyle = window.getComputedStyle(el).overflowY;
-  const isOverflowHidden = overflowYStyle.indexOf("hidden") !== -1;
-
-  return hasScrollableContent && !isOverflowHidden;
+  return overflowYStyle === "scroll" || overflowYStyle === "auto";
 };

@@ -15,6 +15,9 @@ import { getCurrentBreakpoint } from "../../utils/getCurrentBreakpoint";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import spec from "./_hidden";
 
+const CHANGING_EVENT = "changing";
+const CHANGED_EVENT = "changed";
+
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   "hide-delay": getCssDuration,
@@ -283,7 +286,7 @@ export default class Hidden
     this.root.setAttribute("loaded", "");
   }
 
-  hide() {
+  async hide() {
     if (this._shown) {
       this._shown = false;
       this.cancelPending();
@@ -294,12 +297,13 @@ export default class Hidden
           hideDelay
         );
       } else {
-        this.animateHide();
+        await this.animateHide();
       }
     }
   }
 
   async animateHide() {
+    this.emit(CHANGING_EVENT, { hidden: true });
     if (this.hideInstantly != null) {
       this.root.hidden = true;
       this.root.setAttribute("status", "hidden");
@@ -308,9 +312,10 @@ export default class Hidden
       await animationsComplete(this.root);
       this.root.hidden = true;
     }
+    this.emit(CHANGED_EVENT, { hidden: true });
   }
 
-  show() {
+  async show() {
     if (!this._shown) {
       this._shown = true;
       this.cancelPending();
@@ -321,12 +326,13 @@ export default class Hidden
           showDelay
         );
       } else {
-        this.animateShow();
+        await this.animateShow();
       }
     }
   }
 
   async animateShow() {
+    this.emit(CHANGING_EVENT, { hidden: false });
     if (this.showInstantly != null) {
       this.root.hidden = false;
       this.root.setAttribute("status", "shown");
@@ -338,6 +344,7 @@ export default class Hidden
       await animationsComplete(this.root);
       this.root.setAttribute("status", "shown");
     }
+    this.emit(CHANGED_EVENT, { hidden: false });
   }
 
   async cancelPending() {

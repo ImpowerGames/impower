@@ -1,11 +1,36 @@
 import { isScrollable } from "./isScrollable";
 
-export const getScrollableParent = (el: HTMLElement | null): HTMLElement => {
-  return !el || el === document.body
-    ? document.body
-    : isScrollable(el)
-    ? el
-    : el.parentNode instanceof HTMLElement
-    ? getScrollableParent(el.parentNode)
-    : document.body;
+export const getScrollableParent = (el: Element | null): Element => {
+  if (!el || el === document.body) {
+    return document.body;
+  }
+  if (isScrollable(el)) {
+    return el;
+  }
+  if (el.shadowRoot) {
+    const firstElementChild = el.shadowRoot.firstElementChild;
+    if (firstElementChild) {
+      if (isScrollable(firstElementChild)) {
+        return firstElementChild;
+      }
+    }
+  }
+  if (el.parentElement) {
+    return getScrollableParent(el.parentElement);
+  }
+  const root = el.getRootNode();
+  const host = (root as ShadowRoot)?.host;
+  if (host) {
+    if (host.slot) {
+      const slotted = host.parentElement?.shadowRoot?.querySelector(
+        `slot[name=${host.slot}]`
+      );
+      if (slotted) {
+        return getScrollableParent(slotted);
+      }
+    }
+    return getScrollableParent(host.parentElement);
+  } else {
+    return getScrollableParent(el.parentElement);
+  }
 };

@@ -10,13 +10,3 @@
 :host > .root * {
   filter: none;
 }
-
-:host > .sentinel {
-  pointer-events: none;
-  position: absolute;
-  top: 0px;
-  left: 0;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}

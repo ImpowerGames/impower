@@ -22,12 +22,12 @@ import { FoldingRange } from "../../../../../spark-editor-protocol/src/types";
 import { FeatureSupport } from "../../types/FeatureSupport";
 
 const foldingTheme = EditorView.baseTheme({
-  "&light": {
+  "&light.cm-editor": {
     "--fold-open-color": "#000000",
     "--fold-closed-color": "#000000",
   },
 
-  "&dark": {
+  "&dark.cm-editor": {
     "--fold-open-color": "#cccccc",
     "--fold-closed-color": "#cccccc",
   },

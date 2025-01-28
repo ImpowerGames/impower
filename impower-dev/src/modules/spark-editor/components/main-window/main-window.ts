@@ -2,10 +2,16 @@ import { Component } from "../../../../../../packages/spec-component/src/compone
 import { Workspace } from "../../workspace/Workspace";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
+import { HideEditorStatusBarMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HideEditorStatusBarMessage";
+import { ShowEditorStatusBarMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorStatusBarMessage";
 import spec from "./_main-window";
 
 export default class MainWindow extends Component(spec) {
   override onConnected() {
+    this.ref.footerVisibilityManager.addEventListener(
+      "changing",
+      this.handleChangingFooterVisibility
+    );
     this.ownerDocument.addEventListener("enter", this.handleEnter);
     window.addEventListener(
       DidExpandPreviewPaneMessage.method,
@@ -18,6 +24,10 @@ export default class MainWindow extends Component(spec) {
   }
 
   override onDisconnected() {
+    this.ref.footerVisibilityManager.removeEventListener(
+      "changing",
+      this.handleChangingFooterVisibility
+    );
     this.ownerDocument.removeEventListener("enter", this.handleEnter);
     window.removeEventListener(
       DidExpandPreviewPaneMessage.method,
@@ -28,6 +38,22 @@ export default class MainWindow extends Component(spec) {
       this.handleDidCollapsePreviewPane
     );
   }
+
+  handleChangingFooterVisibility = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      if (e.detail.hidden) {
+        this.emit(
+          HideEditorStatusBarMessage.method,
+          HideEditorStatusBarMessage.type.request({})
+        );
+      } else {
+        this.emit(
+          ShowEditorStatusBarMessage.method,
+          ShowEditorStatusBarMessage.type.request({})
+        );
+      }
+    }
+  };
 
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {

@@ -1061,6 +1061,18 @@ export default class SparkleElement
   }
 
   /**
+   * Uses `flex` to control how much the element will flex.
+   *
+   * If not provided a value, defaults to `1`.
+   */
+  get flex(): "" | "0" | "1" | "2" | string | null {
+    return this.getStringAttribute(SparkleElement.attrs.flex);
+  }
+  set flex(value) {
+    this.setStringAttribute(SparkleElement.attrs.flex, value);
+  }
+
+  /**
    * Uses `flex-grow` to control how much the element will grow to fill the space available in its parent container.
    *
    * If 0, the element will not grow.

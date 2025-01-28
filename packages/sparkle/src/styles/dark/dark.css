@@ -329,9 +329,9 @@
   --s-color-surface-border: var(--s-color-fg-12);
 
   /* Scrollbars */
-  --s-color-scrollbar-thumb: hsl(0 0% 0% / 40%);
-  --s-color-scrollbar-thumb-hover: hsl(0 0% 0%);
-  --s-color-scrollbar-track: hsl(0 0% 0% / 0%);
+  --s-color-scrollbar-thumb: hsl(0 0% 100% / 15%);
+  --s-color-scrollbar-thumb-hover: hsl(0 0% 100% / 50%);
+  --s-color-scrollbar-track: hsl(0 0% 0% / 15%);
 
   /*
    * Opacities

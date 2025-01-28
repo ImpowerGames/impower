@@ -83,6 +83,7 @@ interface EditorConfig {
     right?: number;
   };
   top: number;
+  bottom: number;
   defaultState?: SerializableEditorState;
   stabilizationDuration?: number;
   breakpointRanges?: SerializableRange[];
@@ -120,8 +121,9 @@ const createEditorView = (
   const fileSystemReader = config.fileSystemReader;
   const scrollMargin = config?.scrollMargin;
   const top = config?.top;
+  const bottom = config?.bottom;
   const defaultState = config?.defaultState;
-  const stabilizationDuration = config?.stabilizationDuration ?? 200;
+  const stabilizationDuration = config?.stabilizationDuration ?? 50;
   const breakpointRanges = config?.breakpointRanges;
   const topContainer = config.topContainer;
   const bottomContainer = config.bottomContainer;
@@ -202,6 +204,9 @@ const createEditorView = (
           "& .cm-panels.cm-panels-top": {
             top: `${top}px !important`,
           },
+          "& .cm-panels.cm-panels-bottom": {
+            bottom: `${bottom}px !important`,
+          },
         },
         { dark: true }
       ),
@@ -245,8 +250,8 @@ const createEditorView = (
         const parsed = syntaxTreeAvailable(u.state);
         if (parsed) {
           onReady?.();
+          debouncedIdle();
         }
-        debouncedIdle();
         if (u.heightChanged) {
           onHeightChanged?.();
         }

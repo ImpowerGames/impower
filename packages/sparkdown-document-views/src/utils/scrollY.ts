@@ -2,7 +2,7 @@ import { isScrollable } from "./isScrollable";
 
 export const scrollY = (
   y: number,
-  ...possibleScrollers: (HTMLElement | null | undefined)[]
+  ...possibleScrollers: (Element | null | undefined)[]
 ) => {
   const scroller = possibleScrollers.find((s) => s && isScrollable(s));
   if (scroller) {

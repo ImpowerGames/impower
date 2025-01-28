@@ -124,8 +124,8 @@ export default class FileList extends Component(spec) {
   updateState() {
     const state = this.getState();
     const emptyEl = this.ref.empty;
-    const outletEl = this.ref.outlet;
-    const els = { empty: emptyEl, list: outletEl };
+    const listEl = this.ref.list;
+    const els = { empty: emptyEl, list: listEl };
     Object.entries(els).forEach(([k, v]) => {
       if (v) {
         v.hidden = k !== state;

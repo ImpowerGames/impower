@@ -27,12 +27,12 @@ import { getVisibleLines } from "./utils/getVisibleLines";
 const MARKER_THICKNESS = "1px";
 
 const indentationGuideTheme = EditorView.baseTheme({
-  "&light": {
+  "&light.cm-editor": {
     "--indent-marker-bg-color": "#0000001A",
     "--indent-marker-active-bg-color": "#0000004D",
   },
 
-  "&dark": {
+  "&dark.cm-editor": {
     "--indent-marker-bg-color": "#ffffff1A",
     "--indent-marker-active-bg-color": "#ffffff4D",
   },

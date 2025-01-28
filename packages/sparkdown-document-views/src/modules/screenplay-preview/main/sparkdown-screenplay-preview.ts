@@ -17,13 +17,13 @@ import {
 import { Component } from "../../../../../spec-component/src/component";
 import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
 import { getClientChanges } from "../../../cm-language-client";
-import { closestAncestor } from "../../../utils/closestAncestor.js";
 import { getScrollClientHeight } from "../../../utils/getScrollClientHeight.js";
 import { getScrollTop } from "../../../utils/getScrollTop.js";
 import { getVisibleRange } from "../../../utils/getVisibleRange.js";
 import { scrollY } from "../../../utils/scrollY";
 import createEditorView from "../utils/createEditorView";
 import spec from "./_sparkdown-screenplay-preview";
+import { getScrollableParent } from "../../../utils/getScrollableParent.js";
 
 const CONTENT_PADDING_TOP = 68;
 
@@ -38,7 +38,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
 
   protected _view?: EditorView;
 
-  protected _possibleScroller?: HTMLElement | null;
+  protected _possibleScroller?: Element | null;
 
   protected _visibleRange?: Range;
 
@@ -127,7 +127,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
 
   protected bindView(view: EditorView) {
     this._domClientY = view.dom.offsetTop;
-    this._possibleScroller = closestAncestor(`.scrollable`, view.scrollDOM);
+    this._possibleScroller = getScrollableParent(view.scrollDOM);
     this._possibleScroller?.addEventListener(
       "scroll",
       this.handlePointerScroll

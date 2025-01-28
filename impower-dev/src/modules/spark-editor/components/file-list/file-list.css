@@ -3,15 +3,24 @@
 }
 
 :host > .root {
-  display: flex;
-  position: relative;
   flex: 1;
+  position: relative;
+  display: flex;
   flex-direction: column;
-  pointer-events: auto;
 }
 
-:host > .root > .empty {
-  position: absolute;
-  inset: 0;
+:host > .root #empty {
   flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-top: 16px;
+}
+
+:host > .root #list {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-top: 16px;
 }

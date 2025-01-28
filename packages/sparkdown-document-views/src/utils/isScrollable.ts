@@ -1,4 +1,4 @@
-export const isScrollable = (el: HTMLElement): boolean => {
+export const isScrollable = (el: Element): boolean => {
   const overflowYStyle = window.getComputedStyle(el).overflowY;
-  return overflowYStyle === "scroll";
+  return overflowYStyle === "scroll" || overflowYStyle === "auto";
 };

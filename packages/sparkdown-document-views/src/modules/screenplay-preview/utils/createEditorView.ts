@@ -1,5 +1,6 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { syntaxTreeAvailable } from "@codemirror/language";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
 import debounce from "../../../utils/debounce";
 import PREVIEW_THEME from "../constants/PREVIEW_THEME";
@@ -26,7 +27,7 @@ const createEditorView = (
 ): EditorView => {
   const textDocument = config?.textDocument;
   const scrollMargin = config?.scrollMargin;
-  const stabilizationDuration = config?.stabilizationDuration ?? 200;
+  const stabilizationDuration = config?.stabilizationDuration ?? 50;
   const onBlur = config?.onBlur;
   const onFocus = config?.onFocus;
   const onIdle = config?.onIdle ?? (() => {});
@@ -40,7 +41,10 @@ const createEditorView = (
       EditorView.theme(PREVIEW_THEME),
       EditorView.lineWrapping,
       EditorView.updateListener.of((u) => {
-        debouncedIdle();
+        const parsed = syntaxTreeAvailable(u.state);
+        if (parsed) {
+          debouncedIdle();
+        }
         if (u.heightChanged) {
           onHeightChanged?.();
         }

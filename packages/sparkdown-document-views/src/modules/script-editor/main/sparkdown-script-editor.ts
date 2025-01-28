@@ -9,6 +9,8 @@ import { ScrolledEditorMessage } from "../../../../../spark-editor-protocol/src/
 import { SelectedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { UnfocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage";
 import { SearchEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
+import { HideEditorStatusBarMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/HideEditorStatusBarMessage";
+import { ShowEditorStatusBarMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ShowEditorStatusBarMessage";
 import { HoveredOnPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { ScrolledPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { DidChangeTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
@@ -29,7 +31,6 @@ import { Component } from "../../../../../spec-component/src/component";
 import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset";
-import { closestAncestor } from "../../../utils/closestAncestor";
 import { getScrollClientHeight } from "../../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../../utils/getScrollTop";
 import { getVisibleRange } from "../../../utils/getVisibleRange";
@@ -42,6 +43,8 @@ import spec from "./_sparkdown-script-editor";
 import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
 import getUnitlessValue from "../../../../../spec-component/src/utils/getUnitlessValue";
 import { getDocumentVersion } from "../../../cm-versioning/versioning";
+import { gotoLinePanelOpen } from "../panels/GotoLinePanel";
+import { getScrollableParent } from "../../../utils/getScrollableParent";
 
 export default class SparkdownScriptEditor extends Component(spec) {
   static languageServerConnection: MessageConnection;
@@ -52,7 +55,13 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected _loadingRequest?: string | number;
 
-  protected _initialized = false;
+  protected _initialVisibleRange?: Range;
+
+  protected _initialSelectedRange?: Range;
+
+  protected _initialFocused?: boolean;
+
+  protected _initializedScroll = false;
 
   protected _loaded = false;
 
@@ -64,7 +73,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected _disposable?: { dispose: () => void };
 
-  protected _possibleScroller?: HTMLElement | null;
+  protected _possibleScroller?: Element | null;
 
   protected _visibleRange?: Range;
 
@@ -92,6 +101,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected _top: number = 0;
 
+  protected _bottom: number = 0;
+
   override onConnected() {
     window.addEventListener(LoadEditorMessage.method, this.handleLoadEditor);
     window.addEventListener(
@@ -117,6 +128,14 @@ export default class SparkdownScriptEditor extends Component(spec) {
     window.addEventListener(
       SearchEditorMessage.method,
       this.handleSearchEditor
+    );
+    window.addEventListener(
+      ShowEditorStatusBarMessage.method,
+      this.handleShowEditorStatusBar
+    );
+    window.addEventListener(
+      HideEditorStatusBarMessage.method,
+      this.handleHideEditorStatusBar
     );
   }
 
@@ -145,6 +164,14 @@ export default class SparkdownScriptEditor extends Component(spec) {
     window.removeEventListener(
       SearchEditorMessage.method,
       this.handleSearchEditor
+    );
+    window.removeEventListener(
+      ShowEditorStatusBarMessage.method,
+      this.handleShowEditorStatusBar
+    );
+    window.removeEventListener(
+      HideEditorStatusBarMessage.method,
+      this.handleHideEditorStatusBar
     );
     if (this._textDocument) {
       SparkdownScriptEditor.languageServerConnection.sendNotification(
@@ -188,7 +215,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected bindView(view: EditorView) {
     this._domClientY = view.dom.offsetTop;
-    this._possibleScroller = closestAncestor(`.scrollable`, view.scrollDOM);
+    this._possibleScroller = getScrollableParent(view.scrollDOM);
     this._possibleScroller?.addEventListener(
       "scroll",
       this.handlePointerScroll
@@ -309,6 +336,41 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   };
 
+  protected handleShowEditorStatusBar = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (ShowEditorStatusBarMessage.type.isRequest(message)) {
+        const bottomPanels =
+          this.root.querySelector<HTMLElement>(".cm-panels-bottom");
+        if (bottomPanels) {
+          bottomPanels.style.opacity = "0";
+          bottomPanels.style.transition = "opacity 150ms";
+          bottomPanels.hidden = false;
+          this.ref.placeholder.hidden = true;
+          window.requestAnimationFrame(() => {
+            if (bottomPanels) {
+              bottomPanels.style.opacity = "1";
+            }
+          });
+        }
+      }
+    }
+  };
+
+  protected handleHideEditorStatusBar = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (HideEditorStatusBarMessage.type.isRequest(message)) {
+        const bottomPanels =
+          this.root.querySelector<HTMLElement>(".cm-panels-bottom");
+        if (bottomPanels) {
+          bottomPanels.hidden = true;
+          this.ref.placeholder.hidden = false;
+        }
+      }
+    }
+  };
+
   protected handleFocusFindInput = () => {
     this.emit("input/focused");
     this._searchInputFocused = true;
@@ -329,6 +391,16 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this._searchInputFocused = false;
   };
 
+  protected handleFocusGotoLineInput = () => {
+    this.emit("input/focused");
+    this._searchInputFocused = true;
+  };
+
+  protected handleBlurGotoLineInput = () => {
+    this.emit("input/unfocused");
+    this._searchInputFocused = false;
+  };
+
   protected loadTextDocument(
     textDocument: TextDocumentItem,
     focused: boolean | undefined,
@@ -342,22 +414,27 @@ export default class SparkdownScriptEditor extends Component(spec) {
     if (this._disposable) {
       this._disposable.dispose();
     }
-    this._initialized = false;
+    this._initialFocused = focused;
+    this._initialVisibleRange = visibleRange;
+    this._initialSelectedRange = selectedRange;
+    this._initializedScroll = false;
     this._loaded = false;
     this._searching = false;
     this._searchInputFocused = false;
     this._textDocument = textDocument;
-    const root = this.root;
-    if (root) {
+    const mainContainer = this.ref.main;
+    if (mainContainer) {
       this._scrollMargin = getBoxValues(this.scrollMargin);
       this._top = getUnitlessValue(this.top, 0);
-      [this._view, this._disposable] = createEditorView(root, {
+      this._bottom = getUnitlessValue(this.bottom, 0);
+      [this._view, this._disposable] = createEditorView(mainContainer, {
         serverConnection: SparkdownScriptEditor.languageServerConnection,
         serverCapabilities: SparkdownScriptEditor.languageServerCapabilities,
         fileSystemReader: SparkdownScriptEditor.fileSystemReader,
         textDocument: this._textDocument,
         scrollMargin: this._scrollMargin,
         top: this._top,
+        bottom: this._bottom,
         breakpointRanges,
         onIdle: this.handleIdle,
         onFocus: () => {
@@ -460,10 +537,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
           }
         },
         onViewUpdate: (u) => {
-          if (searchPanelOpen(u.state)) {
+          if (searchPanelOpen(u.state) || gotoLinePanelOpen(u.state)) {
             if (!this._searching) {
               // Opened panel
-              const findInput = u.view.dom.querySelector(
+              const findInput = this.root.querySelector(
                 ".cm-search input[name='search']"
               );
               if (findInput) {
@@ -472,7 +549,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
                 // findInput starts focused
                 this.handleFocusFindInput();
               }
-              const replaceInput = u.view.dom.querySelector(
+              const replaceInput = this.root.querySelector(
                 ".cm-search input[name='replace']"
               );
               if (replaceInput) {
@@ -484,6 +561,20 @@ export default class SparkdownScriptEditor extends Component(spec) {
                   "blur",
                   this.handleBlurReplaceInput
                 );
+              }
+              const gotoLineInput =
+                this.root.querySelector(".cm-gotoLine input");
+              if (gotoLineInput) {
+                gotoLineInput.addEventListener(
+                  "focus",
+                  this.handleFocusGotoLineInput
+                );
+                gotoLineInput.addEventListener(
+                  "blur",
+                  this.handleBlurGotoLineInput
+                );
+                // gotoLineInput starts focused
+                this.handleFocusGotoLineInput();
               }
             }
             this._searching = true;
@@ -502,31 +593,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
       DidOpenTextDocumentMessage.method,
       DidOpenTextDocumentMessage.type.notification({ textDocument })
     );
-    const view = this._view;
-    // Scroll to visible range
-    window.requestAnimationFrame(() => {
-      if (this._view === view) {
-        this.scrollToRange(visibleRange);
-        this._initialized = true;
-      }
-    });
-    if (document.hasFocus() && this._view && focused) {
-      // Try to restore focus
-      const timer = window.setInterval(() => {
-        if (this._view === view) {
-          if (!this._view || this._view.hasFocus) {
-            clearInterval(timer);
-            return;
-          }
-          this.focus();
-          this._view.focus();
-          if (selectedRange) {
-            // Only restore selectedRange if was focused
-            this.selectRange(selectedRange, false);
-          }
-        }
-      }, 100);
-    }
   }
 
   protected cacheVisibleRange(range: Range | undefined) {
@@ -602,18 +668,42 @@ export default class SparkdownScriptEditor extends Component(spec) {
   }
 
   protected handleIdle = () => {
-    if (this._initialized && !this._loaded) {
+    if (this._initializedScroll && !this._loaded) {
       this._loaded = true;
       if (this._textDocument && this._loadingRequest != null) {
-        if (this._view) {
-          // Only fade in once formatting has finished being applied and height is stable
-          this.root.style.opacity = "1";
-        }
+        // Only fade in once formatting has finished being applied and height is stable
+        this.root.style.opacity = "1";
         this.emit(
           LoadEditorMessage.method,
           LoadEditorMessage.type.response(this._loadingRequest, null)
         );
         this._loadingRequest = undefined;
+      }
+    }
+    if (!this._initializedScroll) {
+      this._initializedScroll = true;
+      const focused = this._initialFocused;
+      const visibleRange = this._initialVisibleRange;
+      const selectedRange = this._initialSelectedRange;
+      // Restore visible range
+      this.scrollToRange(visibleRange);
+      // Try to restore focus
+      const view = this._view;
+      if (document.hasFocus() && this._view && focused) {
+        const timer = window.setInterval(() => {
+          if (this._view === view) {
+            if (!this._view || this._view.hasFocus) {
+              clearInterval(timer);
+              return;
+            }
+            this.focus({ preventScroll: true });
+            this._view.focus();
+            if (selectedRange) {
+              // Only restore selectedRange if was focused
+              this.selectRange(selectedRange, false);
+            }
+          }
+        }, 100);
       }
     }
   };

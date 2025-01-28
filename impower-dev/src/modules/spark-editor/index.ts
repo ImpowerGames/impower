@@ -41,6 +41,7 @@ import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/pr
 import PreviewScreenplay from "./components/preview-screenplay/preview-screenplay";
 import PreviewToggleButton from "./components/preview-toggle-button/preview-toggle-button";
 import Preview from "./components/preview/preview";
+import Scrollable from "./components/scrollable/scrollable";
 import ShareGame from "./components/share-game/share-game";
 import ShareScreenplay from "./components/share-screenplay/share-screenplay";
 import Share from "./components/share/share";
@@ -50,6 +51,7 @@ import theme from "./styles/theme/theme.css";
 
 export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   InteractionBlocker,
+  Scrollable,
   OptionButton,
   FileOptionsButton,
   FileEditorNavigation,

@@ -13,6 +13,7 @@ import getCssDimension from "../utils/getCssDimension.js";
 import getCssDuration from "../utils/getCssDuration.js";
 import getCssEase from "../utils/getCssEase.js";
 import getCssFilter from "../utils/getCssFilter.js";
+import getCssFlex from "../utils/getCssFlex.js";
 import getCssGradient from "../utils/getCssGradient.js";
 import getCssGrow from "../utils/getCssGrow.js";
 import getCssImage from "../utils/getCssImage.js";
@@ -136,6 +137,7 @@ const STYLE_TRANSFORMERS = {
   "child-overflow": getCssChildOverflow,
   "self-align": getCssChildAlign,
 
+  flex: getCssFlex,
   grow: getCssGrow,
   shrink: getCssShrink,
 

@@ -15,14 +15,13 @@ export default spec({
       <se-header-navigation></se-header-navigation>
       <s-split-pane
         id="splitPane"
-        grow
+        flex
         min-panel-width="378px"
-        resizer-color="scrollbar-track"
         divider-offset="0"
         divider-color="fg-06"
         responsive="hide"
       >
-        <div class="scrollable" slot="start">
+        <s-box position="relative" child-layout="column" flex slot="start">
           <s-router key="pane" event-source="window" active="${pane}">
             <template value="logic">
               <se-logic></se-logic>
@@ -34,13 +33,11 @@ export default spec({
               <se-share></se-share>
             </template>
           </s-router>
-        </div>
-        <div class="scrollable" slot="end">
-          <s-box position="relative" grow>
-            <s-box position="absolute" i="48px 0 0 0" bg-color="black"></s-box>
-            <se-preview></se-preview>
-          </s-box>
-        </div>
+        </s-box>
+        <s-box position="relative" child-layout="column" flex slot="end">
+          <s-box position="absolute" i="48px 8px 0 0" bg-color="black"></s-box>
+          <se-preview></se-preview>
+        </s-box>
       </s-split-pane>
       <se-notifications></se-notifications>
       <s-hidden
@@ -50,14 +47,15 @@ export default spec({
         hide-instantly
         show-instantly
       >
+        <s-box height="footer-nav"></s-box>
         <s-hidden
+          id="footerVisibilityManager"
           if-below="lg"
           hide-event="editor/focused input/focused"
           show-event="editor/unfocused input/unfocused"
           hide-instantly
           show-delay="200ms"
         >
-          <s-box height="footer-nav"></s-box>
           <s-box position="fixed-bottom">
             <s-box position="relative" bg-color="primary-bg">
               <s-divider
@@ -108,6 +106,7 @@ export default spec({
   },
   selectors: {
     splitPane: "",
+    footerVisibilityManager: "",
   } as const,
   css: [...sharedCSS, css],
 });
