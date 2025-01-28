@@ -35,7 +35,7 @@ export default spec({
           </s-router>
         </s-box>
         <s-box position="relative" child-layout="column" flex slot="end">
-          <s-box position="absolute" i="48px 8px 0 0" bg-color="black"></s-box>
+          <s-box position="absolute" i="48px 0 0 0" bg-color="black"></s-box>
           <se-preview></se-preview>
         </s-box>
       </s-split-pane>
