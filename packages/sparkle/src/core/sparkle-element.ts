@@ -1781,9 +1781,7 @@ export default class SparkleElement
    * Specifies `content-visibility` for this element.
    */
   get contentVisibility(): "" | string | null {
-    return (
-      this.getStringAttribute(SparkleElement.attrs.contentVisibility) || "enter"
-    );
+    return this.getStringAttribute(SparkleElement.attrs.contentVisibility);
   }
   set contentVisibility(value) {
     this.setStringAttribute(SparkleElement.attrs.contentVisibility, value);
@@ -1793,10 +1791,7 @@ export default class SparkleElement
    * Specifies `contain-intrinsic-size` for this element.
    */
   get containIntrinsicSize(): "" | string | null {
-    return (
-      this.getStringAttribute(SparkleElement.attrs.containIntrinsicSize) ||
-      "enter"
-    );
+    return this.getStringAttribute(SparkleElement.attrs.containIntrinsicSize);
   }
   set containIntrinsicSize(value) {
     this.setStringAttribute(SparkleElement.attrs.containIntrinsicSize, value);
