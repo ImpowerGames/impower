@@ -35,7 +35,6 @@ import Notifications from "./components/notifications/_notifications";
 import OptionButton from "./components/option-button/_option-button";
 import PreviewGameToolbar from "./components/preview-game-toolbar/_preview-game-toolbar";
 import PreviewGame from "./components/preview-game/_preview-game";
-import PreviewOptionsDropdown from "./components/preview-mode-toggle/_preview-mode-toggle";
 import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/_preview-screenplay-toolbar";
 import PreviewScreenplay from "./components/preview-screenplay/_preview-screenplay";
 import PreviewToggleButton from "./components/preview-toggle-button/_preview-toggle-button";
@@ -107,7 +106,6 @@ const components = [
   style(MainWindow),
   style(EditToggleButton),
   style(PreviewToggleButton),
-  style(PreviewOptionsDropdown),
   style(Preview),
   style(Notifications),
   style(Account),

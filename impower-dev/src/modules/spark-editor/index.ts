@@ -36,7 +36,6 @@ import Notifications from "./components/notifications/notifications";
 import OptionButton from "./components/option-button/option-button";
 import PreviewGameToolbar from "./components/preview-game-toolbar/preview-game-toolbar";
 import PreviewGame from "./components/preview-game/preview-game";
-import PreviewOptionsDropdown from "./components/preview-mode-toggle/preview-mode-toggle";
 import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/preview-screenplay-toolbar";
 import PreviewScreenplay from "./components/preview-screenplay/preview-screenplay";
 import PreviewToggleButton from "./components/preview-toggle-button/preview-toggle-button";
@@ -80,7 +79,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   PreviewGame,
   PreviewScreenplayToolbar,
   PreviewScreenplay,
-  PreviewOptionsDropdown,
   PreviewToggleButton,
   EditToggleButton,
   Preview,

@@ -28,7 +28,16 @@ export default spec({
         >Game Preview</s-box
       >`;
     const modeButton = () => html`
-      <se-preview-mode-toggle></se-preview-mode-toggle>
+      <s-button
+        id="modeButton"
+        aria-label="Preview Screenplay"
+        variant="icon"
+        icon="gamepad"
+        width="48"
+        height="48"
+        class="more"
+        color="fg-50"
+      ></s-button>
     `;
     const settingsDropdown = () => html`
       <s-dropdown id="settingsDropdown">
@@ -201,7 +210,8 @@ export default spec({
     `;
   },
   selectors: {
-    runToggleButton: "",
+    runToggleButton: null,
+    modeButton: null,
     settingsDropdown: null,
     stepBackwardButton: null,
     fastBackwardButton: null,

@@ -52,7 +52,16 @@ export default spec({
               >
             </s-box>
           </s-box>
-          <se-preview-mode-toggle></se-preview-mode-toggle>
+          <s-button
+            id="modeButton"
+            aria-label="Preview Game"
+            variant="icon"
+            icon="license"
+            width="48"
+            height="48"
+            class="more"
+            color="fg-50"
+          ></s-button>
           <s-box
             id="progressBar"
             position="absolute"
@@ -70,7 +79,8 @@ export default spec({
   },
   css,
   selectors: {
-    downloadButton: "",
-    progressBar: "",
+    downloadButton: null,
+    progressBar: null,
+    modeButton: null,
   },
 });

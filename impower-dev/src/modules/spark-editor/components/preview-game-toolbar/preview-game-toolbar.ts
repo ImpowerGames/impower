@@ -2,15 +2,17 @@ import { Component } from "../../../../../../packages/spec-component/src/compone
 import throttle from "../../utils/throttle";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-game-toolbar";
+import type Button from "../../../../../../packages/sparkle/src/components/button/button";
 
 export default class PreviewGameToolbar extends Component(spec) {
   _controllingPlayback = 0;
 
   override onConnected() {
-    this.ref.runToggleButton.addEventListener(
+    this.ref.runToggleButton?.addEventListener(
       "click",
       this.handleClickRunToggleButton
     );
+    this.ref.modeButton?.addEventListener("click", this.handleClickModeButton);
     this.ref.stepBackwardButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownStepBackwardButton
@@ -54,9 +56,13 @@ export default class PreviewGameToolbar extends Component(spec) {
   }
 
   override onDisconnected() {
-    this.ref.runToggleButton.removeEventListener(
+    this.ref.runToggleButton?.removeEventListener(
       "click",
       this.handleClickRunToggleButton
+    );
+    this.ref.modeButton?.removeEventListener(
+      "click",
+      this.handleClickModeButton
     );
     this.ref.stepBackwardButton?.removeEventListener(
       "pointerdown",
@@ -102,6 +108,10 @@ export default class PreviewGameToolbar extends Component(spec) {
 
   handleClickRunToggleButton = (e: Event) => {
     Workspace.window.toggleGameRunning();
+  };
+
+  handleClickModeButton = (e: Event) => {
+    (this.ref.modeButton as Button)?.emitChange("screenplay");
   };
 
   handlePointerDownStepBackwardButton = (e: Event) => {
