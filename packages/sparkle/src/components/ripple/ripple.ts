@@ -180,27 +180,25 @@ export default class Ripple extends SparkleElement {
   };
 
   bind(element: HTMLElement) {
-    // TODO: Improve performance
-    // element.addEventListener("click", this.handleClick);
-    // element.addEventListener("mousedown", this.handleMouseDown);
-    // element.addEventListener("touchstart", this.handleTouchStart);
-    // element.addEventListener("pointerleave", this.handlePointerLeave);
-    // element.addEventListener("pointerup", this.handlePointerUp);
-    // window.addEventListener("pointerup", this.handlePointerUp);
-    // element.addEventListener("touchend", this.handleTouchEnd);
-    // window.addEventListener("touchend", this.handleTouchEnd);
+    element.addEventListener("click", this.handleClick);
+    element.addEventListener("mousedown", this.handleMouseDown);
+    element.addEventListener("touchstart", this.handleTouchStart);
+    element.addEventListener("pointerleave", this.handlePointerLeave);
+    element.addEventListener("pointerup", this.handlePointerUp);
+    window.addEventListener("pointerup", this.handlePointerUp);
+    element.addEventListener("touchend", this.handleTouchEnd);
+    window.addEventListener("touchend", this.handleTouchEnd);
   }
 
   unbind(element: HTMLElement) {
-    // TODO: Improve performance
-    // element.removeEventListener("click", this.handleClick);
-    // element.removeEventListener("mousedown", this.handleMouseDown);
-    // element.removeEventListener("touchstart", this.handleTouchStart);
-    // element.removeEventListener("pointerleave", this.handlePointerLeave);
-    // element.removeEventListener("pointerup", this.handlePointerUp);
-    // window.removeEventListener("pointerup", this.handlePointerUp);
-    // element.removeEventListener("touchend", this.handleTouchEnd);
-    // window.removeEventListener("touchend", this.handleTouchEnd);
+    element.removeEventListener("click", this.handleClick);
+    element.removeEventListener("mousedown", this.handleMouseDown);
+    element.removeEventListener("touchstart", this.handleTouchStart);
+    element.removeEventListener("pointerleave", this.handlePointerLeave);
+    element.removeEventListener("pointerup", this.handlePointerUp);
+    window.removeEventListener("pointerup", this.handlePointerUp);
+    element.removeEventListener("touchend", this.handleTouchEnd);
+    window.removeEventListener("touchend", this.handleTouchEnd);
   }
 
   private determineRippleSize() {
@@ -260,10 +258,7 @@ export default class Ripple extends SparkleElement {
     this.endPointY = (height - this.initialSize) / 2;
   }
 
-  private async startPressAnimation() {
-    await new Promise((resolve) => {
-      requestAnimationFrame(resolve);
-    });
+  private startPressAnimation() {
     this.pressed = true;
     this.growAnimation?.cancel();
     this.determineRippleSize();
