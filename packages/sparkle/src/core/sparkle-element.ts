@@ -1777,6 +1777,31 @@ export default class SparkleElement
     this.setStringAttribute(SparkleElement.attrs.enter, value);
   }
 
+  /**
+   * Specifies `content-visibility` for this element.
+   */
+  get contentVisibility(): "" | string | null {
+    return (
+      this.getStringAttribute(SparkleElement.attrs.contentVisibility) || "enter"
+    );
+  }
+  set contentVisibility(value) {
+    this.setStringAttribute(SparkleElement.attrs.contentVisibility, value);
+  }
+
+  /**
+   * Specifies `contain-intrinsic-size` for this element.
+   */
+  get containIntrinsicSize(): "" | string | null {
+    return (
+      this.getStringAttribute(SparkleElement.attrs.containIntrinsicSize) ||
+      "enter"
+    );
+  }
+  set containIntrinsicSize(value) {
+    this.setStringAttribute(SparkleElement.attrs.containIntrinsicSize, value);
+  }
+
   protected showFocusRing = (visible: boolean) => {
     this.updateRootClass("focused", visible);
   };
