@@ -680,6 +680,14 @@
   mask: var(--mask, none) !important;
 }
 
+[content-visibility] > .root {
+  content-visibility: var(--content-visibility, auto);
+}
+
+[contain-intrinsic-size] > .root {
+  contain-intrinsic-size: var(--contain-intrinsic-size, none);
+}
+
 .root::after {
   display: none;
   --focus-duration: 50ms;

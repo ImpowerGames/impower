@@ -46,6 +46,8 @@ import getCssTextWeight from "../utils/getCssTextWeight.js";
 import getCssTextWhitespace from "../utils/getCssTextWhitespace.js";
 import getCssTranslate from "../utils/getCssTranslate.js";
 import getCssZ from "../utils/getCssZ.js";
+import getCssContainIntrinsicSize from "../utils/getCssContainIntrinsicSize.js";
+import getCssContentVisibility from "../utils/getCssContentVisibility.js";
 
 const get = (v: string) => v;
 
@@ -206,6 +208,9 @@ const STYLE_TRANSFORMERS = {
   animation: getCssAnimation,
   exit: getCssAnimation,
   enter: getCssAnimation,
+
+  "content-visibility": getCssContentVisibility,
+  "contain-intrinsic-size": getCssContainIntrinsicSize,
 } as const;
 
 export default STYLE_TRANSFORMERS;

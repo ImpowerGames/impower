@@ -42,6 +42,8 @@ export default spec({
         color="fg-80"
         text-weight="normal"
         position="relative"
+        content-visibility="auto"
+        contain-intrinsic-size="auto none auto 56px"
       >
         <s-box
           position="absolute"
