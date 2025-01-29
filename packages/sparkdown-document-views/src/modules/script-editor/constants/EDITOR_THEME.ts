@@ -15,17 +15,6 @@ const EDITOR_THEME: {
   "& .cm-scroller": {
     fontFamily: "Courier Prime Sans",
     fontSize: "1rem",
-    "&::before": {
-      // Force scroller to always be able to scroll,
-      // even if the content isn't long enough to warrant it.
-      // This is what allows us to prevent users on Safari iOS from
-      // scrolling the page when the on-screen keyboard is shown
-      content: "''",
-      opacity: 0,
-      position: "absolute",
-      inset: "0 0 -4px 0",
-      pointerEvents: "none",
-    },
     padding: "6px 2px 0 0",
   },
   "& .cm-content": {
