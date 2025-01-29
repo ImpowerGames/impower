@@ -6,6 +6,7 @@ import augmentCSS from "../utils/augmentCSS";
 import convertCamelToKebabCase from "../utils/convertCamelToKebabCase";
 import emit from "../utils/emit";
 import getPropValue from "../utils/getPropValue";
+import * as Idiomorph from "../idiomorph/idiomorph";
 
 const Component = <
   Props extends Record<string, unknown>,
@@ -212,7 +213,7 @@ const Component = <
       oldValue: string,
       newValue: string
     ): boolean {
-      return false;
+      return true;
     }
 
     /**
@@ -334,13 +335,15 @@ const Component = <
     render() {
       this.disconnectedCallback();
       if (this.shadowRoot) {
-        this.shadowRoot.innerHTML = this.#html;
+        Idiomorph.morph(this.shadowRoot, this.#html, {
+          morphStyle: "innerHTML",
+        });
       } else {
-        this.innerHTML = this.#html;
+        Idiomorph.morph(this, this.#html, { morphStyle: "innerHTML" });
       }
       this.#ref = this.getRefMap(this.selectors);
-      this.connectedCallback();
       this.onRender();
+      this.connectedCallback();
     }
 
     /**

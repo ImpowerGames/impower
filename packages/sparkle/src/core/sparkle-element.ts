@@ -1843,27 +1843,7 @@ export default class SparkleElement
     oldValue: string,
     newValue: string
   ) {
-    const attrName: string = this.aliases[name] ?? name;
-    if (
-      attrName === "role" ||
-      attrName === "tabindex" ||
-      attrName.startsWith("aria-")
-    ) {
-      // Forward all aria attributes to root element
-      this.updateRootAttribute(attrName, newValue);
-    } else {
-      const transformer = this.transformers[attrName];
-      if (transformer) {
-        this.updateStyleAttribute(attrName, newValue, transformer);
-        if (
-          attrName === SparkleElement.attrs.textStrokeWidth ||
-          attrName === SparkleElement.attrs.textStrokeColor
-        ) {
-          const width = this.textStrokeWidth || "1";
-          this.updateRootCssVariable("text-stroke", getCssTextStroke(width));
-        }
-      }
-    }
+    this.propagateAttribute(name, newValue);
     super.attributeChangedCallback(name, oldValue, newValue);
   }
 
@@ -1898,6 +1878,13 @@ export default class SparkleElement
 
   onParsed(): void {}
 
+  override onRender() {
+    for (let i = 0; i < this.attributes.length; i++) {
+      const attr = this.attributes[i]!;
+      this.propagateAttribute(attr.name, attr.value);
+    }
+  }
+
   protected handleContentSlotAssigned = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
     this.handleContentChildrenAssigned(slot.assignedElements());
@@ -1908,6 +1895,30 @@ export default class SparkleElement
   }
 
   protected onContentAssigned(children: Element[]): void {}
+
+  propagateAttribute(name: string, value: string) {
+    const attrName: string = this.aliases[name] ?? name;
+    if (
+      attrName === "role" ||
+      attrName === "tabindex" ||
+      attrName.startsWith("aria-")
+    ) {
+      // Forward all aria attributes to root element
+      this.updateRootAttribute(attrName, value);
+    } else {
+      const transformer = this.transformers[attrName];
+      if (transformer) {
+        this.updateStyleAttribute(attrName, value, transformer);
+        if (
+          attrName === SparkleElement.attrs.textStrokeWidth ||
+          attrName === SparkleElement.attrs.textStrokeColor
+        ) {
+          const width = this.textStrokeWidth || "1";
+          this.updateRootCssVariable("text-stroke", getCssTextStroke(width));
+        }
+      }
+    }
+  }
 
   getAssignedToSlot<T extends ChildNode>(name?: string): T[] {
     if (this.shadowRoot) {
