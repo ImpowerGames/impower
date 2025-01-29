@@ -121,7 +121,7 @@
   will-change: transform, opacity;
 }
 
-:host([icon]) > .root > .icon > .inactive-icon {
+:host([icon]) > .root > .icon > .normal-icon {
   position: absolute;
   inset: 0;
   line-height: 1;
@@ -133,14 +133,11 @@
   transition-property: none;
   will-change: transform, opacity;
 }
-:host([icon]:not([active])) > .root > .icon > .inactive-icon {
-  display: flex;
-}
-:host([icon][active]) > .root > .icon > .inactive-icon {
+:host([icon][active-icon][active]) > .root > .icon > .normal-icon {
   display: none;
 }
 
-:host([icon]) > .root > .icon > .active-icon {
+:host([active-icon]) > .root > .icon > .active-icon {
   position: absolute;
   inset: 0;
   line-height: 1;
@@ -155,9 +152,6 @@
   transition-property: none;
   will-change: transform, opacity;
 }
-:host([icon]:not([active])) > .root > .icon > .active-icon {
+:host([active-icon]:not([active])) > .root > .icon > .active-icon {
   display: none;
-}
-:host([icon][active]) > .root > .icon > .active-icon {
-  display: flex;
 }

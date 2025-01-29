@@ -22,22 +22,23 @@ export default spec({
     const isDiv = type === "div" || type === "container";
     const isToggle = type === "toggle";
     const tag = isLink ? "a" : isLabel ? "label" : isDiv ? "div" : "button";
-    const iconName = icon;
-    const activeIconName = activeIcon || icon;
     const rippleAttr = ripple ? "" : () => html`animation="none"`;
     const normalIconComponent = () =>
-      iconName ? html`<s-icon name="${iconName}"></s-icon>` : "";
+      icon
+        ? html`<div class="normal-icon" part="normal-icon">
+            <s-icon name="${icon}"></s-icon>
+          </div>`
+        : "";
     const activeIconComponent = () =>
-      activeIconName ? html`<s-icon name="${activeIconName}"></s-icon>` : "";
+      activeIcon
+        ? html`<div class="active-icon" part="active-icon">
+            <s-icon name="${activeIcon}"></s-icon>
+          </div>`
+        : "";
     const iconComponent = () =>
-      iconName || activeIconName
+      icon || activeIcon
         ? html`<div class="icon" part="icon">
-            <div class="inactive-icon" part="inactive-icon">
-              ${normalIconComponent}
-            </div>
-            <div class="active-icon" part="active-icon">
-              ${activeIconComponent}
-            </div>
+            ${normalIconComponent}${activeIconComponent}
           </div>`
         : "";
     const labelComponent = () =>

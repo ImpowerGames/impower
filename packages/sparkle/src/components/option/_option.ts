@@ -19,20 +19,26 @@ export default spec({
     const isToggle = type === "toggle";
     const tag = isLink ? "a" : isLabel ? "label" : isDiv ? "div" : "button";
     const roleAttr = isToggle ? () => html`role="checkbox"` : "";
-    const iconName = icon;
-    const activeIconName = activeIcon || icon;
     const rippleAttr = ripple ? "" : () => html`animation="none"`;
-    const iconComponent = () =>
-      iconName ? html`<s-icon name="${iconName}"></s-icon>` : "";
+    const normalIconComponent = () =>
+      icon
+        ? html`<div class="normal-icon" part="normal-icon">
+            <s-icon name="${icon}"></s-icon>
+          </div>`
+        : "";
     const activeIconComponent = () =>
-      activeIconName ? html`<s-icon name="${activeIconName}"></s-icon>` : "";
+      activeIcon
+        ? html`<div class="active-icon" part="active-icon">
+            <s-icon name="${activeIcon}"></s-icon>
+          </div>`
+        : "";
     return html`
     <${tag} class="root" part="root" ${roleAttr}>
     <slot name="before"></slot>
     <s-ripple class="ripple" part="ripple" ${rippleAttr}></s-ripple>
     <div class="icon" part="icon">
-      <div class="inactive-icon" part="inactive-icon">${iconComponent}</div>
-      <div class="active-icon" part="active-icon">${activeIconComponent}</div>
+      ${normalIconComponent}
+      ${activeIconComponent}
     </div>
     <slot class="label" part="label"></slot>
     <slot name="after"></slot>
