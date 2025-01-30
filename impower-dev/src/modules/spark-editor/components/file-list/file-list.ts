@@ -63,18 +63,57 @@ export default class FileList extends Component(spec) {
           isRelevantChange &&
           (params.remote || isCreate || isDelete || !isRename)
         ) {
-          this.loadEntries();
+          const firstFilename = Workspace.fs.getFilename(changes[0]?.uri || "");
+          if (
+            isCreate &&
+            changes.length === 1 &&
+            firstFilename &&
+            firstFilename.endsWith(".sd")
+          ) {
+            // We created a script, so open it.
+            const detail = { value: "logic-editor" };
+            this.emit("changing", detail);
+            this.emit("changed", detail);
+            Workspace.window.openedFileEditor(firstFilename);
+          } else {
+            // Otherwise, reload the list to reflect the changes.
+            const scrollIntoView =
+              isCreate && !params.remote
+                ? changes.map((c) => c.uri)
+                : undefined;
+            this.loadEntries(scrollIntoView);
+          }
         }
       }
     }
   };
 
-  async loadEntries() {
+  async loadEntries(scrollIntoView?: string[]) {
     this._uris = await this.loadFiles();
     const outletEl = this.ref.outlet;
     if (outletEl) {
       const items = this.createItems(this._uris);
       outletEl.innerHTML = items.join("\n");
+      if (scrollIntoView) {
+        const uriToScrollTo = this._uris.findLast((uri) =>
+          scrollIntoView?.includes(uri)
+        );
+        if (uriToScrollTo) {
+          const filenameToScrollTo = Workspace.fs.getFilename(uriToScrollTo);
+          const fileItemToScrollTo = outletEl.querySelector(
+            `se-file-item[filename=${filenameToScrollTo.replaceAll(
+              ".",
+              "\\."
+            )}]`
+          );
+          const fileItemChildToScrollTo =
+            fileItemToScrollTo?.shadowRoot?.firstElementChild?.shadowRoot
+              ?.firstElementChild;
+          fileItemChildToScrollTo?.scrollIntoView({
+            behavior: "smooth",
+          });
+        }
+      }
     }
     this.updateState();
   }

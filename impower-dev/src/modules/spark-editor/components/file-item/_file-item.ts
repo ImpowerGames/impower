@@ -32,7 +32,6 @@ export default spec({
       <s-button
         id="button"
         class="root"
-        id="item"
         width="100%"
         height="56"
         corner="0"
