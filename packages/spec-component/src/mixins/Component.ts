@@ -337,9 +337,21 @@ const Component = <
       if (this.shadowRoot) {
         Idiomorph.morph(this.shadowRoot, this.#html, {
           morphStyle: "innerHTML",
+          callbacks: {
+            beforeNodeMorphed: (oldNode: Element, newNode: Node): boolean => {
+              return oldNode?.tagName?.toLowerCase() !== "s-router";
+            },
+          },
         });
       } else {
-        Idiomorph.morph(this, this.#html, { morphStyle: "innerHTML" });
+        Idiomorph.morph(this, this.#html, {
+          morphStyle: "innerHTML",
+          callbacks: {
+            beforeNodeMorphed: (oldNode: Element, newNode: Node): boolean => {
+              return oldNode?.tagName?.toLowerCase() !== "s-router";
+            },
+          },
+        });
       }
       this.#ref = this.getRefMap(this.selectors);
       this.onRender();
