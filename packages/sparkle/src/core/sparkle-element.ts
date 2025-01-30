@@ -38,6 +38,11 @@ const DEFAULT_SPARKLE_ALIAS_ATTRIBUTES = getAttributeNameMap(
   getKeys(STYLE_ALIASES)
 );
 
+const DEFAULT_SPARKLE_ATTRIBUTE_AND_ALIAS_NAMES = [
+  ...Object.values(DEFAULT_SPARKLE_ATTRIBUTES),
+  ...Object.keys(DEFAULT_SPARKLE_ALIAS_ATTRIBUTES),
+];
+
 type SparkleProps = Record<keyof typeof DEFAULT_SPARKLE_ATTRIBUTES, unknown>;
 
 export default class SparkleElement
@@ -1877,6 +1882,17 @@ export default class SparkleElement
   }
 
   onParsed(): void {}
+
+  override shouldAttributeTriggerUpdate(
+    name: string,
+    oldValue: string,
+    newValue: string
+  ) {
+    if (DEFAULT_SPARKLE_ATTRIBUTE_AND_ALIAS_NAMES.includes(name)) {
+      return false;
+    }
+    return super.shouldAttributeTriggerUpdate(name, oldValue, newValue);
+  }
 
   override onRender() {
     for (let i = 0; i < this.attributes.length; i++) {

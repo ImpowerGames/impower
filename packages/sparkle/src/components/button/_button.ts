@@ -10,19 +10,27 @@ export default spec({
     accept: null as string | null,
     multiple: null as string | null,
     icon: null as string | null,
-    ripple: false,
+    disableRipple: false,
     activeIcon: null as string | null,
     variant: null as string | null,
   },
   html: ({ props }) => {
-    const { type, href, accept, multiple, icon, activeIcon, variant, ripple } =
-      props;
+    const {
+      type,
+      href,
+      accept,
+      multiple,
+      icon,
+      activeIcon,
+      variant,
+      disableRipple,
+    } = props;
     const isLink = type === "a" || type === "link" || href;
     const isLabel = type === "label" || type === "file";
     const isDiv = type === "div" || type === "container";
     const isToggle = type === "toggle";
     const tag = isLink ? "a" : isLabel ? "label" : isDiv ? "div" : "button";
-    const rippleAttr = ripple ? "" : () => html`animation="none"`;
+    const rippleAttr = disableRipple ? () => html`animation="none"` : "";
     const normalIconComponent = () =>
       icon
         ? html`<div class="normal-icon" part="normal-icon">

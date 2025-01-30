@@ -30,7 +30,7 @@ const DEFAULT_ATTRIBUTES = {
     "value",
     "disabled",
     "status",
-    "ripple",
+    "disable-ripple",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -49,7 +49,7 @@ export default class Tab
   override get props() {
     return {
       ...super.props,
-      ripple: this.ripple,
+      disableRipple: this.disableRipple,
       icon: this.icon,
       activeIcon: this.activeIcon,
     };
@@ -107,11 +107,11 @@ export default class Tab
   /**
    * Determines whether or not background should ripple when pressed.
    */
-  get ripple(): boolean {
-    return this.getBooleanAttribute(Tab.attrs.ripple);
+  get disableRipple(): boolean {
+    return this.getBooleanAttribute(Tab.attrs.disableRipple);
   }
-  set ripple(value) {
-    this.setBooleanAttribute(Tab.attrs.ripple, value);
+  set disableRipple(value) {
+    this.setBooleanAttribute(Tab.attrs.disableRipple, value);
   }
 
   /**
@@ -182,6 +182,21 @@ export default class Tab
   }
   set status(value) {
     this.setStringAttribute(Tab.attrs.status, value);
+  }
+
+  structuralAttributes = Object.keys(spec.props).map(
+    (prop) => Tab.attrs[prop as keyof typeof Tab.attrs]
+  );
+
+  override shouldAttributeTriggerUpdate(
+    name: string,
+    oldValue: string,
+    newValue: string
+  ) {
+    if (this.structuralAttributes.includes(name)) {
+      return true;
+    }
+    return super.shouldAttributeTriggerUpdate(name, oldValue, newValue);
   }
 
   override onAttributeChanged(name: string, newValue: string) {

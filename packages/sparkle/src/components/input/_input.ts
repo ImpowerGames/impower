@@ -20,7 +20,7 @@ export default spec({
     readonly: false,
     required: false,
     value: null as string | null,
-    ripple: false,
+    disableRipple: false,
   },
   html: ({ props }) => {
     const {
@@ -39,7 +39,7 @@ export default spec({
       readonly,
       required,
       value,
-      ripple,
+      disableRipple,
     } = props;
     const typeAttr = type ? () => html`type="${type}"` : "";
     const nameAttr = name ? () => html`name="${name}"` : "";
@@ -65,7 +65,7 @@ export default spec({
     const requiredAttr = required ? () => html`required` : "";
     const valueAttr = value ? () => html`value="${value}"` : "";
     const labelAttr = label ? () => html`aria-label="${label}"` : "";
-    const rippleAttr = ripple ? "" : () => html`animation="none"`;
+    const rippleAttr = disableRipple ? () => html`animation="none"` : "";
     return html`
       <label class="root" part="root" ${labelAttr}>
         <s-ripple class="ripple" part="ripple" ${rippleAttr}></s-ripple>

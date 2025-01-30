@@ -5,13 +5,13 @@ import css from "./tab.css";
 export default spec({
   tag: "s-tab",
   props: {
-    ripple: false,
+    disableRipple: false,
     icon: null as string | null,
     activeIcon: null as string | null,
   },
   html: ({ props }) => {
-    const { icon, activeIcon, ripple } = props;
-    const rippleAttr = ripple ? "" : () => html`animation="none"`;
+    const { icon, activeIcon, disableRipple } = props;
+    const rippleAttr = disableRipple ? () => html`animation="none"` : "";
     const normalIconComponent = () =>
       icon
         ? html`<div class="normal-icon" part="normal-icon">

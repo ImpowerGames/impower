@@ -91,6 +91,21 @@ export default class Icon
     this.setStringAttribute(Icon.attrs.iconSize, value);
   }
 
+  structuralAttributes = Object.keys(spec.props).map(
+    (prop) => Icon.attrs[prop as keyof typeof Icon.attrs]
+  );
+
+  override shouldAttributeTriggerUpdate(
+    name: string,
+    oldValue: string,
+    newValue: string
+  ) {
+    if (this.structuralAttributes.includes(name)) {
+      return true;
+    }
+    return super.shouldAttributeTriggerUpdate(name, oldValue, newValue);
+  }
+
   override onAttributeChanged(name: string, newValue: string) {
     if (name === Icon.attrs.ariaLabel) {
       this.updateRootAttribute(Icon.attrs.ariaHidden, Boolean(newValue));

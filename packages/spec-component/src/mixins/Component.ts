@@ -213,7 +213,7 @@ const Component = <
       oldValue: string,
       newValue: string
     ): boolean {
-      return true;
+      return false;
     }
 
     /**

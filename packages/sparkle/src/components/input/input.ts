@@ -39,7 +39,7 @@ const DEFAULT_ATTRIBUTES = {
     "no-spin-buttons",
     "input-mode",
     "enter-key-hint",
-    "ripple",
+    "disable-ripple",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -72,7 +72,7 @@ export default class Input
       readonly: this.readonly,
       required: this.required,
       value: this.value,
-      ripple: this.ripple,
+      disableRipple: this.disableRipple,
     };
   }
 
@@ -274,11 +274,26 @@ export default class Input
   /**
    * Determines whether or not background should ripple when pressed.
    */
-  get ripple(): boolean {
-    return this.getBooleanAttribute(Input.attrs.ripple);
+  get disableRipple(): boolean {
+    return this.getBooleanAttribute(Input.attrs.disableRipple);
   }
-  set ripple(value) {
-    this.setBooleanAttribute(Input.attrs.ripple, value);
+  set disableRipple(value) {
+    this.setBooleanAttribute(Input.attrs.disableRipple, value);
+  }
+
+  structuralAttributes = Object.keys(spec.props).map(
+    (prop) => Input.attrs[prop as keyof typeof Input.attrs]
+  );
+
+  override shouldAttributeTriggerUpdate(
+    name: string,
+    oldValue: string,
+    newValue: string
+  ) {
+    if (this.structuralAttributes.includes(name)) {
+      return true;
+    }
+    return super.shouldAttributeTriggerUpdate(name, oldValue, newValue);
   }
 
   override onAttributeChanged(name: string, newValue: string) {

@@ -41,7 +41,7 @@ const DEFAULT_ATTRIBUTES = {
     "label",
     "value",
     "active",
-    "ripple",
+    "disable-ripple",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -67,7 +67,7 @@ export default class Button
       variant: this.variant,
       icon: this.icon,
       activeIcon: this.activeIcon,
-      ripple: this.ripple,
+      disableRipple: this.disableRipple,
     };
   }
 
@@ -195,11 +195,11 @@ export default class Button
   /**
    * Determines whether or not background should ripple when pressed.
    */
-  get ripple(): boolean {
-    return this.getBooleanAttribute(Button.attrs.ripple);
+  get disableRipple(): boolean {
+    return this.getBooleanAttribute(Button.attrs.disableRipple);
   }
-  set ripple(value) {
-    this.setBooleanAttribute(Button.attrs.ripple, value);
+  set disableRipple(value) {
+    this.setBooleanAttribute(Button.attrs.disableRipple, value);
   }
 
   /**
@@ -292,6 +292,21 @@ export default class Button
   }
   set value(value) {
     this.setStringAttribute(Button.attrs.value, value);
+  }
+
+  structuralAttributes = Object.keys(spec.props).map(
+    (prop) => Button.attrs[prop as keyof typeof Button.attrs]
+  );
+
+  override shouldAttributeTriggerUpdate(
+    name: string,
+    oldValue: string,
+    newValue: string
+  ) {
+    if (this.structuralAttributes.includes(name)) {
+      return true;
+    }
+    return super.shouldAttributeTriggerUpdate(name, oldValue, newValue);
   }
 
   override onAttributeChanged(name: string, newValue: string) {

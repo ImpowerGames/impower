@@ -36,7 +36,7 @@ const DEFAULT_ATTRIBUTES = {
     "disabled",
     "label",
     "action",
-    "ripple",
+    "disable-ripple",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -57,7 +57,7 @@ export default class Option
       ...super.props,
       type: this.type,
       href: this.href,
-      ripple: this.ripple,
+      disableRipple: this.disableRipple,
       icon: this.icon,
       activeIcon: this.activeIcon,
     };
@@ -152,11 +152,11 @@ export default class Option
   /**
    * Determines whether or not background should ripple when pressed.
    */
-  get ripple(): boolean {
-    return this.getBooleanAttribute(Option.attrs.ripple);
+  get disableRipple(): boolean {
+    return this.getBooleanAttribute(Option.attrs.disableRipple);
   }
-  set ripple(value) {
-    this.setBooleanAttribute(Option.attrs.ripple, value);
+  set disableRipple(value) {
+    this.setBooleanAttribute(Option.attrs.disableRipple, value);
   }
 
   /**
@@ -229,6 +229,21 @@ export default class Option
   }
   set action(value) {
     this.setStringAttribute(Option.attrs.action, value);
+  }
+
+  structuralAttributes = Object.keys(spec.props).map(
+    (prop) => Option.attrs[prop as keyof typeof Option.attrs]
+  );
+
+  override shouldAttributeTriggerUpdate(
+    name: string,
+    oldValue: string,
+    newValue: string
+  ) {
+    if (this.structuralAttributes.includes(name)) {
+      return true;
+    }
+    return super.shouldAttributeTriggerUpdate(name, oldValue, newValue);
   }
 
   override onAttributeChanged(name: string, newValue: string) {

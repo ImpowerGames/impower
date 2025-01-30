@@ -94,6 +94,9 @@
   transition-duration: var(--duration);
   will-change: transform, opacity;
 }
+:host > .root > .label {
+  transition-property: transform;
+}
 
 :host(:not([child-layout="row"])[icon]) > .root > .label {
   transform: scale(0.8);
