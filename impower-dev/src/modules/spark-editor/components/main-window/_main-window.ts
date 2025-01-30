@@ -68,6 +68,7 @@ export default spec({
                   active-text-color="tab-active"
                   inactive-text-color="tab-inactive"
                   shrink
+                  disable-ripple
                   icon="bolt"
                   active-icon="bolt-fill"
                   value="logic"
@@ -79,6 +80,7 @@ export default spec({
                   active-text-color="tab-active"
                   inactive-text-color="tab-inactive"
                   shrink
+                  disable-ripple
                   icon="photo"
                   active-icon="photo-fill"
                   value="assets"
@@ -90,6 +92,7 @@ export default spec({
                   active-text-color="tab-active"
                   inactive-text-color="tab-inactive"
                   shrink
+                  disable-ripple
                   icon="share"
                   active-icon="share-fill"
                   value="share"
