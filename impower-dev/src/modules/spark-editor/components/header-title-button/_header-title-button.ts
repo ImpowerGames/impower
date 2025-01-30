@@ -14,22 +14,7 @@ export default spec({
   html: ({ context }) => {
     const { name, syncState, editingName } = context;
     const label = "Project Name";
-    const nameButton = () => html`
-      <s-button
-        id="nameButton"
-        variant="text"
-        height-min="0"
-        text-overflow="ellipsis"
-        text-align="left"
-        text-size="lg"
-        text-weight="500"
-        color="fg"
-        p="0 4"
-        m="0 -4"
-      >
-        ${name}
-      </s-button>
-    `;
+    const bgColorAttr = editingName ? "" : () => html`bg-color="none"`;
     const nameInput = () => html`
       <s-input
         id="nameInput"
@@ -40,6 +25,7 @@ export default spec({
         m="0 -4"
         placeholder-color="fab-bg"
         color="fg"
+        ${bgColorAttr}
         value="${name}"
         label="${label}"
         size="sm"
@@ -53,18 +39,13 @@ export default spec({
       <s-box child-layout="row" child-align="center">
         <s-box position="relative" height="28" width-max="600" grow>
           <s-box position="absolute" i="0">
-            ${name && syncState
-              ? editingName
-                ? nameInput
-                : nameButton
-              : nameSkeleton}
+            ${name && syncState ? nameInput : nameSkeleton}
           </s-box>
         </s-box>
       </s-box>
     `;
   },
   selectors: {
-    nameButton: null,
     nameInput: null,
   } as const,
   css,
