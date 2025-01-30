@@ -1,5 +1,4 @@
 :host > .root {
-  pointer-events: auto;
   position: fixed;
   inset: 0 0 auto 0;
   z-index: 10;
@@ -9,4 +8,13 @@
   :host > .root {
     position: relative;
   }
+}
+
+:host > .root .blocker {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
 }
