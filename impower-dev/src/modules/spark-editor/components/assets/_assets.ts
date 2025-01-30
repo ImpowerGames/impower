@@ -22,6 +22,7 @@ export default spec({
             <s-tab
               active-text-color="tab-active"
               inactive-text-color="tab-inactive"
+              disable-ripple
               p="20"
               child-layout="row"
               active-icon="files"
@@ -34,6 +35,7 @@ export default spec({
             <s-tab
               active-text-color="tab-active"
               inactive-text-color="tab-inactive"
+              disable-ripple
               p="20"
               child-layout="row"
               active-icon="link"
