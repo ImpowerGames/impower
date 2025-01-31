@@ -1,5 +1,5 @@
 import { historyField } from "@codemirror/commands";
-import { syntaxTreeAvailable } from "@codemirror/language";
+import { syntaxParserRunning, syntaxTreeAvailable } from "@codemirror/language";
 import {
   Compartment,
   EditorSelection,
@@ -247,8 +247,8 @@ const createEditorView = (
         }
       ),
       EditorView.updateListener.of((u) => {
-        const parsed = syntaxTreeAvailable(u.state);
-        if (parsed) {
+        const parsing = syntaxParserRunning(u.view);
+        if (!parsing) {
           onReady?.();
           debouncedIdle();
         }
