@@ -18,40 +18,6 @@ import { getTimeValue } from "../../../core/utils/getTimeValue";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
 import { getCharacterIdentifier } from "../utils/getCharacterIdentifier";
 
-const MARKERS = ["^", "*", "_", "~~", "::"];
-const CHAR_REGEX =
-  /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
-const PARENTHETICAL_REGEX =
-  /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)$/;
-const BREAK_BOX_REGEX = /[ \t]+[>][ \t]*$/m;
-const ASSET_CONTROL_KEYWORDS = [
-  "set",
-  "show",
-  "hide",
-  "animate",
-  "play",
-  "start",
-  "stop",
-  "modulate",
-  "queue",
-  "await",
-  "write",
-];
-const ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "fadeto", "with"];
-const ASSET_FLAG_ARG_KEYWORDS = [
-  "wait",
-  "nowait",
-  "loop",
-  "noloop",
-  "mute",
-  "unmute",
-  "now",
-];
-const ASSET_ARG_KEYWORDS = [
-  ...ASSET_VALUE_ARG_KEYWORDS,
-  ...ASSET_FLAG_ARG_KEYWORDS,
-];
-
 export interface InterpreterConfig {}
 
 export interface InterpreterState {
@@ -65,10 +31,51 @@ export class InterpreterModule extends Module<
   InterpreterMessageMap,
   InterpreterBuiltins
 > {
+  MARKERS = ["^", "*", "_", "~~", "::"];
+
+  ASSET_CONTROL_KEYWORDS = [
+    "set",
+    "show",
+    "hide",
+    "animate",
+    "play",
+    "start",
+    "stop",
+    "modulate",
+    "queue",
+    "await",
+    "write",
+  ];
+
+  ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "fadeto", "with"];
+
+  ASSET_FLAG_ARG_KEYWORDS = [
+    "wait",
+    "nowait",
+    "loop",
+    "noloop",
+    "mute",
+    "unmute",
+    "now",
+  ];
+
+  ASSET_ARG_KEYWORDS = [
+    ...this.ASSET_VALUE_ARG_KEYWORDS,
+    ...this.ASSET_FLAG_ARG_KEYWORDS,
+  ];
+
+  KEYWORD_TERMINATOR_CHARS = [undefined, "", " ", "\t", "\r", "\n"];
+
+  CHAR_REGEX =
+    /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
+
+  BREAK_BOX_REGEX = /[ \t]+[>][ \t]*$/m;
+
   CHARACTER_REGEX =
     /^(.*?)([ \t]*)([(][^()]*?[)])?([ \t]*)(?:(\[)([ \t]*)(.*?)([ \t]*)(\]))?([ \t]*)$/;
 
-  KEYWORD_TERMINATOR_CHARS = [undefined, "", " ", "\t", "\r", "\n"];
+  PARENTHETICAL_REGEX =
+    /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)$/;
 
   protected _targetPrefixMap: Record<string, string> = {};
 
@@ -279,7 +286,7 @@ export class InterpreterModule extends Module<
     }
     // Queue content
     if (content) {
-      const contentBoxes = content.split(BREAK_BOX_REGEX);
+      const contentBoxes = content.split(this.BREAK_BOX_REGEX);
       for (const contentBox of contentBoxes) {
         const contentInstructions = this.parse(
           contentBox,
@@ -535,13 +542,13 @@ export class InterpreterModule extends Module<
     const assets: string[] = [];
     const args: string[] = [];
     if (parts[0]) {
-      if (ASSET_CONTROL_KEYWORDS.includes(parts[0])) {
+      if (this.ASSET_CONTROL_KEYWORDS.includes(parts[0])) {
         control = parts[0];
         if (parts[1]) {
           target = parts[1];
         }
         if (parts[2]) {
-          if (ASSET_ARG_KEYWORDS.includes(parts[2])) {
+          if (this.ASSET_ARG_KEYWORDS.includes(parts[2])) {
             args.push(...parts.slice(2));
           } else {
             assets.push(...parts[2].split("+"));
@@ -557,7 +564,7 @@ export class InterpreterModule extends Module<
     for (let i = 0; i < args.length; i += 1) {
       const arg = args[i];
       if (arg) {
-        if (ASSET_VALUE_ARG_KEYWORDS.includes(arg)) {
+        if (this.ASSET_VALUE_ARG_KEYWORDS.includes(arg)) {
           i += 1;
           const value = args[i];
           if (arg === "after") {
@@ -671,7 +678,7 @@ export class InterpreterModule extends Module<
       currChunk = undefined;
       escaped = false;
 
-      const chars = textLine.match(CHAR_REGEX);
+      const chars = textLine.match(this.CHAR_REGEX);
       if (chars) {
         for (let i = 0; i < chars.length; ) {
           const char = chars[i] ?? "";
@@ -848,7 +855,7 @@ export class InterpreterModule extends Module<
                 continue;
               }
               // Style Tag
-              const styleMarker = MARKERS.find(
+              const styleMarker = this.MARKERS.find(
                 (marker) =>
                   marker === chars.slice(i, i + marker.length).join("")
               );
@@ -1118,7 +1125,7 @@ export class InterpreterModule extends Module<
     const lines = content?.trim().split("\n");
     for (let l = 0; l < lines.length; l += 1) {
       const line = lines[l]!?.trimStart();
-      if (line.match(PARENTHETICAL_REGEX)) {
+      if (line.match(this.PARENTHETICAL_REGEX)) {
         alignModifier = "center";
         speedModifier = 0;
         processLine(line, textTarget);
