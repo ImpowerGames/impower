@@ -117,17 +117,19 @@ const addTransitionCompletions = (
     program?.metadata?.transitions || {}
   ).sort((a, b) => rankDistance(a, b, uri, line));
   // Add completions
-  for (const [name] of mostRecentEntries) {
-    const labelDetails = { description: "transition" };
-    const kind = CompletionItemKind.Constant;
-    const completion: CompletionItem = {
-      label: name,
-      insertText: insertTextPrefix + name,
-      labelDetails,
-      kind,
-    };
-    if (completion.label && !completions.has(completion.label)) {
-      completions.set(completion.label, completion);
+  for (const [name, position] of mostRecentEntries) {
+    if (position.some((p) => p.range.start.line !== line)) {
+      const labelDetails = { description: "transition" };
+      const kind = CompletionItemKind.Constant;
+      const completion: CompletionItem = {
+        label: name,
+        insertText: insertTextPrefix + name,
+        labelDetails,
+        kind,
+      };
+      if (completion.label && !completions.has(completion.label)) {
+        completions.set(completion.label, completion);
+      }
     }
   }
 };
@@ -150,17 +152,19 @@ const addSceneCompletions = (
     mostRecentEntries.push(mostRecentEntry);
   }
   // Add completions
-  for (const [name] of mostRecentEntries) {
-    const labelDetails = { description: "scene" };
-    const kind = CompletionItemKind.Constant;
-    const completion: CompletionItem = {
-      label: name,
-      insertText: insertTextPrefix + name,
-      labelDetails,
-      kind,
-    };
-    if (completion.label && !completions.has(completion.label)) {
-      completions.set(completion.label, completion);
+  for (const [name, position] of mostRecentEntries) {
+    if (position.some((p) => p.range.start.line !== line)) {
+      const labelDetails = { description: "scene" };
+      const kind = CompletionItemKind.Constant;
+      const completion: CompletionItem = {
+        label: name,
+        insertText: insertTextPrefix + name,
+        labelDetails,
+        kind,
+      };
+      if (completion.label && !completions.has(completion.label)) {
+        completions.set(completion.label, completion);
+      }
     }
   }
 };
