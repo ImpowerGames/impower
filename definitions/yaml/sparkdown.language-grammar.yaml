@@ -877,7 +877,7 @@ repository:
   ########## Break ##########
 
   Break:
-    tag: special(meta)
+    tag: special(content)
     name: meta.break.sd
     match: ({{BREAK}})
     captures:
@@ -1553,8 +1553,13 @@ repository:
       - { include: "#IllegalChar" }
 
   Indent:
-    tag: special(content)
+    tag: content
     name: markup.raw.whitespace.indent.sd
+    match: ({{WS}}+)
+
+  TrailingWhitespace:
+    tag: special(content)
+    name: markup.raw.whitespace.trailing.sd
     match: ({{WS}}+)
 
   Whitespace:
@@ -2237,7 +2242,7 @@ repository:
     match: (.+)
 
   DialogueCharacter:
-    match: ({{WS}}*)(.*?)({{WS}}*)([(][^()]*?[)])?($|{{WS}}*)(\[.*?\])?({{WS}}*)({{EOL}})
+    match: ({{WS}}*)(.*?)({{WS}}*[(][^()]*?[)])?($|{{WS}}*)(\[.*?\])?({{WS}}*)({{EOL}})
     captures:
       1:
         patterns:
@@ -2247,20 +2252,17 @@ repository:
           - { include: "#DialogueCharacterName" }
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#DialogueCharacterParenthetical" }
       4:
         patterns:
-          - { include: "#DialogueCharacterParenthetical" }
+          - { include: "#Whitespace" }
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#DialogueCharacterPosition" }
       6:
         patterns:
-          - { include: "#DialogueCharacterPosition" }
-      7:
-        patterns:
           - { include: "#Whitespace" }
-      8:
+      7:
         patterns:
           - { include: "#EndOfLine" }
 
@@ -2285,21 +2287,24 @@ repository:
   DialogueCharacterPosition:
     tag: definition(escape)
     name: constant.character.escape.dialogue.character.position.sd
-    match: (\[)({{WS}}*)(.*?)({{WS}}*)(\])
+    match: ({{WS}}*)(\[)({{WS}}*)(.*?)({{WS}}*)(\])
     captures:
       1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
         tag: bracket
         name: punctuation.definition.position.sd
-      2:
-        patterns:
-          - { include: "#Whitespace" }
       3:
         patterns:
-          - { include: "#DialogueCharacterPositionContent" }
+          - { include: "#Whitespace" }
       4:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#DialogueCharacterPositionContent" }
       5:
+        patterns:
+          - { include: "#Whitespace" }
+      6:
         tag: bracket
         name: punctuation.definition.position.sd
 
@@ -2438,7 +2443,7 @@ repository:
           - { include: "#ParentheticalLineContent" }
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#TrailingWhitespace" }
       6:
         patterns:
           - { include: "#EndOfLine" }
@@ -2547,7 +2552,7 @@ repository:
     begin: (?=.+)
     patterns:
       - { include: "#DisplayText" }
-    end: (?=$|[\\](?:$|{{WS}})|[<][>]|{{EOL}})
+    end: (?=$|{{WS}}*[\\](?:$|{{WS}})|[<][>]|{{EOL}})
 
   DisplayText:
     patterns:

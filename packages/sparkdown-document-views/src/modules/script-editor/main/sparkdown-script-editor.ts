@@ -45,6 +45,7 @@ import getUnitlessValue from "../../../../../spec-component/src/utils/getUnitles
 import { getDocumentVersion } from "../../../cm-versioning/versioning";
 import { gotoLinePanelOpen } from "../panels/GotoLinePanel";
 import { getScrollableParent } from "../../../utils/getScrollableParent";
+import { getServerChanges } from "../../../cm-language-client/utils/getServerChanges";
 
 export default class SparkdownScriptEditor extends Component(spec) {
   static languageServerConnection: MessageConnection;
@@ -469,10 +470,13 @@ export default class SparkdownScriptEditor extends Component(spec) {
               const beforeVersion = getDocumentVersion(tr.startState);
               const afterVersion = beforeVersion + 1;
               const after = tr.newDoc.toString();
-              // TODO: Figure out how to support incremental changes without it breaking when auto-surrounding text
-              // Incremental changes aren't correctly applied when auto-surrounding text with brackets
-              // So disable incremental changes until surroundBrackets bug is fixed
-              // const contentChanges = getServerChanges(tr.startState.doc, tr.changes),
+              const contentChanges = getServerChanges(
+                tr.startState.doc,
+                tr.changes
+              );
+              // TODO: Figure out how to support incremental changes in language server
+              // Incremental changes in language server aren't correctly applied when auto-surrounding text with brackets
+              // So just send the entire `after` text to the server
               SparkdownScriptEditor.languageServerConnection.sendNotification(
                 DidChangeTextDocumentMessage.type,
                 {
@@ -490,7 +494,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
                     uri,
                     version: afterVersion,
                   },
-                  contentChanges: [{ text: after }],
+                  contentChanges,
                 })
               );
               this.emit(

@@ -1,19 +1,16 @@
-import { Language } from "@codemirror/language";
-import { NodeType } from "@lezer/common";
-import { Tag, highlightTree } from "@lezer/highlight";
+import { HighlightStyle, Language } from "@codemirror/language";
+import { highlightTree } from "@lezer/highlight";
 import { MarkupContent } from "../types/MarkupContent";
 
 export const getSyntaxHighlightedHtml = (
   str: string,
   language: Language,
-  highlighter: {
-    style(tags: readonly Tag[]): string | null;
-    scope?(node: NodeType): boolean;
-  }
+  highlighter: HighlightStyle
 ) => {
   const tree = language.parser.parse(str);
   let html = "";
   let prev = 0;
+
   highlightTree(tree, highlighter, (from, to, token) => {
     const diff = from - prev;
     if (diff > 0) {
@@ -36,10 +33,7 @@ export const getSyntaxHighlightedHtml = (
 export const getMarkupHtml = (
   m: MarkupContent,
   language?: Language,
-  highlighter?: {
-    style(tags: readonly Tag[]): string | null;
-    scope?(node: NodeType): boolean;
-  }
+  highlighter?: HighlightStyle
 ) => {
   return m.markdown && language && highlighter
     ? getSyntaxHighlightedHtml(m.value ?? "", language, highlighter)
@@ -49,10 +43,7 @@ export const getMarkupHtml = (
 const getFormattedHTML = (
   lines: MarkupContent[],
   language?: Language,
-  highlighter?: {
-    style(tags: readonly Tag[]): string | null;
-    scope?(node: NodeType): boolean;
-  }
+  highlighter?: HighlightStyle
 ) => {
   return lines
     .map((m) => {

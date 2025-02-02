@@ -1542,7 +1542,7 @@
       "match": "(.+)"
     },
     "Break": {
-      "tag": "special(meta)",
+      "tag": "special(content)",
       "name": "meta.break.sd",
       "match": "((?:[^\\S\\n\\r]+[>][^\\S\\n\\r]*))",
       "captures": {
@@ -2811,8 +2811,13 @@
       ]
     },
     "Indent": {
-      "tag": "special(content)",
+      "tag": "content",
       "name": "markup.raw.whitespace.indent.sd",
+      "match": "([^\\S\\n\\r]+)"
+    },
+    "TrailingWhitespace": {
+      "tag": "special(content)",
+      "name": "markup.raw.whitespace.trailing.sd",
       "match": "([^\\S\\n\\r]+)"
     },
     "Whitespace": {
@@ -3881,7 +3886,7 @@
       "match": "(.+)"
     },
     "DialogueCharacter": {
-      "match": "([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)([(][^()]*?[)])?($|[^\\S\\n\\r]*)(\\[.*?\\])?([^\\S\\n\\r]*)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "match": "([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*[(][^()]*?[)])?($|[^\\S\\n\\r]*)(\\[.*?\\])?([^\\S\\n\\r]*)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -3900,39 +3905,32 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#DialogueCharacterParenthetical"
             }
           ]
         },
         "4": {
           "patterns": [
             {
-              "include": "#DialogueCharacterParenthetical"
+              "include": "#Whitespace"
             }
           ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#DialogueCharacterPosition"
             }
           ]
         },
         "6": {
           "patterns": [
             {
-              "include": "#DialogueCharacterPosition"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
               "include": "#Whitespace"
             }
           ]
         },
-        "8": {
+        "7": {
           "patterns": [
             {
               "include": "#EndOfLine"
@@ -3972,34 +3970,41 @@
     "DialogueCharacterPosition": {
       "tag": "definition(escape)",
       "name": "constant.character.escape.dialogue.character.position.sd",
-      "match": "(\\[)([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)(\\])",
+      "match": "([^\\S\\n\\r]*)(\\[)([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)(\\])",
       "captures": {
         "1": {
-          "tag": "bracket",
-          "name": "punctuation.definition.position.sd"
-        },
-        "2": {
           "patterns": [
             {
               "include": "#Whitespace"
             }
           ]
         },
+        "2": {
+          "tag": "bracket",
+          "name": "punctuation.definition.position.sd"
+        },
         "3": {
           "patterns": [
             {
-              "include": "#DialogueCharacterPositionContent"
+              "include": "#Whitespace"
             }
           ]
         },
         "4": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#DialogueCharacterPositionContent"
             }
           ]
         },
         "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
           "tag": "bracket",
           "name": "punctuation.definition.position.sd"
         }
@@ -4237,7 +4242,7 @@
         "5": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#TrailingWhitespace"
             }
           ]
         },
@@ -4459,7 +4464,7 @@
           "include": "#DisplayText"
         }
       ],
-      "end": "(?=$|[\\\\](?:$|[^\\S\\n\\r])|[<][>]|(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))"
+      "end": "(?=$|[^\\S\\n\\r]*[\\\\](?:$|[^\\S\\n\\r])|[<][>]|(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))"
     },
     "DisplayText": {
       "patterns": [

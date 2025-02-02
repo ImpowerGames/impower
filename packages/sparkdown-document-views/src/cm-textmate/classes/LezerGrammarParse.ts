@@ -287,7 +287,10 @@ export default class GrammarParse implements PartialParse {
         this.consecutiveEmptyMatchCount = 0;
       }
       if (this.consecutiveEmptyMatchCount > 100) {
-        console.warn("Possible infinite loop!", matchTokens);
+        console.warn(
+          "Possible infinite loop!",
+          JSON.stringify(matchTokens.map((t) => t[0]))
+        );
         matchLength = 1;
       }
 
