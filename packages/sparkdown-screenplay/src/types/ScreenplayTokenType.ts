@@ -20,8 +20,8 @@ export type BodyTokenType =
   | "transition"
   | "action"
   | "dialogue_character"
-  | "parenthetical"
-  | "dialogue"
+  | "dialogue_parenthetical"
+  | "dialogue_content"
   | "more"
   | "note";
 

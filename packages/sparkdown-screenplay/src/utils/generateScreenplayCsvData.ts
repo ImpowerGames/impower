@@ -6,7 +6,7 @@ export const generateScreenplayCsvData = (
 ): string[][] => {
   const strings: string[][] = [["KEY", "CONTEXT", language]];
   (tokens || []).forEach((t) => {
-    if (t.tag === "dialogue") {
+    if (t.tag === "dialogue_content") {
       strings.push([t.id, `D`, t.text]);
     }
     if (t.tag === "action") {

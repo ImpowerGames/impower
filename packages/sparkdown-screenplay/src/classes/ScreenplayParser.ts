@@ -156,14 +156,14 @@ export default class ScreenplayParser {
         ) {
           if (nodeType === "TextChunk") {
             tokens.push({
-              tag: "dialogue",
+              tag: "dialogue_content",
               text,
               position,
             });
           }
           if (nodeType === "ParentheticalLineContent") {
             tokens.push({
-              tag: "parenthetical",
+              tag: "dialogue_parenthetical",
               text,
               position,
             });

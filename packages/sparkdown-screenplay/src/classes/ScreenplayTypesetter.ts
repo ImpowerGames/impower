@@ -107,12 +107,13 @@ export class ScreenplayTypesetter {
         }
       } else if (
         t.tag === "dialogue_character" ||
-        t.tag === "parenthetical" ||
-        t.tag === "dialogue"
+        t.tag === "dialogue_parenthetical" ||
+        t.tag === "dialogue_content"
       ) {
         const dualMax =
           max == null ? max : max * (print?.dual_max_factor ?? 0.75);
-        const columnMax = t.tag === "dialogue" && t.position ? dualMax : max;
+        const columnMax =
+          t.tag === "dialogue_content" && t.position ? dualMax : max;
         const columnLines = this.format(t.tag, t.text, columnMax, print);
         if (columnLines.length > 0) {
           if (t.position === "l" || t.position === "r") {
@@ -339,10 +340,10 @@ export class ScreenplayTypesetter {
               lineOnBreak &&
               lineOnBreak.tag !== "split" &&
               lineBefore?.tag !== "dialogue_character" &&
-              lineBefore?.tag !== "parenthetical" &&
-              lineOnBreak.tag === "dialogue" && //                    dialogue <--
-              (lineAfter?.tag === "dialogue" ||
-                lineAfter?.tag === "parenthetical") // dialogue or (parenthetical);
+              lineBefore?.tag !== "dialogue_parenthetical" &&
+              lineOnBreak.tag === "dialogue_content" && //                    dialogue <--
+              (lineAfter?.tag === "dialogue_content" ||
+                lineAfter?.tag === "dialogue_parenthetical") // dialogue or (parenthetical);
             ) {
               const moreSpan: DocumentSpan = {
                 tag: "more",
@@ -516,11 +517,14 @@ export class ScreenplayTypesetter {
       return false;
     }
     // Don't page break after (parenthetical)
-    else if (lineOnBreak.tag === "parenthetical") {
+    else if (lineOnBreak.tag === "dialogue_parenthetical") {
       return false;
     }
     // Don't page break during dialogue if splitting dialogue across pages is not allowed
-    else if (!splitDialogueAcrossPages && lineOnBreak.tag === "dialogue") {
+    else if (
+      !splitDialogueAcrossPages &&
+      lineOnBreak.tag === "dialogue_content"
+    ) {
       return false;
     }
     // Don't page break if line before is character or parenthetical
@@ -528,9 +532,10 @@ export class ScreenplayTypesetter {
       splitDialogueAcrossPages &&
       lineOnBreak.tag !== "split" &&
       (lineBefore?.tag === "dialogue_character" ||
-        lineBefore?.tag === "parenthetical") && // CHARACTER or (parenthetical)
-      lineOnBreak.tag === "dialogue" && //                       dialogue <--
-      (lineAfter?.tag === "dialogue" || lineAfter?.tag === "parenthetical") //    dialogue or (parenthetical)
+        lineBefore?.tag === "dialogue_parenthetical") && // CHARACTER or (parenthetical)
+      lineOnBreak.tag === "dialogue_content" && //                       dialogue <--
+      (lineAfter?.tag === "dialogue_content" ||
+        lineAfter?.tag === "dialogue_parenthetical") //    dialogue or (parenthetical)
     ) {
       return false;
     }
