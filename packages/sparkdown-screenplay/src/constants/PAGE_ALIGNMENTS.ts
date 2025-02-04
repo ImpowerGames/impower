@@ -1,5 +1,7 @@
-export const FRONTMATTER_ALIGNMENTS: Record<
-  string,
+import { PagePosition } from "../types/PagePosition";
+
+export const PAGE_ALIGNMENTS: Record<
+  PagePosition,
   "left" | "right" | "center"
 > = {
   tl: "left",
@@ -7,8 +9,9 @@ export const FRONTMATTER_ALIGNMENTS: Record<
   tr: "right",
   cc: "center",
   bl: "left",
-  bc: "center",
   br: "right",
+  l: "left",
+  r: "left",
   header: "left",
   footer: "left",
   watermark: "center",

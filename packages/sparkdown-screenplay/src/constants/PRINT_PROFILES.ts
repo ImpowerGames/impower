@@ -5,41 +5,30 @@ const USLETTER_DEFAULT_MAX = 61;
 
 const A4: PrintProfile = {
   paper_size: "a4",
-  font_size: 12,
-  lines_per_page: 57,
-  top_margin: 1.0,
   page_width: 8.27,
   page_height: 11.7,
+  lines_per_page: 57,
+  top_margin: 1.0,
   left_margin: 1.5,
   right_margin: 1,
+  font_size: 12,
   font_width: 0.1,
   font_height: 0.1667,
   line_spacing: 1,
   page_number_top_margin: 0.5,
   dual_max_factor: 0.75,
-  title_page: {
-    top_start: 3.5,
-    left_side: ["notes", "copyright"],
-    right_side: [
-      "draft date",
-      "draft_date",
-      "date",
-      "contact info",
-      "contact_info",
-      "contact",
-      "revision",
-    ],
-  },
   settings: {
-    chunk: {
-      feed: 0.5,
+    default: {
+      feed: 1.5,
       max: A4_DEFAULT_MAX,
-      italic: true,
-      color: "#888888",
-      padding: 0,
-      feed_with_last_section: true,
     },
-    section: {
+    knot: {
+      feed: 1.0,
+      max: A4_DEFAULT_MAX,
+      color: "#555555",
+      level_indent: 0.2,
+    },
+    stitch: {
       feed: 1.0,
       max: A4_DEFAULT_MAX,
       color: "#555555",
@@ -50,8 +39,8 @@ const A4: PrintProfile = {
       max: A4_DEFAULT_MAX,
     },
     transition: {
-      feed: 0,
-      max: A4_DEFAULT_MAX,
+      feed: 1.5,
+      max: 33,
       align: "right",
     },
     action: {
@@ -62,7 +51,7 @@ const A4: PrintProfile = {
       feed: 3.5,
       max: 33,
     },
-    dialogue_parenthetical: {
+    parenthetical: {
       feed: 3,
       max: 26,
     },
@@ -86,17 +75,21 @@ const A4: PrintProfile = {
 const USLETTER: PrintProfile = {
   ...JSON.parse(JSON.stringify(A4)),
   paper_size: "letter",
-  lines_per_page: 55,
   page_width: 8.5,
   page_height: 11,
+  lines_per_page: 55,
   settings: {
     ...JSON.parse(JSON.stringify(A4.settings)),
-    chunk: {
-      ...A4.settings.chunk,
+    default: {
+      ...A4.settings.default,
       max: USLETTER_DEFAULT_MAX,
     },
-    section: {
-      ...A4.settings.section,
+    knot: {
+      ...A4.settings.knot,
+      max: USLETTER_DEFAULT_MAX,
+    },
+    stitch: {
+      ...A4.settings.stitch,
       max: USLETTER_DEFAULT_MAX,
     },
     scene: {

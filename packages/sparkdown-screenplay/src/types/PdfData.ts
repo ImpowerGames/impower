@@ -1,14 +1,13 @@
 import { DocumentSpan } from "./DocumentSpan";
 import { PrintProfile } from "./PrintProfile";
-import { SparkScreenplayConfig } from "./SparkScreenplayConfig";
+import { ScreenplayConfig } from "./ScreenplayConfig";
 
 export interface PdfData {
   info: {
     title: string;
     author: string;
   };
-  frontMatterSpans: Record<string, DocumentSpan>;
-  bodySpans: DocumentSpan[];
+  spans: DocumentSpan[];
   print: PrintProfile;
   fonts?: {
     normal?: ArrayBuffer | Uint8Array;
@@ -16,5 +15,5 @@ export interface PdfData {
     italic?: ArrayBuffer | Uint8Array;
     bolditalic?: ArrayBuffer | Uint8Array;
   };
-  config?: SparkScreenplayConfig;
+  config?: ScreenplayConfig;
 }

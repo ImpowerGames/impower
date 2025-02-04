@@ -1,6 +1,6 @@
-import { SparkScreenplayConfig } from "../../../../packages/sparkdown-screenplay/src";
+import { ScreenplayConfig } from "../../../../packages/sparkdown-screenplay/src/types/ScreenplayConfig";
 
-export const SPARK_SCREENPLAY_CONFIG: SparkScreenplayConfig = {
+export const SPARK_SCREENPLAY_CONFIG: ScreenplayConfig = {
   screenplay_print_bookmarks_for_invisible_sections: true,
   screenplay_print_dialogue_split_across_pages: true,
   screenplay_print_page_numbers: true,

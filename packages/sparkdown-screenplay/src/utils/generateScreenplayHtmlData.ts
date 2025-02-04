@@ -1,17 +1,16 @@
-import { SparkToken } from "../../../sparkdown/src/types/SparkToken";
-import { Typesetter } from "../classes/Typesetter";
+import { ScreenplayTypesetter } from "../classes/ScreenplayTypesetter";
 import { STATIC_CSS } from "../constants/STATIC_CSS";
 import { STATIC_FONTS } from "../constants/STATIC_FONTS";
 import { STATIC_HTML } from "../constants/STATIC_HTML";
-import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
+import { ScreenplayConfig } from "../types/ScreenplayConfig";
+import { ScreenplayToken } from "../types/ScreenplayToken";
 import { encodeBase64 } from "./encodeBase64";
-import { generateSparkMainHtml } from "./generateSparkMainHtml";
-import { generateSparkTitleHtml } from "./generateSparkTitleHtml";
+import { generateScreenplayMainHtml } from "./generateScreenplayMainHtml";
+import { generateScreenplayTitleHtml } from "./generateScreenplayTitleHtml";
 
-export const generateSparkHtmlData = (
-  frontMatter: Record<string, string[]> | undefined,
-  tokens: SparkToken[],
-  config?: SparkScreenplayConfig,
+export const generateScreenplayHtmlData = (
+  tokens: ScreenplayToken[],
+  config?: ScreenplayConfig,
   fonts?: {
     normal?: ArrayBuffer | Uint8Array;
     bold?: ArrayBuffer | Uint8Array;
@@ -21,11 +20,8 @@ export const generateSparkHtmlData = (
 ): string => {
   let rawHtml: string = STATIC_HTML;
 
-  const typesetter = new Typesetter();
-  const frontMatterSpans = frontMatter
-    ? typesetter.formatFrontMatter(frontMatter)
-    : undefined;
-  const bodySpans = tokens ? typesetter.formatBody(tokens, config) : undefined;
+  const typesetter = new ScreenplayTypesetter();
+  const spans = typesetter.compose(tokens, config);
 
   if (fonts && Object.keys(fonts).length > 0) {
     rawHtml = rawHtml.replace(
@@ -66,10 +62,9 @@ export const generateSparkHtmlData = (
     </style>`
   );
 
-  const titleHtml =
-    config?.screenplay_print_title_page && frontMatterSpans
-      ? generateSparkTitleHtml(frontMatterSpans, "            ")
-      : "";
+  const titleHtml = config?.screenplay_print_title_page
+    ? generateScreenplayTitleHtml(spans, "            ")
+    : "";
   if (titleHtml) {
     rawHtml = rawHtml.replace(
       "$TITLEPAGE$",
@@ -83,8 +78,8 @@ export const generateSparkHtmlData = (
     rawHtml = rawHtml.replace("$TITLEPAGE$", "");
   }
 
-  const mainHtml = bodySpans
-    ? generateSparkMainHtml(bodySpans, "            ")
+  const mainHtml = spans
+    ? generateScreenplayMainHtml(spans, "            ")
     : "";
   if (mainHtml) {
     rawHtml = rawHtml.replace(

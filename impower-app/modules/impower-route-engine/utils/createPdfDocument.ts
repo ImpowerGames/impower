@@ -43,7 +43,7 @@ export const createPdfDocument = (data: PdfData): PdfDocument => {
   doc.font(doc?.fontKeys?.normal || "normal");
   doc.fontSize(fontSize);
 
-  doc.textBox = (
+  doc.textbox = (
     textObjects: {
       text: string;
       link: string | undefined;

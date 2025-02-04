@@ -1,7 +1,7 @@
 import {
-  generateSparkPdfData,
+  generateScreenplayPdfData,
   LineStruct,
-  SparkScreenplayConfig,
+  ScreenplayConfig,
 } from "@impower/sparkdown-screenplay/src/index";
 import { SparkProgram, StructureItem } from "@impower/sparkdown/src/index";
 import { calculateSpeechDuration } from "@impower/sparkdown/src/utils/calculateSpeechDuration";
@@ -436,10 +436,10 @@ export const retrieveScreenPlayStatistics = async (
   context: vscode.ExtensionContext,
   script: string,
   program: SparkProgram,
-  config: SparkScreenplayConfig
+  config: ScreenplayConfig
 ): Promise<ScreenPlayStatistics> => {
   const fonts = await getFonts(context);
-  const pdfData = generateSparkPdfData(program, config, fonts);
+  const pdfData = generateScreenplayPdfData(program, config, fonts);
   const pdfStats = await generatePdfStats(pdfData);
   return {
     characterStats: createCharacterStatistics(program),

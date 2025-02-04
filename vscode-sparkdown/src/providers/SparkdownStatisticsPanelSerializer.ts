@@ -1,4 +1,4 @@
-import { SparkScreenplayConfig } from "@impower/sparkdown-screenplay/src/index";
+import { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/index";
 import * as path from "path";
 import * as vscode from "vscode";
 import { getEditor } from "../utils/getEditor";
@@ -52,7 +52,7 @@ export async function refreshPanel(
   context: vscode.ExtensionContext,
   statspanel: vscode.WebviewPanel,
   document: vscode.TextDocument,
-  config: SparkScreenplayConfig
+  config: ScreenplayConfig
 ) {
   statspanel.webview.postMessage({
     command: "sparkdown.updateversion",

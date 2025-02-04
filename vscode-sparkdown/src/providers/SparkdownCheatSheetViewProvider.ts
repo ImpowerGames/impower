@@ -168,7 +168,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     new CheatsheetItem(
       "()",
       "Parentheticals follow a Character or Dialogue element, and are wrapped in parentheses ()",
-      "<span class='dialogue_character'>STEEL</span><span class='dialogue_parenthetical'>(starting the engine)</span><span class='dialogue'>So much for retirement!</span>"
+      "<span class='dialogue_character'>STEEL</span><span class='parenthetical'>(starting the engine)</span><span class='dialogue'>So much for retirement!</span>"
     ),
     new CheatsheetItem(
       "…",
@@ -223,7 +223,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
       "Play an audio file by wrapping the audio name in double parenthesis",
       `<span class='dialogue_character'>BRUCE</span>
 <span class='note'>((b_grumble))</span>
-<span class='dialogue_parenthetical'>(in a gravelly voice)</span>
+<span class='parenthetical'>(in a gravelly voice)</span>
 <span class='dialogue'>Don't you know who I am?</span>`
     ),
   ];

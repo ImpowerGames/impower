@@ -4,9 +4,9 @@ import {
   ExportPDFParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ExportPDFMessage.js";
 import { ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
-import { SparkScreenplayConfig } from "../../../../../packages/sparkdown-screenplay/src";
-import { generateSparkHtmlData } from "../../../../../packages/sparkdown-screenplay/src/utils/generateSparkHtmlData";
-import { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
+import { ScreenplayConfig } from "../../../../../packages/sparkdown-screenplay/src/types/ScreenplayConfig";
+import { generateScreenplayHtmlData } from "../../../../../packages/sparkdown-screenplay/src/utils/generateScreenplayHtmlData";
+import ScreenplayParser from "../../../../../packages/sparkdown-screenplay/src/classes/ScreenplayParser";
 
 export default class WorkspacePrint {
   protected _screenplayPdfWorker = new Worker("/sparkdown-screenplay-pdf.js");
@@ -18,7 +18,7 @@ export default class WorkspacePrint {
 
   protected _progressQueue: Record<string, (value: ProgressValue) => void> = {};
 
-  protected _config: SparkScreenplayConfig = {
+  protected _config: ScreenplayConfig = {
     screenplay_print_title_page: true,
     screenplay_print_bookmarks_for_invisible_sections: true,
     screenplay_print_dialogue_split_across_pages: true,
@@ -103,11 +103,11 @@ export default class WorkspacePrint {
   }
 
   async exportPDF(
-    programs: SparkProgram[],
+    scripts: string[],
     onProgress?: (value: ProgressValue) => void
   ) {
     const fonts = await this.getFonts();
-    const params: ExportPDFParams = { programs, fonts, config: this.config };
+    const params: ExportPDFParams = { scripts, fonts, config: this.config };
     if (onProgress) {
       params.workDoneToken = ExportPDFMessage.type.uuid();
       this._progressQueue[params.workDoneToken] = onProgress;
@@ -121,12 +121,12 @@ export default class WorkspacePrint {
   }
 
   async exportHTML(
-    programs: SparkProgram[],
+    scripts: string[],
     onProgress?: (value: ProgressValue) => void
   ) {
     const fonts = await this.getFonts();
-    const frontMatter = {}; // TODO: combineFrontMatter(programs);
-    const tokens: any[] = []; // TODO: combineTokens(programs);
-    return generateSparkHtmlData(frontMatter, tokens, this.config, fonts);
+    const parser = new ScreenplayParser();
+    const tokens = parser.parseAll(scripts);
+    return generateScreenplayHtmlData(tokens, this.config, fonts);
   }
 }

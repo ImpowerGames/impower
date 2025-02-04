@@ -32,7 +32,8 @@
     "util": "util"
   },
   "devDependencies": {
-    "@types/pdfkit": "^0.13.4",
+    "@types/fontkit": "^2.0.7",
+    "@types/pdfkit": "^0.13.9",
     "esbuild": "^0.20.1",
     "typescript": "^5.3.3"
   },
@@ -42,12 +43,12 @@
     "browserify-zlib": "^0.2.0",
     "buffer": "^6.0.3",
     "events": "^3.3.0",
+    "fontkit": "^2.0.4",
     "os-browserify": "^0.3.0",
     "path-browserify": "^1.0.1",
     "pdfkit": "^0.14.0",
     "process": "^0.11.10",
     "stream-browserify": "^3.0.0",
-    "textbox-for-pdfkit": "^0.2.1",
     "util": "^0.12.5"
   }
 }

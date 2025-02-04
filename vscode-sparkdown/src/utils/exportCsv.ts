@@ -1,4 +1,4 @@
-import { generateSparkCsvData } from "@impower/sparkdown-screenplay/src/index";
+import { generateScreenplayCsvData } from "@impower/sparkdown-screenplay/src/index";
 import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
@@ -23,7 +23,7 @@ export const exportCsv = async (): Promise<void> => {
   SparkdownCommandTreeDataProvider.instance.notifyExportStarted("csv");
   const sparkdown = editor.document.getText();
   const result = ScreenplaySparkParser.instance.parse(sparkdown);
-  const strings = generateSparkCsvData(result.tokens);
+  const strings = generateScreenplayCsvData(result.tokens);
   await new Promise<void>((resolve) => {
     stringify(strings, {}, async (_err: Error | undefined, output: string) => {
       await writeFile(fsPath, output);

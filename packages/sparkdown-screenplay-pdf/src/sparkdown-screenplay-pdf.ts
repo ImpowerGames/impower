@@ -1,14 +1,9 @@
 import PDFKit from "pdfkit";
-import addTextbox from "textbox-for-pdfkit";
-import { PdfWriteStream } from "../../sparkdown-screenplay/src/classes/PdfWriteStream";
-import type { FormattedText } from "../../sparkdown-screenplay/src/types/FormattedText";
-import type { PdfDocument } from "../../sparkdown-screenplay/src/types/PdfDocument";
-import type { SparkScreenplayConfig } from "../../sparkdown-screenplay/src/types/SparkScreenplayConfig";
-import type { TextOptions } from "../../sparkdown-screenplay/src/types/TextOptions";
-import { generateSparkPdfData } from "../../sparkdown-screenplay/src/utils/generateSparkPdfData";
-import { pdfGenerate } from "../../sparkdown-screenplay/src/utils/pdfGenerate";
-import { pdfPrintText } from "../../sparkdown-screenplay/src/utils/pdfPrintText";
-import type { SparkProgram } from "../../sparkdown/src/types/SparkProgram";
+import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
+import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
+import { generateScreenplayPdfData } from "../../sparkdown-screenplay/src/utils/generateScreenplayPdfData";
+import { PdfWriteStream } from "./classes/PdfWriteStream";
+import { printPDF } from "./utils/printPDF";
 
 onmessage = async (e) => {
   const message = e.data;
@@ -17,11 +12,11 @@ onmessage = async (e) => {
     const params = message.params;
     const id = message.id;
     if (params) {
-      const programs = params.programs;
+      const scripts = params.scripts;
       const config = params.config;
       const fonts = params.fonts;
       const workDoneToken = params.workDoneToken;
-      if (programs && fonts) {
+      if (scripts && fonts) {
         const onProgress = (value: {
           kind: string;
           title: string;
@@ -38,7 +33,7 @@ onmessage = async (e) => {
             },
           });
         };
-        const arrayBuffer = await buildPDF(programs, config, fonts, onProgress);
+        const arrayBuffer = await buildPDF(scripts, config, fonts, onProgress);
         postMessage({ jsonrpc: "2.0", method, id, result: arrayBuffer }, [
           arrayBuffer,
         ]);
@@ -48,8 +43,8 @@ onmessage = async (e) => {
 };
 
 export const buildPDF = async (
-  programs: SparkProgram[],
-  config?: SparkScreenplayConfig,
+  scripts: string[],
+  config?: ScreenplayConfig,
   fonts?: {
     normal: ArrayBuffer;
     bold: ArrayBuffer;
@@ -79,9 +74,9 @@ export const buildPDF = async (
   progress("begin", 0);
 
   // Layout PDF data
-  const frontMatter = {}; // TODO: combineFrontMatter(programs);
-  const tokens: any[] = []; // TODO: combineTokens(programs);
-  const pdfData = generateSparkPdfData(frontMatter, tokens, config, fonts);
+  const screenplayParser = new ScreenplayParser();
+  const tokens = screenplayParser.parseAll(scripts);
+  const pdfData = generateScreenplayPdfData(tokens, config, fonts);
 
   progress("report", 2);
 
@@ -99,10 +94,7 @@ export const buildPDF = async (
       bottom: 0,
       right: 0,
     },
-  }) as PdfDocument & {
-    info: { Title: string; Author: string; Creator: string };
-  };
-  doc.print = pdfData.print;
+  }) as PDFKit.PDFDocument;
   if (doc.info) {
     doc.info.Title = pdfData.info.title;
     doc.info.Author = pdfData.info.author;
@@ -119,29 +111,12 @@ export const buildPDF = async (
     }
   }
   doc.fontSize(fontSize);
-  doc.textBox = (
-    content: FormattedText[],
-    x: number,
-    y: number,
-    w: number,
-    options?: TextOptions
-  ): void => {
-    addTextbox(content, doc, x, y, w, options);
-  };
-  doc.printText = (
-    content: FormattedText[],
-    x: number,
-    y: number,
-    options?: TextOptions | undefined
-  ): void => {
-    pdfPrintText(doc, content, x, y, options);
-  };
 
   progress("report", 5);
 
   // Generate PDF Document
   const progressBeforeGenerate = currentProgress;
-  pdfGenerate(doc, pdfData, (percentage: number) => {
+  printPDF(doc, pdfData, (percentage: number) => {
     progress(
       "report",
       progressBeforeGenerate +

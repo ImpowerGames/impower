@@ -27,7 +27,6 @@ import { filterSVG } from "../utils/filterSVG";
 import { buildSVGSource } from "../utils/buildSVGSource";
 import { filterMatchesName } from "../utils/filterMatchesName";
 import { setProperty } from "../utils/setProperty";
-import { getCharacterIdentifier } from "../utils/getCharacterIdentifier";
 import { SparkReference } from "../types/SparkReference";
 import { traverse } from "../utils/traverse";
 import { getAccessPath } from "../utils/getAccessPath";
@@ -93,6 +92,10 @@ const PROPERTY_SELECTOR_SCREEN_ARGUMENTS = [
   "2xl",
 ];
 
+const clone = <T>(value: T) => {
+  return JSON.parse(JSON.stringify(value));
+};
+
 const formatList = (arr: string[]) => {
   const quotedList = arr.map((c) => `'${c}'`);
   return quotedList.length === 1
@@ -136,43 +139,38 @@ const getRange = (
   };
 };
 
-/**
- * Node emitted when a character doesn't match anything in the grammar,
- * and the parser had to manually advance past it.
- */
-export const NODE_ERROR_UNRECOGNIZED = NodeType.define({
+const NODE_TOP = NodeType.define({
+  id: NodeID.top,
+  name: "sparkdown",
+  top: true,
+});
+
+const NODE_ERROR_UNRECOGNIZED = NodeType.define({
   name: "⚠️ ERROR_UNRECOGNIZED",
   id: NodeID.unrecognized,
   error: true,
 });
 
-/** Node emitted at the end of incomplete nodes. */
-export const NODE_ERROR_INCOMPLETE = NodeType.define({
+const NODE_ERROR_INCOMPLETE = NodeType.define({
   name: "⚠️ ERROR_INCOMPLETE",
   id: NodeID.incomplete,
   error: true,
 });
 
-const getRuleNodeType = (
-  topNode: NodeType,
-  typeIndex: number,
-  typeId: string
-): NodeType => {
-  if (typeIndex === NodeID.none) {
+const getRuleNodeType = (id: number, name: string): NodeType => {
+  if (id === NodeID.none) {
     return NodeType.none;
   }
-  if (typeIndex === NodeID.top) {
-    return topNode;
+  if (id === NodeID.top) {
+    return NODE_TOP;
   }
-  if (typeIndex === NodeID.unrecognized) {
+  if (id === NodeID.unrecognized) {
     return NODE_ERROR_UNRECOGNIZED;
   }
-  if (typeIndex === NodeID.incomplete) {
+  if (id === NodeID.incomplete) {
     return NODE_ERROR_INCOMPLETE;
   }
-  // In CodeMirror, `id` is the unique number identifier and `name` is the unique string identifier
-  // This is different than the parser node that calls `typeIndex` the unique number identifier and `typeId` the unique string identifier
-  return NodeType.define({ id: typeIndex, name: typeId });
+  return NodeType.define({ id, name });
 };
 
 export default class SparkParser {
@@ -196,13 +194,8 @@ export default class SparkParser {
 
   constructor(config: SparkParserConfig) {
     this._config = config || this._config;
-    const rootNodeType = NodeType.define({
-      id: NodeID.top,
-      name: "sparkdown",
-      top: true,
-    });
-    const declarator = (typeIndex: number, typeId: string) => ({
-      [this._nodeTypeProp]: getRuleNodeType(rootNodeType, typeIndex, typeId),
+    const declarator = (id: number, name: string) => ({
+      [this._nodeTypeProp]: getRuleNodeType(id, name),
     });
     this._grammar = new Grammar(GRAMMAR_DEFINITION, declarator);
     const nodeTypes = this.grammar.nodes.map(
@@ -1152,7 +1145,7 @@ export default class SparkParser {
       for (const [type, builtinStructs] of Object.entries(builtins)) {
         for (const [name, builtinStruct] of Object.entries(builtinStructs)) {
           program.context[type] ??= {};
-          program.context[type][name] ??= structuredClone(builtinStruct);
+          program.context[type][name] ??= clone(builtinStruct);
         }
       }
       if (program?.compiled?.structDefs) {
@@ -1174,26 +1167,18 @@ export default class SparkParser {
                 const builtinDefaultStruct = builtins[type]?.["$default"];
                 if (builtinDefaultStruct) {
                   traverse(builtinDefaultStruct, (propPath, propValue) => {
-                    setProperty(
-                      constructed,
-                      propPath,
-                      structuredClone(propValue)
-                    );
+                    setProperty(constructed, propPath, clone(propValue));
                   });
                 }
                 const definedDefaultStruct = structs?.["$default"];
                 if (definedDefaultStruct) {
                   traverse(definedDefaultStruct, (propPath, propValue) => {
-                    setProperty(
-                      constructed,
-                      propPath,
-                      structuredClone(propValue)
-                    );
+                    setProperty(constructed, propPath, clone(propValue));
                   });
                 }
               }
               traverse(definedStruct, (propPath, propValue) => {
-                setProperty(constructed, propPath, structuredClone(propValue));
+                setProperty(constructed, propPath, clone(propValue));
               });
               constructed["$type"] = type;
               constructed["$name"] = name;
@@ -1220,7 +1205,7 @@ export default class SparkParser {
         for (const [type, assets] of Object.entries(files)) {
           for (const [name, file] of Object.entries(assets)) {
             program.context[type] ??= {};
-            program.context[type][name] ??= structuredClone(file);
+            program.context[type][name] ??= clone(file);
             const definedFile = program.context[type][name];
             // Set $type and $name
             if (definedFile["$type"] === undefined) {
@@ -1303,7 +1288,7 @@ export default class SparkParser {
           for (const [name, obj] of Object.entries(objs)) {
             program.context ??= {};
             program.context[type] ??= {};
-            program.context[type][name] ??= structuredClone(obj);
+            program.context[type][name] ??= clone(obj);
           }
         }
       }

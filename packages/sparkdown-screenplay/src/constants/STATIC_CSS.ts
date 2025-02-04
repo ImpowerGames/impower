@@ -117,7 +117,7 @@ export const MAIN_CSS = `
   padding-left: 16%;
 }
 
-#workskin .dialogue_parenthetical {
+#workskin .parenthetical {
   width: 60%;
   margin: 0 auto;
   padding-left: 8%;
@@ -139,7 +139,7 @@ export const MAIN_CSS = `
   width: 90%;
 }
 
-#workskin .dual .dialogue_parenthetical {
+#workskin .dual .parenthetical {
   width: 90%;
 }
 
