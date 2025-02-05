@@ -2811,7 +2811,7 @@
       ]
     },
     "Indent": {
-      "tag": "content",
+      "tag": "special(content)",
       "name": "markup.raw.whitespace.indent.sd",
       "match": "([^\\S\\n\\r]+)"
     },
@@ -4129,7 +4129,7 @@
       "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][^\\S\\n\\r]*(.*?)[^\\S\\n\\r]+[-][^\\S\\n\\r]+(.*?)[^\\S\\n\\r]*$"
     },
     "Action": {
-      "begin": "([^\\S\\n\\r]*)(?:([<][>])|([!])($|[^\\S\\n\\r]+))?([^\\S\\n\\r]*)(?=\\S)",
+      "begin": "(?:([^\\S\\n\\r]*)(?:([<][>])|([!])($|[^\\S\\n\\r]+)))?([^\\S\\n\\r]*)(?=\\S)",
       "beginCaptures": {
         "1": {
           "patterns": [

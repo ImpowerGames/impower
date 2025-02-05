@@ -1553,7 +1553,7 @@ repository:
       - { include: "#IllegalChar" }
 
   Indent:
-    tag: content
+    tag: special(content)
     name: markup.raw.whitespace.indent.sd
     match: ({{WS}}+)
 
@@ -2385,7 +2385,7 @@ repository:
   ########## Action ##########
 
   Action:
-    begin: ({{WS}}*)(?:([<][>])|([!])($|{{WS}}+))?({{WS}}*)(?=\S)
+    begin: (?:({{WS}}*)(?:([<][>])|([!])($|{{WS}}+)))?({{WS}}*)(?=\S)
     beginCaptures:
       1:
         patterns:
