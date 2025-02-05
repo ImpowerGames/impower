@@ -5,8 +5,7 @@ export const getWidthOfTextbox = (
   doc: PDFKit.PDFDocument,
   text: FormattedText[]
 ) => {
-  const spaceWidth = measureTextWidth({ text: " " }, doc);
-  return measureTextFragments(text, spaceWidth, doc)
-    .map((f) => f.width)
+  return measureTextFragments(text, doc)
+    .map((f) => f.fullWidth)
     .reduce((a, b) => a + b);
 };

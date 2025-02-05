@@ -1,5 +1,6 @@
 import type PDFKit from "pdfkit";
 import { FormattedText } from "../types/FormattedText";
+import { MeasuredText } from "../types/MeasuredText";
 
 // All these functions here measure some kind of text.
 // What kind of text they measure can easily be taken from
@@ -8,64 +9,61 @@ import { FormattedText } from "../types/FormattedText";
 // which uses the "widthOfString" function of pdfKit document.
 
 export const measureTextWidth = (
-  textFragment: FormattedText,
+  textChunk: FormattedText,
   doc: PDFKit.PDFDocument
 ) => {
-  if (textFragment.font != null) {
-    doc.font(textFragment.font);
+  if (textChunk.font != null) {
+    doc.font(textChunk.font);
   }
-  if (textFragment.fontSize != null) {
-    doc.fontSize(textFragment.fontSize);
+  if (textChunk.fontSize != null) {
+    doc.fontSize(textChunk.fontSize);
   }
-  return doc.widthOfString(textFragment.text, {
-    link: textFragment.link,
+  return doc.widthOfString(textChunk.text, {
+    link: textChunk.link,
     align: "left",
-    baseline: textFragment.baseline || "alphabetic",
-    oblique: textFragment.oblique,
-    underline: textFragment.underline,
-    strike: textFragment.strike,
+    baseline: textChunk.baseline || "alphabetic",
+    oblique: textChunk.oblique,
+    underline: textChunk.underline,
+    strike: textChunk.strike,
   });
 };
 
 export const measureTextsWidth = (
-  texts: FormattedText[],
+  textChunks: FormattedText[],
   doc: PDFKit.PDFDocument
 ) => {
-  const textsWithWidth = texts.map((textPart) => {
-    textPart.width = measureTextWidth(textPart, doc);
-    return textPart;
+  const textsWithWidth = textChunks.map((textChunk) => {
+    textChunk.width = measureTextWidth(textChunk, doc);
+    return textChunk;
   });
   return textsWithWidth;
 };
 
 export const checkParagraphFitsInLine = (
-  paragraph: FormattedText[],
+  textChunks: FormattedText[],
   textWidth: number
 ) => {
   let paragraphWidth = 0;
-  paragraph.forEach((textpart) => {
-    if (textpart.width != null) {
-      paragraphWidth += textpart.width;
+  textChunks.forEach((textChunk) => {
+    if (textChunk.width != null) {
+      paragraphWidth += textChunk.width;
     }
   });
   return paragraphWidth <= textWidth;
 };
 
 export const measureTextFragments = (
-  textArray: FormattedText[],
-  spaceWidth: number,
+  textChunks: FormattedText[],
   doc: PDFKit.PDFDocument
-) => {
-  return textArray.map((textFragment) => {
-    if (textFragment.text === " ") {
-      return {
-        text: textFragment.text,
-        width: spaceWidth,
-      };
-    }
+): MeasuredText[] => {
+  return textChunks.map((textChunk) => {
     return {
-      text: textFragment.text,
-      width: measureTextWidth(textFragment, doc),
+      text: textChunk.text,
+      fullWidth: measureTextWidth(textChunk, doc),
+      minWidth: measureTextWidth(
+        { ...textChunk, text: textChunk.text.trimEnd() },
+        doc
+      ),
     };
   });
 };

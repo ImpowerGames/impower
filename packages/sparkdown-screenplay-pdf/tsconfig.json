@@ -2,8 +2,8 @@
   "compilerOptions": {
     "module": "commonjs",
     "moduleResolution": "node",
-    "target": "es2020",
-    "lib": ["es2020", "WebWorker"],
+    "target": "ESNext",
+    "lib": ["ESNext", "WebWorker"],
     "outDir": "dist",
     "skipLibCheck": true,
     "sourceMap": true,

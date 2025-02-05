@@ -1,4 +1,5 @@
 import type PDFKit from "pdfkit";
+import LineBreaker from "linebreak";
 
 import {
   measureTextFragments,
@@ -76,6 +77,34 @@ export const lineWrapParagraph = (
   });
 };
 
+export const getWordChunks = (str: string) => {
+  // Divide the string into word chunks
+  // where each chunk is a potential line break opportunity
+  const breaker = new LineBreaker(str);
+  let last = 0;
+  let bk;
+  const chunks: string[] = [];
+  while ((bk = breaker.nextBreak())) {
+    const chunk = str.slice(last, bk.position);
+    chunks.push(chunk);
+    last = bk.position;
+  }
+  return chunks;
+};
+
+export const getCharChunks = (str: string) => {
+  // Divide the string into char chunks
+  // Where each chunk is a grapheme character
+  try {
+    // Use Intl.Segmenter to properly segment graphemes of all languages
+    const segmenter = new Intl.Segmenter();
+    return Array.from(segmenter.segment(str)).map((s) => s.segment);
+  } catch {
+    // If Intl.Segmenter is not supported, fallback to spreading the characters
+    return [...str];
+  }
+};
+
 export const wrapTextInLines = (
   textPart: FormattedText,
   widthLeft: number,
@@ -85,45 +114,62 @@ export const wrapTextInLines = (
   // This function splits up text into smallest fragments (words & spaces)
   // and adds then word by word to lines until line is full. Then the line
   // is added to a "lines-array". The first line can have less space (spaceLeft)
-  // for all other lines it is expected, that the complete Texbox width
+  // for all other lines it is expected, that the complete textbox width
   // is available (widthTextbox)
 
   const { text } = textPart;
-  let spaceLeft = widthLeft;
   // This is some crazy positive lookbehind regex, it finds all spaces and "-"
   // This is neccessary that no characters are removed when splitting the text.
-  const fragmentArray = text.split(/(?<=[ -])|(?= )/);
-  const spaceWidth = measureTextWidth({ text: " " }, doc);
-  const fragmentArrayWithWidth = measureTextFragments(
-    fragmentArray.map((text) => ({ ...textPart, text })),
-    spaceWidth,
+  const wordChunks = getWordChunks(text);
+  const measuredTextChunks = measureTextFragments(
+    wordChunks.map((text) => ({ ...textPart, text })),
     doc
   );
-  const lines = [];
-  let lineText = "";
-  let lineWidth = 0;
-  fragmentArrayWithWidth.forEach((textFragment) => {
+  const lines = [{ ...textPart, text: "", width: 0 }];
+  let spaceLeft = widthLeft;
+  measuredTextChunks.forEach((measuredTextChunk) => {
     // Here we fill fragment by Fragment in lines
-    if (textFragment.width <= spaceLeft) {
-      // If it fits in line --> Add to line
-      lineWidth += textFragment.width;
-      spaceLeft -= textFragment.width;
-      lineText = lineText + textFragment.text;
-    } else if (textFragment.text !== " ") {
-      // If it doesn't fit, add full line to lines, and add text to new line.
-      // If there are many spaces at a line end --> ignore them.
-      lines.push({ ...textPart, text: lineText, width: lineWidth });
-      lineText = "";
-      lineWidth = 0;
+    // fullWidth = measured width of text
+    // minWidth = measured width of text without trailing spaces
+    if (measuredTextChunk.minWidth <= spaceLeft) {
+      // If it fits in line --> Add word to current line
+      lines.at(-1)!.text += measuredTextChunk.text;
+      lines.at(-1)!.width += measuredTextChunk.fullWidth;
+      spaceLeft -= measuredTextChunk.fullWidth;
+    } else {
+      // If it doesn't fit, start a new line.
       spaceLeft = widthTextbox;
-      lineWidth += textFragment.width;
-      spaceLeft -= textFragment.width;
-      lineText = lineText + textFragment.text;
+      lines.push({ ...textPart, text: "", width: 0 });
+      if (measuredTextChunk.minWidth <= spaceLeft) {
+        // Add word to line
+        lines.at(-1)!.text += measuredTextChunk.text;
+        lines.at(-1)!.width += measuredTextChunk.fullWidth;
+        spaceLeft -= measuredTextChunk.fullWidth;
+      } else {
+        // If still doesn't fit, split into characters and force a break
+        const charChunks = getCharChunks(measuredTextChunk.text);
+        measureTextFragments(
+          charChunks.map((text) => ({ ...textPart, text })),
+          doc
+        ).forEach((measuredCharChunk) => {
+          if (measuredCharChunk.minWidth <= spaceLeft) {
+            // If it fits in line --> Add char to current line
+            lines.at(-1)!.text += measuredCharChunk.text;
+            lines.at(-1)!.width += measuredCharChunk.fullWidth;
+            spaceLeft -= measuredCharChunk.fullWidth;
+          } else {
+            // If it doesn't fit, start a new line.
+            spaceLeft = widthTextbox;
+            lines.push({ ...textPart, text: "", width: 0 });
+            // Add chars to line
+            lines.at(-1)!.text += measuredCharChunk.text;
+            lines.at(-1)!.width += measuredCharChunk.fullWidth;
+            spaceLeft -= measuredCharChunk.fullWidth;
+          }
+        });
+      }
     }
   });
-  if (lineText !== "") {
-    lines.push({ ...textPart, text: lineText, width: lineWidth });
-  }
   return lines;
 };
 
@@ -131,7 +177,7 @@ export const removeTrailingSpaces = (
   lines: FormattedLine[],
   doc: PDFKit.PDFDocument
 ) => {
-  // Words in Textfragments do always keep the space at the end. This is
+  // Words in text chunks do always keep the space at the end. This is
   // for left aligned texts no problem but can look quite ugly for right
   // aligned texts. So there is the option to remove them (removing is default active)
   // The function basically just goes through every line and checks whether last
