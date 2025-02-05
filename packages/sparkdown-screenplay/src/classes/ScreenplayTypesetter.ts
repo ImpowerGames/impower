@@ -61,6 +61,11 @@ export default class ScreenplayTypesetter {
         if (prevSpan && prevSpan.tag !== "page_break") {
           spans.push({ tag: t.tag });
         }
+      } else if (t.tag === "separator") {
+        const prevSpan = spans.at(-1);
+        if (prevSpan && prevSpan.tag !== "separator") {
+          spans.push({ tag: t.tag });
+        }
       } else if (t.tag === "knot") {
         const level = 0;
         const lines = this.format(
@@ -211,6 +216,15 @@ export default class ScreenplayTypesetter {
     }
     while (spans.at(-1)?.tag === "page_break") {
       // trim away trailing page breaks
+      spans.pop();
+    }
+
+    while (spans.at(0)?.tag === "separator") {
+      // trim away leading separators
+      spans.shift();
+    }
+    while (spans.at(-1)?.tag === "separator") {
+      // trim away trailing separators
       spans.pop();
     }
 

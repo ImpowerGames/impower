@@ -46,6 +46,7 @@ patterns:
   - { include: "#Scene" }
   - { include: "#AudioLine" }
   - { include: "#Action" }
+  - { include: "#Whitespace" }
 
 repository:
   ########## Helpers ##########

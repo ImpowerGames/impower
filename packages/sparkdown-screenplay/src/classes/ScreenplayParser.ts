@@ -2,6 +2,7 @@ import {
   Compiler as GrammarCompiler,
   NodeSet,
   NodeType,
+  SyntaxNode,
   Tree,
 } from "../../../grammar-compiler/src/compiler";
 import { NodeID } from "../../../grammar-compiler/src/core";
@@ -10,6 +11,7 @@ import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-g
 import type { SparkdownNodeName } from "../../../sparkdown/src/types/SparkdownNodeName";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
+// import { printTree } from "../../../grammar-compiler/src/compiler/utils/printTree";
 
 const NODE_TOP = NodeType.define({
   id: NodeID.top,
@@ -70,6 +72,10 @@ export default class ScreenplayParser {
   }
 
   parse(script: string): ScreenplayToken[] {
+    if (!script) {
+      return [];
+    }
+
     const tree = this.buildTree(script);
     const stack: SparkdownNodeName[] = [];
     const tokens: ScreenplayToken[] = [{ tag: "page_break" }];
@@ -196,6 +202,32 @@ export default class ScreenplayParser {
         stack.push(nodeType);
       },
       leave: (node) => {
+        const text = read(node.from, node.to);
+
+        const getNodeAfterFinalNewline = () => {
+          const finalNewlineNode = text.endsWith("\n")
+            ? node.node
+            : node.node.nextSibling;
+          return finalNewlineNode?.node.nextSibling || null;
+        };
+
+        const isPrintable = (node: SyntaxNode | null) => {
+          const name = node?.name as SparkdownNodeName;
+          return (
+            name === "Transition" ||
+            name === "Scene" ||
+            name === "Action" ||
+            name === "InlineDialogue" ||
+            name === "BlockDialogue" ||
+            name === "Choice"
+          );
+        };
+
+        const shouldAddSeparator = () => {
+          // Should not add separator if directly followed by a printable body line
+          return !isPrintable(getNodeAfterFinalNewline());
+        };
+
         // FrontMatter
         const nodeType = node.type.name as SparkdownNodeName;
         if (nodeType === "FrontMatterField") {
@@ -212,6 +244,9 @@ export default class ScreenplayParser {
             text: transition,
           });
           transition = "";
+          if (shouldAddSeparator()) {
+            tokens.push({ tag: "separator" });
+          }
         }
 
         // Scene
@@ -221,6 +256,9 @@ export default class ScreenplayParser {
             text: scene,
           });
           scene = "";
+          if (shouldAddSeparator()) {
+            tokens.push({ tag: "separator" });
+          }
         }
 
         // Action
@@ -230,6 +268,9 @@ export default class ScreenplayParser {
             text: action,
           });
           action = "";
+          if (shouldAddSeparator()) {
+            tokens.push({ tag: "separator" });
+          }
         }
 
         // Dialogue
@@ -243,6 +284,9 @@ export default class ScreenplayParser {
         }
         if (nodeType === "BlockDialogue" || nodeType === "InlineDialogue") {
           position = undefined;
+          if (shouldAddSeparator()) {
+            tokens.push({ tag: "separator" });
+          }
         }
 
         // Choice
@@ -256,6 +300,9 @@ export default class ScreenplayParser {
           choice = "";
           choice_prefix = "";
           choice_suffix = "";
+          if (shouldAddSeparator()) {
+            tokens.push({ tag: "separator" });
+          }
         }
 
         stack.pop();

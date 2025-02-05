@@ -12,6 +12,10 @@ export interface PageBreak {
   tag: "page_break";
 }
 
+export interface Separator {
+  tag: "separator";
+}
+
 export interface MetaLayout {
   tag: "meta";
   positions: Partial<Record<PagePosition, PageLine[]>>;
@@ -27,4 +31,9 @@ export interface BlockLayout {
   lines: PageLine[];
 }
 
-export type DocumentSpan = PageBreak | MetaLayout | SplitLayout | BlockLayout;
+export type DocumentSpan =
+  | PageBreak
+  | Separator
+  | MetaLayout
+  | SplitLayout
+  | BlockLayout;

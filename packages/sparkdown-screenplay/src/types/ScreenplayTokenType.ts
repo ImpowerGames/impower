@@ -14,6 +14,8 @@ export type MetadataTokenType =
 
 export type PageBreakTokenType = "page_break";
 
+export type SeparatorTokenType = "separator";
+
 export type BlockTokenType =
   | "knot"
   | "stitch"
@@ -31,6 +33,7 @@ export type DialogueTokenType =
 
 export type ScreenplayTokenType =
   | PageBreakTokenType
+  | SeparatorTokenType
   | MetadataTokenType
   | BlockTokenType
   | DialogueTokenType;

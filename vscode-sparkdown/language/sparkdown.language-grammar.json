@@ -107,6 +107,9 @@
     },
     {
       "include": "#Action"
+    },
+    {
+      "include": "#Whitespace"
     }
   ],
   "repository": {

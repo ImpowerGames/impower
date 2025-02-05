@@ -93,6 +93,9 @@ export default class ScreenplayPrinter {
       } else if (span.tag === "page_break") {
         // Add a new page
         this.addPage();
+      } else if (span.tag === "separator") {
+        // Add a blank line
+        this.printSeparator();
       } else if (span.tag === "dual") {
         // Print layout split into two columns
         if (span.positions?.l || span.positions?.r) {
@@ -114,13 +117,10 @@ export default class ScreenplayPrinter {
           }
           const secondYEnd = this._state.y;
           this._state.y = Math.max(firstYEnd, secondYEnd);
-          this.printSeparator();
         }
       } else {
         // Print block
-        if (this.printBlockOfLinesAcrossPages(span.lines) > 0) {
-          this.printSeparator();
-        }
+        this.printBlockOfLinesAcrossPages(span.lines);
       }
       this.incrementProgress();
     }
