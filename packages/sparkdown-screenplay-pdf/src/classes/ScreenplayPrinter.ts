@@ -267,7 +267,14 @@ export default class ScreenplayPrinter {
         links: true,
       });
 
-      return true;
+      return (
+        tlTextHeight > 0 ||
+        tcTextHeight > 0 ||
+        trTextHeight > 0 ||
+        blTextHeight > 0 ||
+        brTextHeight > 0 ||
+        ccTextHeight > 0
+      );
     }
     return false;
   }
