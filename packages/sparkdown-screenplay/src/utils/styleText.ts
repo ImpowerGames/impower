@@ -40,18 +40,36 @@ export const styleText = (
   if (chars) {
     const activeMarks: [string][] = [];
     let escaped = false;
+    let logic = false;
+    let divert = false;
     let raw = false;
     for (let i = 0; i < chars.length; ) {
       const char = chars[i] ?? "";
       const nextChar = chars[i + 1] ?? "";
+      let charIsLogicCloser = false;
       if (!escaped) {
+        if (char === "{") {
+          logic = true;
+        }
+        if (char === "}") {
+          if (logic) {
+            charIsLogicCloser = true;
+          }
+          logic = false;
+        }
+        if (char === "-" && nextChar === ">") {
+          divert = true;
+        }
+        if (char === "\n") {
+          divert = false;
+        }
         // Raw
         if (char === "`") {
           i += 1;
           raw = !raw;
           continue;
         }
-        if (!raw) {
+        if (!logic && !divert && !raw) {
           // Escape
           if (char === "\\") {
             i += 1;
@@ -220,6 +238,9 @@ export const styleText = (
       }
       if (isCentered) {
         chunk.align = "center";
+      }
+      if (logic || charIsLogicCloser || divert) {
+        chunk.color = "#808080";
       }
       const overriddenChunk = { ...chunk, ...overrides };
       textChunks.push(overriddenChunk);

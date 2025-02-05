@@ -365,7 +365,19 @@ export default class ScreenplayPrinter {
           ? this._profile?.settings?.[span.tag]?.level_indent ?? 0
           : 0;
         feed += span.level * levelIndent;
-        if (this._config?.screenplay_print_bookmarks) {
+        const invisible =
+          (span.tag === "knot" &&
+            !this._config?.screenplay_print_knot_headings) ||
+          (span.tag === "stitch" &&
+            !this._config?.screenplay_print_stitch_headings);
+        if (invisible) {
+          content = [];
+        }
+        if (
+          this._config?.screenplay_print_bookmarks &&
+          (!invisible ||
+            this._config?.screenplay_print_bookmarks_for_invisible_headings)
+        ) {
           if (this._doc.outline) {
             const oc = this.getOutlineChild(
               this._doc.outline,
@@ -378,9 +390,6 @@ export default class ScreenplayPrinter {
           }
         }
         this._state.outlineDepth = span.level;
-        if (!this._config?.screenplay_print_headings) {
-          content = [];
-        }
       }
 
       if (span.scene != null) {
@@ -497,7 +506,7 @@ export default class ScreenplayPrinter {
 
       const linesToAddBeforeSplit =
         lineAtBreak?.tag === "dialogue_content"
-          ? [this.createLineWithText("more", MORE, this._profile)]
+          ? [this.createLineWithText("dialogue_more", MORE, this._profile)]
           : [];
 
       const linesToRepeatAfterSplit =

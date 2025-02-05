@@ -21,12 +21,13 @@ export type BlockTokenType =
   | "transition"
   | "action"
   | "dialogue"
-  | "more";
+  | "choice";
 
 export type DialogueTokenType =
   | "dialogue_character"
   | "dialogue_parenthetical"
-  | "dialogue_content";
+  | "dialogue_content"
+  | "dialogue_more";
 
 export type ScreenplayTokenType =
   | PageBreakTokenType

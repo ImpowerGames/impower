@@ -1607,8 +1607,11 @@
           ]
         },
         "2": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.list.sd"
+          "patterns": [
+            {
+              "include": "#ChoiceMark"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -1649,6 +1652,11 @@
           ]
         }
       }
+    },
+    "ChoiceMark": {
+      "tag": "keyword",
+      "name": "keyword.operator.expression.list.sd",
+      "match": "(.+)"
     },
     "ChoiceText": {
       "tag": "string",

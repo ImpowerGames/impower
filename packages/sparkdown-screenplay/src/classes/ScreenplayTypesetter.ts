@@ -49,7 +49,13 @@ export default class ScreenplayTypesetter {
       if (metadataTags.includes(t.tag)) {
         const position = PAGE_POSITIONS[t.tag as MetadataTokenType];
         const align = PAGE_ALIGNMENTS[position];
-        metadata[t.tag] = this.format(t.tag, t.text, profile, { align });
+        metadata[t.tag] = this.format(
+          t.tag,
+          t.text,
+          profile,
+          { prefix: t.prefix, suffix: t.suffix },
+          { align }
+        );
       } else if (t.tag === "page_break") {
         const prevSpan = spans.at(-1);
         if (prevSpan && prevSpan.tag !== "page_break") {
@@ -57,17 +63,31 @@ export default class ScreenplayTypesetter {
         }
       } else if (t.tag === "knot") {
         const level = 0;
-        const lines = this.format(t.tag, t.text || "", profile, undefined, {
-          level,
-        });
+        const lines = this.format(
+          t.tag,
+          t.text || "",
+          profile,
+          { prefix: t.prefix, suffix: t.suffix },
+          undefined,
+          {
+            level,
+          }
+        );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
         }
       } else if (t.tag === "stitch") {
         const level = 1;
-        const lines = this.format(t.tag, t.text, profile, undefined, {
-          level,
-        });
+        const lines = this.format(
+          t.tag,
+          t.text,
+          profile,
+          { prefix: t.prefix, suffix: t.suffix },
+          undefined,
+          {
+            level,
+          }
+        );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
         }
@@ -75,7 +95,13 @@ export default class ScreenplayTypesetter {
         const style = config?.screenplay_print_scene_headers_bold
           ? { bold: true }
           : undefined;
-        const lines = this.format(t.tag, t.text, profile, style);
+        const lines = this.format(
+          t.tag,
+          t.text,
+          profile,
+          { prefix: t.prefix, suffix: t.suffix },
+          style
+        );
         if (lines.length > 0) {
           const scene = t.scene ?? sceneIndex + 1;
           lines[0]!.scene = scene;
@@ -84,14 +110,27 @@ export default class ScreenplayTypesetter {
         }
       } else if (t.tag === "transition") {
         const style = { align: "right" };
-        const lines = this.format(t.tag, t.text, profile, style);
+        const lines = this.format(
+          t.tag,
+          t.text,
+          profile,
+          { prefix: t.prefix, suffix: t.suffix },
+          style
+        );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
         }
       } else if (t.tag === "action") {
-        const lines = this.format(t.tag, t.text, profile, undefined, {
-          canSplitAfter: 3,
-        });
+        const lines = this.format(
+          t.tag,
+          t.text,
+          profile,
+          { prefix: t.prefix, suffix: t.suffix },
+          undefined,
+          {
+            canSplitAfter: 3,
+          }
+        );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
         }
@@ -114,6 +153,7 @@ export default class ScreenplayTypesetter {
           t.tag,
           t.text,
           profile,
+          { prefix: t.prefix, suffix: t.suffix },
           undefined,
           lineOptions
         );
@@ -142,6 +182,14 @@ export default class ScreenplayTypesetter {
               }
             }
           }
+        }
+      } else if (t.tag === "choice") {
+        const lines = this.format(t.tag, t.text, profile, {
+          prefix: t.prefix,
+          suffix: t.suffix,
+        });
+        if (lines.length > 0) {
+          spans.push({ tag: t.tag, lines });
         }
       }
     }
@@ -173,22 +221,33 @@ export default class ScreenplayTypesetter {
     tag: BlockTokenType,
     text: string,
     profile?: PrintProfile,
+    affixOptions: { prefix?: string; suffix?: string } = {},
     textOptions: TextOptions = {}
   ): BlockLayout => {
     return {
       tag,
-      lines: this.format(tag, text, profile, textOptions),
+      lines: this.format(tag, text, profile, affixOptions, textOptions),
     };
   };
 
   protected format(
     tag: ScreenplayTokenType,
-    text: string | undefined,
+    text: string = "",
     profile?: PrintProfile,
+    affixOptions: { prefix?: string; suffix?: string } = {},
     textOptions: TextOptions = {},
     lineOptions: LineOptions = {}
   ): PageLine[] {
-    const textLines = (text || "").split(/\r\n|\r|\n/);
+    let affixedText = text;
+    if (affixOptions.prefix) {
+      // Surround prefix with `` so it is printed as is (ignoring style markers).
+      affixedText = "`" + affixOptions.prefix + "`" + affixedText;
+    }
+    if (affixOptions.suffix) {
+      // Surround suffix with `` so it is printed as is (ignoring style markers).
+      affixedText += "`" + affixOptions.suffix + "`";
+    }
+    const textLines = affixedText.split(/\r\n|\r|\n/);
     const pageLines: PageLine[] = [];
     for (const textLine of textLines) {
       if (textLine) {

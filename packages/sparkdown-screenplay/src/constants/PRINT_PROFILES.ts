@@ -63,8 +63,12 @@ const USLETTER: PrintProfile = {
       dual_second_left_margin: 5,
       dual_second_right_margin: 1,
     },
-    more: {
+    dialogue_more: {
       left_margin: 3.7,
+      right_margin: 1,
+    },
+    choice: {
+      left_margin: 1.5,
       right_margin: 1,
     },
   },

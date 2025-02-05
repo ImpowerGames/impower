@@ -78,6 +78,9 @@ export default class ScreenplayParser {
     let scene = "";
     let transition = "";
     let action = "";
+    let choice = "";
+    let choice_prefix = "";
+    let choice_suffix = "";
     let character = "";
     let position: "l" | "r" | undefined = undefined;
     const read = (from: number, to: number) => script.slice(from, to);
@@ -180,6 +183,16 @@ export default class ScreenplayParser {
           }
         }
 
+        // Choice
+        if (stack.includes("Choice")) {
+          if (nodeType === "ChoiceMark") {
+            choice_prefix += text;
+          }
+          if (nodeType === "Choice_content") {
+            choice += text;
+          }
+        }
+
         stack.push(nodeType);
       },
       leave: (node) => {
@@ -231,6 +244,20 @@ export default class ScreenplayParser {
         if (nodeType === "BlockDialogue" || nodeType === "InlineDialogue") {
           position = undefined;
         }
+
+        // Choice
+        if (nodeType === "Choice") {
+          tokens.push({
+            tag: "choice",
+            text: choice,
+            prefix: choice_prefix,
+            suffix: choice_suffix,
+          });
+          choice = "";
+          choice_prefix = "";
+          choice_suffix = "";
+        }
+
         stack.pop();
       },
     });

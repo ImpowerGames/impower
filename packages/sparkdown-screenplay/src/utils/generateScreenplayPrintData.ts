@@ -15,7 +15,7 @@ export const generateScreenplayPrintData = (
   }
 ): ScreenplayPrintData => {
   const print =
-    PRINT_PROFILES[config?.screenplay_print_profile || ""] ||
+    PRINT_PROFILES[config?.screenplay_print_paper_size || ""] ||
     PRINT_PROFILES.usletter;
   const typesetter = new ScreenplayTypesetter();
   const spans = typesetter.compose(tokens, config, print);

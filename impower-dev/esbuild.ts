@@ -52,6 +52,7 @@ const watchDirs = [
   `${indir}/workers`,
   "../packages/spark-engine",
   "../packages/sparkdown",
+  "../packages/sparkdown-screenplay",
   "../packages/spark-dom",
   "../packages/grammar-compiler",
 ];

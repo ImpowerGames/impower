@@ -926,8 +926,8 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: keyword
-        name: keyword.operator.expression.list.sd
+        patterns:
+          - { include: "#ChoiceMark" }
       3:
         patterns:
           - { include: "#Label" }
@@ -944,6 +944,11 @@ repository:
       2:
         patterns:
           - { include: "#Newline" }
+
+  ChoiceMark:
+    tag: keyword
+    name: keyword.operator.expression.list.sd
+    match: (.+)
 
   ChoiceText:
     tag: string

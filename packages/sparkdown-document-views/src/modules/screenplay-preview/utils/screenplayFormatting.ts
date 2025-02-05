@@ -56,7 +56,9 @@ const getDualDialogueLineStyle = (type: string) => {
   return `margin: 0 auto; width: ${dialogueWidth}; padding: 0 ${paddingRight} 0 ${paddingLeft};`;
 };
 
-const LANGUAGE_SUPPORT = new TextmateLanguageSupport("sparkdown", GRAMMAR);
+const LANGUAGE_NAME = "sparkdown";
+
+const LANGUAGE_SUPPORT = new TextmateLanguageSupport(LANGUAGE_NAME, GRAMMAR);
 
 const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.emphasis, fontStyle: "italic" },
@@ -105,7 +107,6 @@ const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
   "Logic",
   "Knot",
   "Stitch",
-  "Divert",
   "VarDeclaration",
   "ListDeclaration",
   "ConstDeclaration",
@@ -156,59 +157,70 @@ const decorate = (state: EditorState) => {
   const specs: ReplaceSpec[] = [];
   const doc = state.doc;
 
-  const processCentered = (nodeRef: SyntaxNodeRef, treeFrom: number) => {
+  const isCentered = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
-    const from = treeFrom + nodeRef.from;
-    const to = from + (nodeRef.to - nodeRef.from);
     if (name === "Centered") {
-      specs.push({
-        from,
-        to,
-        content: [
-          {
-            type: name,
-            from,
-            to,
-            attributes: {
-              style: "display: block; text-align: center;",
-            },
-          },
-        ],
-      });
       return true;
     }
     return false;
   };
 
-  const processHidden = (nodeRef: SyntaxNodeRef, treeFrom: number) => {
+  const centerRange = (nodeRef: SyntaxNodeRef, treeFrom: number) => {
     const name = nodeRef.name as SparkdownNodeName;
     const from = treeFrom + nodeRef.from;
     const to = from + (nodeRef.to - nodeRef.from);
+    specs.push({
+      from,
+      to,
+      content: [
+        {
+          type: name,
+          from,
+          to,
+          attributes: {
+            style: "display: block; text-align: center;",
+          },
+        },
+      ],
+    });
+  };
+
+  const isHidden = (nodeRef: SyntaxNodeRef) => {
+    const name = nodeRef.name as SparkdownNodeName;
+    if (nodeRef.node.parent?.name === LANGUAGE_NAME) {
+      // This is a top-level node
+      if (name === "Divert") {
+        return true;
+      }
+    }
     if (HIDDEN_NODE_NAMES.includes(name)) {
-      const hiddenNodeEndsWithNewline = doc
-        .sliceString(from, to)
-        .endsWith("\n");
-      const nextLineAt = hiddenNodeEndsWithNewline ? to : to + 1;
-      const nextLine =
-        nextLineAt < doc.length - 1 ? doc.lineAt(nextLineAt) : null;
-      const nextLineIsBlank =
-        nextLine && doc.sliceString(nextLine.from, nextLine.to).trim() === "";
-      const hideFrom = from;
-      const hideTo = nextLineIsBlank
-        ? nextLine.to
-        : hiddenNodeEndsWithNewline
-        ? to - 1
-        : to;
-      specs.push({
-        from: hideFrom,
-        to: hideTo,
-        block: true,
-        language: LANGUAGE_SUPPORT.language,
-        highlighter: LANGUAGE_HIGHLIGHTS,
-      });
       return true;
     }
     return false;
+  };
+
+  const hideRange = (nodeRef: SyntaxNodeRef, treeFrom: number) => {
+    const from = treeFrom + nodeRef.from;
+    const to = from + (nodeRef.to - nodeRef.from);
+    const hiddenNodeEndsWithNewline = doc.sliceString(from, to).endsWith("\n");
+    const nextLineAt = hiddenNodeEndsWithNewline ? to : to + 1;
+    const nextLine =
+      nextLineAt < doc.length - 1 ? doc.lineAt(nextLineAt) : null;
+    const nextLineIsBlank =
+      nextLine && doc.sliceString(nextLine.from, nextLine.to).trim() === "";
+    const hideFrom = from;
+    const hideTo = nextLineIsBlank
+      ? nextLine.to
+      : hiddenNodeEndsWithNewline
+      ? to - 1
+      : to;
+    specs.push({
+      from: hideFrom,
+      to: hideTo,
+      block: true,
+      language: LANGUAGE_SUPPORT.language,
+      highlighter: LANGUAGE_HIGHLIGHTS,
+    });
   };
 
   const tree = syntaxTree(state);
@@ -372,8 +384,11 @@ const decorate = (state: EditorState) => {
                 },
               });
             }
-            processCentered(nodeRef, treeFrom);
-            if (processHidden(nodeRef, treeFrom)) {
+            if (isCentered(nodeRef)) {
+              centerRange(nodeRef, treeFrom);
+            }
+            if (isHidden(nodeRef)) {
+              hideRange(nodeRef, treeFrom);
               return false;
             }
             return true;
@@ -446,8 +461,11 @@ const decorate = (state: EditorState) => {
           ],
         });
       }
-      processCentered(nodeRef, 0);
-      if (processHidden(nodeRef, 0)) {
+      if (isCentered(nodeRef)) {
+        centerRange(nodeRef, 0);
+      }
+      if (isHidden(nodeRef)) {
+        hideRange(nodeRef, 0);
         return false;
       }
       return true;
