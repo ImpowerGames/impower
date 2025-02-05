@@ -131,10 +131,10 @@ export default class ScreenplayParser {
 
         // Action
         if (stack.includes("Action")) {
-          if (nodeType === "Action_begin") {
-            if (text && !text.trim()) {
-              // This indented action does not begin with an explicit action mark,
-              // so include the indentation.
+          if (stack.includes("Action_begin")) {
+            if (nodeType === "Whitespace") {
+              // This action does not begin with an explicit action mark,
+              // so include the indented whitespace.
               action += text;
             }
           }
