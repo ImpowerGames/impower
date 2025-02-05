@@ -202,10 +202,8 @@ export default class ScreenplayParser {
         stack.push(nodeType);
       },
       leave: (node) => {
-        const text = read(node.from, node.to);
-
-        const getNodeAfterFinalNewline = () => {
-          const finalNewlineNode = text.endsWith("\n")
+        const getNodeAfterFinalNewline = (node: SyntaxNode) => {
+          const finalNewlineNode = read(node.from, node.to).endsWith("\n")
             ? node.node
             : node.node.nextSibling;
           return finalNewlineNode?.node.nextSibling || null;
@@ -213,14 +211,24 @@ export default class ScreenplayParser {
 
         const isPrintable = (node: SyntaxNode | null) => {
           const name = node?.name as SparkdownNodeName;
+          if (node) {
+            if (
+              name === "ImageAndAudioLine" ||
+              name === "ImageLine" ||
+              name === "AudioLine" ||
+              name === "Divert"
+            ) {
+              if (getNodeAfterFinalNewline(node)?.name === "Action") {
+                // If directly followed by another Action,
+                // treat the node as equivalent to Action with no text.
+                return true;
+              }
+            }
+          }
           return (
             name === "Transition" ||
             name === "Scene" ||
             name === "Action" ||
-            name === "ImageAndAudioLine" || // Equivalent to Action with no text
-            name === "ImageLine" || // Equivalent to Action with no text
-            name === "AudioLine" || // Equivalent to Action with no text
-            name === "Divert" || // Equivalent to Action with no text
             name === "InlineDialogue" ||
             name === "BlockDialogue" ||
             name === "Choice"
@@ -229,7 +237,7 @@ export default class ScreenplayParser {
 
         const shouldAddSeparator = () => {
           // Should not add separator if directly followed by a printable body line
-          return !isPrintable(getNodeAfterFinalNewline());
+          return !isPrintable(getNodeAfterFinalNewline(node));
         };
 
         // FrontMatter
