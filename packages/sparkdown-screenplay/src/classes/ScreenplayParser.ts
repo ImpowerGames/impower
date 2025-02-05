@@ -220,6 +220,7 @@ export default class ScreenplayParser {
             name === "ImageAndAudioLine" || // Equivalent to Action with no text
             name === "ImageLine" || // Equivalent to Action with no text
             name === "AudioLine" || // Equivalent to Action with no text
+            name === "Divert" || // Equivalent to Action with no text
             name === "InlineDialogue" ||
             name === "BlockDialogue" ||
             name === "Choice"
