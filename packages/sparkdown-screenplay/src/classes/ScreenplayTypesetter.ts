@@ -108,7 +108,7 @@ export default class ScreenplayTypesetter {
                 config?.screenplay_print_dialogue_split_across_pages
                   ? 1
                   : undefined,
-              repeatAfterSplit: t.tag === "dialogue_content",
+              repeatAfterSplit: t.tag === "dialogue_character",
             };
         const lines = this.format(
           t.tag,
