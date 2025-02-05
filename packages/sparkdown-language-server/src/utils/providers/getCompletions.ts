@@ -187,17 +187,19 @@ const addCharacterCompletions = (
     mostRecentEntries.push(mostRecentEntry);
   }
   // Add completions
-  for (const [name] of mostRecentEntries) {
-    const labelDetails = { description: "character" };
-    const kind = CompletionItemKind.Constant;
-    const completion: CompletionItem = {
-      label: name,
-      insertText: insertTextPrefix + name,
-      labelDetails,
-      kind,
-    };
-    if (completion.label && !completions.has(completion.label)) {
-      completions.set(completion.label, completion);
+  for (const [name, position] of mostRecentEntries) {
+    if (position.some((p) => p.range.start.line !== line)) {
+      const labelDetails = { description: "character" };
+      const kind = CompletionItemKind.Constant;
+      const completion: CompletionItem = {
+        label: name,
+        insertText: insertTextPrefix + name,
+        labelDetails,
+        kind,
+      };
+      if (completion.label && !completions.has(completion.label)) {
+        completions.set(completion.label, completion);
+      }
     }
   }
 };
