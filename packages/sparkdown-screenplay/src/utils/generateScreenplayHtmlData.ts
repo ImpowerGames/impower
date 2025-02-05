@@ -1,4 +1,4 @@
-import { ScreenplayTypesetter } from "../classes/ScreenplayTypesetter";
+import ScreenplayTypesetter from "../classes/ScreenplayTypesetter";
 import { STATIC_CSS } from "../constants/STATIC_CSS";
 import { STATIC_FONTS } from "../constants/STATIC_FONTS";
 import { STATIC_HTML } from "../constants/STATIC_HTML";

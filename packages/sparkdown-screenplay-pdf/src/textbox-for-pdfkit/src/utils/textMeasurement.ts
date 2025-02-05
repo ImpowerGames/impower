@@ -8,18 +8,23 @@ import { FormattedText } from "../types/FormattedText";
 // which uses the "widthOfString" function of pdfKit document.
 
 export const measureTextWidth = (
-  text: string,
-  font: string | undefined,
-  fontSize: number | undefined,
+  textFragment: FormattedText,
   doc: PDFKit.PDFDocument
 ) => {
-  if (font != null) {
-    doc.font(font);
+  if (textFragment.font != null) {
+    doc.font(textFragment.font);
   }
-  if (fontSize != null) {
-    doc.fontSize(fontSize);
+  if (textFragment.fontSize != null) {
+    doc.fontSize(textFragment.fontSize);
   }
-  return doc.widthOfString(text);
+  return doc.widthOfString(textFragment.text, {
+    link: textFragment.link,
+    align: "left",
+    baseline: textFragment.baseline || "alphabetic",
+    oblique: textFragment.oblique,
+    underline: textFragment.underline,
+    strike: textFragment.strike,
+  });
 };
 
 export const measureTextsWidth = (
@@ -27,8 +32,7 @@ export const measureTextsWidth = (
   doc: PDFKit.PDFDocument
 ) => {
   const textsWithWidth = texts.map((textPart) => {
-    const { fontSize, font, text } = textPart;
-    textPart.width = measureTextWidth(text, font, fontSize, doc);
+    textPart.width = measureTextWidth(textPart, doc);
     return textPart;
   });
   return textsWithWidth;
@@ -48,21 +52,20 @@ export const checkParagraphFitsInLine = (
 };
 
 export const measureTextFragments = (
-  textArray: string[],
+  textArray: FormattedText[],
   spaceWidth: number,
-  font: string | undefined,
-  fontSize: number | undefined,
   doc: PDFKit.PDFDocument
 ) => {
   return textArray.map((textFragment) => {
-    if (textFragment === " ")
+    if (textFragment.text === " ") {
       return {
-        text: textFragment,
+        text: textFragment.text,
         width: spaceWidth,
       };
+    }
     return {
-      text: textFragment,
-      width: measureTextWidth(textFragment, font, fontSize, doc),
+      text: textFragment.text,
+      width: measureTextWidth(textFragment, doc),
     };
   });
 };

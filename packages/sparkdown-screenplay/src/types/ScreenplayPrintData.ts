@@ -2,13 +2,13 @@ import { DocumentSpan } from "./DocumentSpan";
 import { PrintProfile } from "./PrintProfile";
 import { ScreenplayConfig } from "./ScreenplayConfig";
 
-export interface PdfData {
+export interface ScreenplayPrintData {
   info: {
     title: string;
     author: string;
   };
   spans: DocumentSpan[];
-  print: PrintProfile;
+  profile: PrintProfile;
   fonts?: {
     normal?: ArrayBuffer | Uint8Array;
     bold?: ArrayBuffer | Uint8Array;

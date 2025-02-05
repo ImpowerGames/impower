@@ -6,7 +6,7 @@ import { normalizeTexts, summarizeParagraphs } from "./dataRearranger";
 import { lineWrapParagraph, removeTrailingSpaces } from "./lineWrapper";
 import { measureTextsWidth } from "./textMeasurement";
 
-export const composeLines = (
+export const wrapTextbox = (
   doc: PDFKit.PDFDocument,
   text: FormattedText[],
   width: number,

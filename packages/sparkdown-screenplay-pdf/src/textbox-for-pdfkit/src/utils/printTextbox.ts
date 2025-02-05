@@ -3,7 +3,7 @@ import { DEFAULT_STYLE } from "../constants/DEFAULT_STYLE";
 import { FormattedLine } from "../types/FormattedLine";
 import { FormattedText } from "../types/FormattedText";
 import { TextOptions } from "../types/TextOptions";
-import { composeLines } from "./composeLines";
+import { wrapTextbox } from "./wrapTextbox";
 import { getFontAscent } from "./fontHandler";
 
 // This is the main package of textbox-for-pdfkit. It is the main function
@@ -25,7 +25,7 @@ export const printTextbox = (
   height: number | null = null
 ) => {
   const textboxStyle = { ...DEFAULT_STYLE, ...style };
-  const lines = composeLines(doc, text, width, textboxStyle);
+  const lines = wrapTextbox(doc, text, width, textboxStyle);
   printLines(lines, width, posX, posY, textboxStyle, doc, height);
 };
 

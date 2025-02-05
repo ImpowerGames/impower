@@ -1,9 +1,9 @@
 import PDFKit from "pdfkit";
 import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
 import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
-import { generateScreenplayPdfData } from "../../sparkdown-screenplay/src/utils/generateScreenplayPdfData";
-import { PdfWriteStream } from "./classes/PdfWriteStream";
-import { printPDF } from "./utils/printPDF";
+import { generateScreenplayPrintData } from "../../sparkdown-screenplay/src/utils/generateScreenplayPrintData";
+import PdfWriteStream from "./classes/PdfWriteStream";
+import ScreenplayPrinter from "./classes/ScreenplayPrinter";
 
 onmessage = async (e) => {
   const message = e.data;
@@ -74,14 +74,14 @@ export const buildPDF = async (
   progress("begin", 0);
 
   // Layout PDF data
-  const screenplayParser = new ScreenplayParser();
-  const tokens = screenplayParser.parseAll(scripts);
-  const pdfData = generateScreenplayPdfData(tokens, config, fonts);
+  const parser = new ScreenplayParser();
+  const tokens = parser.parseAll(scripts);
+  const printData = generateScreenplayPrintData(tokens, config, fonts);
 
   progress("report", 2);
 
-  const size = pdfData?.print.paper_size === "a4" ? "A4" : "LETTER";
-  const fontSize = pdfData?.print.font_size || 12;
+  const size = printData?.profile.paper_size === "a4" ? "A4" : "LETTER";
+  const fontSize = printData?.profile.font_size || 12;
 
   // Prepare PDF document
   const doc = new PDFKit({
@@ -96,8 +96,8 @@ export const buildPDF = async (
     },
   }) as PDFKit.PDFDocument;
   if (doc.info) {
-    doc.info.Title = pdfData.info.title;
-    doc.info.Author = pdfData.info.author;
+    doc.info.Title = printData.info.title;
+    doc.info.Author = printData.info.author;
     doc.info.Creator = "sparkdown";
   }
   if (fonts) {
@@ -116,13 +116,19 @@ export const buildPDF = async (
 
   // Generate PDF Document
   const progressBeforeGenerate = currentProgress;
-  printPDF(doc, pdfData, (percentage: number) => {
-    progress(
-      "report",
-      progressBeforeGenerate +
-        (100 - progressBeforeGenerate) * (percentage / 100)
-    );
-  });
+  const printer = new ScreenplayPrinter(
+    doc,
+    printData,
+    (percentage: number) => {
+      progress(
+        "report",
+        progressBeforeGenerate +
+          (100 - progressBeforeGenerate) * (percentage / 100)
+      );
+    }
+  );
+  printer.print();
+
   const array = await new Promise<Uint8Array>((resolve) => {
     doc.pipe(
       new PdfWriteStream(async (chunks) => {

@@ -1,18 +1,20 @@
 import { PAGE_ALIGNMENTS } from "../constants/PAGE_ALIGNMENTS";
 import { PAGE_POSITIONS } from "../constants/PAGE_POSITIONS";
-import { DocumentSpan, PageLine } from "../types/DocumentSpan";
+import { BlockLayout, DocumentSpan, PageLine } from "../types/DocumentSpan";
 import { FormattedText } from "../types/FormattedText";
 import { PrintProfile } from "../types/PrintProfile";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import {
+  BlockTokenType,
   MetadataTokenType,
   ScreenplayTokenType,
 } from "../types/ScreenplayTokenType";
 import { ScreenplayConfig } from "../types/ScreenplayConfig";
 import { TextOptions } from "../types/TextOptions";
 import { styleText } from "../utils/styleText";
+import { LineOptions } from "../types/LineOptions";
 
-export class ScreenplayTypesetter {
+export default class ScreenplayTypesetter {
   getInfo(spans: DocumentSpan[]) {
     let title = "";
     let author = "";
@@ -36,222 +38,208 @@ export class ScreenplayTypesetter {
   compose(
     tokens: ScreenplayToken[],
     config?: ScreenplayConfig,
-    print?: PrintProfile
+    profile?: PrintProfile
   ): DocumentSpan[] {
     let spans: DocumentSpan[] = [];
     const metadata: Record<string, PageLine[]> = {};
     const metadataTags = Object.keys(PAGE_POSITIONS);
     let sceneIndex = 0;
 
-    const addSeparator = (lines: DocumentSpan[]) => {
-      const prevLine = lines.at(-1);
-      if (prevLine && prevLine.tag !== "separator") {
-        lines.push({ tag: "separator", content: [] });
-      }
-    };
-
     for (const t of tokens) {
-      const max =
-        print?.settings?.[t.tag]?.max ?? print?.settings?.default?.max ?? null;
       if (metadataTags.includes(t.tag)) {
         const position = PAGE_POSITIONS[t.tag as MetadataTokenType];
         const align = PAGE_ALIGNMENTS[position];
-        metadata[t.tag] = this.format(t.tag, t.text, null, print, { align });
+        metadata[t.tag] = this.format(t.tag, t.text, profile, { align });
+      } else if (t.tag === "page_break") {
+        const prevSpan = spans.at(-1);
+        if (prevSpan && prevSpan.tag !== "page_break") {
+          spans.push({ tag: t.tag });
+        }
       } else if (t.tag === "knot") {
-        if (config?.screenplay_print_sections) {
-          const lines = this.format(t.tag, t.text || "", max, print).map(
-            (w) => ({
-              ...w,
-              level: 0,
-            })
-          );
-          if (lines.length > 0) {
-            addSeparator(spans);
-            spans.push(...lines);
-          }
-        }
-      } else if (t.tag === "stitch") {
-        if (config?.screenplay_print_sections) {
-          const lines = this.format(t.tag, t.text, max, print).map((w) => ({
-            ...w,
-            level: 1,
-          }));
-          if (lines.length > 0) {
-            addSeparator(spans);
-            spans.push(...lines);
-          }
-        }
-      } else if (t.tag === "scene") {
-        const lines = this.format(t.tag, t.text, max, print, {
-          bold: config?.screenplay_print_scene_headers_bold ? true : undefined,
+        const level = 0;
+        const lines = this.format(t.tag, t.text || "", profile, undefined, {
+          level,
         });
         if (lines.length > 0) {
-          lines[0]!.scene = t.scene ?? sceneIndex + 1;
-          addSeparator(spans);
-          spans.push(...lines);
+          spans.push({ tag: t.tag, lines });
+        }
+      } else if (t.tag === "stitch") {
+        const level = 1;
+        const lines = this.format(t.tag, t.text, profile, undefined, {
+          level,
+        });
+        if (lines.length > 0) {
+          spans.push({ tag: t.tag, lines });
+        }
+      } else if (t.tag === "scene") {
+        const style = config?.screenplay_print_scene_headers_bold
+          ? { bold: true }
+          : undefined;
+        const lines = this.format(t.tag, t.text, profile, style);
+        if (lines.length > 0) {
+          const scene = t.scene ?? sceneIndex + 1;
+          lines[0]!.scene = scene;
+          spans.push({ tag: t.tag, lines });
           sceneIndex++;
         }
       } else if (t.tag === "transition") {
-        const lines = this.format(t.tag, t.text, max, print, {
-          align: "right",
-        });
+        const style = { align: "right" };
+        const lines = this.format(t.tag, t.text, profile, style);
         if (lines.length > 0) {
-          addSeparator(spans);
-          spans.push(...lines);
+          spans.push({ tag: t.tag, lines });
         }
       } else if (t.tag === "action") {
-        const lines = this.format(t.tag, t.text, max, print);
+        const lines = this.format(t.tag, t.text, profile, undefined, {
+          canSplitAfter: 3,
+        });
         if (lines.length > 0) {
-          addSeparator(spans);
-          spans.push(...lines);
+          spans.push({ tag: t.tag, lines });
         }
       } else if (
         t.tag === "dialogue_character" ||
         t.tag === "dialogue_parenthetical" ||
         t.tag === "dialogue_content"
       ) {
-        const dualMax =
-          max == null ? max : max * (print?.dual_max_factor ?? 0.75);
-        const columnMax =
-          t.tag === "dialogue_content" && t.position ? dualMax : max;
-        const columnLines = this.format(t.tag, t.text, columnMax, print);
-        if (columnLines.length > 0) {
+        const lineOptions: LineOptions | undefined = t.position
+          ? { position: t.position }
+          : {
+              canSplitAfter:
+                t.tag === "dialogue_content" &&
+                config?.screenplay_print_dialogue_split_across_pages
+                  ? 1
+                  : undefined,
+              repeatAfterSplit: t.tag === "dialogue_content",
+            };
+        const lines = this.format(
+          t.tag,
+          t.text,
+          profile,
+          undefined,
+          lineOptions
+        );
+        if (lines.length > 0) {
           if (t.position === "l" || t.position === "r") {
             const prevSpan = spans.at(-1);
             if (t.tag === "dialogue_character" && t.position === "l") {
-              addSeparator(spans);
               spans.push({
-                tag: "split",
+                tag: "dual",
                 positions: {
-                  [t.position]: columnLines,
+                  [t.position]: lines,
                 },
               });
-            } else if (prevSpan?.tag === "split") {
+            } else if (prevSpan?.tag === "dual") {
               prevSpan.positions ??= {};
               prevSpan.positions[t.position] ??= [];
-              prevSpan.positions[t.position]!.push(...columnLines);
+              prevSpan.positions[t.position]!.push(...lines);
             }
           } else {
             if (t.tag === "dialogue_character") {
-              addSeparator(spans);
+              spans.push({ tag: "dialogue", lines });
+            } else {
+              const prevSpan = spans.at(-1);
+              if (prevSpan?.tag === "dialogue") {
+                prevSpan.lines.push(...lines);
+              }
             }
-            spans.push(...columnLines);
           }
         }
       }
     }
 
-    spans = this.breakLinesAcrossPages(spans, config, print);
-
-    while (
-      spans.at(0)?.tag === "page_break" ||
-      spans.at(0)?.tag === "separator"
-    ) {
-      // Trim leading page breaks and separators
-      spans.shift();
-    }
-
-    while (
-      spans.at(-1)?.tag === "page_break" ||
-      spans.at(-1)?.tag === "separator"
-    ) {
-      // Trim trailing page breaks and separators
-      spans.pop();
-    }
-
     const metadataSpan: DocumentSpan = { tag: "meta", positions: {} };
-    for (const [tag, lines] of Object.entries(metadata)) {
-      const position = PAGE_POSITIONS[tag as MetadataTokenType];
+    for (const [t, lines] of Object.entries(metadata)) {
+      const tag = t as MetadataTokenType;
+      const position = PAGE_POSITIONS[tag];
       if (position) {
         metadataSpan.positions[position] ??= [];
         metadataSpan.positions[position].push(...lines);
-        addSeparator(metadataSpan.positions[position]);
+        metadataSpan.positions[position].push(this.line(tag));
       }
+    }
+
+    while (spans.at(0)?.tag === "page_break") {
+      // trim away leading page breaks
+      spans.shift();
+    }
+    while (spans.at(-1)?.tag === "page_break") {
+      // trim away trailing page breaks
+      spans.pop();
     }
 
     return [metadataSpan, ...spans];
   }
 
+  protected block = (
+    tag: BlockTokenType,
+    text: string,
+    profile?: PrintProfile,
+    textOptions: TextOptions = {}
+  ): BlockLayout => {
+    return {
+      tag,
+      lines: this.format(tag, text, profile, textOptions),
+    };
+  };
+
   protected format(
     tag: ScreenplayTokenType,
     text: string | undefined,
-    max: number | null,
-    print?: PrintProfile,
-    overrides?: TextOptions
+    profile?: PrintProfile,
+    textOptions: TextOptions = {},
+    lineOptions: LineOptions = {}
   ): PageLine[] {
-    const lines = (text || "").split(/\r\n|\r|\n/);
-    const spans: PageLine[] = [];
-    for (const line of lines) {
-      const content = this.style(line, overrides).map((c) => ({
-        ...c,
-        italic:
-          print?.settings?.[tag as keyof PrintProfile["settings"]]?.italic ??
-          c.italic,
-        align:
-          print?.settings?.[tag as keyof PrintProfile["settings"]]?.align ??
-          c.align,
-      }));
-      if (content.length > 0) {
-        spans.push(...this.textWrap(tag, content, max));
+    const textLines = (text || "").split(/\r\n|\r|\n/);
+    const pageLines: PageLine[] = [];
+    for (const textLine of textLines) {
+      if (textLine) {
+        pageLines.push(
+          this.line(tag, textLine, profile, textOptions, lineOptions)
+        );
       }
     }
-    return spans;
+    return pageLines;
   }
 
-  protected style(text: string, overrides?: TextOptions): FormattedText[] {
-    return styleText(text, overrides);
-  }
-
-  protected wrapChars(
+  protected line(
     tag: ScreenplayTokenType,
-    styledChars: FormattedText[],
-    max: number | null
-  ): PageLine[] {
-    if (max == null || max <= 0 || styledChars.length <= max) {
-      return [
-        {
-          tag,
-          content: styledChars,
-        },
-      ];
-    }
-
-    let wrapAt = styledChars
-      .slice(0, max + 1)
-      .findLastIndex((c) => c.text === " ");
-    if (wrapAt < 0) {
-      // Break line at max
-      wrapAt = max - 1;
-    } else {
-      // Break line at after space closest to max
-      for (let i = wrapAt; i < styledChars.length; i += 1) {
-        const c = styledChars[i];
-        if (c?.text !== " ") {
-          break;
-        }
-        wrapAt = i;
-      }
-    }
-
-    return [
-      {
-        tag,
-        content: styledChars.slice(0, wrapAt),
-      },
-      ...this.textWrap(tag, styledChars.slice(wrapAt + 1), max),
-    ];
+    text: string = "",
+    profile?: PrintProfile,
+    textOptions: TextOptions = {},
+    lineOptions: LineOptions = {}
+  ): PageLine {
+    const styledContent = this.style(tag, text, textOptions, profile);
+    const content = this.consolidateContent(styledContent);
+    return {
+      tag,
+      content,
+      ...lineOptions,
+    };
   }
 
-  protected textWrap(
+  protected style(
     tag: ScreenplayTokenType,
-    styledChars: FormattedText[],
-    max: number | null
-  ): PageLine[] {
-    const wrappedLines = this.wrapChars(tag, styledChars, max);
-    for (const line of wrappedLines) {
-      line.content = this.consolidateContent(line.content);
+    text: string | undefined,
+    textOptions: TextOptions = {},
+    profile?: PrintProfile
+  ): FormattedText[] {
+    if (text == null) {
+      return [];
     }
-    return wrappedLines;
+    if (!text) {
+      return [{ text: "" }];
+    }
+    const defaultTextSettings: TextOptions = {};
+    const settings = profile?.settings?.[tag as keyof PrintProfile["settings"]];
+    if (settings?.color) {
+      defaultTextSettings.color = settings?.color;
+    }
+    if (settings?.italic) {
+      defaultTextSettings.italic = settings?.italic;
+    }
+    if (settings?.align) {
+      defaultTextSettings.align = settings?.align;
+    }
+    return styleText(text, { ...defaultTextSettings, ...textOptions });
   }
 
   protected consolidateContent(content: FormattedText[] | undefined) {
@@ -277,268 +265,5 @@ export class ScreenplayTypesetter {
       }
     }
     return consolidatedContent;
-  }
-
-  protected breakLinesAcrossPages(
-    spans: DocumentSpan[],
-    config?: ScreenplayConfig,
-    print?: PrintProfile
-  ): DocumentSpan[] {
-    const maxLineCountPerPage = print?.lines_per_page ?? null;
-    if (maxLineCountPerPage == null || maxLineCountPerPage <= 0) {
-      return spans;
-    }
-
-    const CONTD = config?.screenplay_print_dialogue_contd || "(CONT'D)";
-    const MORE = config?.screenplay_print_dialogue_more || "(MORE)";
-    const splitDialogueAcrossPages =
-      config?.screenplay_print_dialogue_split_across_pages ?? true;
-
-    const result: DocumentSpan[] = [];
-
-    let pageLineCount = 0;
-
-    for (let i = 0; i < spans.length; i += 1) {
-      const span = spans[i]!;
-      const spanLineCount =
-        span.tag === "split"
-          ? Math.max(
-              ...Object.values(span.positions || {}).map(
-                (positionLines) => positionLines.length
-              ),
-              1
-            )
-          : 1;
-      if (span.tag === "separator" && pageLineCount === 0) {
-        // skip blank lines at the top of a new page
-      } else {
-        result.push(span);
-        if (span.tag === "page_break") {
-          // manual page break
-          pageLineCount = 0;
-        } else {
-          pageLineCount += spanLineCount;
-          if (pageLineCount > maxLineCountPerPage) {
-            // We are over the limit for the current page.
-            // So rewind one span
-            i -= 1;
-            result.pop();
-
-            // And keep rewinding until we find a breakable line
-            while (i > 0 && !this.canBreakAfter(i, spans, config)) {
-              i -= 1;
-              result.pop();
-            }
-
-            // Auto-include "(MORE)" and "(CONT'D)" when splitting dialogue across page break
-            let pageBreakSuffix: DocumentSpan | undefined = undefined;
-            const lineBefore = spans[i - 1];
-            const lineOnBreak = spans[i];
-            const lineAfter = spans[i + 1];
-            if (
-              splitDialogueAcrossPages &&
-              lineOnBreak &&
-              lineOnBreak.tag !== "split" &&
-              lineBefore?.tag !== "dialogue_character" &&
-              lineBefore?.tag !== "dialogue_parenthetical" &&
-              lineOnBreak.tag === "dialogue_content" && //                    dialogue <--
-              (lineAfter?.tag === "dialogue_content" ||
-                lineAfter?.tag === "dialogue_parenthetical") // dialogue or (parenthetical);
-            ) {
-              const moreSpan: DocumentSpan = {
-                tag: "more",
-                content: [{ text: MORE }],
-              };
-              let characterLine = i;
-              while (
-                spans[characterLine]?.tag !== "dialogue_character" &&
-                characterLine > -1
-              ) {
-                characterLine--;
-              }
-              const characterNameSpan = spans[characterLine];
-              pageBreakSuffix = characterNameSpan
-                ? JSON.parse(JSON.stringify(characterNameSpan))
-                : undefined;
-
-              if (
-                pageBreakSuffix &&
-                pageBreakSuffix.tag !== "meta" &&
-                pageBreakSuffix.tag !== "split" &&
-                pageBreakSuffix.content &&
-                !pageBreakSuffix.content
-                  ?.map((c) => c.text)
-                  .join("")
-                  .endsWith(" " + CONTD)
-              ) {
-                pageBreakSuffix.content ??= [];
-                pageBreakSuffix.content.push({
-                  text: " " + CONTD,
-                });
-              }
-              result.push(moreSpan);
-            }
-
-            // Page break
-            result.push({ tag: "page_break", content: [] });
-            pageLineCount = 0;
-
-            // Extra span after page break
-            if (pageBreakSuffix) {
-              result.push(pageBreakSuffix);
-              pageLineCount += 1;
-            }
-          }
-        }
-      }
-    }
-
-    return result;
-  }
-
-  protected canBreakAfter(
-    index: number,
-    lines: DocumentSpan[],
-    config?: ScreenplayConfig
-  ): boolean {
-    const splitDialogueAcrossPages =
-      config?.screenplay_print_dialogue_split_across_pages ?? true;
-
-    // possible page break after this token
-    const lineOnBreak = lines[index];
-    if (!lineOnBreak) {
-      return false;
-    }
-
-    const line2Before = lines[index - 2];
-    const lineBefore = lines[index - 1];
-    const lineAfter = lines[index + 1];
-    const line2After = lines[index + 2];
-    const line3After = lines[index + 3];
-
-    let contentBefore = index - 1;
-    const lineContentBefore = lines[contentBefore];
-    while (
-      contentBefore &&
-      (lineContentBefore?.tag === "meta" ||
-        lineContentBefore?.tag === "split" ||
-        !lineContentBefore?.content)
-    ) {
-      contentBefore--;
-    }
-
-    let contentAfter = index + 1;
-    const lineContentAfter = lines[contentAfter];
-    while (
-      contentAfter < lines.length &&
-      (lineContentAfter?.tag === "meta" ||
-        lineContentAfter?.tag === "split" ||
-        !lineContentAfter?.content)
-    ) {
-      contentAfter++;
-    }
-
-    const lineWithContentAfter = lines[contentAfter];
-
-    // Ensure scene is not the last line on the page
-    if (
-      lineOnBreak.tag === "scene" && //        ...
-      lineWithContentAfter?.tag !== "scene" // scene <--
-    ) {
-      return false;
-    }
-    // Ensure transition is kept together with previous contentful line.
-    // In case previous description leads into transition, like so:
-    // And with a bang we...
-    //         SMASH CUT TO:
-    else if (
-      lineOnBreak.tag !== "transition" && //        ... <--
-      lineWithContentAfter?.tag === "transition" // transition
-    ) {
-      return false;
-    }
-    // Don't page break during action that is only 2, or 3 lines long.
-    else if (
-      lineBefore?.tag !== lineOnBreak.tag && // ...
-      lineOnBreak.tag === "action" && //        action <--
-      lineAfter?.tag === lineOnBreak.tag && //  action
-      line2After?.tag !== lineOnBreak.tag //    ...
-    ) {
-      // 1 of 2 consecutive action lines
-      return false;
-    } else if (
-      lineBefore?.tag !== lineOnBreak.tag && // ...
-      lineOnBreak.tag === "action" && //        action <--
-      lineAfter?.tag === lineOnBreak.tag && //  action
-      line2After?.tag === lineOnBreak.tag && // action
-      line3After?.tag !== lineOnBreak.tag //    ...
-    ) {
-      // 1 of 3 consecutive action lines
-      return false;
-    } else if (
-      line2Before?.tag !== lineOnBreak.tag && // ...
-      lineBefore?.tag === lineOnBreak.tag && //  action
-      lineOnBreak.tag === "action" && //         action <--
-      lineAfter?.tag === lineOnBreak.tag && //   action
-      line2After?.tag !== lineOnBreak.tag //     ...
-    ) {
-      // 2 of 3 consecutive action lines
-      return false;
-    }
-    // For action that is 4+ lines long,
-    // Don't page break on the first or penultimate line
-    // ex.
-    // aaaaaaaaa <--- don't break after this line
-    // aaaaaaaaa <--- allow breaking after this line
-    // aaaaaaaaa <--- allow breaking after this line
-    // aaaaaaaaa <--- don't break after this line
-    // aaaaaaaaa <--- allow breaking after this line
-    else if (
-      lineBefore?.tag !== lineOnBreak.tag && // ...
-      lineOnBreak.tag === "action" && //        action <--
-      lineAfter?.tag === lineOnBreak.tag && //  action
-      line2After?.tag === lineOnBreak.tag && // action
-      line3After?.tag === lineOnBreak.tag //    action
-    ) {
-      // 1 of 4+ consecutive action lines
-      return false;
-    } else if (
-      line2Before?.tag === lineOnBreak.tag && // action
-      lineBefore?.tag === lineOnBreak.tag && //  action
-      lineOnBreak.tag === "action" && //         action <--
-      lineAfter?.tag === lineOnBreak.tag && //   action
-      line2After?.tag !== lineOnBreak.tag //     ...
-    ) {
-      // penultimate of 4+ consecutive action lines
-      return false;
-    }
-    // Don't page break after CHARACTER
-    else if (lineOnBreak.tag === "dialogue_character") {
-      return false;
-    }
-    // Don't page break after (parenthetical)
-    else if (lineOnBreak.tag === "dialogue_parenthetical") {
-      return false;
-    }
-    // Don't page break during dialogue if splitting dialogue across pages is not allowed
-    else if (
-      !splitDialogueAcrossPages &&
-      lineOnBreak.tag === "dialogue_content"
-    ) {
-      return false;
-    }
-    // Don't page break if line before is character or parenthetical
-    else if (
-      splitDialogueAcrossPages &&
-      lineOnBreak.tag !== "split" &&
-      (lineBefore?.tag === "dialogue_character" ||
-        lineBefore?.tag === "dialogue_parenthetical") && // CHARACTER or (parenthetical)
-      lineOnBreak.tag === "dialogue_content" && //                       dialogue <--
-      (lineAfter?.tag === "dialogue_content" ||
-        lineAfter?.tag === "dialogue_parenthetical") //    dialogue or (parenthetical)
-    ) {
-      return false;
-    }
-    return true;
   }
 }

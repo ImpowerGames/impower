@@ -97,6 +97,9 @@ export default class ScreenplayParser {
         }
 
         // Knot
+        if (nodeType === "Knot") {
+          tokens.push({ tag: "page_break" });
+        }
         if (nodeType === "KnotDeclarationName") {
           tokens.push({ tag: "knot", text });
         }

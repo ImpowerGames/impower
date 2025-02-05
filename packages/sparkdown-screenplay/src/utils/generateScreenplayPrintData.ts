@@ -1,10 +1,10 @@
-import { ScreenplayTypesetter } from "../classes/ScreenplayTypesetter";
+import ScreenplayTypesetter from "../classes/ScreenplayTypesetter";
 import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
-import { PdfData } from "../types/PdfData";
+import { ScreenplayPrintData } from "../types/ScreenplayPrintData";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { ScreenplayConfig } from "../types/ScreenplayConfig";
 
-export const generateScreenplayPdfData = (
+export const generateScreenplayPrintData = (
   tokens: ScreenplayToken[],
   config?: ScreenplayConfig,
   fonts?: {
@@ -13,7 +13,7 @@ export const generateScreenplayPdfData = (
     italic?: ArrayBuffer | Uint8Array;
     bolditalic?: ArrayBuffer | Uint8Array;
   }
-): PdfData => {
+): ScreenplayPrintData => {
   const print =
     PRINT_PROFILES[config?.screenplay_print_profile || ""] ||
     PRINT_PROFILES.usletter;
@@ -23,7 +23,7 @@ export const generateScreenplayPdfData = (
   return {
     info,
     spans,
-    print,
+    profile: print,
     config,
     fonts,
   };

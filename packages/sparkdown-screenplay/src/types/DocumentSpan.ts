@@ -1,17 +1,15 @@
 import { FormattedText } from "./FormattedText";
+import { LineOptions } from "./LineOptions";
 import { PagePosition } from "./PagePosition";
-import { ScreenplayTokenType } from "./ScreenplayTokenType";
+import { BlockTokenType, ScreenplayTokenType } from "./ScreenplayTokenType";
 
-export interface PageLine {
-  tag: ScreenplayTokenType | "separator";
-  scene?: string | number;
-  level?: number;
+export interface PageLine extends LineOptions {
+  tag: ScreenplayTokenType;
   content: FormattedText[];
 }
 
-export interface SplitLayout {
-  tag: "split";
-  positions: Partial<Record<"l" | "r", PageLine[]>>;
+export interface PageBreak {
+  tag: "page_break";
 }
 
 export interface MetaLayout {
@@ -19,4 +17,14 @@ export interface MetaLayout {
   positions: Partial<Record<PagePosition, PageLine[]>>;
 }
 
-export type DocumentSpan = PageLine | MetaLayout | SplitLayout;
+export interface SplitLayout {
+  tag: "dual";
+  positions: Partial<Record<"l" | "r", PageLine[]>>;
+}
+
+export interface BlockLayout {
+  tag: BlockTokenType;
+  lines: PageLine[];
+}
+
+export type DocumentSpan = PageBreak | MetaLayout | SplitLayout | BlockLayout;

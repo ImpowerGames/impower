@@ -88,17 +88,15 @@ export const wrapTextInLines = (
   // for all other lines it is expected, that the complete Texbox width
   // is available (widthTextbox)
 
-  const { text, fontSize, font } = textPart;
+  const { text } = textPart;
   let spaceLeft = widthLeft;
   // This is some crazy positive lookbehind regex, it finds all spaces and "-"
   // This is neccessary that no characters are removed when splitting the text.
   const fragmentArray = text.split(/(?<=[ -])|(?= )/);
-  const spaceWidth = measureTextWidth(" ", font, fontSize, doc);
+  const spaceWidth = measureTextWidth({ text: " " }, doc);
   const fragmentArrayWithWidth = measureTextFragments(
-    fragmentArray,
+    fragmentArray.map((text) => ({ ...textPart, text })),
     spaceWidth,
-    font,
-    fontSize,
     doc
   );
   const lines = [];
@@ -141,14 +139,15 @@ export const removeTrailingSpaces = (
   return lines.map((line) => {
     const lastText = line.texts[line.texts.length - 1]; // last text item in line
     if (lastText) {
-      if (!lastText.removeTrailingSpaces) return line;
-      if (lastText.text.substring(lastText.text.length - 1) !== " ")
+      if (!lastText.removeTrailingSpaces) {
         return line;
+      }
+      if (lastText.text.substring(lastText.text.length - 1) !== " ") {
+        return line;
+      }
       const newLastText = lastText.text.substring(0, lastText.text.length - 1);
       const newLastTextWidth = measureTextWidth(
-        newLastText,
-        lastText.font,
-        lastText.fontSize,
+        { ...lastText, text: newLastText },
         doc
       );
       lastText.text = newLastText;

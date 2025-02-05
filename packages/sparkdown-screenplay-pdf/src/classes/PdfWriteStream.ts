@@ -2,7 +2,7 @@ import { stringToUtf8 } from "../utils/stringToUtf8";
 
 export type Listener = (...args: unknown[]) => void;
 
-export class PdfWriteStream {
+export default class PdfWriteStream {
   maxListeners = 1000;
 
   writable = true;

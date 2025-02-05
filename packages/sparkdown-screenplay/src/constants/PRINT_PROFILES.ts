@@ -1,114 +1,84 @@
 import { PrintProfile } from "../types/PrintProfile";
 
-const A4_DEFAULT_MAX = 58;
-const USLETTER_DEFAULT_MAX = 61;
-
-const A4: PrintProfile = {
-  paper_size: "a4",
-  page_width: 8.27,
-  page_height: 11.7,
-  lines_per_page: 57,
-  top_margin: 1.0,
-  left_margin: 1.5,
-  right_margin: 1,
-  font_size: 12,
-  font_width: 0.1,
-  font_height: 0.1667,
-  line_spacing: 1,
-  page_number_top_margin: 0.5,
-  dual_max_factor: 0.75,
-  settings: {
-    default: {
-      feed: 1.5,
-      max: A4_DEFAULT_MAX,
-    },
-    knot: {
-      feed: 1.0,
-      max: A4_DEFAULT_MAX,
-      color: "#555555",
-      level_indent: 0.2,
-    },
-    stitch: {
-      feed: 1.0,
-      max: A4_DEFAULT_MAX,
-      color: "#555555",
-      level_indent: 0.2,
-    },
-    scene: {
-      feed: 1.5,
-      max: A4_DEFAULT_MAX,
-    },
-    transition: {
-      feed: 1.5,
-      max: 33,
-      align: "right",
-    },
-    action: {
-      feed: 1.5,
-      max: A4_DEFAULT_MAX,
-    },
-    dialogue_character: {
-      feed: 3.5,
-      max: 33,
-    },
-    parenthetical: {
-      feed: 3,
-      max: 26,
-    },
-    dialogue: {
-      feed: 2.5,
-      max: 36,
-    },
-    more: {
-      feed: 3.5,
-      max: 33,
-    },
-    note: {
-      feed: 1.5,
-      max: A4_DEFAULT_MAX,
-      color: "#888888",
-      italic: true,
-    },
-  },
-};
-
 const USLETTER: PrintProfile = {
-  ...JSON.parse(JSON.stringify(A4)),
   paper_size: "letter",
   page_width: 8.5,
   page_height: 11,
-  lines_per_page: 55,
+  top_margin: 1,
+  bottom_margin: 1,
+  left_margin: 1.5,
+  right_margin: 1,
+  font_size: 12,
+  color: "#000000",
+  line_spacing: 1,
+  page_number_top_margin: 0.5,
+  page_footer_bottom_margin: 0.5,
   settings: {
-    ...JSON.parse(JSON.stringify(A4.settings)),
-    default: {
-      ...A4.settings.default,
-      max: USLETTER_DEFAULT_MAX,
-    },
     knot: {
-      ...A4.settings.knot,
-      max: USLETTER_DEFAULT_MAX,
+      left_margin: 1,
+      right_margin: 1,
+      color: "#555555",
+      level_indent: 0.2,
     },
     stitch: {
-      ...A4.settings.stitch,
-      max: USLETTER_DEFAULT_MAX,
+      left_margin: 1,
+      right_margin: 1,
+      color: "#555555",
+      level_indent: 0.2,
     },
     scene: {
-      ...A4.settings.scene,
-      max: USLETTER_DEFAULT_MAX,
+      left_margin: 1.5,
+      right_margin: 1,
     },
     transition: {
-      ...A4.settings.transition,
-      max: USLETTER_DEFAULT_MAX,
+      left_margin: 1.5,
+      right_margin: 1,
+      align: "right",
     },
     action: {
-      ...A4.settings.action,
-      max: USLETTER_DEFAULT_MAX,
+      left_margin: 1.5,
+      right_margin: 1,
+    },
+    dialogue_character: {
+      left_margin: 3.7,
+      right_margin: 1,
+      dual_first_left_margin: 2.75,
+      dual_first_right_margin: 4,
+      dual_second_left_margin: 5.75,
+      dual_second_right_margin: 1,
+    },
+    dialogue_parenthetical: {
+      left_margin: 3.1,
+      right_margin: 1,
+      dual_first_left_margin: 2.25,
+      dual_first_right_margin: 4,
+      dual_second_left_margin: 5.25,
+      dual_second_right_margin: 1,
+    },
+    dialogue_content: {
+      left_margin: 2.5,
+      right_margin: 2,
+      dual_first_left_margin: 2,
+      dual_first_right_margin: 4,
+      dual_second_left_margin: 5,
+      dual_second_right_margin: 1,
+    },
+    more: {
+      left_margin: 3.7,
+      right_margin: 1,
     },
   },
 };
 
-export const PRINT_PROFILES: Record<"a4" | "usletter", PrintProfile> &
+const A4: PrintProfile = {
+  ...JSON.parse(JSON.stringify(USLETTER)),
+  paper_size: "a4",
+  page_width: 8.27,
+  page_height: 11.7,
+};
+
+export const PRINT_PROFILES: Record<"usletter" | "a4", PrintProfile> &
   Record<string, PrintProfile> = {
-  a4: A4,
   usletter: USLETTER,
+  a4: A4,
 };

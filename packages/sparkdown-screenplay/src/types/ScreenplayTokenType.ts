@@ -12,17 +12,24 @@ export type MetadataTokenType =
   | "copyright"
   | PagePosition;
 
-export type BodyTokenType =
-  | "page_break"
+export type PageBreakTokenType = "page_break";
+
+export type BlockTokenType =
   | "knot"
   | "stitch"
   | "scene"
   | "transition"
   | "action"
+  | "dialogue"
+  | "more";
+
+export type DialogueTokenType =
   | "dialogue_character"
   | "dialogue_parenthetical"
-  | "dialogue_content"
-  | "more"
-  | "note";
+  | "dialogue_content";
 
-export type ScreenplayTokenType = MetadataTokenType | BodyTokenType;
+export type ScreenplayTokenType =
+  | PageBreakTokenType
+  | MetadataTokenType
+  | BlockTokenType
+  | DialogueTokenType;
