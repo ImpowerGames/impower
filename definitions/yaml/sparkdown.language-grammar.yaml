@@ -44,7 +44,7 @@ patterns:
   - { include: "#Dialogue" }
   - { include: "#Transition" }
   - { include: "#Scene" }
-  - { include: "#AudioLine" }
+  - { include: "#AssetLine" }
   - { include: "#Action" }
   - { include: "#Whitespace" }
 

@@ -103,7 +103,7 @@
       "include": "#Scene"
     },
     {
-      "include": "#AudioLine"
+      "include": "#AssetLine"
     },
     {
       "include": "#Action"
