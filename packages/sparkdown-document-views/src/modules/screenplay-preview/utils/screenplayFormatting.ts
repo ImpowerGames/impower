@@ -1,12 +1,8 @@
-import {
-  HighlightStyle,
-  syntaxHighlighting,
-  syntaxTree,
-} from "@codemirror/language";
+import { HighlightStyle, syntaxTree } from "@codemirror/language";
 import type { EditorState, Text } from "@codemirror/state";
 import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
-import { tags } from "@lezer/highlight";
+import { tags, highlightTree } from "@lezer/highlight";
 import { SyntaxNodeRef } from "@lezer/common";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
@@ -471,7 +467,18 @@ const decorate = (state: EditorState) => {
       return true;
     },
   });
+  // Add replacement decorations
   const decorations = specs.flatMap((b) => createDecorations(b, doc));
+  // Add syntax highlighting
+  highlightTree(
+    tree,
+    LANGUAGE_HIGHLIGHTS,
+    (from, to, style) => {
+      decorations.push(Decoration.mark({ class: style }).range(from, to));
+    },
+    0,
+    state.doc.length
+  );
   const rangeSet = RangeSet.of(decorations, true);
   return specs.length > 0 ? rangeSet : Decoration.none;
 };
@@ -498,7 +505,7 @@ const screenplayFormatting = (): Extension => {
   return [
     LANGUAGE_SUPPORT,
     replaceDecorations,
-    syntaxHighlighting(LANGUAGE_HIGHLIGHTS),
+    EditorView.styleModule.of(LANGUAGE_HIGHLIGHTS.module!),
   ];
 };
 
