@@ -1,6 +1,6 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { syntaxParserRunning, syntaxTreeAvailable } from "@codemirror/language";
+import { syntaxTreeAvailable } from "@codemirror/language";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
 import debounce from "../../../utils/debounce";
 import PREVIEW_THEME from "../constants/PREVIEW_THEME";
@@ -41,8 +41,7 @@ const createEditorView = (
       EditorView.theme(PREVIEW_THEME),
       EditorView.lineWrapping,
       EditorView.updateListener.of((u) => {
-        const parsing = syntaxParserRunning(u.view);
-        if (!parsing) {
+        if (syntaxTreeAvailable(u.state)) {
           debouncedIdle();
         }
         if (u.heightChanged) {

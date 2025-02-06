@@ -316,7 +316,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
       if (this._textDocument && this._loadingRequest != null) {
         if (this._view) {
           // Only fade in once formatting has finished being applied and height is stable
-          this._view.dom.style.opacity = "1";
+          this.root.style.opacity = "1";
         }
         this.emit(
           LoadPreviewMessage.method,
