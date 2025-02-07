@@ -8,7 +8,6 @@ import spec from "./_preview-screenplay";
 
 export default class PreviewScreenplay extends Component(spec) {
   override onConnected() {
-    this.loadFile();
     window.addEventListener(
       DidOpenTextDocumentMessage.method,
       this.handleDidOpenTextDocument
