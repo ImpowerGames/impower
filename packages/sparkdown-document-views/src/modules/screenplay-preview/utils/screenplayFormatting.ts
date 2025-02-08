@@ -14,6 +14,7 @@ import DialogueWidget, {
 import TitlePageWidget from "../classes/widgets/TitlePageWidget";
 import { MarkupContent } from "../types/MarkupContent";
 import { ReplaceSpec } from "../types/ReplaceSpec";
+import { RevealSpec } from "../types/RevealSpec";
 import { printTree } from "../../../cm-textmate/utils/printTree";
 
 const DIALOGUE_WIDTH = "60%";
@@ -35,7 +36,7 @@ const getDialogueLineStyle = (type: string) => {
     paddingLeft = PARENTHETICAL_PADDING;
     paddingRight = PARENTHETICAL_PADDING;
   }
-  return `display: block; margin: 0 auto; width: ${dialogueWidth}; padding: 0 ${paddingRight} 0 ${paddingLeft};`;
+  return `display: block; opacity: 1; margin: 0 auto; width: ${dialogueWidth}; padding: 0 ${paddingRight} 0 ${paddingLeft};`;
 };
 
 const getDualDialogueLineStyle = (type: string) => {
@@ -49,7 +50,7 @@ const getDualDialogueLineStyle = (type: string) => {
     paddingLeft = DUAL_PARENTHETICAL_PADDING;
     paddingRight = DUAL_PARENTHETICAL_PADDING;
   }
-  return `margin: 0 auto; width: ${dialogueWidth}; padding: 0 ${paddingRight} 0 ${paddingLeft};`;
+  return `opacity: 1; margin: 0 auto; width: ${dialogueWidth}; padding: 0 ${paddingRight} 0 ${paddingLeft};`;
 };
 
 const LANGUAGE_NAME = "sparkdown";
@@ -115,9 +116,16 @@ const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
 ];
 
 const createDecorations = (
-  spec: ReplaceSpec,
+  spec: ReplaceSpec | RevealSpec,
   doc: Text
 ): Range<Decoration>[] => {
+  if (spec.type === "reveal") {
+    return [
+      Decoration.line({
+        attributes: { style: "opacity: 1" },
+      }).range(doc.lineAt(spec.from + 1).from),
+    ];
+  }
   if (spec.widget === DialogueWidget) {
     const dialogueSpec = spec as DialogueSpec;
     if (!dialogueSpec.grid) {
@@ -150,7 +158,7 @@ const createDecorations = (
 
 const decorate = (state: EditorState) => {
   let prevDialogueSpec: DialogueSpec | undefined = undefined;
-  const specs: ReplaceSpec[] = [];
+  const specs: (ReplaceSpec | RevealSpec)[] = [];
   const doc = state.doc;
 
   const isCentered = (nodeRef: SyntaxNodeRef) => {
@@ -166,6 +174,7 @@ const decorate = (state: EditorState) => {
     const from = treeFrom + nodeRef.from;
     const to = from + (nodeRef.to - nodeRef.from);
     specs.push({
+      type: "replace",
       from,
       to,
       content: [
@@ -174,7 +183,7 @@ const decorate = (state: EditorState) => {
           from,
           to,
           attributes: {
-            style: "display: block; text-align: center;",
+            style: "display: block; opacity: 1; text-align: center;",
           },
         },
       ],
@@ -211,6 +220,7 @@ const decorate = (state: EditorState) => {
       ? to - 1
       : to;
     specs.push({
+      type: "replace",
       from: hideFrom,
       to: hideTo,
       block: true,
@@ -292,6 +302,7 @@ const decorate = (state: EditorState) => {
         });
         // Add FrontMatter Spec
         specs.push({
+          type: "replace",
           from: treeFrom,
           to,
           block: true,
@@ -301,6 +312,27 @@ const decorate = (state: EditorState) => {
           ...frontMatterPositionContent,
         });
         return false;
+      }
+      if (name === "Transition") {
+        specs.push({
+          type: "reveal",
+          from,
+          to,
+        });
+      }
+      if (name === "Scene") {
+        specs.push({
+          type: "reveal",
+          from,
+          to,
+        });
+      }
+      if (name === "Action") {
+        specs.push({
+          type: "reveal",
+          from,
+          to,
+        });
       }
       if (name === "BlockDialogue" || name === "InlineDialogue") {
         const inInlineDialogue = name === "InlineDialogue";
@@ -396,6 +428,7 @@ const decorate = (state: EditorState) => {
           if (isOdd) {
             // left (odd position)
             const spec: DialogueSpec = {
+              type: "replace",
               from: treeFrom,
               to: to - 1,
               widget: DialogueWidget,
@@ -429,6 +462,7 @@ const decorate = (state: EditorState) => {
           }
         } else {
           const spec: DialogueSpec = {
+            type: "replace",
             from: treeFrom,
             to: to,
             widget: DialogueWidget,
@@ -446,6 +480,7 @@ const decorate = (state: EditorState) => {
       }
       if (name === "ParentheticalLineContent") {
         specs.push({
+          type: "replace",
           from,
           to,
           content: [

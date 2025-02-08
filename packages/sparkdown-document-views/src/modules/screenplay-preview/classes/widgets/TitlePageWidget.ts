@@ -19,6 +19,7 @@ export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
     const highlighter = this.spec.highlighter;
     const container = document.createElement("div");
     container.classList.add("cm-line");
+    container.style.opacity = "1";
     const gridEl = document.createElement("div");
     gridEl.style.display = "grid";
     gridEl.style.height = "calc(96px * 9)";

@@ -31,6 +31,7 @@ export default class DialogueWidget extends ReplaceWidget<DialogueSpec> {
   override toDOM(view: EditorView) {
     const container = document.createElement("div");
     container.classList.add("cm-line");
+    container.style.opacity = "1";
     container.style.marginLeft = "auto";
     container.style.marginRight = "auto";
     if (this.spec.blocks.length > 1) {

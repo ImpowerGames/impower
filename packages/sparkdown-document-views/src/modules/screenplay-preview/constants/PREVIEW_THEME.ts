@@ -19,6 +19,7 @@ const PREVIEW_THEME: {
     position: "relative",
   },
   "& .cm-line": {
+    opacity: 0,
     padding: 0,
   },
   "& .cm-content": {

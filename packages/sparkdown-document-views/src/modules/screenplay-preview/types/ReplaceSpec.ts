@@ -3,6 +3,7 @@ import { WidgetType } from "@codemirror/view";
 import { MarkupContent } from "./MarkupContent";
 
 export interface ReplaceSpec {
+  type: "replace";
   from: number;
   to: number;
   language?: Language;
