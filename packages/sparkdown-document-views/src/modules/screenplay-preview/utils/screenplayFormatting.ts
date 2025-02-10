@@ -493,7 +493,7 @@ const decorate = (state: EditorState) => {
     },
   });
   // Add replacement decorations
-  const decorations = specs.flatMap((b) => createDecorations(b, doc));@ 
+  const decorations = specs.flatMap((b) => createDecorations(b, doc));
   const rangeSet = RangeSet.of(decorations, true);
   return specs.length > 0 ? rangeSet : Decoration.none;
 };
