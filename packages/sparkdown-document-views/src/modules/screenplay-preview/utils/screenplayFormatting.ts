@@ -353,6 +353,7 @@ const decorate = (state: EditorState) => {
         }
       } else if (isCentered(nodeRef)) {
         centerRange(nodeRef);
+        return false;
       } else if (isHidden(nodeRef)) {
         hideRange(nodeRef);
         return false;
@@ -470,10 +471,7 @@ const replaceDecorations = StateField.define<DecorationSet>({
     return decorate(state) ?? Decoration.none;
   },
   update(value, transaction) {
-    if (
-      transaction.docChanged ||
-      syntaxTree(transaction.startState) != syntaxTree(transaction.state)
-    ) {
+    if (syntaxTree(transaction.startState) != syntaxTree(transaction.state)) {
       return decorate(transaction.state) ?? value;
     }
     return value;
