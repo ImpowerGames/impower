@@ -13,7 +13,6 @@ import {
 } from "@lezer/common";
 
 import {
-  Chunk,
   ChunkBuffer,
   Compiler,
 } from "../../../../grammar-compiler/src/compiler";
@@ -32,7 +31,7 @@ const MARGIN_BEFORE = 32;
 /** Amount of characters to slice after the requested ending position of a parse. */
 const MARGIN_AFTER = 128;
 
-const BUFFER_PROP = new NodeProp<ChunkBuffer>({ perNode: true });
+const COMPILER_PROP = new NodeProp<Compiler>({ perNode: true });
 
 const AHEAD_BUFFER_PROP = new NodeProp<ChunkBuffer>({ perNode: true });
 
@@ -62,9 +61,6 @@ export default class GrammarParse implements PartialParse {
 
   /** The current state of the grammar, such as the stack. */
   private declare state: GrammarState;
-
-  /** {@link Chunk} buffer, where matched tokens are cached. */
-  private declare buffer: ChunkBuffer;
 
   private declare compiler: Compiler;
 
@@ -121,20 +117,20 @@ export default class GrammarParse implements PartialParse {
         // make sure fragment is within the region of the document we care about
         if (f.from <= this.region.from && f.to >= this.region.from) {
           // try to find the buffer for this fragment's tree in the cache
-          const cachedBehindBuffer = this.findProp(
-            BUFFER_PROP,
+          const cachedCompiler = this.findProp<Compiler>(
+            COMPILER_PROP,
             f.tree,
             this.region.from,
             f.to
           );
-          const cachedAheadBuffer = this.findProp(
+          const cachedAheadBuffer = this.findProp<ChunkBuffer>(
             AHEAD_BUFFER_PROP,
             f.tree,
             this.region.from,
             f.to
           );
-          if (cachedBehindBuffer) {
-            const right = this.tryToReuseBehind(cachedBehindBuffer);
+          if (cachedCompiler) {
+            const right = this.tryToReuseBehind(cachedCompiler);
             if (right) {
               if (!this.tryToSaveAhead(right)) {
                 if (
@@ -154,16 +150,9 @@ export default class GrammarParse implements PartialParse {
     this.parsedPos = this.region.from;
 
     // if we couldn't reuse state, we'll need to startup things with a default state
-    if (!this.buffer || !this.state) {
-      this.buffer = new ChunkBuffer([]);
+    if (!this.compiler || !this.state) {
       this.state = this.grammar.startState();
-    }
-
-    this.compiler = new Compiler(grammar, this.nodeSet, this.buffer);
-
-    // if we reused left, we'll catch the compiler up to the current position
-    if (this.buffer.chunks.length) {
-      this.compiler.advanceFully();
+      this.compiler = new Compiler(grammar, this.nodeSet);
     }
   }
 
@@ -237,7 +226,7 @@ export default class GrammarParse implements PartialParse {
       // this is so that we don't need to build another tree
       const props = Object.create(null);
       // @ts-ignore
-      props[BUFFER_PROP.id] = this.buffer;
+      props[COMPILER_PROP.id] = this.compiler;
       // @ts-ignore
       props[AHEAD_BUFFER_PROP.id] = this.aheadBuffer;
       // @ts-ignore
@@ -309,7 +298,7 @@ export default class GrammarParse implements PartialParse {
             t[2] = end;
           }
 
-          if (this.buffer.add(t)) {
+          if (this.compiler.buffer.add(t)) {
             addedChunk = true;
           }
         }
@@ -332,14 +321,14 @@ export default class GrammarParse implements PartialParse {
    * @param offset - An offset added to the tree's positions, so that they
    *   may match some other source's positions.
    */
-  private findProp(
-    prop: NodeProp<ChunkBuffer>,
+  private findProp<T>(
+    prop: NodeProp<T>,
     tree: Tree,
     from: number,
     to: number,
     offset = 0
-  ): ChunkBuffer | null {
-    const bundle: ChunkBuffer | undefined =
+  ): T | null {
+    const bundle: T | undefined =
       offset >= from && offset + tree.length >= to
         ? tree.prop(prop)
         : undefined;
@@ -370,13 +359,13 @@ export default class GrammarParse implements PartialParse {
    *
    * @param cachedBuffer - The buffer to split in two
    */
-  private tryToReuseBehind(cachedBuffer: ChunkBuffer) {
+  private tryToReuseBehind(compiler: Compiler) {
     if (!this.region.edit) {
       // can't reuse if we don't know what range has been edited
       return null;
     }
     const editedFrom = this.region.edit.from;
-    const splitBehind = cachedBuffer.findBehindSplitPoint(editedFrom);
+    const splitBehind = compiler.buffer.findBehindSplitPoint(editedFrom);
     // console.log(
     //   "CACHED BUFFER",
     //   cachedBuffer?.chunks.map((chunk) => [
@@ -391,11 +380,14 @@ export default class GrammarParse implements PartialParse {
     // );
     if (splitBehind.chunk && splitBehind.index != null) {
       // REUSE CHUNKS THAT ARE BEHIND THE EDITED RANGE
-      const { left, right } = cachedBuffer.split(splitBehind.index);
+      const right = compiler.rewind(splitBehind.index);
+      this.region.from = splitBehind.chunk.from;
+      this.state = this.grammar.startState();
+      this.compiler = compiler;
       // console.log(
       //   "REUSE BEHIND",
       //   JSON.stringify(
-      //     left?.chunks
+      //     this.compiler.buffer?.chunks
       //       .map((chunk) => this.region.input.read(chunk.from, chunk.to))
       //       .join("")
       //   )
@@ -407,9 +399,6 @@ export default class GrammarParse implements PartialParse {
       //   //   chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
       //   // ])
       // );
-      this.region.from = splitBehind.chunk.from;
-      this.state = this.grammar.startState();
-      this.buffer = left;
       return right;
     }
     return null;
@@ -440,14 +429,14 @@ export default class GrammarParse implements PartialParse {
     //     right?.chunks
     //       .map((chunk) => this.region.input.read(chunk.from, chunk.to))
     //       .join("")
-    //   ),
-    //   right?.chunks.map((chunk) => [
-    //     this.region.input.read(chunk.from, chunk.to),
-    //     chunk.from,
-    //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
-    //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
-    //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
-    //   ])
+    //   )
+    //   // right?.chunks.map((chunk) => [
+    //   //   this.region.input.read(chunk.from, chunk.to),
+    //   //   chunk.from,
+    //   //   chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+    //   //   chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
+    //   //   chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
+    //   // ])
     // );
 
     let posNextEmptyLineAfterEdit: undefined | number = undefined;
@@ -513,9 +502,9 @@ export default class GrammarParse implements PartialParse {
         //   //   chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
         //   // ])
         // );
-        this.buffer.append(aheadBuffer, this.region.original.length);
+        this.compiler.buffer.append(aheadBuffer, this.region.original.length);
         this.state = this.grammar.startState();
-        this.parsedPos = this.buffer.last!.to;
+        this.parsedPos = this.compiler.buffer.last!.to;
         return true;
       }
     }

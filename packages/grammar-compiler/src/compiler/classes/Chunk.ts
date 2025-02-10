@@ -51,6 +51,12 @@ export class Chunk {
    */
   declare tree?: TreeBuffer | null;
 
+  /** The last emitted size */
+  emittedSize: number = 0;
+
+  /** The last reused length */
+  reusedLength: number = 0;
+
   /**
    * @param from - The starting position.
    * @param inherits - The scopes at the starting position.

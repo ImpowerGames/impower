@@ -34,15 +34,21 @@ export class Compiler {
   declare reused: TreeBuffer[];
   declare index: number;
 
-  constructor(grammar: Grammar, nodeSet: NodeSet, buffer?: ChunkBuffer) {
+  constructor(
+    grammar: Grammar,
+    nodeSet: NodeSet,
+    buffer?: ChunkBuffer,
+    compiled?: Int32Array,
+    reused?: TreeBuffer[]
+  ) {
     this.grammar = grammar;
     this.nodeSet = nodeSet;
     this.stack = new CompileStack();
     this.buffer = buffer || new ChunkBuffer([]);
-    this.compiled = new Int32Array(COMPILER_ARRAY_INTERVAL);
-    this.size = 0;
-    this.reused = [];
-    this.index = 0;
+    this.compiled = compiled || new Int32Array(COMPILER_ARRAY_INTERVAL);
+    this.reused = buffer && reused ? reused.slice(0, buffer.reusedLength) : [];
+    this.size = buffer && compiled ? buffer.emittedSize ?? 0 : 0;
+    this.index = buffer && compiled ? buffer.chunks.length : 0;
   }
 
   get cursor() {
@@ -54,12 +60,22 @@ export class Compiler {
   }
 
   reset() {
+    this.compiled = new Int32Array(COMPILER_ARRAY_INTERVAL);
     this.stack = new CompileStack();
     this.buffer = new ChunkBuffer([]);
-    this.compiled = new Int32Array(COMPILER_ARRAY_INTERVAL);
+    this.index = 0;
     this.size = 0;
     this.reused = [];
-    this.index = 0;
+  }
+
+  rewind(index: number) {
+    const { left, right } = this.buffer.split(index);
+    this.stack = new CompileStack();
+    this.buffer = left;
+    this.index = left.chunks.length;
+    this.size = left.emittedSize ?? 0;
+    this.reused = this.reused.slice(0, left.reusedLength);
+    return right;
   }
 
   private emitReused(type: number, from: number, to: number) {
@@ -147,6 +163,9 @@ export class Compiler {
         }
       }
     }
+
+    chunk.emittedSize = this.size;
+    chunk.reusedLength = this.reused.length;
   }
 
   step() {

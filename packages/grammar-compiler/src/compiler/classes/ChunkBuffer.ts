@@ -48,6 +48,16 @@ export class ChunkBuffer {
     return this.chunks[this.chunks.length - 1] ?? null;
   }
 
+  /** The last emitted size */
+  get emittedSize() {
+    return this.last?.emittedSize;
+  }
+
+  /** The last reused length */
+  get reusedLength() {
+    return this.last?.reusedLength;
+  }
+
   /** Retrieves a `Chunk` from the buffer. */
   get(index: number): Chunk | null {
     return this.chunks[index] ?? null;
