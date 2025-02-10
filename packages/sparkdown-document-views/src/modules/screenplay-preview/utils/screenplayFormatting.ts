@@ -154,10 +154,10 @@ const decorate = (state: EditorState) => {
     return false;
   };
 
-  const centerRange = (nodeRef: SyntaxNodeRef, treeFrom: number = 0) => {
+  const centerRange = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
-    const from = treeFrom + nodeRef.from;
-    const to = from + (nodeRef.to - nodeRef.from);
+    const from = nodeRef.from;
+    const to = nodeRef.to;
     specs.push({
       type: "replace",
       from,
@@ -177,11 +177,9 @@ const decorate = (state: EditorState) => {
 
   const isHidden = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
-    if (nodeRef.node.parent?.name === LANGUAGE_NAME) {
-      // This is a top-level node
-      if (name === "Divert") {
-        return true;
-      }
+    if (name === "Divert") {
+      // This is a top-level divert node
+      return nodeRef.matchContext([LANGUAGE_NAME]);
     }
     return (
       name === "Comment" ||
@@ -203,9 +201,9 @@ const decorate = (state: EditorState) => {
     );
   };
 
-  const hideRange = (nodeRef: SyntaxNodeRef, treeFrom: number = 0) => {
-    const from = treeFrom + nodeRef.from;
-    const to = from + (nodeRef.to - nodeRef.from);
+  const hideRange = (nodeRef: SyntaxNodeRef) => {
+    const from = nodeRef.from;
+    const to = nodeRef.to;
     const hiddenNodeEndsWithNewline = doc.sliceString(from, to).endsWith("\n");
     const nextLineAt = hiddenNodeEndsWithNewline ? to : to + 1;
     const nextLine =
@@ -240,8 +238,8 @@ const decorate = (state: EditorState) => {
   tree.iterate({
     enter: (nodeRef) => {
       const name = nodeRef.name as SparkdownNodeName;
-      const from = nodeRef.node.from;
-      const to = nodeRef.node.to;
+      const from = nodeRef.from;
+      const to = nodeRef.to;
       if (name === "FrontMatter") {
         frontMatterPositionContent = {};
       } else if (name === "FrontMatterField") {
@@ -363,8 +361,8 @@ const decorate = (state: EditorState) => {
     },
     leave: (nodeRef) => {
       const name = nodeRef.name as SparkdownNodeName;
-      const from = nodeRef.node.from;
-      const to = nodeRef.node.to;
+      const from = nodeRef.from;
+      const to = nodeRef.to;
       if (name === "FrontMatter") {
         // Add FrontMatter Spec
         specs.push({
