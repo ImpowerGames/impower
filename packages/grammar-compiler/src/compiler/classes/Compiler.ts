@@ -33,6 +33,7 @@ export class Compiler {
   declare size: number;
   declare reused: TreeBuffer[];
   declare index: number;
+  declare reparsedFrom?: number;
 
   constructor(
     grammar: Grammar,
@@ -75,6 +76,7 @@ export class Compiler {
     this.index = left.chunks.length;
     this.size = left.emittedSize ?? 0;
     this.reused = this.reused.slice(0, left.reusedLength);
+    this.reparsedFrom = left.last?.to;
     return right;
   }
 

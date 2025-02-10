@@ -26,6 +26,7 @@ import LezerParseRegion from "./LezerParseRegion";
 import { cachedCompilerProp } from "../props/cachedCompilerProp";
 import { cachedAheadBufferProp } from "../props/cachedAheadBufferProp";
 import { printTree } from "../utils/printTree";
+import { findProp } from "../utils/findProp";
 
 /** Amount of characters to slice before the starting position of the parse. */
 const MARGIN_BEFORE = 32;
@@ -115,13 +116,13 @@ export default class GrammarParse implements PartialParse {
         // make sure fragment is within the region of the document we care about
         if (f.from <= this.region.from && f.to >= this.region.from) {
           // try to find the buffer for this fragment's tree in the cache
-          const cachedCompiler = this.findProp<Compiler>(
+          const cachedCompiler = findProp<Compiler>(
             cachedCompilerProp,
             f.tree,
             this.region.from,
             f.to
           );
-          const cachedAheadBuffer = this.findProp<ChunkBuffer>(
+          const cachedAheadBuffer = findProp<ChunkBuffer>(
             cachedAheadBufferProp,
             f.tree,
             this.region.from,
@@ -311,47 +312,6 @@ export default class GrammarParse implements PartialParse {
   }
 
   /**
-   * Returns the first chunk buffer found within a tree, if any.
-   *
-   * @param tree - The tree to search through, recursively.
-   * @param from - The start of the search area.
-   * @param to - The end of the search area.
-   * @param offset - An offset added to the tree's positions, so that they
-   *   may match some other source's positions.
-   */
-  private findProp<T>(
-    prop: NodeProp<T>,
-    tree: Tree,
-    from: number,
-    to: number,
-    offset = 0
-  ): T | null {
-    const bundle: T | undefined =
-      offset >= from && offset + tree.length >= to
-        ? tree.prop(prop)
-        : undefined;
-
-    if (bundle) {
-      return bundle;
-    }
-
-    // recursively check children
-    for (let i = tree.children.length - 1; i >= 0; i--) {
-      const child = tree.children[i];
-      const pos = offset + tree.positions[i]!;
-      if (!(child instanceof Tree && pos < to)) {
-        continue;
-      }
-      const found = this.findProp(prop, child, from, to, pos);
-      if (found) {
-        return found;
-      }
-    }
-
-    return null;
-  }
-
-  /**
    * Tries to reuse chunks BEHIND the edited range.
    * Returns true if this was successful, otherwise false.
    *
@@ -418,7 +378,6 @@ export default class GrammarParse implements PartialParse {
     // SAVE CHUNKS THAT ARE AHEAD OF THE EDITED RANGE
     // (must offset ahead chunks to match edited offset)
     // TODO: doesn't work for subsequent reuses. (is it because we should use aheadBuffer from tree prop?)
-    right.slide(0, editedOffset, true);
     // console.log(
     //   "RIGHT CHUNKS",
     //   editedTo,
@@ -450,6 +409,7 @@ export default class GrammarParse implements PartialParse {
     if (posNextEmptyLineAfterEdit == null) {
       return false;
     }
+    right.slide(0, editedOffset, true);
     const splitAhead = right.findAheadSplitPoint(posNextEmptyLineAfterEdit);
     if (splitAhead.chunk && splitAhead.index != null) {
       const aheadSplitBuffer = right.split(splitAhead.index);

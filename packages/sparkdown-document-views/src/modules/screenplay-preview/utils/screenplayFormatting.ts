@@ -20,6 +20,7 @@ import { MarkupContent } from "../types/MarkupContent";
 import { ReplaceSpec } from "../types/ReplaceSpec";
 import { RevealSpec } from "../types/RevealSpec";
 import { printTree } from "../../../cm-textmate/utils/printTree";
+import { cachedCompilerProp } from "../../../cm-textmate/props/cachedCompilerProp";
 
 const DIALOGUE_WIDTH = "60%";
 const CHARACTER_PADDING = "16%";
@@ -141,7 +142,7 @@ const createDecorations = (
   ];
 };
 
-const decorate = (state: EditorState) => {
+const decorate = (state: EditorState, from?: number, to?: number) => {
   let prevDialogueSpec: DialogueSpec | undefined = undefined;
   const specs: (ReplaceSpec | RevealSpec)[] = [];
   const doc = state.doc;
@@ -236,6 +237,8 @@ const decorate = (state: EditorState) => {
 
   const tree = syntaxTree(state);
   tree.iterate({
+    from,
+    to,
     enter: (nodeRef) => {
       const name = nodeRef.name as SparkdownNodeName;
       const from = nodeRef.from;
@@ -462,19 +465,34 @@ const decorate = (state: EditorState) => {
   });
   // Add replacement decorations
   const decorations = specs.flatMap((b) => createDecorations(b, doc));
-  const rangeSet = RangeSet.of(decorations, true);
-  return specs.length > 0 ? rangeSet : Decoration.none;
+  return decorations;
 };
 
 const replaceDecorations = StateField.define<DecorationSet>({
   create(state) {
-    return decorate(state) ?? Decoration.none;
+    const ranges = decorate(state);
+    return ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
   },
-  update(value, transaction) {
-    if (syntaxTree(transaction.startState) != syntaxTree(transaction.state)) {
-      return decorate(transaction.state) ?? value;
+  update(decorations, transaction) {
+    const oldTree = syntaxTree(transaction.startState);
+    const newTree = syntaxTree(transaction.state);
+    if (oldTree != newTree) {
+      const cachedCompiler = newTree.prop(cachedCompilerProp);
+      const reparsedFrom = cachedCompiler?.reparsedFrom;
+      if (reparsedFrom == null) {
+        // Remake all decorations from scratch
+        const ranges = decorate(transaction.state);
+        return ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
+      }
+      const add = decorate(transaction.state, reparsedFrom);
+      decorations = decorations.update({
+        filter: (from: number, to: number) =>
+          from < reparsedFrom && to < reparsedFrom,
+        add,
+        sort: true,
+      });
     }
-    return value;
+    return decorations;
   },
   provide(field) {
     return EditorView.decorations.from(field);
