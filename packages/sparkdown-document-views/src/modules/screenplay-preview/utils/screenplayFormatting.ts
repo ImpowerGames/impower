@@ -1,4 +1,8 @@
-import { HighlightStyle, syntaxTree } from "@codemirror/language";
+import {
+  HighlightStyle,
+  syntaxHighlighting,
+  syntaxTree,
+} from "@codemirror/language";
 import type { EditorState, Text } from "@codemirror/state";
 import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
@@ -169,7 +173,7 @@ const decorate = (state: EditorState) => {
     return false;
   };
 
-  const centerRange = (nodeRef: SyntaxNodeRef, treeFrom: number) => {
+  const centerRange = (nodeRef: SyntaxNodeRef, treeFrom: number = 0) => {
     const name = nodeRef.name as SparkdownNodeName;
     const from = treeFrom + nodeRef.from;
     const to = from + (nodeRef.to - nodeRef.from);
@@ -204,7 +208,7 @@ const decorate = (state: EditorState) => {
     return false;
   };
 
-  const hideRange = (nodeRef: SyntaxNodeRef, treeFrom: number) => {
+  const hideRange = (nodeRef: SyntaxNodeRef, treeFrom: number = 0) => {
     const from = treeFrom + nodeRef.from;
     const to = from + (nodeRef.to - nodeRef.from);
     const hiddenNodeEndsWithNewline = doc.sliceString(from, to).endsWith("\n");
@@ -229,87 +233,45 @@ const decorate = (state: EditorState) => {
     });
   };
 
+  let inDualDialogue = false;
+  let dialoguePosition = 0;
+  let dialogueContent: MarkupContent[] = [];
+  let frontMatterPositionContent: Record<string, MarkupContent[]> = {};
+  let frontMatterFieldCaptureBlocks: MarkupContent[] = [];
+  let frontMatterKeyword = "";
+
+  const stack: SparkdownNodeName[] = [];
+
   const tree = syntaxTree(state);
   tree.iterate({
     enter: (nodeRef) => {
       const name = nodeRef.name as SparkdownNodeName;
       const from = nodeRef.node.from;
       const to = nodeRef.node.to;
+      stack.push(name);
       if (name === "FrontMatter") {
-        let frontMatterPositionContent: Record<string, MarkupContent[]> = {};
-        // Iterate FrontMatter tree
-        const treeFrom = from;
-        const tree = nodeRef.node.tree || nodeRef.node.toTree();
-        tree.iterate({
-          enter: (nodeRef) => {
-            const name = nodeRef.name as SparkdownNodeName;
-            const from = treeFrom + nodeRef.from;
-            if (name === "FrontMatterField") {
-              const captureBlocks: MarkupContent[] = [];
-              let keyword = "";
-              // Iterate FrontMatterField tree
-              const treeFrom = from;
-              const tree = nodeRef.node.tree || nodeRef.node.toTree();
-              tree.iterate({
-                enter: (nodeRef) => {
-                  const name = nodeRef.name as SparkdownNodeName;
-                  const from = treeFrom + nodeRef.from;
-                  const to = from + (nodeRef.to - nodeRef.from);
-                  if (name === "FrontMatterFieldKeyword") {
-                    const value = doc.sliceString(from, to).trim();
-                    keyword = value;
-                    return false;
-                  }
-                  if (name === "FrontMatterString") {
-                    const value = doc.sliceString(from, to).trim();
-                    captureBlocks.push({
-                      type: keyword.toLowerCase(),
-                      from,
-                      to,
-                      value,
-                      markdown: true,
-                      attributes: {
-                        style: "min-height: 1em",
-                      },
-                    });
-                    return false;
-                  }
-                  return true;
-                },
-              });
-              const firstCaptureBlock = captureBlocks[0];
-              const lastCaptureBlock = captureBlocks[captureBlocks.length - 1];
-              if (firstCaptureBlock) {
-                firstCaptureBlock.attributes = {
-                  style: "margin: 1em 0 0 0",
-                };
-              }
-              if (lastCaptureBlock) {
-                lastCaptureBlock.attributes = { style: "margin: 0 0 1em 0" };
-              }
-              const position =
-                PAGE_POSITIONS[
-                  keyword.toLowerCase() as keyof typeof PAGE_POSITIONS
-                ];
-              if (position) {
-                frontMatterPositionContent[position] ??= [];
-                frontMatterPositionContent[position]!.push(...captureBlocks);
-              }
-              return false;
-            }
-            return true;
-          },
-        });
-        // Add FrontMatter Spec
-        specs.push({
-          type: "replace",
-          from: treeFrom,
+        frontMatterPositionContent = {};
+      }
+      if (name === "FrontMatterField") {
+        frontMatterFieldCaptureBlocks = [];
+        frontMatterKeyword = "";
+      }
+      if (name === "FrontMatterFieldKeyword") {
+        const value = doc.sliceString(from, to).trim();
+        frontMatterKeyword = value;
+        return false;
+      }
+      if (name === "FrontMatterString") {
+        const value = doc.sliceString(from, to).trim();
+        frontMatterFieldCaptureBlocks.push({
+          type: frontMatterKeyword.toLowerCase(),
+          from,
           to,
-          block: true,
-          widget: TitlePageWidget,
-          language: LANGUAGE_SUPPORT.language,
-          highlighter: LANGUAGE_HIGHLIGHTS,
-          ...frontMatterPositionContent,
+          value,
+          markdown: true,
+          attributes: {
+            style: "min-height: 1em",
+          },
         });
         return false;
       }
@@ -334,94 +296,143 @@ const decorate = (state: EditorState) => {
           to,
         });
       }
-      if (name === "BlockDialogue" || name === "InlineDialogue") {
-        const inInlineDialogue = name === "InlineDialogue";
-        let inDualDialogue = false;
-        let dialoguePosition = 0;
-        let dialogueContent: MarkupContent[] = [];
-        // Iterate Dialogue tree
-        const treeFrom = from;
-        const tree = nodeRef.node.tree || nodeRef.node.toTree();
-        tree.iterate({
-          enter: (nodeRef) => {
-            const name = nodeRef.name as SparkdownNodeName;
-            const from = treeFrom + nodeRef.from;
-            const to = from + (nodeRef.to - nodeRef.from);
-            if (name === "DialogueCharacter") {
-              const value = doc.sliceString(from, to).trim();
-              dialogueContent.push({
-                type: "character",
-                from,
-                to,
-                value: "@ " + value,
-                markdown: true,
-                attributes: {
-                  style: getDialogueLineStyle("character"),
-                },
-              });
-            }
-            if (name === "DialogueCharacterPosition") {
-              const treeFrom = from;
-              const tree = nodeRef.node.tree || nodeRef.node.toTree();
-              tree.iterate({
-                enter: (nodeRef) => {
-                  const name = nodeRef.name as SparkdownNodeName;
-                  const from = treeFrom + nodeRef.from;
-                  const to = from + (nodeRef.to - nodeRef.from);
-                  if (name === "DialogueCharacterPositionContent") {
-                    const value = doc.sliceString(from, to).trim();
-                    if (value) {
-                      inDualDialogue = true;
-                      if (value === "<" || value === "left" || value === "l") {
-                        dialoguePosition = 1;
-                      }
-                      if (value === ">" || value === "right" || value === "r") {
-                        dialoguePosition = 2;
-                      }
-                    } else {
-                      inDualDialogue = false;
-                      dialoguePosition = 0;
-                    }
-                  }
-                },
-              });
-            }
-            if (name === "TextChunk") {
-              const value = doc.sliceString(from, to).trimEnd();
-              dialogueContent.push({
-                type: "dialogue",
-                from,
-                to,
-                value,
-                markdown: true,
-                attributes: {
-                  style: getDialogueLineStyle("dialogue"),
-                },
-              });
-            }
-            if (name === "ParentheticalLineContent") {
-              const value = doc.sliceString(from, to).trim();
-              dialogueContent.push({
-                type: "parenthetical",
-                from,
-                to,
-                value,
-                markdown: true,
-                attributes: {
-                  style: getDialogueLineStyle("parenthetical"),
-                },
-              });
-            }
-            if (isCentered(nodeRef)) {
-              centerRange(nodeRef, treeFrom);
-            }
-            if (isHidden(nodeRef)) {
-              hideRange(nodeRef, treeFrom);
-              return false;
-            }
-            return true;
+      if (name === "BlockDialogue") {
+        dialoguePosition = 0;
+        dialogueContent = [];
+      }
+      if (name === "InlineDialogue") {
+        dialoguePosition = 0;
+        dialogueContent = [];
+      }
+      if (name === "DialogueCharacter") {
+        const value = doc.sliceString(from, to).trim();
+        dialogueContent.push({
+          type: "character",
+          from,
+          to,
+          value: "@ " + value,
+          markdown: true,
+          attributes: {
+            style: getDialogueLineStyle("character"),
           },
         });
+      }
+      if (name === "DialogueCharacterPositionContent") {
+        const value = doc.sliceString(from, to).trim();
+        if (value) {
+          inDualDialogue = true;
+          if (value === "<" || value === "left" || value === "l") {
+            dialoguePosition = 1;
+          }
+          if (value === ">" || value === "right" || value === "r") {
+            dialoguePosition = 2;
+          }
+        } else {
+          inDualDialogue = false;
+          dialoguePosition = 0;
+        }
+      }
+      if (name === "TextChunk") {
+        if (
+          stack.includes("BlockDialogue") ||
+          stack.includes("InlineDialogue")
+        ) {
+          const value = doc.sliceString(from, to).trimEnd();
+          dialogueContent.push({
+            type: "dialogue",
+            from,
+            to,
+            value,
+            markdown: true,
+            attributes: {
+              style: getDialogueLineStyle("dialogue"),
+            },
+          });
+        }
+      }
+      if (name === "ParentheticalLineContent") {
+        if (
+          stack.includes("BlockDialogue") ||
+          stack.includes("InlineDialogue")
+        ) {
+          const value = doc.sliceString(from, to).trim();
+          dialogueContent.push({
+            type: "parenthetical",
+            from,
+            to,
+            value,
+            markdown: true,
+            attributes: {
+              style: getDialogueLineStyle("parenthetical"),
+            },
+          });
+        } else {
+          specs.push({
+            type: "replace",
+            from,
+            to,
+            content: [
+              {
+                type: name,
+                from,
+                to,
+              },
+            ],
+          });
+        }
+      }
+      if (isCentered(nodeRef)) {
+        centerRange(nodeRef);
+      }
+      if (isHidden(nodeRef)) {
+        hideRange(nodeRef);
+        return false;
+      }
+      return true;
+    },
+    leave: (nodeRef) => {
+      const name = nodeRef.name as SparkdownNodeName;
+      const from = nodeRef.node.from;
+      const to = nodeRef.node.to;
+      if (name === "FrontMatter") {
+        // Add FrontMatter Spec
+        specs.push({
+          type: "replace",
+          from,
+          to,
+          block: true,
+          widget: TitlePageWidget,
+          language: LANGUAGE_SUPPORT.language,
+          highlighter: LANGUAGE_HIGHLIGHTS,
+          ...frontMatterPositionContent,
+        });
+      }
+      if (name === "FrontMatterField") {
+        const firstCaptureBlock = frontMatterFieldCaptureBlocks[0];
+        const lastCaptureBlock =
+          frontMatterFieldCaptureBlocks[
+            frontMatterFieldCaptureBlocks.length - 1
+          ];
+        if (firstCaptureBlock) {
+          firstCaptureBlock.attributes = {
+            style: "margin: 1em 0 0 0",
+          };
+        }
+        if (lastCaptureBlock) {
+          lastCaptureBlock.attributes = { style: "margin: 0 0 1em 0" };
+        }
+        const position =
+          PAGE_POSITIONS[
+            frontMatterKeyword.toLowerCase() as keyof typeof PAGE_POSITIONS
+          ];
+        if (position) {
+          frontMatterPositionContent[position] ??= [];
+          frontMatterPositionContent[position]!.push(
+            ...frontMatterFieldCaptureBlocks
+          );
+        }
+      }
+      if (name === "BlockDialogue" || name === "InlineDialogue") {
         // Add Dialogue Spec
         if (inDualDialogue) {
           const isOdd = dialoguePosition % 2 !== 0;
@@ -429,7 +440,7 @@ const decorate = (state: EditorState) => {
             // left (odd position)
             const spec: DialogueSpec = {
               type: "replace",
-              from: treeFrom,
+              from,
               to: to - 1,
               widget: DialogueWidget,
               language: LANGUAGE_SUPPORT.language,
@@ -463,57 +474,26 @@ const decorate = (state: EditorState) => {
         } else {
           const spec: DialogueSpec = {
             type: "replace",
-            from: treeFrom,
-            to: to,
+            from,
+            to,
             widget: DialogueWidget,
             language: LANGUAGE_SUPPORT.language,
             highlighter: LANGUAGE_HIGHLIGHTS,
             block: true,
             blocks: [dialogueContent],
-            grid: inInlineDialogue,
+            grid: stack.includes("InlineDialogue"),
           };
           specs.push(spec);
           prevDialogueSpec = spec;
           dialoguePosition = 0;
         }
-        return false;
+        inDualDialogue = false;
       }
-      if (name === "ParentheticalLineContent") {
-        specs.push({
-          type: "replace",
-          from,
-          to,
-          content: [
-            {
-              type: name,
-              from,
-              to,
-            },
-          ],
-        });
-      }
-      if (isCentered(nodeRef)) {
-        centerRange(nodeRef, 0);
-      }
-      if (isHidden(nodeRef)) {
-        hideRange(nodeRef, 0);
-        return false;
-      }
-      return true;
+      stack.pop();
     },
   });
   // Add replacement decorations
-  const decorations = specs.flatMap((b) => createDecorations(b, doc));
-  // Add syntax highlighting
-  highlightTree(
-    tree,
-    LANGUAGE_HIGHLIGHTS,
-    (from, to, style) => {
-      decorations.push(Decoration.mark({ class: style }).range(from, to));
-    },
-    0,
-    state.doc.length
-  );
+  const decorations = specs.flatMap((b) => createDecorations(b, doc));@ 
   const rangeSet = RangeSet.of(decorations, true);
   return specs.length > 0 ? rangeSet : Decoration.none;
 };
@@ -540,7 +520,7 @@ const screenplayFormatting = (): Extension => {
   return [
     LANGUAGE_SUPPORT,
     replaceDecorations,
-    EditorView.styleModule.of(LANGUAGE_HIGHLIGHTS.module!),
+    syntaxHighlighting(LANGUAGE_HIGHLIGHTS),
   ];
 };
 
