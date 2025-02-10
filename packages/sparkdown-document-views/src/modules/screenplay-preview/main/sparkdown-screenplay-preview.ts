@@ -244,9 +244,6 @@ export default class SparkScreenplayPreview extends Component(spec) {
     const root = this.root;
     if (root) {
       this._scrollMargin = getBoxValues(this.scrollMargin);
-      if (this._view) {
-        this._view.destroy();
-      }
       this._view = createEditorView(root, {
         textDocument,
         scrollMargin: this._scrollMargin,
