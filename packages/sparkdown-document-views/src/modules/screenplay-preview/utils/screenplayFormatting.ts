@@ -100,25 +100,6 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   },
 ]);
 
-const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
-  "Comment",
-  "LineComment",
-  "BlockComment",
-  "Tag",
-  "Logic",
-  "Knot",
-  "Stitch",
-  "VarDeclaration",
-  "ListDeclaration",
-  "ConstDeclaration",
-  "ExternalDeclaration",
-  "DefineDeclaration",
-  "AudioLine",
-  "ImageLine",
-  "ImageAndAudioLine",
-  "Unknown",
-];
-
 const createDecorations = (
   spec: ReplaceSpec | RevealSpec,
   doc: Text
@@ -202,10 +183,24 @@ const decorate = (state: EditorState) => {
         return true;
       }
     }
-    if (HIDDEN_NODE_NAMES.includes(name)) {
-      return true;
-    }
-    return false;
+    return (
+      name === "Comment" ||
+      name === "LineComment" ||
+      name === "BlockComment" ||
+      name === "Tag" ||
+      name === "Logic" ||
+      name === "Knot" ||
+      name === "Stitch" ||
+      name === "VarDeclaration" ||
+      name === "ListDeclaration" ||
+      name === "ConstDeclaration" ||
+      name === "ExternalDeclaration" ||
+      name === "DefineDeclaration" ||
+      name === "AudioLine" ||
+      name === "ImageLine" ||
+      name === "ImageAndAudioLine" ||
+      name === "Unknown"
+    );
   };
 
   const hideRange = (nodeRef: SyntaxNodeRef, treeFrom: number = 0) => {
@@ -233,6 +228,7 @@ const decorate = (state: EditorState) => {
     });
   };
 
+  let inDialogue = false;
   let inDualDialogue = false;
   let dialoguePosition = 0;
   let dialogueContent: MarkupContent[] = [];
@@ -240,28 +236,22 @@ const decorate = (state: EditorState) => {
   let frontMatterFieldCaptureBlocks: MarkupContent[] = [];
   let frontMatterKeyword = "";
 
-  const stack: SparkdownNodeName[] = [];
-
   const tree = syntaxTree(state);
   tree.iterate({
     enter: (nodeRef) => {
       const name = nodeRef.name as SparkdownNodeName;
       const from = nodeRef.node.from;
       const to = nodeRef.node.to;
-      stack.push(name);
       if (name === "FrontMatter") {
         frontMatterPositionContent = {};
-      }
-      if (name === "FrontMatterField") {
+      } else if (name === "FrontMatterField") {
         frontMatterFieldCaptureBlocks = [];
         frontMatterKeyword = "";
-      }
-      if (name === "FrontMatterFieldKeyword") {
+      } else if (name === "FrontMatterFieldKeyword") {
         const value = doc.sliceString(from, to).trim();
         frontMatterKeyword = value;
         return false;
-      }
-      if (name === "FrontMatterString") {
+      } else if (name === "FrontMatterString") {
         const value = doc.sliceString(from, to).trim();
         frontMatterFieldCaptureBlocks.push({
           type: frontMatterKeyword.toLowerCase(),
@@ -274,37 +264,29 @@ const decorate = (state: EditorState) => {
           },
         });
         return false;
-      }
-      if (name === "Transition") {
+      } else if (name === "Transition") {
         specs.push({
           type: "reveal",
           from,
           to,
         });
-      }
-      if (name === "Scene") {
+      } else if (name === "Scene") {
         specs.push({
           type: "reveal",
           from,
           to,
         });
-      }
-      if (name === "Action") {
+      } else if (name === "Action") {
         specs.push({
           type: "reveal",
           from,
           to,
         });
-      }
-      if (name === "BlockDialogue") {
+      } else if (name === "BlockDialogue" || name === "InlineDialogue") {
+        inDialogue = true;
         dialoguePosition = 0;
         dialogueContent = [];
-      }
-      if (name === "InlineDialogue") {
-        dialoguePosition = 0;
-        dialogueContent = [];
-      }
-      if (name === "DialogueCharacter") {
+      } else if (name === "DialogueCharacter") {
         const value = doc.sliceString(from, to).trim();
         dialogueContent.push({
           type: "character",
@@ -316,8 +298,7 @@ const decorate = (state: EditorState) => {
             style: getDialogueLineStyle("character"),
           },
         });
-      }
-      if (name === "DialogueCharacterPositionContent") {
+      } else if (name === "DialogueCharacterPositionContent") {
         const value = doc.sliceString(from, to).trim();
         if (value) {
           inDualDialogue = true;
@@ -331,12 +312,8 @@ const decorate = (state: EditorState) => {
           inDualDialogue = false;
           dialoguePosition = 0;
         }
-      }
-      if (name === "TextChunk") {
-        if (
-          stack.includes("BlockDialogue") ||
-          stack.includes("InlineDialogue")
-        ) {
+      } else if (name === "TextChunk") {
+        if (inDialogue) {
           const value = doc.sliceString(from, to).trimEnd();
           dialogueContent.push({
             type: "dialogue",
@@ -349,12 +326,8 @@ const decorate = (state: EditorState) => {
             },
           });
         }
-      }
-      if (name === "ParentheticalLineContent") {
-        if (
-          stack.includes("BlockDialogue") ||
-          stack.includes("InlineDialogue")
-        ) {
+      } else if (name === "ParentheticalLineContent") {
+        if (inDialogue) {
           const value = doc.sliceString(from, to).trim();
           dialogueContent.push({
             type: "parenthetical",
@@ -380,11 +353,9 @@ const decorate = (state: EditorState) => {
             ],
           });
         }
-      }
-      if (isCentered(nodeRef)) {
+      } else if (isCentered(nodeRef)) {
         centerRange(nodeRef);
-      }
-      if (isHidden(nodeRef)) {
+      } else if (isHidden(nodeRef)) {
         hideRange(nodeRef);
         return false;
       }
@@ -406,8 +377,7 @@ const decorate = (state: EditorState) => {
           highlighter: LANGUAGE_HIGHLIGHTS,
           ...frontMatterPositionContent,
         });
-      }
-      if (name === "FrontMatterField") {
+      } else if (name === "FrontMatterField") {
         const firstCaptureBlock = frontMatterFieldCaptureBlocks[0];
         const lastCaptureBlock =
           frontMatterFieldCaptureBlocks[
@@ -431,8 +401,7 @@ const decorate = (state: EditorState) => {
             ...frontMatterFieldCaptureBlocks
           );
         }
-      }
-      if (name === "BlockDialogue" || name === "InlineDialogue") {
+      } else if (name === "BlockDialogue" || name === "InlineDialogue") {
         // Add Dialogue Spec
         if (inDualDialogue) {
           const isOdd = dialoguePosition % 2 !== 0;
@@ -481,15 +450,15 @@ const decorate = (state: EditorState) => {
             highlighter: LANGUAGE_HIGHLIGHTS,
             block: true,
             blocks: [dialogueContent],
-            grid: stack.includes("InlineDialogue"),
+            grid: name === "InlineDialogue",
           };
           specs.push(spec);
           prevDialogueSpec = spec;
           dialoguePosition = 0;
         }
+        inDialogue = false;
         inDualDialogue = false;
       }
-      stack.pop();
     },
   });
   // Add replacement decorations
