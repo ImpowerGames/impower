@@ -23,6 +23,8 @@ import {
 } from "../../../../grammar-compiler/src/grammar";
 
 import LezerParseRegion from "./LezerParseRegion";
+import { cachedCompilerProp } from "../props/cachedCompilerProp";
+import { cachedAheadBufferProp } from "../props/cachedAheadBufferProp";
 import { printTree } from "../utils/printTree";
 
 /** Amount of characters to slice before the starting position of the parse. */
@@ -30,10 +32,6 @@ const MARGIN_BEFORE = 32;
 
 /** Amount of characters to slice after the requested ending position of a parse. */
 const MARGIN_AFTER = 128;
-
-const COMPILER_PROP = new NodeProp<Compiler>({ perNode: true });
-
-const AHEAD_BUFFER_PROP = new NodeProp<ChunkBuffer>({ perNode: true });
 
 /**
  * `Parse` is the main interface for tokenizing and parsing, and what
@@ -118,13 +116,13 @@ export default class GrammarParse implements PartialParse {
         if (f.from <= this.region.from && f.to >= this.region.from) {
           // try to find the buffer for this fragment's tree in the cache
           const cachedCompiler = this.findProp<Compiler>(
-            COMPILER_PROP,
+            cachedCompilerProp,
             f.tree,
             this.region.from,
             f.to
           );
           const cachedAheadBuffer = this.findProp<ChunkBuffer>(
-            AHEAD_BUFFER_PROP,
+            cachedAheadBufferProp,
             f.tree,
             this.region.from,
             f.to
@@ -226,9 +224,9 @@ export default class GrammarParse implements PartialParse {
       // this is so that we don't need to build another tree
       const props = Object.create(null);
       // @ts-ignore
-      props[COMPILER_PROP.id] = this.compiler;
+      props[cachedCompilerProp.id] = this.compiler;
       // @ts-ignore
-      props[AHEAD_BUFFER_PROP.id] = this.aheadBuffer;
+      props[cachedAheadBufferProp.id] = this.aheadBuffer;
       // @ts-ignore
       tree.props = props;
 
