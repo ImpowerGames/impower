@@ -241,20 +241,9 @@ export class ChunkBuffer {
    * Appends another `ChunkBuffer` to the end of this buffer.
    *
    * @param right - The buffer to link.
-   * @param max - If given, the maximum size of the buffer (by document
-   *   position) will be clamped to below this number.
    */
-  append(right: ChunkBuffer, max?: number) {
-    this.chunks = [...this.chunks, ...right.chunks];
-    if (max != null) {
-      for (let idx = 0; idx < this.chunks.length; idx++) {
-        const chunk = this.chunks[idx]!;
-        if (chunk.to > max) {
-          this.chunks = this.chunks.slice(0, idx);
-          break;
-        }
-      }
-    }
+  append(right: ChunkBuffer) {
+    this.chunks.push(...right.chunks);
     return this;
   }
 }
