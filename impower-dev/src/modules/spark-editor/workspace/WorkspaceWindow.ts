@@ -35,6 +35,7 @@ import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
 import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
+import { debounce } from "../utils/debounce";
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -88,12 +89,12 @@ export default class WorkspaceWindow {
     return copy;
   }
 
-  protected cacheProjectWorkspace(store: WorkspaceCache) {
+  protected cacheProjectWorkspace = debounce((store: WorkspaceCache) => {
     localStorage.setItem(
       WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + store.project.id,
       JSON.stringify(this.getCacheableState(store))
     );
-  }
+  }, 300);
 
   protected restoreProjectWorkspace(id: string) {
     const cachedWorkspaceState = localStorage.getItem(
