@@ -1966,7 +1966,7 @@
         },
         "2": {
           "tag": "definition(heading)",
-          "name": "keyword.control.knot.sd"
+          "name": "keyword.control.section.sd"
         },
         "3": {
           "patterns": [
@@ -1991,7 +1991,7 @@
       "endCaptures": {
         "1": {
           "tag": "definition(heading)",
-          "name": "keyword.control.knot.sd"
+          "name": "keyword.control.section.sd"
         }
       }
     },
@@ -2047,7 +2047,7 @@
         },
         "2": {
           "tag": "definition(heading)",
-          "name": "keyword.control.stitch.sd"
+          "name": "keyword.control.section.sd"
         },
         "3": {
           "patterns": [

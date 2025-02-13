@@ -23,7 +23,8 @@ variables:
   EOK: "(?:$|{{WS}}+|(?={{TAG_START}}|[/][/]|[/][*]))"
   IMAGE_CONTROL_KEYWORDS: ["set", "show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["after", "over", "with", "wait", "nowait"]
-  AUDIO_CONTROL_KEYWORDS: ["start", "stop", "play", "modulate", "queue", "await"]
+  AUDIO_CONTROL_KEYWORDS:
+    ["start", "stop", "play", "modulate", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
     ["after", "over", "fadeto", "loop", "noloop", "mute", "unmute", "now"]
 
@@ -1119,7 +1120,7 @@ repository:
           - { include: "#Indent" }
       2:
         tag: definition(heading)
-        name: keyword.control.knot.sd
+        name: keyword.control.section.sd
       3:
         patterns:
           - { include: "#EndOfKeyword" }
@@ -1131,7 +1132,7 @@ repository:
     endCaptures:
       1:
         tag: definition(heading)
-        name: keyword.control.knot.sd
+        name: keyword.control.section.sd
 
   KnotDeclaration:
     begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*)
@@ -1163,7 +1164,7 @@ repository:
           - { include: "#Indent" }
       2:
         tag: definition(heading)
-        name: keyword.control.stitch.sd
+        name: keyword.control.section.sd
       3:
         patterns:
           - { include: "#EndOfKeyword" }
