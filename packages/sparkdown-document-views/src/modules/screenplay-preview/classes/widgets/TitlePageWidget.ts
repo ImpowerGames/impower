@@ -21,7 +21,6 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
     const container = document.createElement("div");
     container.classList.add("cm-line");
     container.style.opacity = "1";
-    container.style.minHeight = "calc(96px * 11)"; // US-Letter height = 11 inch
     const gridEl = document.createElement("div");
     gridEl.style.display = "grid";
     gridEl.style.height = "calc(96px * 9)";
