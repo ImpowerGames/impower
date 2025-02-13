@@ -218,6 +218,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected bindView(view: EditorView) {
     this._domClientY = view.dom.offsetTop;
     this._possibleScroller = getScrollableParent(view.scrollDOM);
+    this._possibleScroller?.addEventListener(
+      "scroll",
+      this.handlePointerScroll
+    );
     this._view?.dom.addEventListener(
       "touchstart",
       this.handlePointerEnterScroller,
@@ -424,6 +428,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     breakpointRanges: Range[] | undefined
   ) {
     if (this._view) {
+      this.unbindView(this._view);
       this._view.destroy();
     }
     if (this._disposable) {
