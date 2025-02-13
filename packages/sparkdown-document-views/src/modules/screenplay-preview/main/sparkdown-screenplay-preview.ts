@@ -254,6 +254,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     visibleRange: Range | undefined
   ) {
     if (this._view) {
+      this.unbindView(this._view);
       this._view.destroy();
     }
     this._initialized = false;
