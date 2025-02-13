@@ -6,21 +6,26 @@ import {
 import type { EditorState, Text } from "@codemirror/state";
 import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
-import { tags, highlightTree } from "@lezer/highlight";
+import { tags } from "@lezer/highlight";
 import { SyntaxNodeRef } from "@lezer/common";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import { SparkdownNodeName } from "../../../../../sparkdown/src/types/SparkdownNodeName";
 import TextmateLanguageSupport from "../../../cm-textmate/classes/TextmateLanguageSupport";
+import { cachedCompilerProp } from "../../../cm-textmate/props/cachedCompilerProp";
+import { printTree } from "../../../cm-textmate/utils/printTree";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
-import TitlePageWidget from "../classes/widgets/TitlePageWidget";
+import TitlePageWidget, {
+  TitlePageSpec,
+} from "../classes/widgets/TitlePageWidget";
 import { MarkupContent } from "../types/MarkupContent";
 import { ReplaceSpec } from "../types/ReplaceSpec";
 import { RevealSpec } from "../types/RevealSpec";
-import { printTree } from "../../../cm-textmate/utils/printTree";
-import { cachedCompilerProp } from "../../../cm-textmate/props/cachedCompilerProp";
+import { CollapseSpec } from "../types/CollapseSpec";
+import CollapseWidget from "../classes/widgets/CollapseWidget";
+import { MarkSpec } from "../types/MarkSpec";
 
 const DIALOGUE_WIDTH = "60%";
 const CHARACTER_PADDING = "16%";
@@ -29,6 +34,14 @@ const PARENTHETICAL_PADDING = "8%";
 const DUAL_DIALOGUE_WIDTH = "90%";
 const DUAL_CHARACTER_PADDING = "16%";
 const DUAL_PARENTHETICAL_PADDING = "8%";
+
+type DecorationSpec =
+  | ReplaceSpec
+  | RevealSpec
+  | CollapseSpec
+  | DialogueSpec
+  | TitlePageSpec
+  | MarkSpec;
 
 const getDialogueLineStyle = (type: string) => {
   const dialogueWidth = DIALOGUE_WIDTH;
@@ -102,9 +115,16 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
 ]);
 
 const createDecorations = (
-  spec: ReplaceSpec | RevealSpec,
+  spec: DecorationSpec,
   doc: Text
 ): Range<Decoration>[] => {
+  if (spec.type === "mark") {
+    return [
+      Decoration.mark({
+        attributes: spec.attributes,
+      }).range(spec.from, spec.to),
+    ];
+  }
   if (spec.type === "reveal") {
     return [
       Decoration.line({
@@ -112,10 +132,32 @@ const createDecorations = (
       }).range(doc.lineAt(spec.from + 1).from),
     ];
   }
-  if (spec.widget === DialogueWidget) {
-    const dialogueSpec = spec as DialogueSpec;
-    if (!dialogueSpec.grid) {
-      const blocks = dialogueSpec.blocks[0];
+  if (spec.type === "collapse") {
+    return [
+      Decoration.replace({
+        widget: new CollapseWidget(spec),
+        block: true,
+      }).range(spec.from, spec.to),
+    ];
+  }
+  if (spec.type === "title") {
+    return [
+      Decoration.replace({
+        widget: new TitlePageWidget(spec),
+        block: true,
+      }).range(spec.from, spec.to),
+    ];
+  }
+  if (spec.type === "dialogue") {
+    if (spec.grid) {
+      return [
+        Decoration.replace({
+          widget: new DialogueWidget(spec),
+          block: true,
+        }).range(spec.from, spec.to),
+      ];
+    } else {
+      const blocks = spec.blocks[0];
       if (blocks) {
         return blocks.map((b) =>
           Decoration.line({
@@ -125,26 +167,15 @@ const createDecorations = (
       }
     }
   }
-  if (spec.content && !spec.block) {
-    return spec.content.map((b) =>
-      b.attributes
-        ? Decoration.mark({
-            attributes: b.attributes,
-          }).range(spec.from, spec.to)
-        : Decoration.replace({}).range(spec.from, spec.to)
-    );
+  if (spec.type === "replace") {
+    return [Decoration.replace({}).range(spec.from, spec.to)];
   }
-  return [
-    Decoration.replace({
-      widget: spec.widget ? new spec.widget(spec) : undefined,
-      block: spec.block,
-    }).range(spec.from, spec.to),
-  ];
+  return [];
 };
 
-const decorate = (state: EditorState, from?: number, to?: number) => {
+const decorate = (state: EditorState, from: number = 0, to?: number) => {
   let prevDialogueSpec: DialogueSpec | undefined = undefined;
-  const specs: (ReplaceSpec | RevealSpec)[] = [];
+  const specs: DecorationSpec[] = [];
   const doc = state.doc;
 
   const isCentered = (nodeRef: SyntaxNodeRef) => {
@@ -156,77 +187,77 @@ const decorate = (state: EditorState, from?: number, to?: number) => {
   };
 
   const centerRange = (nodeRef: SyntaxNodeRef) => {
-    const name = nodeRef.name as SparkdownNodeName;
     const from = nodeRef.from;
     const to = nodeRef.to;
     specs.push({
-      type: "replace",
+      type: "mark",
       from,
       to,
-      content: [
-        {
-          type: name,
-          from,
-          to,
-          attributes: {
-            style: "display: block; opacity: 1; text-align: center;",
-          },
-        },
-      ],
+      attributes: {
+        style: "display: block; opacity: 1; text-align: center;",
+      },
     });
   };
 
   const isHidden = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
-    if (name === "Divert") {
-      // This is a top-level divert node
-      return nodeRef.matchContext([LANGUAGE_NAME]);
+    if (nodeRef.matchContext(["sparkdown"])) {
+      return (
+        name === "Comment" ||
+        name === "LineComment" ||
+        name === "BlockComment" ||
+        name === "Tag" ||
+        name === "Logic" ||
+        name === "Knot" ||
+        name === "Stitch" ||
+        name === "VarDeclaration" ||
+        name === "ListDeclaration" ||
+        name === "ConstDeclaration" ||
+        name === "ExternalDeclaration" ||
+        name === "DefineDeclaration" ||
+        name === "AudioLine" ||
+        name === "ImageLine" ||
+        name === "ImageAndAudioLine" ||
+        name === "Divert" ||
+        name === "Unknown"
+      );
     }
-    return (
-      name === "Comment" ||
-      name === "LineComment" ||
-      name === "BlockComment" ||
-      name === "Tag" ||
-      name === "Logic" ||
-      name === "Knot" ||
-      name === "Stitch" ||
-      name === "VarDeclaration" ||
-      name === "ListDeclaration" ||
-      name === "ConstDeclaration" ||
-      name === "ExternalDeclaration" ||
-      name === "DefineDeclaration" ||
-      name === "AudioLine" ||
-      name === "ImageLine" ||
-      name === "ImageAndAudioLine" ||
-      name === "Unknown"
-    );
+    return false;
   };
 
   const hideRange = (nodeRef: SyntaxNodeRef) => {
     const from = nodeRef.from;
     const to = nodeRef.to;
     const hiddenNodeEndsWithNewline = doc.sliceString(from, to).endsWith("\n");
-    const nextLineAt = hiddenNodeEndsWithNewline ? to : to + 1;
-    const nextLine =
-      nextLineAt < doc.length - 1 ? doc.lineAt(nextLineAt) : null;
-    const nextLineIsBlank =
-      nextLine && doc.sliceString(nextLine.from, nextLine.to).trim() === "";
     const hideFrom = from;
-    const hideTo = nextLineIsBlank
-      ? nextLine.to
-      : hiddenNodeEndsWithNewline
-      ? to - 1
-      : to;
+    const hideTo = hiddenNodeEndsWithNewline ? to - 1 : to;
     specs.push({
-      type: "replace",
+      type: "collapse",
       from: hideFrom,
       to: hideTo,
-      block: true,
-      language: LANGUAGE_SUPPORT.language,
-      highlighter: LANGUAGE_HIGHLIGHTS,
     });
+    isBlankLineFrom = undefined;
+    if (hiddenNodeEndsWithNewline) {
+      processNewline(nodeRef.to);
+    }
   };
 
+  const processNewline = (to: number) => {
+    if (isBlankLineFrom != null) {
+      specs.push({
+        type: "collapse",
+        from: isBlankLineFrom,
+        to: to - 1,
+        separator: true,
+      });
+    }
+    isBlankLineFrom = to - 1;
+  };
+
+  const prevChar = doc.sliceString(from - 1, from);
+
+  let isBlankLineFrom: undefined | number =
+    prevChar === "" ? 0 : prevChar === "\n" ? from - 1 : undefined;
   let inDialogue = false;
   let inDualDialogue = false;
   let dialoguePosition = 0;
@@ -243,6 +274,11 @@ const decorate = (state: EditorState, from?: number, to?: number) => {
       const name = nodeRef.name as SparkdownNodeName;
       const from = nodeRef.from;
       const to = nodeRef.to;
+      if (name === "Newline") {
+        processNewline(nodeRef.to);
+      } else if (to > from && name !== "sparkdown" && name !== "Whitespace") {
+        isBlankLineFrom = undefined;
+      }
       if (name === "FrontMatter") {
         frontMatterPositionContent = {};
       } else if (name === "FrontMatterField") {
@@ -265,24 +301,6 @@ const decorate = (state: EditorState, from?: number, to?: number) => {
           },
         });
         return false;
-      } else if (name === "Transition") {
-        specs.push({
-          type: "reveal",
-          from,
-          to,
-        });
-      } else if (name === "Scene") {
-        specs.push({
-          type: "reveal",
-          from,
-          to,
-        });
-      } else if (name === "Action") {
-        specs.push({
-          type: "reveal",
-          from,
-          to,
-        });
       } else if (name === "BlockDialogue" || name === "InlineDialogue") {
         inDialogue = true;
         dialoguePosition = 0;
@@ -340,19 +358,6 @@ const decorate = (state: EditorState, from?: number, to?: number) => {
               style: getDialogueLineStyle("parenthetical"),
             },
           });
-        } else {
-          specs.push({
-            type: "replace",
-            from,
-            to,
-            content: [
-              {
-                type: name,
-                from,
-                to,
-              },
-            ],
-          });
         }
       } else if (isCentered(nodeRef)) {
         centerRange(nodeRef);
@@ -370,11 +375,9 @@ const decorate = (state: EditorState, from?: number, to?: number) => {
       if (name === "FrontMatter") {
         // Add FrontMatter Spec
         specs.push({
-          type: "replace",
+          type: "title",
           from,
           to,
-          block: true,
-          widget: TitlePageWidget,
           language: LANGUAGE_SUPPORT.language,
           highlighter: LANGUAGE_HIGHLIGHTS,
           ...frontMatterPositionContent,
@@ -403,6 +406,24 @@ const decorate = (state: EditorState, from?: number, to?: number) => {
             ...frontMatterFieldCaptureBlocks
           );
         }
+      } else if (name === "Transition") {
+        // Add Transition Spec
+        specs.push({
+          type: "reveal",
+          from,
+        });
+      } else if (name === "Scene") {
+        // Add Scene Spec
+        specs.push({
+          type: "reveal",
+          from,
+        });
+      } else if (name === "Action") {
+        // Add Action Spec
+        specs.push({
+          type: "reveal",
+          from,
+        });
       } else if (name === "BlockDialogue" || name === "InlineDialogue") {
         // Add Dialogue Spec
         if (inDualDialogue) {
@@ -410,13 +431,11 @@ const decorate = (state: EditorState, from?: number, to?: number) => {
           if (isOdd) {
             // left (odd position)
             const spec: DialogueSpec = {
-              type: "replace",
+              type: "dialogue",
               from,
               to: to - 1,
-              widget: DialogueWidget,
               language: LANGUAGE_SUPPORT.language,
               highlighter: LANGUAGE_HIGHLIGHTS,
-              block: true,
               blocks: [
                 dialogueContent.map((c) => {
                   c.attributes = {
@@ -444,13 +463,11 @@ const decorate = (state: EditorState, from?: number, to?: number) => {
           }
         } else {
           const spec: DialogueSpec = {
-            type: "replace",
+            type: "dialogue",
             from,
             to,
-            widget: DialogueWidget,
             language: LANGUAGE_SUPPORT.language,
             highlighter: LANGUAGE_HIGHLIGHTS,
-            block: true,
             blocks: [dialogueContent],
             grid: name === "InlineDialogue",
           };
@@ -463,9 +480,8 @@ const decorate = (state: EditorState, from?: number, to?: number) => {
       }
     },
   });
-  // Add replacement decorations
-  const decorations = specs.flatMap((b) => createDecorations(b, doc));
-  return decorations;
+  processNewline(to ?? doc.length + 1);
+  return specs.flatMap((b) => createDecorations(b, doc));
 };
 
 const replaceDecorations = StateField.define<DecorationSet>({

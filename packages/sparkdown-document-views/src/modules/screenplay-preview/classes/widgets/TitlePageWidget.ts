@@ -1,10 +1,11 @@
 import { EditorView } from "@codemirror/view";
 import { MarkupContent } from "../../types/MarkupContent";
-import { ReplaceSpec } from "../../types/ReplaceSpec";
 import getFormattedHTML from "../../utils/getFormattedHTML";
-import ReplaceWidget from "../ReplaceWidget";
+import BlockWidget from "../BlockWidget";
+import { DecorationSpec } from "../../types/DecorationSpec";
 
-export interface TitlePageSpec extends ReplaceSpec {
+export interface TitlePageSpec extends DecorationSpec {
+  type: "title";
   tl?: MarkupContent[];
   tc?: MarkupContent[];
   tr?: MarkupContent[];
@@ -13,13 +14,14 @@ export interface TitlePageSpec extends ReplaceSpec {
   br?: MarkupContent[];
 }
 
-export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
-  override toDOM(view: EditorView) {
+export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
+  override toDOM(_view: EditorView) {
     const language = this.spec.language;
     const highlighter = this.spec.highlighter;
     const container = document.createElement("div");
     container.classList.add("cm-line");
     container.style.opacity = "1";
+    container.style.minHeight = "calc(96px * 11)"; // US-Letter height = 11 inch
     const gridEl = document.createElement("div");
     gridEl.style.display = "grid";
     gridEl.style.height = "calc(96px * 9)";
@@ -80,7 +82,6 @@ export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
     pageBreakEl.style.height = "1em";
     pageBreakEl.style.marginTop = "1em";
     container.appendChild(pageBreakEl);
-    view.requestMeasure();
     return container;
   }
 }

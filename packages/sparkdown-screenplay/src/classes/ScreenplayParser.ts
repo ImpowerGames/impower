@@ -89,51 +89,102 @@ export default class ScreenplayParser {
     let choice_suffix = "";
     let character = "";
     let position: "l" | "r" | undefined = undefined;
+    let isBlankLine = true;
     const read = (from: number, to: number) => script.slice(from, to);
+
+    const addSeparator = () => {
+      if (tokens.at(-1)?.tag !== "separator") {
+        tokens.push({ tag: "separator" });
+      }
+    };
 
     tree.iterate({
       enter: (node) => {
-        const nodeType = node.type.name as SparkdownNodeName;
-        const text = read(node.from, node.to);
+        const name = node.name as SparkdownNodeName;
+        const from = node.from;
+        const to = node.to;
+
+        // Separator
+        if (node.matchContext(["sparkdown"])) {
+          if (
+            name === "Comment" ||
+            name === "LineComment" ||
+            name === "BlockComment" ||
+            name === "Tag" ||
+            name === "Logic" ||
+            name === "Knot" ||
+            name === "Stitch" ||
+            name === "VarDeclaration" ||
+            name === "ListDeclaration" ||
+            name === "ConstDeclaration" ||
+            name === "ExternalDeclaration" ||
+            name === "DefineDeclaration" ||
+            name === "AudioLine" ||
+            name === "ImageLine" ||
+            name === "ImageAndAudioLine" ||
+            name === "Divert" ||
+            name === "Unknown"
+          ) {
+            // Add separator for hidden top-level nodes
+            addSeparator();
+          }
+        }
+        if (name === "Newline") {
+          if (isBlankLine) {
+            // Add separator for blank lines
+            addSeparator();
+          }
+          isBlankLine = true;
+        } else if (to > from && name !== "sparkdown" && name !== "Whitespace") {
+          isBlankLine = false;
+        }
 
         // FrontMatter
-        if (nodeType === "FrontMatterFieldKeyword") {
+        if (name === "FrontMatterFieldKeyword") {
+          const text = read(from, to);
           frontMatterKey = text;
           frontMatterValue = "";
         }
-        if (nodeType === "FrontMatterString_content") {
+        if (name === "FrontMatterString_content") {
+          const text = read(from, to);
           frontMatterValue += text + "\n";
         }
 
         // Knot
-        if (nodeType === "Knot") {
+        if (name === "Knot") {
           tokens.push({ tag: "page_break" });
         }
-        if (nodeType === "KnotDeclarationName") {
+        if (name === "KnotDeclarationName") {
+          const text = read(from, to);
           tokens.push({ tag: "knot", text });
         }
 
         // Stitch
-        if (nodeType === "StitchDeclarationName") {
+        if (name === "StitchDeclarationName") {
+          const text = read(from, to);
           tokens.push({ tag: "stitch", text });
         }
 
         // Transition
         if (stack.includes("Transition")) {
-          if (nodeType === "TextChunk") {
+          if (name === "TextChunk") {
+            const text = read(from, to);
             transition += text + "\n";
           }
-          if (nodeType === "ParentheticalLineContent") {
+          if (name === "ParentheticalLineContent") {
+            const text = read(from, to);
             transition += text + "\n";
           }
         }
 
         // Scene
         if (stack.includes("Scene")) {
-          if (nodeType === "TextChunk") {
+          if (name === "TextChunk") {
+            const text = read(from, to);
             scene += text + "\n";
           }
-          if (nodeType === "ParentheticalLineContent") {
+          if (name === "ParentheticalLineContent") {
+            const text = read(from, to);
             scene += text + "\n";
           }
         }
@@ -141,28 +192,34 @@ export default class ScreenplayParser {
         // Action
         if (stack.includes("Action")) {
           if (stack.includes("Action_begin")) {
-            if (nodeType === "Whitespace") {
+            if (name === "Whitespace") {
+              const text = read(from, to);
               // This action does not begin with an explicit action mark,
               // so include the indented whitespace.
               action += text;
             }
           }
-          if (nodeType === "TextChunk") {
+          if (name === "TextChunk") {
+            const text = read(from, to);
             action += text + "\n";
           }
-          if (nodeType === "ParentheticalLineContent") {
+          if (name === "ParentheticalLineContent") {
+            const text = read(from, to);
             action += text + "\n";
           }
         }
 
         // Dialogue
-        if (nodeType === "DialogueCharacterName") {
+        if (name === "DialogueCharacterName") {
+          const text = read(from, to);
           character = text;
         }
-        if (nodeType === "DialogueCharacterParenthetical") {
+        if (name === "DialogueCharacterParenthetical") {
+          const text = read(from, to);
           character += text;
         }
-        if (nodeType === "DialogueCharacterPositionContent") {
+        if (name === "DialogueCharacterPositionContent") {
+          const text = read(from, to);
           if (text === "<" || text === "left" || text === "l") {
             position = "l";
           } else if (text === ">" || text === "right" || text === "r") {
@@ -173,14 +230,16 @@ export default class ScreenplayParser {
           stack.includes("BlockDialogue_content") ||
           stack.includes("InlineDialogue_content")
         ) {
-          if (nodeType === "TextChunk") {
+          if (name === "TextChunk") {
+            const text = read(from, to);
             tokens.push({
               tag: "dialogue_content",
               text,
               position,
             });
           }
-          if (nodeType === "ParentheticalLineContent") {
+          if (name === "ParentheticalLineContent") {
+            const text = read(from, to);
             tokens.push({
               tag: "dialogue_parenthetical",
               text,
@@ -191,58 +250,22 @@ export default class ScreenplayParser {
 
         // Choice
         if (stack.includes("Choice")) {
-          if (nodeType === "ChoiceMark") {
+          if (name === "ChoiceMark") {
+            const text = read(from, to);
             choice_prefix += text;
           }
-          if (nodeType === "Choice_content") {
+          if (name === "Choice_content") {
+            const text = read(from, to);
             choice += text;
           }
         }
 
-        stack.push(nodeType);
+        stack.push(name);
       },
       leave: (node) => {
-        const getNodeAfterFinalNewline = (node: SyntaxNode) => {
-          const finalNewlineNode = read(node.from, node.to).endsWith("\n")
-            ? node.node
-            : node.node.nextSibling;
-          return finalNewlineNode?.node.nextSibling || null;
-        };
-
-        const isPrintable = (node: SyntaxNode | null) => {
-          const name = node?.name as SparkdownNodeName;
-          if (node) {
-            if (
-              name === "ImageAndAudioLine" ||
-              name === "ImageLine" ||
-              name === "AudioLine" ||
-              name === "Divert"
-            ) {
-              if (getNodeAfterFinalNewline(node)?.name === "Action") {
-                // If directly followed by another Action,
-                // treat the node as equivalent to Action with no text.
-                return true;
-              }
-            }
-          }
-          return (
-            name === "Transition" ||
-            name === "Scene" ||
-            name === "Action" ||
-            name === "InlineDialogue" ||
-            name === "BlockDialogue" ||
-            name === "Choice"
-          );
-        };
-
-        const shouldAddSeparator = () => {
-          // Should not add separator if directly followed by a printable body line
-          return !isPrintable(getNodeAfterFinalNewline(node));
-        };
-
+        const name = node.name as SparkdownNodeName;
         // FrontMatter
-        const nodeType = node.type.name as SparkdownNodeName;
-        if (nodeType === "FrontMatterField") {
+        if (name === "FrontMatterField") {
           tokens.push({
             tag: frontMatterKey as MetadataTokenType,
             text: frontMatterValue,
@@ -250,43 +273,34 @@ export default class ScreenplayParser {
         }
 
         // Transition
-        if (nodeType === "Transition") {
+        if (name === "Transition") {
           tokens.push({
             tag: "transition",
             text: transition,
           });
           transition = "";
-          if (shouldAddSeparator()) {
-            tokens.push({ tag: "separator" });
-          }
         }
 
         // Scene
-        if (nodeType === "Scene") {
+        if (name === "Scene") {
           tokens.push({
             tag: "scene",
             text: scene,
           });
           scene = "";
-          if (shouldAddSeparator()) {
-            tokens.push({ tag: "separator" });
-          }
         }
 
         // Action
-        if (nodeType === "Action") {
+        if (name === "Action") {
           tokens.push({
             tag: "action",
             text: action,
           });
           action = "";
-          if (shouldAddSeparator()) {
-            tokens.push({ tag: "separator" });
-          }
         }
 
         // Dialogue
-        if (nodeType === "DialogueCharacter") {
+        if (name === "DialogueCharacter") {
           tokens.push({
             tag: "dialogue_character",
             text: character,
@@ -294,15 +308,12 @@ export default class ScreenplayParser {
           });
           character = "";
         }
-        if (nodeType === "BlockDialogue" || nodeType === "InlineDialogue") {
+        if (name === "BlockDialogue" || name === "InlineDialogue") {
           position = undefined;
-          if (shouldAddSeparator()) {
-            tokens.push({ tag: "separator" });
-          }
         }
 
         // Choice
-        if (nodeType === "Choice") {
+        if (name === "Choice") {
           tokens.push({
             tag: "choice",
             text: choice,
@@ -312,14 +323,23 @@ export default class ScreenplayParser {
           choice = "";
           choice_prefix = "";
           choice_suffix = "";
-          if (shouldAddSeparator()) {
-            tokens.push({ tag: "separator" });
-          }
         }
 
         stack.pop();
       },
     });
+
+    while (tokens.at(0)?.tag === "separator") {
+      // trim away leading separators
+      tokens.shift();
+    }
+    while (tokens.at(-1)?.tag === "separator") {
+      // trim away trailing separators
+      tokens.pop();
+    }
+
+    console.log(tokens);
+
     return tokens;
   }
 

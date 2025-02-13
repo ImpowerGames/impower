@@ -1,8 +1,8 @@
 import { EditorView } from "@codemirror/view";
 import { MarkupContent } from "../../types/MarkupContent";
-import { ReplaceSpec } from "../../types/ReplaceSpec";
 import getFormattedHTML from "../../utils/getFormattedHTML";
-import ReplaceWidget from "../ReplaceWidget";
+import BlockWidget from "../BlockWidget";
+import { DecorationSpec } from "../../types/DecorationSpec";
 
 const DIALOGUE_CONTAINER_WIDTH = "100%";
 const DUAL_DIALOGUE_CONTAINER_WIDTH = "95%";
@@ -22,13 +22,14 @@ const escapeDialogueLines = (block: MarkupContent[]) => {
   );
 };
 
-export interface DialogueSpec extends ReplaceSpec {
+export interface DialogueSpec extends DecorationSpec {
+  type: "dialogue";
   blocks: MarkupContent[][];
   grid: boolean;
 }
 
-export default class DialogueWidget extends ReplaceWidget<DialogueSpec> {
-  override toDOM(view: EditorView) {
+export default class DialogueWidget extends BlockWidget<DialogueSpec> {
+  override toDOM(_view: EditorView) {
     const container = document.createElement("div");
     container.classList.add("cm-line");
     container.style.opacity = "1";
@@ -60,7 +61,6 @@ export default class DialogueWidget extends ReplaceWidget<DialogueSpec> {
         );
       }
     }
-    view.requestMeasure();
     return container;
   }
 }

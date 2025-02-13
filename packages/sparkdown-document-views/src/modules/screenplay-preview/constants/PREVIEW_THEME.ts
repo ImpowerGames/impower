@@ -22,11 +22,19 @@ const PREVIEW_THEME: {
     opacity: 0,
     padding: 0,
   },
+  "& .collapse + .collapse": {
+    display: "none",
+  },
+  "& .collapse:first-child": {
+    display: "none",
+  },
+  "& .collapse:last-child": {
+    display: "none",
+  },
   "& .cm-content": {
     padding: "68px 24px 68px 24px", // 24px ≈ 0.25 inch
     margin: "auto",
     maxWidth: "640px",
-    minHeight: "calc(96px * 11)", // US-Letter height = 11 inch
     position: "relative",
     "&:before": {
       content: "''",
