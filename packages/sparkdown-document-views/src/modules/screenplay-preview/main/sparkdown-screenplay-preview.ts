@@ -3,6 +3,7 @@ import { HoveredOnEditorMessage } from "../../../../../spark-editor-protocol/src
 import { ScrolledEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage.js";
 import { ConnectedPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage.js";
 import { HoveredOnPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage.js";
+import { HoveredOffPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage.js";
 import { LoadPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
 import { RevealPreviewRangeMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/RevealPreviewRangeMessage.js";
 import { ScrolledPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage.js";
@@ -38,7 +39,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
 
   protected _view?: EditorView;
 
-  protected _possibleScroller?: Element | null;
+  protected _possibleScroller?: Window | Element | null;
 
   protected _visibleRange?: Range;
 
@@ -132,17 +133,27 @@ export default class SparkScreenplayPreview extends Component(spec) {
       "scroll",
       this.handlePointerScroll
     );
-    window.addEventListener("scroll", this.handlePointerScroll);
-    view.scrollDOM.addEventListener("scroll", this.handlePointerScroll);
-    view.dom.addEventListener("touchstart", this.handlePointerEnterScroller, {
-      passive: true,
-    });
-    view.dom.addEventListener("mouseenter", this.handlePointerEnterScroller, {
-      passive: true,
-    });
-    view.dom.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
-      passive: true,
-    });
+    this._view?.dom.addEventListener(
+      "touchstart",
+      this.handlePointerEnterScroller,
+      {
+        passive: true,
+      }
+    );
+    this._view?.dom.addEventListener(
+      "mouseenter",
+      this.handlePointerEnterScroller,
+      {
+        passive: true,
+      }
+    );
+    this._view?.dom.addEventListener(
+      "mouseleave",
+      this.handlePointerLeaveScroller,
+      {
+        passive: true,
+      }
+    );
   }
 
   protected unbindView(view: EditorView) {
@@ -150,11 +161,18 @@ export default class SparkScreenplayPreview extends Component(spec) {
       "scroll",
       this.handlePointerScroll
     );
-    window.removeEventListener("scroll", this.handlePointerScroll);
-    view.scrollDOM.removeEventListener("scroll", this.handlePointerScroll);
-    view.dom.removeEventListener("touchstart", this.handlePointerEnterScroller);
-    view.dom.removeEventListener("mouseenter", this.handlePointerEnterScroller);
-    view.dom.removeEventListener("mouseleave", this.handlePointerLeaveScroller);
+    this._view?.dom.removeEventListener(
+      "touchstart",
+      this.handlePointerEnterScroller
+    );
+    this._view?.dom.removeEventListener(
+      "mouseenter",
+      this.handlePointerEnterScroller
+    );
+    this._view?.dom.removeEventListener(
+      "mouseleave",
+      this.handlePointerLeaveScroller
+    );
     view.destroy();
   }
 
@@ -339,6 +357,15 @@ export default class SparkScreenplayPreview extends Component(spec) {
 
   protected handlePointerLeaveScroller = () => {
     this._userInitiatedScroll = false;
+    if (this._textDocument) {
+      this.emit(
+        HoveredOffPreviewMessage.method,
+        HoveredOffPreviewMessage.type.notification({
+          type: "screenplay",
+          textDocument: this._textDocument,
+        })
+      );
+    }
   };
 
   protected handlePointerScroll = (e: Event) => {

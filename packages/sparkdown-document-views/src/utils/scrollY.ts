@@ -2,19 +2,21 @@ import { isScrollable } from "./isScrollable";
 
 export const scrollY = (
   y: number,
-  ...possibleScrollers: (Element | null | undefined)[]
+  ...possibleScrollers: (Window | Element | null | undefined)[]
 ) => {
   const scroller = possibleScrollers.find((s) => s && isScrollable(s));
-  if (scroller) {
+  const scrollerEl =
+    scroller instanceof Element ? scroller : document.documentElement;
+  if (scrollerEl) {
     const scrollHeight =
-      scroller === document.documentElement
+      scrollerEl === document.documentElement
         ? document.documentElement.scrollHeight
-        : scroller.scrollHeight;
+        : scrollerEl.scrollHeight;
     const validY = y === Infinity ? scrollHeight : y;
-    if (scroller === document.documentElement) {
+    if (scrollerEl === document.documentElement) {
       window.scrollTo(0, validY);
     } else {
-      scroller.scrollTop = validY;
+      scrollerEl.scrollTop = validY;
     }
   }
 };

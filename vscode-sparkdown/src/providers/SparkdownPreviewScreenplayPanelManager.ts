@@ -2,6 +2,7 @@ import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protoc
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
+import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
@@ -106,6 +107,11 @@ export class SparkdownPreviewScreenplayPanelManager {
       if (HoveredOnPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "screenplay") {
           this._hovering = true;
+        }
+      }
+      if (HoveredOffPreviewMessage.type.isNotification(message)) {
+        if (message.params.type === "screenplay") {
+          this._hovering = false;
         }
       }
       if (ScrolledPreviewMessage.type.isNotification(message)) {
@@ -315,10 +321,11 @@ export class SparkdownPreviewScreenplayPanelManager {
             }
 
             html {
-              height: 100%;
               padding: 0;
               margin: 0;
-              overflow: hidden;
+              overflow-y: scroll;
+              overflow-x: hidden;
+              touch-action: pan-y;
             }
 
             body {

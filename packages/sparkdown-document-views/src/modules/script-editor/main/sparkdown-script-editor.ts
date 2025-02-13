@@ -4,6 +4,7 @@ import { TextDocumentSaveReason } from "../../../../../spark-editor-protocol/src
 import { ChangedEditorBreakpointsMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { FocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { HoveredOnEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
+import { HoveredOffEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/HoveredOffEditorMessage";
 import { LoadEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { ScrolledEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
@@ -74,7 +75,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected _disposable?: { dispose: () => void };
 
-  protected _possibleScroller?: Element | null;
+  protected _possibleScroller?: Window | Element | null;
 
   protected _visibleRange?: Range;
 
@@ -217,21 +218,27 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected bindView(view: EditorView) {
     this._domClientY = view.dom.offsetTop;
     this._possibleScroller = getScrollableParent(view.scrollDOM);
-    this._possibleScroller?.addEventListener(
-      "scroll",
-      this.handlePointerScroll
+    this._view?.dom.addEventListener(
+      "touchstart",
+      this.handlePointerEnterScroller,
+      {
+        passive: true,
+      }
     );
-    window.addEventListener("scroll", this.handlePointerScroll);
-    view.scrollDOM.addEventListener("scroll", this.handlePointerScroll);
-    view.dom.addEventListener("touchstart", this.handlePointerEnterScroller, {
-      passive: true,
-    });
-    view.dom.addEventListener("mouseenter", this.handlePointerEnterScroller, {
-      passive: true,
-    });
-    view.dom.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
-      passive: true,
-    });
+    this._view?.dom.addEventListener(
+      "mouseenter",
+      this.handlePointerEnterScroller,
+      {
+        passive: true,
+      }
+    );
+    this._view?.dom.addEventListener(
+      "mouseleave",
+      this.handlePointerLeaveScroller,
+      {
+        passive: true,
+      }
+    );
   }
 
   protected unbindView(view: EditorView) {
@@ -239,11 +246,18 @@ export default class SparkdownScriptEditor extends Component(spec) {
       "scroll",
       this.handlePointerScroll
     );
-    window.removeEventListener("scroll", this.handlePointerScroll);
-    view.scrollDOM.removeEventListener("scroll", this.handlePointerScroll);
-    view.dom.removeEventListener("touchstart", this.handlePointerEnterScroller);
-    view.dom.removeEventListener("mouseenter", this.handlePointerEnterScroller);
-    view.dom.removeEventListener("mouseleave", this.handlePointerLeaveScroller);
+    this._view?.dom.removeEventListener(
+      "touchstart",
+      this.handlePointerEnterScroller
+    );
+    this._view?.dom.removeEventListener(
+      "mouseenter",
+      this.handlePointerEnterScroller
+    );
+    this._view?.dom.removeEventListener(
+      "mouseleave",
+      this.handlePointerLeaveScroller
+    );
     view.destroy();
     if (this._disposable) {
       this._disposable.dispose();
@@ -726,6 +740,14 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected handlePointerLeaveScroller = () => {
     this._userInitiatedScroll = false;
+    if (this._textDocument) {
+      this.emit(
+        HoveredOffEditorMessage.method,
+        HoveredOffEditorMessage.type.notification({
+          textDocument: this._textDocument,
+        })
+      );
+    }
   };
 
   protected handlePointerScroll = (e: Event) => {
