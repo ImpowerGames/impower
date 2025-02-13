@@ -2,7 +2,6 @@ import {
   Compiler as GrammarCompiler,
   NodeSet,
   NodeType,
-  SyntaxNode,
   Tree,
 } from "../../../grammar-compiler/src/compiler";
 import { NodeID } from "../../../grammar-compiler/src/core";
@@ -337,8 +336,6 @@ export default class ScreenplayParser {
       // trim away trailing separators
       tokens.pop();
     }
-
-    console.log(tokens);
 
     return tokens;
   }
