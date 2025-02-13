@@ -9,6 +9,8 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.brace, color: c.bracket },
   { tag: tags.bracket, color: c.bracket },
 
+  { tag: tags.string, color: c.string },
+
   { tag: tags.monospace, color: c.escape },
   { tag: tags.quote, fontStyle: "italic" },
   { tag: tags.emphasis, fontStyle: "italic" },
@@ -16,7 +18,6 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.link, textDecoration: "underline", textUnderlineOffset: "5px" },
   { tag: tags.strikethrough, textDecoration: "line-through" },
 
-  { tag: tags.string, color: c.string },
   { tag: tags.typeName, color: c.typeName },
   { tag: tags.number, color: c.number },
   { tag: tags.bool, color: c.bool },

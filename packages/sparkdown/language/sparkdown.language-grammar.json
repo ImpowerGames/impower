@@ -5175,7 +5175,7 @@
     },
     "BoldItalic": {
       "tag": "strong",
-      "name": "markup.bold.sd",
+      "name": "markup.other.bold.sd",
       "match": "([*][*]+)([*].*?(?:[*]|$))(\\1|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "captures": {
         "1": {
@@ -5203,7 +5203,7 @@
     },
     "Bold": {
       "tag": "strong",
-      "name": "markup.bold.sd",
+      "name": "markup.other.bold.sd",
       "match": "([*][*](?![*]))(.*?)(\\1|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "captures": {
         "1": {
@@ -5231,7 +5231,7 @@
     },
     "Italic": {
       "tag": "emphasis",
-      "name": "markup.italic.sd",
+      "name": "markup.other.italic.sd",
       "match": "([*](?![*]))(.*?)(\\1|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "captures": {
         "1": {
@@ -5259,7 +5259,7 @@
     },
     "Underline": {
       "tag": "link",
-      "name": "markup.underline.sd",
+      "name": "markup.other.underline.sd",
       "match": "([_]+)(.*?)(\\1|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "captures": {
         "1": {
@@ -5287,7 +5287,7 @@
     },
     "Centered": {
       "tag": "monospace",
-      "name": "markup.other.centered.sd",
+      "name": "constant.character.escape.centered.sd",
       "match": "([\\^]+)(.*?)(\\1|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "captures": {
         "1": {

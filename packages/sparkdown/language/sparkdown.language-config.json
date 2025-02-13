@@ -18,10 +18,12 @@
     [
       "(",
       ")"
-    ],
+    ]
+  ],
+  "colorizedBracketPairs": [
     [
-      "<",
-      ">"
+      "{",
+      "}"
     ]
   ],
   "autoClosingPairs": [

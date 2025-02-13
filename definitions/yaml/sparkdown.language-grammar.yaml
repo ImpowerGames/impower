@@ -2973,7 +2973,7 @@ repository:
 
   BoldItalic:
     tag: strong
-    name: markup.bold.sd
+    name: markup.other.bold.sd
     match: ([*][*]+)([*].*?(?:[*]|$))(\1|(?={{EOL}}))
     captures:
       1:
@@ -2988,7 +2988,7 @@ repository:
 
   Bold:
     tag: strong
-    name: markup.bold.sd
+    name: markup.other.bold.sd
     match: ([*][*](?![*]))(.*?)(\1|(?={{EOL}}))
     captures:
       1:
@@ -3003,7 +3003,7 @@ repository:
 
   Italic:
     tag: emphasis
-    name: markup.italic.sd
+    name: markup.other.italic.sd
     match: ([*](?![*]))(.*?)(\1|(?={{EOL}}))
     captures:
       1:
@@ -3018,7 +3018,7 @@ repository:
 
   Underline:
     tag: link
-    name: markup.underline.sd
+    name: markup.other.underline.sd
     match: ([_]+)(.*?)(\1|(?={{EOL}}))
     captures:
       1:
@@ -3033,7 +3033,7 @@ repository:
 
   Centered:
     tag: monospace
-    name: markup.other.centered.sd
+    name: constant.character.escape.centered.sd
     match: ([\^]+)(.*?)(\1|(?={{EOL}}))
     captures:
       1:

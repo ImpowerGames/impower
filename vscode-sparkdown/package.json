@@ -48,27 +48,15 @@
       "editor.tokenColorCustomizations": {
         "textMateRules": [
           {
-            "scope": "keyword.control.chunk",
-            "settings": {
-              "foreground": "#7C7CA6"
-            }
-          },
-          {
             "scope": "keyword.control.section",
             "settings": {
               "foreground": "#FF80F4"
             }
           },
           {
-            "scope": "keyword.control.jump",
+            "scope": "keyword.control.divert.path",
             "settings": {
               "foreground": "#F9B8F9"
-            }
-          },
-          {
-            "scope": "keyword.control.flow-break",
-            "settings": {
-              "foreground": "#606080"
             }
           },
           {
@@ -84,133 +72,50 @@
             }
           },
           {
-            "scope": "meta.brace",
+            "scope": "markup.other.bold.sd",
             "settings": {
-              "foreground": "#FFD700"
-            }
-          },
-          {
-            "scope": "markup.other.centered",
-            "settings": {
-              "foreground": "#569CD6"
-            }
-          },
-          {
-            "scope": "markup.bold.sd",
-            "settings": {
-              "foreground": "#569CD6",
               "fontStyle": "bold"
             }
           },
           {
-            "scope": "markup.italic.sd",
+            "scope": "markup.other.italic.sd",
             "settings": {
-              "foreground": "#569CD6",
               "fontStyle": "italic"
             }
           },
           {
-            "scope": "markup.underline.sd",
+            "scope": "markup.other.underline.sd",
             "settings": {
-              "foreground": "#569CD6",
               "fontStyle": "underline"
             }
           },
           {
-            "scope": "markup.strikethrough.sd",
+            "scope": "markup.other.strikethrough.sd",
             "settings": {
-              "foreground": "#569CD6",
               "fontStyle": "strikethrough"
             }
           },
           {
-            "scope": "markup.bold.sd markup.italic.sd",
+            "scope": "markup.other.bold.sd markup.other.italic.sd",
             "settings": {
-              "foreground": "#569CD6",
               "fontStyle": "italic bold"
             }
           },
           {
-            "scope": "markup.bold.sd markup.underline.sd",
+            "scope": "markup.other.bold.sd markup.other.underline.sd",
             "settings": {
-              "foreground": "#569CD6",
               "fontStyle": "bold underline"
             }
           },
           {
-            "scope": "markup.italic.sd markup.underline.sd",
+            "scope": "markup.other.italic.sd markup.other.underline.sd",
             "settings": {
-              "foreground": "#569CD6",
               "fontStyle": "italic underline"
             }
           },
           {
-            "scope": "markup.bold.sd markup.italic.sd markup.underline.sd",
+            "scope": "markup.other.bold.sd markup.other.italic.sd markup.other.underline.sd",
             "settings": {
-              "foreground": "#569CD6",
-              "fontStyle": "italic bold underline"
-            }
-          },
-          {
-            "scope": "string markup.bold.sd",
-            "settings": {
-              "foreground": "#CE9178",
-              "fontStyle": "bold"
-            }
-          },
-          {
-            "scope": "string markup.italic.sd",
-            "settings": {
-              "foreground": "#CE9178",
-              "fontStyle": "italic"
-            }
-          },
-          {
-            "scope": "string markup.underline.sd",
-            "settings": {
-              "foreground": "#CE9178",
-              "fontStyle": "underline"
-            }
-          },
-          {
-            "scope": "string markup.strikethrough.sd",
-            "settings": {
-              "foreground": "#CE9178",
-              "fontStyle": "strikethrough"
-            }
-          },
-          {
-            "scope": "string markup.bold.sd markup.italic.sd",
-            "settings": {
-              "foreground": "#CE9178",
-              "fontStyle": "italic bold"
-            }
-          },
-          {
-            "scope": "string markup.bold.sd markup.italic.sd",
-            "settings": {
-              "foreground": "#CE9178",
-              "fontStyle": "italic bold"
-            }
-          },
-          {
-            "scope": "string markup.bold.sd markup.underline.sd",
-            "settings": {
-              "foreground": "#CE9178",
-              "fontStyle": "bold underline"
-            }
-          },
-          {
-            "scope": "string markup.italic.sd markup.underline.sd",
-            "settings": {
-              "foreground": "#CE9178",
-              "fontStyle": "italic underline"
-            }
-          },
-          {
-            "scope": "string markup.bold.sd markup.italic.sd markup.underline.sd",
-            "settings": {
-              "foreground": "#CE9178",
               "fontStyle": "italic bold underline"
             }
           }
@@ -218,27 +123,15 @@
         "[*Light*]": {
           "textMateRules": [
             {
-              "scope": "keyword.control.chunk",
-              "settings": {
-                "foreground": "#7C7CA6"
-              }
-            },
-            {
               "scope": "keyword.control.section",
               "settings": {
                 "foreground": "#AF00DB"
               }
             },
             {
-              "scope": "keyword.control.jump",
+              "scope": "keyword.control.divert.path",
               "settings": {
                 "foreground": "#AD33CC"
-              }
-            },
-            {
-              "scope": "keyword.control.flow-break",
-              "settings": {
-                "foreground": "#606080"
               }
             },
             {
@@ -254,146 +147,50 @@
               }
             },
             {
-              "scope": "markup.other.centered",
+              "scope": "markup.other.bold.sd",
               "settings": {
-                "foreground": "#000080"
-              }
-            },
-            {
-              "scope": "meta.brace",
-              "settings": {
-                "foreground": "#0431FA"
-              }
-            },
-            {
-              "scope": "markup.bold.sd",
-              "settings": {
-                "foreground": "#000080",
                 "fontStyle": "bold"
               }
             },
             {
-              "scope": "markup.italic.sd",
+              "scope": "markup.other.italic.sd",
               "settings": {
-                "foreground": "#000080",
                 "fontStyle": "italic"
               }
             },
             {
-              "scope": "markup.underline.sd",
+              "scope": "markup.other.underline.sd",
               "settings": {
-                "foreground": "#000080",
                 "fontStyle": "underline"
               }
             },
             {
-              "scope": "markup.strikethrough.sd",
+              "scope": "markup.other.strikethrough.sd",
               "settings": {
-                "foreground": "#000080",
                 "fontStyle": "strikethrough"
               }
             },
             {
-              "scope": "markup.bold.sd markup.italic.sd",
+              "scope": "markup.other.bold.sd markup.other.italic.sd",
               "settings": {
-                "foreground": "#000080",
                 "fontStyle": "italic bold"
               }
             },
             {
-              "scope": "markup.bold.sd markup.underline.sd",
+              "scope": "markup.other.bold.sd markup.other.underline.sd",
               "settings": {
-                "foreground": "#000080",
                 "fontStyle": "bold underline"
               }
             },
             {
-              "scope": "markup.italic.sd markup.underline.sd",
+              "scope": "markup.other.italic.sd markup.other.underline.sd",
               "settings": {
-                "foreground": "#000080",
                 "fontStyle": "italic underline"
               }
             },
             {
-              "scope": "markup.bold.sd markup.italic.sd markup.underline.sd",
+              "scope": "markup.other.bold.sd markup.other.italic.sd markup.other.underline.sd",
               "settings": {
-                "foreground": "#000080",
-                "fontStyle": "italic bold underline"
-              }
-            },
-            {
-              "scope": "string markup.bold.sd",
-              "settings": {
-                "foreground": "#A31515",
-                "fontStyle": "bold"
-              }
-            },
-            {
-              "scope": "string markup.italic.sd",
-              "settings": {
-                "foreground": "#A31515",
-                "fontStyle": "italic"
-              }
-            },
-            {
-              "scope": "string markup.underline.sd",
-              "settings": {
-                "foreground": "#A31515",
-                "fontStyle": "underline"
-              }
-            },
-            {
-              "scope": "string markup.strikethrough.sd",
-              "settings": {
-                "foreground": "#A31515",
-                "fontStyle": "strikethrough"
-              }
-            },
-            {
-              "scope": "string markup.bold.sd markup.italic.sd",
-              "settings": {
-                "foreground": "#A31515",
-                "fontStyle": "italic bold"
-              }
-            },
-            {
-              "scope": "string markup.underline.sd",
-              "settings": {
-                "foreground": "#A31515",
-                "fontStyle": "underline"
-              }
-            },
-            {
-              "scope": "string markup.strikethrough.sd",
-              "settings": {
-                "foreground": "#A31515"
-              }
-            },
-            {
-              "scope": "string markup.bold.sd markup.italic.sd",
-              "settings": {
-                "foreground": "#A31515",
-                "fontStyle": "italic bold"
-              }
-            },
-            {
-              "scope": "string markup.bold.sd markup.underline.sd",
-              "settings": {
-                "foreground": "#A31515",
-                "fontStyle": "bold underline"
-              }
-            },
-            {
-              "scope": "string markup.italic.sd markup.underline.sd",
-              "settings": {
-                "foreground": "#A31515",
-                "fontStyle": "italic underline"
-              }
-            },
-            {
-              "scope": "string markup.bold.sd markup.italic.sd markup.underline.sd",
-              "settings": {
-                "foreground": "#A31515",
                 "fontStyle": "italic bold underline"
               }
             }
@@ -404,7 +201,7 @@
         "diffEditor.ignoreTrimWhitespace": false,
         "editor.wordWrap": "on",
         "editor.suggest.snippetsPreventQuickSuggestions": false,
-        "editor.wordBasedSuggestions": false,
+        "editor.wordBasedSuggestions": "off",
         "editor.suggestSelection": "first",
         "editor.insertSpaces": true,
         "editor.tabSize": 2,
@@ -497,7 +294,7 @@
         "command": "sparkdown.previewgame",
         "title": "Preview game",
         "category": "Sparkdown",
-        "icon": "$(github-action)"
+        "icon": "$(game)"
       },
       {
         "command": "sparkdown.previewscreenplay",
@@ -617,20 +414,15 @@
             "default": true,
             "description": "Make scene headers bold in screenplay"
           },
-          "sparkdown.screenplay.markup.printSectionHeaders": {
+          "sparkdown.screenplay.markup.printKnotHeadings": {
             "type": "boolean",
             "default": false,
-            "description": "Print section headers in screenplay ( lines that start with # )"
+            "description": "Print knot headings in screenplay ( lines that start with == )"
           },
-          "sparkdown.screenplay.markup.printLabels": {
+          "sparkdown.screenplay.markup.printStitchHeadings": {
             "type": "boolean",
             "default": false,
-            "description": "Print labels in screenplay ( lines that start with = )"
-          },
-          "sparkdown.screenplay.markup.printNotes": {
-            "type": "boolean",
-            "default": false,
-            "description": "Print notes in screenplay ( text enclosed between [[two brackets]] or ((two parentheses)) )"
+            "description": "Print stitch headings in screenplay ( lines that start with = )"
           },
           "sparkdown.screenplay.numbering.printSceneNumbers": {
             "type": "string",
@@ -653,7 +445,7 @@
             "default": true,
             "description": "Include title page in screenplay"
           },
-          "sparkdown.screenplay.pdf.printProfile": {
+          "sparkdown.screenplay.pdf.printPaperSize": {
             "type": "string",
             "description": "The paper dimensions of the screenplay pdf",
             "enum": [
@@ -677,21 +469,6 @@
             "default": "(CONT'D)",
             "description": "Text to print next to a character's name when continuing their dialogue after a page break in the screenplay pdf"
           },
-          "sparkdown.screenplay.pdf.extras.printPageHeader": {
-            "type": "string",
-            "default": "",
-            "description": "Text inserted at the top of each page in the screenplay pdf"
-          },
-          "sparkdown.screenplay.pdf.extras.printPageFooter": {
-            "type": "string",
-            "default": "",
-            "description": "Text inserted at the bottom of each page in the screenplay pdf"
-          },
-          "sparkdown.screenplay.pdf.extras.printPageWatermark": {
-            "type": "string",
-            "default": "",
-            "description": "Text displayed across each page in the screenplay pdf"
-          },
           "sparkdown.screenplay.pdf.numbering.printPageNumbers": {
             "type": "boolean",
             "default": true,
@@ -700,12 +477,12 @@
           "sparkdown.screenplay.pdf.bookmarks.printBookmarks": {
             "type": "boolean",
             "default": true,
-            "description": "Create bookmarks for sections and scenes in the screenplay pdf"
+            "description": "Create bookmarks for knots, stitches, and scenes in the screenplay pdf"
           },
-          "sparkdown.screenplay.pdf.bookmarks.printBookmarksForInvisibleSections": {
+          "sparkdown.screenplay.pdf.bookmarks.printBookmarksForInvisibleHeadings": {
             "type": "boolean",
             "default": true,
-            "markdownDescription": "If `#sparkdown.screenplay.annotations.printSectionHeaders#` is false, add bookmarks for sections to scene headers instead"
+            "markdownDescription": "Add bookmarks for all headings, even if they are not printed."
           }
         }
       },
@@ -761,7 +538,6 @@
   },
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../packages/spark-editor-protocol",
-    "@impower/spark-evaluate": "file:../packages/spark-evaluate",
     "@impower/sparkdown": "file:../packages/sparkdown",
     "@impower/sparkdown-language-server": "file:../packages/sparkdown-language-server",
     "@impower/sparkdown-screenplay": "file:../packages/sparkdown-screenplay",

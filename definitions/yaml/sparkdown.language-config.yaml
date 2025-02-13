@@ -6,7 +6,9 @@ brackets:
   - ["{", "}"]
   - ["[", "]"]
   - ["(", ")"]
-  - ["<", ">"]
+
+colorizedBracketPairs:
+  - ["{", "}"]
 
 autoClosingPairs:
   - open: "{"
