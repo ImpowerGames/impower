@@ -82,6 +82,7 @@ export default class ScreenplayParser {
     let frontMatterValue = "";
     let scene = "";
     let transition = "";
+    let explicitActionMark = false;
     let action = "";
     let choice = "";
     let choice_prefix = "";
@@ -106,23 +107,15 @@ export default class ScreenplayParser {
         // Separator
         if (node.matchContext(["sparkdown"])) {
           if (
-            name === "Comment" ||
-            name === "LineComment" ||
-            name === "BlockComment" ||
-            name === "Tag" ||
-            name === "Logic" ||
-            name === "Knot" ||
-            name === "Stitch" ||
-            name === "VarDeclaration" ||
-            name === "ListDeclaration" ||
-            name === "ConstDeclaration" ||
-            name === "ExternalDeclaration" ||
-            name === "DefineDeclaration" ||
-            name === "AudioLine" ||
-            name === "ImageLine" ||
-            name === "ImageAndAudioLine" ||
-            name === "Divert" ||
-            name === "Unknown"
+            name !== "FrontMatter" &&
+            name !== "Knot" &&
+            name !== "Stitch" &&
+            name !== "Transition" &&
+            name !== "Scene" &&
+            name !== "Action" &&
+            name !== "BlockDialogue" &&
+            name !== "InlineDialogue" &&
+            name !== "Choice"
           ) {
             // Add separator for hidden top-level nodes
             addSeparator();
@@ -190,8 +183,19 @@ export default class ScreenplayParser {
 
         // Action
         if (stack.includes("Action")) {
+          if (name === "ActionMark") {
+            explicitActionMark = true;
+          }
           if (stack.includes("Action_begin")) {
             if (name === "Whitespace") {
+              const text = read(from, to);
+              // This action does not begin with an explicit action mark,
+              // so include the indented whitespace.
+              action += text;
+            }
+          }
+          if (name === "Indent") {
+            if (!explicitActionMark) {
               const text = read(from, to);
               // This action does not begin with an explicit action mark,
               // so include the indented whitespace.
@@ -295,6 +299,7 @@ export default class ScreenplayParser {
             tag: "action",
             text: action,
           });
+          explicitActionMark = false;
           action = "";
         }
 

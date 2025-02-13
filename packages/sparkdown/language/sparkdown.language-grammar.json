@@ -2822,7 +2822,7 @@
       ]
     },
     "Indent": {
-      "tag": "special(content)",
+      "tag": "content",
       "name": "markup.raw.whitespace.indent.sd",
       "match": "([^\\S\\n\\r]+)"
     },

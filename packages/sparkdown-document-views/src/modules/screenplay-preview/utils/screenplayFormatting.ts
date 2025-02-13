@@ -126,11 +126,17 @@ const createDecorations = (
     ];
   }
   if (spec.type === "reveal") {
-    return [
-      Decoration.line({
-        attributes: { style: "opacity: 1" },
-      }).range(doc.lineAt(spec.from + 1).from),
-    ];
+    const lineDecorations: Range<Decoration>[] = [];
+    const startLineNumber = doc.lineAt(spec.from).number;
+    const endLineNumber = doc.lineAt(spec.to).number;
+    for (let i = startLineNumber; i <= endLineNumber; i++) {
+      lineDecorations.push(
+        Decoration.line({
+          attributes: { style: "opacity: 1" },
+        }).range(doc.line(i).from)
+      );
+    }
+    return lineDecorations;
   }
   if (spec.type === "collapse") {
     return [
@@ -203,23 +209,15 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
     const name = nodeRef.name as SparkdownNodeName;
     if (nodeRef.matchContext(["sparkdown"])) {
       return (
-        name === "Comment" ||
-        name === "LineComment" ||
-        name === "BlockComment" ||
-        name === "Tag" ||
-        name === "Logic" ||
-        name === "Knot" ||
-        name === "Stitch" ||
-        name === "VarDeclaration" ||
-        name === "ListDeclaration" ||
-        name === "ConstDeclaration" ||
-        name === "ExternalDeclaration" ||
-        name === "DefineDeclaration" ||
-        name === "AudioLine" ||
-        name === "ImageLine" ||
-        name === "ImageAndAudioLine" ||
-        name === "Divert" ||
-        name === "Unknown"
+        name !== "FrontMatter" &&
+        name !== "Knot" &&
+        name !== "Stitch" &&
+        name !== "Transition" &&
+        name !== "Scene" &&
+        name !== "Action" &&
+        name !== "BlockDialogue" &&
+        name !== "InlineDialogue" &&
+        name !== "Choice"
       );
     }
     return false;
@@ -258,6 +256,8 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
 
   let isBlankLineFrom: undefined | number =
     prevChar === "" ? 0 : prevChar === "\n" ? from - 1 : undefined;
+  let inAction = false;
+  let inExplicitAction = false;
   let inDialogue = false;
   let inDualDialogue = false;
   let dialoguePosition = 0;
@@ -267,6 +267,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
   let frontMatterKeyword = "";
 
   const tree = syntaxTree(state);
+  // console.log(printTree(tree, doc.toString()));
   tree.iterate({
     from,
     to,
@@ -301,6 +302,10 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
           },
         });
         return false;
+      } else if (name === "Action") {
+        inAction = true;
+      } else if (name === "ActionMark") {
+        inExplicitAction = true;
       } else if (name === "BlockDialogue" || name === "InlineDialogue") {
         inDialogue = true;
         dialoguePosition = 0;
@@ -359,6 +364,15 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             },
           });
         }
+      } else if (name === "Indent") {
+        if (!inAction || inExplicitAction) {
+          specs.push({
+            type: "replace",
+            from,
+            to,
+          });
+        }
+        return false;
       } else if (isCentered(nodeRef)) {
         centerRange(nodeRef);
         return false;
@@ -411,18 +425,30 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         specs.push({
           type: "reveal",
           from,
+          to,
         });
       } else if (name === "Scene") {
         // Add Scene Spec
         specs.push({
           type: "reveal",
           from,
+          to,
         });
       } else if (name === "Action") {
         // Add Action Spec
         specs.push({
           type: "reveal",
           from,
+          to,
+        });
+        inAction = false;
+        inExplicitAction = false;
+      } else if (name === "Choice") {
+        // Add Choice Spec
+        specs.push({
+          type: "reveal",
+          from,
+          to,
         });
       } else if (name === "BlockDialogue" || name === "InlineDialogue") {
         // Add Dialogue Spec
