@@ -26,6 +26,8 @@ import { RevealSpec } from "../types/RevealSpec";
 import { CollapseSpec } from "../types/CollapseSpec";
 import CollapseWidget from "../classes/widgets/CollapseWidget";
 import { MarkSpec } from "../types/MarkSpec";
+import { PageBreakSpec } from "../types/PageBreakSpec";
+import PageBreakWidget from "../classes/widgets/PageBreakWidget";
 
 const DIALOGUE_WIDTH = "60%";
 const CHARACTER_PADDING = "16%";
@@ -41,7 +43,8 @@ type DecorationSpec =
   | CollapseSpec
   | DialogueSpec
   | TitlePageSpec
-  | MarkSpec;
+  | MarkSpec
+  | PageBreakSpec;
 
 const getDialogueLineStyle = (type: string) => {
   const dialogueWidth = DIALOGUE_WIDTH;
@@ -146,7 +149,15 @@ const createDecorations = (
       }).range(spec.from, spec.to),
     ];
   }
-  if (spec.type === "title") {
+  if (spec.type === "page_break") {
+    return [
+      Decoration.replace({
+        widget: new PageBreakWidget(spec),
+        block: true,
+      }).range(spec.from, spec.to),
+    ];
+  }
+  if (spec.type === "title_page") {
     return [
       Decoration.replace({
         widget: new TitlePageWidget(spec),
@@ -364,6 +375,13 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             },
           });
         }
+      } else if (name === "Knot") {
+        specs.push({
+          type: "page_break",
+          from,
+          to,
+        });
+        return false;
       } else if (name === "Indent") {
         if (!inAction || inExplicitAction) {
           specs.push({
@@ -389,7 +407,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
       if (name === "FrontMatter") {
         // Add FrontMatter Spec
         specs.push({
-          type: "title",
+          type: "title_page",
           from,
           to,
           language: LANGUAGE_SUPPORT.language,

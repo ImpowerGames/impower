@@ -5,7 +5,7 @@ import BlockWidget from "../BlockWidget";
 import { DecorationSpec } from "../../types/DecorationSpec";
 
 export interface TitlePageSpec extends DecorationSpec {
-  type: "title";
+  type: "title_page";
   tl?: MarkupContent[];
   tc?: MarkupContent[];
   tr?: MarkupContent[];
