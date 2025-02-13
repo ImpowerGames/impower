@@ -11,4 +11,8 @@ export default class CollapseWidget extends BlockWidget<CollapseSpec> {
     container.append(br);
     return container;
   }
+
+  override get estimatedHeight() {
+    return 0;
+  }
 }
