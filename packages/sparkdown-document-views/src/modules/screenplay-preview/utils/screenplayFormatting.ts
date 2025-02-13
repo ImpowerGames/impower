@@ -221,8 +221,8 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
     if (nodeRef.matchContext(["sparkdown"])) {
       return (
         name !== "FrontMatter" &&
-        name !== "Knot" &&
-        name !== "Stitch" &&
+        name !== "Knot" && // TODO: hide knot if config doesn't print knot
+        //name !== "Stitch" && // TODO: Only hide stitch if config doesn't print stitch
         name !== "Transition" &&
         name !== "Scene" &&
         name !== "Action" &&
