@@ -321,9 +321,11 @@ export default class SparkScreenplayPreview extends Component(spec) {
             );
           }
         },
-        onHeightChanged: () => {
-          if (this._scrollTarget) {
-            this.scrollToRange(this._scrollTarget);
+        onHeightChanged: (update) => {
+          if (update.viewportChanged && !update.docChanged) {
+            if (this._scrollTarget) {
+              this.scrollToRange(this._scrollTarget);
+            }
           }
           const visibleRange = this.measureVisibleRange();
           if (visibleRange) {
