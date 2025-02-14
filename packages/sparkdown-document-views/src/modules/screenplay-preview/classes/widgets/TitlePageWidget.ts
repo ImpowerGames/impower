@@ -19,8 +19,7 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
     const language = this.spec.language;
     const highlighter = this.spec.highlighter;
     const container = document.createElement("div");
-    container.classList.add("cm-line");
-    container.style.opacity = "1";
+    container.style.pointerEvents = "none";
     const gridEl = document.createElement("div");
     gridEl.style.display = "grid";
     gridEl.style.height = "calc(96px * 9)";

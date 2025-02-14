@@ -1,5 +1,5 @@
 import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorView, highlightActiveLine } from "@codemirror/view";
 import { syntaxParserRunning } from "@codemirror/language";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
 import debounce from "../../../utils/debounce";
@@ -37,7 +37,6 @@ const createEditorView = (
     doc: textDocument?.text,
     extensions: [
       EditorState.readOnly.of(true),
-      EditorView.editable.of(false),
       EditorView.theme(PREVIEW_THEME),
       EditorView.lineWrapping,
       EditorView.updateListener.of((u) => {
@@ -57,7 +56,7 @@ const createEditorView = (
       }),
       screenplayFormatting(),
       scrollMargins(scrollMargin),
-      // lineNumbers(),
+      highlightActiveLine(),
     ],
   });
   const view = new EditorView({

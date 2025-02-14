@@ -117,9 +117,23 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   },
 ]);
 
+const createRevealDecorations = (doc: Text, from: number, to?: number) => {
+  const lineDecorations: Range<Decoration>[] = [];
+  const startLineNumber = doc.lineAt(from).number;
+  const endLineNumber = doc.lineAt(to ?? from).number;
+  for (let i = startLineNumber; i <= endLineNumber; i++) {
+    lineDecorations.push(
+      Decoration.line({
+        attributes: { style: "opacity: 1" },
+      }).range(doc.line(i).from)
+    );
+  }
+  return lineDecorations;
+};
+
 const createDecorations = (
-  spec: DecorationSpec,
-  doc: Text
+  doc: Text,
+  spec: DecorationSpec
 ): Range<Decoration>[] => {
   if (spec.type === "mark") {
     return [
@@ -129,19 +143,16 @@ const createDecorations = (
     ];
   }
   if (spec.type === "reveal") {
-    const lineDecorations: Range<Decoration>[] = [];
-    const startLineNumber = doc.lineAt(spec.from).number;
-    const endLineNumber = doc.lineAt(spec.to).number;
-    for (let i = startLineNumber; i <= endLineNumber; i++) {
-      lineDecorations.push(
-        Decoration.line({
-          attributes: { style: "opacity: 1" },
-        }).range(doc.line(i).from)
-      );
-    }
-    return lineDecorations;
+    return createRevealDecorations(doc, spec.from, spec.to);
   }
   if (spec.type === "collapse") {
+    if (spec.separator) {
+      return [
+        Decoration.line({
+          class: "collapse",
+        }).range(doc.lineAt(spec.from).from),
+      ];
+    }
     return [
       Decoration.replace({
         widget: new CollapseWidget(spec),
@@ -161,16 +172,15 @@ const createDecorations = (
     return [
       Decoration.replace({
         widget: new TitlePageWidget(spec),
-        block: true,
       }).range(spec.from, spec.to),
     ];
   }
   if (spec.type === "dialogue") {
     if (spec.grid) {
       return [
+        ...createRevealDecorations(doc, spec.from, spec.to),
         Decoration.replace({
           widget: new DialogueWidget(spec),
-          block: true,
         }).range(spec.from, spec.to),
       ];
     } else {
@@ -179,7 +189,7 @@ const createDecorations = (
         return blocks.map((b) =>
           Decoration.line({
             attributes: b.attributes,
-          }).range(doc.lineAt(b.from + 1).from)
+          }).range(doc.lineAt(b.from).from)
         );
       }
     }
@@ -260,7 +270,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         separator: true,
       });
     }
-    isBlankLineFrom = to - 1;
+    isBlankLineFrom = to;
   };
 
   const prevChar = doc.sliceString(from - 1, from);
@@ -278,7 +288,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
   let frontMatterKeyword = "";
 
   const tree = syntaxTree(state);
-  // console.log(printTree(tree, doc.toString()));
+  // console.log(printTree(tree, doc.toString(), { from, to }));
   tree.iterate({
     from,
     to,
@@ -407,6 +417,11 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
       if (name === "FrontMatter") {
         // Add FrontMatter Spec
         specs.push({
+          type: "reveal",
+          from,
+          to,
+        });
+        specs.push({
           type: "title_page",
           from,
           to,
@@ -469,7 +484,6 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
           to,
         });
       } else if (name === "BlockDialogue" || name === "InlineDialogue") {
-        // Add Dialogue Spec
         if (inDualDialogue) {
           const isOdd = dialoguePosition % 2 !== 0;
           if (isOdd) {
@@ -525,7 +539,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
     },
   });
   processNewline(to ?? doc.length + 1);
-  return specs.flatMap((b) => createDecorations(b, doc));
+  return specs.flatMap((b) => createDecorations(doc, b));
 };
 
 const replaceDecorations = StateField.define<DecorationSet>({
@@ -544,10 +558,11 @@ const replaceDecorations = StateField.define<DecorationSet>({
         const ranges = decorate(transaction.state);
         return ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
       }
-      const add = decorate(transaction.state, reparsedFrom);
+      const decorateFrom = reparsedFrom + 1;
+      const add = decorate(transaction.state, decorateFrom);
       decorations = decorations.update({
         filter: (from: number, to: number) =>
-          from < reparsedFrom && to < reparsedFrom,
+          from < decorateFrom && to < decorateFrom,
         add,
         sort: true,
       });

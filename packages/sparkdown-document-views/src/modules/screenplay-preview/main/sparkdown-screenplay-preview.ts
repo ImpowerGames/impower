@@ -1,6 +1,7 @@
 import { EditorView } from "@codemirror/view";
 import { HoveredOnEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage.js";
 import { ScrolledEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage.js";
+import { SelectedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/SelectedEditorMessage.js";
 import { ConnectedPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage.js";
 import { HoveredOnPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage.js";
 import { HoveredOffPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage.js";
@@ -25,6 +26,8 @@ import { scrollY } from "../../../utils/scrollY";
 import createEditorView from "../utils/createEditorView";
 import spec from "./_sparkdown-screenplay-preview";
 import { getScrollableParent } from "../../../utils/getScrollableParent.js";
+import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset.js";
+import { EditorSelection } from "@codemirror/state";
 
 const CONTENT_PADDING_TOP = 68;
 
@@ -85,6 +88,10 @@ export default class SparkScreenplayPreview extends Component(spec) {
       ScrolledEditorMessage.method,
       this.handleScrolledEditor
     );
+    window.addEventListener(
+      SelectedEditorMessage.method,
+      this.handleSelectedEditor
+    );
     this.emit(
       ConnectedPreviewMessage.method,
       ConnectedPreviewMessage.type.notification({ type: "screenplay" })
@@ -119,6 +126,10 @@ export default class SparkScreenplayPreview extends Component(spec) {
     window.removeEventListener(
       ScrolledEditorMessage.method,
       this.handleScrolledEditor
+    );
+    window.removeEventListener(
+      SelectedEditorMessage.method,
+      this.handleSelectedEditor
     );
     const view = this._view;
     if (view) {
@@ -249,6 +260,24 @@ export default class SparkScreenplayPreview extends Component(spec) {
     }
   };
 
+  protected handleSelectedEditor = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (SelectedEditorMessage.type.isNotification(message)) {
+        this._userInitiatedScroll = false;
+        const params = message.params;
+        const textDocument = params.textDocument;
+        const range = params.selectedRange;
+        const docChanged = params.docChanged;
+        if (textDocument.uri === this._textDocument?.uri) {
+          if (!docChanged) {
+            this.selectRange(range, false);
+          }
+        }
+      }
+    }
+  };
+
   protected loadTextDocument(
     textDocument: TextDocumentItem,
     visibleRange: Range | undefined
@@ -324,6 +353,21 @@ export default class SparkScreenplayPreview extends Component(spec) {
       }
     }
     this.cacheVisibleRange(range);
+  }
+
+  protected selectRange(range: Range, scrollIntoView: boolean) {
+    const view = this._view;
+    if (view) {
+      const doc = view.state.doc;
+      const anchor = positionToOffset(doc, range.start);
+      const head = positionToOffset(doc, range.end);
+      view.dispatch({
+        selection: EditorSelection.create([
+          EditorSelection.range(anchor, head),
+        ]),
+        scrollIntoView,
+      });
+    }
   }
 
   protected handleIdle = () => {

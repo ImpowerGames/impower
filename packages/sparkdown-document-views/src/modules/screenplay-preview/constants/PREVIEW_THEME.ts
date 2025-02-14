@@ -31,11 +31,16 @@ const PREVIEW_THEME: {
   "& .collapse:last-child": {
     display: "none",
   },
+  "&.cm-focused .cm-cursor": {
+    borderLeftColor: "transparent",
+  },
   "& .cm-content": {
     padding: "68px 24px 68px 24px", // 24px ≈ 0.25 inch
     margin: "auto",
     maxWidth: "640px",
     position: "relative",
+    caretColor: "transparent",
+    pointerEvents: "auto",
     "&:before": {
       content: "''",
       position: "absolute",
@@ -48,6 +53,13 @@ const PREVIEW_THEME: {
   "& .cm-lineWrapping": {
     overflowWrap: "break-word",
     whiteSpace: "pre-wrap",
+  },
+  "& .cm-line.cm-activeLine": {
+    backgroundColor: "transparent",
+    outline: "2px solid #00000012",
+  },
+  "& .cm-widgetBuffer": {
+    display: "none",
   },
 };
 

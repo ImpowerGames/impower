@@ -3,7 +3,6 @@
 }
 
 :host * {
-  pointer-events: auto;
   touch-action: pan-y;
   --touch-action: "pan-y";
 }

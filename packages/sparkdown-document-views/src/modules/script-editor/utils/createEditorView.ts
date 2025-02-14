@@ -259,11 +259,9 @@ const createEditorView = (
           const cursorRange = u.state.selection.main;
           const anchor = cursorRange?.anchor;
           const head = cursorRange?.head;
-          const startPos = Math.min(anchor, head);
-          const endPos = Math.max(anchor, head);
           const selectedRange = {
-            start: offsetToPosition(u.state.doc, startPos),
-            end: offsetToPosition(u.state.doc, endPos),
+            start: offsetToPosition(u.state.doc, anchor),
+            end: offsetToPosition(u.state.doc, head),
           };
           const docChanged = u.docChanged;
           onSelectionChanged?.({ selectedRange, docChanged });

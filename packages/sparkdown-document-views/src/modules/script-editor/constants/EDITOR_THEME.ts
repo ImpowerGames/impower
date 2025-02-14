@@ -96,7 +96,7 @@ const EDITOR_THEME: {
   },
   "& .cm-line.cm-activeLine": {
     backgroundColor: "transparent",
-    outline: "2px solid #FFFFFF0A",
+    outline: "2px solid #FFFFFF12",
   },
   "& .cm-gutterElement *": {
     userSelect: "none",

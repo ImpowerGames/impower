@@ -1,4 +1,4 @@
-import { EditorView } from "@codemirror/view";
+import { EditorView, Rect } from "@codemirror/view";
 import { MarkupContent } from "../../types/MarkupContent";
 import getFormattedHTML from "../../utils/getFormattedHTML";
 import BlockWidget from "../BlockWidget";
@@ -31,8 +31,7 @@ export interface DialogueSpec extends DecorationSpec {
 export default class DialogueWidget extends BlockWidget<DialogueSpec> {
   override toDOM(_view: EditorView) {
     const container = document.createElement("div");
-    container.classList.add("cm-line");
-    container.style.opacity = "1";
+    container.style.pointerEvents = "none";
     container.style.marginLeft = "auto";
     container.style.marginRight = "auto";
     if (this.spec.blocks.length > 1) {
