@@ -1,5 +1,5 @@
 import { historyField } from "@codemirror/commands";
-import { syntaxParserRunning, syntaxTreeAvailable } from "@codemirror/language";
+import { syntaxParserRunning } from "@codemirror/language";
 import {
   Compartment,
   EditorSelection,

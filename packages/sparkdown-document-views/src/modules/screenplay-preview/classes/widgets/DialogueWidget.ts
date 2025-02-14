@@ -1,4 +1,4 @@
-import { EditorView, Rect } from "@codemirror/view";
+import { EditorView } from "@codemirror/view";
 import { MarkupContent } from "../../types/MarkupContent";
 import getFormattedHTML from "../../utils/getFormattedHTML";
 import BlockWidget from "../BlockWidget";
