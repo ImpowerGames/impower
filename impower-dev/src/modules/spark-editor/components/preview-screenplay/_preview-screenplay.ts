@@ -18,7 +18,7 @@ export default spec({
         <se-scrollable>
           <sparkdown-screenplay-preview
             scroll-margin="${horizontalLayout
-              ? "56px 0 60px 0"
+              ? "0 0 60px 0"
               : "104px 0 60px 0"}"
             top="${horizontalLayout ? "48px" : "104px"}"
           ></sparkdown-screenplay-preview>

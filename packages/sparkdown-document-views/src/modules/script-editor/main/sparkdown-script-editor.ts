@@ -59,15 +59,14 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected _loadingRequest?: string | number;
 
+  protected _initialFocused?: boolean;
+
   protected _initialVisibleRange?: Range;
 
   protected _initialSelectedRange?: Range;
 
-  protected _initialFocused?: boolean;
-
-  protected _initializedScroll = false;
-
-  protected _loaded = false;
+  protected _loadState: "initial" | "initializing" | "initialized" | "loaded" =
+    "initial";
 
   protected _editing = false;
 
@@ -77,7 +76,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected _disposable?: { dispose: () => void };
 
-  protected _possibleScroller?: Window | Element | null;
+  protected _scroller?: Window | Element | null;
 
   protected _visibleRange?: Range;
 
@@ -108,6 +107,15 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected _bottom: number = 0;
 
   override onConnected() {
+    this.root.addEventListener("touchstart", this.handlePointerEnterScroller, {
+      passive: true,
+    });
+    this.root.addEventListener("mouseenter", this.handlePointerEnterScroller, {
+      passive: true,
+    });
+    this.root.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
+      passive: true,
+    });
     window.addEventListener(LoadEditorMessage.method, this.handleLoadEditor);
     window.addEventListener(
       ShowDocumentMessage.method,
@@ -148,6 +156,18 @@ export default class SparkdownScriptEditor extends Component(spec) {
   }
 
   override onDisconnected() {
+    this.root.removeEventListener(
+      "touchstart",
+      this.handlePointerEnterScroller
+    );
+    this.root.removeEventListener(
+      "mouseenter",
+      this.handlePointerEnterScroller
+    );
+    this.root.removeEventListener(
+      "mouseleave",
+      this.handlePointerLeaveScroller
+    );
     window.removeEventListener(LoadEditorMessage.method, this.handleLoadEditor);
     window.removeEventListener(
       ShowDocumentMessage.method,
@@ -227,51 +247,12 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected bindView(view: EditorView) {
     this._domClientY = view.dom.offsetTop;
-    this._possibleScroller = getScrollableParent(view.scrollDOM);
-    this._possibleScroller?.addEventListener(
-      "scroll",
-      this.handlePointerScroll
-    );
-    this._view?.dom.addEventListener(
-      "touchstart",
-      this.handlePointerEnterScroller,
-      {
-        passive: true,
-      }
-    );
-    this._view?.dom.addEventListener(
-      "mouseenter",
-      this.handlePointerEnterScroller,
-      {
-        passive: true,
-      }
-    );
-    this._view?.dom.addEventListener(
-      "mouseleave",
-      this.handlePointerLeaveScroller,
-      {
-        passive: true,
-      }
-    );
+    this._scroller = getScrollableParent(view.scrollDOM);
+    this._scroller?.addEventListener("scroll", this.handlePointerScroll);
   }
 
   protected unbindView(view: EditorView) {
-    this._possibleScroller?.removeEventListener(
-      "scroll",
-      this.handlePointerScroll
-    );
-    this._view?.dom.removeEventListener(
-      "touchstart",
-      this.handlePointerEnterScroller
-    );
-    this._view?.dom.removeEventListener(
-      "mouseenter",
-      this.handlePointerEnterScroller
-    );
-    this._view?.dom.removeEventListener(
-      "mouseleave",
-      this.handlePointerLeaveScroller
-    );
+    this._scroller?.removeEventListener("scroll", this.handlePointerScroll);
     view.destroy();
     if (this._disposable) {
       this._disposable.dispose();
@@ -333,19 +314,21 @@ export default class SparkdownScriptEditor extends Component(spec) {
   };
 
   protected handleScrolledPreview = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (ScrolledPreviewMessage.type.isNotification(message)) {
-        this._userInitiatedScroll = false;
-        const params = message.params;
-        const textDocument = params.textDocument;
-        const range = params.range;
-        const target = params.target;
-        if (textDocument.uri === this._textDocument?.uri) {
-          if (target === "element") {
-            this.scrollToRange(range);
-          } else {
-            this.cacheVisibleRange(range);
+    if (this._loadState === "loaded") {
+      if (e instanceof CustomEvent) {
+        const message = e.detail;
+        if (ScrolledPreviewMessage.type.isNotification(message)) {
+          this._userInitiatedScroll = false;
+          const params = message.params;
+          const textDocument = params.textDocument;
+          const range = params.range;
+          const target = params.target;
+          if (textDocument.uri === this._textDocument?.uri) {
+            if (target === "element") {
+              this.scrollToRange(range);
+            } else {
+              this.cacheVisibleRange(range);
+            }
           }
         }
       }
@@ -356,7 +339,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (SelectedPreviewMessage.type.isNotification(message)) {
-        this._userInitiatedScroll = false;
         const params = message.params;
         const textDocument = params.textDocument;
         const selectedRange = params.selectedRange;
@@ -466,8 +448,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this._initialFocused = focused;
     this._initialVisibleRange = visibleRange;
     this._initialSelectedRange = selectedRange;
-    this._initializedScroll = false;
-    this._loaded = false;
+    this._loadState = "initial";
     this._searching = false;
     this._searchInputFocused = false;
     this._textDocument = textDocument;
@@ -655,7 +636,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
           }
         },
       });
-      this.bindView(this._view);
     }
     SparkdownScriptEditor.languageServerConnection.sendNotification(
       DidOpenTextDocumentMessage.type,
@@ -684,37 +664,22 @@ export default class SparkdownScriptEditor extends Component(spec) {
         const startLineNumber = range.start.line + 1;
         const endLineNumber = range.end.line + 1;
         if (startLineNumber <= 1) {
-          scrollY(
-            0,
-            this._possibleScroller,
-            view.scrollDOM,
-            document.documentElement
-          );
+          scrollY(0, this._scroller);
         } else if (endLineNumber >= doc.lines) {
-          scrollY(
-            Infinity,
-            this._possibleScroller,
-            view.scrollDOM,
-            document.documentElement
-          );
+          scrollY(Infinity, this._scroller);
         } else {
-          const pos = doc.line(Math.max(1, startLineNumber)).from;
+          const line = doc.line(Math.max(1, startLineNumber));
           view.dispatch({
-            effects: EditorView.scrollIntoView(pos, {
-              y: "start",
-            }),
+            effects: EditorView.scrollIntoView(
+              EditorSelection.range(line.from, line.to),
+              {
+                y: "start",
+              }
+            ),
           });
         }
-      } else {
-        scrollY(
-          0,
-          this._possibleScroller,
-          view.scrollDOM,
-          document.documentElement
-        );
       }
     }
-    this.cacheVisibleRange(range);
   }
 
   protected selectRange(range: Range, scrollIntoView: boolean) {
@@ -740,20 +705,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
   }
 
   protected handleIdle = () => {
-    if (this._initializedScroll && !this._loaded) {
-      this._loaded = true;
-      if (this._textDocument && this._loadingRequest != null) {
-        // Only fade in once formatting has finished being applied and height is stable
-        this.root.style.opacity = "1";
-        this.emit(
-          LoadEditorMessage.method,
-          LoadEditorMessage.type.response(this._loadingRequest, null)
-        );
-        this._loadingRequest = undefined;
-      }
-    }
-    if (!this._initializedScroll) {
-      this._initializedScroll = true;
+    if (this._loadState === "initial") {
+      this._loadState = "initializing";
       const focused = this._initialFocused;
       const visibleRange = this._initialVisibleRange;
       const selectedRange = this._initialSelectedRange;
@@ -763,19 +716,33 @@ export default class SparkdownScriptEditor extends Component(spec) {
       const view = this._view;
       if (document.hasFocus() && this._view && focused) {
         const timer = window.setInterval(() => {
-          if (this._view === view) {
-            if (!this._view || this._view.hasFocus) {
-              clearInterval(timer);
-              return;
-            }
-            this.focus({ preventScroll: true });
-            this._view.focus();
-            if (selectedRange) {
-              // Only restore selectedRange if was focused
-              this.selectRange(selectedRange, false);
-            }
+          if (this._view !== view || !this._view || this._view.hasFocus) {
+            clearInterval(timer);
+            return;
+          }
+          this.focus({ preventScroll: true });
+          this._view.focus();
+          if (selectedRange) {
+            // Only restore selectedRange if was focused
+            this.selectRange(selectedRange, false);
           }
         }, 100);
+      }
+      this._loadState = "initialized";
+    }
+    if (this._loadState === "initialized") {
+      this._loadState = "loaded";
+      if (this._textDocument && this._loadingRequest != null) {
+        // Only fade in once formatting has finished being applied and height is stable
+        this.root.style.opacity = "1";
+        this.emit(
+          LoadEditorMessage.method,
+          LoadEditorMessage.type.response(this._loadingRequest, null)
+        );
+        this._loadingRequest = undefined;
+      }
+      if (this._view) {
+        this.bindView(this._view);
       }
     }
   };
@@ -805,24 +772,24 @@ export default class SparkdownScriptEditor extends Component(spec) {
   };
 
   protected handlePointerScroll = (e: Event) => {
-    if (this._userInitiatedScroll) {
-      const scrollTarget = e.target;
-      const view = this._view;
-      if (view) {
-        const scrollTop = getScrollTop(scrollTarget);
-        const scrollClientHeight = getScrollClientHeight(scrollTarget);
-        const insetBottom = this._scrollMargin.bottom ?? 0;
-        const scrollBottom =
-          scrollTop + scrollClientHeight - this._domClientY - insetBottom;
-        const visibleRange = getVisibleRange(view, scrollTop, scrollBottom);
-        if (
-          visibleRange.start.line !== this._visibleRange?.start?.line ||
-          visibleRange.end.line !== this._visibleRange?.end?.line
-        ) {
-          const target =
-            scrollTarget instanceof HTMLElement ? "element" : "document";
-          this.cacheVisibleRange(visibleRange);
-          if (this._textDocument) {
+    const scrollTarget = e.target;
+    const view = this._view;
+    if (view) {
+      const scrollTop = getScrollTop(scrollTarget);
+      const scrollClientHeight = getScrollClientHeight(scrollTarget);
+      const insetBottom = this._scrollMargin.bottom ?? 0;
+      const scrollBottom =
+        scrollTop + scrollClientHeight - this._domClientY - insetBottom;
+      const visibleRange = getVisibleRange(view, scrollTop, scrollBottom);
+      if (
+        visibleRange.start.line !== this._visibleRange?.start?.line ||
+        visibleRange.end.line !== this._visibleRange?.end?.line
+      ) {
+        const target =
+          scrollTarget instanceof HTMLElement ? "element" : "document";
+        this.cacheVisibleRange(visibleRange);
+        if (this._textDocument) {
+          if (this._userInitiatedScroll) {
             this.emit(
               ScrolledEditorMessage.method,
               ScrolledEditorMessage.type.notification({

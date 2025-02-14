@@ -4,6 +4,10 @@ import getFormattedHTML from "../../utils/getFormattedHTML";
 import BlockWidget from "../BlockWidget";
 import { DecorationSpec } from "../../types/DecorationSpec";
 
+const PIXELS_PER_INCH = 96;
+const INNER_PAGE_HEIGHT = 9 * PIXELS_PER_INCH;
+const FONT_SIZE = 16;
+
 export interface TitlePageSpec extends DecorationSpec {
   type: "title_page";
   tl?: MarkupContent[];
@@ -22,7 +26,7 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
     container.style.pointerEvents = "none";
     const gridEl = document.createElement("div");
     gridEl.style.display = "grid";
-    gridEl.style.height = "calc(96px * 9)";
+    gridEl.style.height = `${INNER_PAGE_HEIGHT}px`;
     gridEl.style.gridTemplateColumns = "1fr 1fr 1fr 1fr 1fr 1fr";
     gridEl.style.gridTemplateRows = "200px 1fr 300px";
     const tlEl = document.createElement("div");
@@ -81,5 +85,9 @@ export default class TitlePageWidget extends BlockWidget<TitlePageSpec> {
     pageBreakEl.style.marginTop = "1em";
     container.appendChild(pageBreakEl);
     return container;
+  }
+
+  override get estimatedHeight(): number {
+    return INNER_PAGE_HEIGHT + FONT_SIZE * 2;
   }
 }

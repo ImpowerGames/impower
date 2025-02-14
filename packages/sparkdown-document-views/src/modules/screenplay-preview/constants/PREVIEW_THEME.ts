@@ -18,22 +18,6 @@ const PREVIEW_THEME: {
     overflow: "visible",
     position: "relative",
   },
-  "& .cm-line": {
-    opacity: 0,
-    padding: 0,
-  },
-  "& .collapse + .collapse": {
-    display: "none",
-  },
-  "& .collapse:first-child": {
-    display: "none",
-  },
-  "& .collapse:last-child": {
-    display: "none",
-  },
-  "&.cm-focused .cm-cursor": {
-    borderLeftColor: "transparent",
-  },
   "& .cm-content": {
     padding: "68px 24px 68px 24px", // 24px ≈ 0.25 inch
     margin: "auto",
@@ -54,12 +38,37 @@ const PREVIEW_THEME: {
     overflowWrap: "break-word",
     whiteSpace: "pre-wrap",
   },
+  "& .cm-line": {
+    opacity: 0,
+    padding: 0,
+  },
   "& .cm-line.cm-activeLine": {
     backgroundColor: "transparent",
     outline: "2px solid #00000012",
   },
+  "& .collapse + .collapse": {
+    display: "block",
+    visibility: "hidden",
+    width: "0",
+    height: "0",
+  },
+  "& .collapse:first-child": {
+    display: "block",
+    visibility: "hidden",
+    width: "0",
+    height: "0",
+  },
+  "& .collapse:last-child": {
+    display: "block",
+    visibility: "hidden",
+    width: "0",
+    height: "0",
+  },
   "& .cm-widgetBuffer": {
     display: "none",
+  },
+  "&.cm-focused .cm-cursor": {
+    borderLeftColor: "transparent",
   },
 };
 

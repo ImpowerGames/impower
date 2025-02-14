@@ -6,7 +6,7 @@ import {
 import type { EditorState, Text } from "@codemirror/state";
 import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
-import { tags } from "@lezer/highlight";
+import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { SyntaxNodeRef } from "@lezer/common";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
@@ -78,6 +78,31 @@ const LANGUAGE_NAME = "sparkdown";
 
 const LANGUAGE_SUPPORT = new TextmateLanguageSupport(LANGUAGE_NAME, GRAMMAR);
 
+const INLINE_HIDDEN_STYLE = {
+  display: "inline-block",
+  visibility: "hidden",
+  width: "0",
+  height: "0",
+};
+
+const INLINE_HIDDEN_TAGS = [
+  tags.definition(tags.escape),
+  tags.definition(tags.keyword),
+  tags.definition(tags.controlKeyword),
+  tags.definition(tags.typeName),
+  tags.definition(tags.variableName),
+  tags.definition(tags.propertyName),
+  tags.definition(tags.punctuation),
+  tags.definition(tags.content),
+  tags.definition(tags.separator),
+  tags.special(tags.content),
+  tags.comment,
+  tags.blockComment,
+  tags.docComment,
+  tags.macroName,
+  tags.meta,
+];
+
 const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.emphasis, fontStyle: "italic" },
   { tag: tags.strong, fontWeight: "bold" },
@@ -89,25 +114,11 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   {
     tag: tags.special(tags.meta),
     display: "block",
-    maxHeight: "0",
     visibility: "hidden",
+    height: "0",
   },
-  { tag: tags.definition(tags.escape), display: "none" },
-  { tag: tags.definition(tags.keyword), display: "none" },
-  { tag: tags.definition(tags.controlKeyword), display: "none" },
-  { tag: tags.definition(tags.typeName), display: "none" },
-  { tag: tags.definition(tags.variableName), display: "none" },
-  { tag: tags.definition(tags.propertyName), display: "none" },
-  { tag: tags.definition(tags.punctuation), display: "none" },
-  { tag: tags.definition(tags.content), display: "none" },
-  { tag: tags.definition(tags.separator), display: "none" },
-  { tag: tags.special(tags.content), display: "none" },
-  { tag: tags.comment, display: "none" },
-  { tag: tags.blockComment, display: "none" },
-  { tag: tags.docComment, display: "none" },
 
-  { tag: tags.macroName, display: "none" },
-  { tag: tags.meta, display: "none" },
+  ...INLINE_HIDDEN_TAGS.map((tag) => ({ tag, ...INLINE_HIDDEN_STYLE })),
 
   {
     tag: tags.contentSeparator,
@@ -226,7 +237,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
     });
   };
 
-  const isHidden = (nodeRef: SyntaxNodeRef) => {
+  const isBlockHidden = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
     if (nodeRef.matchContext(["sparkdown"])) {
       return (
@@ -244,7 +255,12 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
     return false;
   };
 
-  const hideRange = (nodeRef: SyntaxNodeRef) => {
+  const isInlineHidden = (nodeRef: SyntaxNodeRef) => {
+    const result = getStyleTags(nodeRef);
+    return result?.tags.some((t) => INLINE_HIDDEN_TAGS.includes(t));
+  };
+
+  const hideBlockRange = (nodeRef: SyntaxNodeRef) => {
     const from = nodeRef.from;
     const to = nodeRef.to;
     const hiddenNodeEndsWithNewline = doc.sliceString(from, to).endsWith("\n");
@@ -259,6 +275,16 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
     if (hiddenNodeEndsWithNewline) {
       processNewline(nodeRef.to);
     }
+  };
+
+  const hideInlineRange = (nodeRef: SyntaxNodeRef) => {
+    const from = nodeRef.from;
+    const to = nodeRef.to;
+    specs.push({
+      type: "replace",
+      from,
+      to,
+    });
   };
 
   const processNewline = (to: number) => {
@@ -288,7 +314,21 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
   let frontMatterKeyword = "";
 
   const tree = syntaxTree(state);
+
+  const syntaxHighlightingMarks: Range<Decoration>[] = [];
   // console.log(printTree(tree, doc.toString(), { from, to }));
+  highlightTree(
+    tree,
+    [LANGUAGE_HIGHLIGHTS],
+    (from, to, style) => {
+      syntaxHighlightingMarks.push(
+        Decoration.mark({ class: style }).range(from, to)
+      );
+    },
+    from,
+    to
+  );
+
   tree.iterate({
     from,
     to,
@@ -394,18 +434,17 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         return false;
       } else if (name === "Indent") {
         if (!inAction || inExplicitAction) {
-          specs.push({
-            type: "replace",
-            from,
-            to,
-          });
+          hideInlineRange(nodeRef);
         }
         return false;
       } else if (isCentered(nodeRef)) {
         centerRange(nodeRef);
         return false;
-      } else if (isHidden(nodeRef)) {
-        hideRange(nodeRef);
+      } else if (isBlockHidden(nodeRef)) {
+        hideBlockRange(nodeRef);
+        return false;
+      } else if (isInlineHidden(nodeRef)) {
+        hideInlineRange(nodeRef);
         return false;
       }
       return true;
@@ -539,7 +578,8 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
     },
   });
   processNewline(to ?? doc.length + 1);
-  return specs.flatMap((b) => createDecorations(doc, b));
+  const layoutDecorations = specs.flatMap((b) => createDecorations(doc, b));
+  return [...syntaxHighlightingMarks, ...layoutDecorations];
 };
 
 const replaceDecorations = StateField.define<DecorationSet>({
@@ -578,7 +618,7 @@ const screenplayFormatting = (): Extension => {
   return [
     LANGUAGE_SUPPORT,
     replaceDecorations,
-    syntaxHighlighting(LANGUAGE_HIGHLIGHTS),
+    EditorView.styleModule.of(LANGUAGE_HIGHLIGHTS.module!),
   ];
 };
 

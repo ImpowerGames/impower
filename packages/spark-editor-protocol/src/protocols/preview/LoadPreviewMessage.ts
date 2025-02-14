@@ -6,6 +6,7 @@ export type LoadPreviewMethod = typeof LoadPreviewMessage.method;
 export interface LoadPreviewParams {
   type: "game" | "screenplay";
   textDocument: TextDocumentItem;
+  focused?: boolean;
   visibleRange?: Range;
   selectedRange?: Range;
 }

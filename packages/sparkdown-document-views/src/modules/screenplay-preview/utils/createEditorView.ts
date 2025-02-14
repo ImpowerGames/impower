@@ -1,7 +1,6 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView, highlightActiveLine, ViewUpdate } from "@codemirror/view";
 import { syntaxParserRunning } from "@codemirror/language";
-import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
 import debounce from "../../../utils/debounce";
 import PREVIEW_THEME from "../constants/PREVIEW_THEME";
 import screenplayFormatting from "./screenplayFormatting";
@@ -15,15 +14,15 @@ interface EditorConfig {
     right?: number;
   };
   stabilizationDuration?: number;
-  onFocus?: () => void;
-  onBlur?: () => void;
   onIdle?: () => void;
+  onFocus?: (update: ViewUpdate) => void;
+  onBlur?: (update: ViewUpdate) => void;
   onSelectionChanged?: (
     update: ViewUpdate,
     anchor: number,
     head: number
   ) => void;
-  onHeightChanged?: () => void;
+  onHeightChanged?: (update: ViewUpdate) => void;
 }
 
 const createEditorView = (
@@ -33,24 +32,27 @@ const createEditorView = (
   const textDocument = config?.textDocument;
   const scrollMargin = config?.scrollMargin;
   const stabilizationDuration = config?.stabilizationDuration ?? 50;
-  const onBlur = config?.onBlur;
-  const onFocus = config?.onFocus;
   const onIdle = config?.onIdle ?? (() => {});
+  const debouncedIdle = debounce(onIdle, stabilizationDuration);
+  const onFocus = config?.onFocus;
+  const onBlur = config?.onBlur;
   const onSelectionChanged = config?.onSelectionChanged;
   const onHeightChanged = config?.onHeightChanged;
-  const debouncedIdle = debounce(onIdle, stabilizationDuration);
   const startState = EditorState.create({
     doc: textDocument?.text,
     extensions: [
       EditorState.readOnly.of(true),
       EditorView.theme(PREVIEW_THEME),
       EditorView.lineWrapping,
+      EditorView.scrollMargins.of(() => {
+        return scrollMargin ?? null;
+      }),
       EditorView.updateListener.of((u) => {
         if (!syntaxParserRunning(u.view)) {
           debouncedIdle();
         }
         if (u.heightChanged) {
-          onHeightChanged?.();
+          onHeightChanged?.(u);
         }
         if (u.selectionSet) {
           const cursorRange = u.state.selection.main;
@@ -60,15 +62,15 @@ const createEditorView = (
         }
         if (u.focusChanged) {
           if (u.view.hasFocus) {
-            onFocus?.();
+            onFocus?.(u);
           } else {
-            onBlur?.();
+            onBlur?.(u);
           }
         }
       }),
       screenplayFormatting(),
-      scrollMargins(scrollMargin),
       highlightActiveLine(),
+      // lineNumbers(),
     ],
   });
   const view = new EditorView({

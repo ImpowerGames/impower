@@ -36,21 +36,28 @@ const CONTENT_PADDING_TOP = 68;
 export default class SparkScreenplayPreview extends Component(spec) {
   protected _loadingRequest?: number | string;
 
-  protected _initialized = false;
+  protected _initialFocused?: boolean;
 
-  protected _loaded = false;
+  protected _initialVisibleRange?: Range;
+
+  protected _initialSelectedRange?: Range;
+
+  protected _loadState: "initial" | "initializing" | "initialized" | "loaded" =
+    "initial";
 
   protected _textDocument?: TextDocumentIdentifier;
 
   protected _view?: EditorView;
 
-  protected _possibleScroller?: Window | Element | null;
+  protected _scroller?: Window | Element | null;
 
   protected _visibleRange?: Range;
 
   protected _domClientY = 0;
 
   protected _userInitiatedScroll = false;
+
+  protected _scrollIntervalTimeout = 0;
 
   protected _scrollMargin: {
     top?: number;
@@ -64,7 +71,18 @@ export default class SparkScreenplayPreview extends Component(spec) {
     right: 0,
   };
 
+  protected _scrollTarget?: Range;
+
   override onConnected() {
+    this.root.addEventListener("touchstart", this.handlePointerEnterScroller, {
+      passive: true,
+    });
+    this.root.addEventListener("mouseenter", this.handlePointerEnterScroller, {
+      passive: true,
+    });
+    this.root.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
+      passive: true,
+    });
     window.addEventListener(LoadPreviewMessage.method, this.handleLoadPreview);
     window.addEventListener(
       RevealPreviewRangeMessage.method,
@@ -101,6 +119,18 @@ export default class SparkScreenplayPreview extends Component(spec) {
   }
 
   override onDisconnected() {
+    this.root.removeEventListener(
+      "touchstart",
+      this.handlePointerEnterScroller
+    );
+    this.root.removeEventListener(
+      "mouseenter",
+      this.handlePointerEnterScroller
+    );
+    this.root.removeEventListener(
+      "mouseleave",
+      this.handlePointerLeaveScroller
+    );
     window.removeEventListener(
       LoadPreviewMessage.method,
       this.handleLoadPreview
@@ -141,51 +171,12 @@ export default class SparkScreenplayPreview extends Component(spec) {
 
   protected bindView(view: EditorView) {
     this._domClientY = view.dom.offsetTop;
-    this._possibleScroller = getScrollableParent(view.scrollDOM);
-    this._possibleScroller?.addEventListener(
-      "scroll",
-      this.handlePointerScroll
-    );
-    this._view?.dom.addEventListener(
-      "touchstart",
-      this.handlePointerEnterScroller,
-      {
-        passive: true,
-      }
-    );
-    this._view?.dom.addEventListener(
-      "mouseenter",
-      this.handlePointerEnterScroller,
-      {
-        passive: true,
-      }
-    );
-    this._view?.dom.addEventListener(
-      "mouseleave",
-      this.handlePointerLeaveScroller,
-      {
-        passive: true,
-      }
-    );
+    this._scroller = getScrollableParent(view.scrollDOM);
+    this._scroller?.addEventListener("scroll", this.handlePointerScroll);
   }
 
   protected unbindView(view: EditorView) {
-    this._possibleScroller?.removeEventListener(
-      "scroll",
-      this.handlePointerScroll
-    );
-    this._view?.dom.removeEventListener(
-      "touchstart",
-      this.handlePointerEnterScroller
-    );
-    this._view?.dom.removeEventListener(
-      "mouseenter",
-      this.handlePointerEnterScroller
-    );
-    this._view?.dom.removeEventListener(
-      "mouseleave",
-      this.handlePointerLeaveScroller
-    );
+    this._scroller?.removeEventListener("scroll", this.handlePointerScroll);
     view.destroy();
   }
 
@@ -195,15 +186,22 @@ export default class SparkScreenplayPreview extends Component(spec) {
       if (LoadPreviewMessage.type.isRequest(message)) {
         const params = message.params;
         const textDocument = params.textDocument;
+        const focused = params.focused;
         const visibleRange = params.visibleRange;
+        const selectedRange = params.selectedRange;
         this._loadingRequest = message.id;
-        this.loadTextDocument(textDocument, visibleRange);
+        this.loadTextDocument(
+          textDocument,
+          focused,
+          visibleRange,
+          selectedRange
+        );
       }
     }
   };
 
   protected handleExpandPreviewPane = () => {
-    this.revealRange(this._visibleRange);
+    this.scrollToRange(this._visibleRange);
   };
 
   protected handleCollapsePreviewPane = () => {
@@ -218,7 +216,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
         const textDocument = params.textDocument;
         const range = params.range;
         if (textDocument.uri !== this._textDocument?.uri) {
-          this.revealRange(range);
+          this.scrollToRange(range);
         }
       }
     }
@@ -241,21 +239,22 @@ export default class SparkScreenplayPreview extends Component(spec) {
       }
     }
   };
-
   protected handleScrolledEditor = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (ScrolledEditorMessage.type.isNotification(message)) {
-        this._userInitiatedScroll = false;
-        const params = message.params;
-        const textDocument = params.textDocument;
-        const range = params.visibleRange;
-        const target = params.target;
-        if (textDocument.uri === this._textDocument?.uri) {
-          if (target === "element") {
-            this.revealRange(range);
-          } else {
-            this.cacheVisibleRange(range);
+    if (this._loadState === "loaded") {
+      if (e instanceof CustomEvent) {
+        const message = e.detail;
+        if (ScrolledEditorMessage.type.isNotification(message)) {
+          this._userInitiatedScroll = false;
+          const params = message.params;
+          const textDocument = params.textDocument;
+          const range = params.visibleRange;
+          const target = params.target;
+          if (textDocument.uri === this._textDocument?.uri) {
+            if (target === "element") {
+              this.scrollToRange(range);
+            } else {
+              this.cacheVisibleRange(range);
+            }
           }
         }
       }
@@ -266,7 +265,6 @@ export default class SparkScreenplayPreview extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (SelectedEditorMessage.type.isNotification(message)) {
-        this._userInitiatedScroll = false;
         const params = message.params;
         const textDocument = params.textDocument;
         const selectedRange = params.selectedRange;
@@ -283,14 +281,18 @@ export default class SparkScreenplayPreview extends Component(spec) {
 
   protected loadTextDocument(
     textDocument: TextDocumentItem,
-    visibleRange: Range | undefined
+    focused: boolean | undefined,
+    visibleRange: Range | undefined,
+    selectedRange: Range | undefined
   ) {
     if (this._view) {
       this.unbindView(this._view);
       this._view.destroy();
     }
-    this._initialized = false;
-    this._loaded = false;
+    this._initialFocused = focused;
+    this._initialVisibleRange = visibleRange;
+    this._initialSelectedRange = selectedRange;
+    this._loadState = "initial";
     this._textDocument = textDocument;
     const root = this.root;
     if (root) {
@@ -319,25 +321,24 @@ export default class SparkScreenplayPreview extends Component(spec) {
             );
           }
         },
+        onHeightChanged: () => {
+          if (this._scrollTarget) {
+            this.scrollToRange(this._scrollTarget);
+          }
+          const visibleRange = this.measureVisibleRange();
+          if (visibleRange) {
+            this.cacheVisibleRange(visibleRange);
+          }
+        },
       });
-      this.bindView(this._view);
-    }
-    window.requestAnimationFrame(() => {
-      this.revealRange(visibleRange);
-      this._initialized = true;
-    });
-  }
-
-  protected cacheVisibleRange(range: Range | undefined) {
-    if (
-      range?.start?.line !== this._visibleRange?.start?.line ||
-      range?.end?.line !== this._visibleRange?.end?.line
-    ) {
-      this._visibleRange = range;
     }
   }
 
-  protected revealRange(range: Range | undefined) {
+  protected cacheVisibleRange(range: Range) {
+    this._visibleRange = range;
+  }
+
+  protected scrollToRange(range: Range | undefined) {
     const view = this._view;
     if (view) {
       if (range) {
@@ -345,37 +346,25 @@ export default class SparkScreenplayPreview extends Component(spec) {
         const startLineNumber = range.start.line + 1;
         const endLineNumber = range.end.line + 1;
         if (startLineNumber <= 1) {
-          scrollY(
-            0,
-            this._possibleScroller,
-            view.scrollDOM,
-            document.documentElement
-          );
+          this._scrollTarget = undefined;
+          scrollY(0, this._scroller);
         } else if (endLineNumber >= doc.lines) {
-          scrollY(
-            Infinity,
-            this._possibleScroller,
-            view.scrollDOM,
-            document.documentElement
-          );
+          this._scrollTarget = undefined;
+          scrollY(Infinity, this._scroller);
         } else {
-          const pos = doc.line(Math.max(1, startLineNumber)).from;
+          this._scrollTarget = range;
+          const line = doc.line(Math.max(1, startLineNumber));
           view.dispatch({
-            effects: EditorView.scrollIntoView(pos, {
-              y: "start",
-            }),
+            effects: EditorView.scrollIntoView(
+              EditorSelection.range(line.from, line.to),
+              {
+                y: "start",
+              }
+            ),
           });
         }
-      } else {
-        scrollY(
-          0,
-          this._possibleScroller,
-          view.scrollDOM,
-          document.documentElement
-        );
       }
     }
-    this.cacheVisibleRange(range);
   }
 
   protected selectRange(range: Range, scrollIntoView: boolean) {
@@ -394,18 +383,33 @@ export default class SparkScreenplayPreview extends Component(spec) {
   }
 
   protected handleIdle = () => {
-    if (this._initialized && !this._loaded) {
-      this._loaded = true;
+    if (this._loadState === "initial") {
+      this._loadState = "initializing";
+      const visibleRange = this._initialVisibleRange;
+      const selectedRange = this._initialSelectedRange;
+      if (visibleRange) {
+        // Restore visible range
+        this.scrollToRange(visibleRange);
+      }
+      if (selectedRange) {
+        //Restore selected range
+        this.selectRange(selectedRange, false);
+      }
+      this._loadState = "initialized";
+    }
+    if (this._loadState === "initialized") {
+      this._loadState = "loaded";
       if (this._textDocument && this._loadingRequest != null) {
-        if (this._view) {
-          // Only fade in once formatting has finished being applied and height is stable
-          this.root.style.opacity = "1";
-        }
+        // Only fade in once formatting has finished being applied and height is stable
+        this.root.style.opacity = "1";
         this.emit(
           LoadPreviewMessage.method,
           LoadPreviewMessage.type.response(this._loadingRequest, null)
         );
         this._loadingRequest = undefined;
+      }
+      if (this._view) {
+        this.bindView(this._view);
       }
     }
   };
@@ -437,31 +441,24 @@ export default class SparkScreenplayPreview extends Component(spec) {
   };
 
   protected handlePointerScroll = (e: Event) => {
-    if (this._userInitiatedScroll) {
-      const scrollTarget = e.target;
-      const view = this._view;
-      if (view) {
-        const scrollClientHeight = getScrollClientHeight(scrollTarget);
-        const insetBottom = this._scrollMargin.bottom ?? 0;
-        const scrollTop = getScrollTop(scrollTarget) - CONTENT_PADDING_TOP;
-        const scrollBottom =
-          scrollTop + scrollClientHeight - this._domClientY - insetBottom;
-        const visibleRange = getVisibleRange(view, scrollTop, scrollBottom);
-        if (
-          visibleRange.start.line !== this._visibleRange?.start?.line ||
-          visibleRange.end.line !== this._visibleRange?.end?.line
-        ) {
-          const target =
-            scrollTarget instanceof HTMLElement ? "element" : "document";
-          this.cacheVisibleRange(visibleRange);
-          if (this._textDocument) {
+    const visibleRange = this.measureVisibleRange();
+    if (visibleRange) {
+      if (
+        visibleRange.start.line !== this._visibleRange?.start?.line ||
+        visibleRange.end.line !== this._visibleRange?.end?.line
+      ) {
+        this.cacheVisibleRange(visibleRange);
+        if (this._textDocument) {
+          if (this._userInitiatedScroll) {
+            this._scrollTarget = undefined;
             this.emit(
               ScrolledPreviewMessage.method,
               ScrolledPreviewMessage.type.notification({
                 type: "screenplay",
                 textDocument: this._textDocument,
                 range: visibleRange,
-                target,
+                target:
+                  e.target instanceof HTMLElement ? "element" : "document",
               })
             );
           }
@@ -469,6 +466,21 @@ export default class SparkScreenplayPreview extends Component(spec) {
       }
     }
   };
+
+  protected measureVisibleRange() {
+    const scrollTarget = this._scroller;
+    const view = this._view;
+    if (view && scrollTarget) {
+      const scrollClientHeight = getScrollClientHeight(scrollTarget);
+      const insetBottom = this._scrollMargin.bottom ?? 0;
+      const scrollTop = getScrollTop(scrollTarget) - CONTENT_PADDING_TOP;
+      const scrollBottom =
+        scrollTop + scrollClientHeight - this._domClientY - insetBottom;
+      const visibleRange = getVisibleRange(view, scrollTop, scrollBottom);
+      return visibleRange;
+    }
+    return undefined;
+  }
 }
 
 declare global {

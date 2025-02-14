@@ -30,7 +30,6 @@ import {
 } from "../../../cm-breakpoints/breakpoints";
 import { foldedField } from "../../../cm-folded/foldedField";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
-import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
 import { syncDispatch } from "../../../cm-sync/syncDispatch";
 import {
   updateVariableWidgets,
@@ -185,7 +184,9 @@ const createEditorView = (
           }) ?? [];
         return RangeSet.of(gutterMarkers, true);
       }),
-      scrollMargins(scrollMargin),
+      EditorView.scrollMargins.of(() => {
+        return scrollMargin ?? null;
+      }),
       EditorView.theme(
         {
           "& .cm-panels.cm-panels-top": {
