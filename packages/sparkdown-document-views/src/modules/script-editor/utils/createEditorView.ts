@@ -30,7 +30,6 @@ import {
 } from "../../../cm-breakpoints/breakpoints";
 import { foldedField } from "../../../cm-folded/foldedField";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
-import { syncDispatch } from "../../../cm-sync/syncDispatch";
 import {
   updateVariableWidgets,
   variableWidgets,
@@ -318,7 +317,6 @@ const createEditorView = (
   const view: EditorView = new EditorView({
     state: startState,
     parent,
-    dispatchTransactions: (trs, view) => syncDispatch(trs, view),
   });
   const onParse = (e: Event) => {
     if (e instanceof CustomEvent) {
