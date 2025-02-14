@@ -315,20 +315,6 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
 
   const tree = syntaxTree(state);
 
-  const syntaxHighlightingMarks: Range<Decoration>[] = [];
-  // console.log(printTree(tree, doc.toString(), { from, to }));
-  highlightTree(
-    tree,
-    [LANGUAGE_HIGHLIGHTS],
-    (from, to, style) => {
-      syntaxHighlightingMarks.push(
-        Decoration.mark({ class: style }).range(from, to)
-      );
-    },
-    from,
-    to
-  );
-
   tree.iterate({
     from,
     to,
@@ -579,7 +565,20 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
   });
   processNewline(to ?? doc.length + 1);
   const layoutDecorations = specs.flatMap((b) => createDecorations(doc, b));
-  return [...syntaxHighlightingMarks, ...layoutDecorations];
+  const syntaxHighlightingMarks: Range<Decoration>[] = [];
+  // console.log(printTree(tree, doc.toString(), { from, to }));
+  highlightTree(
+    tree,
+    [LANGUAGE_HIGHLIGHTS],
+    (from, to, style) => {
+      syntaxHighlightingMarks.push(
+        Decoration.mark({ class: style }).range(from, to)
+      );
+    },
+    from,
+    to
+  );
+  return [...layoutDecorations, ...syntaxHighlightingMarks];
 };
 
 const replaceDecorations = StateField.define<DecorationSet>({
