@@ -6,7 +6,8 @@ export type SelectedPreviewMethod = typeof SelectedPreviewMessage.method;
 export interface SelectedPreviewParams {
   type: "game" | "screenplay";
   textDocument: TextDocumentIdentifier;
-  range: Range;
+  selectedRange: Range;
+  docChanged: boolean;
 }
 
 export class SelectedPreviewMessage {

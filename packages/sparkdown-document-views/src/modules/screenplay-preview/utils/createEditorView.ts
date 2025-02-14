@@ -1,5 +1,5 @@
 import { EditorState } from "@codemirror/state";
-import { EditorView, highlightActiveLine } from "@codemirror/view";
+import { EditorView, highlightActiveLine, ViewUpdate } from "@codemirror/view";
 import { syntaxParserRunning } from "@codemirror/language";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
 import debounce from "../../../utils/debounce";
@@ -18,6 +18,11 @@ interface EditorConfig {
   onFocus?: () => void;
   onBlur?: () => void;
   onIdle?: () => void;
+  onSelectionChanged?: (
+    update: ViewUpdate,
+    anchor: number,
+    head: number
+  ) => void;
   onHeightChanged?: () => void;
 }
 
@@ -31,6 +36,7 @@ const createEditorView = (
   const onBlur = config?.onBlur;
   const onFocus = config?.onFocus;
   const onIdle = config?.onIdle ?? (() => {});
+  const onSelectionChanged = config?.onSelectionChanged;
   const onHeightChanged = config?.onHeightChanged;
   const debouncedIdle = debounce(onIdle, stabilizationDuration);
   const startState = EditorState.create({
@@ -45,6 +51,12 @@ const createEditorView = (
         }
         if (u.heightChanged) {
           onHeightChanged?.();
+        }
+        if (u.selectionSet) {
+          const cursorRange = u.state.selection.main;
+          const anchor = cursorRange?.anchor;
+          const head = cursorRange?.head;
+          onSelectionChanged?.(u, anchor, head);
         }
         if (u.focusChanged) {
           if (u.view.hasFocus) {

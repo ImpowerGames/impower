@@ -26,11 +26,10 @@ import {
   breakpointMarker,
   breakpointsChanged,
   breakpointsField,
-  getBreakpointPositions,
+  getBreakpointLineNumbers,
 } from "../../../cm-breakpoints/breakpoints";
 import { foldedField } from "../../../cm-folded/foldedField";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
-import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
 import { syncDispatch } from "../../../cm-sync/syncDispatch";
 import {
@@ -60,17 +59,6 @@ export const readOnly = new Compartment();
 
 export const editable = new Compartment();
 
-interface SerializableRange {
-  start: {
-    line: number;
-    character: number;
-  };
-  end: {
-    line: number;
-    character: number;
-  };
-}
-
 interface EditorConfig {
   serverConnection: MessageConnection;
   serverCapabilities: ServerCapabilities;
@@ -86,7 +74,7 @@ interface EditorConfig {
   bottom: number;
   defaultState?: SerializableEditorState;
   stabilizationDuration?: number;
-  breakpointRanges?: SerializableRange[];
+  breakpoints?: number[];
   topContainer?: HTMLElement;
   bottomContainer?: HTMLElement;
   getEditorState?: () => SerializableEditorState;
@@ -96,11 +84,12 @@ interface EditorConfig {
   onFocus?: () => void;
   onBlur?: () => void;
   onIdle?: () => void;
-  onSelectionChanged?: (update: {
-    selectedRange: SerializableRange;
-    docChanged: boolean;
-  }) => void;
-  onBreakpointsChanged?: (ranges: SerializableRange[]) => void;
+  onSelectionChanged?: (
+    update: ViewUpdate,
+    anchor: number,
+    head: number
+  ) => void;
+  onBreakpointsChanged?: (update: ViewUpdate, ranges: number[]) => void;
   onHeightChanged?: () => void;
   changeFilter?: (tr: Transaction) => boolean | readonly number[];
   transactionFilter?: (
@@ -124,7 +113,7 @@ const createEditorView = (
   const bottom = config?.bottom;
   const defaultState = config?.defaultState;
   const stabilizationDuration = config?.stabilizationDuration ?? 50;
-  const breakpointRanges = config?.breakpointRanges;
+  const breakpoints = config?.breakpoints;
   const topContainer = config.topContainer;
   const bottomContainer = config.bottomContainer;
   const onReady = config?.onReady;
@@ -191,10 +180,8 @@ const createEditorView = (
       versioning(),
       breakpointsField.init((state) => {
         const gutterMarkers: Range<GutterMarker>[] =
-          breakpointRanges?.map((range) => {
-            const line = state.doc.line(range.start.line + 1);
-            const pos = line.from + range.start.character;
-            return breakpointMarker.range(pos);
+          breakpoints?.map((lineNumber) => {
+            return breakpointMarker.range(state.doc.line(lineNumber).from);
           }) ?? [];
         return RangeSet.of(gutterMarkers, true);
       }),
@@ -259,22 +246,10 @@ const createEditorView = (
           const cursorRange = u.state.selection.main;
           const anchor = cursorRange?.anchor;
           const head = cursorRange?.head;
-          const selectedRange = {
-            start: offsetToPosition(u.state.doc, anchor),
-            end: offsetToPosition(u.state.doc, head),
-          };
-          const docChanged = u.docChanged;
-          onSelectionChanged?.({ selectedRange, docChanged });
+          onSelectionChanged?.(u, anchor, head);
         }
         if (breakpointsChanged(u)) {
-          onBreakpointsChanged?.(
-            getBreakpointPositions(u.view).map((pos) => {
-              return {
-                start: offsetToPosition(u.state.doc, pos),
-                end: offsetToPosition(u.state.doc, pos),
-              };
-            })
-          );
+          onBreakpointsChanged?.(u, getBreakpointLineNumbers(u.view));
         }
         onViewUpdate?.(u);
         const json: {

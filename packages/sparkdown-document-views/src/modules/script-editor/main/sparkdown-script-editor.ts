@@ -1,4 +1,4 @@
-import { EditorSelection, EditorState } from "@codemirror/state";
+import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { TextDocumentSaveReason } from "../../../../../spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ChangedEditorBreakpointsMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
@@ -14,6 +14,7 @@ import { HideEditorStatusBarMessage } from "../../../../../spark-editor-protocol
 import { ShowEditorStatusBarMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ShowEditorStatusBarMessage";
 import { HoveredOnPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { ScrolledPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
+import { SelectedPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
 import { DidChangeTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidCloseTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidCloseTextDocumentMessage";
 import { DidOpenTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
@@ -47,6 +48,7 @@ import { getDocumentVersion } from "../../../cm-versioning/versioning";
 import { gotoLinePanelOpen } from "../panels/GotoLinePanel";
 import { getScrollableParent } from "../../../utils/getScrollableParent";
 import { getServerChanges } from "../../../cm-language-client/utils/getServerChanges";
+import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition";
 
 export default class SparkdownScriptEditor extends Component(spec) {
   static languageServerConnection: MessageConnection;
@@ -128,6 +130,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
       this.handleScrolledPreview
     );
     window.addEventListener(
+      SelectedPreviewMessage.method,
+      this.handleSelectedPreview
+    );
+    window.addEventListener(
       SearchEditorMessage.method,
       this.handleSearchEditor
     );
@@ -162,6 +168,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
     window.removeEventListener(
       ScrolledPreviewMessage.method,
       this.handleScrolledPreview
+    );
+    window.removeEventListener(
+      SelectedPreviewMessage.method,
+      this.handleSelectedPreview
     );
     window.removeEventListener(
       SearchEditorMessage.method,
@@ -342,6 +352,24 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   };
 
+  protected handleSelectedPreview = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (SelectedPreviewMessage.type.isNotification(message)) {
+        this._userInitiatedScroll = false;
+        const params = message.params;
+        const textDocument = params.textDocument;
+        const selectedRange = params.selectedRange;
+        const docChanged = params.docChanged;
+        if (textDocument.uri === this._textDocument?.uri) {
+          if (!docChanged) {
+            this.selectRange(selectedRange, false);
+          }
+        }
+      }
+    }
+  };
+
   protected handleSearchEditor = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
@@ -455,7 +483,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
         scrollMargin: this._scrollMargin,
         top: this._top,
         bottom: this._bottom,
-        breakpointRanges,
+        breakpoints: breakpointRanges?.map((range) => range.start.line + 1),
         onIdle: this.handleIdle,
         onFocus: () => {
           this._editing = true;
@@ -534,33 +562,56 @@ export default class SparkdownScriptEditor extends Component(spec) {
           }
           return null;
         },
-        onSelectionChanged: ({ selectedRange, docChanged }) => {
+        onSelectionChanged: (update, anchor, head) => {
           const uri = this._textDocument?.uri;
           if (uri) {
-            this.emit(
-              SelectedEditorMessage.method,
-              SelectedEditorMessage.type.notification({
-                textDocument: { uri },
-                selectedRange,
-                docChanged,
-              })
-            );
+            if (
+              update.transactions.some((tr) =>
+                tr.annotation(Transaction.userEvent)
+              )
+            ) {
+              this.emit(
+                SelectedEditorMessage.method,
+                SelectedEditorMessage.type.notification({
+                  textDocument: { uri },
+                  selectedRange: {
+                    start: offsetToPosition(update.state.doc, anchor),
+                    end: offsetToPosition(update.state.doc, head),
+                  },
+                  docChanged: update.docChanged,
+                })
+              );
+            }
           }
         },
-        onBreakpointsChanged: (breakpointRanges) => {
+        onBreakpointsChanged: (update, breakpoints) => {
           const uri = this._textDocument?.uri;
           if (uri) {
             this.emit(
               ChangedEditorBreakpointsMessage.method,
               ChangedEditorBreakpointsMessage.type.notification({
                 textDocument: { uri },
-                breakpointRanges,
+                breakpointRanges: breakpoints.map((lineNumber) => {
+                  return {
+                    start: offsetToPosition(
+                      update.state.doc,
+                      update.state.doc.line(lineNumber).from
+                    ),
+                    end: offsetToPosition(
+                      update.state.doc,
+                      update.state.doc.line(lineNumber).to
+                    ),
+                  };
+                }),
               })
             );
           }
         },
-        onViewUpdate: (u) => {
-          if (searchPanelOpen(u.state) || gotoLinePanelOpen(u.state)) {
+        onViewUpdate: (update) => {
+          if (
+            searchPanelOpen(update.state) ||
+            gotoLinePanelOpen(update.state)
+          ) {
             if (!this._searching) {
               // Opened panel
               const findInput = this.root.querySelector(

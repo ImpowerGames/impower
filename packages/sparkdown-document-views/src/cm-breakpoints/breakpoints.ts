@@ -77,6 +77,12 @@ export const getBreakpointPositions = (view: EditorView) => {
   return breakpointPositions;
 };
 
+export const getBreakpointLineNumbers = (view: EditorView) => {
+  return getBreakpointPositions(view).map(
+    (pos) => view.state.doc.lineAt(pos).number
+  );
+};
+
 export const toggleBreakpoint = (view: EditorView, pos: number) => {
   const config = view.state.facet(breakpointsConfig);
   let rangeSet = view.state.field(breakpointsField);
