@@ -271,8 +271,9 @@ export default class SparkScreenplayPreview extends Component(spec) {
         const textDocument = params.textDocument;
         const selectedRange = params.selectedRange;
         const docChanged = params.docChanged;
+        const userEvent = params.userEvent;
         if (textDocument.uri === this._textDocument?.uri) {
-          if (!docChanged) {
+          if (!docChanged && userEvent) {
             this.selectRange(selectedRange, false);
           }
         }
@@ -301,24 +302,21 @@ export default class SparkScreenplayPreview extends Component(spec) {
         onSelectionChanged: (update, anchor, head) => {
           const uri = this._textDocument?.uri;
           if (uri) {
-            if (
-              update.transactions.some((tr) =>
-                tr.annotation(Transaction.userEvent)
-              )
-            ) {
-              this.emit(
-                SelectedPreviewMessage.method,
-                SelectedPreviewMessage.type.notification({
-                  type: "screenplay",
-                  textDocument: { uri },
-                  selectedRange: {
-                    start: offsetToPosition(update.state.doc, anchor),
-                    end: offsetToPosition(update.state.doc, head),
-                  },
-                  docChanged: update.docChanged,
-                })
-              );
-            }
+            this.emit(
+              SelectedPreviewMessage.method,
+              SelectedPreviewMessage.type.notification({
+                type: "screenplay",
+                textDocument: { uri },
+                selectedRange: {
+                  start: offsetToPosition(update.state.doc, anchor),
+                  end: offsetToPosition(update.state.doc, head),
+                },
+                docChanged: update.docChanged,
+                userEvent: update.transactions.some((tr) =>
+                  tr.annotation(Transaction.userEvent)
+                ),
+              })
+            );
           }
         },
       });

@@ -8,6 +8,7 @@ export interface SelectedPreviewParams {
   textDocument: TextDocumentIdentifier;
   selectedRange: Range;
   docChanged: boolean;
+  userEvent?: boolean;
 }
 
 export class SelectedPreviewMessage {

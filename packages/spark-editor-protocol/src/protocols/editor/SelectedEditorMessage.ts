@@ -7,6 +7,7 @@ export interface SelectedEditorParams {
   textDocument: TextDocumentIdentifier;
   selectedRange: Range;
   docChanged: boolean;
+  userEvent?: boolean;
 }
 
 export class SelectedEditorMessage {
