@@ -115,7 +115,9 @@ export default class ScreenplayParser {
             name !== "Action" &&
             name !== "BlockDialogue" &&
             name !== "InlineDialogue" &&
-            name !== "Choice"
+            name !== "Choice" &&
+            name !== "Newline" &&
+            name !== "Whitespace"
           ) {
             // Add separator for hidden top-level nodes
             addSeparator();

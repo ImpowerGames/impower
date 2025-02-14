@@ -249,7 +249,9 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         name !== "Action" &&
         name !== "BlockDialogue" &&
         name !== "InlineDialogue" &&
-        name !== "Choice"
+        name !== "Choice" &&
+        name !== "Newline" &&
+        name !== "Whitespace"
       );
     }
     return false;
@@ -263,7 +265,8 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
   const hideBlockRange = (nodeRef: SyntaxNodeRef) => {
     const from = nodeRef.from;
     const to = nodeRef.to;
-    const hiddenNodeEndsWithNewline = doc.sliceString(from, to).endsWith("\n");
+    const text = doc.sliceString(from, to);
+    const hiddenNodeEndsWithNewline = text.endsWith("\n");
     const hideFrom = from;
     const hideTo = hiddenNodeEndsWithNewline ? to - 1 : to;
     specs.push({
@@ -301,8 +304,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
 
   const prevChar = doc.sliceString(from - 1, from);
 
-  let isBlankLineFrom: undefined | number =
-    prevChar === "" ? 0 : prevChar === "\n" ? from - 1 : undefined;
+  let isBlankLineFrom = prevChar === "" ? 0 : undefined;
   let inAction = false;
   let inExplicitAction = false;
   let inDialogue = false;
@@ -563,22 +565,18 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
       }
     },
   });
-  processNewline(to ?? doc.length + 1);
-  const layoutDecorations = specs.flatMap((b) => createDecorations(doc, b));
-  const syntaxHighlightingMarks: Range<Decoration>[] = [];
+  const decorations = specs.flatMap((b) => createDecorations(doc, b));
   // console.log(printTree(tree, doc.toString(), { from, to }));
   highlightTree(
     tree,
     [LANGUAGE_HIGHLIGHTS],
     (from, to, style) => {
-      syntaxHighlightingMarks.push(
-        Decoration.mark({ class: style }).range(from, to)
-      );
+      decorations.push(Decoration.mark({ class: style }).range(from, to));
     },
     from,
     to
   );
-  return [...layoutDecorations, ...syntaxHighlightingMarks];
+  return decorations;
 };
 
 const replaceDecorations = StateField.define<DecorationSet>({
