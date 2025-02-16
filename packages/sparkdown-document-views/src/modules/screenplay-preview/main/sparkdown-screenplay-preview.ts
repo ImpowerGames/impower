@@ -233,6 +233,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
           const contentChanges = params.contentChanges;
           const view = this._view;
           if (view) {
+            this._scrollTarget = undefined;
             const changes = getClientChanges(view.state.doc, contentChanges);
             view.dispatch({ changes });
           }
@@ -290,6 +291,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
       this.unbindView(this._view);
       this._view.destroy();
     }
+    this._scrollTarget = undefined;
     this._initialFocused = focused;
     this._initialVisibleRange = visibleRange;
     this._initialSelectedRange = selectedRange;
