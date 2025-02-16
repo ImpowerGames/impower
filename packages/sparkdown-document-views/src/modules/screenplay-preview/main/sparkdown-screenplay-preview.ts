@@ -1,4 +1,5 @@
 import { EditorView } from "@codemirror/view";
+import { syntaxParserRunning } from "@codemirror/language";
 import { HoveredOnEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage.js";
 import { ScrolledEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage.js";
 import { SelectedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/SelectedEditorMessage.js";
@@ -30,6 +31,7 @@ import { getScrollableParent } from "../../../utils/getScrollableParent.js";
 import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset.js";
 import { EditorSelection, Transaction } from "@codemirror/state";
 import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition.js";
+import debounce from "../../../utils/debounce.js";
 
 const CONTENT_PADDING_TOP = 68;
 
@@ -300,36 +302,43 @@ export default class SparkScreenplayPreview extends Component(spec) {
       this._view = createEditorView(root, {
         textDocument,
         scrollMargin: this._scrollMargin,
-        onIdle: this.handleIdle,
-        onSelectionChanged: (update, anchor, head) => {
-          const uri = this._textDocument?.uri;
-          if (uri) {
-            this.emit(
-              SelectedPreviewMessage.method,
-              SelectedPreviewMessage.type.notification({
-                type: "screenplay",
-                textDocument: { uri },
-                selectedRange: {
-                  start: offsetToPosition(update.state.doc, anchor),
-                  end: offsetToPosition(update.state.doc, head),
-                },
-                docChanged: update.docChanged,
-                userEvent: update.transactions.some((tr) =>
-                  tr.annotation(Transaction.userEvent)
-                ),
-              })
-            );
+        onUpdate: (u) => {
+          if (!syntaxParserRunning(u.view)) {
+            this.onIdle();
           }
-        },
-        onHeightChanged: (update) => {
-          if (update.viewportChanged && !update.docChanged) {
-            if (this._scrollTarget) {
-              this.scrollToRange(this._scrollTarget);
+          if (u.heightChanged) {
+            if (u.viewportChanged && !u.docChanged) {
+              if (this._scrollTarget) {
+                this.scrollToRange(this._scrollTarget);
+              }
+            }
+            const visibleRange = this.measureVisibleRange();
+            if (visibleRange) {
+              this.cacheVisibleRange(visibleRange);
             }
           }
-          const visibleRange = this.measureVisibleRange();
-          if (visibleRange) {
-            this.cacheVisibleRange(visibleRange);
+          if (u.selectionSet) {
+            const cursorRange = u.state.selection.main;
+            const anchor = cursorRange?.anchor;
+            const head = cursorRange?.head;
+            const uri = this._textDocument?.uri;
+            if (uri) {
+              this.emit(
+                SelectedPreviewMessage.method,
+                SelectedPreviewMessage.type.notification({
+                  type: "screenplay",
+                  textDocument: { uri },
+                  selectedRange: {
+                    start: offsetToPosition(u.state.doc, anchor),
+                    end: offsetToPosition(u.state.doc, head),
+                  },
+                  docChanged: u.docChanged,
+                  userEvent: u.transactions.some((tr) =>
+                    tr.annotation(Transaction.userEvent)
+                  ),
+                })
+              );
+            }
           }
         },
       });
@@ -346,16 +355,13 @@ export default class SparkScreenplayPreview extends Component(spec) {
       if (range) {
         const doc = view.state.doc;
         const startLineNumber = range.start.line + 1;
-        const endLineNumber = range.end.line + 1;
         if (startLineNumber <= 1) {
           this._scrollTarget = undefined;
           scrollY(0, this._scroller);
-        } else if (endLineNumber >= doc.lines) {
-          this._scrollTarget = undefined;
-          scrollY(Infinity, this._scroller);
         } else {
           this._scrollTarget = range;
           const line = doc.line(Math.max(1, startLineNumber));
+          console.warn("scroll to", line);
           view.dispatch({
             effects: EditorView.scrollIntoView(
               EditorSelection.range(line.from, line.to),
@@ -384,21 +390,9 @@ export default class SparkScreenplayPreview extends Component(spec) {
     }
   }
 
-  protected handleIdle = () => {
-    if (this._loadState === "initial") {
-      this._loadState = "initializing";
-      const visibleRange = this._initialVisibleRange;
-      const selectedRange = this._initialSelectedRange;
-      if (visibleRange) {
-        // Restore visible range
-        this.scrollToRange(visibleRange);
-      }
-      if (selectedRange) {
-        //Restore selected range
-        this.selectRange(selectedRange, false);
-      }
-      this._loadState = "initialized";
-    }
+  protected onIdle = debounce(() => {
+    const initialVisibleRange = this._initialVisibleRange;
+    const initialSelectedRange = this._initialSelectedRange;
     if (this._loadState === "initialized") {
       this._loadState = "loaded";
       if (this._textDocument && this._loadingRequest != null) {
@@ -414,7 +408,20 @@ export default class SparkScreenplayPreview extends Component(spec) {
         this.bindView(this._view);
       }
     }
-  };
+    if (this._loadState === "initial") {
+      this._loadState = "initializing";
+      if (initialVisibleRange) {
+        // Restore visible range
+        this.scrollToRange(initialVisibleRange);
+      }
+      if (initialSelectedRange) {
+        //Restore selected range
+        this.selectRange(initialSelectedRange, false);
+      }
+      this._loadState = "initialized";
+      window.setTimeout(() => this.onIdle(), 600);
+    }
+  }, 50);
 
   protected handlePointerEnterScroller = () => {
     this._userInitiatedScroll = true;

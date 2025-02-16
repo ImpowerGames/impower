@@ -1,7 +1,5 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView, highlightActiveLine, ViewUpdate } from "@codemirror/view";
-import { syntaxParserRunning } from "@codemirror/language";
-import debounce from "../../../utils/debounce";
 import PREVIEW_THEME from "../constants/PREVIEW_THEME";
 import screenplayFormatting from "./screenplayFormatting";
 
@@ -13,16 +11,7 @@ interface EditorConfig {
     left?: number;
     right?: number;
   };
-  stabilizationDuration?: number;
-  onIdle?: () => void;
-  onFocus?: (update: ViewUpdate) => void;
-  onBlur?: (update: ViewUpdate) => void;
-  onSelectionChanged?: (
-    update: ViewUpdate,
-    anchor: number,
-    head: number
-  ) => void;
-  onHeightChanged?: (update: ViewUpdate) => void;
+  onUpdate?: (update: ViewUpdate) => void;
 }
 
 const createEditorView = (
@@ -31,13 +20,7 @@ const createEditorView = (
 ): EditorView => {
   const textDocument = config?.textDocument;
   const scrollMargin = config?.scrollMargin;
-  const stabilizationDuration = config?.stabilizationDuration ?? 50;
-  const onIdle = config?.onIdle ?? (() => {});
-  const debouncedIdle = debounce(onIdle, stabilizationDuration);
-  const onFocus = config?.onFocus;
-  const onBlur = config?.onBlur;
-  const onSelectionChanged = config?.onSelectionChanged;
-  const onHeightChanged = config?.onHeightChanged;
+  const onUpdate = config?.onUpdate;
   const startState = EditorState.create({
     doc: textDocument?.text,
     extensions: [
@@ -48,25 +31,7 @@ const createEditorView = (
         return scrollMargin ?? null;
       }),
       EditorView.updateListener.of((u) => {
-        if (!syntaxParserRunning(u.view)) {
-          debouncedIdle();
-        }
-        if (u.heightChanged) {
-          onHeightChanged?.(u);
-        }
-        if (u.selectionSet) {
-          const cursorRange = u.state.selection.main;
-          const anchor = cursorRange?.anchor;
-          const head = cursorRange?.head;
-          onSelectionChanged?.(u, anchor, head);
-        }
-        if (u.focusChanged) {
-          if (u.view.hasFocus) {
-            onFocus?.(u);
-          } else {
-            onBlur?.(u);
-          }
-        }
+        onUpdate?.(u);
       }),
       screenplayFormatting(),
       highlightActiveLine(),

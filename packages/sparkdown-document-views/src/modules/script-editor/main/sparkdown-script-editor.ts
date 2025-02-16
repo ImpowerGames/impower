@@ -662,11 +662,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
       if (range) {
         const doc = view.state.doc;
         const startLineNumber = range.start.line + 1;
-        const endLineNumber = range.end.line + 1;
         if (startLineNumber <= 1) {
           scrollY(0, this._scroller);
-        } else if (endLineNumber >= doc.lines) {
-          scrollY(Infinity, this._scroller);
         } else {
           const line = doc.line(Math.max(1, startLineNumber));
           view.dispatch({
