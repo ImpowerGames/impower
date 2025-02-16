@@ -360,24 +360,20 @@ export default class SparkScreenplayPreview extends Component(spec) {
         if (startLineNumber <= 1) {
           this._scrollTarget = undefined;
           scrollY(0, this._scroller);
-          const effects = EditorView.scrollIntoView(
-            EditorSelection.range(0, 0),
-            { y: "start" }
-          );
-          return effects;
         } else {
           this._scrollTarget = range;
-          const line = doc.line(Math.max(1, startLineNumber));
-          const effects = EditorView.scrollIntoView(
-            EditorSelection.range(line.from, line.to),
-            { y: "start" }
+          const line = doc.line(
+            Math.min(Math.max(1, startLineNumber), doc.lines)
           );
-          view.dispatch({ effects });
-          return effects;
+          view.dispatch({
+            effects: EditorView.scrollIntoView(
+              EditorSelection.range(line.from, line.to),
+              { y: "start" }
+            ),
+          });
         }
       }
     }
-    return undefined;
   }
 
   protected selectRange(range: Range, scrollIntoView: boolean) {

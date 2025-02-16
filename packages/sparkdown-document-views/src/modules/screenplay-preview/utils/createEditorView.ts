@@ -40,9 +40,12 @@ const createEditorView = (
       // lineNumbers(),
     ],
   });
-  const scrollToLine = scrollToLineNumber
-    ? startState.doc.line(scrollToLineNumber)
-    : undefined;
+  const scrollToLine =
+    scrollToLineNumber != null &&
+    scrollToLineNumber >= 1 &&
+    scrollToLineNumber <= startState.doc.lines
+      ? startState.doc.line(scrollToLineNumber)
+      : undefined;
   const scrollTo = scrollToLine
     ? EditorView.scrollIntoView(
         EditorSelection.range(scrollToLine.from, scrollToLine.to),
