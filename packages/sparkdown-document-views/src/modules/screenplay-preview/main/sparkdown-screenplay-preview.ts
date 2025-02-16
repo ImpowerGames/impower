@@ -44,8 +44,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
 
   protected _initialSelectedRange?: Range;
 
-  protected _loadState: "initial" | "initializing" | "initialized" | "loaded" =
-    "initial";
+  protected _loaded = false;
 
   protected _textDocument?: TextDocumentIdentifier;
 
@@ -242,7 +241,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     }
   };
   protected handleScrolledEditor = (e: Event) => {
-    if (this._loadState === "loaded") {
+    if (this._loaded) {
       if (e instanceof CustomEvent) {
         const message = e.detail;
         if (ScrolledEditorMessage.type.isNotification(message)) {
@@ -294,7 +293,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     this._initialFocused = focused;
     this._initialVisibleRange = visibleRange;
     this._initialSelectedRange = selectedRange;
-    this._loadState = "initial";
+    this._loaded = false;
     this._textDocument = textDocument;
     const root = this.root;
     if (root) {
@@ -302,6 +301,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
       this._view = createEditorView(root, {
         textDocument,
         scrollMargin: this._scrollMargin,
+        scrollToLineNumber: (visibleRange?.start.line ?? 0) + 1,
         onUpdate: (u) => {
           if (!syntaxParserRunning(u.view)) {
             this.onIdle();
@@ -358,21 +358,24 @@ export default class SparkScreenplayPreview extends Component(spec) {
         if (startLineNumber <= 1) {
           this._scrollTarget = undefined;
           scrollY(0, this._scroller);
+          const effects = EditorView.scrollIntoView(
+            EditorSelection.range(0, 0),
+            { y: "start" }
+          );
+          return effects;
         } else {
           this._scrollTarget = range;
           const line = doc.line(Math.max(1, startLineNumber));
-          console.warn("scroll to", line);
-          view.dispatch({
-            effects: EditorView.scrollIntoView(
-              EditorSelection.range(line.from, line.to),
-              {
-                y: "start",
-              }
-            ),
-          });
+          const effects = EditorView.scrollIntoView(
+            EditorSelection.range(line.from, line.to),
+            { y: "start" }
+          );
+          view.dispatch({ effects });
+          return effects;
         }
       }
     }
+    return undefined;
   }
 
   protected selectRange(range: Range, scrollIntoView: boolean) {
@@ -391,10 +394,17 @@ export default class SparkScreenplayPreview extends Component(spec) {
   }
 
   protected onIdle = debounce(() => {
-    const initialVisibleRange = this._initialVisibleRange;
-    const initialSelectedRange = this._initialSelectedRange;
-    if (this._loadState === "initialized") {
-      this._loadState = "loaded";
+    if (!this._loaded) {
+      const initialVisibleRange = this._initialVisibleRange;
+      const initialSelectedRange = this._initialSelectedRange;
+      if (initialVisibleRange) {
+        // Restore visible range
+        this.scrollToRange(initialVisibleRange);
+      }
+      if (initialSelectedRange) {
+        //Restore selected range
+        this.selectRange(initialSelectedRange, false);
+      }
       if (this._textDocument && this._loadingRequest != null) {
         // Only fade in once formatting has finished being applied and height is stable
         this.root.style.opacity = "1";
@@ -407,19 +417,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
       if (this._view) {
         this.bindView(this._view);
       }
-    }
-    if (this._loadState === "initial") {
-      this._loadState = "initializing";
-      if (initialVisibleRange) {
-        // Restore visible range
-        this.scrollToRange(initialVisibleRange);
-      }
-      if (initialSelectedRange) {
-        //Restore selected range
-        this.selectRange(initialSelectedRange, false);
-      }
-      this._loadState = "initialized";
-      window.setTimeout(() => this.onIdle(), 600);
+      this._loaded = true;
     }
   }, 50);
 

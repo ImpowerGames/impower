@@ -65,8 +65,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected _initialSelectedRange?: Range;
 
-  protected _loadState: "initial" | "initializing" | "initialized" | "loaded" =
-    "initial";
+  protected _loaded = false;
 
   protected _editing = false;
 
@@ -105,6 +104,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected _top: number = 0;
 
   protected _bottom: number = 0;
+
+  protected _focusIntervalTimeout = 0;
 
   override onConnected() {
     this.root.addEventListener("touchstart", this.handlePointerEnterScroller, {
@@ -314,7 +315,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
   };
 
   protected handleScrolledPreview = (e: Event) => {
-    if (this._loadState === "loaded") {
+    if (this._loaded) {
       if (e instanceof CustomEvent) {
         const message = e.detail;
         if (ScrolledPreviewMessage.type.isNotification(message)) {
@@ -448,7 +449,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this._initialFocused = focused;
     this._initialVisibleRange = visibleRange;
     this._initialSelectedRange = selectedRange;
-    this._loadState = "initial";
+    this._loaded = false;
     this._searching = false;
     this._searchInputFocused = false;
     this._textDocument = textDocument;
@@ -466,6 +467,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
         top: this._top,
         bottom: this._bottom,
         breakpoints: breakpointRanges?.map((range) => range.start.line + 1),
+        scrollToLineNumber: (visibleRange?.start.line ?? 0) + 1,
         onIdle: this.handleIdle,
         onFocus: () => {
           this._editing = true;
@@ -702,33 +704,29 @@ export default class SparkdownScriptEditor extends Component(spec) {
   }
 
   protected handleIdle = () => {
-    if (this._loadState === "initial") {
-      this._loadState = "initializing";
-      const focused = this._initialFocused;
-      const visibleRange = this._initialVisibleRange;
-      const selectedRange = this._initialSelectedRange;
+    if (!this._loaded) {
+      const initialFocused = this._initialFocused;
+      const initialVisibleRange = this._initialVisibleRange;
+      const initialSelectedRange = this._initialSelectedRange;
       // Restore visible range
-      this.scrollToRange(visibleRange);
+      this.scrollToRange(initialVisibleRange);
       // Try to restore focus
       const view = this._view;
-      if (document.hasFocus() && this._view && focused) {
-        const timer = window.setInterval(() => {
+      if (document.hasFocus() && this._view && initialFocused) {
+        clearInterval(this._focusIntervalTimeout);
+        this._focusIntervalTimeout = window.setInterval(() => {
           if (this._view !== view || !this._view || this._view.hasFocus) {
-            clearInterval(timer);
+            clearInterval(this._focusIntervalTimeout);
             return;
           }
           this.focus({ preventScroll: true });
           this._view.focus();
-          if (selectedRange) {
+          if (initialSelectedRange) {
             // Only restore selectedRange if was focused
-            this.selectRange(selectedRange, false);
+            this.selectRange(initialSelectedRange, false);
           }
         }, 100);
       }
-      this._loadState = "initialized";
-    }
-    if (this._loadState === "initialized") {
-      this._loadState = "loaded";
       if (this._textDocument && this._loadingRequest != null) {
         // Only fade in once formatting has finished being applied and height is stable
         this.root.style.opacity = "1";
@@ -741,6 +739,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       if (this._view) {
         this.bindView(this._view);
       }
+      this._loaded = true;
     }
   };
 

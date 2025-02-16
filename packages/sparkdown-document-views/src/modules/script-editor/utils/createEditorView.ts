@@ -75,6 +75,7 @@ interface EditorConfig {
   breakpoints?: number[];
   topContainer?: HTMLElement;
   bottomContainer?: HTMLElement;
+  scrollToLineNumber?: number;
   getEditorState?: () => SerializableEditorState;
   setEditorState?: (value: SerializableEditorState) => void;
   onReady?: () => void;
@@ -114,6 +115,7 @@ const createEditorView = (
   const breakpoints = config?.breakpoints;
   const topContainer = config.topContainer;
   const bottomContainer = config.bottomContainer;
+  const scrollToLineNumber = config?.scrollToLineNumber;
   const onReady = config?.onReady;
   const onViewUpdate = config?.onViewUpdate;
   const onBlur = config?.onBlur;
@@ -314,9 +316,19 @@ const createEditorView = (
       }),
     ],
   });
+  const scrollToLine = scrollToLineNumber
+    ? startState.doc.line(scrollToLineNumber)
+    : undefined;
+  const scrollTo = scrollToLine
+    ? EditorView.scrollIntoView(
+        EditorSelection.range(scrollToLine.from, scrollToLine.to),
+        { y: "start" }
+      )
+    : undefined;
   const view: EditorView = new EditorView({
     state: startState,
     parent,
+    scrollTo,
   });
   const onParse = (e: Event) => {
     if (e instanceof CustomEvent) {

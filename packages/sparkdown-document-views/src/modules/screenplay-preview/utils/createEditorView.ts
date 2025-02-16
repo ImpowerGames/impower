@@ -1,4 +1,4 @@
-import { EditorState } from "@codemirror/state";
+import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView, highlightActiveLine, ViewUpdate } from "@codemirror/view";
 import PREVIEW_THEME from "../constants/PREVIEW_THEME";
 import screenplayFormatting from "./screenplayFormatting";
@@ -11,6 +11,7 @@ interface EditorConfig {
     left?: number;
     right?: number;
   };
+  scrollToLineNumber?: number;
   onUpdate?: (update: ViewUpdate) => void;
 }
 
@@ -20,6 +21,7 @@ const createEditorView = (
 ): EditorView => {
   const textDocument = config?.textDocument;
   const scrollMargin = config?.scrollMargin;
+  const scrollToLineNumber = config?.scrollToLineNumber;
   const onUpdate = config?.onUpdate;
   const startState = EditorState.create({
     doc: textDocument?.text,
@@ -38,9 +40,19 @@ const createEditorView = (
       // lineNumbers(),
     ],
   });
+  const scrollToLine = scrollToLineNumber
+    ? startState.doc.line(scrollToLineNumber)
+    : undefined;
+  const scrollTo = scrollToLine
+    ? EditorView.scrollIntoView(
+        EditorSelection.range(scrollToLine.from, scrollToLine.to),
+        { y: "start" }
+      )
+    : undefined;
   const view = new EditorView({
     state: startState,
     parent,
+    scrollTo,
   });
   return view;
 };
