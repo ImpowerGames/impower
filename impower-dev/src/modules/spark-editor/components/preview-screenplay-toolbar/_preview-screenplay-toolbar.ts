@@ -56,7 +56,7 @@ export default spec({
             id="modeButton"
             aria-label="Preview Game"
             variant="icon"
-            icon="notes"
+            icon="gamepad"
             width="48"
             height="48"
             class="more"
