@@ -75,7 +75,7 @@ export class Compiler {
     this.buffer = left;
     this.index = left.chunks.length;
     this.size = left.emittedSize ?? 0;
-    this.reused = this.reused.slice(0, left.reusedLength);
+    this.reused.length = left.reusedLength ?? 0;
     this.reparsedFrom = left.last?.to;
     return right;
   }
