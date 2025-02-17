@@ -156,9 +156,7 @@ export const onEnterRulesCommand =
     });
 
     if (triggeredRule) {
-      dispatch(
-        state.update(changes, { scrollIntoView: true, userEvent: "input" })
-      );
+      dispatch(state.update(changes, { userEvent: "input" }));
       startCompletion(view);
       return true;
     }
@@ -177,12 +175,7 @@ export const onEnterRulesCommand =
         ],
       };
     });
-    dispatch(
-      state.update(defaultChanges, {
-        scrollIntoView: true,
-        userEvent: "input",
-      })
-    );
+    dispatch(state.update(defaultChanges, { userEvent: "input" }));
     startCompletion(view);
     return true;
   };
