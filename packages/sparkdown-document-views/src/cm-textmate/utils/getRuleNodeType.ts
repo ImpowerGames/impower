@@ -1,7 +1,8 @@
 import { NodeProp, NodeType } from "@lezer/common";
 import { styleTags } from "@lezer/highlight";
 
-import { NodeID, RuleDefinition } from "../../../../grammar-compiler/src";
+import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
+import { RuleDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
 import parseTag from "./parseTag";
 
 /**
@@ -21,7 +22,7 @@ export const NODE_ERROR_INCOMPLETE = NodeType.define({
   error: true,
 });
 
-const getRuleNodeType = (
+export const getRuleNodeType = (
   topNode: NodeType,
   typeIndex: number,
   typeId: string,
@@ -58,5 +59,3 @@ const getRuleNodeType = (
   // This is different than the parser node that calls `typeIndex` the unique number identifier and `typeId` the unique string identifier
   return NodeType.define({ id: typeIndex, name: typeId, props });
 };
-
-export default getRuleNodeType;

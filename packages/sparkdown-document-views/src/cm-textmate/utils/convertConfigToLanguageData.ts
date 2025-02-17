@@ -1,7 +1,7 @@
 import { ConfigDefinition } from "../types/ConfigDefinition";
 import { LanguageData } from "../types/LanguageData";
 
-const convertConfigToLanguageData = (
+export const convertConfigToLanguageData = (
   config: ConfigDefinition
 ): LanguageData => {
   // process language data
@@ -46,5 +46,3 @@ const convertConfigToLanguageData = (
 
   return data;
 };
-
-export default convertConfigToLanguageData;

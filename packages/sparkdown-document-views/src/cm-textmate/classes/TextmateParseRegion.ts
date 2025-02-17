@@ -8,7 +8,7 @@ import { Input, TreeFragment } from "@lezer/common";
  * The region of a document that should be parsed, along with other
  * information such as what the edited range of the document was.
  */
-export default class LezerParseRegion {
+export class TextmateParseRegion {
   /** The parser should start before or at this position. */
   declare from: number;
 

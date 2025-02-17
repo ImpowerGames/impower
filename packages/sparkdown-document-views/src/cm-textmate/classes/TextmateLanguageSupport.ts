@@ -6,13 +6,14 @@ import {
 } from "@codemirror/language";
 import { Extension } from "@codemirror/state";
 import { NodeType } from "@lezer/common";
+
+import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
+import { GrammarDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
+
 import { LanguageData } from "../types/LanguageData";
+import { TextmateGrammarParser } from "./TextmateGrammarParser";
 
-import { GrammarDefinition, NodeID } from "../../../../grammar-compiler/src";
-
-import LezerGrammarParser from "./LezerGrammarParser";
-
-export default class TextmateLanguageSupport extends LanguageSupport {
+export class TextmateLanguageSupport extends LanguageSupport {
   constructor(
     name: string,
     grammarDefinition: GrammarDefinition,
@@ -26,7 +27,7 @@ export default class TextmateLanguageSupport extends LanguageSupport {
       top: true,
       props: [[languageDataProp, facet]],
     });
-    const parser = new LezerGrammarParser(grammarDefinition, topNodeType);
+    const parser = new TextmateGrammarParser(grammarDefinition, topNodeType);
     const language = new Language(facet, parser, support, name);
     super(language, support);
   }

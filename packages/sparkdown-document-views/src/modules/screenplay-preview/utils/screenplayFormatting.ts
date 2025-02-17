@@ -7,7 +7,7 @@ import { SyntaxNodeRef } from "@lezer/common";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import { SparkdownNodeName } from "../../../../../sparkdown/src/types/SparkdownNodeName";
-import TextmateLanguageSupport from "../../../cm-textmate/classes/TextmateLanguageSupport";
+import { TextmateLanguageSupport } from "../../../cm-textmate/classes/TextmateLanguageSupport";
 import { cachedCompilerProp } from "../../../cm-textmate/props/cachedCompilerProp";
 import { printTree } from "../../../cm-textmate/utils/printTree";
 import DialogueWidget, {

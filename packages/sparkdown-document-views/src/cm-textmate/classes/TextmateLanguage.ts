@@ -3,7 +3,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import {
-  CloseBracketConfig,
   closeBrackets,
   closeBracketsKeymap,
   insertBracket,
@@ -24,19 +23,19 @@ import {
   type Extension,
   type Facet,
 } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
 import { Parser } from "@lezer/common";
 
-import { GrammarDefinition } from "../../../../grammar-compiler/src";
+import { GrammarDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
 
-import { EditorView, keymap } from "@codemirror/view";
 import { ConfigDefinition } from "../types/ConfigDefinition";
 import { LanguageData } from "../types/LanguageData";
 import { SnippetDefinition } from "../types/SnippetDefinition";
-import convertConfigToLanguageData from "../utils/convertConfigToLanguageData";
+import { convertConfigToLanguageData } from "../utils/convertConfigToLanguageData";
 import { onEnterRules } from "../utils/onEnterRules";
 import { removeUndefined } from "../utils/removeUndefined";
 import { surroundBrackets } from "../utils/surroundBrackets";
-import TextmateLanguageSupport from "./TextmateLanguageSupport";
+import { TextmateLanguageSupport } from "./TextmateLanguageSupport";
 
 const INDENT_REGEX = /([ \t]*)/;
 
@@ -48,7 +47,7 @@ const android =
  * load the language into CodeMirror. If you need a `LanguageDescription`,
  * the `description` property will hold one.
  */
-export default class TextmateLanguage {
+export class TextmateLanguage {
   /** Language grammar. */
   declare grammarDefinition: GrammarDefinition;
 

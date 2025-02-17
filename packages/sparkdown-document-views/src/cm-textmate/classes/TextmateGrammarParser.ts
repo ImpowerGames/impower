@@ -12,19 +12,17 @@ import {
   TreeFragment,
 } from "@lezer/common";
 
-import {
-  Grammar,
-  GrammarDefinition,
-  RuleDefinition,
-} from "../../../../grammar-compiler/src/grammar";
-
+import Grammar from "../../../../grammar-compiler/src/grammar/classes/Grammar";
+import { GrammarDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
+import { RuleDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
 import { ChunkBuffer } from "../../../../grammar-compiler/src/compiler/classes/ChunkBuffer";
 import { Compiler } from "../../../../grammar-compiler/src/compiler/classes/Compiler";
 import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
-import getRuleNodeType from "../utils/getRuleNodeType";
-import LezerGrammarParse from "./LezerGrammarParse";
 
-export default class LezerGrammarParser extends Parser {
+import { getRuleNodeType } from "../utils/getRuleNodeType";
+import { TextmateGrammarParse } from "./TextmateGrammarParse";
+
+export class TextmateGrammarParser extends Parser {
   /** The resolved grammar. */
   declare grammar: Grammar;
 
@@ -51,7 +49,7 @@ export default class LezerGrammarParser extends Parser {
     fragments: readonly TreeFragment[],
     ranges: { from: number; to: number }[]
   ) {
-    const parse = new LezerGrammarParse(
+    const parse = new TextmateGrammarParse(
       this.grammar,
       this.nodeSet,
       input,

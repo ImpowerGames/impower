@@ -4,7 +4,6 @@
 
 import {
   Input,
-  NodeProp,
   NodeSet,
   PartialParse,
   Tree,
@@ -16,17 +15,16 @@ import {
   ChunkBuffer,
   Compiler,
 } from "../../../../grammar-compiler/src/compiler";
-import { GrammarToken, NodeID } from "../../../../grammar-compiler/src/core";
-import {
-  Grammar,
-  GrammarState,
-} from "../../../../grammar-compiler/src/grammar";
+import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
+import { GrammarToken } from "../../../../grammar-compiler/src/core/types/GrammarToken";
+import Grammar from "../../../../grammar-compiler/src/grammar/classes/Grammar";
+import GrammarState from "../../../../grammar-compiler/src/grammar/classes/GrammarState";
 
-import LezerParseRegion from "./LezerParseRegion";
 import { cachedCompilerProp } from "../props/cachedCompilerProp";
 import { cachedAheadBufferProp } from "../props/cachedAheadBufferProp";
-import { printTree } from "../utils/printTree";
 import { findProp } from "../utils/findProp";
+import { printTree } from "../utils/printTree";
+import { TextmateParseRegion } from "./TextmateParseRegion";
 
 /** Amount of characters to slice before the starting position of the parse. */
 const MARGIN_BEFORE = 32;
@@ -45,7 +43,7 @@ const MARGIN_AFTER = 128;
  * Note that `Parse` is not persistent a objects It is discarded as
  * soon as the parse is done. That means that its startup time is very significant.
  */
-export default class GrammarParse implements PartialParse {
+export class TextmateGrammarParse implements PartialParse {
   /** The host grammar. */
   declare grammar: Grammar;
 
@@ -56,7 +54,7 @@ export default class GrammarParse implements PartialParse {
    * An object storing details about the region of the document to be
    * parsed, where it was edited, the length, etc.
    */
-  private declare region: LezerParseRegion;
+  private declare region: TextmateParseRegion;
 
   /** The current state of the grammar, such as the stack. */
   private declare state: GrammarState;
@@ -107,7 +105,7 @@ export default class GrammarParse implements PartialParse {
     this.nodeSet = nodeSet;
     this.stoppedAt = null;
 
-    this.region = new LezerParseRegion(input, ranges, fragments);
+    this.region = new TextmateParseRegion(input, ranges, fragments);
 
     if (fragments) {
       // find cached chunks, if possible
