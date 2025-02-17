@@ -79,7 +79,7 @@ const bracketState = StateField.define<RangeSet<typeof surroundedBracket>>({
 /// after the cursor. When closing a bracket directly in front of a
 /// closing bracket inserted by the extension, the cursor moves over
 /// that bracket.
-export function surroundBrackets(): Extension {
+export function textmateSurroundBrackets(): Extension {
   return [inputHandler, bracketState];
 }
 

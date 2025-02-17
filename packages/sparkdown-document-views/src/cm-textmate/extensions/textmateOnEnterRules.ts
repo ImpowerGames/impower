@@ -1,26 +1,40 @@
-import { startCompletion } from "@codemirror/autocomplete";
+import { closeBracketsKeymap, startCompletion } from "@codemirror/autocomplete";
+import { Prec, EditorSelection, Facet, combineConfig } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
 import { getIndentUnit, indentString } from "@codemirror/language";
-import { EditorSelection } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
 
 const INDENT_REGEX = /([ \t]*)/;
 
-export const onEnterRules =
-  (
-    onEnterRules?: {
-      beforeText: string;
-      afterText?: string;
-      previousLineText?: string;
-      action: {
-        indent?: string;
-        appendText?: string;
-        deleteText?: string;
-        removeText?: number;
-      };
-    }[]
-  ) =>
-  (target: EditorView): boolean => {
-    const { state, dispatch } = target;
+export interface TextmateOnEnterRulesConfig {
+  onEnterRules?: {
+    beforeText: string;
+    afterText?: string;
+    previousLineText?: string;
+    action: {
+      indent: string;
+      appendText?: string;
+      deleteText?: string;
+      removeText?: number;
+    };
+  }[];
+}
+
+export const textmateOnEnterRulesConfig = Facet.define<
+  TextmateOnEnterRulesConfig,
+  Required<TextmateOnEnterRulesConfig>
+>({
+  combine(configs) {
+    return combineConfig(configs, {});
+  },
+});
+
+export const onEnterRulesCommand =
+  () =>
+  (view: EditorView): boolean => {
+    const config = view.state.facet(textmateOnEnterRulesConfig);
+    const onEnterRules = config.onEnterRules;
+
+    const { state, dispatch } = view;
 
     const { doc } = state;
     let triggeredRule = undefined;
@@ -145,7 +159,7 @@ export const onEnterRules =
       dispatch(
         state.update(changes, { scrollIntoView: true, userEvent: "input" })
       );
-      startCompletion(target);
+      startCompletion(view);
       return true;
     }
 
@@ -169,6 +183,21 @@ export const onEnterRules =
         userEvent: "input",
       })
     );
-    startCompletion(target);
+    startCompletion(view);
     return true;
   };
+
+export const textmateOnEnterRules = (
+  config: TextmateOnEnterRulesConfig = {}
+) => [
+  textmateOnEnterRulesConfig.of(config),
+  Prec.high(
+    keymap.of([
+      {
+        key: "Enter",
+        run: onEnterRulesCommand(),
+      },
+      ...closeBracketsKeymap,
+    ])
+  ),
+];
