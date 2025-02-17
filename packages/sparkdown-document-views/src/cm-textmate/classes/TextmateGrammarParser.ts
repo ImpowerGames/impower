@@ -12,7 +12,7 @@ import {
   TreeFragment,
 } from "@lezer/common";
 
-import Grammar from "../../../../grammar-compiler/src/grammar/classes/Grammar";
+import { Grammar } from "../../../../grammar-compiler/src/grammar/classes/Grammar";
 import { GrammarDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
 import { RuleDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
 import { ChunkBuffer } from "../../../../grammar-compiler/src/compiler/classes/ChunkBuffer";

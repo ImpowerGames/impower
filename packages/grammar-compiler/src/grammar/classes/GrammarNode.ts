@@ -8,7 +8,7 @@ import { Node } from "../../core";
 import { RuleDefinition } from "../types/GrammarDefinition";
 import { createID } from "../utils/createID";
 
-export default class GrammarNode implements Node {
+export class GrammarNode implements Node {
   /** The type of node represented as a unique number. */
   declare typeIndex: number;
 

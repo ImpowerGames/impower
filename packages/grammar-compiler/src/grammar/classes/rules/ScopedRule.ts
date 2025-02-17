@@ -4,26 +4,25 @@
 
 import { Wrapping } from "../../enums/Wrapping";
 import {
-  IncludeDefinition,
   MatchRuleDefinition,
   ScopedRuleDefinition,
   SwitchRuleDefinition,
 } from "../../types/GrammarDefinition";
 import { Rule } from "../../types/Rule";
 import { createID } from "../../utils/createID";
-import GrammarNode from "../GrammarNode";
-import type GrammarRepository from "../GrammarRepository";
-import GrammarState from "../GrammarState";
-import Matched from "../Matched";
-import RegExpMatcher from "../RegExpMatcher";
-import type MatchRule from "./MatchRule";
-import SwitchRule from "./SwitchRule";
+import { GrammarNode } from "../GrammarNode";
+import type { GrammarRepository } from "../GrammarRepository";
+import { GrammarState } from "../GrammarState";
+import { Matched } from "../Matched";
+import { RegExpMatcher } from "../RegExpMatcher";
+import type { MatchRule } from "./MatchRule";
+import { SwitchRule } from "./SwitchRule";
 
 /**
  * A {@link Rule} subclass that uses {@link RegExpMatcher} or
  * {@link StringMatcher} instances for the underlying pattern.
  */
-export default class ScopedRule implements Rule {
+export class ScopedRule implements Rule {
   repo: GrammarRepository;
 
   id: string;

@@ -6,14 +6,14 @@ import { NodeID } from "../../core";
 
 import { GrammarDefinition, RuleDefinition } from "../types/GrammarDefinition";
 import { Rule } from "../types/Rule";
-import GrammarNode from "./GrammarNode";
-import GrammarRepository from "./GrammarRepository";
-import GrammarStack from "./GrammarStack";
-import GrammarState from "./GrammarState";
-import type Matched from "./Matched";
-import ScopedRule from "./rules/ScopedRule";
+import { GrammarNode } from "./GrammarNode";
+import { GrammarRepository } from "./GrammarRepository";
+import { GrammarStack } from "./GrammarStack";
+import { GrammarState } from "./GrammarState";
+import type { Matched } from "./Matched";
+import { ScopedRule } from "./rules/ScopedRule";
 
-export default class Grammar {
+export class Grammar {
   /**
    * The definition used to create this grammar.
    */

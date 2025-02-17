@@ -15,10 +15,11 @@ import {
   ChunkBuffer,
   Compiler,
 } from "../../../../grammar-compiler/src/compiler";
-import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
-import { GrammarToken } from "../../../../grammar-compiler/src/core/types/GrammarToken";
-import Grammar from "../../../../grammar-compiler/src/grammar/classes/Grammar";
-import GrammarState from "../../../../grammar-compiler/src/grammar/classes/GrammarState";
+import { GrammarToken, NodeID } from "../../../../grammar-compiler/src/core";
+import {
+  Grammar,
+  GrammarState,
+} from "../../../../grammar-compiler/src/grammar";
 
 import { cachedCompilerProp } from "../props/cachedCompilerProp";
 import { cachedAheadBufferProp } from "../props/cachedAheadBufferProp";

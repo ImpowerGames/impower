@@ -1,10 +1,10 @@
 import { GrammarStackElement } from "../types/GrammarStackElement";
 import { Rule } from "../types/Rule";
 import { stackEquivalent } from "../utils/stackEquivalent";
-import type GrammarNode from "./GrammarNode";
+import type { GrammarNode } from "./GrammarNode";
 
 /** A stack of {@link GrammarStackElement}s used by a {@link Grammar}. */
-export default class GrammarStack {
+export class GrammarStack {
   /** The current stack. */
   declare readonly stack: GrammarStackElement[];
 

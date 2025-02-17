@@ -12,7 +12,7 @@ export const DefaultBufferLength = 1024;
 
 let nextPropID = 0;
 
-export class Range {
+class Range {
   constructor(readonly from: number, readonly to: number) {}
 }
 

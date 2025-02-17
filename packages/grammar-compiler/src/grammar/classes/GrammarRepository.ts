@@ -16,14 +16,14 @@ import { isIncludeDefinition } from "../utils/isIncludeDefinition";
 import { isMatchRuleDefinition } from "../utils/isMatchRuleDefinition";
 import { isScopedRuleDefinition } from "../utils/isScopedRuleDefinition";
 import { isSwitchRuleDefinition } from "../utils/isSwitchRuleDefinition";
-import type Grammar from "./Grammar";
-import GrammarNode from "./GrammarNode";
-import MatchRule from "./rules/MatchRule";
-import ScopedRule from "./rules/ScopedRule";
-import SwitchRule from "./rules/SwitchRule";
+import type { Grammar } from "./Grammar";
+import { GrammarNode } from "./GrammarNode";
+import { MatchRule } from "./rules/MatchRule";
+import { ScopedRule } from "./rules/ScopedRule";
+import { SwitchRule } from "./rules/SwitchRule";
 
 /** Holds the rules, states, etc. for a {@link Grammar}. */
-export default class GrammarRepository {
+export class GrammarRepository {
   grammar: Grammar;
 
   /** Map of names to objects stored in this repository. */

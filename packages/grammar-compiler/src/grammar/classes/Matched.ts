@@ -5,10 +5,10 @@
 import { GrammarToken } from "../../core";
 
 import { Wrapping } from "../enums/Wrapping";
-import GrammarNode from "./GrammarNode";
+import { GrammarNode } from "./GrammarNode";
 
 /** Represents a leaf or branch of a tree of matches found by a grammar. */
-export default class Matched {
+export class Matched {
   static create(...args: ConstructorParameters<typeof Matched>): Matched {
     const matched = new Matched(...args);
     if (matched.length > 0) {

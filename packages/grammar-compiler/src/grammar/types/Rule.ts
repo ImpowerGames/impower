@@ -2,9 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import type GrammarNode from "../classes/GrammarNode";
-import type GrammarState from "../classes/GrammarState";
-import type Matched from "../classes/Matched";
+import type { GrammarNode } from "../classes/GrammarNode";
+import type { GrammarState } from "../classes/GrammarState";
+import type { Matched } from "../classes/Matched";
 
 /**
  * A {@link GrammarNode} with some sort of associated pattern. Patterns exist as

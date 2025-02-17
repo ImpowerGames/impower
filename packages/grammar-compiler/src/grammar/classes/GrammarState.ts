@@ -3,10 +3,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { contextEquivalent } from "../utils/contextEquivalent";
-import GrammarStack from "./GrammarStack";
+import { GrammarStack } from "./GrammarStack";
 
 /** Internal state for a {@link Grammar}. */
-export default class GrammarState {
+export class GrammarState {
   /**
    * @param context - The current context table.
    * @param stack - The current {@link GrammarStack}.

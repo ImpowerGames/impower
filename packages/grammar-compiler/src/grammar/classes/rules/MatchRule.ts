@@ -6,18 +6,18 @@ import { MatchRuleDefinition } from "../../types/GrammarDefinition";
 import { Rule } from "../../types/Rule";
 import { createID } from "../../utils/createID";
 import { isSwitchRuleDefinition } from "../../utils/isSwitchRuleDefinition";
-import GrammarNode from "../GrammarNode";
-import type GrammarRepository from "../GrammarRepository";
-import GrammarState from "../GrammarState";
-import Matched from "../Matched";
-import RegExpMatcher from "../RegExpMatcher";
-import SwitchRule from "./SwitchRule";
+import { GrammarNode } from "../GrammarNode";
+import type { GrammarRepository } from "../GrammarRepository";
+import { GrammarState } from "../GrammarState";
+import { Matched } from "../Matched";
+import { RegExpMatcher } from "../RegExpMatcher";
+import { SwitchRule } from "./SwitchRule";
 
 /**
  * A {@link Rule} subclass that uses {@link RegExpMatcher} or
  * {@link StringMatcher} instances for the underlying pattern.
  */
-export default class MatchRule implements Rule {
+export class MatchRule implements Rule {
   repo: GrammarRepository;
 
   id: string;

@@ -6,6 +6,7 @@
     "outDir": "dist",
     "skipLibCheck": true,
     "sourceMap": true,
+    "declaration": true,
     "declarationMap": true,
     "strict": true,
     "alwaysStrict": true,

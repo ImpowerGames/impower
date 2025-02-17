@@ -13,7 +13,7 @@ import { hasCapturingGroups } from "../utils/hasCapturingGroups";
  * always set to be `sticky`, so this class won't work if you want to use a
  * non-sticky `RegExp`.
  */
-export default class RegExpMatcher implements Matcher {
+export class RegExpMatcher implements Matcher {
   /**
    * Internal `RegExp`. Can be null, which is so that even a malformed
    * input `RegExp` source won't throw. This is used to combat inconsistent

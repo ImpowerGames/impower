@@ -9,16 +9,16 @@ import {
 } from "../../types/GrammarDefinition";
 import { Rule } from "../../types/Rule";
 import { createID } from "../../utils/createID";
-import GrammarNode from "../GrammarNode";
-import type GrammarRepository from "../GrammarRepository";
-import GrammarState from "../GrammarState";
-import RegExpMatcher from "../RegExpMatcher";
+import { GrammarNode } from "../GrammarNode";
+import type { GrammarRepository } from "../GrammarRepository";
+import { GrammarState } from "../GrammarState";
+import { RegExpMatcher } from "../RegExpMatcher";
 
 /**
  * A {@link Rule} subclass that uses {@link RegExpMatcher} or
  * {@link StringMatcher} instances for the underlying pattern.
  */
-export default class SwitchRule implements Rule {
+export class SwitchRule implements Rule {
   repo: GrammarRepository;
 
   id: string;

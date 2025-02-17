@@ -1,4 +1,4 @@
-import type GrammarNode from "../classes/GrammarNode";
+import type { GrammarNode } from "../classes/GrammarNode";
 import { Rule } from "./Rule";
 
 /** An individual element in a {@link GrammarStack}. */

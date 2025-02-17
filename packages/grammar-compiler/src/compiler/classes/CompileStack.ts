@@ -26,7 +26,7 @@ export class CompileStack {
   /** Add a child to every element. */
   increment() {
     for (let i = 0; i < this.length; i++) {
-      this.children[i]++;
+      this.children[i]!++;
     }
   }
 
