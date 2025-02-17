@@ -460,7 +460,7 @@ export default class GrammarParse implements PartialParse {
         //   //   chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
         //   // ])
         // );
-        this.compiler.buffer.append(aheadBuffer);
+        this.compiler.append(aheadBuffer);
         this.state = this.grammar.startState();
         this.parsedPos = this.compiler.buffer.last!.to;
         return true;

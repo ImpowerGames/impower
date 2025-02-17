@@ -1,8 +1,4 @@
-import {
-  HighlightStyle,
-  syntaxHighlighting,
-  syntaxTree,
-} from "@codemirror/language";
+import { HighlightStyle, syntaxTree } from "@codemirror/language";
 import type { EditorState, Text } from "@codemirror/state";
 import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
@@ -565,8 +561,9 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
       }
     },
   });
+
   const decorations = specs.flatMap((b) => createDecorations(doc, b));
-  // console.log(printTree(tree, doc.toString(), { from, to }));
+
   highlightTree(
     tree,
     [LANGUAGE_HIGHLIGHTS],
@@ -576,6 +573,9 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
     from,
     to
   );
+
+  // console.log(printTree(tree, doc.toString(), { from, to }));
+
   return decorations;
 };
 
@@ -590,16 +590,28 @@ const replaceDecorations = StateField.define<DecorationSet>({
     if (oldTree != newTree) {
       const cachedCompiler = newTree.prop(cachedCompilerProp);
       const reparsedFrom = cachedCompiler?.reparsedFrom;
+      const reparsedTo = cachedCompiler?.reparsedTo;
       if (reparsedFrom == null) {
         // Remake all decorations from scratch
         const ranges = decorate(transaction.state);
         return ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
       }
-      const decorateFrom = reparsedFrom + 1;
-      const add = decorate(transaction.state, decorateFrom);
+      if (reparsedTo == null) {
+        const add = decorate(transaction.state, reparsedFrom);
+        decorations = decorations.map(transaction.changes);
+        decorations = decorations.update({
+          filter: (from, to) => from < reparsedFrom && to < reparsedFrom,
+          add,
+          sort: true,
+        });
+        return decorations;
+      }
+      const add = decorate(transaction.state, reparsedFrom, reparsedTo);
+      decorations = decorations.map(transaction.changes);
       decorations = decorations.update({
-        filter: (from: number, to: number) =>
-          from < decorateFrom && to < decorateFrom,
+        filter: (from, to) =>
+          (from < reparsedFrom && to < reparsedFrom) ||
+          (from > reparsedTo && to > reparsedTo),
         add,
         sort: true,
       });

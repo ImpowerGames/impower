@@ -34,6 +34,7 @@ export class Compiler {
   declare reused: TreeBuffer[];
   declare index: number;
   declare reparsedFrom?: number;
+  declare reparsedTo?: number;
 
   constructor(
     grammar: Grammar,
@@ -76,8 +77,13 @@ export class Compiler {
     this.index = left.chunks.length;
     this.size = left.emittedSize ?? 0;
     this.reused.length = left.reusedLength ?? 0;
-    this.reparsedFrom = left.last?.to;
+    this.reparsedFrom = left.last!.to + 1;
     return right;
+  }
+
+  append(aheadBuffer: ChunkBuffer) {
+    this.reparsedTo = aheadBuffer.first!.from - 1;
+    this.buffer.append(aheadBuffer);
   }
 
   private emitReused(type: number, from: number, to: number) {
