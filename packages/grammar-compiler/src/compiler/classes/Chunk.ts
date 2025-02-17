@@ -43,7 +43,7 @@ export class Chunk {
   declare closes: ParserAction | null;
 
   /** The node(s) active in this chunk (scopes the chunk opens or inherits (i.e. were already open when the chunk was created)). */
-  declare scopes: ParserAction;
+  declare scopes: ParserAction | null;
 
   /**
    * {@link TreeBuffer} version of this chunk.
@@ -61,11 +61,11 @@ export class Chunk {
    * @param from - The starting position.
    * @param inherits - The scopes at the starting position.
    */
-  constructor(from: number, inherits: ParserAction) {
+  constructor(from: number, inherits?: ParserAction) {
     this.from = from;
     this.to = from;
     this.length = 0;
-    this.scopes = inherits;
+    this.scopes = inherits ? [...inherits] : null;
     this.tokens = new Int16Array(CHUNK_ARRAY_INTERVAL);
     this.size = 0;
     this.opens = null;
@@ -126,9 +126,7 @@ export class Chunk {
     this.tree = undefined;
     ids.forEach((id) => {
       this.opens ??= [];
-      if (!this.opens.includes(id)) {
-        this.opens.push(id);
-      }
+      this.opens.push(id);
     });
   }
 
@@ -141,9 +139,7 @@ export class Chunk {
     this.tree = undefined;
     ids.forEach((id) => {
       this.closes ??= [];
-      if (!this.closes.includes(id)) {
-        this.closes.push(id);
-      }
+      this.closes.push(id);
     });
   }
 
@@ -224,9 +220,10 @@ export class Chunk {
   isPure() {
     // Chunk is completely pure (it does not inherit any scope, open any scope, or close any scope).
     return (
-      this.scopes.length === 0 &&
+      (!this.scopes || this.scopes.length === 0) &&
       (!this.opens || this.opens.length === 0) &&
-      (!this.closes || this.closes.length === 0)
+      (!this.closes || this.closes.length === 0) &&
+      this.from === this.to
     );
   }
 }

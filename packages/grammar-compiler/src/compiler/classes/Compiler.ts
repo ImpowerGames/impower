@@ -77,12 +77,12 @@ export class Compiler {
     this.index = left.chunks.length;
     this.size = left.emittedSize ?? 0;
     this.reused.length = left.reusedLength ?? 0;
-    this.reparsedFrom = left.last!.to + 1;
+    this.reparsedFrom = left.last!.to;
     return right;
   }
 
   append(aheadBuffer: ChunkBuffer) {
-    this.reparsedTo = aheadBuffer.first!.from - 1;
+    this.reparsedTo = aheadBuffer.first!.from;
     this.buffer.append(aheadBuffer);
   }
 

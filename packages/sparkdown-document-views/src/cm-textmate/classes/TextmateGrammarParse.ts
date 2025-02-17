@@ -218,6 +218,17 @@ export class TextmateGrammarParse implements PartialParse {
         start,
         length,
       });
+      // console.log(
+      //   "BUFFER BEFORE EDIT",
+      //   this.compiler.buffer?.chunks.map((chunk) => [
+      //     chunk.from,
+      //     chunk.to,
+      //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+      //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
+      //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
+      //     this.region.input.read(chunk.from, chunk.to),
+      //   ])
+      // );
       // console.log(printTree(tree, this.region.input));
       // bit of a hack (private properties)
       // this is so that we don't need to build another tree
@@ -295,6 +306,14 @@ export class TextmateGrammarParse implements PartialParse {
             t[2] = end;
           }
 
+          // console.log(
+          //   "TOKEN",
+          //   this.grammar.nodes[t[0]!]?.typeId,
+          //   JSON.stringify(this.region.input.read(t[1]!, t[2]!)),
+          //   t[3]!,
+          //   t[4]!,
+          //   this.compiler.buffer.scopes
+          // );
           if (this.compiler.buffer.add(t)) {
             addedChunk = true;
           }
@@ -320,41 +339,42 @@ export class TextmateGrammarParse implements PartialParse {
       // can't reuse if we don't know what range has been edited
       return null;
     }
-    const editedFrom = this.region.edit.from;
-    const splitBehind = compiler.buffer.findBehindSplitPoint(editedFrom);
-    // console.log(
-    //   "CACHED BUFFER",
-    //   cachedBuffer?.chunks.map((chunk) => [
-    //     this.region.input.read(chunk.from, chunk.to),
-    //     chunk.from,
-    //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
-    //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
-    //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
-    //   ]),
-    //   editedFrom,
-    //   splitBehind
-    // );
+    const splitBehind = compiler.buffer.findBehindSplitPoint(
+      this.region.edit.from
+    );
     if (splitBehind.chunk && splitBehind.index != null) {
       // REUSE CHUNKS THAT ARE BEHIND THE EDITED RANGE
+      // console.warn(
+      //   "EDITED",
+      //   this.region.edit.from,
+      //   this.region.edit.to,
+      //   this.region.edit.offset
+      // );
+      // console.log(
+      //   "BUFFER AFTER EDIT",
+      //   compiler.buffer?.chunks.map((chunk) => [
+      //     chunk.from,
+      //     chunk.to,
+      //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+      //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
+      //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
+      //     this.region.input.read(chunk.from, chunk.to),
+      //   ]),
+      //   splitBehind.index
+      // );
       const right = compiler.rewind(splitBehind.index);
-      this.region.from = splitBehind.chunk.from;
-      this.state = this.grammar.startState();
-      this.compiler = compiler;
       // console.log(
       //   "REUSE BEHIND",
       //   JSON.stringify(
-      //     this.compiler.buffer?.chunks
-      //       .map((chunk) => this.region.input.read(chunk.from, chunk.to))
-      //       .join("")
+      //     this.region.input.read(
+      //       compiler.buffer.first!.from,
+      //       compiler.buffer.last!.to
+      //     )
       //   )
-      //   // left?.chunks.map((chunk) => [
-      //   //   this.region.input.read(chunk.from, chunk.to),
-      //   //   chunk.from,
-      //   //   chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
-      //   //   chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
-      //   //   chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
-      //   // ])
       // );
+      this.region.from = splitBehind.chunk.from;
+      this.state = this.grammar.startState();
+      this.compiler = compiler;
       return right;
     }
     return null;
@@ -371,61 +391,34 @@ export class TextmateGrammarParse implements PartialParse {
       // can't reuse if we don't know what range has been edited
       return false;
     }
-    const editedTo = this.region.edit.to;
-    const editedOffset = this.region.edit.offset;
     // SAVE CHUNKS THAT ARE AHEAD OF THE EDITED RANGE
     // (must offset ahead chunks to match edited offset)
-    // TODO: doesn't work for subsequent reuses. (is it because we should use aheadBuffer from tree prop?)
+
+    right.slide(0, this.region.edit.offset, true);
+
+    const splitAhead = right.findAheadSplitPoint(this.region.edit.to);
+
     // console.log(
     //   "RIGHT CHUNKS",
-    //   editedTo,
-    //   editedOffset,
-    //   JSON.stringify(
-    //     right?.chunks
-    //       .map((chunk) => this.region.input.read(chunk.from, chunk.to))
-    //       .join("")
-    //   )
-    //   // right?.chunks.map((chunk) => [
-    //   //   this.region.input.read(chunk.from, chunk.to),
-    //   //   chunk.from,
-    //   //   chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
-    //   //   chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
-    //   //   chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
-    //   // ])
+    //   right?.chunks.map((chunk) => [
+    //     chunk.from,
+    //     chunk.to,
+    //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+    //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
+    //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
+    //     this.region.input.read(chunk.from, chunk.to),
+    //   ]),
+    //   splitAhead.index
     // );
 
-    let posNextEmptyLineAfterEdit: undefined | number = undefined;
-    for (let i = editedTo; i < this.region.to; i += 1) {
-      if (this.region.input.read(i, i + 1) === "\n") {
-        i += 1;
-        if (this.region.input.read(i, i + 1) === "\n") {
-          posNextEmptyLineAfterEdit = i - 1;
-          break;
-        }
-      }
-    }
-    if (posNextEmptyLineAfterEdit == null) {
-      return false;
-    }
-    right.slide(0, editedOffset, true);
-    const splitAhead = right.findAheadSplitPoint(posNextEmptyLineAfterEdit);
     if (splitAhead.chunk && splitAhead.index != null) {
       const aheadSplitBuffer = right.split(splitAhead.index);
       this.aheadBuffer = aheadSplitBuffer.right;
       // console.log(
       //   "SAVE AHEAD",
-      //   editedTo,
-      //   splitAhead.index,
       //   JSON.stringify(
       //     this.region.input.read(splitAhead.chunk.from, this.region.to)
       //   )
-      //   // this.aheadBuffer?.chunks.map((chunk) => [
-      //   //   this.region.input.read(chunk.from, chunk.to),
-      //   //   chunk.from,
-      //   //   chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
-      //   //   chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
-      //   //   chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
-      //   // ])
       // );
       return true;
     }
@@ -450,13 +443,6 @@ export class TextmateGrammarParse implements PartialParse {
         //   JSON.stringify(
         //     this.region.input.read(firstChunk.from, this.region.to)
         //   )
-        //   // this.aheadBuffer?.chunks.map((chunk) => [
-        //   //   this.region.input.read(chunk.from, chunk.to),
-        //   //   chunk.from,
-        //   //   chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
-        //   //   chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
-        //   //   chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
-        //   // ])
         // );
         this.compiler.append(aheadBuffer);
         this.state = this.grammar.startState();

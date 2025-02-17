@@ -22,14 +22,13 @@ export class ChunkBuffer {
   chunks: Chunk[] = [];
 
   /** The node(s) that are open at the end of this buffer. */
-  scopes: ParserAction = [];
+  scopes?: ParserAction;
 
   /** @param chunks - The chunks to populate the buffer with. */
   constructor(chunks?: Chunk[]) {
     if (chunks) {
       this.chunks = chunks;
     }
-    this.scopes = [];
   }
 
   /** The first chunk in the buffer. */
@@ -77,19 +76,12 @@ export class ChunkBuffer {
     let current = this.chunks[this.chunks.length - 1];
 
     if (open) {
+      this.scopes ??= [];
       this.scopes.push(...open);
     }
-    if (close) {
-      close.forEach((c) => {
-        const removeIndex = this.scopes.findLastIndex((n) => n === c);
-        if (removeIndex >= 0) {
-          this.scopes.splice(removeIndex, 1);
-        }
-      });
-    }
 
-    if (!current || this.scopes.length === 0 || open) {
-      current = new Chunk(from, [...this.scopes]);
+    if (!current || open) {
+      current = new Chunk(from, this.scopes);
       this.chunks.push(current);
       newChunk = true;
     }
@@ -102,7 +94,28 @@ export class ChunkBuffer {
 
     if (close) {
       current.pushClose(...close);
-      current = new Chunk(current.to, [...this.scopes]);
+      current = new Chunk(current.to, this.scopes);
+      this.chunks.push(current);
+      newChunk = true;
+    }
+
+    if (close) {
+      close.forEach((c) => {
+        if (this.scopes) {
+          const removeIndex = this.scopes.findLastIndex((n) => n === c);
+          if (removeIndex >= 0) {
+            this.scopes.splice(removeIndex, 1);
+            if (this.scopes.length === 0) {
+              this.scopes = undefined;
+            }
+          }
+        }
+      });
+    }
+
+    if (!this.scopes) {
+      // Add a chunk that we can safely restart parsing from
+      current = new Chunk(current.to, this.scopes);
       this.chunks.push(current);
       newChunk = true;
     }
@@ -156,9 +169,24 @@ export class ChunkBuffer {
 
     while (chunk) {
       if (chunk && chunk.isPure() && chunk.from > editedTo) {
-        // First pure chunk after edit range found
-        // Now find the point where scope is no longer pure
-        return this.findNextUnpureChunk(index);
+        // This is the first pure chunk after the edit.
+        // Find the point where scope is no longer pure
+        const unpureChunk = this.findNextUnpureChunk(index);
+        if (unpureChunk.chunk) {
+          index = unpureChunk.index;
+          chunk = unpureChunk.chunk;
+        } else {
+          return { chunk: null, index: null };
+        }
+        while (chunk) {
+          if (chunk && chunk.isPure() && chunk.from > editedTo) {
+            // This is the second pure chunk after the edit,
+            // So we can safely reuse everything after this point.
+            return { chunk, index };
+          }
+          index = index + 1;
+          chunk = this.chunks[index];
+        }
       }
       index = index + 1;
       chunk = this.chunks[index];
