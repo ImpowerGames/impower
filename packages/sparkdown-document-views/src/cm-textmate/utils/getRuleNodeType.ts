@@ -1,9 +1,8 @@
 import { NodeProp, NodeType } from "@lezer/common";
 import { styleTags } from "@lezer/highlight";
 
-import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
-import { RuleDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
-import parseTag from "./parseTag";
+import { NodeID, RuleDefinition } from "../../../../grammar-compiler/src";
+import { parseTag } from "./parseTag";
 
 /**
  * Node emitted when a character doesn't match anything in the grammar,

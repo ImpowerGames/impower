@@ -26,7 +26,7 @@ import {
 import { EditorView, keymap } from "@codemirror/view";
 import { Parser } from "@lezer/common";
 
-import { GrammarDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
+import { GrammarDefinition } from "../../../../grammar-compiler/src";
 
 import { ConfigDefinition } from "../types/ConfigDefinition";
 import { LanguageData } from "../types/LanguageData";

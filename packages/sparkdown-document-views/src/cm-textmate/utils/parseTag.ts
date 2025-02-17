@@ -28,7 +28,7 @@ const PARSE_TAG_REGEX =
  * (grandparent/parent) func(tag)
  * ```
  */
-const parseTag = (node: string, str: string) => {
+export const parseTag = (node: string, str: string) => {
   const [, modifier, func, arg, last] = PARSE_TAG_REGEX.exec(str)!;
 
   if (last && !(last in tags)) {
@@ -81,5 +81,3 @@ const parseTag = (node: string, str: string) => {
 
   return { [style]: tag };
 };
-
-export default parseTag;

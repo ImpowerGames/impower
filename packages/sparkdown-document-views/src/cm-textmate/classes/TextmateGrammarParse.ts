@@ -14,12 +14,11 @@ import {
 import {
   ChunkBuffer,
   Compiler,
-} from "../../../../grammar-compiler/src/compiler";
-import { GrammarToken, NodeID } from "../../../../grammar-compiler/src/core";
-import {
+  GrammarToken,
+  NodeID,
   Grammar,
   GrammarState,
-} from "../../../../grammar-compiler/src/grammar";
+} from "../../../../grammar-compiler/src";
 
 import { cachedCompilerProp } from "../props/cachedCompilerProp";
 import { cachedAheadBufferProp } from "../props/cachedAheadBufferProp";

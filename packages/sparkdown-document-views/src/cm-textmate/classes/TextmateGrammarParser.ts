@@ -12,12 +12,14 @@ import {
   TreeFragment,
 } from "@lezer/common";
 
-import { Grammar } from "../../../../grammar-compiler/src/grammar/classes/Grammar";
-import { GrammarDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
-import { RuleDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
-import { ChunkBuffer } from "../../../../grammar-compiler/src/compiler/classes/ChunkBuffer";
-import { Compiler } from "../../../../grammar-compiler/src/compiler/classes/Compiler";
-import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
+import {
+  Grammar,
+  GrammarDefinition,
+  RuleDefinition,
+  ChunkBuffer,
+  Compiler,
+  NodeID,
+} from "../../../../grammar-compiler/src";
 
 import { getRuleNodeType } from "../utils/getRuleNodeType";
 import { TextmateGrammarParse } from "./TextmateGrammarParse";

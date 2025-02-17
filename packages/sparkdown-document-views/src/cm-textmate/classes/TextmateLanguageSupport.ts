@@ -7,8 +7,7 @@ import {
 import { Extension } from "@codemirror/state";
 import { NodeType } from "@lezer/common";
 
-import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
-import { GrammarDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
+import { NodeID, GrammarDefinition } from "../../../../grammar-compiler/src";
 
 import { LanguageData } from "../types/LanguageData";
 import { TextmateGrammarParser } from "./TextmateGrammarParser";
