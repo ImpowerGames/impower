@@ -1,5 +1,5 @@
-import { generateScreenplayCsvData } from "@impower/sparkdown-screenplay/src/index";
-import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
+import { generateScreenplayCsvData } from "@impower/sparkdown-screenplay/src/utils/generateScreenplayCsvData";
+import ScreenplayParser from "@impower/sparkdown-screenplay/src/classes/ScreenplayParser";
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
@@ -21,9 +21,11 @@ export const exportCsv = async (): Promise<void> => {
     return;
   }
   SparkdownCommandTreeDataProvider.instance.notifyExportStarted("csv");
-  const sparkdown = editor.document.getText();
-  const result = ScreenplaySparkParser.instance.parse(sparkdown);
-  const strings = generateScreenplayCsvData(result.tokens);
+  // TODO: include all scripts relative to main.sd
+  const script = editor.document.getText();
+  const parser = new ScreenplayParser();
+  const tokens = parser.parseAll([script]);
+  const strings = generateScreenplayCsvData(tokens);
   await new Promise<void>((resolve) => {
     stringify(strings, {}, async (_err: Error | undefined, output: string) => {
       await writeFile(fsPath, output);

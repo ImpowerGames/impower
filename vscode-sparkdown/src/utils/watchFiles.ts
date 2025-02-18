@@ -1,5 +1,8 @@
 import * as vscode from "vscode";
-import { assetExts, syncExts } from "../constants/extensions";
+import {
+  ASSET_FILE_EXTENSIONS,
+  EXPORTABLE_FILE_EXTENSIONS,
+} from "../constants/FILE_EXTENSIONS";
 import { fileSystemWatcherState } from "../state/fileSystemWatcherState";
 import { getWorkspaceRelativePath } from "./getWorkspaceRelativePath";
 import { updateAssets } from "./updateAssets";
@@ -12,44 +15,47 @@ export const watchFiles = (
 ) => {
   const uri = doc.uri;
   const state = fileSystemWatcherState[uri.toString()] || {
-    assetsWatcher: undefined,
-    syncWatcher: undefined,
+    assetFilesWatcher: undefined,
+    outputFilesWatcher: undefined,
   };
   fileSystemWatcherState[uri.toString()] = state;
-  if (!state.assetsWatcher) {
-    const relativePath = getWorkspaceRelativePath(uri, assetExts);
+  if (!state.assetFilesWatcher) {
+    const relativePath = getWorkspaceRelativePath(uri, ASSET_FILE_EXTENSIONS);
     if (relativePath) {
-      state.assetsWatcher =
+      state.assetFilesWatcher =
         vscode.workspace.createFileSystemWatcher(relativePath);
-      state.assetsWatcher.onDidChange(async () => {
+      state.assetFilesWatcher.onDidChange(async () => {
         await updateAssets(doc);
-        // TODO: Request LSP Parse
+        // TODO: Notify Language Server of asset URL change
         updateGamePreviews(doc);
       });
-      state.assetsWatcher.onDidCreate(async () => {
+      state.assetFilesWatcher.onDidCreate(async () => {
         await updateAssets(doc);
-        // TODO: Request LSP Parse
+        // TODO: Notify Language Server of asset URL change
         updateGamePreviews(doc);
       });
-      state.assetsWatcher.onDidDelete(async () => {
+      state.assetFilesWatcher.onDidDelete(async () => {
         await updateAssets(doc);
-        // TODO: Request LSP Parse
+        // TODO: Notify Language Server of asset URL change
         updateGamePreviews(doc);
       });
     }
   }
-  if (!state.syncWatcher) {
-    const relativePath = getWorkspaceRelativePath(uri, syncExts);
+  if (!state.outputFilesWatcher) {
+    const relativePath = getWorkspaceRelativePath(
+      uri,
+      EXPORTABLE_FILE_EXTENSIONS
+    );
     if (relativePath) {
-      state.syncWatcher =
+      state.outputFilesWatcher =
         vscode.workspace.createFileSystemWatcher(relativePath);
-      state.syncWatcher.onDidChange(() => {
+      state.outputFilesWatcher.onDidChange(() => {
         updateCommands(doc.uri);
       });
-      state.syncWatcher.onDidCreate(() => {
+      state.outputFilesWatcher.onDidCreate(() => {
         updateCommands(doc.uri);
       });
-      state.syncWatcher.onDidDelete(() => {
+      state.outputFilesWatcher.onDidDelete(() => {
         updateCommands(doc.uri);
       });
     }

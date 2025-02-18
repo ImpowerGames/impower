@@ -272,12 +272,12 @@
     "menus": {
       "editor/title": [
         {
-          "when": "resourceLangId == sparkdown",
+          "when": "editorLangId == sparkdown",
           "command": "sparkdown.previewgame",
           "group": "navigation@1"
         },
         {
-          "when": "resourceLangId == sparkdown",
+          "when": "editorLangId == sparkdown",
           "command": "sparkdown.previewscreenplay",
           "group": "navigation@1"
         }

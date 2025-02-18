@@ -44,15 +44,22 @@ export const getFonts = async (
     ),
   ]);
 
+  if (!normal) {
+    throw new Error("Missing 'normal' font");
+  }
+  if (!bold) {
+    throw new Error("Missing 'bold' font");
+  }
+  if (!italic) {
+    throw new Error("Missing 'italic' font");
+  }
+  if (!bolditalic) {
+    throw new Error("Missing 'bolditalic' font");
+  }
   return {
     normal,
     bold,
     italic,
     bolditalic,
-  } as {
-    normal: ArrayBuffer;
-    bold: ArrayBuffer;
-    italic: ArrayBuffer;
-    bolditalic: ArrayBuffer;
   };
 };

@@ -1,4 +1,4 @@
-import { suffixes } from "../constants/suffixes";
+import { suffixes } from "../constants/SUFFIXES";
 
 export const getStateFromSuffix = (
   suffix?: string

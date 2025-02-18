@@ -28,8 +28,14 @@ export const activate = async (
 // this method is called when your extension is deactivated
 export function deactivate() {
   Object.values(fileSystemWatcherState).forEach((v) => {
-    if (v.assetsWatcher) {
-      v.assetsWatcher.dispose();
+    if (v.assetFilesWatcher) {
+      v.assetFilesWatcher.dispose();
+    }
+    if (v.scriptFilesWatcher) {
+      v.scriptFilesWatcher.dispose();
+    }
+    if (v.outputFilesWatcher) {
+      v.outputFilesWatcher.dispose();
     }
   });
 }

@@ -3,7 +3,8 @@ import * as vscode from "vscode";
 export const fileSystemWatcherState: Record<
   string,
   {
-    assetsWatcher?: vscode.FileSystemWatcher;
-    syncWatcher?: vscode.FileSystemWatcher;
+    assetFilesWatcher?: vscode.FileSystemWatcher;
+    scriptFilesWatcher?: vscode.FileSystemWatcher;
+    outputFilesWatcher?: vscode.FileSystemWatcher;
   }
 > = {};

@@ -1,6 +1,5 @@
 import { ExportPDFMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExportPDFMessage";
 import * as vscode from "vscode";
-import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
@@ -33,8 +32,8 @@ export const exportPdf = async (
       cancellable: true,
     },
     async (progress, token) => {
-      const sparkdown = editor.document.getText();
-      const program = ScreenplaySparkParser.instance.parse(sparkdown);
+      // TODO: include all scripts relative to main.sd
+      const script = editor.document.getText();
       const config = getSparkdownPreviewConfig(uri);
       let currentPercentage = 0;
       const fonts = await getFonts(context);
@@ -55,7 +54,7 @@ export const exportPdf = async (
           }
         };
         const request = ExportPDFMessage.type.request({
-          programs: [program],
+          scripts: [script],
           config,
           fonts,
           workDoneToken: crypto.randomUUID(),

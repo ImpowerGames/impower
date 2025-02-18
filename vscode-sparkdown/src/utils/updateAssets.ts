@@ -1,12 +1,16 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import { assetExts, audioExts, imageExts } from "../constants/extensions";
+import {
+  ASSET_FILE_EXTENSIONS,
+  AUDIO_FILE_EXTENSIONS,
+  IMAGE_FILE_EXTENSIONS,
+} from "../constants/FILE_EXTENSIONS";
 import { fileState } from "../state/fileState";
 import { getWorkspaceRelativePath } from "./getWorkspaceRelativePath";
 
 export const updateAssets = async (doc: vscode.TextDocument): Promise<void> => {
   const uri = doc.uri;
-  const relativePath = getWorkspaceRelativePath(uri, assetExts);
+  const relativePath = getWorkspaceRelativePath(uri, ASSET_FILE_EXTENSIONS);
   if (!relativePath) {
     return undefined;
   }
@@ -16,9 +20,9 @@ export const updateAssets = async (doc: vscode.TextDocument): Promise<void> => {
     const parsedPath = path.parse(u.path);
     const name = parsedPath.name;
     const ext = parsedPath.ext.replace(".", "");
-    const type = imageExts.includes(ext)
+    const type = IMAGE_FILE_EXTENSIONS.includes(ext)
       ? "image"
-      : audioExts.includes(ext)
+      : AUDIO_FILE_EXTENSIONS.includes(ext)
       ? "audio"
       : "";
     if (type) {

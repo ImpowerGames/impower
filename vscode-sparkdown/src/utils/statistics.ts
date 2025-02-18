@@ -1,15 +1,9 @@
-import {
-  generateScreenplayPdfData,
-  LineStruct,
-  ScreenplayConfig,
-} from "@impower/sparkdown-screenplay/src/index";
+import { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/index";
 import { SparkProgram, StructureItem } from "@impower/sparkdown/src/index";
 import { calculateSpeechDuration } from "@impower/sparkdown/src/utils/calculateSpeechDuration";
 import { isMonologue } from "@impower/sparkdown/src/utils/isMonologue";
 import * as vscode from "vscode";
-import { generatePdfStats } from "../pdf/generatePdfStats";
 import { getCharacterName } from "./getCharacterName";
-import { getFonts } from "./getFonts";
 import { rgbToHex } from "./rgbToHex";
 import { wordToColor } from "./wordToColor";
 
@@ -38,7 +32,6 @@ interface LengthStatistics {
   lineswithoutwhitespace: number;
   words: number;
   pages: number;
-  pagesreal: number;
   scenes: number;
 }
 
@@ -99,7 +92,6 @@ interface ScreenPlayStatistics {
   sceneStats: SceneStatistics;
   lengthStats: LengthStatistics;
   durationStats: DurationStatistics;
-  pdfmap: string;
   structure: Record<string, StructureItem>;
 }
 
@@ -392,11 +384,7 @@ const getLengthChart = (
 
 const createLengthStatistics = (
   script: string,
-  pdf: {
-    pageCount: number;
-    pageCountReal: number;
-    lineMap: Record<number, LineStruct>; //the structure of each line
-  },
+  pageCount: number,
   program: SparkProgram
 ): LengthStatistics => {
   return {
@@ -405,8 +393,7 @@ const createLengthStatistics = (
     lines: getLineCount(script),
     lineswithoutwhitespace: getLineCountWithoutWhitespace(script),
     words: getWordCount(script),
-    pagesreal: pdf.pageCountReal,
-    pages: pdf.pageCount,
+    pages: pageCount,
     scenes: (program?.metadata?.scenes || []).length,
   };
 };
@@ -438,15 +425,11 @@ export const retrieveScreenPlayStatistics = async (
   program: SparkProgram,
   config: ScreenplayConfig
 ): Promise<ScreenPlayStatistics> => {
-  const fonts = await getFonts(context);
-  const pdfData = generateScreenplayPdfData(program, config, fonts);
-  const pdfStats = await generatePdfStats(pdfData);
   return {
     characterStats: createCharacterStatistics(program),
     sceneStats: createSceneStatistics(program),
     lengthStats: createLengthStatistics(script, pdfStats, program),
     durationStats: createDurationStatistics(program),
-    pdfmap: JSON.stringify(pdfStats?.lineMap),
     structure: program?.metadata?.structure || {},
   };
 };

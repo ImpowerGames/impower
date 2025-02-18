@@ -35,8 +35,10 @@ export const activateFileWatcher = async (
   );
   context.subscriptions.push(
     vscode.workspace.onDidCloseTextDocument((doc) => {
-      if (fileSystemWatcherState[doc.uri.toString()]?.assetsWatcher) {
-        fileSystemWatcherState[doc.uri.toString()]?.assetsWatcher?.dispose();
+      if (fileSystemWatcherState[doc.uri.toString()]?.assetFilesWatcher) {
+        fileSystemWatcherState[
+          doc.uri.toString()
+        ]?.assetFilesWatcher?.dispose();
       }
       delete fileSystemWatcherState[doc.uri.toString()];
     })

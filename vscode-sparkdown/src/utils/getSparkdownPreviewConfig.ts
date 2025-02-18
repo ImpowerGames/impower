@@ -29,11 +29,14 @@ export const getSparkdownPreviewConfig = (
     screenplay_preview_texture: screenplayConfig["previewTexture"],
     screenplay_print_scene_headers_bold:
       screenplayConfig["formatting"].printSceneHeadersBold,
-    screenplay_print_headings: screenplayConfig["markup"].printSectionHeaders,
+    screenplay_print_knot_headings:
+      screenplayConfig["markup"].printKnotHeadings,
+    screenplay_print_stitch_headings:
+      screenplayConfig["markup"].printStitchHeadings,
     screenplay_print_scene_numbers:
       screenplayConfig["numbering"].printSceneNumbers,
     screenplay_print_title_page: screenplayConfig["pages"].printTitlePage,
-    screenplay_print_profile: screenplayConfig["pdf"].printProfile,
+    screenplay_print_paper_size: screenplayConfig["pdf"].printPaperSize,
     screenplay_print_dialogue_split_across_pages:
       screenplayConfig["pdf"].composition.pageBreaks
         .printDialogueSplitAcrossPages,
@@ -41,16 +44,12 @@ export const getSparkdownPreviewConfig = (
       screenplayConfig["pdf"].composition.printDialogueMORE,
     screenplay_print_dialogue_contd:
       screenplayConfig["pdf"].composition.printDialogueCONTD,
-    screenplay_print_header: screenplayConfig["pdf"].extras.printPageHeader,
-    screenplay_print_footer: screenplayConfig["pdf"].extras.printPageFooter,
-    screenplay_print_watermark:
-      screenplayConfig["pdf"].extras.printPageWatermark,
     screenplay_print_page_numbers:
       screenplayConfig["pdf"].numbering.printPageNumbers,
     screenplay_print_bookmarks:
       screenplayConfig["pdf"].bookmarks.printBookmarks,
-    screenplay_print_bookmarks_for_invisible_sections:
-      screenplayConfig["pdf"].bookmarks.printBookmarksForInvisibleSections,
+    screenplay_print_bookmarks_for_invisible_headings:
+      screenplayConfig["pdf"].bookmarks.printBookmarksForInvisibleHeadings,
     editor_newline_helper: editorConfig["newlineHelper"],
     editor_refresh_stats_on_save: editorConfig["refreshStatsOnSave"],
   };

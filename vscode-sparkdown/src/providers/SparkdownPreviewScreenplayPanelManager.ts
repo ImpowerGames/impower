@@ -117,7 +117,7 @@ export class SparkdownPreviewScreenplayPanelManager {
       if (ScrolledPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "screenplay") {
           const documentUri = getUri(message.params.textDocument.uri);
-          const range = getClientRange(message.params.range);
+          const range = getClientRange(message.params.visibleRange);
           const cfg = getSparkdownPreviewConfig(documentUri);
           const syncedWithCursor =
             cfg.screenplay_preview_synchronized_with_cursor;
@@ -131,24 +131,26 @@ export class SparkdownPreviewScreenplayPanelManager {
       }
       if (SelectedPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "screenplay") {
-          const documentUri = getUri(message.params.textDocument.uri);
-          const range = getClientRange(message.params.range);
-          let editor = getEditor(documentUri);
-          if (editor === undefined) {
-            const doc = await vscode.workspace.openTextDocument(documentUri);
-            editor = await vscode.window.showTextDocument(doc);
-          } else {
-            await vscode.window.showTextDocument(
-              editor.document,
-              editor.viewColumn,
-              false
+          if (message.params.userEvent && !message.params.docChanged) {
+            const documentUri = getUri(message.params.textDocument.uri);
+            const range = getClientRange(message.params.selectedRange);
+            let editor = getEditor(documentUri);
+            if (editor === undefined) {
+              const doc = await vscode.workspace.openTextDocument(documentUri);
+              editor = await vscode.window.showTextDocument(doc);
+            } else {
+              await vscode.window.showTextDocument(
+                editor.document,
+                editor.viewColumn,
+                false
+              );
+            }
+            editor.selection = new vscode.Selection(range.start, range.end);
+            editor.revealRange(
+              range,
+              vscode.TextEditorRevealType.InCenterIfOutsideViewport
             );
           }
-          editor.selection = new vscode.Selection(range.start, range.end);
-          editor.revealRange(
-            range,
-            vscode.TextEditorRevealType.InCenterIfOutsideViewport
-          );
         }
       }
     });
@@ -160,7 +162,7 @@ export class SparkdownPreviewScreenplayPanelManager {
   loadDocument(panel: WebviewPanel, document: vscode.TextDocument) {
     this._document = document;
     this._panel = panel;
-    const editor = getEditor(document.uri);
+    const editor = getEditor(this._document.uri);
     const visibleRange = editor?.visibleRanges[0];
     const selectedRange = editor?.selection;
     panel.webview.postMessage(
@@ -180,10 +182,13 @@ export class SparkdownPreviewScreenplayPanelManager {
     );
   }
 
-  notifyFocusedTextDocument(document: vscode.TextDocument) {
+  notifyChangedActiveEditor(editor: vscode.TextEditor) {
     if (this._panel) {
       if (this._connected) {
-        this.loadDocument(this._panel, document);
+        const document = editor.document;
+        if (editor.document.uri.toString() !== this._document?.uri.toString()) {
+          this.loadDocument(this._panel, document);
+        }
       }
     }
   }
@@ -225,18 +230,23 @@ export class SparkdownPreviewScreenplayPanelManager {
     }
   }
 
-  notifySelectedEditor(document: vscode.TextDocument, range: vscode.Range) {
+  notifySelectedEditor(
+    document: vscode.TextDocument,
+    range: vscode.Range,
+    userEvent: boolean
+  ) {
     if (document.uri.toString() === this._document?.uri.toString()) {
       if (this._panel) {
         this._panel.webview.postMessage(
           SelectedEditorMessage.type.notification({
             textDocument: { uri: document.uri.toString() },
             selectedRange: getServerRange(range),
-            docChanged: document.version !== this._selectedVersion,
+            userEvent,
+            docChanged: this._selectedVersion !== document.version,
           })
         );
-        this._selectedVersion = document.version;
       }
+      this._selectedVersion = document.version;
     }
   }
 

@@ -36,9 +36,12 @@ export const activatePreviewScreenplayPanel = (
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (editor?.document.languageId === "sparkdown") {
-        SparkdownPreviewScreenplayPanelManager.instance.notifyFocusedTextDocument(
-          editor.document
-        );
+        // We have to delay this slightly so that visibleRanges has time to be correctly updated
+        setTimeout(() => {
+          SparkdownPreviewScreenplayPanelManager.instance.notifyChangedActiveEditor(
+            editor
+          );
+        }, 10);
       }
     })
   );
@@ -52,7 +55,7 @@ export const activatePreviewScreenplayPanel = (
       }
     })
   );
-  // Notify screenplay preview whenever text editor selection (or cursor position) changed
+  // Notify screenplay preview whenever text editor selection (i.e. cursor position) changed
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorSelection((change) => {
       const document = change.textEditor.document;
@@ -63,7 +66,9 @@ export const activatePreviewScreenplayPanel = (
           if (range) {
             SparkdownPreviewScreenplayPanelManager.instance.notifySelectedEditor(
               document,
-              range
+              range,
+              change.kind === vscode.TextEditorSelectionChangeKind.Mouse ||
+                change.kind === vscode.TextEditorSelectionChangeKind.Keyboard
             );
           }
         }

@@ -6,7 +6,11 @@ export const readFile = async (
   try {
     const uri =
       typeof filepath === "string" ? vscode.Uri.file(filepath) : filepath;
-    return vscode.workspace.fs.readFile(uri);
+    const array = await vscode.workspace.fs.readFile(uri);
+    return array.buffer.slice(
+      array.byteOffset,
+      array.byteLength + array.byteOffset
+    );
   } catch {
     return undefined;
   }
