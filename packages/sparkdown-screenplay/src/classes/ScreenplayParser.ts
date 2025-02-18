@@ -139,9 +139,9 @@ export default class ScreenplayParser {
           frontMatterKey = text;
           frontMatterValue = "";
         }
-        if (name === "FrontMatterString_content") {
+        if (name === "FrontMatterString") {
           const text = read(from, to);
-          frontMatterValue += text + "\n";
+          frontMatterValue += text;
         }
 
         // Knot
