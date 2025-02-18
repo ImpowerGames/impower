@@ -6,7 +6,7 @@ export type ScrolledPreviewMethod = typeof ScrolledPreviewMessage.method;
 export interface ScrolledPreviewParams {
   type: "game" | "screenplay";
   textDocument: TextDocumentIdentifier;
-  range: Range;
+  visibleRange: Range;
   target: string;
 }
 

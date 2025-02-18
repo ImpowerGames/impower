@@ -452,18 +452,17 @@ export default class SparkScreenplayPreview extends Component(spec) {
         visibleRange.start.line !== this._visibleRange?.start?.line ||
         visibleRange.end.line !== this._visibleRange?.end?.line
       ) {
-        this.cacheVisibleRange(visibleRange);
         if (this._textDocument) {
           if (this._userInitiatedScroll) {
+            this.cacheVisibleRange(visibleRange);
             this._scrollTarget = undefined;
             this.emit(
               ScrolledPreviewMessage.method,
               ScrolledPreviewMessage.type.notification({
                 type: "screenplay",
                 textDocument: this._textDocument,
-                range: visibleRange,
-                target:
-                  e.target instanceof HTMLElement ? "element" : "document",
+                visibleRange: visibleRange,
+                target: e.target instanceof HTMLElement ? "element" : "window",
               })
             );
           }

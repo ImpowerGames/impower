@@ -322,7 +322,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
           this._userInitiatedScroll = false;
           const params = message.params;
           const textDocument = params.textDocument;
-          const range = params.range;
+          const range = params.visibleRange;
           const target = params.target;
           if (textDocument.uri === this._textDocument?.uri) {
             if (target === "element") {
@@ -770,30 +770,21 @@ export default class SparkdownScriptEditor extends Component(spec) {
   };
 
   protected handlePointerScroll = (e: Event) => {
-    const scrollTarget = e.target;
-    const view = this._view;
-    if (view) {
-      const scrollTop = getScrollTop(scrollTarget);
-      const scrollClientHeight = getScrollClientHeight(scrollTarget);
-      const insetBottom = this._scrollMargin.bottom ?? 0;
-      const scrollBottom =
-        scrollTop + scrollClientHeight - this._domClientY - insetBottom;
-      const visibleRange = getVisibleRange(view, scrollTop, scrollBottom);
+    const visibleRange = this.measureVisibleRange();
+    if (visibleRange) {
       if (
         visibleRange.start.line !== this._visibleRange?.start?.line ||
         visibleRange.end.line !== this._visibleRange?.end?.line
       ) {
-        const target =
-          scrollTarget instanceof HTMLElement ? "element" : "document";
-        this.cacheVisibleRange(visibleRange);
         if (this._textDocument) {
           if (this._userInitiatedScroll) {
+            this.cacheVisibleRange(visibleRange);
             this.emit(
               ScrolledEditorMessage.method,
               ScrolledEditorMessage.type.notification({
                 textDocument: this._textDocument,
                 visibleRange,
-                target,
+                target: e.target instanceof HTMLElement ? "element" : "window",
               })
             );
           }
@@ -801,6 +792,21 @@ export default class SparkdownScriptEditor extends Component(spec) {
       }
     }
   };
+
+  protected measureVisibleRange() {
+    const scrollTarget = this._scroller;
+    const view = this._view;
+    if (view && scrollTarget) {
+      const scrollClientHeight = getScrollClientHeight(scrollTarget);
+      const insetBottom = this._scrollMargin.bottom ?? 0;
+      const scrollTop = getScrollTop(scrollTarget);
+      const scrollBottom =
+        scrollTop + scrollClientHeight - this._domClientY - insetBottom;
+      const visibleRange = getVisibleRange(view, scrollTop, scrollBottom);
+      return visibleRange;
+    }
+    return undefined;
+  }
 }
 
 declare global {
