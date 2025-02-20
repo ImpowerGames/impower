@@ -1,9 +1,8 @@
-import { Color, ColorInformation, Range } from "vscode-languageserver";
-import type { TextDocument } from "vscode-languageserver-textdocument";
-
+import { Color, type ColorInformation } from "vscode-languageserver";
+import { type TextDocument } from "vscode-languageserver-textdocument";
 import { colord } from "colord";
 
-import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
+import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 
 export const getDocumentColors = (
   document: TextDocument | undefined,

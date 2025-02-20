@@ -1,7 +1,7 @@
-import { FoldingRange, Range } from "vscode-languageserver";
-import type { TextDocument } from "vscode-languageserver-textdocument";
+import { Range, type FoldingRange } from "vscode-languageserver";
+import { type TextDocument } from "vscode-languageserver-textdocument";
 
-import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
+import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 
 const INDENT_REGEX = /^([ \t]+)/;
 

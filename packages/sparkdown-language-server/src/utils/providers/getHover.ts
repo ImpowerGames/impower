@@ -1,9 +1,8 @@
-import { Hover, MarkupKind, Position } from "vscode-languageserver";
-import type { TextDocument } from "vscode-languageserver-textdocument";
+import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
+import { type TextDocument } from "vscode-languageserver-textdocument";
 
-import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
-import { getFencedCode } from "../format/getFencedCode";
-import { getProperty } from "../../../../sparkdown/src/utils/getProperty";
+import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { getProperty } from "@impower/sparkdown/src/utils/getProperty";
 
 export const getHover = (
   document: TextDocument | undefined,

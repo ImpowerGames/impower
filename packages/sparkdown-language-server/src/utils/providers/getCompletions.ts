@@ -1,28 +1,28 @@
 import {
   Command,
-  CompletionContext,
-  CompletionItem,
   CompletionItemKind,
   InsertTextMode,
   MarkupKind,
-  Position,
+  type CompletionContext,
+  type CompletionItem,
+  type Position,
 } from "vscode-languageserver";
-import type { TextDocument } from "vscode-languageserver-textdocument";
+import { type TextDocument } from "vscode-languageserver-textdocument";
 
-import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
-import type { SparkLocation } from "../../../../sparkdown/src/types/SparkLocation";
-import type { SparkdownSyntaxNode } from "../../../../sparkdown/src/types/SparkdownSyntaxNode";
-import { getProperty } from "../../../../sparkdown/src/utils/getProperty";
-import { getStack } from "../../../../sparkdown/src/utils/syntax/getStack";
-import { getParentPropertyPath } from "../../../../sparkdown/src/utils/syntax/getParentPropertyPath";
-import { getParentSectionPath } from "../../../../sparkdown/src/utils/syntax/getParentSectionPath";
-import { getDescendentInsideParent } from "../../../../sparkdown/src/utils/syntax/getDescendentInsideParent";
-import { getOtherMatchesInsideParent } from "../../../../sparkdown/src/utils/syntax/getOtherMatchesInsideParent";
-import GRAMMAR_DEFINITION from "../../../../sparkdown/language/sparkdown.language-grammar.json";
+import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { type SparkLocation } from "@impower/sparkdown/src/types/SparkLocation";
+import { type SparkdownSyntaxNode } from "@impower/sparkdown/src/types/SparkdownSyntaxNode";
+import { getProperty } from "@impower/sparkdown/src/utils/getProperty";
+import { getStack } from "@impower/sparkdown/src/utils/syntax/getStack";
+import { getParentPropertyPath } from "@impower/sparkdown/src/utils/syntax/getParentPropertyPath";
+import { getParentSectionPath } from "@impower/sparkdown/src/utils/syntax/getParentSectionPath";
+import { getDescendentInsideParent } from "@impower/sparkdown/src/utils/syntax/getDescendentInsideParent";
+import { getOtherMatchesInsideParent } from "@impower/sparkdown/src/utils/syntax/getOtherMatchesInsideParent";
+import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 
-import type {
-  SyntaxNode,
-  Tree,
+import {
+  type SyntaxNode,
+  type Tree,
 } from "../../../../grammar-compiler/src/compiler/classes/Tree";
 import { printTree } from "../../../../grammar-compiler/src/compiler/utils/printTree";
 

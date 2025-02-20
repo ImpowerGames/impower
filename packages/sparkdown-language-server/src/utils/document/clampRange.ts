@@ -1,5 +1,5 @@
-import type { Range } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import { type Range } from "vscode-languageserver";
+import { type TextDocument } from "vscode-languageserver-textdocument";
 
 export const clampRange = (document: TextDocument, range: Range) => {
   const lastLineIndex = document.lineCount - 1;

@@ -1,8 +1,8 @@
-import { DocumentSymbol, SymbolKind } from "vscode-languageserver";
-import type { TextDocument } from "vscode-languageserver-textdocument";
+import { SymbolKind, type DocumentSymbol } from "vscode-languageserver";
+import { type TextDocument } from "vscode-languageserver-textdocument";
 
-import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
-import { StructureItem } from "../../../../sparkdown/src/types/StructureItem";
+import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { StructureItem } from "@impower/sparkdown/src/types/StructureItem";
 
 const getDocumentSymbol = (
   structure: Record<string, StructureItem>,

@@ -1,5 +1,5 @@
-import { Position, Range } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import { Range, type Position } from "vscode-languageserver";
+import { type TextDocument } from "vscode-languageserver-textdocument";
 
 const END_NEWLINE_REGEX = /[\r\n]+$/;
 

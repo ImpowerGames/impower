@@ -1,7 +1,7 @@
 import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
-import type {
-  InitializeResult,
-  ServerCapabilities,
+import {
+  type InitializeResult,
+  type ServerCapabilities,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import {
@@ -11,6 +11,7 @@ import {
   TextDocumentSyncKind,
   createConnection,
 } from "vscode-languageserver/browser";
+
 import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
 import { getColorPresentations } from "./utils/providers/getColorPresentations";
 import { getCompletions } from "./utils/providers/getCompletions";

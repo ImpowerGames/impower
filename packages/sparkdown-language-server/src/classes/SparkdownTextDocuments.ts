@@ -1,24 +1,4 @@
 import {
-  DidChangeFileUrlMessage,
-  DidChangeFileUrlParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage";
-import {
-  DidWatchFilesMessage,
-  DidWatchFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage";
-import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
-import { CompileProgramMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/CompileProgramMessage";
-import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/AddCompilerFileMessage";
-import { RemoveCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/RemoveCompilerFileMessage";
-import { UpdateCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/UpdateCompilerFileMessage";
-import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
-import { type ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
-import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
-import { type SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
-import { type SparkdownCompilerConfig } from "../../../sparkdown/src/types/SparkdownCompilerConfig";
-import { type Tree } from "../../../grammar-compiler/src/compiler/classes/Tree";
-import { TextmateGrammarParser } from "../../../sparkdown-document-views/src/cm-textmate/classes/TextmateGrammarParser";
-import {
   CancellationToken,
   Connection,
   DidChangeConfigurationParams,
@@ -45,6 +25,31 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
+
+import {
+  DidChangeFileUrlMessage,
+  DidChangeFileUrlParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage";
+import {
+  DidWatchFilesMessage,
+  DidWatchFilesParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage";
+import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
+import { CompileProgramMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/CompileProgramMessage";
+import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/AddCompilerFileMessage";
+import { RemoveCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/RemoveCompilerFileMessage";
+import { UpdateCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/UpdateCompilerFileMessage";
+import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
+import { type ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
+
+import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
+import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { type SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
+
+import { TextmateGrammarParser } from "@impower/sparkdown-document-views/src/cm-textmate/classes/TextmateGrammarParser";
+
+import { type Tree } from "../../../grammar-compiler/src/compiler/classes/Tree";
+
 import { debounce } from "../utils/timing/debounce";
 import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
 
