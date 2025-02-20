@@ -11,6 +11,7 @@ import { NodeID, GrammarDefinition } from "../../../../grammar-compiler/src";
 
 import { LanguageData } from "../types/LanguageData";
 import { TextmateGrammarParser } from "./TextmateGrammarParser";
+import { getNodeTypeWithLanguageNodeProps } from "../utils/getNodeTypeWithLanguageNodeProps";
 
 export class TextmateLanguageSupport extends LanguageSupport {
   constructor(
@@ -26,7 +27,11 @@ export class TextmateLanguageSupport extends LanguageSupport {
       top: true,
       props: [[languageDataProp, facet]],
     });
-    const parser = new TextmateGrammarParser(grammarDefinition, topNodeType);
+    const parser = new TextmateGrammarParser(
+      grammarDefinition,
+      topNodeType,
+      getNodeTypeWithLanguageNodeProps
+    );
     const language = new Language(facet, parser, support, name);
     super(language, support);
   }

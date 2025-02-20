@@ -1,8 +1,6 @@
-import { NodeProp, NodeType } from "@lezer/common";
-import { styleTags } from "@lezer/highlight";
+import { NodePropSource, NodeType } from "@lezer/common";
 
 import { NodeID, RuleDefinition } from "../../../../grammar-compiler/src";
-import { parseTag } from "./parseTag";
 
 /**
  * Node emitted when a character doesn't match anything in the grammar,
@@ -21,11 +19,12 @@ export const NODE_ERROR_INCOMPLETE = NodeType.define({
   error: true,
 });
 
-export const getRuleNodeType = (
+export const getNodeType = (
   topNode: NodeType,
   typeIndex: number,
   typeId: string,
-  def: RuleDefinition
+  def: RuleDefinition,
+  props?: NodePropSource[]
 ): NodeType => {
   if (typeIndex === NodeID.none) {
     return NodeType.none;
@@ -39,21 +38,7 @@ export const getRuleNodeType = (
   if (typeIndex === NodeID.incomplete) {
     return NODE_ERROR_INCOMPLETE;
   }
-  const { tag, openedBy, closedBy, group } = def;
-  const props = [];
 
-  if (tag) {
-    props.push(styleTags(parseTag(typeId + "/...", tag)));
-  }
-  if (openedBy) {
-    props.push(NodeProp.openedBy.add({ [typeId]: [openedBy].flat() }));
-  }
-  if (closedBy) {
-    props.push(NodeProp.closedBy.add({ [typeId]: [closedBy].flat() }));
-  }
-  if (group) {
-    props.push(NodeProp.group.add({ [typeId]: [group].flat() }));
-  }
   // In CodeMirror, `id` is the unique number identifier and `name` is the unique string identifier
   // This is different than the parser node that calls `typeIndex` the unique number identifier and `typeId` the unique string identifier
   return NodeType.define({ id: typeIndex, name: typeId, props });

@@ -1,4 +1,4 @@
-import { Tag, tags } from "@lezer/highlight";
+import { type Tag, tags } from "@lezer/highlight";
 
 /**
  * 1. Tag modifier text

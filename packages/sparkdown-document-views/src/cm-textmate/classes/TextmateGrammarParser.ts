@@ -21,7 +21,7 @@ import {
   NodeID,
 } from "../../../../grammar-compiler/src";
 
-import { getRuleNodeType } from "../utils/getRuleNodeType";
+import { getNodeType } from "../utils/getNodeType";
 import { TextmateGrammarParse } from "./TextmateGrammarParse";
 
 export class TextmateGrammarParser extends Parser {
@@ -31,7 +31,16 @@ export class TextmateGrammarParser extends Parser {
   /** The set of CodeMirror NodeTypes in the grammar. */
   declare nodeSet: NodeSet;
 
-  constructor(grammarDefinition: GrammarDefinition, rootNodeType?: NodeType) {
+  constructor(
+    grammarDefinition: GrammarDefinition,
+    rootNodeType?: NodeType,
+    defineNodeType?: (
+      topNode: NodeType,
+      typeIndex: number,
+      typeId: string,
+      def: RuleDefinition
+    ) => NodeType
+  ) {
     super();
     const nodeTypeProp = "nodeType";
     const validRootNodeType =
@@ -41,12 +50,13 @@ export class TextmateGrammarParser extends Parser {
         name: grammarDefinition.name?.toLowerCase(),
         top: true,
       });
+    const validGetNodeType = defineNodeType ?? getNodeType;
     const declarator = (
       typeIndex: number,
       typeId: string,
       data: RuleDefinition
     ) => ({
-      [nodeTypeProp]: getRuleNodeType(
+      [nodeTypeProp]: validGetNodeType(
         validRootNodeType,
         typeIndex,
         typeId,
