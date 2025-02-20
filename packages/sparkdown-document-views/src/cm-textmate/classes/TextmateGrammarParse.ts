@@ -25,7 +25,6 @@ import { cachedAheadBufferProp } from "../props/cachedAheadBufferProp";
 import { findProp } from "../utils/findProp";
 import { printTree } from "../utils/printTree";
 import { TextmateParseRegion } from "./TextmateParseRegion";
-import { SyntaxTree } from "./SyntaxTree";
 
 /** Amount of characters to slice before the starting position of the parse. */
 const MARGIN_BEFORE = 32;
