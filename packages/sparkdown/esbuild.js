@@ -1,5 +1,4 @@
 import { build } from "esbuild";
-import fs from "fs";
 
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
 
@@ -11,24 +10,15 @@ if (PRODUCTION) {
   process.env["NODE_ENV"] = "production";
 }
 
-let compilerInlineWorkerContent = await fs.promises
-  .readFile("../sparkdown/dist/sparkdown.js", "utf-8")
-  .catch(() => "");
-
 /** @type BuildOptions */
 const config = {
-  entryPoints: ["./src/sparkdown-language-server.ts"],
+  entryPoints: ["./src/sparkdown.ts"],
   outdir: OUTDIR,
   bundle: true,
   minify: PRODUCTION,
   sourcemap: !PRODUCTION,
   mainFields: ["module", "main"],
-  external: ["vscode", "commonjs"],
-  define: {
-    "process.env.COMPILER_INLINE_WORKER": JSON.stringify(
-      compilerInlineWorkerContent
-    ),
-  },
+  external: ["commonjs"],
 };
 
 (async () => {

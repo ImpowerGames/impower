@@ -18,15 +18,20 @@
   },
   "main": "dist/sparkdown-language-server.js",
   "scripts": {
-    "build": "node ./esbuild.js"
+    "install-sparkdown": "cd ../sparkdown && npm ci && cd ../sparkdown-language-server",
+    "build-sparkdown": "cd ../sparkdown && npm run build && cd ../sparkdown-language-server",
+    "build-workers": "npm run build-sparkdown",
+    "preinstall": "npm run install-sparkdown",
+    "build": "npm run build-workers && node ./esbuild.js"
   },
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
     "colord": "^2.9.3",
-    "vscode-languageserver": "^8.1.0",
-    "vscode-languageserver-textdocument": "^1.0.8"
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
   },
   "devDependencies": {
-    "esbuild": "^0.18.10"
+    "@types/node": "^22.13.4",
+    "esbuild": "^0.25.0"
   }
 }

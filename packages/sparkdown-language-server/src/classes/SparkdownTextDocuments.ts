@@ -1,13 +1,23 @@
 import {
   DidChangeFileUrlMessage,
   DidChangeFileUrlParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage.js";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage";
 import {
   DidWatchFilesMessage,
   DidWatchFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
-import SparkParser from "../../../sparkdown/src/classes/SparkParser";
-import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage";
+import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
+import { CompileProgramMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/CompileProgramMessage";
+import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/AddCompilerFileMessage";
+import { RemoveCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/RemoveCompilerFileMessage";
+import { UpdateCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/UpdateCompilerFileMessage";
+import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
+import { type ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
+import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
+import { type SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
+import { type SparkdownCompilerConfig } from "../../../sparkdown/src/types/SparkdownCompilerConfig";
+import { type Tree } from "../../../grammar-compiler/src/compiler/classes/Tree";
+import { TextmateGrammarParser } from "../../../sparkdown-document-views/src/cm-textmate/classes/TextmateGrammarParser";
 import {
   CancellationToken,
   Connection,
@@ -38,7 +48,15 @@ import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments"
 import { debounce } from "../utils/timing/debounce";
 import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
 
-const PARSE_THROTTLE_DELAY = 300;
+const COMPILER_INLINE_WORKER_STRING = process.env["COMPILER_INLINE_WORKER"]!;
+
+const COMPILER_WORKER_URL = URL.createObjectURL(
+  new Blob([COMPILER_INLINE_WORKER_STRING], {
+    type: "text/javascript",
+  })
+);
+
+const PARSE_DELAY = 300;
 
 const globToRegex = (glob: string) => {
   return RegExp(
@@ -57,6 +75,8 @@ interface SparkProgramChangeEvent<T> extends TextDocumentChangeEvent<T> {
 export default class SparkdownTextDocuments<
   T extends TextDocument = TextDocument
 > extends TextDocuments<T> {
+  protected _compilerWorker = new Worker(COMPILER_WORKER_URL);
+
   protected get __configuration() {
     // @ts-ignore private access
     return this._configuration;
@@ -102,6 +122,7 @@ export default class SparkdownTextDocuments<
   /**
    * An event that fires when a text document has been parsed
    */
+  protected readonly _onDidParse: Emitter<SparkProgramChangeEvent<T>>;
   public get onDidParse() {
     return this._onDidParse.event;
   }
@@ -109,63 +130,38 @@ export default class SparkdownTextDocuments<
   /**
    * An event that fires when a text document has been parsed
    */
+  protected readonly _onUpdateDiagnostics: Emitter<SparkProgramChangeEvent<T>>;
   public get onUpdateDiagnostics() {
     return this._onUpdateDiagnostics.event;
   }
 
-  protected _urls: Record<string, string> = {};
-
-  protected _files = new Map<
-    string,
-    {
-      uri: string;
-      name: string;
-      src: string;
-      ext: string;
-      type: string;
-      text?: string;
-    }
-  >();
-
-  protected _parsedVersions = new Map<string, number>();
-
-  protected _program?: SparkProgram;
-  get program() {
-    return this._program;
+  protected _compilerConfig?: SparkdownCompilerConfig;
+  get compilerConfig() {
+    return this._compilerConfig;
   }
 
-  protected readonly _parser: SparkParser;
-  get parser() {
-    return this._parser;
+  protected _syntaxTrees = new Map<string, Tree>();
+  get syntaxTrees() {
+    return this._syntaxTrees;
   }
 
-  protected readonly _onDidParse: Emitter<SparkProgramChangeEvent<T>>;
-
-  protected readonly _onUpdateDiagnostics: Emitter<SparkProgramChangeEvent<T>>;
-
-  protected _builtinDefinitions?: { [type: string]: { [name: string]: any } };
-  get builtinDefinitions() {
-    return this._builtinDefinitions;
-  }
-
-  protected _optionalDefinitions?: { [type: string]: { [name: string]: any } };
-  get optionalDefinitions() {
-    return this._optionalDefinitions;
-  }
-
-  protected _schemaDefinitions?: { [type: string]: { [name: string]: any } };
-  get schemaDefinitions() {
-    return this._schemaDefinitions;
-  }
-
-  protected _descriptionDefinitions?: {
-    [type: string]: { [name: string]: any };
-  };
-  get descriptionDefinitions() {
-    return this._descriptionDefinitions;
+  protected _programs = new Map<string, SparkProgram>();
+  get programs() {
+    return this._programs;
   }
 
   protected _workspaceFolders?: WorkspaceFolder[];
+  get workspaceFolders() {
+    return this._workspaceFolders;
+  }
+
+  protected _openDocuments = new Set<string>();
+
+  protected _urls: Record<string, string> = {};
+
+  protected _lastParsedUri?: string;
+
+  protected _parsedVersions = new Map<string, number>();
 
   protected _scriptFilePattern?: RegExp;
 
@@ -175,13 +171,40 @@ export default class SparkdownTextDocuments<
 
   protected _fontFilePattern?: RegExp;
 
+  protected _parser?: TextmateGrammarParser = new TextmateGrammarParser(
+    GRAMMAR_DEFINITION
+  );
+
   public constructor(configuration: TextDocumentsConfiguration<T>) {
     super(configuration);
     this._onDidParse = new Emitter<SparkProgramChangeEvent<T>>();
     this._onUpdateDiagnostics = new Emitter<SparkProgramChangeEvent<T>>();
-    this._parser = new SparkParser({
-      resolveFile: (path: string) => this.resolveFile(path),
-      readFile: (uri: string) => this.readFile(uri),
+  }
+
+  protected async sendRequest<M extends string, P, R>(
+    type: MessageProtocolRequestType<M, P, R>,
+    params: P,
+    transfer: Transferable[] = [],
+    onProgress?: (value: ProgressValue) => void
+  ): Promise<R> {
+    const request = type.request(params);
+    return new Promise<R>((resolve, reject) => {
+      const onResponse = (e: MessageEvent) => {
+        const message = e.data;
+        if (message.id === request.id) {
+          if (message.method === `${message.method}/progress`) {
+            onProgress?.(message.value);
+          } else if (message.result) {
+            resolve(message.result);
+            this._compilerWorker.removeEventListener("message", onResponse);
+          } else if (message.error) {
+            reject(message.error);
+            this._compilerWorker.removeEventListener("message", onResponse);
+          }
+        }
+      };
+      this._compilerWorker.addEventListener("message", onResponse);
+      this._compilerWorker.postMessage(request, transfer);
     });
   }
 
@@ -208,103 +231,94 @@ export default class SparkdownTextDocuments<
     }
   }
 
-  loadBuiltinDefinitions(defs: { [type: string]: { [name: string]: any } }) {
-    this._builtinDefinitions = defs;
-    this._parser.configure({ builtinDefinitions: defs });
-  }
-
-  loadOptionalDefinitions(defs: { [type: string]: { [name: string]: any } }) {
-    this._optionalDefinitions = defs;
-    this._parser.configure({ optionalDefinitions: defs });
-  }
-
-  loadSchemaDefinitions(defs: { [type: string]: { [name: string]: any } }) {
-    this._schemaDefinitions = defs;
-    this._parser.configure({ schemaDefinitions: defs });
-  }
-
-  loadDescriptionDefinitions(defs: {
-    [type: string]: { [name: string]: any };
-  }) {
-    this._descriptionDefinitions = defs;
-  }
-
-  async loadFiles(
-    files: Record<
-      string,
-      {
-        uri: string;
-        name: string;
-        src: string;
-        ext: string;
-        type: string;
-        text?: string;
-      }
-    >
-  ) {
-    if (files) {
-      const fileEntries = Object.entries(files);
-      fileEntries.forEach(([uri, file]) => {
-        this._files.set(uri, file);
-      });
-      await Promise.all(
-        fileEntries.map(([, file]) => this.cacheFile(file.uri, file.src))
+  async loadCompiler(config: SparkdownCompilerConfig) {
+    if (config.files) {
+      const files = await this.loadFiles(
+        Object.entries(config.files).map(([, file]) => ({
+          uri: file.uri,
+          src: file.src,
+        }))
       );
-      this._parser.configure({ files: this.getFiles() });
-      fileEntries.forEach(([uri, file]) => {
+      Object.values(files).forEach((file) => {
         const text = file.text;
         if (file.type === "script" && text) {
-          if (!this.__syncedDocuments.get(uri)) {
+          if (!this.__syncedDocuments.get(file.uri)) {
             const language = "sparkdown";
             const version = 0;
             const document = this.__configuration.create(
-              uri,
+              file.uri,
               language,
               version,
               text
             );
-            this.__syncedDocuments.set(uri, document);
+            this.__syncedDocuments.set(file.uri, document);
           }
         }
       });
+      this._compilerConfig = { ...config, files };
+      this.sendRequest(ConfigureCompilerMessage.type, this._compilerConfig);
     }
   }
 
-  resolveFile(path: string) {
-    const uri =
-      this.resolveFileUsingImpliedExtension(path, "sd") ||
-      this.resolveFileUsingImpliedExtension(path, "sparkdown");
-    if (!uri) {
-      throw new Error(`Cannot find file '${uri}'.`);
-    }
-    return uri;
+  async loadFiles(files: { uri: string; src: string; text?: string }[]) {
+    const filesArray = await Promise.all(
+      files.map((file) => this.loadFile(file.uri, file.src, file.text))
+    );
+    return filesArray.reduce(
+      (map, file) => {
+        map[file.uri] = file;
+        return map;
+      },
+      {} as Record<
+        string,
+        {
+          uri: string;
+          type: string;
+          name: string;
+          ext: string;
+          path: string;
+          src: string;
+          text?: string;
+        }
+      >
+    );
   }
 
-  resolveFileUsingImpliedExtension(path: string, ext: string) {
-    const p = path.trim();
-    const impliedSuffix = p.includes(".") ? "" : `.${ext}`;
-    const filename = p + impliedSuffix;
-    const uri = this._workspaceFolders?.[0]?.uri + "/" + filename;
-    if (filename === `main.${ext}` || this.__syncedDocuments.get(uri)) {
-      return uri;
+  async loadFile(uri: string, src: string, text?: string) {
+    const name = this.getFileName(uri);
+    const type = this.getFileType(uri);
+    const ext = this.getFileExtension(uri);
+    const path = this.getFilenameWithExtension(uri);
+    const loadedText =
+      text != null
+        ? text
+        : src && (type === "script" || type === "text" || ext === "svg")
+        ? await this.load(src)
+        : undefined;
+    const file = {
+      uri,
+      name,
+      type,
+      ext,
+      path,
+      src: src || uri,
+      text: loadedText,
+    };
+    return file;
+  }
+
+  async load(src: string) {
+    try {
+      return await (await fetch(src)).text();
+    } catch {}
+    return undefined;
+  }
+
+  getMainScriptUri(directoryUri: string | undefined) {
+    if (directoryUri) {
+      return directoryUri + "/" + "main.sd";
     }
     return "";
-  }
-
-  readFile(uri: string) {
-    const syncedDocument = this.__syncedDocuments.get(uri);
-    if (syncedDocument) {
-      return syncedDocument.getText();
-    }
-    const file = this._files.get(uri);
-    if (file) {
-      return file.text || "";
-    }
-    return "";
-  }
-
-  getMainScriptUri() {
-    return this.resolveFile("main.sd");
   }
 
   getDirectoryUri(uri: string): string {
@@ -339,46 +353,11 @@ export default class SparkdownTextDocuments<
     return uri.split("/").slice(-1).join("").split(".")[1]!;
   }
 
-  debouncedParse = debounce((uri: string, force: boolean) => {
-    this.parse(uri, force);
-  }, PARSE_THROTTLE_DELAY);
+  debouncedCompile = debounce((uri: string, force: boolean) => {
+    this.compile(uri, force);
+  }, PARSE_DELAY);
 
-  getFiles(): {
-    [type: string]: {
-      [name: string]: {
-        uri: string;
-        name: string;
-        src: string;
-        ext: string;
-        type: string;
-        text?: string;
-      };
-    };
-  } {
-    const files: {
-      [type: string]: {
-        [name: string]: {
-          uri: string;
-          name: string;
-          src: string;
-          ext: string;
-          type: string;
-          text?: string;
-        };
-      };
-    } = {};
-    this._files.forEach((file) => {
-      if (file.name) {
-        files[file.type] ??= {};
-        files[file.type]![file.name] = {
-          ...file,
-        };
-      }
-    });
-    return files;
-  }
-
-  parse(uri: string, force = false) {
+  async compile(uri: string, force = false) {
     let docChanged = false;
     for (let [, d] of this.__syncedDocuments) {
       const parsedVersion = this._parsedVersions.get(d.uri);
@@ -393,86 +372,76 @@ export default class SparkdownTextDocuments<
         break;
       }
     }
+    let program: SparkProgram | undefined = undefined;
     if (force || docChanged) {
       const targetDocument = this.__syncedDocuments.get(uri);
-      const mainDocument = this.__syncedDocuments.get(this.getMainScriptUri());
-      if (mainDocument) {
-        this._program = this.parseDocument(mainDocument);
-      }
-      if (
-        targetDocument?.uri !== mainDocument?.uri &&
-        !this._program?.sourceMap?.[uri]
-      ) {
-        // Target script is not included by main,
-        // So it must be parsed on its own to report diagnostics
-        if (targetDocument) {
-          this._program = this.parseDocument(targetDocument);
+      if (targetDocument) {
+        const directoryUri = this.getDirectoryUri(uri);
+        const mainDocument = this.__syncedDocuments.get(
+          this.getMainScriptUri(directoryUri)
+        );
+        if (mainDocument) {
+          program = await this.parseDocument(mainDocument);
+          this._programs.set(mainDocument.uri, program);
+          if (program.sourceMap) {
+            for (const uri of Object.keys(program.sourceMap)) {
+              this._programs.set(uri, program);
+            }
+          }
+        }
+        if (
+          targetDocument?.uri !== mainDocument?.uri &&
+          !program?.sourceMap?.[uri]
+        ) {
+          // Target script is not included by main,
+          // So it must be parsed on its own to report diagnostics
+          if (targetDocument) {
+            program = await this.parseDocument(targetDocument);
+            this._programs.set(targetDocument.uri, program);
+          }
+        }
+        if (targetDocument && program) {
+          this._onDidParse.fire(
+            Object.freeze({
+              document: targetDocument,
+              program,
+            })
+          );
+          this._onUpdateDiagnostics.fire(
+            Object.freeze({
+              document: targetDocument,
+              program,
+            })
+          );
         }
       }
-      if (targetDocument && this._program) {
-        this._onDidParse.fire(
-          Object.freeze({
-            document: targetDocument,
-            program: this._program,
-          })
-        );
-        this._onUpdateDiagnostics.fire(
-          Object.freeze({
-            document: targetDocument,
-            program: this._program,
-          })
-        );
-      }
     }
-    return this._program;
-  }
-
-  parseDocument(document: TextDocument) {
-    const filename = this.getFilenameWithExtension(document.uri);
-    const program = this._parser.parse(filename);
     return program;
   }
 
-  getLatestTree(uri: string) {
-    return this._parser.trees.get(uri);
+  async parseDocument(document: TextDocument): Promise<SparkProgram> {
+    this._lastParsedUri = document.uri;
+    return this.sendRequest(CompileProgramMessage.type, {
+      uri: document.uri,
+    });
   }
 
-  async load(src: string) {
-    try {
-      return await (await fetch(src)).text();
-    } catch {}
-    return undefined;
+  getLatestSyntaxTree(uri: string) {
+    return this._syntaxTrees.get(uri);
   }
 
-  async cacheFile(uri: string, src: string) {
-    const name = this.getFileName(uri);
-    const type = this.getFileType(uri);
-    const ext = this.getFileExtension(uri);
-    const text =
-      src && (type === "script" || type === "text" || ext === "svg")
-        ? await this.load(src)
-        : undefined;
-    const file = {
-      uri,
-      name,
-      type,
-      ext,
-      src: src || uri,
-      text,
-    };
-    this._files.set(uri, file);
-    return file;
+  getLatestProgram(uri: string) {
+    return this._programs.get(uri);
   }
 
   async onCreatedFile(fileUri: string) {
-    await this.cacheFile(fileUri, this._urls[fileUri] || "");
-    this._parser.configure({ files: this.getFiles() });
+    const file = await this.loadFile(fileUri, this._urls[fileUri] || "");
+    this.sendRequest(AddCompilerFileMessage.type, { uri: fileUri, file });
   }
 
   onDeletedFile(fileUri: string) {
-    this._files.delete(fileUri);
     this.__syncedDocuments.delete(fileUri);
-    this._parser.configure({ files: this.getFiles() });
+    this.sendRequest(RemoveCompilerFileMessage.type, { uri: fileUri });
   }
 
   public override listen(connection: Connection): Disposable {
@@ -493,7 +462,7 @@ export default class SparkdownTextDocuments<
         (params: DocumentDiagnosticParams): DocumentDiagnosticReport => {
           const uri = params.textDocument.uri;
           const document = this.get(uri);
-          const program = this.program;
+          const program = this.programs.get(uri);
           if (document && program) {
             return {
               kind: "full",
@@ -512,11 +481,13 @@ export default class SparkdownTextDocuments<
           const uri = params.uri;
           const src = params.src;
           this._urls[uri] = src;
-          const file = await this.cacheFile(uri, src);
-          this._parser.configure({ files: this.getFiles() });
+          const file = await this.loadFile(uri, src);
+          await this.sendRequest(UpdateCompilerFileMessage.type, { uri, file });
           if (file.type !== "script") {
-            // When asset url changes, reparse all programs so that asset srcs are up-to-date.
-            this.debouncedParse(this.getMainScriptUri(), true);
+            // When asset url changes, reparse program so that asset srcs are up-to-date.
+            if (this._lastParsedUri) {
+              await this.debouncedCompile(this._lastParsedUri, true);
+            }
           }
         }
       )
@@ -525,43 +496,52 @@ export default class SparkdownTextDocuments<
       connection.onNotification(
         DidWatchFilesMessage.method,
         async (params: DidWatchFilesParams) => {
-          const files = params.files;
-          await Promise.all(
-            files.map((file) =>
-              this.cacheFile(file.uri, this._urls[file.uri] || "")
-            )
+          const files = await this.loadFiles(
+            params.files.map((watch) => ({
+              uri: watch.uri,
+              src: this._urls[watch.uri]!,
+              text: watch.text,
+            }))
           );
-          this._parser.configure({ files: this.getFiles() });
-          this.debouncedParse(this.getMainScriptUri(), true);
+          await this.sendRequest(ConfigureCompilerMessage.type, {
+            files,
+          });
+          // Reparse program so that asset srcs are up-to-date.
+          if (this._lastParsedUri) {
+            await this.debouncedCompile(this._lastParsedUri, true);
+          }
         }
       )
     );
     disposables.push(
-      connection.onDidOpenTextDocument((event: DidOpenTextDocumentParams) => {
-        const td = event.textDocument;
-        const document = this.__configuration.create(
-          td.uri,
-          td.languageId,
-          td.version,
-          td.text
-        );
-        this.__syncedDocuments.set(td.uri, document);
-        const toFire = Object.freeze({ document });
-        this.__onDidOpen.fire(toFire);
-        this.parse(td.uri, true);
-        if (this._program) {
-          this._onUpdateDiagnostics.fire(
-            Object.freeze({
-              document: document,
-              program: this._program,
-            })
+      connection.onDidOpenTextDocument(
+        async (event: DidOpenTextDocumentParams) => {
+          const td = event.textDocument;
+          const document = this.__configuration.create(
+            td.uri,
+            td.languageId,
+            td.version,
+            td.text
           );
+          this._openDocuments.add(td.uri);
+          this.__syncedDocuments.set(td.uri, document);
+          const toFire = Object.freeze({ document });
+          this.__onDidOpen.fire(toFire);
+          const program = await this.compile(td.uri, false);
+          if (program) {
+            this._onUpdateDiagnostics.fire(
+              Object.freeze({
+                document: document,
+                program,
+              })
+            );
+          }
         }
-      })
+      )
     );
     disposables.push(
       connection.onDidChangeTextDocument(
-        (event: DidChangeTextDocumentParams) => {
+        async (event: DidChangeTextDocumentParams) => {
           const td = event.textDocument;
           const changes = event.contentChanges;
           if (changes.length === 0) {
@@ -585,33 +565,51 @@ export default class SparkdownTextDocuments<
               this.__onDidChangeContent.fire(
                 Object.freeze({ document: syncedDocument })
               );
-              this.debouncedParse(td.uri, false);
+              // TODO: update syntax tree on text document change
+              const file = await this.loadFile(
+                td.uri,
+                this._urls[td.uri]!,
+                syncedDocument.getText()
+              );
+              await this.sendRequest(UpdateCompilerFileMessage.type, {
+                uri: td.uri,
+                file,
+              });
+              await this.debouncedCompile(td.uri, false);
             }
           }
         }
       )
     );
     disposables.push(
-      connection.onDidCloseTextDocument((event: DidCloseTextDocumentParams) => {
-        let syncedDocument = this.__syncedDocuments.get(event.textDocument.uri);
-        if (syncedDocument !== undefined) {
-          this.__onDidClose.fire(Object.freeze({ document: syncedDocument }));
-        }
-        const mainDocument = this.__syncedDocuments.get(
-          this.getMainScriptUri()
-        );
-        if (mainDocument) {
-          this.parse(mainDocument.uri, true);
-          if (this._program) {
-            this._onUpdateDiagnostics.fire(
-              Object.freeze({
-                document: mainDocument,
-                program: this._program,
-              })
-            );
+      connection.onDidCloseTextDocument(
+        async (event: DidCloseTextDocumentParams) => {
+          const td = event.textDocument;
+          let syncedDocument = this.__syncedDocuments.get(td.uri);
+          if (syncedDocument) {
+            this.__onDidClose.fire(Object.freeze({ document: syncedDocument }));
+            this._openDocuments.delete(syncedDocument.uri);
+          }
+          if (this._openDocuments.size <= 1) {
+            const [openUri] = this._openDocuments;
+            const uri =
+              openUri ||
+              this.getMainScriptUri(this._workspaceFolders?.[0]?.uri);
+            const document = this.__syncedDocuments.get(uri);
+            if (document) {
+              const program = await this.compile(document.uri, false);
+              if (program) {
+                this._onUpdateDiagnostics.fire(
+                  Object.freeze({
+                    document,
+                    program,
+                  })
+                );
+              }
+            }
           }
         }
-      })
+      )
     );
     disposables.push(
       connection.onWillSaveTextDocument((event: WillSaveTextDocumentParams) => {

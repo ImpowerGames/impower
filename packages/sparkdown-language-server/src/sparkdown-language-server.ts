@@ -1,4 +1,4 @@
-import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage.js";
+import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import type {
   InitializeResult,
   ServerCapabilities,
@@ -76,30 +76,26 @@ try {
     }
     const builtinDefinitions =
       params?.initializationOptions?.["builtinDefinitions"];
-    if (builtinDefinitions) {
-      documents.loadBuiltinDefinitions(builtinDefinitions);
-    }
     const optionalDefinitions =
       params?.initializationOptions?.["optionalDefinitions"];
-    if (optionalDefinitions) {
-      documents.loadOptionalDefinitions(optionalDefinitions);
-    }
     const schemaDefinitions =
       params?.initializationOptions?.["schemaDefinitions"];
-    if (schemaDefinitions) {
-      documents.loadSchemaDefinitions(schemaDefinitions);
-    }
     const descriptionDefinitions =
       params?.initializationOptions?.["descriptionDefinitions"];
-    if (descriptionDefinitions) {
-      documents.loadDescriptionDefinitions(descriptionDefinitions);
-    }
     const files = params?.initializationOptions?.["files"];
     if (files) {
-      await documents.loadFiles(files);
+      await documents.loadCompiler({
+        builtinDefinitions,
+        optionalDefinitions,
+        schemaDefinitions,
+        descriptionDefinitions,
+        files,
+      });
     }
-    documents.parse(documents.getMainScriptUri(), true);
-    const program = documents.program;
+    const program = await documents.compile(
+      documents.getMainScriptUri(workspaceFolders?.[0]?.uri),
+      true
+    );
     return { capabilities, program };
   });
 
@@ -132,7 +128,7 @@ try {
   connection.onFoldingRanges((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.program;
+    const program = documents.getLatestProgram(uri);
     return getFoldingRanges(document, program);
   });
 
@@ -140,7 +136,7 @@ try {
   connection.onDocumentColor((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.program;
+    const program = documents.getLatestProgram(uri);
     return getDocumentColors(document, program);
   });
   connection.onColorPresentation((params) => {
@@ -151,7 +147,7 @@ try {
   connection.onDocumentSymbol((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.program;
+    const program = documents.getLatestProgram(uri);
     return getDocumentSymbols(document, program);
   });
 
@@ -159,7 +155,7 @@ try {
   connection.onHover((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.parse(uri);
+    const program = documents.getLatestProgram(uri);
     return getHover(document, program, params.position);
   });
 
@@ -167,19 +163,13 @@ try {
   connection.onCompletion((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.parse(uri);
-    const tree = documents.getLatestTree(uri);
-    const definitions = {
-      builtinDefinitions: documents.builtinDefinitions,
-      optionalDefinitions: documents.optionalDefinitions,
-      schemaDefinitions: documents.schemaDefinitions,
-      descriptionDefinitions: documents.descriptionDefinitions,
-    };
+    const program = documents.getLatestProgram(uri);
+    const tree = documents.getLatestSyntaxTree(uri);
     const result = getCompletions(
       document,
       program,
       tree,
-      definitions,
+      documents.compilerConfig,
       params.position,
       params.context
     );

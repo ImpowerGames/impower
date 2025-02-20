@@ -2,5 +2,14 @@
   "name": "@impower/sparkdown",
   "displayName": "Sparkdown",
   "description": "Sparkdown is a simple markup syntax for writing, editing, and sharing games and screenplays in plain, human-readable text.",
-  "version": "0.0.1"
+  "version": "0.0.1",
+  "type": "module",
+  "main": "dist/sparkdown.js",
+  "scripts": {
+    "build": "node ./esbuild.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "esbuild": "^0.18.10"
+  }
 }

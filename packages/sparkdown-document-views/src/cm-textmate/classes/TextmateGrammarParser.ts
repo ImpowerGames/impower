@@ -31,15 +31,27 @@ export class TextmateGrammarParser extends Parser {
   /** The set of CodeMirror NodeTypes in the grammar. */
   declare nodeSet: NodeSet;
 
-  constructor(grammarDefinition: GrammarDefinition, rootNodeType: NodeType) {
+  constructor(grammarDefinition: GrammarDefinition, rootNodeType?: NodeType) {
     super();
     const nodeTypeProp = "nodeType";
+    const validRootNodeType =
+      rootNodeType ??
+      NodeType.define({
+        id: NodeID.top,
+        name: grammarDefinition.name?.toLowerCase(),
+        top: true,
+      });
     const declarator = (
       typeIndex: number,
       typeId: string,
       data: RuleDefinition
     ) => ({
-      [nodeTypeProp]: getRuleNodeType(rootNodeType, typeIndex, typeId, data),
+      [nodeTypeProp]: getRuleNodeType(
+        validRootNodeType,
+        typeIndex,
+        typeId,
+        data
+      ),
     });
     this.grammar = new Grammar(grammarDefinition, declarator);
     const nodeTypes = this.grammar.nodes.map((n) => n.props[nodeTypeProp]);

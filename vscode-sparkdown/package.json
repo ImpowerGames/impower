@@ -318,11 +318,6 @@
         "category": "Sparkdown"
       },
       {
-        "command": "sparkdown.exportjson",
-        "title": "Export JSON",
-        "category": "Sparkdown"
-      },
-      {
         "command": "sparkdown.jumpto",
         "title": "Jump to line",
         "category": "Sparkdown"

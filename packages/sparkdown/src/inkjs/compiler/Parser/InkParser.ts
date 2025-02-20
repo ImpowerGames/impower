@@ -2205,46 +2205,46 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    let filename: string = this.Expect(
+    let relativeFilePath: string = this.Expect(
       () => this.ParseUntilCharactersFromString("\n\r"),
-      "filename for include statement"
+      "file name or path"
     ) as string;
 
-    filename = filename.replace(new RegExp(/[ \t]+$/g), "");
+    relativeFilePath = relativeFilePath.trim();
 
     // Working directory should already have been set up relative to the root ink file.
-    let fullFilename = "";
+    let absoluteFilePath = "";
     try {
-      fullFilename = this.fileHandler.ResolveInkFilename(filename);
+      absoluteFilePath = this.fileHandler.ResolveInkFilename(relativeFilePath);
     } catch (err) {
-      this.Error(`Cannot find '${filename}'.`);
+      this.Error(`Cannot find '${relativeFilePath}'.`);
       return new IncludedFile(null);
     }
 
-    this._parsedFiles.add(fullFilename);
+    this._parsedFiles.add(absoluteFilePath);
 
-    if (this.FilenameIsAlreadyOpen(fullFilename)) {
-      this.Error(`Recursive include detected: '${fullFilename}'`);
+    if (this.FilenameIsAlreadyOpen(absoluteFilePath)) {
+      this.Error(`Recursive include detected: '${absoluteFilePath}'`);
       this.ParseUntilCharactersFromString("\r\n");
       return new IncludedFile(null);
     } else {
-      this.AddOpenFilename(fullFilename);
+      this.AddOpenFilename(absoluteFilePath);
     }
 
     let includedStory: Story | null = null;
     let includedString: string = "";
     try {
       includedString =
-        this._rootParser.fileHandler.LoadInkFileContents(fullFilename);
+        this._rootParser.fileHandler.LoadInkFileContents(absoluteFilePath);
     } catch (err) {
       console.error(err);
-      this.Error(`Failed to load: '${filename}'.\nError:${err}`);
+      this.Error(`Failed to load: '${relativeFilePath}'.\nError:${err}`);
     }
 
     if (includedString != null) {
       const parser: InkParser = new InkParser(
         includedString,
-        filename,
+        relativeFilePath,
         this._externalErrorHandler,
         this._rootParser,
         this.fileHandler
@@ -2253,7 +2253,7 @@ export class InkParser extends StringParser {
       includedStory = parser.ParseStory();
     }
 
-    this.RemoveOpenFilename(fullFilename);
+    this.RemoveOpenFilename(absoluteFilePath);
 
     // Return valid IncludedFile object even if there were errors when parsing.
     // We don't want to attempt to re-parse the include line as something else,
@@ -2262,16 +2262,16 @@ export class InkParser extends StringParser {
     return new IncludedFile(includedStory);
   };
 
-  public readonly FilenameIsAlreadyOpen = (fullFilename: string): boolean =>
-    this._rootParser._openFilenames.includes(fullFilename);
+  public readonly FilenameIsAlreadyOpen = (absoluteFilePath: string): boolean =>
+    this._rootParser._openFilenames.includes(absoluteFilePath);
 
-  public readonly AddOpenFilename = (fullFilename: string): void => {
-    this._rootParser._openFilenames.push(fullFilename);
+  public readonly AddOpenFilename = (absoluteFilePath: string): void => {
+    this._rootParser._openFilenames.push(absoluteFilePath);
   };
 
-  public readonly RemoveOpenFilename = (fullFilename: string) => {
+  public readonly RemoveOpenFilename = (absoluteFilePath: string) => {
     this._rootParser._openFilenames.splice(
-      this._rootParser._openFilenames.indexOf(fullFilename),
+      this._rootParser._openFilenames.indexOf(absoluteFilePath),
       1
     );
   };

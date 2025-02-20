@@ -25,6 +25,7 @@ import { cachedAheadBufferProp } from "../props/cachedAheadBufferProp";
 import { findProp } from "../utils/findProp";
 import { printTree } from "../utils/printTree";
 import { TextmateParseRegion } from "./TextmateParseRegion";
+import { SyntaxTree } from "./SyntaxTree";
 
 /** Amount of characters to slice before the starting position of the parse. */
 const MARGIN_BEFORE = 32;
@@ -196,6 +197,9 @@ export class TextmateGrammarParse implements PartialParse {
   }
 
   private finish(): Tree {
+    const nodeSet = this.compiler.nodeSet;
+    const topID = NodeID.top;
+
     const start = this.region.original.from;
     const to = Math.min(this.region.original.length, this.parsedPos);
     const length = to - start;
@@ -203,12 +207,10 @@ export class TextmateGrammarParse implements PartialParse {
     const result = this.compiler.finish(length);
 
     if (result) {
-      const topID = NodeID.top;
       const buffer = result.cursor;
       const reused = result.reused.map(
-        (b) => new TreeBuffer(b.buffer, b.length, this.nodeSet)
+        (b) => new TreeBuffer(b.buffer, b.length, nodeSet)
       ) as unknown as readonly Tree[];
-      const nodeSet = this.nodeSet;
       // build tree from buffer
       const tree = Tree.build({
         topID,
@@ -218,31 +220,20 @@ export class TextmateGrammarParse implements PartialParse {
         start,
         length,
       });
-      // console.log(
-      //   "BUFFER BEFORE EDIT",
-      //   this.compiler.buffer?.chunks.map((chunk) => [
-      //     chunk.from,
-      //     chunk.to,
-      //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
-      //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
-      //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
-      //     this.region.input.read(chunk.from, chunk.to),
-      //   ])
-      // );
-      // console.log(printTree(tree, this.region.input));
+      // console.log(printTree(tree, region.input));
       // bit of a hack (private properties)
       // this is so that we don't need to build another tree
       const props = Object.create(null);
       // @ts-ignore
-      props[cachedCompilerProp.id] = this.compiler;
+      props[cachedCompilerProp.id] = compiler;
       // @ts-ignore
-      props[cachedAheadBufferProp.id] = this.aheadBuffer;
+      props[cachedAheadBufferProp.id] = aheadBuffer;
       // @ts-ignore
       tree.props = props;
 
       return tree;
     }
-    const topNode = this.grammar.nodes[NodeID.top];
+    const topNode = this.compiler.grammar.nodes[topID];
     const topNodeType = topNode?.props["nodeType"];
     return new Tree(topNodeType, [], [], length);
   }

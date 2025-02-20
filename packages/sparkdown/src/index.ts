@@ -1,4 +1,4 @@
-export * from "./classes/SparkParser";
+export * from "./classes/SparkdownCompiler";
 export * from "./types/CompilerDiagnostic";
 export * from "./types/ISparkToken";
 export * from "./types/MethodType";
@@ -10,7 +10,7 @@ export * from "./types/SparkField";
 export * from "./types/SparkFrontMatterKeyword";
 export * from "./types/SparkLineMetadata";
 export * from "./types/SparkParseState";
-export * from "./types/SparkParserConfig";
+export * from "./types/SparkdownCompilerConfig";
 export * from "./types/SparkParserContext";
 export * from "./types/SparkPrimitiveType";
 export * from "./types/SparkProgram";

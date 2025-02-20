@@ -100,6 +100,10 @@ const webExtensionConfig = {
         { from: "data", to: "data" },
         { from: "node_modules/@vscode/codicons/dist", to: "data" },
         {
+          from: "node_modules/@impower/sparkdown/dist",
+          to: "workers",
+        },
+        {
           from: "node_modules/@impower/sparkdown-language-server/dist",
           to: "workers",
         },

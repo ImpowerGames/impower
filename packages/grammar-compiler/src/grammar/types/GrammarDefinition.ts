@@ -57,6 +57,7 @@ export type RepositoryDefinition =
   | ScopedRuleDefinition;
 
 export interface GrammarDefinition {
+  name?: string;
   patterns?: IncludeDefinition[];
   repository?: Record<string, RepositoryDefinition>;
 }

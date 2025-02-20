@@ -460,12 +460,14 @@ const addStructPropertyNameContextCompletions = (
 const addStructPropertyNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  definitions: {
-    builtinDefinitions?: { [type: string]: { [name: string]: any } };
-    optionalDefinitions?: { [type: string]: { [name: string]: any } };
-    schemaDefinitions?: { [type: string]: { [name: string]: any } };
-    descriptionDefinitions?: { [type: string]: { [name: string]: any } };
-  },
+  definitions:
+    | {
+        builtinDefinitions?: { [type: string]: { [name: string]: any } };
+        optionalDefinitions?: { [type: string]: { [name: string]: any } };
+        schemaDefinitions?: { [type: string]: { [name: string]: any } };
+        descriptionDefinitions?: { [type: string]: { [name: string]: any } };
+      }
+    | undefined,
   modifier: string,
   type: string,
   name: string,
@@ -610,12 +612,14 @@ const addStructPropertyValueContextCompletions = (
 const addStructPropertyValueCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  definitions: {
-    builtinDefinitions?: { [type: string]: { [name: string]: any } };
-    optionalDefinitions?: { [type: string]: { [name: string]: any } };
-    schemaDefinitions?: { [type: string]: { [name: string]: any } };
-    descriptionDefinitions?: { [type: string]: { [name: string]: any } };
-  },
+  definitions:
+    | {
+        builtinDefinitions?: { [type: string]: { [name: string]: any } };
+        optionalDefinitions?: { [type: string]: { [name: string]: any } };
+        schemaDefinitions?: { [type: string]: { [name: string]: any } };
+        descriptionDefinitions?: { [type: string]: { [name: string]: any } };
+      }
+    | undefined,
   modifier: string,
   type: string,
   name: string,
@@ -888,12 +892,14 @@ export const getCompletions = (
   document: TextDocument | undefined,
   program: SparkProgram | undefined,
   tree: Tree | undefined,
-  definitions: {
-    builtinDefinitions?: { [type: string]: { [name: string]: any } };
-    optionalDefinitions?: { [type: string]: { [name: string]: any } };
-    schemaDefinitions?: { [type: string]: { [name: string]: any } };
-    descriptionDefinitions?: { [type: string]: { [name: string]: any } };
-  },
+  definitions:
+    | {
+        builtinDefinitions?: { [type: string]: { [name: string]: any } };
+        optionalDefinitions?: { [type: string]: { [name: string]: any } };
+        schemaDefinitions?: { [type: string]: { [name: string]: any } };
+        descriptionDefinitions?: { [type: string]: { [name: string]: any } };
+      }
+    | undefined,
   position: Position,
   context: CompletionContext | undefined
 ): CompletionItem[] | null | undefined => {

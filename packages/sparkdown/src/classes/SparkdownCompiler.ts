@@ -16,7 +16,7 @@ import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
 import { SourceMetadata } from "../inkjs/engine/Error";
 import { StringValue } from "../inkjs/engine/Value";
 import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
-import { SparkParserConfig } from "../types/SparkParserConfig";
+import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
 import { SparkDeclaration } from "../types/SparkDeclaration";
@@ -36,6 +36,8 @@ const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 const NEWLINE_REGEX: RegExp = /\r\n|\r|\n/;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
 const UUID_MARKER_REGEX = new RegExp(GRAMMAR_DEFINITION.repository.UUID.match);
+
+const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
@@ -173,12 +175,12 @@ const getRuleNodeType = (id: number, name: string): NodeType => {
   return NodeType.define({ id, name });
 };
 
-export default class SparkParser {
+export default class SparkdownCompiler {
   protected _nodeTypeProp = "nodeType";
 
   protected _nodeSet: NodeSet;
 
-  protected _config: SparkParserConfig = {};
+  protected _config: SparkdownCompilerConfig = {};
 
   protected _grammarCompiler: GrammarCompiler;
 
@@ -192,7 +194,7 @@ export default class SparkParser {
     return this._trees;
   }
 
-  constructor(config: SparkParserConfig) {
+  constructor(config: SparkdownCompilerConfig = {}) {
     this._config = config || this._config;
     const declarator = (id: number, name: string) => ({
       [this._nodeTypeProp]: getRuleNodeType(id, name),
@@ -205,7 +207,7 @@ export default class SparkParser {
     this._grammarCompiler = new GrammarCompiler(this._grammar, this._nodeSet);
   }
 
-  configure(config: SparkParserConfig) {
+  configure(config: SparkdownCompilerConfig) {
     if (
       config.builtinDefinitions &&
       config.builtinDefinitions !== this._config.builtinDefinitions
@@ -224,19 +226,98 @@ export default class SparkParser {
     ) {
       this._config.schemaDefinitions = config.schemaDefinitions;
     }
+    if (
+      config.descriptionDefinitions &&
+      config.descriptionDefinitions !== this._config.descriptionDefinitions
+    ) {
+      this._config.descriptionDefinitions = config.descriptionDefinitions;
+    }
     if (config.files && config.files !== this._config.files) {
       this._config.files = config.files;
     }
-    if (config.resolveFile && config.resolveFile !== this._config.resolveFile) {
-      this._config.resolveFile = config.resolveFile;
+    return LANGUAGE_NAME;
+  }
+
+  addFile(
+    uri: string,
+    file: {
+      uri: string;
+      type: string;
+      name: string;
+      ext: string;
+      path: string;
+      src: string;
+      text?: string;
     }
-    if (config.readFile && config.readFile !== this._config.readFile) {
-      this._config.readFile = config.readFile;
+  ): string {
+    this._config.files ??= {};
+    this._config.files[uri] = file;
+    return uri;
+  }
+
+  updateFile(
+    uri: string,
+    file: {
+      uri: string;
+      type: string;
+      name: string;
+      ext: string;
+      path: string;
+      src: string;
+      text?: string;
     }
+  ): string {
+    this._config.files ??= {};
+    this._config.files[uri] = file;
+    return uri;
+  }
+
+  removeFile(uri: string): string {
+    delete this._config.files?.[uri];
+    return uri;
+  }
+
+  resolveFile(rootUri: string, relativePath: string) {
+    for (const ext of FILE_TYPES) {
+      const uri = this.resolveFileUsingImpliedExtension(
+        rootUri,
+        relativePath,
+        ext
+      );
+      if (uri) {
+        return uri;
+      }
+    }
+    throw new Error(`Cannot find file '${relativePath}'.`);
+  }
+
+  resolveFileUsingImpliedExtension(
+    rootUri: string,
+    relativePath: string,
+    ext: string
+  ) {
+    const trimmedPath = relativePath.startsWith("/")
+      ? relativePath.slice(1).trim()
+      : relativePath.trim();
+    const indexOfLastSlash = trimmedPath.lastIndexOf("/");
+    const filename = trimmedPath.slice(
+      indexOfLastSlash >= 0 ? indexOfLastSlash : 0
+    );
+    const impliedSuffix = filename.includes(".") ? "" : `.${ext}`;
+    const relativePathWithSuffix = trimmedPath + impliedSuffix;
+    const uri = new URL("./" + relativePathWithSuffix, rootUri).href;
+    if (
+      relativePathWithSuffix.endsWith(`/main.${ext}`) ||
+      this._config.files?.[uri]
+    ) {
+      return uri;
+    }
+    return "";
   }
 
   transpile(uri: string, program: SparkProgram): string {
-    const script = this._config?.readFile?.(uri) || "";
+    const scriptFile = this._config.files?.[uri];
+    const script = scriptFile?.text || "";
     const lines = script.split(NEWLINE_REGEX);
     // Pad script so we ensure all scopes are properly closed before the end of the file.
     const paddedScript = script + "\n\n";
@@ -341,7 +422,7 @@ export default class SparkParser {
         ...obj,
       };
     };
-    const read = (from: number, to: number) => script.slice(from, to);
+    const read = (from: number, to: number): string => script.slice(from, to);
     performance.mark(`iterate ${uri} start`);
     tree.iterate({
       enter: (node) => {
@@ -1047,7 +1128,7 @@ export default class SparkParser {
     return transpiled;
   }
 
-  parse(filename: string): SparkProgram {
+  compile(rootUri: string): SparkProgram {
     // console.clear();
     this._trees.clear();
     const program: SparkProgram = {};
@@ -1061,8 +1142,8 @@ export default class SparkParser {
         console.error(message, type, source);
       },
       {
-        ResolveInkFilename: (name: string): string => {
-          return this._config?.resolveFile?.(name) || name;
+        ResolveInkFilename: (filename: string): string => {
+          return this.resolveFile(rootUri, filename);
         },
         LoadInkFileContents: (uri: string): string => {
           program.sourceMap ??= {};
@@ -1094,25 +1175,28 @@ export default class SparkParser {
         },
       }
     );
-    const rootFilename = filename || "main.sd";
-    const inkCompiler = new InkCompiler(`include ${rootFilename}`, options);
-    try {
-      const story = inkCompiler.Compile();
-      this.populateDiagnostics(program, inkCompiler);
-      if (story) {
-        const storyJSON = story.ToJson();
-        if (storyJSON) {
-          program.compiled = JSON.parse(storyJSON);
+    const file = this._config.files?.[rootUri];
+    if (file) {
+      const rootFilename = file.path || "main.sd";
+      const inkCompiler = new InkCompiler(`include ${rootFilename}`, options);
+      try {
+        const story = inkCompiler.Compile();
+        this.populateDiagnostics(rootUri, program, inkCompiler);
+        if (story) {
+          const storyJSON = story.ToJson();
+          if (storyJSON) {
+            program.compiled = JSON.parse(storyJSON);
+          }
         }
+        this.populateBuiltins(program);
+        this.populateAssets(program);
+        this.populateImplicitDefs(program);
+        this.validateReferences(program);
+        program.uuidToSource ??= {};
+        program.uuidToSource = this.sortSources(program.uuidToSource);
+      } catch (e) {
+        console.error(e);
       }
-      this.populateBuiltins(program);
-      this.populateAssets(program);
-      this.populateImplicitDefs(program);
-      this.validateReferences(program);
-      program.uuidToSource ??= {};
-      program.uuidToSource = this.sortSources(program.uuidToSource);
-    } catch (e) {
-      console.error(e);
     }
     // console.log("program", program);
     return program;
@@ -1202,50 +1286,50 @@ export default class SparkParser {
       program.context ??= {};
       const files = this._config.files;
       if (files) {
-        for (const [type, assets] of Object.entries(files)) {
-          for (const [name, file] of Object.entries(assets)) {
-            program.context[type] ??= {};
-            program.context[type][name] ??= clone(file);
-            const definedFile = program.context[type][name];
-            // Set $type and $name
-            if (definedFile["$type"] === undefined) {
-              definedFile["$type"] = type;
+        for (const file of Object.values(files)) {
+          const type = file.type;
+          const name = file.name;
+          program.context[type] ??= {};
+          program.context[type][name] ??= clone(file);
+          const definedFile = program.context[type][name];
+          // Set $type and $name
+          if (definedFile["$type"] === undefined) {
+            definedFile["$type"] = type;
+          }
+          if (definedFile["$name"] === undefined) {
+            definedFile["$name"] = name;
+          }
+          // Infer asset src if not defined
+          if (definedFile["src"] === undefined) {
+            definedFile["src"] = file["src"];
+          }
+          // Infer font settings if not defined
+          if (type === "font") {
+            if (definedFile["font_family"] === undefined) {
+              definedFile["font_family"] = name.split("__")?.[0] || name;
             }
-            if (definedFile["$name"] === undefined) {
-              definedFile["$name"] = name;
-            }
-            // Infer asset src if not defined
-            if (definedFile["src"] === undefined) {
-              definedFile["src"] = file["src"];
-            }
-            // Infer font settings if not defined
-            if (type === "font") {
-              if (definedFile["font_family"] === undefined) {
-                definedFile["font_family"] = name.split("__")?.[0] || name;
-              }
-              if (definedFile["font_weight"] === undefined) {
-                if (name.toLowerCase().includes("bold")) {
-                  definedFile["font_weight"] = "700";
-                }
-              }
-              if (definedFile["font_style"] === undefined) {
-                if (name.toLowerCase().includes("italic")) {
-                  definedFile["font_style"] = "italic";
-                }
+            if (definedFile["font_weight"] === undefined) {
+              if (name.toLowerCase().includes("bold")) {
+                definedFile["font_weight"] = "700";
               }
             }
-            // Process SVGs
-            if (
-              type === "image" &&
-              definedFile["ext"] === "svg" &&
-              definedFile["text"]
-            ) {
-              const text = definedFile["text"];
-              if (typeof text === "string") {
-                // Populate image data with text
-                definedFile["data"] = text;
-                delete definedFile["text"];
+            if (definedFile["font_style"] === undefined) {
+              if (name.toLowerCase().includes("italic")) {
+                definedFile["font_style"] = "italic";
               }
+            }
+          }
+          // Process SVGs
+          if (
+            type === "image" &&
+            definedFile["ext"] === "svg" &&
+            definedFile["text"]
+          ) {
+            const text = definedFile["text"];
+            if (typeof text === "string") {
+              // Populate image data with text
+              definedFile["data"] = text;
+              delete definedFile["text"];
             }
           }
         }
@@ -1710,11 +1794,16 @@ export default class SparkParser {
     );
   }
 
-  populateDiagnostics(program: SparkProgram, compiler: InkCompiler) {
+  populateDiagnostics(
+    rootUri: string,
+    program: SparkProgram,
+    compiler: InkCompiler
+  ) {
     performance.mark(`populateDiagnostics start`);
     for (const error of compiler.errors) {
       program.diagnostics ??= {};
       const diagnostic = this.getDiagnostic(
+        rootUri,
         error.message,
         ErrorType.Error,
         error.source,
@@ -1735,6 +1824,7 @@ export default class SparkParser {
     for (const warning of compiler.warnings) {
       program.diagnostics ??= {};
       const diagnostic = this.getDiagnostic(
+        rootUri,
         warning.message,
         ErrorType.Warning,
         warning.source,
@@ -1755,6 +1845,7 @@ export default class SparkParser {
     for (const info of compiler.infos) {
       program.diagnostics ??= {};
       const diagnostic = this.getDiagnostic(
+        rootUri,
         info.message,
         ErrorType.Information,
         info.source,
@@ -1781,6 +1872,7 @@ export default class SparkParser {
   }
 
   getDiagnostic(
+    rootUri: string,
     message: string,
     type: ErrorType,
     metadata?: SourceMetadata | null,
@@ -1819,9 +1911,6 @@ export default class SparkParser {
         console.warn("HIDDEN", message, type, metadata);
         return null;
       }
-      // Trim away redundant filename and line number from message
-      const uri =
-        this._config?.resolveFile?.(metadata.fileName) || metadata.fileName;
       const range = {
         start: {
           line: startLine,
@@ -1832,6 +1921,17 @@ export default class SparkParser {
           character: endCharacter,
         },
       };
+      const uri = metadata.fileName
+        ? this.resolveFile(rootUri, metadata.fileName) || metadata.fileName
+        : undefined;
+      const relatedInformation = uri
+        ? [
+            {
+              location: { uri, range },
+              message,
+            },
+          ]
+        : [];
       const severity =
         type === ErrorType.Error
           ? DiagnosticSeverity.Error
@@ -1843,12 +1943,7 @@ export default class SparkParser {
         range,
         severity,
         message,
-        relatedInformation: [
-          {
-            location: { uri, range },
-            message,
-          },
-        ],
+        relatedInformation,
         source,
       };
       return diagnostic;

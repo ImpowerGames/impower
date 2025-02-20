@@ -3,7 +3,6 @@ import { SparkdownCommandFileDecorationProvider } from "../providers/SparkdownCo
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { exportCsv } from "./exportCsv";
 import { exportHtml } from "./exportHtml";
-import { exportJson } from "./exportJson";
 import { exportPdf } from "./exportPdf";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
@@ -62,11 +61,6 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.exportcsv", async () => {
       await exportCsv();
-    })
-  );
-  context.subscriptions.push(
-    vscode.commands.registerCommand("sparkdown.exportjson", async () => {
-      await exportJson();
     })
   );
   context.subscriptions.push(

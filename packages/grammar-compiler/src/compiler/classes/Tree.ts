@@ -12,7 +12,7 @@ export const DefaultBufferLength = 1024;
 
 let nextPropID = 0;
 
-class Range {
+export class Range {
   constructor(readonly from: number, readonly to: number) {}
 }
 
@@ -395,7 +395,7 @@ export enum IterMode {
 /// move around to adjacent nodes.
 export class Tree {
   /// @internal
-  props: null | { [id: number]: any } = null;
+  props?: null | { [id: number]: any } = null;
 
   /// Construct a new tree. See also [`Tree.build`](#common.Tree^build).
   constructor(
