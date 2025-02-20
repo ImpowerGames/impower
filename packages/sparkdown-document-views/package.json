@@ -10,6 +10,7 @@
     "@codemirror/lint": "^6.8.2",
     "@codemirror/search": "^6.5.7",
     "@codemirror/state": "^6.4.1",
-    "@codemirror/view": "^6.34.2"
+    "@codemirror/view": "^6.34.2",
+    "@lezer/common": "^1.2.3"
   }
 }
