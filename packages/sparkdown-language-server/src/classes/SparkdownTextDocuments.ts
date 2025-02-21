@@ -23,7 +23,10 @@ import {
   WillSaveTextDocumentParams,
   WorkspaceFolder,
 } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import {
+  TextDocument,
+  TextDocumentContentChangeEvent,
+} from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
 
 import {
@@ -47,11 +50,17 @@ import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { type SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
 
 import { TextmateGrammarParser } from "@impower/sparkdown-document-views/src/cm-textmate/classes/TextmateGrammarParser";
+import {
+  Input,
+  Tree,
+  TreeFragment,
+} from "@impower/sparkdown-document-views/src/lezer/common";
 
-import { type Tree } from "../../../grammar-compiler/src/compiler/classes/Tree";
+import { type Tree as GrammarTree } from "../../../grammar-compiler/src/compiler/classes/Tree";
 
 import { debounce } from "../utils/timing/debounce";
 import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
+import { printTree } from "@impower/sparkdown-document-views/src/cm-textmate/utils/printTree";
 
 const COMPILER_INLINE_WORKER_STRING = process.env["COMPILER_INLINE_WORKER"]!;
 
@@ -75,6 +84,32 @@ const globToRegex = (glob: string) => {
 
 interface SparkProgramChangeEvent<T> extends TextDocumentChangeEvent<T> {
   program: SparkProgram;
+}
+
+interface DocumentState {
+  tree?: Tree;
+  fragments?: readonly TreeFragment[];
+  treeVersion?: number;
+  program?: SparkProgram;
+  programVersion?: number;
+}
+
+class StringInput implements Input {
+  constructor(private readonly input: string) {}
+
+  get length() {
+    return this.input.length;
+  }
+
+  chunk(from: number): string {
+    return this.input.slice(from);
+  }
+
+  lineChunks = false;
+
+  read(from: number, to: number): string {
+    return this.input.slice(from, to);
+  }
 }
 
 export default class SparkdownTextDocuments<
@@ -145,28 +180,14 @@ export default class SparkdownTextDocuments<
     return this._compilerConfig;
   }
 
-  protected _syntaxTrees = new Map<string, Tree>();
-  get syntaxTrees() {
-    return this._syntaxTrees;
-  }
-
-  protected _programs = new Map<string, SparkProgram>();
-  get programs() {
-    return this._programs;
-  }
-
   protected _workspaceFolders?: WorkspaceFolder[];
   get workspaceFolders() {
     return this._workspaceFolders;
   }
 
-  protected _openDocuments = new Set<string>();
-
-  protected _urls: Record<string, string> = {};
-
-  protected _lastParsedUri?: string;
-
-  protected _parsedVersions = new Map<string, number>();
+  protected _parser: TextmateGrammarParser = new TextmateGrammarParser(
+    GRAMMAR_DEFINITION
+  );
 
   protected _scriptFilePattern?: RegExp;
 
@@ -176,9 +197,13 @@ export default class SparkdownTextDocuments<
 
   protected _fontFilePattern?: RegExp;
 
-  protected _parser?: TextmateGrammarParser = new TextmateGrammarParser(
-    GRAMMAR_DEFINITION
-  );
+  protected _urls: Record<string, string> = {};
+
+  protected _lastCompiledUri?: string;
+
+  protected _documentStates = new Map<string, DocumentState>();
+
+  protected _openDocuments = new Set<string>();
 
   public constructor(configuration: TextDocumentsConfiguration<T>) {
     super(configuration);
@@ -358,23 +383,30 @@ export default class SparkdownTextDocuments<
     return uri.split("/").slice(-1).join("").split(".")[1]!;
   }
 
+  getDocumentState(uri: string): DocumentState {
+    const state = this._documentStates.get(uri);
+    if (state) {
+      return state;
+    }
+    const newState = {};
+    this._documentStates.set(uri, newState);
+    return newState;
+  }
+
   debouncedCompile = debounce((uri: string, force: boolean) => {
     this.compile(uri, force);
   }, PARSE_DELAY);
 
   async compile(uri: string, force = false) {
     let docChanged = false;
-    for (let [, d] of this.__syncedDocuments) {
-      const parsedVersion = this._parsedVersions.get(d.uri);
-      if (d.version !== parsedVersion) {
-        docChanged = true;
-      }
-      this._parsedVersions.set(d.uri, d.version);
-    }
-    for (let [uri] of this.__syncedDocuments) {
-      if (!this.__syncedDocuments.get(uri)) {
-        docChanged = true;
-        break;
+    for (let [documentUri] of this._documentStates) {
+      const state = this.getDocumentState(documentUri);
+      const document = this.__syncedDocuments.get(documentUri);
+      if (document) {
+        if (document.version !== state.programVersion) {
+          docChanged = true;
+        }
+        state.programVersion = document.version;
       }
     }
     let program: SparkProgram | undefined = undefined;
@@ -386,11 +418,11 @@ export default class SparkdownTextDocuments<
           this.getMainScriptUri(directoryUri)
         );
         if (mainDocument) {
-          program = await this.parseDocument(mainDocument);
-          this._programs.set(mainDocument.uri, program);
+          program = await this.compileDocument(mainDocument);
+          this.getDocumentState(mainDocument.uri).program = program;
           if (program.sourceMap) {
             for (const uri of Object.keys(program.sourceMap)) {
-              this._programs.set(uri, program);
+              this.getDocumentState(uri).program = program;
             }
           }
         }
@@ -401,8 +433,8 @@ export default class SparkdownTextDocuments<
           // Target script is not included by main,
           // So it must be parsed on its own to report diagnostics
           if (targetDocument) {
-            program = await this.parseDocument(targetDocument);
-            this._programs.set(targetDocument.uri, program);
+            program = await this.compileDocument(targetDocument);
+            this.getDocumentState(targetDocument.uri).program = program;
           }
         }
         if (targetDocument && program) {
@@ -424,19 +456,72 @@ export default class SparkdownTextDocuments<
     return program;
   }
 
-  async parseDocument(document: TextDocument): Promise<SparkProgram> {
-    this._lastParsedUri = document.uri;
+  async compileDocument(document: TextDocument): Promise<SparkProgram> {
+    this._lastCompiledUri = document.uri;
     return this.sendRequest(CompileProgramMessage.type, {
       uri: document.uri,
     });
   }
 
-  getLatestSyntaxTree(uri: string) {
-    return this._syntaxTrees.get(uri);
+  updateSyntaxTree(
+    document: TextDocument,
+    changes?: readonly TextDocumentContentChangeEvent[]
+  ): Tree {
+    const state = this.getDocumentState(document.uri);
+    if (state.tree && state.treeVersion === document.version) {
+      // Return cached tree if up to date
+      return state.tree;
+    }
+    const input = new StringInput(document.getText());
+    if (changes && state.fragments) {
+      // Incremental parse
+      const treeChanges = changes.map((change) =>
+        "range" in change
+          ? {
+              fromA: document.offsetAt(change.range.start),
+              toA: document.offsetAt(change.range.end),
+              fromB: document.offsetAt(change.range.start),
+              toB: document.offsetAt(change.range.start) + change.text.length,
+            }
+          : {
+              fromA: 0,
+              toA: change.text.length,
+              fromB: 0,
+              toB: change.text.length,
+            }
+      );
+      state.fragments = TreeFragment.applyChanges(state.fragments, treeChanges);
+      state.tree = this._parser.parse(input, state.fragments);
+      state.fragments = TreeFragment.addTree(state.tree, state.fragments);
+      state.treeVersion = document.version;
+      return state.tree;
+    } else {
+      // First full parse
+      state.tree = this._parser.parse(input);
+      state.fragments = TreeFragment.addTree(state.tree);
+      state.treeVersion = document.version;
+      return state.tree;
+    }
+  }
+
+  async updateCompilerDocument(document: TextDocument) {
+    const file = await this.loadFile(
+      document.uri,
+      this._urls[document.uri]!,
+      document.getText()
+    );
+    return this.sendRequest(UpdateCompilerFileMessage.type, {
+      uri: document.uri,
+      file,
+    });
   }
 
   getLatestProgram(uri: string) {
-    return this._programs.get(uri);
+    return this.getDocumentState(uri).program;
+  }
+
+  getLatestSyntaxTree(uri: string) {
+    return this.getDocumentState(uri).tree as unknown as GrammarTree;
   }
 
   async onCreatedFile(fileUri: string) {
@@ -467,7 +552,7 @@ export default class SparkdownTextDocuments<
         (params: DocumentDiagnosticParams): DocumentDiagnosticReport => {
           const uri = params.textDocument.uri;
           const document = this.get(uri);
-          const program = this.programs.get(uri);
+          const program = this.getDocumentState(uri).program;
           if (document && program) {
             return {
               kind: "full",
@@ -490,8 +575,8 @@ export default class SparkdownTextDocuments<
           await this.sendRequest(UpdateCompilerFileMessage.type, { uri, file });
           if (file.type !== "script") {
             // When asset url changes, reparse program so that asset srcs are up-to-date.
-            if (this._lastParsedUri) {
-              await this.debouncedCompile(this._lastParsedUri, true);
+            if (this._lastCompiledUri) {
+              await this.debouncedCompile(this._lastCompiledUri, true);
             }
           }
         }
@@ -512,8 +597,8 @@ export default class SparkdownTextDocuments<
             files,
           });
           // Reparse program so that asset srcs are up-to-date.
-          if (this._lastParsedUri) {
-            await this.debouncedCompile(this._lastParsedUri, true);
+          if (this._lastCompiledUri) {
+            await this.debouncedCompile(this._lastCompiledUri, true);
           }
         }
       )
@@ -532,6 +617,7 @@ export default class SparkdownTextDocuments<
           this.__syncedDocuments.set(td.uri, document);
           const toFire = Object.freeze({ document });
           this.__onDidOpen.fire(toFire);
+          this.updateSyntaxTree(document);
           const program = await this.compile(td.uri, false);
           if (program) {
             this._onUpdateDiagnostics.fire(
@@ -570,16 +656,8 @@ export default class SparkdownTextDocuments<
               this.__onDidChangeContent.fire(
                 Object.freeze({ document: syncedDocument })
               );
-              // TODO: update syntax tree on text document change
-              const file = await this.loadFile(
-                td.uri,
-                this._urls[td.uri]!,
-                syncedDocument.getText()
-              );
-              await this.sendRequest(UpdateCompilerFileMessage.type, {
-                uri: td.uri,
-                file,
-              });
+              this.updateSyntaxTree(syncedDocument, changes);
+              this.updateCompilerDocument(syncedDocument);
               await this.debouncedCompile(td.uri, false);
             }
           }
@@ -596,9 +674,9 @@ export default class SparkdownTextDocuments<
             this._openDocuments.delete(syncedDocument.uri);
           }
           if (this._openDocuments.size <= 1) {
-            const [openUri] = this._openDocuments;
+            const [firstUri] = this._openDocuments;
             const uri =
-              openUri ||
+              firstUri ||
               this.getMainScriptUri(this._workspaceFolders?.[0]?.uri);
             const document = this.__syncedDocuments.get(uri);
             if (document) {

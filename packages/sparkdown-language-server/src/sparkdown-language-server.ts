@@ -164,12 +164,12 @@ try {
   connection.onCompletion((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.getLatestProgram(uri);
     const tree = documents.getLatestSyntaxTree(uri);
+    const program = documents.getLatestProgram(uri);
     const result = getCompletions(
       document,
-      program,
       tree,
+      program,
       documents.compilerConfig,
       params.position,
       params.context
