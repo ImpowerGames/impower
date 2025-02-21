@@ -234,8 +234,13 @@ export default class SparkScreenplayPreview extends Component(spec) {
           const view = this._view;
           if (view) {
             this._scrollTarget = undefined;
-            const changes = getClientChanges(view.state.doc, contentChanges);
-            view.dispatch({ changes });
+            const changes = getClientChanges(view.state, contentChanges);
+            for (const change of changes) {
+              // Instead of simply passing in the changes array, each change must be applied individually.
+              // This is because getClientChanges returns positions relative to the previous change, not the start document,
+              // (And for some reason, setting TransactionSpec.sequential to true, will not correctly apply the changes).
+              view.dispatch({ changes: [change] });
+            }
           }
         }
       }

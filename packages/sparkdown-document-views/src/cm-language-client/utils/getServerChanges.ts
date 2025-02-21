@@ -4,34 +4,21 @@ import { offsetToPosition } from "./offsetToPosition";
 
 export const getServerChanges = (
   beforeDoc: Text,
-  afterDoc: Text,
   changes: ChangeSet
 ): TextDocumentContentChangeEvent[] => {
-  let minFromA = Number.MAX_SAFE_INTEGER;
-  let maxToA = 0;
-  let minFromB = Number.MAX_SAFE_INTEGER;
-  let maxToB = 0;
-  changes.iterChanges((fromA, toA, fromB, toB) => {
-    if (fromA < minFromA) {
-      minFromA = fromA;
-    }
-    if (toA > maxToA) {
-      maxToA = toA;
-    }
-    if (fromB < minFromB) {
-      minFromB = fromB;
-    }
-    if (toB > maxToB) {
-      maxToB = toB;
-    }
-  });
-  return [
-    {
+  const result: TextDocumentContentChangeEvent[] = [];
+  let changeDoc = beforeDoc;
+  changes.iterChanges((fromA, toA, fromB, _toB, inserted) => {
+    const from = fromB;
+    const to = fromB + (toA - fromA);
+    result.push({
       range: {
-        start: offsetToPosition(beforeDoc, minFromA),
-        end: offsetToPosition(beforeDoc, maxToA),
+        start: offsetToPosition(changeDoc, from),
+        end: offsetToPosition(changeDoc, to),
       },
-      text: afterDoc.sliceString(minFromB, maxToB),
-    },
-  ];
+      text: inserted.toString(),
+    });
+    changeDoc = changeDoc.replace(from, to, inserted);
+  });
+  return result;
 };

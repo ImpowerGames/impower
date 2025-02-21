@@ -503,7 +503,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
               const after = tr.newDoc.toString();
               const contentChanges = getServerChanges(
                 tr.startState.doc,
-                tr.state.doc,
                 tr.changes
               );
               SparkdownScriptEditor.languageServerConnection.sendNotification(
