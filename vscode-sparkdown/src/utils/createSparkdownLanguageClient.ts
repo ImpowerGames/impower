@@ -14,13 +14,13 @@ export const createSparkdownLanguageClient = async (
   );
   const serverMainUrl = serverMain.toString(true);
   const worker = new Worker(serverMainUrl);
+  worker.onerror = (e) => {
+    console.error(e);
+  };
   return new LanguageClient(
     "sparkdown-language-server",
     "Sparkdown Language Server",
-    {
-      documentSelector: [{ language: "sparkdown" }],
-      ...clientOptions,
-    },
+    clientOptions,
     worker
   );
 };

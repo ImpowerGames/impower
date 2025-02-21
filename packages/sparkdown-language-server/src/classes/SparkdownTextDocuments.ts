@@ -12,6 +12,7 @@ import {
   DocumentDiagnosticReport,
   DocumentDiagnosticRequest,
   Emitter,
+  ExecuteCommandRequest,
   FileChangeType,
   Range,
   RequestHandler,
@@ -34,10 +35,6 @@ import {
   DidChangeFileUrlMessage,
   DidChangeFileUrlParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage";
-import {
-  DidWatchFilesMessage,
-  DidWatchFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage";
 import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
 import { CompileProgramMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/CompileProgramMessage";
 import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/AddCompilerFileMessage";
@@ -116,7 +113,7 @@ class StringInput implements Input {
 export default class SparkdownTextDocuments<
   T extends TextDocument = TextDocument
 > extends TextDocuments<T> {
-  protected _compilerWorker = new Worker(COMPILER_WORKER_URL);
+  protected _compilerWorker: Worker;
 
   protected get __configuration() {
     // @ts-ignore private access
@@ -176,6 +173,8 @@ export default class SparkdownTextDocuments<
     return this._onUpdateDiagnostics.event;
   }
 
+  protected _connection?: Connection;
+
   protected _compilerConfig?: SparkdownCompilerConfig;
   get compilerConfig() {
     return this._compilerConfig;
@@ -208,6 +207,10 @@ export default class SparkdownTextDocuments<
 
   public constructor(configuration: TextDocumentsConfiguration<T>) {
     super(configuration);
+    this._compilerWorker = new Worker(COMPILER_WORKER_URL);
+    this._compilerWorker.onerror = (e) => {
+      console.error(e);
+    };
     this._onDidParse = new Emitter<SparkProgramChangeEvent<T>>();
     this._onUpdateDiagnostics = new Emitter<SparkProgramChangeEvent<T>>();
   }
@@ -264,12 +267,7 @@ export default class SparkdownTextDocuments<
 
   async loadCompiler(config: SparkdownCompilerConfig) {
     if (config.files) {
-      const files = await this.loadFiles(
-        Object.entries(config.files).map(([, file]) => ({
-          uri: file.uri,
-          src: file.src,
-        }))
-      );
+      const files = await this.loadFiles(Object.values(config.files));
       Object.values(files).forEach((file) => {
         const text = file.text;
         if (file.type === "script" && text) {
@@ -293,7 +291,7 @@ export default class SparkdownTextDocuments<
 
   async loadFiles(files: { uri: string; src: string; text?: string }[]) {
     const filesArray = await Promise.all(
-      files.map((file) => this.loadFile(file.uri, file.src, file.text))
+      files.map((file) => this.loadFile(file))
     );
     return filesArray.reduce(
       (map, file) => {
@@ -315,34 +313,50 @@ export default class SparkdownTextDocuments<
     );
   }
 
-  async loadFile(uri: string, src: string, text?: string) {
-    const name = this.getFileName(uri);
-    const type = this.getFileType(uri);
-    const ext = this.getFileExtension(uri);
-    const path = this.getFilenameWithExtension(uri);
+  async loadFile(file: { uri: string; src: string; text?: string }) {
+    const name = this.getFileName(file.uri);
+    const type = this.getFileType(file.uri);
+    const ext = this.getFileExtension(file.uri);
+    const path = this.getFilenameWithExtension(file.uri);
     const loadedText =
-      text != null
-        ? text
-        : src && (type === "script" || type === "text" || ext === "svg")
-        ? await this.load(src)
+      file.text != null
+        ? file.text
+        : type === "script" || type === "text" || ext === "svg"
+        ? await this.loadText(file)
         : undefined;
-    const file = {
-      uri,
+
+    return {
+      uri: file.uri,
       name,
       type,
       ext,
       path,
-      src: src || uri,
+      src: file.src || file.uri,
       text: loadedText,
     };
-    return file;
   }
 
-  async load(src: string) {
-    try {
-      return await (await fetch(src)).text();
-    } catch {}
-    return undefined;
+  async loadText(file: { uri: string; src: string; text?: string }) {
+    if (file.text != null) {
+      return file.text;
+    }
+    if (file.src) {
+      try {
+        const text = await (await fetch(file.src)).text();
+        return text;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    console.warn("LOADING TEXT CONTENT FROM DISK: ", file.uri);
+    const result = await this._connection?.sendRequest(
+      ExecuteCommandRequest.type,
+      {
+        command: "sparkdown.readTextDocument",
+        arguments: [file.uri],
+      }
+    );
+    return result?.text;
   }
 
   getMainScriptUri(directoryUri: string | undefined) {
@@ -547,11 +561,11 @@ export default class SparkdownTextDocuments<
   }
 
   async updateCompilerDocument(document: TextDocument) {
-    const file = await this.loadFile(
-      document.uri,
-      this._urls[document.uri]!,
-      document.getText()
-    );
+    const file = await this.loadFile({
+      uri: document.uri,
+      src: this._urls[document.uri]!,
+      text: document.getText(),
+    });
     return this.sendRequest(UpdateCompilerFileMessage.type, {
       uri: document.uri,
       file,
@@ -567,8 +581,19 @@ export default class SparkdownTextDocuments<
   }
 
   async onCreatedFile(fileUri: string) {
-    const file = await this.loadFile(fileUri, this._urls[fileUri] || "");
+    const file = await this.loadFile({
+      uri: fileUri,
+      src: this._urls[fileUri] || "",
+    });
     this.sendRequest(AddCompilerFileMessage.type, { uri: fileUri, file });
+  }
+
+  async onChangedFile(fileUri: string) {
+    const file = await this.loadFile({
+      uri: fileUri,
+      src: this._urls[fileUri] || "",
+    });
+    this.sendRequest(UpdateCompilerFileMessage.type, { uri: fileUri, file });
   }
 
   onDeletedFile(fileUri: string) {
@@ -577,6 +602,7 @@ export default class SparkdownTextDocuments<
   }
 
   public override listen(connection: Connection): Disposable {
+    this._connection = connection;
     (<ConnectionState>(<any>connection)).__textDocumentSync =
       TextDocumentSyncKind.Incremental;
     const disposables: Disposable[] = [];
@@ -613,34 +639,13 @@ export default class SparkdownTextDocuments<
           const uri = params.uri;
           const src = params.src;
           this._urls[uri] = src;
-          const file = await this.loadFile(uri, src);
+          const file = await this.loadFile({ uri, src });
           await this.sendRequest(UpdateCompilerFileMessage.type, { uri, file });
           if (file.type !== "script") {
             // When asset url changes, reparse program so that asset srcs are up-to-date.
             if (this._lastCompiledUri) {
               await this.debouncedCompile(this._lastCompiledUri, true);
             }
-          }
-        }
-      )
-    );
-    disposables.push(
-      connection.onNotification(
-        DidWatchFilesMessage.method,
-        async (params: DidWatchFilesParams) => {
-          const files = await this.loadFiles(
-            params.files.map((watch) => ({
-              uri: watch.uri,
-              src: this._urls[watch.uri]!,
-              text: watch.text,
-            }))
-          );
-          await this.sendRequest(ConfigureCompilerMessage.type, {
-            files,
-          });
-          // Reparse program so that asset srcs are up-to-date.
-          if (this._lastCompiledUri) {
-            await this.debouncedCompile(this._lastCompiledUri, true);
           }
         }
       )
@@ -659,21 +664,24 @@ export default class SparkdownTextDocuments<
           this.__syncedDocuments.set(td.uri, document);
           const toFire = Object.freeze({ document });
           this.__onDidOpen.fire(toFire);
-          const beforeDocument = TextDocument.create(
-            td.uri,
-            td.languageId,
-            -1,
-            ""
-          );
-          this.updateSyntaxTree(beforeDocument, document);
-          const program = await this.compile(td.uri, false);
-          if (program) {
-            this._onUpdateDiagnostics.fire(
-              Object.freeze({
-                document: document,
-                program,
-              })
+          const type = this.getFileType(td.uri);
+          if (type === "script") {
+            const beforeDocument = TextDocument.create(
+              td.uri,
+              td.languageId,
+              -1,
+              ""
             );
+            this.updateSyntaxTree(beforeDocument, document);
+            const program = await this.compile(td.uri, false);
+            if (program) {
+              this._onUpdateDiagnostics.fire(
+                Object.freeze({
+                  document: document,
+                  program,
+                })
+              );
+            }
           }
         }
       )
@@ -710,9 +718,22 @@ export default class SparkdownTextDocuments<
               this.__onDidChangeContent.fire(
                 Object.freeze({ document: syncedDocument })
               );
-              this.updateSyntaxTree(beforeDocument, syncedDocument, changes);
-              this.updateCompilerDocument(syncedDocument);
-              await this.debouncedCompile(td.uri, false);
+              const type = this.getFileType(td.uri);
+              if (type === "script") {
+                this.updateSyntaxTree(beforeDocument, syncedDocument, changes);
+                this.updateCompilerDocument(syncedDocument);
+                await this.debouncedCompile(td.uri, false);
+              } else {
+                const file = await this.loadFile({
+                  uri: syncedDocument.uri,
+                  src: this._urls[syncedDocument.uri] || "",
+                  text: syncedDocument.getText(),
+                });
+                this.sendRequest(UpdateCompilerFileMessage.type, {
+                  uri: syncedDocument.uri,
+                  file,
+                });
+              }
             }
           }
         }
@@ -727,8 +748,11 @@ export default class SparkdownTextDocuments<
             this.__onDidClose.fire(Object.freeze({ document: syncedDocument }));
             this._openDocuments.delete(syncedDocument.uri);
           }
-          if (this._openDocuments.size <= 1) {
-            const [firstUri] = this._openDocuments;
+          const openScripts = Array.from(this._openDocuments).filter(
+            (uri) => this.getFileType(uri) === "script"
+          );
+          if (openScripts.length <= 1) {
+            const [firstUri] = openScripts;
             const uri =
               firstUri ||
               this.getMainScriptUri(this._workspaceFolders?.[0]?.uri);
@@ -790,11 +814,15 @@ export default class SparkdownTextDocuments<
           changes.forEach((change) => {
             switch (change.type) {
               case FileChangeType.Created:
+                console.log("CREATED FILE: ", change.uri);
                 this.onCreatedFile(change.uri);
                 break;
               case FileChangeType.Changed:
+                console.log("CHANGED FILE: ", change.uri);
+                this.onChangedFile(change.uri);
                 break;
               case FileChangeType.Deleted:
+                console.log("DELETED FILE: ", change.uri);
                 this.onDeletedFile(change.uri);
                 break;
             }

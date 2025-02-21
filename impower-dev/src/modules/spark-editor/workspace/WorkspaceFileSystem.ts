@@ -1,35 +1,35 @@
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
-import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage.js";
-import { DidChangeFileUrlMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage.js";
-import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
-import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage.js";
-import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage.js";
-import { DidWatchFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
-import { DidWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage.js";
+import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
+import { DidChangeFileUrlMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage";
+import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
+import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage";
+import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
+import { DidWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage";
 import {
   ReadDirectoryFilesMessage,
   ReadDirectoryFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/ReadDirectoryFilesMessage.js";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ReadDirectoryFilesMessage";
 import {
   ReadFileMessage,
   ReadFileParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
-import { UnzipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/UnzipFilesMessage.js";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage";
+import { UnzipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/UnzipFilesMessage";
 import {
   WillCreateFilesMessage,
   WillCreateFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage.js";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage";
 import {
   WillDeleteFilesMessage,
   WillDeleteFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage.js";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage";
 import {
   WillRenameFilesMessage,
   WillRenameFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/WillRenameFilesMessage.js";
-import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage.js";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/WillRenameFilesMessage";
+import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage";
 import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
+import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import {
   FileData,
   ProjectMetadataField,
@@ -57,7 +57,7 @@ const cmp = (a: any, b: any) => {
 };
 
 export default class WorkspaceFileSystem {
-  protected _fileSystemWorker = new Worker("/opfs-workspace.js");
+  protected _worker: Worker;
 
   protected _initialFilesRef = new SingletonPromise(
     this.loadInitialFiles.bind(this)
@@ -77,11 +77,12 @@ export default class WorkspaceFileSystem {
   constructor() {
     const projectId = this.getLoadedProjectId();
     this._loadedProjectId = projectId;
+    this._worker = new Worker("/opfs-workspace.js");
+    this._worker.onerror = (e) => {
+      console.error(e);
+    };
+    this._worker.addEventListener("message", this.handleWorkerMessage);
     this._initialFilesRef.get(projectId);
-    this._fileSystemWorker.addEventListener(
-      "message",
-      this.handleWorkerMessage
-    );
   }
 
   getLoadedProjectId() {
@@ -93,9 +94,6 @@ export default class WorkspaceFileSystem {
     const files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
     });
-    const didWatchFilesParams = {
-      files,
-    };
     this._files ??= {};
     const result: Record<string, FileData> = {};
     files.forEach((file) => {
@@ -104,9 +102,22 @@ export default class WorkspaceFileSystem {
       result[file.uri] = file;
       this.preloadFile(file);
     });
+    Workspace.ls.connection.onRequest(
+      ExecuteCommandMessage.type,
+      async (params) => {
+        if (params.command === "sparkdown.readTextDocument") {
+          const [uri] = params.arguments || [];
+          if (uri && typeof uri === "string") {
+            const buffer = await this.readFile({ file: { uri } });
+            const text = new TextDecoder("utf-8").decode(buffer);
+            const result = { uri, text };
+            return result;
+          }
+        }
+        return undefined;
+      }
+    );
     await Workspace.ls.start(this.getDirectoryUri(projectId), this._files);
-    const connection = await Workspace.ls.getConnection();
-    connection.sendNotification(DidWatchFilesMessage.type, didWatchFilesParams);
     return result;
   }
 
@@ -136,7 +147,7 @@ export default class WorkspaceFileSystem {
         }
         return {};
       });
-      this._fileSystemWorker.postMessage(
+      this._worker.postMessage(
         ConfigurationMessage.type.response(message.id, result)
       );
     } else if (DidWriteFilesMessage.type.isNotification(message)) {
@@ -147,15 +158,13 @@ export default class WorkspaceFileSystem {
       });
       this.emit(message.method, message);
     } else if (DidCreateFilesMessage.type.isNotification(message)) {
-      const connection = await Workspace.ls.getConnection();
-      connection.sendNotification(message.method, message.params);
+      Workspace.ls.connection.sendNotification(message.method, message.params);
       this.emit(message.method, message);
     } else if (DidDeleteFilesMessage.type.isNotification(message)) {
       message.params.files.forEach((file) => {
         delete this._files?.[file.uri];
       });
-      const connection = await Workspace.ls.getConnection();
-      connection.sendNotification(message.method, message.params);
+      Workspace.ls.connection.sendNotification(message.method, message.params);
       this.emit(message.method, message);
     } else if (DidRenameFilesMessage.type.isNotification(message)) {
       message.params.files.forEach((file) => {
@@ -169,16 +178,13 @@ export default class WorkspaceFileSystem {
           delete this._preloaded[file.oldUri];
         }
       });
-      const connection = await Workspace.ls.getConnection();
-      connection.sendNotification(message.method, message.params);
+      Workspace.ls.connection.sendNotification(message.method, message.params);
       this.emit(message.method, message);
     } else if (DidChangeFileUrlMessage.type.isNotification(message)) {
-      const connection = await Workspace.ls.getConnection();
-      connection.sendNotification(message.method, message.params);
+      Workspace.ls.connection.sendNotification(message.method, message.params);
       this.emit(message.method, message);
     } else if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
-      const connection = await Workspace.ls.getConnection();
-      connection.sendNotification(message.method, message.params);
+      Workspace.ls.connection.sendNotification(message.method, message.params);
       this.emit(message.method, message);
     } else if (message.error) {
       const handler = this._messageQueue[message.id];
@@ -205,7 +211,7 @@ export default class WorkspaceFileSystem {
     return new Promise((resolve, reject) => {
       const request = type.request(params);
       this._messageQueue[request.id] = { resolve, reject };
-      this._fileSystemWorker.postMessage(request, transfer);
+      this._worker.postMessage(request, transfer);
     });
   }
 
@@ -331,10 +337,17 @@ export default class WorkspaceFileSystem {
   async writeProjectScriptBundle(projectId: string, content: string) {
     const existingFiles = await this.getFiles(projectId);
     const remoteFiles = this.splitProjectTextContent(projectId, content);
-    const textFilesToWrite = Object.entries(remoteFiles).map(([uri, text]) => ({
-      uri,
-      data: getTextBuffer(text).buffer,
-    }));
+    const textFilesToWrite = Object.entries(remoteFiles).map(([uri, text]) => {
+      const array = getTextBuffer(text);
+      const arrayBuffer = array.buffer.slice(
+        array.byteOffset,
+        array.byteLength + array.byteOffset
+      ) as ArrayBuffer;
+      return {
+        uri,
+        data: arrayBuffer,
+      };
+    });
     const textFilesToDelete = Object.entries(existingFiles)
       .filter(
         ([uri, fileData]) =>

@@ -2,14 +2,14 @@ import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/p
 import {
   ExportPDFMessage,
   ExportPDFParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/ExportPDFMessage.js";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ExportPDFMessage";
 import { ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
 import { ScreenplayConfig } from "../../../../../packages/sparkdown-screenplay/src/types/ScreenplayConfig";
 import { generateScreenplayHtmlData } from "../../../../../packages/sparkdown-screenplay/src/utils/generateScreenplayHtmlData";
 import ScreenplayParser from "../../../../../packages/sparkdown-screenplay/src/classes/ScreenplayParser";
 
 export default class WorkspacePrint {
-  protected _screenplayPdfWorker = new Worker("/sparkdown-screenplay-pdf.js");
+  protected _worker: Worker;
 
   protected _messageQueue: Record<
     string,
@@ -20,7 +20,7 @@ export default class WorkspacePrint {
 
   protected _config: ScreenplayConfig = {
     screenplay_print_title_page: true,
-    screenplay_print_bookmarks_for_invisible_sections: true,
+    screenplay_print_bookmarks_for_invisible_headings: true,
     screenplay_print_dialogue_split_across_pages: true,
     screenplay_print_page_numbers: true,
     screenplay_print_scene_headers_bold: true,
@@ -31,10 +31,11 @@ export default class WorkspacePrint {
   }
 
   constructor() {
-    this._screenplayPdfWorker.addEventListener(
-      "message",
-      this.handleWorkerMessage
-    );
+    this._worker = new Worker("/sparkdown-screenplay-pdf.js");
+    this._worker.onerror = (e) => {
+      console.error(e);
+    };
+    this._worker.addEventListener("message", this.handleWorkerMessage);
   }
 
   protected async getFonts() {
@@ -97,7 +98,7 @@ export default class WorkspacePrint {
       const request = type.request(params);
       this._messageQueue[request.id] = { resolve, reject };
       if (type.method === "workspace/exportPDF") {
-        this._screenplayPdfWorker.postMessage(request, transfer);
+        this._worker.postMessage(request, transfer);
       }
     });
   }

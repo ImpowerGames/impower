@@ -8,7 +8,6 @@ import icons from "../modules/spark-editor/styles/icons/icons.css";
 import { Workspace } from "../modules/spark-editor/workspace/Workspace";
 
 const load = async () => {
-  const languageServerConnection = await Workspace.ls.getConnection();
   const graphics: Record<string, string> = {};
   const svgs = extractAllSVGs("--s-icon-", icons);
   Object.entries(svgs).forEach(([name, svg]) => {
@@ -18,7 +17,7 @@ const load = async () => {
     Sparkle.init({ graphics }),
     SparkWebPlayer.init({ graphics }),
     SparkdownScriptEditor.init({
-      languageServerConnection,
+      languageServerConnection: Workspace.ls.connection,
       fileSystemReader: {
         scheme: Workspace.fs.scheme,
         url: async (uri: string) => Workspace.fs.getUrl(uri),

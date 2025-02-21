@@ -123,7 +123,7 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
 };
 
 export default class WorkspaceLanguageServer {
-  protected _worker = new Worker("/sparkdown-language-server.js");
+  protected _worker: Worker;
 
   protected _name = "Sparkdown Language Server";
   get name() {
@@ -136,6 +136,9 @@ export default class WorkspaceLanguageServer {
   }
 
   protected _connection: MessageConnection;
+  get connection() {
+    return this._connection;
+  }
 
   protected _serverCapabilities?: ServerCapabilities;
 
@@ -146,6 +149,10 @@ export default class WorkspaceLanguageServer {
   protected _onInitialized: ((result: InitializeResult) => void)[] = [];
 
   constructor() {
+    this._worker = new Worker("/sparkdown-language-server.js");
+    this._worker.onerror = (e) => {
+      console.error(e);
+    };
     this._connection = createBrowserMessageConnection(
       this._worker,
       new ConsoleLogger()
@@ -230,14 +237,6 @@ export default class WorkspaceLanguageServer {
       });
     }
     return this._initializeResult;
-  }
-
-  async getConnection(): Promise<MessageConnection> {
-    await this.initialization();
-    if (!this._connection) {
-      throw new Error("Language server not initialized.");
-    }
-    return this._connection;
   }
 
   async getServerCapabilities(): Promise<ServerCapabilities> {

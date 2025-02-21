@@ -48,6 +48,9 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
       "sparkdown-screenplay-pdf.js"
     ).toString(true)
   );
+  pdfWorker.onerror = (e) => {
+    console.error(e);
+  };
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.exportpdf", async () => {
       await exportPdf(context, pdfWorker);

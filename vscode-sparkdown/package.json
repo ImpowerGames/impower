@@ -533,6 +533,7 @@
   },
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../packages/spark-editor-protocol",
+    "@impower/spark-engine": "file:../packages/spark-engine",
     "@impower/sparkdown": "file:../packages/sparkdown",
     "@impower/sparkdown-language-server": "file:../packages/sparkdown-language-server",
     "@impower/sparkdown-screenplay": "file:../packages/sparkdown-screenplay",

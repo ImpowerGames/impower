@@ -1,4 +1,4 @@
-import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
+import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import globToRegex from "../../utils/globToRegex";
 import { Workspace } from "../../workspace/Workspace";

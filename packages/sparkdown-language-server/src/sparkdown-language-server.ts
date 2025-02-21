@@ -7,7 +7,6 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
-  ConfigurationRequest,
   TextDocumentSyncKind,
   createConnection,
 } from "vscode-languageserver/browser";
@@ -84,15 +83,13 @@ try {
     const descriptionDefinitions =
       params?.initializationOptions?.["descriptionDefinitions"];
     const files = params?.initializationOptions?.["files"];
-    if (files) {
-      await documents.loadCompiler({
-        builtinDefinitions,
-        optionalDefinitions,
-        schemaDefinitions,
-        descriptionDefinitions,
-        files,
-      });
-    }
+    await documents.loadCompiler({
+      builtinDefinitions,
+      optionalDefinitions,
+      schemaDefinitions,
+      descriptionDefinitions,
+      files,
+    });
     const program = await documents.compile(
       documents.getMainScriptUri(workspaceFolders?.[0]?.uri),
       true
@@ -101,9 +98,7 @@ try {
   });
 
   connection.onInitialized(async () => {
-    const settings = await connection.sendRequest(ConfigurationRequest.type, {
-      items: [{ section: "sparkdown" }],
-    });
+    const settings = await connection.workspace.getConfiguration("sparkdown");
     documents.loadConfiguration(settings[0]);
   });
 

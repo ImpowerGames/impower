@@ -961,7 +961,7 @@ export const getCompletions = (
 
   // console.log(printTree(tree, document.getText()));
   // console.log("program", program);
-  // console.log(stack.map((n) => n.type.name));
+  console.log(stack.map((n) => n.type.name));
 
   // Transition
   if (stack[0]?.type.name === "TransitionMark") {
