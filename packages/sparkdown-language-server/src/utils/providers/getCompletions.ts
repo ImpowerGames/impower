@@ -123,7 +123,7 @@ const addTransitionCompletions = (
       const kind = CompletionItemKind.Constant;
       const completion: CompletionItem = {
         label: name,
-        insertText: insertTextPrefix + name,
+        insertText: insertTextPrefix + name + "\n",
         labelDetails,
         kind,
       };
@@ -158,7 +158,7 @@ const addSceneCompletions = (
       const kind = CompletionItemKind.Constant;
       const completion: CompletionItem = {
         label: name,
-        insertText: insertTextPrefix + name,
+        insertText: insertTextPrefix + name + "\n",
         labelDetails,
         kind,
       };
@@ -193,7 +193,7 @@ const addCharacterCompletions = (
       const kind = CompletionItemKind.Constant;
       const completion: CompletionItem = {
         label: name,
-        insertText: insertTextPrefix + name,
+        insertText: insertTextPrefix + name + "\n",
         labelDetails,
         kind,
       };
@@ -890,8 +890,8 @@ const addDivertPathCompletions = (
 
 export const getCompletions = (
   document: TextDocument | undefined,
-  program: SparkProgram | undefined,
   tree: Tree | undefined,
+  program: SparkProgram | undefined,
   definitions:
     | {
         builtinDefinitions?: { [type: string]: { [name: string]: any } };
@@ -947,6 +947,13 @@ export const getCompletions = (
     return !nodeTextAfterCursor.trim();
   };
 
+  const buildCompletions = () => {
+    return Array.from(completions.values()).map((c, index) => ({
+      ...c,
+      sortText: c.sortText ?? String(index).padStart(10, "0"),
+    }));
+  };
+
   const side = -1;
   const prevCursor = tree.cursorAt(stack[0].from - 1, side);
   const prevNode = prevCursor.node as SparkdownSyntaxNode;
@@ -967,7 +974,7 @@ export const getCompletions = (
         " "
       );
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
   if (
     stack[0]?.type.name === "TransitionMarkSeparator" ||
@@ -981,7 +988,7 @@ export const getCompletions = (
         position.line
       );
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
 
   // Scene
@@ -995,7 +1002,7 @@ export const getCompletions = (
         " "
       );
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
   if (
     stack[0]?.type.name === "SceneMarkSeparator" ||
@@ -1004,7 +1011,7 @@ export const getCompletions = (
     if (isCursorAfterNodeText(stack[0])) {
       addSceneCompletions(completions, program, document.uri, position.line);
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
 
   // Dialogue
@@ -1018,7 +1025,7 @@ export const getCompletions = (
         " "
       );
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
   if (
     stack[0]?.type.name === "DialogueMarkSeparator" ||
@@ -1032,7 +1039,7 @@ export const getCompletions = (
         position.line
       );
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
 
   // Write
@@ -1040,7 +1047,7 @@ export const getCompletions = (
     if (isCursorAfterNodeText(stack[0])) {
       addUIElementReferenceCompletions(completions, program, ["text"], " ");
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
   if (
     stack[0]?.type.name === "WriteMarkSeparator" ||
@@ -1049,7 +1056,7 @@ export const getCompletions = (
     if (isCursorAfterNodeText(stack[0])) {
       addUIElementReferenceCompletions(completions, program, ["text"]);
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
 
   // ImageCommand
@@ -1069,13 +1076,13 @@ export const getCompletions = (
           isPrefilteredName
         );
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (stack[0]?.type.name === "AssetCommandControl") {
       if (isCursorAfterNodeText(stack[0])) {
         addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (
       stack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
@@ -1084,7 +1091,7 @@ export const getCompletions = (
       if (isCursorAfterNodeText(stack[0])) {
         addUIElementReferenceCompletions(completions, program, ["image"]);
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
       if (isCursorAfterNodeText(stack[0])) {
@@ -1096,7 +1103,7 @@ export const getCompletions = (
         );
         addKeywordCompletions(completions, "clause", IMAGE_CLAUSE_KEYWORDS);
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (
       stack[0]?.type.name === "AssetCommandName" ||
@@ -1110,7 +1117,7 @@ export const getCompletions = (
           isPrefilteredName
         );
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (
       stack[0]?.type.name === "AssetCommandFilterOperator" ||
@@ -1131,7 +1138,7 @@ export const getCompletions = (
           exclude
         );
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (
       (stack[0]?.type.name === "WhitespaceAssetCommandClause" &&
@@ -1145,7 +1152,7 @@ export const getCompletions = (
           "animation",
         ]);
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
       if (isCursorAfterNodeText(stack[0])) {
@@ -1171,7 +1178,7 @@ export const getCompletions = (
           );
         }
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
   }
 
@@ -1187,13 +1194,13 @@ export const getCompletions = (
         addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
         addStructReferenceCompletions(completions, program, AUDIO_TYPES);
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (stack[0]?.type.name === "AssetCommandControl") {
       if (isCursorAfterNodeText(stack[0])) {
         addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (
       stack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
@@ -1202,14 +1209,14 @@ export const getCompletions = (
       if (isCursorAfterNodeText(stack[0])) {
         addStructReferenceCompletions(completions, program, ["channel"]);
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
       if (isCursorAfterNodeText(stack[0])) {
         addStructReferenceCompletions(completions, program, AUDIO_TYPES);
         addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS);
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (
       stack[0]?.type.name === "AssetCommandName" ||
@@ -1218,7 +1225,7 @@ export const getCompletions = (
       if (isCursorAfterNodeText(stack[0])) {
         addStructReferenceCompletions(completions, program, AUDIO_TYPES);
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (
       stack[0]?.type.name === "AssetCommandFilterOperator" ||
@@ -1239,7 +1246,7 @@ export const getCompletions = (
           exclude
         );
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
     if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
       if (isCursorAfterNodeText(stack[0])) {
@@ -1264,7 +1271,7 @@ export const getCompletions = (
             exclude
           );
         }
-        return Array.from(completions.values());
+        return buildCompletions();
       }
     }
     if (
@@ -1276,7 +1283,7 @@ export const getCompletions = (
       if (isCursorAfterNodeText(stack[0])) {
         addStructReferenceCompletions(completions, program, ["modulation"]);
       }
-      return Array.from(completions.values());
+      return buildCompletions();
     }
   }
 
@@ -1297,7 +1304,7 @@ export const getCompletions = (
       const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
       addStructTypeNameCompletions(completions, program, type);
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
   if (
     stack.some(
@@ -1320,7 +1327,7 @@ export const getCompletions = (
       const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
       addStructVariableNameCompletions(completions, program, type);
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
   const propertyNameNode = stack.find(
     (n) =>
@@ -1370,7 +1377,7 @@ export const getCompletions = (
         position
       );
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
   if (
     stack.some(
@@ -1431,7 +1438,7 @@ export const getCompletions = (
         valueCursorOffset,
         context
       );
-      return Array.from(completions.values());
+      return buildCompletions();
     }
   }
 
@@ -1463,7 +1470,7 @@ export const getCompletions = (
         getParentSectionPath(stack, read)
       );
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
 
   // Divert Path
@@ -1481,7 +1488,7 @@ export const getCompletions = (
         " "
       );
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
   if (
     stack[0]?.type.name === "WhitespaceDivertPath" &&
@@ -1496,7 +1503,7 @@ export const getCompletions = (
         getParentSectionPath(stack, read)
       );
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
   if (stack[0]?.type.name === "DivertPath") {
     if (isCursorAfterNodeText(stack[0])) {
@@ -1510,7 +1517,7 @@ export const getCompletions = (
         getParentSectionPath(stack, read)
       );
     }
-    return Array.from(completions.values());
+    return buildCompletions();
   }
 
   return undefined;
