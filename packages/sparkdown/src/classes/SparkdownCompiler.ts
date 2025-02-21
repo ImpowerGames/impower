@@ -1129,6 +1129,7 @@ export default class SparkdownCompiler {
   }
 
   compile(rootUri: string): SparkProgram {
+    performance.mark(`compile ${rootUri} start`);
     // console.clear();
     this._trees.clear();
     const program: SparkProgram = {};
@@ -1180,7 +1181,14 @@ export default class SparkdownCompiler {
       const rootFilename = file.path || "main.sd";
       const inkCompiler = new InkCompiler(`include ${rootFilename}`, options);
       try {
+        performance.mark(`ink compile ${rootUri} start`);
         const story = inkCompiler.Compile();
+        performance.mark(`ink compile ${rootUri} end`);
+        performance.measure(
+          `ink compile ${rootUri}`,
+          `ink compile ${rootUri} start`,
+          `ink compile ${rootUri} end`
+        );
         this.populateDiagnostics(rootUri, program, inkCompiler);
         if (story) {
           const storyJSON = story.ToJson();
@@ -1198,6 +1206,12 @@ export default class SparkdownCompiler {
         console.error(e);
       }
     }
+    performance.mark(`compile ${rootUri} end`);
+    performance.measure(
+      `compile ${rootUri}`,
+      `compile ${rootUri} start`,
+      `compile ${rootUri} end`
+    );
     // console.log("program", program);
     return program;
   }
