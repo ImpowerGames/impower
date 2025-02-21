@@ -130,7 +130,15 @@ try {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const program = documents.getLatestProgram(uri);
-    return getFoldingRanges(document, program);
+    performance.mark(`lsp: onFoldingRanges ${uri} start`);
+    const result = getFoldingRanges(document, program);
+    performance.mark(`lsp: onFoldingRanges ${uri} end`);
+    performance.measure(
+      `lsp: onFoldingRanges ${uri}`,
+      `lsp: onFoldingRanges ${uri} start`,
+      `lsp: onFoldingRanges ${uri} end`
+    );
+    return result;
   });
 
   // colorProvider
@@ -138,10 +146,26 @@ try {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const program = documents.getLatestProgram(uri);
-    return getDocumentColors(document, program);
+    performance.mark(`lsp: onDocumentColor ${uri} start`);
+    const result = getDocumentColors(document, program);
+    performance.mark(`lsp: onDocumentColor ${uri} end`);
+    performance.measure(
+      `lsp: onDocumentColor ${uri}`,
+      `lsp: onDocumentColor ${uri} start`,
+      `lsp: onDocumentColor ${uri} end`
+    );
+    return result;
   });
   connection.onColorPresentation((params) => {
-    return getColorPresentations(params.color);
+    performance.mark(`lsp: onDocumentColor start`);
+    const result = getColorPresentations(params.color);
+    performance.mark(`lsp: onDocumentColor end`);
+    performance.measure(
+      `lsp: onDocumentColor`,
+      `lsp: onDocumentColor start`,
+      `lsp: onDocumentColor end`
+    );
+    return result;
   });
 
   // documentSymbolProvider
@@ -149,7 +173,15 @@ try {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const program = documents.getLatestProgram(uri);
-    return getDocumentSymbols(document, program);
+    performance.mark(`lsp: onDocumentSymbol ${uri} start`);
+    const result = getDocumentSymbols(document, program);
+    performance.mark(`lsp: onDocumentSymbol ${uri} end`);
+    performance.measure(
+      `lsp: onDocumentSymbol ${uri}`,
+      `lsp: onDocumentSymbol ${uri} start`,
+      `lsp: onDocumentSymbol ${uri} end`
+    );
+    return result;
   });
 
   // hoverProvider
@@ -157,7 +189,15 @@ try {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const program = documents.getLatestProgram(uri);
-    return getHover(document, program, params.position);
+    performance.mark(`lsp: onHover ${uri} start`);
+    const result = getHover(document, program, params.position);
+    performance.mark(`lsp: onHover ${uri} end`);
+    performance.measure(
+      `lsp: onHover ${uri}`,
+      `lsp: onHover ${uri} start`,
+      `lsp: onHover ${uri} end`
+    );
+    return result;
   });
 
   // completionProvider
@@ -166,6 +206,7 @@ try {
     const document = documents.get(uri);
     const tree = documents.getLatestSyntaxTree(uri);
     const program = documents.getLatestProgram(uri);
+    performance.mark(`lsp: onCompletion ${uri} start`);
     const result = getCompletions(
       document,
       tree,
@@ -173,6 +214,12 @@ try {
       documents.compilerConfig,
       params.position,
       params.context
+    );
+    performance.mark(`lsp: onCompletion ${uri} end`);
+    performance.measure(
+      `lsp: onCompletion ${uri}`,
+      `lsp: onCompletion ${uri} start`,
+      `lsp: onCompletion ${uri} end`
     );
     return result;
   });
