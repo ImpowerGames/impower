@@ -3,18 +3,35 @@ import { TextDocumentContentChangeEvent } from "../../../../spark-editor-protoco
 import { offsetToPosition } from "./offsetToPosition";
 
 export const getServerChanges = (
-  doc: Text,
+  beforeDoc: Text,
+  afterDoc: Text,
   changes: ChangeSet
 ): TextDocumentContentChangeEvent[] => {
-  const contentChanges: TextDocumentContentChangeEvent[] = [];
-  changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-    contentChanges.push({
-      range: {
-        start: offsetToPosition(doc, fromA),
-        end: offsetToPosition(doc, toA),
-      },
-      text: inserted.toString(),
-    });
+  let minFromA = Number.MAX_SAFE_INTEGER;
+  let maxToA = 0;
+  let minFromB = Number.MAX_SAFE_INTEGER;
+  let maxToB = 0;
+  changes.iterChanges((fromA, toA, fromB, toB) => {
+    if (fromA < minFromA) {
+      minFromA = fromA;
+    }
+    if (toA > maxToA) {
+      maxToA = toA;
+    }
+    if (fromB < minFromB) {
+      minFromB = fromB;
+    }
+    if (toB > maxToB) {
+      maxToB = toB;
+    }
   });
-  return contentChanges;
+  return [
+    {
+      range: {
+        start: offsetToPosition(beforeDoc, minFromA),
+        end: offsetToPosition(beforeDoc, maxToA),
+      },
+      text: afterDoc.sliceString(minFromB, maxToB),
+    },
+  ];
 };

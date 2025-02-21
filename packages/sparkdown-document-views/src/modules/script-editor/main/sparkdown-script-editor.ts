@@ -503,11 +503,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
               const after = tr.newDoc.toString();
               const contentChanges = getServerChanges(
                 tr.startState.doc,
+                tr.state.doc,
                 tr.changes
               );
-              // TODO: Figure out how to support incremental changes in language server
-              // Incremental changes in language server aren't correctly applied when auto-surrounding text with brackets
-              // So just send the entire `after` text to the server
               SparkdownScriptEditor.languageServerConnection.sendNotification(
                 DidChangeTextDocumentMessage.type,
                 {
@@ -515,7 +513,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
                     uri,
                     version: afterVersion,
                   },
-                  contentChanges: [{ text: after }],
+                  contentChanges,
                 }
               );
               this.emit(
