@@ -1,4 +1,4 @@
-import { Compiler as GrammarCompiler } from "../../../grammar-compiler/src/compiler/classes/compiler";
+import { Compiler as GrammarCompiler } from "../../../grammar-compiler/src/compiler/classes/Compiler";
 import {
   NodeSet,
   NodeType,
