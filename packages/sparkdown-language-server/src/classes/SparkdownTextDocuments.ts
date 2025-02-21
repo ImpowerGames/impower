@@ -13,6 +13,7 @@ import {
   DocumentDiagnosticRequest,
   Emitter,
   FileChangeType,
+  Range,
   RequestHandler,
   TextDocumentChangeEvent,
   TextDocumentSyncKind,
@@ -464,42 +465,83 @@ export default class SparkdownTextDocuments<
   }
 
   updateSyntaxTree(
-    document: TextDocument,
+    beforeDocument: TextDocument,
+    afterDocument: TextDocument,
     changes?: readonly TextDocumentContentChangeEvent[]
   ): Tree {
-    const state = this.getDocumentState(document.uri);
-    if (state.tree && state.treeVersion === document.version) {
+    const state = this.getDocumentState(afterDocument.uri);
+    if (state.tree && state.treeVersion === afterDocument.version) {
       // Return cached tree if up to date
       return state.tree;
     }
-    const input = new StringInput(document.getText());
     if (changes && state.fragments) {
+      performance.mark(`incremental parse ${beforeDocument.uri} start`);
       // Incremental parse
-      const treeChanges = changes.map((change) =>
-        "range" in change
-          ? {
-              fromA: document.offsetAt(change.range.start),
-              toA: document.offsetAt(change.range.end),
-              fromB: document.offsetAt(change.range.start),
-              toB: document.offsetAt(change.range.start) + change.text.length,
-            }
-          : {
-              fromA: 0,
-              toA: change.text.length,
-              fromB: 0,
-              toB: change.text.length,
-            }
+      let changeDocument = TextDocument.create(
+        beforeDocument.uri,
+        beforeDocument.languageId,
+        beforeDocument.version,
+        beforeDocument.getText()
       );
-      state.fragments = TreeFragment.applyChanges(state.fragments, treeChanges);
-      state.tree = this._parser.parse(input, state.fragments);
-      state.fragments = TreeFragment.addTree(state.tree, state.fragments);
-      state.treeVersion = document.version;
-      return state.tree;
+      for (const change of changes) {
+        const c: {
+          range: Range;
+          text: string;
+        } =
+          "range" in change
+            ? {
+                range: change.range,
+                text: change.text,
+              }
+            : {
+                range: {
+                  start: { line: 0, character: 0 },
+                  end: changeDocument.positionAt(Number.MAX_VALUE),
+                },
+                text: change.text,
+              };
+        const treeChange = {
+          fromA: changeDocument.offsetAt(c.range.start),
+          toA: changeDocument.offsetAt(c.range.end),
+          fromB: changeDocument.offsetAt(c.range.start),
+          toB: changeDocument.offsetAt(c.range.start) + c.text.length,
+        };
+        // We must apply these changes to the tree one at a time because
+        // TextDocumentContentChangeEvent[] positions are relative to the doc after each change,
+        // and ChangedRange[] positions are relative to the starting doc.
+        state.fragments = TreeFragment.applyChanges(state.fragments, [
+          treeChange,
+        ]);
+        changeDocument = TextDocument.update(
+          changeDocument,
+          [c],
+          changeDocument.version + 1
+        );
+        const input = new StringInput(changeDocument.getText());
+        state.tree = this._parser.parse(input, state.fragments);
+        state.fragments = TreeFragment.addTree(state.tree, state.fragments);
+      }
+      state.treeVersion = afterDocument.version;
+      performance.mark(`incremental parse ${beforeDocument.uri} end`);
+      performance.measure(
+        `incremental parse ${beforeDocument.uri}`,
+        `incremental parse ${beforeDocument.uri} start`,
+        `incremental parse ${beforeDocument.uri} end`
+      );
+      return state.tree!;
     } else {
       // First full parse
+      performance.mark(`full parse ${beforeDocument.uri} start`);
+      const input = new StringInput(afterDocument.getText());
       state.tree = this._parser.parse(input);
       state.fragments = TreeFragment.addTree(state.tree);
-      state.treeVersion = document.version;
+      state.treeVersion = afterDocument.version;
+      performance.mark(`full parse ${beforeDocument.uri} end`);
+      performance.measure(
+        `full parse ${beforeDocument.uri}`,
+        `full parse ${beforeDocument.uri} start`,
+        `full parse ${beforeDocument.uri} end`
+      );
       return state.tree;
     }
   }
@@ -617,7 +659,13 @@ export default class SparkdownTextDocuments<
           this.__syncedDocuments.set(td.uri, document);
           const toFire = Object.freeze({ document });
           this.__onDidOpen.fire(toFire);
-          this.updateSyntaxTree(document);
+          const beforeDocument = TextDocument.create(
+            td.uri,
+            td.languageId,
+            -1,
+            ""
+          );
+          this.updateSyntaxTree(beforeDocument, document);
           const program = await this.compile(td.uri, false);
           if (program) {
             this._onUpdateDiagnostics.fire(
@@ -646,6 +694,12 @@ export default class SparkdownTextDocuments<
           }
           let syncedDocument = this.__syncedDocuments.get(td.uri);
           if (syncedDocument) {
+            const beforeDocument = TextDocument.create(
+              syncedDocument.uri,
+              syncedDocument.languageId,
+              syncedDocument.version,
+              syncedDocument.getText()
+            );
             syncedDocument = this.__configuration.update(
               syncedDocument,
               changes,
@@ -656,7 +710,7 @@ export default class SparkdownTextDocuments<
               this.__onDidChangeContent.fire(
                 Object.freeze({ document: syncedDocument })
               );
-              this.updateSyntaxTree(syncedDocument, changes);
+              this.updateSyntaxTree(beforeDocument, syncedDocument, changes);
               this.updateCompilerDocument(syncedDocument);
               await this.debouncedCompile(td.uri, false);
             }
