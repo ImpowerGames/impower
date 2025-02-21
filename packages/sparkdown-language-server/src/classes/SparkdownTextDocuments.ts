@@ -348,7 +348,6 @@ export default class SparkdownTextDocuments<
         console.error(e);
       }
     }
-    console.warn("LOADING TEXT CONTENT FROM DISK: ", file.uri);
     const result = await this._connection?.sendRequest(
       ExecuteCommandRequest.type,
       {
@@ -814,15 +813,12 @@ export default class SparkdownTextDocuments<
           changes.forEach((change) => {
             switch (change.type) {
               case FileChangeType.Created:
-                console.log("CREATED FILE: ", change.uri);
                 this.onCreatedFile(change.uri);
                 break;
               case FileChangeType.Changed:
-                console.log("CHANGED FILE: ", change.uri);
                 this.onChangedFile(change.uri);
                 break;
               case FileChangeType.Deleted:
-                console.log("DELETED FILE: ", change.uri);
                 this.onDeletedFile(change.uri);
                 break;
             }
