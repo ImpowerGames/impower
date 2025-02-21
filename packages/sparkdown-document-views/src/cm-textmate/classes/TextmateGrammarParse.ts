@@ -220,12 +220,9 @@ export class TextmateGrammarParse implements PartialParse {
       // bit of a hack (private properties)
       // this is so that we don't need to build another tree
       const props = Object.create(null);
-      // @ts-ignore
-      props[cachedCompilerProp.id] = compiler;
-      // @ts-ignore
-      props[cachedAheadBufferProp.id] = aheadBuffer;
-      // @ts-ignore
-      tree.props = props;
+      props[(cachedCompilerProp as any).id] = this.compiler;
+      props[(cachedAheadBufferProp as any).id] = this.aheadBuffer;
+      (tree as any).props = props;
 
       return tree;
     }
