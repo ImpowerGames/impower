@@ -1,6 +1,6 @@
-import type { SparkdownNodeName } from "../../../../sparkdown/src/types/SparkdownNodeName";
-import type { SyntaxNode } from "../../../../grammar-compiler/src/compiler/classes/Tree";
-import type { SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
+import { type SparkdownNodeName } from "../../../../sparkdown/src/types/SparkdownNodeName";
+import { type SyntaxNode } from "../../../../grammar-compiler/src/compiler/classes/Tree";
+import { type SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
 
 export const getDescendent = (
   descendentTypeName: SparkdownNodeName,

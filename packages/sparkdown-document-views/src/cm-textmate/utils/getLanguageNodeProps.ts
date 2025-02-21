@@ -1,7 +1,7 @@
 import { NodeProp, NodePropSource } from "@lezer/common";
 import { styleTags } from "@lezer/highlight";
 
-import { RuleDefinition } from "../../../../grammar-compiler/src";
+import { RuleDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
 import { parseTag } from "./parseTag";
 
 export const getLanguageNodeProps = (

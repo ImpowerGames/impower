@@ -11,7 +11,7 @@ import {
 import { type Extension, type Facet } from "@codemirror/state";
 import { Parser } from "@lezer/common";
 
-import { GrammarDefinition } from "../../../../grammar-compiler/src";
+import { GrammarDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
 
 import { ConfigDefinition } from "../types/ConfigDefinition";
 import { LanguageData } from "../types/LanguageData";

@@ -1,4 +1,4 @@
-import type { SyntaxNode } from "../../../../grammar-compiler/src/compiler/classes/Tree";
+import { type SyntaxNode } from "../../../../grammar-compiler/src/compiler/classes/Tree";
 import { getDescendent } from "./getDescendent";
 
 export const getParentSectionPath = (

@@ -12,14 +12,14 @@ import {
   TreeFragment,
 } from "@lezer/common";
 
+import { ChunkBuffer } from "../../../../grammar-compiler/src/compiler/classes/ChunkBuffer";
+import { Compiler } from "../../../../grammar-compiler/src/compiler/classes/Compiler";
+import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
+import { Grammar } from "../../../../grammar-compiler/src/grammar/classes/Grammar";
 import {
-  Grammar,
   GrammarDefinition,
   RuleDefinition,
-  ChunkBuffer,
-  Compiler,
-  NodeID,
-} from "../../../../grammar-compiler/src";
+} from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
 
 import { getNodeType } from "../utils/getNodeType";
 import { TextmateGrammarParse } from "./TextmateGrammarParse";
@@ -93,7 +93,7 @@ export class TextmateGrammarParser extends Parser {
         typeof input === "string" ? input : input.read(0, input.length);
       let paddedScript = script + "\n";
       const buffer = new ChunkBuffer([]);
-      const compiler = new Compiler(this.grammar, this.nodeSet, buffer);
+      const compiler = new Compiler(this.grammar, buffer);
       const result = compiler.compile(paddedScript);
       if (result) {
         const topID = NodeID.top;

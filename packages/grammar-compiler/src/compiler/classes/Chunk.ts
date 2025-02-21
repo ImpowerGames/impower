@@ -2,9 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import type { ParserAction } from "../../core";
+import { type ParserAction } from "../../core";
 
-import { NodeSet, TreeBuffer } from "./Tree";
+import { type ITreeBuffer } from "../types/ITreeBuffer";
 
 /**
  * Sets the initial array size for chunks, and how much to grow a chunk's
@@ -46,10 +46,10 @@ export class Chunk {
   declare scopes: ParserAction | null;
 
   /**
-   * {@link TreeBuffer} version of this chunk.
+   * {@link ITreeBuffer} version of this chunk.
    * If `null`, the tree will not be available, ever, due to the shape of the chunk.
    */
-  declare tree?: TreeBuffer | null;
+  declare tree?: ITreeBuffer | null;
 
   /** The last emitted size */
   emittedSize: number = 0;
@@ -179,7 +179,7 @@ export class Chunk {
    *
    * @param nodes - The language node set to use when creating the tree.
    */
-  tryForTree(nodeSet: NodeSet) {
+  tryForTree() {
     if (this.tree === null) {
       return null;
     }
@@ -212,7 +212,7 @@ export class Chunk {
       );
     }
 
-    this.tree = new TreeBuffer(new Uint16Array(buffer), this.length, nodeSet);
+    this.tree = { buffer: new Uint16Array(buffer), length: this.length };
 
     return this.tree;
   }

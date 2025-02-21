@@ -1,5 +1,5 @@
-import type { SyntaxNode } from "../../../../grammar-compiler/src/compiler/classes/Tree";
-import type { SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
+import { type SyntaxNode } from "../../../../grammar-compiler/src/compiler/classes/Tree";
+import { type SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
 import { getDescendent } from "./getDescendent";
 
 export const getParentPropertyPath = (

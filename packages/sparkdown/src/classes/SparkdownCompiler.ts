@@ -1,10 +1,10 @@
+import { Compiler as GrammarCompiler } from "../../../grammar-compiler/src/compiler/classes/Compiler";
 import {
-  Compiler as GrammarCompiler,
   NodeSet,
   NodeType,
   Tree,
-  printTree,
-} from "../../../grammar-compiler/src/compiler";
+} from "../../../grammar-compiler/src/compiler/classes/Tree";
+import { printTree } from "../../../grammar-compiler/src/compiler/utils/printTree";
 import { NodeID } from "../../../grammar-compiler/src/core";
 import { Grammar } from "../../../grammar-compiler/src/grammar";
 import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
@@ -204,7 +204,7 @@ export default class SparkdownCompiler {
       (n) => n.props[this._nodeTypeProp]
     );
     this._nodeSet = new NodeSet(nodeTypes);
-    this._grammarCompiler = new GrammarCompiler(this._grammar, this._nodeSet);
+    this._grammarCompiler = new GrammarCompiler(this._grammar);
   }
 
   configure(config: SparkdownCompilerConfig) {

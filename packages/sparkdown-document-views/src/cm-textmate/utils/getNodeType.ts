@@ -1,6 +1,7 @@
 import { NodePropSource, NodeType } from "@lezer/common";
 
-import { NodeID, RuleDefinition } from "../../../../grammar-compiler/src";
+import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
+import { RuleDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
 
 /**
  * Node emitted when a character doesn't match anything in the grammar,

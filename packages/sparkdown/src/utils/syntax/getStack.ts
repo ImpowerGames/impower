@@ -1,8 +1,8 @@
-import type {
-  Tree,
-  NodeIterator,
+import {
+  type Tree,
+  type NodeIterator,
 } from "../../../../grammar-compiler/src/compiler/classes/Tree";
-import type { SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
+import { type SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
 
 export const getStack = (tree: Tree, offset: number): SparkdownSyntaxNode[] => {
   const side = -1;

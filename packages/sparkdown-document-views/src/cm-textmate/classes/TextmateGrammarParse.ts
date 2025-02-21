@@ -11,20 +11,17 @@ import {
   TreeFragment,
 } from "@lezer/common";
 
-import {
-  ChunkBuffer,
-  Compiler,
-  GrammarToken,
-  NodeID,
-  Grammar,
-  GrammarState,
-} from "../../../../grammar-compiler/src";
-
 import { cachedCompilerProp } from "../props/cachedCompilerProp";
 import { cachedAheadBufferProp } from "../props/cachedAheadBufferProp";
 import { findProp } from "../utils/findProp";
 import { printTree } from "../utils/printTree";
 import { TextmateParseRegion } from "./TextmateParseRegion";
+import { Grammar } from "../../../../grammar-compiler/src/grammar/classes/Grammar";
+import { GrammarState } from "../../../../grammar-compiler/src/grammar/classes/GrammarState";
+import { Compiler } from "../../../../grammar-compiler/src/compiler/classes/Compiler";
+import { ChunkBuffer } from "../../../../grammar-compiler/src/compiler/classes/ChunkBuffer";
+import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
+import { GrammarToken } from "../../../../grammar-compiler/src/core/types/GrammarToken";
 
 /** Amount of characters to slice before the starting position of the parse. */
 const MARGIN_BEFORE = 32;
@@ -149,7 +146,7 @@ export class TextmateGrammarParse implements PartialParse {
     // if we couldn't reuse state, we'll need to startup things with a default state
     if (!this.compiler || !this.state) {
       this.state = this.grammar.startState();
-      this.compiler = new Compiler(grammar, this.nodeSet);
+      this.compiler = new Compiler(grammar);
     }
   }
 
@@ -196,7 +193,7 @@ export class TextmateGrammarParse implements PartialParse {
   }
 
   private finish(): Tree {
-    const nodeSet = this.compiler.nodeSet;
+    const nodeSet = this.nodeSet;
     const topID = NodeID.top;
 
     const start = this.region.original.from;

@@ -5,7 +5,9 @@
  * Released under the MIT License.
  */
 
+import { BufferCursor } from "../types/BufferCursor";
 import { ITreeBuffer } from "../types/ITreeBuffer";
+import { FlatBufferCursor } from "./FlatBufferCursor";
 
 /// The default maximum length of a `TreeBuffer` node.
 export const DefaultBufferLength = 1024;
@@ -652,61 +654,6 @@ type BuildData = {
   /// grammar.
   minRepeatType?: number;
 };
-
-/// This is used by `Tree.build` as an abstraction for iterating over
-/// a tree buffer. A cursor initially points at the very last element
-/// in the buffer. Every time `next()` is called it moves on to the
-/// previous one.
-export interface BufferCursor {
-  /// The current buffer position (four times the number of nodes
-  /// remaining).
-  pos: number;
-  /// The node ID of the next node in the buffer.
-  id: number;
-  /// The start position of the next node in the buffer.
-  start: number;
-  /// The end position of the next node.
-  end: number;
-  /// The size of the next node (the number of nodes inside, counting
-  /// the node itself, times 4).
-  size: number;
-  /// Moves `this.pos` down by 4.
-  next(): void;
-  /// Create a copy of this cursor.
-  fork(): BufferCursor;
-}
-
-export class FlatBufferCursor implements BufferCursor {
-  constructor(
-    readonly buffer: Int32Array | readonly number[],
-    public index: number
-  ) {}
-
-  get id() {
-    return this.buffer[this.index - 4]!;
-  }
-  get start() {
-    return this.buffer[this.index - 3]!;
-  }
-  get end() {
-    return this.buffer[this.index - 2]!;
-  }
-  get size() {
-    return this.buffer[this.index - 1]!;
-  }
-
-  get pos() {
-    return this.index;
-  }
-
-  next() {
-    this.index -= 4;
-  }
-
-  fork() {
-    return new FlatBufferCursor(this.buffer, this.index);
-  }
-}
 
 /// Tree buffers contain (type, start, end, endIndex) quads for each
 /// node. In such a buffer, nodes are stored in prefix order (parents
@@ -1826,9 +1773,10 @@ function buildTree(data: BuildData) {
     buffer,
     nodeSet,
     maxBufferLength = DefaultBufferLength,
-    reused = [],
     minRepeatType = nodeSet.types.length,
   } = data;
+  let reused =
+    data.reused?.map((b) => new TreeBuffer(b.buffer, b.length, nodeSet)) || [];
   let cursor = Array.isArray(buffer)
     ? new FlatBufferCursor(buffer, buffer.length)
     : (buffer as BufferCursor);

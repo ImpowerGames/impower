@@ -5,8 +5,13 @@
  * Released under the MIT License.
  */
 
-import type { SyntaxNode, Tree, TreeCursor, NodeType } from "../classes/Tree";
-import type { Input } from "../types/Input";
+import {
+  type SyntaxNode,
+  type Tree,
+  type TreeCursor,
+  type NodeType,
+} from "../classes/Tree";
+import { type Input } from "../types/Input";
 
 class StringInput implements Input {
   constructor(private readonly input: string) {}
