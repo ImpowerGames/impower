@@ -124,6 +124,22 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   },
 ]);
 
+export const debugDecorations = (
+  decorations: RangeSet<Decoration>,
+  state: EditorState
+) => {
+  const iter = decorations.iter(0);
+  while (iter.value) {
+    console.log(
+      iter.from,
+      iter.to,
+      JSON.stringify(state.sliceDoc(iter.from, iter.to)),
+      iter.value
+    );
+    iter.next();
+  }
+};
+
 const createRevealDecorations = (doc: Text, from: number, to?: number) => {
   const lineDecorations: Range<Decoration>[] = [];
   const startLineNumber = doc.lineAt(from).number;
@@ -235,7 +251,8 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
 
   const isBlockHidden = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
-    if (nodeRef.matchContext(["sparkdown"])) {
+    if (nodeRef.node.parent?.name === "sparkdown") {
+      // This is a top-level node
       return (
         name !== "FrontMatter" &&
         name !== "Knot" && // TODO: hide knot if config doesn't print knot
@@ -582,7 +599,9 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
 const replaceDecorations = StateField.define<DecorationSet>({
   create(state) {
     const ranges = decorate(state);
-    return ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
+    const decorations =
+      ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
+    return decorations;
   },
   update(decorations, transaction) {
     const oldTree = syntaxTree(transaction.startState);
@@ -594,7 +613,9 @@ const replaceDecorations = StateField.define<DecorationSet>({
       if (reparsedFrom == null) {
         // Remake all decorations from scratch
         const ranges = decorate(transaction.state);
-        return ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
+        decorations =
+          ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
+        return decorations;
       }
       if (reparsedTo == null) {
         const add = decorate(transaction.state, reparsedFrom);

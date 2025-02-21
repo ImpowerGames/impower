@@ -99,13 +99,13 @@ export default class ScreenplayParser {
     };
 
     tree.iterate({
-      enter: (node) => {
-        const name = node.name as SparkdownNodeName;
-        const from = node.from;
-        const to = node.to;
+      enter: (nodeRef) => {
+        const name = nodeRef.name as SparkdownNodeName;
+        const from = nodeRef.from;
+        const to = nodeRef.to;
 
         // Separator
-        if (node.matchContext(["sparkdown"])) {
+        if (nodeRef.node.parent?.name === "sparkdown") {
           if (
             name !== "FrontMatter" &&
             name !== "Knot" &&
@@ -267,8 +267,8 @@ export default class ScreenplayParser {
 
         stack.push(name);
       },
-      leave: (node) => {
-        const name = node.name as SparkdownNodeName;
+      leave: (nodeRef) => {
+        const name = nodeRef.name as SparkdownNodeName;
         // FrontMatter
         if (name === "FrontMatterField") {
           tokens.push({
