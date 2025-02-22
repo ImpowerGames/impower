@@ -71,6 +71,7 @@ export const activateLanguageClient = async (
     },
   });
   client.onRequest(ExecuteCommandRequest.type, async (params) => {
+    // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
     if (params.command === "sparkdown.readTextDocument") {
       const [uri] = params.arguments || [];
       if (uri && typeof uri === "string") {

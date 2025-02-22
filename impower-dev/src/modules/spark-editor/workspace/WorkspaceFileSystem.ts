@@ -105,6 +105,7 @@ export default class WorkspaceFileSystem {
     Workspace.ls.connection.onRequest(
       ExecuteCommandMessage.type,
       async (params) => {
+        // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
         if (params.command === "sparkdown.readTextDocument") {
           const [uri] = params.arguments || [];
           if (uri && typeof uri === "string") {

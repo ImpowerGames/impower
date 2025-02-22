@@ -348,6 +348,7 @@ export default class SparkdownTextDocuments<
         console.error(e);
       }
     }
+    // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
     const result = await this._connection?.sendRequest(
       ExecuteCommandRequest.type,
       {
@@ -588,11 +589,13 @@ export default class SparkdownTextDocuments<
   }
 
   async onChangedFile(fileUri: string) {
-    const file = await this.loadFile({
-      uri: fileUri,
-      src: this._urls[fileUri] || "",
-    });
-    this.sendRequest(UpdateCompilerFileMessage.type, { uri: fileUri, file });
+    if (!this.__syncedDocuments.get(fileUri)) {
+      const file = await this.loadFile({
+        uri: fileUri,
+        src: this._urls[fileUri] || "",
+      });
+      this.sendRequest(UpdateCompilerFileMessage.type, { uri: fileUri, file });
+    }
   }
 
   onDeletedFile(fileUri: string) {
