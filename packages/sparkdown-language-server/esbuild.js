@@ -24,10 +24,14 @@ const config = {
   sourcemap: !PRODUCTION,
   mainFields: ["module", "main"],
   external: ["vscode", "commonjs"],
-  define: {
-    "process.env.COMPILER_INLINE_WORKER": JSON.stringify(
-      compilerInlineWorkerContent
-    ),
+  banner: {
+    js: `
+var process = {
+  env: {
+    COMPILER_INLINE_WORKER: ${JSON.stringify(compilerInlineWorkerContent)}
+  }
+};
+      `.trim(),
   },
   alias: {
     "@lezer/common": "@lezer/common",
