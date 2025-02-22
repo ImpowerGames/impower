@@ -14,7 +14,9 @@ if (PRODUCTION) {
 (async () => {
   let compilerInlineWorkerContent = await fs.promises
     .readFile("../sparkdown/dist/sparkdown.js", "utf-8")
-    .catch(() => "");
+    .catch((e) => {
+      console.error(e);
+    });
   /** @type BuildOptions */
   const config = {
     entryPoints: ["./src/sparkdown-language-server.ts"],
