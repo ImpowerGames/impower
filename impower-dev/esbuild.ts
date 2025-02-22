@@ -378,7 +378,7 @@ const buildWorkers = async () => {
     );
   });
   await new Promise((resolve) => {
-    exec("npm run build-workers", resolve);
+    exec("npm run build:workers", resolve);
   });
   console.log("");
   console.log(STEP_COLOR, "Caching Resources...");
