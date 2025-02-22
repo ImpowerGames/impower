@@ -1,4 +1,4 @@
-fileTypes: ["sd", "sparkdown"]
+fileTypes: ["sd"]
 keyEquivalent: ^~S
 indentUnit: "  "
 name: Sparkdown

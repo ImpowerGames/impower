@@ -80,7 +80,8 @@ const globToRegex = (glob: string) => {
   );
 };
 
-interface SparkProgramChangeEvent<T> extends TextDocumentChangeEvent<T> {
+interface SparkProgramChangeEvent<T extends TextDocument>
+  extends TextDocumentChangeEvent<T> {
   program: SparkProgram;
 }
 
@@ -203,8 +204,6 @@ export default class SparkdownTextDocuments<
 
   protected _documentStates = new Map<string, DocumentState>();
 
-  protected _openDocuments = new Set<string>();
-
   public constructor(configuration: TextDocumentsConfiguration<T>) {
     super(configuration);
     this._compilerWorker = new Worker(COMPILER_WORKER_URL);
@@ -215,7 +214,7 @@ export default class SparkdownTextDocuments<
     this._onUpdateDiagnostics = new Emitter<SparkProgramChangeEvent<T>>();
   }
 
-  protected async sendRequest<M extends string, P, R>(
+  protected async sendCompilerRequest<M extends string, P, R>(
     type: MessageProtocolRequestType<M, P, R>,
     params: P,
     transfer: Transferable[] = [],
@@ -285,7 +284,10 @@ export default class SparkdownTextDocuments<
         }
       });
       this._compilerConfig = { ...config, files };
-      this.sendRequest(ConfigureCompilerMessage.type, this._compilerConfig);
+      this.sendCompilerRequest(
+        ConfigureCompilerMessage.type,
+        this._compilerConfig
+      );
     }
   }
 
@@ -408,6 +410,20 @@ export default class SparkdownTextDocuments<
     return newState;
   }
 
+  getMainDocument(uri: string): T | undefined {
+    if (!uri) {
+      return undefined;
+    }
+    // Search upwards through directories for closest main file
+    const directoryUri = this.getDirectoryUri(uri);
+    const mainUri = this.getMainScriptUri(directoryUri);
+    const mainDocument = this.__syncedDocuments.get(mainUri);
+    if (mainDocument) {
+      return mainDocument;
+    }
+    return this.getMainDocument(directoryUri);
+  }
+
   debouncedCompile = debounce((uri: string, force: boolean) => {
     this.compile(uri, force);
   }, PARSE_DELAY);
@@ -428,10 +444,7 @@ export default class SparkdownTextDocuments<
     if (force || docChanged) {
       const targetDocument = this.__syncedDocuments.get(uri);
       if (targetDocument) {
-        const directoryUri = this.getDirectoryUri(uri);
-        const mainDocument = this.__syncedDocuments.get(
-          this.getMainScriptUri(directoryUri)
-        );
+        const mainDocument = this.getMainDocument(uri);
         if (mainDocument) {
           program = await this.compileDocument(mainDocument);
           this.getDocumentState(mainDocument.uri).program = program;
@@ -459,28 +472,23 @@ export default class SparkdownTextDocuments<
               program,
             })
           );
-          this._onUpdateDiagnostics.fire(
-            Object.freeze({
-              document: targetDocument,
-              program,
-            })
-          );
+          this.sendDiagnostics(targetDocument, program);
         }
       }
     }
     return program;
   }
 
-  async compileDocument(document: TextDocument): Promise<SparkProgram> {
+  async compileDocument(document: T): Promise<SparkProgram> {
     this._lastCompiledUri = document.uri;
-    return this.sendRequest(CompileProgramMessage.type, {
+    return this.sendCompilerRequest(CompileProgramMessage.type, {
       uri: document.uri,
     });
   }
 
   updateSyntaxTree(
-    beforeDocument: TextDocument,
-    afterDocument: TextDocument,
+    beforeDocument: T,
+    afterDocument: T,
     changes?: readonly TextDocumentContentChangeEvent[]
   ): Tree {
     const state = this.getDocumentState(afterDocument.uri);
@@ -560,13 +568,13 @@ export default class SparkdownTextDocuments<
     }
   }
 
-  async updateCompilerDocument(document: TextDocument) {
+  async updateCompilerDocument(document: T) {
     const file = await this.loadFile({
       uri: document.uri,
       src: this._urls[document.uri]!,
       text: document.getText(),
     });
-    return this.sendRequest(UpdateCompilerFileMessage.type, {
+    return this.sendCompilerRequest(UpdateCompilerFileMessage.type, {
       uri: document.uri,
       file,
     });
@@ -585,7 +593,10 @@ export default class SparkdownTextDocuments<
       uri: fileUri,
       src: this._urls[fileUri] || "",
     });
-    this.sendRequest(AddCompilerFileMessage.type, { uri: fileUri, file });
+    this.sendCompilerRequest(AddCompilerFileMessage.type, {
+      uri: fileUri,
+      file,
+    });
   }
 
   async onChangedFile(fileUri: string) {
@@ -594,14 +605,26 @@ export default class SparkdownTextDocuments<
         uri: fileUri,
         src: this._urls[fileUri] || "",
       });
-      this.sendRequest(UpdateCompilerFileMessage.type, { uri: fileUri, file });
+      this.sendCompilerRequest(UpdateCompilerFileMessage.type, {
+        uri: fileUri,
+        file,
+      });
     }
   }
 
   onDeletedFile(fileUri: string) {
     this.__syncedDocuments.delete(fileUri);
     this._documentStates.delete(fileUri);
-    this.sendRequest(RemoveCompilerFileMessage.type, { uri: fileUri });
+    this.sendCompilerRequest(RemoveCompilerFileMessage.type, { uri: fileUri });
+  }
+
+  sendDiagnostics(document: T, program: SparkProgram) {
+    this._onUpdateDiagnostics.fire(
+      Object.freeze({
+        document,
+        program,
+      })
+    );
   }
 
   public override listen(connection: Connection): Disposable {
@@ -643,7 +666,10 @@ export default class SparkdownTextDocuments<
           const src = params.src;
           this._urls[uri] = src;
           const file = await this.loadFile({ uri, src });
-          await this.sendRequest(UpdateCompilerFileMessage.type, { uri, file });
+          await this.sendCompilerRequest(UpdateCompilerFileMessage.type, {
+            uri,
+            file,
+          });
           if (file.type !== "script") {
             // When asset url changes, reparse program so that asset srcs are up-to-date.
             if (this._lastCompiledUri) {
@@ -654,40 +680,29 @@ export default class SparkdownTextDocuments<
       )
     );
     disposables.push(
-      connection.onDidOpenTextDocument(
-        async (event: DidOpenTextDocumentParams) => {
-          const td = event.textDocument;
-          const document = this.__configuration.create(
+      connection.onDidOpenTextDocument((event: DidOpenTextDocumentParams) => {
+        const td = event.textDocument;
+        const document = this.__configuration.create(
+          td.uri,
+          td.languageId,
+          td.version,
+          td.text
+        );
+        this.__syncedDocuments.set(td.uri, document);
+        const toFire = Object.freeze({ document });
+        this.__onDidOpen.fire(toFire);
+        const type = this.getFileType(td.uri);
+        if (type === "script") {
+          const beforeDocument = TextDocument.create(
             td.uri,
             td.languageId,
-            td.version,
-            td.text
-          );
-          this._openDocuments.add(td.uri);
-          this.__syncedDocuments.set(td.uri, document);
-          const toFire = Object.freeze({ document });
-          this.__onDidOpen.fire(toFire);
-          const type = this.getFileType(td.uri);
-          if (type === "script") {
-            const beforeDocument = TextDocument.create(
-              td.uri,
-              td.languageId,
-              -1,
-              ""
-            );
-            this.updateSyntaxTree(beforeDocument, document);
-            const program = await this.compile(td.uri, false);
-            if (program) {
-              this._onUpdateDiagnostics.fire(
-                Object.freeze({
-                  document: document,
-                  program,
-                })
-              );
-            }
-          }
+            -1,
+            ""
+          ) as T;
+          this.updateSyntaxTree(beforeDocument, document);
+          this.compile(td.uri, false);
         }
-      )
+      })
     );
     disposables.push(
       connection.onDidChangeTextDocument(
@@ -710,7 +725,7 @@ export default class SparkdownTextDocuments<
               syncedDocument.languageId,
               syncedDocument.version,
               syncedDocument.getText()
-            );
+            ) as T;
             syncedDocument = this.__configuration.update(
               syncedDocument,
               changes,
@@ -732,7 +747,7 @@ export default class SparkdownTextDocuments<
                   src: this._urls[syncedDocument.uri] || "",
                   text: syncedDocument.getText(),
                 });
-                this.sendRequest(UpdateCompilerFileMessage.type, {
+                this.sendCompilerRequest(UpdateCompilerFileMessage.type, {
                   uri: syncedDocument.uri,
                   file,
                 });
@@ -743,37 +758,21 @@ export default class SparkdownTextDocuments<
       )
     );
     disposables.push(
-      connection.onDidCloseTextDocument(
-        async (event: DidCloseTextDocumentParams) => {
-          const td = event.textDocument;
-          let syncedDocument = this.__syncedDocuments.get(td.uri);
-          if (syncedDocument) {
-            this.__onDidClose.fire(Object.freeze({ document: syncedDocument }));
-            this._openDocuments.delete(syncedDocument.uri);
-          }
-          const openScripts = Array.from(this._openDocuments).filter(
-            (uri) => this.getFileType(uri) === "script"
-          );
-          if (openScripts.length <= 1) {
-            const [firstUri] = openScripts;
-            const uri =
-              firstUri ||
-              this.getMainScriptUri(this._workspaceFolders?.[0]?.uri);
-            const document = this.__syncedDocuments.get(uri);
-            if (document) {
-              const program = await this.compile(document.uri, false);
-              if (program) {
-                this._onUpdateDiagnostics.fire(
-                  Object.freeze({
-                    document,
-                    program,
-                  })
-                );
-              }
-            }
-          }
+      connection.onDidCloseTextDocument((event: DidCloseTextDocumentParams) => {
+        const td = event.textDocument;
+        let syncedDocument = this.__syncedDocuments.get(td.uri);
+        if (syncedDocument) {
+          this.__onDidClose.fire(Object.freeze({ document: syncedDocument }));
         }
-      )
+        const mainDocument = this.getMainDocument(td.uri);
+        if (
+          mainDocument &&
+          td.uri !== mainDocument.uri &&
+          this._lastCompiledUri === td.uri
+        ) {
+          this.compile(mainDocument.uri, false);
+        }
+      })
     );
     disposables.push(
       connection.onWillSaveTextDocument((event: WillSaveTextDocumentParams) => {

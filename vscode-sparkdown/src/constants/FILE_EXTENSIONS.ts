@@ -8,7 +8,7 @@ export const IMAGE_FILE_EXTENSIONS = [
   "bmp",
 ];
 export const AUDIO_FILE_EXTENSIONS = ["wav", "mp3", "mp4", "ogg"];
-export const SCRIPT_FILE_EXTENSIONS = ["sd", "sparkdown"];
+export const SCRIPT_FILE_EXTENSIONS = ["sd"];
 export const ASSET_FILE_EXTENSIONS = [
   ...IMAGE_FILE_EXTENSIONS,
   ...AUDIO_FILE_EXTENSIONS,
