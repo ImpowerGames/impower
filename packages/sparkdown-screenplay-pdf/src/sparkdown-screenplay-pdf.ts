@@ -129,7 +129,7 @@ export const buildPDF = async (
   );
   printer.print();
 
-  const array = await new Promise<Uint8Array>((resolve) => {
+  const array = await new Promise<Buffer>((resolve) => {
     doc.pipe(
       new PdfWriteStream(async (chunks) => {
         resolve(Buffer.concat(chunks));
