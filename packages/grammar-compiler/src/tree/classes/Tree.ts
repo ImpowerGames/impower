@@ -5,9 +5,9 @@
  * Released under the MIT License.
  */
 
-import { BufferCursor } from "../types/BufferCursor";
-import { ITreeBuffer } from "../types/ITreeBuffer";
-import { FlatBufferCursor } from "./FlatBufferCursor";
+import { type IBufferCursor } from "../../compiler/types/IBufferCursor";
+import { type ITreeBuffer } from "../../compiler/types/ITreeBuffer";
+import { FlatBufferCursor } from "../../compiler/classes/FlatBufferCursor";
 
 /// The default maximum length of a `TreeBuffer` node.
 export const DefaultBufferLength = 1024;
@@ -631,7 +631,7 @@ type BuildData = {
   /// two children, of type 11 and 12, might look like this:
   ///
   ///     [11, 0, 1, 4, 12, 2, 4, 4, 10, 0, 4, 12]
-  buffer: BufferCursor | readonly number[];
+  buffer: IBufferCursor | readonly number[];
   /// The node types to use.
   nodeSet: NodeSet;
   /// The id of the top node type.
@@ -1779,7 +1779,7 @@ function buildTree(data: BuildData) {
     data.reused?.map((b) => new TreeBuffer(b.buffer, b.length, nodeSet)) || [];
   let cursor = Array.isArray(buffer)
     ? new FlatBufferCursor(buffer, buffer.length)
-    : (buffer as BufferCursor);
+    : (buffer as IBufferCursor);
   let types = nodeSet.types;
 
   let contextHash = 0,

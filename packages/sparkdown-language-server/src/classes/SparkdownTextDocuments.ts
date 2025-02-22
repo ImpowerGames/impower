@@ -54,7 +54,7 @@ import {
   TreeFragment,
 } from "@impower/sparkdown-document-views/src/lezer/common";
 
-import { type Tree as GrammarTree } from "../../../grammar-compiler/src/compiler/classes/Tree";
+import { type Tree as GrammarTree } from "../../../grammar-compiler/src/tree/classes/Tree";
 
 import { debounce } from "../utils/timing/debounce";
 import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";

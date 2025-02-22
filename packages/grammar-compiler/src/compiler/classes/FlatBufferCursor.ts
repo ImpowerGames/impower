@@ -1,6 +1,6 @@
-import { BufferCursor } from "../types/BufferCursor";
+import { IBufferCursor } from "../types/IBufferCursor";
 
-export class FlatBufferCursor implements BufferCursor {
+export class FlatBufferCursor implements IBufferCursor {
   constructor(
     readonly buffer: Int32Array | readonly number[],
     public index: number

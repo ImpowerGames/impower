@@ -1,10 +1,10 @@
-import { type SyntaxNode } from "../../../../grammar-compiler/src/compiler/classes/Tree";
-import { getDescendent } from "./getDescendent";
+import { type GrammarSyntaxNode } from "../../../../grammar-compiler/src/tree/types/GrammarSyntaxNode";
+import { getDescendent } from "../../../../grammar-compiler/src/tree/utils/getDescendent";
 
-export const getParentSectionPath = (
-  stack: SyntaxNode[],
+export const getParentSectionPath = <T extends string>(
+  stack: GrammarSyntaxNode<T>[],
   read: (from: number, to: number) => string
-) => {
+): T[] => {
   let parentPathParts: { kind: "" | "knot" | "stitch"; name: string }[] = [];
   let topLevelNode = stack.at(-2)?.prevSibling;
   while (topLevelNode) {
@@ -36,5 +36,5 @@ export const getParentSectionPath = (
     topLevelNode = topLevelNode.prevSibling;
   }
   parentPathParts.unshift({ kind: "", name: "" });
-  return parentPathParts.map((p) => p.name).join(".");
+  return parentPathParts.map((p) => p.name as T);
 };

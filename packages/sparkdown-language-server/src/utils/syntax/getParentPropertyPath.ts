@@ -1,32 +1,32 @@
-import { type SyntaxNode } from "../../../../grammar-compiler/src/compiler/classes/Tree";
-import { type SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
-import { getDescendent } from "./getDescendent";
+import { type GrammarSyntaxNode } from "../../../../grammar-compiler/src/tree/types/GrammarSyntaxNode";
+import { getDescendent } from "../../../../grammar-compiler/src/tree/utils/getDescendent";
 
-export const getParentPropertyPath = (
-  propertyNameNode: SyntaxNode,
+export const getParentPropertyPath = <T extends string>(
+  propertyNameNode: GrammarSyntaxNode<T>,
   read: (from: number, to: number) => string
-) => {
-  let stackCursor: SyntaxNode | null = propertyNameNode.node;
-  let path = "";
+): T[] => {
+  let stackCursor: GrammarSyntaxNode<T> | null =
+    propertyNameNode.node as GrammarSyntaxNode<T>;
+  let path: string[] = [];
   while (stackCursor) {
     if (stackCursor.type.name === "StructObjectItemBlock") {
-      path = "0" + "." + path;
+      path = ["0", ...path];
     }
     if (stackCursor.type.name === "StructObjectItemWithInlineScalarProperty") {
-      path = "0" + "." + path;
+      path = ["0", ...path];
     }
     if (stackCursor.type.name === "StructObjectItemWithInlineObjectProperty") {
-      path = "0" + "." + path;
+      path = ["0", ...path];
       const beginNode = stackCursor.getChild(
         "StructObjectItemWithInlineObjectProperty_begin"
-      ) as SparkdownSyntaxNode;
+      ) as GrammarSyntaxNode<T>;
       if (beginNode) {
         const nameNode = getDescendent(
           "DeclarationObjectPropertyName",
           beginNode
         );
         if (nameNode && nameNode.from !== propertyNameNode.from) {
-          path = read(nameNode.from, nameNode.to) + "." + path;
+          path = [read(nameNode.from, nameNode.to), ...path];
         }
       }
     }
@@ -38,11 +38,11 @@ export const getParentPropertyPath = (
           beginNode
         );
         if (nameNode && nameNode.from !== propertyNameNode.from) {
-          path = read(nameNode.from, nameNode.to) + "." + path;
+          path = [read(nameNode.from, nameNode.to), ...path];
         }
       }
     }
-    stackCursor = stackCursor.node.parent;
+    stackCursor = stackCursor.node.parent as GrammarSyntaxNode<T>;
   }
-  return path;
+  return path as T[];
 };

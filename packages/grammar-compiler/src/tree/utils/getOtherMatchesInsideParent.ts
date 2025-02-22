@@ -1,11 +1,10 @@
-import { type Tree } from "../../../../grammar-compiler/src/compiler/classes/Tree";
-import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
-import { type SparkdownSyntaxNode } from "../../types/SparkdownSyntaxNode";
+import { type Tree } from "../classes/Tree";
+import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 
-export const getOtherMatchesInsideParent = (
-  matchTypeName: SparkdownNodeName,
-  parentTypeName: SparkdownNodeName,
-  stack: SparkdownSyntaxNode[],
+export const getOtherMatchesInsideParent = <T extends string>(
+  matchTypeName: T,
+  parentTypeName: T,
+  stack: GrammarSyntaxNode<T>[],
   tree: Tree,
   read: (from: number, to: number) => string
 ): string[] => {

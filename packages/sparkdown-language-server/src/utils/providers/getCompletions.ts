@@ -11,20 +11,21 @@ import { type TextDocument } from "vscode-languageserver-textdocument";
 
 import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { type SparkLocation } from "@impower/sparkdown/src/types/SparkLocation";
-import { type SparkdownSyntaxNode } from "@impower/sparkdown/src/types/SparkdownSyntaxNode";
 import { getProperty } from "@impower/sparkdown/src/utils/getProperty";
-import { getStack } from "@impower/sparkdown/src/utils/syntax/getStack";
-import { getParentPropertyPath } from "@impower/sparkdown/src/utils/syntax/getParentPropertyPath";
-import { getParentSectionPath } from "@impower/sparkdown/src/utils/syntax/getParentSectionPath";
-import { getDescendentInsideParent } from "@impower/sparkdown/src/utils/syntax/getDescendentInsideParent";
-import { getOtherMatchesInsideParent } from "@impower/sparkdown/src/utils/syntax/getOtherMatchesInsideParent";
+import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 
+import { type GrammarSyntaxNode } from "../../../../grammar-compiler/src/tree/types/GrammarSyntaxNode";
 import {
   type SyntaxNode,
   type Tree,
-} from "../../../../grammar-compiler/src/compiler/classes/Tree";
-import { printTree } from "../../../../grammar-compiler/src/compiler/utils/printTree";
+} from "../../../../grammar-compiler/src/tree/classes/Tree";
+import { getStack } from "../../../../grammar-compiler/src/tree/utils/getStack";
+import { getParentPropertyPath } from "../syntax/getParentPropertyPath";
+import { getParentSectionPath } from "../syntax/getParentSectionPath";
+import { getDescendentInsideParent } from "../../../../grammar-compiler/src/tree/utils/getDescendentInsideParent";
+import { getOtherMatchesInsideParent } from "../../../../grammar-compiler/src/tree/utils/getOtherMatchesInsideParent";
+import { printTree } from "../../../../grammar-compiler/src/tree/utils/printTree";
 
 import { getLineText } from "../document/getLineText";
 
@@ -914,7 +915,7 @@ export const getCompletions = (
 
   const completions: Map<string, CompletionItem> = new Map();
 
-  const stack = getStack(tree, document.offsetAt(position));
+  const stack = getStack<SparkdownNodeName>(tree, document.offsetAt(position));
   if (!stack[0]) {
     return null;
   }
@@ -956,7 +957,7 @@ export const getCompletions = (
 
   const side = -1;
   const prevCursor = tree.cursorAt(stack[0].from - 1, side);
-  const prevNode = prevCursor.node as SparkdownSyntaxNode;
+  const prevNode = prevCursor.node as GrammarSyntaxNode<SparkdownNodeName>;
   const prevText = getNodeText(prevNode);
 
   // console.log(printTree(tree, document.getText()));
@@ -1372,7 +1373,7 @@ export const getCompletions = (
         modifier,
         type,
         name,
-        path,
+        path.join("."),
         lineText,
         position
       );
@@ -1460,14 +1461,14 @@ export const getCompletions = (
         program,
         valueText,
         valueCursorOffset,
-        getParentSectionPath(stack, read)
+        getParentSectionPath(stack, read).join(".")
       );
       addImmutableAccessPathCompletions(
         completions,
         program,
         valueText,
         valueCursorOffset,
-        getParentSectionPath(stack, read)
+        getParentSectionPath(stack, read).join(".")
       );
     }
     return buildCompletions();
@@ -1484,7 +1485,7 @@ export const getCompletions = (
         program,
         "",
         0,
-        getParentSectionPath(stack, read),
+        getParentSectionPath(stack, read).join("."),
         " "
       );
     }
@@ -1500,7 +1501,7 @@ export const getCompletions = (
         program,
         "",
         0,
-        getParentSectionPath(stack, read)
+        getParentSectionPath(stack, read).join(".")
       );
     }
     return buildCompletions();
@@ -1514,7 +1515,7 @@ export const getCompletions = (
         program,
         valueText,
         valueCursorOffset,
-        getParentSectionPath(stack, read)
+        getParentSectionPath(stack, read).join(".")
       );
     }
     return buildCompletions();

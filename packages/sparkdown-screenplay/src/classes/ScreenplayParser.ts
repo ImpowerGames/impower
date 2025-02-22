@@ -3,7 +3,7 @@ import {
   NodeSet,
   NodeType,
   Tree,
-} from "../../../grammar-compiler/src/compiler/classes/Tree";
+} from "../../../grammar-compiler/src/tree/classes/Tree";
 import { NodeID } from "../../../grammar-compiler/src/core";
 import { Grammar } from "../../../grammar-compiler/src/grammar";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
