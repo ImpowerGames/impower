@@ -377,8 +377,19 @@ const buildWorkers = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
-  await new Promise((resolve) => {
-    exec("npm run build:workers", resolve);
+  await new Promise<void>((resolve) => {
+    exec("npm run build:workers", (error, stdout, stderr) => {
+      if (error) {
+        console.error(error);
+      }
+      if (stdout) {
+        console.log(stdout);
+      }
+      if (stderr) {
+        console.error(stderr);
+      }
+      resolve();
+    });
   });
   console.log("");
   console.log(STEP_COLOR, "Caching Resources...");

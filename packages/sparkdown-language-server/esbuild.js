@@ -1,4 +1,5 @@
 import { build } from "esbuild";
+import { exec } from "child_process";
 import fs from "fs";
 
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
@@ -12,6 +13,20 @@ if (PRODUCTION) {
 }
 
 (async () => {
+  await new Promise((resolve) => {
+    exec("npm run build:workers", (error, stdout, stderr) => {
+      if (error) {
+        console.error(error);
+      }
+      if (stdout) {
+        console.log(stdout);
+      }
+      if (stderr) {
+        console.error(stderr);
+      }
+      resolve();
+    });
+  });
   let compilerInlineWorkerContent = await fs.promises
     .readFile("../sparkdown/dist/sparkdown.js", "utf-8")
     .catch((e) => {
