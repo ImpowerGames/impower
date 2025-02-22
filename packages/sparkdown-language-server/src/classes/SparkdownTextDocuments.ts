@@ -600,6 +600,7 @@ export default class SparkdownTextDocuments<
 
   onDeletedFile(fileUri: string) {
     this.__syncedDocuments.delete(fileUri);
+    this._documentStates.delete(fileUri);
     this.sendRequest(RemoveCompilerFileMessage.type, { uri: fileUri });
   }
 
