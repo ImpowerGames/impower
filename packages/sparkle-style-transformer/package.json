@@ -23,9 +23,9 @@
   "types": "dist/cjs/index.d.ts",
   "main": "dist/cjs/index.js",
   "scripts": {
-    "build-cjs": "node ./clean.js dist/cjs && tsc --module commonjs --outDir dist/cjs/ && echo {\"type\": \"commonjs\"} > dist/cjs/package.json",
-    "build-mjs": "node ./clean.js dist/mjs && tsc --module es2022 --outDir dist/mjs/ && echo {\"type\": \"module\"} > dist/mjs/package.json",
-    "build": "node ./clean.js dist && npm run build-cjs && npm rum build-mjs"
+    "build:cjs": "node ./clean.js dist/cjs && tsc --module commonjs --outDir dist/cjs/ && echo {\"type\": \"commonjs\"} > dist/cjs/package.json",
+    "build:mjs": "node ./clean.js dist/mjs && tsc --module es2022 --outDir dist/mjs/ && echo {\"type\": \"module\"} > dist/mjs/package.json",
+    "build": "node ./clean.js dist && npm run build:cjs && npm rum build:mjs"
   },
   "devDependencies": {
     "typescript": "^5.0.4"

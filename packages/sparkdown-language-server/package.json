@@ -18,9 +18,9 @@
   },
   "main": "dist/sparkdown-language-server.js",
   "scripts": {
-    "build-sparkdown": "cd ../sparkdown && npm run build && cd ../sparkdown-language-server",
-    "build-workers": "npm run build-sparkdown",
-    "build": "npm run build-workers && node ./esbuild.js"
+    "build:sparkdown": "cd ../sparkdown && npm run build && cd ../sparkdown-language-server",
+    "build:workers": "npm run build:sparkdown",
+    "build": "npm run build:workers && node ./esbuild.js"
   },
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
