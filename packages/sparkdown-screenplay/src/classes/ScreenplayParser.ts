@@ -1,8 +1,8 @@
-import { Compiler as GrammarCompiler } from "@impower/textmate-grammar-tree/src/compiler/classes/Compiler";
-import { defineNodeType } from "@impower/textmate-grammar-tree/src/tree/utils/defineNodeType";
+import { Compiler as GrammarCompiler } from "../../../textmate-grammar-tree/src/compiler/classes/Compiler";
+import { defineNodeType } from "../../../textmate-grammar-tree/src/tree/utils/defineNodeType";
 import { NodeSet, NodeType, Tree, TreeBuffer } from "@lezer/common";
-import { NodeID } from "@impower/textmate-grammar-tree/src/core";
-import { Grammar } from "@impower/textmate-grammar-tree/src/grammar";
+import { NodeID } from "../../../textmate-grammar-tree/src/core";
+import { Grammar } from "../../../textmate-grammar-tree/src/grammar";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
 import type { SparkdownNodeName } from "../../../sparkdown/src/types/SparkdownNodeName";
 import { ScreenplayToken } from "../types/ScreenplayToken";
