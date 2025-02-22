@@ -816,7 +816,7 @@ export default class SparkdownTextDocuments<
       connection.onDidChangeWatchedFiles(
         (params: DidChangeWatchedFilesParams) => {
           const changes = params.changes;
-          changes.forEach((change) => {
+          for (const change of changes) {
             switch (change.type) {
               case FileChangeType.Created:
                 this.onCreatedFile(change.uri);
@@ -828,12 +828,14 @@ export default class SparkdownTextDocuments<
                 this.onDeletedFile(change.uri);
                 break;
             }
-          });
+          }
         }
       )
     );
     return Disposable.create(() => {
-      disposables.forEach((disposable) => disposable.dispose());
+      for (const disposable of disposables) {
+        disposable.dispose();
+      }
     });
   }
 }
