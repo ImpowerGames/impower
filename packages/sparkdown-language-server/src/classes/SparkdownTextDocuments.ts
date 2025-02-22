@@ -47,18 +47,11 @@ import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-g
 import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { type SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
 
-import { TextmateGrammarParser } from "@impower/sparkdown-document-views/src/cm-textmate/classes/TextmateGrammarParser";
-import {
-  Input,
-  Tree,
-  TreeFragment,
-} from "@impower/sparkdown-document-views/src/lezer/common";
-
-import { type Tree as GrammarTree } from "../../../grammar-compiler/src/tree/classes/Tree";
+import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import { Input, Tree, TreeFragment } from "@lezer/common";
 
 import { debounce } from "../utils/timing/debounce";
 import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
-import { printTree } from "@impower/sparkdown-document-views/src/cm-textmate/utils/printTree";
 
 const COMPILER_INLINE_WORKER_STRING = process.env["COMPILER_INLINE_WORKER"]!;
 
@@ -584,7 +577,7 @@ export default class SparkdownTextDocuments<
   }
 
   getLatestSyntaxTree(uri: string) {
-    return this.getDocumentState(uri).tree as unknown as GrammarTree;
+    return this.getDocumentState(uri).tree;
   }
 
   async onCreatedFile(uri: string) {

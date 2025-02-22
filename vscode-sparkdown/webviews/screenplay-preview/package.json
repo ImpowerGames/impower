@@ -6,5 +6,8 @@
   "scripts": {
     "build": "node ./esbuild.js",
     "package": "node ./esbuild.js --production"
+  },
+  "peerDependencies": {
+    "@lezer/common": "^1.2.3"
   }
 }

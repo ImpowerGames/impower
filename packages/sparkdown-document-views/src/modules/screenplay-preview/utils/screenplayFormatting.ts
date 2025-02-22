@@ -8,8 +8,7 @@ import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-gramma
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import { SparkdownNodeName } from "../../../../../sparkdown/src/types/SparkdownNodeName";
 import { TextmateLanguageSupport } from "../../../cm-textmate/classes/TextmateLanguageSupport";
-import { cachedCompilerProp } from "../../../cm-textmate/props/cachedCompilerProp";
-import { printTree } from "../../../cm-textmate/utils/printTree";
+import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";

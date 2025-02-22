@@ -1,0 +1,10 @@
+{
+  "name": "@impower/textmate-grammar-tree",
+  "displayName": "Textmate Grammar Tree",
+  "description": "Use textmate grammars to parse text into a non-abstract syntax tree.",
+  "version": "0.0.1",
+  "type": "module",
+  "peerDependencies": {
+    "@lezer/common": "^1.2.3"
+  }
+}

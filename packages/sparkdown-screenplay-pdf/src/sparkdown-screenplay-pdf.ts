@@ -1,7 +1,7 @@
 import PDFKit from "pdfkit";
-import ScreenplayParser from "../../sparkdown-screenplay/src/classes/ScreenplayParser";
-import type { ScreenplayConfig } from "../../sparkdown-screenplay/src/types/ScreenplayConfig";
-import { generateScreenplayPrintData } from "../../sparkdown-screenplay/src/utils/generateScreenplayPrintData";
+import ScreenplayParser from "@impower/sparkdown-screenplay/src/classes/ScreenplayParser";
+import type { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/types/ScreenplayConfig";
+import { generateScreenplayPrintData } from "@impower/sparkdown-screenplay/src/utils/generateScreenplayPrintData";
 import PdfWriteStream from "./classes/PdfWriteStream";
 import ScreenplayPrinter from "./classes/ScreenplayPrinter";
 

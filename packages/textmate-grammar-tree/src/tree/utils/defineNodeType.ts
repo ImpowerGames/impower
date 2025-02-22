@@ -1,30 +1,29 @@
 import { NodePropSource, NodeType } from "@lezer/common";
-
-import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
-import { RuleDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
+import { NodeID } from "../../core/enums/NodeID";
+import { RuleDefinition } from "../../grammar/types/GrammarDefinition";
 
 /**
  * Node emitted when a character doesn't match anything in the grammar,
  * and the parser had to manually advance past it.
  */
-export const NODE_ERROR_UNRECOGNIZED = NodeType.define({
-  name: "⚠️ ERROR_UNRECOGNIZED",
+export const UNRECOGNIZED_NODE = NodeType.define({
+  name: "ERROR_UNRECOGNIZED",
   id: NodeID.unrecognized,
   error: true,
 });
 
 /** Node emitted at the end of incomplete nodes. */
-export const NODE_ERROR_INCOMPLETE = NodeType.define({
-  name: "⚠️ ERROR_INCOMPLETE",
+export const INCOMPLETE_NODE = NodeType.define({
+  name: "ERROR_INCOMPLETE",
   id: NodeID.incomplete,
   error: true,
 });
 
-export const getNodeType = (
+export const defineNodeType = (
   topNode: NodeType,
   typeIndex: number,
   typeId: string,
-  def: RuleDefinition,
+  def?: RuleDefinition,
   props?: NodePropSource[]
 ): NodeType => {
   if (typeIndex === NodeID.none) {
@@ -34,10 +33,10 @@ export const getNodeType = (
     return topNode;
   }
   if (typeIndex === NodeID.unrecognized) {
-    return NODE_ERROR_UNRECOGNIZED;
+    return UNRECOGNIZED_NODE;
   }
   if (typeIndex === NodeID.incomplete) {
-    return NODE_ERROR_INCOMPLETE;
+    return INCOMPLETE_NODE;
   }
 
   // In CodeMirror, `id` is the unique number identifier and `name` is the unique string identifier

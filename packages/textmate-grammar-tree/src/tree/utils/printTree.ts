@@ -5,7 +5,13 @@
  * Released under the MIT License.
  */
 
-import { Input, NodeType, SyntaxNode, Tree, TreeCursor } from "@lezer/common";
+import {
+  type SyntaxNode,
+  type Tree,
+  type TreeCursor,
+  type NodeType,
+  type Input,
+} from "@lezer/common";
 
 class StringInput implements Input {
   constructor(private readonly input: string) {}
@@ -83,7 +89,7 @@ export function traverseTree(
     onLeave,
   }: TreeTraversalOptions
 ): void {
-  if (!(cursor instanceof TreeCursor)) {
+  if ("cursor" in cursor) {
     cursor = cursor.cursor();
   }
   for (;;) {

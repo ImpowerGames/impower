@@ -1,7 +1,3 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
-
 import {
   Input,
   NodeSet,
@@ -10,18 +6,16 @@ import {
   TreeBuffer,
   TreeFragment,
 } from "@lezer/common";
-
-import { cachedCompilerProp } from "../props/cachedCompilerProp";
+import { ChunkBuffer } from "../../compiler/classes/ChunkBuffer";
+import { Compiler } from "../../compiler/classes/Compiler";
+import { NodeID } from "../../core/enums/NodeID";
+import { GrammarToken } from "../../core/types/GrammarToken";
+import { Grammar } from "../../grammar/classes/Grammar";
+import { GrammarState } from "../../grammar/classes/GrammarState";
 import { cachedAheadBufferProp } from "../props/cachedAheadBufferProp";
+import { cachedCompilerProp } from "../props/cachedCompilerProp";
 import { findProp } from "../utils/findProp";
-import { printTree } from "../utils/printTree";
 import { TextmateParseRegion } from "./TextmateParseRegion";
-import { Grammar } from "../../../../grammar-compiler/src/grammar/classes/Grammar";
-import { GrammarState } from "../../../../grammar-compiler/src/grammar/classes/GrammarState";
-import { Compiler } from "../../../../grammar-compiler/src/compiler/classes/Compiler";
-import { ChunkBuffer } from "../../../../grammar-compiler/src/compiler/classes/ChunkBuffer";
-import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
-import { GrammarToken } from "../../../../grammar-compiler/src/core/types/GrammarToken";
 
 /** Amount of characters to slice before the starting position of the parse. */
 const MARGIN_BEFORE = 32;
@@ -268,10 +262,7 @@ export class TextmateGrammarParse implements PartialParse {
         this.consecutiveEmptyMatchCount = 0;
       }
       if (this.consecutiveEmptyMatchCount > 100) {
-        console.warn(
-          "Possible infinite loop!",
-          JSON.stringify(matchTokens.map((t) => t[0]))
-        );
+        // Possible infinite loop!
         matchLength = 1;
       }
 

@@ -9,11 +9,11 @@ import {
   DocumentSpan,
   MetaLayout,
   PageLine,
-} from "../../../sparkdown-screenplay/src/types/DocumentSpan";
-import { ScreenplayPrintData } from "../../../sparkdown-screenplay/src/types/ScreenplayPrintData";
-import { PrintProfile } from "../../../sparkdown-screenplay/src/types/PrintProfile";
-import { ScreenplayTokenType } from "../../../sparkdown-screenplay/src/types/ScreenplayTokenType";
-import { ScreenplayConfig } from "../../../sparkdown-screenplay/src/types/ScreenplayConfig";
+} from "@impower/sparkdown-screenplay/src/types/DocumentSpan";
+import { ScreenplayPrintData } from "@impower/sparkdown-screenplay/src/types/ScreenplayPrintData";
+import { PrintProfile } from "@impower/sparkdown-screenplay/src/types/PrintProfile";
+import { ScreenplayTokenType } from "@impower/sparkdown-screenplay/src/types/ScreenplayTokenType";
+import { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/types/ScreenplayConfig";
 
 // pdfkit accepts sizes in PDF points (72 per inch)
 // https://pdfkit.org/docs/getting_started.html

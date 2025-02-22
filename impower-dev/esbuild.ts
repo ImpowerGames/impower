@@ -54,7 +54,7 @@ const watchDirs = [
   "../packages/sparkdown",
   "../packages/sparkdown-screenplay",
   "../packages/spark-dom",
-  "../packages/grammar-compiler",
+  "../packages/textmate-grammar-tree",
 ];
 
 const args = process.argv.slice(2);
@@ -197,6 +197,9 @@ const buildPages = async () => {
       ".csv": "text",
       ".ttf": "binary",
       ".woff2": "binary",
+    },
+    alias: {
+      "@lezer/common": "@lezer/common",
     },
     plugins: [envPlugin()],
   });

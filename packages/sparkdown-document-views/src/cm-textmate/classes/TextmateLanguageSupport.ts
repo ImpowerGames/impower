@@ -7,12 +7,12 @@ import {
 import { Extension } from "@codemirror/state";
 import { NodeType } from "@lezer/common";
 
-import { GrammarDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
-import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
+import { type GrammarDefinition } from "@impower/textmate-grammar-tree/src/grammar/types/GrammarDefinition";
+import { NodeID } from "@impower/textmate-grammar-tree/src/core/enums/NodeID";
+import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 
 import { LanguageData } from "../types/LanguageData";
-import { TextmateGrammarParser } from "./TextmateGrammarParser";
-import { getNodeTypeWithLanguageNodeProps } from "../utils/getNodeTypeWithLanguageNodeProps";
+import { defineNodeTypeWithLanguageNodeProps } from "../utils/defineNodeTypeWithLanguageNodeProps";
 
 export class TextmateLanguageSupport extends LanguageSupport {
   constructor(
@@ -31,7 +31,7 @@ export class TextmateLanguageSupport extends LanguageSupport {
     const parser = new TextmateGrammarParser(
       grammarDefinition,
       topNodeType,
-      getNodeTypeWithLanguageNodeProps
+      defineNodeTypeWithLanguageNodeProps
     );
     const language = new Language(facet, parser, support, name);
     super(language, support);

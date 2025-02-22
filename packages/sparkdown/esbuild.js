@@ -19,6 +19,9 @@ const config = {
   sourcemap: !PRODUCTION,
   mainFields: ["module", "main"],
   external: ["commonjs"],
+  alias: {
+    "@lezer/common": "@lezer/common",
+  },
 };
 
 (async () => {

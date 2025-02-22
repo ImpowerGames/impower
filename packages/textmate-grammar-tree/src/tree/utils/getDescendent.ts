@@ -1,4 +1,4 @@
-import { type SyntaxNode } from "../classes/Tree";
+import { type SyntaxNode } from "@lezer/common";
 import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 
 export const getDescendent = <T extends string>(

@@ -15,17 +15,13 @@ import { getProperty } from "@impower/sparkdown/src/utils/getProperty";
 import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 
-import { type GrammarSyntaxNode } from "../../../../grammar-compiler/src/tree/types/GrammarSyntaxNode";
-import {
-  type SyntaxNode,
-  type Tree,
-} from "../../../../grammar-compiler/src/tree/classes/Tree";
-import { getStack } from "../../../../grammar-compiler/src/tree/utils/getStack";
+import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
+import { type SyntaxNode, type Tree } from "@lezer/common";
+import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { getParentPropertyPath } from "../syntax/getParentPropertyPath";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
-import { getDescendentInsideParent } from "../../../../grammar-compiler/src/tree/utils/getDescendentInsideParent";
-import { getOtherMatchesInsideParent } from "../../../../grammar-compiler/src/tree/utils/getOtherMatchesInsideParent";
-import { printTree } from "../../../../grammar-compiler/src/tree/utils/printTree";
+import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
+import { getOtherMatchesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getOtherMatchesInsideParent";
 
 import { getLineText } from "../document/getLineText";
 

@@ -1,4 +1,4 @@
-import { type Tree, type NodeIterator } from "../classes/Tree";
+import { type Tree, type NodeIterator } from "@lezer/common";
 import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 
 export const getStack = <T extends string>(

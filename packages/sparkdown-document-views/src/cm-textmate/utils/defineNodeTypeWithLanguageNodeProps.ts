@@ -1,16 +1,17 @@
 import { NodeType } from "@lezer/common";
 
-import { RuleDefinition } from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
-import { getNodeType } from "./getNodeType";
+import { RuleDefinition } from "@impower/textmate-grammar-tree/src/grammar/types/GrammarDefinition";
+import { defineNodeType } from "@impower/textmate-grammar-tree/src/tree/utils/defineNodeType";
+
 import { getLanguageNodeProps } from "./getLanguageNodeProps";
 
-export const getNodeTypeWithLanguageNodeProps = (
+export const defineNodeTypeWithLanguageNodeProps = (
   topNode: NodeType,
   typeIndex: number,
   typeId: string,
   def: RuleDefinition
 ): NodeType => {
-  return getNodeType(
+  return defineNodeType(
     topNode,
     typeIndex,
     typeId,

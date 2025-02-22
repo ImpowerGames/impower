@@ -32,6 +32,7 @@ const config = {
     stream: "stream-browserify",
     zlib: "browserify-zlib",
     util: "util",
+    "@lezer/common": "@lezer/common",
   },
   inject: [path.resolve(process.cwd(), "./src/shims/node.js")],
   banner: {

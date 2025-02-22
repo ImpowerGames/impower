@@ -29,6 +29,9 @@ const config = {
       compilerInlineWorkerContent
     ),
   },
+  alias: {
+    "@lezer/common": "@lezer/common",
+  },
 };
 
 (async () => {

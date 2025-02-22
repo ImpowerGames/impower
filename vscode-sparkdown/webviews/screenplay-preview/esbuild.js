@@ -21,6 +21,9 @@ const screenplayPreviewWebviewConfig = {
   format: "esm",
   entryPoints: ["./screenplay-preview.ts"],
   outfile: "../../out/webviews/screenplay-preview.js",
+  alias: {
+    "@lezer/common": "@lezer/common",
+  },
 };
 
 // Build script

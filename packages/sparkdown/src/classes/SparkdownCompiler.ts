@@ -1,12 +1,7 @@
-import { Compiler as GrammarCompiler } from "../../../grammar-compiler/src/compiler/classes/Compiler";
-import {
-  NodeSet,
-  NodeType,
-  Tree,
-} from "../../../grammar-compiler/src/tree/classes/Tree";
-import { printTree } from "../../../grammar-compiler/src/tree/utils/printTree";
-import { NodeID } from "../../../grammar-compiler/src/core";
-import { Grammar } from "../../../grammar-compiler/src/grammar";
+import { NodeSet, NodeType, Tree, TreeBuffer } from "@lezer/common";
+import { Compiler as GrammarCompiler } from "@impower/textmate-grammar-tree/src/compiler/classes/Compiler";
+import { NodeID } from "@impower/textmate-grammar-tree/src/core";
+import { Grammar } from "@impower/textmate-grammar-tree/src/grammar";
 import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
 import {
   Compiler as InkCompiler,
@@ -1225,7 +1220,10 @@ export default class SparkdownCompiler {
     }
     const topID = NodeID.top;
     const buffer = result.cursor;
-    const reused = result.reused;
+    const reused = result.reused.map(
+      (b) =>
+        new TreeBuffer(b.buffer, b.length, this._nodeSet) as unknown as Tree
+    );
     const tree = Tree.build({
       topID,
       buffer,

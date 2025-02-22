@@ -1,7 +1,3 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
-
 import {
   Input,
   NodeSet,
@@ -11,17 +7,15 @@ import {
   TreeBuffer,
   TreeFragment,
 } from "@lezer/common";
-
-import { ChunkBuffer } from "../../../../grammar-compiler/src/compiler/classes/ChunkBuffer";
-import { Compiler } from "../../../../grammar-compiler/src/compiler/classes/Compiler";
-import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
-import { Grammar } from "../../../../grammar-compiler/src/grammar/classes/Grammar";
+import { ChunkBuffer } from "../../compiler/classes/ChunkBuffer";
+import { Compiler } from "../../compiler/classes/Compiler";
+import { NodeID } from "../../core/enums/NodeID";
+import { Grammar } from "../../grammar/classes/Grammar";
 import {
   GrammarDefinition,
   RuleDefinition,
-} from "../../../../grammar-compiler/src/grammar/types/GrammarDefinition";
-
-import { getNodeType } from "../utils/getNodeType";
+} from "../../grammar/types/GrammarDefinition";
+import { defineNodeType } from "../utils/defineNodeType";
 import { TextmateGrammarParse } from "./TextmateGrammarParse";
 
 export class TextmateGrammarParser extends Parser {
@@ -34,7 +28,7 @@ export class TextmateGrammarParser extends Parser {
   constructor(
     grammarDefinition: GrammarDefinition,
     rootNodeType?: NodeType,
-    defineNodeType?: (
+    getNodeType?: (
       topNode: NodeType,
       typeIndex: number,
       typeId: string,
@@ -50,7 +44,7 @@ export class TextmateGrammarParser extends Parser {
         name: grammarDefinition.name?.toLowerCase(),
         top: true,
       });
-    const validGetNodeType = defineNodeType ?? getNodeType;
+    const validGetNodeType = getNodeType ?? defineNodeType;
     const declarator = (
       typeIndex: number,
       typeId: string,

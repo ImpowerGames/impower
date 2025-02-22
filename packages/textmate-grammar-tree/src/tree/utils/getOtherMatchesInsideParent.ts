@@ -1,4 +1,4 @@
-import { type Tree } from "../classes/Tree";
+import { type Tree } from "@lezer/common";
 import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 
 export const getOtherMatchesInsideParent = <T extends string>(

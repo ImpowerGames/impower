@@ -8,8 +8,13 @@
   "scripts": {
     "build": "node ./esbuild.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@impower/textmate-grammar-tree": "file:../textmate-grammar-tree"
+  },
   "devDependencies": {
     "esbuild": "^0.18.10"
+  },
+  "peerDependencies": {
+    "@lezer/common": "^1.2.3"
   }
 }

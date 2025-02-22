@@ -1,50 +1,18 @@
-import { Compiler as GrammarCompiler } from "../../../grammar-compiler/src/compiler/classes/Compiler";
-import {
-  NodeSet,
-  NodeType,
-  Tree,
-} from "../../../grammar-compiler/src/tree/classes/Tree";
-import { NodeID } from "../../../grammar-compiler/src/core";
-import { Grammar } from "../../../grammar-compiler/src/grammar";
+import { Compiler as GrammarCompiler } from "@impower/textmate-grammar-tree/src/compiler/classes/Compiler";
+import { defineNodeType } from "@impower/textmate-grammar-tree/src/tree/utils/defineNodeType";
+import { NodeSet, NodeType, Tree, TreeBuffer } from "@lezer/common";
+import { NodeID } from "@impower/textmate-grammar-tree/src/core";
+import { Grammar } from "@impower/textmate-grammar-tree/src/grammar";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
 import type { SparkdownNodeName } from "../../../sparkdown/src/types/SparkdownNodeName";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
-// import { printTree } from "../../../grammar-compiler/src/compiler/utils/printTree";
 
 const NODE_TOP = NodeType.define({
   id: NodeID.top,
   name: "sparkdown",
   top: true,
 });
-
-const NODE_ERROR_UNRECOGNIZED = NodeType.define({
-  name: "⚠️ ERROR_UNRECOGNIZED",
-  id: NodeID.unrecognized,
-  error: true,
-});
-
-const NODE_ERROR_INCOMPLETE = NodeType.define({
-  name: "⚠️ ERROR_INCOMPLETE",
-  id: NodeID.incomplete,
-  error: true,
-});
-
-const getRuleNodeType = (id: number, name: string): NodeType => {
-  if (id === NodeID.none) {
-    return NodeType.none;
-  }
-  if (id === NodeID.top) {
-    return NODE_TOP;
-  }
-  if (id === NodeID.unrecognized) {
-    return NODE_ERROR_UNRECOGNIZED;
-  }
-  if (id === NodeID.incomplete) {
-    return NODE_ERROR_INCOMPLETE;
-  }
-  return NodeType.define({ id, name });
-};
 
 export default class ScreenplayParser {
   protected _nodeTypeProp = "nodeType";
@@ -60,7 +28,7 @@ export default class ScreenplayParser {
 
   constructor() {
     const declarator = (id: number, name: string) => ({
-      [this._nodeTypeProp]: getRuleNodeType(id, name),
+      [this._nodeTypeProp]: defineNodeType(NODE_TOP, id, name),
     });
     this._grammar = new Grammar(GRAMMAR_DEFINITION, declarator);
     const nodeTypes = this.grammar.nodes.map(
@@ -360,7 +328,10 @@ export default class ScreenplayParser {
     }
     const topID = NodeID.top;
     const buffer = result.cursor;
-    const reused = result.reused;
+    const reused = result.reused.map(
+      (b) =>
+        new TreeBuffer(b.buffer, b.length, this._nodeSet) as unknown as Tree
+    );
     const tree = Tree.build({
       topID,
       buffer,

@@ -1,5 +1,5 @@
-import { type GrammarSyntaxNode } from "../../../../grammar-compiler/src/tree/types/GrammarSyntaxNode";
-import { getDescendent } from "../../../../grammar-compiler/src/tree/utils/getDescendent";
+import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 
 export const getParentSectionPath = <T extends string>(
   stack: GrammarSyntaxNode<T>[],
