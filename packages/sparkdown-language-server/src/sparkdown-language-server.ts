@@ -91,7 +91,7 @@ try {
       files,
     });
     const program = await documents.compile(
-      documents.getMainScriptUri(workspaceFolders?.[0]?.uri),
+      workspaceFolders?.[0]?.uri + "/" + documents.mainScriptFilename,
       true
     );
     return { capabilities, program };

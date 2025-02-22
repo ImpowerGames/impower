@@ -186,9 +186,15 @@ export default class SparkdownTextDocuments<
     return this._workspaceFolders;
   }
 
+  get mainScriptFilename() {
+    return "main.sd";
+  }
+
   protected _parser: TextmateGrammarParser = new TextmateGrammarParser(
     GRAMMAR_DEFINITION
   );
+
+  protected _watchedFileUris = new Set<string>();
 
   protected _scriptFilePattern?: RegExp;
 
@@ -267,7 +273,8 @@ export default class SparkdownTextDocuments<
   async loadCompiler(config: SparkdownCompilerConfig) {
     if (config.files) {
       const files = await this.loadFiles(Object.values(config.files));
-      Object.values(files).forEach((file) => {
+      for (const file of Object.values(files)) {
+        this._watchedFileUris.add(file.uri);
         const text = file.text;
         if (file.type === "script" && text) {
           if (!this.__syncedDocuments.get(file.uri)) {
@@ -282,7 +289,7 @@ export default class SparkdownTextDocuments<
             this.__syncedDocuments.set(file.uri, document);
           }
         }
-      });
+      }
       this._compilerConfig = { ...config, files };
       this.sendCompilerRequest(
         ConfigureCompilerMessage.type,
@@ -361,13 +368,6 @@ export default class SparkdownTextDocuments<
     return result?.text;
   }
 
-  getMainScriptUri(directoryUri: string | undefined) {
-    if (directoryUri) {
-      return directoryUri + "/" + "main.sd";
-    }
-    return "";
-  }
-
   getDirectoryUri(uri: string): string {
     return uri.split("/").slice(0, -1).join("/");
   }
@@ -410,18 +410,17 @@ export default class SparkdownTextDocuments<
     return newState;
   }
 
-  getMainDocument(uri: string): T | undefined {
+  getMainScriptUri(uri: string): string | undefined {
     if (!uri) {
       return undefined;
     }
     // Search upwards through directories for closest main file
     const directoryUri = this.getDirectoryUri(uri);
-    const mainUri = this.getMainScriptUri(directoryUri);
-    const mainDocument = this.__syncedDocuments.get(mainUri);
-    if (mainDocument) {
-      return mainDocument;
+    const mainScriptUri = directoryUri + "/" + this.mainScriptFilename;
+    if (this._watchedFileUris.has(mainScriptUri)) {
+      return mainScriptUri;
     }
-    return this.getMainDocument(directoryUri);
+    return this.getMainScriptUri(directoryUri);
   }
 
   debouncedCompile = debounce((uri: string, force: boolean) => {
@@ -444,10 +443,10 @@ export default class SparkdownTextDocuments<
     if (force || docChanged) {
       const targetDocument = this.__syncedDocuments.get(uri);
       if (targetDocument) {
-        const mainDocument = this.getMainDocument(uri);
-        if (mainDocument) {
-          program = await this.compileDocument(mainDocument);
-          this.getDocumentState(mainDocument.uri).program = program;
+        const mainScriptUri = this.getMainScriptUri(uri);
+        if (mainScriptUri) {
+          program = await this.compileDocument(mainScriptUri);
+          this.getDocumentState(mainScriptUri).program = program;
           if (program.sourceMap) {
             for (const uri of Object.keys(program.sourceMap)) {
               this.getDocumentState(uri).program = program;
@@ -455,13 +454,13 @@ export default class SparkdownTextDocuments<
           }
         }
         if (
-          targetDocument?.uri !== mainDocument?.uri &&
+          targetDocument?.uri !== mainScriptUri &&
           !program?.sourceMap?.[uri]
         ) {
           // Target script is not included by main,
           // So it must be parsed on its own to report diagnostics
           if (targetDocument) {
-            program = await this.compileDocument(targetDocument);
+            program = await this.compileDocument(targetDocument.uri);
             this.getDocumentState(targetDocument.uri).program = program;
           }
         }
@@ -479,10 +478,10 @@ export default class SparkdownTextDocuments<
     return program;
   }
 
-  async compileDocument(document: T): Promise<SparkProgram> {
-    this._lastCompiledUri = document.uri;
+  async compileDocument(uri: string): Promise<SparkProgram> {
+    this._lastCompiledUri = uri;
     return this.sendCompilerRequest(CompileProgramMessage.type, {
-      uri: document.uri,
+      uri,
     });
   }
 
@@ -588,34 +587,36 @@ export default class SparkdownTextDocuments<
     return this.getDocumentState(uri).tree as unknown as GrammarTree;
   }
 
-  async onCreatedFile(fileUri: string) {
+  async onCreatedFile(uri: string) {
+    this._watchedFileUris.add(uri);
     const file = await this.loadFile({
-      uri: fileUri,
-      src: this._urls[fileUri] || "",
+      uri,
+      src: this._urls[uri] || "",
     });
     this.sendCompilerRequest(AddCompilerFileMessage.type, {
-      uri: fileUri,
+      uri,
       file,
     });
   }
 
-  async onChangedFile(fileUri: string) {
-    if (!this.__syncedDocuments.get(fileUri)) {
+  async onChangedFile(uri: string) {
+    if (!this.__syncedDocuments.get(uri)) {
       const file = await this.loadFile({
-        uri: fileUri,
-        src: this._urls[fileUri] || "",
+        uri,
+        src: this._urls[uri] || "",
       });
       this.sendCompilerRequest(UpdateCompilerFileMessage.type, {
-        uri: fileUri,
+        uri,
         file,
       });
     }
   }
 
-  onDeletedFile(fileUri: string) {
-    this.__syncedDocuments.delete(fileUri);
-    this._documentStates.delete(fileUri);
-    this.sendCompilerRequest(RemoveCompilerFileMessage.type, { uri: fileUri });
+  onDeletedFile(uri: string) {
+    this._watchedFileUris.delete(uri);
+    this.__syncedDocuments.delete(uri);
+    this._documentStates.delete(uri);
+    this.sendCompilerRequest(RemoveCompilerFileMessage.type, { uri });
   }
 
   sendDiagnostics(document: T, program: SparkProgram) {
@@ -766,13 +767,13 @@ export default class SparkdownTextDocuments<
           this._documentStates.delete(syncedDocument.uri);
           this.__onDidClose.fire(Object.freeze({ document: syncedDocument }));
         }
-        const mainDocument = this.getMainDocument(td.uri);
+        const mainScriptUri = this.getMainScriptUri(td.uri);
         if (
-          mainDocument &&
-          td.uri !== mainDocument.uri &&
+          mainScriptUri &&
+          td.uri !== mainScriptUri &&
           this._lastCompiledUri === td.uri
         ) {
-          this.compile(mainDocument.uri, false);
+          this.compile(mainScriptUri, false);
         }
       })
     );
