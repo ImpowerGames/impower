@@ -11,33 +11,30 @@ if (PRODUCTION) {
   process.env["NODE_ENV"] = "production";
 }
 
-let compilerInlineWorkerContent = await fs.promises
-  .readFile("../sparkdown/dist/sparkdown.js", "utf-8")
-  .catch(() => "");
-
-/** @type BuildOptions */
-const config = {
-  entryPoints: ["./src/sparkdown-language-server.ts"],
-  outdir: OUTDIR,
-  bundle: true,
-  minify: PRODUCTION,
-  sourcemap: !PRODUCTION,
-  mainFields: ["module", "main"],
-  external: ["vscode", "commonjs"],
-  banner: {
-    js: `
-var process = {
-  env: {
-    COMPILER_INLINE_WORKER: ${JSON.stringify(compilerInlineWorkerContent)}
-  }
-};
-      `.trim(),
-  },
-  alias: {
-    "@lezer/common": "@lezer/common",
-  },
-};
-
 (async () => {
+  let compilerInlineWorkerContent = await fs.promises
+    .readFile("../sparkdown/dist/sparkdown.js", "utf-8")
+    .catch(() => "");
+  /** @type BuildOptions */
+  const config = {
+    entryPoints: ["./src/sparkdown-language-server.ts"],
+    outdir: OUTDIR,
+    bundle: true,
+    minify: PRODUCTION,
+    sourcemap: !PRODUCTION,
+    mainFields: ["module", "main"],
+    external: ["vscode", "commonjs"],
+    banner: {
+      js: `
+  var process = {
+    env: {
+      COMPILER_INLINE_WORKER: ${JSON.stringify(compilerInlineWorkerContent)}
+    }
+  };`.trim(),
+    },
+    alias: {
+      "@lezer/common": "@lezer/common",
+    },
+  };
   await build(config);
 })();
