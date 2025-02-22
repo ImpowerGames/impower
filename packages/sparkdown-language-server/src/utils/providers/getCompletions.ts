@@ -957,7 +957,7 @@ export const getCompletions = (
   const prevText = getNodeText(prevNode);
 
   // console.log(printTree(tree, document.getText()));
-  // console.log("program", program);
+  console.log("program", program);
   console.log(stack.map((n) => n.type.name));
 
   // Transition
