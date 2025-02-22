@@ -762,6 +762,8 @@ export default class SparkdownTextDocuments<
         const td = event.textDocument;
         let syncedDocument = this.__syncedDocuments.get(td.uri);
         if (syncedDocument) {
+          this.__syncedDocuments.delete(syncedDocument.uri);
+          this._documentStates.delete(syncedDocument.uri);
           this.__onDidClose.fire(Object.freeze({ document: syncedDocument }));
         }
         const mainDocument = this.getMainDocument(td.uri);
