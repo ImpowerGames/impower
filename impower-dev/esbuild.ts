@@ -57,10 +57,8 @@ const watchDirs = [
 
 const args = process.argv.slice(2);
 const WATCH = args.includes("--watch");
-const PRODUCTION = args.includes("--production");
-if (PRODUCTION) {
-  process.env["NODE_ENV"] = "production";
-}
+const PRODUCTION =
+  process.env["NODE_ENV"] === "production" || args.includes("--production");
 
 if (!PRODUCTION) {
   // During development, populate process.env with variables from local .env file
@@ -376,18 +374,21 @@ const buildWorkers = async () => {
     );
   });
   await new Promise<void>((resolve) => {
-    exec("npm run build:workers", (error, stdout, stderr) => {
-      if (error) {
-        console.error(error);
+    exec(
+      `npm run build:workers:${PRODUCTION ? "prod" : "dev"}`,
+      (error, stdout, stderr) => {
+        if (error) {
+          console.error(error);
+        }
+        if (stdout) {
+          console.log(stdout);
+        }
+        if (stderr) {
+          console.error(stderr);
+        }
+        resolve();
       }
-      if (stdout) {
-        console.log(stdout);
-      }
-      if (stderr) {
-        console.error(stderr);
-      }
-      resolve();
-    });
+    );
   });
   console.log("");
   console.log(STEP_COLOR, "Caching Resources...");

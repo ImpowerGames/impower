@@ -4,7 +4,8 @@ const path = require("path");
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
 
 const args = process.argv.slice(2);
-const PRODUCTION = args.includes("--production");
+const PRODUCTION =
+  process.env["NODE_ENV"] === "production" || args.includes("--production");
 
 /** @type BuildOptions */
 const screenplayPreviewWebviewConfig = {

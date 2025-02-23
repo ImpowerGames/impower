@@ -5,10 +5,8 @@ import { build } from "esbuild";
 const args = process.argv.slice(2);
 const OUTDIR_ARG = args.find((a) => a.startsWith("--outdir="));
 const OUTDIR = OUTDIR_ARG ? OUTDIR_ARG.split("=")?.[1] : "dist";
-const PRODUCTION = args.includes("--production");
-if (PRODUCTION) {
-  process.env["NODE_ENV"] = "production";
-}
+const PRODUCTION =
+  process.env["NODE_ENV"] === "production" || args.includes("--production");
 
 /** @type BuildOptions */
 const config = {

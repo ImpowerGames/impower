@@ -7,25 +7,26 @@ import fs from "fs";
 const args = process.argv.slice(2);
 const OUTDIR_ARG = args.find((a) => a.startsWith("--outdir="));
 const OUTDIR = OUTDIR_ARG ? OUTDIR_ARG.split("=")?.[1] : "dist";
-const PRODUCTION = args.includes("--production");
-if (PRODUCTION) {
-  process.env["NODE_ENV"] = "production";
-}
+const PRODUCTION =
+  process.env["NODE_ENV"] === "production" || args.includes("--production");
 
 (async () => {
   await new Promise((resolve) => {
-    exec("npm run build:workers", (error, stdout, stderr) => {
-      if (error) {
-        console.error(error);
+    exec(
+      `npm run build:workers:${PRODUCTION ? "prod" : "dev"}`,
+      (error, stdout, stderr) => {
+        if (error) {
+          console.error(error);
+        }
+        if (stdout) {
+          console.log(stdout);
+        }
+        if (stderr) {
+          console.error(stderr);
+        }
+        resolve();
       }
-      if (stdout) {
-        console.log(stdout);
-      }
-      if (stderr) {
-        console.error(stderr);
-      }
-      resolve();
-    });
+    );
   });
   let compilerInlineWorkerContent = await fs.promises
     .readFile("../sparkdown/dist/sparkdown.js", "utf-8")

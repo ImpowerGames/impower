@@ -18,8 +18,10 @@
   },
   "main": "dist/sparkdown-language-server.js",
   "scripts": {
-    "build:sparkdown": "cd ../sparkdown && npm run build && cd ../sparkdown-language-server",
-    "build:workers": "npm run build:sparkdown",
+    "build:sparkdown:dev": "cd ../sparkdown && node ./esbuild.js && cd ../sparkdown-language-server",
+    "build:sparkdown:prod": "cd ../sparkdown && node ./esbuild.js --production && cd ../sparkdown-language-server",
+    "build:workers:dev": "npm run build:sparkdown:dev",
+    "build:workers:prod": "npm run build:sparkdown:prod",
     "build": "node ./esbuild.js"
   },
   "dependencies": {
