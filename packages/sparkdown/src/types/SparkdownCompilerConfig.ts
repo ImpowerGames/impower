@@ -1,3 +1,5 @@
+import { File } from "./File";
+
 export type URI = string;
 
 export interface SparkdownCompilerConfig {
@@ -21,16 +23,5 @@ export interface SparkdownCompilerConfig {
       [name: string]: any;
     };
   };
-  files?: Record<
-    URI,
-    {
-      uri: URI;
-      type: string;
-      name: string;
-      ext: string;
-      path: string;
-      src: string;
-      text?: string;
-    }
-  >;
+  files?: Record<URI, File>;
 }

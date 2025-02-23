@@ -9,7 +9,8 @@
     "build": "node ./esbuild.js"
   },
   "dependencies": {
-    "@impower/textmate-grammar-tree": "file:../textmate-grammar-tree"
+    "@impower/textmate-grammar-tree": "file:../textmate-grammar-tree",
+    "vscode-languageserver-textdocument": "^1.0.12"
   },
   "devDependencies": {
     "esbuild": "^0.18.10"

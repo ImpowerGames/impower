@@ -1,4 +1,4 @@
-import SparkdownCompiler from "./classes/SparkdownCompiler";
+import { SparkdownCompiler } from "./classes/SparkdownCompiler";
 
 const compiler = new SparkdownCompiler();
 
@@ -19,25 +19,23 @@ onmessage = async (e) => {
         postMessage({ jsonrpc: "2.0", method, id, result });
       }
       if (method === "compiler/addFile") {
-        const uri = params.uri;
-        const file = params.file;
-        const result = compiler.addFile(uri, file);
+        const result = compiler.addFile(params);
         postMessage({ jsonrpc: "2.0", method, id, result });
       }
       if (method === "compiler/updateFile") {
-        const uri = params.uri;
-        const file = params.file;
-        const result = compiler.updateFile(uri, file);
+        const result = compiler.updateFile(params);
+        postMessage({ jsonrpc: "2.0", method, id, result });
+      }
+      if (method === "compiler/updateDocument") {
+        const result = compiler.updateDocument(params);
         postMessage({ jsonrpc: "2.0", method, id, result });
       }
       if (method === "compiler/removeFile") {
-        const uri = params.uri;
-        const result = compiler.removeFile(uri);
+        const result = compiler.removeFile(params);
         postMessage({ jsonrpc: "2.0", method, id, result });
       }
       if (method === "compiler/compile") {
-        const uri = params.uri;
-        const result = compiler.compile(uri);
+        const result = compiler.compile(params);
         postMessage({ jsonrpc: "2.0", method, id, result });
       }
     }

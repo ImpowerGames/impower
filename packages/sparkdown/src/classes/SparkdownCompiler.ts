@@ -1,7 +1,3 @@
-import { NodeSet, NodeType, Tree, TreeBuffer } from "@lezer/common";
-import { Compiler as GrammarCompiler } from "@impower/textmate-grammar-tree/src/compiler/classes/Compiler";
-import { NodeID } from "@impower/textmate-grammar-tree/src/core";
-import { Grammar } from "@impower/textmate-grammar-tree/src/grammar";
 import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
 import {
   Compiler as InkCompiler,
@@ -10,6 +6,7 @@ import {
 import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
 import { SourceMetadata } from "../inkjs/engine/Error";
 import { StringValue } from "../inkjs/engine/Value";
+import { File } from "../types/File";
 import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkProgram } from "../types/SparkProgram";
@@ -25,6 +22,11 @@ import { setProperty } from "../utils/setProperty";
 import { SparkReference } from "../types/SparkReference";
 import { traverse } from "../utils/traverse";
 import { getAccessPath } from "../utils/getAccessPath";
+import {
+  SparkdownDocumentRegistry,
+  SparkdownDocumentContentChangeEvent,
+} from "./SparkdownDocumentRegistry";
+import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 
@@ -136,70 +138,21 @@ const getRange = (
   };
 };
 
-const NODE_TOP = NodeType.define({
-  id: NodeID.top,
-  name: "sparkdown",
-  top: true,
-});
-
-const NODE_ERROR_UNRECOGNIZED = NodeType.define({
-  name: "⚠️ ERROR_UNRECOGNIZED",
-  id: NodeID.unrecognized,
-  error: true,
-});
-
-const NODE_ERROR_INCOMPLETE = NodeType.define({
-  name: "⚠️ ERROR_INCOMPLETE",
-  id: NodeID.incomplete,
-  error: true,
-});
-
-const getRuleNodeType = (id: number, name: string): NodeType => {
-  if (id === NodeID.none) {
-    return NodeType.none;
-  }
-  if (id === NodeID.top) {
-    return NODE_TOP;
-  }
-  if (id === NodeID.unrecognized) {
-    return NODE_ERROR_UNRECOGNIZED;
-  }
-  if (id === NodeID.incomplete) {
-    return NODE_ERROR_INCOMPLETE;
-  }
-  return NodeType.define({ id, name });
-};
-
-export default class SparkdownCompiler {
-  protected _nodeTypeProp = "nodeType";
-
-  protected _nodeSet: NodeSet;
-
+export class SparkdownCompiler {
   protected _config: SparkdownCompilerConfig = {};
 
-  protected _grammarCompiler: GrammarCompiler;
-
-  protected _grammar: Grammar;
-  get grammar() {
-    return this._grammar;
+  protected _documents = new SparkdownDocumentRegistry();
+  get documents() {
+    return this._documents;
   }
 
-  protected _trees = new Map<string, Tree>();
-  get trees() {
-    return this._trees;
+  protected _files = new SparkdownFileRegistry();
+  get files() {
+    return this._files;
   }
 
   constructor(config: SparkdownCompilerConfig = {}) {
     this._config = config || this._config;
-    const declarator = (id: number, name: string) => ({
-      [this._nodeTypeProp]: getRuleNodeType(id, name),
-    });
-    this._grammar = new Grammar(GRAMMAR_DEFINITION, declarator);
-    const nodeTypes = this.grammar.nodes.map(
-      (n) => n.props[this._nodeTypeProp]
-    );
-    this._nodeSet = new NodeSet(nodeTypes);
-    this._grammarCompiler = new GrammarCompiler(this._grammar);
   }
 
   configure(config: SparkdownCompilerConfig) {
@@ -229,47 +182,43 @@ export default class SparkdownCompiler {
     }
     if (config.files && config.files !== this._config.files) {
       this._config.files = config.files;
+      for (const file of Object.values(config.files)) {
+        this.addFile({ file });
+      }
     }
     return LANGUAGE_NAME;
   }
 
-  addFile(
-    uri: string,
-    file: {
-      uri: string;
-      type: string;
-      name: string;
-      ext: string;
-      path: string;
-      src: string;
-      text?: string;
+  addFile(params: { file: File }) {
+    this.files.add(params);
+    const file = params.file;
+    if (file.type === "script") {
+      this.documents.add({
+        textDocument: {
+          uri: file.uri,
+          languageId: "sparkdown",
+          version: -1,
+          text: file.text || "",
+        },
+      });
     }
-  ): string {
-    this._config.files ??= {};
-    this._config.files[uri] = file;
-    return uri;
   }
 
-  updateFile(
-    uri: string,
-    file: {
-      uri: string;
-      type: string;
-      name: string;
-      ext: string;
-      path: string;
-      src: string;
-      text?: string;
-    }
-  ): string {
-    this._config.files ??= {};
-    this._config.files[uri] = file;
-    return uri;
+  updateFile(params: { file: File }) {
+    this.files.update(params);
   }
 
-  removeFile(uri: string): string {
-    delete this._config.files?.[uri];
-    return uri;
+  updateDocument(params: {
+    textDocument: { uri: string; version: number };
+    contentChanges: SparkdownDocumentContentChangeEvent[];
+  }) {
+    this.documents.update(params);
+  }
+
+  removeFile(params: { file: { uri: string } }) {
+    this.files.remove(params);
+    const file = params.file;
+    this.documents.remove({ textDocument: { uri: file.uri } });
   }
 
   resolveFile(rootUri: string, relativePath: string) {
@@ -303,7 +252,7 @@ export default class SparkdownCompiler {
     const uri = new URL("./" + relativePathWithSuffix, rootUri).href;
     if (
       relativePathWithSuffix.endsWith(`/main.${ext}`) ||
-      this._config.files?.[uri]
+      this._documents.has(uri)
     ) {
       return uri;
     }
@@ -311,20 +260,12 @@ export default class SparkdownCompiler {
   }
 
   transpile(uri: string, program: SparkProgram): string {
-    const scriptFile = this._config.files?.[uri];
-    const script = scriptFile?.text || "";
+    const document = this.documents.get(uri);
+    if (!document) {
+      return "";
+    }
+    const script = document?.getText() || "";
     const lines = script.split(NEWLINE_REGEX);
-    // Pad script so we ensure all scopes are properly closed before the end of the file.
-    const paddedScript = script + "\n\n";
-    performance.mark(`buildTree ${uri} start`);
-    const tree = this.buildTree(paddedScript);
-    performance.mark(`buildTree ${uri} end`);
-    performance.measure(
-      `buildTree ${uri}`,
-      `buildTree ${uri} start`,
-      `buildTree ${uri} end`
-    );
-    this._trees.set(uri, tree);
     const stack: SparkdownNodeName[] = [];
     program.sourceMap ??= {};
     program.sourceMap[uri] ??= [];
@@ -418,55 +359,38 @@ export default class SparkdownCompiler {
       };
     };
     const read = (from: number, to: number): string => script.slice(from, to);
-    performance.mark(`iterate ${uri} start`);
-    tree.iterate({
-      enter: (node) => {
-        const nodeType = node.type.name as SparkdownNodeName;
-        const transpilationOffset = program.sourceMap?.[uri]?.[lineIndex];
-        const after = transpilationOffset?.after ?? 0;
-        const shift = transpilationOffset?.shift ?? 0;
-        const sourceNodeStart = node.from - linePos;
-        const transpiledNodeStart =
-          sourceNodeStart > after ? shift + sourceNodeStart : sourceNodeStart;
-        const sourceNodeEnd = node.to - linePos;
-        const transpiledNodeEnd =
-          sourceNodeEnd > after ? shift + sourceNodeEnd : sourceNodeEnd;
+    const tree = this._documents.tree(uri);
+    if (tree) {
+      performance.mark(`iterate ${uri} start`);
+      tree.iterate({
+        enter: (node) => {
+          const nodeType = node.type.name as SparkdownNodeName;
+          const transpilationOffset = program.sourceMap?.[uri]?.[lineIndex];
+          const after = transpilationOffset?.after ?? 0;
+          const shift = transpilationOffset?.shift ?? 0;
+          const sourceNodeStart = node.from - linePos;
+          const transpiledNodeStart =
+            sourceNodeStart > after ? shift + sourceNodeStart : sourceNodeStart;
+          const sourceNodeEnd = node.to - linePos;
+          const transpiledNodeEnd =
+            sourceNodeEnd > after ? shift + sourceNodeEnd : sourceNodeEnd;
 
-        const lineText = lines[lineIndex] || "";
-        const text = read(node.from, node.to);
-        range = getRange(node.from, node.to, script, lineIndex, linePos);
+          const lineText = lines[lineIndex] || "";
+          const text = read(node.from, node.to);
+          range = getRange(node.from, node.to, script, lineIndex, linePos);
 
-        // Annotate dialogue line with implicit flow marker
-        if (
-          nodeType === "BlockDialogue_begin" ||
-          nodeType === "BlockWrite_begin"
-        ) {
-          const lineTextBefore = lineText.slice(0, transpiledNodeEnd);
-          const lineTextAfter = lineText.slice(transpiledNodeEnd);
-          const id = generateID();
-          const flowMarker = getFlowMarker(id);
-          const colonSeparator =
-            lineTextBefore.trimStart().length === 1 ? " : " : ": ";
-          const markup = colonSeparator + flowMarker + "\\";
-          lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
-          program.sourceMap ??= {};
-          program.sourceMap[uri]![lineIndex] = {
-            after: lineTextBefore.length,
-            shift: markup.length,
-          };
-          program.uuidToSource ??= {};
-          program.uuidToSource[id] = [fileIndex, lineIndex];
-          blockPrefix = lineTextBefore;
-        }
-        // Annotate dialogue line with implicit character name and flow marker
-        if (nodeType === "BlockLineContinue" || nodeType === "BlockLineBreak") {
-          if (prevNodeType.startsWith("BlockLineBreak")) {
-            const lineTextBefore = lineText.slice(0, transpiledNodeStart);
-            const lineTextAfter = lineText.slice(transpiledNodeStart);
-            const prefix = blockPrefix + ": ";
+          // Annotate dialogue line with implicit flow marker
+          if (
+            nodeType === "BlockDialogue_begin" ||
+            nodeType === "BlockWrite_begin"
+          ) {
+            const lineTextBefore = lineText.slice(0, transpiledNodeEnd);
+            const lineTextAfter = lineText.slice(transpiledNodeEnd);
             const id = generateID();
             const flowMarker = getFlowMarker(id);
-            const markup = prefix + flowMarker;
+            const colonSeparator =
+              lineTextBefore.trimStart().length === 1 ? " : " : ": ";
+            const markup = colonSeparator + flowMarker + "\\";
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
             program.sourceMap ??= {};
             program.sourceMap[uri]![lineIndex] = {
@@ -475,644 +399,677 @@ export default class SparkdownCompiler {
             };
             program.uuidToSource ??= {};
             program.uuidToSource[id] = [fileIndex, lineIndex];
+            blockPrefix = lineTextBefore;
           }
-        }
-        // Annotate line with implicit flow marker
-        if (
-          nodeType === "InlineDialogue_begin" ||
-          nodeType === "InlineWrite_begin" ||
-          nodeType === "Transition_begin" ||
-          nodeType === "Scene_begin" ||
-          nodeType === "Action_begin"
-        ) {
-          const lineTextBefore = lineText.slice(0, transpiledNodeEnd);
-          const lineTextAfter = lineText.slice(transpiledNodeEnd);
+          // Annotate dialogue line with implicit character name and flow marker
           if (
-            !lineTextAfter.startsWith("=") &&
-            !lineTextBefore.trim().endsWith("<>")
+            nodeType === "BlockLineContinue" ||
+            nodeType === "BlockLineBreak"
           ) {
-            const id = generateID();
-            const flowMarker = getFlowMarker(id);
-            const markup = flowMarker;
-            lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
-            program.sourceMap ??= {};
-            program.sourceMap[uri]![lineIndex] = {
-              after: lineTextBefore.length,
-              shift: markup.length,
-            };
-            program.uuidToSource ??= {};
-            program.uuidToSource[id] = [fileIndex, lineIndex];
+            if (prevNodeType.startsWith("BlockLineBreak")) {
+              const lineTextBefore = lineText.slice(0, transpiledNodeStart);
+              const lineTextAfter = lineText.slice(transpiledNodeStart);
+              const prefix = blockPrefix + ": ";
+              const id = generateID();
+              const flowMarker = getFlowMarker(id);
+              const markup = prefix + flowMarker;
+              lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+              program.sourceMap ??= {};
+              program.sourceMap[uri]![lineIndex] = {
+                after: lineTextBefore.length,
+                shift: markup.length,
+              };
+              program.uuidToSource ??= {};
+              program.uuidToSource[id] = [fileIndex, lineIndex];
+            }
           }
-        }
-        // Record explicit flow marker's source location
-        if (nodeType === "UUID") {
-          const id = lineText
-            .slice(transpiledNodeStart, transpiledNodeEnd)
-            .trim();
-          if (id) {
-            program.uuidToSource ??= {};
-            program.uuidToSource[id] = [fileIndex, lineIndex];
-          }
-        }
-        if (nodeType === "DefineVariableName") {
-          defineName = text;
+          // Annotate line with implicit flow marker
           if (
-            IMAGE_CLAUSE_KEYWORDS.includes(text) ||
-            AUDIO_CLAUSE_KEYWORDS.includes(text)
+            nodeType === "InlineDialogue_begin" ||
+            nodeType === "InlineWrite_begin" ||
+            nodeType === "Transition_begin" ||
+            nodeType === "Scene_begin" ||
+            nodeType === "Action_begin"
           ) {
-            const message = `'${text}' is not allowed as a defined name`;
-            reportDiagnostic(message, DiagnosticSeverity.Error);
+            const lineTextBefore = lineText.slice(0, transpiledNodeEnd);
+            const lineTextAfter = lineText.slice(transpiledNodeEnd);
+            if (
+              !lineTextAfter.startsWith("=") &&
+              !lineTextBefore.trim().endsWith("<>")
+            ) {
+              const id = generateID();
+              const flowMarker = getFlowMarker(id);
+              const markup = flowMarker;
+              lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+              program.sourceMap ??= {};
+              program.sourceMap[uri]![lineIndex] = {
+                after: lineTextBefore.length,
+                shift: markup.length,
+              };
+              program.uuidToSource ??= {};
+              program.uuidToSource[id] = [fileIndex, lineIndex];
+            }
           }
-        }
-        // Record color use
-        if (nodeType === "Color") {
-          program.metadata ??= {};
-          program.metadata.colors ??= {};
-          program.metadata.colors[text] ??= [];
-          program.metadata.colors[text].push({ uri, range });
-        }
-        // Record transition use
-        if (nodeType === "Transition_content") {
-          program.metadata ??= {};
-          program.metadata.transitions ??= {};
-          program.metadata.transitions[text] ??= [];
-          program.metadata.transitions[text].push({ uri, range });
-        }
-        // Record scene use
-        if (nodeType === "Scene_content") {
-          program.metadata ??= {};
-          program.metadata.scenes ??= {};
-          program.metadata.scenes[text] ??= [];
-          program.metadata.scenes[text].push({ uri, range });
-        }
-        // Record character use
-        if (nodeType === "DialogueCharacter") {
-          program.metadata ??= {};
-          program.metadata.characters ??= {};
-          program.metadata.characters[text] ??= [];
-          program.metadata.characters[text].push({ uri, range });
-        }
-        // Record define properties
-        if (nodeType === "DefineDeclaration") {
-          defineModifier = "";
-          defineType = "";
-          defineName = "";
-          definePropertyPathParts = [{ key: "" }];
-        }
-        if (nodeType === "DefineModifierName") {
-          defineModifier = text;
-        }
-        if (nodeType === "DefineTypeName") {
-          defineType = text;
-        }
-        if (
-          nodeType === "StructScalarItem" ||
-          nodeType === "StructObjectItemBlock" ||
-          nodeType === "StructObjectItemWithInlineScalarProperty" ||
-          nodeType === "StructObjectItemWithInlineObjectProperty"
-        ) {
-          const parent = definePropertyPathParts.at(-1);
-          if (parent) {
-            parent.arrayLength ??= 0;
-            definePropertyPathParts.push({ key: parent.arrayLength });
-            parent.arrayLength += 1;
+          // Record explicit flow marker's source location
+          if (nodeType === "UUID") {
+            const id = lineText
+              .slice(transpiledNodeStart, transpiledNodeEnd)
+              .trim();
+            if (id) {
+              program.uuidToSource ??= {};
+              program.uuidToSource[id] = [fileIndex, lineIndex];
+            }
           }
-        }
-        if (
-          nodeType === "DeclarationScalarPropertyName" ||
-          nodeType === "DeclarationObjectPropertyName"
-        ) {
-          definePropertyPathParts.push({ key: text });
-        }
+          if (nodeType === "DefineVariableName") {
+            defineName = text;
+            if (
+              IMAGE_CLAUSE_KEYWORDS.includes(text) ||
+              AUDIO_CLAUSE_KEYWORDS.includes(text)
+            ) {
+              const message = `'${text}' is not allowed as a defined name`;
+              reportDiagnostic(message, DiagnosticSeverity.Error);
+            }
+          }
+          // Record color use
+          if (nodeType === "Color") {
+            program.metadata ??= {};
+            program.metadata.colors ??= {};
+            program.metadata.colors[text] ??= [];
+            program.metadata.colors[text].push({ uri, range });
+          }
+          // Record transition use
+          if (nodeType === "Transition_content") {
+            program.metadata ??= {};
+            program.metadata.transitions ??= {};
+            program.metadata.transitions[text] ??= [];
+            program.metadata.transitions[text].push({ uri, range });
+          }
+          // Record scene use
+          if (nodeType === "Scene_content") {
+            program.metadata ??= {};
+            program.metadata.scenes ??= {};
+            program.metadata.scenes[text] ??= [];
+            program.metadata.scenes[text].push({ uri, range });
+          }
+          // Record character use
+          if (nodeType === "DialogueCharacter") {
+            program.metadata ??= {};
+            program.metadata.characters ??= {};
+            program.metadata.characters[text] ??= [];
+            program.metadata.characters[text].push({ uri, range });
+          }
+          // Record define properties
+          if (nodeType === "DefineDeclaration") {
+            defineModifier = "";
+            defineType = "";
+            defineName = "";
+            definePropertyPathParts = [{ key: "" }];
+          }
+          if (nodeType === "DefineModifierName") {
+            defineModifier = text;
+          }
+          if (nodeType === "DefineTypeName") {
+            defineType = text;
+          }
+          if (
+            nodeType === "StructScalarItem" ||
+            nodeType === "StructObjectItemBlock" ||
+            nodeType === "StructObjectItemWithInlineScalarProperty" ||
+            nodeType === "StructObjectItemWithInlineObjectProperty"
+          ) {
+            const parent = definePropertyPathParts.at(-1);
+            if (parent) {
+              parent.arrayLength ??= 0;
+              definePropertyPathParts.push({ key: parent.arrayLength });
+              parent.arrayLength += 1;
+            }
+          }
+          if (
+            nodeType === "DeclarationScalarPropertyName" ||
+            nodeType === "DeclarationObjectPropertyName"
+          ) {
+            definePropertyPathParts.push({ key: text });
+          }
 
-        if (nodeType === "StructFieldValue") {
-          const defineProperty = definePropertyPathParts
-            .map((p) => p.key)
-            .join(".");
-          const declaration = {
-            modifier: defineModifier,
-            type: defineType,
-            name: defineName,
-            property: defineProperty,
-          };
-          const accessPath = getAccessPath(declaration);
-          // Record property declaration for type checking
-          recordReference({ declaration });
-          // Record property location for displaying other errors
-          program.metadata ??= {};
-          program.metadata.properties ??= {};
-          program.metadata.properties[accessPath] ??= [];
-          program.metadata.properties[accessPath].push({ uri, range });
-        }
-        // Record reference in field value
-        if (nodeType === "AccessPath" && stack.includes("StructFieldValue")) {
-          let [type, name] = text.split(".");
-          if (type && !name) {
-            name = type;
-            type = "";
-          }
-          const defineProperty = definePropertyPathParts
-            .map((p) => p.key)
-            .join(".");
-          const declaration = {
-            modifier: defineModifier,
-            type: defineType,
-            name: defineName,
-            property: defineProperty,
-          };
-          if (type) {
-            const types = [type];
-            recordReference({
-              selector: { types, name },
-              declaration,
-            });
-          } else {
-            const name = text;
-            recordReference({
-              selector: { name },
-              declaration,
-            });
-          }
-        }
-        // Report invalid property selectors
-        if (nodeType === "PropertySelectorSimpleConditionName") {
-          if (!PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(text)) {
-            const message = PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(
-              text
-            )
-              ? "Conditional selector should be a function"
-              : "Unrecognized conditional selector";
-            reportDiagnostic(message);
-          }
-        }
-        if (nodeType === "PropertySelectorFunctionConditionName") {
-          selectorFunctionName = text;
-          if (!PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(text)) {
-            const message = PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(
-              text
-            )
-              ? "Conditional selector is not a function"
-              : "Unrecognized conditional selector";
-            reportDiagnostic(message);
-          }
-        }
-        if (nodeType === "PropertySelectorConstant") {
-          if (
-            selectorFunctionName === "direction" &&
-            !PROPERTY_SELECTOR_DIRECTION_ARGUMENTS.includes(text)
-          ) {
-            const message = `Unrecognized direction argument: Supported values are ${formatList(
-              PROPERTY_SELECTOR_DIRECTION_ARGUMENTS
-            )}`;
-            reportDiagnostic(message);
-          }
-          if (
-            selectorFunctionName === "theme" &&
-            !PROPERTY_SELECTOR_THEME_ARGUMENTS.includes(text)
-          ) {
-            const message = `Unrecognized theme argument: Supported values are ${formatList(
-              PROPERTY_SELECTOR_THEME_ARGUMENTS
-            )}`;
-            reportDiagnostic(message);
-          }
-          if (
-            selectorFunctionName === "screen" &&
-            !PROPERTY_SELECTOR_SCREEN_ARGUMENTS.includes(text)
-          ) {
-            const message = `Unrecognized screen argument: Supported values are ${formatList(
-              PROPERTY_SELECTOR_SCREEN_ARGUMENTS
-            )}`;
-            reportDiagnostic(message);
-          }
-        }
-        // Record image target reference
-        if (
-          stack.includes("ImageCommand") &&
-          nodeType === "AssetCommandTarget"
-        ) {
-          const types: string[] = ["ui."];
-          const name = text;
-          const displayType = `ui element`;
-          const fuzzy = true;
-          recordReference({
-            selector: {
-              types,
-              name,
-              displayType,
-              fuzzy,
-            },
-          });
-        }
-        // Record audio target reference
-        if (
-          stack.includes("AudioCommand") &&
-          nodeType === "AssetCommandTarget"
-        ) {
-          const types = ["channel"];
-          const name = text;
-          recordReference({ selector: { types, name } });
-        }
-        // Define implicit filtered_image
-        if (stack.includes("ImageCommand") && nodeType === "AssetCommandName") {
-          if (text.includes("~")) {
-            const parts = text.split("~");
-            const [fileName, ...filterNames] = parts;
-            const sortedFilterNames = filterNames.sort();
-            const name = [fileName, ...sortedFilterNames].join("~");
-            const obj = {
-              image: { $name: fileName },
-              filters: sortedFilterNames.map((filterName) => ({
-                $type: "filter",
-                $name: filterName,
-              })),
+          if (nodeType === "StructFieldValue") {
+            const defineProperty = definePropertyPathParts
+              .map((p) => p.key)
+              .join(".");
+            const declaration = {
+              modifier: defineModifier,
+              type: defineType,
+              name: defineName,
+              property: defineProperty,
             };
-            define("filtered_image", name, obj);
+            const accessPath = getAccessPath(declaration);
+            // Record property declaration for type checking
+            recordReference({ declaration });
+            // Record property location for displaying other errors
+            program.metadata ??= {};
+            program.metadata.properties ??= {};
+            program.metadata.properties[accessPath] ??= [];
+            program.metadata.properties[accessPath].push({ uri, range });
           }
-        }
-        // Record image file name reference
-        if (
-          stack.includes("ImageCommand") &&
-          nodeType === "AssetCommandFileName"
-        ) {
-          const types = ["filtered_image", "layered_image", "image", "graphic"];
-          const name = text;
-          const displayType = "image";
-          recordReference({ selector: { types, name, displayType } });
-        }
-        // Record image filter reference
-        if (
-          stack.includes("ImageCommand") &&
-          nodeType === "AssetCommandFilterName"
-        ) {
-          const types = ["filter"];
-          const name = text;
-          recordReference({ selector: { types, name } });
-        }
-        // Record audio file reference
-        if (
-          stack.includes("AudioCommand") &&
-          nodeType === "AssetCommandFileName"
-        ) {
-          const types = ["layered_audio", "audio", "synth"];
-          const name = text;
-          const displayType = "audio";
-          recordReference({ selector: { types, name, displayType } });
-        }
-        // Record audio filter reference
-        if (
-          stack.includes("AudioCommand") &&
-          nodeType === "AssetCommandFilterName"
-        ) {
-          // TODO: Validate synth tone format
-        }
-        // Report invalid image control
-        if (
-          stack.includes("ImageCommand") &&
-          nodeType === "AssetCommandControl" &&
-          !IMAGE_CONTROL_KEYWORDS.includes(text)
-        ) {
-          const message = `Unrecognized visual control: Visual commands only support ${formatList(
-            IMAGE_CONTROL_KEYWORDS
-          )}`;
-          reportDiagnostic(message);
-        }
-        // Report invalid audio control
-        if (
-          stack.includes("AudioCommand") &&
-          nodeType === "AssetCommandControl" &&
-          !AUDIO_CONTROL_KEYWORDS.includes(text)
-        ) {
-          const message = `Unrecognized visual control: Visual commands only support ${formatList(
-            AUDIO_CONTROL_KEYWORDS
-          )}`;
-          reportDiagnostic(message);
-        }
-        // Report invalid image name syntax
-        if (stack.includes("ImageCommand") && nodeType === "IllegalChar") {
-          const message = `Invalid syntax`;
-          reportDiagnostic(message, DiagnosticSeverity.Error);
-        }
-        // Report invalid audio name syntax
-        if (stack.includes("AudioCommand") && nodeType === "IllegalChar") {
-          const message = `Invalid syntax`;
-          reportDiagnostic(message, DiagnosticSeverity.Error);
-        }
-        if (nodeType === "AssetCommandClauseKeyword") {
-          const nextValueNode = node.node.nextSibling?.node.nextSibling;
-          const nextValueNodeType = (
-            nextValueNode ? nextValueNode.type.name : ""
-          ) as SparkdownNodeName;
-          const nextValueNodeText = nextValueNode
-            ? script.slice(nextValueNode.from, nextValueNode.to)
-            : "";
-          if (text === "after") {
-            if (
-              nextValueNodeType !== "ConditionalBlock" &&
-              nextValueNodeType !== "TimeValue" &&
-              nextValueNodeType !== "NumberValue"
-            ) {
-              const message = `'${text}' should be followed by a time value (e.g. 'after 2' or 'after 2s' or 'after 200ms')`;
-              reportDiagnostic(message, DiagnosticSeverity.Error, "end");
+          // Record reference in field value
+          if (nodeType === "AccessPath" && stack.includes("StructFieldValue")) {
+            let [type, name] = text.split(".");
+            if (type && !name) {
+              name = type;
+              type = "";
+            }
+            const defineProperty = definePropertyPathParts
+              .map((p) => p.key)
+              .join(".");
+            const declaration = {
+              modifier: defineModifier,
+              type: defineType,
+              name: defineName,
+              property: defineProperty,
+            };
+            if (type) {
+              const types = [type];
+              recordReference({
+                selector: { types, name },
+                declaration,
+              });
+            } else {
+              const name = text;
+              recordReference({
+                selector: { name },
+                declaration,
+              });
             }
           }
-          if (text === "over") {
-            if (
-              nextValueNodeType !== "ConditionalBlock" &&
-              nextValueNodeType !== "TimeValue" &&
-              nextValueNodeType !== "NumberValue"
-            ) {
-              const message = `'${text}' should be followed by a time value (e.g. 'over 2' or 'over 2s' or 'over 200ms')`;
-              reportDiagnostic(message, DiagnosticSeverity.Error, "end");
-            }
-          }
-          if (text === "with") {
-            if (
-              stack.includes("ImageCommand") &&
-              nextValueNodeType !== "ConditionalBlock" &&
-              nextValueNodeType !== "NameValue"
-            ) {
-              const message = `'${text}' should be followed by the name of a transition or animation (e.g. 'with shake')`;
-              reportDiagnostic(message, DiagnosticSeverity.Error, "end");
-            }
-            if (
-              stack.includes("AudioCommand") &&
-              nextValueNodeType !== "ConditionalBlock" &&
-              nextValueNodeType !== "NameValue"
-            ) {
+          // Report invalid property selectors
+          if (nodeType === "PropertySelectorSimpleConditionName") {
+            if (!PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(text)) {
               const message =
-                "'with' should be followed by the name of a modulation (e.g. 'with echo')";
+                PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(text)
+                  ? "Conditional selector should be a function"
+                  : "Unrecognized conditional selector";
               reportDiagnostic(message);
             }
           }
-          if (text === "fadeto") {
-            if (
-              (nextValueNodeType !== "ConditionalBlock" &&
-                nextValueNodeType !== "NumberValue") ||
-              (nextValueNodeType === "NumberValue" &&
-                (Number(nextValueNodeText) < 0 ||
-                  Number(nextValueNodeText) > 1))
-            ) {
-              const message = `'${text}' should be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 0.5' or 'fadeto 1')`;
-              reportDiagnostic(message, DiagnosticSeverity.Error, "end");
+          if (nodeType === "PropertySelectorFunctionConditionName") {
+            selectorFunctionName = text;
+            if (!PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(text)) {
+              const message = PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(
+                text
+              )
+                ? "Conditional selector is not a function"
+                : "Unrecognized conditional selector";
+              reportDiagnostic(message);
             }
           }
-          if (
-            text === "wait" ||
-            text === "nowait" ||
-            text === "loop" ||
-            text === "noloop" ||
-            text === "mute" ||
-            text === "unmute" ||
-            text === "now"
-          ) {
+          if (nodeType === "PropertySelectorConstant") {
             if (
-              nextValueNode &&
-              (nextValueNodeType === "ConditionalBlock" ||
-                nextValueNodeType === "TimeValue" ||
-                nextValueNodeType === "NumberValue")
+              selectorFunctionName === "direction" &&
+              !PROPERTY_SELECTOR_DIRECTION_ARGUMENTS.includes(text)
             ) {
-              const message = `'${text}' is a flag and cannot take an argument`;
-              const nodeCharacterOffset = nextValueNode.to - node.to;
-              const markRange = {
-                start: { ...range.start },
-                end: {
-                  line: range.end.line,
-                  character: range.end.character + nodeCharacterOffset,
-                },
+              const message = `Unrecognized direction argument: Supported values are ${formatList(
+                PROPERTY_SELECTOR_DIRECTION_ARGUMENTS
+              )}`;
+              reportDiagnostic(message);
+            }
+            if (
+              selectorFunctionName === "theme" &&
+              !PROPERTY_SELECTOR_THEME_ARGUMENTS.includes(text)
+            ) {
+              const message = `Unrecognized theme argument: Supported values are ${formatList(
+                PROPERTY_SELECTOR_THEME_ARGUMENTS
+              )}`;
+              reportDiagnostic(message);
+            }
+            if (
+              selectorFunctionName === "screen" &&
+              !PROPERTY_SELECTOR_SCREEN_ARGUMENTS.includes(text)
+            ) {
+              const message = `Unrecognized screen argument: Supported values are ${formatList(
+                PROPERTY_SELECTOR_SCREEN_ARGUMENTS
+              )}`;
+              reportDiagnostic(message);
+            }
+          }
+          // Record image target reference
+          if (
+            stack.includes("ImageCommand") &&
+            nodeType === "AssetCommandTarget"
+          ) {
+            const types: string[] = ["ui."];
+            const name = text;
+            const displayType = `ui element`;
+            const fuzzy = true;
+            recordReference({
+              selector: {
+                types,
+                name,
+                displayType,
+                fuzzy,
+              },
+            });
+          }
+          // Record audio target reference
+          if (
+            stack.includes("AudioCommand") &&
+            nodeType === "AssetCommandTarget"
+          ) {
+            const types = ["channel"];
+            const name = text;
+            recordReference({ selector: { types, name } });
+          }
+          // Define implicit filtered_image
+          if (
+            stack.includes("ImageCommand") &&
+            nodeType === "AssetCommandName"
+          ) {
+            if (text.includes("~")) {
+              const parts = text.split("~");
+              const [fileName, ...filterNames] = parts;
+              const sortedFilterNames = filterNames.sort();
+              const name = [fileName, ...sortedFilterNames].join("~");
+              const obj = {
+                image: { $name: fileName },
+                filters: sortedFilterNames.map((filterName) => ({
+                  $type: "filter",
+                  $name: filterName,
+                })),
               };
-              reportDiagnostic(message, DiagnosticSeverity.Error, markRange);
+              define("filtered_image", name, obj);
             }
           }
-        }
-        if (stack.includes("ImageCommand") && nodeType === "NameValue") {
-          const types = ["transition", "animation"];
-          const name = text;
-          const displayType = `transition or animation`;
-          recordReference({ selector: { types, name, displayType } });
-        }
-        if (stack.includes("AudioCommand") && nodeType === "NameValue") {
-          const types = ["modulation"];
-          const name = text;
-          recordReference({ selector: { types, name } });
-        }
-        // Record global and scoped declarations
-        if (nodeType === "KnotDeclarationName") {
-          // Global
-          const scopePath = "";
-          program.metadata ??= {};
-          program.metadata.scopes ??= {};
-          program.metadata.scopes[scopePath] ??= {};
-          program.metadata.scopes[scopePath]["knot"] ??= [];
-          program.metadata.scopes[scopePath]["knot"].push({
-            uri,
-            range,
-            text,
-          });
-          scopePathParts = [{ kind: "", name: "" }];
-          scopePathParts.push({ kind: "knot", name: text });
-        }
-        if (nodeType === "StitchDeclarationName") {
-          const prevKind = scopePathParts.at(-1)?.kind || "";
-          if (prevKind === "stitch") {
-            scopePathParts.pop();
-          }
-          // Scoped
-          const scopePath = scopePathParts.map((p) => p.name).join(".");
-          program.metadata ??= {};
-          program.metadata.scopes ??= {};
-          program.metadata.scopes[scopePath] ??= {};
-          program.metadata.scopes[scopePath]["stitch"] ??= [];
-          program.metadata.scopes[scopePath]["stitch"].push({
-            uri,
-            range,
-            text,
-          });
-          scopePathParts.push({ kind: "stitch", name: text });
-        }
-        if (nodeType === "LabelDeclarationName") {
-          // Scoped
-          const scopePath = scopePathParts.map((p) => p.name).join(".");
-          program.metadata ??= {};
-          program.metadata.scopes ??= {};
-          program.metadata.scopes[scopePath] ??= {};
-          program.metadata.scopes[scopePath]["label"] ??= [];
-          program.metadata.scopes[scopePath]["label"].push({
-            uri,
-            range,
-            text,
-          });
-        }
-        if (
-          stack.includes("ConstDeclaration") &&
-          nodeType === "VariableDeclarationName"
-        ) {
-          // Global
-          const scopePath = "";
-          program.metadata ??= {};
-          program.metadata.scopes ??= {};
-          program.metadata.scopes[scopePath] ??= {};
-          program.metadata.scopes[scopePath]["const"] ??= [];
-          program.metadata.scopes[scopePath]["const"].push({
-            uri,
-            range,
-            text,
-          });
-        }
-        if (
-          stack.includes("VarDeclaration") &&
-          nodeType === "VariableDeclarationName"
-        ) {
-          // Global
-          const scopePath = "";
-          program.metadata ??= {};
-          program.metadata.scopes ??= {};
-          program.metadata.scopes[scopePath] ??= {};
-          program.metadata.scopes[scopePath]["var"] ??= [];
-          program.metadata.scopes[scopePath]["var"].push({
-            uri,
-            range,
-            text,
-          });
-        }
-        if (
-          stack.includes("ListDeclaration") &&
-          nodeType === "TypeDeclarationName"
-        ) {
-          // Global
-          const scopePath = "";
-          program.metadata ??= {};
-          program.metadata.scopes ??= {};
-          program.metadata.scopes[scopePath] ??= {};
-          program.metadata.scopes[scopePath]["list"] ??= [];
-          program.metadata.scopes[scopePath]["list"].push({
-            uri,
-            range,
-            text,
-          });
-        }
-        if (
-          stack.includes("DefineDeclaration") &&
-          nodeType === "DefineIdentifier"
-        ) {
-          // Global
-          const scopePath = "";
-          program.metadata ??= {};
-          program.metadata.scopes ??= {};
-          program.metadata.scopes[scopePath] ??= {};
-          program.metadata.scopes[scopePath]["define"] ??= [];
-          program.metadata.scopes[scopePath]["define"].push({
-            uri,
-            range,
-            text,
-          });
-        }
-        if (
-          stack.includes("TempDeclaration") &&
-          nodeType === "VariableDeclarationName"
-        ) {
-          // Scoped
-          const scopePath = scopePathParts.map((p) => p.name).join(".");
-          program.metadata ??= {};
-          program.metadata.scopes ??= {};
-          program.metadata.scopes[scopePath] ??= {};
-          program.metadata.scopes[scopePath]["temp"] ??= [];
-          program.metadata.scopes[scopePath]["temp"].push({
-            uri,
-            range,
-            text,
-          });
-        }
-        if (
-          !stack.includes("FunctionCall") &&
-          stack.includes("FunctionParameters") &&
-          nodeType === "Parameter"
-        ) {
-          // Scoped
-          const scopePath = scopePathParts.map((p) => p.name).join(".");
-          program.metadata ??= {};
-          program.metadata.scopes ??= {};
-          program.metadata.scopes[scopePath] ??= {};
-          program.metadata.scopes[scopePath]["param"] ??= [];
-          program.metadata.scopes[scopePath]["param"].push({
-            uri,
-            range,
-            text,
-          });
-        }
-        // Record Newline
-        if (nodeType === "Newline") {
-          lineIndex += 1;
-          linePos = node.to;
-        } else {
-          prevNodeType = nodeType;
-        }
-        stack.push(nodeType);
-      },
-      leave: (node) => {
-        const nodeType = node.type.name as SparkdownNodeName;
-        const transpilationOffset = program.sourceMap?.[uri]?.[lineIndex];
-        const after = transpilationOffset?.after ?? 0;
-        const shift = transpilationOffset?.shift ?? 0;
-        const nodeEndCharacter = node.to - linePos;
-        const nodeEnd =
-          nodeEndCharacter > after
-            ? shift + nodeEndCharacter
-            : nodeEndCharacter;
-        if (nodeType === "BlockDialogue_end" || nodeType === "BlockWrite_end") {
-          blockPrefix = "";
-        }
-        if (nodeType === "BlockLineContinue") {
-          const lineText = lines[lineIndex] || "";
-          const lineTextBefore = lineText.slice(0, nodeEnd);
-          const lineTextAfter = lineText.slice(nodeEnd);
+          // Record image file name reference
           if (
-            !lineTextBefore.trim().endsWith("\\") &&
-            !lineTextAfter.trim().startsWith("\\")
+            stack.includes("ImageCommand") &&
+            nodeType === "AssetCommandFileName"
           ) {
-            const indentMatch = lineText.match(INDENT_REGEX);
-            const indent = indentMatch?.[0] || "";
-            const nextLineText = lines[lineIndex + 1] || "";
-            // Check that this dialogue line is not the last in the block
-            if (nextLineText.startsWith(indent)) {
-              // All lines (except the last in a block) should end with implicit \
-              // (So they are grouped together with following text line)
-              const suffix = " \\";
-              const markup = suffix;
-              lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+            const types = [
+              "filtered_image",
+              "layered_image",
+              "image",
+              "graphic",
+            ];
+            const name = text;
+            const displayType = "image";
+            recordReference({ selector: { types, name, displayType } });
+          }
+          // Record image filter reference
+          if (
+            stack.includes("ImageCommand") &&
+            nodeType === "AssetCommandFilterName"
+          ) {
+            const types = ["filter"];
+            const name = text;
+            recordReference({ selector: { types, name } });
+          }
+          // Record audio file reference
+          if (
+            stack.includes("AudioCommand") &&
+            nodeType === "AssetCommandFileName"
+          ) {
+            const types = ["layered_audio", "audio", "synth"];
+            const name = text;
+            const displayType = "audio";
+            recordReference({ selector: { types, name, displayType } });
+          }
+          // Record audio filter reference
+          if (
+            stack.includes("AudioCommand") &&
+            nodeType === "AssetCommandFilterName"
+          ) {
+            // TODO: Validate synth tone format
+          }
+          // Report invalid image control
+          if (
+            stack.includes("ImageCommand") &&
+            nodeType === "AssetCommandControl" &&
+            !IMAGE_CONTROL_KEYWORDS.includes(text)
+          ) {
+            const message = `Unrecognized visual control: Visual commands only support ${formatList(
+              IMAGE_CONTROL_KEYWORDS
+            )}`;
+            reportDiagnostic(message);
+          }
+          // Report invalid audio control
+          if (
+            stack.includes("AudioCommand") &&
+            nodeType === "AssetCommandControl" &&
+            !AUDIO_CONTROL_KEYWORDS.includes(text)
+          ) {
+            const message = `Unrecognized visual control: Visual commands only support ${formatList(
+              AUDIO_CONTROL_KEYWORDS
+            )}`;
+            reportDiagnostic(message);
+          }
+          // Report invalid image name syntax
+          if (stack.includes("ImageCommand") && nodeType === "IllegalChar") {
+            const message = `Invalid syntax`;
+            reportDiagnostic(message, DiagnosticSeverity.Error);
+          }
+          // Report invalid audio name syntax
+          if (stack.includes("AudioCommand") && nodeType === "IllegalChar") {
+            const message = `Invalid syntax`;
+            reportDiagnostic(message, DiagnosticSeverity.Error);
+          }
+          if (nodeType === "AssetCommandClauseKeyword") {
+            const nextValueNode = node.node.nextSibling?.node.nextSibling;
+            const nextValueNodeType = (
+              nextValueNode ? nextValueNode.type.name : ""
+            ) as SparkdownNodeName;
+            const nextValueNodeText = nextValueNode
+              ? script.slice(nextValueNode.from, nextValueNode.to)
+              : "";
+            if (text === "after") {
+              if (
+                nextValueNodeType !== "ConditionalBlock" &&
+                nextValueNodeType !== "TimeValue" &&
+                nextValueNodeType !== "NumberValue"
+              ) {
+                const message = `'${text}' should be followed by a time value (e.g. 'after 2' or 'after 2s' or 'after 200ms')`;
+                reportDiagnostic(message, DiagnosticSeverity.Error, "end");
+              }
+            }
+            if (text === "over") {
+              if (
+                nextValueNodeType !== "ConditionalBlock" &&
+                nextValueNodeType !== "TimeValue" &&
+                nextValueNodeType !== "NumberValue"
+              ) {
+                const message = `'${text}' should be followed by a time value (e.g. 'over 2' or 'over 2s' or 'over 200ms')`;
+                reportDiagnostic(message, DiagnosticSeverity.Error, "end");
+              }
+            }
+            if (text === "with") {
+              if (
+                stack.includes("ImageCommand") &&
+                nextValueNodeType !== "ConditionalBlock" &&
+                nextValueNodeType !== "NameValue"
+              ) {
+                const message = `'${text}' should be followed by the name of a transition or animation (e.g. 'with shake')`;
+                reportDiagnostic(message, DiagnosticSeverity.Error, "end");
+              }
+              if (
+                stack.includes("AudioCommand") &&
+                nextValueNodeType !== "ConditionalBlock" &&
+                nextValueNodeType !== "NameValue"
+              ) {
+                const message =
+                  "'with' should be followed by the name of a modulation (e.g. 'with echo')";
+                reportDiagnostic(message);
+              }
+            }
+            if (text === "fadeto") {
+              if (
+                (nextValueNodeType !== "ConditionalBlock" &&
+                  nextValueNodeType !== "NumberValue") ||
+                (nextValueNodeType === "NumberValue" &&
+                  (Number(nextValueNodeText) < 0 ||
+                    Number(nextValueNodeText) > 1))
+              ) {
+                const message = `'${text}' should be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 0.5' or 'fadeto 1')`;
+                reportDiagnostic(message, DiagnosticSeverity.Error, "end");
+              }
+            }
+            if (
+              text === "wait" ||
+              text === "nowait" ||
+              text === "loop" ||
+              text === "noloop" ||
+              text === "mute" ||
+              text === "unmute" ||
+              text === "now"
+            ) {
+              if (
+                nextValueNode &&
+                (nextValueNodeType === "ConditionalBlock" ||
+                  nextValueNodeType === "TimeValue" ||
+                  nextValueNodeType === "NumberValue")
+              ) {
+                const message = `'${text}' is a flag and cannot take an argument`;
+                const nodeCharacterOffset = nextValueNode.to - node.to;
+                const markRange = {
+                  start: { ...range.start },
+                  end: {
+                    line: range.end.line,
+                    character: range.end.character + nodeCharacterOffset,
+                  },
+                };
+                reportDiagnostic(message, DiagnosticSeverity.Error, markRange);
+              }
             }
           }
-        }
-        if (nodeType === "DefineDeclaration") {
-          defineModifier = "";
-          defineType = "";
-          defineName = "";
-          definePropertyPathParts = [];
-        }
-        if (
-          nodeType === "StructScalarItem" ||
-          nodeType === "StructObjectItemBlock" ||
-          nodeType === "StructObjectItemWithInlineScalarProperty" ||
-          nodeType === "StructObjectItemWithInlineObjectProperty" ||
-          nodeType === "StructObjectItemWithInlineScalarProperty_begin" ||
-          nodeType === "StructObjectItemWithInlineObjectProperty_end"
-        ) {
-          definePropertyPathParts.pop();
-        }
-        if (
-          nodeType === "StructScalarProperty" ||
-          nodeType === "StructObjectProperty"
-        ) {
-          definePropertyPathParts.pop();
-        }
-        stack.pop();
-      },
-    });
-    performance.mark(`iterate ${uri} end`);
-    performance.measure(
-      `iterate ${uri}`,
-      `iterate ${uri} start`,
-      `iterate ${uri} end`
-    );
+          if (stack.includes("ImageCommand") && nodeType === "NameValue") {
+            const types = ["transition", "animation"];
+            const name = text;
+            const displayType = `transition or animation`;
+            recordReference({ selector: { types, name, displayType } });
+          }
+          if (stack.includes("AudioCommand") && nodeType === "NameValue") {
+            const types = ["modulation"];
+            const name = text;
+            recordReference({ selector: { types, name } });
+          }
+          // Record global and scoped declarations
+          if (nodeType === "KnotDeclarationName") {
+            // Global
+            const scopePath = "";
+            program.metadata ??= {};
+            program.metadata.scopes ??= {};
+            program.metadata.scopes[scopePath] ??= {};
+            program.metadata.scopes[scopePath]["knot"] ??= [];
+            program.metadata.scopes[scopePath]["knot"].push({
+              uri,
+              range,
+              text,
+            });
+            scopePathParts = [{ kind: "", name: "" }];
+            scopePathParts.push({ kind: "knot", name: text });
+          }
+          if (nodeType === "StitchDeclarationName") {
+            const prevKind = scopePathParts.at(-1)?.kind || "";
+            if (prevKind === "stitch") {
+              scopePathParts.pop();
+            }
+            // Scoped
+            const scopePath = scopePathParts.map((p) => p.name).join(".");
+            program.metadata ??= {};
+            program.metadata.scopes ??= {};
+            program.metadata.scopes[scopePath] ??= {};
+            program.metadata.scopes[scopePath]["stitch"] ??= [];
+            program.metadata.scopes[scopePath]["stitch"].push({
+              uri,
+              range,
+              text,
+            });
+            scopePathParts.push({ kind: "stitch", name: text });
+          }
+          if (nodeType === "LabelDeclarationName") {
+            // Scoped
+            const scopePath = scopePathParts.map((p) => p.name).join(".");
+            program.metadata ??= {};
+            program.metadata.scopes ??= {};
+            program.metadata.scopes[scopePath] ??= {};
+            program.metadata.scopes[scopePath]["label"] ??= [];
+            program.metadata.scopes[scopePath]["label"].push({
+              uri,
+              range,
+              text,
+            });
+          }
+          if (
+            stack.includes("ConstDeclaration") &&
+            nodeType === "VariableDeclarationName"
+          ) {
+            // Global
+            const scopePath = "";
+            program.metadata ??= {};
+            program.metadata.scopes ??= {};
+            program.metadata.scopes[scopePath] ??= {};
+            program.metadata.scopes[scopePath]["const"] ??= [];
+            program.metadata.scopes[scopePath]["const"].push({
+              uri,
+              range,
+              text,
+            });
+          }
+          if (
+            stack.includes("VarDeclaration") &&
+            nodeType === "VariableDeclarationName"
+          ) {
+            // Global
+            const scopePath = "";
+            program.metadata ??= {};
+            program.metadata.scopes ??= {};
+            program.metadata.scopes[scopePath] ??= {};
+            program.metadata.scopes[scopePath]["var"] ??= [];
+            program.metadata.scopes[scopePath]["var"].push({
+              uri,
+              range,
+              text,
+            });
+          }
+          if (
+            stack.includes("ListDeclaration") &&
+            nodeType === "TypeDeclarationName"
+          ) {
+            // Global
+            const scopePath = "";
+            program.metadata ??= {};
+            program.metadata.scopes ??= {};
+            program.metadata.scopes[scopePath] ??= {};
+            program.metadata.scopes[scopePath]["list"] ??= [];
+            program.metadata.scopes[scopePath]["list"].push({
+              uri,
+              range,
+              text,
+            });
+          }
+          if (
+            stack.includes("DefineDeclaration") &&
+            nodeType === "DefineIdentifier"
+          ) {
+            // Global
+            const scopePath = "";
+            program.metadata ??= {};
+            program.metadata.scopes ??= {};
+            program.metadata.scopes[scopePath] ??= {};
+            program.metadata.scopes[scopePath]["define"] ??= [];
+            program.metadata.scopes[scopePath]["define"].push({
+              uri,
+              range,
+              text,
+            });
+          }
+          if (
+            stack.includes("TempDeclaration") &&
+            nodeType === "VariableDeclarationName"
+          ) {
+            // Scoped
+            const scopePath = scopePathParts.map((p) => p.name).join(".");
+            program.metadata ??= {};
+            program.metadata.scopes ??= {};
+            program.metadata.scopes[scopePath] ??= {};
+            program.metadata.scopes[scopePath]["temp"] ??= [];
+            program.metadata.scopes[scopePath]["temp"].push({
+              uri,
+              range,
+              text,
+            });
+          }
+          if (
+            !stack.includes("FunctionCall") &&
+            stack.includes("FunctionParameters") &&
+            nodeType === "Parameter"
+          ) {
+            // Scoped
+            const scopePath = scopePathParts.map((p) => p.name).join(".");
+            program.metadata ??= {};
+            program.metadata.scopes ??= {};
+            program.metadata.scopes[scopePath] ??= {};
+            program.metadata.scopes[scopePath]["param"] ??= [];
+            program.metadata.scopes[scopePath]["param"].push({
+              uri,
+              range,
+              text,
+            });
+          }
+          // Record Newline
+          if (nodeType === "Newline") {
+            lineIndex += 1;
+            linePos = node.to;
+          } else {
+            prevNodeType = nodeType;
+          }
+          stack.push(nodeType);
+        },
+        leave: (node) => {
+          const nodeType = node.type.name as SparkdownNodeName;
+          const transpilationOffset = program.sourceMap?.[uri]?.[lineIndex];
+          const after = transpilationOffset?.after ?? 0;
+          const shift = transpilationOffset?.shift ?? 0;
+          const nodeEndCharacter = node.to - linePos;
+          const nodeEnd =
+            nodeEndCharacter > after
+              ? shift + nodeEndCharacter
+              : nodeEndCharacter;
+          if (
+            nodeType === "BlockDialogue_end" ||
+            nodeType === "BlockWrite_end"
+          ) {
+            blockPrefix = "";
+          }
+          if (nodeType === "BlockLineContinue") {
+            const lineText = lines[lineIndex] || "";
+            const lineTextBefore = lineText.slice(0, nodeEnd);
+            const lineTextAfter = lineText.slice(nodeEnd);
+            if (
+              !lineTextBefore.trim().endsWith("\\") &&
+              !lineTextAfter.trim().startsWith("\\")
+            ) {
+              const indentMatch = lineText.match(INDENT_REGEX);
+              const indent = indentMatch?.[0] || "";
+              const nextLineText = lines[lineIndex + 1] || "";
+              // Check that this dialogue line is not the last in the block
+              if (nextLineText.startsWith(indent)) {
+                // All lines (except the last in a block) should end with implicit \
+                // (So they are grouped together with following text line)
+                const suffix = " \\";
+                const markup = suffix;
+                lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+              }
+            }
+          }
+          if (nodeType === "DefineDeclaration") {
+            defineModifier = "";
+            defineType = "";
+            defineName = "";
+            definePropertyPathParts = [];
+          }
+          if (
+            nodeType === "StructScalarItem" ||
+            nodeType === "StructObjectItemBlock" ||
+            nodeType === "StructObjectItemWithInlineScalarProperty" ||
+            nodeType === "StructObjectItemWithInlineObjectProperty" ||
+            nodeType === "StructObjectItemWithInlineScalarProperty_begin" ||
+            nodeType === "StructObjectItemWithInlineObjectProperty_end"
+          ) {
+            definePropertyPathParts.pop();
+          }
+          if (
+            nodeType === "StructScalarProperty" ||
+            nodeType === "StructObjectProperty"
+          ) {
+            definePropertyPathParts.pop();
+          }
+          stack.pop();
+        },
+      });
+      performance.mark(`iterate ${uri} end`);
+      performance.measure(
+        `iterate ${uri}`,
+        `iterate ${uri} start`,
+        `iterate ${uri} end`
+      );
+    }
     while (lines.at(-1) === "") {
       // Remove empty newlines at end of script
       lines.pop();
@@ -1123,10 +1080,10 @@ export default class SparkdownCompiler {
     return transpiled;
   }
 
-  compile(rootUri: string): SparkProgram {
-    performance.mark(`compile ${rootUri} start`);
+  compile(params: { uri: string }): SparkProgram {
+    const uri = params.uri;
+    performance.mark(`compile ${uri} start`);
     // console.clear();
-    this._trees.clear();
     const program: SparkProgram = {};
     const transpiledScripts = new Map<string, string>();
 
@@ -1139,7 +1096,7 @@ export default class SparkdownCompiler {
       },
       {
         ResolveInkFilename: (filename: string): string => {
-          return this.resolveFile(rootUri, filename);
+          return this.resolveFile(uri, filename);
         },
         LoadInkFileContents: (uri: string): string => {
           program.sourceMap ??= {};
@@ -1171,20 +1128,20 @@ export default class SparkdownCompiler {
         },
       }
     );
-    const file = this._config.files?.[rootUri];
+    const file = this.files.get(uri);
     if (file) {
-      const rootFilename = file.path || "main.sd";
+      const rootFilename = file.name + "." + file.ext || "main.sd";
       const inkCompiler = new InkCompiler(`include ${rootFilename}`, options);
       try {
-        performance.mark(`ink compile ${rootUri} start`);
+        performance.mark(`ink compile ${uri} start`);
         const story = inkCompiler.Compile();
-        performance.mark(`ink compile ${rootUri} end`);
+        performance.mark(`ink compile ${uri} end`);
         performance.measure(
-          `ink compile ${rootUri}`,
-          `ink compile ${rootUri} start`,
-          `ink compile ${rootUri} end`
+          `ink compile ${uri}`,
+          `ink compile ${uri} start`,
+          `ink compile ${uri} end`
         );
-        this.populateDiagnostics(rootUri, program, inkCompiler);
+        this.populateDiagnostics(uri, program, inkCompiler);
         if (story) {
           const storyJSON = story.ToJson();
           if (storyJSON) {
@@ -1201,36 +1158,14 @@ export default class SparkdownCompiler {
         console.error(e);
       }
     }
-    performance.mark(`compile ${rootUri} end`);
+    performance.mark(`compile ${uri} end`);
     performance.measure(
-      `compile ${rootUri}`,
-      `compile ${rootUri} start`,
-      `compile ${rootUri} end`
+      `compile ${uri}`,
+      `compile ${uri} start`,
+      `compile ${uri} end`
     );
     // console.log("program", program);
     return program;
-  }
-
-  buildTree(script: string): Tree {
-    // Pad script with newline to ensure any open scopes are closed by the end of the script.
-    let paddedScript = script + "\n";
-    const result = this._grammarCompiler.compile(paddedScript);
-    if (!result) {
-      throw new Error("Could not compile sparkdown script");
-    }
-    const topID = NodeID.top;
-    const buffer = result.cursor;
-    const reused = result.reused.map(
-      (b) =>
-        new TreeBuffer(b.buffer, b.length, this._nodeSet) as unknown as Tree
-    );
-    const tree = Tree.build({
-      topID,
-      buffer,
-      reused,
-      nodeSet: this._nodeSet,
-    });
-    return tree;
   }
 
   populateBuiltins(program: SparkProgram) {
@@ -1296,7 +1231,7 @@ export default class SparkdownCompiler {
     performance.mark(`populateAssets start`);
     if (program.compiled) {
       program.context ??= {};
-      const files = this._config.files;
+      const files = this.files.all();
       if (files) {
         for (const file of Object.values(files)) {
           const type = file.type;

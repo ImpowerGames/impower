@@ -8,7 +8,6 @@ export interface AddCompilerFileParams {
     type: string;
     name: string;
     ext: string;
-    path: string;
     src: string;
     text?: string;
   };

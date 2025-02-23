@@ -1,9 +1,7 @@
-import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import {
   type InitializeResult,
   type ServerCapabilities,
 } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
@@ -15,7 +13,6 @@ import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
 import { getColorPresentations } from "./utils/providers/getColorPresentations";
 import { getCompletions } from "./utils/providers/getCompletions";
 import { getDocumentColors } from "./utils/providers/getDocumentColors";
-import { getDocumentDiagnostics } from "./utils/providers/getDocumentDiagnostics";
 import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
@@ -27,7 +24,7 @@ try {
   const messageWriter = new BrowserMessageWriter(self);
   const connection = createConnection(messageReader, messageWriter);
 
-  const documents = new SparkdownTextDocuments(TextDocument);
+  const documents = new SparkdownTextDocuments();
 
   connection.onInitialize(async (params): Promise<InitializeResult> => {
     const capabilities: ServerCapabilities = {
@@ -102,29 +99,11 @@ try {
     documents.loadConfiguration(settings[0]);
   });
 
-  // parseProvider
-  documents.onDidParse((change) => {
-    connection.sendNotification(DidParseTextDocumentMessage.method, {
-      textDocument: {
-        uri: change.document.uri,
-        version: change.document.version,
-      },
-      program: change.program,
-    });
-  });
-
-  // diagnosticsProvider
-  documents.onUpdateDiagnostics((change) => {
-    connection.sendDiagnostics(
-      getDocumentDiagnostics(change.document, change.program)
-    );
-  });
-
   // foldingRangeProvider
   connection.onFoldingRanges((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.getLatestProgram(uri);
+    const program = documents.program(uri);
     performance.mark(`lsp: onFoldingRanges ${uri} start`);
     const result = getFoldingRanges(document, program);
     performance.mark(`lsp: onFoldingRanges ${uri} end`);
@@ -140,7 +119,7 @@ try {
   connection.onDocumentColor((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.getLatestProgram(uri);
+    const program = documents.program(uri);
     performance.mark(`lsp: onDocumentColor ${uri} start`);
     const result = getDocumentColors(document, program);
     performance.mark(`lsp: onDocumentColor ${uri} end`);
@@ -167,7 +146,7 @@ try {
   connection.onDocumentSymbol((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.getLatestProgram(uri);
+    const program = documents.program(uri);
     performance.mark(`lsp: onDocumentSymbol ${uri} start`);
     const result = getDocumentSymbols(document, program);
     performance.mark(`lsp: onDocumentSymbol ${uri} end`);
@@ -183,7 +162,7 @@ try {
   connection.onHover((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.getLatestProgram(uri);
+    const program = documents.program(uri);
     performance.mark(`lsp: onHover ${uri} start`);
     const result = getHover(document, program, params.position);
     performance.mark(`lsp: onHover ${uri} end`);
@@ -199,8 +178,8 @@ try {
   connection.onCompletion((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const tree = documents.getLatestSyntaxTree(uri);
-    const program = documents.getLatestProgram(uri);
+    const tree = documents.tree(uri);
+    const program = documents.program(uri);
     performance.mark(`lsp: onCompletion ${uri} start`);
     const result = getCompletions(
       document,
