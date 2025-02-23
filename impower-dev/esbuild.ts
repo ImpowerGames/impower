@@ -45,8 +45,6 @@ const graphicCSSPaths = [
   `${indir}/modules/spark-editor/styles/icons/icons.css`,
 ];
 
-const localDependencies = `node_modules/@impower`;
-
 const watchDirs = [
   `${indir}/modules`,
   `${indir}/workers`,
@@ -462,20 +460,10 @@ const watchFiles = async () => {
   };
   console.log(YELLOW, `Watching for changes...`);
   chokidar
-    .watch(
-      [
-        publicInDir,
-        apiInDir,
-        localDependencies,
-        componentsInDir,
-        pagesInDir,
-        ...watchDirs,
-      ],
-      {
-        ignoreInitial: true,
-        followSymlinks: true,
-      }
-    )
+    .watch([publicInDir, apiInDir, componentsInDir, pagesInDir, ...watchDirs], {
+      ignoreInitial: true,
+      followSymlinks: true,
+    })
     .on("all", async (event, path) => {
       console.log(SRC_COLOR, `${event} ${getRelativePath(path)}`);
       if (pendingBuildTimeout) {
