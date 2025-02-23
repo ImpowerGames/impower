@@ -50,11 +50,11 @@ const localDependencies = `node_modules/@impower`;
 const watchDirs = [
   `${indir}/modules`,
   `${indir}/workers`,
-  "../packages/spark-engine",
-  "../packages/sparkdown",
-  "../packages/sparkdown-screenplay",
-  "../packages/spark-dom",
-  "../packages/textmate-grammar-tree",
+  "../packages/spark-engine/src",
+  "../packages/sparkdown/src",
+  "../packages/sparkdown-screenplay/src",
+  "../packages/spark-dom/src",
+  "../packages/textmate-grammar-tree/src",
 ];
 
 const args = process.argv.slice(2);
