@@ -1,42 +1,12 @@
-import { NodeSet, NodeType, Tree, TreeBuffer } from "@lezer/common";
+import { Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
 import type { SparkdownNodeName } from "../../../sparkdown/src/types/SparkdownNodeName";
-import { Compiler as GrammarCompiler } from "../../../textmate-grammar-tree/src/compiler/classes/Compiler";
-import { NodeID } from "../../../textmate-grammar-tree/src/core";
-import { Grammar } from "../../../textmate-grammar-tree/src/grammar";
-import { defineNodeType } from "../../../textmate-grammar-tree/src/tree/utils/defineNodeType";
+import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
 
-const NODE_TOP = NodeType.define({
-  id: NodeID.top,
-  name: "sparkdown",
-  top: true,
-});
-
 export default class ScreenplayParser {
-  protected _nodeTypeProp = "nodeType";
-
-  protected _nodeSet: NodeSet;
-
-  protected _grammarCompiler: GrammarCompiler;
-
-  protected _grammar: Grammar;
-  get grammar() {
-    return this._grammar;
-  }
-
-  constructor() {
-    const declarator = (id: number, name: string) => ({
-      [this._nodeTypeProp]: defineNodeType(NODE_TOP, id, name),
-    });
-    this._grammar = new Grammar(GRAMMAR_DEFINITION, declarator);
-    const nodeTypes = this.grammar.nodes.map(
-      (n) => n.props[this._nodeTypeProp]
-    );
-    this._nodeSet = new NodeSet(nodeTypes);
-    this._grammarCompiler = new GrammarCompiler(this._grammar);
-  }
+  protected _parser = new TextmateGrammarParser(GRAMMAR_DEFINITION);
 
   parse(script: string): ScreenplayToken[] {
     if (!script) {
@@ -322,22 +292,6 @@ export default class ScreenplayParser {
   buildTree(script: string): Tree {
     // Pad script so we ensure all scopes are properly closed before the end of the file.
     const paddedScript = script + "\n\n";
-    const result = this._grammarCompiler.compile(paddedScript);
-    if (!result) {
-      throw new Error("Could not compile sparkdown script");
-    }
-    const topID = NodeID.top;
-    const buffer = result.cursor;
-    const reused = result.reused.map(
-      (b) =>
-        new TreeBuffer(b.buffer, b.length, this._nodeSet) as unknown as Tree
-    );
-    const tree = Tree.build({
-      topID,
-      buffer,
-      reused,
-      nodeSet: this._nodeSet,
-    });
-    return tree;
+    return this._parser.parse(paddedScript);
   }
 }
