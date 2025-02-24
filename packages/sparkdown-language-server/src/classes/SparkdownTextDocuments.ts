@@ -409,6 +409,17 @@ export default class SparkdownTextDocuments {
     this._connection?.sendDiagnostics(getDocumentDiagnostics(uri, program));
   }
 
+  async updateCompilerDocument(
+    textDocument: { uri: string },
+    contentChanges: TextDocumentContentChangeEvent[]
+  ) {
+    await this.sendCompilerRequest(UpdateCompilerDocumentMessage.type, {
+      textDocument,
+      contentChanges,
+    });
+    this.debouncedCompile(textDocument.uri, false);
+  }
+
   public listen(connection: Connection): Disposable {
     this._connection = connection;
     (<ConnectionState>(<any>connection)).__textDocumentSync =
@@ -483,39 +494,22 @@ export default class SparkdownTextDocuments {
     );
     disposables.push(
       connection.onDidOpenTextDocument((event: DidOpenTextDocumentParams) => {
-        this._documents.add(event);
         const textDocument = event.textDocument;
         this.compile(textDocument.uri, false);
+        this._documents.add(event);
       })
     );
     disposables.push(
       connection.onDidChangeTextDocument(
         async (event: DidChangeTextDocumentParams) => {
-          const updated = this._documents.update(event);
-          const textDocument = event.textDocument;
-          const contentChanges = event.contentChanges;
-          if (updated) {
-            await this.sendCompilerRequest(UpdateCompilerDocumentMessage.type, {
-              textDocument,
-              contentChanges,
-            });
-            await this.debouncedCompile(textDocument.uri, false);
-          }
+          this.updateCompilerDocument(event.textDocument, event.contentChanges);
+          this._documents.update(event);
         }
       )
     );
     disposables.push(
       connection.onDidCloseTextDocument((event: DidCloseTextDocumentParams) => {
         this._documents.remove(event);
-        const textDocument = event.textDocument;
-        const mainScriptUri = this.getMainScriptUri(textDocument.uri);
-        if (
-          mainScriptUri &&
-          textDocument.uri !== mainScriptUri &&
-          this._lastCompiledUri === textDocument.uri
-        ) {
-          this.compile(mainScriptUri, false);
-        }
       })
     );
     disposables.push(
