@@ -340,7 +340,11 @@ export default class SparkdownTextDocuments {
         this.getProgramState(uri).program = program;
       }
       if (program) {
-        this.sendProgram(uri, program);
+        this.sendProgram(
+          uri,
+          program,
+          this.getProgramState(uri).programVersion
+        );
       }
     }
     return program;
@@ -353,15 +357,17 @@ export default class SparkdownTextDocuments {
     });
   }
 
-  sendProgram(uri: string, program: SparkProgram) {
+  sendProgram(uri: string, program: SparkProgram, version: number | undefined) {
     this._connection?.sendNotification(DidParseTextDocumentMessage.method, {
       textDocument: {
-        uri: uri,
-        version: this.getProgramState(uri).programVersion,
+        uri,
+        version,
       },
       program,
     });
-    this._connection?.sendDiagnostics(getDocumentDiagnostics(uri, program));
+    this._connection?.sendDiagnostics(
+      getDocumentDiagnostics(uri, program, version)
+    );
   }
 
   get(uri: string) {
@@ -445,7 +451,11 @@ export default class SparkdownTextDocuments {
             return {
               kind: "full",
               resultId: uri,
-              items: getDocumentDiagnostics(document.uri, program).diagnostics,
+              items: getDocumentDiagnostics(
+                document.uri,
+                program,
+                document.version
+              ).diagnostics,
             };
           }
           return { kind: "unchanged", resultId: uri };
