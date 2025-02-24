@@ -98,6 +98,8 @@ export default class LanguageClientPluginValue implements PluginValue {
     this._highlighter = config.highlighter;
 
     this.bind();
+
+    this.setInitialDiagnostics(this._view);
   }
 
   update(update: ViewUpdate): void {
@@ -126,7 +128,6 @@ export default class LanguageClientPluginValue implements PluginValue {
     );
     this._supports.completion.addSource(this.pullCompletions);
     this._supports.hover.addSource(this.pullHovers);
-    this._supports.lint.addSource(this.pullDiagnostics);
   }
 
   unbind() {
@@ -134,7 +135,6 @@ export default class LanguageClientPluginValue implements PluginValue {
     this._disposables = [];
     this._supports.completion.removeSource(this.pullCompletions);
     this._supports.hover.removeSource(this.pullHovers);
-    this._supports.lint.removeSource(this.pullDiagnostics);
   }
 
   pullCompletions = async (
@@ -326,6 +326,18 @@ export default class LanguageClientPluginValue implements PluginValue {
     }
     return [];
   };
+
+  async setInitialDiagnostics(view: EditorView) {
+    const result = await this._serverConnection.sendRequest(
+      DocumentDiagnosticMessage.type,
+      {
+        textDocument: this._textDocument,
+      }
+    );
+    if (result.kind === "full") {
+      this.updateDiagnostics(view, result.items);
+    }
+  }
 
   async updateDiagnostics(view: EditorView, diagnostics: Diagnostic[]) {
     const transaction = setDiagnostics(

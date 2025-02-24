@@ -175,13 +175,12 @@ export default class SparkdownTextDocuments {
       for (const uri of Object.keys(config.files)) {
         this._watchedFileUris.add(uri);
       }
-      const files = await this.loadFiles(Object.values(config.files));
-      this._compilerConfig = { ...config, files };
-      this.sendCompilerRequest(
-        ConfigureCompilerMessage.type,
-        this._compilerConfig
-      );
     }
+    this._compilerConfig = config;
+    await this.sendCompilerRequest(
+      ConfigureCompilerMessage.type,
+      this._compilerConfig
+    );
   }
 
   async loadFiles(files: { uri: string; src: string; text?: string }[]) {
@@ -354,6 +353,17 @@ export default class SparkdownTextDocuments {
     });
   }
 
+  sendProgram(uri: string, program: SparkProgram) {
+    this._connection?.sendNotification(DidParseTextDocumentMessage.method, {
+      textDocument: {
+        uri: uri,
+        version: this.getProgramState(uri).programVersion,
+      },
+      program,
+    });
+    this._connection?.sendDiagnostics(getDocumentDiagnostics(uri, program));
+  }
+
   get(uri: string) {
     return this._documents.get(uri);
   }
@@ -398,17 +408,6 @@ export default class SparkdownTextDocuments {
     this.sendCompilerRequest(RemoveCompilerFileMessage.type, { uri });
   }
 
-  sendProgram(uri: string, program: SparkProgram) {
-    this._connection?.sendNotification(DidParseTextDocumentMessage.method, {
-      textDocument: {
-        uri: uri,
-        version: this.getProgramState(uri).programVersion,
-      },
-      program,
-    });
-    this._connection?.sendDiagnostics(getDocumentDiagnostics(uri, program));
-  }
-
   async updateCompilerDocument(
     textDocument: { uri: string },
     contentChanges: TextDocumentContentChangeEvent[]
@@ -436,10 +435,12 @@ export default class SparkdownTextDocuments {
     disposables.push(
       connection.onRequest(
         DocumentDiagnosticRequest.method,
-        (params: DocumentDiagnosticParams): DocumentDiagnosticReport => {
+        async (
+          params: DocumentDiagnosticParams
+        ): Promise<DocumentDiagnosticReport> => {
           const uri = params.textDocument.uri;
           const document = this._documents.get(uri);
-          const program = this.getProgramState(uri).program;
+          const program = await this.compile(uri, false);
           if (document && program) {
             return {
               kind: "full",
