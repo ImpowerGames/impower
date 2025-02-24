@@ -92,7 +92,7 @@ const PROPERTY_SELECTOR_SCREEN_ARGUMENTS = [
 ];
 
 const clone = <T>(value: T) => {
-  return JSON.parse(JSON.stringify(value));
+  return structuredClone(value);
 };
 
 const formatList = (arr: string[]) => {
@@ -1233,7 +1233,7 @@ export class SparkdownCompiler {
           const type = file.type;
           const name = file.name;
           program.context[type] ??= {};
-          program.context[type][name] ??= clone(file);
+          program.context[type][name] ??= { ...file };
           const definedFile = program.context[type][name];
           // Set $type and $name
           if (definedFile["$type"] === undefined) {
