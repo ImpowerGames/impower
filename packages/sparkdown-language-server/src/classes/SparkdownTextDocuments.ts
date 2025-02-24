@@ -133,11 +133,11 @@ export default class SparkdownTextDocuments {
         if (message.id === request.id) {
           if (message.method === `${message.method}/progress`) {
             onProgress?.(message.value);
-          } else if (message.result) {
-            resolve(message.result);
-            this._compilerWorker.removeEventListener("message", onResponse);
-          } else if (message.error) {
+          } else if (message.error !== undefined) {
             reject(message.error);
+            this._compilerWorker.removeEventListener("message", onResponse);
+          } else if (message.result !== undefined) {
+            resolve(message.result);
             this._compilerWorker.removeEventListener("message", onResponse);
           }
         }

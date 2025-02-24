@@ -12,6 +12,6 @@ export class UpdateCompilerDocumentMessage {
   static readonly type = new MessageProtocolRequestType<
     UpdateCompilerDocumentMethod,
     UpdateCompilerDocumentParams,
-    string
+    boolean
   >(UpdateCompilerDocumentMessage.method);
 }

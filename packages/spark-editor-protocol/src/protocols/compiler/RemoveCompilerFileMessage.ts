@@ -11,6 +11,6 @@ export class RemoveCompilerFileMessage {
   static readonly type = new MessageProtocolRequestType<
     RemoveCompilerFileMethod,
     RemoveCompilerFileParams,
-    string
+    boolean
   >(RemoveCompilerFileMessage.method);
 }

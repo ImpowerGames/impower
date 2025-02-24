@@ -190,7 +190,7 @@ export class SparkdownCompiler {
   }
 
   addFile(params: { file: File }) {
-    this.files.add(params);
+    const result = this.files.add(params);
     const file = params.file;
     if (file.type === "script") {
       this.documents.add({
@@ -202,23 +202,24 @@ export class SparkdownCompiler {
         },
       });
     }
+    return result;
   }
 
   updateFile(params: { file: File }) {
-    this.files.update(params);
+    return this.files.update(params);
   }
 
   updateDocument(params: {
     textDocument: { uri: string; version: number };
     contentChanges: SparkdownDocumentContentChangeEvent[];
   }) {
-    this.documents.update(params);
+    return this.documents.update(params);
   }
 
   removeFile(params: { file: { uri: string } }) {
     this.files.remove(params);
     const file = params.file;
-    this.documents.remove({ textDocument: { uri: file.uri } });
+    return this.documents.remove({ textDocument: { uri: file.uri } });
   }
 
   resolveFile(rootUri: string, relativePath: string) {
@@ -1069,6 +1070,8 @@ export class SparkdownCompiler {
         `iterate ${uri} start`,
         `iterate ${uri} end`
       );
+    } else {
+      console.error("No tree found", uri);
     }
     while (lines.at(-1) === "") {
       // Remove empty newlines at end of script

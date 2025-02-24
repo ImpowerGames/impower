@@ -8,7 +8,10 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import { Language } from "@codemirror/language";
-import { Diagnostic as ClientDiagnostic } from "@codemirror/lint";
+import {
+  Diagnostic as ClientDiagnostic,
+  setDiagnostics,
+} from "@codemirror/lint";
 import { EditorView, PluginValue, ViewUpdate } from "@codemirror/view";
 import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
@@ -24,6 +27,7 @@ import {
   MarkupContent,
   MessageConnection,
   ServerCapabilities,
+  Diagnostic,
 } from "../../../../spark-editor-protocol/src/types";
 import { getDocumentVersion } from "../../cm-versioning/versioning";
 import { languageClientConfig } from "../extensions/languageClient";
@@ -114,6 +118,7 @@ export default class LanguageClientPluginValue implements PluginValue {
           if (params.uri !== this._textDocument.uri) {
             return;
           }
+          this.updateDiagnostics(this._view, params.diagnostics);
           this.updateFoldingRanges(this._view);
           this.updateDocumentColors(this._view);
         }
@@ -321,6 +326,14 @@ export default class LanguageClientPluginValue implements PluginValue {
     }
     return [];
   };
+
+  async updateDiagnostics(view: EditorView, diagnostics: Diagnostic[]) {
+    const transaction = setDiagnostics(
+      view.state,
+      getClientDiagnostics(view.state, diagnostics)
+    );
+    view.dispatch(transaction);
+  }
 
   async updateFoldingRanges(view: EditorView) {
     const result =
