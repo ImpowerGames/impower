@@ -1229,7 +1229,7 @@ export class SparkdownCompiler {
       program.context ??= {};
       const files = this.files.all();
       if (files) {
-        for (const file of Object.values(files)) {
+        for (const file of files) {
           const type = file.type;
           const name = file.name;
           program.context[type] ??= {};
