@@ -4,6 +4,7 @@ import { SparkLocation } from "./SparkLocation";
 import { SparkTranspilationOffset } from "./SparkTranspilationOffset";
 
 export interface SparkProgram {
+  uri: string;
   compiled?: {
     root: any;
     listDefs?: any;

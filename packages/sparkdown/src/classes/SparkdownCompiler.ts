@@ -7,24 +7,25 @@ import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
 import { SourceMetadata } from "../inkjs/engine/Error";
 import { StringValue } from "../inkjs/engine/Value";
 import { File } from "../types/File";
+import { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
-import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
-import { SparkDeclaration } from "../types/SparkDeclaration";
-import { getProperty } from "../utils/getProperty";
-import { selectProperty } from "../utils/selectProperty";
-import { uuid } from "../utils/uuid";
-import { filterSVG } from "../utils/filterSVG";
+import { SparkProgram } from "../types/SparkProgram";
+import { SparkReference } from "../types/SparkReference";
 import { buildSVGSource } from "../utils/buildSVGSource";
 import { filterMatchesName } from "../utils/filterMatchesName";
-import { setProperty } from "../utils/setProperty";
-import { SparkReference } from "../types/SparkReference";
-import { traverse } from "../utils/traverse";
+import { filterSVG } from "../utils/filterSVG";
 import { getAccessPath } from "../utils/getAccessPath";
+import { getProperty } from "../utils/getProperty";
+import { profile } from "../utils/profile";
+import { selectProperty } from "../utils/selectProperty";
+import { setProperty } from "../utils/setProperty";
+import { traverse } from "../utils/traverse";
+import { uuid } from "../utils/uuid";
 import {
-  SparkdownDocumentRegistry,
   SparkdownDocumentContentChangeEvent,
+  SparkdownDocumentRegistry,
 } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
@@ -362,7 +363,7 @@ export class SparkdownCompiler {
     const read = (from: number, to: number): string => script.slice(from, to);
     const tree = this._documents.tree(uri);
     if (tree) {
-      performance.mark(`iterate ${uri} start`);
+      profile("start", "iterate", uri);
       tree.iterate({
         enter: (node) => {
           const nodeType = node.type.name as SparkdownNodeName;
@@ -1064,12 +1065,7 @@ export class SparkdownCompiler {
           stack.pop();
         },
       });
-      performance.mark(`iterate ${uri} end`);
-      performance.measure(
-        `iterate ${uri}`,
-        `iterate ${uri} start`,
-        `iterate ${uri} end`
-      );
+      profile("end", "iterate", uri);
     } else {
       console.error("No tree found", uri);
     }
@@ -1086,7 +1082,7 @@ export class SparkdownCompiler {
   compile(params: { uri: string }): SparkProgram {
     const uri = params.uri;
     // console.clear();
-    const program: SparkProgram = {};
+    const program: SparkProgram = { uri };
     const transpiledScripts = new Map<string, string>();
 
     const options = new InkCompilerOptions(
@@ -1135,27 +1131,23 @@ export class SparkdownCompiler {
       const rootFilename = file.name + "." + file.ext || "main.sd";
       const inkCompiler = new InkCompiler(`include ${rootFilename}`, options);
       try {
-        performance.mark(`ink compile ${uri} start`);
+        profile("start", "ink/compile", uri);
         const story = inkCompiler.Compile();
-        performance.mark(`ink compile ${uri} end`);
-        performance.measure(
-          `ink compile ${uri}`,
-          `ink compile ${uri} start`,
-          `ink compile ${uri} end`
-        );
-        this.populateDiagnostics(uri, program, inkCompiler);
+        profile("end", "ink/compile", uri);
+        profile("start", "ink/json", uri);
         if (story) {
           const storyJSON = story.ToJson();
           if (storyJSON) {
             program.compiled = JSON.parse(storyJSON);
           }
         }
+        profile("end", "ink/json", uri);
+        this.populateDiagnostics(program, inkCompiler);
         this.populateBuiltins(program);
         this.populateAssets(program);
         this.populateImplicitDefs(program);
         this.validateReferences(program);
-        program.uuidToSource ??= {};
-        program.uuidToSource = this.sortSources(program.uuidToSource);
+        this.sortSources(program);
       } catch (e) {
         console.error(e);
       }
@@ -1165,7 +1157,8 @@ export class SparkdownCompiler {
   }
 
   populateBuiltins(program: SparkProgram) {
-    performance.mark(`populateBuiltins start`);
+    const uri = program.uri;
+    profile("start", "populateBuiltins", uri);
     program.context ??= {};
     const builtins = this._config.builtinDefinitions;
     if (builtins) {
@@ -1215,16 +1208,12 @@ export class SparkdownCompiler {
         }
       }
     }
-    performance.mark(`populateBuiltins end`);
-    performance.measure(
-      `populateBuiltins`,
-      `populateBuiltins start`,
-      `populateBuiltins end`
-    );
+    profile("end", "populateBuiltins", uri);
   }
 
   populateAssets(program: SparkProgram) {
-    performance.mark(`populateAssets start`);
+    const uri = program.uri;
+    profile("start", "populateAssets", uri);
     if (program.compiled) {
       program.context ??= {};
       const files = this.files.all();
@@ -1278,16 +1267,12 @@ export class SparkdownCompiler {
         }
       }
     }
-    performance.mark(`populateAssets end`);
-    performance.measure(
-      `populateAssets`,
-      `populateAssets start`,
-      `populateAssets end`
-    );
+    profile("end", "populateAssets", uri);
   }
 
   populateImplicitDefs(program: SparkProgram) {
-    performance.mark(`populateImplicitDefs start`);
+    const uri = program.uri;
+    profile("start", "populateImplicitDefs", uri);
     if (program.compiled) {
       const images = program.context?.["image"];
       if (images) {
@@ -1403,12 +1388,7 @@ export class SparkdownCompiler {
         }
       }
     }
-    performance.mark(`populateImplicitDefs end`);
-    performance.measure(
-      `populateImplicitDefs`,
-      `populateImplicitDefs start`,
-      `populateImplicitDefs end`
-    );
+    profile("end", "populateImplicitDefs", uri);
   }
 
   getNestedFilters(
@@ -1592,7 +1572,8 @@ export class SparkdownCompiler {
   }
 
   validateReferences(program: SparkProgram) {
-    performance.mark(`validateReferences start`);
+    const uri = program.uri;
+    profile("start", "validateReferences", uri);
     if (program.references && program.compiled) {
       for (const [uri, refsLines] of Object.entries(program.references)) {
         for (const [_line, references] of Object.entries(refsLines)) {
@@ -1729,24 +1710,16 @@ export class SparkdownCompiler {
         }
       }
     }
-    performance.mark(`validateReferences end`);
-    performance.measure(
-      `validateReferences`,
-      `validateReferences start`,
-      `validateReferences end`
-    );
+    profile("end", "validateReferences", uri);
   }
 
-  populateDiagnostics(
-    rootUri: string,
-    program: SparkProgram,
-    compiler: InkCompiler
-  ) {
-    performance.mark(`populateDiagnostics start`);
+  populateDiagnostics(program: SparkProgram, compiler: InkCompiler) {
+    const uri = program.uri;
+    profile("start", "populateDiagnostics", uri);
     for (const error of compiler.errors) {
       program.diagnostics ??= {};
       const diagnostic = this.getDiagnostic(
-        rootUri,
+        uri,
         error.message,
         ErrorType.Error,
         error.source,
@@ -1767,7 +1740,7 @@ export class SparkdownCompiler {
     for (const warning of compiler.warnings) {
       program.diagnostics ??= {};
       const diagnostic = this.getDiagnostic(
-        rootUri,
+        uri,
         warning.message,
         ErrorType.Warning,
         warning.source,
@@ -1788,7 +1761,7 @@ export class SparkdownCompiler {
     for (const info of compiler.infos) {
       program.diagnostics ??= {};
       const diagnostic = this.getDiagnostic(
-        rootUri,
+        uri,
         info.message,
         ErrorType.Information,
         info.source,
@@ -1806,12 +1779,7 @@ export class SparkdownCompiler {
         }
       }
     }
-    performance.mark(`populateDiagnostics end`);
-    performance.measure(
-      `populateDiagnostics`,
-      `populateDiagnostics start`,
-      `populateDiagnostics end`
-    );
+    profile("end", "populateDiagnostics", uri);
   }
 
   getDiagnostic(
@@ -1895,8 +1863,15 @@ export class SparkdownCompiler {
     return null;
   }
 
-  sortSources<T extends number[]>(data: Record<string, T>): Record<string, T> {
-    performance.mark(`sortSources start`);
+  sortSources(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", "sortSources", uri);
+    program.uuidToSource ??= {};
+    program.uuidToSource = this.sort(program.uuidToSource);
+    profile("end", "sortSources", uri);
+  }
+
+  sort<T extends number[]>(data: Record<string, T>): Record<string, T> {
     const compare = (a: [string, T], b: [string, T]) => {
       let i = 0;
       const [, aValue] = a;
@@ -1915,8 +1890,6 @@ export class SparkdownCompiler {
     sortedEntries.forEach(function ([key, value]) {
       sorted[key] = value;
     });
-    performance.mark(`sortSources end`);
-    performance.measure(`sortSources`, `sortSources start`, `sortSources end`);
     return sorted;
   }
 }

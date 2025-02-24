@@ -1,19 +1,7 @@
 import { SparkdownCompiler } from "./classes/SparkdownCompiler";
+import { profile } from "./utils/profile";
 
 const compiler = new SparkdownCompiler();
-
-const profile = (method: string, uri: string, mark: "start" | "end") => {
-  if (mark === "end") {
-    performance.mark(`${method} ${uri} end`);
-    performance.measure(
-      `${method} ${uri}`,
-      `${method} ${uri} start`,
-      `${method} ${uri} end`
-    );
-  } else {
-    performance.mark(`${method} ${uri} start`);
-  }
-};
 
 onmessage = async (e) => {
   const message: {
@@ -29,45 +17,45 @@ onmessage = async (e) => {
     if (params) {
       if (method === "compiler/configure") {
         const uri = "";
-        profile(method, uri, "start");
+        profile("start", method, uri);
         const result = compiler.configure(params);
         postMessage({ jsonrpc: "2.0", method, id, result });
-        profile(method, uri, "end");
+        profile("end", method, uri);
       }
       if (method === "compiler/addFile") {
         const uri = params.file.uri;
-        profile(method, uri, "start");
+        profile("start", method, uri);
         const result = compiler.addFile(params);
         postMessage({ jsonrpc: "2.0", method, id, result });
-        profile(method, uri, "end");
+        profile("end", method, uri);
       }
       if (method === "compiler/updateFile") {
         const uri = params.file.uri;
-        profile(method, uri, "start");
+        profile("start", method, uri);
         const result = compiler.updateFile(params);
         postMessage({ jsonrpc: "2.0", method, id, result });
-        profile(method, uri, "end");
+        profile("end", method, uri);
       }
       if (method === "compiler/updateDocument") {
         const uri = params.textDocument.uri;
-        profile(method, uri, "start");
+        profile("start", method, uri);
         const result = compiler.updateDocument(params);
         postMessage({ jsonrpc: "2.0", method, id, result });
-        profile(method, uri, "end");
+        profile("end", method, uri);
       }
       if (method === "compiler/removeFile") {
         const uri = params.file.uri;
-        profile(method, uri, "start");
+        profile("start", method, uri);
         const result = compiler.removeFile(params);
         postMessage({ jsonrpc: "2.0", method, id, result });
-        profile(method, uri, "end");
+        profile("end", method, uri);
       }
       if (method === "compiler/compile") {
         const uri = params.uri;
-        profile(method, uri, "start");
+        profile("start", method, uri);
         const result = compiler.compile(params);
         postMessage({ jsonrpc: "2.0", method, id, result });
-        profile(method, uri, "end");
+        profile("end", method, uri);
       }
     }
   }
