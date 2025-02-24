@@ -1085,7 +1085,6 @@ export class SparkdownCompiler {
 
   compile(params: { uri: string }): SparkProgram {
     const uri = params.uri;
-    performance.mark(`compile ${uri} start`);
     // console.clear();
     const program: SparkProgram = {};
     const transpiledScripts = new Map<string, string>();
@@ -1161,12 +1160,6 @@ export class SparkdownCompiler {
         console.error(e);
       }
     }
-    performance.mark(`compile ${uri} end`);
-    performance.measure(
-      `compile ${uri}`,
-      `compile ${uri} start`,
-      `compile ${uri} end`
-    );
     // console.log("program", program);
     return program;
   }
