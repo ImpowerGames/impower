@@ -52,6 +52,7 @@ const watchDirs = [
   "../packages/sparkdown/src",
   "../packages/sparkdown-document-views/src",
   "../packages/sparkdown-screenplay/src",
+  "../packages/sparkdown-language-server/src",
   "../packages/spark-dom/src",
   "../packages/textmate-grammar-tree/src",
 ];
