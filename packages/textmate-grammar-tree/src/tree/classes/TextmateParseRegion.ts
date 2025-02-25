@@ -1,6 +1,6 @@
 import { Input, TreeFragment } from "@lezer/common";
 
-const NEWLINE_REGEX = /(\r\n|\r|\n)/;
+const ENDS_WITH_NEWLINE_REGEX = /(\r\n|\r|\n)$/;
 
 /**
  * The region of a document that should be parsed, along with other
@@ -207,30 +207,15 @@ export class TextmateParseRegion {
   }
 
   /**
-   * Reads from the specified position to the next newline
+   * Reads from the specified position to the next chunk that ends with a newline
    *
    * @param pos - The position to start at
    */
   next(from: number) {
+    let str = "";
     let pos = from;
-    if (pos >= this.input.length) {
-      return "";
-    }
-    let str = this.input.chunk(pos);
-    pos += str.length;
-    while (str) {
-      if (str.includes("\n")) {
-        str = str.split(NEWLINE_REGEX).slice(0, 2).join("");
-        break;
-      }
-      if (pos >= this.input.length) {
-        break;
-      }
-      let next = this.input.chunk(pos);
-      if (!next) {
-        break;
-      }
-      str += next;
+    while (pos < this.input.length && !str.match(ENDS_WITH_NEWLINE_REGEX)) {
+      str += this.input.chunk(pos);
       pos += str.length;
     }
     return str;
