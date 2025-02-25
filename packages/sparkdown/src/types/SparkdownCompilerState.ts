@@ -6,4 +6,7 @@ export interface SparkdownCompilerState {
   sourceMap?: {
     [uri: string]: { [line: number]: SparkTranspilationOffset };
   };
+  implicitDefs?: {
+    [type: string]: { [name: string]: any };
+  };
 }

@@ -359,9 +359,9 @@ export class SparkdownCompiler {
       });
     };
     const define = (type: string, name: string, obj: object) => {
-      program.implicitDefs ??= {};
-      program.implicitDefs[type] ??= {};
-      program.implicitDefs[type][name] ??= {
+      state.implicitDefs ??= {};
+      state.implicitDefs[type] ??= {};
+      state.implicitDefs[type][name] ??= {
         $type: type,
         $name: name,
         ...obj,
@@ -1296,7 +1296,7 @@ export class SparkdownCompiler {
     profile("end", "populateAssets", uri);
   }
 
-  populateImplicitDefs(_state: SparkdownCompilerState, program: SparkProgram) {
+  populateImplicitDefs(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "populateImplicitDefs", uri);
     if (program.compiled) {
@@ -1309,9 +1309,9 @@ export class SparkdownCompiler {
             // Declare implicit filtered_image
             // (so it only displays default layers by default)
             const implicitType = "filtered_image";
-            program.implicitDefs ??= {};
-            program.implicitDefs[implicitType] ??= {};
-            program.implicitDefs[implicitType][name] ??= {
+            state.implicitDefs ??= {};
+            state.implicitDefs[implicitType] ??= {};
+            state.implicitDefs[implicitType][name] ??= {
               $type: implicitType,
               $name: name,
               image: { $type: type, $name: name },
@@ -1320,7 +1320,7 @@ export class SparkdownCompiler {
           }
         }
       }
-      const implicitDefs = program.implicitDefs;
+      const implicitDefs = state.implicitDefs;
       if (implicitDefs) {
         for (const [type, objs] of Object.entries(implicitDefs)) {
           for (const [name, obj] of Object.entries(objs)) {
