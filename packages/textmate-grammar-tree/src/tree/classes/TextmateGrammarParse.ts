@@ -6,15 +6,12 @@ import {
   TreeBuffer,
   TreeFragment,
 } from "@lezer/common";
-import { ChunkBuffer } from "../../compiler/classes/ChunkBuffer";
 import { Compiler } from "../../compiler/classes/Compiler";
 import { NodeID } from "../../core/enums/NodeID";
 import { GrammarToken } from "../../core/types/GrammarToken";
 import { Grammar } from "../../grammar/classes/Grammar";
-import { cachedAheadBufferProp } from "../props/cachedAheadBufferProp";
 import { cachedCompilerProp } from "../props/cachedCompilerProp";
 import { findProp } from "../utils/findProp";
-import { printTree } from "../utils/printTree";
 import { TextmateParseRegion } from "./TextmateParseRegion";
 
 /**
