@@ -66,104 +66,113 @@ const traverse = <T>(
   }
 };
 
-const getClosestLineBefore = (
-  locations: SparkLocation[],
+const rankMostRecentTexts = (
+  type: keyof SparkdownAnnotations,
+  read: (from: number, to: number) => string,
+  scriptAnnotations: Record<string, SparkdownAnnotations>,
   uri: string,
-  line: number
+  contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
+  linePos: number
 ) => {
-  let numLinesBefore: number | undefined = undefined;
-  let closestLineBefore: number | undefined = undefined;
-  for (const location of locations) {
-    if (location.uri === uri) {
-      const d = location.range.start.line - line;
-      if (d < 0) {
-        if (numLinesBefore === undefined || Math.abs(d) < numLinesBefore) {
-          numLinesBefore = Math.abs(d);
-          closestLineBefore = location.range.start.line;
+  // Sort by most recently used
+  const before: string[] = [];
+  const after: string[] = [];
+  for (const [scriptUri, annotations] of Object.entries(scriptAnnotations)) {
+    const cur = annotations[type]?.iter();
+    if (cur) {
+      while (cur.value) {
+        const text = read(cur.from, cur.to);
+        if (cur.to < linePos) {
+          if (scriptUri === uri) {
+            before.push(text);
+          }
+        } else {
+          if (
+            !contentNode ||
+            (cur.from < contentNode.from && cur.to < contentNode.to) ||
+            (cur.from > contentNode.from && cur.to > contentNode.to)
+          ) {
+            after.push(text);
+          }
         }
+        cur.next();
       }
     }
   }
-  return closestLineBefore;
-};
-
-const rankDistance = (
-  a: [string, SparkLocation[]],
-  b: [string, SparkLocation[]],
-  uri: string,
-  line: number
-) => {
-  const [, aLocations] = a;
-  const aClosestLineBefore = getClosestLineBefore(aLocations, uri, line);
-  const aDistance =
-    aClosestLineBefore === undefined ? 0 : Math.abs(aClosestLineBefore - line);
-  const [, bLocations] = b;
-  const bClosestLineBefore = getClosestLineBefore(bLocations, uri, line);
-  const bDistance =
-    bClosestLineBefore === undefined ? 0 : Math.abs(bClosestLineBefore - line);
-  return aDistance - bDistance;
+  const mostRecentTexts = Array.from(
+    new Set([...before.toReversed(), ...after])
+  );
+  // Most recent is the least likely to be used again,
+  // So move it to the end of the list
+  const mostRecentText = mostRecentTexts.shift();
+  if (mostRecentText) {
+    mostRecentTexts.push(mostRecentText);
+  }
+  return mostRecentTexts;
 };
 
 const addTransitionCompletions = (
   completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
+  read: (from: number, to: number) => string,
+  scriptAnnotations: Record<string, SparkdownAnnotations>,
   uri: string,
-  line: number,
+  contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
+  linePos: number,
   insertTextPrefix: string = ""
 ) => {
-  // Sort by most recently used
-  const mostRecentEntries = Object.entries(
-    program?.metadata?.transitions || {}
-  ).sort((a, b) => rankDistance(a, b, uri, line));
+  const mostRecentTexts = rankMostRecentTexts(
+    "transitions",
+    read,
+    scriptAnnotations,
+    uri,
+    contentNode,
+    linePos
+  );
   // Add completions
-  for (const [name, position] of mostRecentEntries) {
-    if (position.some((p) => p.range.start.line !== line)) {
-      const labelDetails = { description: "transition" };
-      const kind = CompletionItemKind.Constant;
-      const completion: CompletionItem = {
-        label: name,
-        insertText: insertTextPrefix + name + "\n",
-        labelDetails,
-        kind,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
+  for (const text of mostRecentTexts) {
+    const labelDetails = { description: "transition" };
+    const kind = CompletionItemKind.Constant;
+    const completion: CompletionItem = {
+      label: text,
+      insertText: insertTextPrefix + text + "\n\n",
+      labelDetails,
+      kind,
+    };
+    if (completion.label && !completions.has(completion.label)) {
+      completions.set(completion.label, completion);
     }
   }
 };
 
 const addSceneCompletions = (
   completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
+  read: (from: number, to: number) => string,
+  scriptAnnotations: Record<string, SparkdownAnnotations>,
   uri: string,
-  line: number,
+  contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
+  linePos: number,
   insertTextPrefix: string = ""
 ) => {
-  // Sort by most recently used
-  const mostRecentEntries = Object.entries(
-    program?.metadata?.scenes || {}
-  ).sort((a, b) => rankDistance(a, b, uri, line));
-  // Most recent scene is the least likely to be used again,
-  // So move it to the end of the list
-  const mostRecentEntry = mostRecentEntries.shift();
-  if (mostRecentEntry) {
-    mostRecentEntries.push(mostRecentEntry);
-  }
+  const mostRecentTexts = rankMostRecentTexts(
+    "scenes",
+    read,
+    scriptAnnotations,
+    uri,
+    contentNode,
+    linePos
+  );
   // Add completions
-  for (const [name, position] of mostRecentEntries) {
-    if (position.some((p) => p.range.start.line !== line)) {
-      const labelDetails = { description: "scene" };
-      const kind = CompletionItemKind.Constant;
-      const completion: CompletionItem = {
-        label: name,
-        insertText: insertTextPrefix + name + "\n",
-        labelDetails,
-        kind,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
+  for (const text of mostRecentTexts) {
+    const labelDetails = { description: "scene" };
+    const kind = CompletionItemKind.Constant;
+    const completion: CompletionItem = {
+      label: text,
+      insertText: insertTextPrefix + text + "\n\n",
+      labelDetails,
+      kind,
+    };
+    if (completion.label && !completions.has(completion.label)) {
+      completions.set(completion.label, completion);
     }
   }
 };
@@ -177,38 +186,14 @@ const addCharacterCompletions = (
   linePos: number,
   insertTextPrefix: string = ""
 ) => {
-  // Sort by most recently used
-  const before: string[] = [];
-  const after: string[] = [];
-  for (const [scriptUri, annotations] of Object.entries(scriptAnnotations)) {
-    const cur = annotations.characters.iter();
-    while (cur.value) {
-      const text = read(cur.from, cur.to);
-      if (cur.to < linePos) {
-        if (scriptUri === uri) {
-          before.push(text);
-        }
-      } else {
-        if (
-          !contentNode ||
-          (cur.from < contentNode.from && cur.to < contentNode.to) ||
-          (cur.from > contentNode.from && cur.to > contentNode.to)
-        ) {
-          after.push(text);
-        }
-      }
-      cur.next();
-    }
-  }
-  const mostRecentTexts = Array.from(
-    new Set([...before.toReversed(), ...after])
+  const mostRecentTexts = rankMostRecentTexts(
+    "characters",
+    read,
+    scriptAnnotations,
+    uri,
+    contentNode,
+    linePos
   );
-  // Most recent character is the least likely to be used again,
-  // So move it to the end of the list
-  const mostRecentText = mostRecentTexts.shift();
-  if (mostRecentText) {
-    mostRecentTexts.push(mostRecentText);
-  }
   // Add completions
   for (const text of mostRecentTexts) {
     const labelDetails = { description: "character" };
@@ -986,12 +971,19 @@ export const getCompletions = (
 
   // Transition
   if (stack[0]?.type.name === "TransitionMark") {
-    if (isCursorAfterNodeText(stack[0])) {
+    const contentNode = getDescendentInsideParent(
+      "Transition_content",
+      "Transition_begin",
+      stack
+    );
+    if (isCursorAfterNodeText(contentNode)) {
       addTransitionCompletions(
         completions,
-        program,
+        read,
+        scriptAnnotations,
         document.uri,
-        position.line,
+        contentNode,
+        linePos,
         " "
       );
     }
@@ -1001,17 +993,19 @@ export const getCompletions = (
     stack[0]?.type.name === "TransitionMarkSeparator" ||
     stack.some((n) => n?.type.name === "Transition_content")
   ) {
-    const transitionContentNode = getDescendentInsideParent(
+    const contentNode = getDescendentInsideParent(
       "Transition_content",
       "Transition_begin",
       stack
     );
-    if (isCursorAfterNodeText(transitionContentNode)) {
+    if (isCursorAfterNodeText(contentNode)) {
       addTransitionCompletions(
         completions,
-        program,
+        read,
+        scriptAnnotations,
         document.uri,
-        position.line
+        contentNode,
+        linePos
       );
     }
     return buildCompletions();
@@ -1019,12 +1013,19 @@ export const getCompletions = (
 
   // Scene
   if (stack[0]?.type.name === "SceneMark") {
-    if (isCursorAfterNodeText(stack[0])) {
+    const contentNode = getDescendentInsideParent(
+      "Scene_content",
+      "Scene_begin",
+      stack
+    );
+    if (isCursorAfterNodeText(contentNode)) {
       addSceneCompletions(
         completions,
-        program,
+        read,
+        scriptAnnotations,
         document.uri,
-        position.line,
+        contentNode,
+        linePos,
         " "
       );
     }
@@ -1034,20 +1035,27 @@ export const getCompletions = (
     stack[0]?.type.name === "SceneMarkSeparator" ||
     stack.some((n) => n?.type.name === "Scene_content")
   ) {
-    const sceneContentNode = getDescendentInsideParent(
+    const contentNode = getDescendentInsideParent(
       "Scene_content",
       "Scene_begin",
       stack
     );
-    if (isCursorAfterNodeText(sceneContentNode)) {
-      addSceneCompletions(completions, program, document.uri, position.line);
+    if (isCursorAfterNodeText(contentNode)) {
+      addSceneCompletions(
+        completions,
+        read,
+        scriptAnnotations,
+        document.uri,
+        contentNode,
+        linePos
+      );
     }
     return buildCompletions();
   }
 
   // Dialogue
   if (stack[0]?.type.name === "DialogueMark") {
-    const dialogueCharacterNode =
+    const contentNode =
       getDescendentInsideParent(
         "DialogueCharacter",
         "BlockDialogue_begin",
@@ -1058,13 +1066,13 @@ export const getCompletions = (
         "InlineDialogue_begin",
         stack
       );
-    if (isCursorAfterNodeText(dialogueCharacterNode)) {
+    if (isCursorAfterNodeText(contentNode)) {
       addCharacterCompletions(
         completions,
         read,
         scriptAnnotations,
         document.uri,
-        dialogueCharacterNode,
+        contentNode,
         linePos,
         " "
       );

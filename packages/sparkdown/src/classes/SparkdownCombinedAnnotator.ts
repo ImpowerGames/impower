@@ -1,9 +1,10 @@
-import { ChangeSpec, RangeSet, ChangeSet, Range } from "@codemirror/state";
+import { ChangeSpec, RangeSet, ChangeSet } from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { Tree } from "@lezer/common";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
-import { SparkdownAnnotator } from "./SparkdownAnnotator";
+import { SceneAnnotator } from "./annotators/SceneAnnotator";
+import { TransitionAnnotator } from "./annotators/TransitionAnnotator";
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
@@ -19,20 +20,49 @@ export type SparkdownAnnotations = {
   [K in keyof SparkdownAnnotators]: SparkdownAnnotators[K]["current"];
 };
 
-export interface SparkdownAnnotators
-  extends Record<string, SparkdownAnnotator> {
+export interface SparkdownAnnotators {
   characters: CharacterAnnotator;
+  scenes: SceneAnnotator;
+  transitions: TransitionAnnotator;
 }
 
 export class SparkdownCombinedAnnotator {
   current: SparkdownAnnotators = {
     characters: new CharacterAnnotator(),
+    scenes: new SceneAnnotator(),
+    transitions: new TransitionAnnotator(),
   };
 
   get(): SparkdownAnnotations {
     return {
       characters: this.current.characters.current,
+      scenes: this.current.scenes.current,
+      transitions: this.current.transitions.current,
     };
+  }
+
+  protected annotate(tree: Tree, from?: number, to?: number) {
+    const annotatorEntries = Object.entries(this.current);
+    const ranges: SparkdownAnnotationRanges = {
+      characters: [],
+      scenes: [],
+      transitions: [],
+    };
+    tree.iterate({
+      from,
+      to,
+      enter: (nodeRef) => {
+        for (const [key, annotator] of annotatorEntries) {
+          annotator.enter(ranges[key as keyof SparkdownAnnotations]!, nodeRef);
+        }
+      },
+      leave: (nodeRef) => {
+        for (const [key, annotator] of annotatorEntries) {
+          annotator.leave(ranges[key as keyof SparkdownAnnotations]!, nodeRef);
+        }
+      },
+    });
+    return ranges;
   }
 
   update(doc: TextDocument, tree: Tree, changes?: ChangeSpec[]) {
@@ -46,7 +76,7 @@ export class SparkdownCombinedAnnotator {
     if (!changes || reparsedFrom == null) {
       // Rebuild all annotations from scratch
       for (const [key, ranges] of Object.entries(this.annotate(tree))) {
-        const annotator = this.current[key];
+        const annotator = this.current[key as keyof SparkdownAnnotations];
         if (annotator) {
           annotator.current =
             ranges.length > 0 ? RangeSet.of(ranges, true) : RangeSet.empty;
@@ -61,7 +91,7 @@ export class SparkdownCombinedAnnotator {
       for (const [key, add] of Object.entries(
         this.annotate(tree, reparsedFrom)
       )) {
-        const annotator = this.current[key];
+        const annotator = this.current[key as keyof SparkdownAnnotations];
         if (annotator) {
           annotator.current = annotator.current.map(changeDesc);
           annotator.current = annotator.current.update({
@@ -77,7 +107,7 @@ export class SparkdownCombinedAnnotator {
     for (const [key, add] of Object.entries(
       this.annotate(tree, reparsedFrom, reparsedTo)
     )) {
-      const annotator = this.current[key];
+      const annotator = this.current[key as keyof SparkdownAnnotations];
       if (annotator) {
         annotator.current = annotator.current.map(changeDesc);
         annotator.current = annotator.current.update({
@@ -90,27 +120,5 @@ export class SparkdownCombinedAnnotator {
       }
     }
     return this.current;
-  }
-
-  protected annotate(tree: Tree, from?: number, to?: number) {
-    const annotatorEntries = Object.entries(this.current);
-    const ranges: SparkdownAnnotationRanges = {
-      characters: [],
-    };
-    tree.iterate({
-      from,
-      to,
-      enter: (nodeRef) => {
-        for (const [key, annotator] of annotatorEntries) {
-          annotator.enter(ranges[key]!, nodeRef);
-        }
-      },
-      leave: (nodeRef) => {
-        for (const [key, annotator] of annotatorEntries) {
-          annotator.leave(ranges[key]!, nodeRef);
-        }
-      },
-    });
-    return ranges;
   }
 }

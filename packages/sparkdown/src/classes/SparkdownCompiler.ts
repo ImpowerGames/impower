@@ -486,20 +486,6 @@ export class SparkdownCompiler {
             program.metadata.colors[text] ??= [];
             program.metadata.colors[text].push({ uri, range });
           }
-          // Record transition use
-          if (nodeType === "Transition_content") {
-            program.metadata ??= {};
-            program.metadata.transitions ??= {};
-            program.metadata.transitions[text] ??= [];
-            program.metadata.transitions[text].push({ uri, range });
-          }
-          // Record scene use
-          if (nodeType === "Scene_content") {
-            program.metadata ??= {};
-            program.metadata.scenes ??= {};
-            program.metadata.scenes[text] ??= [];
-            program.metadata.scenes[text].push({ uri, range });
-          }
           // Record define properties
           if (nodeType === "DefineDeclaration") {
             defineModifier = "";

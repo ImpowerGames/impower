@@ -7,8 +7,6 @@ export interface SparkProgram {
   scripts?: string[];
   compiled?: ArrayBuffer;
   metadata?: {
-    scenes?: Record<string, SparkLocation[]>;
-    transitions?: Record<string, SparkLocation[]>;
     colors?: Record<string, SparkLocation[]>;
     properties?: Record<string, SparkLocation[]>;
     scopes?: {
