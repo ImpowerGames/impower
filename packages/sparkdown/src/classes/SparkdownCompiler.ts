@@ -533,10 +533,10 @@ export class SparkdownCompiler {
             // Record property declaration for type checking
             recordReference({ declaration });
             // Record property location for displaying other errors
-            program.metadata ??= {};
-            program.metadata.properties ??= {};
-            program.metadata.properties[accessPath] ??= [];
-            program.metadata.properties[accessPath].push({ uri, range });
+            state.properties ??= {};
+            state.properties ??= {};
+            state.properties[accessPath] ??= [];
+            state.properties[accessPath].push({ uri, range });
           }
           // Record reference in field value
           if (nodeType === "AccessPath" && stack.includes("StructFieldValue")) {
@@ -1329,7 +1329,7 @@ export class SparkdownCompiler {
             if (imageToFilter === "circular") {
               const message = `The image named '${filteredImage?.image?.$name}' circularly references itself.`;
               const propertyValueLocations =
-                program.metadata?.properties?.[
+                state.properties?.[
                   `${filteredImage.$type}.${filteredImage.$name}.image`
                 ];
               if (propertyValueLocations) {
