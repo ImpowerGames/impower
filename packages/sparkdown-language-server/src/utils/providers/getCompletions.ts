@@ -252,10 +252,7 @@ const addStructVariableNameCompletions = (
 ) => {
   if (program?.context?.[type]) {
     for (const name of Object.keys(program?.context?.[type]).sort()) {
-      if (
-        !name.startsWith("$") &&
-        !program?.compiled?.structDefs?.[type]?.[name]
-      ) {
+      if (!name.startsWith("$")) {
         const completion: CompletionItem = {
           label: name,
           labelDetails: { description: "name" },
@@ -475,12 +472,13 @@ const addStructPropertyNameCompletions = (
 ) => {
   if (type) {
     const existingProps = new Set<string>();
-    const definedStruct = program?.compiled?.structDefs?.[type]?.[name];
-    if (definedStruct) {
-      traverse(definedStruct, (fieldPath: string) => {
-        existingProps.add(fieldPath);
-      });
-    }
+    // TODO: get existing props by iterating current tree
+    // const definedStruct = program?.compiled?.structDefs?.[type]?.[name];
+    // if (definedStruct) {
+    //   traverse(definedStruct, (fieldPath: string) => {
+    //     existingProps.add(fieldPath);
+    //   });
+    // }
     addStructPropertyNameContextCompletions(
       completions,
       program,

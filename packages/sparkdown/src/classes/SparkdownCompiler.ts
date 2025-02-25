@@ -6,12 +6,14 @@ import {
 import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
 import { SourceMetadata } from "../inkjs/engine/Error";
 import { StringValue } from "../inkjs/engine/Value";
+import { SimpleJson } from "../inkjs/engine/SimpleJson";
 import { File } from "../types/File";
 import { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
 import { SparkProgram } from "../types/SparkProgram";
+import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import { SparkReference } from "../types/SparkReference";
 import { buildSVGSource } from "../utils/buildSVGSource";
 import { filterMatchesName } from "../utils/filterMatchesName";
@@ -28,6 +30,7 @@ import {
   SparkdownDocumentRegistry,
 } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
+import { SparkdownRuntimeFormat } from "../types/SparkdownRuntimeFormat";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 
@@ -261,7 +264,11 @@ export class SparkdownCompiler {
     return "";
   }
 
-  transpile(uri: string, program: SparkProgram): string {
+  transpile(
+    uri: string,
+    state: SparkdownCompilerState,
+    program: SparkProgram
+  ): string {
     const document = this.documents.get(uri);
     if (!document) {
       return "";
@@ -269,9 +276,9 @@ export class SparkdownCompiler {
     const script = document?.getText() || "";
     const lines = script.split(NEWLINE_REGEX);
     const stack: SparkdownNodeName[] = [];
-    program.sourceMap ??= {};
-    program.sourceMap[uri] ??= [];
-    const fileIndex = Object.keys(program.sourceMap).indexOf(uri);
+    state.sourceMap ??= {};
+    state.sourceMap[uri] ??= [];
+    const fileIndex = Object.keys(state.sourceMap).indexOf(uri);
     let lineIndex = 0;
     let linePos = 0;
     let range = {
@@ -367,7 +374,7 @@ export class SparkdownCompiler {
       tree.iterate({
         enter: (node) => {
           const nodeType = node.type.name as SparkdownNodeName;
-          const transpilationOffset = program.sourceMap?.[uri]?.[lineIndex];
+          const transpilationOffset = state.sourceMap?.[uri]?.[lineIndex];
           const after = transpilationOffset?.after ?? 0;
           const shift = transpilationOffset?.shift ?? 0;
           const sourceNodeStart = node.from - linePos;
@@ -394,8 +401,8 @@ export class SparkdownCompiler {
               lineTextBefore.trimStart().length === 1 ? " : " : ": ";
             const markup = colonSeparator + flowMarker + "\\";
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
-            program.sourceMap ??= {};
-            program.sourceMap[uri]![lineIndex] = {
+            state.sourceMap ??= {};
+            state.sourceMap[uri]![lineIndex] = {
               after: lineTextBefore.length,
               shift: markup.length,
             };
@@ -416,8 +423,8 @@ export class SparkdownCompiler {
               const flowMarker = getFlowMarker(id);
               const markup = prefix + flowMarker;
               lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
-              program.sourceMap ??= {};
-              program.sourceMap[uri]![lineIndex] = {
+              state.sourceMap ??= {};
+              state.sourceMap[uri]![lineIndex] = {
                 after: lineTextBefore.length,
                 shift: markup.length,
               };
@@ -443,8 +450,8 @@ export class SparkdownCompiler {
               const flowMarker = getFlowMarker(id);
               const markup = flowMarker;
               lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
-              program.sourceMap ??= {};
-              program.sourceMap[uri]![lineIndex] = {
+              state.sourceMap ??= {};
+              state.sourceMap[uri]![lineIndex] = {
                 after: lineTextBefore.length,
                 shift: markup.length,
               };
@@ -1005,7 +1012,7 @@ export class SparkdownCompiler {
         },
         leave: (node) => {
           const nodeType = node.type.name as SparkdownNodeName;
-          const transpilationOffset = program.sourceMap?.[uri]?.[lineIndex];
+          const transpilationOffset = state.sourceMap?.[uri]?.[lineIndex];
           const after = transpilationOffset?.after ?? 0;
           const shift = transpilationOffset?.shift ?? 0;
           const nodeEndCharacter = node.to - linePos;
@@ -1082,6 +1089,7 @@ export class SparkdownCompiler {
     const uri = params.uri;
     // console.clear();
     const program: SparkProgram = { uri };
+    const state: SparkdownCompilerState = {};
     const transpiledScripts = new Map<string, string>();
 
     const options = new InkCompilerOptions(
@@ -1096,12 +1104,12 @@ export class SparkdownCompiler {
           return this.resolveFile(uri, filename);
         },
         LoadInkFileContents: (uri: string): string => {
-          program.sourceMap ??= {};
+          state.sourceMap ??= {};
           let transpiledScript = transpiledScripts.get(uri);
           if (transpiledScript != null) {
             return transpiledScript;
           }
-          transpiledScript = this.transpile(uri, program);
+          transpiledScript = this.transpile(uri, state, program);
           transpiledScripts.set(uri, transpiledScript);
           return transpiledScript;
         },
@@ -1133,20 +1141,31 @@ export class SparkdownCompiler {
         profile("start", "ink/compile", uri);
         const story = inkCompiler.Compile();
         profile("end", "ink/compile", uri);
-        profile("start", "ink/json", uri);
         if (story) {
-          const storyJSON = story.ToJson();
-          if (storyJSON) {
-            program.compiled = JSON.parse(storyJSON);
+          profile("start", "ink/json", uri);
+          const writer = new SimpleJson.Writer();
+          story.ToJson(writer);
+          const compiledJSON = writer.toString();
+          const compiledObj = writer.toObject() as SparkdownRuntimeFormat;
+          state.compiled = compiledObj;
+          profile("end", "ink/json", uri);
+          if (compiledJSON) {
+            profile("start", "ink/encode", uri);
+            const array = new TextEncoder().encode(compiledJSON);
+            program.compiled = array.buffer.slice(
+              array.byteOffset,
+              array.byteLength + array.byteOffset
+            ) as ArrayBuffer;
+            profile("end", "ink/encode", uri);
           }
         }
-        profile("end", "ink/json", uri);
-        this.populateDiagnostics(program, inkCompiler);
-        this.populateBuiltins(program);
-        this.populateAssets(program);
-        this.populateImplicitDefs(program);
-        this.validateReferences(program);
-        this.sortSources(program);
+        this.populateScripts(state, program);
+        this.populateDiagnostics(state, program, inkCompiler);
+        this.populateBuiltins(state, program);
+        this.populateAssets(state, program);
+        this.populateImplicitDefs(state, program);
+        this.validateReferences(state, program);
+        this.sortSources(state, program);
       } catch (e) {
         console.error(e);
       }
@@ -1155,9 +1174,19 @@ export class SparkdownCompiler {
     return program;
   }
 
-  populateBuiltins(program: SparkProgram) {
+  populateScripts(state: SparkdownCompilerState, program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", "populateScripts", uri);
+    if (state.sourceMap) {
+      program.scripts = Object.keys(state.sourceMap);
+    }
+    profile("end", "populateScripts", uri);
+  }
+
+  populateBuiltins(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "populateBuiltins", uri);
+    const compiled = state.compiled;
     program.context ??= {};
     const builtins = this._config.builtinDefinitions;
     if (builtins) {
@@ -1167,10 +1196,8 @@ export class SparkdownCompiler {
           program.context[type][name] ??= clone(builtinStruct);
         }
       }
-      if (program?.compiled?.structDefs) {
-        for (const [type, structs] of Object.entries(
-          program.compiled.structDefs
-        )) {
+      if (compiled?.structDefs) {
+        for (const [type, structs] of Object.entries(compiled.structDefs)) {
           program.context[type] ??= {};
           for (const [name, definedStruct] of Object.entries(structs)) {
             if (Array.isArray(definedStruct)) {
@@ -1210,7 +1237,7 @@ export class SparkdownCompiler {
     profile("end", "populateBuiltins", uri);
   }
 
-  populateAssets(program: SparkProgram) {
+  populateAssets(_state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "populateAssets", uri);
     if (program.compiled) {
@@ -1269,7 +1296,7 @@ export class SparkdownCompiler {
     profile("end", "populateAssets", uri);
   }
 
-  populateImplicitDefs(program: SparkProgram) {
+  populateImplicitDefs(_state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "populateImplicitDefs", uri);
     if (program.compiled) {
@@ -1570,7 +1597,7 @@ export class SparkdownCompiler {
     return [];
   }
 
-  validateReferences(program: SparkProgram) {
+  validateReferences(_state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "validateReferences", uri);
     if (program.references && program.compiled) {
@@ -1712,7 +1739,11 @@ export class SparkdownCompiler {
     profile("end", "validateReferences", uri);
   }
 
-  populateDiagnostics(program: SparkProgram, compiler: InkCompiler) {
+  populateDiagnostics(
+    state: SparkdownCompilerState,
+    program: SparkProgram,
+    compiler: InkCompiler
+  ) {
     const uri = program.uri;
     profile("start", "populateDiagnostics", uri);
     for (const error of compiler.errors) {
@@ -1722,7 +1753,7 @@ export class SparkdownCompiler {
         error.message,
         ErrorType.Error,
         error.source,
-        program
+        state
       );
       if (diagnostic) {
         if (diagnostic.relatedInformation) {
@@ -1743,7 +1774,7 @@ export class SparkdownCompiler {
         warning.message,
         ErrorType.Warning,
         warning.source,
-        program
+        state
       );
       if (diagnostic) {
         if (diagnostic.relatedInformation) {
@@ -1764,7 +1795,7 @@ export class SparkdownCompiler {
         info.message,
         ErrorType.Information,
         info.source,
-        program
+        state
       );
       if (diagnostic) {
         if (diagnostic.relatedInformation) {
@@ -1786,16 +1817,16 @@ export class SparkdownCompiler {
     message: string,
     type: ErrorType,
     metadata?: SourceMetadata | null,
-    program?: SparkProgram
+    state?: SparkdownCompilerState
   ): SparkDiagnostic | null {
     if (metadata && metadata.fileName) {
       const filePath = metadata?.filePath || "";
       const startLine = metadata.startLineNumber - 1;
       const endLine = metadata.endLineNumber - 1;
-      const startOffset = program?.sourceMap?.[filePath]?.[startLine];
+      const startOffset = state?.sourceMap?.[filePath]?.[startLine];
       const startOffsetAfter = startOffset?.after ?? 0;
       const startOffsetShift = startOffset?.shift ?? 0;
-      const endOffset = program?.sourceMap?.[filePath]?.[endLine];
+      const endOffset = state?.sourceMap?.[filePath]?.[endLine];
       const endOffsetAfter = endOffset?.after ?? 0;
       const endOffsetShift = endOffset?.shift ?? 0;
       const startCharacterOffset =
@@ -1862,7 +1893,7 @@ export class SparkdownCompiler {
     return null;
   }
 
-  sortSources(program: SparkProgram) {
+  sortSources(_state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "sortSources", uri);
     program.uuidToSource ??= {};

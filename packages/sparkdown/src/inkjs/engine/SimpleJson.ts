@@ -310,6 +310,11 @@ export namespace SimpleJson {
       return JSON.stringify(this._jsonObject);
     }
 
+    // Get the root object.
+    public toObject() {
+      return this._jsonObject;
+    }
+
     // Prepare the state stack when adding new objects / values.
     private StartNewObject(container: boolean) {
       if (container) {

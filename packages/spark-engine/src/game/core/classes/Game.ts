@@ -1,5 +1,6 @@
 import { Story } from "../../../../../sparkdown/src/inkjs/engine/Story";
 import type { SparkProgram } from "../../../../../sparkdown/src/types/SparkProgram";
+import type { SparkdownRuntimeFormat } from "../../../../../sparkdown/src/types/SparkdownRuntimeFormat";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { DocumentSource } from "../types/DocumentSource";
 import { ErrorType } from "../types/ErrorType";
@@ -69,9 +70,10 @@ export class Game<T extends M = {}> {
 
   constructor(
     program: SparkProgram,
+    compiled: SparkdownRuntimeFormat,
     options?: {
       executionTimeout?: number;
-      previewing?: string;
+      preview?: { file: string; line: number };
       simulation?: {
         waypoints?: { file?: string; line: number }[];
         startpoint?: { file?: string; line: number };
@@ -82,10 +84,11 @@ export class Game<T extends M = {}> {
     }
   ) {
     this._program = program;
-    this._files = Object.keys(program.sourceMap || {});
-    const compiled = program.compiled as Record<string, any>;
-    const previewing = options?.previewing;
+    this._files = program.scripts || [program.uri];
     const modules = options?.modules;
+    const previewing = options?.preview
+      ? this.getClosestPath(options.preview.file, options?.preview.line)
+      : undefined;
     const startpoint = options?.simulation?.startpoint ?? {
       file: this._files[0],
       line: 0,

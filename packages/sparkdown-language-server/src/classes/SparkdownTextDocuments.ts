@@ -47,6 +47,7 @@ import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/classes/Sparkd
 import { debounce } from "../utils/timing/debounce";
 import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
 import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
+import { profile } from "../utils/logging/profile";
 
 const COMPILER_INLINE_WORKER_STRING = process.env["COMPILER_INLINE_WORKER"]!;
 
@@ -130,6 +131,7 @@ export default class SparkdownTextDocuments {
     return new Promise<R>((resolve, reject) => {
       const onResponse = (e: MessageEvent) => {
         const message = e.data;
+        profile("start", "receive " + message.method);
         if (message.id === request.id) {
           if (message.method === `${message.method}/progress`) {
             onProgress?.(message.value);
@@ -141,9 +143,12 @@ export default class SparkdownTextDocuments {
             this._compilerWorker.removeEventListener("message", onResponse);
           }
         }
+        profile("end", "receive " + message.method);
       };
       this._compilerWorker.addEventListener("message", onResponse);
+      profile("start", "send " + request.method);
       this._compilerWorker.postMessage(request, transfer);
+      profile("end", "send " + request.method);
     });
   }
 
@@ -327,8 +332,8 @@ export default class SparkdownTextDocuments {
       if (mainScriptUri) {
         program = await this.compileDocument(mainScriptUri);
         this.getProgramState(mainScriptUri).program = program;
-        if (program.sourceMap) {
-          for (const uri of Object.keys(program.sourceMap)) {
+        if (program.scripts) {
+          for (const uri of program.scripts) {
             this.getProgramState(uri).program = program;
           }
         }

@@ -1,15 +1,11 @@
 import { SparkDiagnostic } from "./SparkDiagnostic";
 import { SparkReference } from "./SparkReference";
 import { SparkLocation } from "./SparkLocation";
-import { SparkTranspilationOffset } from "./SparkTranspilationOffset";
 
 export interface SparkProgram {
   uri: string;
-  compiled?: {
-    root: any;
-    listDefs?: any;
-    structDefs?: { [type: string]: { [name: string]: any } };
-  };
+  scripts?: string[];
+  compiled?: ArrayBuffer;
   metadata?: {
     characters?: Record<string, SparkLocation[]>;
     scenes?: Record<string, SparkLocation[]>;
@@ -30,9 +26,6 @@ export interface SparkProgram {
   };
   references?: {
     [uri: string]: { [line: number]: SparkReference[] };
-  };
-  sourceMap?: {
-    [uri: string]: { [line: number]: SparkTranspilationOffset };
   };
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];

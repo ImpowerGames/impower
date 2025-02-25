@@ -117,7 +117,7 @@ export default class SparkWebPlayer extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (StartGameMessage.type.isRequest(message)) {
-        this.buildGame(false);
+        this.buildGame();
       }
     }
   };
@@ -211,7 +211,7 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   };
 
-  buildGame(previewing: boolean): void {
+  buildGame(preview?: { file: string; line: number }): void {
     if (this._options) {
       const options = this._options;
       const waypoints = options.waypoints;
@@ -226,9 +226,13 @@ export default class SparkWebPlayer extends Component(spec) {
       if (!this._program || !this._program.compiled) {
         return;
       }
-      this._game = new Game(this._program, {
+      const compiledJSON = new TextDecoder("utf-8").decode(
+        this._program.compiled
+      );
+      const compiledObj = JSON.parse(compiledJSON);
+      this._game = new Game(this._program, compiledObj, {
         simulation,
-        previewing,
+        preview,
       });
       this._game.connection.outgoing.addListener(
         WillExecuteMessage.method,
@@ -324,7 +328,7 @@ export default class SparkWebPlayer extends Component(spec) {
   updatePreview(file: string, line: number) {
     if (!this._game || this._game.program !== this._program) {
       // If haven't built game yet, or programs have changed since last build, build game.
-      this.buildGame(true);
+      this.buildGame({ file, line });
     }
     if (this._game) {
       this._game.preview(file, line);
