@@ -7,7 +7,6 @@ import {
   TreeBuffer,
   TreeFragment,
 } from "@lezer/common";
-import { ChunkBuffer } from "../../compiler/classes/ChunkBuffer";
 import { Compiler } from "../../compiler/classes/Compiler";
 import { NodeID } from "../../core/enums/NodeID";
 import { Grammar } from "../../grammar/classes/Grammar";

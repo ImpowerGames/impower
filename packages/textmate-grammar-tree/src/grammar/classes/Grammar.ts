@@ -8,10 +8,7 @@ import { GrammarDefinition, RuleDefinition } from "../types/GrammarDefinition";
 import { Rule } from "../types/Rule";
 import { GrammarNode } from "./GrammarNode";
 import { GrammarRepository } from "./GrammarRepository";
-import { GrammarStack } from "./GrammarStack";
 import { GrammarState } from "./GrammarState";
-import type { Matched } from "./Matched";
-import { ScopedRule } from "./rules/ScopedRule";
 
 export class Grammar {
   /**
