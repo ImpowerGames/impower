@@ -43,13 +43,6 @@ export class TextmateGrammarParse implements PartialParse {
 
   private declare compiler: Compiler;
 
-  /**
-   * A buffer containing the stale _ahead_ state of the tokenized output.
-   * As in, when a user makes a change, this is all of the tokenization
-   * data for the previous document after the location of that new change.
-   */
-  private declare aheadBuffer?: ChunkBuffer;
-
   /** The current position of the parser. */
   declare parsedPos: number;
 
@@ -102,23 +95,16 @@ export class TextmateGrammarParse implements PartialParse {
             this.region.from,
             f.to
           );
-          const cachedAheadBuffer = findProp<ChunkBuffer>(
-            cachedAheadBufferProp,
-            f.tree,
-            this.region.from,
-            f.to
-          );
           if (cachedCompiler) {
-            const right = this.tryToReuseBehind(cachedCompiler);
-            if (right) {
-              if (!this.tryToSaveAhead(right)) {
-                if (
-                  !this.aheadBuffer &&
-                  !this.region.edit?.offset &&
-                  cachedAheadBuffer
-                ) {
-                  this.aheadBuffer = cachedAheadBuffer;
-                }
+            if (this.region.edit) {
+              const restartFrom = cachedCompiler.reuse(
+                this.region.edit.from,
+                this.region.edit.to,
+                this.region.edit.offset
+              );
+              if (restartFrom) {
+                this.region.from = restartFrom;
+                this.compiler = cachedCompiler;
               }
             }
           }
@@ -158,13 +144,10 @@ export class TextmateGrammarParse implements PartialParse {
 
     this.nextChunk();
 
-    if (this.aheadBuffer) {
-      // TRY TO REUSE STATE AHEAD OF EDITED RANGE
-      const reused = this.tryToReuseAhead(this.aheadBuffer);
-      if (reused) {
-        // can't reuse the buffer more than once (pointless)
-        this.aheadBuffer = undefined;
-      }
+    const reused = this.tryToReuseAhead();
+    if (reused) {
+      // can't reuse the ahead more than once (pointless)
+      this.compiler.ahead = undefined;
     }
 
     this.compiler.step();
@@ -216,7 +199,6 @@ export class TextmateGrammarParse implements PartialParse {
       // this is so that we don't need to build another tree
       const props = Object.create(null);
       props[(cachedCompilerProp as any).id] = this.compiler;
-      props[(cachedAheadBufferProp as any).id] = this.aheadBuffer;
       (tree as any).props = props;
 
       return tree;
@@ -316,123 +298,62 @@ export class TextmateGrammarParse implements PartialParse {
   }
 
   /**
-   * Tries to reuse chunks BEHIND the edited range.
-   * Returns true if this was successful, otherwise false.
-   *
-   * @param cachedBuffer - The buffer to split in two
-   */
-  private tryToReuseBehind(compiler: Compiler) {
-    if (!this.region.edit) {
-      // can't reuse if we don't know what range has been edited
-      return null;
-    }
-    const splitBehind = compiler.buffer.findBehindSplitPoint(
-      this.region.edit.from
-    );
-    if (splitBehind.chunk && splitBehind.index != null) {
-      // REUSE CHUNKS THAT ARE BEHIND THE EDITED RANGE
-      // console.warn(
-      //   "EDITED",
-      //   this.region.edit.from,
-      //   this.region.edit.to,
-      //   this.region.edit.offset
-      // );
-      // console.log(
-      //   "BUFFER AFTER EDIT",
-      //   compiler.buffer?.chunks.map((chunk) => [
-      //     chunk.from,
-      //     chunk.to,
-      //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
-      //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
-      //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
-      //     this.region.input.read(chunk.from, chunk.to),
-      //   ]),
-      //   splitBehind.index
-      // );
-      const right = compiler.rewind(splitBehind.index);
-      // console.log(
-      //   "REUSE BEHIND",
-      //   JSON.stringify(
-      //     this.region.input.read(
-      //       compiler.buffer.first!.from,
-      //       compiler.buffer.last!.to
-      //     )
-      //   )
-      // );
-      this.region.from = splitBehind.chunk.from;
-      this.compiler = compiler;
-      return right;
-    }
-    return null;
-  }
-
-  /**
-   * Tries to save chunks AHEAD of the edited range.
-   * Returns true if this was successful, otherwise false.
-   *
-   * @param cachedBuffer - The buffer to split in two
-   */
-  private tryToSaveAhead(right: ChunkBuffer) {
-    if (!this.region.edit) {
-      // can't reuse if we don't know what range has been edited
-      return false;
-    }
-    // SAVE CHUNKS THAT ARE AHEAD OF THE EDITED RANGE
-    // (must offset ahead chunks to match edited offset)
-
-    right.slide(0, this.region.edit.offset, true);
-
-    const splitAhead = right.findAheadSplitPoint(this.region.edit.to);
-
-    // console.log(
-    //   "RIGHT CHUNKS",
-    //   right?.chunks.map((chunk) => [
-    //     chunk.from,
-    //     chunk.to,
-    //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
-    //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
-    //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
-    //     this.region.input.read(chunk.from, chunk.to),
-    //   ]),
-    //   splitAhead.index
-    // );
-
-    if (splitAhead.chunk && splitAhead.index != null) {
-      const aheadSplitBuffer = right.split(splitAhead.index);
-      this.aheadBuffer = aheadSplitBuffer.right;
-      // console.log(
-      //   "SAVE AHEAD",
-      //   JSON.stringify(
-      //     this.region.input.read(splitAhead.chunk.from, this.region.to)
-      //   )
-      // );
-      return true;
-    }
-    return false;
-  }
-
-  /**
    * Tries to reuse chunks AHEAD of the edited range.
    * Returns true if this was successful, otherwise false.
    *
    * @param aheadBuffer - The buffer to try and reuse.
    */
-  private tryToReuseAhead(aheadBuffer: ChunkBuffer) {
-    const firstChunk = aheadBuffer.first;
-    if (firstChunk) {
-      const pos = this.parsedPos;
-      const reusablePos = firstChunk.from;
-      // console.log("REUSABLE?", pos, "===", reusablePos, pos === reusablePos);
-      if (pos === reusablePos) {
-        // console.log(
-        //   "REUSE AHEAD",
-        //   JSON.stringify(
-        //     this.region.input.read(firstChunk.from, this.region.to)
-        //   )
-        // );
-        this.compiler.append(aheadBuffer);
-        this.parsedPos = this.compiler.buffer.last!.to;
-        return true;
+  private tryToReuseAhead() {
+    if (this.compiler.ahead) {
+      // console.log("REUSABLE?", this.parsedPos, ">=", reusableFrom, pos >= reusableFrom);
+      if (this.compiler.ahead.first) {
+        if (this.parsedPos === this.compiler.ahead.first.from) {
+          this.compiler.append(this.compiler.ahead);
+          this.parsedPos = this.compiler.buffer.last!.to;
+          // console.log(
+          //   "REUSE AHEAD",
+          //   JSON.stringify(
+          //     this.region.input.read(
+          //       this.compiler.ahead.first!.from,
+          //       this.compiler.ahead.last!.to
+          //     )
+          //   )
+          // );
+          return true;
+        } else if (this.parsedPos > this.compiler.ahead.first.from) {
+          const splitAhead = this.compiler.ahead.findAheadSplitPoint(
+            this.parsedPos
+          );
+          if (splitAhead.chunk && splitAhead.index != null) {
+            const aheadSplitBuffer = this.compiler.ahead.split(
+              splitAhead.index
+            );
+            this.compiler.ahead = aheadSplitBuffer.right;
+            if (this.parsedPos === this.compiler.ahead.first?.from) {
+              this.compiler.append(this.compiler.ahead);
+              this.parsedPos = this.compiler.buffer.last!.to;
+              // console.log(
+              //   "REUSE AHEAD",
+              //   JSON.stringify(
+              //     this.region.input.read(
+              //       this.compiler.ahead.first!.from,
+              //       this.compiler.ahead.last!.to
+              //     )
+              //   )
+              // );
+              return true;
+            }
+            // console.log(
+            //   "SAVE AHEAD",
+            //   JSON.stringify(
+            //     this.region.input.read(
+            //       this.compiler.ahead.first!.from,
+            //       this.compiler.ahead.last!.to
+            //     )
+            //   )
+            // );
+          }
+        }
       }
     }
     return false;

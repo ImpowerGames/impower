@@ -34,6 +34,7 @@ export class Compiler {
   declare index: number;
   declare reparsedFrom?: number;
   declare reparsedTo?: number;
+  declare ahead?: ChunkBuffer;
 
   constructor(
     grammar: Grammar,
@@ -76,6 +77,22 @@ export class Compiler {
     this.reused.length = left.reusedLength ?? 0;
     this.reparsedFrom = left.last!.to;
     return right;
+  }
+
+  reuse(editedFrom: number, editedTo: number, editedOffset: number) {
+    const splitBehind = this.buffer.findBehindSplitPoint(editedFrom);
+    if (splitBehind.chunk && splitBehind.index != null) {
+      const right = this.rewind(splitBehind.index);
+      const from = splitBehind.chunk.from;
+      right.slide(0, editedOffset, true);
+      const splitAhead = right.findAheadSplitPoint(editedTo);
+      if (splitAhead.chunk && splitAhead.index != null) {
+        const aheadSplitBuffer = right.split(splitAhead.index);
+        this.ahead = aheadSplitBuffer.right;
+      }
+      return from;
+    }
+    return null;
   }
 
   append(aheadBuffer: ChunkBuffer) {

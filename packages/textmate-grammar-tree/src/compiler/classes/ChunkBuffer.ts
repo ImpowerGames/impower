@@ -170,23 +170,8 @@ export class ChunkBuffer {
     while (chunk) {
       if (chunk && chunk.isPure() && chunk.from > editedTo) {
         // This is the first pure chunk after the edit.
-        // Find the point where scope is no longer pure
-        const unpureChunk = this.findNextUnpureChunk(index);
-        if (unpureChunk.chunk) {
-          index = unpureChunk.index;
-          chunk = unpureChunk.chunk;
-        } else {
-          return { chunk: null, index: null };
-        }
-        while (chunk) {
-          if (chunk && chunk.isPure() && chunk.from > editedTo) {
-            // This is the second pure chunk after the edit,
-            // So we can safely reuse everything after this point.
-            return { chunk, index };
-          }
-          index = index + 1;
-          chunk = this.chunks[index];
-        }
+        // We can safely reuse everything after this point
+        return { chunk, index };
       }
       index = index + 1;
       chunk = this.chunks[index];
