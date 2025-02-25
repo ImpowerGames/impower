@@ -16,6 +16,7 @@ import { getDocumentColors } from "./utils/providers/getDocumentColors";
 import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 
 console.log("running sparkdown-language-server");
 
@@ -180,10 +181,16 @@ try {
     const document = documents.get(uri);
     const tree = documents.tree(uri);
     const program = documents.program(uri);
+    const scripts = program?.scripts || [uri];
+    const scriptAnnotations: Record<string, SparkdownAnnotations> = {};
+    for (const uri of scripts) {
+      scriptAnnotations[uri] = documents.annotations(uri);
+    }
     performance.mark(`lsp: onCompletion ${uri} start`);
     const result = getCompletions(
       document,
       tree,
+      scriptAnnotations,
       program,
       documents.compilerConfig,
       params.position,

@@ -8,7 +8,9 @@ import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
 
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
-import { Input, Tree, TreeFragment } from "@lezer/common";
+import { Input, Tree, TreeFragment, ChangedRange } from "@lezer/common";
+import { ChangeSpec } from "@codemirror/state";
+import { SparkdownCombinedAnnotator } from "./SparkdownCombinedAnnotator";
 
 export type SparkdownDocumentContentChangeEvent =
   TextDocumentContentChangeEvent;
@@ -17,6 +19,7 @@ interface TextDocumentState {
   tree?: Tree;
   treeFragments?: readonly TreeFragment[];
   treeVersion?: number;
+  annotators: SparkdownCombinedAnnotator;
 }
 
 class TextDocumentInput implements Input {
@@ -55,7 +58,9 @@ export class SparkdownDocumentRegistry {
     if (state) {
       return state;
     }
-    const newState = {};
+    const newState = {
+      annotators: new SparkdownCombinedAnnotator(),
+    };
     this._documentStates.set(uri, newState);
     return newState;
   }
@@ -96,11 +101,16 @@ export class SparkdownDocumentRegistry {
                 },
                 text: change.text,
               };
-        const treeChange = {
+        const treeChange: ChangedRange = {
           fromA: changeDocument.offsetAt(c.range.start),
           toA: changeDocument.offsetAt(c.range.end),
           fromB: changeDocument.offsetAt(c.range.start),
           toB: changeDocument.offsetAt(c.range.start) + c.text.length,
+        };
+        const annotationChange: ChangeSpec = {
+          from: changeDocument.offsetAt(c.range.start),
+          to: changeDocument.offsetAt(c.range.end),
+          insert: c.text,
         };
         // We must apply these changes to the tree one at a time because
         // TextDocumentContentChangeEvent[] positions are relative to the doc after each change,
@@ -119,6 +129,7 @@ export class SparkdownDocumentRegistry {
           state.tree,
           state.treeFragments
         );
+        state.annotators.update(changeDocument, state.tree, [annotationChange]);
       }
       state.treeVersion = afterDocument.version;
       performance.mark(`incremental parse ${beforeDocument.uri} end`);
@@ -134,6 +145,7 @@ export class SparkdownDocumentRegistry {
       const input = new TextDocumentInput(afterDocument);
       state.tree = this._parser.parse(input);
       state.treeFragments = TreeFragment.addTree(state.tree);
+      state.annotators.update(afterDocument, state.tree);
       state.treeVersion = afterDocument.version;
       performance.mark(`full parse ${beforeDocument.uri} end`);
       performance.measure(
@@ -146,7 +158,13 @@ export class SparkdownDocumentRegistry {
   }
 
   tree(uri: string) {
-    return this.getDocumentState(uri).tree;
+    const state = this.getDocumentState(uri);
+    return state.tree;
+  }
+
+  annotations(uri: string) {
+    const state = this.getDocumentState(uri);
+    return state.annotators.get();
   }
 
   get(uri: string) {

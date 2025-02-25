@@ -18,6 +18,7 @@ const config = {
   mainFields: ["module", "main"],
   external: ["commonjs"],
   alias: {
+    "@codemirror/state": "@codemirror/state",
     "@lezer/common": "@lezer/common",
   },
 };

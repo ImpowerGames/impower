@@ -38,6 +38,7 @@
     "esbuild": "^0.25.0"
   },
   "peerDependencies": {
+    "@codemirror/state": "^6.5.2",
     "@lezer/common": "^1.2.3"
   }
 }

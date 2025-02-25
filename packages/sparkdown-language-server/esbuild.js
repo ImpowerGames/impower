@@ -51,6 +51,7 @@ const PRODUCTION =
   };`.trim(),
     },
     alias: {
+      "@codemirror/state": "@codemirror/state",
       "@lezer/common": "@lezer/common",
     },
   };

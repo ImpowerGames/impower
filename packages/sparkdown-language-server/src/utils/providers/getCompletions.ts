@@ -25,6 +25,7 @@ import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tr
 import { getOtherMatchesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getOtherMatchesInsideParent";
 
 import { getLineText } from "../document/getLineText";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
@@ -169,35 +170,57 @@ const addSceneCompletions = (
 
 const addCharacterCompletions = (
   completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
+  read: (from: number, to: number) => string,
+  scriptAnnotations: Record<string, SparkdownAnnotations>,
   uri: string,
-  line: number,
+  contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
+  linePos: number,
   insertTextPrefix: string = ""
 ) => {
   // Sort by most recently used
-  const mostRecentEntries = Object.entries(
-    program?.metadata?.characters || {}
-  ).sort((a, b) => rankDistance(a, b, uri, line));
+  const before: string[] = [];
+  const after: string[] = [];
+  for (const [scriptUri, annotations] of Object.entries(scriptAnnotations)) {
+    const cur = annotations.characters.iter();
+    while (cur.value) {
+      const text = read(cur.from, cur.to);
+      if (cur.to < linePos) {
+        if (scriptUri === uri) {
+          before.push(text);
+        }
+      } else {
+        if (
+          !contentNode ||
+          (cur.from < contentNode.from && cur.to < contentNode.to) ||
+          (cur.from > contentNode.from && cur.to > contentNode.to)
+        ) {
+          after.push(text);
+        }
+      }
+      cur.next();
+    }
+  }
+  const mostRecentTexts = Array.from(
+    new Set([...before.toReversed(), ...after])
+  );
   // Most recent character is the least likely to be used again,
   // So move it to the end of the list
-  const mostRecentEntry = mostRecentEntries.shift();
-  if (mostRecentEntry) {
-    mostRecentEntries.push(mostRecentEntry);
+  const mostRecentText = mostRecentTexts.shift();
+  if (mostRecentText) {
+    mostRecentTexts.push(mostRecentText);
   }
   // Add completions
-  for (const [name, position] of mostRecentEntries) {
-    if (position.some((p) => p.range.start.line !== line)) {
-      const labelDetails = { description: "character" };
-      const kind = CompletionItemKind.Constant;
-      const completion: CompletionItem = {
-        label: name,
-        insertText: insertTextPrefix + name + "\n",
-        labelDetails,
-        kind,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
-      }
+  for (const text of mostRecentTexts) {
+    const labelDetails = { description: "character" };
+    const kind = CompletionItemKind.Constant;
+    const completion: CompletionItem = {
+      label: text,
+      insertText: insertTextPrefix + text + "\n",
+      labelDetails,
+      kind,
+    };
+    if (completion.label && !completions.has(completion.label)) {
+      completions.set(completion.label, completion);
     }
   }
 };
@@ -887,6 +910,7 @@ const addDivertPathCompletions = (
 export const getCompletions = (
   document: TextDocument | undefined,
   tree: Tree | undefined,
+  scriptAnnotations: Record<string, SparkdownAnnotations>,
   program: SparkProgram | undefined,
   definitions:
     | {
@@ -954,6 +978,7 @@ export const getCompletions = (
   const prevCursor = tree.cursorAt(stack[0].from - 1, side);
   const prevNode = prevCursor.node as GrammarSyntaxNode<SparkdownNodeName>;
   const prevText = getNodeText(prevNode);
+  const linePos = document.offsetAt({ line: position.line, character: 0 });
 
   // console.log(printTree(tree, document.getText()));
   // console.log("program", program);
@@ -1022,12 +1047,25 @@ export const getCompletions = (
 
   // Dialogue
   if (stack[0]?.type.name === "DialogueMark") {
-    if (isCursorAfterNodeText(stack[0])) {
+    const dialogueCharacterNode =
+      getDescendentInsideParent(
+        "DialogueCharacter",
+        "BlockDialogue_begin",
+        stack
+      ) ||
+      getDescendentInsideParent(
+        "DialogueCharacter",
+        "InlineDialogue_begin",
+        stack
+      );
+    if (isCursorAfterNodeText(dialogueCharacterNode)) {
       addCharacterCompletions(
         completions,
-        program,
+        read,
+        scriptAnnotations,
         document.uri,
-        position.line,
+        dialogueCharacterNode,
+        linePos,
         " "
       );
     }
@@ -1051,9 +1089,11 @@ export const getCompletions = (
     if (isCursorAfterNodeText(dialogueCharacterNode)) {
       addCharacterCompletions(
         completions,
-        program,
+        read,
+        scriptAnnotations,
         document.uri,
-        position.line
+        dialogueCharacterNode,
+        linePos
       );
     }
     return buildCompletions();

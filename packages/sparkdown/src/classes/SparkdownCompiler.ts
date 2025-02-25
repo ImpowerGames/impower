@@ -500,13 +500,6 @@ export class SparkdownCompiler {
             program.metadata.scenes[text] ??= [];
             program.metadata.scenes[text].push({ uri, range });
           }
-          // Record character use
-          if (nodeType === "DialogueCharacter") {
-            program.metadata ??= {};
-            program.metadata.characters ??= {};
-            program.metadata.characters[text] ??= [];
-            program.metadata.characters[text].push({ uri, range });
-          }
           // Record define properties
           if (nodeType === "DefineDeclaration") {
             defineModifier = "";

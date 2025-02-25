@@ -387,6 +387,10 @@ export default class SparkdownTextDocuments {
     return this._documents.tree(uri);
   }
 
+  annotations(uri: string) {
+    return this._documents.annotations(uri);
+  }
+
   async onCreatedFile(uri: string) {
     this._watchedFileUris.add(uri);
     const file = await this.loadFile({

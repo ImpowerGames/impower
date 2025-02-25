@@ -198,6 +198,7 @@ const buildPages = async () => {
       ".woff2": "binary",
     },
     alias: {
+      "@codemirror/state": "@codemirror/state",
       "@lezer/common": "@lezer/common",
     },
     plugins: [envPlugin()],
