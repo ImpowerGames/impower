@@ -18,6 +18,7 @@ import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-g
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
+// import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { getParentPropertyPath } from "../syntax/getParentPropertyPath";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
 import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
@@ -977,7 +978,12 @@ export const getCompletions = (
     stack[0]?.type.name === "TransitionMarkSeparator" ||
     stack.some((n) => n?.type.name === "Transition_content")
   ) {
-    if (isCursorAfterNodeText(stack[0])) {
+    const transitionContentNode = getDescendentInsideParent(
+      "Transition_content",
+      "Transition_begin",
+      stack
+    );
+    if (isCursorAfterNodeText(transitionContentNode)) {
       addTransitionCompletions(
         completions,
         program,
@@ -1005,7 +1011,12 @@ export const getCompletions = (
     stack[0]?.type.name === "SceneMarkSeparator" ||
     stack.some((n) => n?.type.name === "Scene_content")
   ) {
-    if (isCursorAfterNodeText(stack[0])) {
+    const sceneContentNode = getDescendentInsideParent(
+      "Scene_content",
+      "Scene_begin",
+      stack
+    );
+    if (isCursorAfterNodeText(sceneContentNode)) {
       addSceneCompletions(completions, program, document.uri, position.line);
     }
     return buildCompletions();
@@ -1028,7 +1039,18 @@ export const getCompletions = (
     stack[0]?.type.name === "DialogueMarkSeparator" ||
     stack.some((n) => n?.type.name === "DialogueCharacter")
   ) {
-    if (isCursorAfterNodeText(stack[0])) {
+    const dialogueCharacterNode =
+      getDescendentInsideParent(
+        "DialogueCharacter",
+        "BlockDialogue_begin",
+        stack
+      ) ||
+      getDescendentInsideParent(
+        "DialogueCharacter",
+        "InlineDialogue_begin",
+        stack
+      );
+    if (isCursorAfterNodeText(dialogueCharacterNode)) {
       addCharacterCompletions(
         completions,
         program,
@@ -1050,7 +1072,10 @@ export const getCompletions = (
     stack[0]?.type.name === "WriteMarkSeparator" ||
     stack.some((n) => n?.type.name === "WriteTarget")
   ) {
-    if (isCursorAfterNodeText(stack[0])) {
+    const writeTargetNode =
+      getDescendentInsideParent("WriteTarget", "BlockWrite_begin", stack) ||
+      getDescendentInsideParent("WriteTarget", "InlineWrite_begin", stack);
+    if (isCursorAfterNodeText(writeTargetNode)) {
       addUIElementReferenceCompletions(completions, program, ["text"]);
     }
     return buildCompletions();
