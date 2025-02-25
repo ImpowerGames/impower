@@ -1074,7 +1074,6 @@ export class SparkdownCompiler {
       lines.pop();
     }
     const transpiled = lines.join("\n");
-    // console.log(printTree(tree, script));
     // console.log(transpiled);
     return transpiled;
   }

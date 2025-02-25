@@ -68,7 +68,7 @@ export class ScopedRule implements Rule {
     };
     this.endRule = repo.add(endRuleItem, endId);
 
-    // patterns
+    // content
     const contentRuleItem: SwitchRuleDefinition = {
       id: contentId,
       patterns: def.patterns ?? [],
@@ -81,21 +81,7 @@ export class ScopedRule implements Rule {
    * @param from - The position to start matching at.
    * @param state - The current {@link GrammarState}.
    */
-  match(
-    str: string,
-    from: number,
-    state: GrammarState,
-    possiblyIncomplete?: boolean
-  ) {
-    if (possiblyIncomplete) {
-      // If possibly incomplete, only return begin match
-      let beginMatched = this.begin(str, from, state);
-      if (!beginMatched) {
-        return null;
-      }
-      return beginMatched;
-    }
-
+  match(state: GrammarState, from: number) {
     const wrappedBeginChildren: Matched[] = [];
     let wrappedContentChildren: Matched[] = [];
     const wrappedEndChildren: Matched[] = [];
@@ -104,38 +90,43 @@ export class ScopedRule implements Rule {
     let totalLength = 0;
 
     // check begin
-    let beginMatched = this.begin(str, pos, state);
+    let beginMatched = this.begin(state, pos);
     if (!beginMatched) {
       return null;
     }
     wrappedBeginChildren.push(beginMatched.children?.[0]!);
     totalLength += beginMatched.length;
     pos += beginMatched.length;
+    if (pos >= state.str.length) {
+      state.advance();
+    }
 
     const contentChildren: Matched[] = [];
-    const contentFrom = pos;
-    let contentLength = 0;
     // check end
-    let endMatched = this.end(str, pos, state);
-    while (!endMatched && pos < str.length) {
+    let endMatched = this.end(state, pos);
+    while (!endMatched && pos < state.str.length) {
       // check patterns
-      const patternMatched = this.content(str, pos, state, possiblyIncomplete);
+      const patternMatched = this.content(state, pos);
       if (patternMatched) {
         contentChildren.push(patternMatched);
         const matchLength = patternMatched.length;
         totalLength += matchLength;
-        contentLength += matchLength;
         pos += matchLength;
+        if (pos >= state.str.length) {
+          state.advance();
+        }
       } else {
         const noneMatched = Matched.create(GrammarNode.None, pos, 1);
         contentChildren.push(noneMatched);
         const matchLength = noneMatched.length;
         totalLength += matchLength;
-        contentLength += matchLength;
         pos += matchLength;
+        if (pos >= state.str.length) {
+          state.advance();
+        }
       }
       // check end
-      endMatched = this.end(str, pos, state);
+      endMatched = this.end(state, pos);
     }
     if (contentChildren.length === 1) {
       const wrapped = contentChildren[0]!.wrap(
@@ -163,14 +154,7 @@ export class ScopedRule implements Rule {
           }
         }
       }
-      wrappedContentChildren = [
-        Matched.create(
-          this.contentRule.node,
-          contentFrom,
-          contentLength,
-          wrapped
-        ),
-      ];
+      wrappedContentChildren = wrapped;
     }
 
     if (endMatched) {
@@ -185,28 +169,28 @@ export class ScopedRule implements Rule {
     ]);
   }
 
-  begin(str: string, from: number, state: GrammarState) {
-    let beginMatched = this.beginRule.match(str, from, state);
+  begin(state: GrammarState, from: number) {
+    let beginMatched = this.beginRule.match(state, from);
     if (!beginMatched) {
       return null;
     }
     const captures = [""];
     beginMatched.children?.forEach((c) => {
-      captures.push(str.slice(c.from, c.from + c.length));
+      captures.push(state.str.slice(c.from, c.from + c.length));
     });
     beginMatched = beginMatched.wrap(this.node, Wrapping.BEGIN);
     this.contentRule.resolve();
-    state.stack.push(this.node, this.contentRule.rules!, this, captures);
+    state.stack.push(this.node, captures);
     return beginMatched;
   }
 
-  end(str: string, from: number, state: GrammarState) {
+  end(state: GrammarState, from: number) {
     const begin = state.stack.at(-1);
     const beginCaptures = begin?.beginCaptures;
     if (beginCaptures) {
       this.endRule.matcher.backReferences = beginCaptures;
     }
-    let endMatched = this.endRule.match(str, from, state);
+    let endMatched = this.endRule.match(state, from);
     if (!endMatched) {
       return null;
     }
@@ -215,12 +199,7 @@ export class ScopedRule implements Rule {
     return endMatched;
   }
 
-  content(
-    str: string,
-    from: number,
-    state: GrammarState,
-    possiblyIncomplete?: boolean
-  ) {
-    return this.contentRule.match(str, from, state, possiblyIncomplete);
+  content(state: GrammarState, from: number) {
+    return this.contentRule.match(state, from);
   }
 }

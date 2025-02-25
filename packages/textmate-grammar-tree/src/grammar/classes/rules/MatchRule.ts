@@ -58,7 +58,8 @@ export class MatchRule implements Rule {
     }
   }
 
-  match(str: string, from: number, state: GrammarState) {
+  match(state: GrammarState, from: number) {
+    const str = state.str;
     const result = this.matcher.match(str, from);
     if (!result) {
       return null;
@@ -72,13 +73,14 @@ export class MatchRule implements Rule {
       if (result) {
         let pos = from;
         result.forEach((resultStr, resultIndex) => {
+          const state = new GrammarState(resultStr);
           const capture = this.captures?.[resultIndex];
           if (capture) {
             if (capture instanceof SwitchRule) {
               const children: Matched[] = [];
               let i = 0;
               while (i < resultStr.length) {
-                const matched = capture.match(resultStr, i, state, false);
+                const matched = capture.match(state, i);
                 if (matched?.length) {
                   matched.offset(pos + i);
                   children.push(matched);

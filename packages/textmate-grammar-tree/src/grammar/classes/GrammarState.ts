@@ -2,37 +2,39 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { contextEquivalent } from "../utils/contextEquivalent";
+import { GrammarNode } from "./GrammarNode";
 import { GrammarStack } from "./GrammarStack";
 
 /** Internal state for a {@link Grammar}. */
 export class GrammarState {
-  /**
-   * @param context - The current context table.
-   * @param stack - The current {@link GrammarStack}.
-   */
-  constructor(
-    public context: Record<string, string> = {},
-    public stack: GrammarStack = new GrammarStack()
-  ) {}
+  stack: GrammarStack = new GrammarStack([
+    {
+      node: GrammarNode.None,
+      beginCaptures: [],
+    },
+  ]);
 
-  /**
-   * Returns if another {@link GrammarState} is effectively equivalent to this one.
-   *
-   * @param other - The other {@link GrammarState} to compare to.
-   */
-  equals(other: GrammarState) {
-    if (!contextEquivalent(this.context, other.context)) {
-      return false;
-    }
-    if (!this.stack.equals(other.stack)) {
-      return false;
-    }
-    return true;
+  str: string;
+
+  next?: (absolutePos: number) => string;
+
+  absolutePos: number;
+
+  constructor(
+    str: string,
+    next?: (absolutePos: number) => string,
+    absolutePos: number = 0
+  ) {
+    this.str = str;
+    this.next = next;
+    this.absolutePos = absolutePos;
   }
 
-  /** Returns a new clone of this state, including its stack. */
-  clone() {
-    return new GrammarState(this.context, this.stack.clone());
+  advance() {
+    if (!this.next) {
+      return;
+    }
+    const next = this.next(this.absolutePos + this.str.length);
+    this.str += next;
   }
 }

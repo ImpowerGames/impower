@@ -86,9 +86,19 @@ export class TextmateGrammarParser extends Parser {
       const script =
         typeof input === "string" ? input : input.read(0, input.length);
       let paddedScript = script + "\n";
-      const buffer = new ChunkBuffer([]);
-      const compiler = new Compiler(this.grammar, buffer);
+      const compiler = new Compiler(this.grammar);
       const result = compiler.compile(paddedScript);
+      // console.log(
+      //   "FULL PARSE",
+      //   compiler.buffer?.chunks.map((chunk) => [
+      //     chunk.from,
+      //     chunk.to,
+      //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+      //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
+      //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
+      //     input.read(chunk.from, chunk.to),
+      //   ])
+      // );
       if (result) {
         const topID = NodeID.top;
         const tree = Tree.build({

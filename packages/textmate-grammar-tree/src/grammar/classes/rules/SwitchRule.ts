@@ -53,13 +53,8 @@ export class SwitchRule implements Rule {
    * @param from - The position to start matching at.
    * @param state - The current {@link GrammarState}.
    */
-  match(
-    str: string,
-    from: number,
-    state: GrammarState,
-    possiblyIncomplete?: boolean
-  ) {
-    return this.pattern(str, from, state, possiblyIncomplete);
+  match(state: GrammarState, from: number) {
+    return this.pattern(state, from);
   }
 
   resolve() {
@@ -70,16 +65,11 @@ export class SwitchRule implements Rule {
     }
   }
 
-  pattern(
-    str: string,
-    from: number,
-    state: GrammarState,
-    possiblyIncomplete?: boolean
-  ) {
+  pattern(state: GrammarState, from: number) {
     this.resolve();
     for (let i = 0; i < this.rules!.length; i++) {
       const rule = this.rules![i];
-      const patternMatched = rule?.match(str, from, state, possiblyIncomplete);
+      const patternMatched = rule?.match(state, from);
       if (patternMatched) {
         if (this.emit) {
           return patternMatched.wrap(this.node, Wrapping.FULL);

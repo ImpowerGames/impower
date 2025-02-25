@@ -1,5 +1,7 @@
 import { Input, TreeFragment } from "@lezer/common";
 
+const NEWLINE_REGEX = /(\r\n|\r|\n)/;
+
 /**
  * The region of a document that should be parsed, along with other
  * information such as what the edited range of the document was.
@@ -205,53 +207,31 @@ export class TextmateParseRegion {
   }
 
   /**
-   * Gets a substring of the current input, accounting for range handling
-   * automatically.
+   * Reads from the specified position to the next newline
    *
-   * @param pos - The position to start at.
-   * @param min - The minimum length of the substring.
-   * @param max - The maximum position of the end of the substring.
+   * @param pos - The position to start at
    */
-  read(pos: number, min: number, max: number) {
-    let str = "";
-    while (str.length <= min) {
-      str += this.input.chunk(pos + str.length);
-
-      const relative = pos + str.length;
-
-      if (relative >= max) {
-        const diff = relative - max;
-        if (diff) {
-          str = str.slice(0, -diff);
-        }
+  next(from: number) {
+    let pos = from;
+    if (pos >= this.input.length) {
+      return "";
+    }
+    let str = this.input.chunk(pos);
+    pos += str.length;
+    while (str) {
+      if (str.includes("\n")) {
+        str = str.split(NEWLINE_REGEX).slice(0, 2).join("");
         break;
       }
-
-      if (this.ranges.length !== 1) {
-        const actual = this.compensate(pos, str.length);
-
-        // end of input
-        if (actual >= max) {
-          const diff = actual - max;
-          if (diff) {
-            str = str.slice(0, -diff);
-          }
-          break;
-        }
-
-        const clamped = this.clamp(pos, relative);
-        if (relative >= clamped) {
-          const diff = relative - clamped;
-          if (diff) {
-            str = str.slice(0, -diff);
-          }
-          const next = this.posRange(clamped, 1);
-          if (!next) {
-            break;
-          }
-          pos = next.from;
-        }
+      if (pos >= this.input.length) {
+        break;
       }
+      let next = this.input.chunk(pos);
+      if (!next) {
+        break;
+      }
+      str += next;
+      pos += str.length;
     }
     return str;
   }

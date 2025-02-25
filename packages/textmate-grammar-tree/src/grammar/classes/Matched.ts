@@ -129,6 +129,8 @@ const compileLeaf = (match: Matched): GrammarToken => {
         match.node === GrammarNode.None ? null : match.node.typeIndex,
         match.from,
         match.from + match.length,
+        undefined,
+        undefined,
       ];
 
     case Wrapping.BEGIN:
@@ -137,6 +139,7 @@ const compileLeaf = (match: Matched): GrammarToken => {
         match.from,
         match.from + match.length,
         [match.node.typeIndex],
+        undefined,
       ];
 
     case Wrapping.END:

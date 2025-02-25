@@ -118,8 +118,8 @@ export class Compiler {
     const from = chunk.from;
     const to = chunk.to;
 
-    if (chunk.tryForTree()) {
-      const tree = chunk.tree!;
+    const tree = chunk.tryForTree();
+    if (tree) {
       const reusedIndex = this.reused.length;
       this.emitReused(reusedIndex, from, to);
       this.reused.push(tree);
@@ -225,10 +225,10 @@ export class Compiler {
 
   compile(source: string) {
     this.reset();
-    let state = this.grammar.startState();
     let pos = 0;
     while (pos < source.length) {
-      const match = this.grammar.match(state, source, pos, pos, false);
+      const next = () => "";
+      const match = this.grammar.match(source, next, pos, pos);
       let matchTokens: GrammarToken[] | null = null;
       let matchLength = 0;
       if (match) {
@@ -239,6 +239,16 @@ export class Compiler {
         matchTokens = [[NodeID.unrecognized, pos, pos + 1]];
         matchLength = 1;
       }
+      // console.log(
+      //   "full parse match",
+      //   matchTokens?.map((t) => [
+      //     this.grammar.nodeNames[t[0]!],
+      //     JSON.stringify(source.slice(t[1], t[2])),
+      //     t[3]?.map((o) => this.grammar.nodeNames[o]).join(","),
+      //     t[4]?.map((c) => this.grammar.nodeNames[c]).join(","),
+      //   ]),
+      //   JSON.stringify(source.slice(pos, pos + matchLength))
+      // );
       for (let idx = 0; idx < matchTokens!.length; idx++) {
         const token = matchTokens![idx]!;
         this.buffer.add(token);

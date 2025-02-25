@@ -1,6 +1,5 @@
 import { GrammarStackElement } from "../types/GrammarStackElement";
 import { Rule } from "../types/Rule";
-import { stackEquivalent } from "../utils/stackEquivalent";
 import type { GrammarNode } from "./GrammarNode";
 
 /** A stack of {@link GrammarStackElement}s used by a {@link Grammar}. */
@@ -21,13 +20,8 @@ export class GrammarStack {
    * @param end - A specific {@link Rule} that, when matched, should pop
    *   this element off.
    */
-  push(
-    node: GrammarNode,
-    rules: Rule[],
-    end: Rule | null,
-    beginCaptures: string[]
-  ) {
-    this.stack.push({ node, rules, end, beginCaptures });
+  push(node: GrammarNode, beginCaptures: string[]) {
+    this.stack.push({ node, beginCaptures });
   }
 
   /** Pops the last element on the stack. */
@@ -48,30 +42,6 @@ export class GrammarStack {
     this.stack.splice(idx);
   }
 
-  /**
-   * Returns if another {@link GrammarStack} is effectively equivalent to this one.
-   *
-   * @param other - The other {@link GrammarStack} to compare to.
-   */
-  equals(other: GrammarStack) {
-    if (this === other) {
-      return true;
-    }
-    if (this.length !== other.stack.length) {
-      return false;
-    }
-    for (let i = 0; i < this.stack.length; i++) {
-      const el = this.stack[i];
-      const otherEl = other.stack[i];
-      if (el && otherEl) {
-        if (!stackEquivalent(el, otherEl)) {
-          return false;
-        }
-      }
-    }
-    return true;
-  }
-
   /** The number of elements on the stack. */
   get length() {
     return this.stack.length;
@@ -80,20 +50,5 @@ export class GrammarStack {
   /** The last parent {@link GrammarNode}. */
   get node() {
     return this.stack[this.stack.length - 1]?.node;
-  }
-
-  /** The last list of rules. */
-  get rules() {
-    return this.stack[this.stack.length - 1]?.rules;
-  }
-
-  /** The last end rule. */
-  get end() {
-    return this.stack[this.stack.length - 1]?.end;
-  }
-
-  /** Returns a new clone of this stack. */
-  clone() {
-    return new GrammarStack(this.stack);
   }
 }

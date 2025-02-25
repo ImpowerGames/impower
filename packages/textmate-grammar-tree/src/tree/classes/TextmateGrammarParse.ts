@@ -11,17 +11,11 @@ import { Compiler } from "../../compiler/classes/Compiler";
 import { NodeID } from "../../core/enums/NodeID";
 import { GrammarToken } from "../../core/types/GrammarToken";
 import { Grammar } from "../../grammar/classes/Grammar";
-import { GrammarState } from "../../grammar/classes/GrammarState";
 import { cachedAheadBufferProp } from "../props/cachedAheadBufferProp";
 import { cachedCompilerProp } from "../props/cachedCompilerProp";
 import { findProp } from "../utils/findProp";
+import { printTree } from "../utils/printTree";
 import { TextmateParseRegion } from "./TextmateParseRegion";
-
-/** Amount of characters to slice before the starting position of the parse. */
-const MARGIN_BEFORE = 32;
-
-/** Amount of characters to slice after the requested ending position of a parse. */
-const MARGIN_AFTER = 128;
 
 /**
  * `Parse` is the main interface for tokenizing and parsing, and what
@@ -46,9 +40,6 @@ export class TextmateGrammarParse implements PartialParse {
    * parsed, where it was edited, the length, etc.
    */
   private declare region: TextmateParseRegion;
-
-  /** The current state of the grammar, such as the stack. */
-  private declare state: GrammarState;
 
   private declare compiler: Compiler;
 
@@ -138,8 +129,7 @@ export class TextmateGrammarParse implements PartialParse {
     this.parsedPos = this.region.from;
 
     // if we couldn't reuse state, we'll need to startup things with a default state
-    if (!this.compiler || !this.state) {
-      this.state = this.grammar.startState();
+    if (!this.compiler) {
       this.compiler = new Compiler(grammar);
     }
   }
@@ -197,6 +187,17 @@ export class TextmateGrammarParse implements PartialParse {
     const result = this.compiler.finish(length);
 
     if (result) {
+      // console.log(
+      //   "INCREMENTAL PARSE",
+      //   this.compiler.buffer?.chunks.map((chunk) => [
+      //     chunk.from,
+      //     chunk.to,
+      //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+      //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
+      //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
+      //     this.region.input.read(chunk.from, chunk.to),
+      //   ])
+      // );
       const buffer = result.cursor;
       const reused = result.reused.map(
         (b) => new TreeBuffer(b.buffer, b.length, nodeSet)
@@ -210,7 +211,7 @@ export class TextmateGrammarParse implements PartialParse {
         start,
         length,
       });
-      // console.log(printTree(tree, region.input));
+      // console.log(printTree(tree, this.region.input));
       // bit of a hack (private properties)
       // this is so that we don't need to build another tree
       const props = Object.create(null);
@@ -233,16 +234,14 @@ export class TextmateGrammarParse implements PartialParse {
     while (this.parsedPos < this.region.to) {
       const pos = this.parsedPos;
 
-      const start = Math.max(pos - MARGIN_BEFORE, this.region.from);
+      const start = Math.max(pos, this.region.from);
       const startCompensated = this.region.compensate(pos, start - pos);
 
-      const str = this.region.read(
-        startCompensated,
-        MARGIN_AFTER,
-        this.region.to
-      );
+      const next = (pos: number) => this.region.next(pos);
 
-      const match = this.grammar.match(this.state, str, pos - start, pos, true);
+      const str = next(startCompensated);
+
+      const match = this.grammar.match(str, next, pos - start, pos);
 
       let matchTokens: GrammarToken[] | null = null;
       let matchLength = 0;
@@ -255,6 +254,19 @@ export class TextmateGrammarParse implements PartialParse {
         matchTokens = [[NodeID.unrecognized, pos, pos + 1]];
         matchLength = 1;
       }
+
+      // console.log(
+      //   "incremental parse match",
+      //   pos,
+      //   pos + matchLength,
+      //   JSON.stringify(this.region.input.read(pos, pos + matchLength)),
+      //   matchTokens?.map((t) => [
+      //     this.grammar.nodeNames[t[0]!],
+      //     JSON.stringify(this.region.input.read(t[1], t[2])),
+      //     t[3]?.map((o) => this.grammar.nodeNames[o]).join(","),
+      //     t[4]?.map((c) => this.grammar.nodeNames[c]).join(","),
+      //   ])
+      // );
 
       if (matchLength === 0) {
         this.consecutiveEmptyMatchCount += 1;
@@ -348,7 +360,6 @@ export class TextmateGrammarParse implements PartialParse {
       //   )
       // );
       this.region.from = splitBehind.chunk.from;
-      this.state = this.grammar.startState();
       this.compiler = compiler;
       return right;
     }
@@ -420,7 +431,6 @@ export class TextmateGrammarParse implements PartialParse {
         //   )
         // );
         this.compiler.append(aheadBuffer);
-        this.state = this.grammar.startState();
         this.parsedPos = this.compiler.buffer.last!.to;
         return true;
       }

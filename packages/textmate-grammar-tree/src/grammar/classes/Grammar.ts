@@ -118,55 +118,31 @@ export class Grammar {
     this.nodeNames = this.nodes.map((n) => n.typeId);
   }
 
-  /** Returns a {@link GrammarState} setup for this grammar's default state. */
-  startState() {
-    return new GrammarState(
-      {},
-      new GrammarStack([
-        {
-          node: GrammarNode.None,
-          rules: this.rules,
-          end: null,
-          beginCaptures: [],
-        },
-      ])
-    );
-  }
-
   /**
    * Runs a match against a string (starting from a given position).
    *
    * @param state - The {@link GrammarState} to run the match with.
    * @param str - The string to match.
-   * @param from - The position to start matching at.
-   * @param offset - The offset to apply to the resulting {@link Matched}'s
+   * @param relativePos - The position to start matching at relative to the start of the provided str.
+   * @param absolutePos - The position to start matching at relative to the start of the document.
    *   `from` position.
    */
   match(
-    state: GrammarState,
     str: string,
-    from: number,
-    offset = from,
-    possiblyIncomplete = true
+    next: (pos: number) => string,
+    relativePos: number,
+    absolutePos = relativePos
   ) {
-    if (state.stack.end instanceof ScopedRule) {
-      let result = state.stack.end.end(str, from, state);
-      if (result) {
-        if (offset !== from) {
-          result.offset(offset);
-        }
-        return result;
-      }
-    }
+    const state = new GrammarState(str, next, absolutePos);
 
-    const rules = state.stack.rules;
+    const rules = this.rules;
     if (rules) {
       for (let i = 0; i < rules.length; i++) {
         const rule = rules[i];
-        const result = rule?.match(str, from, state, possiblyIncomplete);
+        const result = rule?.match(state, relativePos);
         if (result) {
-          if (offset !== from) {
-            result.offset(offset);
+          if (absolutePos !== relativePos) {
+            result.offset(absolutePos);
           }
           return result;
         }

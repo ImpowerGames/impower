@@ -7,6 +7,7 @@ import {
 import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
 
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { Input, Tree, TreeFragment } from "@lezer/common";
 
 export type SparkdownDocumentContentChangeEvent =
@@ -162,6 +163,14 @@ export class SparkdownDocumentRegistry {
 
   all() {
     return this._syncedDocuments.values();
+  }
+
+  print(uri: string) {
+    const tree = this.tree(uri);
+    const document = this.get(uri);
+    if (tree && document) {
+      console.log(printTree(tree, document.getText()));
+    }
   }
 
   add(params: {
