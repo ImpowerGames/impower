@@ -224,7 +224,7 @@ const createDecorations = (
 
 const decorate = (state: EditorState, from: number = 0, to?: number) => {
   let prevDialogueSpec: DialogueSpec | undefined = undefined;
-  const specs: DecorationSpec[] = [];
+  const decorations: Range<Decoration>[] = [];
   const doc = state.doc;
 
   const isCentered = (nodeRef: SyntaxNodeRef) => {
@@ -238,14 +238,16 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
   const centerRange = (nodeRef: SyntaxNodeRef) => {
     const from = nodeRef.from;
     const to = nodeRef.to;
-    specs.push({
-      type: "mark",
-      from,
-      to,
-      attributes: {
-        style: "display: block; opacity: 1; text-align: center;",
-      },
-    });
+    decorations.push(
+      ...createDecorations(doc, {
+        type: "mark",
+        from,
+        to,
+        attributes: {
+          style: "display: block; opacity: 1; text-align: center;",
+        },
+      })
+    );
   };
 
   const isBlockHidden = (nodeRef: SyntaxNodeRef) => {
@@ -281,11 +283,13 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
     const hiddenNodeEndsWithNewline = text.endsWith("\n");
     const hideFrom = from;
     const hideTo = hiddenNodeEndsWithNewline ? to - 1 : to;
-    specs.push({
-      type: "collapse",
-      from: hideFrom,
-      to: hideTo,
-    });
+    decorations.push(
+      ...createDecorations(doc, {
+        type: "collapse",
+        from: hideFrom,
+        to: hideTo,
+      })
+    );
     isBlankLineFrom = undefined;
     if (hiddenNodeEndsWithNewline) {
       processNewline(nodeRef.to);
@@ -295,21 +299,25 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
   const hideInlineRange = (nodeRef: SyntaxNodeRef) => {
     const from = nodeRef.from;
     const to = nodeRef.to;
-    specs.push({
-      type: "replace",
-      from,
-      to,
-    });
+    decorations.push(
+      ...createDecorations(doc, {
+        type: "replace",
+        from,
+        to,
+      })
+    );
   };
 
   const processNewline = (to: number) => {
     if (isBlankLineFrom != null) {
-      specs.push({
-        type: "collapse",
-        from: isBlankLineFrom,
-        to: to - 1,
-        separator: true,
-      });
+      decorations.push(
+        ...createDecorations(doc, {
+          type: "collapse",
+          from: isBlankLineFrom,
+          to: to - 1,
+          separator: true,
+        })
+      );
     }
     isBlankLineFrom = to;
   };
@@ -426,11 +434,13 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
           });
         }
       } else if (name === "Knot") {
-        specs.push({
-          type: "page_break",
-          from,
-          to,
-        });
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "page_break",
+            from,
+            to,
+          })
+        );
         return false;
       } else if (name === "Indent") {
         if (!inAction || inExplicitAction) {
@@ -455,19 +465,23 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
       const to = nodeRef.to;
       if (name === "FrontMatter") {
         // Add FrontMatter Spec
-        specs.push({
-          type: "reveal",
-          from,
-          to,
-        });
-        specs.push({
-          type: "title_page",
-          from,
-          to,
-          language: LANGUAGE_SUPPORT.language,
-          highlighter: LANGUAGE_HIGHLIGHTS,
-          ...frontMatterPositionContent,
-        });
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "reveal",
+            from,
+            to,
+          })
+        );
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "title_page",
+            from,
+            to,
+            language: LANGUAGE_SUPPORT.language,
+            highlighter: LANGUAGE_HIGHLIGHTS,
+            ...frontMatterPositionContent,
+          })
+        );
       } else if (name === "FrontMatterField") {
         const firstCaptureBlock = frontMatterFieldCaptureBlocks[0];
         const lastCaptureBlock =
@@ -494,34 +508,42 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         }
       } else if (name === "Transition") {
         // Add Transition Spec
-        specs.push({
-          type: "reveal",
-          from,
-          to,
-        });
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "reveal",
+            from,
+            to,
+          })
+        );
       } else if (name === "Scene") {
         // Add Scene Spec
-        specs.push({
-          type: "reveal",
-          from,
-          to,
-        });
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "reveal",
+            from,
+            to,
+          })
+        );
       } else if (name === "Action") {
         // Add Action Spec
-        specs.push({
-          type: "reveal",
-          from,
-          to,
-        });
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "reveal",
+            from,
+            to,
+          })
+        );
         inAction = false;
         inExplicitAction = false;
       } else if (name === "Choice") {
         // Add Choice Spec
-        specs.push({
-          type: "reveal",
-          from,
-          to,
-        });
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "reveal",
+            from,
+            to,
+          })
+        );
       } else if (name === "BlockDialogue" || name === "InlineDialogue") {
         if (inDualDialogue) {
           const isOdd = dialoguePosition % 2 !== 0;
@@ -543,7 +565,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
               ],
               grid: true,
             };
-            specs.push(spec);
+            decorations.push(...createDecorations(doc, spec));
             prevDialogueSpec = spec;
           } else if (prevDialogueSpec && prevDialogueSpec.blocks) {
             // right (even position)
@@ -568,7 +590,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             blocks: [dialogueContent],
             grid: name === "InlineDialogue",
           };
-          specs.push(spec);
+          decorations.push(...createDecorations(doc, spec));
           prevDialogueSpec = spec;
           dialoguePosition = 0;
         }
@@ -577,8 +599,6 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
       }
     },
   });
-
-  const decorations = specs.flatMap((b) => createDecorations(doc, b));
 
   highlightTree(
     tree,
