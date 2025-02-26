@@ -101,11 +101,20 @@ export class SparkdownDocumentRegistry {
                 },
                 text: change.text,
               };
+        const fromA = changeDocument.offsetAt(c.range.start);
+        const toA = changeDocument.offsetAt(c.range.end);
+        const fromB = changeDocument.offsetAt(c.range.start);
+        const toB = changeDocument.offsetAt(c.range.start) + c.text.length;
         const treeChange: ChangedRange = {
-          fromA: changeDocument.offsetAt(c.range.start),
-          toA: changeDocument.offsetAt(c.range.end),
-          fromB: changeDocument.offsetAt(c.range.start),
-          toB: changeDocument.offsetAt(c.range.start) + c.text.length,
+          fromA,
+          toA,
+          fromB,
+          toB,
+        };
+        const annotationChange: ChangeSpec = {
+          from: fromA,
+          to: toA,
+          insert: c.text,
         };
         // We must apply these changes to the tree one at a time because
         // TextDocumentContentChangeEvent[] positions are relative to the doc after each change,
@@ -118,18 +127,18 @@ export class SparkdownDocumentRegistry {
           [c],
           changeDocument.version + 1
         );
-        const annotationChange: ChangeSpec = {
-          from: changeDocument.offsetAt(c.range.start),
-          to: changeDocument.offsetAt(c.range.end),
-          insert: c.text,
-        };
         const input = new TextDocumentInput(changeDocument);
         state.tree = this._parser.parse(input, state.treeFragments);
         state.treeFragments = TreeFragment.addTree(
           state.tree,
           state.treeFragments
         );
-        state.annotators.update(changeDocument, state.tree, [annotationChange]);
+        state.annotators.update(
+          changeDocument,
+          state.tree,
+          [annotationChange],
+          toA
+        );
       }
       state.treeVersion = afterDocument.version;
       performance.mark(`incremental parse ${beforeDocument.uri} end`);
