@@ -18,14 +18,16 @@ import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-g
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
-// import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
+import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { getParentPropertyPath } from "../syntax/getParentPropertyPath";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
 import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
 import { getOtherMatchesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getOtherMatchesInsideParent";
+import { getOtherNodesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getOtherNodesInsideParent";
 
 import { getLineText } from "../document/getLineText";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
@@ -404,7 +406,7 @@ const addStructPropertyNameContextCompletions = (
   path: string,
   lineText: string,
   cursorPosition: Position,
-  existingProps: Set<string>
+  exclude?: string[]
 ) => {
   const textAfterCursor = lineText.slice(cursorPosition.character);
   if (typeStruct) {
@@ -422,7 +424,7 @@ const addStructPropertyNameContextCompletions = (
         const optionValue = getProperty(typeStruct, pathPrefix + propName);
         const description = getTypeDescription(optionValue);
         if (propName && Number.isNaN(Number(propName))) {
-          if (!propName.startsWith("$") && !existingProps.has(p)) {
+          if (!propName.startsWith("$") && !exclude?.includes(propName)) {
             const isArray = Array.isArray(optionValue);
             const isMap =
               optionValue &&
@@ -476,17 +478,10 @@ const addStructPropertyNameCompletions = (
   name: string,
   path: string,
   lineText: string,
-  cursorPosition: Position
+  cursorPosition: Position,
+  exclude: string[]
 ) => {
   if (type) {
-    const existingProps = new Set<string>();
-    // TODO: get existing props by iterating current tree
-    // const definedStruct = program?.compiled?.structDefs?.[type]?.[name];
-    // if (definedStruct) {
-    //   traverse(definedStruct, (fieldPath: string) => {
-    //     existingProps.add(fieldPath);
-    //   });
-    // }
     addStructPropertyNameContextCompletions(
       completions,
       program,
@@ -495,7 +490,7 @@ const addStructPropertyNameCompletions = (
       path,
       lineText,
       cursorPosition,
-      existingProps
+      exclude
     );
     addStructPropertyNameContextCompletions(
       completions,
@@ -505,7 +500,7 @@ const addStructPropertyNameCompletions = (
       path,
       lineText,
       cursorPosition,
-      existingProps
+      exclude
     );
     addStructPropertyNameContextCompletions(
       completions,
@@ -515,7 +510,7 @@ const addStructPropertyNameCompletions = (
       path,
       lineText,
       cursorPosition,
-      existingProps
+      exclude
     );
     addStructPropertyNameContextCompletions(
       completions,
@@ -525,7 +520,7 @@ const addStructPropertyNameCompletions = (
       path,
       lineText,
       cursorPosition,
-      existingProps
+      exclude
     );
   }
 };
@@ -1433,6 +1428,18 @@ export const getCompletions = (
         : "";
       const path = getParentPropertyPath(propertyNameNode, read);
       const lineText = getLineText(document, position);
+      const exclude = getOtherNodesInsideParent(
+        "StructField",
+        ["DefineDeclaration_content", "StructObjectProperty_content"],
+        stack
+      ).map((n) =>
+        getNodeText(
+          getDescendent(
+            ["DeclarationScalarPropertyName", "DeclarationObjectPropertyName"],
+            n
+          )
+        )
+      );
       addStructPropertyNameCompletions(
         completions,
         program,
@@ -1442,7 +1449,8 @@ export const getCompletions = (
         name,
         path.join("."),
         lineText,
-        position
+        position,
+        exclude
       );
     }
     return buildCompletions();
