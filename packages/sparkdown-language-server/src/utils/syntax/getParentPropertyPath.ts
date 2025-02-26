@@ -9,13 +9,13 @@ export const getParentPropertyPath = <T extends string>(
     propertyNameNode.node as GrammarSyntaxNode<T>;
   let path: string[] = [];
   while (stackCursor) {
-    if (stackCursor.type.name === "StructObjectItemBlock") {
+    if (stackCursor.name === "StructObjectItemBlock") {
       path = ["0", ...path];
     }
-    if (stackCursor.type.name === "StructObjectItemWithInlineScalarProperty") {
+    if (stackCursor.name === "StructObjectItemWithInlineScalarProperty") {
       path = ["0", ...path];
     }
-    if (stackCursor.type.name === "StructObjectItemWithInlineObjectProperty") {
+    if (stackCursor.name === "StructObjectItemWithInlineObjectProperty") {
       path = ["0", ...path];
       const beginNode = stackCursor.getChild(
         "StructObjectItemWithInlineObjectProperty_begin"
@@ -30,7 +30,7 @@ export const getParentPropertyPath = <T extends string>(
         }
       }
     }
-    if (stackCursor.type.name === "StructObjectProperty") {
+    if (stackCursor.name === "StructObjectProperty") {
       const beginNode = stackCursor.getChild("StructObjectProperty_begin");
       if (beginNode) {
         const nameNode = getDescendent(

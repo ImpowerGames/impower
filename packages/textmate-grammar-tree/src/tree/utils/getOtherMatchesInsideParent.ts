@@ -11,12 +11,12 @@ export const getOtherMatchesInsideParent = <T extends string>(
   const side = -1;
   const matches = [];
   const current = stack[0];
-  const parent = stack.find((n) => n.type.name === parentTypeName);
+  const parent = stack.find((n) => n.name === parentTypeName);
   if (current && parent) {
     const prevCur = tree.cursorAt(current.from - 1, side);
     while (prevCur.from >= parent.from) {
       const node = prevCur.node;
-      if (node.type.name === matchTypeName) {
+      if (node.name === matchTypeName) {
         matches.unshift(read(node.from, node.to));
       }
       prevCur.moveTo(prevCur.from - 1, side);
@@ -24,7 +24,7 @@ export const getOtherMatchesInsideParent = <T extends string>(
     const nextCur = tree.cursorAt(current.to + 1, side);
     while (nextCur.to <= parent.to) {
       const node = nextCur.node;
-      if (node.type.name === matchTypeName) {
+      if (node.name === matchTypeName) {
         matches.push(read(node.from, node.to));
       }
       nextCur.moveTo(nextCur.to + 1, side);

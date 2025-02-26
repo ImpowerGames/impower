@@ -8,7 +8,7 @@ export const getParentSectionPath = <T extends string>(
   let parentPathParts: { kind: "" | "knot" | "stitch"; name: string }[] = [];
   let topLevelNode = stack.at(-2)?.prevSibling;
   while (topLevelNode) {
-    if (topLevelNode.type.name === "Knot") {
+    if (topLevelNode.name === "Knot") {
       const knotNameNode = getDescendent("KnotDeclarationName", topLevelNode);
       if (knotNameNode) {
         parentPathParts.unshift({
@@ -18,7 +18,7 @@ export const getParentSectionPath = <T extends string>(
       }
       break;
     }
-    if (topLevelNode.type.name === "Stitch") {
+    if (topLevelNode.name === "Stitch") {
       const lastPart = parentPathParts.at(-1);
       if (lastPart?.kind !== "stitch") {
         const stitchNameNode = getDescendent(
