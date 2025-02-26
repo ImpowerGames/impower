@@ -3068,10 +3068,7 @@ export class InkParser extends StringParser {
         const assignedIdentifier = this.ScalarPropertyIdentifier();
         if (assignedIdentifier) {
           this.Whitespace();
-          const expr = this.Expect(
-            this.Expression,
-            "property to be initialized"
-          ) as Expression | null;
+          const expr = this.Expression();
           return [
             new StructProperty(
               level,
@@ -3101,10 +3098,7 @@ export class InkParser extends StringParser {
       }
       if (!this.Peek(this.EndOfLine)) {
         this.Whitespace();
-        const expr = this.Expect(
-          this.Expression,
-          "property to be initialized"
-        ) as Expression | null;
+        const expr = this.Expression();
         return [new StructProperty(level, new Identifier("-"), expr)];
       }
       return [
@@ -3128,10 +3122,7 @@ export class InkParser extends StringParser {
     let expr: Expression | null = new ObjectExpression();
     if (this.ParseString("=") !== null) {
       this.Whitespace();
-      expr = this.Expect(
-        this.Expression,
-        "property to be initialized"
-      ) as Expression | null;
+      expr = this.Expression();
     } else if (this.ParseString(":") !== null) {
       expr = new ObjectExpression();
     }
