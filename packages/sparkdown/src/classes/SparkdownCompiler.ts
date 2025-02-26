@@ -984,7 +984,7 @@ export class SparkdownCompiler {
             profile("end", "ink/encode", uri);
           }
         }
-        this.populateScripts(state, program);
+        program.scripts = inkCompiler.parser.parsedFiles;
         this.populateDiagnostics(state, program, inkCompiler);
         this.populateBuiltins(state, program);
         this.populateAssets(state, program);
@@ -997,15 +997,6 @@ export class SparkdownCompiler {
     }
     // console.log("program", program);
     return program;
-  }
-
-  populateScripts(state: SparkdownCompilerState, program: SparkProgram) {
-    const uri = program.uri;
-    profile("start", "populateScripts", uri);
-    if (state.sourceMap) {
-      program.scripts = Object.keys(state.sourceMap);
-    }
-    profile("end", "populateScripts", uri);
   }
 
   populateBuiltins(state: SparkdownCompilerState, program: SparkProgram) {
