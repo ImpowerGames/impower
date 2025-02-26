@@ -1,5 +1,5 @@
 import { Range, RangeSet } from "@codemirror/state";
-import { SyntaxNodeRef } from "@lezer/common";
+import { SyntaxNodeRef, Tree } from "@lezer/common";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { SparkdownAnnotation } from "./SparkdownAnnotation";
 
@@ -10,8 +10,11 @@ export abstract class SparkdownAnnotator<
 
   doc?: TextDocument;
 
-  update(doc: TextDocument) {
+  tree?: Tree;
+
+  update(doc: TextDocument, tree: Tree) {
     this.doc = doc;
+    this.tree = tree;
   }
 
   enter(

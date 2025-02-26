@@ -28,6 +28,7 @@ import { getOtherNodesInsideParent } from "@impower/textmate-grammar-tree/src/tr
 import { getLineText } from "../document/getLineText";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { DeclarationType } from "@impower/sparkdown/src/classes/annotators/DeclarationAnnotator";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
@@ -138,6 +139,99 @@ const rankMostRecentTexts = (
     mostRecentTexts.push(mostRecentText);
   }
   return mostRecentTexts;
+};
+
+const getScopes = (
+  read: (from: number, to: number) => string,
+  scriptAnnotations: Record<string, SparkdownAnnotations>
+) => {
+  let scopePathParts: { kind: "" | "knot" | "stitch"; name: string }[] = [
+    { kind: "", name: "" },
+  ];
+  const scopes: {
+    [path: string]: Record<string, string[]>;
+  } = {};
+  const scriptAnnotationEntries = Object.entries(scriptAnnotations);
+  for (const [, annotations] of scriptAnnotationEntries) {
+    const cur = annotations.declarations?.iter();
+    if (cur) {
+      while (cur.value) {
+        const text = read(cur.from, cur.to);
+        if (cur.value.type === "knot") {
+          // Global
+          const scopePath = "";
+          scopes[scopePath] ??= {};
+          scopes[scopePath][cur.value.type] ??= [];
+          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
+          scopePathParts = [{ kind: "", name: "" }];
+          scopePathParts.push({ kind: "knot", name: text });
+        }
+        if (cur.value.type === "stitch") {
+          const prevKind = scopePathParts.at(-1)?.kind || "";
+          if (prevKind === "stitch") {
+            scopePathParts.pop();
+          }
+          // Scoped
+          const scopePath = scopePathParts.map((p) => p.name).join(".");
+          scopes[scopePath] ??= {};
+          scopes[scopePath][cur.value.type] ??= [];
+          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
+          scopePathParts.push({ kind: "stitch", name: text });
+        }
+        if (cur.value.type === "label") {
+          // Scoped
+          const scopePath = scopePathParts.map((p) => p.name).join(".");
+          scopes[scopePath] ??= {};
+          scopes[scopePath][cur.value.type] ??= [];
+          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
+        }
+        if (cur.value.type === "const") {
+          // Global
+          const scopePath = "";
+          scopes[scopePath] ??= {};
+          scopes[scopePath][cur.value.type] ??= [];
+          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
+        }
+        if (cur.value.type === "var") {
+          // Global
+          const scopePath = "";
+          scopes[scopePath] ??= {};
+          scopes[scopePath][cur.value.type] ??= [];
+          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
+        }
+        if (cur.value.type === "list") {
+          // Global
+          const scopePath = "";
+          scopes[scopePath] ??= {};
+          scopes[scopePath][cur.value.type] ??= [];
+          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
+        }
+        if (cur.value.type === "define") {
+          // Global
+          const scopePath = "";
+          scopes[scopePath] ??= {};
+          scopes[scopePath][cur.value.type] ??= [];
+          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
+        }
+        if (cur.value.type === "temp") {
+          // Scoped
+          const scopePath = scopePathParts.map((p) => p.name).join(".");
+          scopes[scopePath] ??= {};
+          scopes[scopePath][cur.value.type] ??= [];
+          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
+        }
+        if (cur.value.type === "param") {
+          // Scoped
+          const scopePath = scopePathParts.map((p) => p.name).join(".");
+          scopes[scopePath] ??= {};
+          scopes[scopePath][cur.value.type] ??= [];
+          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
+        }
+        cur.next();
+      }
+    }
+  }
+  return scopes;
 };
 
 const addTransitionCompletions = (
@@ -712,7 +806,9 @@ const addStructPropertyValueCompletions = (
 
 const addMutableAccessPathCompletions = (
   completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
+  scopes: {
+    [path: string]: Record<string, string[]>;
+  },
   valueText: string,
   valueCursorOffset: number,
   scopePath: string,
@@ -721,24 +817,22 @@ const addMutableAccessPathCompletions = (
   const valueTextAfterCursor = valueText.slice(valueCursorOffset);
   if (!valueTextAfterCursor) {
     const parts = valueText?.split(".") || [];
-    if (program?.metadata?.scopes) {
+    if (scopes) {
       const types = ["var", "list", "param", "temp"];
-      for (const [path, declarations] of Object.entries(
-        program.metadata.scopes
-      )) {
+      for (const [path, declarations] of Object.entries(scopes)) {
         if (
           (parts.length <= 1 && scopePath.startsWith(path)) ||
           (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
         ) {
           for (const type of types) {
             if (declarations[type]) {
-              for (const location of declarations[type]) {
-                if (location.text) {
+              for (const name of declarations[type]) {
+                if (name) {
                   const description = type;
                   const kind = CompletionItemKind.Class;
                   const completion: CompletionItem = {
-                    label: location.text,
-                    insertText: insertTextPrefix + location.text,
+                    label: name,
+                    insertText: insertTextPrefix + name,
                     labelDetails: { description },
                     kind,
                   };
@@ -757,7 +851,9 @@ const addMutableAccessPathCompletions = (
 
 const addImmutableAccessPathCompletions = (
   completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
+  scopes: {
+    [path: string]: Record<string, string[]>;
+  },
   valueText: string,
   valueCursorOffset: number,
   scopePath: string,
@@ -766,24 +862,22 @@ const addImmutableAccessPathCompletions = (
   const valueTextAfterCursor = valueText.slice(valueCursorOffset);
   if (!valueTextAfterCursor) {
     const parts = valueText?.split(".") || [];
-    if (program?.metadata?.scopes) {
+    if (scopes) {
       const types = ["const"];
-      for (const [path, declarations] of Object.entries(
-        program.metadata.scopes
-      )) {
+      for (const [path, declarations] of Object.entries(scopes)) {
         if (
           (parts.length <= 1 && scopePath.startsWith(path)) ||
           (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
         ) {
           for (const type of types) {
             if (declarations[type]) {
-              for (const location of declarations[type]) {
-                if (location.text) {
+              for (const name of declarations[type]) {
+                if (name) {
                   const description = type;
                   const kind = CompletionItemKind.Class;
                   const completion: CompletionItem = {
-                    label: location.text,
-                    insertText: insertTextPrefix + location.text,
+                    label: name,
+                    insertText: insertTextPrefix + name,
                     labelDetails: { description },
                     kind,
                   };
@@ -856,7 +950,9 @@ const addStructAccessPathCompletions = (
 
 const addDivertPathCompletions = (
   completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
+  scopes: {
+    [path: string]: Record<string, string[]>;
+  },
   valueText: string,
   valueCursorOffset: number,
   scopePath: string,
@@ -874,24 +970,22 @@ const addDivertPathCompletions = (
         insertTextPrefix
       );
     }
-    if (program?.metadata?.scopes) {
+    if (scopes) {
       const types = ["knot", "stitch", "label"];
-      for (const [path, declarations] of Object.entries(
-        program.metadata.scopes
-      )) {
+      for (const [path, declarations] of Object.entries(scopes)) {
         if (
           (parts.length <= 1 && scopePath.startsWith(path)) ||
           (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
         ) {
           for (const type of types) {
             if (declarations[type]) {
-              for (const location of declarations[type]) {
-                if (location.text) {
+              for (const name of declarations[type]) {
+                if (name) {
                   const description = type;
                   const kind = CompletionItemKind.Class;
                   const completion: CompletionItem = {
-                    label: location.text,
-                    insertText: insertTextPrefix + location.text,
+                    label: name,
+                    insertText: insertTextPrefix + name,
                     labelDetails: { description },
                     kind,
                   };
@@ -1545,16 +1639,17 @@ export const getCompletions = (
         valueCursorOffset
       );
     } else {
+      const scopes = getScopes(read, scriptAnnotations);
       addMutableAccessPathCompletions(
         completions,
-        program,
+        scopes,
         valueText,
         valueCursorOffset,
         getParentSectionPath(stack, read).join(".")
       );
       addImmutableAccessPathCompletions(
         completions,
-        program,
+        scopes,
         valueText,
         valueCursorOffset,
         getParentSectionPath(stack, read).join(".")
@@ -1569,9 +1664,10 @@ export const getCompletions = (
     !getNodeText(getDescendentInsideParent("Divert_content", "Divert", stack))
   ) {
     if (isCursorAfterNodeText(stack[0])) {
+      const scopes = getScopes(read, scriptAnnotations);
       addDivertPathCompletions(
         completions,
-        program,
+        scopes,
         "",
         0,
         getParentSectionPath(stack, read).join("."),
@@ -1585,9 +1681,10 @@ export const getCompletions = (
     !getNodeText(getDescendentInsideParent("Divert_content", "Divert", stack))
   ) {
     if (isCursorAfterNodeText(stack[0])) {
+      const scopes = getScopes(read, scriptAnnotations);
       addDivertPathCompletions(
         completions,
-        program,
+        scopes,
         "",
         0,
         getParentSectionPath(stack, read).join(".")
@@ -1599,9 +1696,10 @@ export const getCompletions = (
     if (isCursorAfterNodeText(stack[0])) {
       const valueText = getNodeText(stack[0]);
       const valueCursorOffset = getCursorOffset(stack[0]);
+      const scopes = getScopes(read, scriptAnnotations);
       addDivertPathCompletions(
         completions,
-        program,
+        scopes,
         valueText,
         valueCursorOffset,
         getParentSectionPath(stack, read).join(".")

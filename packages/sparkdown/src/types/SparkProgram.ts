@@ -1,18 +1,10 @@
 import { SparkDiagnostic } from "./SparkDiagnostic";
 import { SparkReference } from "./SparkReference";
-import { SparkLocation } from "./SparkLocation";
 
 export interface SparkProgram {
   uri: string;
   scripts?: string[];
   compiled?: ArrayBuffer;
-  metadata?: {
-    scopes?: {
-      [path: string]: {
-        [declarationType: string]: SparkLocation[];
-      };
-    };
-  };
   context?: {
     [type: string]: { [name: string]: any };
   };

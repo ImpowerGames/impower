@@ -1,14 +1,14 @@
 import { RangeValue } from "@codemirror/state";
 
 export class SparkdownAnnotation<T = unknown> extends RangeValue {
-  value: T;
+  type: T;
 
-  constructor(value: T) {
+  constructor(type: T) {
     super();
-    this.value = value;
+    this.type = type;
   }
 
-  static mark<T>(value: T = undefined as T): SparkdownAnnotation<T> {
-    return new SparkdownAnnotation<T>(value);
+  static mark<T>(type: T = undefined as T): SparkdownAnnotation<T> {
+    return new SparkdownAnnotation<T>(type);
   }
 }

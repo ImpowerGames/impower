@@ -6,6 +6,7 @@ import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { SceneAnnotator } from "./annotators/SceneAnnotator";
 import { TransitionAnnotator } from "./annotators/TransitionAnnotator";
 import { ColorAnnotator } from "./annotators/ColorAnnotator";
+import { DeclarationAnnotator } from "./annotators/DeclarationAnnotator";
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
@@ -26,6 +27,7 @@ export interface SparkdownAnnotators {
   characters: CharacterAnnotator;
   scenes: SceneAnnotator;
   transitions: TransitionAnnotator;
+  declarations: DeclarationAnnotator;
 }
 
 export class SparkdownCombinedAnnotator {
@@ -34,6 +36,7 @@ export class SparkdownCombinedAnnotator {
     characters: new CharacterAnnotator(),
     scenes: new SceneAnnotator(),
     transitions: new TransitionAnnotator(),
+    declarations: new DeclarationAnnotator(),
   };
 
   get(): SparkdownAnnotations {
@@ -42,6 +45,7 @@ export class SparkdownCombinedAnnotator {
       characters: this.current.characters.current,
       scenes: this.current.scenes.current,
       transitions: this.current.transitions.current,
+      declarations: this.current.declarations.current,
     };
   }
 
@@ -52,6 +56,7 @@ export class SparkdownCombinedAnnotator {
       characters: [],
       scenes: [],
       transitions: [],
+      declarations: [],
     };
     tree.iterate({
       from,
@@ -73,7 +78,7 @@ export class SparkdownCombinedAnnotator {
   update(doc: TextDocument, tree: Tree, changes?: ChangeSpec[]) {
     const annotatorEntries = Object.entries(this.current);
     for (const [, annotator] of annotatorEntries) {
-      annotator.update(doc);
+      annotator.update(doc, tree);
     }
     const cachedCompiler = tree.prop(cachedCompilerProp);
     const reparsedFrom = cachedCompiler?.reparsedFrom;
