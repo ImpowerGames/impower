@@ -267,7 +267,7 @@ export abstract class ParsedObject {
 
   public readonly Warning = (
     message: string,
-    source: ParsedObject | null = null
+    source: ParsedObject | Identifier | DebugMetadata | null = null
   ): void => {
     this.Error(message, source, true);
   };

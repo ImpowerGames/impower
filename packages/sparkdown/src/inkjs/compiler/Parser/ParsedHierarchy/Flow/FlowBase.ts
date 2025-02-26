@@ -20,6 +20,7 @@ import { Weave } from "../Weave";
 import { ClosestFlowBase } from "./ClosestFlowBase";
 import { Identifier } from "../Identifier";
 import { asOrNull } from "../../../../engine/TypeAssertion";
+import { DebugMetadata } from "../../../../engine/DebugMetadata";
 
 type VariableResolveResult = {
   found: boolean;
@@ -513,7 +514,12 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       message += ` When final tunnel to '${terminatingDivert.target} ->' returns it won't have anywhere to go.`;
     }
 
-    this.Warning(message, terminatingObject);
+    const debugMetadata = new DebugMetadata(
+      terminatingObject?.debugMetadata || undefined
+    );
+    debugMetadata.startLineNumber = debugMetadata.endLineNumber;
+    debugMetadata.startCharacterNumber = debugMetadata.endCharacterNumber;
+    this.Warning(message, debugMetadata);
   };
 
   public readonly toString = (): string =>
