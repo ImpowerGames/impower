@@ -236,12 +236,15 @@ export default class SparkdownTextDocuments {
     if (file.text != null) {
       return file.text;
     }
-    if (file.src) {
-      try {
-        const text = await (await fetch(file.src)).text();
-        return text;
-      } catch (e) {
-        console.error(e);
+    const type = this.getFileType(file.uri);
+    if (type !== "script") {
+      if (file.src) {
+        try {
+          const text = await (await fetch(file.src)).text();
+          return text;
+        } catch (e) {
+          console.error(file.uri, file.src, e);
+        }
       }
     }
     // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
