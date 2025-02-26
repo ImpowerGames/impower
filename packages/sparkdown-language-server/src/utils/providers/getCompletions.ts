@@ -73,30 +73,57 @@ const rankMostRecentTexts = (
   read: (from: number, to: number) => string,
   scriptAnnotations: Record<string, SparkdownAnnotations>,
   uri: string,
-  contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
-  linePos: number
+  contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined
 ) => {
   // Sort by most recently used
   const before: string[] = [];
   const after: string[] = [];
-  for (const [scriptUri, annotations] of Object.entries(scriptAnnotations)) {
+  const scriptAnnotationEntries = Object.entries(scriptAnnotations);
+  const currentScriptIndex = scriptAnnotationEntries.findIndex(
+    ([k]) => k === uri
+  );
+  if (currentScriptIndex < 0) {
+    return [];
+  }
+  const beforeScriptEntries = scriptAnnotationEntries.slice(
+    0,
+    currentScriptIndex
+  );
+  const currentScriptEntries = [scriptAnnotationEntries[currentScriptIndex]!];
+  const afterScriptEntries = scriptAnnotationEntries.slice(
+    currentScriptIndex + 1
+  );
+  for (const [, annotations] of beforeScriptEntries) {
     const cur = annotations[type]?.iter();
     if (cur) {
       while (cur.value) {
         const text = read(cur.from, cur.to);
-        if (cur.to < linePos) {
-          if (scriptUri === uri) {
-            before.push(text);
-          }
-        } else {
-          if (
-            !contentNode ||
-            (cur.from < contentNode.from && cur.to < contentNode.to) ||
-            (cur.from > contentNode.from && cur.to > contentNode.to)
-          ) {
-            after.push(text);
-          }
+        before.push(text);
+        cur.next();
+      }
+    }
+  }
+  for (const [, annotations] of currentScriptEntries) {
+    const cur = annotations[type]?.iter();
+    if (cur) {
+      while (cur.value) {
+        if (!contentNode || cur.to < contentNode.from) {
+          const text = read(cur.from, cur.to);
+          before.push(text);
+        } else if (cur.from > contentNode.from && cur.to > contentNode.to) {
+          const text = read(cur.from, cur.to);
+          after.push(text);
         }
+        cur.next();
+      }
+    }
+  }
+  for (const [, annotations] of afterScriptEntries) {
+    const cur = annotations[type]?.iter();
+    if (cur) {
+      while (cur.value) {
+        const text = read(cur.from, cur.to);
+        after.push(text);
         cur.next();
       }
     }
@@ -119,7 +146,6 @@ const addTransitionCompletions = (
   scriptAnnotations: Record<string, SparkdownAnnotations>,
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
-  linePos: number,
   insertTextPrefix: string = ""
 ) => {
   const mostRecentTexts = rankMostRecentTexts(
@@ -127,8 +153,7 @@ const addTransitionCompletions = (
     read,
     scriptAnnotations,
     uri,
-    contentNode,
-    linePos
+    contentNode
   );
   // Add completions
   for (const text of mostRecentTexts) {
@@ -152,7 +177,6 @@ const addSceneCompletions = (
   scriptAnnotations: Record<string, SparkdownAnnotations>,
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
-  linePos: number,
   insertTextPrefix: string = ""
 ) => {
   const mostRecentTexts = rankMostRecentTexts(
@@ -160,8 +184,7 @@ const addSceneCompletions = (
     read,
     scriptAnnotations,
     uri,
-    contentNode,
-    linePos
+    contentNode
   );
   // Add completions
   for (const text of mostRecentTexts) {
@@ -185,7 +208,6 @@ const addCharacterCompletions = (
   scriptAnnotations: Record<string, SparkdownAnnotations>,
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
-  linePos: number,
   insertTextPrefix: string = ""
 ) => {
   const mostRecentTexts = rankMostRecentTexts(
@@ -193,8 +215,7 @@ const addCharacterCompletions = (
     read,
     scriptAnnotations,
     uri,
-    contentNode,
-    linePos
+    contentNode
   );
   // Add completions
   for (const text of mostRecentTexts) {
@@ -958,7 +979,6 @@ export const getCompletions = (
   const prevCursor = tree.cursorAt(stack[0].from - 1, side);
   const prevNode = prevCursor.node as GrammarSyntaxNode<SparkdownNodeName>;
   const prevText = getNodeText(prevNode);
-  const linePos = document.offsetAt({ line: position.line, character: 0 });
 
   // console.log(printTree(tree, document.getText()));
   // console.log("program", program);
@@ -978,7 +998,6 @@ export const getCompletions = (
         scriptAnnotations,
         document.uri,
         contentNode,
-        linePos,
         " "
       );
     }
@@ -999,8 +1018,7 @@ export const getCompletions = (
         read,
         scriptAnnotations,
         document.uri,
-        contentNode,
-        linePos
+        contentNode
       );
     }
     return buildCompletions();
@@ -1020,7 +1038,6 @@ export const getCompletions = (
         scriptAnnotations,
         document.uri,
         contentNode,
-        linePos,
         " "
       );
     }
@@ -1041,8 +1058,7 @@ export const getCompletions = (
         read,
         scriptAnnotations,
         document.uri,
-        contentNode,
-        linePos
+        contentNode
       );
     }
     return buildCompletions();
@@ -1068,7 +1084,6 @@ export const getCompletions = (
         scriptAnnotations,
         document.uri,
         contentNode,
-        linePos,
         " "
       );
     }
@@ -1095,8 +1110,7 @@ export const getCompletions = (
         read,
         scriptAnnotations,
         document.uri,
-        dialogueCharacterNode,
-        linePos
+        dialogueCharacterNode
       );
     }
     return buildCompletions();
