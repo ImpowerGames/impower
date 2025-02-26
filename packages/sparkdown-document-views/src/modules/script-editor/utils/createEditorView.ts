@@ -6,6 +6,7 @@ import {
   EditorState,
   Range,
   RangeSet,
+  SelectionRange,
   Transaction,
   TransactionSpec,
 } from "@codemirror/state";
@@ -172,7 +173,12 @@ const createEditorView = (
       EditorView.theme(EDITOR_THEME, { dark: true }),
       EDITOR_EXTENSIONS,
       panels({ topContainer, bottomContainer }),
-      search({ createPanel: (view) => new SearchPanel(view), top: true }),
+      search({
+        createPanel: (view) => new SearchPanel(view),
+        scrollToMatch: (range: SelectionRange) =>
+          EditorView.scrollIntoView(range, { y: "center" }),
+        top: true,
+      }),
       statusPanel(),
       gotoLinePanel(),
       readOnly.of(EditorState.readOnly.of(false)),
