@@ -9,6 +9,7 @@ import {
   setSearchQuery,
   getSearchQuery,
 } from "@codemirror/search";
+import { EditorSelection } from "@codemirror/state";
 import {
   Panel,
   EditorView,
@@ -183,12 +184,30 @@ export class SearchPanel implements Panel {
   keydown(e: KeyboardEvent) {
     if (runScopeHandlers(this.view, e, "search-panel")) {
       e.preventDefault();
-    } else if (e.keyCode == 13 && e.target == this.searchInput) {
-      e.preventDefault();
-      (e.shiftKey ? findPrevious : findNext)(this.view);
-    } else if (e.keyCode == 13 && e.target == this.replaceInput) {
-      e.preventDefault();
-      replaceNext(this.view);
+    } else if (e.target == this.searchInput) {
+      if (e.key == "Enter") {
+        e.preventDefault();
+        (e.shiftKey ? findPrevious : findNext)(this.view);
+      } else {
+        const cursor = this.query.getCursor(this.view.state);
+        const first = cursor.next();
+        first.value;
+        selectMatches(this.view);
+        if (first.value) {
+          this.view.dispatch({
+            userEvent: "select.search.matches.first",
+            effects: EditorView.scrollIntoView(
+              EditorSelection.range(first.value.from, first.value.to),
+              { y: "center" }
+            ),
+          });
+        }
+      }
+    } else if (e.target == this.replaceInput) {
+      if (e.key == "Enter") {
+        e.preventDefault();
+        replaceNext(this.view);
+      }
     }
   }
 
