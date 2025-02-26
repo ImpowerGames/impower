@@ -11,7 +11,9 @@ export const getDescendent = <T extends string>(
       if (cur.node.type.name === descendentTypeName) {
         return cur.node as GrammarSyntaxNode<T>;
       }
-      cur?.next();
+      if (!cur?.next()) {
+        break;
+      }
     }
   }
   return undefined;
