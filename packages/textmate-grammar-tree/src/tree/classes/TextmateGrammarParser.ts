@@ -75,44 +75,4 @@ export class TextmateGrammarParser extends Parser {
     );
     return parse;
   }
-
-  override parse(
-    input: string | Input,
-    fragments?: readonly TreeFragment[] | undefined,
-    ranges?: readonly { from: number; to: number }[] | undefined
-  ): Tree {
-    if (!fragments && !ranges) {
-      const script =
-        typeof input === "string" ? input : input.read(0, input.length);
-      let paddedScript = script + "\n";
-      const compiler = new Compiler(this.grammar);
-      const result = compiler.compile(paddedScript);
-      // console.log(
-      //   "FULL PARSE",
-      //   compiler.buffer?.chunks.map((chunk) => [
-      //     chunk.from,
-      //     chunk.to,
-      //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
-      //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
-      //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
-      //     input.read(chunk.from, chunk.to),
-      //   ])
-      // );
-      if (result) {
-        const topID = NodeID.top;
-        const tree = Tree.build({
-          topID,
-          buffer: result.cursor,
-          nodeSet: this.nodeSet,
-          reused: result.reused.map(
-            (b) => new TreeBuffer(b.buffer, b.length, this.nodeSet)
-          ) as unknown as readonly Tree[],
-          start: 0,
-          length: script.length,
-        });
-        return tree;
-      }
-    }
-    return super.parse(input, fragments, ranges);
-  }
 }
