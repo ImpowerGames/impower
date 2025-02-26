@@ -36,11 +36,13 @@ export class StructDefinition extends ParsedObject {
     }
     const name = nameParts.join(":");
     const value = this.BuildValue(this.propertyDefinitions);
-    if (type) {
-      value["$type"] = type;
-    }
-    if (name) {
-      value["$name"] = name;
+    if (value) {
+      if (type) {
+        value["$type"] = type;
+      }
+      if (name) {
+        value["$name"] = name;
+      }
     }
     return new RuntimeStructDefinition(type, name, value);
   }
