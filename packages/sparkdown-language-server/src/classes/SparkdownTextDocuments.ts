@@ -57,7 +57,7 @@ const COMPILER_WORKER_URL = URL.createObjectURL(
   })
 );
 
-const PARSE_DELAY = 300;
+const PARSE_DELAY = 200;
 
 const globToRegex = (glob: string) => {
   return RegExp(

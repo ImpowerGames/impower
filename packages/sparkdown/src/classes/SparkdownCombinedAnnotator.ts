@@ -7,6 +7,8 @@ import { SceneAnnotator } from "./annotators/SceneAnnotator";
 import { TransitionAnnotator } from "./annotators/TransitionAnnotator";
 import { ColorAnnotator } from "./annotators/ColorAnnotator";
 import { DeclarationAnnotator } from "./annotators/DeclarationAnnotator";
+import { SparkdownAnnotation } from "./SparkdownAnnotation";
+import { TranspilationAnnotator } from "./annotators/TranspilationAnnotator";
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
@@ -28,6 +30,7 @@ export interface SparkdownAnnotators {
   scenes: SceneAnnotator;
   transitions: TransitionAnnotator;
   declarations: DeclarationAnnotator;
+  transpilations: TranspilationAnnotator;
 }
 
 export class SparkdownCombinedAnnotator {
@@ -37,7 +40,10 @@ export class SparkdownCombinedAnnotator {
     scenes: new SceneAnnotator(),
     transitions: new TransitionAnnotator(),
     declarations: new DeclarationAnnotator(),
+    transpilations: new TranspilationAnnotator(),
   };
+
+  protected _currentEntries = Object.entries(this.current);
 
   get(): SparkdownAnnotations {
     return {
@@ -46,28 +52,29 @@ export class SparkdownCombinedAnnotator {
       scenes: this.current.scenes.current,
       transitions: this.current.transitions.current,
       declarations: this.current.declarations.current,
+      transpilations: this.current.transpilations.current,
     };
   }
 
   protected annotate(tree: Tree, from?: number, to?: number) {
-    const annotatorEntries = Object.entries(this.current);
     const ranges: SparkdownAnnotationRanges = {
       colors: [],
       characters: [],
       scenes: [],
       transitions: [],
       declarations: [],
+      transpilations: [],
     };
     tree.iterate({
       from,
       to,
       enter: (nodeRef) => {
-        for (const [key, annotator] of annotatorEntries) {
+        for (const [key, annotator] of this._currentEntries) {
           annotator.enter(ranges[key as keyof SparkdownAnnotations]!, nodeRef);
         }
       },
       leave: (nodeRef) => {
-        for (const [key, annotator] of annotatorEntries) {
+        for (const [key, annotator] of this._currentEntries) {
           annotator.leave(ranges[key as keyof SparkdownAnnotations]!, nodeRef);
         }
       },
@@ -75,9 +82,14 @@ export class SparkdownCombinedAnnotator {
     return ranges;
   }
 
+  protected remove<T>(from: number, to: number, value: SparkdownAnnotation<T>) {
+    for (const [, annotator] of this._currentEntries) {
+      annotator.remove(from, to, value);
+    }
+  }
+
   update(doc: TextDocument, tree: Tree, changes?: ChangeSpec[]) {
-    const annotatorEntries = Object.entries(this.current);
-    for (const [, annotator] of annotatorEntries) {
+    for (const [, annotator] of this._currentEntries) {
       annotator.update(doc, tree);
     }
     const cachedCompiler = tree.prop(cachedCompilerProp);
@@ -105,7 +117,13 @@ export class SparkdownCombinedAnnotator {
         if (annotator) {
           annotator.current = annotator.current.map(changeDesc);
           annotator.current = annotator.current.update({
-            filter: (from, to) => from < reparsedFrom && to < reparsedFrom,
+            filter: (from, to, value) => {
+              if (from < reparsedFrom && to < reparsedFrom) {
+                return true;
+              }
+              this.remove(from, to, value);
+              return false;
+            },
             add,
             sort: true,
           });
@@ -121,9 +139,16 @@ export class SparkdownCombinedAnnotator {
       if (annotator) {
         annotator.current = annotator.current.map(changeDesc);
         annotator.current = annotator.current.update({
-          filter: (from, to) =>
-            (from < reparsedFrom && to < reparsedFrom) ||
-            (from > reparsedTo && to > reparsedTo),
+          filter: (from, to, value) => {
+            if (
+              (from < reparsedFrom && to < reparsedFrom) ||
+              (from > reparsedTo && to > reparsedTo)
+            ) {
+              return true;
+            }
+            this.remove(from, to, value);
+            return false;
+          },
           add,
           sort: true,
         });

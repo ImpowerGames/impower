@@ -138,6 +138,7 @@ export class SparkdownDocumentRegistry {
         `incremental parse ${beforeDocument.uri} start`,
         `incremental parse ${beforeDocument.uri} end`
       );
+      // this.print(beforeDocument.uri);
       return state.tree!;
     } else {
       // First full parse
@@ -153,6 +154,7 @@ export class SparkdownDocumentRegistry {
         `full parse ${beforeDocument.uri} start`,
         `full parse ${beforeDocument.uri} end`
       );
+      // this.print(beforeDocument.uri);
       return state.tree;
     }
   }

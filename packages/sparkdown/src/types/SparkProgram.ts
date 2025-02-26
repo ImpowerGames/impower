@@ -14,6 +14,4 @@ export interface SparkProgram {
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];
   };
-  uuidToSource?: Record<string, [file: number, line: number]>;
-  uuidToPath?: Record<string, string>;
 }

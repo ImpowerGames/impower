@@ -60,6 +60,8 @@ export class Game<T extends M = {}> {
 
   protected _program: SparkProgram;
 
+  protected _compiled: SparkdownRuntimeFormat;
+
   protected _executionTimeout = 1000;
 
   protected _lastExecutedSource: DocumentSource;
@@ -84,6 +86,7 @@ export class Game<T extends M = {}> {
     }
   ) {
     this._program = program;
+    this._compiled = compiled;
     this._files = program.scripts || [program.uri];
     const modules = options?.modules;
     const previewing = options?.preview
@@ -157,7 +160,7 @@ export class Game<T extends M = {}> {
   }
 
   getSource(uuid: string) {
-    const source = this._program.uuidToSource?.[uuid];
+    const source = this._compiled.uuidToSource?.[uuid];
     if (source) {
       const [fileIndex, lineIndex] = source;
       const file = this._files[fileIndex];
@@ -175,10 +178,10 @@ export class Game<T extends M = {}> {
     if (fileIndex < 0) {
       return null;
     }
-    if (!this._program.uuidToSource) {
+    if (!this._compiled.uuidToSource) {
       return null;
     }
-    const uuidToSourceEntries = Object.entries(this._program.uuidToSource);
+    const uuidToSourceEntries = Object.entries(this._compiled.uuidToSource);
     let closestIndex = uuidToSourceEntries.length - 1;
     for (let i = 0; i < uuidToSourceEntries.length; i++) {
       const [, source] = uuidToSourceEntries[i]!;
@@ -201,7 +204,7 @@ export class Game<T extends M = {}> {
       return null;
     }
     const [uuid] = match;
-    const path = this._program.uuidToPath?.[uuid];
+    const path = this._compiled.uuidToPath?.[uuid];
     if (path == null) {
       return null;
     }
@@ -446,8 +449,7 @@ export class Game<T extends M = {}> {
   preview(file: string, line: number): void {
     this._lastExecutedSource = { file, line };
     const path = this.getClosestPath(file, line);
-    // Only update preview if necessary
-    if (path != null && this._context.system.previewing !== path) {
+    if (path != null) {
       this._context.system.previewing = path;
       if (path) {
         if (!this._story.asyncContinueComplete) {

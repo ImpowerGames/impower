@@ -1,9 +1,8 @@
 import { Range } from "@codemirror/state";
-import { SyntaxNodeRef } from "@lezer/common";
 import { getContext } from "@impower/textmate-grammar-tree/src/tree/utils/getContext";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
-import { SparkdownNodeName } from "../../types/SparkdownNodeName";
+import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 
 export type DeclarationType =
   | "knot"
@@ -21,7 +20,7 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
 > {
   override enter(
     annotations: Range<SparkdownAnnotation<DeclarationType>>[],
-    nodeRef: SyntaxNodeRef & { name: SparkdownNodeName }
+    nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<DeclarationType>>[] {
     if (nodeRef.name === "KnotDeclarationName") {
       annotations.push(

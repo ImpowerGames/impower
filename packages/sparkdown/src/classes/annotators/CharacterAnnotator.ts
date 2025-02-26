@@ -1,13 +1,12 @@
 import { Range } from "@codemirror/state";
-import { SyntaxNodeRef } from "@lezer/common";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
-import { SparkdownNodeName } from "../../types/SparkdownNodeName";
+import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 
 export class CharacterAnnotator extends SparkdownAnnotator {
   override enter(
     annotations: Range<SparkdownAnnotation>[],
-    nodeRef: SyntaxNodeRef & { name: SparkdownNodeName }
+    nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation>[] {
     if (nodeRef.name === "DialogueCharacter") {
       annotations.push(

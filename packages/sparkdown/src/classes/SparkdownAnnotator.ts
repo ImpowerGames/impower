@@ -15,19 +15,18 @@ export abstract class SparkdownAnnotator<
   update(doc: TextDocument, tree: Tree) {
     this.doc = doc;
     this.tree = tree;
+    this.start();
   }
 
-  enter(
-    annotations: Range<SparkdownAnnotation>[],
-    _nodeRef: SyntaxNodeRef
-  ): Range<SparkdownAnnotation>[] {
+  start() {}
+
+  remove(from: number, to: number, value: T) {}
+
+  enter(annotations: Range<T>[], nodeRef: SyntaxNodeRef): Range<T>[] {
     return annotations;
   }
 
-  leave(
-    annotations: Range<SparkdownAnnotation>[],
-    _nodeRef: SyntaxNodeRef
-  ): Range<SparkdownAnnotation>[] {
+  leave(annotations: Range<T>[], nodeRef: SyntaxNodeRef): Range<T>[] {
     return annotations;
   }
 
