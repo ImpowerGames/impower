@@ -87,7 +87,10 @@ export default class LanguageClientPluginValue implements PluginValue {
     this._view = view;
     this._supports = supports;
     const config = view.state.facet(languageClientConfig);
-    this._textDocument = config.textDocument;
+    this._textDocument = {
+      uri: config.textDocument.uri,
+      version: config.textDocument.version,
+    };
     this._serverConnection = config.serverConnection;
     this._serverCapabilities = config.serverCapabilities;
     this._fileSystemReader = config.fileSystemReader;
