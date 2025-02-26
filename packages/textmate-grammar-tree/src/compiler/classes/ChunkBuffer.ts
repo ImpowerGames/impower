@@ -77,7 +77,9 @@ export class ChunkBuffer {
 
     if (open) {
       this.scopes ??= [];
-      this.scopes.push(...open);
+      for (const o of open) {
+        this.scopes.push(o);
+      }
     }
 
     if (!current || open) {
@@ -87,13 +89,17 @@ export class ChunkBuffer {
     }
 
     if (open) {
-      current.pushOpen(...open);
+      for (const o of open) {
+        current.pushOpen(o);
+      }
     }
 
     current.add(id, from, to);
 
     if (close) {
-      current.pushClose(...close);
+      for (const c of close) {
+        current.pushClose(c);
+      }
       current = new Chunk(current.to, this.scopes);
       this.chunks.push(current);
       newChunk = true;
@@ -256,7 +262,9 @@ export class ChunkBuffer {
    * @param right - The buffer to link.
    */
   append(right: ChunkBuffer) {
-    this.chunks.push(...right.chunks);
+    for (const c of right.chunks) {
+      this.chunks.push(c);
+    }
     return this;
   }
 }

@@ -122,12 +122,10 @@ export class Chunk {
    *
    * @param ids - The node ID(s).
    */
-  pushOpen(...ids: number[]) {
+  pushOpen(id: number) {
     this.tree = undefined;
-    ids.forEach((id) => {
-      this.opens ??= [];
-      this.opens.push(id);
-    });
+    this.opens ??= [];
+    this.opens.push(id);
   }
 
   /**
@@ -135,12 +133,10 @@ export class Chunk {
    *
    * @param ids - The node ID(s).
    */
-  pushClose(...ids: number[]) {
+  pushClose(id: number) {
     this.tree = undefined;
-    ids.forEach((id) => {
-      this.closes ??= [];
-      this.closes.push(id);
-    });
+    this.closes ??= [];
+    this.closes.push(id);
   }
 
   /** Checks if the chunk can be converted into a {@link Tree}. */
