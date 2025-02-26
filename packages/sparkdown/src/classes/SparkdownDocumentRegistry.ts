@@ -107,11 +107,6 @@ export class SparkdownDocumentRegistry {
           fromB: changeDocument.offsetAt(c.range.start),
           toB: changeDocument.offsetAt(c.range.start) + c.text.length,
         };
-        const annotationChange: ChangeSpec = {
-          from: changeDocument.offsetAt(c.range.start),
-          to: changeDocument.offsetAt(c.range.end),
-          insert: c.text,
-        };
         // We must apply these changes to the tree one at a time because
         // TextDocumentContentChangeEvent[] positions are relative to the doc after each change,
         // and ChangedRange[] positions are relative to the starting doc.
@@ -123,6 +118,11 @@ export class SparkdownDocumentRegistry {
           [c],
           changeDocument.version + 1
         );
+        const annotationChange: ChangeSpec = {
+          from: changeDocument.offsetAt(c.range.start),
+          to: changeDocument.offsetAt(c.range.end),
+          insert: c.text,
+        };
         const input = new TextDocumentInput(changeDocument);
         state.tree = this._parser.parse(input, state.treeFragments);
         state.treeFragments = TreeFragment.addTree(
