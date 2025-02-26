@@ -629,7 +629,10 @@ const replaceDecorations = StateField.define<DecorationSet>({
       const cachedCompiler = newTree.prop(cachedCompilerProp);
       const reparsedFrom = cachedCompiler?.reparsedFrom;
       const reparsedTo = cachedCompiler?.reparsedTo;
-      if (reparsedFrom == null) {
+      if (
+        reparsedFrom == null ||
+        (newTree.length !== oldTree.length && !transaction.docChanged)
+      ) {
         // Remake all decorations from scratch
         const ranges = decorate(transaction.state);
         decorations =
@@ -637,6 +640,7 @@ const replaceDecorations = StateField.define<DecorationSet>({
         return decorations;
       }
       if (reparsedTo == null) {
+        // Only rebuild decorations after reparsedFrom
         const add = decorate(transaction.state, reparsedFrom);
         decorations = decorations.map(transaction.changes);
         decorations = decorations.update({
@@ -646,6 +650,7 @@ const replaceDecorations = StateField.define<DecorationSet>({
         });
         return decorations;
       }
+      // Only rebuild decorations between reparsedFrom and reparsedTo
       const add = decorate(transaction.state, reparsedFrom, reparsedTo);
       decorations = decorations.map(transaction.changes);
       decorations = decorations.update({
