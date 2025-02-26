@@ -7,7 +7,6 @@ export interface SparkProgram {
   scripts?: string[];
   compiled?: ArrayBuffer;
   metadata?: {
-    colors?: Record<string, SparkLocation[]>;
     scopes?: {
       [path: string]: {
         [declarationType: string]: SparkLocation[];

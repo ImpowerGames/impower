@@ -5,6 +5,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { SceneAnnotator } from "./annotators/SceneAnnotator";
 import { TransitionAnnotator } from "./annotators/TransitionAnnotator";
+import { ColorAnnotator } from "./annotators/ColorAnnotator";
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
@@ -21,6 +22,7 @@ export type SparkdownAnnotations = {
 };
 
 export interface SparkdownAnnotators {
+  colors: ColorAnnotator;
   characters: CharacterAnnotator;
   scenes: SceneAnnotator;
   transitions: TransitionAnnotator;
@@ -28,6 +30,7 @@ export interface SparkdownAnnotators {
 
 export class SparkdownCombinedAnnotator {
   current: SparkdownAnnotators = {
+    colors: new ColorAnnotator(),
     characters: new CharacterAnnotator(),
     scenes: new SceneAnnotator(),
     transitions: new TransitionAnnotator(),
@@ -35,6 +38,7 @@ export class SparkdownCombinedAnnotator {
 
   get(): SparkdownAnnotations {
     return {
+      colors: this.current.colors.current,
       characters: this.current.characters.current,
       scenes: this.current.scenes.current,
       transitions: this.current.transitions.current,
@@ -44,6 +48,7 @@ export class SparkdownCombinedAnnotator {
   protected annotate(tree: Tree, from?: number, to?: number) {
     const annotatorEntries = Object.entries(this.current);
     const ranges: SparkdownAnnotationRanges = {
+      colors: [],
       characters: [],
       scenes: [],
       transitions: [],

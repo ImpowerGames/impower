@@ -479,13 +479,6 @@ export class SparkdownCompiler {
               reportDiagnostic(message, DiagnosticSeverity.Error);
             }
           }
-          // Record color use
-          if (nodeType === "Color") {
-            program.metadata ??= {};
-            program.metadata.colors ??= {};
-            program.metadata.colors[text] ??= [];
-            program.metadata.colors[text].push({ uri, range });
-          }
           // Record define properties
           if (nodeType === "DefineDeclaration") {
             defineModifier = "";

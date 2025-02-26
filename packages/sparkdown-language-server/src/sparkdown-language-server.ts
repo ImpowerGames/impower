@@ -120,9 +120,9 @@ try {
   connection.onDocumentColor((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.program(uri);
+    const annotations = documents.annotations(uri);
     performance.mark(`lsp: onDocumentColor ${uri} start`);
-    const result = getDocumentColors(document, program);
+    const result = getDocumentColors(document, annotations);
     performance.mark(`lsp: onDocumentColor ${uri} end`);
     performance.measure(
       `lsp: onDocumentColor ${uri}`,

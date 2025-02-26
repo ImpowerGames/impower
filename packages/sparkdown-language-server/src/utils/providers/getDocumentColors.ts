@@ -2,30 +2,34 @@ import { Color, type ColorInformation } from "vscode-languageserver";
 import { type TextDocument } from "vscode-languageserver-textdocument";
 import { colord } from "colord";
 
-import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 
 export const getDocumentColors = (
   document: TextDocument | undefined,
-  program: SparkProgram | undefined
+  annotations: SparkdownAnnotations
 ): ColorInformation[] => {
   const infos: ColorInformation[] = [];
-  const colors = program?.metadata?.colors;
-  if (!document || !colors) {
+  if (!document) {
     return infos;
   }
-  for (const [c, locations] of Object.entries(colors)) {
-    for (const location of locations) {
-      if (location.uri === document.uri) {
-        const rgb = colord(c).toRgb();
-        const color = Color.create(
-          rgb.r / 255,
-          rgb.g / 255,
-          rgb.b / 255,
-          rgb.a
-        );
-        infos.push({ color, range: location.range });
-      }
-    }
+  const read = (from: number, to: number) =>
+    document.getText({
+      start: document.positionAt(from),
+      end: document.positionAt(to),
+    });
+  const cur = annotations.colors.iter();
+  while (cur.value) {
+    const text = read(cur.from, cur.to);
+    const rgb = colord(text).toRgb();
+    const color = Color.create(rgb.r / 255, rgb.g / 255, rgb.b / 255, rgb.a);
+    infos.push({
+      color,
+      range: {
+        start: document.positionAt(cur.from),
+        end: document.positionAt(cur.to),
+      },
+    });
+    cur.next();
   }
   return infos;
 };
