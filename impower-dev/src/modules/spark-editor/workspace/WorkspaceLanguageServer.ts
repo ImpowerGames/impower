@@ -172,7 +172,7 @@ export default class WorkspaceLanguageServer {
     this._connection.onNotification(
       DidParseTextDocumentMessage.type,
       (params) => {
-        this._program = params.program;
+        this.updateProgram(params.program);
         this.emit(
           DidParseTextDocumentMessage.method,
           DidParseTextDocumentMessage.type.notification(params)
@@ -220,7 +220,7 @@ export default class WorkspaceLanguageServer {
       }
     );
     this._serverCapabilities = result.capabilities;
-    this._program = result?.["program"] || {};
+    this.updateProgram(result?.["program"] || {});
     this._connection.sendNotification(InitializedMessage.method, {});
     this._onInitialized.forEach((callback) => {
       callback?.(result);
@@ -257,6 +257,29 @@ export default class WorkspaceLanguageServer {
 
   stop() {
     this._connection.dispose();
+  }
+
+  updateProgram(program: SparkProgram) {
+    if (program.compiled instanceof ArrayBuffer) {
+      performance.mark(`game/decode ${program.uri} start`);
+      const compiledJSON = new TextDecoder("utf-8").decode(program.compiled);
+      performance.mark(`game/decode ${program.uri} end`);
+      performance.measure(
+        `game/decode ${program.uri}`,
+        `game/decode ${program.uri} start`,
+        `game/decode ${program.uri} end`
+      );
+      performance.mark(`game/parse ${program.uri} start`);
+      const compiledObj = JSON.parse(compiledJSON);
+      performance.mark(`game/parse ${program.uri} end`);
+      performance.measure(
+        `game/parse ${program.uri}`,
+        `game/parse ${program.uri} start`,
+        `game/parse ${program.uri} end`
+      );
+      program.compiled = compiledObj;
+    }
+    this._program = program;
   }
 
   protected emit<T>(eventName: string, detail?: T): boolean {

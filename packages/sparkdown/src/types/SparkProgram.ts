@@ -3,8 +3,8 @@ import { SparkReference } from "./SparkReference";
 
 export interface SparkProgram {
   uri: string;
-  scripts?: string[];
-  compiled?: ArrayBuffer;
+  scripts: string[];
+  compiled?: ArrayBuffer | SparkdownRuntimeFormat;
   context?: {
     [type: string]: { [name: string]: any };
   };

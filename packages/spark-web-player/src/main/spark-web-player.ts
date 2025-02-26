@@ -223,28 +223,10 @@ export default class SparkWebPlayer extends Component(spec) {
       if (!this._program || !this._program.compiled) {
         return;
       }
-      performance.mark(`game/decode ${this._program.uri} start`);
-      const compiledJSON = new TextDecoder("utf-8").decode(
-        this._program.compiled
-      );
-      performance.mark(`game/decode ${this._program.uri} end`);
-      performance.measure(
-        `game/decode ${this._program.uri}`,
-        `game/decode ${this._program.uri} start`,
-        `game/decode ${this._program.uri} end`
-      );
-      performance.mark(`game/parse ${this._program.uri} start`);
-      const compiledObj = JSON.parse(compiledJSON);
-      performance.mark(`game/parse ${this._program.uri} end`);
-      performance.measure(
-        `game/parse ${this._program.uri}`,
-        `game/parse ${this._program.uri} start`,
-        `game/parse ${this._program.uri} end`
-      );
       if (this._game) {
         this._game.destroy();
       }
-      this._game = new Game(this._program, compiledObj, {
+      this._game = new Game(this._program, {
         simulation,
         preview,
       });

@@ -268,29 +268,34 @@ export default class GamePreview extends Component(spec) {
     currentLine: number,
     offset: number
   ) {
-    const files = Object.keys(program.sourceMap || {});
-    const uuidToSourceEntries = Object.entries(program.uuidToSource || {});
-    const index = this.getClosestSourceIndex(
-      files,
-      uuidToSourceEntries,
-      currentFile,
-      currentLine
-    );
-    if (index == null) {
-      return null;
+    if (program.compiled && !(program.compiled instanceof ArrayBuffer)) {
+      const files = program.scripts;
+      const uuidToSourceEntries = Object.entries(
+        program.compiled.uuidToSource || {}
+      );
+      const index = this.getClosestSourceIndex(
+        files,
+        uuidToSourceEntries,
+        currentFile,
+        currentLine
+      );
+      if (index == null) {
+        return null;
+      }
+      const uuidToSourceEntry = uuidToSourceEntries[index + offset];
+      if (uuidToSourceEntry == null) {
+        return null;
+      }
+      const [uuid, source] = uuidToSourceEntry;
+      if (uuid == null) {
+        return null;
+      }
+      const [fileIndex, lineIndex] = source;
+      const file = files[fileIndex];
+      const line = lineIndex;
+      return { file, line };
     }
-    const uuidToSourceEntry = uuidToSourceEntries[index + offset];
-    if (uuidToSourceEntry == null) {
-      return null;
-    }
-    const [uuid, source] = uuidToSourceEntry;
-    if (uuid == null) {
-      return null;
-    }
-    const [fileIndex, lineIndex] = source;
-    const file = files[fileIndex];
-    const line = lineIndex;
-    return { file, line };
+    return undefined;
   }
 
   getClosestSourceIndex(

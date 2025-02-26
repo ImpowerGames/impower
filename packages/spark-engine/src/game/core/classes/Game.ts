@@ -72,7 +72,6 @@ export class Game<T extends M = {}> {
 
   constructor(
     program: SparkProgram,
-    compiled: SparkdownRuntimeFormat,
     options?: {
       executionTimeout?: number;
       preview?: { file: string; line: number };
@@ -86,8 +85,16 @@ export class Game<T extends M = {}> {
     }
   ) {
     this._program = program;
-    this._compiled = compiled;
-    this._files = program.scripts || [program.uri];
+    if (!program.compiled) {
+      throw new Error("No compiled object to run");
+    }
+    if (program.compiled instanceof ArrayBuffer) {
+      throw new Error(
+        "The program's compiled object must be decoded and parsed first"
+      );
+    }
+    this._compiled = program.compiled;
+    this._files = program.scripts;
     const modules = options?.modules;
     const previewing = options?.preview
       ? this.getClosestPath(options.preview.file, options?.preview.line)
@@ -101,7 +108,7 @@ export class Game<T extends M = {}> {
     }
 
     // Create story to control flow and state
-    this._story = new Story(compiled);
+    this._story = new Story(this._compiled);
     this._story.onError = (message: string, type: ErrorType) => {
       this.Error(message, type);
     };
