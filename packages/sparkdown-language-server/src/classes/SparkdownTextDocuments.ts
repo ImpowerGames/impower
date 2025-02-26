@@ -44,7 +44,7 @@ import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { type SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/classes/SparkdownDocumentRegistry";
 
-import { debounce } from "../utils/timing/debounce";
+import { throttle } from "../utils/timing/throttle";
 import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
 import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import { profile } from "../utils/logging/profile";
@@ -57,7 +57,7 @@ const COMPILER_WORKER_URL = URL.createObjectURL(
   })
 );
 
-const PARSE_DELAY = 200;
+const THROTTLE_DELAY = 600;
 
 const globToRegex = (glob: string) => {
   return RegExp(
@@ -313,9 +313,9 @@ export default class SparkdownTextDocuments {
     return newState;
   }
 
-  debouncedCompile = debounce((uri: string, force: boolean) => {
+  throttledCompile = throttle((uri: string, force: boolean) => {
     this.compile(uri, force);
-  }, PARSE_DELAY);
+  }, THROTTLE_DELAY);
 
   async compile(uri: string, force = false) {
     let docChanged = false;
@@ -434,7 +434,7 @@ export default class SparkdownTextDocuments {
       textDocument,
       contentChanges,
     });
-    this.debouncedCompile(textDocument.uri, false);
+    this.throttledCompile(textDocument.uri, false);
   }
 
   public listen(connection: Connection): Disposable {
@@ -489,7 +489,7 @@ export default class SparkdownTextDocuments {
           if (file.type !== "script") {
             // When asset url changes, reparse program so that asset srcs are up-to-date.
             if (this._lastCompiledUri) {
-              await this.debouncedCompile(this._lastCompiledUri, true);
+              await this.throttledCompile(this._lastCompiledUri, true);
             }
           }
         }
