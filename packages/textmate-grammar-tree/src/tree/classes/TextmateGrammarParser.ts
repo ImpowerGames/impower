@@ -1,13 +1,4 @@
-import {
-  Input,
-  NodeSet,
-  NodeType,
-  Parser,
-  Tree,
-  TreeBuffer,
-  TreeFragment,
-} from "@lezer/common";
-import { Compiler } from "../../compiler/classes/Compiler";
+import { Input, NodeSet, NodeType, Parser, TreeFragment } from "@lezer/common";
 import { NodeID } from "../../core/enums/NodeID";
 import { Grammar } from "../../grammar/classes/Grammar";
 import {
