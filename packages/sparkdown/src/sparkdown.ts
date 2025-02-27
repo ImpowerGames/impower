@@ -1,10 +1,9 @@
 import { SparkdownCompiler } from "./classes/SparkdownCompiler";
-import { SparkProgram } from "./types/SparkProgram";
 import { profile } from "./utils/profile";
 
 const compiler = new SparkdownCompiler();
 
-const doWork = <T>(
+const respond = <T>(
   method: string,
   id: string | number | null,
   uri: string,
@@ -36,33 +35,27 @@ onmessage = async (e) => {
     if (params) {
       if (method === "compiler/configure") {
         const uri = "";
-        doWork(method, id, uri, () => compiler.configure(params));
+        respond(method, id, uri, () => compiler.configure(params));
       }
       if (method === "compiler/addFile") {
         const uri = params.file.uri;
-        doWork(method, id, uri, () => compiler.addFile(params));
+        respond(method, id, uri, () => compiler.addFile(params));
       }
       if (method === "compiler/updateFile") {
         const uri = params.file.uri;
-        doWork(method, id, uri, () => compiler.updateFile(params));
+        respond(method, id, uri, () => compiler.updateFile(params));
       }
       if (method === "compiler/updateDocument") {
         const uri = params.textDocument.uri;
-        doWork(method, id, uri, () => compiler.updateDocument(params));
+        respond(method, id, uri, () => compiler.updateDocument(params));
       }
       if (method === "compiler/removeFile") {
         const uri = params.file.uri;
-        doWork(method, id, uri, () => compiler.removeFile(params));
+        respond(method, id, uri, () => compiler.removeFile(params));
       }
       if (method === "compiler/compile") {
         const uri = params.uri;
-        doWork(
-          method,
-          id,
-          uri,
-          () => compiler.compile(params),
-          (program: SparkProgram) => program.compiled
-        );
+        respond(method, id, uri, () => compiler.compile(params));
       }
     }
   }

@@ -133,7 +133,6 @@ export default class SparkdownTextDocuments {
     return new Promise<R>((resolve, reject) => {
       const onResponse = (e: MessageEvent) => {
         const message = e.data;
-        profile("start", "receive " + message.method);
         if (message.id === request.id) {
           if (message.method === `${message.method}/progress`) {
             onProgress?.(message.value);
@@ -145,7 +144,6 @@ export default class SparkdownTextDocuments {
             this._compilerWorker.removeEventListener("message", onResponse);
           }
         }
-        profile("end", "receive " + message.method);
       };
       this._compilerWorker.addEventListener("message", onResponse);
       profile("start", "send " + request.method);
@@ -324,6 +322,7 @@ export default class SparkdownTextDocuments {
   }, DEBOUNCE_DELAY);
 
   async compile(uri: string, force = false) {
+    profile("start", "server/compile", uri);
     let docChanged = false;
     for (let [documentUri] of this._programStates) {
       const state = this.getProgramState(documentUri);
@@ -354,13 +353,14 @@ export default class SparkdownTextDocuments {
         this.getProgramState(uri).program = program;
       }
       if (program) {
-        this.sendProgram(
+        await this.sendProgram(
           uri,
           program,
           this.getProgramState(uri).programVersion
         );
       }
     }
+    profile("end", "server/compile", uri);
     return program;
   }
 
@@ -371,17 +371,23 @@ export default class SparkdownTextDocuments {
     });
   }
 
-  sendProgram(uri: string, program: SparkProgram, version: number | undefined) {
-    this._connection?.sendNotification(DidParseTextDocumentMessage.method, {
-      textDocument: {
-        uri,
-        version,
-      },
-      program,
-    });
-    this._connection?.sendDiagnostics(
-      getDocumentDiagnostics(uri, program, version)
-    );
+  async sendProgram(
+    uri: string,
+    program: SparkProgram,
+    version: number | undefined
+  ) {
+    return Promise.all([
+      this._connection?.sendNotification(DidParseTextDocumentMessage.method, {
+        textDocument: {
+          uri,
+          version,
+        },
+        program,
+      }),
+      this._connection?.sendDiagnostics(
+        getDocumentDiagnostics(uri, program, version)
+      ),
+    ]);
   }
 
   get(uri: string) {

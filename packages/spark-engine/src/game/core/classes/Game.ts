@@ -86,11 +86,8 @@ export class Game<T extends M = {}> {
   ) {
     this._program = program;
     if (!program.compiled) {
-      throw new Error("No compiled object to run");
-    }
-    if (program.compiled instanceof ArrayBuffer) {
       throw new Error(
-        "The program's compiled object must be decoded and parsed first"
+        "Program must be successfully compiled before it can be run"
       );
     }
     this._compiled = program.compiled;

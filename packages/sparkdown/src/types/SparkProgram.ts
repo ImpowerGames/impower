@@ -4,7 +4,7 @@ import { SparkdownRuntimeFormat } from "./SparkdownRuntimeFormat";
 export interface SparkProgram {
   uri: string;
   scripts: string[];
-  compiled?: ArrayBuffer | SparkdownRuntimeFormat;
+  compiled?: SparkdownRuntimeFormat;
   context?: {
     [type: string]: { [name: string]: any };
   };

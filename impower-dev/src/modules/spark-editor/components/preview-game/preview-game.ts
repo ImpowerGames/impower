@@ -268,7 +268,7 @@ export default class GamePreview extends Component(spec) {
     currentLine: number,
     offset: number
   ) {
-    if (program.compiled && !(program.compiled instanceof ArrayBuffer)) {
+    if (program.compiled) {
       const files = program.scripts;
       const uuidToSourceEntries = Object.entries(
         program.compiled.uuidToSource || {}

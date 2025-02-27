@@ -260,25 +260,7 @@ export default class WorkspaceLanguageServer {
   }
 
   updateProgram(program: SparkProgram) {
-    if (program.compiled instanceof ArrayBuffer) {
-      performance.mark(`game/decode ${program.uri} start`);
-      const compiledJSON = new TextDecoder("utf-8").decode(program.compiled);
-      performance.mark(`game/decode ${program.uri} end`);
-      performance.measure(
-        `game/decode ${program.uri}`,
-        `game/decode ${program.uri} start`,
-        `game/decode ${program.uri} end`
-      );
-      performance.mark(`game/parse ${program.uri} start`);
-      const compiledObj = JSON.parse(compiledJSON);
-      performance.mark(`game/parse ${program.uri} end`);
-      performance.measure(
-        `game/parse ${program.uri}`,
-        `game/parse ${program.uri} start`,
-        `game/parse ${program.uri} end`
-      );
-      program.compiled = compiledObj;
-    }
+    console.log("program", program);
     this._program = program;
   }
 

@@ -227,7 +227,7 @@ export class SparkdownCompiler {
     return result;
   }
 
-  compile(params: { uri: string }): SparkProgram {
+  compile(params: { uri: string }) {
     const uri = params.uri;
     // console.clear();
     const program: SparkProgram = { uri, scripts: [uri] };
@@ -286,6 +286,7 @@ export class SparkdownCompiler {
         const compiledObj = (writer.toObject() || {}) as SparkdownRuntimeFormat;
         compiledObj.uuidToPath = uuidToPath;
         compiledObj.uuidToSource = uuidToSource;
+        program.compiled = compiledObj;
         program.scripts = Object.keys(state.transpiledScripts || {});
         this.populateDiagnostics(state, program, inkCompiler);
         this.populateBuiltins(program, compiledObj);
@@ -294,18 +295,10 @@ export class SparkdownCompiler {
         this.populateImplicitDefs(state, program);
         this.validateReferences(state, program);
         this.filterAssets(state, program);
-        profile("start", "ink/encode", uri);
-        const array = new TextEncoder().encode(JSON.stringify(compiledObj));
-        program.compiled = array.buffer.slice(
-          array.byteOffset,
-          array.byteLength + array.byteOffset
-        ) as ArrayBuffer;
-        profile("end", "ink/encode", uri);
       } catch (e) {
         console.error(e);
       }
     }
-    // console.log("program", program);
     return program;
   }
 
@@ -379,6 +372,7 @@ export class SparkdownCompiler {
         program.context[type] ??= {};
         program.context[type][name] ??= { ...file };
         const definedFile = program.context[type][name];
+        delete definedFile.text;
         // Set $type and $name
         if (definedFile["$type"] === undefined) {
           definedFile["$type"] = type;
