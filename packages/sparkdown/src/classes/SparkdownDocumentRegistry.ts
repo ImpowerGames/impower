@@ -122,10 +122,16 @@ export class SparkdownDocumentRegistry {
         state.treeFragments = TreeFragment.applyChanges(state.treeFragments, [
           treeChange,
         ]);
+        const documentLengthBeforeChange = changeDocument.offsetAt(
+          changeDocument.positionAt(Number.MAX_VALUE)
+        );
         changeDocument = TextDocument.update(
           changeDocument,
           [c],
           changeDocument.version + 1
+        );
+        const documentLengthAfterChange = changeDocument.offsetAt(
+          changeDocument.positionAt(Number.MAX_VALUE)
         );
         const input = new TextDocumentInput(changeDocument);
         state.tree = this._parser.parse(input, state.treeFragments);
@@ -133,12 +139,21 @@ export class SparkdownDocumentRegistry {
           state.tree,
           state.treeFragments
         );
-        state.annotators.update(
-          changeDocument,
-          state.tree,
-          [annotationChange],
-          toA
-        );
+        try {
+          state.annotators.update(changeDocument, state.tree, [
+            annotationChange,
+          ]);
+        } catch (error) {
+          console.error(
+            fromA,
+            toA,
+            c.text.length,
+            state.tree.length,
+            documentLengthBeforeChange,
+            documentLengthAfterChange
+          );
+          console.error(error);
+        }
       }
       state.treeVersion = afterDocument.version;
       performance.mark(`incremental parse ${beforeDocument.uri} end`);
