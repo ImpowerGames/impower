@@ -68,7 +68,12 @@ export class SparkdownCombinedAnnotator {
     };
   }
 
-  protected annotate(tree: Tree, from?: number, to?: number) {
+  protected annotate(
+    tree: Tree,
+    from?: number,
+    to?: number,
+    skip?: Set<keyof SparkdownAnnotators>
+  ) {
     const ranges: SparkdownAnnotationRanges = {
       colors: [],
       characters: [],
@@ -85,21 +90,32 @@ export class SparkdownCombinedAnnotator {
       to,
       enter: (nodeRef) => {
         for (const [key, annotator] of this._currentEntries) {
-          annotator.enter(ranges[key as keyof SparkdownAnnotations]!, nodeRef);
+          if (!skip?.has(key as keyof SparkdownAnnotators)) {
+            annotator.enter(ranges[key as keyof SparkdownAnnotators]!, nodeRef);
+          }
         }
       },
       leave: (nodeRef) => {
         for (const [key, annotator] of this._currentEntries) {
-          annotator.leave(ranges[key as keyof SparkdownAnnotations]!, nodeRef);
+          if (!skip?.has(key as keyof SparkdownAnnotators)) {
+            annotator.leave(ranges[key as keyof SparkdownAnnotators]!, nodeRef);
+          }
         }
       },
     });
     return ranges;
   }
 
-  protected remove<T>(from: number, to: number, value: SparkdownAnnotation<T>) {
-    for (const [, annotator] of this._currentEntries) {
-      annotator.remove(from, to, value);
+  protected remove<T>(
+    from: number,
+    to: number,
+    value: SparkdownAnnotation<T>,
+    skip?: Set<keyof SparkdownAnnotators>
+  ) {
+    for (const [key, annotator] of this._currentEntries) {
+      if (!skip?.has(key as keyof SparkdownAnnotators)) {
+        annotator.remove(from, to, value);
+      }
     }
   }
 
@@ -107,70 +123,80 @@ export class SparkdownCombinedAnnotator {
     doc: TextDocument,
     tree: Tree,
     changes?: ChangeSpec[],
-    length?: number
+    skip?: Set<keyof SparkdownAnnotators>
   ) {
-    for (const [, annotator] of this._currentEntries) {
-      annotator.update(doc, tree);
+    for (const [key, annotator] of this._currentEntries) {
+      if (!skip?.has(key as keyof SparkdownAnnotators)) {
+        annotator.update(doc, tree);
+      }
     }
     const cachedCompiler = tree.prop(cachedCompilerProp);
     const reparsedFrom = cachedCompiler?.reparsedFrom;
     const reparsedTo = cachedCompiler?.reparsedTo;
     if (!changes || reparsedFrom == null) {
       // Rebuild all annotations from scratch
-      for (const [key, ranges] of Object.entries(this.annotate(tree))) {
-        const annotator = this.current[key as keyof SparkdownAnnotations];
-        if (annotator) {
-          annotator.current =
-            ranges.length > 0 ? RangeSet.of(ranges, true) : RangeSet.empty;
+      for (const [key, ranges] of Object.entries(
+        this.annotate(tree, undefined, undefined, skip)
+      )) {
+        if (!skip?.has(key as keyof SparkdownAnnotators)) {
+          const annotator = this.current[key as keyof SparkdownAnnotators];
+          if (annotator) {
+            annotator.current =
+              ranges.length > 0 ? RangeSet.of(ranges, true) : RangeSet.empty;
+          }
         }
       }
       return this.current;
     }
-    const changeDesc = ChangeSet.of(changes, length ?? tree.length).desc;
+    const changeDesc = ChangeSet.of(changes, tree.length).desc;
     if (reparsedTo == null) {
       // Only rebuild annotations after reparsedFrom
       for (const [key, add] of Object.entries(
-        this.annotate(tree, reparsedFrom)
+        this.annotate(tree, reparsedFrom, undefined, skip)
       )) {
-        const annotator = this.current[key as keyof SparkdownAnnotations];
-        if (annotator) {
-          annotator.current = annotator.current.map(changeDesc);
-          annotator.current = annotator.current.update({
-            filter: (from, to, value) => {
-              if (from < reparsedFrom && to < reparsedFrom) {
-                return true;
-              }
-              this.remove(from, to, value);
-              return false;
-            },
-            add,
-            sort: true,
-          });
+        if (!skip?.has(key as keyof SparkdownAnnotators)) {
+          const annotator = this.current[key as keyof SparkdownAnnotators];
+          if (annotator) {
+            annotator.current = annotator.current.map(changeDesc);
+            annotator.current = annotator.current.update({
+              filter: (from, to, value) => {
+                if (from < reparsedFrom && to < reparsedFrom) {
+                  return true;
+                }
+                this.remove(from, to, value, skip);
+                return false;
+              },
+              add,
+              sort: true,
+            });
+          }
         }
       }
       return this.current;
     }
     // Only rebuild annotations between reparsedFrom and reparsedTo
     for (const [key, add] of Object.entries(
-      this.annotate(tree, reparsedFrom, reparsedTo)
+      this.annotate(tree, reparsedFrom, reparsedTo, skip)
     )) {
-      const annotator = this.current[key as keyof SparkdownAnnotations];
-      if (annotator) {
-        annotator.current = annotator.current.map(changeDesc);
-        annotator.current = annotator.current.update({
-          filter: (from, to, value) => {
-            if (
-              (from < reparsedFrom && to < reparsedFrom) ||
-              (from > reparsedTo && to > reparsedTo)
-            ) {
-              return true;
-            }
-            this.remove(from, to, value);
-            return false;
-          },
-          add,
-          sort: true,
-        });
+      if (!skip?.has(key as keyof SparkdownAnnotators)) {
+        const annotator = this.current[key as keyof SparkdownAnnotators];
+        if (annotator) {
+          annotator.current = annotator.current.map(changeDesc);
+          annotator.current = annotator.current.update({
+            filter: (from, to, value) => {
+              if (
+                (from < reparsedFrom && to < reparsedFrom) ||
+                (from > reparsedTo && to > reparsedTo)
+              ) {
+                return true;
+              }
+              this.remove(from, to, value, skip);
+              return false;
+            },
+            add,
+            sort: true,
+          });
+        }
       }
     }
     return this.current;

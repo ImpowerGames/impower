@@ -36,7 +36,13 @@ const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 export class SparkdownCompiler {
   protected _config: SparkdownCompilerConfig = {};
 
-  protected _documents = new SparkdownDocumentRegistry();
+  protected _documents = new SparkdownDocumentRegistry("compiler", [
+    "characters",
+    "scenes",
+    "transitions",
+    "colors",
+    "declarations",
+  ]);
   get documents() {
     return this._documents;
   }

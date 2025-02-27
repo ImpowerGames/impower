@@ -72,7 +72,11 @@ interface ProgramState {
 export default class SparkdownTextDocuments {
   protected _compilerWorker: Worker;
 
-  protected _documents = new SparkdownDocumentRegistry();
+  protected _documents = new SparkdownDocumentRegistry("lsp", [
+    "transpilations",
+    "validations",
+    "implicits",
+  ]);
 
   protected _connection?: Connection;
 

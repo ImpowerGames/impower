@@ -10,7 +10,11 @@ import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/c
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { Input, Tree, TreeFragment, ChangedRange } from "@lezer/common";
 import { ChangeSpec } from "@codemirror/state";
-import { SparkdownCombinedAnnotator } from "./SparkdownCombinedAnnotator";
+import {
+  SparkdownAnnotators,
+  SparkdownCombinedAnnotator,
+} from "./SparkdownCombinedAnnotator";
+import { profile } from "../utils/profile";
 
 export type SparkdownDocumentContentChangeEvent =
   TextDocumentContentChangeEvent;
@@ -53,6 +57,18 @@ export class SparkdownDocumentRegistry {
 
   protected _documentStates = new Map<string, TextDocumentState>();
 
+  protected _profilingIdentifier = "";
+
+  protected _skipAnnotating?: Set<keyof SparkdownAnnotators>;
+
+  constructor(
+    profilingIdentifier: string,
+    skipAnnotating?: (keyof SparkdownAnnotators)[]
+  ) {
+    this._profilingIdentifier = profilingIdentifier;
+    this._skipAnnotating = new Set(skipAnnotating);
+  }
+
   protected getDocumentState(uri: string): TextDocumentState {
     const state = this._documentStates.get(uri);
     if (state) {
@@ -76,7 +92,11 @@ export class SparkdownDocumentRegistry {
       return state.tree;
     }
     if (changes && state.treeFragments) {
-      performance.mark(`incremental parse ${beforeDocument.uri} start`);
+      profile(
+        "start",
+        this._profilingIdentifier + "/incrementalParse",
+        beforeDocument.uri
+      );
       // Incremental parse
       let changeDocument = TextDocument.create(
         beforeDocument.uri,
@@ -140,9 +160,12 @@ export class SparkdownDocumentRegistry {
           state.treeFragments
         );
         try {
-          state.annotators.update(changeDocument, state.tree, [
-            annotationChange,
-          ]);
+          state.annotators.update(
+            changeDocument,
+            state.tree,
+            [annotationChange],
+            this._skipAnnotating
+          );
         } catch (error) {
           console.error(error);
           console.error(
@@ -156,27 +179,34 @@ export class SparkdownDocumentRegistry {
         }
       }
       state.treeVersion = afterDocument.version;
-      performance.mark(`incremental parse ${beforeDocument.uri} end`);
-      performance.measure(
-        `incremental parse ${beforeDocument.uri}`,
-        `incremental parse ${beforeDocument.uri} start`,
-        `incremental parse ${beforeDocument.uri} end`
+      profile(
+        "end",
+        this._profilingIdentifier + "/incrementalParse",
+        beforeDocument.uri
       );
       // this.print(beforeDocument.uri);
       return state.tree!;
     } else {
       // First full parse
-      performance.mark(`full parse ${beforeDocument.uri} start`);
+      profile(
+        "start",
+        this._profilingIdentifier + "/fullParse",
+        beforeDocument.uri
+      );
       const input = new TextDocumentInput(afterDocument);
       state.tree = this._parser.parse(input);
       state.treeFragments = TreeFragment.addTree(state.tree);
-      state.annotators.update(afterDocument, state.tree);
+      state.annotators.update(
+        afterDocument,
+        state.tree,
+        undefined,
+        this._skipAnnotating
+      );
       state.treeVersion = afterDocument.version;
-      performance.mark(`full parse ${beforeDocument.uri} end`);
-      performance.measure(
-        `full parse ${beforeDocument.uri}`,
-        `full parse ${beforeDocument.uri} start`,
-        `full parse ${beforeDocument.uri} end`
+      profile(
+        "end",
+        this._profilingIdentifier + "/fullParse",
+        beforeDocument.uri
       );
       // this.print(beforeDocument.uri);
       return state.tree;
