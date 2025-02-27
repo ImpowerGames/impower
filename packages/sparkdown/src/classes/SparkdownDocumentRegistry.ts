@@ -164,6 +164,12 @@ export class SparkdownDocumentRegistry {
             changeDocument,
             state.tree,
             [annotationChange],
+            Math.max(
+              toA + c.text.length,
+              state.tree.length,
+              documentLengthBeforeChange,
+              documentLengthAfterChange
+            ),
             this._skipAnnotating
           );
         } catch (error) {
@@ -196,12 +202,7 @@ export class SparkdownDocumentRegistry {
       const input = new TextDocumentInput(afterDocument);
       state.tree = this._parser.parse(input);
       state.treeFragments = TreeFragment.addTree(state.tree);
-      state.annotators.update(
-        afterDocument,
-        state.tree,
-        undefined,
-        this._skipAnnotating
-      );
+      state.annotators.create(afterDocument, state.tree, this._skipAnnotating);
       state.treeVersion = afterDocument.version;
       profile(
         "end",

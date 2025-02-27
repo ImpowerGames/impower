@@ -119,10 +119,15 @@ export class SparkdownCombinedAnnotator {
     }
   }
 
+  create(doc: TextDocument, tree: Tree, skip?: Set<keyof SparkdownAnnotators>) {
+    return this.update(doc, tree, undefined, undefined, skip);
+  }
+
   update(
     doc: TextDocument,
     tree: Tree,
     changes?: ChangeSpec[],
+    length: number = 0,
     skip?: Set<keyof SparkdownAnnotators>
   ) {
     for (const [key, annotator] of this._currentEntries) {
@@ -148,7 +153,10 @@ export class SparkdownCombinedAnnotator {
       }
       return this.current;
     }
-    const changeDesc = ChangeSet.of(changes, tree.length).desc;
+    const changeDesc = ChangeSet.of(
+      changes,
+      Math.max(tree.length, length)
+    ).desc;
     if (reparsedTo == null) {
       // Only rebuild annotations after reparsedFrom
       for (const [key, add] of Object.entries(
