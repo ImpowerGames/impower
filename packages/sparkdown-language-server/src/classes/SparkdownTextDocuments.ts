@@ -51,8 +51,8 @@ const COMPILER_WORKER_URL = URL.createObjectURL(
   })
 );
 
-const THROTTLE_DELAY = 600;
-const DEBOUNCE_DELAY = 300;
+const THROTTLE_DELAY = 400;
+const DEBOUNCE_DELAY = 600;
 
 const globToRegex = (glob: string) => {
   return RegExp(
@@ -66,7 +66,8 @@ const globToRegex = (glob: string) => {
 
 interface ProgramState {
   program?: SparkProgram;
-  programVersion?: number;
+  compilingProgramVersion?: number;
+  compiledProgramVersion?: number;
 }
 
 export default class SparkdownTextDocuments {
@@ -109,6 +110,11 @@ export default class SparkdownTextDocuments {
   protected _lastCompiledUri?: string;
 
   protected _programStates = new Map<string, ProgramState>();
+
+  protected _onNextCompiled = new Map<
+    string,
+    ((program: SparkProgram | undefined) => void)[]
+  >();
 
   /**
    * Create a new text document manager.
@@ -328,19 +334,35 @@ export default class SparkdownTextDocuments {
     this.compile(uri);
   }, DEBOUNCE_DELAY);
 
-  async compile(uri: string) {
+  async compile(uri: string): Promise<SparkProgram | undefined> {
     profile("start", "server/compile", uri);
-    let docChanged = false;
+    const document = this._documents.get(uri);
+    if (!document) {
+      return undefined;
+    }
+    let anyDocChanged = false;
     for (let [documentUri] of this._programStates) {
       const state = this.getProgramState(documentUri);
       const document = this._documents.get(documentUri);
-      if (state.programVersion !== document?.version) {
-        docChanged = true;
+      if (state.compiledProgramVersion !== document?.version) {
+        anyDocChanged = true;
       }
     }
-    if (!docChanged && this.getProgramState(uri).program) {
-      return this.getProgramState(uri).program;
+    const state = this.getProgramState(uri);
+    if (!anyDocChanged && state.program) {
+      return state.program;
     }
+    if (
+      state.compilingProgramVersion != null &&
+      document.version <= state.compilingProgramVersion
+    ) {
+      return new Promise((resolve) => {
+        const nextCompiledCallbacks = this._onNextCompiled.get(uri) || [];
+        nextCompiledCallbacks.push(resolve);
+        this._onNextCompiled.set(uri, nextCompiledCallbacks);
+      });
+    }
+    state.compilingProgramVersion = document?.version;
     let program: SparkProgram | undefined = undefined;
     const mainScriptUri = this.getMainScriptUri(uri);
     if (mainScriptUri) {
@@ -351,7 +373,10 @@ export default class SparkdownTextDocuments {
           const state = this.getProgramState(uri);
           const document = this._documents.get(uri);
           state.program = program;
-          state.programVersion = document?.version;
+          state.compilingProgramVersion = undefined;
+          state.compiledProgramVersion = document?.version;
+          this._onNextCompiled.get(uri)?.forEach((c) => c?.(program));
+          this._onNextCompiled.delete(uri);
         }
       }
     }
@@ -362,13 +387,16 @@ export default class SparkdownTextDocuments {
       const state = this.getProgramState(uri);
       const document = this._documents.get(uri);
       state.program = program;
-      state.programVersion = document?.version;
+      state.compilingProgramVersion = undefined;
+      state.compiledProgramVersion = document?.version;
+      this._onNextCompiled.get(uri)?.forEach((c) => c?.(program));
+      this._onNextCompiled.delete(uri);
     }
     if (program) {
       await this.sendProgram(
         uri,
         program,
-        this.getProgramState(uri).programVersion
+        this.getProgramState(uri).compilingProgramVersion
       );
     }
     profile("end", "server/compile", uri);
@@ -463,7 +491,10 @@ export default class SparkdownTextDocuments {
       textDocument,
       contentChanges,
     });
+    // update periodically while user types.
     this.throttledCompile(textDocument.uri);
+    // ensure final call once user is completely done typing.
+    this.debouncedCompile(textDocument.uri);
   }
 
   public listen(connection: Connection): Disposable {
@@ -486,7 +517,6 @@ export default class SparkdownTextDocuments {
           params: DocumentDiagnosticParams
         ): Promise<DocumentDiagnosticReport> => {
           const uri = params.textDocument.uri;
-          this.compile(uri);
           const document = this._documents.get(uri);
           const program = await this.compile(uri);
           if (document && program) {

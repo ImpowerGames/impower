@@ -13,7 +13,6 @@ import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
-import { getAccessPath } from "../utils/getAccessPath";
 import { getProperty } from "../utils/getProperty";
 import { profile } from "../utils/profile";
 import { resolveSelector } from "../utils/resolveSelector";
