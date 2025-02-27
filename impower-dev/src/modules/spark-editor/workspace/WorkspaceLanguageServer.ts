@@ -260,7 +260,6 @@ export default class WorkspaceLanguageServer {
   }
 
   updateProgram(program: SparkProgram) {
-    console.log("program", program);
     this._program = program;
   }
 
