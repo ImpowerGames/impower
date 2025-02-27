@@ -35,48 +35,46 @@ export const getHover = (
     ) {
       const reference = value.type;
       if (reference.selector) {
-        const [resolvedValue] = resolveSelector<any>(
+        const [resolvedValue, foundPath] = resolveSelector<any>(
           program,
           reference.selector,
           getExpectedSelectorTypes(program, reference.declaration, config)
         );
         if (resolvedValue !== undefined) {
-          if (resolvedValue !== undefined) {
-            if (
-              typeof resolvedValue === "object" &&
-              "$type" in resolvedValue &&
-              typeof resolvedValue.$type === "string"
-            ) {
-              const type = resolvedValue.$type;
-              const src =
-                type === "filtered_image"
-                  ? resolvedValue?.filtered_src
-                  : type === "layered_image"
-                  ? resolvedValue?.assets?.[0]?.src
-                  : type === "image"
-                  ? resolvedValue?.src
-                  : undefined;
-              if (src) {
-                result = {
-                  contents: {
-                    kind: MarkupKind.Markdown,
-                    value: `<img src="${src}" width="300px" />`,
-                  },
-                  range,
-                };
-                return false;
-              }
+          if (
+            typeof resolvedValue === "object" &&
+            "$type" in resolvedValue &&
+            typeof resolvedValue.$type === "string"
+          ) {
+            const type = resolvedValue.$type;
+            const src =
+              type === "filtered_image"
+                ? resolvedValue?.filtered_src
+                : type === "layered_image"
+                ? resolvedValue?.assets?.[0]?.src
+                : type === "image"
+                ? resolvedValue?.src
+                : undefined;
+            if (src) {
+              result = {
+                contents: {
+                  kind: MarkupKind.Markdown,
+                  value: `<img src="${src}" width="300px" />`,
+                },
+                range,
+              };
+              return false;
             }
-            // TODO: const name: type
-            // TODO: var name: type
-            // TODO: list name
-            // TODO: define type.name
-            // TODO: == knot
-            // TODO: = stitch
-            // TODO: - (label)
-            // TODO: ~ temp name: type
-            // TODO: ~ param name: type
           }
+          // TODO: const name: type
+          // TODO: var name: type
+          // TODO: list name
+          // TODO: define type.name
+          // TODO: == knot
+          // TODO: = stitch
+          // TODO: - (label)
+          // TODO: ~ temp name: type
+          // TODO: ~ param name: type
         }
       }
     }

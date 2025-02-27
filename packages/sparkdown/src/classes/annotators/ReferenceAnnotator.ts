@@ -186,9 +186,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    if (nodeRef.name === "AssetCommandFileName") {
+    if (nodeRef.name === "AssetCommandName") {
       const context = getContext(nodeRef.node);
-      // Record image file name reference
+      // Record image name (and filter) reference
       if (context.includes("ImageCommand")) {
         const types = ["filtered_image", "layered_image", "image", "graphic"];
         const name = this.read(nodeRef.from, nodeRef.to);
@@ -200,6 +200,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
+    }
+    if (nodeRef.name === "AssetCommandFileName") {
+      const context = getContext(nodeRef.node);
       // Record audio file name reference
       if (context.includes("AudioCommand")) {
         const types = ["layered_audio", "audio", "synth"];
