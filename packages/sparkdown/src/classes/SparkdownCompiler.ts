@@ -425,7 +425,7 @@ export class SparkdownCompiler {
     profile("end", "populateAssets", uri);
   }
 
-  populateImplicitDefs(state: SparkdownCompilerState, program: SparkProgram) {
+  populateImplicitDefs(_state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "populateImplicitDefs", uri);
     const images = program.context?.["image"];
