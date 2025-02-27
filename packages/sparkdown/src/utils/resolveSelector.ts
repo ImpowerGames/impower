@@ -1,6 +1,7 @@
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkSelector } from "../types/SparkSelector";
 import { selectProperty } from "./selectProperty";
+import { sortFilteredName } from "./sortFilteredName";
 
 export const resolveSelector = <T>(
   program: SparkProgram,
@@ -14,14 +15,18 @@ export const resolveSelector = <T>(
       : expectedSelectorTypes;
   if (searchSelectorTypes) {
     for (const selectorType of searchSelectorTypes) {
-      const selectorPath = `${selectorType}.${selector.name}`;
-      const [obj, foundPath] = selectProperty(
-        program.context,
-        selectorPath,
-        selector.fuzzy
-      );
-      if (obj !== undefined) {
-        return [obj as T, foundPath];
+      if (selector.name) {
+        const selectorPath = `${selectorType}.${sortFilteredName(
+          selector.name
+        )}`;
+        const [obj, foundPath] = selectProperty(
+          program.context,
+          selectorPath,
+          selector.fuzzy
+        );
+        if (obj !== undefined) {
+          return [obj as T, foundPath];
+        }
       }
     }
   }

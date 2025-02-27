@@ -292,8 +292,9 @@ export class SparkdownCompiler {
         this.populateBuiltins(program, compiledObj);
         this.populateAssets(state, program);
         this.validateSyntax(state, program);
-        this.validateReferences(state, program);
         this.populateImplicitDefs(state, program);
+        this.validateReferences(state, program);
+        this.filterAssets(state, program);
         profile("start", "ink/encode", uri);
         const array = new TextEncoder().encode(JSON.stringify(compiledObj));
         program.compiled = array.buffer.slice(
@@ -436,27 +437,61 @@ export class SparkdownCompiler {
           // Declare implicit filtered_image
           // (so it only displays default layers by default)
           const implicitType = "filtered_image";
-          state.implicitDefs ??= {};
-          state.implicitDefs[implicitType] ??= {};
-          state.implicitDefs[implicitType][name] ??= {
-            $type: implicitType,
-            $name: name,
-            image: { $type: type, $name: name },
-            filters: [],
-          };
-        }
-      }
-    }
-    const implicitDefs = state.implicitDefs;
-    if (implicitDefs) {
-      for (const [type, objs] of Object.entries(implicitDefs)) {
-        for (const [name, obj] of Object.entries(objs)) {
           program.context ??= {};
-          program.context[type] ??= {};
-          program.context[type][name] ??= this.clone(obj);
+          program.context[implicitType] ??= {};
+          if (!program.context[implicitType][name]) {
+            program.context[implicitType][name] ??= {
+              $type: implicitType,
+              $name: name,
+              image: { $type: type, $name: name },
+              filters: [],
+            };
+          }
         }
       }
     }
+    const resolvedImplicits = new Set<string>();
+    for (const uri of program.scripts) {
+      const doc = this.documents.get(uri);
+      if (doc) {
+        const annotations = this.documents.annotations(uri);
+        const cur = annotations.implicits.iter();
+        while (cur.value) {
+          const text = doc.getText({
+            start: doc.positionAt(cur.from),
+            end: doc.positionAt(cur.to),
+          });
+          if (!resolvedImplicits.has(text)) {
+            resolvedImplicits.add(text);
+            const type = cur.value.type;
+            const parts = text.split("~");
+            const [fileName, ...filterNames] = parts;
+            const sortedFilterNames = filterNames.sort();
+            const name = [fileName, ...sortedFilterNames].join("~");
+            program.context ??= {};
+            program.context[type] ??= {};
+            if (!program.context[type][name]) {
+              program.context[type][name] ??= {
+                $type: type,
+                $name: name,
+                image: { $name: fileName },
+                filters: sortedFilterNames.map((filterName) => ({
+                  $type: "filter",
+                  $name: filterName,
+                })),
+              };
+            }
+          }
+          cur.next();
+        }
+      }
+    }
+    profile("end", "populateImplicitDefs", uri);
+  }
+
+  filterAssets(state: SparkdownCompilerState, program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", "filterAssets", uri);
     const filteredImages = program.context?.["filtered_image"];
     if (filteredImages) {
       for (const filteredImage of Object.values(filteredImages)) {
@@ -521,7 +556,10 @@ export class SparkdownCompiler {
               for (const [key, layerImage] of Object.entries(
                 imageToFilter.layers
               )) {
-                const filteredLayers: { $type: "image"; $name: string }[] = [];
+                const filteredLayers: {
+                  $type: "image";
+                  $name: string;
+                }[] = [];
                 const keyIsArrayIndex = !Number.isNaN(Number(key));
                 if (keyIsArrayIndex) {
                   if (filterMatchesName(layerImage.$name, combinedFilter)) {
@@ -539,7 +577,7 @@ export class SparkdownCompiler {
         }
       }
     }
-    profile("end", "populateImplicitDefs", uri);
+    profile("end", "filterAssets", uri);
   }
 
   getNestedFilters(
