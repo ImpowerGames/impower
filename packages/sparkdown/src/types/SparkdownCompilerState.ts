@@ -9,7 +9,4 @@ export interface SparkdownCompilerState {
     [uri: string]: { [line: number]: SparkTranspilationOffset };
   };
   properties?: Record<string, SparkLocation[]>;
-  implicitDefs?: {
-    [type: string]: { [name: string]: any };
-  };
 }
