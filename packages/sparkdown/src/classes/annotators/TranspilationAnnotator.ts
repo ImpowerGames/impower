@@ -3,6 +3,7 @@ import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { uuid as UUID } from "../../utils/uuid";
+import { getContext } from "@impower/textmate-grammar-tree/src/tree/utils/getContext";
 
 const FLOW_MARKER_REGEX = /^([=])(.*?)([=])/;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
@@ -123,6 +124,31 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
       nodeRef.name === "Transition_begin" ||
       nodeRef.name === "Scene_begin" ||
       nodeRef.name === "Action_begin"
+    ) {
+      const lineFrom = this.getLineFrom(nodeRef.from);
+      const lineTo = this.getLineTo(nodeRef.from);
+      const lineTextBefore = this.read(lineFrom, nodeRef.to);
+      const lineTextAfter = this.read(nodeRef.to, lineTo);
+      if (
+        !lineTextAfter.match(FLOW_MARKER_REGEX) &&
+        !lineTextBefore.trim().endsWith("<>")
+      ) {
+        const uuid = this.generateID();
+        const flowMarker = this.getFlowMarker(uuid);
+        const splice = flowMarker;
+        annotations.push(
+          SparkdownAnnotation.mark({ uuid, splice }).range(
+            nodeRef.from,
+            nodeRef.to
+          )
+        );
+      }
+    }
+    if (
+      (nodeRef.name === "ImageLine" ||
+        nodeRef.name === "AudioLine" ||
+        nodeRef.name === "ImageAndAudioLine") &&
+      getContext(nodeRef.node).length === 1
     ) {
       const lineFrom = this.getLineFrom(nodeRef.from);
       const lineTo = this.getLineTo(nodeRef.from);
