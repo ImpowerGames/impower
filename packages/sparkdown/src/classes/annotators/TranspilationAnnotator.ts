@@ -21,31 +21,13 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
 
   prevNodeType = "";
 
-  uuids = new Set<string>();
-
   override start() {
     this.blockPrefix = "";
     this.prevNodeType = "";
   }
 
-  override remove(
-    _from: number,
-    _to: number,
-    value: SparkdownAnnotation<LineAugmentations>
-  ): void {
-    if (value.type.uuid) {
-      this.uuids.delete(value.type.uuid);
-    }
-  }
-
   generateID() {
-    while (true) {
-      const id = UUID();
-      if (!this.uuids.has(id)) {
-        this.uuids.add(id);
-        return id;
-      }
-    }
+    return UUID();
   }
 
   getFlowMarker(id: string) {

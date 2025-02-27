@@ -144,6 +144,7 @@ export class SparkdownDocumentRegistry {
             annotationChange,
           ]);
         } catch (error) {
+          console.error(error);
           console.error(
             fromA,
             toA,
@@ -152,7 +153,6 @@ export class SparkdownDocumentRegistry {
             documentLengthBeforeChange,
             documentLengthAfterChange
           );
-          console.error(error);
         }
       }
       state.treeVersion = afterDocument.version;
