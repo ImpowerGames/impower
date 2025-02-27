@@ -2,17 +2,24 @@ import { Range, type FoldingRange } from "vscode-languageserver";
 import { type TextDocument } from "vscode-languageserver-textdocument";
 
 import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 
 const INDENT_REGEX = /^([ \t]+)/;
 
 export const getFoldingRanges = (
   document: TextDocument | undefined,
+  annotations: SparkdownAnnotations,
   program: SparkProgram | undefined
 ): FoldingRange[] => {
-  const result: FoldingRange[] = [];
+  const indentFolding: FoldingRange[] = [];
   if (!document) {
-    return result;
+    return indentFolding;
   }
+  const read = (from: number, to: number) =>
+    document.getText({
+      start: document.positionAt(from),
+      end: document.positionAt(to),
+    });
   const lines: string[] = [];
   for (let i = 0; i < document.lineCount; i += 1) {
     lines.push(document.getText(Range.create(i, 0, i + 1, 0)));
@@ -55,40 +62,58 @@ export const getFoldingRanges = (
         ? lineIndex
         : getPrevNonBlankLine(lineIndex);
       const endLine = getIndentationCloseLine(lineIndex);
-      result.push({
+      indentFolding.push({
         startLine,
         endLine,
+        kind: "indent",
       });
     }
   });
   if (!program) {
-    return result;
+    return indentFolding;
   }
-  // TODO: Support weave folding
-  if (program.sections) {
-    const sections = Object.values(program.sections);
-    const getSectionEndLine = (index: number): number => {
-      const curr = sections[index]!;
-      for (let i = index + 1; i < sections.length; i += 1) {
-        const next = sections[i]!;
-        if (next.level! <= curr.level!) {
-          // fold ends the line before the next section
-          return next.line - 1;
+  const headingFolding: FoldingRange[] = [];
+  const cur = annotations.declarations?.iter();
+  if (cur) {
+    while (cur.value) {
+      if (cur.value.type === "knot") {
+        const line = document.positionAt(cur.from).line;
+        const lastKnot = headingFolding.findLast((h) => h.kind === "knot");
+        if (lastKnot) {
+          lastKnot.endLine = line - 1;
         }
-      }
-      return document.lineCount - 1;
-    };
-    sections.forEach((curr, sectionIndex) => {
-      if (!curr.name) {
-        return;
-      }
-      if (curr.line >= 0) {
-        result.push({
-          startLine: curr.line,
-          endLine: getSectionEndLine(sectionIndex),
+        const prevHeading = headingFolding.at(-1);
+        if (prevHeading?.kind === "knot" || prevHeading?.kind === "stitch") {
+          prevHeading.endLine = line - 1;
+        }
+        headingFolding.push({
+          startLine: line,
+          endLine: line,
+          kind: "knot",
         });
       }
-    });
+      if (cur.value.type === "stitch") {
+        const line = document.positionAt(cur.from).line;
+        const prevHeading = headingFolding.at(-1);
+        if (prevHeading?.kind === "stitch") {
+          prevHeading.endLine = line - 1;
+        }
+        headingFolding.push({
+          startLine: line,
+          endLine: line,
+          kind: "stitch",
+        });
+      }
+      cur.next();
+    }
   }
-  return result;
+  const lastKnot = headingFolding.findLast((h) => h.kind === "knot");
+  if (lastKnot && lastKnot.endLine === lastKnot.startLine) {
+    lastKnot.endLine = document.lineCount - 1;
+  }
+  const lastStitch = headingFolding.findLast((h) => h.kind === "stitch");
+  if (lastStitch && lastStitch.endLine === lastStitch.startLine) {
+    lastStitch.endLine = document.lineCount - 1;
+  }
+  return [...indentFolding, ...headingFolding];
 };

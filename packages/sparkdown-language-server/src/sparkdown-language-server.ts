@@ -105,9 +105,10 @@ try {
   connection.onFoldingRanges((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
+    const annotations = documents.annotations(uri);
     const program = documents.program(uri);
     performance.mark(`lsp: onFoldingRanges ${uri} start`);
-    const result = getFoldingRanges(document, program);
+    const result = getFoldingRanges(document, annotations, program);
     performance.mark(`lsp: onFoldingRanges ${uri} end`);
     performance.measure(
       `lsp: onFoldingRanges ${uri}`,
