@@ -5,4 +5,5 @@ export interface File {
   ext: string;
   src: string;
   text?: string;
+  data?: string;
 }

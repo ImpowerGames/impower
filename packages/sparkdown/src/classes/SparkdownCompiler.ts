@@ -13,7 +13,6 @@ import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
-import { buildSVGSource } from "../utils/buildSVGSource";
 import { filterMatchesName } from "../utils/filterMatchesName";
 import { filterSVG } from "../utils/filterSVG";
 import { getAccessPath } from "../utils/getAccessPath";
@@ -407,19 +406,6 @@ export class SparkdownCompiler {
             }
           }
         }
-        // Process SVGs
-        if (
-          type === "image" &&
-          definedFile["ext"] === "svg" &&
-          definedFile["text"]
-        ) {
-          const text = definedFile["text"];
-          if (typeof text === "string") {
-            // Populate image data with text
-            definedFile["data"] = text;
-            delete definedFile["text"];
-          }
-        }
       }
     }
     profile("end", "populateAssets", uri);
@@ -541,12 +527,10 @@ export class SparkdownCompiler {
               !imageToFilter.$name.startsWith("$")
             ) {
               if (imageToFilter.data) {
-                const filteredData = filterSVG(
+                filteredImage.filtered_src = filterSVG(
                   imageToFilter.data,
                   combinedFilter
                 );
-                filteredImage.filtered_data = filteredData;
-                filteredImage.filtered_src = buildSVGSource(filteredData);
               }
             }
             if (

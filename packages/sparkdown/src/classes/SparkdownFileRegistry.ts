@@ -1,4 +1,5 @@
 import { File } from "../types/File";
+import { buildSVGSource } from "../utils/buildSVGSource";
 
 export class SparkdownFileRegistry {
   protected _syncedFiles = new Map<string, File>();
@@ -19,8 +20,18 @@ export class SparkdownFileRegistry {
     return this._syncedFiles.values();
   }
 
+  processText(file: File) {
+    if (file.text != null) {
+      if (file.type === "image" && file.ext === "svg") {
+        file.data = buildSVGSource(file.text);
+        delete file.text;
+      }
+    }
+  }
+
   add(params: { file: File }) {
     const file = params.file;
+    this.processText(file);
     this._syncedFiles.set(file.uri, file);
     return true;
   }
@@ -29,6 +40,7 @@ export class SparkdownFileRegistry {
     const file = params.file;
     let syncedFile = this._syncedFiles.get(file.uri);
     if (syncedFile) {
+      this.processText(file);
       this._syncedFiles.set(file.uri, file);
       return true;
     }

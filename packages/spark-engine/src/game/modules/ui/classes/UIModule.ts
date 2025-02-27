@@ -626,12 +626,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const filteredImage = this.context?.filtered_image?.[name];
       if (filteredImage) {
         const images: Image[] = [];
-        if (filteredImage.filtered_src && filteredImage.filtered_data) {
+        if (filteredImage.filtered_src) {
           images.push({
             $type: "image",
             $name: name,
             src: filteredImage.filtered_src,
-            data: filteredImage.filtered_data,
           });
         }
         if (filteredImage.filtered_layers) {
