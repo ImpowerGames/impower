@@ -11,20 +11,13 @@ import {
   DocumentDiagnosticParams,
   DocumentDiagnosticReport,
   DocumentDiagnosticRequest,
-  Emitter,
   ExecuteCommandRequest,
   FileChangeType,
-  Range,
-  TextDocumentChangeEvent,
   TextDocumentSyncKind,
-  TextDocumentsConfiguration,
   WillSaveTextDocumentParams,
   WorkspaceFolder,
 } from "vscode-languageserver";
-import {
-  TextDocument,
-  TextDocumentContentChangeEvent,
-} from "vscode-languageserver-textdocument";
+import { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
 
 import {
@@ -179,6 +172,16 @@ export default class SparkdownTextDocuments {
     if (config.files) {
       for (const uri of Object.keys(config.files)) {
         this._watchedFileUris.add(uri);
+        if (this.getFileType(uri) === "script") {
+          this._documents.add({
+            textDocument: {
+              uri,
+              languageId: "sparkdown",
+              version: -1,
+              text: "",
+            },
+          });
+        }
       }
     }
     this._compilerConfig = config;
@@ -313,52 +316,56 @@ export default class SparkdownTextDocuments {
     return newState;
   }
 
-  throttledCompile = throttle((uri: string, force: boolean) => {
-    this.compile(uri, force);
+  throttledCompile = throttle((uri: string) => {
+    this.compile(uri);
   }, THROTTLE_DELAY);
 
-  debouncedCompile = debounce((uri: string, force: boolean) => {
-    this.compile(uri, force);
+  debouncedCompile = debounce((uri: string) => {
+    this.compile(uri);
   }, DEBOUNCE_DELAY);
 
-  async compile(uri: string, force = false) {
+  async compile(uri: string) {
     profile("start", "server/compile", uri);
     let docChanged = false;
     for (let [documentUri] of this._programStates) {
       const state = this.getProgramState(documentUri);
       const document = this._documents.get(documentUri);
-      if (document) {
-        if (document.version !== state.programVersion) {
-          docChanged = true;
-        }
-        state.programVersion = document.version;
+      if (state.programVersion !== document?.version) {
+        docChanged = true;
       }
     }
+    if (!docChanged && this.getProgramState(uri).program) {
+      return this.getProgramState(uri).program;
+    }
     let program: SparkProgram | undefined = undefined;
-    if (force || docChanged) {
-      const mainScriptUri = this.getMainScriptUri(uri);
-      if (mainScriptUri) {
-        program = await this.compileDocument(mainScriptUri);
-        this.getProgramState(mainScriptUri).program = program;
-        if (program.scripts) {
-          for (const uri of program.scripts) {
-            this.getProgramState(uri).program = program;
-          }
+    const mainScriptUri = this.getMainScriptUri(uri);
+    if (mainScriptUri) {
+      program = await this.compileDocument(mainScriptUri);
+      this.getProgramState(mainScriptUri).program = program;
+      if (program.scripts) {
+        for (const uri of program.scripts) {
+          const state = this.getProgramState(uri);
+          const document = this._documents.get(uri);
+          state.program = program;
+          state.programVersion = document?.version;
         }
       }
-      if (uri !== mainScriptUri && !program?.scripts?.includes(uri)) {
-        // Target script is not included by main,
-        // So it must be parsed on its own to report diagnostics
-        program = await this.compileDocument(uri);
-        this.getProgramState(uri).program = program;
-      }
-      if (program) {
-        await this.sendProgram(
-          uri,
-          program,
-          this.getProgramState(uri).programVersion
-        );
-      }
+    }
+    if (uri !== mainScriptUri && !program?.scripts?.includes(uri)) {
+      // Target script is not included by main,
+      // So it must be parsed on its own to report diagnostics
+      program = await this.compileDocument(uri);
+      const state = this.getProgramState(uri);
+      const document = this._documents.get(uri);
+      state.program = program;
+      state.programVersion = document?.version;
+    }
+    if (program) {
+      await this.sendProgram(
+        uri,
+        program,
+        this.getProgramState(uri).programVersion
+      );
     }
     profile("end", "server/compile", uri);
     return program;
@@ -366,9 +373,10 @@ export default class SparkdownTextDocuments {
 
   async compileDocument(uri: string): Promise<SparkProgram> {
     this._lastCompiledUri = uri;
-    return this.sendCompilerRequest(CompileProgramMessage.type, {
+    const program = await this.sendCompilerRequest(CompileProgramMessage.type, {
       uri,
     });
+    return program;
   }
 
   async sendProgram(
@@ -408,6 +416,11 @@ export default class SparkdownTextDocuments {
 
   async onCreatedFile(uri: string) {
     this._watchedFileUris.add(uri);
+    if (this.getFileType(uri) === "script") {
+      this._documents.add({
+        textDocument: { uri, languageId: "sparkdown", version: -1, text: "" },
+      });
+    }
     const file = await this.loadFile({
       uri,
       src: this._urls[uri] || "",
@@ -446,7 +459,7 @@ export default class SparkdownTextDocuments {
       textDocument,
       contentChanges,
     });
-    this.throttledCompile(textDocument.uri, false);
+    this.throttledCompile(textDocument.uri);
   }
 
   public listen(connection: Connection): Disposable {
@@ -469,8 +482,9 @@ export default class SparkdownTextDocuments {
           params: DocumentDiagnosticParams
         ): Promise<DocumentDiagnosticReport> => {
           const uri = params.textDocument.uri;
+          this.compile(uri);
           const document = this._documents.get(uri);
-          const program = await this.compile(uri, false);
+          const program = await this.compile(uri);
           if (document && program) {
             return {
               kind: "full",
@@ -501,7 +515,7 @@ export default class SparkdownTextDocuments {
           if (file.type !== "script") {
             // When asset url changes, reparse program so that asset srcs are up-to-date.
             if (this._lastCompiledUri) {
-              await this.debouncedCompile(this._lastCompiledUri, true);
+              await this.debouncedCompile(this._lastCompiledUri);
             }
           }
         }
@@ -530,7 +544,7 @@ export default class SparkdownTextDocuments {
     disposables.push(
       connection.onDidOpenTextDocument((event: DidOpenTextDocumentParams) => {
         const textDocument = event.textDocument;
-        this.debouncedCompile(textDocument.uri, false);
+        this.debouncedCompile(textDocument.uri);
         this._documents.add(event);
       })
     );

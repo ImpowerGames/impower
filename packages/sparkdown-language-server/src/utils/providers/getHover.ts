@@ -6,6 +6,8 @@ import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCo
 import { getExpectedSelectorTypes } from "@impower/sparkdown/src/utils/getExpectedSelectorTypes";
 import { resolveSelector } from "@impower/sparkdown/src/utils/resolveSelector";
 import { SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
+import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
+import { sortFilteredName } from "@impower/sparkdown/src/utils/sortFilteredName";
 
 export const getHover = (
   document: TextDocument | undefined,
@@ -35,7 +37,15 @@ export const getHover = (
     ) {
       const reference = value.type;
       if (reference.selector) {
-        const [resolvedValue, foundPath] = resolveSelector<any>(
+        if (reference.selector.name?.includes("~") && program.context) {
+          filterImage(
+            program.context,
+            program.context?.["filtered_image"]?.[
+              sortFilteredName(reference.selector.name)
+            ]
+          );
+        }
+        const [resolvedValue] = resolveSelector<any>(
           program,
           reference.selector,
           getExpectedSelectorTypes(program, reference.declaration, config)

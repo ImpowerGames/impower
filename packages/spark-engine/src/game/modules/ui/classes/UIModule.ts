@@ -1,3 +1,5 @@
+import { filterImage } from "../../../../../../sparkdown/src/utils/filterImage";
+import { sortFilteredName } from "../../../../../../sparkdown/src/utils/sortFilteredName";
 import type { Game } from "../../../core/classes/Game";
 import { Module } from "../../../core/classes/Module";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
@@ -245,12 +247,82 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return getImageVarName(name);
   }
 
-  getImageUrl(image: Image) {
-    return `url("${image.src}")`;
+  getUrl(src: string) {
+    return `url("${src}")`;
   }
 
-  getImageVar(name: string) {
-    return name === "none" ? name : `var(${this.getImageVarName(name)})`;
+  getImageValue(name: string) {
+    if (name === "none") {
+      return name;
+    }
+    const imageName = name.includes("~") ? sortFilteredName(name) : name;
+    if (this.context?.filtered_image?.[imageName]) {
+      filterImage(this.context, this.context?.filtered_image?.[imageName]);
+      if (this.context?.filtered_image?.[imageName].filtered_src) {
+        return this.getUrl(
+          this.context?.filtered_image?.[imageName].filtered_src
+        );
+      }
+    }
+    if (this.context?.layered_image?.[imageName]) {
+      return this.getImageAssets("layered_image", imageName)
+        .map((asset) => this.getUrl(asset.src))
+        .reverse()
+        .join(", ");
+    }
+    if (this.context?.image?.[imageName]) {
+      return this.getUrl(this.context?.image?.[imageName].src);
+    }
+    return `var(${this.getImageVarName(imageName)})`;
+  }
+
+  getImageAssets(type: string, name: string) {
+    if (!type) {
+      const images: Image[] = [];
+      images.push(...this.getImageAssets("filtered_image", name));
+      images.push(...this.getImageAssets("layered_image", name));
+      images.push(...this.getImageAssets("image", name));
+      return images;
+    }
+    if (type === "image") {
+      const image = this.context?.image?.[name];
+      if (image) {
+        return [image];
+      }
+    }
+    if (type === "layered_image") {
+      const layeredImage = this.context?.layered_image?.[name];
+      if (layeredImage) {
+        const images: Image[] = [];
+        for (const image of Object.values(layeredImage.layers)) {
+          images.push(...this.getImageAssets(image.$type, image.$name));
+        }
+        return images;
+      }
+    }
+    if (type === "filtered_image") {
+      const filteredImage = this.context?.filtered_image?.[name];
+      if (filteredImage) {
+        const images: Image[] = [];
+        if (filteredImage.filtered_src) {
+          images.push({
+            $type: "image",
+            $name: name,
+            src: filteredImage.filtered_src,
+          });
+        }
+        if (filteredImage.filtered_layers) {
+          for (const layer of filteredImage.filtered_layers) {
+            const image = this.context?.image?.[layer?.$name];
+            if (image) {
+              images.push(image);
+            }
+          }
+        }
+        return images;
+      }
+    }
+    return [];
   }
 
   getBackgroundImageFromString(value: string) {
@@ -271,7 +343,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       "$name" in value &&
       typeof value.$name === "string"
     ) {
-      return this.getImageVar(value.$name);
+      return this.getImageValue(value.$name);
     }
     return undefined;
   }
@@ -281,7 +353,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const literalStringValue = asset.slice(1, -1);
       return this.getBackgroundImageFromString(literalStringValue);
     } else {
-      return this.getImageVar(asset);
+      return this.getImageValue(asset);
     }
   }
 
@@ -296,34 +368,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
     const images = this.context?.image;
     if (images) {
-      for (const [name] of Object.entries(images)) {
+      for (const [name, image] of Object.entries(images)) {
         if (!name.startsWith("$")) {
           const varName = this.getImageVarName(name);
-          const varValue = this.getImageVarValue("image", name);
-          if (varValue) {
-            style[varName] = varValue;
-          }
-        }
-      }
-    }
-    const layeredImages = this.context?.layered_image;
-    if (layeredImages) {
-      for (const [name] of Object.entries(layeredImages)) {
-        if (!name.startsWith("$")) {
-          const varName = this.getImageVarName(name);
-          const varValue = this.getImageVarValue("layered_image", name);
-          if (varValue) {
-            style[varName] = varValue;
-          }
-        }
-      }
-    }
-    const filteredImages = this.context?.filtered_image;
-    if (filteredImages) {
-      for (const [name] of Object.entries(filteredImages)) {
-        if (!name.startsWith("$")) {
-          const varName = this.getImageVarName(name);
-          const varValue = this.getImageVarValue("filtered_image", name);
+          const varValue = this.getUrl(image.src);
           if (varValue) {
             style[varName] = varValue;
           }
@@ -596,62 +644,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   findIds(target: string): string[] {
     return this.findElements(target).map((c) => c.id);
-  }
-
-  getImageAssets(type: string, name: string) {
-    if (!type) {
-      const images: Image[] = [];
-      images.push(...this.getImageAssets("filtered_image", name));
-      images.push(...this.getImageAssets("layered_image", name));
-      images.push(...this.getImageAssets("image", name));
-      return images;
-    }
-    if (type === "image") {
-      const image = this.context?.image?.[name];
-      if (image) {
-        return [image];
-      }
-    }
-    if (type === "layered_image") {
-      const layeredImage = this.context?.layered_image?.[name];
-      if (layeredImage) {
-        const images: Image[] = [];
-        for (const image of Object.values(layeredImage.layers)) {
-          images.push(...this.getImageAssets(image.$type, image.$name));
-        }
-        return images;
-      }
-    }
-    if (type === "filtered_image") {
-      const filteredImage = this.context?.filtered_image?.[name];
-      if (filteredImage) {
-        const images: Image[] = [];
-        if (filteredImage.filtered_src) {
-          images.push({
-            $type: "image",
-            $name: name,
-            src: filteredImage.filtered_src,
-          });
-        }
-        if (filteredImage.filtered_layers) {
-          for (const layer of filteredImage.filtered_layers) {
-            const image = this.context?.image?.[layer?.$name];
-            if (image) {
-              images.push(image);
-            }
-          }
-        }
-        return images;
-      }
-    }
-    return [];
-  }
-
-  getImageVarValue(type: string, name: string) {
-    return this.getImageAssets(type, name)
-      .map((asset) => this.getImageUrl(asset))
-      .reverse()
-      .join(", ");
   }
 
   queueAnimationEvent(

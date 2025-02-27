@@ -1,4 +1,3 @@
-import { SparkLocation } from "./SparkLocation";
 import { SparkTranspilationOffset } from "./SparkTranspilationOffset";
 
 export interface SparkdownCompilerState {
@@ -8,5 +7,4 @@ export interface SparkdownCompilerState {
   sourceMap?: {
     [uri: string]: { [line: number]: SparkTranspilationOffset };
   };
-  properties?: Record<string, SparkLocation[]>;
 }

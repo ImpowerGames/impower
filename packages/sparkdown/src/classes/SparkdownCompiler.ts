@@ -13,8 +13,6 @@ import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
-import { filterMatchesName } from "../utils/filterMatchesName";
-import { filterSVG } from "../utils/filterSVG";
 import { getAccessPath } from "../utils/getAccessPath";
 import { getProperty } from "../utils/getProperty";
 import { profile } from "../utils/profile";
@@ -289,12 +287,11 @@ export class SparkdownCompiler {
         program.compiled = compiledObj;
         program.scripts = Object.keys(state.transpiledScripts || {});
         this.populateDiagnostics(state, program, inkCompiler);
-        this.populateBuiltins(program, compiledObj);
-        this.populateAssets(state, program);
-        this.validateSyntax(state, program);
-        this.populateImplicitDefs(state, program);
-        this.validateReferences(state, program);
-        this.filterAssets(state, program);
+        this.populateBuiltins(program);
+        this.populateAssets(program);
+        this.validateSyntax(program);
+        this.populateImplicitDefs(program);
+        this.validateReferences(program);
       } catch (e) {
         console.error(e);
       }
@@ -306,10 +303,10 @@ export class SparkdownCompiler {
     return structuredClone(value);
   }
 
-  populateBuiltins(program: SparkProgram, compiledObj: SparkdownRuntimeFormat) {
+  populateBuiltins(program: SparkProgram) {
     const uri = program.uri;
     profile("start", "populateBuiltins", uri);
-    const compiled = compiledObj;
+    const compiled = program.compiled;
     program.context ??= {};
     const builtins = this._config.builtinDefinitions;
     if (builtins) {
@@ -360,7 +357,7 @@ export class SparkdownCompiler {
     profile("end", "populateBuiltins", uri);
   }
 
-  populateAssets(_state: SparkdownCompilerState, program: SparkProgram) {
+  populateAssets(program: SparkProgram) {
     const uri = program.uri;
     profile("start", "populateAssets", uri);
     program.context ??= {};
@@ -405,7 +402,7 @@ export class SparkdownCompiler {
     profile("end", "populateAssets", uri);
   }
 
-  populateImplicitDefs(_state: SparkdownCompilerState, program: SparkProgram) {
+  populateImplicitDefs(program: SparkProgram) {
     const uri = program.uri;
     profile("start", "populateImplicitDefs", uri);
     const images = program.context?.["image"];
@@ -469,151 +466,6 @@ export class SparkdownCompiler {
     profile("end", "populateImplicitDefs", uri);
   }
 
-  filterAssets(state: SparkdownCompilerState, program: SparkProgram) {
-    const uri = program.uri;
-    profile("start", "filterAssets", uri);
-    const filteredImages = program.context?.["filtered_image"];
-    if (filteredImages) {
-      for (const filteredImage of Object.values(filteredImages)) {
-        const filters = this.getNestedFilters(filteredImage.$name, program);
-        const includes = filters.flatMap((filter) => filter?.includes || []);
-        const excludes = filters.flatMap((filter) => filter?.excludes || []);
-        const combinedFilter = {
-          includes,
-          excludes,
-        };
-        const stack = new Set<{ $type: string; $name: string }>();
-        const imageToFilter = this.getRootImage(
-          filteredImage?.image?.$name,
-          program,
-          stack
-        );
-        if (imageToFilter) {
-          if (imageToFilter === "circular") {
-            const message = `The image named '${filteredImage?.image?.$name}' circularly references itself.`;
-            const propertyValueLocations =
-              state.properties?.[
-                `${filteredImage.$type}.${filteredImage.$name}.image`
-              ];
-            if (propertyValueLocations) {
-              for (const location of propertyValueLocations) {
-                const uri = location.uri;
-                const range = location.range;
-                program.diagnostics ??= {};
-                program.diagnostics[uri] ??= [];
-                program.diagnostics[uri].push({
-                  range,
-                  severity: DiagnosticSeverity.Error,
-                  message,
-                  relatedInformation: [
-                    {
-                      location: { uri, range },
-                      message,
-                    },
-                  ],
-                  source: LANGUAGE_NAME,
-                });
-              }
-            }
-          } else {
-            if (
-              imageToFilter.$type === "image" &&
-              !imageToFilter.$name.startsWith("$")
-            ) {
-              if (imageToFilter.data) {
-                filteredImage.filtered_src = filterSVG(
-                  imageToFilter.data,
-                  combinedFilter
-                );
-              }
-            }
-            if (
-              imageToFilter.$type === "layered_image" &&
-              !imageToFilter.$name.startsWith("$")
-            ) {
-              for (const [key, layerImage] of Object.entries(
-                imageToFilter.layers
-              )) {
-                const filteredLayers: {
-                  $type: "image";
-                  $name: string;
-                }[] = [];
-                const keyIsArrayIndex = !Number.isNaN(Number(key));
-                if (keyIsArrayIndex) {
-                  if (filterMatchesName(layerImage.$name, combinedFilter)) {
-                    filteredLayers.push(layerImage);
-                  }
-                } else {
-                  if (filterMatchesName(key, combinedFilter)) {
-                    filteredLayers.push(layerImage);
-                  }
-                }
-                filteredImage.filtered_layers = filteredLayers;
-              }
-            }
-          }
-        }
-      }
-    }
-    profile("end", "filterAssets", uri);
-  }
-
-  getNestedFilters(
-    name: string,
-    program: SparkProgram
-  ): { includes: unknown[]; excludes: unknown[] }[] {
-    const filteredImage = program.context?.["filtered_image"]?.[name];
-    if (filteredImage) {
-      const filters: { includes: unknown[]; excludes: unknown[] }[] =
-        filteredImage?.["filters"]?.map?.(
-          (reference: { $type: "filtered_image"; $name: string }) =>
-            program.context?.["filter"]?.[reference?.$name]
-        ) || [];
-      const imageToFilterName = filteredImage?.["image"]?.["$name"];
-      if (imageToFilterName !== name) {
-        filters.push(...this.getNestedFilters(imageToFilterName, program));
-      }
-      return filters;
-    }
-    return [];
-  }
-
-  getRootImage(
-    name: string,
-    program: SparkProgram,
-    stack: Set<{ $type: string; $name: string }>
-  ):
-    | { $type: "image"; $name: string; src: string; data: string }
-    | {
-        $type: "layered_image";
-        $name: string;
-        layers: Record<string, { $type: "image"; $name: string }>;
-      }
-    | "circular"
-    | undefined {
-    const image = program.context?.["image"]?.[name];
-    if (image) {
-      return image;
-    }
-    const layeredImage = program.context?.["layered_image"]?.[name];
-    if (layeredImage) {
-      return layeredImage;
-    }
-    const filteredImage = program.context?.["filtered_image"]?.[name];
-    if (filteredImage) {
-      if (stack.has(filteredImage)) {
-        return "circular";
-      }
-      stack.add(filteredImage);
-      return this.getRootImage(
-        filteredImage?.["image"]?.["$name"],
-        program,
-        stack
-      );
-    }
-    return undefined;
-  }
-
   getExpectedPropertyValue(
     program: SparkProgram,
     declaration: SparkDeclaration | undefined
@@ -657,7 +509,7 @@ export class SparkdownCompiler {
     return undefined;
   }
 
-  validateSyntax(_state: SparkdownCompilerState, program: SparkProgram) {
+  validateSyntax(program: SparkProgram) {
     const uri = program.uri;
     profile("start", "validateSyntax", uri);
     for (const uri of program.scripts) {
@@ -704,7 +556,7 @@ export class SparkdownCompiler {
     profile("end", "validateSyntax", uri);
   }
 
-  validateReferences(state: SparkdownCompilerState, program: SparkProgram) {
+  validateReferences(program: SparkProgram) {
     const uri = program.uri;
     profile("start", "validateReferences", uri);
     for (const uri of program.scripts) {
@@ -718,12 +570,6 @@ export class SparkdownCompiler {
             start: doc.positionAt(cur.from),
             end: doc.positionAt(cur.to),
           };
-          if (reference.prop && reference.declaration) {
-            const accessPath = getAccessPath(reference.declaration);
-            state.properties ??= {};
-            state.properties[accessPath] ??= [];
-            state.properties[accessPath].push({ uri, range });
-          }
           if (reference.selector) {
             const selector = reference.selector;
             const declaration = reference.declaration;

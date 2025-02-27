@@ -27,8 +27,9 @@ import { getOtherNodesInsideParent } from "@impower/textmate-grammar-tree/src/tr
 import { getLineText } from "../document/getLineText";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { DeclarationType } from "@impower/sparkdown/src/classes/annotators/DeclarationAnnotator";
 import { SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
+import { sortFilteredName } from "@impower/sparkdown/src/utils/sortFilteredName";
+import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
@@ -408,6 +409,12 @@ const addStructReferenceCompletions = (
               (Array.isArray(exclude) && !exclude.includes(name)) ||
               (!Array.isArray(exclude) && !exclude(name)))
           ) {
+            if (type === "filtered_image" && program.context) {
+              filterImage(
+                program.context,
+                program.context?.["filtered_image"]?.[name]
+              );
+            }
             const completion: CompletionItem = {
               label: name,
               labelDetails: { description: type },

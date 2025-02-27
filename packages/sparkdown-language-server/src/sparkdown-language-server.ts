@@ -88,11 +88,12 @@ try {
       descriptionDefinitions,
       files,
     });
-    const program = await documents.compile(
-      workspaceFolders?.[0]?.uri + "/" + documents.mainScriptFilename,
-      true
-    );
-    return { capabilities, program };
+    const uri = params?.initializationOptions?.["uri"];
+    if (uri) {
+      const program = await documents.compile(uri);
+      return { capabilities, program };
+    }
+    return { capabilities };
   });
 
   connection.onInitialized(async () => {

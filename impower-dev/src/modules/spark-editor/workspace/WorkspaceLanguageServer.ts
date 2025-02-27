@@ -199,6 +199,7 @@ export default class WorkspaceLanguageServer {
       }
     >
   ): Promise<InitializeResult> {
+    const uri = Workspace.window.getOpenedDocumentUri();
     const result = await this._connection.sendRequest<InitializeResult>(
       InitializeMessage.method,
       {
@@ -210,6 +211,7 @@ export default class WorkspaceLanguageServer {
           optionalDefinitions: DEFAULT_OPTIONAL_DEFINITIONS,
           schemaDefinitions: DEFAULT_SCHEMA_DEFINITIONS,
           descriptionDefinitions: DEFAULT_DESCRIPTION_DEFINITIONS,
+          uri,
         },
         workspaceFolders: [
           {
@@ -220,7 +222,7 @@ export default class WorkspaceLanguageServer {
       }
     );
     this._serverCapabilities = result.capabilities;
-    this.updateProgram(result?.["program"] || {});
+    this.updateProgram(result["program"]);
     this._connection.sendNotification(InitializedMessage.method, {});
     this._onInitialized.forEach((callback) => {
       callback?.(result);
