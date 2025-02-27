@@ -7,14 +7,14 @@ import { SparkSelector } from "../../types/SparkSelector";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
-export interface SparkReference {
+export interface Reference {
   selector?: SparkSelector;
   declaration?: SparkDeclaration;
   prop?: boolean;
 }
 
 export class ReferenceAnnotator extends SparkdownAnnotator<
-  SparkdownAnnotation<SparkReference>
+  SparkdownAnnotation<Reference>
 > {
   defineModifier = "";
 
@@ -35,9 +35,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
   }
 
   override enter(
-    annotations: Range<SparkdownAnnotation<SparkReference>>[],
+    annotations: Range<SparkdownAnnotation<Reference>>[],
     nodeRef: SparkdownSyntaxNodeRef
-  ): Range<SparkdownAnnotation<SparkReference>>[] {
+  ): Range<SparkdownAnnotation<Reference>>[] {
     if (nodeRef.name === "DefineVariableName") {
       this.defineName = this.read(nodeRef.from, nodeRef.to);
       return annotations;
@@ -242,9 +242,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
   }
 
   override leave(
-    annotations: Range<SparkdownAnnotation<SparkReference>>[],
+    annotations: Range<SparkdownAnnotation<Reference>>[],
     nodeRef: SyntaxNodeRef
-  ): Range<SparkdownAnnotation<SparkReference>>[] {
+  ): Range<SparkdownAnnotation<Reference>>[] {
     if (nodeRef.name === "DefineDeclaration") {
       this.defineModifier = "";
       this.defineType = "";

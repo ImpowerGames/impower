@@ -11,7 +11,6 @@ import { File } from "../types/File";
 import { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
-import { SparkdownNodeName } from "../types/SparkdownNodeName";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import { buildSVGSource } from "../utils/buildSVGSource";
@@ -30,115 +29,12 @@ import {
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 import { SparkdownRuntimeFormat } from "../types/SparkdownRuntimeFormat";
 import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
+import { formatList } from "../utils/formatList";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
-
 const NEWLINE_REGEX: RegExp = /\r\n|\r|\n/;
 const UUID_MARKER_REGEX = new RegExp(GRAMMAR_DEFINITION.repository.UUID.match);
-
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
-
-const IMAGE_CONTROL_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
-const AUDIO_CONTROL_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS;
-const IMAGE_CLAUSE_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS;
-const AUDIO_CLAUSE_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS;
-
-const PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES = [
-  "hovered",
-  "focused",
-  "pressed",
-  "disabled",
-  "enabled",
-  "checked",
-  "unchecked",
-  "required",
-  "valid",
-  "invalid",
-  "readonly",
-  "first",
-  "last",
-  "only",
-  "odd",
-  "even",
-  "empty",
-  "blank",
-  "opened",
-  "before",
-  "after",
-  "placeholder",
-  "selection",
-  "marker",
-  "backdrop",
-  "initial",
-];
-const PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES = [
-  "language",
-  "direction",
-  "has",
-  "screen",
-  "theme",
-];
-const PROPERTY_SELECTOR_DIRECTION_ARGUMENTS = ["rtl", "ltr"];
-const PROPERTY_SELECTOR_THEME_ARGUMENTS = ["dark", "light"];
-const PROPERTY_SELECTOR_SCREEN_ARGUMENTS = [
-  "xs",
-  "sm",
-  "md",
-  "lg",
-  "xl",
-  "2xl",
-];
-
-const clone = <T>(value: T) => {
-  return structuredClone(value);
-};
-
-const formatList = (arr: string[]) => {
-  const quotedList = arr.map((c) => `'${c}'`);
-  return quotedList.length === 1
-    ? quotedList[0]
-    : quotedList.length === 2
-    ? `${quotedList[0]} or ${quotedList[1]}`
-    : quotedList.slice(0, -1).join(", ") + `, or ${quotedList.at(-1)}`;
-};
-
-const getRange = (
-  from: number,
-  to: number,
-  script: string,
-  currentLineIndex: number,
-  currentLinePos: number
-) => {
-  const startLineIndex = currentLineIndex;
-  const startLineOffset = from - currentLinePos;
-  let endLineIndex = currentLineIndex;
-  let endLinePos = currentLinePos;
-  for (let i = from; i <= to; i++) {
-    if (script[i] === "\r" && script[i + 1] === "\n") {
-      endLinePos = i + 1;
-      endLineIndex++;
-      i++;
-    } else if (script[i] === "\r" || script[i] === "\n") {
-      endLinePos = i;
-      endLineIndex++;
-    }
-  }
-  const endLineOffset = to - endLinePos;
-  return {
-    start: {
-      line: startLineIndex,
-      character: startLineOffset,
-    },
-    end: {
-      line: endLineIndex,
-      character: endLineOffset,
-    },
-  };
-};
 
 export class SparkdownCompiler {
   protected _config: SparkdownCompilerConfig = {};
@@ -260,310 +156,6 @@ export class SparkdownCompiler {
       return uri;
     }
     return "";
-  }
-
-  iterate(
-    uri: string,
-    state: SparkdownCompilerState,
-    program: SparkProgram
-  ): string {
-    const document = this.documents.get(uri);
-    if (!document) {
-      return "";
-    }
-    profile("start", "splitIntoLines", uri);
-    const script = document?.getText() || "";
-    const lines = script.split(NEWLINE_REGEX);
-    profile("end", "splitIntoLines", uri);
-    const stack: SparkdownNodeName[] = [];
-    let lineIndex = 0;
-    let linePos = 0;
-    let range = {
-      start: {
-        line: 0,
-        character: 0,
-      },
-      end: {
-        line: 0,
-        character: 0,
-      },
-    };
-    let selectorFunctionName = "";
-    const reportDiagnostic = (
-      message: string,
-      severity: DiagnosticSeverity = DiagnosticSeverity.Warning,
-      mark?:
-        | "end"
-        | {
-            start: { line: number; character: number };
-            end: { line: number; character: number };
-          }
-    ) => {
-      if (range) {
-        const markRange = !mark
-          ? range
-          : mark === "end"
-          ? { start: { ...range.end }, end: { ...range.end } }
-          : mark;
-        program.diagnostics ??= {};
-        program.diagnostics[uri] ??= [];
-        program.diagnostics[uri].push({
-          range: markRange,
-          severity,
-          message,
-          relatedInformation: [
-            {
-              location: { uri, range: markRange },
-              message,
-            },
-          ],
-          source: LANGUAGE_NAME,
-        });
-      }
-    };
-    const define = (type: string, name: string, obj: object) => {
-      state.implicitDefs ??= {};
-      state.implicitDefs[type] ??= {};
-      state.implicitDefs[type][name] ??= {
-        $type: type,
-        $name: name,
-        ...obj,
-      };
-    };
-    const read = (from: number, to: number): string => script.slice(from, to);
-    const tree = this._documents.tree(uri);
-    if (tree) {
-      profile("start", "iterate", uri);
-      tree.iterate({
-        enter: (node) => {
-          const nodeType = node.type.name as SparkdownNodeName;
-          const text = read(node.from, node.to);
-          range = getRange(node.from, node.to, script, lineIndex, linePos);
-
-          if (nodeType === "DefineVariableName") {
-            if (
-              IMAGE_CLAUSE_KEYWORDS.includes(text) ||
-              AUDIO_CLAUSE_KEYWORDS.includes(text)
-            ) {
-              const message = `'${text}' is not allowed as a defined name`;
-              reportDiagnostic(message, DiagnosticSeverity.Error);
-            }
-          }
-          // Report invalid property selectors
-          if (nodeType === "PropertySelectorSimpleConditionName") {
-            if (!PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(text)) {
-              const message =
-                PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(text)
-                  ? "Conditional selector should be a function"
-                  : "Unrecognized conditional selector";
-              reportDiagnostic(message);
-            }
-          }
-          if (nodeType === "PropertySelectorFunctionConditionName") {
-            selectorFunctionName = text;
-            if (!PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(text)) {
-              const message = PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(
-                text
-              )
-                ? "Conditional selector is not a function"
-                : "Unrecognized conditional selector";
-              reportDiagnostic(message);
-            }
-          }
-          if (nodeType === "PropertySelectorConstant") {
-            if (
-              selectorFunctionName === "direction" &&
-              !PROPERTY_SELECTOR_DIRECTION_ARGUMENTS.includes(text)
-            ) {
-              const message = `Unrecognized direction argument: Supported values are ${formatList(
-                PROPERTY_SELECTOR_DIRECTION_ARGUMENTS
-              )}`;
-              reportDiagnostic(message);
-            }
-            if (
-              selectorFunctionName === "theme" &&
-              !PROPERTY_SELECTOR_THEME_ARGUMENTS.includes(text)
-            ) {
-              const message = `Unrecognized theme argument: Supported values are ${formatList(
-                PROPERTY_SELECTOR_THEME_ARGUMENTS
-              )}`;
-              reportDiagnostic(message);
-            }
-            if (
-              selectorFunctionName === "screen" &&
-              !PROPERTY_SELECTOR_SCREEN_ARGUMENTS.includes(text)
-            ) {
-              const message = `Unrecognized screen argument: Supported values are ${formatList(
-                PROPERTY_SELECTOR_SCREEN_ARGUMENTS
-              )}`;
-              reportDiagnostic(message);
-            }
-          }
-          // Define implicit filtered_image
-          if (
-            stack.includes("ImageCommand") &&
-            nodeType === "AssetCommandName"
-          ) {
-            if (text.includes("~")) {
-              const parts = text.split("~");
-              const [fileName, ...filterNames] = parts;
-              const sortedFilterNames = filterNames.sort();
-              const name = [fileName, ...sortedFilterNames].join("~");
-              const obj = {
-                image: { $name: fileName },
-                filters: sortedFilterNames.map((filterName) => ({
-                  $type: "filter",
-                  $name: filterName,
-                })),
-              };
-              define("filtered_image", name, obj);
-            }
-          }
-          // Record audio filter reference
-          if (
-            stack.includes("AudioCommand") &&
-            nodeType === "AssetCommandFilterName"
-          ) {
-            // TODO: Validate synth tone format
-          }
-          // Report invalid image control
-          if (
-            stack.includes("ImageCommand") &&
-            nodeType === "AssetCommandControl" &&
-            !IMAGE_CONTROL_KEYWORDS.includes(text)
-          ) {
-            const message = `Unrecognized visual control: Visual commands only support ${formatList(
-              IMAGE_CONTROL_KEYWORDS
-            )}`;
-            reportDiagnostic(message);
-          }
-          // Report invalid audio control
-          if (
-            stack.includes("AudioCommand") &&
-            nodeType === "AssetCommandControl" &&
-            !AUDIO_CONTROL_KEYWORDS.includes(text)
-          ) {
-            const message = `Unrecognized visual control: Visual commands only support ${formatList(
-              AUDIO_CONTROL_KEYWORDS
-            )}`;
-            reportDiagnostic(message);
-          }
-          // Report invalid image name syntax
-          if (stack.includes("ImageCommand") && nodeType === "IllegalChar") {
-            const message = `Invalid syntax`;
-            reportDiagnostic(message, DiagnosticSeverity.Error);
-          }
-          // Report invalid audio name syntax
-          if (stack.includes("AudioCommand") && nodeType === "IllegalChar") {
-            const message = `Invalid syntax`;
-            reportDiagnostic(message, DiagnosticSeverity.Error);
-          }
-          if (nodeType === "AssetCommandClauseKeyword") {
-            const nextValueNode = node.node.nextSibling?.node.nextSibling;
-            const nextValueNodeType = (
-              nextValueNode ? nextValueNode.type.name : ""
-            ) as SparkdownNodeName;
-            const nextValueNodeText = nextValueNode
-              ? script.slice(nextValueNode.from, nextValueNode.to)
-              : "";
-            if (text === "after") {
-              if (
-                nextValueNodeType !== "ConditionalBlock" &&
-                nextValueNodeType !== "TimeValue" &&
-                nextValueNodeType !== "NumberValue"
-              ) {
-                const message = `'${text}' should be followed by a time value (e.g. 'after 2' or 'after 2s' or 'after 200ms')`;
-                reportDiagnostic(message, DiagnosticSeverity.Error, "end");
-              }
-            }
-            if (text === "over") {
-              if (
-                nextValueNodeType !== "ConditionalBlock" &&
-                nextValueNodeType !== "TimeValue" &&
-                nextValueNodeType !== "NumberValue"
-              ) {
-                const message = `'${text}' should be followed by a time value (e.g. 'over 2' or 'over 2s' or 'over 200ms')`;
-                reportDiagnostic(message, DiagnosticSeverity.Error, "end");
-              }
-            }
-            if (text === "with") {
-              if (
-                stack.includes("ImageCommand") &&
-                nextValueNodeType !== "ConditionalBlock" &&
-                nextValueNodeType !== "NameValue"
-              ) {
-                const message = `'${text}' should be followed by the name of a transition or animation (e.g. 'with shake')`;
-                reportDiagnostic(message, DiagnosticSeverity.Error, "end");
-              }
-              if (
-                stack.includes("AudioCommand") &&
-                nextValueNodeType !== "ConditionalBlock" &&
-                nextValueNodeType !== "NameValue"
-              ) {
-                const message =
-                  "'with' should be followed by the name of a modulation (e.g. 'with echo')";
-                reportDiagnostic(message);
-              }
-            }
-            if (text === "fadeto") {
-              if (
-                (nextValueNodeType !== "ConditionalBlock" &&
-                  nextValueNodeType !== "NumberValue") ||
-                (nextValueNodeType === "NumberValue" &&
-                  (Number(nextValueNodeText) < 0 ||
-                    Number(nextValueNodeText) > 1))
-              ) {
-                const message = `'${text}' should be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 0.5' or 'fadeto 1')`;
-                reportDiagnostic(message, DiagnosticSeverity.Error, "end");
-              }
-            }
-            if (
-              text === "wait" ||
-              text === "nowait" ||
-              text === "loop" ||
-              text === "noloop" ||
-              text === "mute" ||
-              text === "unmute" ||
-              text === "now"
-            ) {
-              if (
-                nextValueNode &&
-                (nextValueNodeType === "ConditionalBlock" ||
-                  nextValueNodeType === "TimeValue" ||
-                  nextValueNodeType === "NumberValue")
-              ) {
-                const message = `'${text}' is a flag and cannot take an argument`;
-                const nodeCharacterOffset = nextValueNode.to - node.to;
-                const markRange = {
-                  start: { ...range.start },
-                  end: {
-                    line: range.end.line,
-                    character: range.end.character + nodeCharacterOffset,
-                  },
-                };
-                reportDiagnostic(message, DiagnosticSeverity.Error, markRange);
-              }
-            }
-          }
-          // Record Newline
-          if (nodeType === "Newline") {
-            lineIndex += 1;
-            linePos = node.to;
-          }
-          stack.push(nodeType);
-        },
-      });
-      profile("end", "iterate", uri);
-    } else {
-      console.error("No tree found", uri);
-    }
-    while (lines.at(-1) === "") {
-      // Remove empty newlines at end of script
-      lines.pop();
-    }
-    const transpiled = lines.join("\n");
-    // console.log(transpiled);
-    return transpiled;
   }
 
   transpile(
@@ -699,6 +291,7 @@ export class SparkdownCompiler {
         this.populateDiagnostics(state, program, inkCompiler);
         this.populateBuiltins(program, compiledObj);
         this.populateAssets(state, program);
+        this.validateSyntax(state, program);
         this.validateReferences(state, program);
         this.populateImplicitDefs(state, program);
         profile("start", "ink/encode", uri);
@@ -716,6 +309,10 @@ export class SparkdownCompiler {
     return program;
   }
 
+  clone<T>(value: T) {
+    return structuredClone(value);
+  }
+
   populateBuiltins(program: SparkProgram, compiledObj: SparkdownRuntimeFormat) {
     const uri = program.uri;
     profile("start", "populateBuiltins", uri);
@@ -726,7 +323,7 @@ export class SparkdownCompiler {
       for (const [type, builtinStructs] of Object.entries(builtins)) {
         for (const [name, builtinStruct] of Object.entries(builtinStructs)) {
           program.context[type] ??= {};
-          program.context[type][name] ??= clone(builtinStruct);
+          program.context[type][name] ??= this.clone(builtinStruct);
         }
       }
       if (compiled?.structDefs) {
@@ -746,18 +343,18 @@ export class SparkdownCompiler {
                 const builtinDefaultStruct = builtins[type]?.["$default"];
                 if (builtinDefaultStruct) {
                   traverse(builtinDefaultStruct, (propPath, propValue) => {
-                    setProperty(constructed, propPath, clone(propValue));
+                    setProperty(constructed, propPath, this.clone(propValue));
                   });
                 }
                 const definedDefaultStruct = structs?.["$default"];
                 if (definedDefaultStruct) {
                   traverse(definedDefaultStruct, (propPath, propValue) => {
-                    setProperty(constructed, propPath, clone(propValue));
+                    setProperty(constructed, propPath, this.clone(propValue));
                   });
                 }
               }
               traverse(definedStruct, (propPath, propValue) => {
-                setProperty(constructed, propPath, clone(propValue));
+                setProperty(constructed, propPath, this.clone(propValue));
               });
               constructed["$type"] = type;
               constructed["$name"] = name;
@@ -856,7 +453,7 @@ export class SparkdownCompiler {
         for (const [name, obj] of Object.entries(objs)) {
           program.context ??= {};
           program.context[type] ??= {};
-          program.context[type][name] ??= clone(obj);
+          program.context[type][name] ??= this.clone(obj);
         }
       }
     }
@@ -1042,6 +639,53 @@ export class SparkdownCompiler {
       return expectedPropertyValue;
     }
     return undefined;
+  }
+
+  validateSyntax(_state: SparkdownCompilerState, program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", "validateSyntax", uri);
+    for (const uri of program.scripts) {
+      const doc = this.documents.get(uri);
+      if (doc) {
+        const annotations = this.documents.annotations(uri);
+        const cur = annotations.validations.iter();
+        while (cur.value) {
+          const diagnostic = cur.value.type;
+          const range = {
+            start: doc.positionAt(cur.from),
+            end: doc.positionAt(cur.to),
+          };
+          if (range) {
+            if (diagnostic.message) {
+              const severity =
+                diagnostic.severity === "error"
+                  ? DiagnosticSeverity.Error
+                  : diagnostic.severity === "warning"
+                  ? DiagnosticSeverity.Warning
+                  : diagnostic.severity === "info"
+                  ? DiagnosticSeverity.Information
+                  : DiagnosticSeverity.Warning;
+              program.diagnostics ??= {};
+              program.diagnostics[uri] ??= [];
+              program.diagnostics[uri].push({
+                range,
+                severity,
+                message: diagnostic.message,
+                relatedInformation: [
+                  {
+                    location: { uri, range },
+                    message: diagnostic.message,
+                  },
+                ],
+                source: LANGUAGE_NAME,
+              });
+            }
+          }
+          cur.next();
+        }
+      }
+    }
+    profile("end", "validateSyntax", uri);
   }
 
   validateReferences(state: SparkdownCompilerState, program: SparkProgram) {

@@ -10,6 +10,7 @@ import { DeclarationAnnotator } from "./annotators/DeclarationAnnotator";
 import { SparkdownAnnotation } from "./SparkdownAnnotation";
 import { TranspilationAnnotator } from "./annotators/TranspilationAnnotator";
 import { ReferenceAnnotator } from "./annotators/ReferenceAnnotator";
+import { ValidationAnnotator } from "./annotators/ValidationAnnotator";
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
@@ -33,6 +34,7 @@ export interface SparkdownAnnotators {
   declarations: DeclarationAnnotator;
   transpilations: TranspilationAnnotator;
   references: ReferenceAnnotator;
+  validations: ValidationAnnotator;
 }
 
 export class SparkdownCombinedAnnotator {
@@ -44,6 +46,7 @@ export class SparkdownCombinedAnnotator {
     declarations: new DeclarationAnnotator(),
     transpilations: new TranspilationAnnotator(),
     references: new ReferenceAnnotator(),
+    validations: new ValidationAnnotator(),
   };
 
   protected _currentEntries = Object.entries(this.current);
@@ -57,6 +60,7 @@ export class SparkdownCombinedAnnotator {
       declarations: this.current.declarations.current,
       transpilations: this.current.transpilations.current,
       references: this.current.references.current,
+      validations: this.current.validations.current,
     };
   }
 
@@ -69,6 +73,7 @@ export class SparkdownCombinedAnnotator {
       declarations: [],
       transpilations: [],
       references: [],
+      validations: [],
     };
     tree.iterate({
       from,

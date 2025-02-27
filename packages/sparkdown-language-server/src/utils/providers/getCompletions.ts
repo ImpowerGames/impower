@@ -10,7 +10,6 @@ import {
 import { type TextDocument } from "vscode-languageserver-textdocument";
 
 import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import { type SparkLocation } from "@impower/sparkdown/src/types/SparkLocation";
 import { getProperty } from "@impower/sparkdown/src/utils/getProperty";
 import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
