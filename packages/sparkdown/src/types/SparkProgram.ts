@@ -1,5 +1,5 @@
 import { SparkDiagnostic } from "./SparkDiagnostic";
-import { SparkReference } from "./SparkReference";
+import { SparkdownRuntimeFormat } from "./SparkdownRuntimeFormat";
 
 export interface SparkProgram {
   uri: string;
@@ -7,9 +7,6 @@ export interface SparkProgram {
   compiled?: ArrayBuffer | SparkdownRuntimeFormat;
   context?: {
     [type: string]: { [name: string]: any };
-  };
-  references?: {
-    [uri: string]: { [line: number]: SparkReference[] };
   };
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];

@@ -163,9 +163,17 @@ try {
   connection.onHover((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
+    const annotations = documents.annotations(uri);
     const program = documents.program(uri);
+    const config = documents.compilerConfig;
     performance.mark(`lsp: onHover ${uri} start`);
-    const result = getHover(document, program, params.position);
+    const result = getHover(
+      document,
+      annotations,
+      program,
+      config,
+      params.position
+    );
     performance.mark(`lsp: onHover ${uri} end`);
     performance.measure(
       `lsp: onHover ${uri}`,
@@ -181,6 +189,7 @@ try {
     const document = documents.get(uri);
     const tree = documents.tree(uri);
     const program = documents.program(uri);
+    const config = documents.compilerConfig;
     const scripts = program?.scripts || [uri];
     const scriptAnnotations: Record<string, SparkdownAnnotations> = {};
     for (const uri of scripts) {
@@ -192,7 +201,7 @@ try {
       tree,
       scriptAnnotations,
       program,
-      documents.compilerConfig,
+      config,
       params.position,
       params.context
     );

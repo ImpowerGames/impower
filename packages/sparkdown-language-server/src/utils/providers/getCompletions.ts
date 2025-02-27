@@ -29,6 +29,7 @@ import { getLineText } from "../document/getLineText";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { DeclarationType } from "@impower/sparkdown/src/classes/annotators/DeclarationAnnotator";
+import { SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
@@ -580,14 +581,7 @@ const addStructPropertyNameContextCompletions = (
 const addStructPropertyNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  definitions:
-    | {
-        builtinDefinitions?: { [type: string]: { [name: string]: any } };
-        optionalDefinitions?: { [type: string]: { [name: string]: any } };
-        schemaDefinitions?: { [type: string]: { [name: string]: any } };
-        descriptionDefinitions?: { [type: string]: { [name: string]: any } };
-      }
-    | undefined,
+  config: SparkdownCompilerConfig | undefined,
   modifier: string,
   type: string,
   name: string,
@@ -630,7 +624,7 @@ const addStructPropertyNameCompletions = (
     addStructPropertyNameContextCompletions(
       completions,
       program,
-      definitions?.optionalDefinitions?.[type]?.["$optional"],
+      config?.optionalDefinitions?.[type]?.["$optional"],
       modifier,
       path,
       lineText,
@@ -726,14 +720,7 @@ const addStructPropertyValueContextCompletions = (
 const addStructPropertyValueCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  definitions:
-    | {
-        builtinDefinitions?: { [type: string]: { [name: string]: any } };
-        optionalDefinitions?: { [type: string]: { [name: string]: any } };
-        schemaDefinitions?: { [type: string]: { [name: string]: any } };
-        descriptionDefinitions?: { [type: string]: { [name: string]: any } };
-      }
-    | undefined,
+  config: SparkdownCompilerConfig | undefined,
   modifier: string,
   type: string,
   name: string,
@@ -766,7 +753,7 @@ const addStructPropertyValueCompletions = (
     addStructPropertyValueSchemaCompletions(
       completions,
       program,
-      definitions?.schemaDefinitions?.[type]?.["$schema"],
+      config?.schemaDefinitions?.[type]?.["$schema"],
       modifier,
       path,
       valueText,
@@ -797,7 +784,7 @@ const addStructPropertyValueCompletions = (
     addStructPropertyValueContextCompletions(
       completions,
       program,
-      definitions?.optionalDefinitions?.[type]?.["$optional"],
+      config?.optionalDefinitions?.[type]?.["$optional"],
       modifier,
       path
     );
@@ -1007,14 +994,7 @@ export const getCompletions = (
   tree: Tree | undefined,
   scriptAnnotations: Record<string, SparkdownAnnotations>,
   program: SparkProgram | undefined,
-  definitions:
-    | {
-        builtinDefinitions?: { [type: string]: { [name: string]: any } };
-        optionalDefinitions?: { [type: string]: { [name: string]: any } };
-        schemaDefinitions?: { [type: string]: { [name: string]: any } };
-        descriptionDefinitions?: { [type: string]: { [name: string]: any } };
-      }
-    | undefined,
+  config: SparkdownCompilerConfig | undefined,
   position: Position,
   context: CompletionContext | undefined
 ): CompletionItem[] | null | undefined => {
@@ -1551,7 +1531,7 @@ export const getCompletions = (
       addStructPropertyNameCompletions(
         completions,
         program,
-        definitions,
+        config,
         modifier,
         type,
         name,
@@ -1613,7 +1593,7 @@ export const getCompletions = (
       addStructPropertyValueCompletions(
         completions,
         program,
-        definitions,
+        config,
         modifier,
         type,
         name,
