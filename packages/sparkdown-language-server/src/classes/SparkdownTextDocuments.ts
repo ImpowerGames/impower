@@ -20,10 +20,6 @@ import {
 import { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
 
-import {
-  DidChangeFileUrlMessage,
-  DidChangeFileUrlParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage";
 import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
 import { CompileProgramMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/CompileProgramMessage";
 import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/AddCompilerFileMessage";
@@ -326,15 +322,15 @@ export default class SparkdownTextDocuments {
     return newState;
   }
 
-  throttledCompile = throttle((uri: string) => {
-    this.compile(uri);
+  throttledCompile = throttle((uri: string, force = false) => {
+    this.compile(uri, force);
   }, THROTTLE_DELAY);
 
-  debouncedCompile = debounce((uri: string) => {
-    this.compile(uri);
+  debouncedCompile = debounce((uri: string, force = false) => {
+    this.compile(uri, force);
   }, DEBOUNCE_DELAY);
 
-  async compile(uri: string): Promise<SparkProgram | undefined> {
+  async compile(uri: string, force = false): Promise<SparkProgram | undefined> {
     profile("start", "server/compile", uri);
     const document = this._documents.get(uri);
     if (!document) {
@@ -349,10 +345,11 @@ export default class SparkdownTextDocuments {
       }
     }
     const state = this.getProgramState(uri);
-    if (!anyDocChanged && state.program) {
+    if (!force && !anyDocChanged && state.program) {
       return state.program;
     }
     if (
+      !force &&
       state.compilingProgramVersion != null &&
       document.version <= state.compilingProgramVersion
     ) {
@@ -457,10 +454,11 @@ export default class SparkdownTextDocuments {
       uri,
       src: this._urls[uri] || "",
     });
-    this.sendCompilerRequest(AddCompilerFileMessage.type, {
+    await this.sendCompilerRequest(AddCompilerFileMessage.type, {
       uri,
       file,
     });
+    await this.debouncedCompile(uri, true);
   }
 
   async onChangedFile(uri: string) {
@@ -469,18 +467,20 @@ export default class SparkdownTextDocuments {
         uri,
         src: this._urls[uri] || "",
       });
-      this.sendCompilerRequest(UpdateCompilerFileMessage.type, {
+      await this.sendCompilerRequest(UpdateCompilerFileMessage.type, {
         uri,
         file,
       });
+      await this.debouncedCompile(uri, true);
     }
   }
 
-  onDeletedFile(uri: string) {
+  async onDeletedFile(uri: string) {
     this._watchedFileUris.delete(uri);
     this._programStates.delete(uri);
     this._documents.remove({ textDocument: { uri } });
-    this.sendCompilerRequest(RemoveCompilerFileMessage.type, { uri });
+    await this.sendCompilerRequest(RemoveCompilerFileMessage.type, { uri });
+    await this.debouncedCompile(uri, true);
   }
 
   async updateCompilerDocument(
@@ -531,27 +531,6 @@ export default class SparkdownTextDocuments {
             };
           }
           return { kind: "unchanged", resultId: uri };
-        }
-      )
-    );
-    disposables.push(
-      connection.onNotification(
-        DidChangeFileUrlMessage.method,
-        async (params: DidChangeFileUrlParams) => {
-          const uri = params.uri;
-          const src = params.src;
-          this._urls[uri] = src;
-          const file = await this.loadFile({ uri, src });
-          await this.sendCompilerRequest(UpdateCompilerFileMessage.type, {
-            uri,
-            file,
-          });
-          if (file.type !== "script") {
-            // When asset url changes, reparse program so that asset srcs are up-to-date.
-            if (this._lastCompiledUri) {
-              await this.debouncedCompile(this._lastCompiledUri);
-            }
-          }
         }
       )
     );

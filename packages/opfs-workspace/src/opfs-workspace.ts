@@ -4,7 +4,6 @@ import { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/R
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
-import { DidChangeFileUrlMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage";
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
@@ -577,7 +576,6 @@ const updateFileCache = (
       src = URL.createObjectURL(
         new Blob([buffer], { type: getMimeType(type, ext) })
       );
-      broadcast(DidChangeFileUrlMessage.type.notification({ uri, src }));
     }
   }
   const text =

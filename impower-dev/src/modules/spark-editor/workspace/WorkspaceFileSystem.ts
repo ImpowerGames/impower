@@ -1,6 +1,5 @@
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
-import { DidChangeFileUrlMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage";
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
@@ -179,9 +178,6 @@ export default class WorkspaceFileSystem {
           delete this._preloaded[file.oldUri];
         }
       });
-      Workspace.ls.connection.sendNotification(message.method, message.params);
-      this.emit(message.method, message);
-    } else if (DidChangeFileUrlMessage.type.isNotification(message)) {
       Workspace.ls.connection.sendNotification(message.method, message.params);
       this.emit(message.method, message);
     } else if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
