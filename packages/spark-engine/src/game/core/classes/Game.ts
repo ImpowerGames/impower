@@ -176,14 +176,14 @@ export class Game<T extends M = {}> {
 
   getClosestPath(file: string | undefined, line: number) {
     if (file == null) {
-      return null;
+      return "0";
     }
     const fileIndex = this._files.indexOf(file);
     if (fileIndex < 0) {
-      return null;
+      return "0";
     }
     if (!this._compiled.uuidToSource) {
-      return null;
+      return "0";
     }
     const uuidToSourceEntries = Object.entries(this._compiled.uuidToSource);
     let closestIndex = uuidToSourceEntries.length - 1;
@@ -205,12 +205,12 @@ export class Game<T extends M = {}> {
     }
     const match = uuidToSourceEntries[closestIndex];
     if (match == null) {
-      return null;
+      return "0";
     }
     const [uuid] = match;
     const path = this._compiled.uuidToPath?.[uuid];
     if (path == null) {
-      return null;
+      return "0";
     }
     return path;
   }
