@@ -517,8 +517,8 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     const debugMetadata = new DebugMetadata(
       terminatingObject?.debugMetadata || undefined
     );
-    debugMetadata.startLineNumber = debugMetadata.endLineNumber;
-    debugMetadata.startCharacterNumber = debugMetadata.endCharacterNumber;
+    debugMetadata.endLineNumber = debugMetadata.startLineNumber;
+    debugMetadata.endCharacterNumber = debugMetadata.startCharacterNumber;
     this.Warning(message, debugMetadata);
   };
 
