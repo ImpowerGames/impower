@@ -98,19 +98,25 @@ details[open] > summary::before {
 }
 
 .section {
-  color: #c586c0;
+  color: #ff80f4;
 }
 .condition {
   color: #c586c0;
 }
 .scene {
-  color: #4fc1ff;
+  color: #ff8080;
 }
 .keyword {
   color: #569cd6;
 }
+.divert {
+  color: #d7ba7d;
+}
+.divert_target {
+  color: #f9b8f9;
+}
 .transition {
-  color: #b5cea8;
+  color: #bea3a3;
 }
 .dialogue_character {
   color: #4ec9b0;
@@ -131,14 +137,11 @@ details[open] > summary::before {
   color: #ce9178;
 }
 .centered {
-  font-weight: bold;
-  color: #569cd6;
   padding-right: 40px;
   text-align: center;
 }
 .bold {
   font-weight: bold;
-  color: #569cd6;
 }
 .italics {
   font-style: italic;
@@ -146,6 +149,19 @@ details[open] > summary::before {
 .underline {
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+.inline {
+  display: inline;
+}
+.wavy {
+  position: relative;
+  animation: wavy 750ms ease-in-out infinite;
+  display: inline-block;
+}
+.shaky {
+  position: relative;
+  animation: shaky 300ms ease-in-out infinite;
+  display: inline-block;
 }
 .linebreak {
   color: #606080;
@@ -162,4 +178,63 @@ details[open] > summary::before {
 .load {
   color: transparent;
   font-family: sparkdown-font;
+}
+
+@keyframes wavy {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes shaky {
+  0% {
+    left: calc(1em / 60);
+    top: calc(1em / 60);
+  }
+  10% {
+    left: calc(-1em / 60);
+    top: calc(-2em / 60);
+  }
+  20% {
+    left: calc(-2em / 60);
+    top: calc(0em / 60);
+  }
+  30% {
+    left: calc(2em / 60);
+    top: calc(2em / 60);
+  }
+  40% {
+    left: calc(1em / 60);
+    top: calc(-1em / 60);
+  }
+  50% {
+    left: calc(-1em / 60);
+    top: calc(2em / 60);
+  }
+  60% {
+    left: calc(-2em / 60);
+    top: calc(1em / 60);
+  }
+  70% {
+    left: calc(2em / 60);
+    top: calc(1em / 60);
+  }
+  80% {
+    left: calc(-1em / 60);
+    top: calc(-1em / 60);
+  }
+  90% {
+    left: calc(1em / 60);
+    top: calc(2em / 60);
+  }
+  100% {
+    left: calc(1em / 60);
+    top: calc(-2em / 60);
+  }
 }
