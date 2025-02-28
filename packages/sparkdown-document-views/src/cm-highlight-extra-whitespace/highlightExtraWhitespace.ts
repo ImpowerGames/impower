@@ -220,8 +220,8 @@ export class MatchDecorator {
     for (let r of view.visibleRanges) {
       // VENDORING CHANGE: Had extend `from` by -1 and `to` by +1
       // so that regexp backreferences and forward references would work
-      let from = Math.max(r.from, updateFrom) - 1;
-      let to = Math.min(r.to, updateTo) + 1;
+      let from = view.state.doc.lineAt(Math.max(r.from, updateFrom)).from;
+      let to = view.state.doc.lineAt(Math.max(r.to, updateTo)).to;
       if (to > from) {
         let fromLine = view.state.doc.lineAt(from);
         let toLine = fromLine.to < to ? view.state.doc.lineAt(to) : fromLine;
@@ -269,7 +269,8 @@ export class MatchDecorator {
 
 const whitespaceHighlighter = matcher(
   new MatchDecorator({
-    regexp: /\t|[ ](?=[ ])|(?<=[ ])[ ]|[ ]$/g,
+    regexp:
+      /\t|[ ]$|(?<=\S)[ ](?=[ ])|(?<=\S[ ]+)[ ](?=[ ])|(?<=\S[ ]+)[ ](?=\S)/gm,
     decoration: (match) => getDecoration(match[0]),
     boundary: /\S/,
   })
