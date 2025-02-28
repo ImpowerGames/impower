@@ -328,7 +328,7 @@ export default class SparkdownTextDocuments {
 
   debouncedCompile = debounce(async (uri: string, force: boolean) => {
     const program = await this.compile(uri, force);
-    this._connection?.sendDiagnostics(
+    await this._connection?.sendDiagnostics(
       getDocumentDiagnostics(
         uri,
         program,
@@ -462,7 +462,9 @@ export default class SparkdownTextDocuments {
       uri,
       file,
     });
-    await this.debouncedCompile(uri, true);
+    if (this._lastCompiledUri) {
+      await this.debouncedCompile(this._lastCompiledUri, true);
+    }
   }
 
   async onChangedFile(uri: string) {
@@ -475,7 +477,9 @@ export default class SparkdownTextDocuments {
         uri,
         file,
       });
-      await this.debouncedCompile(uri, true);
+      if (this._lastCompiledUri) {
+        await this.debouncedCompile(this._lastCompiledUri, true);
+      }
     }
   }
 
@@ -484,7 +488,9 @@ export default class SparkdownTextDocuments {
     this._programStates.delete(uri);
     this._documents.remove({ textDocument: { uri } });
     await this.sendCompilerRequest(RemoveCompilerFileMessage.type, { uri });
-    await this.debouncedCompile(uri, true);
+    if (this._lastCompiledUri) {
+      await this.debouncedCompile(this._lastCompiledUri, true);
+    }
   }
 
   async updateCompilerDocument(
