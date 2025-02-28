@@ -4,10 +4,10 @@ import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 
 export const getDocumentDiagnostics = (
   uri: string,
-  program: SparkProgram,
+  program: SparkProgram | undefined,
   version: number | undefined
 ): PublishDiagnosticsParams => {
-  if (program.diagnostics) {
+  if (program?.diagnostics) {
     const diagnostics = program.diagnostics[uri] || [];
     return { uri, diagnostics, version };
   }

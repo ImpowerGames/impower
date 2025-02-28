@@ -322,15 +322,25 @@ export default class SparkdownTextDocuments {
     return newState;
   }
 
-  throttledCompile = throttle((uri: string, force = false) => {
-    this.compile(uri, force);
+  throttledCompile = throttle(async (uri: string, force: boolean) => {
+    return this.compile(uri, force);
   }, THROTTLE_DELAY);
 
-  debouncedCompile = debounce((uri: string, force = false) => {
-    this.compile(uri, force);
+  debouncedCompile = debounce(async (uri: string, force: boolean) => {
+    const program = await this.compile(uri, force);
+    this._connection?.sendDiagnostics(
+      getDocumentDiagnostics(
+        uri,
+        program,
+        this.getProgramState(uri).compiledProgramVersion
+      )
+    );
   }, DEBOUNCE_DELAY);
 
-  async compile(uri: string, force = false): Promise<SparkProgram | undefined> {
+  async compile(
+    uri: string,
+    force: boolean
+  ): Promise<SparkProgram | undefined> {
     profile("start", "server/compile", uri);
     const document = this._documents.get(uri);
     if (!document) {
@@ -390,11 +400,7 @@ export default class SparkdownTextDocuments {
       this._onNextCompiled.delete(uri);
     }
     if (program) {
-      await this.sendProgram(
-        uri,
-        program,
-        this.getProgramState(uri).compilingProgramVersion
-      );
+      await this.sendProgram(uri, program, state.compiledProgramVersion);
     }
     profile("end", "server/compile", uri);
     return program;
@@ -413,18 +419,16 @@ export default class SparkdownTextDocuments {
     program: SparkProgram,
     version: number | undefined
   ) {
-    return Promise.all([
-      this._connection?.sendNotification(DidParseTextDocumentMessage.method, {
+    return this._connection?.sendNotification(
+      DidParseTextDocumentMessage.method,
+      {
         textDocument: {
           uri,
           version,
         },
         program,
-      }),
-      this._connection?.sendDiagnostics(
-        getDocumentDiagnostics(uri, program, version)
-      ),
-    ]);
+      }
+    );
   }
 
   get(uri: string) {
@@ -492,9 +496,9 @@ export default class SparkdownTextDocuments {
       contentChanges,
     });
     // update periodically while user types.
-    this.throttledCompile(textDocument.uri);
+    this.throttledCompile(textDocument.uri, false);
     // ensure final call once user is completely done typing.
-    this.debouncedCompile(textDocument.uri);
+    this.debouncedCompile(textDocument.uri, false);
   }
 
   public listen(connection: Connection): Disposable {
@@ -518,7 +522,7 @@ export default class SparkdownTextDocuments {
         ): Promise<DocumentDiagnosticReport> => {
           const uri = params.textDocument.uri;
           const document = this._documents.get(uri);
-          const program = await this.compile(uri);
+          const program = await this.compile(uri, true);
           if (document && program) {
             return {
               kind: "full",
@@ -557,7 +561,7 @@ export default class SparkdownTextDocuments {
     disposables.push(
       connection.onDidOpenTextDocument((event: DidOpenTextDocumentParams) => {
         const textDocument = event.textDocument;
-        this.debouncedCompile(textDocument.uri);
+        this.debouncedCompile(textDocument.uri, false);
         this._documents.add(event);
       })
     );

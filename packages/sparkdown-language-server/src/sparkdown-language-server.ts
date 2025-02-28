@@ -90,7 +90,7 @@ try {
     });
     const uri = params?.initializationOptions?.["uri"];
     if (uri) {
-      const program = await documents.compile(uri);
+      const program = await documents.compile(uri, true);
       return { capabilities, program };
     }
     return { capabilities };
