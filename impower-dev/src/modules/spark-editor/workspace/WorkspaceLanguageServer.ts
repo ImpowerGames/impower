@@ -187,17 +187,11 @@ export default class WorkspaceLanguageServer {
 
   async start(
     projectPath: string,
-    files: Record<
-      string,
-      {
-        uri: string;
-        name: string;
-        src: string;
-        ext: string;
-        type: string;
-        text?: string;
-      }
-    >
+    files: {
+      uri: string;
+      src: string;
+      text?: string;
+    }[]
   ): Promise<InitializeResult> {
     const uri = Workspace.window.getOpenedDocumentUri();
     const result = await this._connection.sendRequest<InitializeResult>(
@@ -207,11 +201,11 @@ export default class WorkspaceLanguageServer {
         initializationOptions: {
           settings: Workspace.configuration.settings,
           files,
+          uri,
           builtinDefinitions: DEFAULT_BUILTIN_DEFINITIONS,
           optionalDefinitions: DEFAULT_OPTIONAL_DEFINITIONS,
           schemaDefinitions: DEFAULT_SCHEMA_DEFINITIONS,
           descriptionDefinitions: DEFAULT_DESCRIPTION_DEFINITIONS,
-          uri,
         },
         workspaceFolders: [
           {

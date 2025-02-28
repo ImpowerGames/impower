@@ -1,4 +1,5 @@
 import { Animation } from "./Animation";
+import { Font } from "./Font";
 
 export type ElementContent =
   | TextContent
@@ -15,7 +16,7 @@ export interface StyleContent {
 }
 
 export interface FontContent {
-  fonts: Record<string, any>;
+  fonts: Record<string, Font>;
 }
 
 export interface AnimationContent {

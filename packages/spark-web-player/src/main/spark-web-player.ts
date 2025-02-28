@@ -10,6 +10,7 @@ import { StopGameMessage } from "../../../spark-editor-protocol/src/protocols/ga
 import { UnpauseGameMessage } from "../../../spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import { WillExecuteGameCommandMessage } from "../../../spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
+import { ConnectedPreviewMessage } from "../../../spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { Game } from "../../../spark-engine/src/game/core/classes/Game";
 import { DidExecuteMessage } from "../../../spark-engine/src/game/core/classes/messages/DidExecuteMessage";
 import { RuntimeErrorMessage } from "../../../spark-engine/src/game/core/classes/messages/RuntimeErrorMessage";
@@ -54,6 +55,10 @@ export default class SparkWebPlayer extends Component(spec) {
       this.handleDisableGameDebug
     );
     window.addEventListener(LoadPreviewMessage.method, this.handleLoadPreview);
+    this.emit(
+      ConnectedPreviewMessage.method,
+      ConnectedPreviewMessage.type.notification({ type: "game" })
+    );
   }
 
   override onDisconnected() {
@@ -212,111 +217,109 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   buildGame(preview?: { file: string; line: number }): void {
-    if (this._options) {
-      const options = this._options;
-      const waypoints = options.waypoints;
-      const startpoint = options.startpoint;
-      const simulation = {
-        waypoints,
-        startpoint,
-      };
-      if (!this._program || !this._program.compiled) {
-        return;
-      }
-      if (this._game) {
-        this._game.destroy();
-      }
-      this._game = new Game(this._program, {
-        simulation,
-        preview,
-      });
-      this._game.connection.outgoing.addListener(
-        WillExecuteMessage.method,
-        (msg) => {
-          if (WillExecuteMessage.type.isNotification(msg)) {
-            const source = msg.params.source;
-            if (source) {
-              const uri = source.file;
-              if (uri) {
-                this.emit(
-                  WillExecuteGameCommandMessage.method,
-                  WillExecuteGameCommandMessage.type.notification({
-                    textDocument: { uri },
-                    range: {
-                      start: {
-                        line: source.line,
-                        character: 0,
-                      },
-                      end: {
-                        line: source.line + 1,
-                        character: 0,
-                      },
+    const options = this._options;
+    const waypoints = options?.waypoints;
+    const startpoint = options?.startpoint;
+    const simulation = {
+      waypoints,
+      startpoint,
+    };
+    if (!this._program || !this._program.compiled) {
+      return;
+    }
+    if (this._game) {
+      this._game.destroy();
+    }
+    this._game = new Game(this._program, {
+      simulation,
+      preview,
+    });
+    this._game.connection.outgoing.addListener(
+      WillExecuteMessage.method,
+      (msg) => {
+        if (WillExecuteMessage.type.isNotification(msg)) {
+          const source = msg.params.source;
+          if (source) {
+            const uri = source.file;
+            if (uri) {
+              this.emit(
+                WillExecuteGameCommandMessage.method,
+                WillExecuteGameCommandMessage.type.notification({
+                  textDocument: { uri },
+                  range: {
+                    start: {
+                      line: source.line,
+                      character: 0,
                     },
-                  })
-                );
-              }
-            }
-          }
-        }
-      );
-      this._game.connection.outgoing.addListener(
-        DidExecuteMessage.method,
-        (msg) => {
-          if (DidExecuteMessage.type.isNotification(msg)) {
-            const source = msg.params.source;
-            if (source) {
-              const uri = source.file;
-              if (uri) {
-                this.emit(
-                  DidExecuteGameCommandMessage.method,
-                  DidExecuteGameCommandMessage.type.notification({
-                    textDocument: { uri },
-                    range: {
-                      start: {
-                        line: source.line,
-                        character: 0,
-                      },
-                      end: {
-                        line: source.line + 1,
-                        character: 0,
-                      },
+                    end: {
+                      line: source.line + 1,
+                      character: 0,
                     },
-                  })
-                );
-              }
+                  },
+                })
+              );
             }
           }
         }
-      );
-      this._game.connection.outgoing.addListener(
-        RuntimeErrorMessage.method,
-        (msg) => {
-          if (RuntimeErrorMessage.type.isNotification(msg)) {
-            const type = msg.params.type;
-            const message = msg.params.message;
-            const source = msg.params.source;
-            // TODO: Display message in on-screen debug console
-            if (type === ErrorType.Error) {
-              console.error(message, source);
-            } else if (type === ErrorType.Warning) {
-              console.warn(message, source);
-            } else {
-              console.log(message, source);
-            }
-          }
-        }
-      );
-      if (this._game) {
-        if (this._app) {
-          this._app.destroy(true);
-          this._app = undefined;
-        }
-        this._app = new Application(
-          this._game,
-          this.ref.gameView,
-          this.ref.gameOverlay
-        );
       }
+    );
+    this._game.connection.outgoing.addListener(
+      DidExecuteMessage.method,
+      (msg) => {
+        if (DidExecuteMessage.type.isNotification(msg)) {
+          const source = msg.params.source;
+          if (source) {
+            const uri = source.file;
+            if (uri) {
+              this.emit(
+                DidExecuteGameCommandMessage.method,
+                DidExecuteGameCommandMessage.type.notification({
+                  textDocument: { uri },
+                  range: {
+                    start: {
+                      line: source.line,
+                      character: 0,
+                    },
+                    end: {
+                      line: source.line + 1,
+                      character: 0,
+                    },
+                  },
+                })
+              );
+            }
+          }
+        }
+      }
+    );
+    this._game.connection.outgoing.addListener(
+      RuntimeErrorMessage.method,
+      (msg) => {
+        if (RuntimeErrorMessage.type.isNotification(msg)) {
+          const type = msg.params.type;
+          const message = msg.params.message;
+          const source = msg.params.source;
+          // TODO: Display message in on-screen debug console
+          if (type === ErrorType.Error) {
+            console.error(message, source);
+          } else if (type === ErrorType.Warning) {
+            console.warn(message, source);
+          } else {
+            console.log(message, source);
+          }
+        }
+      }
+    );
+    if (this._game) {
+      if (this._app) {
+        this._app.destroy(true);
+        this._app = undefined;
+      }
+      this._app = new Application(
+        this._game,
+        this.ref.gameView,
+        this.ref.gameOverlay
+      );
     }
     return undefined;
   }

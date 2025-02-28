@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { fileSystemWatcherState } from "../state/fileSystemWatcherState";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
-import { updateAssets } from "./updateAssets";
 import { watchFiles } from "./watchFiles";
 
 export const activateFileWatcher = async (
@@ -12,7 +11,6 @@ export const activateFileWatcher = async (
   const editor = getEditor(uri);
   if (editor) {
     watchFiles(context, editor.document);
-    await updateAssets(editor.document);
   }
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((change) => {
@@ -29,17 +27,11 @@ export const activateFileWatcher = async (
     vscode.window.onDidChangeActiveTextEditor(async (editor) => {
       if (editor?.document?.languageId === "sparkdown") {
         watchFiles(context, editor.document);
-        await updateAssets(editor.document);
       }
     })
   );
   context.subscriptions.push(
     vscode.workspace.onDidCloseTextDocument((doc) => {
-      if (fileSystemWatcherState[doc.uri.toString()]?.assetFilesWatcher) {
-        fileSystemWatcherState[
-          doc.uri.toString()
-        ]?.assetFilesWatcher?.dispose();
-      }
       delete fileSystemWatcherState[doc.uri.toString()];
     })
   );

@@ -174,7 +174,7 @@ export class Game<T extends M = {}> {
     return null;
   }
 
-  getClosestPath(file: string | undefined, line: number) {
+  getClosestPath(file: string | undefined, line: number | undefined) {
     if (file == null) {
       return "0";
     }

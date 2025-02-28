@@ -1,13 +1,8 @@
 import * as vscode from "vscode";
-import {
-  ASSET_FILE_EXTENSIONS,
-  EXPORTABLE_FILE_EXTENSIONS,
-} from "../constants/FILE_EXTENSIONS";
+import { EXPORTABLE_FILE_EXTENSIONS } from "../constants/FILE_EXTENSIONS";
 import { fileSystemWatcherState } from "../state/fileSystemWatcherState";
 import { getWorkspaceRelativePath } from "./getWorkspaceRelativePath";
-import { updateAssets } from "./updateAssets";
 import { updateCommands } from "./updateCommands";
-import { updateGamePreviews } from "./updateGamePreviews";
 
 export const watchFiles = (
   context: vscode.ExtensionContext,
@@ -19,28 +14,6 @@ export const watchFiles = (
     outputFilesWatcher: undefined,
   };
   fileSystemWatcherState[uri.toString()] = state;
-  if (!state.assetFilesWatcher) {
-    const relativePath = getWorkspaceRelativePath(uri, ASSET_FILE_EXTENSIONS);
-    if (relativePath) {
-      state.assetFilesWatcher =
-        vscode.workspace.createFileSystemWatcher(relativePath);
-      state.assetFilesWatcher.onDidChange(async () => {
-        await updateAssets(doc);
-        // TODO: Notify Language Server of asset URL change
-        updateGamePreviews(doc);
-      });
-      state.assetFilesWatcher.onDidCreate(async () => {
-        await updateAssets(doc);
-        // TODO: Notify Language Server of asset URL change
-        updateGamePreviews(doc);
-      });
-      state.assetFilesWatcher.onDidDelete(async () => {
-        await updateAssets(doc);
-        // TODO: Notify Language Server of asset URL change
-        updateGamePreviews(doc);
-      });
-    }
-  }
   if (!state.outputFilesWatcher) {
     const relativePath = getWorkspaceRelativePath(
       uri,

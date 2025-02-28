@@ -8,7 +8,9 @@ import { activateFileWatcher } from "./utils/activateFileWatcher";
 import { activateLanguageClient } from "./utils/activateLanguageClient";
 import { activateNewlineHelper } from "./utils/activateNewlineHelper";
 import { activatePreviewScreenplayPanel } from "./utils/activatePreviewScreenplayPanel";
+import { activatePreviewGamePanel } from "./utils/activatePreviewGamePanel";
 
+// Called when extension is activated
 export const activate = async (
   context: vscode.ExtensionContext
 ): Promise<void> => {
@@ -17,20 +19,18 @@ export const activate = async (
   activateCheatSheetView(context);
   activateDurationStatus(context);
   activatePreviewScreenplayPanel(context);
+  activatePreviewGamePanel(context);
   // TODO:
-  // activateGamePreviewPanel(context);
   // activateStatisticsPanel(context);
   activateFileWatcher(context);
   activateLanguageClient(context);
   activateNewlineHelper(context);
 };
 
-// this method is called when your extension is deactivated
+// Called when extension is deactivated
 export function deactivate() {
+  console.log("Sparkdown Deactivated");
   Object.values(fileSystemWatcherState).forEach((v) => {
-    if (v.assetFilesWatcher) {
-      v.assetFilesWatcher.dispose();
-    }
     if (v.scriptFilesWatcher) {
       v.scriptFilesWatcher.dispose();
     }

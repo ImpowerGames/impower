@@ -20,16 +20,19 @@ const screenplayPreviewWebviewConfig = {
   target: "es2020",
   platform: "browser",
   format: "esm",
-  entryPoints: ["./game-preview.ts"],
-  outfile: "../../out/webviews/game-preview.js",
+  entryPoints: ["./screenplay-webview.ts"],
+  outfile: "../../out/webviews/screenplay-webview.js",
+  alias: {
+    "@lezer/common": "@lezer/common",
+  },
 };
 
 // Build script
 (async () => {
   try {
-    console.log("build started: game-preview");
+    console.log("build started: screenplay-webview");
     await build(screenplayPreviewWebviewConfig);
-    console.log("build finished: game-preview");
+    console.log("build finished: screenplay-webview");
   } catch (err) {
     console.err(err);
     process.stderr.write(err.stderr);

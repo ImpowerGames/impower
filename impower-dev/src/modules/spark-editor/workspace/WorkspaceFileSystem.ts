@@ -117,7 +117,10 @@ export default class WorkspaceFileSystem {
         return undefined;
       }
     );
-    await Workspace.ls.start(this.getDirectoryUri(projectId), this._files);
+    await Workspace.ls.start(
+      this.getDirectoryUri(projectId),
+      Object.values(this._files)
+    );
     return result;
   }
 

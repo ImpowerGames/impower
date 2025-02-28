@@ -15,20 +15,13 @@ import Scene from "../Scene";
 import { getEventData } from "../utils/getEventData";
 
 export default class UIScene extends Scene {
-  protected _headRoots: HTMLElement[] = [];
-
   protected _overlayRoots: HTMLElement[] = [];
 
   protected _breakpoints: Record<string, number> = {};
 
   protected _listeners: Record<string, (event: Event) => void> = {};
 
-  protected get head() {
-    return document.documentElement.getElementsByTagName("head")?.[0];
-  }
-
   override onDispose(): Disposable[] {
-    this._headRoots.forEach((el) => el.remove());
     this._overlayRoots.forEach((el) => el.remove());
     this._listeners = {};
     return super.onDispose();
@@ -38,10 +31,7 @@ export default class UIScene extends Scene {
     if (!id) {
       return this.overlay;
     }
-    return (
-      (this.overlay?.querySelector(`#${id}`) as HTMLElement) ||
-      (this.head?.querySelector(`#${id}`) as HTMLElement)
-    );
+    return this.overlay?.querySelector(`#${id}`) as HTMLElement;
   }
 
   override async onReceiveRequest(msg: RequestMessage) {
@@ -80,15 +70,32 @@ export default class UIScene extends Scene {
           }
         });
       }
-      const isHeadElement = params.content && "fonts" in params.content;
-      const parent = isHeadElement ? this.head : this.getElement(params.parent);
-      if (parent) {
-        const appendedEl = parent.appendChild(el);
-        if (parent === this.head) {
-          this._headRoots.push(appendedEl);
+      if (params.content && "fonts" in params.content) {
+        for (const [, font] of Object.entries(params.content.fonts)) {
+          try {
+            const fontFace = new FontFace(
+              font.font_family,
+              `url(${font.src})`,
+              {
+                style: font.font_style || undefined,
+                weight: font.font_weight || undefined,
+                stretch: font.font_stretch || undefined,
+                display: (font.font_display as FontDisplay) || undefined,
+              }
+            );
+            document.fonts.add(fontFace);
+            await fontFace.load();
+          } catch (e) {
+            console.error(e);
+          }
         }
-        if (parent === this.overlay) {
-          this._overlayRoots.push(appendedEl);
+      } else {
+        const parent = this.getElement(params.parent);
+        if (parent) {
+          const appendedEl = parent.appendChild(el);
+          if (parent === this.overlay) {
+            this._overlayRoots.push(appendedEl);
+          }
         }
       }
       return CreateElementMessage.type.result(params.element);

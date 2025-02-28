@@ -82,7 +82,7 @@ export class SparkdownCompiler {
     }
     if (config.files && config.files !== this._config.files) {
       this._config.files = config.files;
-      for (const file of Object.values(config.files)) {
+      for (const file of config.files) {
         this.addFile({ file });
       }
     }
@@ -172,6 +172,7 @@ export class SparkdownCompiler {
     }
     const doc = this.documents.get(uri);
     if (!doc) {
+      console.error("Could not find document: ", uri);
       return "";
     }
     profile("start", "splitIntoLines", uri);
@@ -274,7 +275,8 @@ export class SparkdownCompiler {
     );
     const file = this.files.get(uri);
     if (file) {
-      const rootFilename = file.name + "." + file.ext || "main.sd";
+      const rootFilename =
+        (uri.includes("/") ? uri.split("/").at(-1) : uri) || "main.sd";
       const inkCompiler = new InkCompiler(`include ${rootFilename}`, options);
       try {
         profile("start", "ink/compile", uri);
@@ -291,6 +293,9 @@ export class SparkdownCompiler {
         compiledObj.uuidToSource = uuidToSource;
         program.compiled = compiledObj;
         program.scripts = Object.keys(state.transpiledScripts || {});
+        if (program.scripts.length === 0) {
+          program.scripts = [uri];
+        }
         this.populateDiagnostics(state, program, inkCompiler);
         this.populateBuiltins(program);
         this.populateAssets(program);

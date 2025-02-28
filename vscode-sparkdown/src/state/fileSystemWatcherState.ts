@@ -1,10 +1,8 @@
 import * as vscode from "vscode";
 
-export const fileSystemWatcherState: Record<
-  string,
-  {
-    assetFilesWatcher?: vscode.FileSystemWatcher;
+export const fileSystemWatcherState: {
+  [documentUri: string]: {
     scriptFilesWatcher?: vscode.FileSystemWatcher;
     outputFilesWatcher?: vscode.FileSystemWatcher;
-  }
-> = {};
+  };
+} = {};

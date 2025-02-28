@@ -1,7 +1,5 @@
 import { File } from "./File";
 
-export type URI = string;
-
 export interface SparkdownCompilerConfig {
   builtinDefinitions?: {
     [type: string]: {
@@ -23,5 +21,5 @@ export interface SparkdownCompilerConfig {
       [name: string]: any;
     };
   };
-  files?: Record<URI, File>;
+  files?: File[];
 }

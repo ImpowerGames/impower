@@ -366,6 +366,11 @@
             "type": "string",
             "default": "*.{mid,wav,mp3,mp2,ogg,aac,opus,flac}",
             "description": "Recognized filename patterns for audio files"
+          },
+          "sparkdown.fontFiles": {
+            "type": "string",
+            "default": "*.{ttf,woff,woff2,otf}",
+            "description": "Recognized filename patterns for font files"
           }
         }
       },
@@ -503,13 +508,16 @@
     "build:lsp": "cd ../packages/sparkdown-language-server && npm run build && cd ../../vscode-sparkdown",
     "install:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm ci && cd ../../vscode-sparkdown",
     "build:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm run build && cd ../../vscode-sparkdown",
-    "install:screenplay": "cd ./webviews/screenplay-preview && npm ci && cd ../../",
-    "build:screenplay": "cd ./webviews/screenplay-preview && npm run build && cd ../../",
-    "package:screenplay": "cd ./webviews/screenplay-preview && npm run package && cd ../../",
-    "preinstall": "npm run install:lsp && npm run install:screenplay-pdf && npm run install:screenplay",
+    "install:screenplay": "cd ./webviews/screenplay-webview && npm ci && cd ../../",
+    "build:screenplay": "cd ./webviews/screenplay-webview && npm run build && cd ../../",
+    "package:screenplay": "cd ./webviews/screenplay-webview && npm run package && cd ../../",
+    "install:game": "cd ./webviews/game-webview && npm ci && cd ../../",
+    "build:game": "cd ./webviews/game-webview && npm run build && cd ../../",
+    "package:game": "cd ./webviews/game-webview && npm run package && cd ../../",
+    "preinstall": "npm run install:lsp && npm run install:screenplay-pdf && npm run install:screenplay && npm run install:game",
     "compile": "webpack",
-    "build": "npm run build:lsp && npm run build:screenplay-pdf && npm run build:screenplay && npm run compile",
-    "package": "npm run package:screenplay && webpack --mode production --devtool hidden-source-map",
+    "build": "npm run build:lsp && npm run build:screenplay-pdf && npm run build:screenplay && npm run build:game && npm run compile",
+    "package": "npm run package:screenplay && npm run package:game && webpack --mode production --devtool hidden-source-map",
     "pretest": "npm run build",
     "browser": "npm run build && vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
     "vscode:prepublish": "npm run package",

@@ -12,23 +12,32 @@ import { SparkdownStatusBarManager } from "../providers/SparkdownStatusBarManage
 import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
 import { getEditor } from "./getEditor";
 import { ExecuteCommandRequest } from "vscode-languageclient";
+import { SparkdownPreviewGamePanelManager } from "../providers/SparkdownPreviewGamePanelManager";
 
 export const activateLanguageClient = async (
   context: vscode.ExtensionContext
 ): Promise<void> => {
   const sparkdownConfig = vscode.workspace.getConfiguration("sparkdown");
+  const editor = getEditor();
   const scriptFiles = sparkdownConfig["scriptFiles"];
   const imageFiles = sparkdownConfig["imageFiles"];
   const audioFiles = sparkdownConfig["audioFiles"];
-  const workspaceFilePatterns = [scriptFiles, imageFiles, audioFiles].map(
-    (pattern) => "**/" + pattern
-  );
+  const fontFiles = sparkdownConfig["fontFiles"];
+  const workspaceFilePatterns = [
+    scriptFiles,
+    imageFiles,
+    audioFiles,
+    fontFiles,
+  ].map((pattern) => "**/" + pattern);
   const fileWatchers = workspaceFilePatterns.map((pattern) =>
     vscode.workspace.createFileSystemWatcher(pattern)
   );
-  const [scriptFileUris, imageFileUris, audioFileUris] = await Promise.all(
-    workspaceFilePatterns.map((pattern) => vscode.workspace.findFiles(pattern))
-  );
+  const [scriptFileUris, imageFileUris, audioFileUris, fontFileUrls] =
+    await Promise.all(
+      workspaceFilePatterns.map((pattern) =>
+        vscode.workspace.findFiles(pattern)
+      )
+    );
   const files = await Promise.all([
     ...(scriptFileUris || []).map(async (fileUri) => {
       const uri = fileUri.toString();
@@ -51,6 +60,10 @@ export const activateLanguageClient = async (
       const uri = fileUri.toString();
       return { uri };
     }),
+    ...(fontFileUrls || []).map(async (fileUri) => {
+      const uri = fileUri.toString();
+      return { uri };
+    }),
   ]);
   const client = await createSparkdownLanguageClient(context, {
     documentSelector: [{ language: "sparkdown" }],
@@ -62,8 +75,9 @@ export const activateLanguageClient = async (
       supportHtml: true,
     },
     initializationOptions: {
-      settings: { scriptFiles, imageFiles, audioFiles },
+      settings: { scriptFiles, imageFiles, audioFiles, fontFiles },
       files,
+      uri: editor?.document?.uri.toString(),
       builtinDefinitions: DEFAULT_BUILTIN_DEFINITIONS,
       optionalDefinitions: DEFAULT_OPTIONAL_DEFINITIONS,
       schemaDefinitions: DEFAULT_SCHEMA_DEFINITIONS,
@@ -106,8 +120,10 @@ const onParse = (
   const textDocument = params.textDocument;
   const editor = getEditor(textDocument.uri);
   const document = editor?.document;
+  console.log("PARSED PROGRAM", program);
   if (document) {
     SparkProgramManager.instance.update(document.uri, program);
+    SparkdownPreviewGamePanelManager.instance.loadDocument(document);
     // TODO:
     // SparkdownStatusBarManager.instance.updateStatusBarItem(
     //   program?.metadata?.actionDuration ?? 0,

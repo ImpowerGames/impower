@@ -176,12 +176,15 @@ export default class SparkdownTextDocuments {
 
   async loadCompiler(config: SparkdownCompilerConfig) {
     if (config.files) {
-      for (const uri of Object.keys(config.files)) {
-        this._watchedFileUris.add(uri);
-        if (this.getFileType(uri) === "script") {
+      for (const file of config.files) {
+        this._watchedFileUris.add(file.uri);
+        file.name = this.getFileName(file.uri);
+        file.ext = this.getFileExtension(file.uri);
+        file.type = this.getFileType(file.uri);
+        if (file.type === "script") {
           this._documents.add({
             textDocument: {
-              uri,
+              uri: file.uri,
               languageId: "sparkdown",
               version: -1,
               text: "",

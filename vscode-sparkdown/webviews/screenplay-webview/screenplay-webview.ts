@@ -94,7 +94,9 @@ window.addEventListener("message", (e: MessageEvent) => {
   if (LoadPreviewMessage.type.isRequest(message)) {
     if (message.params.type === "screenplay") {
       loadingRequest = message.id;
-      vscode.setState({ textDocument: message.params.textDocument });
+      vscode.setState({
+        textDocument: { uri: message.params.textDocument.uri },
+      });
     }
   }
   // Forward MessageEvents from vscode extension to web components as CustomEvents

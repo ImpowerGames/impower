@@ -1,11 +1,13 @@
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
-import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
+import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
+import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
+import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import * as vscode from "vscode";
@@ -17,12 +19,13 @@ import { getServerRange } from "../utils/getServerRange";
 import { getSparkdownPreviewConfig } from "../utils/getSparkdownPreviewConfig";
 import { getUri } from "../utils/getUri";
 import { getWebviewUri } from "../utils/getWebviewUri";
+import { SparkProgramManager } from "./SparkProgramManager";
 
-export class SparkdownPreviewScreenplayPanelManager {
-  private static _instance: SparkdownPreviewScreenplayPanelManager;
-  static get instance(): SparkdownPreviewScreenplayPanelManager {
+export class SparkdownPreviewGamePanelManager {
+  private static _instance: SparkdownPreviewGamePanelManager;
+  static get instance(): SparkdownPreviewGamePanelManager {
     if (!this._instance) {
-      this._instance = new SparkdownPreviewScreenplayPanelManager();
+      this._instance = new SparkdownPreviewGamePanelManager();
     }
     return this._instance;
   }
@@ -47,9 +50,9 @@ export class SparkdownPreviewScreenplayPanelManager {
     return this._connected;
   }
 
-  protected _viewType = "sparkdown-preview-screenplay";
+  protected _viewType = "sparkdown-preview-game";
 
-  protected _panelTitle = "Screenplay Preview";
+  protected _panelTitle = "Game Preview";
 
   protected _viewColumn = ViewColumn.Two;
 
@@ -58,7 +61,7 @@ export class SparkdownPreviewScreenplayPanelManager {
   showPanel(extensionUri: Uri, document: vscode.TextDocument) {
     if (document.languageId !== "sparkdown") {
       vscode.window.showErrorMessage(
-        `You can only preview Sparkdown documents as a Screenplay!`
+        `You can only preview Sparkdown documents as a Game!`
       );
       return undefined;
     }
@@ -75,9 +78,10 @@ export class SparkdownPreviewScreenplayPanelManager {
     const panelTitle = this._panelTitle;
     const viewColumn = this._viewColumn;
     const panel = window.createWebviewPanel(viewType, panelTitle, viewColumn, {
-      enableScripts: true,
       retainContextWhenHidden: true,
-      localResourceRoots: [Uri.joinPath(extensionUri, "out")],
+      enableScripts: true,
+      enableCommandUris: true,
+      enableFindWidget: true,
     });
     this.initializePanel(extensionUri, document, panel);
   }
@@ -93,10 +97,9 @@ export class SparkdownPreviewScreenplayPanelManager {
       light: vscode.Uri.joinPath(extensionUri, "icon-lang.png"),
       dark: vscode.Uri.joinPath(extensionUri, "icon-lang.png"),
     };
-
     panel.webview.onDidReceiveMessage(async (message) => {
       if (ConnectedPreviewMessage.type.isNotification(message)) {
-        if (message.params.type === "screenplay") {
+        if (message.params.type === "game") {
           this._connected = true;
           if (this._document) {
             this.loadDocument(this._document);
@@ -104,22 +107,21 @@ export class SparkdownPreviewScreenplayPanelManager {
         }
       }
       if (HoveredOnPreviewMessage.type.isNotification(message)) {
-        if (message.params.type === "screenplay") {
+        if (message.params.type === "game") {
           this._hovering = true;
         }
       }
       if (HoveredOffPreviewMessage.type.isNotification(message)) {
-        if (message.params.type === "screenplay") {
+        if (message.params.type === "game") {
           this._hovering = false;
         }
       }
       if (ScrolledPreviewMessage.type.isNotification(message)) {
-        if (message.params.type === "screenplay") {
+        if (message.params.type === "game") {
           const documentUri = getUri(message.params.textDocument.uri);
           const range = getClientRange(message.params.visibleRange);
           const cfg = getSparkdownPreviewConfig(documentUri);
-          const syncedWithCursor =
-            cfg.screenplay_preview_synchronized_with_cursor;
+          const syncedWithCursor = cfg.game_preview_synchronized_with_cursor;
           if (syncedWithCursor) {
             const editor = getEditor(documentUri);
             if (editor) {
@@ -129,7 +131,7 @@ export class SparkdownPreviewScreenplayPanelManager {
         }
       }
       if (SelectedPreviewMessage.type.isNotification(message)) {
-        if (message.params.type === "screenplay") {
+        if (message.params.type === "game") {
           if (message.params.userEvent && !message.params.docChanged) {
             const documentUri = getUri(message.params.textDocument.uri);
             const range = getClientRange(message.params.selectedRange);
@@ -162,25 +164,57 @@ export class SparkdownPreviewScreenplayPanelManager {
   }
 
   loadDocument(document: vscode.TextDocument) {
-    this._document = document;
-    const editor = getEditor(this._document.uri);
-    const visibleRange = editor?.visibleRanges[0];
-    const selectedRange = editor?.selection;
-    this.panel?.webview.postMessage(
-      LoadPreviewMessage.type.request({
-        type: "screenplay",
-        textDocument: {
-          uri: document.uri.toString(),
-          languageId: document.languageId,
-          version: document.version,
-          text: document.getText(),
-        },
-        visibleRange: visibleRange ? getServerRange(visibleRange) : undefined,
-        selectedRange: selectedRange
-          ? getServerRange(selectedRange)
-          : undefined,
-      })
-    );
+    if (this._panel) {
+      this._document = document;
+      const editor = getEditor(document.uri);
+      const visibleRange = editor?.visibleRanges[0];
+      const selectedRange = editor?.selection;
+      const program = SparkProgramManager.instance.get(document.uri);
+      if (program) {
+        if (program.context) {
+          for (const [, structs] of Object.entries(program.context)) {
+            for (const [, struct] of Object.entries(structs)) {
+              if (struct.uri && !struct.src) {
+                const uri = vscode.Uri.parse(struct.uri);
+                struct.src = this._panel?.webview.asWebviewUri(uri).toString();
+              }
+            }
+          }
+        }
+        this._panel.webview.postMessage(
+          ConfigureGameMessage.type.request({
+            settings: {
+              startpoint: {
+                file: document.uri.toString(),
+                line: selectedRange?.start.line ?? 0,
+              },
+            },
+          })
+        );
+        this._panel.webview.postMessage(
+          LoadGameMessage.type.request({
+            program,
+          })
+        );
+        this._panel.webview.postMessage(
+          LoadPreviewMessage.type.request({
+            type: "game",
+            textDocument: {
+              uri: document.uri.toString(),
+              languageId: document.languageId,
+              version: document.version,
+              text: document.getText(),
+            },
+            visibleRange: visibleRange
+              ? getServerRange(visibleRange)
+              : undefined,
+            selectedRange: selectedRange
+              ? getServerRange(selectedRange)
+              : undefined,
+          })
+        );
+      }
+    }
   }
 
   notifyChangedActiveEditor(editor: vscode.TextEditor) {
@@ -233,7 +267,7 @@ export class SparkdownPreviewScreenplayPanelManager {
 
   notifySelectedEditor(
     document: vscode.TextDocument,
-    range: vscode.Range,
+    selectedRange: vscode.Range,
     userEvent: boolean
   ) {
     if (document.uri.toString() === this._document?.uri.toString()) {
@@ -241,9 +275,31 @@ export class SparkdownPreviewScreenplayPanelManager {
         this._panel.webview.postMessage(
           SelectedEditorMessage.type.notification({
             textDocument: { uri: document.uri.toString() },
-            selectedRange: getServerRange(range),
+            selectedRange: getServerRange(selectedRange),
             userEvent,
             docChanged: this._selectedVersion !== document.version,
+          })
+        );
+        this._panel.webview.postMessage(
+          ConfigureGameMessage.type.request({
+            settings: {
+              startpoint: {
+                file: document.uri.toString(),
+                line: selectedRange?.start.line ?? 0,
+              },
+            },
+          })
+        );
+        this._panel.webview.postMessage(
+          LoadPreviewMessage.type.request({
+            type: "game",
+            textDocument: {
+              uri: document.uri.toString(),
+              languageId: document.languageId,
+              version: document.version,
+              text: document.getText(),
+            },
+            selectedRange: getServerRange(selectedRange),
           })
         );
       }
@@ -269,7 +325,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     const jsMainUri = getWebviewUri(webview, extensionUri, [
       "out",
       "webviews",
-      "screenplay-webview.js",
+      "game-webview.js",
     ]);
     const fontFamilyMono = "Courier Prime";
     const fontFormatMono = "truetype";
@@ -302,7 +358,7 @@ export class SparkdownPreviewScreenplayPanelManager {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; media-src ${webview.cspSource}; img-src ${webview.cspSource} https: data: ; script-src 'nonce-${scriptNonce}';">
-          <title>Spark Screenplay</title>
+          <title>Spark Game</title>
           <style nonce="${styleNonce}">
             @font-face {
               font-family: "${fontFamilyMono}";
@@ -357,7 +413,7 @@ export class SparkdownPreviewScreenplayPanelManager {
           </style>
         </head>
         <body>
-          <sparkdown-screenplay-preview></sparkdown-screenplay-preview>
+          <spark-web-player></spark-web-player>
           <script type="module" nonce="${scriptNonce}" src="${jsMainUri}"></script>
         </body>
       </html>
