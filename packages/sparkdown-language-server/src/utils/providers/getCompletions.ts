@@ -21,6 +21,7 @@ import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTr
 import { getParentPropertyPath } from "../syntax/getParentPropertyPath";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
 import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
+import { getDescendentsInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentsInsideParent";
 import { getOtherMatchesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getOtherMatchesInsideParent";
 import { getOtherNodesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getOtherNodesInsideParent";
 
@@ -425,9 +426,9 @@ const addStructReferenceCompletions = (
               type === "filtered_image"
                 ? struct?.filtered_src
                 : type === "layered_image"
-                ? struct?.assets?.[0]?.src
+                ? struct?.assets?.[0]?.src || struct?.assets?.[0]?.uri
                 : type === "image"
-                ? struct?.src
+                ? struct?.src || struct?.uri
                 : undefined;
             if (src) {
               completion.documentation = {
@@ -523,9 +524,12 @@ const getTypeKind = (v: unknown): CompletionItemKind | undefined => {
 const addStructPropertyNameContextCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
+  config: SparkdownCompilerConfig | undefined,
   typeStruct: any,
   modifier: string,
   path: string,
+  valueAssignmentSeparator: " = " | ": ",
+  includeTypeAsDetail: boolean,
   lineText: string,
   cursorPosition: Position,
   exclude?: string[]
@@ -543,7 +547,7 @@ const addStructPropertyNameContextCompletions = (
     traverse(typeStruct, (p: string) => {
       if (p.startsWith(pathPrefix)) {
         const [propName] = p.slice(pathPrefix.length).split(".");
-        const optionValue = getProperty(typeStruct, pathPrefix + propName);
+        const optionValue = getProperty(typeStruct, p);
         const description = getTypeDescription(optionValue);
         if (propName && Number.isNaN(Number(propName))) {
           if (!propName.startsWith("$") && !exclude?.includes(propName)) {
@@ -561,11 +565,10 @@ const addStructPropertyNameContextCompletions = (
                 ? `:\n${indent}${arrayItemDash}`
                 : isMap || modifier === "description"
                 ? `:\n${indent}`
-                : " = ";
+                : valueAssignmentSeparator;
               const completion: CompletionItem = {
                 label: propName,
                 insertText: propName + insertSuffix,
-                labelDetails: { description },
                 kind: CompletionItemKind.Property,
                 insertTextMode: InsertTextMode.asIs,
                 command: Command.create(
@@ -573,6 +576,28 @@ const addStructPropertyNameContextCompletions = (
                   "editor.action.triggerSuggest"
                 ),
               };
+              if (includeTypeAsDetail) {
+                completion.labelDetails = { description };
+              }
+              const documentationValue =
+                getProperty<Record<string, string>>(
+                  program?.context?.[typeStruct.$type]?.[
+                    `$description:${name}`
+                  ],
+                  p
+                )?.[""] ||
+                getProperty<Record<string, string>>(
+                  config?.descriptionDefinitions?.[typeStruct.$type]?.[
+                    "$description"
+                  ],
+                  p
+                )?.[""];
+              if (documentationValue) {
+                completion.documentation = {
+                  kind: MarkupKind.Markdown,
+                  value: documentationValue,
+                };
+              }
               if (completion.label && !completions.has(completion.label)) {
                 completions.set(completion.label, completion);
               }
@@ -592,6 +617,8 @@ const addStructPropertyNameCompletions = (
   type: string,
   name: string,
   path: string,
+  valueAssignmentSeparator: " = " | ": ",
+  includeTypeAsDetail: boolean,
   lineText: string,
   cursorPosition: Position,
   exclude: string[]
@@ -600,9 +627,12 @@ const addStructPropertyNameCompletions = (
     addStructPropertyNameContextCompletions(
       completions,
       program,
+      config,
       program?.context?.[type]?.["$default"],
       modifier,
       path,
+      valueAssignmentSeparator,
+      includeTypeAsDetail,
       lineText,
       cursorPosition,
       exclude
@@ -610,9 +640,12 @@ const addStructPropertyNameCompletions = (
     addStructPropertyNameContextCompletions(
       completions,
       program,
+      config,
       program?.context?.[type]?.[`$optional:${name}`],
       modifier,
       path,
+      valueAssignmentSeparator,
+      includeTypeAsDetail,
       lineText,
       cursorPosition,
       exclude
@@ -620,9 +653,12 @@ const addStructPropertyNameCompletions = (
     addStructPropertyNameContextCompletions(
       completions,
       program,
+      config,
       program?.context?.[type]?.["$optional"],
       modifier,
       path,
+      valueAssignmentSeparator,
+      includeTypeAsDetail,
       lineText,
       cursorPosition,
       exclude
@@ -630,9 +666,12 @@ const addStructPropertyNameCompletions = (
     addStructPropertyNameContextCompletions(
       completions,
       program,
+      config,
       config?.optionalDefinitions?.[type]?.["$optional"],
       modifier,
       path,
+      valueAssignmentSeparator,
+      includeTypeAsDetail,
       lineText,
       cursorPosition,
       exclude
@@ -1015,8 +1054,12 @@ export const getCompletions = (
 
   const completions: Map<string, CompletionItem> = new Map();
 
-  const stack = getStack<SparkdownNodeName>(tree, document.offsetAt(position));
-  if (!stack[0]) {
+  const leftStack = getStack<SparkdownNodeName>(
+    tree,
+    document.offsetAt(position),
+    -1
+  );
+  if (!leftStack[0]) {
     return null;
   }
 
@@ -1056,20 +1099,83 @@ export const getCompletions = (
   };
 
   const side = -1;
-  const prevCursor = tree.cursorAt(stack[0].from - 1, side);
+  const prevCursor = tree.cursorAt(leftStack[0].from - 1, side);
   const prevNode = prevCursor.node as GrammarSyntaxNode<SparkdownNodeName>;
   const prevText = getNodeText(prevNode);
 
-  // console.log(printTree(tree, document.getText()));
   // console.log("program", program);
-  // console.log(stack.map((n) => n.type.name));
+  // console.log(printTree(tree, document.getText()));
+  // console.log(
+  //   "left",
+  //   leftStack.map((n) => n.type.name)
+  // );
+
+  // FrontMatter
+  if (
+    leftStack.some((n) => n.name === "FrontMatter") &&
+    leftStack[0]?.name === "Newline"
+  ) {
+    const rightStack = getStack<SparkdownNodeName>(
+      tree,
+      document.offsetAt(position),
+      1
+    );
+    if (rightStack[0]?.name === "Newline") {
+      // left and right side of the cursor has a Newline,
+      // so this is a completely blank line.
+      const lineText = getLineText(document, position);
+      const exclude = getDescendentsInsideParent(
+        "FrontMatterFieldKeyword",
+        "FrontMatter",
+        leftStack
+      ).map((n) => getNodeText(n));
+      addStructPropertyNameCompletions(
+        completions,
+        program,
+        config,
+        "",
+        "metadata",
+        "",
+        "",
+        ": ",
+        false,
+        lineText,
+        position,
+        exclude
+      );
+      return buildCompletions();
+    }
+  }
+  if (leftStack[0]?.type.name === "FrontMatterFieldKeyword") {
+    const lineText = getLineText(document, position);
+    const exclude = getOtherNodesInsideParent(
+      "FrontMatterField",
+      "FrontMatter",
+      leftStack
+    ).map((n) => getNodeText(getDescendent("FrontMatterFieldKeyword", n)));
+    addStructPropertyNameCompletions(
+      completions,
+      program,
+      config,
+      "",
+      "metadata",
+      "",
+      "",
+      ": ",
+      false,
+      lineText,
+      position,
+      exclude
+    );
+    return buildCompletions();
+  }
 
   // Transition
-  if (stack[0]?.type.name === "TransitionMark") {
+  if (leftStack[0]?.type.name === "TransitionMark") {
     const contentNode = getDescendentInsideParent(
       "Transition_content",
       "Transition_begin",
-      stack
+      leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
       addTransitionCompletions(
@@ -1084,13 +1190,13 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    stack[0]?.type.name === "TransitionMarkSeparator" ||
-    stack.some((n) => n?.type.name === "Transition_content")
+    leftStack[0]?.type.name === "TransitionMarkSeparator" ||
+    leftStack.some((n) => n?.type.name === "Transition_content")
   ) {
     const contentNode = getDescendentInsideParent(
       "Transition_content",
       "Transition_begin",
-      stack
+      leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
       addTransitionCompletions(
@@ -1105,11 +1211,11 @@ export const getCompletions = (
   }
 
   // Scene
-  if (stack[0]?.type.name === "SceneMark") {
+  if (leftStack[0]?.type.name === "SceneMark") {
     const contentNode = getDescendentInsideParent(
       "Scene_content",
       "Scene_begin",
-      stack
+      leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
       addSceneCompletions(
@@ -1124,13 +1230,13 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    stack[0]?.type.name === "SceneMarkSeparator" ||
-    stack.some((n) => n?.type.name === "Scene_content")
+    leftStack[0]?.type.name === "SceneMarkSeparator" ||
+    leftStack.some((n) => n?.type.name === "Scene_content")
   ) {
     const contentNode = getDescendentInsideParent(
       "Scene_content",
       "Scene_begin",
-      stack
+      leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
       addSceneCompletions(
@@ -1145,17 +1251,17 @@ export const getCompletions = (
   }
 
   // Dialogue
-  if (stack[0]?.type.name === "DialogueMark") {
+  if (leftStack[0]?.type.name === "DialogueMark") {
     const contentNode =
       getDescendentInsideParent(
         "DialogueCharacter",
         "BlockDialogue_begin",
-        stack
+        leftStack
       ) ||
       getDescendentInsideParent(
         "DialogueCharacter",
         "InlineDialogue_begin",
-        stack
+        leftStack
       );
     if (isCursorAfterNodeText(contentNode)) {
       addCharacterCompletions(
@@ -1170,19 +1276,19 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    stack[0]?.type.name === "DialogueMarkSeparator" ||
-    stack.some((n) => n?.type.name === "DialogueCharacter")
+    leftStack[0]?.type.name === "DialogueMarkSeparator" ||
+    leftStack.some((n) => n?.type.name === "DialogueCharacter")
   ) {
     const dialogueCharacterNode =
       getDescendentInsideParent(
         "DialogueCharacter",
         "BlockDialogue_begin",
-        stack
+        leftStack
       ) ||
       getDescendentInsideParent(
         "DialogueCharacter",
         "InlineDialogue_begin",
-        stack
+        leftStack
       );
     if (isCursorAfterNodeText(dialogueCharacterNode)) {
       addCharacterCompletions(
@@ -1197,19 +1303,19 @@ export const getCompletions = (
   }
 
   // Write
-  if (stack[0]?.type.name === "WriteMark") {
-    if (isCursorAfterNodeText(stack[0])) {
+  if (leftStack[0]?.type.name === "WriteMark") {
+    if (isCursorAfterNodeText(leftStack[0])) {
       addUIElementReferenceCompletions(completions, program, ["text"], " ");
     }
     return buildCompletions();
   }
   if (
-    stack[0]?.type.name === "WriteMarkSeparator" ||
-    stack.some((n) => n?.type.name === "WriteTarget")
+    leftStack[0]?.type.name === "WriteMarkSeparator" ||
+    leftStack.some((n) => n?.type.name === "WriteTarget")
   ) {
     const writeTargetNode =
-      getDescendentInsideParent("WriteTarget", "BlockWrite_begin", stack) ||
-      getDescendentInsideParent("WriteTarget", "InlineWrite_begin", stack);
+      getDescendentInsideParent("WriteTarget", "BlockWrite_begin", leftStack) ||
+      getDescendentInsideParent("WriteTarget", "InlineWrite_begin", leftStack);
     if (isCursorAfterNodeText(writeTargetNode)) {
       addUIElementReferenceCompletions(completions, program, ["text"]);
     }
@@ -1217,8 +1323,8 @@ export const getCompletions = (
   }
 
   // ImageCommand
-  if (stack.some((n) => n.type.name === "ImageCommand")) {
-    const beforeImageNode = stack.find(
+  if (leftStack.some((n) => n.type.name === "ImageCommand")) {
+    const beforeImageNode = leftStack.find(
       (n) =>
         n.type.name === "ImageCommand_c1" ||
         n.type.name === "AssetCommandContent_c1"
@@ -1235,23 +1341,23 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (stack[0]?.type.name === "AssetCommandControl") {
-      if (isCursorAfterNodeText(stack[0])) {
+    if (leftStack[0]?.type.name === "AssetCommandControl") {
+      if (isCursorAfterNodeText(leftStack[0])) {
         addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
       }
       return buildCompletions();
     }
     if (
-      stack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
-      stack[0]?.type.name === "AssetCommandTarget"
+      leftStack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
+      leftStack[0]?.type.name === "AssetCommandTarget"
     ) {
-      if (isCursorAfterNodeText(stack[0])) {
+      if (isCursorAfterNodeText(leftStack[0])) {
         addUIElementReferenceCompletions(completions, program, ["image"]);
       }
       return buildCompletions();
     }
-    if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
-      if (isCursorAfterNodeText(stack[0])) {
+    if (leftStack[0]?.type.name === "WhitespaceAssetCommandName") {
+      if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(
           completions,
           program,
@@ -1263,10 +1369,10 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      stack[0]?.type.name === "AssetCommandName" ||
-      stack[0]?.type.name === "AssetCommandFileName"
+      leftStack[0]?.type.name === "AssetCommandName" ||
+      leftStack[0]?.type.name === "AssetCommandFileName"
     ) {
-      if (isCursorAfterNodeText(stack[0])) {
+      if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(
           completions,
           program,
@@ -1277,14 +1383,14 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      stack[0]?.type.name === "AssetCommandFilterOperator" ||
-      stack[0]?.type.name === "AssetCommandFilterName"
+      leftStack[0]?.type.name === "AssetCommandFilterOperator" ||
+      leftStack[0]?.type.name === "AssetCommandFilterName"
     ) {
-      if (isCursorAfterNodeText(stack[0])) {
+      if (isCursorAfterNodeText(leftStack[0])) {
         const exclude = getOtherMatchesInsideParent(
           "AssetCommandFilterName",
           "AssetCommandContent",
-          stack,
+          leftStack,
           tree,
           read
         );
@@ -1298,12 +1404,12 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      (stack[0]?.type.name === "WhitespaceAssetCommandClause" &&
+      (leftStack[0]?.type.name === "WhitespaceAssetCommandClause" &&
         prevNode?.type.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
-      stack[0]?.type.name === "NameValue"
+      leftStack[0]?.type.name === "NameValue"
     ) {
-      if (isCursorAfterNodeText(stack[0])) {
+      if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, [
           "transition",
           "animation",
@@ -1311,8 +1417,8 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
-      if (isCursorAfterNodeText(stack[0])) {
+    if (leftStack[0]?.type.name === "WhitespaceAssetCommandClause") {
+      if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
           prevNode?.type.name === "AssetCommandClauseKeyword" &&
           (prevText === "after" ||
@@ -1323,7 +1429,7 @@ export const getCompletions = (
           const exclude = getOtherMatchesInsideParent(
             "AssetCommandClauseKeyword",
             "AssetCommandContent",
-            stack,
+            leftStack,
             tree,
             read
           );
@@ -1340,8 +1446,8 @@ export const getCompletions = (
   }
 
   // AudioCommand
-  if (stack.some((n) => n.type.name === "AudioCommand")) {
-    const beforeAudioNode = stack.find(
+  if (leftStack.some((n) => n.type.name === "AudioCommand")) {
+    const beforeAudioNode = leftStack.find(
       (n) =>
         n.type.name === "AudioCommand_c1" ||
         n.type.name === "AssetCommandContent_c1"
@@ -1353,46 +1459,46 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (stack[0]?.type.name === "AssetCommandControl") {
-      if (isCursorAfterNodeText(stack[0])) {
+    if (leftStack[0]?.type.name === "AssetCommandControl") {
+      if (isCursorAfterNodeText(leftStack[0])) {
         addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
       }
       return buildCompletions();
     }
     if (
-      stack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
-      stack[0]?.type.name === "AssetCommandTarget"
+      leftStack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
+      leftStack[0]?.type.name === "AssetCommandTarget"
     ) {
-      if (isCursorAfterNodeText(stack[0])) {
+      if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, ["channel"]);
       }
       return buildCompletions();
     }
-    if (stack[0]?.type.name === "WhitespaceAssetCommandName") {
-      if (isCursorAfterNodeText(stack[0])) {
+    if (leftStack[0]?.type.name === "WhitespaceAssetCommandName") {
+      if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, AUDIO_TYPES);
         addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS);
       }
       return buildCompletions();
     }
     if (
-      stack[0]?.type.name === "AssetCommandName" ||
-      stack[0]?.type.name === "AssetCommandFileName"
+      leftStack[0]?.type.name === "AssetCommandName" ||
+      leftStack[0]?.type.name === "AssetCommandFileName"
     ) {
-      if (isCursorAfterNodeText(stack[0])) {
+      if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, AUDIO_TYPES);
       }
       return buildCompletions();
     }
     if (
-      stack[0]?.type.name === "AssetCommandFilterOperator" ||
-      stack[0]?.type.name === "AssetCommandFilterName"
+      leftStack[0]?.type.name === "AssetCommandFilterOperator" ||
+      leftStack[0]?.type.name === "AssetCommandFilterName"
     ) {
-      if (isCursorAfterNodeText(stack[0])) {
+      if (isCursorAfterNodeText(leftStack[0])) {
         const exclude = getOtherMatchesInsideParent(
           "AssetCommandFilterName",
           "AssetCommandContent",
-          stack,
+          leftStack,
           tree,
           read
         );
@@ -1405,8 +1511,8 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (stack[0]?.type.name === "WhitespaceAssetCommandClause") {
-      if (isCursorAfterNodeText(stack[0])) {
+    if (leftStack[0]?.type.name === "WhitespaceAssetCommandClause") {
+      if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
           prevNode?.type.name === "AssetCommandClauseKeyword" &&
           (prevText === "after" ||
@@ -1417,7 +1523,7 @@ export const getCompletions = (
           const exclude = getOtherMatchesInsideParent(
             "AssetCommandClauseKeyword",
             "AssetCommandContent",
-            stack,
+            leftStack,
             tree,
             read
           );
@@ -1432,12 +1538,12 @@ export const getCompletions = (
       }
     }
     if (
-      (stack[0]?.type.name === "WhitespaceAssetCommandClause" &&
+      (leftStack[0]?.type.name === "WhitespaceAssetCommandClause" &&
         prevNode?.type.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
-      stack[0]?.type.name === "NameValue"
+      leftStack[0]?.type.name === "NameValue"
     ) {
-      if (isCursorAfterNodeText(stack[0])) {
+      if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, ["modulation"]);
       }
       return buildCompletions();
@@ -1446,16 +1552,18 @@ export const getCompletions = (
 
   // Define
   if (
-    stack.some(
+    leftStack.some(
       (n) =>
         n.type.name === "WhitespaceDefineTypeName" ||
         n.type.name === "DefineTypeName"
     )
   ) {
     if (
-      isCursorAfterNodeText(stack.find((n) => n.type.name === "DefineTypeName"))
+      isCursorAfterNodeText(
+        leftStack.find((n) => n.type.name === "DefineTypeName")
+      )
     ) {
-      const defineTypeNameNode = stack.find(
+      const defineTypeNameNode = leftStack.find(
         (n) => n.type.name === "DefineTypeName"
       );
       const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
@@ -1464,7 +1572,7 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    stack.some(
+    leftStack.some(
       (n) =>
         n.type.name === "DefinePunctuationAccessor" ||
         n.type.name === "WhitespaceDefineVariableName" ||
@@ -1473,20 +1581,20 @@ export const getCompletions = (
   ) {
     if (
       isCursorAfterNodeText(
-        stack.find((n) => n.type.name === "DefineVariableName")
+        leftStack.find((n) => n.type.name === "DefineVariableName")
       )
     ) {
       const defineTypeNameNode = getDescendentInsideParent(
         "DefineTypeName",
         "DefineDeclaration",
-        stack
+        leftStack
       );
       const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
       addStructVariableNameCompletions(completions, program, type);
     }
     return buildCompletions();
   }
-  const propertyNameNode = stack.find(
+  const propertyNameNode = leftStack.find(
     (n) =>
       n.type.name === "StructBlankProperty" ||
       n.type.name === "DeclarationObjectPropertyName" ||
@@ -1501,17 +1609,17 @@ export const getCompletions = (
       const defineModifierNameNode = getDescendentInsideParent(
         "DefineModifierName",
         "DefineDeclaration",
-        stack
+        leftStack
       );
       const defineTypeNameNode = getDescendentInsideParent(
         "DefineTypeName",
         "DefineDeclaration",
-        stack
+        leftStack
       );
       const defineVariableNameNode = getDescendentInsideParent(
         "DefineVariableName",
         "DefineDeclaration",
-        stack
+        leftStack
       );
       const modifier = defineModifierNameNode
         ? getNodeText(defineModifierNameNode)
@@ -1525,7 +1633,7 @@ export const getCompletions = (
       const exclude = getOtherNodesInsideParent(
         "StructField",
         ["DefineDeclaration_content", "StructObjectProperty_content"],
-        stack
+        leftStack
       ).map((n) =>
         getNodeText(
           getDescendent(
@@ -1542,6 +1650,8 @@ export const getCompletions = (
         type,
         name,
         path.join("."),
+        " = ",
+        true,
         lineText,
         position,
         exclude
@@ -1550,27 +1660,27 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    stack.some(
+    leftStack.some(
       (n) =>
         n.type.name === "WhitespaceStructFieldValue" ||
         n.type.name === "StructFieldValue"
     ) &&
-    !stack.some((n) => n.type.name === "AccessPath")
+    !leftStack.some((n) => n.type.name === "AccessPath")
   ) {
     const defineModifierNameNode = getDescendentInsideParent(
       "DefineModifierName",
       "DefineDeclaration",
-      stack
+      leftStack
     );
     const defineTypeNameNode = getDescendentInsideParent(
       "DefineTypeName",
       "DefineDeclaration",
-      stack
+      leftStack
     );
     const defineVariableNameNode = getDescendentInsideParent(
       "DefineVariableName",
       "DefineDeclaration",
-      stack
+      leftStack
     );
     const modifier = defineModifierNameNode
       ? getNodeText(defineModifierNameNode)
@@ -1582,12 +1692,12 @@ export const getCompletions = (
     const propertyNameNode = getDescendentInsideParent(
       "DeclarationScalarPropertyName",
       "StructField",
-      stack
+      leftStack
     );
     const propertyValueNode = getDescendentInsideParent(
       "StructFieldValue",
       "StructField",
-      stack
+      leftStack
     );
     const valueText = propertyValueNode ? getNodeText(propertyValueNode) : "";
     const valueCursorOffset = getCursorOffset(propertyValueNode);
@@ -1613,11 +1723,11 @@ export const getCompletions = (
   }
 
   // Access Path
-  const accessPathNode = stack.find((n) => n.type.name === "AccessPath");
+  const accessPathNode = leftStack.find((n) => n.type.name === "AccessPath");
   if (accessPathNode) {
     const valueText = getNodeText(accessPathNode);
     const valueCursorOffset = getCursorOffset(accessPathNode);
-    if (stack.find((n) => n.type.name === "StructField")) {
+    if (leftStack.find((n) => n.type.name === "StructField")) {
       addStructAccessPathCompletions(
         completions,
         program,
@@ -1631,14 +1741,14 @@ export const getCompletions = (
         scopes,
         valueText,
         valueCursorOffset,
-        getParentSectionPath(stack, read).join(".")
+        getParentSectionPath(leftStack, read).join(".")
       );
       addImmutableAccessPathCompletions(
         completions,
         scopes,
         valueText,
         valueCursorOffset,
-        getParentSectionPath(stack, read).join(".")
+        getParentSectionPath(leftStack, read).join(".")
       );
     }
     return buildCompletions();
@@ -1646,49 +1756,53 @@ export const getCompletions = (
 
   // Divert Path
   if (
-    stack[0]?.type.name === "DivertArrow" &&
-    !getNodeText(getDescendentInsideParent("Divert_content", "Divert", stack))
+    leftStack[0]?.type.name === "DivertArrow" &&
+    !getNodeText(
+      getDescendentInsideParent("Divert_content", "Divert", leftStack)
+    )
   ) {
-    if (isCursorAfterNodeText(stack[0])) {
+    if (isCursorAfterNodeText(leftStack[0])) {
       const scopes = getScopes(read, scriptAnnotations);
       addDivertPathCompletions(
         completions,
         scopes,
         "",
         0,
-        getParentSectionPath(stack, read).join("."),
+        getParentSectionPath(leftStack, read).join("."),
         " "
       );
     }
     return buildCompletions();
   }
   if (
-    stack[0]?.type.name === "WhitespaceDivertPath" &&
-    !getNodeText(getDescendentInsideParent("Divert_content", "Divert", stack))
+    leftStack[0]?.type.name === "WhitespaceDivertPath" &&
+    !getNodeText(
+      getDescendentInsideParent("Divert_content", "Divert", leftStack)
+    )
   ) {
-    if (isCursorAfterNodeText(stack[0])) {
+    if (isCursorAfterNodeText(leftStack[0])) {
       const scopes = getScopes(read, scriptAnnotations);
       addDivertPathCompletions(
         completions,
         scopes,
         "",
         0,
-        getParentSectionPath(stack, read).join(".")
+        getParentSectionPath(leftStack, read).join(".")
       );
     }
     return buildCompletions();
   }
-  if (stack[0]?.type.name === "DivertPath") {
-    if (isCursorAfterNodeText(stack[0])) {
-      const valueText = getNodeText(stack[0]);
-      const valueCursorOffset = getCursorOffset(stack[0]);
+  if (leftStack[0]?.type.name === "DivertPath") {
+    if (isCursorAfterNodeText(leftStack[0])) {
+      const valueText = getNodeText(leftStack[0]);
+      const valueCursorOffset = getCursorOffset(leftStack[0]);
       const scopes = getScopes(read, scriptAnnotations);
       addDivertPathCompletions(
         completions,
         scopes,
         valueText,
         valueCursorOffset,
-        getParentSectionPath(stack, read).join(".")
+        getParentSectionPath(leftStack, read).join(".")
       );
     }
     return buildCompletions();

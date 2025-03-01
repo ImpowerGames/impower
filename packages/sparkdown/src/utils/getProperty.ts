@@ -1,6 +1,12 @@
-export const getProperty = <T>(obj: any, propertyPath: string): T => {
+export const getProperty = <T>(
+  obj: any,
+  propertyPath: string
+): T | undefined => {
   if (!propertyPath) {
     return obj;
+  }
+  if (obj == null) {
+    return undefined;
   }
   let cur = obj;
   const parts = propertyPath.split(".");

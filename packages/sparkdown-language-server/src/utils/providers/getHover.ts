@@ -37,14 +37,6 @@ export const getHover = (
     ) {
       const reference = value.type;
       if (reference.selector) {
-        if (reference.selector.name?.includes("~") && program.context) {
-          filterImage(
-            program.context,
-            program.context?.["filtered_image"]?.[
-              sortFilteredName(reference.selector.name)
-            ]
-          );
-        }
         const [resolvedValue] = resolveSelector<any>(
           program,
           reference.selector,
@@ -57,19 +49,33 @@ export const getHover = (
             typeof resolvedValue.$type === "string"
           ) {
             const type = resolvedValue.$type;
+            if (
+              reference.selector.name &&
+              (type === "filtered_image" ||
+                reference.selector.name.includes("~")) &&
+              program.context
+            ) {
+              filterImage(
+                program.context,
+                program.context?.["filtered_image"]?.[
+                  sortFilteredName(reference.selector.name)
+                ]
+              );
+            }
             const src =
               type === "filtered_image"
                 ? resolvedValue?.filtered_src
                 : type === "layered_image"
-                ? resolvedValue?.assets?.[0]?.src
+                ? resolvedValue?.assets?.[0]?.src ||
+                  resolvedValue?.assets?.[0]?.uri
                 : type === "image"
-                ? resolvedValue?.src
+                ? resolvedValue?.src || resolvedValue?.uri
                 : undefined;
             if (src) {
               result = {
                 contents: {
                   kind: MarkupKind.Markdown,
-                  value: `<img src="${src}" width="300px" />`,
+                  value: `<img src="${src}" alt="${name}" width="300px" />`,
                 },
                 range,
               };
