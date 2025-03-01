@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es2020",
-    "lib": ["es2020", "WebWorker"],
+    "target": "esnext",
+    "lib": ["esnext", "WebWorker"],
     "outDir": "dist",
     "skipLibCheck": true,
     "sourceMap": true,
@@ -22,5 +22,5 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true
   },
-  "include": ["src"]
+  "include": ["src", "esbuild.js"]
 }
