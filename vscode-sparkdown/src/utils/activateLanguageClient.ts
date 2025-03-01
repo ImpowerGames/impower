@@ -13,6 +13,7 @@ import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
 import { getEditor } from "./getEditor";
 import { ExecuteCommandRequest } from "vscode-languageclient";
 import { SparkdownPreviewGamePanelManager } from "../providers/SparkdownPreviewGamePanelManager";
+import { updateCommands } from "./updateCommands";
 
 export const activateLanguageClient = async (
   context: vscode.ExtensionContext
@@ -120,10 +121,10 @@ const onParse = (
   const textDocument = params.textDocument;
   const editor = getEditor(textDocument.uri);
   const document = editor?.document;
-  console.log("PARSED PROGRAM", program);
   if (document) {
     SparkProgramManager.instance.update(document.uri, program);
     SparkdownPreviewGamePanelManager.instance.loadDocument(document);
+    updateCommands(document.uri);
     // TODO:
     // SparkdownStatusBarManager.instance.updateStatusBarItem(
     //   program?.metadata?.actionDuration ?? 0,

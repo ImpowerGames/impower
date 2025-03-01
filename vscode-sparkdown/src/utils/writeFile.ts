@@ -1,7 +1,5 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import { openFile } from "./openFile";
-import { revealFile } from "./revealFile";
 
 export const writeFile = async (
   fsPath: string,
@@ -9,40 +7,20 @@ export const writeFile = async (
 ): Promise<void> => {
   const ext = path.extname(fsPath)?.replace(".", "");
   try {
+    const fileUri = vscode.Uri.file(fsPath);
     await vscode.workspace.fs.writeFile(
-      vscode.Uri.file(fsPath),
+      fileUri,
       typeof output === "string"
         ? Buffer.from(output)
         : output instanceof Uint8Array
         ? output
         : new Uint8Array(output)
     );
-    const open = "Open";
-    let reveal = "Reveal in File Explorer";
-    if (process.platform === "darwin") {
-      reveal = "Reveal in Finder";
-    }
     const items = ["OK"];
-    vscode.window
-      .showInformationMessage(
-        `Exported ${ext?.toUpperCase()} Successfully!`,
-        ...items
-      )
-      .then((val) => {
-        switch (val) {
-          case open: {
-            openFile(fsPath);
-            break;
-          }
-          case reveal: {
-            revealFile(fsPath);
-            break;
-          }
-          default:
-            // NoOp
-            break;
-        }
-      });
+    vscode.window.showInformationMessage(
+      `Exported ${ext?.toUpperCase()} Successfully!`,
+      ...items
+    );
   } catch (e) {
     const error = e as { message?: string };
     vscode.window.showErrorMessage(

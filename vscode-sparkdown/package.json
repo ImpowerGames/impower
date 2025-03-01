@@ -34,9 +34,9 @@
   "activationEvents": [
     "onLanguage:sparkdown",
     "onCommand:sparkdown.exportpdf",
-    "onCommand:sparkdown.exportpdfdebug",
     "onCommand:sparkdown:exporthtml",
     "onCommand:sparkdown:exportcsv",
+    "onCommand:sparkdown:exportjson",
     "onCommand:sparkdown.previewscreenplay",
     "onCommand:sparkdown.previewgame",
     "onView:sparkdown-cheatsheet",
@@ -272,13 +272,13 @@
     "menus": {
       "editor/title": [
         {
-          "when": "editorLangId == sparkdown",
           "command": "sparkdown.previewgame",
+          "when": "editorLangId == sparkdown",
           "group": "navigation@1"
         },
         {
-          "when": "editorLangId == sparkdown",
           "command": "sparkdown.previewscreenplay",
+          "when": "editorLangId == sparkdown",
           "group": "navigation@1"
         }
       ]
@@ -286,44 +286,58 @@
     "commands": [
       {
         "command": "sparkdown.outline.reveal",
+        "when": "editorLangId == sparkdown",
         "title": "Reveal cursor position",
         "category": "Sparkdown",
         "icon": "$(remote)"
       },
       {
         "command": "sparkdown.previewgame",
+        "when": "editorLangId == sparkdown",
         "title": "Preview game",
         "category": "Sparkdown",
         "icon": "$(game)"
       },
       {
         "command": "sparkdown.previewscreenplay",
+        "when": "editorLangId == sparkdown",
         "title": "Preview screenplay",
         "category": "Sparkdown",
         "icon": "$(note)"
       },
       {
         "command": "sparkdown.exportpdf",
+        "when": "editorLangId == sparkdown",
         "title": "Export screenplay PDF",
         "category": "Sparkdown"
       },
       {
         "command": "sparkdown.exporthtml",
+        "when": "editorLangId == sparkdown",
         "title": "Export screenplay HTML",
         "category": "Sparkdown"
       },
       {
         "command": "sparkdown.exportcsv",
+        "when": "editorLangId == sparkdown",
         "title": "Export translation CSV",
         "category": "Sparkdown"
       },
       {
+        "command": "sparkdown.exportjson",
+        "when": "editorLangId == sparkdown && resource in sparkdown.json",
+        "title": "Export Game JSON",
+        "category": "Sparkdown"
+      },
+      {
         "command": "sparkdown.jumpto",
+        "when": "editorLangId == sparkdown",
         "title": "Jump to line",
         "category": "Sparkdown"
       },
       {
         "command": "sparkdown.statistics",
+        "when": "editorLangId == sparkdown",
         "title": "View statistics",
         "category": "Sparkdown"
       }
@@ -331,21 +345,21 @@
     "keybindings": [
       {
         "command": "sparkdown.previewgame",
+        "when": "editorLangId == sparkdown",
         "key": "ctrl+shift+v",
-        "mac": "cmd+shift+v",
-        "when": "editorLangId == sparkdown"
+        "mac": "cmd+shift+v"
       },
       {
         "command": "sparkdown.exportpdf",
+        "when": "editorLangId == sparkdown",
         "key": "ctrl+shift+b",
-        "mac": "cmd+shift+b",
-        "when": "editorLangId == sparkdown"
+        "mac": "cmd+shift+b"
       },
       {
         "command": "sparkdown.exportpdfdebug",
+        "when": "editorLangId == sparkdown",
         "key": "f5",
-        "mac": "f5",
-        "when": "editorLangId == sparkdown"
+        "mac": "f5"
       }
     ],
     "configuration": [

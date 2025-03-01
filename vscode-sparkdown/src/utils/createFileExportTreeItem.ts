@@ -13,7 +13,8 @@ export const createFileExportTreeItem = (
     sourceStat &&
     commandStat &&
     (sourceStat?.mtime || 0) > (commandStat?.mtime || 0);
-  const item = new vscode.TreeItem(`${action} ${extension.toUpperCase()}`);
+  const label = `${action} ${extension.toUpperCase()}`;
+  const item = new vscode.TreeItem(label);
   item.resourceUri = commandUri;
   item.iconPath = new vscode.ThemeIcon(
     exporting ? "sync~spin" : action?.toLowerCase(),
@@ -24,7 +25,7 @@ export const createFileExportTreeItem = (
   item.tooltip = tooltip;
   item.command = {
     command: `sparkdown.export${extension.toLowerCase()}`,
-    title: "",
+    title: label,
   };
   return item;
 };

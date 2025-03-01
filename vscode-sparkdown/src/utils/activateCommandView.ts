@@ -7,6 +7,7 @@ import { exportPdf } from "./exportPdf";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { updateCommands } from "./updateCommands";
+import { exportJson } from "./exportJson";
 
 export const activateCommandView = (context: vscode.ExtensionContext): void => {
   context.subscriptions.push(
@@ -64,6 +65,11 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.exportcsv", async () => {
       await exportCsv();
+    })
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("sparkdown.exportjson", async () => {
+      await exportJson();
     })
   );
   context.subscriptions.push(
