@@ -17,10 +17,14 @@ export function revealFile(p: string) {
       break;
     }
   }
-  const exec = require("child_process").exec;
-  exec(cmd, (err: string) => {
-    if (err) {
-      console.error(err);
-    }
-  });
+  try {
+    const exec = require("child_process").exec;
+    exec(cmd, (err: string) => {
+      if (err) {
+        console.error(err);
+      }
+    });
+  } catch (error) {
+    console.error(error);
+  }
 }

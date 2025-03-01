@@ -22,8 +22,7 @@ export const writeFile = async (
     if (process.platform === "darwin") {
       reveal = "Reveal in Finder";
     }
-    const exec = require("child_process").exec;
-    const items = exec ? [open, reveal] : ["OK"];
+    const items = ["OK"];
     vscode.window
       .showInformationMessage(
         `Exported ${ext?.toUpperCase()} Successfully!`,

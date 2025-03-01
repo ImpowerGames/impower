@@ -3,10 +3,12 @@ import * as vscode from "vscode";
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
-import { getFonts } from "./getFonts";
+import { getFonts as getDefaultScreenplayFonts } from "./getDefaultScreenplayFonts";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
 import { writeFile } from "./writeFile";
+import { getWorkspaceRelativePath } from "./getWorkspaceRelativePath";
+import { updateCommands } from "./updateCommands";
 
 export const exportPdf = async (
   context: vscode.ExtensionContext,
@@ -32,11 +34,73 @@ export const exportPdf = async (
       cancellable: true,
     },
     async (progress, token) => {
-      // TODO: include all scripts relative to main.sd
-      const script = editor.document.getText();
+      const sparkdownConfig = vscode.workspace.getConfiguration("sparkdown");
+      const scriptFilePattern = sparkdownConfig["scriptFiles"];
+      const fontFilePattern = sparkdownConfig["fontFiles"];
+      const scriptWorkspaceRelativePath = getWorkspaceRelativePath(
+        uri,
+        scriptFilePattern
+      );
+      const fontWorkspaceRelativePath = getWorkspaceRelativePath(
+        uri,
+        fontFilePattern
+      );
+
+      let scriptFileUris: vscode.Uri[] = [uri];
+      let fontFileUris: vscode.Uri[] = [];
+      if (
+        scriptWorkspaceRelativePath?.pattern &&
+        fontWorkspaceRelativePath?.pattern
+      ) {
+        const workspaceFilePatterns = [
+          scriptWorkspaceRelativePath.pattern,
+          fontWorkspaceRelativePath.pattern,
+        ];
+        let [workspaceScriptFileUris, workspaceFontFileUrls] =
+          await Promise.all(
+            workspaceFilePatterns.map((pattern) =>
+              vscode.workspace.findFiles(pattern)
+            )
+          );
+        if (workspaceScriptFileUris) {
+          scriptFileUris = workspaceScriptFileUris;
+        }
+        if (workspaceFontFileUrls) {
+          fontFileUris = workspaceFontFileUrls;
+        }
+      }
+      const [scriptFiles, fontFiles] = await Promise.all([
+        Promise.all(
+          (scriptFileUris || []).map(async (fileUri) => {
+            const buffer = await vscode.workspace.fs.readFile(fileUri);
+            const text = Buffer.from(buffer).toString("utf8");
+            return text;
+          })
+        ),
+        Promise.all(
+          (fontFileUris || []).map(
+            async (fileUri): Promise<[string, ArrayBuffer]> => {
+              const array = await vscode.workspace.fs.readFile(fileUri);
+              const arrayBuffer = array.buffer.slice(
+                array.byteOffset,
+                array.byteLength + array.byteOffset
+              ) as ArrayBuffer;
+              const filename =
+                fileUri.toString().split("/").at(-1)?.split(".")[0] || "";
+              return [filename, arrayBuffer];
+            }
+          )
+        ),
+      ]);
       const config = getSparkdownPreviewConfig(uri);
       let currentPercentage = 0;
-      const fonts = await getFonts(context);
+      const defaultFonts = await getDefaultScreenplayFonts(context);
+      const userFonts: {
+        [name: string]: ArrayBuffer;
+      } = {};
+      for (const [fontName, fontBuffer] of fontFiles) {
+        userFonts[fontName] = fontBuffer;
+      }
       const pdfBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
         worker.onmessage = (e) => {
           if (!token.isCancellationRequested) {
@@ -54,22 +118,18 @@ export const exportPdf = async (
           }
         };
         const request = ExportPDFMessage.type.request({
-          scripts: [script],
+          scripts: scriptFiles,
           config,
-          fonts,
+          fonts: { ...defaultFonts, ...userFonts },
           workDoneToken: crypto.randomUUID(),
         });
-        worker.postMessage(request, [
-          fonts.normal,
-          fonts.bold,
-          fonts.italic,
-          fonts.bolditalic,
-        ]);
+        worker.postMessage(request, Object.values(defaultFonts));
       });
       if (token.isCancellationRequested) {
         return;
       }
       await writeFile(fsPath, pdfBuffer);
+      updateCommands(uri);
     }
   );
   SparkdownCommandTreeDataProvider.instance.notifyExportEnded("pdf");

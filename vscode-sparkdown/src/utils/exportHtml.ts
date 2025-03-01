@@ -4,7 +4,7 @@ import ScreenplayParser from "@impower/sparkdown-screenplay/src/classes/Screenpl
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
-import { getFonts } from "./getFonts";
+import { getFonts } from "./getDefaultScreenplayFonts";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
 import { writeFile } from "./writeFile";

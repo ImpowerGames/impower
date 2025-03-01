@@ -10,7 +10,7 @@ export const readFile = async (
     return array.buffer.slice(
       array.byteOffset,
       array.byteLength + array.byteOffset
-    );
+    ) as ArrayBuffer;
   } catch {
     return undefined;
   }

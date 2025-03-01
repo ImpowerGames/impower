@@ -101,11 +101,9 @@ export const buildPDF = async (
     doc.info.Creator = "sparkdown";
   }
   if (fonts) {
-    doc.registerFont("normal", fonts.normal);
-    doc.registerFont("italic", fonts.italic);
-    doc.registerFont("bold", fonts.bold);
-    doc.registerFont("bolditalic", fonts.bolditalic);
-    doc.registerFont("Times-Roman", fonts.normal);
+    for (const [fontName, fontBuffer] of Object.entries(fonts)) {
+      doc.registerFont(fontName, fontBuffer);
+    }
     if (fonts.normal) {
       doc.font(fonts.normal);
     }

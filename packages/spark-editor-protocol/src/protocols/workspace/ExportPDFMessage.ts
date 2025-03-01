@@ -10,6 +10,7 @@ export interface ExportPDFParams {
     bold: ArrayBuffer;
     italic: ArrayBuffer;
     bolditalic: ArrayBuffer;
+    [name: string]: ArrayBuffer;
   };
   config?: ScreenplayConfig;
   workDoneToken?: string;

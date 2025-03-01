@@ -13,12 +13,16 @@ export const openFile = (p: string): void => {
     default:
       cmd = "xdg-open";
   }
-  const exec = require("child_process").exec;
-  if (exec) {
-    exec(`${cmd} "${p}"`, (err: string) => {
-      if (err) {
-        console.error(err);
-      }
-    });
+  try {
+    const exec = require("child_process").exec;
+    if (exec) {
+      exec(`${cmd} "${p}"`, (err: string) => {
+        if (err) {
+          console.error(err);
+        }
+      });
+    }
+  } catch (error) {
+    console.error(error);
   }
 };
