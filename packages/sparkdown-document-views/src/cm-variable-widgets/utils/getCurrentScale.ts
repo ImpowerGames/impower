@@ -1,4 +1,4 @@
-import { lerp } from "../../../../spark-engine/src/game/core/utils/lerp";
+import { lerp } from "@impower/spark-engine/src/game/core/utils/lerp";
 import { WaveformContext } from "../types/WaveformContext";
 import { getCurrentZoomLevel } from "./getCurrentZoomLevel";
 

@@ -1,4 +1,4 @@
-import { DiagnosticSeverity } from "../../../../spark-editor-protocol/src/enums/DiagnosticSeverity";
+import { DiagnosticSeverity } from "@impower/spark-editor-protocol/src/enums/DiagnosticSeverity";
 
 export const getClientDiagnosticSeverity = (
   s: DiagnosticSeverity | undefined

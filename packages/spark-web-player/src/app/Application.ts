@@ -3,10 +3,10 @@ import {
   NotificationMessage,
   RequestMessage,
   ResponseError,
-} from "../../../spark-engine/src/game/core";
-import { Connection } from "../../../spark-engine/src/game/core/classes/Connection";
-import { Game } from "../../../spark-engine/src/game/core/classes/Game";
-import { EventMessage } from "../../../spark-engine/src/game/core/classes/messages/EventMessage";
+} from "@impower/spark-engine/src/game/core";
+import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
+import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import Scene from "./Scene";
 import Ticker from "./Ticker";
 import PerspectiveCamera from "./render/cameras/PerspectiveCamera";

@@ -17,12 +17,12 @@ import {
   ViewUpdate,
   panels,
 } from "@codemirror/view";
-import { DidParseTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
+import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import {
   MessageConnection,
   ServerCapabilities,
-} from "../../../../../spark-editor-protocol/src/types";
-import { SparkProgram } from "../../../../../sparkdown/src/types/SparkProgram";
+} from "@impower/spark-editor-protocol/src/types";
+import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
   breakpointMarker,
   breakpointsChanged,

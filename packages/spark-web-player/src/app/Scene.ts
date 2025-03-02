@@ -5,7 +5,7 @@ import {
   NotificationMessage,
   RequestMessage,
   ResponseError,
-} from "../../../spark-engine/src/game/core";
+} from "@impower/spark-engine/src/game/core";
 import Application from "./Application";
 import { Disposable } from "./Disposable";
 

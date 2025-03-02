@@ -1,4 +1,4 @@
-import { MessageConnection } from "../../../../spark-editor-protocol/src/types";
+import { MessageConnection } from "@impower/spark-editor-protocol/src/types";
 import {
   defineAll,
   DefineOptions,

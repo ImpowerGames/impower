@@ -14,13 +14,13 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
-import AudioPlayer from "../../../spark-dom/src/classes/AudioPlayer";
-import type { Audio, LayeredAudio, Synth } from "../../../spark-engine/src";
-import { clone } from "../../../spark-engine/src/game/core/utils/clone";
-import { randomizeProperties } from "../../../spark-engine/src/game/core/utils/randomizeProperties";
-import { SynthBuffer } from "../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
-import { SparkProgram, SparkVariable } from "../../../sparkdown/src/index";
-import { structStringify } from "../../../sparkdown/src/utils/structStringify";
+import AudioPlayer from "@impower/spark-dom/src/classes/AudioPlayer";
+import type { Audio, LayeredAudio, Synth } from "@impower/spark-engine/src";
+import { clone } from "@impower/park-engine/src/game/core/utils/clone";
+import { randomizeProperties } from "@impower/spark-engine/src/game/core/utils/randomizeProperties";
+import { SynthBuffer } from "@impower/spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
+import { SparkProgram, SparkVariable } from "@impower/sparkdown/src/index";
+import { structStringify } from "@impower/sparkdown/src/utils/structStringify";
 import { FileSystemReader } from "../cm-language-client/types/FileSystemReader";
 import StructKeyboardWidgetType from "./classes/StructKeyboardWidgetType";
 import StructPlayWidgetType, {

@@ -4,6 +4,10 @@
   "description": "Web component that allows users to play spark games.",
   "version": "0.0.1",
   "dependencies": {
+    "@impower/spark-dom": "file:../spark-dom",
+    "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
+    "@impower/spark-engine": "file:../spark-engine",
+    "@impower/sparkdown": "file:../sparkdown",
     "three": "^0.155.0"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
-import { filterImage } from "../../../../../../sparkdown/src/utils/filterImage";
-import { sortFilteredName } from "../../../../../../sparkdown/src/utils/sortFilteredName";
+import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
+import { sortFilteredName } from "@impower/sparkdown/src/utils/sortFilteredName";
 import type { Game } from "../../../core/classes/Game";
 import { Module } from "../../../core/classes/Module";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";

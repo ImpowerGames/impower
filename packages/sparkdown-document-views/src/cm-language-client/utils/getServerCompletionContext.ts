@@ -1,10 +1,10 @@
 import { CompletionContext as ClientCompletionContext } from "@codemirror/autocomplete";
 import { historyField } from "@codemirror/commands";
-import { CompletionTriggerKind } from "../../../../spark-editor-protocol/src/enums/CompletionTriggerKind";
+import { CompletionTriggerKind } from "@impower/spark-editor-protocol/src/enums/CompletionTriggerKind";
 import {
   ServerCapabilities,
   CompletionContext as ServerCompletionContext,
-} from "../../../../spark-editor-protocol/src/types";
+} from "@impower/spark-editor-protocol/src/types";
 
 export const getServerCompletionContext = (
   serverCapabilities: ServerCapabilities<any> | undefined,

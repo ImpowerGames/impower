@@ -2,5 +2,8 @@
   "name": "@impower/spark-dom",
   "displayName": "Spark DOM",
   "description": "Classes used to run spark games in a browser environment.",
-  "version": "0.0.1"
+  "version": "0.0.1",
+  "dependencies": {
+    "@impower/spark-engine": "file:../spark-engine"
+  }
 }

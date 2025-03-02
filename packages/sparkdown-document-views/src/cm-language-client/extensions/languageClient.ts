@@ -6,7 +6,7 @@ import { Tag } from "@lezer/highlight";
 import {
   MessageConnection,
   ServerCapabilities,
-} from "../../../../spark-editor-protocol/src/types";
+} from "@impower/spark-editor-protocol/src/types";
 import { versioning } from "../../cm-versioning/versioning";
 import LanguageClientPluginValue from "../classes/LanguageClientPluginValue";
 import ColorSupport from "../classes/features/ColorSupport";

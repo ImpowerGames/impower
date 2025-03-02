@@ -1,6 +1,6 @@
-import { Story } from "../../../../../sparkdown/src/inkjs/engine/Story";
-import type { SparkProgram } from "../../../../../sparkdown/src/types/SparkProgram";
-import type { SparkdownRuntimeFormat } from "../../../../../sparkdown/src/types/SparkdownRuntimeFormat";
+import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import type { SparkdownRuntimeFormat } from "@impower/sparkdown/src/types/SparkdownRuntimeFormat";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { DocumentSource } from "../types/DocumentSource";
 import { ErrorType } from "../types/ErrorType";

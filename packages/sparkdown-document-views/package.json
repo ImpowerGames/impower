@@ -11,6 +11,10 @@
     "@codemirror/search": "^6.5.9",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.36.3",
+    "@impower/spark-dom": "file:../spark-dom",
+    "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
+    "@impower/spark-engine": "file:../spark-engine",
+    "@impower/sparkdown": "file:../sparkdown",
     "@impower/textmate-grammar-tree": "file:../textmate-grammar-tree",
     "@lezer/common": "^1.2.3"
   }

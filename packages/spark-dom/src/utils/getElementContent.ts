@@ -1,4 +1,4 @@
-import type { ElementContent } from "../../../spark-engine/src/game/modules/ui/types/ElementContent";
+import type { ElementContent } from "@impower/spark-engine/src/game/modules/ui/types/ElementContent";
 import { getAnimationContent } from "./getAnimationContent";
 import { getFontContent } from "./getFontContent";
 import { getStyleContent } from "./getStyleContent";

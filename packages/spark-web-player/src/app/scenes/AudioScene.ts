@@ -1,14 +1,14 @@
-import AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
-import AudioPlayer from "../../../../spark-dom/src/classes/AudioPlayer";
-import { RequestMessage } from "../../../../spark-engine/src/game/core";
-import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
-import { ConfigureAudioMixerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/ConfigureAudioMixerMessage";
-import { LoadAudioPlayerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioPlayerMessage";
-import { UpdateAudioPlayersMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/UpdateAudioPlayersMessage";
-import { AudioPlayerUpdate } from "../../../../spark-engine/src/game/modules/audio/types/AudioPlayerUpdate";
-import { ConfigureAudioMixerParams } from "../../../../spark-engine/src/game/modules/audio/types/ConfigureAudioMixerParams";
-import { LoadAudioPlayerParams } from "../../../../spark-engine/src/game/modules/audio/types/LoadAudioPlayerParams";
-import { UpdateAudioPlayersParams } from "../../../../spark-engine/src/game/modules/audio/types/UpdateAudioPlayersParams";
+import AudioMixer from "@impower/spark-dom/src/classes/AudioMixer";
+import AudioPlayer from "@impower/spark-dom/src/classes/AudioPlayer";
+import { RequestMessage } from "@impower/spark-engine/src/game/core";
+import { SynthBuffer } from "@impower/spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
+import { ConfigureAudioMixerMessage } from "@impower/spark-engine/src/game/modules/audio/classes/messages/ConfigureAudioMixerMessage";
+import { LoadAudioPlayerMessage } from "@impower/spark-engine/src/game/modules/audio/classes/messages/LoadAudioPlayerMessage";
+import { UpdateAudioPlayersMessage } from "@impower/spark-engine/src/game/modules/audio/classes/messages/UpdateAudioPlayersMessage";
+import { AudioPlayerUpdate } from "@impower/spark-engine/src/game/modules/audio/types/AudioPlayerUpdate";
+import { ConfigureAudioMixerParams } from "@impower/spark-engine/src/game/modules/audio/types/ConfigureAudioMixerParams";
+import { LoadAudioPlayerParams } from "@impower/spark-engine/src/game/modules/audio/types/LoadAudioPlayerParams";
+import { UpdateAudioPlayersParams } from "@impower/spark-engine/src/game/modules/audio/types/UpdateAudioPlayersParams";
 import { Disposable } from "../Disposable";
 import Scene from "../Scene";
 

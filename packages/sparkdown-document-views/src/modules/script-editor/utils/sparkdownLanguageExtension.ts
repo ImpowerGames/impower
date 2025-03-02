@@ -4,7 +4,7 @@ import { keymap } from "@codemirror/view";
 import {
   MessageConnection,
   ServerCapabilities,
-} from "../../../../../spark-editor-protocol/src/types";
+} from "@impower/spark-editor-protocol/src/types";
 import CONFIG_DEFINITION from "../../../../../sparkdown/language/sparkdown.language-config.json";
 import GRAMMAR_DEFINITION from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
 import SNIPPETS_DEFINITION from "../../../../../sparkdown/language/sparkdown.language-snippets.json";

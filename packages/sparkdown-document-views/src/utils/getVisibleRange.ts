@@ -1,5 +1,5 @@
 import { EditorView } from "@codemirror/view";
-import { Range } from "../../../spark-editor-protocol/src/types";
+import { Range } from "@impower/spark-editor-protocol/src/types";
 
 export const getVisibleRange = (
   view: EditorView,

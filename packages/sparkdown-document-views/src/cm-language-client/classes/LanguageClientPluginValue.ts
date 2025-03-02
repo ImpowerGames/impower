@@ -12,12 +12,12 @@ import { setDiagnostics } from "@codemirror/lint";
 import { EditorView, PluginValue, ViewUpdate } from "@codemirror/view";
 import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
-import { CompletionMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/CompletionMessage";
-import { DocumentColorMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/DocumentColorMessage";
-import { DocumentDiagnosticMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/DocumentDiagnosticMessage";
-import { FoldingRangeMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/FoldingRangeMessage";
-import { HoverMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/HoverMessage";
-import { PublishDiagnosticsMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
+import { CompletionMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/CompletionMessage";
+import { DocumentColorMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DocumentColorMessage";
+import { DocumentDiagnosticMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DocumentDiagnosticMessage";
+import { FoldingRangeMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/FoldingRangeMessage";
+import { HoverMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/HoverMessage";
+import { PublishDiagnosticsMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import {
   Disposable,
   InsertTextFormat,
@@ -25,7 +25,7 @@ import {
   MessageConnection,
   ServerCapabilities,
   Diagnostic,
-} from "../../../../spark-editor-protocol/src/types";
+} from "@impower/spark-editor-protocol/src/types";
 import { getDocumentVersion } from "../../cm-versioning/versioning";
 import { languageClientConfig } from "../extensions/languageClient";
 import { FileSystemReader } from "../types/FileSystemReader";

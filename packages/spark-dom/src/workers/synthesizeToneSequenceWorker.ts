@@ -1,10 +1,10 @@
 /* eslint-disable no-restricted-globals */
-import { MIDI_MONOPHONIC_INSTRUMENTS } from "../../../spark-engine/src/game/modules/audio/constants/MIDI_MONOPHONIC_INSTRUMENTS";
-import { MIDI_POLYPHONIC_INSTRUMENTS } from "../../../spark-engine/src/game/modules/audio/constants/MIDI_POLYPHONIC_INSTRUMENTS";
-import { ToneSequence } from "../../../spark-engine/src/game/modules/audio/types/ToneSequence";
-import { fillArrayWithTone } from "../../../spark-engine/src/game/modules/audio/utils/fillArrayWithTone";
-import { getNumberOfSamples } from "../../../spark-engine/src/game/modules/audio/utils/getNumberOfSamples";
-import { modulateSoundBuffer } from "../../../spark-engine/src/game/modules/audio/utils/modulateSoundBuffer";
+import { MIDI_MONOPHONIC_INSTRUMENTS } from "@impower/spark-engine/src/game/modules/audio/constants/MIDI_MONOPHONIC_INSTRUMENTS";
+import { MIDI_POLYPHONIC_INSTRUMENTS } from "@impower/spark-engine/src/game/modules/audio/constants/MIDI_POLYPHONIC_INSTRUMENTS";
+import { ToneSequence } from "@impower/spark-engine/src/game/modules/audio/types/ToneSequence";
+import { fillArrayWithTone } from "@impower/spark-engine/src/game/modules/audio/utils/fillArrayWithTone";
+import { getNumberOfSamples } from "@impower/spark-engine/src/game/modules/audio/utils/getNumberOfSamples";
+import { modulateSoundBuffer } from "@impower/spark-engine/src/game/modules/audio/utils/modulateSoundBuffer";
 
 self.onmessage = (event): void => {
   let progress = 0;

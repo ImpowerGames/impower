@@ -1,5 +1,5 @@
 import { ChangeSpec, EditorState, Text } from "@codemirror/state";
-import type { Range } from "../../../../spark-editor-protocol/src/types";
+import type { Range } from "@impower/spark-editor-protocol/src/types";
 import { positionToOffset } from "./positionToOffset";
 
 export const getClientChanges = (

@@ -2,5 +2,8 @@
   "name": "@impower/spark-engine",
   "displayName": "Spark Engine",
   "description": "A light-weight library used to run spark games.",
-  "version": "0.0.1"
+  "version": "0.0.1",
+  "dependencies": {
+    "@impower/sparkdown": "file:../sparkdown"
+  }
 }

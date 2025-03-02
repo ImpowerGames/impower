@@ -1,4 +1,4 @@
-import { EventMap } from "../../../../spark-engine/src/game/core/types/EventMap";
+import { EventMap } from "@impower/spark-engine/src/game/core/types/EventMap";
 
 export const getEventData = <T extends keyof EventMap>(event: Event) => {
   const mouseEventData = event as MouseEvent;

@@ -1,5 +1,5 @@
 import { ChangeSet, Text } from "@codemirror/state";
-import { TextDocumentContentChangeEvent } from "../../../../spark-editor-protocol/src/types";
+import { TextDocumentContentChangeEvent } from "@impower/spark-editor-protocol/src/types";
 import { offsetToPosition } from "./offsetToPosition";
 
 export const getServerChanges = (

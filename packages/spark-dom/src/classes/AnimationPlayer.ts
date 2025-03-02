@@ -1,4 +1,4 @@
-import { Animation as AnimationDefinition } from "../../../spark-engine/src/game/modules/ui/types/Animation";
+import { Animation as AnimationDefinition } from "@impower/spark-engine/src/game/modules/ui/types/Animation";
 import { getCSSPropertyKeyValue } from "../utils/getCSSPropertyKeyValue";
 import { getMilliseconds } from "../utils/getMilliseconds";
 

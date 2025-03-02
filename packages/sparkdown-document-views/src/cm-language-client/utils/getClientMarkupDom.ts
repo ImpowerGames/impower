@@ -4,7 +4,7 @@ import { Tag } from "@lezer/highlight";
 import {
   MarkupContent,
   MarkupKind,
-} from "../../../../spark-editor-protocol/src/types";
+} from "@impower/spark-editor-protocol/src/types";
 import { getMarkdownHtml } from "./getMarkdownHtml";
 
 const createNode = (

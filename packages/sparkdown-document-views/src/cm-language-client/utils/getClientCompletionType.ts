@@ -1,4 +1,4 @@
-import { CompletionItemKind } from "../../../../spark-editor-protocol/src/enums/CompletionItemKind";
+import { CompletionItemKind } from "@impower/spark-editor-protocol/src/enums/CompletionItemKind";
 
 const COMPLETION_ITEM_KIND_MAP = Object.fromEntries(
   Object.entries(CompletionItemKind).map(([key, value]) => [value, key])

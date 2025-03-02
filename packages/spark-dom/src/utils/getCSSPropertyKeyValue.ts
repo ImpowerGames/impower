@@ -1,5 +1,5 @@
 import { getCSSPropertyName } from "./getCSSPropertyName";
-import { getImageVarName } from "../../../spark-engine/src/game/modules/ui/utils/getImageVarName";
+import { getImageVarName } from "@impower/spark-engine/src/game/modules/ui/utils/getImageVarName";
 
 const createTextShadow = (r: number, color = "black", unit = "px"): string => {
   return createShadows(r, color, unit).join(", ") || "none";

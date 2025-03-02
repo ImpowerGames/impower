@@ -5,8 +5,8 @@ import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { SyntaxNodeRef } from "@lezer/common";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
+import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
-import { SparkdownNodeName } from "../../../../../sparkdown/src/types/SparkdownNodeName";
 import { TextmateLanguageSupport } from "../../../cm-textmate/classes/TextmateLanguageSupport";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import DialogueWidget, {
