@@ -379,7 +379,7 @@ const buildWorkers = async () => {
   });
   await new Promise<void>((resolve) => {
     exec(
-      `npm run build:workers:${PRODUCTION ? "prod" : "dev"}`,
+      `npm run build:${PRODUCTION ? "prod" : "dev"}:workers`,
       (error, stdout, stderr) => {
         if (error) {
           console.error(error);
