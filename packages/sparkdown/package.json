@@ -6,7 +6,8 @@
   "type": "module",
   "main": "dist/sparkdown.js",
   "scripts": {
-    "build": "node ./esbuild.js"
+    "build": "node ./esbuild.js",
+    "watch": "node ./esbuild.js --watch"
   },
   "dependencies": {
     "@impower/textmate-grammar-tree": "file:../textmate-grammar-tree",

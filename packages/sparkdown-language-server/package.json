@@ -22,7 +22,8 @@
     "build:prod:workers:sparkdown": "cd ../sparkdown && node ./esbuild.js --production && cd ../sparkdown-language-server",
     "build:dev:workers": "npm-run-all -p build:dev:workers:*",
     "build:prod:workers": "npm-run-all -p build:prod:workers:*",
-    "build": "node ./esbuild.js"
+    "build": "node ./esbuild.js",
+    "watch": "node ./esbuild.js --watch"
   },
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",

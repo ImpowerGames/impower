@@ -19,7 +19,8 @@
   },
   "main": "dist/sparkdown-screenplay-pdf.js",
   "scripts": {
-    "build": "node ./esbuild.js"
+    "build": "node ./esbuild.js",
+    "watch": "node ./esbuild.js --watch"
   },
   "browser": {
     "assert": "assert",

@@ -2,91 +2,10 @@ import { context } from "esbuild";
 import * as glob from "glob";
 import * as path from "path";
 import * as polyfill from "@esbuild-plugins/node-globals-polyfill";
-import { copy } from "esbuild-plugin-copy";
+import copy from "esbuild-plugin-copy-watch";
 
-const production = process.argv.includes("--production");
-const watch = process.argv.includes("--watch");
-
-/** @typedef {import('esbuild').BuildOptions} BuildOptions **/
-
-async function main() {
-  const ctx = await context({
-    entryPoints: ["src/extension.ts", "src/web/test/suite/extensionTests.ts"],
-    bundle: true,
-    format: "cjs",
-    minify: production,
-    sourcemap: !production,
-    sourcesContent: false,
-    platform: "browser",
-    outdir: "out",
-    external: ["vscode", "child_process", "crypto", "fs"],
-    logLevel: "warning",
-    // Node.js global to browser globalThis
-    define: {
-      global: "globalThis",
-    },
-    alias: {
-      "iconv-lite": "iconv-lite",
-      buffer: "buffer",
-      os: "os-browserify/browser",
-      path: "path-browserify",
-      events: "events",
-      stream: "stream-browserify",
-    },
-
-    plugins: [
-      polyfill.NodeGlobalsPolyfillPlugin({
-        process: true,
-        buffer: true,
-      }),
-      testBundlePlugin,
-      esbuildProblemMatcherPlugin /* add to the end of plugins array */,
-      copy({
-        resolveFrom: "cwd",
-        assets: { from: ["./data/*"], to: ["./out/data"] },
-        watch: true,
-      }),
-      copy({
-        resolveFrom: "cwd",
-        assets: {
-          from: ["./node_modules/@vscode/codicons/dist/*"],
-          to: ["./out/data"],
-        },
-        watch: true,
-      }),
-      copy({
-        resolveFrom: "cwd",
-        assets: {
-          from: ["./node_modules/@impower/sparkdown/dist/*"],
-          to: ["./out/workers"],
-        },
-        watch: true,
-      }),
-      copy({
-        resolveFrom: "cwd",
-        assets: {
-          from: ["./node_modules/@impower/sparkdown-language-server/dist/*"],
-          to: ["./out/workers"],
-        },
-        watch: true,
-      }),
-      copy({
-        resolveFrom: "cwd",
-        assets: {
-          from: ["./node_modules/@impower/sparkdown-screenplay-pdf/dist/*"],
-          to: ["./out/workers"],
-        },
-        watch: true,
-      }),
-    ],
-  });
-  if (watch) {
-    await ctx.watch();
-  } else {
-    await ctx.rebuild();
-    await ctx.dispose();
-  }
-}
+const PRODUCTION = process.argv.includes("--production");
+const WATCH = process.argv.includes("--watch");
 
 /**
  * For web extension, all tests, including the test runner, need to be bundled into
@@ -94,8 +13,8 @@ async function main() {
  * This plugin bundles implements a virtual file extensionTests.ts that bundles all these together.
  * @type {import('esbuild').Plugin}
  */
-const testBundlePlugin = {
-  name: "testBundlePlugin",
+const testBundle = () => ({
+  name: "testBundle",
   setup(build) {
     build.onResolve({ filter: /[\/\\]extensionTests\.ts$/ }, (args) => {
       if (args.kind === "entry-point") {
@@ -117,16 +36,11 @@ const testBundlePlugin = {
       };
     });
   },
-};
+});
 
-/**
- * This plugin hooks into the build process to print errors in a format that the problem matcher in
- * Visual Studio Code can understand.
- * @type {import('esbuild').Plugin}
- */
-const esbuildProblemMatcherPlugin = {
-  name: "esbuild-problem-matcher",
-
+/** @type {import('esbuild').Plugin} **/
+const esbuildProblemMatcher = () => ({
+  name: "esbuildProblemMatcher",
   setup(build) {
     build.onStart(() => {
       console.log("[watch] build started");
@@ -142,7 +56,73 @@ const esbuildProblemMatcherPlugin = {
       console.log("[watch] build finished");
     });
   },
+});
+
+/** @typedef {import('esbuild').BuildOptions} BuildOptions **/
+const config = {
+  entryPoints: ["src/extension.ts", "src/web/test/suite/extensionTests.ts"],
+  bundle: true,
+  format: "cjs",
+  minify: PRODUCTION,
+  sourcemap: !PRODUCTION,
+  sourcesContent: false,
+  platform: "browser",
+  outdir: "out",
+  external: ["vscode", "child_process", "crypto", "fs"],
+  logLevel: "warning",
+  // Node.js global to browser globalThis
+  define: {
+    global: "globalThis",
+  },
+  alias: {
+    "iconv-lite": "iconv-lite",
+    buffer: "buffer",
+    os: "os-browserify/browser",
+    path: "path-browserify",
+    events: "events",
+    stream: "stream-browserify",
+  },
+
+  plugins: [
+    polyfill.NodeGlobalsPolyfillPlugin({
+      process: true,
+      buffer: true,
+    }),
+    copy({
+      paths: [
+        { from: "./data/*", to: "./data" },
+        {
+          from: "./node_modules/@vscode/codicons/dist/*",
+          to: "./data",
+        },
+        {
+          from: "./node_modules/@impower/sparkdown/dist/*",
+          to: "./workers",
+        },
+        {
+          from: "./node_modules/@impower/sparkdown-language-server/dist/*",
+          to: "./workers",
+        },
+        {
+          from: "./node_modules/@impower/sparkdown-screenplay-pdf/dist/*",
+          to: "./workers",
+        },
+      ],
+    }),
+    testBundle(),
+    esbuildProblemMatcher() /* add to the end of plugins array */,
+  ],
 };
+
+async function main() {
+  const ctx = await context(config);
+  if (WATCH) {
+    await ctx.watch();
+  } else {
+    await ctx.rebuild();
+    await ctx.dispose();
+  }
+}
 
 main().catch((e) => {
   console.error(e);
