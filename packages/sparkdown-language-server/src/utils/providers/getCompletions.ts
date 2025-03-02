@@ -433,7 +433,7 @@ const addStructReferenceCompletions = (
             if (src) {
               completion.documentation = {
                 kind: MarkupKind.Markdown,
-                value: `<img src="${src}" alt="${name}" width="300px" />`,
+                value: `<img src="${src}" alt="${name}" height="180" />`,
               };
             }
             if (completion.label && !completions.has(completion.label)) {

@@ -75,7 +75,7 @@ export const getHover = (
               result = {
                 contents: {
                   kind: MarkupKind.Markdown,
-                  value: `<img src="${src}" alt="${name}" width="300px" />`,
+                  value: `<img src="${src}" alt="${name}" height="180" />`,
                 },
                 range,
               };
