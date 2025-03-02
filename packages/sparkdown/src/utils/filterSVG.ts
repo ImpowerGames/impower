@@ -1,6 +1,5 @@
 import { filterMatchesName } from "./filterMatchesName";
-
-const ID_ATTRIBUTE_REGEX = /(\bid)(\s*)(=)(\s*)(["'])((?:[^"'\\]|\\.)*)(\5)/g;
+import { Node, parse, stringify, traverse } from "../txml/txml";
 
 export const filterSVG = (
   svg: string,
@@ -8,23 +7,16 @@ export const filterSVG = (
   filterableTag = "filter",
   defaultTag = "default"
 ) => {
-  const idReplacer = (
-    $0: string,
-    _$1: string,
-    _$2: string,
-    _$3: string,
-    _$4: string,
-    $5: string,
-    $6: string,
-    _$7: string
-  ): string => {
-    const quote = $5;
-    const id = $6;
-    if (filterMatchesName(id, filter, filterableTag, defaultTag)) {
-      return `${$0} display=${quote}none${quote}`;
+  const document = parse(svg);
+  traverse(document, (n: Node, index, _d, _p, parent) => {
+    if (typeof n === "object" && n) {
+      const id = n.attributes["id"];
+      if (id && filterMatchesName(id, filter, filterableTag, defaultTag)) {
+        if (parent && typeof parent === "object") {
+          parent.children[index] = null;
+        }
+      }
     }
-    return $0;
-  };
-  const result = svg.replace(ID_ATTRIBUTE_REGEX, idReplacer);
-  return result;
+  });
+  return stringify(document, { quote: "'", selfClosingTags: ["path"] });
 };
