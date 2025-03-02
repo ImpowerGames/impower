@@ -5,7 +5,7 @@ ARG BROWSER_GOOGLE_API_KEY
 ENV BROWSER_GOOGLE_API_KEY $BROWSER_GOOGLE_API_KEY
 ARG BROWSER_GOOGLE_OAUTH_CLIENT_ID
 ENV BROWSER_GOOGLE_OAUTH_CLIENT_ID $BROWSER_GOOGLE_OAUTH_CLIENT_ID
-RUN cd ./impower-dev && npm run preinstall && npm ci && npm run build && cd ../
+RUN cd ./impower-dev && npm run postinstall && npm ci && npm run build && cd ../
 
 FROM node:20-slim
 WORKDIR /usr/src/app
