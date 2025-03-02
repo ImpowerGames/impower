@@ -14,12 +14,9 @@ const PRODUCTION =
   await new Promise((resolve) => {
     exec(
       `npm run build:${PRODUCTION ? "prod" : "dev"}:workers`,
-      (error, stdout, stderr) => {
+      (error, _stdout, stderr) => {
         if (error) {
           console.error(error);
-        }
-        if (stdout) {
-          console.log(stdout);
         }
         if (stderr) {
           console.error(stderr);

@@ -10,6 +10,7 @@ import { ComponentSpec } from "./src/build/ComponentSpec";
 import extractAllSVGs from "./src/build/extractAllSVGs";
 import getScopedCSS from "./src/build/getScopedCSS";
 import renderPage from "./src/build/renderPage";
+import pkg from "./package.json";
 
 const RESET = "\x1b[0m";
 const STRING = "%s";
@@ -45,17 +46,27 @@ const graphicCSSPaths = [
   `${indir}/modules/spark-editor/styles/icons/icons.css`,
 ];
 
+const localDependencies: string[] = [];
+for (const depPath of Object.values(pkg.dependencies)) {
+  if (depPath.startsWith("file:")) {
+    localDependencies.push(depPath.slice("file:".length));
+  }
+}
+for (const depPath of Object.values(pkg.devDependencies)) {
+  if (depPath.startsWith("file:")) {
+    localDependencies.push(depPath.slice("file:".length));
+  }
+}
+for (const depPath of Object.values(pkg.peerDependencies)) {
+  if (depPath.startsWith("file:")) {
+    localDependencies.push(depPath.slice("file:".length));
+  }
+}
+
 const watchDirs = [
   `${indir}/modules`,
   `${indir}/workers`,
-  "../packages/spark-engine/src",
-  "../packages/sparkdown/src",
-  "../packages/sparkdown-document-views/src",
-  "../packages/sparkdown-screenplay/src",
-  "../packages/sparkdown-language-server/src",
-  "../packages/spark-dom/src",
-  "../packages/spark-web-player/src",
-  "../packages/textmate-grammar-tree/src",
+  ...localDependencies.map((depPath) => `${depPath}/src`),
 ];
 
 const args = process.argv.slice(2);
@@ -380,12 +391,9 @@ const buildWorkers = async () => {
   await new Promise<void>((resolve) => {
     exec(
       `npm run build:${PRODUCTION ? "prod" : "dev"}:workers`,
-      (error, stdout, stderr) => {
+      (error, _stdout, stderr) => {
         if (error) {
           console.error(error);
-        }
-        if (stdout) {
-          console.log(stdout);
         }
         if (stderr) {
           console.error(stderr);
