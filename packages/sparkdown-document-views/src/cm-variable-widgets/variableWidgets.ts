@@ -16,7 +16,7 @@ import {
 } from "@codemirror/view";
 import AudioPlayer from "@impower/spark-dom/src/classes/AudioPlayer";
 import type { Audio, LayeredAudio, Synth } from "@impower/spark-engine/src";
-import { clone } from "@impower/park-engine/src/game/core/utils/clone";
+import { clone } from "@impower/spark-engine/src/game/core/utils/clone";
 import { randomizeProperties } from "@impower/spark-engine/src/game/core/utils/randomizeProperties";
 import { SynthBuffer } from "@impower/spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
 import { SparkProgram, SparkVariable } from "@impower/sparkdown/src/index";
