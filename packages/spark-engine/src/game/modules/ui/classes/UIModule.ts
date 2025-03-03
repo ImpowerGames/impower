@@ -810,28 +810,35 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         _exitElements: Map<Element, Animation[]>
       ) {
         let targetRevealed = false;
-        let blockWrapperEl: Element | undefined = undefined;
+        let lineWrapperEl: Element | undefined = undefined;
         let wordWrapperEl: Element | undefined = undefined;
         let wasSpace: boolean | undefined = undefined;
+        let wasNewline: boolean | undefined = undefined;
         let prevTextAlign: string | undefined = undefined;
         for (const e of sequence) {
           const text = e.text;
+          // Wrap each line in a block div
+          const isNewline = text === "\n";
+          // Support transform animations and text-wrapping by wrapping each word in an inline-block span
+          const isSpace = text === " " || text === "\t" || text === "\n";
           // Support aligning text by wrapping consecutive aligned chunks in a block div
           const textAlign = e.style?.text_align;
-          if (textAlign) {
-            // text_align must be applied to a parent element
-            if (textAlign !== prevTextAlign) {
-              // group consecutive spans that have the same text alignment under the same block wrapper
-              blockWrapperEl = $.createElement(contentEl, {
-                type: "div",
-                style: {
-                  display: "block",
-                  text_align: textAlign,
-                },
-              });
-            }
-          } else {
-            blockWrapperEl = undefined;
+          // text_align must be applied to a parent element
+          if (wasNewline === undefined || isNewline !== wasNewline) {
+            // Surround each line in a text_line div
+            lineWrapperEl = $.createElement(contentEl, {
+              type: "div",
+              name: "text_line",
+            });
+          } else if (textAlign && textAlign !== prevTextAlign) {
+            // also surround group consecutive spans that have the same text alignment a text_line div
+            lineWrapperEl = $.createElement(contentEl, {
+              type: "div",
+              name: "text_line",
+              style: {
+                text_align: textAlign,
+              },
+            });
           }
           // Support consecutive whitespace collapsing
           const style: Record<string, string | number | null> = {
@@ -842,32 +849,41 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           if (text === "\n" || text === " " || text === "\t") {
             style["display"] = "inline";
           }
-          // Support text-wrapping by wrapping each word in an inline-block span
-          const isSpace = text === " " || text === "\t";
           if (text === "\n" || isSpace) {
-            wordWrapperEl = undefined;
+            wordWrapperEl = $.createElement(lineWrapperEl || contentEl, {
+              type: "span",
+              name: "text_space",
+            });
           } else if (
             wasSpace === undefined ||
             isSpace !== wasSpace ||
             textAlign !== prevTextAlign
           ) {
-            // this is the start of a word chunk
-            const wordWrapperStyle: Record<string, string | null> = {};
-            wordWrapperStyle["display"] = "inline-block";
-            wordWrapperEl = $.createElement(blockWrapperEl || contentEl, {
+            // this is the start of a new word chunk so create a text_word span
+            wordWrapperEl = $.createElement(lineWrapperEl || contentEl, {
               type: "span",
-              style: wordWrapperStyle,
+              name: "text_word",
             });
           }
           prevTextAlign = textAlign;
+          wasNewline = isNewline;
           wasSpace = isSpace;
           // Append text to wordWrapper, blockWrapper, or content
-          const textParentEl = wordWrapperEl || blockWrapperEl || contentEl;
-          const newSpanEl = $.createElement(textParentEl, {
-            type: "span",
-            content: { text },
-            style,
-          });
+          const textParentEl = wordWrapperEl || lineWrapperEl || contentEl;
+          const newSpanEl =
+            text === "\n"
+              ? $.createElement(textParentEl, {
+                  type: "span",
+                  name: "text_letter",
+                  content: { text: "" }, // text_line div already handles breaking up lines
+                  style,
+                })
+              : $.createElement(textParentEl, {
+                  type: "span",
+                  name: "text_letter",
+                  content: { text },
+                  style,
+                });
           if (!enterElements.has(newSpanEl)) {
             enterElements.set(newSpanEl, []);
           }

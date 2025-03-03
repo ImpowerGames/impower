@@ -40,6 +40,7 @@ export const uiBuiltinDefinitions = () => ({
       $name: "text",
       display: "block",
       pointer_events: "auto",
+      text_wrap: "balance",
       white_space: "pre-line",
       "*": {
         display: "inline",
@@ -57,6 +58,22 @@ export const uiBuiltinDefinitions = () => ({
       "*": {
         display: "inline",
       },
+    }),
+    text_line: default_style({
+      $name: "text_line",
+      display: "block",
+      text_wrap: "balance",
+    }),
+    text_word: default_style({
+      $name: "text_word",
+      display: "inline-block",
+    }),
+    text_space: default_style({
+      $name: "text_space",
+      display: "inline",
+    }),
+    text_letter: default_style({
+      $name: "text_letter",
     }),
     image: default_style({
       $name: "image",
