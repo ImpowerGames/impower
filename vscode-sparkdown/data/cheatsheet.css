@@ -88,6 +88,7 @@ details > summary::before {
   font-size: 14px;
   content: "\eab6";
   vertical-align: bottom;
+  width: 14px;
   padding-right: 6px;
 }
 ::marker {

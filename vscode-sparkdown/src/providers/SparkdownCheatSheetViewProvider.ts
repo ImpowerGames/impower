@@ -66,23 +66,27 @@ export class SparkdownCheatSheetWebviewViewProvider
                 font-family: sparkdown-font;
                 src:url(${fontUri});
                 font-weight: normal;
+                font-display: block;
             }
             @font-face{
                 font-family: sparkdown-font;
                 src:url(${fontUriBold});
                 font-weight: bold;
+                font-display: block;
             }
             @font-face{
                 font-family: sparkdown-font;
                 src:url(${fontUriItalic});
                 font-weight: normal;
                 font-style: italic;
+                font-display: block;
             }
             @font-face{
                 font-family: sparkdown-font;
                 src:url(${fontUriBoldItalic});
                 font-weight: bold;
                 font-style: italic;
+                font-display: block;
             }
             </style>
         </head>
