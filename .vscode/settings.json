@@ -37,6 +37,7 @@
   "terminal.integrated.autoReplies": {
     "Terminate batch job (Y/N)": "Y\r"
   },
+  "terminal.integrated.persistentSessionReviveProcess": "onExitAndWindowClose",
   "html.customData": ["./packages/sparkle/vscode.html-custom-data.json"],
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode",
