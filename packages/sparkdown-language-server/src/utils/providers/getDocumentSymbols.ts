@@ -1,55 +1,132 @@
 import { SymbolKind, type DocumentSymbol } from "vscode-languageserver";
 import { type TextDocument } from "vscode-languageserver-textdocument";
 
-import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import { StructureItem } from "@impower/sparkdown/src/types/StructureItem";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 
-const getDocumentSymbol = (
-  structure: Record<string, StructureItem>,
-  item: StructureItem
-): DocumentSymbol => {
-  const children: DocumentSymbol[] = [];
-  item.children.forEach((child) => {
-    const s = structure[child];
-    if (s?.text) {
-      children.push(getDocumentSymbol(structure, structure[child]!));
-    }
-  });
-  return {
-    name: item.text,
-    kind:
-      item.type === "chunk"
-        ? SymbolKind.File
-        : item.type === "section"
-        ? SymbolKind.Number
-        : SymbolKind.String,
-    range: item.range,
-    selectionRange: item.selectionRange,
-    children,
-  };
-};
+export interface DocumentSymbolMark {
+  type: "knot" | "stitch";
+  symbol: DocumentSymbol;
+}
 
 export const getDocumentSymbols = (
   document: TextDocument | undefined,
-  program: SparkProgram | undefined
+  annotations: SparkdownAnnotations | undefined
 ): DocumentSymbol[] => {
   const symbols: DocumentSymbol[] = [];
-  const structure = program?.metadata?.scopes;
-  if (!document || !structure) {
+  if (!document || !annotations) {
     return symbols;
   }
-  Object.values(structure).forEach((item) => {
-    if (item.level === 0 && item.text) {
-      symbols.push(getDocumentSymbol(structure, item));
-    }
-  });
-  // If no root labels exist, treat all level 1 sections as roots
-  if (symbols.length === 0) {
-    Object.values(structure).forEach((item) => {
-      if (item.level === 1 && item.text) {
-        symbols.push(getDocumentSymbol(structure, item));
+  const headingMarks: DocumentSymbolMark[] = [];
+  const knotMarks: DocumentSymbolMark[] = [];
+  const cur = annotations.declarations?.iter();
+  if (cur) {
+    while (cur.value) {
+      if (cur.value.type === "knot") {
+        const nameRange = {
+          start: document.positionAt(cur.from),
+          end: document.positionAt(cur.to),
+        };
+        const lineRange = {
+          start: {
+            line: nameRange.start.line,
+            character: 0,
+          },
+          end: {
+            line: nameRange.end.line,
+            character: nameRange.end.character,
+          },
+        };
+        const name = document.getText(nameRange);
+        const line = document.positionAt(cur.from).line;
+        const mark: DocumentSymbolMark = {
+          type: "knot",
+          symbol: {
+            name,
+            kind: SymbolKind.Class,
+            range: structuredClone(lineRange),
+            selectionRange: lineRange,
+          },
+        };
+        const lastKnot = headingMarks.findLast((m) => m.type === "knot");
+        if (lastKnot) {
+          lastKnot.symbol.range.end.line = line - 1;
+          lastKnot.symbol.range.end.character = document.positionAt(
+            line - 1
+          ).character;
+        }
+        const prevHeading = headingMarks.at(-1);
+        if (prevHeading?.type === "knot" || prevHeading?.type === "stitch") {
+          prevHeading.symbol.range.end.line = line - 1;
+          prevHeading.symbol.range.end.character = document.positionAt(
+            line - 1
+          ).character;
+        }
+        knotMarks.push(mark);
+        headingMarks.push(mark);
       }
-    });
+      if (cur.value.type === "stitch") {
+        const nameRange = {
+          start: document.positionAt(cur.from),
+          end: document.positionAt(cur.to),
+        };
+        const lineRange = {
+          start: {
+            line: nameRange.start.line,
+            character: 0,
+          },
+          end: {
+            line: nameRange.end.line,
+            character: nameRange.end.character,
+          },
+        };
+        const name = document.getText(nameRange);
+        const line = document.positionAt(cur.from).line;
+        const mark: DocumentSymbolMark = {
+          type: "stitch",
+          symbol: {
+            name,
+            kind: SymbolKind.Interface,
+            range: structuredClone(lineRange),
+            selectionRange: lineRange,
+          },
+        };
+        const lastKnot = headingMarks.findLast((m) => m.type === "knot");
+        if (lastKnot) {
+          lastKnot.symbol.children ??= [];
+          lastKnot.symbol.children.push(mark.symbol);
+        }
+        const prevHeading = headingMarks.at(-1);
+        if (prevHeading?.type === "stitch") {
+          prevHeading.symbol.range.end.line = line - 1;
+          prevHeading.symbol.range.end.character = document.positionAt(
+            line - 1
+          ).character;
+        }
+        headingMarks.push(mark);
+      }
+      cur.next();
+    }
   }
-  return symbols;
+  const lastKnot = headingMarks.findLast((m) => m.type === "knot");
+  if (
+    lastKnot &&
+    lastKnot.symbol.range.end.line === lastKnot.symbol.range.start.line
+  ) {
+    lastKnot.symbol.range.end.line = document.lineCount - 1;
+    lastKnot.symbol.range.end.character = document.positionAt(
+      document.lineCount - 1
+    ).character;
+  }
+  const lastStitch = headingMarks.findLast((m) => m.type === "stitch");
+  if (
+    lastStitch &&
+    lastStitch.symbol.range.end.line === lastStitch.symbol.range.start.line
+  ) {
+    lastStitch.symbol.range.end.line = document.lineCount - 1;
+    lastStitch.symbol.range.end.character = document.positionAt(
+      document.lineCount - 1
+    ).character;
+  }
+  const result = knotMarks.map((s) => s.symbol);
+  return result;
 };

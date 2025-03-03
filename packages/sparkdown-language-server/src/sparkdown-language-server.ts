@@ -149,9 +149,9 @@ try {
   connection.onDocumentSymbol((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.program(uri);
+    const annotations = documents.annotations(uri);
     performance.mark(`lsp: onDocumentSymbol ${uri} start`);
-    const result = getDocumentSymbols(document, program);
+    const result = getDocumentSymbols(document, annotations);
     performance.mark(`lsp: onDocumentSymbol ${uri} end`);
     performance.measure(
       `lsp: onDocumentSymbol ${uri}`,

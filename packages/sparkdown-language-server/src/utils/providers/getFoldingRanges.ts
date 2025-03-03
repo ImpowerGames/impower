@@ -15,11 +15,6 @@ export const getFoldingRanges = (
   if (!document) {
     return indentFolding;
   }
-  const read = (from: number, to: number) =>
-    document.getText({
-      start: document.positionAt(from),
-      end: document.positionAt(to),
-    });
   const lines: string[] = [];
   for (let i = 0; i < document.lineCount; i += 1) {
     lines.push(document.getText(Range.create(i, 0, i + 1, 0)));
@@ -115,5 +110,8 @@ export const getFoldingRanges = (
   if (lastStitch && lastStitch.endLine === lastStitch.startLine) {
     lastStitch.endLine = document.lineCount - 1;
   }
-  return [...indentFolding, ...headingFolding];
+  const result = [...indentFolding, ...headingFolding].sort(
+    (a, b) => a.startLine - b.startLine
+  );
+  return result;
 };

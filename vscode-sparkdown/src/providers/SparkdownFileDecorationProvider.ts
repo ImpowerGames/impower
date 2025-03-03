@@ -2,13 +2,13 @@ import * as vscode from "vscode";
 import { fileStat } from "../utils/fileStat";
 import { getEditor } from "../utils/getEditor";
 
-export class SparkdownCommandFileDecorationProvider
+export class SparkdownFileDecorationProvider
   implements vscode.FileDecorationProvider
 {
-  private static _instance: SparkdownCommandFileDecorationProvider;
-  static get instance(): SparkdownCommandFileDecorationProvider {
+  private static _instance: SparkdownFileDecorationProvider;
+  static get instance(): SparkdownFileDecorationProvider {
     if (!this._instance) {
-      this._instance = new SparkdownCommandFileDecorationProvider();
+      this._instance = new SparkdownFileDecorationProvider();
     }
     return this._instance;
   }
@@ -24,8 +24,6 @@ export class SparkdownCommandFileDecorationProvider
 
   uris: Record<string, vscode.Uri> = {};
 
-  private _disposables: vscode.Disposable[];
-
   private _stat?: vscode.FileStat;
 
   private _commandUris: {
@@ -36,11 +34,6 @@ export class SparkdownCommandFileDecorationProvider
   } = {};
 
   private _commandStats: Record<string, vscode.FileStat | undefined> = {};
-
-  constructor() {
-    this._disposables = [];
-    this._disposables.push(vscode.window.registerFileDecorationProvider(this));
-  }
 
   provideFileDecoration(
     uri: vscode.Uri
@@ -61,11 +54,7 @@ export class SparkdownCommandFileDecorationProvider
         badge: "*",
       };
     }
-    return {};
-  }
-
-  dispose() {
-    this._disposables.forEach((d) => d.dispose());
+    return undefined;
   }
 
   async update(uri: vscode.Uri | undefined): Promise<void> {

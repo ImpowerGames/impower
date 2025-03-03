@@ -11,9 +11,13 @@ import { SparkProgramManager } from "../providers/SparkProgramManager";
 import { SparkdownStatusBarManager } from "../providers/SparkdownStatusBarManager";
 import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
 import { getEditor } from "./getEditor";
-import { ExecuteCommandRequest } from "vscode-languageclient";
+import {
+  ExecuteCommandSignature,
+  ProvideDocumentSymbolsSignature,
+} from "vscode-languageclient";
 import { SparkdownPreviewGamePanelManager } from "../providers/SparkdownPreviewGamePanelManager";
 import { updateCommands } from "./updateCommands";
+import { SparkdownOutlineTreeDataProvider } from "../providers/SparkdownOutlineTreeDataProvider";
 
 export const activateLanguageClient = async (
   context: vscode.ExtensionContext
@@ -84,24 +88,37 @@ export const activateLanguageClient = async (
       schemaDefinitions: DEFAULT_SCHEMA_DEFINITIONS,
       descriptionDefinitions: DEFAULT_DESCRIPTION_DEFINITIONS,
     },
-  });
-  client.onRequest(ExecuteCommandRequest.type, async (params) => {
-    // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
-    if (params.command === "sparkdown.readTextDocument") {
-      const [uri] = params.arguments || [];
-      if (uri && typeof uri === "string") {
-        const buffer = await vscode.workspace.fs.readFile(
-          vscode.Uri.parse(uri)
-        );
-        const text = new TextDecoder("utf-8").decode(buffer);
-        const result = { uri, text };
-        return result;
-      }
-    }
-    return vscode.commands.executeCommand(
-      params.command,
-      ...(params.arguments || [])
-    );
+    middleware: {
+      provideDocumentSymbols: async (
+        document: vscode.TextDocument,
+        token: vscode.CancellationToken,
+        next: ProvideDocumentSymbolsSignature
+      ) => {
+        const value = await next(document, token);
+        SparkdownOutlineTreeDataProvider.instance.update(document.uri, value);
+        return value;
+      },
+      executeCommand: async (
+        command: string,
+        args: any[],
+        next: ExecuteCommandSignature
+      ) => {
+        const value = await next(command, args);
+        // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
+        if (command === "sparkdown.readTextDocument") {
+          const [uri] = args || [];
+          if (uri && typeof uri === "string") {
+            const buffer = await vscode.workspace.fs.readFile(
+              vscode.Uri.parse(uri)
+            );
+            const text = new TextDecoder("utf-8").decode(buffer);
+            const result = { uri, text };
+            return result;
+          }
+        }
+        return value;
+      },
+    },
   });
   client.onNotification(
     DidCompileTextDocumentMessage.method,

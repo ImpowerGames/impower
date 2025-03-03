@@ -330,12 +330,6 @@
         "category": "Sparkdown"
       },
       {
-        "command": "sparkdown.jumpto",
-        "when": "editorLangId == sparkdown",
-        "title": "Jump to line",
-        "category": "Sparkdown"
-      },
-      {
         "command": "sparkdown.statistics",
         "when": "editorLangId == sparkdown",
         "title": "View statistics",
