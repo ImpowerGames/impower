@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { getSelectionFragment } from "../utils/getSelectionFragment";
 
 export class SparkdownOutlineTreeDataProvider
   implements vscode.TreeDataProvider<OutlineTreeItem>
@@ -89,7 +88,7 @@ export class OutlineTreeItem extends vscode.TreeItem {
   ) {
     const path = parent?.label ? `${parent.label}.${symbol.name}` : symbol.name;
     const resourceUri = vscode.Uri.file(uri.path).with({
-      fragment: getSelectionFragment(symbol.range),
+      fragment: path,
     });
     symbolUris[resourceUri.toString()] = symbol.range;
     const collapsibleState =
