@@ -2,10 +2,10 @@ import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram"
 import { VersionedTextDocumentIdentifier } from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
-export type DidParseTextDocumentMethod =
-  typeof DidParseTextDocumentMessage.method;
+export type DidCompileTextDocumentMethod =
+  typeof DidCompileTextDocumentMessage.method;
 
-export interface DidParseTextDocumentParams {
+export interface DidCompileTextDocumentParams {
   /**
    * The document that was parsed.
    */
@@ -16,10 +16,10 @@ export interface DidParseTextDocumentParams {
   program: SparkProgram;
 }
 
-export class DidParseTextDocumentMessage {
-  static readonly method = "textDocument/didParse";
+export class DidCompileTextDocumentMessage {
+  static readonly method = "textDocument/didCompile";
   static readonly type = new MessageProtocolNotificationType<
-    DidParseTextDocumentMethod,
-    DidParseTextDocumentParams
-  >(DidParseTextDocumentMessage.method);
+    DidCompileTextDocumentMethod,
+    DidCompileTextDocumentParams
+  >(DidCompileTextDocumentMessage.method);
 }

@@ -1,7 +1,7 @@
 import { DiagnosticTag } from "@impower/spark-editor-protocol/src/enums/DiagnosticTag";
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { InitializedMessage } from "@impower/spark-editor-protocol/src/protocols/InitializedMessage";
-import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
+import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import {
   ClientCapabilities,
@@ -170,12 +170,12 @@ export default class WorkspaceLanguageServer {
       }
     );
     this._connection.onNotification(
-      DidParseTextDocumentMessage.type,
+      DidCompileTextDocumentMessage.type,
       (params) => {
         this.updateProgram(params.program);
         this.emit(
-          DidParseTextDocumentMessage.method,
-          DidParseTextDocumentMessage.type.notification(params)
+          DidCompileTextDocumentMessage.method,
+          DidCompileTextDocumentMessage.type.notification(params)
         );
       }
     );

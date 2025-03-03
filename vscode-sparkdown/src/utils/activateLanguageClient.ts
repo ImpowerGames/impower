@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
 import {
-  DidParseTextDocumentMessage,
-  DidParseTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
+  DidCompileTextDocumentMessage,
+  DidCompileTextDocumentParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
 import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
@@ -104,8 +104,8 @@ export const activateLanguageClient = async (
     );
   });
   client.onNotification(
-    DidParseTextDocumentMessage.method,
-    (params: DidParseTextDocumentParams) => {
+    DidCompileTextDocumentMessage.method,
+    (params: DidCompileTextDocumentParams) => {
       onParse(context, params);
     }
   );
@@ -115,7 +115,7 @@ export const activateLanguageClient = async (
 
 const onParse = (
   _context: vscode.ExtensionContext,
-  params: DidParseTextDocumentParams
+  params: DidCompileTextDocumentParams
 ) => {
   const program = params.program;
   const textDocument = params.textDocument;

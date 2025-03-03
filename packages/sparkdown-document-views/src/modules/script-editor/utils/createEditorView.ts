@@ -17,7 +17,7 @@ import {
   ViewUpdate,
   panels,
 } from "@codemirror/view";
-import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
+import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import {
   MessageConnection,
   ServerCapabilities,
@@ -342,7 +342,7 @@ const createEditorView = (
   const onParse = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      if (DidParseTextDocumentMessage.type.isNotification(message)) {
+      if (DidCompileTextDocumentMessage.type.isNotification(message)) {
         const params = message.params;
         const program = params.program;
         const version = params.textDocument.version;
@@ -355,10 +355,10 @@ const createEditorView = (
       }
     }
   };
-  window.addEventListener(DidParseTextDocumentMessage.method, onParse);
+  window.addEventListener(DidCompileTextDocumentMessage.method, onParse);
   const disposable = {
     dispose: () => {
-      window.removeEventListener(DidParseTextDocumentMessage.method, onParse);
+      window.removeEventListener(DidCompileTextDocumentMessage.method, onParse);
     },
   };
   return [view, disposable];

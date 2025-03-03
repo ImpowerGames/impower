@@ -3,7 +3,7 @@ import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protoco
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { WillExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
+import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
@@ -20,8 +20,8 @@ export default class GamePreview extends Component(spec) {
     this.configureGame();
     this.loadPreview();
     window.addEventListener(
-      DidParseTextDocumentMessage.method,
-      this.handleDidParseTextDocument
+      DidCompileTextDocumentMessage.method,
+      this.handleDidCompileTextDocument
     );
     window.addEventListener(
       SelectedEditorMessage.method,
@@ -37,8 +37,8 @@ export default class GamePreview extends Component(spec) {
 
   override onDisconnected() {
     window.removeEventListener(
-      DidParseTextDocumentMessage.method,
-      this.handleDidParseTextDocument
+      DidCompileTextDocumentMessage.method,
+      this.handleDidCompileTextDocument
     );
     window.removeEventListener(
       SelectedEditorMessage.method,
@@ -51,7 +51,7 @@ export default class GamePreview extends Component(spec) {
     window.removeEventListener("keydown", this.handleKeyDown);
   }
 
-  handleDidParseTextDocument = async (e: Event) => {
+  handleDidCompileTextDocument = async (e: Event) => {
     if (e instanceof CustomEvent) {
       await this.configureGame();
       await this.loadGame();

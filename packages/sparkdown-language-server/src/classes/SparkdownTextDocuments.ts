@@ -35,7 +35,7 @@ import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/classes/Sparkd
 
 import { throttle } from "../utils/timing/throttle";
 import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
-import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
+import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { profile } from "../utils/logging/profile";
 import { debounce } from "../utils/timing/debounce";
 
@@ -423,7 +423,7 @@ export default class SparkdownTextDocuments {
     version: number | undefined
   ) {
     return this._connection?.sendNotification(
-      DidParseTextDocumentMessage.method,
+      DidCompileTextDocumentMessage.method,
       {
         textDocument: {
           uri,

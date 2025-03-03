@@ -34,7 +34,7 @@ import workspace from "./WorkspaceStore";
 import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
-import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
+import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { debounce } from "../utils/debounce";
 
 export default class WorkspaceWindow {
@@ -62,7 +62,7 @@ export default class WorkspaceWindow {
       this.handleChangedEditorBreakpoints
     );
     window.addEventListener(
-      DidParseTextDocumentMessage.method,
+      DidCompileTextDocumentMessage.method,
       this.handleDidParseDocument
     );
     const mediaQuery = window.matchMedia("(min-width: 960px)");
@@ -243,7 +243,7 @@ export default class WorkspaceWindow {
   protected handleDidParseDocument = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      if (DidParseTextDocumentMessage.type.isNotification(message)) {
+      if (DidCompileTextDocumentMessage.type.isNotification(message)) {
         const { textDocument, program } = message.params;
         const uri = textDocument.uri;
         const filename = uri.split("/").slice(-1).join("");
