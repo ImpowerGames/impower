@@ -1,7 +1,5 @@
 import { context } from "esbuild";
 
-/** @typedef {import('esbuild').BuildOptions} BuildOptions **/
-
 const args = process.argv.slice(2);
 const OUTDIR_ARG = args.find((a) => a.startsWith("--outdir="));
 const OUTDIR = OUTDIR_ARG ? OUTDIR_ARG.split("=")?.[1] : "dist";
@@ -28,7 +26,7 @@ const esbuildProblemMatcher = () => ({
   },
 });
 
-/** @type BuildOptions */
+/** @type {import('esbuild').BuildOptions} BuildOptions **/
 const config = {
   entryPoints: ["./src/sparkdown.ts"],
   outdir: OUTDIR,
