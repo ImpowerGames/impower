@@ -3,7 +3,7 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 export type RemoveCompilerFileMethod = typeof RemoveCompilerFileMessage.method;
 
 export interface RemoveCompilerFileParams {
-  uri: string;
+  file: { uri: string };
 }
 
 export class RemoveCompilerFileMessage {

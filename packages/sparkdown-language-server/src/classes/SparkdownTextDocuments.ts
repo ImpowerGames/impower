@@ -461,10 +461,7 @@ export default class SparkdownTextDocuments {
       uri,
       src: this._urls[uri] || "",
     });
-    await this.sendCompilerRequest(AddCompilerFileMessage.type, {
-      uri,
-      file,
-    });
+    await this.sendCompilerRequest(AddCompilerFileMessage.type, { file });
     if (this._lastCompiledUri) {
       await this.debouncedCompile(this._lastCompiledUri, true);
     }
@@ -476,10 +473,7 @@ export default class SparkdownTextDocuments {
         uri,
         src: this._urls[uri] || "",
       });
-      await this.sendCompilerRequest(UpdateCompilerFileMessage.type, {
-        uri,
-        file,
-      });
+      await this.sendCompilerRequest(UpdateCompilerFileMessage.type, { file });
       if (this._lastCompiledUri) {
         await this.debouncedCompile(this._lastCompiledUri, true);
       }
@@ -490,7 +484,9 @@ export default class SparkdownTextDocuments {
     this._watchedFileUris.delete(uri);
     this._programStates.delete(uri);
     this._documents.remove({ textDocument: { uri } });
-    await this.sendCompilerRequest(RemoveCompilerFileMessage.type, { uri });
+    await this.sendCompilerRequest(RemoveCompilerFileMessage.type, {
+      file: { uri },
+    });
     if (this._lastCompiledUri) {
       await this.debouncedCompile(this._lastCompiledUri, true);
     }

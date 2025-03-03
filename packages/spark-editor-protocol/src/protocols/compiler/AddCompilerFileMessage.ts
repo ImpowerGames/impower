@@ -3,8 +3,8 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 export type AddCompilerFileMethod = typeof AddCompilerFileMessage.method;
 
 export interface AddCompilerFileParams {
-  uri: string;
   file: {
+    uri: string;
     type: string;
     name: string;
     ext: string;
