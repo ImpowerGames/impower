@@ -121,10 +121,11 @@ export class SparkdownDocumentRegistry {
                 },
                 text: change.text,
               };
+        const textLength = c.text.replaceAll("\r\n", "\n").length;
         const fromA = changeDocument.offsetAt(c.range.start);
         const toA = changeDocument.offsetAt(c.range.end);
         const fromB = changeDocument.offsetAt(c.range.start);
-        const toB = changeDocument.offsetAt(c.range.start) + c.text.length;
+        const toB = changeDocument.offsetAt(c.range.start) + textLength;
         const treeChange: ChangedRange = {
           fromA,
           toA,
@@ -165,7 +166,7 @@ export class SparkdownDocumentRegistry {
             state.tree,
             [annotationChange],
             Math.max(
-              toA + c.text.length,
+              toA + textLength,
               state.tree.length,
               documentLengthBeforeChange,
               documentLengthAfterChange
@@ -177,7 +178,7 @@ export class SparkdownDocumentRegistry {
           console.error(
             fromA,
             toA,
-            c.text.length,
+            textLength,
             state.tree.length,
             documentLengthBeforeChange,
             documentLengthAfterChange
