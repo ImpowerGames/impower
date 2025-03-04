@@ -199,6 +199,7 @@
         }
       },
       "[sparkdown]": {
+        "workbench.editor.revealIfOpen": true,
         "diffEditor.ignoreTrimWhitespace": false,
         "editor.wordWrap": "on",
         "editor.suggest.snippetsPreventQuickSuggestions": false,
