@@ -1190,7 +1190,8 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    leftStack[0]?.name === "TransitionMarkSeparator" ||
+    (leftStack[0]?.name === "Separator" &&
+      prevNode?.name === "TransitionMark") ||
     leftStack.some((n) => n?.name === "Transition_content")
   ) {
     const contentNode = getDescendentInsideParent(
@@ -1230,7 +1231,7 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    leftStack[0]?.name === "SceneMarkSeparator" ||
+    (leftStack[0]?.name === "Separator" && prevNode?.name === "SceneMark") ||
     leftStack.some((n) => n?.name === "Scene_content")
   ) {
     const contentNode = getDescendentInsideParent(
@@ -1276,7 +1277,7 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    leftStack[0]?.name === "DialogueMarkSeparator" ||
+    (leftStack[0]?.name === "Separator" && prevNode?.name === "DialogueMark") ||
     leftStack.some((n) => n?.name === "DialogueCharacter")
   ) {
     const dialogueCharacterNode =
@@ -1310,7 +1311,7 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    leftStack[0]?.name === "WriteMarkSeparator" ||
+    (leftStack[0]?.name === "Separator" && prevNode?.name === "WriteMark") ||
     leftStack.some((n) => n?.name === "WriteTarget")
   ) {
     const writeTargetNode =
@@ -1348,7 +1349,8 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      leftStack[0]?.name === "WhitespaceAssetCommandTarget" ||
+      (leftStack[0]?.name === "Separator" &&
+        prevNode.name === "AssetCommandControl") ||
       leftStack[0]?.name === "AssetCommandTarget"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
@@ -1356,7 +1358,10 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (leftStack[0]?.name === "WhitespaceAssetCommandName") {
+    if (
+      leftStack[0]?.name === "Separator" &&
+      prevNode.name === "AssetCommandTarget"
+    ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(
           completions,
@@ -1404,7 +1409,8 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      (leftStack[0]?.name === "WhitespaceAssetCommandClause" &&
+      (leftStack[0]?.name === "Separator" &&
+        leftStack.some((n) => n.name === "AssetCommandContent") &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
       leftStack[0]?.name === "NameValue"
@@ -1417,7 +1423,10 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (leftStack[0]?.name === "WhitespaceAssetCommandClause") {
+    if (
+      leftStack[0]?.name === "Separator" &&
+      leftStack.some((n) => n.name === "AssetCommandContent")
+    ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
           prevNode?.name === "AssetCommandClauseKeyword" &&
@@ -1466,7 +1475,8 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      leftStack[0]?.name === "WhitespaceAssetCommandTarget" ||
+      (leftStack[0]?.name === "Separator" &&
+        prevNode.name === "AssetCommandControl") ||
       leftStack[0]?.name === "AssetCommandTarget"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
@@ -1474,7 +1484,10 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (leftStack[0]?.name === "WhitespaceAssetCommandName") {
+    if (
+      leftStack[0]?.name === "Separator" &&
+      prevNode.name === "AssetCommandTarget"
+    ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, AUDIO_TYPES);
         addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS);
@@ -1511,7 +1524,10 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (leftStack[0]?.name === "WhitespaceAssetCommandClause") {
+    if (
+      leftStack[0]?.name === "Separator" &&
+      leftStack.some((n) => n.name === "AssetCommandContent")
+    ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
           prevNode?.name === "AssetCommandClauseKeyword" &&
@@ -1538,7 +1554,8 @@ export const getCompletions = (
       }
     }
     if (
-      (leftStack[0]?.name === "WhitespaceAssetCommandClause" &&
+      (leftStack[0]?.name === "Separator" &&
+        leftStack.some((n) => n.name === "AssetCommandContent") &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
       leftStack[0]?.name === "NameValue"
@@ -1554,7 +1571,9 @@ export const getCompletions = (
   if (
     leftStack.some(
       (n) =>
-        n.type.name === "WhitespaceDefineTypeName" ||
+        (n.type.name === "Separator" &&
+          (prevNode.name === "DefineKeyword" ||
+            prevNode.name === "DefineModifierName")) ||
         n.type.name === "DefineTypeName"
     )
   ) {
@@ -1575,7 +1594,6 @@ export const getCompletions = (
     leftStack.some(
       (n) =>
         n.type.name === "DefinePunctuationAccessor" ||
-        n.type.name === "WhitespaceDefineVariableName" ||
         n.type.name === "DefineVariableName"
     )
   ) {
@@ -1662,7 +1680,10 @@ export const getCompletions = (
   if (
     leftStack.some(
       (n) =>
-        n.type.name === "WhitespaceStructFieldValue" ||
+        (n.type.name === "Separator" &&
+          (prevNode.name === "SetEqualOperator" ||
+            prevNode.name === "ArrayItemMark") &&
+          leftStack.some((x) => x.name === "DefineDeclaration")) ||
         n.type.name === "StructFieldValue"
     ) &&
     !leftStack.some((n) => n.type.name === "AccessPath")
@@ -1775,7 +1796,8 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    leftStack[0]?.name === "WhitespaceDivertPath" &&
+    leftStack[0]?.name === "Separator" &&
+    prevNode.name === "DivertArrow" &&
     !getNodeText(
       getDescendentInsideParent("Divert_content", "Divert", leftStack)
     )

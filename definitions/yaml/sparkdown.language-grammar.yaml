@@ -125,7 +125,7 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       2:
         tag: definition(docComment)
         name: punctuation.definition.comment.sd comment.line.sd entity.tag.begin.sd
@@ -147,13 +147,13 @@ repository:
     beginCaptures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Indent" }
       2:
         tag: definition(docComment)
         name: constant.other entity.todo.begin.sd
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#TodoContent" }
@@ -179,7 +179,7 @@ repository:
         name: keyword.control.import.include.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#IncludeContent" }
@@ -213,7 +213,7 @@ repository:
         name: keyword.control.definition.var.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#VariableAssignment" }
@@ -232,7 +232,7 @@ repository:
         name: keyword.control.definition.list.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#TypeAssignment" }
@@ -251,7 +251,7 @@ repository:
         name: keyword.control.definition.const.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#VariableAssignment" }
@@ -270,7 +270,7 @@ repository:
         name: keyword.control.definition.external.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#ExternalFunctionDeclaration" }
@@ -285,11 +285,11 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: controlKeyword
-        name: keyword.control.definition.object.sd
+        patterns:
+          - { include: "#DefineKeyword" }
       3:
         patterns:
-          - { include: "#WhitespaceDefineTypeName" }
+          - { include: "#Separator" }
       4:
         patterns:
           - { include: "#DefineAssignment" }
@@ -308,13 +308,13 @@ repository:
           - { include: "#DefineModifierName" }
       2:
         patterns:
-          - { include: "#WhitespaceDefineTypeName" }
+          - { include: "#Separator" }
       3:
         patterns:
           - { include: "#DefineIdentifier" }
       4:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       5:
         patterns:
           - { include: "#DeclarationAssignOperator" }
@@ -335,14 +335,14 @@ repository:
         patterns:
           - { include: "#AccessPart" }
 
+  DefineKeyword: 
+    tag: controlKeyword
+    name: keyword.control.definition.object.sd
+    match: (.+)
+
   DefineModifierName:
     tag: keyword
     name: storage.modifier.sd
-    match: (.+)
-
-  WhitespaceDefineTypeName:
-    tag: content
-    name: markup.raw.whitespace.sd
     match: (.+)
 
   DefineTypeName:
@@ -354,11 +354,6 @@ repository:
     match: ([.])
     tag: separator
     name: meta.template.expression.accessor.sd
-
-  WhitespaceDefineVariableName:
-    tag: content
-    name: markup.raw.whitespace.sd
-    match: (.+)
 
   DefineVariableName:
     tag: variableName
@@ -373,7 +368,7 @@ repository:
           - { include: "#TypeDeclarationName" }
       2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       3:
         patterns:
           - { include: "#AssignEqualOperator" }
@@ -390,7 +385,7 @@ repository:
           - { include: "#VariableDeclarationName" }
       2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       3:
         patterns:
           - { include: "#AssignEqualOperator" }
@@ -407,7 +402,7 @@ repository:
           - { include: "#FunctionName" }
       2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
@@ -420,19 +415,25 @@ repository:
 
   FunctionParameters:
     brackets: true
-    begin: ([(])
+    begin: ([(])({{WS}}*)
     beginCaptures:
       1:
         tag: paren
         name: meta.brace.round.open.sd
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Whitespace" }
+      - { include: "#Separator" }
       - { include: "#PunctuationComma" }
       - { include: "#Parameter" }
-    end: ([)])
+    end: ({{WS}}*)([)])
     endCaptures:
       1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
         tag: paren
         name: meta.brace.round.close.sd
 
@@ -480,7 +481,7 @@ repository:
         name: keyword.operator.expression.array.sd
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -501,19 +502,19 @@ repository:
         name: keyword.operator.expression.array.sd
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       4:
         patterns:
           - { include: "#DeclarationScalarPropertyName" }
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       6:
-        tag: updateOperator
-        name: keyword.operator.assignment.sd
+        patterns:
+          - { include: "#SetEqualOperator" }
       7:
         patterns:
-          - { include: "#WhitespaceStructFieldValue" }
+          - { include: "#Separator" }
       8:
         patterns:
           - { include: "#StructFieldValue" }
@@ -537,19 +538,19 @@ repository:
         name: keyword.operator.expression.array.sd
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       4:
         patterns:
           - { include: "#DeclarationObjectPropertyName" }
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       6:
         tag: separator
         name: meta.template.expression.colon.sd
       7:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -566,11 +567,11 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: keyword
-        name: keyword.operator.expression.array.sd
+        patterns:
+          - { include: "#ArrayItemMark" }
       3:
         patterns:
-          - { include: "#WhitespaceStructFieldValue" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#StructFieldValue" }
@@ -589,13 +590,13 @@ repository:
           - { include: "#DeclarationObjectPropertyName" }
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       4:
         tag: separator
         name: meta.template.expression.colon.sd
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -616,13 +617,13 @@ repository:
           - { include: "#DeclarationScalarPropertyName" }
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       4:
-        tag: updateOperator
-        name: keyword.operator.assignment.sd
+        patterns:
+          - { include: "#SetEqualOperator" }
       5:
         patterns:
-          - { include: "#WhitespaceStructFieldValue" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#StructFieldValue" }
@@ -641,13 +642,13 @@ repository:
           - { include: "#DeclarationScalarPropertyName" }
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       4:
-        tag: updateOperator
-        name: keyword.operator.assignment.sd
+        patterns:
+          - { include: "#SetEqualOperator" }
       5:
         patterns:
-          - { include: "#WhitespaceStructFieldValue" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#StructFieldValue" }
@@ -686,9 +687,14 @@ repository:
         patterns:
           - { include: "#PunctuationSemicolon" }
 
-  WhitespaceStructFieldValue:
-    tag: content
-    name: markup.raw.whitespace.sd
+  ArrayItemMark: 
+    tag: keyword
+    name: keyword.operator.expression.array.sd
+    match: (.+)
+
+  SetEqualOperator:
+    tag: updateOperator
+    name: keyword.operator.assignment.sd
     match: (.+)
 
   StructFieldValue:
@@ -750,7 +756,7 @@ repository:
       - { include: "#PropertySelectorOperator" }
       - { include: "#PropertySelectorClass" }
       - { include: "#PropertySelectorAttribute" }
-      - { include: "#Whitespace" }
+      - { include: "#Separator" }
       - { include: "#Unknown" }
 
   PropertySelectorHasFunctionCondition:
@@ -860,13 +866,13 @@ repository:
         name: meta.brace.round.open.sd
       2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       3:
         patterns:
           - { include: "#LabelDeclarationName" }
       4:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       5:
         tag: paren
         name: meta.brace.round.close.sd
@@ -902,7 +908,7 @@ repository:
         name: keyword.other.chain.sd
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
 
   ########## Glue ##########
 
@@ -1007,10 +1013,10 @@ repository:
           - { include: "#LogicMark" }
       3:
         patterns:
-          - { include: "#LogicMarkSeparator" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Whitespace" }
+      - { include: "#Separator" }
       - { include: "#ReturnStatement" }
       - { include: "#TempDeclaration" }
       - { include: "#Expression" }
@@ -1028,45 +1034,35 @@ repository:
     name: keyword.other.logic.sd
     match: (.+)
 
-  LogicMarkSeparator:
-    tag: definition(punctuation)
-    name: punctuation.logic.mark.sd
-    match: (.+)
-
   ReturnStatement:
     begin: ({{WS}}*)(return)({{EOK}})
     beginCaptures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       2:
         tag: controlKeyword
         name: keyword.control.flow.return.sd
       3:
         patterns:
-          - { include: "#ReturnKeywordSeparator" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Expression" }
     end: (?=$)
-
-  ReturnKeywordSeparator:
-    tag: definition(punctuation)
-    name: punctuation.return.keyword.sd
-    match: (.+)
 
   TempDeclaration:
     begin: ({{WS}}*)(temp)({{EOK}})
     beginCaptures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       2:
         tag: controlKeyword
         name: keyword.control.definition.temp.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#VariableAssignment" }
@@ -1081,11 +1077,11 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: keyword
-        name: keyword.other.gather.sd
+        patterns:
+          - { include: "#GatherMark" }
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       4:
         patterns:
           - { include: "#Label" }
@@ -1110,6 +1106,11 @@ repository:
         patterns:
           - { include: "#Newline" }
 
+  GatherMark:
+    tag: keyword
+    name: keyword.other.gather.sd
+    match: (.+)
+
   ########## Knot, Stitch, Function ##########
 
   Knot:
@@ -1123,14 +1124,17 @@ repository:
         name: keyword.control.section.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionDeclaration" }
       - { include: "#KnotDeclaration" }
-    end: ([=]{2,})|(?=$)
+    end: ({{WS}}*)([=]{2,})|(?=$)
     endCaptures:
       1:
+        patterns:
+          - { include: "#Separator" }
+      2:
         tag: definition(heading)
         name: keyword.control.section.sd
 
@@ -1139,13 +1143,13 @@ repository:
     beginCaptures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       2:
         patterns:
           - { include: "#KnotDeclarationName" }
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
@@ -1167,7 +1171,7 @@ repository:
         name: keyword.control.section.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionDeclaration" }
@@ -1183,13 +1187,13 @@ repository:
     beginCaptures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       2:
         patterns:
           - { include: "#StitchDeclarationName" }
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
@@ -1208,13 +1212,13 @@ repository:
         name: keyword.control.definition.function.sd
       2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       3:
         patterns:
           - { include: "#FunctionDeclarationName" }
       4:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
@@ -1236,16 +1240,16 @@ repository:
     beginCaptures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Indent" }
       2:
         patterns:
           - { include: "#DivertArrow" }
       3:
         patterns:
-          - { include: "#WhitespaceDivertPath" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Whitespace" }
+      - { include: "#Separator" }
       - { include: "#End" }
       - { include: "#Done" }
       - { include: "#FunctionCall" }
@@ -1323,7 +1327,7 @@ repository:
     beginCaptures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       2:
         tag: controlKeyword
         name: keyword.control.alternative.type.sd
@@ -1362,7 +1366,7 @@ repository:
           - { include: "#Expression" }
       2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       3:
         tag: keyword
         name: keyword.colon.sd
@@ -1401,7 +1405,7 @@ repository:
           - { include: "#Expression" }
       2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       3:
         tag: separator
         name: meta.template.expression.colon.sd
@@ -1424,7 +1428,7 @@ repository:
     beginCaptures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1450,7 +1454,7 @@ repository:
         name: keyword.switch.clause.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#Separator" }
       4:
         tag: controlKeyword
         name: keyword.control.sd
@@ -1459,7 +1463,7 @@ repository:
           - { include: "#Expression" }
       6:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       7:
         tag: separator
         name: meta.template.expression.colon.sd
@@ -1486,7 +1490,7 @@ repository:
         name: keyword.sequence.clause.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1551,7 +1555,7 @@ repository:
       - { include: "#Divert" }
       - { include: "#Operator" }
       - { include: "#Literal" }
-      - { include: "#Whitespace" }
+      - { include: "#Separator" }
       - { include: "#Newline" }
       - { include: "#ParenExpression" }
       - { include: "#AccessPath" }
@@ -1569,15 +1573,20 @@ repository:
     name: markup.raw.whitespace.trailing.sd
     match: ({{WS}}+)
 
+  ExtraWhitespace:
+    tag: content
+    name: markup.raw.whitespace.sd
+    match: ({{WS}}+)
+
   Whitespace:
     tag: content
     name: markup.raw.whitespace.sd
     match: ({{WS}}+)
 
-  EndOfKeyword:
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Whitespace" }
+  Separator:
+    tag: definition(content)
+    name: markup.raw.whitespace.sd
+    match: ({{WS}}+)
 
   EndOfLine:
     patterns:
@@ -2014,7 +2023,7 @@ repository:
         name: keyword.other.front-matter.dashes.start.sd
       2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Comment" }
       - { include: "#FrontMatterField" }
@@ -2027,7 +2036,7 @@ repository:
         name: keyword.other.front-matter.dashes.end.sd
       2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
 
   FrontMatterField:
     tag: meta
@@ -2039,7 +2048,7 @@ repository:
           - { include: "#FrontMatterFieldKeyword" }
       2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       3:
         tag: separator
         name: meta.template.expression.colon.sd
@@ -2063,7 +2072,7 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       2:
         patterns:
           - { include: "#FrontMatterString" }
@@ -2111,7 +2120,7 @@ repository:
           - { include: "#WriteMark" }
       3:
         patterns:
-          - { include: "#WriteMarkSeparator" }
+          - { include: "#Separator" }
       4:
         patterns:
           - { include: "#Annotation" }
@@ -2145,7 +2154,7 @@ repository:
           - { include: "#WriteMark" }
       3:
         patterns:
-          - { include: "#WriteMarkSeparator" }
+          - { include: "#Separator" }
       4:
         patterns:
           - { include: "#Annotation" }
@@ -2158,11 +2167,6 @@ repository:
     end: (?=^(?!\1))|(?=^$)
 
   WriteMark:
-    tag: definition(typeName)
-    name: entity.name.type.write.target.name.sd
-    match: (.+)
-
-  WriteMarkSeparator:
     tag: definition(typeName)
     name: entity.name.type.write.target.name.sd
     match: (.+)
@@ -2192,7 +2196,7 @@ repository:
           - { include: "#DialogueMark" }
       3:
         patterns:
-          - { include: "#DialogueMarkSeparator" }
+          - { include: "#Separator" }
       4:
         patterns:
           - { include: "#Annotation" }
@@ -2226,7 +2230,7 @@ repository:
           - { include: "#DialogueMark" }
       3:
         patterns:
-          - { include: "#DialogueMarkSeparator" }
+          - { include: "#Separator" }
       4:
         patterns:
           - { include: "#Annotation" }
@@ -2243,17 +2247,12 @@ repository:
     name: entity.name.type.dialogue.character.name.sd
     match: (.+)
 
-  DialogueMarkSeparator:
-    tag: definition(typeName)
-    name: entity.name.type.dialogue.character.name.sd
-    match: (.+)
-
   DialogueCharacter:
-    match: ({{WS}}*)(.*?)({{WS}}*[(][^()]*?[)])?($|{{WS}}*)(\[.*?\])?({{WS}}*)({{EOL}})
+    match: ({{WS}}*)(.*?)({{WS}}*[(][^()]*?[)])?($|{{WS}}*)(\[.*?\])?({{EOL}})
     captures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       2:
         patterns:
           - { include: "#DialogueCharacterName" }
@@ -2262,14 +2261,11 @@ repository:
           - { include: "#DialogueCharacterParenthetical" }
       4:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
       5:
         patterns:
           - { include: "#DialogueCharacterPosition" }
       6:
-        patterns:
-          - { include: "#Whitespace" }
-      7:
         patterns:
           - { include: "#EndOfLine" }
 
@@ -2298,19 +2294,19 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       2:
         tag: bracket
         name: punctuation.definition.position.sd
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       4:
         patterns:
           - { include: "#DialogueCharacterPositionContent" }
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       6:
         tag: bracket
         name: punctuation.definition.position.sd
@@ -2333,7 +2329,7 @@ repository:
           - { include: "#TransitionMark" }
       3:
         patterns:
-          - { include: "#TransitionMarkSeparator" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -2343,11 +2339,6 @@ repository:
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
 
   TransitionMark:
-    tag: definition(punctuation)
-    name: punctuation.transition.mark.sd
-    match: (.+)
-
-  TransitionMarkSeparator:
     tag: definition(punctuation)
     name: punctuation.transition.mark.sd
     match: (.+)
@@ -2367,7 +2358,7 @@ repository:
           - { include: "#SceneMark" }
       3:
         patterns:
-          - { include: "#SceneMarkSeparator" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -2381,18 +2372,13 @@ repository:
     name: punctuation.scene.mark.sd
     match: (.+)
 
-  SceneMarkSeparator:
-    tag: definition(punctuation)
-    name: punctuation.scene.mark.sd
-    match: (.+)
-
   SceneLocationTime:
     match: INT[.]?[\/]EXT[.]|INT[.]|EXT[.]{{WS}}*(.*?){{WS}}+[-]{{WS}}+(.*?){{WS}}*$
 
   ########## Action ##########
 
   Action:
-    begin: (?:({{WS}}*)(?:([<][>])|([!])($|{{WS}}+)))?({{WS}}*)(?=\S)
+    begin: (?:({{WS}}*)(?:([<][>])|([!])($|{{WS}})))?({{WS}}*)(?=\S)
     beginCaptures:
       1:
         patterns:
@@ -2405,7 +2391,7 @@ repository:
           - { include: "#ActionMark" }
       4:
         patterns:
-          - { include: "#ActionMarkSeparator" }
+          - { include: "#Separator" }
       5:
         patterns:
           - { include: "#Whitespace" }
@@ -2424,11 +2410,6 @@ repository:
     name: markup.raw.text.sd
     match: (.+)
 
-  ActionMarkSeparator:
-    tag: definition(content)
-    name: markup.raw.text.sd
-    match: (.+)
-
   ########## Parenthetical ##########
 
   ParentheticalLine:
@@ -2441,10 +2422,10 @@ repository:
         patterns:
           - { include: "#FlowMarker" }
           - { include: "#TextCommand" }
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       4:
         patterns:
           - { include: "#ParentheticalLineContent" }
@@ -2587,7 +2568,7 @@ repository:
         name: keyword.operator.expression.end.source.sd
       4:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
 
   UUID:
     tag: keyword
@@ -2605,7 +2586,7 @@ repository:
       2:
         patterns:
           - { include: "#ImageCommand" }
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       3:
         patterns:
           - { include: "#EndOfLine" }
@@ -2619,7 +2600,7 @@ repository:
       2:
         patterns:
           - { include: "#AudioCommand" }
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       3:
         patterns:
           - { include: "#EndOfLine" }
@@ -2634,7 +2615,7 @@ repository:
         patterns:
           - { include: "#ImageCommand" }
           - { include: "#AudioCommand" }
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       3:
         patterns:
           - { include: "#EndOfLine" }
@@ -2661,7 +2642,7 @@ repository:
         name: keyword.operator.expression.end.image.sd
       4:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
 
   AudioCommand:
     tag: macroName
@@ -2679,22 +2660,22 @@ repository:
         name: keyword.operator.expression.end.audio.sd
       4:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
 
   AssetCommandContent:
     match: ({{WS}}*)(.*?)($|(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}).*)
     captures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
           - { include: "#AssetCommandInstruction" }
       3:
         patterns:
           - { include: "#Annotation" }
-          - { include: "#WhitespaceAssetCommandClause" }
+          - { include: "#Separator" }
           - { include: "#AssetCommandClauseKeyword" }
           - { include: "#ConditionalBlock" }
           - { include: "#TimeValue" }
@@ -2709,13 +2690,13 @@ repository:
           - { include: "#AssetCommandControl" }
       2:
         patterns:
-          - { include: "#WhitespaceAssetCommandTarget" }
+          - { include: "#Separator" }
       3:
         patterns:
           - { include: "#AssetCommandTarget" }
       4:
         patterns:
-          - { include: "#WhitespaceAssetCommandName" }
+          - { include: "#Separator" }
       5:
         patterns:
           - { include: "#AssetCommandAddOperator" }
@@ -2723,7 +2704,7 @@ repository:
           - { include: "#IllegalChar" }
       6:
         patterns:
-          - { include: "#WhitespaceAssetCommandClause" }
+          - { include: "#Separator" }
       7:
         patterns:
           - { include: "#InvalidValue" }
@@ -2758,7 +2739,7 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
           - { include: "#StringLiteral" }
           - { include: "#AssetCommandKeywordNone" }
           - { include: "#AssetCommandFileName" }
@@ -2852,19 +2833,19 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       2:
         patterns:
           - { include: "#TextCommandControl" }
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       4:
         patterns:
           - { include: "#TextCommandColon" }
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#ExtraWhitespace" }
       6:
         patterns:
           - { include: "#TextCommandArguments" }

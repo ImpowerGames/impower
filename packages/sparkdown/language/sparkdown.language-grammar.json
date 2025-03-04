@@ -215,7 +215,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
@@ -245,7 +245,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Indent"
             }
           ]
         },
@@ -256,7 +256,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         }
@@ -295,7 +295,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#Separator"
             }
           ]
         }
@@ -353,7 +353,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#Separator"
             }
           ]
         }
@@ -387,7 +387,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#Separator"
             }
           ]
         }
@@ -421,7 +421,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#Separator"
             }
           ]
         }
@@ -455,7 +455,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#Separator"
             }
           ]
         }
@@ -483,13 +483,16 @@
           ]
         },
         "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.object.sd"
+          "patterns": [
+            {
+              "include": "#DefineKeyword"
+            }
+          ]
         },
         "3": {
           "patterns": [
             {
-              "include": "#WhitespaceDefineTypeName"
+              "include": "#Separator"
             }
           ]
         },
@@ -530,7 +533,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#WhitespaceDefineTypeName"
+              "include": "#Separator"
             }
           ]
         },
@@ -544,7 +547,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
@@ -590,14 +593,14 @@
         }
       }
     },
+    "DefineKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.object.sd",
+      "match": "(.+)"
+    },
     "DefineModifierName": {
       "tag": "keyword",
       "name": "storage.modifier.sd",
-      "match": "(.+)"
-    },
-    "WhitespaceDefineTypeName": {
-      "tag": "content",
-      "name": "markup.raw.whitespace.sd",
       "match": "(.+)"
     },
     "DefineTypeName": {
@@ -609,11 +612,6 @@
       "match": "([.])",
       "tag": "separator",
       "name": "meta.template.expression.accessor.sd"
-    },
-    "WhitespaceDefineVariableName": {
-      "tag": "content",
-      "name": "markup.raw.whitespace.sd",
-      "match": "(.+)"
     },
     "DefineVariableName": {
       "tag": "variableName",
@@ -633,7 +631,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
@@ -668,7 +666,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
@@ -703,7 +701,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -725,11 +723,18 @@
     },
     "FunctionParameters": {
       "brackets": true,
-      "begin": "([(])",
+      "begin": "([(])([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "tag": "paren",
           "name": "meta.brace.round.open.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
         }
       },
       "patterns": [
@@ -737,7 +742,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#Whitespace"
+          "include": "#Separator"
         },
         {
           "include": "#PunctuationComma"
@@ -746,9 +751,16 @@
           "include": "#Parameter"
         }
       ],
-      "end": "([)])",
+      "end": "([^\\S\\n\\r]*)([)])",
       "endCaptures": {
         "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
           "tag": "paren",
           "name": "meta.brace.round.close.sd"
         }
@@ -832,7 +844,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         }
@@ -872,7 +884,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
@@ -886,18 +898,21 @@
         "5": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
         "6": {
-          "tag": "updateOperator",
-          "name": "keyword.operator.assignment.sd"
+          "patterns": [
+            {
+              "include": "#SetEqualOperator"
+            }
+          ]
         },
         "7": {
           "patterns": [
             {
-              "include": "#WhitespaceStructFieldValue"
+              "include": "#Separator"
             }
           ]
         },
@@ -944,7 +959,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
@@ -958,7 +973,7 @@
         "5": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -969,7 +984,7 @@
         "7": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -1003,13 +1018,16 @@
           ]
         },
         "2": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.array.sd"
+          "patterns": [
+            {
+              "include": "#ArrayItemMark"
+            }
+          ]
         },
         "3": {
           "patterns": [
             {
-              "include": "#WhitespaceStructFieldValue"
+              "include": "#Separator"
             }
           ]
         }
@@ -1046,7 +1064,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -1057,7 +1075,7 @@
         "5": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -1100,18 +1118,21 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
         "4": {
-          "tag": "updateOperator",
-          "name": "keyword.operator.assignment.sd"
+          "patterns": [
+            {
+              "include": "#SetEqualOperator"
+            }
+          ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#WhitespaceStructFieldValue"
+              "include": "#Separator"
             }
           ]
         }
@@ -1148,18 +1169,21 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
         "4": {
-          "tag": "updateOperator",
-          "name": "keyword.operator.assignment.sd"
+          "patterns": [
+            {
+              "include": "#SetEqualOperator"
+            }
+          ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#WhitespaceStructFieldValue"
+              "include": "#Separator"
             }
           ]
         }
@@ -1241,9 +1265,14 @@
         }
       }
     },
-    "WhitespaceStructFieldValue": {
-      "tag": "content",
-      "name": "markup.raw.whitespace.sd",
+    "ArrayItemMark": {
+      "tag": "keyword",
+      "name": "keyword.operator.expression.array.sd",
+      "match": "(.+)"
+    },
+    "SetEqualOperator": {
+      "tag": "updateOperator",
+      "name": "keyword.operator.assignment.sd",
       "match": "(.+)"
     },
     "StructFieldValue": {
@@ -1359,7 +1388,7 @@
           "include": "#PropertySelectorAttribute"
         },
         {
-          "include": "#Whitespace"
+          "include": "#Separator"
         },
         {
           "include": "#Unknown"
@@ -1514,7 +1543,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -1528,7 +1557,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -1573,7 +1602,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         }
@@ -1752,7 +1781,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#LogicMarkSeparator"
+              "include": "#Separator"
             }
           ]
         }
@@ -1762,7 +1791,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#Whitespace"
+          "include": "#Separator"
         },
         {
           "include": "#ReturnStatement"
@@ -1797,18 +1826,13 @@
       "name": "keyword.other.logic.sd",
       "match": "(.+)"
     },
-    "LogicMarkSeparator": {
-      "tag": "definition(punctuation)",
-      "name": "punctuation.logic.mark.sd",
-      "match": "(.+)"
-    },
     "ReturnStatement": {
       "begin": "([^\\S\\n\\r]*)(return)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
@@ -1819,7 +1843,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#ReturnKeywordSeparator"
+              "include": "#Separator"
             }
           ]
         }
@@ -1834,18 +1858,13 @@
       ],
       "end": "(?=$)"
     },
-    "ReturnKeywordSeparator": {
-      "tag": "definition(punctuation)",
-      "name": "punctuation.return.keyword.sd",
-      "match": "(.+)"
-    },
     "TempDeclaration": {
       "begin": "([^\\S\\n\\r]*)(temp)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
@@ -1856,7 +1875,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#Separator"
             }
           ]
         }
@@ -1882,13 +1901,16 @@
           ]
         },
         "2": {
-          "tag": "keyword",
-          "name": "keyword.other.gather.sd"
+          "patterns": [
+            {
+              "include": "#GatherMark"
+            }
+          ]
         },
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -1953,6 +1975,11 @@
         }
       }
     },
+    "GatherMark": {
+      "tag": "keyword",
+      "name": "keyword.other.gather.sd",
+      "match": "(.+)"
+    },
     "Knot": {
       "begin": "^([^\\S\\n\\r]*)([=]{2,})((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
@@ -1970,7 +1997,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#Separator"
             }
           ]
         }
@@ -1986,9 +2013,16 @@
           "include": "#KnotDeclaration"
         }
       ],
-      "end": "([=]{2,})|(?=$)",
+      "end": "([^\\S\\n\\r]*)([=]{2,})|(?=$)",
       "endCaptures": {
         "1": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        },
+        "2": {
           "tag": "definition(heading)",
           "name": "keyword.control.section.sd"
         }
@@ -2000,7 +2034,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -2014,7 +2048,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -2051,7 +2085,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#Separator"
             }
           ]
         }
@@ -2084,7 +2118,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -2098,7 +2132,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -2128,7 +2162,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
@@ -2142,7 +2176,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -2174,7 +2208,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Indent"
             }
           ]
         },
@@ -2188,7 +2222,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#WhitespaceDivertPath"
+              "include": "#Separator"
             }
           ]
         }
@@ -2198,7 +2232,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#Whitespace"
+          "include": "#Separator"
         },
         {
           "include": "#End"
@@ -2319,7 +2353,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -2402,7 +2436,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -2483,7 +2517,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -2535,7 +2569,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -2594,7 +2628,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#Separator"
             }
           ]
         },
@@ -2612,7 +2646,7 @@
         "6": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
@@ -2669,7 +2703,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#Separator"
             }
           ]
         }
@@ -2798,7 +2832,7 @@
           "include": "#Literal"
         },
         {
-          "include": "#Whitespace"
+          "include": "#Separator"
         },
         {
           "include": "#Newline"
@@ -2830,20 +2864,20 @@
       "name": "markup.raw.whitespace.trailing.sd",
       "match": "([^\\S\\n\\r]+)"
     },
+    "ExtraWhitespace": {
+      "tag": "content",
+      "name": "markup.raw.whitespace.sd",
+      "match": "([^\\S\\n\\r]+)"
+    },
     "Whitespace": {
       "tag": "content",
       "name": "markup.raw.whitespace.sd",
       "match": "([^\\S\\n\\r]+)"
     },
-    "EndOfKeyword": {
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#Whitespace"
-        }
-      ]
+    "Separator": {
+      "tag": "definition(content)",
+      "name": "markup.raw.whitespace.sd",
+      "match": "([^\\S\\n\\r]+)"
     },
     "EndOfLine": {
       "patterns": [
@@ -3457,7 +3491,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -3485,7 +3519,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -3506,7 +3540,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -3549,7 +3583,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
@@ -3636,7 +3670,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#WriteMarkSeparator"
+              "include": "#Separator"
             }
           ]
         },
@@ -3706,7 +3740,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#WriteMarkSeparator"
+              "include": "#Separator"
             }
           ]
         },
@@ -3738,11 +3772,6 @@
       "end": "(?=^(?!\\1))|(?=^$)"
     },
     "WriteMark": {
-      "tag": "definition(typeName)",
-      "name": "entity.name.type.write.target.name.sd",
-      "match": "(.+)"
-    },
-    "WriteMarkSeparator": {
       "tag": "definition(typeName)",
       "name": "entity.name.type.write.target.name.sd",
       "match": "(.+)"
@@ -3784,7 +3813,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#DialogueMarkSeparator"
+              "include": "#Separator"
             }
           ]
         },
@@ -3854,7 +3883,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#DialogueMarkSeparator"
+              "include": "#Separator"
             }
           ]
         },
@@ -3890,18 +3919,13 @@
       "name": "entity.name.type.dialogue.character.name.sd",
       "match": "(.+)"
     },
-    "DialogueMarkSeparator": {
-      "tag": "definition(typeName)",
-      "name": "entity.name.type.dialogue.character.name.sd",
-      "match": "(.+)"
-    },
     "DialogueCharacter": {
-      "match": "([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*[(][^()]*?[)])?($|[^\\S\\n\\r]*)(\\[.*?\\])?([^\\S\\n\\r]*)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "match": "([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*[(][^()]*?[)])?($|[^\\S\\n\\r]*)(\\[.*?\\])?((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -3922,7 +3946,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         },
@@ -3934,13 +3958,6 @@
           ]
         },
         "6": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "7": {
           "patterns": [
             {
               "include": "#EndOfLine"
@@ -3985,7 +4002,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -3996,7 +4013,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -4010,7 +4027,7 @@
         "5": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -4045,7 +4062,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#TransitionMarkSeparator"
+              "include": "#Separator"
             }
           ]
         }
@@ -4074,11 +4091,6 @@
       "name": "punctuation.transition.mark.sd",
       "match": "(.+)"
     },
-    "TransitionMarkSeparator": {
-      "tag": "definition(punctuation)",
-      "name": "punctuation.transition.mark.sd",
-      "match": "(.+)"
-    },
     "Scene": {
       "tag": "regexp",
       "name": "string.regexp.scene.sd",
@@ -4101,7 +4113,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#SceneMarkSeparator"
+              "include": "#Separator"
             }
           ]
         }
@@ -4130,16 +4142,11 @@
       "name": "punctuation.scene.mark.sd",
       "match": "(.+)"
     },
-    "SceneMarkSeparator": {
-      "tag": "definition(punctuation)",
-      "name": "punctuation.scene.mark.sd",
-      "match": "(.+)"
-    },
     "SceneLocationTime": {
       "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][^\\S\\n\\r]*(.*?)[^\\S\\n\\r]+[-][^\\S\\n\\r]+(.*?)[^\\S\\n\\r]*$"
     },
     "Action": {
-      "begin": "(?:([^\\S\\n\\r]*)(?:([<][>])|([!])($|[^\\S\\n\\r]+)))?([^\\S\\n\\r]*)(?=\\S)",
+      "begin": "(?:([^\\S\\n\\r]*)(?:([<][>])|([!])($|[^\\S\\n\\r])))?([^\\S\\n\\r]*)(?=\\S)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4165,7 +4172,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#ActionMarkSeparator"
+              "include": "#Separator"
             }
           ]
         },
@@ -4207,11 +4214,6 @@
       "name": "markup.raw.text.sd",
       "match": "(.+)"
     },
-    "ActionMarkSeparator": {
-      "tag": "definition(content)",
-      "name": "markup.raw.text.sd",
-      "match": "(.+)"
-    },
     "ParentheticalLine": {
       "match": "([^\\S\\n\\r]*)((?:[=].*?[=]|[<].*?[>]|[^\\S\\n\\r]*)*)([^\\S\\n\\r]*)([(][^()]*?[)])([^\\S\\n\\r]*)($|(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)|(?=(?:[^\\S\\n\\r]+[>][^\\S\\n\\r]*))|[\\\\](?:[^\\S\\n\\r]))",
       "captures": {
@@ -4231,14 +4233,14 @@
               "include": "#TextCommand"
             },
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -4518,7 +4520,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -4545,7 +4547,7 @@
               "include": "#ImageCommand"
             },
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -4574,7 +4576,7 @@
               "include": "#AudioCommand"
             },
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -4606,7 +4608,7 @@
               "include": "#AudioCommand"
             },
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -4655,7 +4657,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -4684,7 +4686,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -4696,14 +4698,14 @@
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             },
             {
               "include": "#AssetCommandInstruction"
@@ -4716,7 +4718,7 @@
               "include": "#Annotation"
             },
             {
-              "include": "#WhitespaceAssetCommandClause"
+              "include": "#Separator"
             },
             {
               "include": "#AssetCommandClauseKeyword"
@@ -4750,7 +4752,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#WhitespaceAssetCommandTarget"
+              "include": "#Separator"
             }
           ]
         },
@@ -4764,7 +4766,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#WhitespaceAssetCommandName"
+              "include": "#Separator"
             }
           ]
         },
@@ -4784,7 +4786,7 @@
         "6": {
           "patterns": [
             {
-              "include": "#WhitespaceAssetCommandClause"
+              "include": "#Separator"
             }
           ]
         },
@@ -4828,7 +4830,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             },
             {
               "include": "#StringLiteral"
@@ -4956,7 +4958,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -4970,7 +4972,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -4984,7 +4986,7 @@
         "5": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
