@@ -610,6 +610,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
     to
   );
 
+  // console.log("REPARSED TREE");
   // console.log(printTree(tree, doc.toString(), { from, to }));
 
   return decorations;
@@ -625,6 +626,8 @@ const replaceDecorations = StateField.define<DecorationSet>({
   update(decorations, transaction) {
     const oldTree = syntaxTree(transaction.startState);
     const newTree = syntaxTree(transaction.state);
+    // console.log("FULL TREE");
+    // console.log(printTree(newTree, transaction.state.doc.toString()));
     if (oldTree != newTree) {
       const cachedCompiler = newTree.prop(cachedCompilerProp);
       const reparsedFrom = cachedCompiler?.reparsedFrom;
@@ -644,7 +647,7 @@ const replaceDecorations = StateField.define<DecorationSet>({
         const add = decorate(transaction.state, reparsedFrom);
         decorations = decorations.map(transaction.changes);
         decorations = decorations.update({
-          filter: (from, to) => from < reparsedFrom && to < reparsedFrom,
+          filter: (_from, to) => to <= reparsedFrom,
           add,
           sort: true,
         });
@@ -654,9 +657,7 @@ const replaceDecorations = StateField.define<DecorationSet>({
       const add = decorate(transaction.state, reparsedFrom, reparsedTo);
       decorations = decorations.map(transaction.changes);
       decorations = decorations.update({
-        filter: (from, to) =>
-          (from < reparsedFrom && to < reparsedFrom) ||
-          (from > reparsedTo && to > reparsedTo),
+        filter: (from, to) => to <= reparsedFrom || from >= reparsedTo,
         add,
         sort: true,
       });

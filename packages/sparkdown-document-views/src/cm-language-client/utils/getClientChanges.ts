@@ -2,6 +2,8 @@ import { ChangeSpec, EditorState, Text } from "@codemirror/state";
 import type { Range } from "@impower/spark-editor-protocol/src/types";
 import { positionToOffset } from "./positionToOffset";
 
+const NEWLINE_REGEX = /\r\n|\r\n/g;
+
 export const getClientChanges = (
   state: EditorState,
   contentChanges: {
@@ -16,7 +18,8 @@ export const getClientChanges = (
     const to = range
       ? positionToOffset(changeDoc, range.end)
       : changeDoc.length;
-    const textObj = Text.of(text.split(state.lineBreak));
+    const lines = text.replace(NEWLINE_REGEX, "\n").split("\n");
+    const textObj = Text.of(lines);
     changes.push({
       from,
       to,

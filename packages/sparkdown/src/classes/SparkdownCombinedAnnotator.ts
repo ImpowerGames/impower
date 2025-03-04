@@ -171,7 +171,7 @@ export class SparkdownCombinedAnnotator {
             annotator.current = annotator.current.map(changeDesc);
             annotator.current = annotator.current.update({
               filter: (from, to, value) => {
-                if (from < reparsedFrom && to < reparsedFrom) {
+                if (to <= reparsedFrom) {
                   return true;
                 }
                 this.remove(from, to, value, skip);
@@ -195,10 +195,7 @@ export class SparkdownCombinedAnnotator {
           annotator.current = annotator.current.map(changeDesc);
           annotator.current = annotator.current.update({
             filter: (from, to, value) => {
-              if (
-                (from < reparsedFrom && to < reparsedFrom) ||
-                (from > reparsedTo && to > reparsedTo)
-              ) {
+              if (to <= reparsedFrom || from >= reparsedTo) {
                 return true;
               }
               this.remove(from, to, value, skip);
