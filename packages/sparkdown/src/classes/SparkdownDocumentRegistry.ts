@@ -16,6 +16,8 @@ import {
 } from "./SparkdownCombinedAnnotator";
 import { profile } from "../utils/profile";
 
+const NEWLINE_REGEX = /\r\n|\r|\n/g;
+
 export type SparkdownDocumentContentChangeEvent =
   TextDocumentContentChangeEvent;
 
@@ -26,25 +28,36 @@ interface TextDocumentState {
   annotators: SparkdownCombinedAnnotator;
 }
 
-class TextDocumentInput implements Input {
+export class TextDocumentInput implements Input {
   constructor(private readonly document: TextDocument) {}
 
   get length() {
     return this.document.offsetAt(this.document.positionAt(Number.MAX_VALUE));
   }
 
+  lineChunks = true;
+
   chunk(from: number): string {
     const start = this.document.positionAt(from);
     const end = { line: start.line + 1, character: 0 };
-    return this.document.getText({ start, end });
+    const line = this.document.getText({ start, end });
+    if (line === "\r\n" || line === "\r" || line === "\n") {
+      return line;
+    }
+    if (line.endsWith("\r\n")) {
+      return line.slice(0, -2);
+    }
+    if (line.endsWith("\r") || line.endsWith("\n")) {
+      return line.slice(0, -1);
+    }
+    return line;
   }
-
-  lineChunks = false;
 
   read(from: number, to: number): string {
     const start = this.document.positionAt(from);
     const end = this.document.positionAt(to);
-    return this.document.getText({ start, end });
+    const text = this.document.getText({ start, end });
+    return text;
   }
 }
 
@@ -104,28 +117,28 @@ export class SparkdownDocumentRegistry {
         beforeDocument.version,
         beforeDocument.getText()
       );
-      for (const change of changes) {
-        const c: {
+      for (const c of changes) {
+        const change: {
           range: Range;
           text: string;
         } =
-          "range" in change
+          "range" in c
             ? {
-                range: change.range,
-                text: change.text,
+                range: c.range,
+                text: c.text,
               }
             : {
                 range: {
                   start: { line: 0, character: 0 },
                   end: changeDocument.positionAt(Number.MAX_VALUE),
                 },
-                text: change.text,
+                text: c.text,
               };
-        const textLength = c.text.replaceAll("\r\n", "\n").length;
-        const fromA = changeDocument.offsetAt(c.range.start);
-        const toA = changeDocument.offsetAt(c.range.end);
-        const fromB = changeDocument.offsetAt(c.range.start);
-        const toB = changeDocument.offsetAt(c.range.start) + textLength;
+        const fromA = changeDocument.offsetAt(change.range.start);
+        const toA = changeDocument.offsetAt(change.range.end);
+        const fromB = changeDocument.offsetAt(change.range.start);
+        const toB =
+          changeDocument.offsetAt(change.range.start) + change.text.length;
         const treeChange: ChangedRange = {
           fromA,
           toA,
@@ -135,7 +148,7 @@ export class SparkdownDocumentRegistry {
         const annotationChange: ChangeSpec = {
           from: fromA,
           to: toA,
-          insert: c.text,
+          insert: change.text,
         };
         // We must apply these changes to the tree one at a time because
         // TextDocumentContentChangeEvent[] positions are relative to the doc after each change,
@@ -148,7 +161,7 @@ export class SparkdownDocumentRegistry {
         );
         changeDocument = TextDocument.update(
           changeDocument,
-          [c],
+          [change],
           changeDocument.version + 1
         );
         const documentLengthAfterChange = changeDocument.offsetAt(
@@ -162,11 +175,12 @@ export class SparkdownDocumentRegistry {
         );
         try {
           state.annotators.update(
-            changeDocument,
             state.tree,
+            input,
+            changeDocument,
             [annotationChange],
             Math.max(
-              toA + textLength,
+              toA + change.text.length,
               state.tree.length,
               documentLengthBeforeChange,
               documentLengthAfterChange
@@ -178,7 +192,7 @@ export class SparkdownDocumentRegistry {
           console.error(
             fromA,
             toA,
-            textLength,
+            change.text.length,
             state.tree.length,
             documentLengthBeforeChange,
             documentLengthAfterChange
@@ -191,7 +205,7 @@ export class SparkdownDocumentRegistry {
         this._profilingIdentifier + "/incrementalParse",
         beforeDocument.uri
       );
-      // this.print(beforeDocument.uri);
+      // this.print(afterDocument.uri);
       return state.tree!;
     } else {
       // First full parse
@@ -203,7 +217,12 @@ export class SparkdownDocumentRegistry {
       const input = new TextDocumentInput(afterDocument);
       state.tree = this._parser.parse(input);
       state.treeFragments = TreeFragment.addTree(state.tree);
-      state.annotators.create(afterDocument, state.tree, this._skipAnnotating);
+      state.annotators.create(
+        state.tree,
+        input,
+        afterDocument,
+        this._skipAnnotating
+      );
       state.treeVersion = afterDocument.version;
       profile(
         "end",
@@ -245,7 +264,7 @@ export class SparkdownDocumentRegistry {
     const tree = this.tree(uri);
     const document = this.get(uri);
     if (tree && document) {
-      console.log(printTree(tree, document.getText()));
+      console.log(printTree(tree, new TextDocumentInput(document)));
     }
   }
 
@@ -262,7 +281,7 @@ export class SparkdownDocumentRegistry {
       td.uri,
       td.languageId,
       td.version,
-      td.text
+      td.text.replace(NEWLINE_REGEX, "\n")
     );
     this._syncedDocuments.set(td.uri, syncedDocument);
     const beforeDocument = TextDocument.create(td.uri, td.languageId, -1, "");
@@ -297,10 +316,32 @@ export class SparkdownDocumentRegistry {
         syncedDocument.version,
         syncedDocument.getText()
       );
-      syncedDocument = TextDocument.update(syncedDocument, changes, td.version);
+      const normalizedChanges: TextDocumentContentChangeEvent[] = [];
+      for (const c of changes) {
+        const normalizedText = c.text.replace(NEWLINE_REGEX, "\n");
+        if ("range" in c) {
+          normalizedChanges.push({
+            range: c.range,
+            text: normalizedText,
+          });
+        } else {
+          normalizedChanges.push({
+            text: normalizedText,
+          });
+        }
+      }
+      syncedDocument = TextDocument.update(
+        syncedDocument,
+        normalizedChanges,
+        td.version
+      );
       if (syncedDocument) {
         this._syncedDocuments.set(td.uri, syncedDocument);
-        this.updateSyntaxTree(beforeDocument, syncedDocument, changes);
+        this.updateSyntaxTree(
+          beforeDocument,
+          syncedDocument,
+          normalizedChanges
+        );
       }
     }
     return true;

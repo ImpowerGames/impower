@@ -1,20 +1,23 @@
 import { Range, RangeSet } from "@codemirror/state";
-import { SyntaxNodeRef, Tree } from "@lezer/common";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import { Input, SyntaxNodeRef, Tree } from "@lezer/common";
 import { SparkdownAnnotation } from "./SparkdownAnnotation";
+import { TextDocument } from "vscode-languageserver-textdocument";
 
 export abstract class SparkdownAnnotator<
   T extends SparkdownAnnotation = SparkdownAnnotation
 > {
   current: RangeSet<T> = RangeSet.empty;
 
+  input?: Input;
+
   doc?: TextDocument;
 
   tree?: Tree;
 
-  update(doc: TextDocument, tree: Tree) {
-    this.doc = doc;
+  update(tree: Tree, input: Input, doc: TextDocument) {
     this.tree = tree;
+    this.input = input;
+    this.doc = doc;
     this.start();
   }
 
@@ -31,12 +34,9 @@ export abstract class SparkdownAnnotator<
   }
 
   read(from: number, to: number) {
-    if (!this.doc) {
+    if (!this.input) {
       return "";
     }
-    return this.doc.getText({
-      start: this.doc.positionAt(from),
-      end: this.doc.positionAt(to),
-    });
+    return this.input.read(from, to);
   }
 }

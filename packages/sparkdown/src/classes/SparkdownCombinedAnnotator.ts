@@ -1,7 +1,6 @@
 import { ChangeSpec, RangeSet, ChangeSet } from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
-import { Tree } from "@lezer/common";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import { Input, Tree } from "@lezer/common";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { SceneAnnotator } from "./annotators/SceneAnnotator";
 import { TransitionAnnotator } from "./annotators/TransitionAnnotator";
@@ -12,6 +11,8 @@ import { TranspilationAnnotator } from "./annotators/TranspilationAnnotator";
 import { ReferenceAnnotator } from "./annotators/ReferenceAnnotator";
 import { ValidationAnnotator } from "./annotators/ValidationAnnotator";
 import { ImplicitAnnotator } from "./annotators/ImplicitAnnotator";
+import { TextDocument } from "vscode-languageserver-textdocument";
+import { SparkdownAnnotator } from "./SparkdownAnnotator";
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
@@ -52,7 +53,10 @@ export class SparkdownCombinedAnnotator {
     implicits: new ImplicitAnnotator(),
   };
 
-  protected _currentEntries = Object.entries(this.current);
+  protected _currentEntries = Object.entries(this.current) as [
+    string,
+    SparkdownAnnotator
+  ][];
 
   get(): SparkdownAnnotations {
     return {
@@ -119,20 +123,26 @@ export class SparkdownCombinedAnnotator {
     }
   }
 
-  create(doc: TextDocument, tree: Tree, skip?: Set<keyof SparkdownAnnotators>) {
-    return this.update(doc, tree, undefined, undefined, skip);
+  create(
+    tree: Tree,
+    input: Input,
+    doc: TextDocument,
+    skip?: Set<keyof SparkdownAnnotators>
+  ) {
+    return this.update(tree, input, doc, undefined, undefined, skip);
   }
 
   update(
-    doc: TextDocument,
     tree: Tree,
+    input: Input,
+    doc: TextDocument,
     changes?: ChangeSpec[],
     length: number = 0,
     skip?: Set<keyof SparkdownAnnotators>
   ) {
     for (const [key, annotator] of this._currentEntries) {
       if (!skip?.has(key as keyof SparkdownAnnotators)) {
-        annotator.update(doc, tree);
+        annotator.update(tree, input, doc);
       }
     }
     const cachedCompiler = tree.prop(cachedCompilerProp);
