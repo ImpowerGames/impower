@@ -1146,7 +1146,7 @@ export const getCompletions = (
       return buildCompletions();
     }
   }
-  if (leftStack[0]?.type.name === "FrontMatterFieldKeyword") {
+  if (leftStack[0]?.name === "FrontMatterFieldKeyword") {
     const lineText = getLineText(document, position);
     const exclude = getOtherNodesInsideParent(
       "FrontMatterField",
@@ -1171,7 +1171,7 @@ export const getCompletions = (
   }
 
   // Transition
-  if (leftStack[0]?.type.name === "TransitionMark") {
+  if (leftStack[0]?.name === "TransitionMark") {
     const contentNode = getDescendentInsideParent(
       "Transition_content",
       "Transition_begin",
@@ -1190,8 +1190,8 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    leftStack[0]?.type.name === "TransitionMarkSeparator" ||
-    leftStack.some((n) => n?.type.name === "Transition_content")
+    leftStack[0]?.name === "TransitionMarkSeparator" ||
+    leftStack.some((n) => n?.name === "Transition_content")
   ) {
     const contentNode = getDescendentInsideParent(
       "Transition_content",
@@ -1211,7 +1211,7 @@ export const getCompletions = (
   }
 
   // Scene
-  if (leftStack[0]?.type.name === "SceneMark") {
+  if (leftStack[0]?.name === "SceneMark") {
     const contentNode = getDescendentInsideParent(
       "Scene_content",
       "Scene_begin",
@@ -1230,8 +1230,8 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    leftStack[0]?.type.name === "SceneMarkSeparator" ||
-    leftStack.some((n) => n?.type.name === "Scene_content")
+    leftStack[0]?.name === "SceneMarkSeparator" ||
+    leftStack.some((n) => n?.name === "Scene_content")
   ) {
     const contentNode = getDescendentInsideParent(
       "Scene_content",
@@ -1251,7 +1251,7 @@ export const getCompletions = (
   }
 
   // Dialogue
-  if (leftStack[0]?.type.name === "DialogueMark") {
+  if (leftStack[0]?.name === "DialogueMark") {
     const contentNode =
       getDescendentInsideParent(
         "DialogueCharacter",
@@ -1276,8 +1276,8 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    leftStack[0]?.type.name === "DialogueMarkSeparator" ||
-    leftStack.some((n) => n?.type.name === "DialogueCharacter")
+    leftStack[0]?.name === "DialogueMarkSeparator" ||
+    leftStack.some((n) => n?.name === "DialogueCharacter")
   ) {
     const dialogueCharacterNode =
       getDescendentInsideParent(
@@ -1303,15 +1303,15 @@ export const getCompletions = (
   }
 
   // Write
-  if (leftStack[0]?.type.name === "WriteMark") {
+  if (leftStack[0]?.name === "WriteMark") {
     if (isCursorAfterNodeText(leftStack[0])) {
       addUIElementReferenceCompletions(completions, program, ["text"], " ");
     }
     return buildCompletions();
   }
   if (
-    leftStack[0]?.type.name === "WriteMarkSeparator" ||
-    leftStack.some((n) => n?.type.name === "WriteTarget")
+    leftStack[0]?.name === "WriteMarkSeparator" ||
+    leftStack.some((n) => n?.name === "WriteTarget")
   ) {
     const writeTargetNode =
       getDescendentInsideParent("WriteTarget", "BlockWrite_begin", leftStack) ||
@@ -1341,22 +1341,22 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (leftStack[0]?.type.name === "AssetCommandControl") {
+    if (leftStack[0]?.name === "AssetCommandControl") {
       if (isCursorAfterNodeText(leftStack[0])) {
         addKeywordCompletions(completions, "control", IMAGE_CONTROL_KEYWORDS);
       }
       return buildCompletions();
     }
     if (
-      leftStack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
-      leftStack[0]?.type.name === "AssetCommandTarget"
+      leftStack[0]?.name === "WhitespaceAssetCommandTarget" ||
+      leftStack[0]?.name === "AssetCommandTarget"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         addUIElementReferenceCompletions(completions, program, ["image"]);
       }
       return buildCompletions();
     }
-    if (leftStack[0]?.type.name === "WhitespaceAssetCommandName") {
+    if (leftStack[0]?.name === "WhitespaceAssetCommandName") {
       if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(
           completions,
@@ -1369,8 +1369,8 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      leftStack[0]?.type.name === "AssetCommandName" ||
-      leftStack[0]?.type.name === "AssetCommandFileName"
+      leftStack[0]?.name === "AssetCommandName" ||
+      leftStack[0]?.name === "AssetCommandFileName"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(
@@ -1383,8 +1383,8 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      leftStack[0]?.type.name === "AssetCommandFilterOperator" ||
-      leftStack[0]?.type.name === "AssetCommandFilterName"
+      leftStack[0]?.name === "AssetCommandFilterOperator" ||
+      leftStack[0]?.name === "AssetCommandFilterName"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const exclude = getOtherMatchesInsideParent(
@@ -1404,10 +1404,10 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      (leftStack[0]?.type.name === "WhitespaceAssetCommandClause" &&
-        prevNode?.type.name === "AssetCommandClauseKeyword" &&
+      (leftStack[0]?.name === "WhitespaceAssetCommandClause" &&
+        prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
-      leftStack[0]?.type.name === "NameValue"
+      leftStack[0]?.name === "NameValue"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, [
@@ -1417,10 +1417,10 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (leftStack[0]?.type.name === "WhitespaceAssetCommandClause") {
+    if (leftStack[0]?.name === "WhitespaceAssetCommandClause") {
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
-          prevNode?.type.name === "AssetCommandClauseKeyword" &&
+          prevNode?.name === "AssetCommandClauseKeyword" &&
           (prevText === "after" ||
             prevText === "over" ||
             prevText === "with" ||
@@ -1459,22 +1459,22 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (leftStack[0]?.type.name === "AssetCommandControl") {
+    if (leftStack[0]?.name === "AssetCommandControl") {
       if (isCursorAfterNodeText(leftStack[0])) {
         addKeywordCompletions(completions, "control", AUDIO_CONTROL_KEYWORDS);
       }
       return buildCompletions();
     }
     if (
-      leftStack[0]?.type.name === "WhitespaceAssetCommandTarget" ||
-      leftStack[0]?.type.name === "AssetCommandTarget"
+      leftStack[0]?.name === "WhitespaceAssetCommandTarget" ||
+      leftStack[0]?.name === "AssetCommandTarget"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, ["channel"]);
       }
       return buildCompletions();
     }
-    if (leftStack[0]?.type.name === "WhitespaceAssetCommandName") {
+    if (leftStack[0]?.name === "WhitespaceAssetCommandName") {
       if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, AUDIO_TYPES);
         addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS);
@@ -1482,8 +1482,8 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      leftStack[0]?.type.name === "AssetCommandName" ||
-      leftStack[0]?.type.name === "AssetCommandFileName"
+      leftStack[0]?.name === "AssetCommandName" ||
+      leftStack[0]?.name === "AssetCommandFileName"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, AUDIO_TYPES);
@@ -1491,8 +1491,8 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      leftStack[0]?.type.name === "AssetCommandFilterOperator" ||
-      leftStack[0]?.type.name === "AssetCommandFilterName"
+      leftStack[0]?.name === "AssetCommandFilterOperator" ||
+      leftStack[0]?.name === "AssetCommandFilterName"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const exclude = getOtherMatchesInsideParent(
@@ -1511,10 +1511,10 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (leftStack[0]?.type.name === "WhitespaceAssetCommandClause") {
+    if (leftStack[0]?.name === "WhitespaceAssetCommandClause") {
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
-          prevNode?.type.name === "AssetCommandClauseKeyword" &&
+          prevNode?.name === "AssetCommandClauseKeyword" &&
           (prevText === "after" ||
             prevText === "over" ||
             prevText === "with" ||
@@ -1538,10 +1538,10 @@ export const getCompletions = (
       }
     }
     if (
-      (leftStack[0]?.type.name === "WhitespaceAssetCommandClause" &&
-        prevNode?.type.name === "AssetCommandClauseKeyword" &&
+      (leftStack[0]?.name === "WhitespaceAssetCommandClause" &&
+        prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
-      leftStack[0]?.type.name === "NameValue"
+      leftStack[0]?.name === "NameValue"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         addStructReferenceCompletions(completions, program, ["modulation"]);
@@ -1756,7 +1756,7 @@ export const getCompletions = (
 
   // Divert Path
   if (
-    leftStack[0]?.type.name === "DivertArrow" &&
+    leftStack[0]?.name === "DivertArrow" &&
     !getNodeText(
       getDescendentInsideParent("Divert_content", "Divert", leftStack)
     )
@@ -1775,7 +1775,7 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    leftStack[0]?.type.name === "WhitespaceDivertPath" &&
+    leftStack[0]?.name === "WhitespaceDivertPath" &&
     !getNodeText(
       getDescendentInsideParent("Divert_content", "Divert", leftStack)
     )
@@ -1792,7 +1792,7 @@ export const getCompletions = (
     }
     return buildCompletions();
   }
-  if (leftStack[0]?.type.name === "DivertPath") {
+  if (leftStack[0]?.name === "DivertPath") {
     if (isCursorAfterNodeText(leftStack[0])) {
       const valueText = getNodeText(leftStack[0]);
       const valueCursorOffset = getCursorOffset(leftStack[0]);
