@@ -9,7 +9,7 @@ import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { Input, Tree, TreeFragment, ChangedRange } from "@lezer/common";
-import { ChangeSpec } from "@codemirror/state";
+import { ChangeSpec, Text } from "@codemirror/state";
 import {
   SparkdownAnnotators,
   SparkdownCombinedAnnotator,
@@ -168,6 +168,7 @@ export class SparkdownDocumentRegistry {
           changeDocument.positionAt(Number.MAX_VALUE)
         );
         const input = new TextDocumentInput(changeDocument);
+        const text = Text.of(changeDocument.getText().split("\n"));
         state.tree = this._parser.parse(input, state.treeFragments);
         state.treeFragments = TreeFragment.addTree(
           state.tree,
@@ -176,8 +177,7 @@ export class SparkdownDocumentRegistry {
         try {
           state.annotators.update(
             state.tree,
-            input,
-            changeDocument,
+            text,
             [annotationChange],
             Math.max(
               toA + change.text.length,
@@ -215,14 +215,10 @@ export class SparkdownDocumentRegistry {
         beforeDocument.uri
       );
       const input = new TextDocumentInput(afterDocument);
+      const text = Text.of(afterDocument.getText().split("\n"));
       state.tree = this._parser.parse(input);
       state.treeFragments = TreeFragment.addTree(state.tree);
-      state.annotators.create(
-        state.tree,
-        input,
-        afterDocument,
-        this._skipAnnotating
-      );
+      state.annotators.create(state.tree, text, this._skipAnnotating);
       state.treeVersion = afterDocument.version;
       profile(
         "end",

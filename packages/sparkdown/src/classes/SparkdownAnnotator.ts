@@ -1,23 +1,19 @@
-import { Range, RangeSet } from "@codemirror/state";
-import { Input, SyntaxNodeRef, Tree } from "@lezer/common";
+import { Line, Range, RangeSet, Text } from "@codemirror/state";
+import { SyntaxNodeRef, Tree } from "@lezer/common";
 import { SparkdownAnnotation } from "./SparkdownAnnotation";
-import { TextDocument } from "vscode-languageserver-textdocument";
 
 export abstract class SparkdownAnnotator<
   T extends SparkdownAnnotation = SparkdownAnnotation
 > {
   current: RangeSet<T> = RangeSet.empty;
 
-  input?: Input;
-
-  doc?: TextDocument;
+  text?: Text;
 
   tree?: Tree;
 
-  update(tree: Tree, input: Input, doc: TextDocument) {
+  update(tree: Tree, text: Text) {
     this.tree = tree;
-    this.input = input;
-    this.doc = doc;
+    this.text = text;
     this.start();
   }
 
@@ -34,9 +30,39 @@ export abstract class SparkdownAnnotator<
   }
 
   read(from: number, to: number) {
-    if (!this.input) {
+    if (!this.text) {
       return "";
     }
-    return this.input.read(from, to);
+    return this.text?.sliceString(from, to);
+  }
+
+  readLine(pos: number) {
+    if (!this.text) {
+      return "";
+    }
+    const currentLine = this.text.lineAt(pos);
+    if (currentLine.number >= this.text.lines) {
+      return "";
+    }
+    return currentLine.text;
+  }
+
+  readNextLine(pos: number) {
+    if (!this.text) {
+      return "";
+    }
+    const currentLine = this.text.lineAt(pos);
+    if (currentLine.number >= this.text.lines) {
+      return "";
+    }
+    const nextLine = this.text.line(currentLine.number + 1);
+    return nextLine.text;
+  }
+
+  getLineAt(pos: number) {
+    if (!this.text) {
+      return new Line();
+    }
+    return this.text.lineAt(pos);
   }
 }

@@ -35,46 +35,6 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
     return `=${id}=`;
   }
 
-  getLineFrom(from: number) {
-    if (!this.doc) {
-      return 0;
-    }
-    return this.doc.offsetAt({
-      line: this.doc.positionAt(from).line,
-      character: 0,
-    });
-  }
-
-  getLineTo(from: number) {
-    if (!this.doc) {
-      return 0;
-    }
-    return this.doc.offsetAt({
-      line: this.doc.positionAt(from).line,
-      character: Number.MAX_VALUE,
-    });
-  }
-
-  readNextLine(from: number) {
-    if (!this.doc) {
-      return "";
-    }
-    const currentLine = this.doc.positionAt(from).line;
-    if (currentLine >= this.doc.lineCount - 1) {
-      return "";
-    }
-    return this.doc.getText({
-      start: {
-        line: currentLine + 1,
-        character: 0,
-      },
-      end: {
-        line: currentLine + 1,
-        character: Number.MAX_VALUE,
-      },
-    });
-  }
-
   override enter(
     annotations: Range<SparkdownAnnotation<LineAugmentations>>[],
     nodeRef: SparkdownSyntaxNodeRef
@@ -84,7 +44,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
       nodeRef.name === "BlockDialogue_begin" ||
       nodeRef.name === "BlockWrite_begin"
     ) {
-      const lineFrom = this.getLineFrom(nodeRef.from);
+      const lineFrom = this.getLineAt(nodeRef.from).from;
       const lineTextBefore = this.read(lineFrom, nodeRef.to);
       const uuid = this.generateID();
       const flowMarker = this.getFlowMarker(uuid);
@@ -125,8 +85,8 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
       nodeRef.name === "Scene_begin" ||
       nodeRef.name === "Action_begin"
     ) {
-      const lineFrom = this.getLineFrom(nodeRef.from);
-      const lineTo = this.getLineTo(nodeRef.from);
+      const lineFrom = this.getLineAt(nodeRef.from).from;
+      const lineTo = this.getLineAt(nodeRef.from).to;
       const lineTextBefore = this.read(lineFrom, nodeRef.to);
       const lineTextAfter = this.read(nodeRef.to, lineTo);
       if (
@@ -150,8 +110,8 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
         nodeRef.name === "ImageAndAudioLine") &&
       getContext(nodeRef.node).length === 1
     ) {
-      const lineFrom = this.getLineFrom(nodeRef.from);
-      const lineTo = this.getLineTo(nodeRef.from);
+      const lineFrom = this.getLineAt(nodeRef.from).from;
+      const lineTo = this.getLineAt(nodeRef.from).to;
       const lineTextBefore = this.read(lineFrom, nodeRef.to);
       const lineTextAfter = this.read(nodeRef.to, lineTo);
       if (
@@ -196,8 +156,8 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "BlockLineContinue") {
-      const lineFrom = this.getLineFrom(nodeRef.from);
-      const lineTo = this.getLineTo(nodeRef.from);
+      const lineFrom = this.getLineAt(nodeRef.from).from;
+      const lineTo = this.getLineAt(nodeRef.from).to;
       const lineTextBefore = this.read(lineFrom, nodeRef.to);
       const lineTextAfter = this.read(nodeRef.to, lineTo);
       if (

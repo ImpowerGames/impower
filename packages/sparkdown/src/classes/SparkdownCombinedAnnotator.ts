@@ -1,6 +1,6 @@
-import { ChangeSpec, RangeSet, ChangeSet } from "@codemirror/state";
+import { ChangeSpec, RangeSet, ChangeSet, Text } from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
-import { Input, Tree } from "@lezer/common";
+import { Tree } from "@lezer/common";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { SceneAnnotator } from "./annotators/SceneAnnotator";
 import { TransitionAnnotator } from "./annotators/TransitionAnnotator";
@@ -11,7 +11,6 @@ import { TranspilationAnnotator } from "./annotators/TranspilationAnnotator";
 import { ReferenceAnnotator } from "./annotators/ReferenceAnnotator";
 import { ValidationAnnotator } from "./annotators/ValidationAnnotator";
 import { ImplicitAnnotator } from "./annotators/ImplicitAnnotator";
-import { TextDocument } from "vscode-languageserver-textdocument";
 import { SparkdownAnnotator } from "./SparkdownAnnotator";
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
@@ -123,26 +122,20 @@ export class SparkdownCombinedAnnotator {
     }
   }
 
-  create(
-    tree: Tree,
-    input: Input,
-    doc: TextDocument,
-    skip?: Set<keyof SparkdownAnnotators>
-  ) {
-    return this.update(tree, input, doc, undefined, undefined, skip);
+  create(tree: Tree, text: Text, skip?: Set<keyof SparkdownAnnotators>) {
+    return this.update(tree, text, undefined, undefined, skip);
   }
 
   update(
     tree: Tree,
-    input: Input,
-    doc: TextDocument,
+    text: Text,
     changes?: ChangeSpec[],
     length: number = 0,
     skip?: Set<keyof SparkdownAnnotators>
   ) {
     for (const [key, annotator] of this._currentEntries) {
       if (!skip?.has(key as keyof SparkdownAnnotators)) {
-        annotator.update(tree, input, doc);
+        annotator.update(tree, text);
       }
     }
     const cachedCompiler = tree.prop(cachedCompilerProp);
