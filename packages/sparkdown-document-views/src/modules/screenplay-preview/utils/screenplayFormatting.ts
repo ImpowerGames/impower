@@ -455,7 +455,6 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         return false;
       } else if (isInlineHidden(nodeRef)) {
         hideInlineRange(nodeRef);
-        return false;
       }
       return true;
     },
