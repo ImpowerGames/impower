@@ -41,6 +41,7 @@ export class SparkdownCompiler {
     "transitions",
     "colors",
     "declarations",
+    "formatting",
   ]);
   get documents() {
     return this._documents;
@@ -552,7 +553,7 @@ export class SparkdownCompiler {
                 relatedInformation: [
                   {
                     location: { uri, range },
-                    message: diagnostic.message,
+                    message: "",
                   },
                 ],
                 source: LANGUAGE_NAME,
@@ -618,7 +619,7 @@ export class SparkdownCompiler {
                   relatedInformation: [
                     {
                       location: { uri, range },
-                      message,
+                      message: "",
                     },
                   ],
                   source: LANGUAGE_NAME,
@@ -643,7 +644,7 @@ export class SparkdownCompiler {
                 relatedInformation: [
                   {
                     location: { uri, range },
-                    message,
+                    message: "",
                   },
                 ],
                 source: LANGUAGE_NAME,
@@ -681,7 +682,7 @@ export class SparkdownCompiler {
                         relatedInformation: [
                           {
                             location: { uri, range },
-                            message,
+                            message: "",
                           },
                         ],
                         source: LANGUAGE_NAME,
@@ -829,7 +830,7 @@ export class SparkdownCompiler {
         ? [
             {
               location: { uri, range },
-              message,
+              message: "",
             },
           ]
         : [];
