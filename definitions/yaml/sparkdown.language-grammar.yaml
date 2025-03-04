@@ -29,6 +29,7 @@ variables:
     ["after", "over", "fadeto", "loop", "noloop", "mute", "unmute", "now"]
 
 patterns:
+  - { include: "#EndOfLine" }
   - { include: "#Newline" }
   - { include: "#Annotation" }
   - { include: "#FrontMatter" }
@@ -314,7 +315,7 @@ repository:
           - { include: "#DefineIdentifier" }
       4:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#ExtraWhitespace" }
       5:
         patterns:
           - { include: "#DeclarationAssignOperator" }
@@ -335,7 +336,7 @@ repository:
         patterns:
           - { include: "#AccessPart" }
 
-  DefineKeyword: 
+  DefineKeyword:
     tag: controlKeyword
     name: keyword.control.definition.object.sd
     match: (.+)
@@ -687,7 +688,7 @@ repository:
         patterns:
           - { include: "#PunctuationSemicolon" }
 
-  ArrayItemMark: 
+  ArrayItemMark:
     tag: keyword
     name: keyword.operator.expression.array.sd
     match: (.+)
@@ -1139,7 +1140,7 @@ repository:
         name: keyword.control.section.sd
 
   KnotDeclaration:
-    begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*)
+    begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*(?![(]))({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -1149,11 +1150,18 @@ repository:
           - { include: "#KnotDeclarationName" }
       3:
         patterns:
+          - { include: "#Separator" }
+      4:
+        patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
-    end: (?=$|[=]|[/][/])
+    end: ({{WS}}*)(?=$|[=]|[/][/])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#Separator" }
 
   KnotDeclarationName:
     tag: definition(heading)
@@ -1183,7 +1191,7 @@ repository:
           - { include: "#InvalidValue" }
 
   StitchDeclaration:
-    begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*)
+    begin: ({{WS}}*)({{IDENTIFIER}})({{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -1193,7 +1201,7 @@ repository:
           - { include: "#StitchDeclarationName" }
       3:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#EndOfLine" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
@@ -1463,7 +1471,7 @@ repository:
           - { include: "#Expression" }
       6:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#ExtraWhitespace" }
       7:
         tag: separator
         name: meta.template.expression.colon.sd
@@ -1571,7 +1579,7 @@ repository:
   TrailingWhitespace:
     tag: special(content)
     name: markup.raw.whitespace.trailing.sd
-    match: ({{WS}}+)
+    match: ({{WS}}+)$
 
   ExtraWhitespace:
     tag: content
@@ -1591,6 +1599,7 @@ repository:
   EndOfLine:
     patterns:
       - { include: "#Annotation" }
+      - { include: "#TrailingWhitespace" }
       - { include: "#Whitespace" }
 
   Operator:
@@ -2110,7 +2119,7 @@ repository:
   InlineWrite:
     tag: string
     name: string.write.sd
-    begin: ({{WS}}*)([>])($|{{WS}}+)($|.*?)($|[:])($|{{WS}}*)
+    begin: ({{WS}}*)([>])($|{{WS}}+)($|.*?)($|{{WS}}*)($|[:])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -2126,11 +2135,14 @@ repository:
           - { include: "#Annotation" }
           - { include: "#WriteTarget" }
       5:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      6:
         tag: definition(separator)
         name: meta.template.expression.colon.sd
-      6:
-        tag: definition(typeName)
-        name: entity.name.type.write.target.name.sd
+      7:
+        patterns:
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -2186,7 +2198,7 @@ repository:
   InlineDialogue:
     tag: string
     name: string.dialogue.sd
-    begin: ({{WS}}*)([@])($|{{WS}}+)($|.*?)($|[:])($|{{WS}}*)
+    begin: ({{WS}}*)([@])($|{{WS}}+)($|.*?)($|{{WS}}*)($|[:])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -2202,11 +2214,14 @@ repository:
           - { include: "#Annotation" }
           - { include: "#DialogueCharacter" }
       5:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      6:
         tag: definition(separator)
         name: meta.template.expression.colon.sd
-      6:
-        tag: definition(typeName)
-        name: entity.name.type.dialogue.character.name.sd
+      7:
+        patterns:
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -2248,7 +2263,7 @@ repository:
     match: (.+)
 
   DialogueCharacter:
-    match: ({{WS}}*)(.*?)({{WS}}*[(][^()]*?[)])?($|{{WS}}*)(\[.*?\])?({{EOL}})
+    match: ({{WS}}*)(.*?)({{WS}}*)({{WS}}[(][^()]*?[)])?($|{{WS}}*)({{WS}}\[.*?\])?({{EOL}})
     captures:
       1:
         patterns:
@@ -2258,14 +2273,17 @@ repository:
           - { include: "#DialogueCharacterName" }
       3:
         patterns:
-          - { include: "#DialogueCharacterParenthetical" }
+          - { include: "#ExtraWhitespace" }
       4:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#DialogueCharacterParenthetical" }
       5:
         patterns:
-          - { include: "#DialogueCharacterPosition" }
+          - { include: "#ExtraWhitespace" }
       6:
+        patterns:
+          - { include: "#DialogueCharacterPosition" }
+      7:
         patterns:
           - { include: "#EndOfLine" }
 
@@ -2281,20 +2299,38 @@ repository:
   DialogueCharacterParenthetical:
     tag: escape
     name: constant.character.escape.dialogue.character.parenthetical.sd
-    match: (.+$)
+    match: ({{WS}})([(])({{WS}}*)([^()]*?)({{WS}}*)([)])({{WS}}*)
     captures:
       1:
         patterns:
+          - { include: "#Whitespace" }
+      2:
+        tag: paren
+        name: meta.brace.round.open.sd
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
           - { include: "#DisplayText" }
+      5:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      6:
+        tag: paren
+        name: meta.brace.round.close.sd
+      7:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   DialogueCharacterPosition:
     tag: definition(escape)
     name: constant.character.escape.dialogue.character.position.sd
-    match: ({{WS}}*)(\[)({{WS}}*)(.*?)({{WS}}*)(\])
+    match: ({{WS}})(\[)({{WS}}*)(.*?)({{WS}}*)(\])
     captures:
       1:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#Whitespace" }
       2:
         tag: bracket
         name: punctuation.definition.position.sd
@@ -2431,7 +2467,7 @@ repository:
           - { include: "#ParentheticalLineContent" }
       5:
         patterns:
-          - { include: "#TrailingWhitespace" }
+          - { include: "#ExtraWhitespace" }
       6:
         patterns:
           - { include: "#EndOfLine" }
@@ -2440,11 +2476,29 @@ repository:
   ParentheticalLineContent:
     tag: escape
     name: constant.character.escape.sd
-    match: (.+)
+    match: ({{WS}}*)([(])({{WS}}*)([^()]*?)({{WS}}*)([)])({{WS}}*)
     captures:
       1:
         patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: paren
+        name: meta.brace.round.open.sd
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
           - { include: "#DisplayText" }
+      5:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      6:
+        tag: paren
+        name: meta.brace.round.close.sd
+      7:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   ########## Text ##########
 
@@ -2568,7 +2622,7 @@ repository:
         name: keyword.operator.expression.end.source.sd
       4:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#Separator" }
 
   UUID:
     tag: keyword
@@ -2629,38 +2683,50 @@ repository:
   ImageCommand:
     tag: macroName
     name: meta.image.sd
-    match: (\[\[)((?:\\.|[^\]])*?)(\]\])({{WS}}*)
+    match: (\[\[)({{WS}}*)((?:\\.|[^\]])*?)({{WS}}*)(\]\])({{WS}}*)
     captures:
       1:
         tag: keyword
         name: keyword.operator.expression.begin.image.sd
       2:
         patterns:
-          - { include: "#AssetCommandContent" }
+          - { include: "#ExtraWhitespace" }
       3:
-        tag: keyword
-        name: keyword.operator.expression.end.image.sd
+        patterns:
+          - { include: "#AssetCommandContent" }
       4:
         patterns:
           - { include: "#ExtraWhitespace" }
+      5:
+        tag: keyword
+        name: keyword.operator.expression.end.image.sd
+      6:
+        patterns:
+          - { include: "#Separator" }
 
   AudioCommand:
     tag: macroName
     name: meta.audio.sd
-    match: ([(][(])((?:\\.|[^)])*?)([)][)])({{WS}}*)
+    match: ([(][(])({{WS}}*)((?:\\.|[^)])*?)({{WS}}*)([)][)])({{WS}}*)
     captures:
       1:
         tag: keyword
         name: keyword.operator.expression.begin.audio.sd
       2:
         patterns:
-          - { include: "#AssetCommandContent" }
+          - { include: "#ExtraWhitespace" }
       3:
-        tag: keyword
-        name: keyword.operator.expression.end.audio.sd
+        patterns:
+          - { include: "#AssetCommandContent" }
       4:
         patterns:
           - { include: "#ExtraWhitespace" }
+      5:
+        tag: keyword
+        name: keyword.operator.expression.end.audio.sd
+      6:
+        patterns:
+          - { include: "#Separator" }
 
   AssetCommandContent:
     match: ({{WS}}*)(.*?)($|(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}).*)

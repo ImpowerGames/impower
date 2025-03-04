@@ -207,11 +207,13 @@
         "editor.suggestSelection": "first",
         "editor.insertSpaces": true,
         "editor.tabSize": 2,
+        "editor.detectIndentation": false,
         "editor.bracketPairColorization.enabled": false,
         "editor.guides.bracketPairs": true,
         "editor.guides.highlightActiveIndentation": true,
         "editor.guides.bracketPairsHorizontal": false,
-        "editor.renderWhitespace": "boundary"
+        "editor.renderWhitespace": "boundary",
+        "editor.formatOnSave": true
       }
     },
     "languages": [

@@ -17,6 +17,7 @@ import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
+import { getDocumentFormatting } from "./utils/providers/getDocumentFormatting";
 
 console.log("running sparkdown-language-server");
 
@@ -63,6 +64,7 @@ try {
           labelDetailsSupport: true,
         },
       },
+      documentFormattingProvider: true,
     };
     const workspaceFolders = params?.workspaceFolders;
     if (workspaceFolders) {
@@ -212,6 +214,22 @@ try {
       `lsp: onCompletion ${uri}`,
       `lsp: onCompletion ${uri} start`,
       `lsp: onCompletion ${uri} end`
+    );
+    return result;
+  });
+
+  // documentFormattingProvider
+  connection.onDocumentFormatting((params) => {
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const annotations = documents.annotations(uri);
+    performance.mark(`lsp: onDocumentFormatting ${uri} start`);
+    const result = getDocumentFormatting(document, annotations, params.options);
+    performance.mark(`lsp: onDocumentFormatting ${uri} end`);
+    performance.measure(
+      `lsp: onDocumentFormatting ${uri}`,
+      `lsp: onDocumentFormatting ${uri} start`,
+      `lsp: onDocumentFormatting ${uri} end`
     );
     return result;
   });
