@@ -16,6 +16,8 @@ import {
 } from "./SparkdownCombinedAnnotator";
 import { profile } from "../utils/profile";
 
+const DEBUG = false;
+
 const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
 export type SparkdownDocumentContentChangeEvent =
@@ -174,30 +176,18 @@ export class SparkdownDocumentRegistry {
           state.tree,
           state.treeFragments
         );
-        try {
-          state.annotators.update(
-            state.tree,
-            text,
-            [annotationChange],
-            Math.max(
-              toA + change.text.length,
-              state.tree.length,
-              documentLengthBeforeChange,
-              documentLengthAfterChange
-            ),
-            this._skipAnnotating
-          );
-        } catch (error) {
-          console.error(error);
-          console.error(
-            fromA,
-            toA,
-            change.text.length,
+        state.annotators.update(
+          state.tree,
+          text,
+          [annotationChange],
+          Math.max(
+            toA + change.text.length,
             state.tree.length,
             documentLengthBeforeChange,
             documentLengthAfterChange
-          );
-        }
+          ),
+          this._skipAnnotating
+        );
       }
       state.treeVersion = afterDocument.version;
       profile(
@@ -205,7 +195,9 @@ export class SparkdownDocumentRegistry {
         this._profilingIdentifier + "/incrementalParse",
         beforeDocument.uri
       );
-      // this.print(afterDocument.uri);
+      if (DEBUG) {
+        this.print(afterDocument.uri);
+      }
       return state.tree!;
     } else {
       // First full parse
@@ -225,7 +217,9 @@ export class SparkdownDocumentRegistry {
         this._profilingIdentifier + "/fullParse",
         beforeDocument.uri
       );
-      // this.print(beforeDocument.uri);
+      if (DEBUG) {
+        this.print(beforeDocument.uri);
+      }
       return state.tree;
     }
   }
