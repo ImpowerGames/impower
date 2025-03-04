@@ -77,6 +77,10 @@ export class SparkdownFileDecorationProvider
         fileStat(this._commandUris.json),
       ]);
       this._stat = stat;
+      this._commandUris.pdf = vscode.Uri.file(`${filename}.pdf`);
+      this._commandUris.html = vscode.Uri.file(`${filename}.html`);
+      this._commandUris.csv = vscode.Uri.file(`${filename}.csv`);
+      this._commandUris.json = vscode.Uri.file(`${filename}.json`);
       this._commandStats[this._commandUris.pdf.path] = pdfStat;
       this._commandStats[this._commandUris.html.path] = htmlStat;
       this._commandStats[this._commandUris.csv.path] = csvStat;
