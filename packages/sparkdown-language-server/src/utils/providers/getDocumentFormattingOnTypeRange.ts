@@ -11,7 +11,7 @@ export const getDocumentFormattingOnTypeRange = (
   document: TextDocument | undefined,
   tree: Tree | undefined,
   position: Position,
-  ch: string
+  _triggerCharacter: string
 ): Range | null => {
   if (!document || !tree) {
     return null;
