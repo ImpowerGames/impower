@@ -1,4 +1,8 @@
-import { type FormattingOptions, type TextEdit } from "vscode-languageserver";
+import {
+  type Position,
+  type FormattingOptions,
+  type TextEdit,
+} from "vscode-languageserver";
 import {
   type TextDocument,
   type Range,
@@ -6,15 +10,33 @@ import {
 
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 
+const isInRange = (
+  document: TextDocument,
+  innerRange: Range,
+  outerRange: Range
+) => {
+  return (
+    document.offsetAt(innerRange.start) >=
+      document.offsetAt(outerRange.start) &&
+    document.offsetAt(innerRange.end) <= document.offsetAt(outerRange.end)
+  );
+};
+
 export const getDocumentFormatting = (
   document: TextDocument | undefined,
   annotations: SparkdownAnnotations | undefined,
-  options: FormattingOptions
+  options: FormattingOptions,
+  formattingRange?: Range
 ): TextEdit[] => {
   const result: TextEdit[] = [];
   if (!document || !annotations) {
     return result;
   }
+  const pushIfInRange = (edit: TextEdit) => {
+    if (!formattingRange || isInRange(document, edit.range, formattingRange)) {
+      result.push(edit);
+    }
+  };
   const cur = annotations.formatting?.iter();
   if (cur) {
     let newlineRanges: Range[] = [];
@@ -39,7 +61,7 @@ export const getDocumentFormatting = (
             const roundedIndentSize =
               Math.round(normalizedWhitespace.length / options.tabSize) *
               options.tabSize;
-            result.push({
+            pushIfInRange({
               range,
               newText: " ".repeat(roundedIndentSize),
             });
@@ -47,13 +69,13 @@ export const getDocumentFormatting = (
         }
         if (cur.value.type === "separator") {
           if (text.length > 1) {
-            result.push({
+            pushIfInRange({
               range,
               newText: " ",
             });
           } else if (options.insertSpaces && includesTab) {
             const newText = normalizedWhitespace;
-            result.push({
+            pushIfInRange({
               range,
               newText,
             });
@@ -61,7 +83,7 @@ export const getDocumentFormatting = (
         }
         if (cur.value.type === "extra") {
           if (text.length > 0) {
-            result.push({
+            pushIfInRange({
               range,
               newText: "",
             });
@@ -69,7 +91,7 @@ export const getDocumentFormatting = (
         }
         if (cur.value.type === "trailing") {
           if (options.trimTrailingWhitespace && text.length > 0) {
-            result.push({
+            pushIfInRange({
               range,
               newText: "",
             });
@@ -82,7 +104,7 @@ export const getDocumentFormatting = (
       const lastPosition = document.positionAt(Number.MAX_VALUE);
       const lastNewlineRange = newlineRanges.at(-1);
       if (!lastNewlineRange || lastNewlineRange.end.line < lastPosition.line) {
-        result.push({
+        pushIfInRange({
           range: {
             start: lastPosition,
             end: lastPosition,
@@ -99,7 +121,7 @@ export const getDocumentFormatting = (
         lastNewlineRange &&
         document.offsetAt(lastNewlineRange.end) === docLength - 1
       ) {
-        result.push({
+        pushIfInRange({
           range: lastNewlineRange,
           newText: "",
         });

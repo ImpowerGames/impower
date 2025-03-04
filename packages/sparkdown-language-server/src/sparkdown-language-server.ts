@@ -18,6 +18,7 @@ import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import { getDocumentFormatting } from "./utils/providers/getDocumentFormatting";
+import { getDocumentFormattingOnTypeRange } from "./utils/providers/getDocumentFormattingOnTypeRange";
 
 console.log("running sparkdown-language-server");
 
@@ -65,6 +66,11 @@ try {
         },
       },
       documentFormattingProvider: true,
+      documentRangeFormattingProvider: true,
+      documentOnTypeFormattingProvider: {
+        firstTriggerCharacter: "\n",
+        moreTriggerCharacter: [":", "]", "}", ")", "\n"],
+      },
     };
     const workspaceFolders = params?.workspaceFolders;
     if (workspaceFolders) {
@@ -230,6 +236,52 @@ try {
       `lsp: onDocumentFormatting ${uri}`,
       `lsp: onDocumentFormatting ${uri} start`,
       `lsp: onDocumentFormatting ${uri} end`
+    );
+    return result;
+  });
+
+  // documentFormattingRangeProvider
+  connection.onDocumentRangeFormatting((params) => {
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const annotations = documents.annotations(uri);
+    performance.mark(`lsp: onDocumentRangeFormatting ${uri} start`);
+    const result = getDocumentFormatting(
+      document,
+      annotations,
+      params.options,
+      params.range
+    );
+    performance.mark(`lsp: onDocumentRangeFormatting ${uri} end`);
+    performance.measure(
+      `lsp: onDocumentRangeFormatting ${uri}`,
+      `lsp: onDocumentRangeFormatting ${uri} start`,
+      `lsp: onDocumentRangeFormatting ${uri} end`
+    );
+    return result;
+  });
+
+  // documentFormattingOnTypeProvider
+  connection.onDocumentOnTypeFormatting((params) => {
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const tree = documents.tree(uri);
+    const annotations = documents.annotations(uri);
+    performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} start`);
+    const range = getDocumentFormattingOnTypeRange(
+      document,
+      tree,
+      params.position,
+      params.ch
+    );
+    const result = range
+      ? getDocumentFormatting(document, annotations, params.options, range)
+      : null;
+    performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} end`);
+    performance.measure(
+      `lsp: onDocumentOnTypeFormatting ${uri}`,
+      `lsp: onDocumentOnTypeFormatting ${uri} start`,
+      `lsp: onDocumentOnTypeFormatting ${uri} end`
     );
     return result;
   });
