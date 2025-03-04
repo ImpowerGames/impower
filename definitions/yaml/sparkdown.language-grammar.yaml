@@ -1299,11 +1299,14 @@ repository:
 
   ConditionalBlock:
     brackets: true
-    begin: ([{])
+    begin: ([{])({{WS}}*)
     beginCaptures:
       1:
         tag: keyword
         name: punctuation.definition.template-expression.begin.sd
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#CloseBraceAhead" }
@@ -1316,11 +1319,14 @@ repository:
       - { include: "#AlternativeItem" }
       - { include: "#ConditionalBlock" }
       - { include: "#InlineConditionalText" }
-    end: ([}])
+    end: ({{WS}}*)([}])
     endCaptures:
       1:
         tag: keyword
         name: punctuation.definition.template-expression.end.sd
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   Substitution:
     name: keyword.control.sd
@@ -1367,7 +1373,7 @@ repository:
     end: (?=[}]|[|])
 
   ConditionalSubstitution:
-    begin: ((?:[^{}|]|[|](?=[|]))+)({{WS}}*)([:])({{WS}}*)(?!{{EOL}})
+    begin: ((?:[^{}|]|[|](?=[|]))+)((?<!{{WS}}){{WS}}*)([:])({{WS}}*)(?!{{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -1405,7 +1411,7 @@ repository:
     end: (?=[}])
 
   MultilineBlock:
-    begin: ([^{}:]+)({{WS}}*)([:])(?={{EOL}})
+    begin: ([^{}:]+)((?<!{{WS}}){{WS}}*)([:])(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -1574,12 +1580,12 @@ repository:
   Indent:
     tag: content
     name: markup.raw.whitespace.indent.sd
-    match: ({{WS}}+)
+    match: ^({{WS}}+)
 
   TrailingWhitespace:
     tag: special(content)
     name: markup.raw.whitespace.trailing.sd
-    match: ({{WS}}+)$
+    match: (?<!^)({{WS}}+)$
 
   ExtraWhitespace:
     tag: content
@@ -1600,7 +1606,6 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#TrailingWhitespace" }
-      - { include: "#Whitespace" }
 
   Operator:
     patterns:
@@ -2414,7 +2419,7 @@ repository:
   ########## Action ##########
 
   Action:
-    begin: (?:({{WS}}*)(?:([<][>])|([!])($|{{WS}})))?({{WS}}*)(?=\S)
+    begin: (?:({{WS}}*)(?:([<][>])|([!])($|{{WS}}+)))?({{WS}}*)(?=\S)
     beginCaptures:
       1:
         patterns:
@@ -2427,7 +2432,7 @@ repository:
           - { include: "#ActionMark" }
       4:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#Whitespace" }
       5:
         patterns:
           - { include: "#Whitespace" }

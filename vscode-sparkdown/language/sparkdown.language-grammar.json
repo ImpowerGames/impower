@@ -2303,11 +2303,18 @@
     },
     "ConditionalBlock": {
       "brackets": true,
-      "begin": "([{])",
+      "begin": "([{])([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
           "name": "punctuation.definition.template-expression.begin.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
         }
       },
       "patterns": [
@@ -2345,11 +2352,18 @@
           "include": "#InlineConditionalText"
         }
       ],
-      "end": "([}])",
+      "end": "([^\\S\\n\\r]*)([}])",
       "endCaptures": {
         "1": {
           "tag": "keyword",
           "name": "punctuation.definition.template-expression.end.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
         }
       }
     },
@@ -2443,7 +2457,7 @@
       "end": "(?=[}]|[|])"
     },
     "ConditionalSubstitution": {
-      "begin": "((?:[^{}|]|[|](?=[|]))+)([^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(?!(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "((?:[^{}|]|[|](?=[|]))+)((?<![^\\S\\n\\r])[^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(?!(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2521,7 +2535,7 @@
       "end": "(?=[}])"
     },
     "MultilineBlock": {
-      "begin": "([^{}:]+)([^\\S\\n\\r]*)([:])(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "([^{}:]+)((?<![^\\S\\n\\r])[^\\S\\n\\r]*)([:])(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2876,12 +2890,12 @@
     "Indent": {
       "tag": "content",
       "name": "markup.raw.whitespace.indent.sd",
-      "match": "([^\\S\\n\\r]+)"
+      "match": "^([^\\S\\n\\r]+)"
     },
     "TrailingWhitespace": {
       "tag": "special(content)",
       "name": "markup.raw.whitespace.trailing.sd",
-      "match": "([^\\S\\n\\r]+)$"
+      "match": "(?<!^)([^\\S\\n\\r]+)$"
     },
     "ExtraWhitespace": {
       "tag": "content",
@@ -2905,9 +2919,6 @@
         },
         {
           "include": "#TrailingWhitespace"
-        },
-        {
-          "include": "#Whitespace"
         }
       ]
     },
@@ -4231,7 +4242,7 @@
       "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][^\\S\\n\\r]*(.*?)[^\\S\\n\\r]+[-][^\\S\\n\\r]+(.*?)[^\\S\\n\\r]*$"
     },
     "Action": {
-      "begin": "(?:([^\\S\\n\\r]*)(?:([<][>])|([!])($|[^\\S\\n\\r])))?([^\\S\\n\\r]*)(?=\\S)",
+      "begin": "(?:([^\\S\\n\\r]*)(?:([<][>])|([!])($|[^\\S\\n\\r]+)))?([^\\S\\n\\r]*)(?=\\S)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4257,7 +4268,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#Whitespace"
             }
           ]
         },
