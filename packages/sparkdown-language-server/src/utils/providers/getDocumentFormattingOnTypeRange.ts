@@ -12,9 +12,9 @@ export const getDocumentFormattingOnTypeRange = (
   tree: Tree | undefined,
   position: Position,
   _triggerCharacter: string
-): Range | null => {
+): Range | null | undefined => {
   if (!document || !tree) {
-    return null;
+    return undefined;
   }
   const leftStack = getStack<SparkdownNodeName>(
     tree,

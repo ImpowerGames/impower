@@ -10,6 +10,8 @@ import {
 
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 
+const TAB_REGEX = /\t/g;
+
 const isInRange = (
   document: TextDocument,
   innerRange: Range,
@@ -22,21 +24,22 @@ const isInRange = (
   );
 };
 
-export const getDocumentFormatting = (
+export const getDocumentFormattingEdits = (
   document: TextDocument | undefined,
   annotations: SparkdownAnnotations | undefined,
   options: FormattingOptions,
   formattingRange?: Range
-): TextEdit[] => {
-  const result: TextEdit[] = [];
+): TextEdit[] | undefined => {
   if (!document || !annotations) {
-    return result;
+    return undefined;
   }
+  const result: TextEdit[] = [];
   const pushIfInRange = (edit: TextEdit) => {
     if (!formattingRange || isInRange(document, edit.range, formattingRange)) {
       result.push(edit);
     }
   };
+  let indentLevel = 0;
   const cur = annotations.formatting?.iter();
   if (cur) {
     let newlineRanges: Range[] = [];
@@ -50,20 +53,25 @@ export const getDocumentFormatting = (
       } else {
         const text = document.getText(range);
         const normalizedWhitespace = options.insertSpaces
-          ? text.replaceAll("\t", " ".repeat(options.tabSize))
+          ? text.replace(TAB_REGEX, " ".repeat(options.tabSize))
           : text;
         const includesTab = text.includes("\t");
         if (cur.value.type === "indent") {
+          if (normalizedWhitespace.length > indentLevel * options.tabSize) {
+            indentLevel++;
+          } else if (
+            normalizedWhitespace.length <
+            indentLevel * options.tabSize
+          ) {
+            indentLevel--;
+          }
           if (
             (!includesTab || options.insertSpaces) &&
-            normalizedWhitespace.length % options.tabSize !== 0
+            normalizedWhitespace.length !== indentLevel * options.tabSize
           ) {
-            const roundedIndentSize =
-              Math.round(normalizedWhitespace.length / options.tabSize) *
-              options.tabSize;
             pushIfInRange({
               range,
-              newText: " ".repeat(roundedIndentSize),
+              newText: " ".repeat(indentLevel * options.tabSize),
             });
           }
         }

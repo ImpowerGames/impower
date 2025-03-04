@@ -17,6 +17,18 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<WhitespaceType>>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<WhitespaceType>>[] {
+    if (nodeRef.name === "Whitespace") {
+      if (nodeRef.from === this.getLineAt(nodeRef.from).from) {
+        // Whitespace is at the start of the line
+        annotations.push(
+          SparkdownAnnotation.mark<WhitespaceType>("indent").range(
+            nodeRef.from,
+            nodeRef.to
+          )
+        );
+      }
+      return annotations;
+    }
     if (nodeRef.name === "Indent") {
       annotations.push(
         SparkdownAnnotation.mark<WhitespaceType>("indent").range(
