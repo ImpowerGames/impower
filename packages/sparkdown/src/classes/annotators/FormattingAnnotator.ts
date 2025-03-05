@@ -3,18 +3,24 @@ import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 
-export type WhitespaceType = "separator" | "extra" | "trailing" | "newline";
+export type FormatType =
+  | "separator"
+  | "extra"
+  | "trailing"
+  | "newline"
+  | "choice_mark"
+  | "gather_mark";
 
 export class FormattingAnnotator extends SparkdownAnnotator<
-  SparkdownAnnotation<WhitespaceType>
+  SparkdownAnnotation<FormatType>
 > {
   override enter(
-    annotations: Range<SparkdownAnnotation<WhitespaceType>>[],
+    annotations: Range<SparkdownAnnotation<FormatType>>[],
     nodeRef: SparkdownSyntaxNodeRef
-  ): Range<SparkdownAnnotation<WhitespaceType>>[] {
+  ): Range<SparkdownAnnotation<FormatType>>[] {
     if (nodeRef.name === "Separator") {
       annotations.push(
-        SparkdownAnnotation.mark<WhitespaceType>("separator").range(
+        SparkdownAnnotation.mark<FormatType>("separator").range(
           nodeRef.from,
           nodeRef.to
         )
@@ -23,7 +29,25 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "ExtraWhitespace") {
       annotations.push(
-        SparkdownAnnotation.mark<WhitespaceType>("extra").range(
+        SparkdownAnnotation.mark<FormatType>("extra").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "ChoiceMark") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("choice_mark").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "GatherMark") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("gather_mark").range(
           nodeRef.from,
           nodeRef.to
         )
@@ -32,7 +56,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "TrailingWhitespace") {
       annotations.push(
-        SparkdownAnnotation.mark<WhitespaceType>("trailing").range(
+        SparkdownAnnotation.mark<FormatType>("trailing").range(
           nodeRef.from,
           nodeRef.to
         )
@@ -41,7 +65,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "Newline") {
       annotations.push(
-        SparkdownAnnotation.mark<WhitespaceType>("newline").range(
+        SparkdownAnnotation.mark<FormatType>("newline").range(
           nodeRef.from,
           nodeRef.to
         )
