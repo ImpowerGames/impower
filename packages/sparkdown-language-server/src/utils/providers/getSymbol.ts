@@ -40,7 +40,6 @@ export const getSymbol = (
       n.name === "NameValue"
   );
   if (!renamableNode) {
-    console.warn(leftStack.map((n) => n.name));
     return null;
   }
   return renamableNode;
