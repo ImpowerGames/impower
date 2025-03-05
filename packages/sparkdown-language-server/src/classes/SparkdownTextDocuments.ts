@@ -6,7 +6,6 @@ import {
   DidChangeWatchedFilesParams,
   DidCloseTextDocumentParams,
   DidOpenTextDocumentParams,
-  DidRenameFilesNotification,
   DidSaveTextDocumentParams,
   Disposable,
   DocumentDiagnosticParams,
