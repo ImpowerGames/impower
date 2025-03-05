@@ -75,15 +75,15 @@ export class Compiler {
     this.index = left.chunks.length;
     this.size = left.emittedSize ?? 0;
     this.reused.length = left.reusedLength ?? 0;
-    this.reparsedFrom = left.last!.to;
+    this.reparsedFrom = left.last?.to ?? 0;
     return right;
   }
 
   reuse(editedFrom: number, editedTo: number, editedOffset: number) {
     const splitBehind = this.buffer.findBehindSplitPoint(editedFrom);
-    if (splitBehind.chunk && splitBehind.index != null) {
+    if (splitBehind.index != null) {
       const right = this.rewind(splitBehind.index);
-      const from = splitBehind.chunk.from;
+      const from = splitBehind.chunk?.from ?? 0;
       right.slide(0, editedOffset, true);
       const splitAhead = right.findAheadSplitPoint(editedTo);
       if (splitAhead.chunk && splitAhead.index != null) {

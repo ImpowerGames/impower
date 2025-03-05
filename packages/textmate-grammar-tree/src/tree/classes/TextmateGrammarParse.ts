@@ -99,7 +99,7 @@ export class TextmateGrammarParse implements PartialParse {
                 this.region.edit.to,
                 this.region.edit.offset
               );
-              if (restartFrom) {
+              if (restartFrom != null) {
                 this.region.from = restartFrom;
                 this.compiler = cachedCompiler;
               }

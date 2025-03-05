@@ -144,7 +144,7 @@ export class ChunkBuffer {
     });
 
     if (!result || !this.chunks[result.index]) {
-      return { chunk: null, index: null };
+      return { chunk: null, index: 0 };
     }
 
     let index = result.index;
@@ -158,7 +158,7 @@ export class ChunkBuffer {
       }
     }
 
-    return { chunk: null, index: null };
+    return { chunk: null, index: 0 };
   }
 
   findAheadSplitPoint(editedTo: number) {
