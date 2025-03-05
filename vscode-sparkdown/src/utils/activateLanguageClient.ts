@@ -12,7 +12,10 @@ import { SparkdownStatusBarManager } from "../providers/SparkdownStatusBarManage
 import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
 import { getEditor } from "./getEditor";
 import {
+  ExecuteCommandParams,
+  ExecuteCommandRequest,
   ExecuteCommandSignature,
+  LSPAny,
   ProvideDocumentSymbolsSignature,
 } from "vscode-languageclient";
 import { SparkdownPreviewGamePanelManager } from "../providers/SparkdownPreviewGamePanelManager";
@@ -70,6 +73,24 @@ export const activateLanguageClient = async (
       return { uri };
     }),
   ]);
+  const executeCommandMiddleware = async (params: {
+    command: string;
+    arguments?: LSPAny[];
+  }) => {
+    // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
+    if (params.command === "sparkdown.readTextDocument") {
+      const [uri] = params.arguments || [];
+      if (uri && typeof uri === "string") {
+        const buffer = await vscode.workspace.fs.readFile(
+          vscode.Uri.parse(uri)
+        );
+        const text = new TextDecoder("utf-8").decode(buffer);
+        const result = { uri, text };
+        return result;
+      }
+    }
+    return undefined;
+  };
   const client = await createSparkdownLanguageClient(context, {
     documentSelector: [{ language: "sparkdown" }],
     synchronize: {
@@ -104,17 +125,12 @@ export const activateLanguageClient = async (
         next: ExecuteCommandSignature
       ) => {
         const value = await next(command, args);
-        // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
-        if (command === "sparkdown.readTextDocument") {
-          const [uri] = args || [];
-          if (uri && typeof uri === "string") {
-            const buffer = await vscode.workspace.fs.readFile(
-              vscode.Uri.parse(uri)
-            );
-            const text = new TextDecoder("utf-8").decode(buffer);
-            const result = { uri, text };
-            return result;
-          }
+        const result = await executeCommandMiddleware({
+          command,
+          arguments: args,
+        });
+        if (result !== undefined) {
+          return result;
         }
         return value;
       },
@@ -124,6 +140,12 @@ export const activateLanguageClient = async (
     DidCompileTextDocumentMessage.method,
     (params: DidCompileTextDocumentParams) => {
       onParse(context, params);
+    }
+  );
+  client.onRequest(
+    ExecuteCommandRequest.method,
+    (params: ExecuteCommandParams) => {
+      return executeCommandMiddleware(params);
     }
   );
   await client.start();
