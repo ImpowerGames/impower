@@ -44,6 +44,7 @@ export const getDocumentFormattingEdits = (
     }
   };
 
+  const indentStack: number[] = [0];
   let processedLine = 0;
 
   const processIndent = (line: number) => {
@@ -72,26 +73,25 @@ export const getDocumentFormattingEdits = (
           character: currentIndentation.length,
         },
       };
-
-      const isTabIndentation = currentIndentation.includes("\t");
-
-      if (options.insertSpaces && isTabIndentation) {
-        currentIndentation = currentIndentation.replace(
-          TAB_REGEX,
-          " ".repeat(options.tabSize)
-        );
+      let indentLevel = currentIndentation.includes("\t")
+        ? currentIndentation.split("\t").length - 1
+        : Math.floor(currentIndentation.length / options.tabSize);
+      while (
+        indentStack.length > 1 &&
+        indentLevel <= indentStack[indentStack.length - 1]!
+      ) {
+        indentStack.pop();
       }
-      const currentIndentationLength = currentIndentation.length;
+      let newIndentLevel = indentStack[indentStack.length - 1]! + 1;
+      indentStack.push(newIndentLevel);
+      const expectedIndentationLength = options.insertSpaces
+        ? " ".repeat(newIndentLevel * options.tabSize)
+        : "\t".repeat(newIndentLevel);
 
-      const expectedIndentationLength =
-        Math.floor(currentIndentationLength / options.tabSize) *
-        options.tabSize;
-      const expectedIndentation = " ".repeat(expectedIndentationLength);
-
-      if (currentIndentation !== expectedIndentation) {
+      if (currentIndentation !== expectedIndentationLength) {
         pushIfInRange({
           range: indentRange,
-          newText: expectedIndentation,
+          newText: expectedIndentationLength,
         });
       }
     }
