@@ -6,6 +6,7 @@ import {
   DidChangeWatchedFilesParams,
   DidCloseTextDocumentParams,
   DidOpenTextDocumentParams,
+  DidRenameFilesNotification,
   DidSaveTextDocumentParams,
   Disposable,
   DocumentDiagnosticParams,
@@ -38,6 +39,7 @@ import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostic
 import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { profile } from "../utils/logging/profile";
 import { debounce } from "../utils/timing/debounce";
+import { SparkdownConfiguration } from "../types/SparkdownConfiguration";
 
 const COMPILER_INLINE_WORKER_STRING = process.env["COMPILER_INLINE_WORKER"]!;
 
@@ -76,6 +78,14 @@ export default class SparkdownTextDocuments {
   ]);
 
   protected _connection?: Connection;
+  get connection() {
+    return this._connection;
+  }
+
+  protected _settings?: SparkdownConfiguration;
+  get settings() {
+    return this._settings;
+  }
 
   protected _compilerConfig?: SparkdownCompilerConfig;
   get compilerConfig() {
@@ -172,6 +182,7 @@ export default class SparkdownTextDocuments {
     if (fontFiles) {
       this._fontFilePattern = globToRegex(fontFiles);
     }
+    this._settings = settings;
   }
 
   async loadCompiler(config: SparkdownCompilerConfig) {

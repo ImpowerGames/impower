@@ -94,29 +94,31 @@ export const getRenameEdits = (
     }
   }
 
-  if (resolvedSymbolIds?.includes(`image.${currentName}`)) {
-    renameFile("image");
-  }
-  if (resolvedSymbolIds?.includes(`audio.${currentName}`)) {
-    renameFile("audio");
-  }
-  if (resolvedSymbolIds?.includes(`video.${currentName}`)) {
-    renameFile("video");
-  }
-  if (resolvedSymbolIds?.includes(`font.${currentName}`)) {
-    renameFile("font");
+  if (documents.settings?.editor?.autoRenameFiles) {
+    if (resolvedSymbolIds?.includes(`image.${currentName}`)) {
+      renameFile("image");
+    }
+    if (resolvedSymbolIds?.includes(`audio.${currentName}`)) {
+      renameFile("audio");
+    }
+    if (resolvedSymbolIds?.includes(`video.${currentName}`)) {
+      renameFile("video");
+    }
+    if (resolvedSymbolIds?.includes(`font.${currentName}`)) {
+      renameFile("font");
+    }
   }
 
   for (const [uri, edits] of Object.entries(changes)) {
     const document = documents.get(uri);
     if (document) {
-    documentChanges.push({
-      textDocument: {
-        uri,
+      documentChanges.push({
+        textDocument: {
+          uri,
           version: document.version,
-      },
-      edits,
-    });
+        },
+        edits,
+      });
     }
   }
 

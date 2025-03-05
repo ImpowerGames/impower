@@ -101,7 +101,8 @@ export const activateLanguageClient = async (
       supportHtml: true,
     },
     initializationOptions: {
-      settings: { scriptFiles, imageFiles, audioFiles, fontFiles },
+      // We have to pre-stringify and parse settings, for some reason, or else the worker errors out
+      settings: JSON.parse(JSON.stringify(sparkdownConfig)),
       files,
       uri: editor?.document?.uri.toString(),
       builtinDefinitions: DEFAULT_BUILTIN_DEFINITIONS,

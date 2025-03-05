@@ -114,7 +114,7 @@ try {
 
   connection.onInitialized(async () => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
-    documents.loadConfiguration(settings[0]);
+    documents.loadConfiguration(settings);
   });
 
   // foldingRangeProvider
