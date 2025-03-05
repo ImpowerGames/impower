@@ -10,7 +10,7 @@ import {
 
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 
-const TAB_REGEX = /\t/g;
+const WHITESPACE_REGEX = /[\t ]*/;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
 
 const isInRange = (
@@ -128,6 +128,26 @@ export const getDocumentFormattingEdits = (
             });
           }
         }
+        if (
+          cur.value.type === "choice_mark" ||
+          cur.value.type === "gather_mark"
+        ) {
+          const text = document.getText(range);
+          const formattedText = text.split(WHITESPACE_REGEX).join(" ");
+          if (text !== formattedText) {
+            // Omit first mark char to avoid overlapping with indent edits
+            pushIfInRange({
+              range: {
+                start: {
+                  line: range.start.line,
+                  character: range.start.character + 1,
+                },
+                end: range.end,
+              },
+              newText: formattedText.slice(1),
+            });
+          }
+        }
       }
       cur.next();
     }
@@ -180,9 +200,17 @@ export const getDocumentFormattingEdits = (
     ) {
       console.error(
         "ERROR:",
-        JSON.stringify(edits[i]),
+        JSON.stringify({
+          line: edits[i]!.range.start.line + 1,
+          oldText: document.getText(edits[i]!.range),
+          newText: edits[i]?.newText,
+        }),
         " overlaps with ",
-        JSON.stringify(edits[i - 1])
+        JSON.stringify({
+          line: edits[i - 1]!.range.start.line + 1,
+          oldText: document.getText(edits[i - 1]!.range),
+          newText: edits[i - 1]?.newText,
+        })
       );
       return false;
     }
