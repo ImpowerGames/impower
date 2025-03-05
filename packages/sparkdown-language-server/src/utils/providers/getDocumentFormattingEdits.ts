@@ -11,6 +11,7 @@ import {
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 
 const WHITESPACE_REGEX = /[\t ]*/;
+const TAB_REGEX = /\t/g;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
 
 const isInRange = (
@@ -43,8 +44,6 @@ export const getDocumentFormattingEdits = (
     }
   };
 
-  let indentLevel = 0;
-  let indentSize = 0;
   let processedLine = 0;
 
   const processIndent = (line: number) => {
@@ -61,16 +60,8 @@ export const getDocumentFormattingEdits = (
     };
     const lineText = document.getText(lineRange);
     const indentMatch = lineText.match(INDENT_REGEX);
-    const indent = indentMatch?.[0] || "";
-    if (indent.length === 0) {
-      indentLevel = 0;
-    } else if (indent.length > indentSize) {
-      indentLevel++;
-    } else if (indent.length < indentSize) {
-      indentLevel = Math.max(0, indentLevel - 1);
-    }
-    indentSize = indent.length;
-    if (indent.length > 0) {
+    let currentIndentation = indentMatch?.[0] || "";
+    if (currentIndentation.length > 0) {
       const indentRange = {
         start: {
           line: lineRange.start.line,
@@ -78,17 +69,29 @@ export const getDocumentFormattingEdits = (
         },
         end: {
           line: lineRange.start.line,
-          character: indent.length,
+          character: currentIndentation.length,
         },
       };
-      const targetIndent = " ".repeat(
-        indentLevel *
-          (indent.includes(" ") || options.insertSpaces ? options.tabSize : 1)
-      );
-      if (indent !== targetIndent) {
+
+      const isTabIndentation = currentIndentation.includes("\t");
+
+      if (options.insertSpaces && isTabIndentation) {
+        currentIndentation = currentIndentation.replace(
+          TAB_REGEX,
+          " ".repeat(options.tabSize)
+        );
+      }
+      const currentIndentationLength = currentIndentation.length;
+
+      const expectedIndentationLength =
+        Math.floor(currentIndentationLength / options.tabSize) *
+        options.tabSize;
+      const expectedIndentation = " ".repeat(expectedIndentationLength);
+
+      if (currentIndentation !== expectedIndentation) {
         pushIfInRange({
           range: indentRange,
-          newText: targetIndent,
+          newText: expectedIndentation,
         });
       }
     }
