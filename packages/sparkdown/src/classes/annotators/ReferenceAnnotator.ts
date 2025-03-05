@@ -294,6 +294,15 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
+    if (nodeRef.name === "TypeName") {
+      const type = this.read(nodeRef.from, nodeRef.to);
+      const types = [type];
+      annotations.push(
+        SparkdownAnnotation.mark<Reference>({
+          symbolIds: types,
+        }).range(nodeRef.from, nodeRef.to)
+      );
+    }
     if (nodeRef.name === "VariableName") {
       const name = this.read(nodeRef.from, nodeRef.to);
       const context = getContextStack(nodeRef.node);
