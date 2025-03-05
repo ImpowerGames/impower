@@ -2210,7 +2210,7 @@ export class InkParser extends StringParser {
       "file name or path"
     ) as string;
 
-    relativeFilePath = relativeFilePath.trim();
+    relativeFilePath = relativeFilePath?.trim();
 
     // Working directory should already have been set up relative to the root ink file.
     let absoluteFilePath = "";
