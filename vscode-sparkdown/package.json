@@ -40,6 +40,8 @@
     "onCommand:sparkdown.previewscreenplay",
     "onCommand:sparkdown.previewgame",
     "onView:sparkdown-cheatsheet",
+    "onView:sparkdown-preview-screenplay",
+    "onView:sparkdown-preview-game",
     "onWebviewPanel:sparkdown-preview-screenplay",
     "onWebviewPanel:sparkdown-preview-game"
   ],
@@ -213,8 +215,10 @@
         "editor.guides.highlightActiveIndentation": true,
         "editor.guides.bracketPairsHorizontal": false,
         "editor.renderWhitespace": "boundary",
-        "editor.formatOnSave": true
-      }
+        "editor.formatOnSave": true,
+        "workbench.view.alwaysShowHeaderActions": true
+      },
+      "workbench.view.alwaysShowHeaderActions": true
     },
     "languages": [
       {
@@ -259,20 +263,36 @@
       "sparkdown-view": [
         {
           "id": "sparkdown-outline",
-          "name": "Outline"
+          "name": "Outline",
+          "initialSize": 2
         },
         {
           "id": "sparkdown-commands",
-          "name": "Commands"
+          "name": "Commands",
+          "initialSize": 1
         },
         {
           "id": "sparkdown-cheatsheet",
           "name": "Cheat Sheet",
-          "type": "webview"
+          "type": "webview",
+          "visibility": "collapsed",
+          "initialSize": 1
         }
       ]
     },
     "menus": {
+      "view/title": [
+        {
+          "command": "sparkdown.previewgame",
+          "group": "navigation@1",
+          "when": "view == sparkdown-outline"
+        },
+        {
+          "command": "sparkdown.previewscreenplay",
+          "group": "navigation@2",
+          "when": "view == sparkdown-outline"
+        }
+      ],
       "editor/title": [
         {
           "command": "sparkdown.previewgame",
@@ -282,7 +302,7 @@
         {
           "command": "sparkdown.previewscreenplay",
           "when": "editorLangId == sparkdown",
-          "group": "navigation@1"
+          "group": "navigation@2"
         }
       ]
     },
@@ -298,15 +318,13 @@
         "command": "sparkdown.previewgame",
         "when": "editorLangId == sparkdown",
         "title": "Preview game",
-        "category": "Sparkdown",
         "icon": "$(game)"
       },
       {
         "command": "sparkdown.previewscreenplay",
         "when": "editorLangId == sparkdown",
         "title": "Preview screenplay",
-        "category": "Sparkdown",
-        "icon": "$(note)"
+        "icon": "$(book)"
       },
       {
         "command": "sparkdown.exportpdf",
