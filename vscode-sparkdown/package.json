@@ -215,10 +215,8 @@
         "editor.guides.highlightActiveIndentation": true,
         "editor.guides.bracketPairsHorizontal": false,
         "editor.renderWhitespace": "boundary",
-        "editor.formatOnSave": true,
-        "workbench.view.alwaysShowHeaderActions": true
-      },
-      "workbench.view.alwaysShowHeaderActions": true
+        "editor.formatOnSave": true
+      }
     },
     "languages": [
       {
