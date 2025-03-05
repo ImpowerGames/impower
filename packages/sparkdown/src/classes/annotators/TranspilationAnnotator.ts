@@ -3,7 +3,7 @@ import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { uuid as UUID } from "../../utils/uuid";
-import { getContext } from "@impower/textmate-grammar-tree/src/tree/utils/getContext";
+import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 
 const FLOW_MARKER_REGEX = /^([=])(.*?)([=])/;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
@@ -108,7 +108,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
       (nodeRef.name === "ImageLine" ||
         nodeRef.name === "AudioLine" ||
         nodeRef.name === "ImageAndAudioLine") &&
-      getContext(nodeRef.node).length === 1
+      getContextNames(nodeRef.node).length === 1
     ) {
       const lineFrom = this.getLineAt(nodeRef.from).from;
       const lineTo = this.getLineAt(nodeRef.from).to;

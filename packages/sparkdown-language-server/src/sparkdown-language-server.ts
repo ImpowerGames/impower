@@ -19,6 +19,9 @@ import { getHover } from "./utils/providers/getHover";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import { getDocumentFormattingEdits } from "./utils/providers/getDocumentFormattingEdits";
 import { getDocumentFormattingOnTypeRange } from "./utils/providers/getDocumentFormattingOnTypeRange";
+import { canRename } from "./utils/providers/canRename";
+import { getRenameEdits } from "./utils/providers/getRenameEdits";
+import { getReferences } from "./utils/providers/getReferences";
 
 console.log("running sparkdown-language-server");
 
@@ -71,6 +74,11 @@ try {
         firstTriggerCharacter: "\n",
         moreTriggerCharacter: [":", "]", "}", ")", "\n"],
       },
+      renameProvider: {
+        prepareProvider: true,
+      },
+      referencesProvider: true,
+      declarationProvider: true,
     };
     const workspaceFolders = params?.workspaceFolders;
     if (workspaceFolders) {
@@ -201,9 +209,9 @@ try {
     const program = documents.program(uri);
     const config = documents.compilerConfig;
     const scripts = program?.scripts || [uri];
-    const scriptAnnotations: Record<string, SparkdownAnnotations> = {};
+    const scriptAnnotations = new Map<string, SparkdownAnnotations>();
     for (const uri of scripts) {
-      scriptAnnotations[uri] = documents.annotations(uri);
+      scriptAnnotations.set(uri, documents.annotations(uri));
     }
     performance.mark(`lsp: onCompletion ${uri} start`);
     const result = getCompletions(
@@ -288,6 +296,98 @@ try {
       `lsp: onDocumentOnTypeFormatting ${uri} end`
     );
     return result;
+  });
+
+  // prepareRenameProvider
+  connection.onPrepareRename((params) => {
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const tree = documents.tree(uri);
+    performance.mark(`lsp: onPrepareRename ${uri} start`);
+    const result = canRename(document, tree, params.position);
+    performance.mark(`lsp: onPrepareRename ${uri} end`);
+    performance.measure(
+      `lsp: onPrepareRename ${uri}`,
+      `lsp: onPrepareRename ${uri} start`,
+      `lsp: onPrepareRename ${uri} end`
+    );
+    return result;
+  });
+
+  // renameProvider
+  connection.onRenameRequest((params) => {
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const tree = documents.tree(uri);
+    const program = documents.program(uri);
+    performance.mark(`lsp: onRenameRequest ${uri} start`);
+    const result = getRenameEdits(
+      document,
+      tree,
+      program,
+      documents,
+      params.newName,
+      params.position
+    );
+    performance.mark(`lsp: onRenameRequest ${uri} end`);
+    performance.measure(
+      `lsp: onRenameRequest ${uri}`,
+      `lsp: onRenameRequest ${uri} start`,
+      `lsp: onRenameRequest ${uri} end`
+    );
+    return result;
+  });
+
+  // referencesProvider
+  connection.onReferences((params) => {
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const tree = documents.tree(uri);
+    const program = documents.program(uri);
+    performance.mark(`lsp: onReferences ${uri} start`);
+    const { locations } = getReferences(
+      document,
+      tree,
+      program,
+      documents,
+      params.position,
+      { ...params.context, includeInterdependent: true }
+    );
+    performance.mark(`lsp: onReferences ${uri} end`);
+    performance.measure(
+      `lsp: onReferences ${uri}`,
+      `lsp: onReferences ${uri} start`,
+      `lsp: onReferences ${uri} end`
+    );
+    return locations;
+  });
+
+  // declarationProvider
+  connection.onDeclaration((params) => {
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const tree = documents.tree(uri);
+    const program = documents.program(uri);
+    performance.mark(`lsp: onDeclaration ${uri} start`);
+    const { locations } = getReferences(
+      document,
+      tree,
+      program,
+      documents,
+      params.position,
+      {
+        includeDeclaration: true,
+        excludeUses: true,
+        includeInterdependent: false,
+      }
+    );
+    performance.mark(`lsp: onDeclaration ${uri} end`);
+    performance.measure(
+      `lsp: onDeclaration ${uri}`,
+      `lsp: onDeclaration ${uri} start`,
+      `lsp: onDeclaration ${uri} end`
+    );
+    return locations;
   });
 
   documents.listen(connection);

@@ -1,10 +1,11 @@
 import { Range } from "@codemirror/state";
-import { getContext } from "@impower/textmate-grammar-tree/src/tree/utils/getContext";
+import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 
 export type DeclarationType =
+  | "function"
   | "knot"
   | "stitch"
   | "label"
@@ -22,6 +23,15 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<DeclarationType>>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<DeclarationType>>[] {
+    if (nodeRef.name === "FunctionDeclarationName") {
+      annotations.push(
+        SparkdownAnnotation.mark<DeclarationType>("function").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
     if (nodeRef.name === "KnotDeclarationName") {
       annotations.push(
         SparkdownAnnotation.mark<DeclarationType>("knot").range(
@@ -50,7 +60,7 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "VariableDeclarationName") {
-      const context = getContext(nodeRef.node);
+      const context = getContextNames(nodeRef.node);
       if (context.includes("ConstDeclaration")) {
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>("const").range(
@@ -79,8 +89,8 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    if (nodeRef.name === "TypeDeclarationName") {
-      const context = getContext(nodeRef.node);
+    if (nodeRef.name === "ListTypeDeclarationName") {
+      const context = getContextNames(nodeRef.node);
       if (context.includes("ListDeclaration")) {
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>("list").range(
@@ -92,7 +102,7 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
       }
     }
     if (nodeRef.name === "DefineIdentifier") {
-      const context = getContext(nodeRef.node);
+      const context = getContextNames(nodeRef.node);
       if (context.includes("DefineDeclaration")) {
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>("define").range(
@@ -104,7 +114,7 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
       }
     }
     if (nodeRef.name === "Parameter") {
-      const context = getContext(nodeRef.node);
+      const context = getContextNames(nodeRef.node);
       if (
         !context.includes("FunctionCall") &&
         context.includes("FunctionParameters")

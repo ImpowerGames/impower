@@ -236,7 +236,7 @@ repository:
           - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#TypeAssignment" }
+      - { include: "#ListTypeAssignment" }
     end: (?=$)
 
   ConstDeclaration:
@@ -361,12 +361,12 @@ repository:
     name: variable.other.constant.sd
     match: (.+)
 
-  TypeAssignment:
+  ListTypeAssignment:
     begin: ({{IDENTIFIER}})({{WS}}*)($|[=]|(?={{EOL}}))
     beginCaptures:
       1:
         patterns:
-          - { include: "#TypeDeclarationName" }
+          - { include: "#ListTypeDeclarationName" }
       2:
         patterns:
           - { include: "#Separator" }
@@ -726,7 +726,7 @@ repository:
       - { include: "#VariableName" }
       - { include: "#PunctuationAccessor" }
 
-  TypeDeclarationName:
+  ListTypeDeclarationName:
     emit: true
     patterns:
       - { include: "#TypeName" }
@@ -755,7 +755,7 @@ repository:
       - { include: "#PropertySelectorSimpleCondition" }
       - { include: "#PropertySelectorUniversalCondition" }
       - { include: "#PropertySelectorOperator" }
-      - { include: "#PropertySelectorClass" }
+      - { include: "#PropertySelectorClassName" }
       - { include: "#PropertySelectorAttribute" }
       - { include: "#Separator" }
       - { include: "#Unknown" }
@@ -829,7 +829,7 @@ repository:
     name: keyword.other.selector.constant.sd
     match: ({{IDENTIFIER}})
 
-  PropertySelectorClass:
+  PropertySelectorClassName:
     tag: propertyName
     name: variable.other.property.sd
     match: ({{IDENTIFIER}})
@@ -1182,7 +1182,6 @@ repository:
           - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#FunctionDeclaration" }
       - { include: "#StitchDeclaration" }
     end: ([=]+)|(?=$)
     endCaptures:
@@ -1280,15 +1279,37 @@ repository:
     name: constant.language.done.sd
     match: \b(DONE)\b
 
-  WhitespaceDivertPath:
-    tag: content
-    name: markup.raw.whitespace.sd
-    match: ({{WS}}+)
-
   DivertPath:
     tag: heading
     name: keyword.control.divert.path.sd
-    match: ([.{{IDENTIFIER_END_CHAR}}]+)
+    begin: (?=[{{IDENTIFIER_START_CHAR}}0-9^.])
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#DivertPart" }
+    end: (?=$|[^{{IDENTIFIER_START_CHAR}}0-9^.])
+
+  DivertPart:
+    emit: true
+    patterns:
+      - { include: "#PunctuationAccessor" }
+      - { include: "#DivertPartNumber" }
+      - { include: "#DivertPartOperator" }
+      - { include: "#DivertPartName" }
+
+  DivertPartNumber:
+    tag: heading
+    name: keyword.control.divert.path.sd
+    match: ([0-9]+)
+
+  DivertPartOperator:
+    tag: heading
+    name: keyword.control.divert.path.sd
+    match: (^)
+
+  DivertPartName:
+    tag: heading
+    name: keyword.control.divert.path.sd
+    match: ({{IDENTIFIER}})
 
   TunnelArrow:
     tag: function(variableName)
@@ -1330,14 +1351,20 @@ repository:
 
   Substitution:
     name: keyword.control.sd
-    match: (?<=[{])([^{}:|]+)(?=[}])
+    match: (?<=[{]{{WS}}*)({{WS}}*)([^{}:|]+)((?<!{{WS}}){{WS}}*)(?=[}])
     captures:
       1:
         patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
           - { include: "#Expression" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   FirstAlternativeItem:
-    begin: (?<=[{])({{WS}}*)([&!~])
+    begin: (?<=[{]{{WS}}*)({{WS}}*)([&!~])
     beginCaptures:
       1:
         patterns:
@@ -1394,7 +1421,11 @@ repository:
       - { include: "#InlineElseClause" }
       - { include: "#ConditionalBlock" }
       - { include: "#InlineConditionalText" }
-    end: (?=[}])
+    end: ({{WS}}*)(?=[}])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   InlineElseClause:
     begin: ([|])
@@ -1438,7 +1469,7 @@ repository:
     end: (?=[}])
 
   MultilineAlternative:
-    begin: (?<=[{])({{WS}}*)(?={{EOL}})
+    begin: (?<=[{]{{WS}}*)({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -1966,11 +1997,6 @@ repository:
     tag: invalid
     name: invalid.illegal.property-declaration.sd
     match: ({{IDENTIFIER}})({{WS}}*)([:])(.*?)($|(?=[;}]))
-
-  StructName:
-    tag: variableName
-    name: variable.other.constant.sd
-    match: ({{IDENTIFIER}})(?![(])
 
   TypeName:
     tag: typeName
@@ -2784,16 +2810,6 @@ repository:
     tag: controlKeyword
     name: keyword.control.asset.control.sd
     match: (.+)
-
-  WhitespaceAssetCommandTarget:
-    tag: content
-    name: markup.raw.whitespace.sd
-    match: ({{WS}}+)
-
-  WhitespaceAssetCommandName:
-    tag: content
-    name: markup.raw.whitespace.sd
-    match: ({{WS}}+)
 
   AssetCommandTarget:
     tag: typeName

@@ -40,7 +40,7 @@ export const getHover = (
         const [resolvedValue] = resolveSelector<any>(
           program,
           reference.selector,
-          getExpectedSelectorTypes(program, reference.declaration, config)
+          getExpectedSelectorTypes(program, reference.assigned, config)
         );
         if (resolvedValue !== undefined) {
           if (

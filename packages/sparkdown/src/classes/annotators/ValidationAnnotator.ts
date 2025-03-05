@@ -4,7 +4,7 @@ import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import { formatList } from "../../utils/formatList";
-import { getContext } from "@impower/textmate-grammar-tree/src/tree/utils/getContext";
+import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { SparkdownNodeName } from "../../types/SparkdownNodeName";
 
 const IMAGE_CONTROL_KEYWORDS =
@@ -179,7 +179,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
     }
     if (nodeRef.name === "AssetCommandFilterName") {
-      const context = getContext(nodeRef.node);
+      const context = getContextNames(nodeRef.node);
       // Record audio filter reference
       if (context.includes("AudioCommand")) {
         // TODO: Validate synth tone format
@@ -187,7 +187,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "AssetCommandControl") {
-      const context = getContext(nodeRef.node);
+      const context = getContextNames(nodeRef.node);
       // Report invalid image control
       if (
         context.includes("ImageCommand") &&
@@ -222,7 +222,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
     }
     if (nodeRef.name === "IllegalChar") {
-      const context = getContext(nodeRef.node);
+      const context = getContextNames(nodeRef.node);
       // Report invalid image name syntax
       if (context.includes("ImageCommand")) {
         const message = `Invalid syntax`;
@@ -288,7 +288,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
       }
       if (text === "with") {
-        const context = getContext(nodeRef.node);
+        const context = getContextNames(nodeRef.node);
         if (
           context.includes("ImageCommand") &&
           nextValueNodeType !== "ConditionalBlock" &&

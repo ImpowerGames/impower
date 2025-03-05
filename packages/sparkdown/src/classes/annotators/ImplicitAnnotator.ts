@@ -2,7 +2,7 @@ import { Range } from "@codemirror/state";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { getContext } from "@impower/textmate-grammar-tree/src/tree/utils/getContext";
+import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 
 export class ImplicitAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<string>
@@ -12,7 +12,7 @@ export class ImplicitAnnotator extends SparkdownAnnotator<
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<string>>[] {
     if (nodeRef.name === "AssetCommandName") {
-      const context = getContext(nodeRef.node);
+      const context = getContextNames(nodeRef.node);
       // Define implicit filtered_image
       if (context.includes("ImageCommand")) {
         const text = this.read(nodeRef.from, nodeRef.to);

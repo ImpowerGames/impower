@@ -31,6 +31,7 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
 import { sortFilteredName } from "@impower/sparkdown/src/utils/sortFilteredName";
 import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
+import { getDeclarationScopes } from "../annotations/getDeclarationScopes";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
@@ -74,14 +75,14 @@ const traverse = <T>(
 const rankMostRecentTexts = (
   type: keyof SparkdownAnnotations,
   read: (from: number, to: number) => string,
-  scriptAnnotations: Record<string, SparkdownAnnotations>,
+  scriptAnnotations: Map<string, SparkdownAnnotations>,
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined
 ) => {
   // Sort by most recently used
   const before: string[] = [];
   const after: string[] = [];
-  const scriptAnnotationEntries = Object.entries(scriptAnnotations);
+  const scriptAnnotationEntries = Array.from(scriptAnnotations.entries());
   const currentScriptIndex = scriptAnnotationEntries.findIndex(
     ([k]) => k === uri
   );
@@ -143,103 +144,10 @@ const rankMostRecentTexts = (
   return mostRecentTexts;
 };
 
-const getScopes = (
-  read: (from: number, to: number) => string,
-  scriptAnnotations: Record<string, SparkdownAnnotations>
-) => {
-  let scopePathParts: { kind: "" | "knot" | "stitch"; name: string }[] = [
-    { kind: "", name: "" },
-  ];
-  const scopes: {
-    [path: string]: Record<string, string[]>;
-  } = {};
-  const scriptAnnotationEntries = Object.entries(scriptAnnotations);
-  for (const [, annotations] of scriptAnnotationEntries) {
-    const cur = annotations.declarations?.iter();
-    if (cur) {
-      while (cur.value) {
-        const text = read(cur.from, cur.to);
-        if (cur.value.type === "knot") {
-          // Global
-          const scopePath = "";
-          scopes[scopePath] ??= {};
-          scopes[scopePath][cur.value.type] ??= [];
-          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
-          scopePathParts = [{ kind: "", name: "" }];
-          scopePathParts.push({ kind: "knot", name: text });
-        }
-        if (cur.value.type === "stitch") {
-          const prevKind = scopePathParts.at(-1)?.kind || "";
-          if (prevKind === "stitch") {
-            scopePathParts.pop();
-          }
-          // Scoped
-          const scopePath = scopePathParts.map((p) => p.name).join(".");
-          scopes[scopePath] ??= {};
-          scopes[scopePath][cur.value.type] ??= [];
-          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
-          scopePathParts.push({ kind: "stitch", name: text });
-        }
-        if (cur.value.type === "label") {
-          // Scoped
-          const scopePath = scopePathParts.map((p) => p.name).join(".");
-          scopes[scopePath] ??= {};
-          scopes[scopePath][cur.value.type] ??= [];
-          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
-        }
-        if (cur.value.type === "const") {
-          // Global
-          const scopePath = "";
-          scopes[scopePath] ??= {};
-          scopes[scopePath][cur.value.type] ??= [];
-          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
-        }
-        if (cur.value.type === "var") {
-          // Global
-          const scopePath = "";
-          scopes[scopePath] ??= {};
-          scopes[scopePath][cur.value.type] ??= [];
-          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
-        }
-        if (cur.value.type === "list") {
-          // Global
-          const scopePath = "";
-          scopes[scopePath] ??= {};
-          scopes[scopePath][cur.value.type] ??= [];
-          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
-        }
-        if (cur.value.type === "define") {
-          // Global
-          const scopePath = "";
-          scopes[scopePath] ??= {};
-          scopes[scopePath][cur.value.type] ??= [];
-          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
-        }
-        if (cur.value.type === "temp") {
-          // Scoped
-          const scopePath = scopePathParts.map((p) => p.name).join(".");
-          scopes[scopePath] ??= {};
-          scopes[scopePath][cur.value.type] ??= [];
-          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
-        }
-        if (cur.value.type === "param") {
-          // Scoped
-          const scopePath = scopePathParts.map((p) => p.name).join(".");
-          scopes[scopePath] ??= {};
-          scopes[scopePath][cur.value.type] ??= [];
-          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
-        }
-        cur.next();
-      }
-    }
-  }
-  return scopes;
-};
-
 const addTransitionCompletions = (
   completions: Map<string, CompletionItem>,
   read: (from: number, to: number) => string,
-  scriptAnnotations: Record<string, SparkdownAnnotations>,
+  scriptAnnotations: Map<string, SparkdownAnnotations>,
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
   insertTextPrefix: string = ""
@@ -270,7 +178,7 @@ const addTransitionCompletions = (
 const addSceneCompletions = (
   completions: Map<string, CompletionItem>,
   read: (from: number, to: number) => string,
-  scriptAnnotations: Record<string, SparkdownAnnotations>,
+  scriptAnnotations: Map<string, SparkdownAnnotations>,
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
   insertTextPrefix: string = ""
@@ -301,7 +209,7 @@ const addSceneCompletions = (
 const addCharacterCompletions = (
   completions: Map<string, CompletionItem>,
   read: (from: number, to: number) => string,
-  scriptAnnotations: Record<string, SparkdownAnnotations>,
+  scriptAnnotations: Map<string, SparkdownAnnotations>,
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
   insertTextPrefix: string = ""
@@ -1037,7 +945,7 @@ const addDivertPathCompletions = (
 export const getCompletions = (
   document: TextDocument | undefined,
   tree: Tree | undefined,
-  scriptAnnotations: Record<string, SparkdownAnnotations>,
+  scriptAnnotations: Map<string, SparkdownAnnotations>,
   program: SparkProgram | undefined,
   config: SparkdownCompilerConfig | undefined,
   position: Position,
@@ -1756,7 +1664,7 @@ export const getCompletions = (
         valueCursorOffset
       );
     } else {
-      const scopes = getScopes(read, scriptAnnotations);
+      const scopes = getDeclarationScopes(read, scriptAnnotations);
       addMutableAccessPathCompletions(
         completions,
         scopes,
@@ -1783,7 +1691,7 @@ export const getCompletions = (
     )
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
-      const scopes = getScopes(read, scriptAnnotations);
+      const scopes = getDeclarationScopes(read, scriptAnnotations);
       addDivertPathCompletions(
         completions,
         scopes,
@@ -1803,7 +1711,7 @@ export const getCompletions = (
     )
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
-      const scopes = getScopes(read, scriptAnnotations);
+      const scopes = getDeclarationScopes(read, scriptAnnotations);
       addDivertPathCompletions(
         completions,
         scopes,
@@ -1818,7 +1726,7 @@ export const getCompletions = (
     if (isCursorAfterNodeText(leftStack[0])) {
       const valueText = getNodeText(leftStack[0]);
       const valueCursorOffset = getCursorOffset(leftStack[0]);
-      const scopes = getScopes(read, scriptAnnotations);
+      const scopes = getDeclarationScopes(read, scriptAnnotations);
       addDivertPathCompletions(
         completions,
         scopes,

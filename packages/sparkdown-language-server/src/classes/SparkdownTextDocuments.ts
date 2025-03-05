@@ -302,6 +302,24 @@ export default class SparkdownTextDocuments {
     return uri.split("/").slice(-1).join("").split(".")[1]!;
   }
 
+  getRenamedUri(uri: string, newName: string): string {
+    const ext = this.getFileExtension(uri);
+    const directory = this.getDirectoryUri(uri);
+    return directory + "/" + newName + "." + ext;
+  }
+
+  findFiles(name: string, type: string): string[] {
+    const matchingUris: string[] = [];
+    for (const uri of this._watchedFileUris) {
+      const fileName = this.getFileName(uri);
+      const fileType = this.getFileType(uri);
+      if (fileName === name && fileType === type) {
+        matchingUris.push(uri);
+      }
+    }
+    return matchingUris;
+  }
+
   getMainScriptUri(uri: string): string | undefined {
     if (!uri) {
       return undefined;
@@ -432,6 +450,10 @@ export default class SparkdownTextDocuments {
         program,
       }
     );
+  }
+
+  uris() {
+    return this._documents.keys();
   }
 
   get(uri: string) {

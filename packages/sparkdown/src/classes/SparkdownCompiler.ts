@@ -583,7 +583,7 @@ export class SparkdownCompiler {
           };
           if (reference.selector) {
             const selector = reference.selector;
-            const declaration = reference.declaration;
+            const declaration = reference.assigned;
             const expectedSelectorTypes = getExpectedSelectorTypes(
               program,
               declaration,
@@ -650,8 +650,8 @@ export class SparkdownCompiler {
                 source: LANGUAGE_NAME,
               });
             }
-          } else if (reference.declaration) {
-            const declaration = reference.declaration;
+          } else if (reference.assigned) {
+            const declaration = reference.assigned;
             const structType = declaration?.type;
             const structName = declaration?.name || "$default";
             const structProperty = declaration?.property;

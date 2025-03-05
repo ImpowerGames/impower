@@ -400,7 +400,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#TypeAssignment"
+          "include": "#ListTypeAssignment"
         }
       ],
       "end": "(?=$)"
@@ -621,13 +621,13 @@
       "name": "variable.other.constant.sd",
       "match": "(.+)"
     },
-    "TypeAssignment": {
+    "ListTypeAssignment": {
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)($|[=]|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "beginCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#TypeDeclarationName"
+              "include": "#ListTypeDeclarationName"
             }
           ]
         },
@@ -1332,7 +1332,7 @@
         }
       ]
     },
-    "TypeDeclarationName": {
+    "ListTypeDeclarationName": {
       "emit": true,
       "patterns": [
         {
@@ -1385,7 +1385,7 @@
           "include": "#PropertySelectorOperator"
         },
         {
-          "include": "#PropertySelectorClass"
+          "include": "#PropertySelectorClassName"
         },
         {
           "include": "#PropertySelectorAttribute"
@@ -1503,7 +1503,7 @@
       "name": "keyword.other.selector.constant.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
-    "PropertySelectorClass": {
+    "PropertySelectorClassName": {
       "tag": "propertyName",
       "name": "variable.other.property.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
@@ -2114,9 +2114,6 @@
           "include": "#Annotation"
         },
         {
-          "include": "#FunctionDeclaration"
-        },
-        {
           "include": "#StitchDeclaration"
         }
       ],
@@ -2286,15 +2283,51 @@
       "name": "constant.language.done.sd",
       "match": "\\b(DONE)\\b"
     },
-    "WhitespaceDivertPath": {
-      "tag": "content",
-      "name": "markup.raw.whitespace.sd",
-      "match": "([^\\S\\n\\r]+)"
-    },
     "DivertPath": {
       "tag": "heading",
       "name": "keyword.control.divert.path.sd",
-      "match": "([.0-9_\\p{L}]+)"
+      "begin": "(?=[_\\p{L}0-9^.])",
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#DivertPart"
+        }
+      ],
+      "end": "(?=$|[^_\\p{L}0-9^.])"
+    },
+    "DivertPart": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#PunctuationAccessor"
+        },
+        {
+          "include": "#DivertPartNumber"
+        },
+        {
+          "include": "#DivertPartOperator"
+        },
+        {
+          "include": "#DivertPartName"
+        }
+      ]
+    },
+    "DivertPartNumber": {
+      "tag": "heading",
+      "name": "keyword.control.divert.path.sd",
+      "match": "([0-9]+)"
+    },
+    "DivertPartOperator": {
+      "tag": "heading",
+      "name": "keyword.control.divert.path.sd",
+      "match": "(^)"
+    },
+    "DivertPartName": {
+      "tag": "heading",
+      "name": "keyword.control.divert.path.sd",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "TunnelArrow": {
       "tag": "function(variableName)",
@@ -2369,19 +2402,33 @@
     },
     "Substitution": {
       "name": "keyword.control.sd",
-      "match": "(?<=[{])([^{}:|]+)(?=[}])",
+      "match": "(?<=[{][^\\S\\n\\r]*)([^\\S\\n\\r]*)([^{}:|]+)((?<![^\\S\\n\\r])[^\\S\\n\\r]*)(?=[}])",
       "captures": {
         "1": {
           "patterns": [
             {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
               "include": "#Expression"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
             }
           ]
         }
       }
     },
     "FirstAlternativeItem": {
-      "begin": "(?<=[{])([^\\S\\n\\r]*)([&!~])",
+      "begin": "(?<=[{][^\\S\\n\\r]*)([^\\S\\n\\r]*)([&!~])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2505,7 +2552,16 @@
           "include": "#InlineConditionalText"
         }
       ],
-      "end": "(?=[}])"
+      "end": "([^\\S\\n\\r]*)(?=[}])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      }
     },
     "InlineElseClause": {
       "begin": "([|])",
@@ -2597,7 +2653,7 @@
       "end": "(?=[}])"
     },
     "MultilineAlternative": {
-      "begin": "(?<=[{])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "(?<=[{][^\\S\\n\\r]*)([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3446,11 +3502,6 @@
       "tag": "invalid",
       "name": "invalid.illegal.property-declaration.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([:])(.*?)($|(?=[;}]))"
-    },
-    "StructName": {
-      "tag": "variableName",
-      "name": "variable.other.constant.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
     },
     "TypeName": {
       "tag": "typeName",
@@ -4963,16 +5014,6 @@
       "tag": "controlKeyword",
       "name": "keyword.control.asset.control.sd",
       "match": "(.+)"
-    },
-    "WhitespaceAssetCommandTarget": {
-      "tag": "content",
-      "name": "markup.raw.whitespace.sd",
-      "match": "([^\\S\\n\\r]+)"
-    },
-    "WhitespaceAssetCommandName": {
-      "tag": "content",
-      "name": "markup.raw.whitespace.sd",
-      "match": "([^\\S\\n\\r]+)"
     },
     "AssetCommandTarget": {
       "tag": "typeName",

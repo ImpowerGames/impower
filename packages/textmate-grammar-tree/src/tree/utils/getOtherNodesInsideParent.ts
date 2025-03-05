@@ -3,7 +3,8 @@ import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 export const getOtherNodesInsideParent = <T extends string>(
   targetTypeName: T | T[],
   parentTypeName: T | T[],
-  stack: GrammarSyntaxNode<T>[]
+  stack: GrammarSyntaxNode<T>[],
+  direction: "both" | "behind" | "ahead" = "both"
 ): GrammarSyntaxNode<T>[] => {
   const matches: GrammarSyntaxNode<T>[] = [];
   const current = stack[0];
@@ -19,27 +20,31 @@ export const getOtherNodesInsideParent = <T extends string>(
       : parentTypeName.includes(n.name as T)
   );
   if (current && parent) {
-    let prevSibling = target?.prevSibling;
-    while (prevSibling) {
-      if (
-        typeof targetTypeName === "string"
-          ? prevSibling.name === targetTypeName
-          : targetTypeName.includes(prevSibling.name as T)
-      ) {
-        matches.unshift(prevSibling.node as GrammarSyntaxNode<T>);
+    if (direction === "both" || direction === "behind") {
+      let prevSibling = target?.prevSibling;
+      while (prevSibling) {
+        if (
+          typeof targetTypeName === "string"
+            ? prevSibling.name === targetTypeName
+            : targetTypeName.includes(prevSibling.name as T)
+        ) {
+          matches.unshift(prevSibling.node as GrammarSyntaxNode<T>);
+        }
+        prevSibling = prevSibling?.prevSibling;
       }
-      prevSibling = prevSibling?.prevSibling;
     }
-    let nextSibling = target?.nextSibling;
-    while (nextSibling) {
-      if (
-        typeof targetTypeName === "string"
-          ? nextSibling.name === targetTypeName
-          : targetTypeName.includes(nextSibling.name as T)
-      ) {
-        matches.unshift(nextSibling.node as GrammarSyntaxNode<T>);
+    if (direction === "both" || direction === "ahead") {
+      let nextSibling = target?.nextSibling;
+      while (nextSibling) {
+        if (
+          typeof targetTypeName === "string"
+            ? nextSibling.name === targetTypeName
+            : targetTypeName.includes(nextSibling.name as T)
+        ) {
+          matches.unshift(nextSibling.node as GrammarSyntaxNode<T>);
+        }
+        nextSibling = nextSibling?.nextSibling;
       }
-      nextSibling = nextSibling?.nextSibling;
     }
   }
   return matches;

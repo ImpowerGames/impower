@@ -16,7 +16,7 @@ import { stressPhrases } from "../utils/stressPhrases";
 import { InstructionOptions } from "../types/InstructionOptions";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
-import { getCharacterIdentifier } from "../utils/getCharacterIdentifier";
+import { getCharacterIdentifier } from "@impower/sparkdown/src/utils/getCharacterIdentifier";
 
 export interface InterpreterConfig {}
 
