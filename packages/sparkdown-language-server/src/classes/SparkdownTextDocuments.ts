@@ -32,6 +32,7 @@ import { type ProgressValue } from "@impower/spark-editor-protocol/src/types/bas
 import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { type SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
 import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/classes/SparkdownDocumentRegistry";
+import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/utils/resolveFileUsingImpliedExtension";
 
 import { throttle } from "../utils/timing/throttle";
 import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
@@ -330,6 +331,18 @@ export default class SparkdownTextDocuments {
     return matchingUris;
   }
 
+  resolve(rootUri: string, path: string): string | undefined {
+    for (const ext of this._documents.parser.grammar.definition.fileTypes || [
+      "",
+    ]) {
+      const uri = resolveFileUsingImpliedExtension(rootUri, path, ext);
+      if (this._documents.has(uri)) {
+        return uri;
+      }
+    }
+    return undefined;
+  }
+
   getMainScriptUri(uri: string): string | undefined {
     if (!uri) {
       return undefined;
@@ -407,26 +420,24 @@ export default class SparkdownTextDocuments {
       program = await this.compileDocument(mainScriptUri);
       this.getProgramState(mainScriptUri).program = program;
       if (program.scripts) {
-        for (const uri of program.scripts) {
+        for (const [uri, version] of Object.entries(program.scripts)) {
           const state = this.getProgramState(uri);
-          const document = this._documents.get(uri);
           state.program = program;
           state.compilingProgramVersion = undefined;
-          state.compiledProgramVersion = document?.version;
+          state.compiledProgramVersion = version;
           this._onNextCompiled.get(uri)?.forEach((c) => c?.(program));
           this._onNextCompiled.delete(uri);
         }
       }
     }
-    if (uri !== mainScriptUri && !program?.scripts?.includes(uri)) {
+    if (uri !== mainScriptUri && !program?.scripts[uri]) {
       // Target script is not included by main,
       // So it must be parsed on its own to report diagnostics
       program = await this.compileDocument(uri);
       const state = this.getProgramState(uri);
-      const document = this._documents.get(uri);
       state.program = program;
       state.compilingProgramVersion = undefined;
-      state.compiledProgramVersion = document?.version;
+      state.compiledProgramVersion = program?.scripts[uri];
       this._onNextCompiled.get(uri)?.forEach((c) => c?.(program));
       this._onNextCompiled.delete(uri);
     }

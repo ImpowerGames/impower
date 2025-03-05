@@ -57,6 +57,8 @@ export type RepositoryDefinition =
   | ScopedRuleDefinition;
 
 export interface GrammarDefinition {
+  // VSCode properties
+  fileTypes?: string[];
   name?: string;
   patterns?: IncludeDefinition[];
   repository?: Record<string, RepositoryDefinition>;

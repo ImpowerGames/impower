@@ -26,6 +26,7 @@ import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 import { SparkdownRuntimeFormat } from "../types/SparkdownRuntimeFormat";
 import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
 import { formatList } from "../utils/formatList";
+import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 const NEWLINE_REGEX: RegExp = /\r\n|\r|\n/;
@@ -125,40 +126,12 @@ export class SparkdownCompiler {
 
   resolveFile(rootUri: string, relativePath: string) {
     for (const ext of FILE_TYPES) {
-      const uri = this.resolveFileUsingImpliedExtension(
-        rootUri,
-        relativePath,
-        ext
-      );
-      if (uri) {
+      const uri = resolveFileUsingImpliedExtension(rootUri, relativePath, ext);
+      if (this._documents.has(uri)) {
         return uri;
       }
     }
     throw new Error(`Cannot find file '${relativePath}'.`);
-  }
-
-  resolveFileUsingImpliedExtension(
-    rootUri: string,
-    relativePath: string,
-    ext: string
-  ) {
-    const trimmedPath = relativePath.startsWith("/")
-      ? relativePath.slice(1).trim()
-      : relativePath.trim();
-    const indexOfLastSlash = trimmedPath.lastIndexOf("/");
-    const filename = trimmedPath.slice(
-      indexOfLastSlash >= 0 ? indexOfLastSlash : 0
-    );
-    const impliedSuffix = filename.includes(".") ? "" : `.${ext}`;
-    const relativePathWithSuffix = trimmedPath + impliedSuffix;
-    const uri = new URL("./" + relativePathWithSuffix, rootUri).href;
-    if (
-      relativePathWithSuffix.endsWith(`/main.${ext}`) ||
-      this._documents.has(uri)
-    ) {
-      return uri;
-    }
-    return "";
   }
 
   transpile(
@@ -169,7 +142,7 @@ export class SparkdownCompiler {
     profile("start", "transpile", uri);
     state.transpiledScripts ??= {};
     if (state.transpiledScripts[uri]) {
-      return state.transpiledScripts[uri];
+      return state.transpiledScripts[uri].content;
     }
     const doc = this.documents.get(uri);
     if (!doc) {
@@ -182,7 +155,7 @@ export class SparkdownCompiler {
     profile("end", "splitIntoLines", uri);
     const read = (from: number, to: number): string =>
       doc.getText({ start: doc.positionAt(from), end: doc.positionAt(to) });
-    state.transpiledScripts[uri] ??= script;
+    state.transpiledScripts[uri] ??= { content: script, version: doc.version };
     const fileIndex = Object.keys(state.transpiledScripts).indexOf(uri);
     const annotations = this.documents.annotations(uri);
     const cur = annotations.transpilations.iter();
@@ -227,7 +200,7 @@ export class SparkdownCompiler {
       cur.next();
     }
     const result = lines.join("\n");
-    state.transpiledScripts[uri] = result;
+    state.transpiledScripts[uri] = { content: result, version: doc.version };
     profile("end", "transpile", uri);
     return result;
   }
@@ -235,7 +208,10 @@ export class SparkdownCompiler {
   compile(params: { uri: string }) {
     const uri = params.uri;
     // console.clear();
-    const program: SparkProgram = { uri, scripts: [uri] };
+    const program: SparkProgram = {
+      uri,
+      scripts: { [uri]: this.documents.get(uri)?.version ?? -1 },
+    };
     const state: SparkdownCompilerState = {};
 
     const uuidToSource: Record<string, [file: number, line: number]> = {};
@@ -293,9 +269,11 @@ export class SparkdownCompiler {
         compiledObj.uuidToPath = uuidToPath;
         compiledObj.uuidToSource = uuidToSource;
         program.compiled = compiledObj;
-        program.scripts = Object.keys(state.transpiledScripts || {});
-        if (program.scripts.length === 0) {
-          program.scripts = [uri];
+        program.scripts = { [uri]: this.documents.get(uri)?.version ?? -1 };
+        for (const [scriptUri, transpilation] of Object.entries(
+          state.transpiledScripts || {}
+        )) {
+          program.scripts[scriptUri] = transpilation.version;
         }
         this.populateDiagnostics(state, program, inkCompiler);
         this.populateBuiltins(program);
@@ -439,7 +417,7 @@ export class SparkdownCompiler {
       }
     }
     const resolvedImplicits = new Set<string>();
-    for (const uri of program.scripts) {
+    for (const uri of Object.keys(program.scripts)) {
       const doc = this.documents.get(uri);
       if (doc) {
         const annotations = this.documents.annotations(uri);
@@ -523,7 +501,7 @@ export class SparkdownCompiler {
   validateSyntax(program: SparkProgram) {
     const uri = program.uri;
     profile("start", "validateSyntax", uri);
-    for (const uri of program.scripts) {
+    for (const uri of Object.keys(program.scripts)) {
       const doc = this.documents.get(uri);
       if (doc) {
         const annotations = this.documents.annotations(uri);
@@ -570,7 +548,7 @@ export class SparkdownCompiler {
   validateReferences(program: SparkProgram) {
     const uri = program.uri;
     profile("start", "validateReferences", uri);
-    for (const uri of program.scripts) {
+    for (const uri of Object.keys(program.scripts)) {
       const doc = this.documents.get(uri);
       if (doc) {
         const annotations = this.documents.annotations(uri);

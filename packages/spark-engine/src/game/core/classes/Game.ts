@@ -91,7 +91,7 @@ export class Game<T extends M = {}> {
       );
     }
     this._compiled = program.compiled;
-    this._files = program.scripts;
+    this._files = Object.keys(program.scripts);
     const modules = options?.modules;
     const previewing = options?.preview
       ? this.getClosestPath(options.preview.file, options?.preview.line)
@@ -183,6 +183,9 @@ export class Game<T extends M = {}> {
       return "0";
     }
     if (!this._compiled.uuidToSource) {
+      return "0";
+    }
+    if (line == null) {
       return "0";
     }
     const uuidToSourceEntries = Object.entries(this._compiled.uuidToSource);

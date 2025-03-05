@@ -22,6 +22,7 @@ import { getDocumentFormattingOnTypeRange } from "./utils/providers/getDocumentF
 import { canRename } from "./utils/providers/canRename";
 import { getRenameEdits } from "./utils/providers/getRenameEdits";
 import { getReferences } from "./utils/providers/getReferences";
+import { getDocumentLinks } from "./utils/providers/getDocumentLinks";
 
 console.log("running sparkdown-language-server");
 
@@ -79,6 +80,9 @@ try {
       },
       referencesProvider: true,
       declarationProvider: true,
+      documentLinkProvider: {
+        resolveProvider: false,
+      },
     };
     const workspaceFolders = params?.workspaceFolders;
     if (workspaceFolders) {
@@ -210,7 +214,7 @@ try {
     const config = documents.compilerConfig;
     const scripts = program?.scripts || [uri];
     const scriptAnnotations = new Map<string, SparkdownAnnotations>();
-    for (const uri of scripts) {
+    for (const uri of Object.keys(scripts)) {
       scriptAnnotations.set(uri, documents.annotations(uri));
     }
     performance.mark(`lsp: onCompletion ${uri} start`);
@@ -388,6 +392,23 @@ try {
       `lsp: onDeclaration ${uri} end`
     );
     return locations;
+  });
+
+  // documentLinksProvider
+  connection.onDocumentLinks((params) => {
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const tree = documents.tree(uri);
+    const annotations = documents.annotations(uri);
+    performance.mark(`lsp: onDocumentLinks ${uri} start`);
+    const result = getDocumentLinks(document, tree, annotations, documents);
+    performance.mark(`lsp: onDocumentLinks ${uri} end`);
+    performance.measure(
+      `lsp: onDocumentLinks ${uri}`,
+      `lsp: onDocumentLinks ${uri} start`,
+      `lsp: onDocumentLinks ${uri} end`
+    );
+    return result;
   });
 
   documents.listen(connection);

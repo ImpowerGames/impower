@@ -269,7 +269,7 @@ export default class GamePreview extends Component(spec) {
     offset: number
   ) {
     if (program.compiled) {
-      const files = program.scripts;
+      const files = Object.keys(program.scripts);
       const uuidToSourceEntries = Object.entries(
         program.compiled.uuidToSource || {}
       );

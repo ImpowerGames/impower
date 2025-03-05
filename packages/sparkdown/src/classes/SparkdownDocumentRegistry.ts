@@ -67,6 +67,9 @@ export class SparkdownDocumentRegistry {
   protected _parser: TextmateGrammarParser = new TextmateGrammarParser(
     GRAMMAR_DEFINITION
   );
+  get parser() {
+    return this._parser;
+  }
 
   protected _syncedDocuments = new Map<string, TextDocument>();
 
