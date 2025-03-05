@@ -112,9 +112,13 @@ export class OutlineTreeItem extends vscode.TreeItem {
         false,
       ],
     };
-    this.iconPath = new vscode.ThemeIcon(
-      `symbol-${vscode.SymbolKind[symbol.kind].toLowerCase()}`
-    );
+    const iconType =
+      symbol.kind === vscode.SymbolKind.EnumMember
+        ? "enum-member"
+        : symbol.kind === vscode.SymbolKind.TypeParameter
+        ? "type-parameter"
+        : vscode.SymbolKind[symbol.kind].toLowerCase();
+    this.iconPath = new vscode.ThemeIcon(`symbol-${iconType}`);
     this.children =
       "children" in symbol
         ? symbol.children.map(
