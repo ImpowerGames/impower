@@ -45,8 +45,10 @@ export const getDocumentFormattingEdits = (
 
   let indentLevel = 0;
   let indentSize = 0;
+  let processedLine = 0;
 
   const processIndent = (line: number) => {
+    processedLine = line;
     const lineRange = {
       start: {
         line,
@@ -154,7 +156,9 @@ export const getDocumentFormattingEdits = (
 
     const lastPosition = document.positionAt(Number.MAX_VALUE);
 
-    processIndent(lastPosition.line);
+    if (processedLine < lastPosition.line) {
+      processIndent(lastPosition.line);
+    }
 
     if (options.insertFinalNewline) {
       const lastNewlineRange = newlineRanges.at(-1);
