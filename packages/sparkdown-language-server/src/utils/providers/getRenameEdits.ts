@@ -108,13 +108,16 @@ export const getRenameEdits = (
   }
 
   for (const [uri, edits] of Object.entries(changes)) {
+    const document = documents.get(uri);
+    if (document) {
     documentChanges.push({
       textDocument: {
         uri,
-        version: documents.get(uri)!.version,
+          version: document.version,
       },
       edits,
     });
+    }
   }
 
   const result = {
