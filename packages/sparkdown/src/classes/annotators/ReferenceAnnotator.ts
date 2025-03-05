@@ -306,13 +306,13 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "VariableName") {
       const name = this.read(nodeRef.from, nodeRef.to);
       const context = getContextStack(nodeRef.node);
-      const typeNodeName = getDescendentInsideParent(
-        "TypeName",
-        "AccessPath",
+      const typeNameNode = getDescendentInsideParent(
+        ["TypeName"],
+        ["AccessPath", "ListTypeAssignment"],
         context
       );
-      const types = typeNodeName
-        ? [this.read(typeNodeName.from, typeNodeName.to)]
+      const types = typeNameNode
+        ? [this.read(typeNameNode.from, typeNameNode.to)]
         : [];
       // Record reference in field value
       if (context.some((n) => n.name === "StructFieldValue")) {
@@ -346,15 +346,26 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           return annotations;
         }
       } else {
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            symbolIds:
-              types.length > 0
-                ? types.map((type) => `${type}.${name}`)
-                : ["." + name, name],
-            firstMatchOnly: true,
-          }).range(nodeRef.from, nodeRef.to)
-        );
+        if (types.length > 0) {
+          annotations.push(
+            SparkdownAnnotation.mark<Reference>({
+              symbolIds: types.map((type) => `${type}.${name}`),
+            }).range(nodeRef.from, nodeRef.to)
+          );
+          return annotations;
+        } else {
+          const name = this.read(nodeRef.from, nodeRef.to);
+          annotations.push(
+            SparkdownAnnotation.mark<Reference>({
+              symbolIds:
+                types.length > 0
+                  ? types.map((type) => `${type}.${name}`)
+                  : ["." + name, name],
+              firstMatchOnly: true,
+            }).range(nodeRef.from, nodeRef.to)
+          );
+          return annotations;
+        }
       }
     }
     if (nodeRef.name === "AssetCommandTarget") {
