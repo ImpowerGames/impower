@@ -1,5 +1,5 @@
-import { type Color, type ColorPresentation } from "vscode-languageserver";
 import { type RgbaColor, colord } from "colord";
+import { type Color, type ColorPresentation } from "vscode-languageserver";
 
 export const getColorPresentations = (color: Color): ColorPresentation[] => {
   const presentations: ColorPresentation[] = [];

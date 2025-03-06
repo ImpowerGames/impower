@@ -1,3 +1,16 @@
+import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/AddCompilerFileMessage";
+import { CompileProgramMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/CompileProgramMessage";
+import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
+import { RemoveCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/RemoveCompilerFileMessage";
+import { UpdateCompilerDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/UpdateCompilerDocumentMessage";
+import { UpdateCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/UpdateCompilerFileMessage";
+import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
+import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
+import { type ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
+import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/classes/SparkdownDocumentRegistry";
+import { type SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
+import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/utils/resolveFileUsingImpliedExtension";
 import {
   CancellationToken,
   Connection,
@@ -19,27 +32,11 @@ import {
 } from "vscode-languageserver";
 import { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
-
-import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
-import { CompileProgramMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/CompileProgramMessage";
-import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/AddCompilerFileMessage";
-import { RemoveCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/RemoveCompilerFileMessage";
-import { UpdateCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/UpdateCompilerFileMessage";
-import { UpdateCompilerDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/UpdateCompilerDocumentMessage";
-import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
-import { type ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
-
-import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import { type SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
-import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/classes/SparkdownDocumentRegistry";
-import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/utils/resolveFileUsingImpliedExtension";
-
-import { throttle } from "../utils/timing/throttle";
-import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
-import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
-import { profile } from "../utils/logging/profile";
-import { debounce } from "../utils/timing/debounce";
 import { SparkdownConfiguration } from "../types/SparkdownConfiguration";
+import { profile } from "../utils/logging/profile";
+import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
+import { debounce } from "../utils/timing/debounce";
+import { throttle } from "../utils/timing/throttle";
 
 const COMPILER_INLINE_WORKER_STRING = process.env["COMPILER_INLINE_WORKER"]!;
 

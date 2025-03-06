@@ -32,7 +32,7 @@
   "editor.guides.highlightActiveIndentation": true,
   "editor.guides.bracketPairsHorizontal": false,
   "editor.codeActionsOnSave": {
-    "source.organizeImports": "never"
+    "source.organizeImports": "always"
   },
   "terminal.integrated.autoReplies": {
     "Terminate batch job (Y/N)": "Y\r"

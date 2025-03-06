@@ -1,6 +1,5 @@
-import { type PublishDiagnosticsParams } from "vscode-languageserver";
-
 import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { type PublishDiagnosticsParams } from "vscode-languageserver";
 
 export const getDocumentDiagnostics = (
   uri: string,

@@ -1,16 +1,15 @@
-import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
-import { type TextDocument } from "vscode-languageserver-textdocument";
-
-import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
+import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
+import { SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
+import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
 import { getExpectedSelectorTypes } from "@impower/sparkdown/src/utils/getExpectedSelectorTypes";
 import { resolveSelector } from "@impower/sparkdown/src/utils/resolveSelector";
-import { SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
-import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/utils/sortFilteredName";
+import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 
 export const getHover = (
-  document: TextDocument | undefined,
+  document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations | undefined,
   program: SparkProgram | undefined,
   config: SparkdownCompilerConfig | undefined,

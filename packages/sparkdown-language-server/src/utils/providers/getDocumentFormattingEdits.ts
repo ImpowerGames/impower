@@ -1,21 +1,13 @@
-import {
-  type Position,
-  type FormattingOptions,
-  type TextEdit,
-} from "vscode-languageserver";
-import {
-  type TextDocument,
-  type Range,
-} from "vscode-languageserver-textdocument";
-
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
+import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
+import { type FormattingOptions, type TextEdit } from "vscode-languageserver";
+import { type Range } from "vscode-languageserver-textdocument";
 
 const WHITESPACE_REGEX = /[\t ]*/;
-const TAB_REGEX = /\t/g;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
 
 const isInRange = (
-  document: TextDocument,
+  document: SparkdownDocument,
   innerRange: Range,
   outerRange: Range
 ) => {
@@ -27,7 +19,7 @@ const isInRange = (
 };
 
 export const getDocumentFormattingEdits = (
-  document: TextDocument | undefined,
+  document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations | undefined,
   options: FormattingOptions,
   formattingRange?: Range

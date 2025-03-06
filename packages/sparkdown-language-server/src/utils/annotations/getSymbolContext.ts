@@ -1,10 +1,10 @@
 import { RangeSet } from "@codemirror/state";
 import { Reference } from "@impower/sparkdown/src/classes/annotators/ReferenceAnnotator";
 import { SparkdownAnnotation } from "@impower/sparkdown/src/classes/SparkdownAnnotation";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
 
 export const getSymbolContext = (
-  document: TextDocument,
+  document: SparkdownDocument,
   references: RangeSet<SparkdownAnnotation<Reference>>,
   pos: number
 ): {

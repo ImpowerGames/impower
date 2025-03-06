@@ -1,5 +1,4 @@
 import {
-  TextDocument,
   TextDocumentContentChangeEvent,
   Range,
 } from "vscode-languageserver-textdocument";
@@ -15,6 +14,7 @@ import {
   SparkdownCombinedAnnotator,
 } from "./SparkdownCombinedAnnotator";
 import { profile } from "../utils/profile";
+import { SparkdownDocument } from "./SparkdownDocument";
 
 const DEBUG = false;
 
@@ -31,7 +31,7 @@ interface TextDocumentState {
 }
 
 export class TextDocumentInput implements Input {
-  constructor(private readonly document: TextDocument) {}
+  constructor(private readonly document: SparkdownDocument) {}
 
   get length() {
     return this.document.offsetAt(this.document.positionAt(Number.MAX_VALUE));
@@ -71,7 +71,7 @@ export class SparkdownDocumentRegistry {
     return this._parser;
   }
 
-  protected _syncedDocuments = new Map<string, TextDocument>();
+  protected _syncedDocuments = new Map<string, SparkdownDocument>();
 
   protected _documentStates = new Map<string, TextDocumentState>();
 
@@ -100,8 +100,8 @@ export class SparkdownDocumentRegistry {
   }
 
   protected updateSyntaxTree(
-    beforeDocument: TextDocument,
-    afterDocument: TextDocument,
+    beforeDocument: SparkdownDocument,
+    afterDocument: SparkdownDocument,
     changes?: readonly TextDocumentContentChangeEvent[]
   ): Tree {
     const state = this.getDocumentState(afterDocument.uri);
@@ -116,7 +116,7 @@ export class SparkdownDocumentRegistry {
         beforeDocument.uri
       );
       // Incremental parse
-      let changeDocument = TextDocument.create(
+      let changeDocument = new SparkdownDocument(
         beforeDocument.uri,
         beforeDocument.languageId,
         beforeDocument.version,
@@ -164,11 +164,7 @@ export class SparkdownDocumentRegistry {
         const documentLengthBeforeChange = changeDocument.offsetAt(
           changeDocument.positionAt(Number.MAX_VALUE)
         );
-        changeDocument = TextDocument.update(
-          changeDocument,
-          [change],
-          changeDocument.version + 1
-        );
+        changeDocument.update([change], changeDocument.version + 1);
         const documentLengthAfterChange = changeDocument.offsetAt(
           changeDocument.positionAt(Number.MAX_VALUE)
         );
@@ -270,14 +266,14 @@ export class SparkdownDocumentRegistry {
     };
   }) {
     const td = params.textDocument;
-    const syncedDocument = TextDocument.create(
+    const syncedDocument = new SparkdownDocument(
       td.uri,
       td.languageId,
       td.version,
       td.text.replace(NEWLINE_REGEX, "\n")
     );
     this._syncedDocuments.set(td.uri, syncedDocument);
-    const beforeDocument = TextDocument.create(td.uri, td.languageId, -1, "");
+    const beforeDocument = new SparkdownDocument(td.uri, td.languageId, -1, "");
     this.updateSyntaxTree(beforeDocument, syncedDocument);
     return true;
   }
@@ -301,9 +297,9 @@ export class SparkdownDocumentRegistry {
     }
     let syncedDocument =
       this._syncedDocuments.get(td.uri) ||
-      TextDocument.create(td.uri, "sparkdown", td.version - 1, "");
+      new SparkdownDocument(td.uri, "sparkdown", td.version - 1, "");
     if (syncedDocument) {
-      const beforeDocument = TextDocument.create(
+      const beforeDocument = new SparkdownDocument(
         syncedDocument.uri,
         syncedDocument.languageId,
         syncedDocument.version,
@@ -323,11 +319,7 @@ export class SparkdownDocumentRegistry {
           });
         }
       }
-      syncedDocument = TextDocument.update(
-        syncedDocument,
-        normalizedChanges,
-        td.version
-      );
+      syncedDocument.update(normalizedChanges, td.version);
       if (syncedDocument) {
         this._syncedDocuments.set(td.uri, syncedDocument);
         this.updateSyntaxTree(

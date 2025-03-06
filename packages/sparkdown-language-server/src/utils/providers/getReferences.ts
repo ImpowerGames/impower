@@ -1,23 +1,23 @@
+import { RangeCursor } from "@codemirror/state";
+import { SparkdownAnnotation } from "@impower/sparkdown/src/classes/SparkdownAnnotation";
+import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
+import { Reference } from "@impower/sparkdown/src/classes/annotators/ReferenceAnnotator";
+import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { type Tree } from "@lezer/common";
 import {
   Location,
   ReferenceContext,
   type Position,
 } from "vscode-languageserver";
-import { type TextDocument } from "vscode-languageserver-textdocument";
 import SparkdownTextDocuments from "../../classes/SparkdownTextDocuments";
-import { getSymbol } from "./getSymbol";
-import { getSymbolIds } from "./getSymbolIds";
-import { RangeCursor } from "@codemirror/state";
-import { SparkdownAnnotation } from "@impower/sparkdown/src/classes/SparkdownAnnotation";
-import { Reference } from "@impower/sparkdown/src/classes/annotators/ReferenceAnnotator";
-import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { getSymbolContext } from "../annotations/getSymbolContext";
 import { resolveDivertPath } from "../annotations/resolveDivertPath";
 import { resolveSymbolId } from "../annotations/resolveSymbolId";
-import { getSymbolContext } from "../annotations/getSymbolContext";
+import { getSymbol } from "./getSymbol";
+import { getSymbolIds } from "./getSymbolIds";
 
 export const getReferences = (
-  document: TextDocument | undefined,
+  document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   program: SparkProgram | undefined,
   documents: SparkdownTextDocuments,

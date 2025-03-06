@@ -1,16 +1,14 @@
-import { Position } from "vscode-languageserver";
-import {
-  type TextDocument,
-  type Range,
-} from "vscode-languageserver-textdocument";
-import { Tree } from "@lezer/common";
-import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
+import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
 import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 import { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
+import { Tree } from "@lezer/common";
+import { Position } from "vscode-languageserver";
+import { type Range } from "vscode-languageserver-textdocument";
 
 export const getSymbol = (
-  document: TextDocument | undefined,
+  document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   position: Position
 ): { symbol?: GrammarSyntaxNode<SparkdownNodeName>; nameRange?: Range } => {

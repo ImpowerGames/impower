@@ -1,3 +1,5 @@
+import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
+import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { type Tree } from "@lezer/common";
 import {
   AnnotatedTextEdit,
@@ -11,16 +13,14 @@ import {
 import {
   Range,
   type DocumentUri,
-  type TextDocument,
   type TextEdit,
 } from "vscode-languageserver-textdocument";
 import SparkdownTextDocuments from "../../classes/SparkdownTextDocuments";
 import { getReferences } from "./getReferences";
-import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { getSymbol } from "./getSymbol";
 
 export const getRenameEdits = (
-  document: TextDocument | undefined,
+  document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   program: SparkProgram | undefined,
   documents: SparkdownTextDocuments,

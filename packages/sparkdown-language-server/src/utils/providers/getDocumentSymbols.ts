@@ -1,7 +1,6 @@
-import { SymbolKind, type DocumentSymbol } from "vscode-languageserver";
-import { type TextDocument } from "vscode-languageserver-textdocument";
-
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
+import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
+import { SymbolKind, type DocumentSymbol } from "vscode-languageserver";
 
 export interface DocumentSymbolMark {
   type: "function" | "knot" | "stitch" | "label";
@@ -9,7 +8,7 @@ export interface DocumentSymbolMark {
 }
 
 export const getDocumentSymbols = (
-  document: TextDocument | undefined,
+  document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations | undefined
 ): DocumentSymbol[] => {
   const symbols: DocumentSymbol[] = [];

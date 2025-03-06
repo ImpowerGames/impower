@@ -1,13 +1,11 @@
-import { Position } from "vscode-languageserver";
-import {
-  type TextDocument,
-  type Range,
-} from "vscode-languageserver-textdocument";
+import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
 import { Tree } from "@lezer/common";
+import { Position } from "vscode-languageserver";
+import { type Range } from "vscode-languageserver-textdocument";
 import { getSymbol } from "./getSymbol";
 
 export const canRename = (
-  document: TextDocument | undefined,
+  document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   position: Position
 ):

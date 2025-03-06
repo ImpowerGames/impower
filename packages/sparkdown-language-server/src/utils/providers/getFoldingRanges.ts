@@ -1,13 +1,12 @@
-import { Range, type FoldingRange } from "vscode-languageserver";
-import { type TextDocument } from "vscode-languageserver-textdocument";
-
-import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
+import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
+import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { Range, type FoldingRange } from "vscode-languageserver";
 
 const INDENT_REGEX = /^([ \t]+)/;
 
 export const getFoldingRanges = (
-  document: TextDocument | undefined,
+  document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations,
   program: SparkProgram | undefined
 ): FoldingRange[] => {

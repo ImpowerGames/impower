@@ -1,11 +1,10 @@
-import { Color, type ColorInformation } from "vscode-languageserver";
-import { type TextDocument } from "vscode-languageserver-textdocument";
-import { colord } from "colord";
-
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
+import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
+import { colord } from "colord";
+import { Color, type ColorInformation } from "vscode-languageserver";
 
 export const getDocumentColors = (
-  document: TextDocument | undefined,
+  document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations
 ): ColorInformation[] => {
   const infos: ColorInformation[] = [];

@@ -1,3 +1,19 @@
+import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
+import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
+import { SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
+import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
+import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
+import { getProperty } from "@impower/sparkdown/src/utils/getProperty";
+import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
+import { getDescendentsInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentsInsideParent";
+import { getOtherMatchesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getOtherMatchesInsideParent";
+import { getOtherNodesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getOtherNodesInsideParent";
+import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
+import { type SyntaxNode, type Tree } from "@lezer/common";
 import {
   Command,
   CompletionItemKind,
@@ -7,31 +23,9 @@ import {
   type CompletionItem,
   type Position,
 } from "vscode-languageserver";
-import { type TextDocument } from "vscode-languageserver-textdocument";
-
-import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import { getProperty } from "@impower/sparkdown/src/utils/getProperty";
-import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
-import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
-
-import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
-import { type SyntaxNode, type Tree } from "@lezer/common";
-import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
-import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
+import { getDeclarationScopes } from "../annotations/getDeclarationScopes";
 import { getParentPropertyPath } from "../syntax/getParentPropertyPath";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
-import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
-import { getDescendentsInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentsInsideParent";
-import { getOtherMatchesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getOtherMatchesInsideParent";
-import { getOtherNodesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getOtherNodesInsideParent";
-
-import { getLineText } from "../document/getLineText";
-import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
-import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
-import { sortFilteredName } from "@impower/sparkdown/src/utils/sortFilteredName";
-import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
-import { getDeclarationScopes } from "../annotations/getDeclarationScopes";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
@@ -946,7 +940,7 @@ const addDivertPathCompletions = (
 };
 
 export const getCompletions = (
-  document: TextDocument | undefined,
+  document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   scriptAnnotations: Map<string, SparkdownAnnotations>,
   program: SparkProgram | undefined,
@@ -1034,7 +1028,7 @@ export const getCompletions = (
     if (rightStack[0]?.name === "Newline") {
       // left and right side of the cursor has a Newline,
       // so this is a completely blank line.
-      const lineText = getLineText(document, position);
+      const lineText = document.getLineText(position.line);
       const exclude = getDescendentsInsideParent(
         "FrontMatterFieldKeyword",
         "FrontMatter",
@@ -1058,7 +1052,7 @@ export const getCompletions = (
     }
   }
   if (leftStack[0]?.name === "FrontMatterFieldKeyword") {
-    const lineText = getLineText(document, position);
+    const lineText = document.getLineText(position.line);
     const exclude = getOtherNodesInsideParent(
       "FrontMatterField",
       "FrontMatter",
@@ -1558,7 +1552,7 @@ export const getCompletions = (
         ? getNodeText(defineVariableNameNode)
         : "$default";
       const path = getParentPropertyPath(propertyNameNode, read);
-      const lineText = getLineText(document, position);
+      const lineText = document.getLineText(position.line);
       const exclude = getOtherNodesInsideParent(
         "StructField",
         ["DefineDeclaration_content", "StructObjectProperty_content"],
