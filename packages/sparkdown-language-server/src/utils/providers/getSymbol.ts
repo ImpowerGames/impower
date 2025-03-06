@@ -11,110 +11,123 @@ export const getSymbol = (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   position: Position
-): { symbol?: GrammarSyntaxNode<SparkdownNodeName>; nameRange?: Range } => {
+): {
+  symbol?: GrammarSyntaxNode<SparkdownNodeName>;
+  nameRange?: Range;
+  canRename?: boolean;
+} => {
   if (!document || !tree) {
     return {};
   }
-  const leftStack = getStack<SparkdownNodeName>(
-    tree,
-    document.offsetAt(position),
-    -1
-  );
-  const symbol = leftStack.find(
-    (n) =>
-      n.name === "FunctionDeclarationName" ||
-      n.name === "KnotDeclarationName" ||
-      n.name === "StitchDeclarationName" ||
-      n.name === "LabelDeclarationName" ||
-      n.name === "DefineTypeName" ||
-      n.name === "DefineVariableName" ||
-      n.name === "DeclarationScalarPropertyName" ||
-      n.name === "PropertySelectorClassName" ||
-      n.name === "TypeName" ||
-      n.name === "VariableName" ||
-      n.name === "PropertyName" ||
-      n.name === "FunctionName" ||
-      n.name === "DivertPartName" ||
-      n.name === "DialogueCharacterName" ||
-      n.name === "AssetCommandFileName" ||
-      n.name === "AssetCommandFilterName" ||
-      n.name === "AssetCommandTarget" ||
-      n.name === "NameValue" ||
-      n.name === "IncludeContent" ||
-      n.name === "StructFieldValue"
-  );
-  if (!symbol) {
-    return {};
-  }
-  const symbolRange = document.range(symbol.from, symbol.to);
-  if (symbol.name === "StructFieldValue") {
-    const defineDeclarationNode = leftStack.find(
-      (n) => n.name === "DefineDeclaration"
+  const stacks = [
+    getStack<SparkdownNodeName>(tree, document.offsetAt(position), 1),
+    getStack<SparkdownNodeName>(tree, document.offsetAt(position), -1),
+  ];
+  for (const stack of stacks) {
+    const symbol = stack.find(
+      (n) =>
+        n.name === "FunctionDeclarationName" ||
+        n.name === "KnotDeclarationName" ||
+        n.name === "StitchDeclarationName" ||
+        n.name === "LabelDeclarationName" ||
+        n.name === "DefineTypeName" ||
+        n.name === "DefineVariableName" ||
+        n.name === "DeclarationScalarPropertyName" ||
+        n.name === "PropertySelectorClassName" ||
+        n.name === "TypeName" ||
+        n.name === "VariableName" ||
+        n.name === "PropertyName" ||
+        n.name === "FunctionName" ||
+        n.name === "DivertPartName" ||
+        n.name === "DialogueCharacterName" ||
+        n.name === "AssetCommandFileName" ||
+        n.name === "AssetCommandFilterName" ||
+        n.name === "AssetCommandTarget" ||
+        n.name === "NameValue" ||
+        n.name === "IncludeContent" ||
+        n.name === "StructFieldValue"
     );
-    if (defineDeclarationNode) {
-      const defineTypeNode = getDescendent(
-        "DefineTypeName",
-        defineDeclarationNode
-      );
-      if (defineTypeNode) {
-        const defineType = document.read(
-          defineTypeNode.from,
-          defineTypeNode.to
+    if (symbol) {
+      const symbolRange = document.range(symbol.from, symbol.to);
+      if (symbol.name === "StructFieldValue") {
+        const defineDeclarationNode = stack.find(
+          (n) => n.name === "DefineDeclaration"
         );
-        if (defineType === "character") {
-          const structFieldNodes = leftStack.filter(
-            (n) => n.name === "StructField"
+        if (defineDeclarationNode) {
+          const defineTypeNode = getDescendent(
+            "DefineTypeName",
+            defineDeclarationNode
           );
-          if (structFieldNodes.length === 1) {
-            const propertyNameNode = getDescendent(
-              "DeclarationScalarPropertyName",
-              structFieldNodes[0]!
+          if (defineTypeNode) {
+            const defineType = document.read(
+              defineTypeNode.from,
+              defineTypeNode.to
             );
-            if (propertyNameNode) {
-              const propertyName = document.read(
-                propertyNameNode.from,
-                propertyNameNode.to
+            if (defineType === "character") {
+              const structFieldNodes = stack.filter(
+                (n) => n.name === "StructField"
               );
-              if (propertyName === "name") {
-                const stringContentNode = leftStack.find(
-                  (n) => n.name === "DoubleQuoteString_content"
+              if (structFieldNodes.length === 1) {
+                const propertyNameNode = getDescendent(
+                  "DeclarationScalarPropertyName",
+                  structFieldNodes[0]!
                 );
-                if (stringContentNode) {
-                  return {
-                    symbol: stringContentNode,
-                    nameRange: document.range(
-                      stringContentNode.from,
-                      stringContentNode.to
-                    ),
-                  };
+                if (propertyNameNode) {
+                  const propertyName = document.read(
+                    propertyNameNode.from,
+                    propertyNameNode.to
+                  );
+                  if (propertyName === "name") {
+                    const stringContentNode = stack.find(
+                      (n) => n.name === "DoubleQuoteString_content"
+                    );
+                    if (stringContentNode) {
+                      return {
+                        symbol: stringContentNode,
+                        nameRange: document.range(
+                          stringContentNode.from,
+                          stringContentNode.to
+                        ),
+                      };
+                    }
+                  }
                 }
               }
             }
           }
         }
+        return { symbol };
       }
+      if (symbol.name === "IncludeContent") {
+        const range = document.range(symbol.from, symbol.to);
+        const text = document.getText(range);
+        const nameStartOffset = text.lastIndexOf("/") + 1;
+        let nameEndOffset = text.indexOf(".", nameStartOffset);
+        if (nameEndOffset < 0) {
+          nameEndOffset = text.length;
+        }
+        const nameRange = {
+          start: {
+            line: range.start.line,
+            character: range.start.character + nameStartOffset,
+          },
+          end: {
+            line: range.start.line,
+            character: range.start.character + nameEndOffset,
+          },
+        };
+        return { symbol, nameRange, canRename: true };
+      }
+      return { symbol, nameRange: symbolRange, canRename: true };
     }
-    return {};
   }
-  if (symbol.name === "IncludeContent") {
-    const range = document.range(symbol.from, symbol.to);
-    const text = document.getText(range);
-    const nameStartOffset = text.lastIndexOf("/") + 1;
-    let nameEndOffset = text.indexOf(".", nameStartOffset);
-    if (nameEndOffset < 0) {
-      nameEndOffset = text.length;
-    }
-    const nameRange = {
-      start: {
-        line: range.start.line,
-        character: range.start.character + nameStartOffset,
-      },
-      end: {
-        line: range.start.line,
-        character: range.start.character + nameEndOffset,
-      },
-    };
-    return { symbol, nameRange };
+
+  const textSymbol =
+    getStack<SparkdownNodeName>(tree, document.offsetAt(position), 1)[0] ||
+    getStack<SparkdownNodeName>(tree, document.offsetAt(position), -1)[0];
+  if (textSymbol) {
+    const textSymbolRange = document.range(textSymbol.from, textSymbol.to);
+    return { symbol: textSymbol, nameRange: textSymbolRange };
   }
-  return { symbol, nameRange: symbolRange };
+  return {};
 };

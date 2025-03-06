@@ -5,6 +5,8 @@ import { Reference } from "@impower/sparkdown/src/classes/annotators/ReferenceAn
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { type Tree } from "@lezer/common";
 import {
+  DocumentHighlight,
+  DocumentHighlightKind,
   Location,
   ReferenceContext,
   type Position,
@@ -23,19 +25,26 @@ export const getReferences = (
   documents: SparkdownTextDocuments,
   position: Position,
   context: ReferenceContext & {
+    searchOtherFiles: boolean;
     excludeUses?: boolean;
     includeInterdependent: boolean;
     includeLinks: boolean;
   }
 ): {
   resolvedSymbolIds?: string[];
-  locations?: Location[];
+  references?: (Location & DocumentHighlight)[];
 } => {
-  if (!document || !tree) {
+  if (!document) {
+    console.warn("no document available");
+    return {};
+  }
+  if (!tree) {
+    console.warn("no tree available");
     return {};
   }
   const { symbol, nameRange } = getSymbol(document, tree, position);
   if (!symbol) {
+    console.warn("no symbol available");
     return {};
   }
 
@@ -46,7 +55,15 @@ export const getReferences = (
     symbol
   );
   if (!symbolIds && !interdependentIds) {
-    return {};
+    return {
+      references: [
+        {
+          uri: document.uri,
+          range: document.range(symbol.from, symbol.to),
+          kind: DocumentHighlightKind.Text,
+        },
+      ],
+    };
   }
 
   const { scopePath: symbolScopePath, reference: symbolReference } =
@@ -56,7 +73,7 @@ export const getReferences = (
       symbol.from
     );
 
-  const locations: Location[] = [];
+  const references: (Location & DocumentHighlight)[] = [];
   const resolvedSymbolIds: string[] = [];
 
   const foundReferences: Record<string, Set<number>> = {};
@@ -68,7 +85,7 @@ export const getReferences = (
         : [""];
     for (const suffix of possibleNameSuffixes) {
       for (const uri of documents.findFiles(symbolName + suffix, type)) {
-        locations.push({
+        references.push({
           uri,
           range: {
             start: {
@@ -85,19 +102,36 @@ export const getReferences = (
     }
   };
 
-  const addSymbol = (uri: string, from: number, to: number) => {
+  const addSymbol = (
+    uri: string,
+    r: RangeCursor<SparkdownAnnotation<Reference>>
+  ) => {
+    const from = r.from;
+    const to = r.to;
+    const kind = getDocumentHighlightKind(r);
     const document = documents.get(uri);
     if (document) {
       const foundReferencesInDocument = foundReferences[uri];
       if (!foundReferencesInDocument || !foundReferencesInDocument.has(from)) {
         foundReferences[uri] ??= new Set();
         foundReferences[uri].add(from);
-        locations.push({
+        references.push({
           uri,
           range: document.range(from, to),
+          kind,
         });
       }
     }
+  };
+
+  const getDocumentHighlightKind = (
+    r: RangeCursor<SparkdownAnnotation<Reference>>
+  ) => {
+    return r.value?.type.kind === "write"
+      ? DocumentHighlightKind.Write
+      : r.value?.type.kind === "read"
+      ? DocumentHighlightKind.Read
+      : DocumentHighlightKind.Text;
   };
 
   const addMatchingSymbols = (
@@ -143,7 +177,7 @@ export const getReferences = (
                             for (const linkedType of Object.keys(link)) {
                               const linkedId = linkedType + "." + name;
                               if (fullyResolvedRefId === linkedId) {
-                                addSymbol(uri, r.from, r.to);
+                                addSymbol(uri, r);
                               }
                             }
                           }
@@ -169,7 +203,7 @@ export const getReferences = (
                         addAsset("font");
                       }
                       if (!context.excludeUses || r.value.type.declaration) {
-                        addSymbol(uri, r.from, r.to);
+                        addSymbol(uri, r);
                         if (r.value.type.firstMatchOnly) {
                           break;
                         }
@@ -192,7 +226,7 @@ export const getReferences = (
                   if (resolvedSymbolId) {
                     resolvedSymbolIds.push(resolvedSymbolId);
                     if (fullyResolvedRefId === resolvedSymbolId) {
-                      addSymbol(uri, r.from, r.to);
+                      addSymbol(uri, r);
                     }
                   }
                 }
@@ -204,7 +238,11 @@ export const getReferences = (
     }
   };
 
-  for (const uri of documents.uris()) {
+  const searchUris = context.searchOtherFiles
+    ? documents.uris()
+    : [document.uri];
+
+  for (const uri of searchUris) {
     const document = documents.get(uri);
     const annotations = documents.annotations(uri);
     if (document && annotations) {
@@ -241,6 +279,6 @@ export const getReferences = (
     }
   }
 
-  const result = { locations, resolvedSymbolIds };
+  const result = { references, resolvedSymbolIds };
   return result;
 };

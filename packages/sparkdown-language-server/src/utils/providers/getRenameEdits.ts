@@ -41,13 +41,14 @@ export const getRenameEdits = (
     | DeleteFile
   )[] = [];
 
-  const { locations, resolvedSymbolIds } = getReferences(
+  const { references, resolvedSymbolIds } = getReferences(
     document,
     tree,
     program,
     documents,
     position,
     {
+      searchOtherFiles: true,
       includeDeclaration: true,
       includeInterdependent: false,
       includeLinks: true,
@@ -93,9 +94,9 @@ export const getRenameEdits = (
     }
   };
 
-  if (locations) {
-    for (const location of locations) {
-      renameSymbol(location.uri, location.range);
+  if (references) {
+    for (const reference of references) {
+      renameSymbol(reference.uri, reference.range);
     }
   }
 

@@ -22,8 +22,8 @@ export const canRename = (
   if (!document || !tree) {
     return undefined;
   }
-  const { symbol, nameRange } = getSymbol(document, tree, position);
-  if (!symbol) {
+  const { nameRange, canRename } = getSymbol(document, tree, position);
+  if (!canRename) {
     return null;
   }
   return nameRange;

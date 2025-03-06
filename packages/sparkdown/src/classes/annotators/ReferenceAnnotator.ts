@@ -6,9 +6,9 @@ import { SyntaxNodeRef } from "@lezer/common";
 import { SparkDeclaration } from "../../types/SparkDeclaration";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkSelector } from "../../types/SparkSelector";
+import { getCharacterIdentifier } from "../../utils/getCharacterIdentifier";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
-import { getCharacterIdentifier } from "../../utils/getCharacterIdentifier";
 
 export interface Reference {
   usage?: "divert";
@@ -26,6 +26,7 @@ export interface Reference {
     | "define_variable_name"
     | "param"
     | "property";
+  kind?: "write" | "read";
   symbolIds?: string[];
   interdependentIds?: string[];
   firstMatchOnly?: boolean;
@@ -68,6 +69,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         SparkdownAnnotation.mark<Reference>({
           declaration: "function",
           symbolIds: [this.read(nodeRef.from, nodeRef.to)],
+          kind: "write",
         }).range(nodeRef.from, nodeRef.to)
       );
       return annotations;
@@ -77,6 +79,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         SparkdownAnnotation.mark<Reference>({
           declaration: "knot",
           symbolIds: [this.read(nodeRef.from, nodeRef.to)],
+          kind: "write",
         }).range(nodeRef.from, nodeRef.to)
       );
       return annotations;
@@ -86,6 +89,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         SparkdownAnnotation.mark<Reference>({
           declaration: "stitch",
           symbolIds: ["." + this.read(nodeRef.from, nodeRef.to)],
+          kind: "write",
         }).range(nodeRef.from, nodeRef.to)
       );
       return annotations;
@@ -95,6 +99,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         SparkdownAnnotation.mark<Reference>({
           declaration: "label",
           symbolIds: ["." + this.read(nodeRef.from, nodeRef.to)],
+          kind: "write",
         }).range(nodeRef.from, nodeRef.to)
       );
       return annotations;
@@ -106,6 +111,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             declaration: "const",
             symbolIds: [this.read(nodeRef.from, nodeRef.to)],
+            kind: "write",
           }).range(nodeRef.from, nodeRef.to)
         );
         return annotations;
@@ -115,6 +121,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             declaration: "var",
             symbolIds: [this.read(nodeRef.from, nodeRef.to)],
+            kind: "write",
           }).range(nodeRef.from, nodeRef.to)
         );
         return annotations;
@@ -124,6 +131,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             declaration: "temp",
             symbolIds: ["." + this.read(nodeRef.from, nodeRef.to)],
+            kind: "write",
           }).range(nodeRef.from, nodeRef.to)
         );
         return annotations;
@@ -136,6 +144,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             declaration: "list",
             symbolIds: [this.read(nodeRef.from, nodeRef.to)],
+            kind: "write",
           }).range(nodeRef.from, nodeRef.to)
         );
         return annotations;
@@ -145,10 +154,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const context = getContextNames(nodeRef.node);
       if (context.includes("DefineDeclaration")) {
         annotations.push(
-          SparkdownAnnotation.mark<Reference>({ declaration: "define" }).range(
-            nodeRef.from,
-            nodeRef.to
-          )
+          SparkdownAnnotation.mark<Reference>({
+            declaration: "define",
+            kind: "write",
+          }).range(nodeRef.from, nodeRef.to)
         );
         return annotations;
       }
@@ -173,6 +182,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
                   "." +
                   this.read(nodeRef.from, nodeRef.to),
               ],
+              kind: "write",
             }).range(nodeRef.from, nodeRef.to)
           );
           return annotations;
@@ -183,6 +193,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           symbolIds: [this.read(nodeRef.from, nodeRef.to)],
+          kind: "read",
         }).range(nodeRef.from, nodeRef.to)
       );
       return annotations;
@@ -199,6 +210,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           usage: "divert",
           symbolIds: ["." + divertPath, divertPath],
           firstMatchOnly: true,
+          kind: "read",
         }).range(nodeRef.from, nodeRef.to)
       );
       return annotations;
@@ -220,6 +232,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         SparkdownAnnotation.mark<Reference>({
           symbolIds: [this.defineType],
           declaration: "define_type_name",
+          kind: "write",
         }).range(nodeRef.from, nodeRef.to)
       );
       return annotations;
@@ -231,6 +244,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           symbolIds: [this.defineType + "." + this.defineName],
           linkable: true,
           declaration: "define_variable_name",
+          kind: "write",
         }).range(nodeRef.from, nodeRef.to)
       );
       return annotations;
@@ -272,6 +286,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               : this.defineType === "ui"
               ? [`style.${name}`]
               : [],
+          kind: "write",
         }).range(nodeRef.from, nodeRef.to)
       );
       return annotations;
@@ -312,6 +327,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           symbolIds: types,
+          kind: "read",
         }).range(nodeRef.from, nodeRef.to)
       );
     }
@@ -343,6 +359,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               selector: { types, name },
               assigned: declaration,
               symbolIds: types.map((type) => `${type}.${name}`),
+              kind: "read",
               linkable: true,
             }).range(nodeRef.from, nodeRef.to)
           );
@@ -354,6 +371,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               selector: { name },
               assigned: declaration,
               symbolIds: ["?" + "." + name], // will need to infer type later
+              kind: "read",
               linkable: true,
             }).range(nodeRef.from, nodeRef.to)
           );
@@ -364,6 +382,8 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
               symbolIds: types.map((type) => `${type}.${name}`),
+              kind: "read",
+              linkable: true,
             }).range(nodeRef.from, nodeRef.to)
           );
           return annotations;
@@ -375,6 +395,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
                 types.length > 0
                   ? types.map((type) => `${type}.${name}`)
                   : ["." + name, name],
+              kind: "read",
               linkable: true,
               firstMatchOnly: true,
             }).range(nodeRef.from, nodeRef.to)
@@ -400,6 +421,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               fuzzy,
             },
             symbolIds: types.map((type) => `${type}.${name}`),
+            kind: "read",
             linkable: true,
             interdependentIds: [`style.${name}`],
           }).range(nodeRef.from, nodeRef.to)
@@ -414,6 +436,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             selector: { types, name },
             symbolIds: types.map((type) => `${type}.${name}`),
+            kind: "read",
             linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
@@ -430,6 +453,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             selector: { types, name },
             symbolIds: types.map((type) => `${type}.${name}`),
+            kind: "read",
             linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
@@ -447,6 +471,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             selector: { types, name, displayType },
             symbolIds: types.map((type) => `${type}.${name}`),
+            kind: "read",
             linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
@@ -462,6 +487,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
             symbolIds: types.map((type) => `${type}.${name}`),
+            kind: "read",
             linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
@@ -476,6 +502,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             selector: { types, name, displayType },
             symbolIds: types.map((type) => `${type}.${name}`),
+            kind: "read",
             linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
@@ -492,6 +519,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             selector: { types, name, displayType },
             symbolIds: types.map((type) => `${type}.${name}`),
+            kind: "read",
             linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
@@ -504,6 +532,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             selector: { types, name },
             symbolIds: types.map((type) => `${type}.${name}`),
+            kind: "read",
             linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
@@ -519,6 +548,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             "character.?.name=" + name,
             "character." + getCharacterIdentifier(name),
           ],
+          kind: "read",
           linkable: true,
           firstMatchOnly: true,
         }).range(nodeRef.from, nodeRef.to)

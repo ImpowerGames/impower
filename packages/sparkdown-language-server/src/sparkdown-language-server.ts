@@ -83,6 +83,7 @@ try {
       documentLinkProvider: {
         resolveProvider: false,
       },
+      documentHighlightProvider: true,
     };
     const workspaceFolders = params?.workspaceFolders;
     if (workspaceFolders) {
@@ -349,13 +350,18 @@ try {
     const tree = documents.tree(uri);
     const program = documents.program(uri);
     performance.mark(`lsp: onReferences ${uri} start`);
-    const { locations } = getReferences(
+    const { references } = getReferences(
       document,
       tree,
       program,
       documents,
       params.position,
-      { ...params.context, includeInterdependent: true, includeLinks: true }
+      {
+        ...params.context,
+        searchOtherFiles: true,
+        includeInterdependent: true,
+        includeLinks: true,
+      }
     );
     performance.mark(`lsp: onReferences ${uri} end`);
     performance.measure(
@@ -363,7 +369,7 @@ try {
       `lsp: onReferences ${uri} start`,
       `lsp: onReferences ${uri} end`
     );
-    return locations;
+    return references;
   });
 
   // declarationProvider
@@ -373,13 +379,14 @@ try {
     const tree = documents.tree(uri);
     const program = documents.program(uri);
     performance.mark(`lsp: onDeclaration ${uri} start`);
-    const { locations } = getReferences(
+    const { references } = getReferences(
       document,
       tree,
       program,
       documents,
       params.position,
       {
+        searchOtherFiles: true,
         includeDeclaration: true,
         excludeUses: true,
         includeInterdependent: false,
@@ -392,7 +399,7 @@ try {
       `lsp: onDeclaration ${uri} start`,
       `lsp: onDeclaration ${uri} end`
     );
-    return locations;
+    return references;
   });
 
   // documentLinksProvider
@@ -410,6 +417,35 @@ try {
       `lsp: onDocumentLinks ${uri} end`
     );
     return result;
+  });
+
+  // documentHighlightProvider
+  connection.onDocumentHighlight((params) => {
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const tree = documents.tree(uri);
+    const program = documents.program(uri);
+    performance.mark(`lsp: onDocumentHighlight ${uri} start`);
+    const { references } = getReferences(
+      document,
+      tree,
+      program,
+      documents,
+      params.position,
+      {
+        searchOtherFiles: false,
+        includeDeclaration: true,
+        includeInterdependent: true,
+        includeLinks: true,
+      }
+    );
+    performance.mark(`lsp: onDocumentHighlight ${uri} end`);
+    performance.measure(
+      `lsp: onDocumentHighlight ${uri}`,
+      `lsp: onDocumentHighlight ${uri} start`,
+      `lsp: onDocumentHighlight ${uri} end`
+    );
+    return references;
   });
 
   documents.listen(connection);
