@@ -1553,7 +1553,7 @@ export const getCompletions = (
       const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
       const name = defineVariableNameNode
         ? getNodeText(defineVariableNameNode)
-        : "";
+        : "$default";
       const path = getParentPropertyPath(propertyNameNode, read);
       const lineText = getLineText(document, position);
       const exclude = getOtherNodesInsideParent(
