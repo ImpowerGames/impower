@@ -1,6 +1,7 @@
 import { context } from "esbuild";
-import { exec } from "child_process";
 import fs from "fs";
+
+fs.watchFile;
 
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
 
@@ -10,37 +11,44 @@ const OUTDIR = OUTDIR_ARG ? OUTDIR_ARG.split("=")?.[1] : "dist";
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
+const SPARKDOWN_WORKER_FILE = "../sparkdown/dist/sparkdown.js";
+
 /** @type {import('esbuild').Plugin} **/
 const buildInlineWorkerPlugin = () => ({
   name: "build-inline-worker",
-  setup: async (build) => {
-    await new Promise((resolve) => {
-      exec(
-        `npm run build:${PRODUCTION ? "prod" : "dev"}:workers`,
-        (error, _stdout, stderr) => {
-          if (error) {
-            console.error(error);
-          }
-          if (stderr) {
-            console.error(stderr);
-          }
-          resolve();
-        }
-      );
-    });
-    let compilerInlineWorkerContent = await fs.promises
-      .readFile("../sparkdown/dist/sparkdown.js", "utf-8")
-      .catch((e) => {
-        console.error(e);
-      });
-    build.initialOptions.banner = {
-      js: `
-var process = {
-env: {
-COMPILER_INLINE_WORKER: ${JSON.stringify(compilerInlineWorkerContent)}
-}
-};`.trim(),
+  setup(build) {
+    let compilerInlineWorkerContent = "";
+
+    const updateWorkerContent = async () => {
+      try {
+        compilerInlineWorkerContent = await fs.promises.readFile(
+          SPARKDOWN_WORKER_FILE,
+          "utf-8"
+        );
+      } catch (e) {
+        console.error("[Error] Failed to read sparkdown.js:", e);
+        compilerInlineWorkerContent = "";
+      }
     };
+
+    // Initial read before first build
+    updateWorkerContent();
+
+    if (WATCH) {
+      fs.watchFile(SPARKDOWN_WORKER_FILE, { interval: 500 }, async () => {
+        console.log(
+          `[watch] Detected change in ${SPARKDOWN_WORKER_FILE}, updating worker content...`
+        );
+        await updateWorkerContent();
+      });
+    }
+
+    build.onLoad({ filter: /_inline-worker-placeholder\.ts$/ }, async () => {
+      return {
+        contents: compilerInlineWorkerContent,
+        loader: "text",
+      };
+    });
   },
 });
 
@@ -84,6 +92,13 @@ async function main() {
   const ctx = await context(config);
   if (WATCH) {
     await ctx.watch();
+    console.log(`[watch] Watching for changes in ${SPARKDOWN_WORKER_FILE}`);
+    fs.watchFile(SPARKDOWN_WORKER_FILE, { interval: 500 }, async () => {
+      console.log(
+        `[watch] Detected change in ${SPARKDOWN_WORKER_FILE}, rebuilding...`
+      );
+      await ctx.rebuild();
+    });
   } else {
     await ctx.rebuild();
     await ctx.dispose();

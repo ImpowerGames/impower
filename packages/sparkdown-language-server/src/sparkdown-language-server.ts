@@ -1,3 +1,4 @@
+import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import {
   SemanticTokenModifiers,
   SemanticTokenTypes,
@@ -10,8 +11,6 @@ import {
   TextDocumentSyncKind,
   createConnection,
 } from "vscode-languageserver/browser";
-
-import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
 import { canRename } from "./utils/providers/canRename";
 import { getColorPresentations } from "./utils/providers/getColorPresentations";

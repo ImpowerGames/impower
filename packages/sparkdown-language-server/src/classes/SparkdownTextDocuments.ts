@@ -33,13 +33,12 @@ import {
 } from "vscode-languageserver";
 import { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
+import COMPILER_INLINE_WORKER_STRING from "../_inline-worker-placeholder";
 import { SparkdownConfiguration } from "../types/SparkdownConfiguration";
 import { profile } from "../utils/logging/profile";
 import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
 import { debounce } from "../utils/timing/debounce";
 import { throttle } from "../utils/timing/throttle";
-
-const COMPILER_INLINE_WORKER_STRING = process.env["COMPILER_INLINE_WORKER"]!;
 
 const COMPILER_WORKER_URL = URL.createObjectURL(
   new Blob([COMPILER_INLINE_WORKER_STRING], {
