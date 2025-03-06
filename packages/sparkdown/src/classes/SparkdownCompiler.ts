@@ -43,6 +43,8 @@ export class SparkdownCompiler {
     "colors",
     "declarations",
     "formatting",
+    "links",
+    "semantics",
   ]);
   get documents() {
     return this._documents;

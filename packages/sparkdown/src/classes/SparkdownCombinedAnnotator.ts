@@ -1,19 +1,20 @@
-import { ChangeSpec, RangeSet, ChangeSet, Text } from "@codemirror/state";
+import { ChangeSet, ChangeSpec, RangeSet, Text } from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { Tree } from "@lezer/common";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
-import { SceneAnnotator } from "./annotators/SceneAnnotator";
-import { TransitionAnnotator } from "./annotators/TransitionAnnotator";
 import { ColorAnnotator } from "./annotators/ColorAnnotator";
 import { DeclarationAnnotator } from "./annotators/DeclarationAnnotator";
-import { SparkdownAnnotation } from "./SparkdownAnnotation";
-import { TranspilationAnnotator } from "./annotators/TranspilationAnnotator";
-import { ReferenceAnnotator } from "./annotators/ReferenceAnnotator";
-import { ValidationAnnotator } from "./annotators/ValidationAnnotator";
-import { ImplicitAnnotator } from "./annotators/ImplicitAnnotator";
-import { SparkdownAnnotator } from "./SparkdownAnnotator";
 import { FormattingAnnotator } from "./annotators/FormattingAnnotator";
+import { ImplicitAnnotator } from "./annotators/ImplicitAnnotator";
 import { LinkAnnotator } from "./annotators/LinkAnnotator";
+import { ReferenceAnnotator } from "./annotators/ReferenceAnnotator";
+import { SceneAnnotator } from "./annotators/SceneAnnotator";
+import { SemanticAnnotator } from "./annotators/SemanticAnnotator";
+import { TransitionAnnotator } from "./annotators/TransitionAnnotator";
+import { TranspilationAnnotator } from "./annotators/TranspilationAnnotator";
+import { ValidationAnnotator } from "./annotators/ValidationAnnotator";
+import { SparkdownAnnotation } from "./SparkdownAnnotation";
+import { SparkdownAnnotator } from "./SparkdownAnnotator";
 
 type Writeable<T> = { -readonly [P in keyof T]: T[P] };
 
@@ -41,6 +42,7 @@ export interface SparkdownAnnotators {
   implicits: ImplicitAnnotator;
   formatting: FormattingAnnotator;
   links: LinkAnnotator;
+  semantics: SemanticAnnotator;
 }
 
 export class SparkdownCombinedAnnotator {
@@ -56,6 +58,7 @@ export class SparkdownCombinedAnnotator {
     implicits: new ImplicitAnnotator(),
     formatting: new FormattingAnnotator(),
     links: new LinkAnnotator(),
+    semantics: new SemanticAnnotator(),
   };
 
   protected _currentEntries = Object.entries(this.current) as [
@@ -76,6 +79,7 @@ export class SparkdownCombinedAnnotator {
       implicits: this.current.implicits.current,
       formatting: this.current.formatting.current,
       links: this.current.links.current,
+      semantics: this.current.semantics.current,
     };
   }
 
@@ -97,6 +101,7 @@ export class SparkdownCombinedAnnotator {
       implicits: [],
       formatting: [],
       links: [],
+      semantics: [],
     };
     tree.iterate({
       from,

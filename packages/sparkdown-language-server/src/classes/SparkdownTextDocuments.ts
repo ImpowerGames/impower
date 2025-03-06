@@ -74,6 +74,9 @@ export default class SparkdownTextDocuments {
     "validations",
     "implicits",
   ]);
+  get parser() {
+    return this._documents.parser;
+  }
 
   protected _connection?: Connection;
   get connection() {
