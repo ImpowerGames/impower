@@ -33,7 +33,7 @@ import {
 } from "vscode-languageserver";
 import { TextDocumentContentChangeEvent } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
-import COMPILER_INLINE_WORKER_STRING from "../_inline-worker-placeholder";
+import COMPILER_INLINE_WORKER_STRING from "../_inline-sparkdown-placeholder";
 import { SparkdownConfiguration } from "../types/SparkdownConfiguration";
 import { profile } from "../utils/logging/profile";
 import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";

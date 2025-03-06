@@ -11,44 +11,35 @@ const OUTDIR = OUTDIR_ARG ? OUTDIR_ARG.split("=")?.[1] : "dist";
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
-const SPARKDOWN_WORKER_FILE = "../sparkdown/dist/sparkdown.js";
+const SPARKDOWN_WORKER_FILE_PATH = "../sparkdown/dist/sparkdown.js";
+const SPARKDOWN_PLACEHOLDER_FILENAME = "_inline-sparkdown-placeholder";
+
+let inlineWorkerContent = "";
+const updateInlineWorkerContent = async () => {
+  try {
+    inlineWorkerContent = await fs.promises.readFile(
+      SPARKDOWN_WORKER_FILE_PATH,
+      "utf-8"
+    );
+  } catch (e) {
+    console.error(`[Error] Failed to read ${SPARKDOWN_WORKER_FILE_PATH}:`, e);
+    inlineWorkerContent = "";
+  }
+};
 
 /** @type {import('esbuild').Plugin} **/
-const buildInlineWorkerPlugin = () => ({
+const buildInlineWorkerPlugin = (placeholderFileName) => ({
   name: "build-inline-worker",
   setup(build) {
-    let compilerInlineWorkerContent = "";
-
-    const updateWorkerContent = async () => {
-      try {
-        compilerInlineWorkerContent = await fs.promises.readFile(
-          SPARKDOWN_WORKER_FILE,
-          "utf-8"
-        );
-      } catch (e) {
-        console.error("[Error] Failed to read sparkdown.js:", e);
-        compilerInlineWorkerContent = "";
+    build.onLoad(
+      { filter: new RegExp(`${placeholderFileName}\.(?:ts|js)$`) },
+      async () => {
+        return {
+          contents: inlineWorkerContent,
+          loader: "text",
+        };
       }
-    };
-
-    // Initial read before first build
-    updateWorkerContent();
-
-    if (WATCH) {
-      fs.watchFile(SPARKDOWN_WORKER_FILE, { interval: 500 }, async () => {
-        console.log(
-          `[watch] Detected change in ${SPARKDOWN_WORKER_FILE}, updating worker content...`
-        );
-        await updateWorkerContent();
-      });
-    }
-
-    build.onLoad({ filter: /_inline-worker-placeholder\.ts$/ }, async () => {
-      return {
-        contents: compilerInlineWorkerContent,
-        loader: "text",
-      };
-    });
+    );
   },
 });
 
@@ -85,18 +76,24 @@ const config = {
     "@codemirror/state": "@codemirror/state",
     "@lezer/common": "@lezer/common",
   },
-  plugins: [esbuildProblemMatcher(), buildInlineWorkerPlugin()],
+  plugins: [
+    esbuildProblemMatcher(),
+    buildInlineWorkerPlugin(SPARKDOWN_PLACEHOLDER_FILENAME),
+  ],
 };
 
 async function main() {
   const ctx = await context(config);
   if (WATCH) {
     await ctx.watch();
-    console.log(`[watch] Watching for changes in ${SPARKDOWN_WORKER_FILE}`);
-    fs.watchFile(SPARKDOWN_WORKER_FILE, { interval: 500 }, async () => {
+    console.log(
+      `[watch] Watching for changes in ${SPARKDOWN_WORKER_FILE_PATH}`
+    );
+    fs.watchFile(SPARKDOWN_WORKER_FILE_PATH, { interval: 500 }, async () => {
       console.log(
-        `[watch] Detected change in ${SPARKDOWN_WORKER_FILE}, rebuilding...`
+        `[watch] Detected change in ${SPARKDOWN_WORKER_FILE_PATH}, rebuilding...`
       );
+      await updateInlineWorkerContent();
       await ctx.rebuild();
     });
   } else {
