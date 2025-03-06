@@ -198,7 +198,7 @@ export default class SparkdownTextDocuments {
               uri: file.uri,
               languageId: "sparkdown",
               version: -1,
-              text: "",
+              text: file.text || "",
             },
           });
         }
