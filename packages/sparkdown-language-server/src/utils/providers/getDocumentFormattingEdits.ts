@@ -99,7 +99,7 @@ export const getDocumentFormattingEdits = (
       } else {
         const text = document.getText(range);
         if (cur.value.type === "separator") {
-          if (text.length > 1) {
+          if (text.length > 1 || text === "\t") {
             pushIfInRange({
               range,
               newText: " ",
