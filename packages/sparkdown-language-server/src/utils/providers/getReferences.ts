@@ -1,7 +1,6 @@
 import { type Tree } from "@lezer/common";
 import {
   Location,
-  LocationLink,
   ReferenceContext,
   type Position,
 } from "vscode-languageserver";
@@ -16,8 +15,6 @@ import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { resolveDivertPath } from "../annotations/resolveDivertPath";
 import { resolveSymbolId } from "../annotations/resolveSymbolId";
 import { getSymbolContext } from "../annotations/getSymbolContext";
-import { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
-import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 
 export const getReferences = (
   document: TextDocument | undefined,
@@ -28,6 +25,7 @@ export const getReferences = (
   context: ReferenceContext & {
     excludeUses?: boolean;
     includeInterdependent: boolean;
+    includeLinks: boolean;
   }
 ): {
   resolvedSymbolIds?: string[];
@@ -36,22 +34,18 @@ export const getReferences = (
   if (!document || !tree) {
     return {};
   }
-  const symbol = getSymbol(document, tree, position);
+  const { symbol, nameRange } = getSymbol(document, tree, position);
   if (!symbol) {
     return {};
   }
 
-  const symbolName = document?.getText({
-    start: document.positionAt(symbol.from),
-    end: document.positionAt(symbol.to),
-  });
+  const symbolName = document?.getText(nameRange);
 
-  const symbolIds = getSymbolIds(
+  const { symbolIds, interdependentIds } = getSymbolIds(
     documents.annotations(document.uri),
-    symbol,
-    context.includeInterdependent
+    symbol
   );
-  if (symbolIds.length === 0) {
+  if (!symbolIds && !interdependentIds) {
     return {};
   }
 
@@ -116,9 +110,6 @@ export const getReferences = (
   ) => {
     if (r.value) {
       const refSymbolIds = r.value.type.symbolIds;
-      if (context.includeInterdependent && r.value.type.interdependentIds) {
-        refSymbolIds?.push(...r.value.type.interdependentIds);
-      }
       if (refSymbolIds) {
         for (const refId of refSymbolIds) {
           const resolvedRefId = resolveSymbolId(
@@ -133,32 +124,78 @@ export const getReferences = (
               ? resolveDivertPath(resolvedRefId, refScopePath)
               : resolvedRefId;
           if (fullyResolvedRefId) {
-            for (const symbolId of symbolIds) {
-              const resolvedSymbolId = resolveSymbolId(
-                symbolId,
-                symbolReference,
-                symbolScopePath,
-                program,
-                documents.compilerConfig
-              );
-              if (resolvedSymbolId) {
-                resolvedSymbolIds.push(resolvedSymbolId);
-                if (fullyResolvedRefId === resolvedSymbolId) {
-                  if (context.includeDeclaration || !r.value.type.declaration) {
-                    if (!context.excludeUses || r.value.type.declaration) {
+            if (symbolIds) {
+              for (const symbolId of symbolIds) {
+                const resolvedSymbolId = resolveSymbolId(
+                  symbolId,
+                  symbolReference,
+                  symbolScopePath,
+                  program,
+                  documents.compilerConfig
+                );
+                if (resolvedSymbolId) {
+                  resolvedSymbolIds.push(resolvedSymbolId);
+                  if (r.value.type.linkable) {
+                    if (context.includeLinks) {
+                      if (resolvedSymbolId.includes(".")) {
+                        const [type, name] = resolvedSymbolId.split(".");
+                        if (type) {
+                          const links =
+                            program?.context?.[type]?.["$default"]?.links;
+                          if (links) {
+                            for (const linkedType of Object.keys(links)) {
+                              const linkedId = linkedType + "." + name;
+                              if (fullyResolvedRefId === linkedId) {
+                                addSymbol(uri, r.from, r.to);
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  if (fullyResolvedRefId === resolvedSymbolId) {
+                    if (
+                      context.includeDeclaration ||
+                      !r.value.type.declaration
+                    ) {
+                      if (resolvedSymbolId === `image.${symbolName}`) {
+                        addAsset("image");
+                      }
+                      if (resolvedSymbolId === `audio.${symbolName}`) {
+                        addAsset("audio");
+                      }
+                      if (resolvedSymbolId === `video.${symbolName}`) {
+                        addAsset("video");
+                      }
+                      if (resolvedSymbolId === `font.${symbolName}`) {
+                        addAsset("font");
+                      }
+                      if (!context.excludeUses || r.value.type.declaration) {
+                        addSymbol(uri, r.from, r.to);
+                        if (r.value.type.firstMatchOnly) {
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            if (context.includeInterdependent && !context.excludeUses) {
+              if (interdependentIds) {
+                for (const interdependentId of interdependentIds) {
+                  const resolvedSymbolId = resolveSymbolId(
+                    interdependentId,
+                    symbolReference,
+                    symbolScopePath,
+                    program,
+                    documents.compilerConfig
+                  );
+                  if (resolvedSymbolId) {
+                    resolvedSymbolIds.push(resolvedSymbolId);
+                    if (fullyResolvedRefId === resolvedSymbolId) {
                       addSymbol(uri, r.from, r.to);
-                    }
-                    if (resolvedSymbolId === `image.${symbolName}`) {
-                      addAsset("image");
-                    }
-                    if (resolvedSymbolId === `audio.${symbolName}`) {
-                      addAsset("audio");
-                    }
-                    if (resolvedSymbolId === `video.${symbolName}`) {
-                      addAsset("video");
-                    }
-                    if (resolvedSymbolId === `font.${symbolName}`) {
-                      addAsset("font");
                     }
                   }
                 }

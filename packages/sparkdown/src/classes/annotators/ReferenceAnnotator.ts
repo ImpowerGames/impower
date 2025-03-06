@@ -32,6 +32,7 @@ export interface Reference {
   selector?: SparkSelector;
   assigned?: SparkDeclaration;
   prop?: boolean;
+  linkable?: boolean;
 }
 
 export class ReferenceAnnotator extends SparkdownAnnotator<
@@ -228,6 +229,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           symbolIds: [this.defineType + "." + this.defineName],
+          linkable: true,
           declaration: "define_variable_name",
         }).range(nodeRef.from, nodeRef.to)
       );
@@ -255,15 +257,14 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       this.definePropertyPathParts.push({
         key: name,
       });
+      const propertyPath = this.definePropertyPathParts
+        .map(({ key }) => key)
+        .join(".");
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           declaration: "property",
           symbolIds: [
-            this.defineType +
-              "." +
-              this.defineName +
-              "." +
-              this.definePropertyPathParts.map(({ key }) => key).join("."),
+            this.defineType + "." + this.defineName + "." + propertyPath,
           ],
           interdependentIds:
             this.defineType === "style"
@@ -276,6 +277,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "StructFieldValue") {
+      // For type checking
       const defineProperty = this.definePropertyPathParts
         .map((p) => p.key)
         .join(".");
@@ -285,12 +287,22 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         name: this.defineName,
         property: defineProperty,
       };
-      // Record property declaration for type checking
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           assigned: declaration,
           prop: true,
         }).range(nodeRef.from, nodeRef.to)
+      );
+      // For finding references
+      const value = this.read(nodeRef.from, nodeRef.to);
+      const symbolIds =
+        this.defineType === "character" && defineProperty === ".name"
+          ? ["character.?.name=" + value.slice(1, -1)]
+          : [];
+      annotations.push(
+        SparkdownAnnotation.mark<Reference>({
+          symbolIds,
+        }).range(nodeRef.from + 1, nodeRef.to - 1) // don't include surrounding string quotes in symbol range
       );
       return annotations;
     }
@@ -331,6 +343,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               selector: { types, name },
               assigned: declaration,
               symbolIds: types.map((type) => `${type}.${name}`),
+              linkable: true,
             }).range(nodeRef.from, nodeRef.to)
           );
           return annotations;
@@ -341,6 +354,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               selector: { name },
               assigned: declaration,
               symbolIds: ["?" + "." + name], // will need to infer type later
+              linkable: true,
             }).range(nodeRef.from, nodeRef.to)
           );
           return annotations;
@@ -361,6 +375,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
                 types.length > 0
                   ? types.map((type) => `${type}.${name}`)
                   : ["." + name, name],
+              linkable: true,
               firstMatchOnly: true,
             }).range(nodeRef.from, nodeRef.to)
           );
@@ -385,6 +400,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               fuzzy,
             },
             symbolIds: types.map((type) => `${type}.${name}`),
+            linkable: true,
             interdependentIds: [`style.${name}`],
           }).range(nodeRef.from, nodeRef.to)
         );
@@ -398,6 +414,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             selector: { types, name },
             symbolIds: types.map((type) => `${type}.${name}`),
+            linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
         return annotations;
@@ -413,6 +430,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             selector: { types, name },
             symbolIds: types.map((type) => `${type}.${name}`),
+            linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
         return annotations;
@@ -429,6 +447,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             selector: { types, name, displayType },
             symbolIds: types.map((type) => `${type}.${name}`),
+            linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
         return annotations;
@@ -443,6 +462,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
             symbolIds: types.map((type) => `${type}.${name}`),
+            linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
         return annotations;
@@ -456,6 +476,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             selector: { types, name, displayType },
             symbolIds: types.map((type) => `${type}.${name}`),
+            linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
         return annotations;
@@ -471,6 +492,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             selector: { types, name, displayType },
             symbolIds: types.map((type) => `${type}.${name}`),
+            linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
         return annotations;
@@ -482,6 +504,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             selector: { types, name },
             symbolIds: types.map((type) => `${type}.${name}`),
+            linkable: true,
           }).range(nodeRef.from, nodeRef.to)
         );
         return annotations;
@@ -492,10 +515,11 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           symbolIds: [
-            "character" + "." + name,
-            "character" + "?name=" + name,
-            "character" + "." + getCharacterIdentifier(name),
+            "character." + name,
+            "character.?.name=" + name,
+            "character." + getCharacterIdentifier(name),
           ],
+          linkable: true,
           firstMatchOnly: true,
         }).range(nodeRef.from, nodeRef.to)
       );

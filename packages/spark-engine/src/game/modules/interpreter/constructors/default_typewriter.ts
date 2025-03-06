@@ -4,6 +4,9 @@ import { Typewriter } from "../types/Typewriter";
 export const default_typewriter: Create<Typewriter> = (obj) => ({
   $type: "typewriter",
   $name: "$default",
+  links: {
+    synth: {},
+  },
   clear_on_continue: true,
   fade_duration: 0,
   animation_offset: 0.06,

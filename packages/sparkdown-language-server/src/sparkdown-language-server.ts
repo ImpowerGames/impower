@@ -355,7 +355,7 @@ try {
       program,
       documents,
       params.position,
-      { ...params.context, includeInterdependent: true }
+      { ...params.context, includeInterdependent: true, includeLinks: true }
     );
     performance.mark(`lsp: onReferences ${uri} end`);
     performance.measure(
@@ -383,6 +383,7 @@ try {
         includeDeclaration: true,
         excludeUses: true,
         includeInterdependent: false,
+        includeLinks: false,
       }
     );
     performance.mark(`lsp: onDeclaration ${uri} end`);

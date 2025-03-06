@@ -33,22 +33,6 @@ export const resolveSymbolId = (
     // This reference is local to the scope
     return scopePath + refId;
   }
-  if (refId.includes("?name=")) {
-    if (!program) {
-      return null;
-    }
-    // Search for an struct that has a `name` prop with a value equal to the specified value
-    const [type, name] = refId.split("?name=");
-    if (type && program.context?.[type]) {
-      for (const [structName, struct] of Object.entries(
-        program?.context?.[type]
-      )) {
-        if (struct["name"] === name) {
-          return type + "." + structName;
-        }
-      }
-    }
-  }
   if (refId.includes("..")) {
     // includes recursive search
     const [obj, foundPath] = selectProperty(program?.context, refId);

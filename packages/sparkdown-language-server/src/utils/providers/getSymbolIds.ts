@@ -4,24 +4,17 @@ import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCo
 
 export const getSymbolIds = (
   annotations: SparkdownAnnotations,
-  symbol: GrammarSyntaxNode<SparkdownNodeName>,
-  includeInterdependent: boolean
-): string[] => {
+  symbol: GrammarSyntaxNode<SparkdownNodeName>
+): { symbolIds?: string[]; interdependentIds?: string[] } => {
   const r = annotations.references.iter();
   while (r.value) {
     if (r.from === symbol.from && r.to === symbol.to) {
-      const ids = [];
-      if (r.value.type.symbolIds) {
-        ids.push(...r.value.type.symbolIds);
-      }
-      if (includeInterdependent) {
-        if (r.value.type.interdependentIds) {
-          ids.push(...r.value.type.interdependentIds);
-        }
-      }
-      return ids;
+      return {
+        symbolIds: r.value.type.symbolIds,
+        interdependentIds: r.value.type.interdependentIds,
+      };
     }
     r.next();
   }
-  return [];
+  return {};
 };

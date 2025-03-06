@@ -17,7 +17,6 @@ import {
 import SparkdownTextDocuments from "../../classes/SparkdownTextDocuments";
 import { getReferences } from "./getReferences";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import { getSymbolNameRange } from "./getSymbolNameRange";
 import { getSymbol } from "./getSymbol";
 
 export const getRenameEdits = (
@@ -50,16 +49,15 @@ export const getRenameEdits = (
     position,
     {
       includeDeclaration: true,
-      includeInterdependent: true,
+      includeInterdependent: false,
+      includeLinks: true,
     }
   );
 
-  const symbol = getSymbol(document, tree, position);
+  const { symbol, nameRange } = getSymbol(document, tree, position);
   if (!symbol) {
     return null;
   }
-
-  const nameRange = getSymbolNameRange(document, symbol);
   if (!nameRange) {
     return null;
   }
