@@ -140,10 +140,10 @@ export const getReferences = (
                       if (resolvedSymbolId.includes(".")) {
                         const [type, name] = resolvedSymbolId.split(".");
                         if (type) {
-                          const links =
-                            program?.context?.[type]?.["$default"]?.links;
-                          if (links) {
-                            for (const linkedType of Object.keys(links)) {
+                          const link =
+                            program?.context?.[type]?.["$default"]?.link;
+                          if (link) {
+                            for (const linkedType of Object.keys(link)) {
                               const linkedId = linkedType + "." + name;
                               if (fullyResolvedRefId === linkedId) {
                                 addSymbol(uri, r.from, r.to);

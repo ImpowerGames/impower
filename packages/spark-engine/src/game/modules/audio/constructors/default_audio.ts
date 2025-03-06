@@ -4,7 +4,7 @@ import { Create } from "../../../core/types/Create";
 export const default_audio: Create<Audio> = (obj) => ({
   $type: "audio",
   $name: "$default",
-  links: {
+  link: {
     character: {},
   },
   src: "",

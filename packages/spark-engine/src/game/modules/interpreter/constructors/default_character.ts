@@ -6,7 +6,7 @@ import { default_prosody } from "./default_prosody";
 export const default_character: Create<Character> = (obj) => ({
   $type: "character",
   $name: "$default",
-  links: {
+  link: {
     synth: {},
     image: {},
     audio: {},

@@ -1,5 +1,5 @@
 export interface Reference<T> {
   $type: T;
   $name: string;
-  links?: Record<string, object>;
+  link?: Record<string, object>;
 }

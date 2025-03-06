@@ -5,7 +5,7 @@ import { Synth } from "../types/Synth";
 export const default_synth: Create<Synth> = (obj) => ({
   $type: "synth",
   $name: "$default",
-  links: {
+  link: {
     character: {},
     typewriter: {},
   },
