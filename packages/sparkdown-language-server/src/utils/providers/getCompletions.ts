@@ -445,13 +445,16 @@ const addStructPropertyNameContextCompletions = (
   const textAfterCursor = lineText.slice(cursorPosition.character);
   if (typeStruct) {
     const relativePath = path.startsWith(".") ? path : `.${path}`;
+    const accessorPath = relativePath.endsWith(".")
+      ? relativePath
+      : `${relativePath}.`;
     const indentLength = lineText.length - lineText.trimStart().length;
     const indent = lineText.slice(0, indentLength) + "  ";
     const pathPrefix = program?.context?.[typeStruct.$type]?.["$default"]?.[
       "$recursive"
     ]
       ? "."
-      : relativePath.slice(0, relativePath.lastIndexOf(".") + 1);
+      : accessorPath.slice(0, accessorPath.lastIndexOf(".") + 1);
     traverse(typeStruct, (p: string) => {
       if (p.startsWith(pathPrefix)) {
         const [propName] = p.slice(pathPrefix.length).split(".");
