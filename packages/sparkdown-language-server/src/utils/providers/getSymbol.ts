@@ -37,7 +37,8 @@ export const getSymbol = (
       n.name === "AssetCommandFileName" ||
       n.name === "AssetCommandFilterName" ||
       n.name === "AssetCommandTarget" ||
-      n.name === "NameValue"
+      n.name === "NameValue" ||
+      n.name === "IncludeContent"
   );
   if (!renamableNode) {
     return null;

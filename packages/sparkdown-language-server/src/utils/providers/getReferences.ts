@@ -16,6 +16,8 @@ import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { resolveDivertPath } from "../annotations/resolveDivertPath";
 import { resolveSymbolId } from "../annotations/resolveSymbolId";
 import { getSymbolContext } from "../annotations/getSymbolContext";
+import { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
+import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 
 export const getReferences = (
   document: TextDocument | undefined,

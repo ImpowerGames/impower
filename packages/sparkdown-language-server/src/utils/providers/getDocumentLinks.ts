@@ -24,7 +24,6 @@ export const getDocumentLinks = (
         end: document.positionAt(cur.to),
       };
       const text = document.getText(range);
-      documents.findFiles;
       result.push({
         range,
         target: documents.resolve(document.uri, text),

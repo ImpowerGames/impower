@@ -5,6 +5,7 @@ import {
 } from "vscode-languageserver-textdocument";
 import { Tree } from "@lezer/common";
 import { getSymbol } from "./getSymbol";
+import { getSymbolNameRange } from "./getSymbolNameRange";
 
 export const canRename = (
   document: TextDocument | undefined,
@@ -28,9 +29,5 @@ export const canRename = (
   if (!symbol) {
     return null;
   }
-  const result = {
-    start: document.positionAt(symbol.from),
-    end: document.positionAt(symbol.to),
-  };
-  return result;
+  return getSymbolNameRange(document, symbol);
 };
