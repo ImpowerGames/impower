@@ -1,11 +1,11 @@
 import { Range } from "@codemirror/state";
+import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
+import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
+import { SparkdownNodeName } from "../../types/SparkdownNodeName";
+import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import { formatList } from "../../utils/formatList";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
-import { formatList } from "../../utils/formatList";
-import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
-import { SparkdownNodeName } from "../../types/SparkdownNodeName";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
