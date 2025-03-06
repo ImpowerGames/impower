@@ -274,7 +274,7 @@
           "name": "Cheat Sheet",
           "type": "webview",
           "visibility": "collapsed",
-          "initialSize": 1
+          "initialSize": 3
         }
       ]
     },
