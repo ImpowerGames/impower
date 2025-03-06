@@ -27,6 +27,16 @@ export const resolveSelector = <T>(
         if (obj !== undefined) {
           return [obj as T, foundPath];
         }
+      } else {
+        const selectorPath = selectorType;
+        const [obj, foundPath] = selectProperty(
+          program.context,
+          selectorPath,
+          selector.fuzzy
+        );
+        if (obj !== undefined) {
+          return [obj as T, foundPath];
+        }
       }
     }
   }

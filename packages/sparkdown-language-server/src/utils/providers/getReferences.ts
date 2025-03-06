@@ -18,6 +18,19 @@ import { resolveSymbolId } from "../annotations/resolveSymbolId";
 import { getSymbol } from "./getSymbol";
 import { getSymbolIds } from "./getSymbolIds";
 
+// Recursively get all keys in this object
+const recursivelyGetKeys = (obj: any, keys: string[] = []): string[] => {
+  if (obj && typeof obj === "object") {
+    for (const key of Object.keys(obj)) {
+      keys.push(key);
+      if (typeof obj[key] === "object" && obj[key] !== null) {
+        recursivelyGetKeys(obj[key], keys);
+      }
+    }
+  }
+  return keys;
+};
+
 export const getReferences = (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
@@ -174,7 +187,8 @@ export const getReferences = (
                           const link =
                             program?.context?.[type]?.["$default"]?.["$link"];
                           if (link) {
-                            for (const linkedType of Object.keys(link)) {
+                            const keys = [];
+                            for (const linkedType of recursivelyGetKeys(link)) {
                               const linkedId = linkedType + "." + name;
                               if (fullyResolvedRefId === linkedId) {
                                 addSymbol(uri, r);

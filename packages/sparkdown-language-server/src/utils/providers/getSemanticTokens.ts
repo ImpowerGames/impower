@@ -1,3 +1,6 @@
+import { RangeCursor } from "@codemirror/state";
+import { SemanticInfo } from "@impower/sparkdown/src/classes/annotators/SemanticAnnotator";
+import { SparkdownAnnotation } from "@impower/sparkdown/src/classes/SparkdownAnnotation";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
@@ -24,7 +27,7 @@ export const getSemanticTokens = (
     startChar: number,
     length: number,
     tokenType: string,
-    tokenModifiers: string[]
+    tokenModifiers: string[] = []
   ): [number, number, number, number, number] => {
     const semanticTokenTypes: string[] = Object.values(SemanticTokenTypes);
     const semanticTokenModifiers: string[] = Object.values(
@@ -40,14 +43,20 @@ export const getSemanticTokens = (
         .reduce((a, b) => a | b, 0),
     ];
   };
-  const add = (
-    line: number,
-    startChar: number,
-    length: number,
-    tokenType: string,
-    tokenModifiers: string[] = []
-  ) => {
-    tokens.push(encode(line, startChar, length, tokenType, tokenModifiers));
+  const add = (cur: RangeCursor<SparkdownAnnotation<SemanticInfo>>) => {
+    if (cur.value) {
+      const start = document.positionAt(cur.from);
+      const length = cur.to - cur.from;
+      tokens.push(
+        encode(
+          start.line,
+          start.character,
+          length,
+          cur.value.type.tokenType,
+          cur.value.type.tokenModifiers
+        )
+      );
+    }
   };
   const iterateFrom = range ? document.offsetAt(range.start) : undefined;
   const iterateTo = range ? document.offsetAt(range.end) : document.length;
@@ -56,21 +65,7 @@ export const getSemanticTokens = (
     if (cur.from > iterateTo) {
       break;
     }
-    const start = document.positionAt(cur.from);
-    const length = cur.to - cur.from;
-    if (cur.value.type.tokenType === "struct") {
-      const type = document.read(cur.from, cur.to);
-      // Only highlight the node as a struct type if the struct type name actually exists
-      if (program?.context?.[type]) {
-        add(
-          start.line,
-          start.character,
-          length,
-          cur.value.type.tokenType,
-          cur.value.type.tokenModifiers
-        );
-      }
-    }
+    add(cur);
     cur.next();
   }
   // See LSP Spec for semantic tokens for information on the encoding process:

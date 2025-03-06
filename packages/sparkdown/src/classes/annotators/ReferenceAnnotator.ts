@@ -277,9 +277,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           declaration: "property",
-          symbolIds: [
-            this.defineType + "." + this.defineName + "." + propertyPath,
-          ],
+          symbolIds: [this.defineType + "." + this.defineName + propertyPath],
           interdependentIds:
             this.defineType === "style"
               ? [`ui..${name}`]
@@ -289,6 +287,17 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           kind: "write",
         }).range(nodeRef.from, nodeRef.to)
       );
+      // For verifying linked types actually exist
+      if (propertyPath.startsWith(".link.")) {
+        const type = propertyPath.split(".").findLast((n) => Boolean(n));
+        if (type) {
+          annotations.push(
+            SparkdownAnnotation.mark<Reference>({
+              selector: { types: [type] },
+            }).range(nodeRef.from, nodeRef.to)
+          );
+        }
+      }
       return annotations;
     }
     if (nodeRef.name === "StructFieldValue") {

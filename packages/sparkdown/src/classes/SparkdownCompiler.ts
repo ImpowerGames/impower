@@ -604,13 +604,17 @@ export class SparkdownCompiler {
               }
             } else {
               // Report missing error
-              const validDescription = selector.displayType
-                ? `${selector.displayType} named '${selector.name}'`
-                : selector.types && selector.types.length > 0
-                ? `${selector.types[0]} named '${selector.name}'`
-                : expectedSelectorTypes && expectedSelectorTypes.length > 0
-                ? `${expectedSelectorTypes[0]} named '${selector.name}'`
-                : `'${selector.name}'`;
+              const validDescription = selector.name
+                ? selector.displayType
+                  ? `${selector.displayType} named '${selector.name}'`
+                  : selector.types && selector.types.length > 0
+                  ? `${selector.types[0]} named '${selector.name}'`
+                  : expectedSelectorTypes && expectedSelectorTypes.length > 0
+                  ? `${expectedSelectorTypes[0]} named '${selector.name}'`
+                  : `'${selector.name}'`
+                : selector.types
+                ? `type named '${selector.types[0]}'`
+                : `type`;
               const message = `Cannot find ${validDescription}`;
               program.diagnostics ??= {};
               program.diagnostics[uri] ??= [];

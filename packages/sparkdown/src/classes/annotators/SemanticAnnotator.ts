@@ -75,7 +75,10 @@ export class SemanticAnnotator extends SparkdownAnnotator<
       this.nesting++;
     }
     if (nodeRef.name === "DeclarationObjectPropertyName") {
-      if (this.inLinkMap && this.nesting === 2) {
+      if (this.nesting <= 1) {
+        this.inLinkMap = false;
+      }
+      if (this.inLinkMap) {
         annotations.push(
           SparkdownAnnotation.mark<SemanticInfo>({
             tokenType: "struct",
