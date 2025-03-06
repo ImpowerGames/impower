@@ -92,10 +92,7 @@ export const getDocumentFormattingEdits = (
   if (cur) {
     let newlineRanges: Range[] = [];
     while (cur.value) {
-      const range = {
-        start: document.positionAt(cur.from),
-        end: document.positionAt(cur.to),
-      };
+      const range = document.range(cur.from, cur.to);
       if (cur.value.type === "newline") {
         newlineRanges.push(range);
         processIndent(range.start.line);
@@ -170,8 +167,7 @@ export const getDocumentFormattingEdits = (
 
     if (options.trimFinalNewlines) {
       let lastNewlineRange = newlineRanges.pop();
-      let docLength =
-        document.offsetAt(document.positionAt(Number.MAX_VALUE)) + 1;
+      let docLength = document.length;
       while (
         lastNewlineRange &&
         document.offsetAt(lastNewlineRange.end) === docLength - 1

@@ -1,25 +1,39 @@
 import { SparkdownCompiler } from "./classes/SparkdownCompiler";
 import { profile } from "./utils/profile";
 
+console.log("running sparkdown-compiler");
+
 const compiler = new SparkdownCompiler();
 
 const respond = <T>(
   method: string,
-  id: string | number | null,
-  uri: string,
-  work: () => T,
+  id?: string | number | null,
+  uri?: string,
+  work?: () => T,
   transfer?: (result: T) => ArrayBuffer | undefined
 ) => {
   profile("start", method, uri);
-  const result = work();
+  const result = work?.();
   profile("start", "send " + method, uri);
-  const transferable = transfer?.(result);
+  const transferable = result != null ? transfer?.(result) : undefined;
   const options = transferable ? [transferable] : {};
-  postMessage({ jsonrpc: "2.0", method, id, result }, options);
+  const message: {
+    jsonrpc: "2.0";
+    method: string;
+    id?: string | number;
+    result?: T;
+  } = { jsonrpc: "2.0", method };
+  if (id && result) {
+    message.id = id;
+    message.result = result;
+  }
+  postMessage(message, options);
   profile("end", "send " + method, uri);
   profile("end", method, uri);
   return result;
 };
+
+respond("compiler/initialized");
 
 onmessage = async (e) => {
   const message: {

@@ -94,10 +94,7 @@ export const getReferences = (
         foundReferences[uri].add(from);
         locations.push({
           uri,
-          range: {
-            start: document.positionAt(from),
-            end: document.positionAt(to),
-          },
+          range: document.range(from, to),
         });
       }
     }
@@ -211,11 +208,6 @@ export const getReferences = (
     const document = documents.get(uri);
     const annotations = documents.annotations(uri);
     if (document && annotations) {
-      const read = (from: number, to: number) =>
-        document.getText({
-          start: document.positionAt(from),
-          end: document.positionAt(to),
-        }) || "";
       let scopePathParts: { kind: "" | "knot" | "stitch"; name: string }[] = [];
       let scopeKind: "" | "knot" | "stitch" = "";
       const r = annotations.references.iter();
@@ -231,7 +223,7 @@ export const getReferences = (
           }
           scopeKind = "stitch";
         }
-        if (read(r.from, r.to) === symbolName) {
+        if (document.read(r.from, r.to) === symbolName) {
           const refScopePath = scopePathParts.map((p) => p.name).join(".");
           addMatchingSymbols(uri, r, refScopePath);
         }
@@ -239,7 +231,10 @@ export const getReferences = (
           r.value.type.declaration === "knot" ||
           r.value.type.declaration === "stitch"
         ) {
-          scopePathParts.push({ kind: scopeKind, name: read(r.from, r.to) });
+          scopePathParts.push({
+            kind: scopeKind,
+            name: document.read(r.from, r.to),
+          });
         }
         r.next();
       }

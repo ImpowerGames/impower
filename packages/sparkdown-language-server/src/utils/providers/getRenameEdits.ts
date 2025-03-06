@@ -115,10 +115,7 @@ export const getRenameEdits = (
   }
 
   if (symbol.name === "IncludeContent") {
-    const path = document.getText({
-      start: document.positionAt(symbol.from),
-      end: document.positionAt(symbol.to),
-    });
+    const path = document.read(symbol.from, symbol.to);
     const oldUri = documents.resolve(document.uri, path);
     if (oldUri) {
       const newUri = documents.getRenamedUri(oldUri, newName);

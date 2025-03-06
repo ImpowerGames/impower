@@ -19,10 +19,7 @@ export const getDocumentLinks = (
   if (document && annotations) {
     const cur = annotations.links.iter();
     while (cur.value) {
-      const range = {
-        start: document.positionAt(cur.from),
-        end: document.positionAt(cur.to),
-      };
+      const range = document.range(cur.from, cur.to);
       const text = document.getText(range);
       result.push({
         range,

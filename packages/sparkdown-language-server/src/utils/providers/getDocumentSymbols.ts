@@ -20,10 +20,7 @@ export const getDocumentSymbols = (
   const cur = annotations.declarations?.iter();
   if (cur) {
     while (cur.value) {
-      const nameRange = {
-        start: document.positionAt(cur.from),
-        end: document.positionAt(cur.to),
-      };
+      const nameRange = document.range(cur.from, cur.to);
       const lineRange = {
         start: {
           line: nameRange.start.line,

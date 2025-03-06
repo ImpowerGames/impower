@@ -9,20 +9,20 @@ import {
   createConnection,
 } from "vscode-languageserver/browser";
 
+import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
+import { canRename } from "./utils/providers/canRename";
 import { getColorPresentations } from "./utils/providers/getColorPresentations";
 import { getCompletions } from "./utils/providers/getCompletions";
 import { getDocumentColors } from "./utils/providers/getDocumentColors";
+import { getDocumentFormattingEdits } from "./utils/providers/getDocumentFormattingEdits";
+import { getDocumentFormattingOnTypeRange } from "./utils/providers/getDocumentFormattingOnTypeRange";
+import { getDocumentLinks } from "./utils/providers/getDocumentLinks";
 import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
-import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
-import { getDocumentFormattingEdits } from "./utils/providers/getDocumentFormattingEdits";
-import { getDocumentFormattingOnTypeRange } from "./utils/providers/getDocumentFormattingOnTypeRange";
-import { canRename } from "./utils/providers/canRename";
-import { getRenameEdits } from "./utils/providers/getRenameEdits";
 import { getReferences } from "./utils/providers/getReferences";
-import { getDocumentLinks } from "./utils/providers/getDocumentLinks";
+import { getRenameEdits } from "./utils/providers/getRenameEdits";
 
 console.log("running sparkdown-language-server");
 

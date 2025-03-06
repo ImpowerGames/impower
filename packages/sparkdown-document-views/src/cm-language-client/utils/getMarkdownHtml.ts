@@ -18,7 +18,6 @@ const getSyntaxHighlightedHtml = (
     const s = str.slice(from, to);
     const diff = from - prev;
     if (diff > 0) {
-      console.log("span", str.slice(from - diff, from));
       html += `<span>${str.slice(from - diff, from)}</span>`;
     }
     html += `<span class="${token}">${s}</span>`;

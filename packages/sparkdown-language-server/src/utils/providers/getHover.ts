@@ -25,10 +25,7 @@ export const getHover = (
     if (result != null) {
       return false;
     }
-    const range = {
-      start: document.positionAt(from),
-      end: document.positionAt(to),
-    };
+    const range = document.range(from, to);
     const hoveredOffset = document.offsetAt(position);
     if (
       hoveredOffset >= document.offsetAt(range.start) &&

@@ -1,12 +1,10 @@
 import {
-  TextDocument,
-  Range,
-  Position,
   DocumentUri,
+  Position,
+  Range,
+  TextDocument,
   TextDocumentContentChangeEvent,
 } from "vscode-languageserver-textdocument";
-
-const END_NEWLINE_REGEX = /[\r\n]+$/;
 
 export class SparkdownDocument implements TextDocument {
   text: TextDocument;
@@ -26,6 +24,12 @@ export class SparkdownDocument implements TextDocument {
   get lineCount() {
     return this.text.lineCount;
   }
+
+  get length() {
+    return this.text.offsetAt(this.text.positionAt(Number.MAX_VALUE));
+  }
+
+  lineChunks = true;
 
   constructor(
     uri: DocumentUri,
@@ -48,11 +52,15 @@ export class SparkdownDocument implements TextDocument {
     return this.text.offsetAt(position);
   }
 
-  read(from: number, to: number): string {
-    return this.text.getText({
+  range(from: number, to: number): Range {
+    return {
       start: this.text.positionAt(from),
       end: this.text.positionAt(to),
-    });
+    };
+  }
+
+  read(from: number, to: number): string {
+    return this.text.getText(this.range(from, to));
   }
 
   lineAt(from: number): number {
@@ -60,20 +68,34 @@ export class SparkdownDocument implements TextDocument {
   }
 
   getLineText = (line: number) => {
-    const lineText = this.text.getText({
-      start: {
-        line: line,
-        character: 0,
-      },
-      end: {
-        line: line + 1,
-        character: 0,
-      },
+    const lineFrom = this.text.offsetAt({
+      line: line,
+      character: 0,
     });
-    return lineText.replace(END_NEWLINE_REGEX, "");
+    const lineText = this.chunk(lineFrom);
+    if (lineText === "\r\n" || lineText === "\r" || lineText === "\n") {
+      return "";
+    }
+    return lineText;
   };
 
   update(changes: TextDocumentContentChangeEvent[], version: number): void {
     this.text = TextDocument.update(this.text, changes, version);
+  }
+
+  chunk(from: number): string {
+    const start = this.text.positionAt(from);
+    const end = { line: start.line + 1, character: 0 };
+    const line = this.text.getText({ start, end });
+    if (line === "\r\n" || line === "\r" || line === "\n") {
+      return line;
+    }
+    if (line.endsWith("\r\n")) {
+      return line.slice(0, -2);
+    }
+    if (line.endsWith("\r") || line.endsWith("\n")) {
+      return line.slice(0, -1);
+    }
+    return line;
   }
 }

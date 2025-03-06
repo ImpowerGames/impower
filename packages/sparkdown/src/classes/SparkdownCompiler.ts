@@ -5,16 +5,20 @@ import {
 } from "../inkjs/compiler/Compiler";
 import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
 import { SourceMetadata } from "../inkjs/engine/Error";
-import { StringValue } from "../inkjs/engine/Value";
 import { SimpleJson } from "../inkjs/engine/SimpleJson";
+import { StringValue } from "../inkjs/engine/Value";
 import { File } from "../types/File";
 import { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
-import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
+import { SparkdownRuntimeFormat } from "../types/SparkdownRuntimeFormat";
+import { SparkProgram } from "../types/SparkProgram";
+import { formatList } from "../utils/formatList";
+import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
 import { getProperty } from "../utils/getProperty";
 import { profile } from "../utils/profile";
+import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { resolveSelector } from "../utils/resolveSelector";
 import { setProperty } from "../utils/setProperty";
 import { traverse } from "../utils/traverse";
@@ -23,10 +27,6 @@ import {
   SparkdownDocumentRegistry,
 } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
-import { SparkdownRuntimeFormat } from "../types/SparkdownRuntimeFormat";
-import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
-import { formatList } from "../utils/formatList";
-import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 const NEWLINE_REGEX: RegExp = /\r\n|\r|\n/;
@@ -153,14 +153,12 @@ export class SparkdownCompiler {
     const script = doc.getText() || "";
     const lines = script.split(NEWLINE_REGEX);
     profile("end", "splitIntoLines", uri);
-    const read = (from: number, to: number): string =>
-      doc.getText({ start: doc.positionAt(from), end: doc.positionAt(to) });
     state.transpiledScripts[uri] ??= { content: script, version: doc.version };
     const fileIndex = Object.keys(state.transpiledScripts).indexOf(uri);
     const annotations = this.documents.annotations(uri);
     const cur = annotations.transpilations.iter();
     while (cur.value) {
-      const lineIndex = doc.positionAt(cur.from).line;
+      const lineIndex = doc.lineAt(cur.from);
       const lineFrom = doc.offsetAt({
         line: lineIndex,
         character: 0,
@@ -174,8 +172,8 @@ export class SparkdownCompiler {
         uuidToSource[cur.value.type.uuid] ??= [fileIndex, lineIndex];
       }
       if (cur.value.type.splice) {
-        const lineTextBefore = read(lineFrom, cur.to);
-        const lineTextAfter = read(cur.to, lineTo);
+        const lineTextBefore = doc.read(lineFrom, cur.to);
+        const lineTextAfter = doc.read(cur.to, lineTo);
         lines[lineIndex] =
           lineTextBefore + cur.value.type.splice + lineTextAfter;
         state.sourceMap ??= {};
@@ -431,10 +429,7 @@ export class SparkdownCompiler {
         const annotations = this.documents.annotations(uri);
         const cur = annotations.implicits.iter();
         while (cur.value) {
-          const text = doc.getText({
-            start: doc.positionAt(cur.from),
-            end: doc.positionAt(cur.to),
-          });
+          const text = doc.read(cur.from, cur.to);
           if (!resolvedImplicits.has(text)) {
             resolvedImplicits.add(text);
             const type = cur.value.type;
@@ -516,10 +511,7 @@ export class SparkdownCompiler {
         const cur = annotations.validations.iter();
         while (cur.value) {
           const diagnostic = cur.value.type;
-          const range = {
-            start: doc.positionAt(cur.from),
-            end: doc.positionAt(cur.to),
-          };
+          const range = doc.range(cur.from, cur.to);
           if (range) {
             if (diagnostic.message) {
               const severity =
@@ -563,10 +555,7 @@ export class SparkdownCompiler {
         const cur = annotations.references.iter();
         while (cur.value) {
           const reference = cur.value.type;
-          const range = {
-            start: doc.positionAt(cur.from),
-            end: doc.positionAt(cur.to),
-          };
+          const range = doc.range(cur.from, cur.to);
           if (reference.selector) {
             const selector = reference.selector;
             const declaration = reference.assigned;

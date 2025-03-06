@@ -968,11 +968,7 @@ export const getCompletions = (
     return null;
   }
 
-  const read = (from: number, to: number) =>
-    document.getText({
-      start: document.positionAt(from),
-      end: document.positionAt(to),
-    });
+  const read = (from: number, to: number) => document.read(from, to);
 
   const getNodeText = (node: SyntaxNode | undefined) =>
     node ? read(node.from, node.to) : "";

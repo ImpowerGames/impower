@@ -1,19 +1,19 @@
 import {
-  TextDocumentContentChangeEvent,
   Range,
+  TextDocumentContentChangeEvent,
 } from "vscode-languageserver-textdocument";
 
 import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
 
+import { ChangeSpec, Text } from "@codemirror/state";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
-import { Input, Tree, TreeFragment, ChangedRange } from "@lezer/common";
-import { ChangeSpec, Text } from "@codemirror/state";
+import { ChangedRange, Tree, TreeFragment } from "@lezer/common";
+import { profile } from "../utils/profile";
 import {
   SparkdownAnnotators,
   SparkdownCombinedAnnotator,
 } from "./SparkdownCombinedAnnotator";
-import { profile } from "../utils/profile";
 import { SparkdownDocument } from "./SparkdownDocument";
 
 const DEBUG = false;
@@ -28,39 +28,6 @@ interface TextDocumentState {
   treeFragments?: readonly TreeFragment[];
   treeVersion?: number;
   annotators: SparkdownCombinedAnnotator;
-}
-
-export class TextDocumentInput implements Input {
-  constructor(private readonly document: SparkdownDocument) {}
-
-  get length() {
-    return this.document.offsetAt(this.document.positionAt(Number.MAX_VALUE));
-  }
-
-  lineChunks = true;
-
-  chunk(from: number): string {
-    const start = this.document.positionAt(from);
-    const end = { line: start.line + 1, character: 0 };
-    const line = this.document.getText({ start, end });
-    if (line === "\r\n" || line === "\r" || line === "\n") {
-      return line;
-    }
-    if (line.endsWith("\r\n")) {
-      return line.slice(0, -2);
-    }
-    if (line.endsWith("\r") || line.endsWith("\n")) {
-      return line.slice(0, -1);
-    }
-    return line;
-  }
-
-  read(from: number, to: number): string {
-    const start = this.document.positionAt(from);
-    const end = this.document.positionAt(to);
-    const text = this.document.getText({ start, end });
-    return text;
-  }
 }
 
 export class SparkdownDocumentRegistry {
@@ -161,16 +128,11 @@ export class SparkdownDocumentRegistry {
         state.treeFragments = TreeFragment.applyChanges(state.treeFragments, [
           treeChange,
         ]);
-        const documentLengthBeforeChange = changeDocument.offsetAt(
-          changeDocument.positionAt(Number.MAX_VALUE)
-        );
+        const documentLengthBeforeChange = changeDocument.length;
         changeDocument.update([change], changeDocument.version + 1);
-        const documentLengthAfterChange = changeDocument.offsetAt(
-          changeDocument.positionAt(Number.MAX_VALUE)
-        );
-        const input = new TextDocumentInput(changeDocument);
+        const documentLengthAfterChange = changeDocument.length;
         const text = Text.of(changeDocument.getText().split("\n"));
-        state.tree = this._parser.parse(input, state.treeFragments);
+        state.tree = this._parser.parse(changeDocument, state.treeFragments);
         state.treeFragments = TreeFragment.addTree(
           state.tree,
           state.treeFragments
@@ -205,9 +167,8 @@ export class SparkdownDocumentRegistry {
         this._profilingIdentifier + "/fullParse",
         beforeDocument.uri
       );
-      const input = new TextDocumentInput(afterDocument);
       const text = Text.of(afterDocument.getText().split("\n"));
-      state.tree = this._parser.parse(input);
+      state.tree = this._parser.parse(afterDocument);
       state.treeFragments = TreeFragment.addTree(state.tree);
       state.annotators.create(state.tree, text, this._skipAnnotating);
       state.treeVersion = afterDocument.version;
@@ -253,7 +214,7 @@ export class SparkdownDocumentRegistry {
     const tree = this.tree(uri);
     const document = this.get(uri);
     if (tree && document) {
-      console.log(printTree(tree, new TextDocumentInput(document)));
+      console.log(printTree(tree, document));
     }
   }
 

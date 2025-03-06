@@ -46,10 +46,7 @@ export const getSymbol = (
   if (!symbol) {
     return {};
   }
-  const symbolRange = {
-    start: document.positionAt(symbol.from),
-    end: document.positionAt(symbol.to),
-  };
+  const symbolRange = document.range(symbol.from, symbol.to);
   if (symbol.name === "StructFieldValue") {
     const defineDeclarationNode = leftStack.find(
       (n) => n.name === "DefineDeclaration"
@@ -60,10 +57,10 @@ export const getSymbol = (
         defineDeclarationNode
       );
       if (defineTypeNode) {
-        const defineType = document.getText({
-          start: document.positionAt(defineTypeNode?.from),
-          end: document.positionAt(defineTypeNode?.to),
-        });
+        const defineType = document.read(
+          defineTypeNode.from,
+          defineTypeNode.to
+        );
         if (defineType === "character") {
           const structFieldNodes = leftStack.filter(
             (n) => n.name === "StructField"
@@ -74,10 +71,10 @@ export const getSymbol = (
               structFieldNodes[0]!
             );
             if (propertyNameNode) {
-              const propertyName = document.getText({
-                start: document.positionAt(propertyNameNode?.from),
-                end: document.positionAt(propertyNameNode?.to),
-              });
+              const propertyName = document.read(
+                propertyNameNode.from,
+                propertyNameNode.to
+              );
               if (propertyName === "name") {
                 const stringContentNode = leftStack.find(
                   (n) => n.name === "DoubleQuoteString_content"
@@ -85,10 +82,10 @@ export const getSymbol = (
                 if (stringContentNode) {
                   return {
                     symbol: stringContentNode,
-                    nameRange: {
-                      start: document.positionAt(stringContentNode?.from),
-                      end: document.positionAt(stringContentNode?.to),
-                    },
+                    nameRange: document.range(
+                      stringContentNode.from,
+                      stringContentNode.to
+                    ),
                   };
                 }
               }
@@ -100,10 +97,7 @@ export const getSymbol = (
     return {};
   }
   if (symbol.name === "IncludeContent") {
-    const range = {
-      start: document.positionAt(symbol.from),
-      end: document.positionAt(symbol.to),
-    };
+    const range = document.range(symbol.from, symbol.to);
     const text = document.getText(range);
     const nameStartOffset = text.lastIndexOf("/") + 1;
     let nameEndOffset = text.indexOf(".", nameStartOffset);
