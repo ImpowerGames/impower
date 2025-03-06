@@ -816,6 +816,7 @@ repository:
           - { include: "#PropertySelectorSimpleConditionName" }
 
   PropertySelectorUniversalCondition:
+    name: source.css
     match: ([@])
     captures:
       1:
