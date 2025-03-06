@@ -328,7 +328,15 @@ export class SparkdownCompiler {
                 const definedDefaultStruct = structs?.["$default"];
                 if (definedDefaultStruct) {
                   traverse(definedDefaultStruct, (propPath, propValue) => {
-                    setProperty(constructed, propPath, this.clone(propValue));
+                    let redirectedPropPath =
+                      propPath === ".link" || propPath.startsWith(".link.")
+                        ? propPath.replace(/^.link/, ".$link")
+                        : propPath;
+                    setProperty(
+                      constructed,
+                      redirectedPropPath,
+                      this.clone(propValue)
+                    );
                   });
                 }
               }

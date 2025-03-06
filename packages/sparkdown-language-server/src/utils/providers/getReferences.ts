@@ -141,7 +141,7 @@ export const getReferences = (
                         const [type, name] = resolvedSymbolId.split(".");
                         if (type) {
                           const link =
-                            program?.context?.[type]?.["$default"]?.link;
+                            program?.context?.[type]?.["$default"]?.["$link"];
                           if (link) {
                             for (const linkedType of Object.keys(link)) {
                               const linkedId = linkedType + "." + name;
