@@ -299,13 +299,15 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
   const hideInlineRange = (nodeRef: SyntaxNodeRef) => {
     const from = nodeRef.from;
     const to = nodeRef.to;
-    decorations.push(
-      ...createDecorations(doc, {
-        type: "replace",
-        from,
-        to,
-      })
-    );
+    if (nodeRef.to > nodeRef.from) {
+      decorations.push(
+        ...createDecorations(doc, {
+          type: "replace",
+          from,
+          to,
+        })
+      );
+    }
   };
 
   const processNewline = (to: number) => {
@@ -325,8 +327,6 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
   const prevChar = doc.sliceString(from - 1, from);
 
   let isBlankLineFrom = prevChar === "" ? 0 : undefined;
-  let inAction = false;
-  let inExplicitAction = false;
   let inDialogue = false;
   let inDualDialogue = false;
   let dialoguePosition = 0;
@@ -371,10 +371,6 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
           },
         });
         return false;
-      } else if (name === "Action") {
-        inAction = true;
-      } else if (name === "ActionMark") {
-        inExplicitAction = true;
       } else if (name === "BlockDialogue" || name === "InlineDialogue") {
         inDialogue = true;
         dialoguePosition = 0;
@@ -443,9 +439,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         );
         return false;
       } else if (name === "Indent") {
-        if (!inAction || inExplicitAction) {
-          hideInlineRange(nodeRef);
-        }
+        hideInlineRange(nodeRef);
         return false;
       } else if (isCentered(nodeRef)) {
         centerRange(nodeRef);
@@ -532,8 +526,6 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             to,
           })
         );
-        inAction = false;
-        inExplicitAction = false;
       } else if (name === "Choice") {
         // Add Choice Spec
         decorations.push(

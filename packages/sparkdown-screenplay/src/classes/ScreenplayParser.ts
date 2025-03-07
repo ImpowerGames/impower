@@ -20,7 +20,6 @@ export default class ScreenplayParser {
     let frontMatterValue = "";
     let scene = "";
     let transition = "";
-    let explicitActionMark = false;
     let action = "";
     let choice = "";
     let choice_prefix = "";
@@ -123,25 +122,6 @@ export default class ScreenplayParser {
 
         // Action
         if (stack.includes("Action")) {
-          if (name === "ActionMark") {
-            explicitActionMark = true;
-          }
-          if (stack.includes("Action_begin")) {
-            if (name === "Whitespace") {
-              const text = read(from, to);
-              // This action does not begin with an explicit action mark,
-              // so include the indented whitespace.
-              action += text;
-            }
-          }
-          if (name === "Indent") {
-            if (!explicitActionMark) {
-              const text = read(from, to);
-              // This action does not begin with an explicit action mark,
-              // so include the indented whitespace.
-              action += text;
-            }
-          }
           if (name === "TextChunk") {
             const text = read(from, to);
             action += text + "\n";
@@ -239,7 +219,6 @@ export default class ScreenplayParser {
             tag: "action",
             text: action,
           });
-          explicitActionMark = false;
           action = "";
         }
 

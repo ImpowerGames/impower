@@ -2451,7 +2451,7 @@ repository:
   ########## Action ##########
 
   Action:
-    begin: (?:({{WS}}*)(?:([<][>])|([!])($|{{WS}}+)))?({{WS}}*)(?=\S)
+    begin: ({{WS}}*)(?:([<][>])|([!])($|{{WS}}+))?(?=\S)
     beginCaptures:
       1:
         patterns:
@@ -2464,10 +2464,7 @@ repository:
           - { include: "#ActionMark" }
       4:
         patterns:
-          - { include: "#Whitespace" }
-      5:
-        patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -2621,6 +2618,7 @@ repository:
   DisplayLine:
     patterns:
       - { include: "#Annotation" }
+      - { include: "#Escape" }
       - { include: "#ConditionalBlock" }
       - { include: "#ParentheticalLine" }
       - { include: "#Chain" }
@@ -2999,12 +2997,24 @@ repository:
       - { include: "#PlainText" }
 
   Escape:
-    match: (\\)(.)
+    match: (?:^(\\)({{WS}})|(?<!^)(\\)({{WS}})|(\\)(\S))
     captures:
       1:
         tag: definition(escape)
         name: constant.character.escape.sd
       2:
+        tag: content
+        name: markup.raw.text.sd
+      3:
+        tag: definition(escape)
+        name: constant.character.escape.sd
+      4:
+        tag: content
+        name: markup.raw.text.sd
+      5:
+        tag: definition(escape)
+        name: constant.character.escape.sd
+      6:
         tag: content
         name: markup.raw.text.sd
 
