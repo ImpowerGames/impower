@@ -947,6 +947,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#ConditionalBlock" }
+      - { include: "#Newline" }
       - { include: "#ChoiceUnsuppressedText" }
       - { include: "#ChoiceSuppressedText" }
     end: (?<=\[.*?\])|(?=[-][>])
