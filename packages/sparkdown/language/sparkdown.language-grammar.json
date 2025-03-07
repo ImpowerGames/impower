@@ -5526,7 +5526,7 @@
     },
     "EmphasisTilde": {
       "tag": "quote",
-      "name": "markup.emphasis.sd",
+      "name": "markup.emphasis.tilde.sd",
       "match": "([~][~]+)((?:(?!\\1).*?)+)(\\1|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "captures": {
         "1": {
@@ -5554,7 +5554,7 @@
     },
     "EmphasisColon": {
       "tag": "quote",
-      "name": "markup.emphasis.sd",
+      "name": "markup.emphasis.colon.sd",
       "match": "([:][:]+)((?:(?!\\1).*?)+)(\\1|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "captures": {
         "1": {

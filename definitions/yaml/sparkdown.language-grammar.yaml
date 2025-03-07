@@ -3138,7 +3138,7 @@ repository:
 
   EmphasisTilde:
     tag: quote
-    name: markup.emphasis.sd
+    name: markup.emphasis.tilde.sd
     match: ([~][~]+)((?:(?!\1).*?)+)(\1|(?={{EOL}}))
     captures:
       1:
@@ -3153,7 +3153,7 @@ repository:
 
   EmphasisColon:
     tag: quote
-    name: markup.emphasis.sd
+    name: markup.emphasis.colon.sd
     match: ([:][:]+)((?:(?!\1).*?)+)(\1|(?={{EOL}}))
     captures:
       1:

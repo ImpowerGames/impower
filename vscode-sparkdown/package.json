@@ -51,30 +51,6 @@
       "editor.tokenColorCustomizations": {
         "textMateRules": [
           {
-            "scope": "keyword.control.section",
-            "settings": {
-              "foreground": "#FF80F4"
-            }
-          },
-          {
-            "scope": "keyword.control.divert.path",
-            "settings": {
-              "foreground": "#F9B8F9"
-            }
-          },
-          {
-            "scope": "keyword.control.transition",
-            "settings": {
-              "foreground": "#BEA3A3"
-            }
-          },
-          {
-            "scope": "string.regexp.scene",
-            "settings": {
-              "foreground": "#FF8080"
-            }
-          },
-          {
             "scope": "markup.other.bold.sd",
             "settings": {
               "fontStyle": "bold"
@@ -99,6 +75,18 @@
             }
           },
           {
+            "scope": "markup.emphasis.tilde.sd",
+            "settings": {
+              "fontStyle": "italic"
+            }
+          },
+          {
+            "scope": "markup.emphasis.colon.sd",
+            "settings": {
+              "fontStyle": "italic"
+            }
+          },
+          {
             "scope": "markup.other.bold.sd markup.other.italic.sd",
             "settings": {
               "fontStyle": "italic bold"
@@ -120,6 +108,48 @@
             "scope": "markup.other.bold.sd markup.other.italic.sd markup.other.underline.sd",
             "settings": {
               "fontStyle": "italic bold underline"
+            }
+          },
+          {
+            "scope": "markup.other.bold.sd markup.other.italic.sd markup.emphasis.tilde.sd",
+            "settings": {
+              "fontStyle": "italic bold"
+            }
+          },
+          {
+            "scope": "markup.other.bold.sd markup.other.underline.sd markup.emphasis.tilde.sd",
+            "settings": {
+              "fontStyle": "italic bold underline"
+            }
+          },
+          {
+            "scope": "markup.other.bold.sd markup.other.underline.sd markup.emphasis.colon.sd",
+            "settings": {
+              "fontStyle": "italic bold underline"
+            }
+          },
+          {
+            "scope": "keyword.control.section",
+            "settings": {
+              "foreground": "#FF80F4"
+            }
+          },
+          {
+            "scope": "keyword.control.divert.path",
+            "settings": {
+              "foreground": "#F9B8F9"
+            }
+          },
+          {
+            "scope": "keyword.control.transition",
+            "settings": {
+              "foreground": "#BEA3A3"
+            }
+          },
+          {
+            "scope": "string.regexp.scene",
+            "settings": {
+              "foreground": "#FF8080"
             }
           }
         ],
@@ -147,54 +177,6 @@
               "scope": "string.regexp.scene",
               "settings": {
                 "foreground": "#EE0000"
-              }
-            },
-            {
-              "scope": "markup.other.bold.sd",
-              "settings": {
-                "fontStyle": "bold"
-              }
-            },
-            {
-              "scope": "markup.other.italic.sd",
-              "settings": {
-                "fontStyle": "italic"
-              }
-            },
-            {
-              "scope": "markup.other.underline.sd",
-              "settings": {
-                "fontStyle": "underline"
-              }
-            },
-            {
-              "scope": "markup.other.strikethrough.sd",
-              "settings": {
-                "fontStyle": "strikethrough"
-              }
-            },
-            {
-              "scope": "markup.other.bold.sd markup.other.italic.sd",
-              "settings": {
-                "fontStyle": "italic bold"
-              }
-            },
-            {
-              "scope": "markup.other.bold.sd markup.other.underline.sd",
-              "settings": {
-                "fontStyle": "bold underline"
-              }
-            },
-            {
-              "scope": "markup.other.italic.sd markup.other.underline.sd",
-              "settings": {
-                "fontStyle": "italic underline"
-              }
-            },
-            {
-              "scope": "markup.other.bold.sd markup.other.italic.sd markup.other.underline.sd",
-              "settings": {
-                "fontStyle": "italic bold underline"
               }
             }
           ]
