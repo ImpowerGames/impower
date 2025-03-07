@@ -23,6 +23,7 @@ const PREVIEW_THEME: {
     margin: "auto",
     maxWidth: "640px",
     position: "relative",
+    cursor: "default",
     caretColor: "transparent",
     pointerEvents: "auto",
     "&:before": {
