@@ -1347,11 +1347,11 @@ repository:
     end: ({{WS}}*)([}])
     endCaptures:
       1:
-        tag: keyword
-        name: punctuation.definition.template-expression.end.sd
-      2:
         patterns:
           - { include: "#ExtraWhitespace" }
+      2:
+        tag: keyword
+        name: punctuation.definition.template-expression.end.sd
 
   Substitution:
     name: keyword.control.sd
