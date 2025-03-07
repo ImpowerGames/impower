@@ -2343,8 +2343,11 @@
       "begin": "([{])([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
-          "tag": "keyword",
-          "name": "punctuation.definition.template-expression.begin.sd"
+          "patterns": [
+            {
+              "include": "#ConditionalBlockOpenBrace"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -2399,10 +2402,23 @@
           ]
         },
         "2": {
-          "tag": "keyword",
-          "name": "punctuation.definition.template-expression.end.sd"
+          "patterns": [
+            {
+              "include": "#ConditionalBlockCloseBrace"
+            }
+          ]
         }
       }
+    },
+    "ConditionalBlockOpenBrace": {
+      "tag": "keyword",
+      "name": "punctuation.definition.template-expression.begin.sd",
+      "match": "([{])"
+    },
+    "ConditionalBlockCloseBrace": {
+      "tag": "keyword",
+      "name": "punctuation.definition.template-expression.end.sd",
+      "match": "([}])"
     },
     "Substitution": {
       "name": "keyword.control.sd",
@@ -2705,7 +2721,7 @@
       "end": "(?=[}])"
     },
     "MultilineCaseClause": {
-      "begin": "^([^\\S\\n\\r]*)([-])((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(?:(else)|([^|{}:]+))([^\\S\\n\\r]*)([:])",
+      "begin": "^([^\\S\\n\\r]*)([-])((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(?:(else)|([^|{}:]+))([^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2715,8 +2731,11 @@
           ]
         },
         "2": {
-          "tag": "keyword",
-          "name": "keyword.switch.clause.sd"
+          "patterns": [
+            {
+              "include": "#MultilineCaseMark"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -2746,6 +2765,13 @@
         "7": {
           "tag": "separator",
           "name": "meta.template.expression.colon.sd"
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
         }
       },
       "patterns": [
@@ -2790,8 +2816,11 @@
           ]
         },
         "2": {
-          "tag": "keyword",
-          "name": "keyword.sequence.clause.sd"
+          "patterns": [
+            {
+              "include": "#MultilineAlternativeMark"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -2873,6 +2902,16 @@
         }
       ],
       "end": "(?=$|[^\\S\\n\\r]*[}])"
+    },
+    "MultilineCaseMark": {
+      "tag": "keyword",
+      "name": "keyword.switch.clause.sd",
+      "match": "([-])"
+    },
+    "MultilineAlternativeMark": {
+      "tag": "keyword",
+      "name": "keyword.sequence.clause.sd",
+      "match": "([-])"
     },
     "PipeAhead": {
       "match": "(?=[|])"

@@ -1327,8 +1327,8 @@ repository:
     begin: ([{])({{WS}}*)
     beginCaptures:
       1:
-        tag: keyword
-        name: punctuation.definition.template-expression.begin.sd
+        patterns:
+          - { include: "#ConditionalBlockOpenBrace" }
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
@@ -1350,8 +1350,18 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       2:
-        tag: keyword
-        name: punctuation.definition.template-expression.end.sd
+        patterns:
+          - { include: "#ConditionalBlockCloseBrace" }
+
+  ConditionalBlockOpenBrace:
+    tag: keyword
+    name: punctuation.definition.template-expression.begin.sd
+    match: ([{])
+
+  ConditionalBlockCloseBrace:
+    tag: keyword
+    name: punctuation.definition.template-expression.end.sd
+    match: ([}])
 
   Substitution:
     name: keyword.control.sd
@@ -1493,14 +1503,14 @@ repository:
     end: (?=[}])
 
   MultilineCaseClause:
-    begin: ^({{WS}}*)([-])({{EOK}})(?:(else)|([^|{}:]+))({{WS}}*)([:])
+    begin: ^({{WS}}*)([-])({{EOK}})(?:(else)|([^|{}:]+))({{WS}}*)([:])({{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: keyword
-        name: keyword.switch.clause.sd
+        patterns:
+          - { include: "#MultilineCaseMark" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -1516,6 +1526,9 @@ repository:
       7:
         tag: separator
         name: meta.template.expression.colon.sd
+      8:
+        patterns:
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1535,8 +1548,8 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: keyword
-        name: keyword.sequence.clause.sd
+        patterns:
+          - { include: "#MultilineAlternativeMark" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -1573,6 +1586,16 @@ repository:
       - { include: "#Action" }
       - { include: "#DisplayText" }
     end: (?=$|{{WS}}*[}])
+
+  MultilineCaseMark:
+    tag: keyword
+    name: keyword.switch.clause.sd
+    match: ([-])
+
+  MultilineAlternativeMark:
+    tag: keyword
+    name: keyword.sequence.clause.sd
+    match: ([-])
 
   PipeAhead:
     match: (?=[|])
