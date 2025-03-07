@@ -2,27 +2,27 @@ import { HighlightStyle, syntaxTree } from "@codemirror/language";
 import type { EditorState, Text } from "@codemirror/state";
 import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
-import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
-import { SyntaxNodeRef } from "@lezer/common";
-import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
 import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
-import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
-import { TextmateLanguageSupport } from "../../../cm-textmate/classes/TextmateLanguageSupport";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
+import { SyntaxNodeRef } from "@lezer/common";
+import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
+import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
+import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
+import { TextmateLanguageSupport } from "../../../cm-textmate/classes/TextmateLanguageSupport";
+import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
+import PageBreakWidget from "../classes/widgets/PageBreakWidget";
 import TitlePageWidget, {
   TitlePageSpec,
 } from "../classes/widgets/TitlePageWidget";
+import { CollapseSpec } from "../types/CollapseSpec";
+import { MarkSpec } from "../types/MarkSpec";
 import { MarkupContent } from "../types/MarkupContent";
+import { PageBreakSpec } from "../types/PageBreakSpec";
 import { ReplaceSpec } from "../types/ReplaceSpec";
 import { RevealSpec } from "../types/RevealSpec";
-import { CollapseSpec } from "../types/CollapseSpec";
-import CollapseWidget from "../classes/widgets/CollapseWidget";
-import { MarkSpec } from "../types/MarkSpec";
-import { PageBreakSpec } from "../types/PageBreakSpec";
-import PageBreakWidget from "../classes/widgets/PageBreakWidget";
 
 const DIALOGUE_WIDTH = "60%";
 const CHARACTER_PADDING = "16%";
@@ -630,7 +630,9 @@ const replaceDecorations = StateField.define<DecorationSet>({
     if (oldTree != newTree) {
       const cachedCompiler = newTree.prop(cachedCompilerProp);
       const reparsedFrom = cachedCompiler?.reparsedFrom;
-      const reparsedTo = cachedCompiler?.reparsedTo;
+      const reparsedTo = cachedCompiler?.reparsedTo
+        ? cachedCompiler.reparsedTo - 1
+        : undefined;
       if (
         reparsedFrom == null ||
         (newTree.length !== oldTree.length && !transaction.docChanged)
@@ -646,7 +648,7 @@ const replaceDecorations = StateField.define<DecorationSet>({
         const add = decorate(transaction.state, reparsedFrom);
         decorations = decorations.map(transaction.changes);
         decorations = decorations.update({
-          filter: (_from, to) => to <= reparsedFrom,
+          filter: (_from, to) => to < reparsedFrom,
           add,
           sort: true,
         });
@@ -656,7 +658,7 @@ const replaceDecorations = StateField.define<DecorationSet>({
       const add = decorate(transaction.state, reparsedFrom, reparsedTo);
       decorations = decorations.map(transaction.changes);
       decorations = decorations.update({
-        filter: (from, to) => to <= reparsedFrom || from >= reparsedTo,
+        filter: (from, to) => to < reparsedFrom || from > reparsedTo,
         add,
         sort: true,
       });

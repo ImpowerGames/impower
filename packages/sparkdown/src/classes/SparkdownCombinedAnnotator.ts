@@ -155,7 +155,9 @@ export class SparkdownCombinedAnnotator {
     }
     const cachedCompiler = tree.prop(cachedCompilerProp);
     const reparsedFrom = cachedCompiler?.reparsedFrom;
-    const reparsedTo = cachedCompiler?.reparsedTo;
+    const reparsedTo = cachedCompiler?.reparsedTo
+      ? cachedCompiler.reparsedTo - 1
+      : undefined;
     if (!changes || reparsedFrom == null) {
       // Rebuild all annotations from scratch
       for (const [key, ranges] of Object.entries(
@@ -186,7 +188,7 @@ export class SparkdownCombinedAnnotator {
             annotator.current = annotator.current.map(changeDesc);
             annotator.current = annotator.current.update({
               filter: (from, to, value) => {
-                if (to <= reparsedFrom) {
+                if (to < reparsedFrom) {
                   return true;
                 }
                 this.remove(from, to, value, skip);
@@ -210,7 +212,7 @@ export class SparkdownCombinedAnnotator {
           annotator.current = annotator.current.map(changeDesc);
           annotator.current = annotator.current.update({
             filter: (from, to, value) => {
-              if (to <= reparsedFrom || from >= reparsedTo) {
+              if (to < reparsedFrom || from > reparsedTo) {
                 return true;
               }
               this.remove(from, to, value, skip);
