@@ -947,41 +947,27 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#ConditionalBlock" }
-      - { include: "#Divert" }
-      - { include: "#ChoiceText" }
-    end: ({{EOL}})(\r\n|\r|\n)?
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#EndOfLine" }
-      2:
-        patterns:
-          - { include: "#Newline" }
+      - { include: "#ChoiceUnsuppressedText" }
+      - { include: "#ChoiceSuppressedText" }
+    end: (?<=\[.*?\])|(?=[-][>])
 
   ChoiceMark:
     tag: keyword
     name: keyword.operator.expression.list.sd
     match: (.+)
 
-  ChoiceText:
+  ChoiceUnsuppressedText:
     tag: string
     name: string.choice.sd
-    match: (.+?)(?=$|[-][>]|[<][>]|{{TAG_START}})
-    captures:
-      1:
-        patterns:
-          - { include: "#Annotation" }
-          - { include: "#ChoiceSuppressedText" }
-          - { include: "#ChoiceUnsuppressedText" }
-
-  ChoiceUnsuppressedText:
-    match: (.+?)(?=\[.*?\]|{{EOL}})
+    match: (.+?)(?=\[.*?\])
     captures:
       1:
         patterns:
           - { include: "#ChoiceTextContent" }
 
   ChoiceSuppressedText:
+    tag: string
+    name: string.choice.sd
     match: (\[)(.*?)(\])
     captures:
       1:
