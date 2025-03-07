@@ -729,8 +729,8 @@
       "begin": "([(])([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
-          "tag": "paren",
-          "name": "meta.brace.round.open.sd"
+          "tag": "keyword",
+          "name": "punctuation.definition.template-expression.begin.sd"
         },
         "2": {
           "patterns": [
@@ -764,8 +764,8 @@
           ]
         },
         "2": {
-          "tag": "paren",
-          "name": "meta.brace.round.close.sd"
+          "tag": "keyword",
+          "name": "punctuation.definition.template-expression.end.sd"
         }
       }
     },
