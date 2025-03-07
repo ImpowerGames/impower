@@ -20,6 +20,7 @@ const updateInlineWorkerContent = async () => {
       SPARKDOWN_WORKER_FILE_PATH,
       "utf-8"
     );
+    console.log(`Read inline worker contents (${inlineWorkerContent.length})`);
   } catch (e) {
     console.error(`[Error] Failed to read ${SPARKDOWN_WORKER_FILE_PATH}:`, e);
     inlineWorkerContent = "";
@@ -33,6 +34,9 @@ const buildInlineWorkerPlugin = (placeholderFileName) => ({
     build.onLoad(
       { filter: new RegExp(`${placeholderFileName}\.(?:ts|js)$`) },
       async () => {
+        console.log(
+          `Loading inline worker contents (${inlineWorkerContent.length})`
+        );
         return {
           contents: inlineWorkerContent,
           loader: "text",
@@ -112,6 +116,7 @@ async function main() {
         }
       );
     });
+    await updateInlineWorkerContent();
     await ctx.rebuild();
     await ctx.dispose();
   }
