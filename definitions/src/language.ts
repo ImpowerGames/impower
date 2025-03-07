@@ -7,13 +7,16 @@ const STRING = "%s";
 const BLUE = "\x1b[34m" + STRING + RESET;
 const MAGENTA = "\x1b[35m" + STRING + RESET;
 
-const outPaths = process.argv.slice(2);
+const outPaths = process.argv.slice(2).filter((path) => !path.startsWith("--"));
+const WATCH = process.argv.includes("--watch");
 
 console.log(BLUE, "Propagating definitions to:");
 console.log(
   MAGENTA,
   `  ${outPaths.map((p) => path.join(process.cwd(), p)).join("\n  ")}`
 );
+
+const WATCH_PATH = `./yaml`;
 
 const CONFIG_NAME = "sparkdown.language-config";
 const IN_CONFIG_PATH = `./yaml/${CONFIG_NAME}.yaml`;
@@ -268,3 +271,13 @@ const build = async () => {
 build().catch((err) => {
   console.error(err);
 });
+
+if (WATCH) {
+  console.log(`[watch] Watching ${WATCH_PATH} for changes...`);
+  fs.watch(WATCH_PATH, { recursive: true }, async () => {
+    console.log(`[watch] Detected change in ${WATCH_PATH}, rebuilding...`);
+    await build().catch((err) => {
+      console.error(err);
+    });
+  });
+}
