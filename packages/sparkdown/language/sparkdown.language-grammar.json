@@ -1674,9 +1674,12 @@
         },
         {
           "include": "#ChoiceSuppressedText"
+        },
+        {
+          "include": "#ChoiceAfterSuppressedText"
         }
       ],
-      "end": "(?<=\\[.*?\\])|(?=[-][>])"
+      "end": "(?<=\\[.*?\\])|(?=[-][>]|^\\s*[*+]\\s+|^\\s*[-]\\s+)"
     },
     "ChoiceMark": {
       "tag": "keyword",
@@ -1684,9 +1687,7 @@
       "match": "(.+)"
     },
     "ChoiceUnsuppressedText": {
-      "tag": "string",
-      "name": "string.choice.sd",
-      "match": "(.+?)(?=\\[.*?\\])",
+      "match": "(.+?)(?=\\[.*?\\]|[-][>]|^\\s*[*+]\\s+|^\\s*[-]\\s+)",
       "captures": {
         "1": {
           "patterns": [
@@ -1698,8 +1699,6 @@
       }
     },
     "ChoiceSuppressedText": {
-      "tag": "string",
-      "name": "string.choice.sd",
       "match": "(\\[)(.*?)(\\])",
       "captures": {
         "1": {
@@ -1719,7 +1718,24 @@
         }
       }
     },
+    "ChoiceAfterSuppressedText": {
+      "match": "(.+?)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            },
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
     "ChoiceTextContent": {
+      "tag": "string",
+      "name": "string.choice.sd",
       "match": "(.+)",
       "captures": {
         "1": {
@@ -1969,8 +1985,11 @@
           ]
         },
         "2": {
-          "tag": "definition(heading)",
-          "name": "keyword.control.section.sd"
+          "patterns": [
+            {
+              "include": "#DoubleEqualMark"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -1996,18 +2015,21 @@
         "1": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#OptionalSeparator"
             }
           ]
         },
         "2": {
-          "tag": "definition(heading)",
-          "name": "keyword.control.section.sd"
+          "patterns": [
+            {
+              "include": "#DoubleEqualMark"
+            }
+          ]
         }
       }
     },
     "KnotDeclaration": {
-      "begin": "([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)",
+      "begin": "([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2027,13 +2049,6 @@
           "patterns": [
             {
               "include": "#Separator"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -2056,6 +2071,11 @@
           ]
         }
       }
+    },
+    "DoubleEqualMark": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
+      "match": "(.+)"
     },
     "KnotDeclarationName": {
       "tag": "definition(heading)",
@@ -2119,13 +2139,6 @@
               "include": "#StitchDeclarationName"
             }
           ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#EndOfLine"
-            }
-          ]
         }
       },
       "patterns": [
@@ -2167,7 +2180,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
+              "include": "#Separator"
             }
           ]
         }
@@ -2180,13 +2193,7 @@
           "include": "#FunctionParameters"
         }
       ],
-      "end": "([=]{2,})|(?=$)",
-      "endCaptures": {
-        "1": {
-          "tag": "definition(heading)",
-          "name": "keyword.control.knot.sd"
-        }
-      }
+      "end": "(?=$|[^\\S\\n\\r]*[=]{2,})"
     },
     "FunctionDeclarationName": {
       "tag": "function(variableName)",
@@ -2981,6 +2988,11 @@
       "tag": "definition(content)",
       "name": "markup.raw.whitespace.sd",
       "match": "([^\\S\\n\\r]+)"
+    },
+    "OptionalSeparator": {
+      "tag": "definition(content)",
+      "name": "markup.raw.whitespace.sd",
+      "match": "([^\\S\\n\\r]*)"
     },
     "EndOfLine": {
       "patterns": [
