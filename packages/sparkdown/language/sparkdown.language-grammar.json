@@ -1670,10 +1670,7 @@
           "include": "#Newline"
         },
         {
-          "include": "#ChoiceUnsuppressedText"
-        },
-        {
-          "include": "#ChoiceSuppressedText"
+          "include": "#ChoiceWithSuppressedText"
         },
         {
           "include": "#ChoiceAfterSuppressedText"
@@ -1686,24 +1683,15 @@
       "name": "keyword.operator.expression.list.sd",
       "match": "(.+)"
     },
-    "ChoiceUnsuppressedText": {
-      "match": "(.+?)(?=\\[.*?\\]|[-][>]|^\\s*[*+]\\s+|^\\s*[-]\\s+)",
+    "ChoiceWithSuppressedText": {
+      "match": "([^\\S\\n\\r]*)(.*?)(\\[)(.*?)(\\])([^\\S\\n\\r]*(?=[-][>]))?",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#ChoiceTextContent"
+              "include": "#Separator"
             }
           ]
-        }
-      }
-    },
-    "ChoiceSuppressedText": {
-      "match": "(\\[)(.*?)(\\])",
-      "captures": {
-        "1": {
-          "tag": "keyword",
-          "name": "punctuation.definition.template-expression.begin.choice.suppression.sd"
         },
         "2": {
           "patterns": [
@@ -1714,7 +1702,25 @@
         },
         "3": {
           "tag": "keyword",
+          "name": "punctuation.definition.template-expression.begin.choice.suppression.sd"
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#ChoiceTextContent"
+            }
+          ]
+        },
+        "5": {
+          "tag": "keyword",
           "name": "punctuation.definition.template-expression.end.choice.suppression.sd"
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
         }
       }
     },
@@ -1975,7 +1981,7 @@
       "match": "(.+)"
     },
     "Knot": {
-      "begin": "^([^\\S\\n\\r]*)([=]{2,})((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "^([^\\S\\n\\r]*)([=]{2,}(?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1987,22 +1993,12 @@
         "2": {
           "patterns": [
             {
-              "include": "#DoubleEqualMark"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Separator"
+              "include": "#KnotBeginMark"
             }
           ]
         }
       },
       "patterns": [
-        {
-          "include": "#Annotation"
-        },
         {
           "include": "#FunctionDeclaration"
         },
@@ -2010,69 +2006,41 @@
           "include": "#KnotDeclaration"
         }
       ],
-      "end": "([^\\S\\n\\r]*)([=]{2,})|(?=$)",
+      "end": "([^\\S\\n\\r]*[=]{2,})|(?=$)",
       "endCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#OptionalSeparator"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#DoubleEqualMark"
+              "include": "#KnotEndMark"
             }
           ]
         }
       }
     },
     "KnotDeclaration": {
-      "begin": "([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
               "include": "#KnotDeclarationName"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Separator"
             }
           ]
         }
       },
       "patterns": [
         {
-          "include": "#Annotation"
-        },
-        {
           "include": "#FunctionParameters"
         }
       ],
-      "end": "([^\\S\\n\\r]*)(?=$|[=]|[/][/])",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Separator"
-            }
-          ]
-        }
-      }
+      "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
-    "DoubleEqualMark": {
+    "KnotBeginMark": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
+      "match": "(.+)"
+    },
+    "KnotEndMark": {
       "tag": "definition(heading)",
       "name": "keyword.control.section.sd",
       "match": "(.+)"
@@ -2157,7 +2125,7 @@
       "match": "(.+)"
     },
     "FunctionDeclaration": {
-      "begin": "(function)([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "(function)([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)",
       "beginCaptures": {
         "1": {
           "tag": "controlKeyword",
@@ -2174,13 +2142,6 @@
           "patterns": [
             {
               "include": "#FunctionDeclarationName"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Separator"
             }
           ]
         }

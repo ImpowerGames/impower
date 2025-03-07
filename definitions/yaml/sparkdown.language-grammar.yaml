@@ -948,8 +948,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#ConditionalBlock" }
       - { include: "#Newline" }
-      - { include: "#ChoiceUnsuppressedText" }
-      - { include: "#ChoiceSuppressedText" }
+      - { include: "#ChoiceWithSuppressedText" }
       - { include: "#ChoiceAfterSuppressedText" }
     end: (?<=\[.*?\])|(?=[-][>]|^\s*[*+]\s+|^\s*[-]\s+)
 
@@ -958,25 +957,27 @@ repository:
     name: keyword.operator.expression.list.sd
     match: (.+)
 
-  ChoiceUnsuppressedText:
-    match: (.+?)(?=\[.*?\]|[-][>]|^\s*[*+]\s+|^\s*[-]\s+)
+  ChoiceWithSuppressedText:
+    match: ({{WS}}*)(.*?)(\[)(.*?)(\])({{WS}}*(?=[-][>]))?
     captures:
       1:
         patterns:
-          - { include: "#ChoiceTextContent" }
-
-  ChoiceSuppressedText:
-    match: (\[)(.*?)(\])
-    captures:
-      1:
-        tag: keyword
-        name: punctuation.definition.template-expression.begin.choice.suppression.sd
+          - { include: "#Separator" }
       2:
         patterns:
           - { include: "#ChoiceTextContent" }
       3:
         tag: keyword
+        name: punctuation.definition.template-expression.begin.choice.suppression.sd
+      4:
+        patterns:
+          - { include: "#ChoiceTextContent" }
+      5:
+        tag: keyword
         name: punctuation.definition.template-expression.end.choice.suppression.sd
+      6:
+        patterns:
+          - { include: "#Separator" }
 
   ChoiceAfterSuppressedText:
     match: (.+?)
@@ -1113,52 +1114,39 @@ repository:
   ########## Knot, Stitch, Function ##########
 
   Knot:
-    begin: ^({{WS}}*)([=]{2,})({{EOK}})
+    begin: ^({{WS}}*)([=]{2,}{{EOK}})
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#DoubleEqualMark" }
-      3:
-        patterns:
-          - { include: "#Separator" }
+          - { include: "#KnotBeginMark" }
     patterns:
-      - { include: "#Annotation" }
       - { include: "#FunctionDeclaration" }
       - { include: "#KnotDeclaration" }
-    end: ({{WS}}*)([=]{2,})|(?=$)
+    end: ({{WS}}*[=]{2,})|(?=$)
     endCaptures:
       1:
         patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        patterns:
-          - { include: "#DoubleEqualMark" }
+          - { include: "#KnotEndMark" }
 
   KnotDeclaration:
-    begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*)
+    begin: ({{IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
           - { include: "#KnotDeclarationName" }
-      3:
-        patterns:
-          - { include: "#Separator" }
     patterns:
-      - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
-    end: ({{WS}}*)(?=$|[=]|[/][/])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#Separator" }
+    end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
 
-  DoubleEqualMark:
+  KnotBeginMark:
+    tag: definition(heading)
+    name: keyword.control.section.sd
+    match: (.+)
+
+  KnotEndMark:
     tag: definition(heading)
     name: keyword.control.section.sd
     match: (.+)
@@ -1209,7 +1197,7 @@ repository:
     match: (.+)
 
   FunctionDeclaration:
-    begin: (function)({{WS}}*)({{IDENTIFIER}})({{WS}}*)
+    begin: (function)({{WS}}*)({{IDENTIFIER}})
     beginCaptures:
       1:
         tag: controlKeyword
@@ -1220,9 +1208,6 @@ repository:
       3:
         patterns:
           - { include: "#FunctionDeclarationName" }
-      4:
-        patterns:
-          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }

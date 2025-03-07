@@ -52,7 +52,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
 
   divertPathParts: string[] = [];
 
-  override start() {
+  override begin() {
     this.defineModifier = "";
     this.defineType = "";
     this.defineName = "";

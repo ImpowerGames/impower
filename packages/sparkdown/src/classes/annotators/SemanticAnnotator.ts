@@ -55,7 +55,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
 
   inLinkMap = false;
 
-  override start(): void {
+  override begin(): void {
     this.nesting = 0;
     this.defineName = "";
     this.inLinkMap = false;

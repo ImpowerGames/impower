@@ -14,18 +14,29 @@ export abstract class SparkdownAnnotator<
   update(tree: Tree, text: Text) {
     this.tree = tree;
     this.text = text;
-    this.start();
   }
 
-  start() {}
+  begin(iterateFrom: number, iterateTo: number) {}
+
+  end(iterateFrom: number, iterateTo: number) {}
 
   remove(from: number, to: number, value: T) {}
 
-  enter(annotations: Range<T>[], nodeRef: SyntaxNodeRef): Range<T>[] {
+  enter(
+    annotations: Range<T>[],
+    nodeRef: SyntaxNodeRef,
+    iteratingFrom: number,
+    iteratingTo: number
+  ): Range<T>[] {
     return annotations;
   }
 
-  leave(annotations: Range<T>[], nodeRef: SyntaxNodeRef): Range<T>[] {
+  leave(
+    annotations: Range<T>[],
+    nodeRef: SyntaxNodeRef,
+    iteratingFrom: number,
+    iteratingTo: number
+  ): Range<T>[] {
     return annotations;
   }
 
@@ -64,5 +75,18 @@ export abstract class SparkdownAnnotator<
       return new Line();
     }
     return this.text.lineAt(pos);
+  }
+
+  debug() {
+    const iter = this.current.iter(0);
+    while (iter.value) {
+      console.log(
+        iter.from,
+        iter.to,
+        JSON.stringify(this.read(iter.from, iter.to)),
+        iter.value
+      );
+      iter.next();
+    }
   }
 }

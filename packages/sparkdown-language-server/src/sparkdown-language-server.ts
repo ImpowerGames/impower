@@ -251,10 +251,12 @@ try {
   connection.onDocumentFormatting((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
+    const tree = documents.tree(uri);
     const annotations = documents.annotations(uri);
     performance.mark(`lsp: onDocumentFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
       document,
+      tree,
       annotations,
       params.options
     );
@@ -271,10 +273,12 @@ try {
   connection.onDocumentRangeFormatting((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
+    const tree = documents.tree(uri);
     const annotations = documents.annotations(uri);
     performance.mark(`lsp: onDocumentRangeFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
       document,
+      tree,
       annotations,
       params.options,
       params.range
@@ -302,7 +306,13 @@ try {
       params.ch
     );
     const result = range
-      ? getDocumentFormattingEdits(document, annotations, params.options, range)
+      ? getDocumentFormattingEdits(
+          document,
+          tree,
+          annotations,
+          params.options,
+          range
+        )
       : null;
     performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} end`);
     performance.measure(

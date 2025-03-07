@@ -50,32 +50,15 @@ wordPattern:
   flags: u
 
 onEnterRules:
-  - beforeText: ^\s*(?![%]\s+).*?[:]\s*$
-    action:
-      indent: "indent"
-  - beforeText: ^\s*(?:[-])\s*$
-    action:
-      indent: "indent"
-  - beforeText: ^\s*(?:[-])\s+.*(?:\s[=]\s).*$
-    action:
-      indent: "indent"
-  - beforeText: ^\s*(?:[%]\s+).*?[\\]\s*$
-    action:
-      indent: "indent"
-  - beforeText: ^\s*(?:[$]\s+).*?[\\]\s*$
-    action:
-      indent: "indent"
-  - beforeText: ^\s*(?:[!]\s+).*?[\\]\s*$
-    action:
-      indent: "indent"
-  - beforeText: ^\s*(?:[@]\s+.*?[:]).*?[\\]\s*$
-    action:
-      indent: "indent"
-  - beforeText: \{[^{]*$
-    afterText: ^\s*\}.*$
+  - beforeText: \{\s*$
+    afterText: \s*\}
     action:
       indent: "indentOutdent"
       appendText: "- "
+  - beforeText: \{[^{}]*
+    afterText: \s*\}
+    action:
+      indent: "indentOutdent"
   - beforeText: \{\s*$
     afterText: (?!\s*\})
     action:
@@ -113,6 +96,27 @@ onEnterRules:
       indent: "indentOutdent"
   - beforeText: \(\s*$
     afterText: ^(?!\s*\))
+    action:
+      indent: "indent"
+  - beforeText: ^\s*(?![%]\s+).*?[:]\s*$
+    action:
+      indent: "indent"
+  - beforeText: ^\s*(?:[-])\s*$
+    action:
+      indent: "indent"
+  - beforeText: ^\s*(?:[-])\s+.*(?:\s[=]\s).*$
+    action:
+      indent: "indent"
+  - beforeText: ^\s*(?:[%]\s+).*?[\\]\s*$
+    action:
+      indent: "indent"
+  - beforeText: ^\s*(?:[$]\s+).*?[\\]\s*$
+    action:
+      indent: "indent"
+  - beforeText: ^\s*(?:[!]\s+).*?[\\]\s*$
+    action:
+      indent: "indent"
+  - beforeText: ^\s*(?:[@]\s+.*?[:]).*?[\\]\s*$
     action:
       indent: "indent"
   - beforeText: ^\s*$

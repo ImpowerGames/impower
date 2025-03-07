@@ -103,20 +103,39 @@ export class SparkdownCombinedAnnotator {
       links: [],
       semantics: [],
     };
+
+    const iteratingFrom = from ?? 0;
+    const iteratingTo = to ?? tree.length;
+
+    for (const [key, annotator] of this._currentEntries) {
+      if (!skip?.has(key as keyof SparkdownAnnotators)) {
+        annotator.begin(iteratingFrom, iteratingTo);
+      }
+    }
     tree.iterate({
       from,
       to,
       enter: (nodeRef) => {
         for (const [key, annotator] of this._currentEntries) {
           if (!skip?.has(key as keyof SparkdownAnnotators)) {
-            annotator.enter(ranges[key as keyof SparkdownAnnotators]!, nodeRef);
+            annotator.enter(
+              ranges[key as keyof SparkdownAnnotators]!,
+              nodeRef,
+              iteratingFrom,
+              iteratingTo
+            );
           }
         }
       },
       leave: (nodeRef) => {
         for (const [key, annotator] of this._currentEntries) {
           if (!skip?.has(key as keyof SparkdownAnnotators)) {
-            annotator.leave(ranges[key as keyof SparkdownAnnotators]!, nodeRef);
+            annotator.leave(
+              ranges[key as keyof SparkdownAnnotators]!,
+              nodeRef,
+              iteratingFrom,
+              iteratingTo
+            );
           }
         }
       },
@@ -148,16 +167,16 @@ export class SparkdownCombinedAnnotator {
     length: number = 0,
     skip?: Set<keyof SparkdownAnnotators>
   ) {
+    const cachedCompiler = tree.prop(cachedCompilerProp);
+    const reparsedFrom = cachedCompiler?.reparsedFrom;
+    const reparsedTo = cachedCompiler?.reparsedTo;
+    const iteratingFrom = reparsedFrom ?? 0;
+    const iteratingTo = reparsedTo ?? text.length;
     for (const [key, annotator] of this._currentEntries) {
       if (!skip?.has(key as keyof SparkdownAnnotators)) {
         annotator.update(tree, text);
       }
     }
-    const cachedCompiler = tree.prop(cachedCompilerProp);
-    const reparsedFrom = cachedCompiler?.reparsedFrom;
-    const reparsedTo = cachedCompiler?.reparsedTo
-      ? cachedCompiler.reparsedTo - 1
-      : undefined;
     if (!changes || reparsedFrom == null) {
       // Rebuild all annotations from scratch
       for (const [key, ranges] of Object.entries(
@@ -169,6 +188,11 @@ export class SparkdownCombinedAnnotator {
             annotator.current =
               ranges.length > 0 ? RangeSet.of(ranges, true) : RangeSet.empty;
           }
+        }
+      }
+      for (const [key, annotator] of this._currentEntries) {
+        if (!skip?.has(key as keyof SparkdownAnnotators)) {
+          annotator.end(iteratingFrom, iteratingTo);
         }
       }
       return this.current;
@@ -200,6 +224,11 @@ export class SparkdownCombinedAnnotator {
           }
         }
       }
+      for (const [key, annotator] of this._currentEntries) {
+        if (!skip?.has(key as keyof SparkdownAnnotators)) {
+          annotator.end(iteratingFrom, iteratingTo);
+        }
+      }
       return this.current;
     }
     // Only rebuild annotations between reparsedFrom and reparsedTo
@@ -222,6 +251,11 @@ export class SparkdownCombinedAnnotator {
             sort: true,
           });
         }
+      }
+    }
+    for (const [key, annotator] of this._currentEntries) {
+      if (!skip?.has(key as keyof SparkdownAnnotators)) {
+        annotator.end(iteratingFrom, iteratingTo);
       }
     }
     return this.current;

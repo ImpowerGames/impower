@@ -222,7 +222,7 @@ export class SparkdownCompiler {
       [],
       false,
       (message: string, type, source) => {
-        console.error(message, type, source);
+        // console.error(message, type, source);
       },
       {
         ResolveInkFilename: (filename: string): string => {
@@ -282,7 +282,7 @@ export class SparkdownCompiler {
         this.populateImplicitDefs(program);
         this.validateReferences(program);
       } catch (e) {
-        console.error(e);
+        // console.error(e);
       }
     }
     return program;

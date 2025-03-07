@@ -1,9 +1,9 @@
 import { Range } from "@codemirror/state";
-import { SparkdownAnnotation } from "../SparkdownAnnotation";
-import { SparkdownAnnotator } from "../SparkdownAnnotator";
+import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { uuid as UUID } from "../../utils/uuid";
-import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
+import { SparkdownAnnotation } from "../SparkdownAnnotation";
+import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
 const FLOW_MARKER_REGEX = /^([=])(.*?)([=])/;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
@@ -22,7 +22,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
 
   prevNodeType = "";
 
-  override start() {
+  override begin() {
     this.blockPrefix = "";
     this.prevNodeType = "";
   }

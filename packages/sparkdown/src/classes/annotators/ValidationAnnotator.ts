@@ -72,7 +72,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
 > {
   selectorFunctionName = "";
 
-  override start(): void {
+  override begin(): void {
     this.selectorFunctionName = "";
   }
 
