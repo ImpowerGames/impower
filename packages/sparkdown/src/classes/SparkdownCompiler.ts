@@ -558,6 +558,38 @@ export class SparkdownCompiler {
         while (cur.value) {
           const reference = cur.value.type;
           const range = doc.range(cur.from, cur.to);
+          if (reference.symbolIds) {
+            for (const symbolId of reference.symbolIds) {
+              if (getProperty(this._config.builtinDefinitions, symbolId)) {
+                if (
+                  reference.declaration === "const" ||
+                  reference.declaration === "var" ||
+                  reference.declaration === "temp" ||
+                  reference.declaration === "param" ||
+                  reference.declaration === "list" ||
+                  reference.declaration === "knot" ||
+                  reference.declaration === "stitch"
+                ) {
+                  console.log(symbolId);
+                  const message = `Cannot declare ${reference.declaration} named '${symbolId}':\nConflicts with builtin type '${symbolId}'`;
+                  program.diagnostics ??= {};
+                  program.diagnostics[uri] ??= [];
+                  program.diagnostics[uri].push({
+                    range,
+                    severity: DiagnosticSeverity.Error,
+                    message,
+                    relatedInformation: [
+                      {
+                        location: { uri, range },
+                        message: "",
+                      },
+                    ],
+                    source: LANGUAGE_NAME,
+                  });
+                }
+              }
+            }
+          }
           if (reference.selector) {
             const selector = reference.selector;
             const declaration = reference.assigned;
