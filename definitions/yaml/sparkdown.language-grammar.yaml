@@ -1144,7 +1144,7 @@ repository:
         name: keyword.control.section.sd
 
   KnotDeclaration:
-    begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*(?![(]))({{WS}}*)
+    begin: ({{WS}}*)({{IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -1194,7 +1194,7 @@ repository:
           - { include: "#InvalidValue" }
 
   StitchDeclaration:
-    begin: ({{WS}}*)({{IDENTIFIER}})({{EOL}})
+    begin: ({{WS}}*)({{IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
