@@ -87,7 +87,7 @@ export class MatchRule implements Rule {
                   i += matched.length;
                 } else {
                   const noneMatched = Matched.create(
-                    GrammarNode.None,
+                    GrammarNode.Unrecognized,
                     pos + i,
                     1
                   );

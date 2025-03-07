@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { SpecialRecord } from "../../compiler/enums/SpecialRecord";
-import { Node } from "../../core";
+import { Node, NodeID } from "../../core";
 
 import { RuleDefinition } from "../types/GrammarDefinition";
 import { createID } from "../utils/createID";
@@ -39,4 +39,7 @@ export class GrammarNode implements Node {
 
   /** Special `Node` used for when a rule doesn't emit anything. */
   static None = new GrammarNode(SpecialRecord.Reuse, { id: "none" });
+  static Unrecognized = new GrammarNode(NodeID.unrecognized, {
+    id: "unrecognized",
+  });
 }

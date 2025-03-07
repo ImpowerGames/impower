@@ -116,7 +116,7 @@ export class ScopedRule implements Rule {
           state.advance();
         }
       } else {
-        const noneMatched = Matched.create(GrammarNode.None, pos, 1);
+        const noneMatched = Matched.create(GrammarNode.Unrecognized, pos, 1);
         contentChildren.push(noneMatched);
         const matchLength = noneMatched.length;
         totalLength += matchLength;
