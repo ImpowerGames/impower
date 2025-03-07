@@ -570,7 +570,6 @@ export class SparkdownCompiler {
                   reference.declaration === "knot" ||
                   reference.declaration === "stitch"
                 ) {
-                  console.log(symbolId);
                   const message = `Cannot declare ${reference.declaration} named '${symbolId}':\nConflicts with builtin type '${symbolId}'`;
                   program.diagnostics ??= {};
                   program.diagnostics[uri] ??= [];
