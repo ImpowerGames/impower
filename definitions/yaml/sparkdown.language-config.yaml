@@ -71,12 +71,32 @@ onEnterRules:
   - beforeText: ^\s*(?:[@]\s+.*?[:]).*?[\\]\s*$
     action:
       indent: "indent"
-  - beforeText: \{\s*$
+  - beforeText: \{[^{]*$
     afterText: ^\s*\}.*$
     action:
       indent: "indentOutdent"
+      appendText: "- "
   - beforeText: \{\s*$
-    afterText: ^(?!\s*\})
+    afterText: (?!\s*\})
+    action:
+      indent: "none"
+      appendText: "- "
+  - beforeText: \s*[-]\s+.*?$
+    action:
+      indent: "none"
+      appendText: "- "
+  - beforeText: \s*[+]\s+.*?(\[.*?\]|[-][>]).*?$
+    action:
+      indent: "none"
+      appendText: "+ "
+  - beforeText: \s*[*]\s+.*?(\[.*?\]|[-][>]).*?$
+    action:
+      indent: "none"
+      appendText: "* "
+  - beforeText: \s*[+]\s+.*?(?!\[.*?\]|[-][>]).*?$
+    action:
+      indent: "indent"
+  - beforeText: \s*[*]\s+.*?(?!\[.*?\]|[-][>]).*?$
     action:
       indent: "indent"
   - beforeText: \[\s*$
