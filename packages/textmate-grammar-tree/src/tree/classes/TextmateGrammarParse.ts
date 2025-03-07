@@ -11,7 +11,6 @@ import { NodeID } from "../../core/enums/NodeID";
 import { GrammarToken } from "../../core/types/GrammarToken";
 import { Grammar } from "../../grammar/classes/Grammar";
 import { cachedCompilerProp } from "../props/cachedCompilerProp";
-import { findProp } from "../utils/findProp";
 import { TextmateParseRegion } from "./TextmateParseRegion";
 
 /**
@@ -79,32 +78,25 @@ export class TextmateGrammarParse implements PartialParse {
 
     this.region = new TextmateParseRegion(input, ranges, fragments);
 
-    if (fragments) {
+    if (fragments && this.region.edit) {
       // find cached chunks, if possible
       for (let idx = 0; idx < fragments.length; idx++) {
         const f = fragments[idx]!;
-        // make sure fragment is within the region of the document we care about
-        if (f.from <= this.region.from && f.to >= this.region.from) {
-          // try to find the buffer for this fragment's tree in the cache
-          const cachedCompiler = findProp<Compiler>(
-            cachedCompilerProp,
-            f.tree,
-            this.region.from,
-            f.to
+        // try to find the buffer for this fragment's tree in the cache
+        const cachedCompiler = Object.values(
+          (f.tree as any).props as any[]
+        ).find((v) => v instanceof Compiler);
+        if (cachedCompiler) {
+          const restartFrom = cachedCompiler.reuse(
+            this.region.edit.from,
+            this.region.edit.to,
+            this.region.edit.offset
           );
-          if (cachedCompiler) {
-            if (this.region.edit) {
-              const restartFrom = cachedCompiler.reuse(
-                this.region.edit.from,
-                this.region.edit.to,
-                this.region.edit.offset
-              );
-              if (restartFrom != null) {
-                this.region.from = restartFrom;
-                this.compiler = cachedCompiler;
-              }
-            }
+          if (restartFrom != null) {
+            this.region.from = restartFrom;
+            this.compiler = cachedCompiler;
           }
+          break;
         }
       }
     }
