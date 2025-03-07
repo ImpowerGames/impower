@@ -1,7 +1,6 @@
+import { exec } from "child_process";
 import { context } from "esbuild";
 import fs from "fs";
-
-fs.watchFile;
 
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
 
@@ -97,6 +96,22 @@ async function main() {
       await ctx.rebuild();
     });
   } else {
+    // Build worker file
+    console.log(`Building ${SPARKDOWN_WORKER_FILE_PATH}`);
+    await new Promise((resolve) => {
+      exec(
+        `npm run build:${PRODUCTION ? "prod" : "dev"}:workers`,
+        (error, _stdout, stderr) => {
+          if (error) {
+            console.error(error);
+          }
+          if (stderr) {
+            console.error(stderr);
+          }
+          resolve();
+        }
+      );
+    });
     await ctx.rebuild();
     await ctx.dispose();
   }
