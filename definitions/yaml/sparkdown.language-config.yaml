@@ -22,6 +22,14 @@ autoClosingPairs:
     notIn: ["DialogueCharacterPosition"]
   - open: '"'
     close: '"'
+  - open: "=== "
+    close: " ==="
+  - open: "== "
+    close: " =="
+  - open: "~~"
+    close: "~~"
+  - open: "::"
+    close: "::"
 
 surroundingPairs:
   - ["{", "}"]
@@ -43,41 +51,41 @@ wordPattern:
 
 onEnterRules:
   - beforeText: ^\s*(?![%]\s+).*?[:]\s*$
-    action: 
+    action:
       indent: "indent"
   - beforeText: ^\s*(?:[-])\s*$
-    action: 
+    action:
       indent: "indent"
   - beforeText: ^\s*(?:[-])\s+.*(?:\s[=]\s).*$
-    action: 
+    action:
       indent: "indent"
   - beforeText: ^\s*(?:[%]\s+).*?[\\]\s*$
-    action: 
+    action:
       indent: "indent"
   - beforeText: ^\s*(?:[$]\s+).*?[\\]\s*$
-    action: 
+    action:
       indent: "indent"
   - beforeText: ^\s*(?:[!]\s+).*?[\\]\s*$
-    action: 
+    action:
       indent: "indent"
   - beforeText: ^\s*(?:[@]\s+.*?[:]).*?[\\]\s*$
-    action: 
+    action:
       indent: "indent"
   - beforeText: \{\s*$
     afterText: ^\s*\}.*$
-    action: 
+    action:
       indent: "indentOutdent"
   - beforeText: \{\s*$
     afterText: ^(?!\s*\})
-    action: 
+    action:
       indent: "indent"
   - beforeText: \[\s*$
     afterText: ^\s*\].*$
-    action: 
+    action:
       indent: "indentOutdent"
   - beforeText: \[\s*$
     afterText: ^(?!\s*\])
-    action: 
+    action:
       indent: "indent"
   - beforeText: \(\s*$
     afterText: ^\s*\).*$
@@ -85,10 +93,10 @@ onEnterRules:
       indent: "indentOutdent"
   - beforeText: \(\s*$
     afterText: ^(?!\s*\))
-    action: 
+    action:
       indent: "indent"
   - beforeText: ^\s*$
-    action: 
+    action:
       indent: "none"
       deleteText: "  "
   - beforeText: ^\s*
