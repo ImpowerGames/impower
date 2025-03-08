@@ -18,6 +18,7 @@ import { getCompletions } from "./utils/providers/getCompletions";
 import { getDocumentColors } from "./utils/providers/getDocumentColors";
 import { getDocumentFormattingEdits } from "./utils/providers/getDocumentFormattingEdits";
 import { getDocumentLinks } from "./utils/providers/getDocumentLinks";
+import { getDocumentOnTypeFormattingEdits } from "./utils/providers/getDocumentOnTypeFormattingEdits";
 import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
@@ -73,7 +74,7 @@ try {
       documentFormattingProvider: true,
       documentRangeFormattingProvider: true,
       documentOnTypeFormattingProvider: {
-        firstTriggerCharacter: "\n",
+        firstTriggerCharacter: ":",
         moreTriggerCharacter: [":", "]", "}", ")", "\n"],
       },
       renameProvider: {
@@ -296,15 +297,13 @@ try {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const tree = documents.tree(uri);
-    const annotations = documents.annotations(uri);
     performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} start`);
-    const result = getDocumentFormattingEdits(
+    const result = getDocumentOnTypeFormattingEdits(
       document,
       tree,
-      annotations,
       params.options,
-      undefined,
-      params.position
+      params.position,
+      params.ch
     );
     performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} end`);
     performance.measure(

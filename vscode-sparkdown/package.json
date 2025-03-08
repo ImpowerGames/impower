@@ -197,7 +197,8 @@
         "editor.guides.highlightActiveIndentation": true,
         "editor.guides.bracketPairsHorizontal": false,
         "editor.renderWhitespace": "boundary",
-        "editor.formatOnSave": true
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true
       }
     },
     "languages": [
