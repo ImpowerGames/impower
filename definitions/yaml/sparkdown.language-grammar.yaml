@@ -947,10 +947,11 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#ConditionalBlock" }
+      - { include: "#Separator" }
       - { include: "#Newline" }
       - { include: "#ChoiceWithSuppressedText" }
       - { include: "#ChoiceAfterSuppressedText" }
-    end: (?<=\[.*?\])|(?=[-][>]|^\s*[*+]\s+|^\s*[-]\s+)
+    end: (?<=\[.*?\]\s*)|(?=[-][>]|^\s*[*+-]\s+)
 
   ChoiceMark:
     tag: keyword
