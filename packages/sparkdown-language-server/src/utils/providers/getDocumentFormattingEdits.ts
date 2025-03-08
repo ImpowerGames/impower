@@ -32,14 +32,15 @@ export const getDocumentFormattingEdits = (
     return undefined;
   }
 
-  const edits: (TextEdit & { oldText: string; type: string })[] = [];
+  const edits: (TextEdit & { line: number; oldText: string; type: string })[] =
+    [];
 
   const indentStack: { type: string; marks?: string[]; level: number }[] = [
     { type: "", level: 0 },
   ];
 
   const pushIfInRange = (
-    edit: TextEdit & { oldText: string; type: string }
+    edit: TextEdit & { line: number; oldText: string; type: string }
   ) => {
     if (!formattingRange || isInRange(document, edit.range, formattingRange)) {
       edits.push(edit);
@@ -175,6 +176,7 @@ export const getDocumentFormattingEdits = (
           : "\t".repeat(newIndentLevel);
         if (currentIndentation !== expectedIndentation) {
           pushIfInRange({
+            line: range.start.line,
             range,
             oldText: document.getText(range),
             newText: expectedIndentation,
@@ -188,6 +190,7 @@ export const getDocumentFormattingEdits = (
         const expectedText = " ";
         if (text !== expectedText) {
           pushIfInRange({
+            line: range.start.line,
             range,
             oldText: document.getText(range),
             newText: expectedText,
@@ -199,6 +202,7 @@ export const getDocumentFormattingEdits = (
         const expectedText = "";
         if (text !== expectedText) {
           pushIfInRange({
+            line: range.start.line,
             range,
             oldText: document.getText(range),
             newText: expectedText,
@@ -210,6 +214,7 @@ export const getDocumentFormattingEdits = (
         const expectedText = "";
         if (options.trimTrailingWhitespace && text !== expectedText) {
           pushIfInRange({
+            line: range.start.line,
             range,
             oldText: document.getText(range),
             newText: expectedText,
@@ -241,6 +246,7 @@ export const getDocumentFormattingEdits = (
             end: range.end,
           };
           pushIfInRange({
+            line: editRange.start.line,
             range: editRange,
             oldText: document.getText(editRange),
             newText: expectedText.slice(1),
@@ -260,6 +266,7 @@ export const getDocumentFormattingEdits = (
             end: range.end,
           };
           pushIfInRange({
+            line: editRange.start.line,
             range: editRange,
             oldText: document.getText(editRange),
             newText: expectedText.slice(1),
@@ -271,6 +278,7 @@ export const getDocumentFormattingEdits = (
         const expectedText = " ==";
         if (text !== expectedText) {
           pushIfInRange({
+            line: range.start.line,
             range,
             oldText: document.getText(range),
             newText: expectedText,
@@ -286,6 +294,7 @@ export const getDocumentFormattingEdits = (
           if (prevLine && !prevLine.text.trim()) {
             // Delete extra blank lines
             pushIfInRange({
+              line: lineRange.start.line,
               range: lineRange,
               oldText: document.getText(lineRange),
               newText: "",
@@ -294,6 +303,7 @@ export const getDocumentFormattingEdits = (
           } else if (text.length > 0) {
             // Delete extra whitespace
             pushIfInRange({
+              line: lineRange.start.line,
               range: {
                 start: lineRange.start,
                 end: {
@@ -323,6 +333,7 @@ export const getDocumentFormattingEdits = (
           end: lastPosition,
         };
         pushIfInRange({
+          line: editRange.start.line,
           range: editRange,
           oldText: document.getText(editRange),
           newText: "\n",
@@ -340,6 +351,7 @@ export const getDocumentFormattingEdits = (
       ) {
         const editRange = lastLine.range;
         pushIfInRange({
+          line: editRange.start.line,
           range: editRange,
           oldText: document.getText(editRange),
           newText: "",
@@ -375,17 +387,19 @@ export const getDocumentFormattingEdits = (
           // Indent takes precedence over separator
           continue;
         } else if (curr.type === "blankline" && prev.type === "indent") {
-          // Deleting blank line takes precedence over indent
-          if (prev.newText === "") {
-            // Indent was also going to be deleted, so delete it along with the blank line
-            curr.range.start = prev.range.start;
+          // Delete blank line and indent
+          curr.range.start = prev.range.start;
+          if (document.getLineText(prev.range.start.line).trim()) {
+            // Add indent if line is not blank
+            curr.newText += prev.newText;
           }
           result.pop();
         } else if (prev.type === "blankline" && curr.type === "indent") {
-          // Deleting blank line takes precedence over indent
-          if (curr.newText === "") {
-            // Indent was also going to be deleted, so delete it along with the blank line
-            prev.range.end = curr.range.end;
+          // Delete blank line and indent
+          prev.range.end = curr.range.end;
+          if (document.getLineText(curr.range.start.line).trim()) {
+            // Add indent if line is not blank
+            prev.newText += curr.newText;
           }
           continue;
         } else if (curr.type === "blankline" && prev.type === "separator") {
