@@ -12,6 +12,7 @@ import {
 import { type Range } from "vscode-languageserver-textdocument";
 
 const WHITESPACE_REGEX = /[\t ]*/;
+const INDENT_REGEX: RegExp = /^[ \t]*/;
 
 const isInRange = (
   document: SparkdownDocument,
@@ -139,7 +140,20 @@ export const getDocumentFormattingEdits = (
       // Process current
       const range = document.range(cur.from, cur.to);
       if (cur.value.type === "indent") {
-        let currentIndentation = document.read(cur.from, cur.to);
+        let text = document.read(cur.from, cur.to);
+        const indentMatch = text.match(INDENT_REGEX);
+        const currentIndentation = indentMatch?.[0] || "";
+        const indentRange = {
+          start: {
+            line: range.start.line,
+            character: range.start.character,
+          },
+          end: {
+            line: range.start.line,
+            character: currentIndentation.length,
+          },
+        };
+
         const currentIndent = indentStack.at(-1);
         let newIndentLevel = currentIndent?.level ?? 0;
         if (tree) {
@@ -188,9 +202,9 @@ export const getDocumentFormattingEdits = (
           : "\t".repeat(newIndentLevel);
         if (currentIndentation !== expectedIndentation) {
           pushIfInRange({
-            lineNumber: range.start.line + 1,
-            range,
-            oldText: document.getText(range),
+            lineNumber: indentRange.start.line + 1,
+            range: indentRange,
+            oldText: document.getText(indentRange),
             newText: expectedIndentation,
             type: cur.value.type,
           });
@@ -303,7 +317,7 @@ export const getDocumentFormattingEdits = (
         const text = document.getText(lineRange);
         const prevLine = lines.at(-1);
         if (!text.trim()) {
-          if (!formattingOnType) {
+          if (formattingOnType?.line !== range.start.line) {
             if (prevLine && !prevLine.text.trim()) {
               // Delete extra blank lines
               pushIfInRange({
@@ -341,22 +355,23 @@ export const getDocumentFormattingEdits = (
 
     const lastPosition = document.positionAt(Number.MAX_VALUE);
 
-    if (!formattingOnType) {
-      if (options.insertFinalNewline) {
-        const lastLine = lines.at(-1);
-        if (!lastLine || lastLine.range.end.line < lastPosition.line) {
-          const editRange = {
-            start: lastPosition,
-            end: lastPosition,
-          };
-          pushIfInRange({
-            lineNumber: editRange.start.line + 1,
-            range: editRange,
-            oldText: document.getText(editRange),
-            newText: "\n",
-            type: "newline",
-          });
-        }
+    if (
+      options.insertFinalNewline &&
+      formattingOnType?.line !== lastPosition.line
+    ) {
+      const lastLine = lines.at(-1);
+      if (!lastLine || lastLine.range.end.line < lastPosition.line) {
+        const editRange = {
+          start: lastPosition,
+          end: lastPosition,
+        };
+        pushIfInRange({
+          lineNumber: editRange.start.line + 1,
+          range: editRange,
+          oldText: document.getText(editRange),
+          newText: "\n",
+          type: "newline",
+        });
       }
 
       if (options.trimFinalNewlines) {
@@ -407,11 +422,21 @@ export const getDocumentFormattingEdits = (
           // Indent takes precedence over separator
           continue;
         } else if (curr.type === "indent" && prev.type === "extra") {
-          // Indent takes precedence over separator
-          result.pop();
+          if (formattingOnType?.line === curr.range.start.line) {
+            // When typing, indent takes precedence over extra
+            result.pop();
+          } else if (options.trimTrailingWhitespace) {
+            // Otherwise, trimming extra takes precedence over indent
+            continue;
+          }
         } else if (prev.type === "indent" && curr.type === "extra") {
-          // Indent takes precedence over separator
-          continue;
+          if (formattingOnType?.line === prev.range.start.line) {
+            // When typing, indent takes precedence over extra
+            continue;
+          } else {
+            // Otherwise, trimming extra takes precedence over indent
+            result.pop();
+          }
         } else if (curr.type === "separator" && prev.type === "extra") {
           // Separator takes precedence over extra
           result.pop();
