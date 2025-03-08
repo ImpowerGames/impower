@@ -196,6 +196,9 @@
       },
       "patterns": [
         {
+          "include": "#Newline"
+        },
+        {
           "include": "#BlockCommentContent"
         }
       ],
@@ -209,7 +212,7 @@
     "BlockCommentContent": {
       "tag": "definition(lineComment)",
       "name": "punctuation.definition.comment.content.sd",
-      "match": "(.+?)(?=[*][/])"
+      "match": "(.+?)(?=$|[*][/])"
     },
     "Tag": {
       "tag": "docComment",
