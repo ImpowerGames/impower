@@ -281,7 +281,8 @@ export const getDocumentFormattingEdits = (
         const range = document.range(cur.from, cur.to);
         const lineRange = document.getLineRange(range.start.line);
         const text = document.getText(lineRange);
-        if (!lines.at(-1)?.text.trim() && !text.trim()) {
+        const prevLine = lines.at(-1);
+        if (prevLine && !prevLine.text.trim() && !text.trim()) {
           // Delete extra blank lines
           pushIfInRange({
             range: lineRange,
@@ -295,6 +296,8 @@ export const getDocumentFormattingEdits = (
       cur.next();
       aheadCur.next();
     }
+
+    console.log("LINES", lines);
 
     const lastPosition = document.positionAt(Number.MAX_VALUE);
 
@@ -339,6 +342,8 @@ export const getDocumentFormattingEdits = (
       document.offsetAt(a.range.start) - document.offsetAt(b.range.start)
   );
 
+  console.log("EDITS", edits);
+
   const result: (TextEdit & { type: string })[] = [];
   for (let i = 0; i < edits.length; i++) {
     const curr = edits[i]!;
@@ -357,17 +362,25 @@ export const getDocumentFormattingEdits = (
         } else if (prev.type === "indent" && curr.type === "separator") {
           // Indent takes precedence over separator
           continue;
-        } else if (
-          curr.type === "blankline" &&
-          (prev.type === "separator" || prev.type === "indent")
-        ) {
-          // Deleting blank line takes precedence over separator or indent
+        } else if (curr.type === "blankline" && prev.type === "indent") {
+          // Deleting blank line takes precedence over indent
+          if (prev.newText === "") {
+            // Indent was also going to be deleted, so delete it along with the blank line
+            curr.range.start = prev.range.start;
+          }
           result.pop();
-        } else if (
-          prev.type === "blankline" &&
-          (curr.type === "separator" || curr.type === "indent")
-        ) {
-          // Deleting blank line takes precedence over separator or indent
+        } else if (prev.type === "blankline" && curr.type === "indent") {
+          // Deleting blank line takes precedence over indent
+          if (curr.newText === "") {
+            // Indent was also going to be deleted, so delete it along with the blank line
+            prev.range.end = curr.range.end;
+          }
+          continue;
+        } else if (curr.type === "blankline" && prev.type === "separator") {
+          // Deleting blank line takes precedence over separator
+          result.pop();
+        } else if (prev.type === "blankline" && curr.type === "separator") {
+          // Deleting blank line takes precedence over separator
           continue;
         } else if (prevTo === currFrom) {
           // Combine consecutive edits
@@ -400,6 +413,7 @@ export const getDocumentFormattingEdits = (
     }
     result.push({ range: curr.range, newText: curr.newText, type: curr.type });
   }
+  console.log("RESULT", result);
 
   return result;
 };
