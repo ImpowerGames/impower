@@ -1243,7 +1243,7 @@ repository:
           - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Separator" }
+      - { include: "#ExtraWhitespace" }
       - { include: "#End" }
       - { include: "#Done" }
       - { include: "#FunctionCall" }

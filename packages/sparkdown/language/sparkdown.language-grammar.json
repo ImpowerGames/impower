@@ -2204,7 +2204,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#Separator"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#End"
