@@ -282,14 +282,30 @@ export const getDocumentFormattingEdits = (
         const lineRange = document.getLineRange(range.start.line);
         const text = document.getText(lineRange);
         const prevLine = lines.at(-1);
-        if (prevLine && !prevLine.text.trim() && !text.trim()) {
-          // Delete extra blank lines
-          pushIfInRange({
-            range: lineRange,
-            oldText: document.getText(lineRange),
-            newText: "",
-            type: "blankline",
-          });
+        if (!text.trim()) {
+          if (prevLine && !prevLine.text.trim()) {
+            // Delete extra blank lines
+            pushIfInRange({
+              range: lineRange,
+              oldText: document.getText(lineRange),
+              newText: "",
+              type: "blankline",
+            });
+          } else if (text.length > 0) {
+            // Delete extra whitespace
+            pushIfInRange({
+              range: {
+                start: lineRange.start,
+                end: {
+                  line: lineRange.start.line,
+                  character: text.length,
+                },
+              },
+              oldText: document.getText(lineRange),
+              newText: "",
+              type: "blankline",
+            });
+          }
         }
         lines.push({ text, range: lineRange });
       }
