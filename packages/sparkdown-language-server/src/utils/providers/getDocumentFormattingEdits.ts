@@ -4,7 +4,11 @@ import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeNam
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { Tree } from "@lezer/common";
-import { type FormattingOptions, type TextEdit } from "vscode-languageserver";
+import {
+  Position,
+  type FormattingOptions,
+  type TextEdit,
+} from "vscode-languageserver";
 import { type Range } from "vscode-languageserver-textdocument";
 
 const WHITESPACE_REGEX = /[\t ]*/;
@@ -26,23 +30,31 @@ export const getDocumentFormattingEdits = (
   tree: Tree | undefined,
   annotations: SparkdownAnnotations | undefined,
   options: FormattingOptions,
-  formattingRange?: Range
+  formattingRange?: Range,
+  formattingOnType?: Position
 ): TextEdit[] | undefined => {
   if (!document || !annotations) {
     return undefined;
   }
 
-  const edits: (TextEdit & { line: number; oldText: string; type: string })[] =
-    [];
+  const edits: (TextEdit & {
+    lineNumber: number;
+    oldText: string;
+    type: string;
+  })[] = [];
 
   const indentStack: { type: string; marks?: string[]; level: number }[] = [
     { type: "", level: 0 },
   ];
 
   const pushIfInRange = (
-    edit: TextEdit & { line: number; oldText: string; type: string }
+    edit: TextEdit & { lineNumber: number; oldText: string; type: string }
   ) => {
-    if (!formattingRange || isInRange(document, edit.range, formattingRange)) {
+    if (
+      formattingOnType ||
+      !formattingRange ||
+      isInRange(document, edit.range, formattingRange)
+    ) {
       edits.push(edit);
     }
   };
@@ -176,7 +188,7 @@ export const getDocumentFormattingEdits = (
           : "\t".repeat(newIndentLevel);
         if (currentIndentation !== expectedIndentation) {
           pushIfInRange({
-            line: range.start.line,
+            lineNumber: range.start.line + 1,
             range,
             oldText: document.getText(range),
             newText: expectedIndentation,
@@ -190,7 +202,7 @@ export const getDocumentFormattingEdits = (
         const expectedText = " ";
         if (text !== expectedText) {
           pushIfInRange({
-            line: range.start.line,
+            lineNumber: range.start.line + 1,
             range,
             oldText: document.getText(range),
             newText: expectedText,
@@ -202,7 +214,7 @@ export const getDocumentFormattingEdits = (
         const expectedText = "";
         if (text !== expectedText) {
           pushIfInRange({
-            line: range.start.line,
+            lineNumber: range.start.line + 1,
             range,
             oldText: document.getText(range),
             newText: expectedText,
@@ -214,7 +226,7 @@ export const getDocumentFormattingEdits = (
         const expectedText = "";
         if (options.trimTrailingWhitespace && text !== expectedText) {
           pushIfInRange({
-            line: range.start.line,
+            lineNumber: range.start.line + 1,
             range,
             oldText: document.getText(range),
             newText: expectedText,
@@ -246,7 +258,7 @@ export const getDocumentFormattingEdits = (
             end: range.end,
           };
           pushIfInRange({
-            line: editRange.start.line,
+            lineNumber: editRange.start.line + 1,
             range: editRange,
             oldText: document.getText(editRange),
             newText: expectedText.slice(1),
@@ -266,7 +278,7 @@ export const getDocumentFormattingEdits = (
             end: range.end,
           };
           pushIfInRange({
-            line: editRange.start.line,
+            lineNumber: editRange.start.line + 1,
             range: editRange,
             oldText: document.getText(editRange),
             newText: expectedText.slice(1),
@@ -278,7 +290,7 @@ export const getDocumentFormattingEdits = (
         const expectedText = " ==";
         if (text !== expectedText) {
           pushIfInRange({
-            line: range.start.line,
+            lineNumber: range.start.line + 1,
             range,
             oldText: document.getText(range),
             newText: expectedText,
@@ -291,30 +303,32 @@ export const getDocumentFormattingEdits = (
         const text = document.getText(lineRange);
         const prevLine = lines.at(-1);
         if (!text.trim()) {
-          if (prevLine && !prevLine.text.trim()) {
-            // Delete extra blank lines
-            pushIfInRange({
-              line: lineRange.start.line,
-              range: lineRange,
-              oldText: document.getText(lineRange),
-              newText: "",
-              type: "blankline",
-            });
-          } else if (text.length > 0) {
-            // Delete extra whitespace
-            pushIfInRange({
-              line: lineRange.start.line,
-              range: {
-                start: lineRange.start,
-                end: {
-                  line: lineRange.start.line,
-                  character: text.length,
+          if (!formattingOnType) {
+            if (prevLine && !prevLine.text.trim()) {
+              // Delete extra blank lines
+              pushIfInRange({
+                lineNumber: lineRange.start.line + 1,
+                range: lineRange,
+                oldText: document.getText(lineRange),
+                newText: "",
+                type: "blankline",
+              });
+            } else if (text.length > 0) {
+              // Delete extra whitespace
+              pushIfInRange({
+                lineNumber: lineRange.start.line + 1,
+                range: {
+                  start: lineRange.start,
+                  end: {
+                    line: lineRange.start.line,
+                    character: text.length,
+                  },
                 },
-              },
-              oldText: document.getText(lineRange),
-              newText: "",
-              type: "blankline",
-            });
+                oldText: document.getText(lineRange),
+                newText: "",
+                type: "extra",
+              });
+            }
           }
         }
         lines.push({ text, range: lineRange });
@@ -323,42 +337,46 @@ export const getDocumentFormattingEdits = (
       aheadCur.next();
     }
 
+    // console.log("LINES", [...lines]);
+
     const lastPosition = document.positionAt(Number.MAX_VALUE);
 
-    if (options.insertFinalNewline) {
-      const lastLine = lines.at(-1);
-      if (!lastLine || lastLine.range.end.line < lastPosition.line) {
-        const editRange = {
-          start: lastPosition,
-          end: lastPosition,
-        };
-        pushIfInRange({
-          line: editRange.start.line,
-          range: editRange,
-          oldText: document.getText(editRange),
-          newText: "\n",
-          type: "newline",
-        });
+    if (!formattingOnType) {
+      if (options.insertFinalNewline) {
+        const lastLine = lines.at(-1);
+        if (!lastLine || lastLine.range.end.line < lastPosition.line) {
+          const editRange = {
+            start: lastPosition,
+            end: lastPosition,
+          };
+          pushIfInRange({
+            lineNumber: editRange.start.line + 1,
+            range: editRange,
+            oldText: document.getText(editRange),
+            newText: "\n",
+            type: "newline",
+          });
+        }
       }
-    }
 
-    if (options.trimFinalNewlines) {
-      let lastLine = lines.pop();
-      let docLength = document.length;
-      while (
-        lastLine &&
-        document.offsetAt(lastLine.range.end) === docLength - 1
-      ) {
-        const editRange = lastLine.range;
-        pushIfInRange({
-          line: editRange.start.line,
-          range: editRange,
-          oldText: document.getText(editRange),
-          newText: "",
-          type: "newline",
-        });
-        lastLine = lines.pop();
-        docLength -= 1;
+      if (options.trimFinalNewlines) {
+        let lastLine = lines.pop();
+        let docLength = document.length;
+        while (
+          lastLine &&
+          document.offsetAt(lastLine.range.end) === docLength - 1
+        ) {
+          const editRange = lastLine.range;
+          pushIfInRange({
+            lineNumber: editRange.start.line + 1,
+            range: editRange,
+            oldText: document.getText(editRange),
+            newText: "",
+            type: "newline",
+          });
+          lastLine = lines.pop();
+          docLength -= 1;
+        }
       }
     }
   }
@@ -367,6 +385,8 @@ export const getDocumentFormattingEdits = (
     (a, b) =>
       document.offsetAt(a.range.start) - document.offsetAt(b.range.start)
   );
+
+  // console.log("EDITS", edits);
 
   const result: (TextEdit & { type: string })[] = [];
   for (let i = 0; i < edits.length; i++) {
@@ -386,19 +406,35 @@ export const getDocumentFormattingEdits = (
         } else if (prev.type === "indent" && curr.type === "separator") {
           // Indent takes precedence over separator
           continue;
+        } else if (curr.type === "indent" && prev.type === "extra") {
+          // Indent takes precedence over separator
+          result.pop();
+        } else if (prev.type === "indent" && curr.type === "extra") {
+          // Indent takes precedence over separator
+          continue;
+        } else if (curr.type === "separator" && prev.type === "extra") {
+          // Separator takes precedence over extra
+          result.pop();
+        } else if (prev.type === "separator" && curr.type === "extra") {
+          // Separator takes precedence over extra
+          continue;
         } else if (curr.type === "blankline" && prev.type === "indent") {
-          // Delete blank line and indent
+          // Delete blank line and add indent
           curr.range.start = prev.range.start;
-          if (document.getLineText(prev.range.start.line).trim()) {
-            // Add indent if line is not blank
+          if (
+            document.getLineText(prev.range.start.line).trim() ||
+            formattingOnType
+          ) {
             curr.newText += prev.newText;
           }
           result.pop();
         } else if (prev.type === "blankline" && curr.type === "indent") {
-          // Delete blank line and indent
+          // Delete blank line and add indent
           prev.range.end = curr.range.end;
-          if (document.getLineText(curr.range.start.line).trim()) {
-            // Add indent if line is not blank
+          if (
+            document.getLineText(curr.range.start.line).trim() ||
+            formattingOnType
+          ) {
             prev.newText += curr.newText;
           }
           continue;
@@ -439,6 +475,8 @@ export const getDocumentFormattingEdits = (
     }
     result.push({ range: curr.range, newText: curr.newText, type: curr.type });
   }
+
+  // console.log("RESULT", result);
 
   return result;
 };

@@ -17,7 +17,6 @@ import { getColorPresentations } from "./utils/providers/getColorPresentations";
 import { getCompletions } from "./utils/providers/getCompletions";
 import { getDocumentColors } from "./utils/providers/getDocumentColors";
 import { getDocumentFormattingEdits } from "./utils/providers/getDocumentFormattingEdits";
-import { getDocumentFormattingOnTypeRange } from "./utils/providers/getDocumentFormattingOnTypeRange";
 import { getDocumentLinks } from "./utils/providers/getDocumentLinks";
 import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
@@ -299,21 +298,14 @@ try {
     const tree = documents.tree(uri);
     const annotations = documents.annotations(uri);
     performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} start`);
-    const range = getDocumentFormattingOnTypeRange(
+    const result = getDocumentFormattingEdits(
       document,
       tree,
-      params.position,
-      params.ch
+      annotations,
+      params.options,
+      undefined,
+      params.position
     );
-    const result = range
-      ? getDocumentFormattingEdits(
-          document,
-          tree,
-          annotations,
-          params.options,
-          range
-        )
-      : null;
     performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} end`);
     performance.measure(
       `lsp: onDocumentOnTypeFormatting ${uri}`,
