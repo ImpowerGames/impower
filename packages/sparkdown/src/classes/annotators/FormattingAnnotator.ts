@@ -25,6 +25,7 @@ export type FormatType =
   | "alternative_mark"
   | "choice_mark"
   | "gather_mark"
+  | "indenting_colon"
   | "root";
 
 const INDENT_REGEX: RegExp = /^[ \t]*/;
@@ -161,6 +162,15 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "GatherMark") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("gather_mark").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "IndentingColon") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("indenting_colon").range(
           nodeRef.from,
           nodeRef.to
         )

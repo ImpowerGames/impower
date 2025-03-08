@@ -334,6 +334,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
   let frontMatterPositionContent: Record<string, MarkupContent[]> = {};
   let frontMatterFieldCaptureBlocks: MarkupContent[] = [];
   let frontMatterKeyword = "";
+  const inConditionalBlock: boolean[] = [];
 
   const tree = syntaxTree(state);
 
@@ -375,6 +376,8 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         inDialogue = true;
         dialoguePosition = 0;
         dialogueContent = [];
+      } else if (name === "ConditionalBlock") {
+        inConditionalBlock.push(true);
       } else if (name === "DialogueCharacter") {
         const value = doc.sliceString(from, to).trim();
         dialogueContent.push({
@@ -438,7 +441,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
           })
         );
         return false;
-      } else if (name === "Indent") {
+      } else if (name === "Indent" && inConditionalBlock.length === 0) {
         hideInlineRange(nodeRef);
         return false;
       } else if (isCentered(nodeRef)) {
@@ -447,7 +450,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
       } else if (isBlockHidden(nodeRef)) {
         hideBlockRange(nodeRef);
         return false;
-      } else if (isInlineHidden(nodeRef)) {
+      } else if (isInlineHidden(nodeRef) && inConditionalBlock.length === 0) {
         hideInlineRange(nodeRef);
       }
       return true;
@@ -587,6 +590,8 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         }
         inDialogue = false;
         inDualDialogue = false;
+      } else if (name === "ConditionalBlock") {
+        inConditionalBlock.pop();
       }
     },
   });

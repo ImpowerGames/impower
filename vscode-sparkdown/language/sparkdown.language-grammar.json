@@ -1639,7 +1639,7 @@
     },
     "Choice": {
       "name": "entity.choice.sd",
-      "begin": "([^\\S\\n\\r]*)((?:[*](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+|(?:[+](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+)((?:[(])(?:[^\\S\\n\\r]*)(?:[_\\p{L}][0-9_\\p{L}]*)(?:[^\\S\\n\\r]*)(?:[)]))?",
+      "begin": "^([^\\S\\n\\r]*)((?:[*](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+|(?:[+](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+)((?:[(])(?:[^\\S\\n\\r]*)(?:[_\\p{L}][0-9_\\p{L}]*)(?:[^\\S\\n\\r]*)(?:[)]))?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1677,13 +1677,10 @@
           "include": "#ChoiceWithSuppressedText"
         },
         {
-          "include": "#WordAfterSuppressedText"
-        },
-        {
-          "include": "#SpaceAfterSuppressedText"
+          "include": "#ChoiceWithNoSuppressedText"
         }
       ],
-      "end": "(?<=\\[.*?\\]\\s*)|(?=[-][>]|^\\s*[*+-]\\s+)"
+      "end": "(?=$|[-][>])"
     },
     "ChoiceMark": {
       "tag": "keyword",
@@ -1691,7 +1688,7 @@
       "match": "(.+)"
     },
     "ChoiceWithSuppressedText": {
-      "match": "([^\\S\\n\\r]*)(.*?)(\\[)(.*?)(\\])([^\\S\\n\\r]*(?=[-][>]))?",
+      "match": "([^\\S\\n\\r]*)(.*?)(\\[)(.*?)(\\])(.*?)(?:$|([^\\S\\n\\r]*)(?=[-][>]))",
       "captures": {
         "1": {
           "patterns": [
@@ -1725,31 +1722,33 @@
         "6": {
           "patterns": [
             {
+              "include": "#DisplayText"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
               "include": "#Separator"
             }
           ]
         }
       }
     },
-    "WordAfterSuppressedText": {
-      "match": "((?:[\\p{L}\\p{N}\\p{Mn}']+))",
+    "ChoiceWithNoSuppressedText": {
+      "match": "(.*?)(?:$|([^\\S\\n\\r]*)(?=[-][>]))",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#DisplayText"
+              "include": "#ChoiceTextContent"
             }
           ]
-        }
-      }
-    },
-    "SpaceAfterSuppressedText": {
-      "match": "([^\\S\\n\\r]+)",
-      "captures": {
-        "1": {
+        },
+        "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#Separator"
             }
           ]
         }
@@ -2969,7 +2968,7 @@
       "match": "([^\\S\\n\\r]+)"
     },
     "Separator": {
-      "tag": "definition(content)",
+      "tag": "content",
       "name": "markup.raw.whitespace.sd",
       "match": "([^\\S\\n\\r]+)"
     },
@@ -5618,6 +5617,9 @@
           "include": "#EmDash"
         },
         {
+          "include": "#IndentingColon"
+        },
+        {
           "include": "#Punctuation"
         }
       ]
@@ -5636,6 +5638,11 @@
       "tag": "content",
       "name": "markup.raw.punctuation.sd",
       "match": "([-][-])"
+    },
+    "IndentingColon": {
+      "tag": "content",
+      "name": "markup.raw.text.sd",
+      "match": "([:])(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))"
     },
     "Punctuation": {
       "tag": "content",

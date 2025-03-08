@@ -936,7 +936,7 @@ repository:
 
   Choice:
     name: entity.choice.sd
-    begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)((?:[(])(?:{{WS}}*)(?:{{IDENTIFIER}})(?:{{WS}}*)(?:[)]))?
+    begin: ^({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)((?:[(])(?:{{WS}}*)(?:{{IDENTIFIER}})(?:{{WS}}*)(?:[)]))?
     beginCaptures:
       1:
         patterns:
@@ -952,9 +952,8 @@ repository:
       - { include: "#ConditionalBlock" }
       - { include: "#Newline" }
       - { include: "#ChoiceWithSuppressedText" }
-      - { include: "#WordAfterSuppressedText" }
-      - { include: "#SpaceAfterSuppressedText" }
-    end: (?<=\[.*?\]\s*)|(?=[-][>]|^\s*[*+-]\s+)
+      - { include: "#ChoiceWithNoSuppressedText" }
+    end: (?=$|[-][>])
 
   ChoiceMark:
     tag: keyword
@@ -962,7 +961,7 @@ repository:
     match: (.+)
 
   ChoiceWithSuppressedText:
-    match: ({{WS}}*)(.*?)(\[)(.*?)(\])({{WS}}*(?=[-][>]))?
+    match: ({{WS}}*)(.*?)(\[)(.*?)(\])(.*?)(?:$|({{WS}}*)(?=[-][>]))
     captures:
       1:
         patterns:
@@ -981,21 +980,20 @@ repository:
         name: punctuation.definition.template-expression.end.choice.suppression.sd
       6:
         patterns:
+          - { include: "#DisplayText" }
+      7:
+        patterns:
           - { include: "#Separator" }
 
-  WordAfterSuppressedText:
-    match: ({{WORD}})
+  ChoiceWithNoSuppressedText:
+    match: (.*?)(?:$|({{WS}}*)(?=[-][>]))
     captures:
       1:
         patterns:
-          - { include: "#DisplayText" }
-
-  SpaceAfterSuppressedText:
-    match: ({{WS}}+)
-    captures:
-      1:
+          - { include: "#ChoiceTextContent" }
+      2:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#Separator" }
 
   ChoiceTextContent:
     tag: string
@@ -1643,7 +1641,7 @@ repository:
     match: ({{WS}}+)
 
   Separator:
-    tag: definition(content)
+    tag: content
     name: markup.raw.whitespace.sd
     match: ({{WS}}+)
 
@@ -3185,6 +3183,7 @@ repository:
       - { include: "#Space" }
       - { include: "#Word" }
       - { include: "#EmDash" }
+      - { include: "#IndentingColon" }
       - { include: "#Punctuation" }
 
   Space:
@@ -3201,6 +3200,11 @@ repository:
     tag: content
     name: markup.raw.punctuation.sd
     match: ([-][-])
+
+  IndentingColon:
+    tag: content
+    name: markup.raw.text.sd
+    match: ([:])(?={{EOL}})
 
   Punctuation:
     tag: content

@@ -279,6 +279,14 @@ export const getDocumentFormattingEdits = (
             type: cur.value.type,
           });
         }
+      } else if (cur.value.type === "indenting_colon") {
+        const currentIndent = indentStack.at(-1);
+        const newIndentLevel = (currentIndent?.level ?? 0) + 1;
+        setIndent({
+          type: currentIndent?.type ?? cur.value.type,
+          marks: currentIndent?.marks,
+          level: newIndentLevel,
+        });
       } else if (cur.value.type === "knot_begin") {
         const text = document.getText(range);
         const expectedText = "== ";
