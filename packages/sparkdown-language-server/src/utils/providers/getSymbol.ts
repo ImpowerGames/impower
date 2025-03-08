@@ -122,12 +122,27 @@ export const getSymbol = (
     }
   }
 
+  const leftStack = getStack<SparkdownNodeName>(
+    tree,
+    document.offsetAt(position),
+    1
+  );
+  const rightStack = getStack<SparkdownNodeName>(
+    tree,
+    document.offsetAt(position),
+    -1
+  );
+
   const textSymbol =
-    getStack<SparkdownNodeName>(tree, document.offsetAt(position), 1)[0] ||
-    getStack<SparkdownNodeName>(tree, document.offsetAt(position), -1)[0];
-  if (textSymbol) {
-    const textSymbolRange = document.range(textSymbol.from, textSymbol.to);
-    return { symbol: textSymbol, nameRange: textSymbolRange };
+    leftStack.find((n) => n.name === "Word") ||
+    leftStack[0] ||
+    rightStack.find((n) => n.name === "Word") ||
+    rightStack[0];
+  if (textSymbol?.name !== "sparkdown") {
+    if (textSymbol) {
+      const textSymbolRange = document.range(textSymbol.from, textSymbol.to);
+      return { symbol: textSymbol, nameRange: textSymbolRange };
+    }
   }
   return {};
 };
