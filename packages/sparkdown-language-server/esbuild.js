@@ -14,6 +14,16 @@ const SPARKDOWN_SRC_PATH = "../sparkdown/src";
 const SPARKDOWN_WORKER_FILE_PATH = "../sparkdown/dist/sparkdown.js";
 const SPARKDOWN_PLACEHOLDER_FILENAME = "_inline-sparkdown-placeholder";
 
+const debounce = (callback, delay) => {
+  let timeout = 0;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      callback(...args);
+    }, delay);
+  };
+};
+
 let inlineWorkerContent = "";
 const updateInlineWorkerContent = async () => {
   try {
@@ -108,13 +118,20 @@ async function main() {
     await updateInlineWorkerContent();
     await ctx.watch();
     console.log(`[watch] Watching for changes in ${SPARKDOWN_SRC_PATH}`);
-    fs.watch(SPARKDOWN_SRC_PATH, { recursive: true }, async () => {
-      console.log(
-        `[watch] Detected change in ${SPARKDOWN_SRC_PATH}, rebuilding...`
-      );
-      await updateInlineWorkerContent();
-      await ctx.rebuild();
-    });
+    fs.watch(
+      SPARKDOWN_SRC_PATH,
+      { recursive: true },
+      debounce(
+        () => async (ctx) => {
+          console.log(
+            `[watch] Detected change in ${SPARKDOWN_SRC_PATH}, rebuilding...`
+          );
+          await updateInlineWorkerContent();
+          await ctx.rebuild();
+        },
+        300
+      )
+    );
   } else {
     await updateInlineWorkerContent();
     await ctx.rebuild();
