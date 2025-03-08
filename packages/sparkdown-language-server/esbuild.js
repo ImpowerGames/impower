@@ -129,7 +129,7 @@ async function main() {
           await updateInlineWorkerContent();
           await ctx.rebuild();
         },
-        300
+        500
       )
     );
   } else {
