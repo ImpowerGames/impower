@@ -15,6 +15,8 @@ variables:
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
   BREAK: (?:{{WS}}+[>]{{WS}}*)
+  # Word
+  WORD: (?:[\p{L}\p{N}\p{Mn}']+)
   # Whitespace
   WS: '[^\S\n\r]'
   # End Of Line
@@ -947,10 +949,10 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#ConditionalBlock" }
-      - { include: "#Separator" }
       - { include: "#Newline" }
       - { include: "#ChoiceWithSuppressedText" }
-      - { include: "#ChoiceAfterSuppressedText" }
+      - { include: "#WordAfterSuppressedText" }
+      - { include: "#SpaceAfterSuppressedText" }
     end: (?<=\[.*?\]\s*)|(?=[-][>]|^\s*[*+-]\s+)
 
   ChoiceMark:
@@ -980,13 +982,19 @@ repository:
         patterns:
           - { include: "#Separator" }
 
-  ChoiceAfterSuppressedText:
-    match: (.+?)
+  WordAfterSuppressedText:
+    match: ({{WORD}})
     captures:
       1:
         patterns:
-          - { include: "#Annotation" }
           - { include: "#DisplayText" }
+
+  SpaceAfterSuppressedText:
+    match: ({{WS}}+)
+    captures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
 
   ChoiceTextContent:
     tag: string
@@ -1319,7 +1327,7 @@ repository:
       - { include: "#AlternativeItem" }
       - { include: "#ConditionalBlock" }
       - { include: "#InlineConditionalText" }
-    end: ({{WS}}*)([}])
+    end: ({{WS}}*)([}])(?:({{WS}}*)(?=\S))?
     endCaptures:
       1:
         patterns:
@@ -1327,6 +1335,9 @@ repository:
       2:
         patterns:
           - { include: "#ConditionalBlockCloseBrace" }
+      3:
+        patterns:
+          - { include: "#Separator" }
 
   ConditionalBlockOpenBrace:
     tag: keyword
@@ -3183,7 +3194,7 @@ repository:
   Word:
     tag: content
     name: markup.raw.text.sd
-    match: ([\p{L}\p{N}\p{Mn}']+)
+    match: ({{WORD}})
 
   EmDash:
     tag: content

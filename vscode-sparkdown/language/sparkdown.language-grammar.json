@@ -17,6 +17,7 @@
     "AFTER_KEYWORD": "(?![{{IDENTIFIER_END_CHAR}}])(?:(?=\\.\\.\\.)|(?!\\.))",
     "TAG_START": "(?:[#]+(?:$|{{WS}}+))",
     "BREAK": "(?:{{WS}}+[>]{{WS}}*)",
+    "WORD": "(?:[\\p{L}\\p{N}\\p{Mn}']+)",
     "WS": "[^\\S\\n\\r]",
     "EOL": "(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$|{{WS}}*[/][/].*$)",
     "EOK": "(?:$|{{WS}}+|(?={{TAG_START}}|[/][/]|[/][*]))",
@@ -1667,16 +1668,16 @@
           "include": "#ConditionalBlock"
         },
         {
-          "include": "#Separator"
-        },
-        {
           "include": "#Newline"
         },
         {
           "include": "#ChoiceWithSuppressedText"
         },
         {
-          "include": "#ChoiceAfterSuppressedText"
+          "include": "#WordAfterSuppressedText"
+        },
+        {
+          "include": "#SpaceAfterSuppressedText"
         }
       ],
       "end": "(?<=\\[.*?\\]\\s*)|(?=[-][>]|^\\s*[*+-]\\s+)"
@@ -1727,16 +1728,25 @@
         }
       }
     },
-    "ChoiceAfterSuppressedText": {
-      "match": "(.+?)",
+    "WordAfterSuppressedText": {
+      "match": "((?:[\\p{L}\\p{N}\\p{Mn}']+))",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#Annotation"
-            },
-            {
               "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "SpaceAfterSuppressedText": {
+      "match": "([^\\S\\n\\r]+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
             }
           ]
         }
@@ -2334,7 +2344,7 @@
           "include": "#InlineConditionalText"
         }
       ],
-      "end": "([^\\S\\n\\r]*)([}])",
+      "end": "([^\\S\\n\\r]*)([}])(?:([^\\S\\n\\r]*)(?=\\S))?",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -2347,6 +2357,13 @@
           "patterns": [
             {
               "include": "#ConditionalBlockCloseBrace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
             }
           ]
         }
@@ -5610,7 +5627,7 @@
     "Word": {
       "tag": "content",
       "name": "markup.raw.text.sd",
-      "match": "([\\p{L}\\p{N}\\p{Mn}']+)"
+      "match": "((?:[\\p{L}\\p{N}\\p{Mn}']+))"
     },
     "EmDash": {
       "tag": "content",

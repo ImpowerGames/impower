@@ -133,11 +133,7 @@ export const getSymbol = (
     -1
   );
 
-  const textSymbol =
-    leftStack.find((n) => n.name === "Word") ||
-    leftStack[0] ||
-    rightStack.find((n) => n.name === "Word") ||
-    rightStack[0];
+  const textSymbol = leftStack[0] || rightStack[0];
   if (textSymbol?.name !== "sparkdown") {
     if (textSymbol) {
       const textSymbolRange = document.range(textSymbol.from, textSymbol.to);
