@@ -79,6 +79,19 @@ export class SparkdownDocument implements TextDocument {
     return lineText;
   };
 
+  getLineRange = (line: number): Range => {
+    return {
+      start: {
+        line: line,
+        character: 0,
+      },
+      end: {
+        line: line + 1,
+        character: 0,
+      },
+    };
+  };
+
   update(changes: TextDocumentContentChangeEvent[], version: number): void {
     this.text = TextDocument.update(this.text, changes, version);
   }

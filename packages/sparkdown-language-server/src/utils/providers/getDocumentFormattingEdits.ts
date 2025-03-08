@@ -32,13 +32,15 @@ export const getDocumentFormattingEdits = (
     return undefined;
   }
 
-  const edits: TextEdit[] = [];
+  const edits: (TextEdit & { oldText: string; type: string })[] = [];
 
   const indentStack: { type: string; marks?: string[]; level: number }[] = [
     { type: "", level: 0 },
   ];
 
-  const pushIfInRange = (edit: TextEdit) => {
+  const pushIfInRange = (
+    edit: TextEdit & { oldText: string; type: string }
+  ) => {
     if (!formattingRange || isInRange(document, edit.range, formattingRange)) {
       edits.push(edit);
     }
@@ -78,45 +80,47 @@ export const getDocumentFormattingEdits = (
   const aheadCur = annotations.formatting?.iter();
   aheadCur.next();
   if (cur) {
-    let newlineRanges: Range[] = [];
+    let lines: { range: Range; text: string }[] = [];
     while (cur.value) {
       // Lookahead in case we need to indent or outdent a certain type of node
-      if (aheadCur.value?.type === "close_brace") {
-        outdent();
-      } else if (
-        aheadCur.value?.type === "root" ||
-        aheadCur.value?.type === "knot_begin" ||
-        aheadCur.value?.type === "define_begin" ||
-        aheadCur.value?.type === "define_end" ||
-        aheadCur.value?.type === "frontmatter_begin" ||
-        aheadCur.value?.type === "frontmatter_end"
-      ) {
-        resetIndent();
-      } else if (
-        aheadCur.value?.type === "case_mark" ||
-        aheadCur.value?.type === "alternative_mark"
-      ) {
-        outdent();
-      } else if (
-        aheadCur.value?.type === "choice_mark" ||
-        aheadCur.value?.type === "gather_mark"
-      ) {
-        const text = document.read(aheadCur.from, aheadCur.to);
-        const marks = text.split(WHITESPACE_REGEX).filter((m) => Boolean(m));
-        if (marks.length > 0) {
-          const currentIndent = indentStack.at(-1);
-          const indentOffset =
-            marks.length - (currentIndent?.marks?.length ?? 0) - 1;
-          const newIndentLevel =
-            currentIndent?.type === "choice_mark" ||
-            currentIndent?.type === "gather_mark"
-              ? (currentIndent?.level ?? 0) + indentOffset
-              : currentIndent?.level ?? 0;
-          setIndent({
-            type: aheadCur.value.type,
-            marks,
-            level: Math.max(0, newIndentLevel),
-          });
+      if (aheadCur.value) {
+        if (aheadCur.value.type === "close_brace") {
+          outdent();
+        } else if (
+          aheadCur.value.type === "root" ||
+          aheadCur.value.type === "knot_begin" ||
+          aheadCur.value.type === "define_begin" ||
+          aheadCur.value.type === "define_end" ||
+          aheadCur.value.type === "frontmatter_begin" ||
+          aheadCur.value.type === "frontmatter_end"
+        ) {
+          resetIndent();
+        } else if (
+          aheadCur.value.type === "case_mark" ||
+          aheadCur.value.type === "alternative_mark"
+        ) {
+          outdent();
+        } else if (
+          aheadCur.value.type === "choice_mark" ||
+          aheadCur.value.type === "gather_mark"
+        ) {
+          const text = document.read(aheadCur.from, aheadCur.to);
+          const marks = text.split(WHITESPACE_REGEX).filter((m) => Boolean(m));
+          if (marks.length > 0) {
+            const currentIndent = indentStack.at(-1);
+            const indentOffset =
+              marks.length - (currentIndent?.marks?.length ?? 0) - 1;
+            const newIndentLevel =
+              currentIndent?.type === "choice_mark" ||
+              currentIndent?.type === "gather_mark"
+                ? (currentIndent?.level ?? 0) + indentOffset
+                : currentIndent?.level ?? 0;
+            setIndent({
+              type: aheadCur.value.type,
+              marks,
+              level: Math.max(0, newIndentLevel),
+            });
+          }
         }
       }
       // Process current
@@ -172,7 +176,9 @@ export const getDocumentFormattingEdits = (
         if (currentIndentation !== expectedIndentation) {
           pushIfInRange({
             range,
+            oldText: document.getText(range),
             newText: expectedIndentation,
+            type: cur.value.type,
           });
         }
       } else if (cur.value.type === "open_brace") {
@@ -183,7 +189,9 @@ export const getDocumentFormattingEdits = (
         if (text !== expectedText) {
           pushIfInRange({
             range,
+            oldText: document.getText(range),
             newText: expectedText,
+            type: cur.value.type,
           });
         }
       } else if (cur.value.type === "extra") {
@@ -192,7 +200,9 @@ export const getDocumentFormattingEdits = (
         if (text !== expectedText) {
           pushIfInRange({
             range,
+            oldText: document.getText(range),
             newText: expectedText,
+            type: cur.value.type,
           });
         }
       } else if (cur.value.type === "trailing") {
@@ -201,7 +211,9 @@ export const getDocumentFormattingEdits = (
         if (options.trimTrailingWhitespace && text !== expectedText) {
           pushIfInRange({
             range,
+            oldText: document.getText(range),
             newText: expectedText,
+            type: cur.value.type,
           });
         }
       } else if (
@@ -221,15 +233,18 @@ export const getDocumentFormattingEdits = (
         const expectedText = marks.join(" ") + " ";
         if (text !== expectedText) {
           // Omit first char to avoid overlapping with indent edits
-          pushIfInRange({
-            range: {
-              start: {
-                line: range.start.line,
-                character: range.start.character + 1,
-              },
-              end: range.end,
+          const editRange = {
+            start: {
+              line: range.start.line,
+              character: range.start.character + 1,
             },
+            end: range.end,
+          };
+          pushIfInRange({
+            range: editRange,
+            oldText: document.getText(editRange),
             newText: expectedText.slice(1),
+            type: cur.value.type,
           });
         }
       } else if (cur.value.type === "knot_begin") {
@@ -237,15 +252,18 @@ export const getDocumentFormattingEdits = (
         const expectedText = "== ";
         if (text !== expectedText) {
           // Omit first char to avoid overlapping with indent edits
-          pushIfInRange({
-            range: {
-              start: {
-                line: range.start.line,
-                character: range.start.character + 1,
-              },
-              end: range.end,
+          const editRange = {
+            start: {
+              line: range.start.line,
+              character: range.start.character + 1,
             },
+            end: range.end,
+          };
+          pushIfInRange({
+            range: editRange,
+            oldText: document.getText(editRange),
             newText: expectedText.slice(1),
+            type: cur.value.type,
           });
         }
       } else if (cur.value.type === "knot_end") {
@@ -254,11 +272,25 @@ export const getDocumentFormattingEdits = (
         if (text !== expectedText) {
           pushIfInRange({
             range,
+            oldText: document.getText(range),
             newText: expectedText,
+            type: cur.value.type,
           });
         }
       } else if (cur.value.type === "newline") {
-        newlineRanges.push(range);
+        const range = document.range(cur.from, cur.to);
+        const lineRange = document.getLineRange(range.start.line);
+        const text = document.getText(lineRange);
+        if (!lines.at(-1)?.text.trim() && !text.trim()) {
+          // Delete extra blank lines
+          pushIfInRange({
+            range: lineRange,
+            oldText: document.getText(lineRange),
+            newText: "",
+            type: "blankline",
+          });
+        }
+        lines.push({ text, range: lineRange });
       }
       cur.next();
       aheadCur.next();
@@ -267,30 +299,36 @@ export const getDocumentFormattingEdits = (
     const lastPosition = document.positionAt(Number.MAX_VALUE);
 
     if (options.insertFinalNewline) {
-      const lastNewlineRange = newlineRanges.at(-1);
-      if (!lastNewlineRange || lastNewlineRange.end.line < lastPosition.line) {
+      const lastLine = lines.at(-1);
+      if (!lastLine || lastLine.range.end.line < lastPosition.line) {
+        const editRange = {
+          start: lastPosition,
+          end: lastPosition,
+        };
         pushIfInRange({
-          range: {
-            start: lastPosition,
-            end: lastPosition,
-          },
+          range: editRange,
+          oldText: document.getText(editRange),
           newText: "\n",
+          type: "newline",
         });
       }
     }
 
     if (options.trimFinalNewlines) {
-      let lastNewlineRange = newlineRanges.pop();
+      let lastLine = lines.pop();
       let docLength = document.length;
       while (
-        lastNewlineRange &&
-        document.offsetAt(lastNewlineRange.end) === docLength - 1
+        lastLine &&
+        document.offsetAt(lastLine.range.end) === docLength - 1
       ) {
+        const editRange = lastLine.range;
         pushIfInRange({
-          range: lastNewlineRange,
+          range: editRange,
+          oldText: document.getText(editRange),
           newText: "",
+          type: "newline",
         });
-        lastNewlineRange = newlineRanges.pop();
+        lastLine = lines.pop();
         docLength -= 1;
       }
     }
@@ -301,60 +339,67 @@ export const getDocumentFormattingEdits = (
       document.offsetAt(a.range.start) - document.offsetAt(b.range.start)
   );
 
-  const result = edits.filter((_, i) => {
-    if (i - 1 >= 0) {
-      const curr = edits[i]!;
-      const prev = edits[i - 1]!;
+  const result: (TextEdit & { type: string })[] = [];
+  for (let i = 0; i < edits.length; i++) {
+    const curr = edits[i]!;
+    const prev = result.at(-1)!;
+    if (prev) {
       const currFrom = document.offsetAt(curr.range.start);
       const prevTo = document.offsetAt(prev.range.end);
       const prevFrom = document.offsetAt(prev.range.start);
       const currOldText = document.getText(curr.range);
       const prevOldText = document.getText(prev.range);
-      if (currFrom <= prevTo) {
-        if (currFrom === prevTo) {
-          // combine edits
-          if (currOldText === "" && prevOldText === "") {
-            console.warn(
-              "ADDING ONTO PREVIOUS EDIT",
-              JSON.stringify({
-                line: curr.range.start.line + 1,
-                offset: currFrom,
-                oldText: currOldText,
-                newText: edits[i]?.newText,
-              }),
-              " overlaps with ",
-              JSON.stringify({
-                line: prev.range.start.line + 1,
-                offset: prevFrom,
-                oldText: prevOldText,
-                newText: edits[i - 1]?.newText,
-              })
-            );
-            edits[i - 1]!.newText += curr.newText;
-          }
+      if (prevTo >= currFrom) {
+        // Overlap detected
+        if (curr.type === "indent" && prev.type === "separator") {
+          // Indent takes precedence over separator
+          result.pop();
+        } else if (prev.type === "indent" && curr.type === "separator") {
+          // Indent takes precedence over separator
+          continue;
+        } else if (
+          curr.type === "blankline" &&
+          (prev.type === "separator" || prev.type === "indent")
+        ) {
+          // Deleting blank line takes precedence over separator or indent
+          result.pop();
+        } else if (
+          prev.type === "blankline" &&
+          (curr.type === "separator" || curr.type === "indent")
+        ) {
+          // Deleting blank line takes precedence over separator or indent
+          continue;
+        } else if (prevTo === currFrom) {
+          // Combine consecutive edits
+          prev.newText += curr.newText;
+          prev.range.end = curr.range.end;
+          continue;
         } else {
+          // Couldn't resolve the conflict!
           console.error(
             "ERROR:",
-            JSON.stringify({
-              line: curr.range.start.line + 1,
-              offset: currFrom,
-              oldText: currOldText,
-              newText: edits[i]?.newText,
-            }),
-            " overlaps with ",
             JSON.stringify({
               line: prev.range.start.line + 1,
               offset: prevFrom,
               oldText: prevOldText,
-              newText: edits[i - 1]?.newText,
+              newText: prev.newText,
+              type: prev.type,
+            }),
+            " overlaps with ",
+            JSON.stringify({
+              line: curr.range.start.line + 1,
+              offset: currFrom,
+              oldText: currOldText,
+              newText: curr.newText,
+              type: curr.type,
             })
           );
+          continue;
         }
-        return false;
       }
     }
-    return true;
-  });
+    result.push({ range: curr.range, newText: curr.newText, type: curr.type });
+  }
 
   return result;
 };
