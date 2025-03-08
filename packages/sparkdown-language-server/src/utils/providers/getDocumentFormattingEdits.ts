@@ -297,8 +297,6 @@ export const getDocumentFormattingEdits = (
       aheadCur.next();
     }
 
-    console.log("LINES", lines);
-
     const lastPosition = document.positionAt(Number.MAX_VALUE);
 
     if (options.insertFinalNewline) {
@@ -341,8 +339,6 @@ export const getDocumentFormattingEdits = (
     (a, b) =>
       document.offsetAt(a.range.start) - document.offsetAt(b.range.start)
   );
-
-  console.log("EDITS", edits);
 
   const result: (TextEdit & { type: string })[] = [];
   for (let i = 0; i < edits.length; i++) {
@@ -413,7 +409,6 @@ export const getDocumentFormattingEdits = (
     }
     result.push({ range: curr.range, newText: curr.newText, type: curr.type });
   }
-  console.log("RESULT", result);
 
   return result;
 };
