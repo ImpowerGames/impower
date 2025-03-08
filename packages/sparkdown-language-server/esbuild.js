@@ -10,12 +10,29 @@ const OUTDIR = OUTDIR_ARG ? OUTDIR_ARG.split("=")?.[1] : "dist";
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
+const SPARKDOWN_SRC_PATH = "../sparkdown/src";
 const SPARKDOWN_WORKER_FILE_PATH = "../sparkdown/dist/sparkdown.js";
 const SPARKDOWN_PLACEHOLDER_FILENAME = "_inline-sparkdown-placeholder";
 
 let inlineWorkerContent = "";
 const updateInlineWorkerContent = async () => {
   try {
+    // Build worker file
+    console.log(`Building ${SPARKDOWN_WORKER_FILE_PATH}`);
+    await new Promise((resolve) => {
+      exec(
+        `npm run build:${PRODUCTION ? "prod" : "dev"}:workers`,
+        (error, _stdout, stderr) => {
+          if (error) {
+            console.error(error);
+          }
+          if (stderr) {
+            console.error(stderr);
+          }
+          resolve();
+        }
+      );
+    });
     inlineWorkerContent = await fs.promises.readFile(
       SPARKDOWN_WORKER_FILE_PATH,
       "utf-8"
@@ -88,34 +105,17 @@ const config = {
 async function main() {
   const ctx = await context(config);
   if (WATCH) {
+    await updateInlineWorkerContent();
     await ctx.watch();
-    console.log(
-      `[watch] Watching for changes in ${SPARKDOWN_WORKER_FILE_PATH}`
-    );
-    fs.watchFile(SPARKDOWN_WORKER_FILE_PATH, { interval: 500 }, async () => {
+    console.log(`[watch] Watching for changes in ${SPARKDOWN_SRC_PATH}`);
+    fs.watch(SPARKDOWN_SRC_PATH, { recursive: true }, async () => {
       console.log(
-        `[watch] Detected change in ${SPARKDOWN_WORKER_FILE_PATH}, rebuilding...`
+        `[watch] Detected change in ${SPARKDOWN_SRC_PATH}, rebuilding...`
       );
       await updateInlineWorkerContent();
       await ctx.rebuild();
     });
   } else {
-    // Build worker file
-    console.log(`Building ${SPARKDOWN_WORKER_FILE_PATH}`);
-    await new Promise((resolve) => {
-      exec(
-        `npm run build:${PRODUCTION ? "prod" : "dev"}:workers`,
-        (error, _stdout, stderr) => {
-          if (error) {
-            console.error(error);
-          }
-          if (stderr) {
-            console.error(stderr);
-          }
-          resolve();
-        }
-      );
-    });
     await updateInlineWorkerContent();
     await ctx.rebuild();
     await ctx.dispose();
