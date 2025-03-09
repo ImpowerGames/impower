@@ -26,6 +26,7 @@ export type FormatType =
   | "choice_mark"
   | "gather_mark"
   | "indenting_colon"
+  | "sol_comment"
   | "eol_divert"
   | "root";
 
@@ -195,6 +196,17 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         )
       );
       return annotations;
+    }
+    if (nodeRef.name === "LineComment" || nodeRef.name === "BlockComment") {
+      if (nodeRef.from === this.getLineAt(nodeRef.from).from) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("sol_comment").range(
+            nodeRef.from,
+            nodeRef.to
+          )
+        );
+        return annotations;
+      }
     }
     if (nodeRef.name === "Divert") {
       const tunnelArrowNode = getDescendent("TunnelArrow", nodeRef.node);

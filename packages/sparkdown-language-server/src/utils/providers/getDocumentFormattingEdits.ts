@@ -48,7 +48,10 @@ export const getDocumentFormattingEdits = (
     { type: "", level: 0 },
   ];
 
-  let nextIndentLevel: number | undefined = undefined;
+  let tempIndentLevel: number | undefined = undefined;
+  let matchNextIndentLevel: { from: number; to: number } | undefined =
+    undefined;
+  let indentsToProcessLater: { from: number; to: number }[] = [];
 
   const pushIfInRange = (
     edit: TextEdit & { lineNumber: number; oldText: string; type: string }
@@ -90,6 +93,80 @@ export const getDocumentFormattingEdits = (
 
   const outdent = () => {
     indentStack.pop();
+  };
+
+  const processIndent = (from: number, to: number) => {
+    const range = document.range(from, to);
+    let text = document.read(from, to);
+    const indentMatch = text.match(INDENT_REGEX);
+    const currentIndentation = indentMatch?.[0] || "";
+    const indentRange = {
+      start: {
+        line: range.start.line,
+        character: range.start.character,
+      },
+      end: {
+        line: range.start.line,
+        character: currentIndentation.length,
+      },
+    };
+
+    const currentIndent = indentStack.at(-1);
+    let newIndentLevel = tempIndentLevel ?? currentIndent?.level ?? 0;
+    tempIndentLevel = undefined;
+    if (tree) {
+      const stack = getStack<SparkdownNodeName>(tree, from, 1);
+      // Define properties are indented relative to DefineDeclaration node
+      const defineNode = stack.find((n) => n.name === "DefineDeclaration");
+      if (defineNode) {
+        const defineContentNode = stack.find(
+          (n) => n.name === "DefineDeclaration_content"
+        );
+        let indentLevel = currentIndentation.includes("\t")
+          ? currentIndentation.split("\t").length - 1
+          : Math.round(currentIndentation.length / options.tabSize);
+        const defineIndentNode = getDescendent("Indent", defineNode);
+        const defineNodeIndentText = defineIndentNode
+          ? document.read(defineIndentNode.from, defineIndentNode.to)
+          : "";
+        const defineNodeIndentLevel = defineNodeIndentText.includes("\t")
+          ? defineNodeIndentText.split("\t").length - 1
+          : Math.round(defineNodeIndentText.length / options.tabSize);
+        const indentOffset = indentLevel - defineNodeIndentLevel + 1;
+        const minLevel = defineContentNode ? 1 : 0;
+        newIndentLevel = Math.max(minLevel, indentOffset);
+        setIndent({ type: "define", level: newIndentLevel });
+      }
+      // FrontMatter field content are indented by 1
+      const unknownNode = stack.find((n) => n.name === "Unknown");
+      const frontMatterNode = stack.find((n) => n.name === "FrontMatter");
+      if (frontMatterNode) {
+        let indentLevel = currentIndentation.includes("\t")
+          ? currentIndentation.split("\t").length - 1
+          : Math.round(currentIndentation.length / options.tabSize);
+        const frontMatterFieldContentNode = stack.find(
+          (n) => n.name === "FrontMatterField_content"
+        );
+        newIndentLevel = unknownNode
+          ? indentLevel
+          : frontMatterFieldContentNode
+          ? 1
+          : 0;
+        setIndent({ type: "frontmatter", level: newIndentLevel });
+      }
+    }
+    const expectedIndentation = options.insertSpaces
+      ? " ".repeat(newIndentLevel * options.tabSize)
+      : "\t".repeat(newIndentLevel);
+    if (currentIndentation !== expectedIndentation) {
+      pushIfInRange({
+        lineNumber: indentRange.start.line + 1,
+        range: indentRange,
+        oldText: document.getText(indentRange),
+        newText: expectedIndentation,
+        type: "indent",
+      });
+    }
   };
 
   const cur = annotations.formatting?.iter();
@@ -137,80 +214,36 @@ export const getDocumentFormattingEdits = (
               level: Math.max(0, newIndentLevel),
             });
           }
+        } else if (aheadCur.value.type === "sol_comment") {
+          // Start of line comments are generally associated with the next non-blank line
+          // So have them match the indentation of the next non-blank line
+          matchNextIndentLevel = { from: aheadCur.from, to: aheadCur.to };
+          let line = document.range(aheadCur.from, aheadCur.to).end.line + 1;
+          while (
+            line < document.lineCount &&
+            !document.getLineText(line).trim()
+          ) {
+            line += 1;
+          }
+          matchNextIndentLevel.to = document.offsetAt(
+            document.getLineRange(line).end
+          );
         }
       }
       // Process current
       const range = document.range(cur.from, cur.to);
       if (cur.value.type === "indent") {
-        let text = document.read(cur.from, cur.to);
-        const indentMatch = text.match(INDENT_REGEX);
-        const currentIndentation = indentMatch?.[0] || "";
-        const indentRange = {
-          start: {
-            line: range.start.line,
-            character: range.start.character,
-          },
-          end: {
-            line: range.start.line,
-            character: currentIndentation.length,
-          },
-        };
-
-        const currentIndent = indentStack.at(-1);
-        let newIndentLevel = nextIndentLevel ?? currentIndent?.level ?? 0;
-        nextIndentLevel = undefined;
-        if (tree) {
-          const stack = getStack<SparkdownNodeName>(tree, cur.from, 1);
-          // Define properties are indented relative to DefineDeclaration node
-          const defineNode = stack.find((n) => n.name === "DefineDeclaration");
-          if (defineNode) {
-            const defineContentNode = stack.find(
-              (n) => n.name === "DefineDeclaration_content"
-            );
-            let indentLevel = currentIndentation.includes("\t")
-              ? currentIndentation.split("\t").length - 1
-              : Math.round(currentIndentation.length / options.tabSize);
-            const defineIndentNode = getDescendent("Indent", defineNode);
-            const defineNodeIndentText = defineIndentNode
-              ? document.read(defineIndentNode.from, defineIndentNode.to)
-              : "";
-            const defineNodeIndentLevel = defineNodeIndentText.includes("\t")
-              ? defineNodeIndentText.split("\t").length - 1
-              : Math.round(defineNodeIndentText.length / options.tabSize);
-            const indentOffset = indentLevel - defineNodeIndentLevel + 1;
-            const minLevel = defineContentNode ? 1 : 0;
-            newIndentLevel = Math.max(minLevel, indentOffset);
-            setIndent({ type: "define", level: newIndentLevel });
+        if (!matchNextIndentLevel || cur.from >= matchNextIndentLevel.to) {
+          if (indentsToProcessLater) {
+            for (const indent of indentsToProcessLater) {
+              processIndent(indent.from, indent.to);
+            }
           }
-          // FrontMatter field content are indented by 1
-          const unknownNode = stack.find((n) => n.name === "Unknown");
-          const frontMatterNode = stack.find((n) => n.name === "FrontMatter");
-          if (frontMatterNode) {
-            let indentLevel = currentIndentation.includes("\t")
-              ? currentIndentation.split("\t").length - 1
-              : Math.round(currentIndentation.length / options.tabSize);
-            const frontMatterFieldContentNode = stack.find(
-              (n) => n.name === "FrontMatterField_content"
-            );
-            newIndentLevel = unknownNode
-              ? indentLevel
-              : frontMatterFieldContentNode
-              ? 1
-              : 0;
-            setIndent({ type: "frontmatter", level: newIndentLevel });
-          }
-        }
-        const expectedIndentation = options.insertSpaces
-          ? " ".repeat(newIndentLevel * options.tabSize)
-          : "\t".repeat(newIndentLevel);
-        if (currentIndentation !== expectedIndentation) {
-          pushIfInRange({
-            lineNumber: indentRange.start.line + 1,
-            range: indentRange,
-            oldText: document.getText(indentRange),
-            newText: expectedIndentation,
-            type: cur.value.type,
-          });
+          processIndent(cur.from, cur.to);
+          matchNextIndentLevel = undefined;
+          indentsToProcessLater.length = 0;
+        } else if (matchNextIndentLevel) {
+          indentsToProcessLater.push({ from: cur.from, to: cur.to });
         }
       } else if (cur.value.type === "open_brace") {
         indent({ type: cur.value.type });
@@ -299,7 +332,7 @@ export const getDocumentFormattingEdits = (
           // If next line is blank, unindent only it
           const currentIndent = indentStack.at(-1);
           const newIndentLevel = Math.max(0, (currentIndent?.level ?? 0) - 1);
-          nextIndentLevel = newIndentLevel;
+          tempIndentLevel = newIndentLevel;
         }
       } else if (cur.value.type === "knot_begin") {
         const text = document.getText(range);
@@ -427,7 +460,7 @@ export const getDocumentFormattingEdits = (
 
   const result: (TextEdit & { type: string })[] = [];
   for (let i = 0; i < edits.length; i++) {
-    const curr = edits[i]!;
+    const curr = structuredClone(edits[i])!;
     const prev = result.at(-1)!;
     if (prev) {
       const currFrom = document.offsetAt(curr.range.start);
@@ -461,7 +494,7 @@ export const getDocumentFormattingEdits = (
             document.offsetAt(prev.range.start) <
             document.offsetAt(curr.range.start)
           ) {
-          curr.range.start = prev.range.start;
+            curr.range.start = prev.range.start;
           }
           if (
             document.getLineText(prev.range.start.line).trim() ||
@@ -476,7 +509,7 @@ export const getDocumentFormattingEdits = (
             document.offsetAt(curr.range.end) >
             document.offsetAt(prev.range.end)
           ) {
-          prev.range.end = curr.range.end;
+            prev.range.end = curr.range.end;
           }
           if (
             document.getLineText(curr.range.start.line).trim() ||
