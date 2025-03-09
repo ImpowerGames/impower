@@ -1688,7 +1688,7 @@
       "match": "(.+)"
     },
     "ChoiceWithSuppressedText": {
-      "match": "([^\\S\\n\\r]*)(.*?)(\\[)(.*?)(\\])(.*?)(?:$|([^\\S\\n\\r]*)(?=[-][>]))",
+      "match": "([^\\S\\n\\r]*)(.*?)(\\[)(.*?)(\\])(.*?)(?:([^\\S\\n\\r]*)$|([^\\S\\n\\r]*)(?=[-][>]))",
       "captures": {
         "1": {
           "patterns": [
@@ -1729,6 +1729,13 @@
         "7": {
           "patterns": [
             {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "8": {
+          "patterns": [
+            {
               "include": "#Separator"
             }
           ]
@@ -1736,7 +1743,7 @@
       }
     },
     "ChoiceWithNoSuppressedText": {
-      "match": "(.*?)(?:$|([^\\S\\n\\r]*)(?=[-][>]))",
+      "match": "(.*?)(?:([^\\S\\n\\r]*)$|([^\\S\\n\\r]*)(?=[-][>]))",
       "captures": {
         "1": {
           "patterns": [
@@ -1746,6 +1753,13 @@
           ]
         },
         "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "3": {
           "patterns": [
             {
               "include": "#Separator"

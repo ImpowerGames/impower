@@ -961,7 +961,7 @@ repository:
     match: (.+)
 
   ChoiceWithSuppressedText:
-    match: ({{WS}}*)(.*?)(\[)(.*?)(\])(.*?)(?:$|({{WS}}*)(?=[-][>]))
+    match: ({{WS}}*)(.*?)(\[)(.*?)(\])(.*?)(?:({{WS}}*)$|({{WS}}*)(?=[-][>]))
     captures:
       1:
         patterns:
@@ -983,15 +983,21 @@ repository:
           - { include: "#DisplayText" }
       7:
         patterns:
+          - { include: "#ExtraWhitespace" }
+      8:
+        patterns:
           - { include: "#Separator" }
 
   ChoiceWithNoSuppressedText:
-    match: (.*?)(?:$|({{WS}}*)(?=[-][>]))
+    match: (.*?)(?:({{WS}}*)$|({{WS}}*)(?=[-][>]))
     captures:
       1:
         patterns:
           - { include: "#ChoiceTextContent" }
       2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      3:
         patterns:
           - { include: "#Separator" }
 
