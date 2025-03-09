@@ -29,8 +29,8 @@ autoClosingPairs:
     close: "~~"
   - open: "::"
     close: "::"
-  - open: "/**"
-    close: " */"
+  - open: "/*"
+    close: "*/"
     notIn: ["StringLiteral"]
 
 surroundingPairs:
@@ -52,29 +52,6 @@ wordPattern:
   flags: u
 
 onEnterRules:
-  - beforeText: ^\s*/\*\*(?!/)([^*]|\*(?!/))*$
-    afterText: ^\s*\*/$
-    action:
-      indent: "indentOutdent"
-      appendText: " * "
-  - beforeText: ^\s*/\*\*(?!/)([^*]|\*(?!/))*$
-    action:
-      indent: "none"
-      appendText: " * "
-  - beforeText: ^(\t|[ ])*[ ]\*([ ]([^*]|\*(?!/))*)?$
-    previousLineText: (?=^(\s*(/\*\*|\*)).*)(?=(?!(\s*\*/)))
-    action:
-      indent: "none"
-      appendText: "* "
-  - beforeText: ^(\t|[ ])*[ ]\*/\s*$
-    action:
-      indent: "none"
-      removeText": 1
-  - beforeText: ^(\t|[ ])*[ ]\*[^/]*\*/\s*$
-    action:
-      indent: "none"
-      removeText": 1
-
   - beforeText: ^.*[-]\s+[{]\s*$
     afterText: \s*[}]
     action:
@@ -96,54 +73,29 @@ onEnterRules:
     action:
       indent: "indentOutdent"
 
-  - beforeText: ^\s*[+]\s+[+]\s+[+]\s+[+]\s+[+]\s+.*?([-][>]).*?$
+  - beforeText: ^\s*([+]\s+)+.*?([-][>]).*?$
     action:
       indent: "none"
-      appendText: "+ + + + + "
-  - beforeText: ^\s*[*]\s+[*]\s+[*]\s+[*]\s+[*]\s+.*?([-][>]).*?$
+  - beforeText: ^\s*([*]\s+)+.*?([-][>]).*?$
     action:
       indent: "none"
-      appendText: "* * * * * "
+  - beforeText: ^\s*([-]\s+)+.*?([-][>]).*?$
+    action:
+      indent: "none"
 
-  - beforeText: ^\s*[+]\s+[+]\s+[+]\s+[+]\s+.*?([-][>]).*?$
-    action:
-      indent: "none"
-      appendText: "+ + + + "
-  - beforeText: ^\s*[*]\s+[*]\s+[*]\s+[*]\s+.*?([-][>]).*?$
-    action:
-      indent: "none"
-      appendText: "* * * * "
-
-  - beforeText: ^\s*[+]\s+[+]\s+[+]\s+.*?([-][>]).*?$
-    action:
-      indent: "none"
-      appendText: "+ + + "
-  - beforeText: ^\s*[*]\s+[*]\s+[*]\s+.*?([-][>]).*?$
-    action:
-      indent: "none"
-      appendText: "* * * "
-
-  - beforeText: ^\s*[+]\s+[+]\s+.*?([-][>]).*?$
-    action:
-      indent: "none"
-      appendText: "+ + "
-  - beforeText: ^\s*[*]\s+[*]\s+.*?([-][>]).*?$
-    action:
-      indent: "none"
-      appendText: "* * "
-
-  - beforeText: ^\s*[+]\s+.*?([-][>]).*?$
-    action:
-      indent: "none"
-      appendText: "+ "
-  - beforeText: ^\s*[*]\s+.*?([-][>]).*?$
-    action:
-      indent: "none"
-      appendText: "* "
-
-  - beforeText: \s*[+*]\s+.*?(?![-][>]).*?$
+  - beforeText: \s*([+]\s+)+.*?(?![-][>]).*?$
     action:
       indent: "indent"
+  - beforeText: \s*([*]\s+)+.*?(?![-][>]).*?$
+    action:
+      indent: "indent"
+  - beforeText: \s*([-]\s+)+.*?(?![-][>]).*?$
+    action:
+      indent: "indent"
+
+  - beforeText: ^.*?([-][>])\s*\S+\s*$
+    action:
+      indent: "outdent"
 
   - beforeText: \[\s*$
     afterText: ^\s*\].*$
