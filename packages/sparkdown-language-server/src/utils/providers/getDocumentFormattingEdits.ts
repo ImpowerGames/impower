@@ -457,7 +457,12 @@ export const getDocumentFormattingEdits = (
           continue;
         } else if (curr.type === "blankline" && prev.type === "indent") {
           // Delete blank line and add indent
+          if (
+            document.offsetAt(prev.range.start) <
+            document.offsetAt(curr.range.start)
+          ) {
           curr.range.start = prev.range.start;
+          }
           if (
             document.getLineText(prev.range.start.line).trim() ||
             formattingOnType
@@ -467,7 +472,12 @@ export const getDocumentFormattingEdits = (
           result.pop();
         } else if (prev.type === "blankline" && curr.type === "indent") {
           // Delete blank line and add indent
+          if (
+            document.offsetAt(curr.range.end) >
+            document.offsetAt(prev.range.end)
+          ) {
           prev.range.end = curr.range.end;
+          }
           if (
             document.getLineText(curr.range.start.line).trim() ||
             formattingOnType
