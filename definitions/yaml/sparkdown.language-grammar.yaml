@@ -14,7 +14,7 @@ variables:
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
-  BREAK: (?:{{WS}}+[>]{{WS}}*)
+  BREAK: (?:{{WS}}+[>])
   # Word
   WORD: (?:[\p{L}\p{N}\p{Mn}']+)
   # Whitespace
@@ -906,7 +906,7 @@ repository:
   Chain:
     tag: special(meta)
     name: meta.chain.sd
-    match: ({{WS}}*)([\\])($|{{WS}}+)
+    match: ({{WS}}*)([\\])(?:({{WS}}+)$|({{WS}}*))
     captures:
       1:
         patterns:
@@ -915,6 +915,9 @@ repository:
         tag: keyword
         name: keyword.other.chain.sd
       3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
         patterns:
           - { include: "#Separator" }
 
@@ -2554,7 +2557,7 @@ repository:
   ########## Text ##########
 
   BlockLineBreak:
-    match: ({{WS}}*)(.*?)({{BREAK}})({{EOL}})
+    match: ({{WS}}*)(.*?)({{BREAK}})({{WS}}*)({{EOL}})
     captures:
       1:
         patterns:
@@ -2568,6 +2571,9 @@ repository:
         patterns:
           - { include: "#Break" }
       4:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      5:
         patterns:
           - { include: "#EndOfLine" }
 
@@ -2607,7 +2613,7 @@ repository:
           - { include: "#Newline" }
 
   LineBreak:
-    match: ({{WS}}*)(.*?)({{BREAK}})({{EOL}})
+    match: ({{WS}}*)(.*?)({{BREAK}})({{WS}}*)({{EOL}})
     captures:
       1:
         patterns:
@@ -2619,6 +2625,9 @@ repository:
         patterns:
           - { include: "#Break" }
       4:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      5:
         patterns:
           - { include: "#EndOfLine" }
 
