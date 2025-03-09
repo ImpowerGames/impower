@@ -171,10 +171,16 @@ export const getDocumentFormattingEdits = (
 
   const cur = annotations.formatting?.iter();
   const aheadCur = annotations.formatting?.iter();
+  const formattingTo = formattingRange
+    ? document.offsetAt(formattingRange.end)
+    : undefined;
   aheadCur.next();
   if (cur) {
     let lines: { range: Range; text: string }[] = [];
     while (cur.value) {
+      if (formattingTo != null && cur.from > formattingTo) {
+        break;
+      }
       // Lookahead in case we need to indent or outdent a certain type of node
       if (aheadCur.value) {
         if (aheadCur.value.type === "close_brace") {
