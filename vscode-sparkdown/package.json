@@ -198,7 +198,8 @@
         "editor.guides.bracketPairsHorizontal": false,
         "editor.renderWhitespace": "boundary",
         "editor.formatOnSave": true,
-        "editor.formatOnType": true
+        "editor.formatOnType": true,
+        "files.trimTrailingWhitespace": false
       }
     },
     "languages": [

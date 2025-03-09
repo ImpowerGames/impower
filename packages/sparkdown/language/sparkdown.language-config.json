@@ -188,7 +188,13 @@
       }
     },
     {
-      "beforeText": "^.*?([-][>])\\s*\\S+\\s*$",
+      "beforeText": "^(.*?)([-][>])(.*?)([-][>])(.*?)$",
+      "action": {
+        "indent": "none"
+      }
+    },
+    {
+      "beforeText": "^(.*?)([-][>])(.*?)$",
       "action": {
         "indent": "outdent"
       }

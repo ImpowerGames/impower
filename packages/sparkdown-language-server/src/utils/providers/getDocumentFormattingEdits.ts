@@ -48,6 +48,8 @@ export const getDocumentFormattingEdits = (
     { type: "", level: 0 },
   ];
 
+  let nextIndentLevel: number | undefined = undefined;
+
   const pushIfInRange = (
     edit: TextEdit & { lineNumber: number; oldText: string; type: string }
   ) => {
@@ -155,7 +157,8 @@ export const getDocumentFormattingEdits = (
         };
 
         const currentIndent = indentStack.at(-1);
-        let newIndentLevel = currentIndent?.level ?? 0;
+        let newIndentLevel = nextIndentLevel ?? currentIndent?.level ?? 0;
+        nextIndentLevel = undefined;
         if (tree) {
           const stack = getStack<SparkdownNodeName>(tree, cur.from, 1);
           // Define properties are indented relative to DefineDeclaration node
@@ -287,6 +290,17 @@ export const getDocumentFormattingEdits = (
           marks: currentIndent?.marks,
           level: newIndentLevel,
         });
+      } else if (cur.value.type === "eol_divert") {
+        if (
+          !document
+            .getLineText(document.range(cur.from, cur.to).start.line + 1)
+            .trim()
+        ) {
+          // If next line is blank, unindent only it
+          const currentIndent = indentStack.at(-1);
+          const newIndentLevel = Math.max(0, (currentIndent?.level ?? 0) - 1);
+          nextIndentLevel = newIndentLevel;
+        }
       } else if (cur.value.type === "knot_begin") {
         const text = document.getText(range);
         const expectedText = "== ";

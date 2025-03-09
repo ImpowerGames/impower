@@ -93,7 +93,11 @@ onEnterRules:
     action:
       indent: "indent"
 
-  - beforeText: ^.*?([-][>])\s*\S+\s*$
+  - beforeText: ^(.*?)([-][>])(.*?)([-][>])(.*?)$
+    action:
+      indent: "none"
+
+  - beforeText: ^(.*?)([-][>])(.*?)$
     action:
       indent: "outdent"
 

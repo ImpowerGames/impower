@@ -26,6 +26,7 @@ export type FormatType =
   | "choice_mark"
   | "gather_mark"
   | "indenting_colon"
+  | "eol_divert"
   | "root";
 
 const INDENT_REGEX: RegExp = /^[ \t]*/;
@@ -193,6 +194,18 @@ export class FormattingAnnotator extends SparkdownAnnotator<
           nodeRef.to
         )
       );
+      return annotations;
+    }
+    if (nodeRef.name === "Divert") {
+      const tunnelArrowNode = getDescendent("TunnelArrow", nodeRef.node);
+      if (!tunnelArrowNode) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("eol_divert").range(
+            nodeRef.from,
+            nodeRef.to
+          )
+        );
+      }
       return annotations;
     }
     if (nodeRef.name === "Separator") {
