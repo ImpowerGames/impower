@@ -430,21 +430,11 @@ export const getDocumentFormattingEdits = (
           // Indent takes precedence over separator
           continue;
         } else if (curr.type === "indent" && prev.type === "extra") {
-          if (formattingOnType?.line === curr.range.start.line) {
-            // When typing, indent takes precedence over extra
-            result.pop();
-          } else if (options.trimTrailingWhitespace) {
-            // Otherwise, trimming extra takes precedence over indent
-            continue;
-          }
+          // Indent takes precedence over extra
+          result.pop();
         } else if (prev.type === "indent" && curr.type === "extra") {
-          if (formattingOnType?.line === prev.range.start.line) {
-            // When typing, indent takes precedence over extra
-            continue;
-          } else {
-            // Otherwise, trimming extra takes precedence over indent
-            result.pop();
-          }
+          // Indent takes precedence over extra
+          continue;
         } else if (curr.type === "separator" && prev.type === "extra") {
           // Separator takes precedence over extra
           result.pop();
