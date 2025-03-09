@@ -482,7 +482,7 @@ export const getDocumentFormattingEdits = (
           curr.newText === "" &&
           prev.newText === ""
         ) {
-          // Combine consecutive edits
+          // Combine overlapping deletion edits
           prev.newText += curr.newText;
           prev.range.end = curr.range.end;
           continue;
