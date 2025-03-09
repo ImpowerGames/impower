@@ -477,6 +477,15 @@ export const getDocumentFormattingEdits = (
         } else if (prev.type === "blankline" && curr.type === "separator") {
           // Deleting blank line takes precedence over separator
           continue;
+        } else if (
+          curr.type === prev.type &&
+          curr.newText === "" &&
+          prev.newText === ""
+        ) {
+          // Combine consecutive edits
+          prev.newText += curr.newText;
+          prev.range.end = curr.range.end;
+          continue;
         } else if (prevTo === currFrom) {
           // Combine consecutive edits
           prev.newText += curr.newText;
