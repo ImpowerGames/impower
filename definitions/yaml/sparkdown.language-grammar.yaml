@@ -2493,6 +2493,7 @@ repository:
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
+      - { include: "#ExtraWhitespace" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
 
   ActionMark:
