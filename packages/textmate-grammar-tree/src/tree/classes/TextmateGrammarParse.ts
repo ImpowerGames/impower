@@ -247,6 +247,7 @@ export class TextmateGrammarParse implements PartialParse {
       if (this.consecutiveEmptyMatchCount > 100) {
         // Possible infinite loop!
         matchLength = 1;
+        console.warn("Possible infinite loop!");
       }
 
       this.parsedPos = this.region.compensate(pos, matchLength);
