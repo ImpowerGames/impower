@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
+import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
 import { writeFile } from "./writeFile";
-import { SparkProgramManager } from "../providers/SparkProgramManager";
 
 export const exportJson = async (): Promise<void> => {
   const uri = getActiveSparkdownDocument();

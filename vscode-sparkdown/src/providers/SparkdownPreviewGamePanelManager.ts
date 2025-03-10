@@ -1,17 +1,18 @@
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
+import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
-import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
-import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import * as vscode from "vscode";
 import { Uri, ViewColumn, WebviewPanel, window } from "vscode";
+import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { getClientRange } from "../utils/getClientRange";
 import { getEditor } from "../utils/getEditor";
 import { getNonce } from "../utils/getNonce";
@@ -19,7 +20,6 @@ import { getServerRange } from "../utils/getServerRange";
 import { getSparkdownPreviewConfig } from "../utils/getSparkdownPreviewConfig";
 import { getUri } from "../utils/getUri";
 import { getWebviewUri } from "../utils/getWebviewUri";
-import { SparkProgramManager } from "./SparkProgramManager";
 
 export class SparkdownPreviewGamePanelManager {
   private static _instance: SparkdownPreviewGamePanelManager;
