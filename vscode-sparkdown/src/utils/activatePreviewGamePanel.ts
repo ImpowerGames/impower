@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { SparkdownPreviewGamePanelManager } from "../providers/SparkdownPreviewGamePanelManager";
-import { SparkdownPreviewGamePanelSerializer } from "../providers/SparkdownPreviewGamePanelSerializer";
+import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
+import { SparkdownPreviewGamePanelSerializer } from "../managers/SparkdownPreviewGamePanelSerializer";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";

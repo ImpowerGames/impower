@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { SparkdownPreviewScreenplayPanelManager } from "../providers/SparkdownPreviewScreenplayPanelManager";
-import { SparkdownPreviewScreenplayPanelSerializer } from "../providers/SparkdownPreviewScreenplayPanelSerializer";
+import { SparkdownPreviewScreenplayPanelManager } from "../managers/SparkdownPreviewScreenplayPanelManager";
+import { SparkdownPreviewScreenplayPanelSerializer } from "../managers/SparkdownPreviewScreenplayPanelSerializer";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";

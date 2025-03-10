@@ -14,9 +14,9 @@ import {
   LSPAny,
   ProvideDocumentSymbolsSignature,
 } from "vscode-languageclient";
+import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { SparkdownOutlineTreeDataProvider } from "../providers/SparkdownOutlineTreeDataProvider";
-import { SparkdownPreviewGamePanelManager } from "../providers/SparkdownPreviewGamePanelManager";
 import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
 import { getEditor } from "./getEditor";
 import { updateCommands } from "./updateCommands";

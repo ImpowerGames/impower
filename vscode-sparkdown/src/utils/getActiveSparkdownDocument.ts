@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { SparkdownPreviewScreenplayPanelManager } from "../providers/SparkdownPreviewScreenplayPanelManager";
+import { SparkdownPreviewScreenplayPanelManager } from "../managers/SparkdownPreviewScreenplayPanelManager";
 
 /**
  * Get the relevant sparkdown document for the currently selected preview or text editor

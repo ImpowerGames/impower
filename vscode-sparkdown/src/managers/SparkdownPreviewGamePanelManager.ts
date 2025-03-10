@@ -12,7 +12,6 @@ import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import * as vscode from "vscode";
 import { Uri, ViewColumn, WebviewPanel, window } from "vscode";
-import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { getClientRange } from "../utils/getClientRange";
 import { getEditor } from "../utils/getEditor";
 import { getNonce } from "../utils/getNonce";
@@ -20,6 +19,7 @@ import { getServerRange } from "../utils/getServerRange";
 import { getSparkdownPreviewConfig } from "../utils/getSparkdownPreviewConfig";
 import { getUri } from "../utils/getUri";
 import { getWebviewUri } from "../utils/getWebviewUri";
+import { SparkProgramManager } from "./SparkProgramManager";
 
 export class SparkdownPreviewGamePanelManager {
   private static _instance: SparkdownPreviewGamePanelManager;

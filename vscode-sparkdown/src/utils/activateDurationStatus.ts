@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { SparkdownStatusBarManager } from "../providers/SparkdownStatusBarManager";
+import { SparkdownStatusBarManager } from "../managers/SparkdownStatusBarManager";
 
 export const activateDurationStatus = (
   context: vscode.ExtensionContext

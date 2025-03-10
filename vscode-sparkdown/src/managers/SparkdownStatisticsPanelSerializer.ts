@@ -1,12 +1,12 @@
 import { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/index";
 import * as path from "path";
 import * as vscode from "vscode";
-import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { getEditor } from "../utils/getEditor";
 import { getSparkdownPreviewConfig } from "../utils/getSparkdownPreviewConfig";
 import { getWebviewUri } from "../utils/getWebviewUri";
 import { readTextFile } from "../utils/readTextFile";
 import { retrieveScreenPlayStatistics } from "../utils/statistics";
+import { SparkProgramManager } from "./SparkProgramManager";
 
 interface statisticsPanel {
   uri: string;

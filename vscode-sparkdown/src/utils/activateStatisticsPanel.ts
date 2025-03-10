@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import {
   createStatisticsPanel,
   SparkdownStatisticsPanelSerializer,
-} from "../providers/SparkdownStatisticsPanelSerializer";
+} from "../managers/SparkdownStatisticsPanelSerializer";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 
