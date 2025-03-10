@@ -1,6 +1,6 @@
 import { ExtensionContext, window } from "vscode";
 import { type IDisposable } from "../types/IDisposable";
-import { ContextServiceEditorInList } from "./ContextServiceEditorInList";
+import { ContextServiceEditorInTextSymbol } from "./ContextServiceEditorInTextSymbol";
 import { AbsContextService } from "./IContextService";
 
 export class ContextServiceManager implements IDisposable {
@@ -8,7 +8,7 @@ export class ContextServiceManager implements IDisposable {
 
   public constructor() {
     // push context services
-    this.contextServices.push(new ContextServiceEditorInList());
+    this.contextServices.push(new ContextServiceEditorInTextSymbol());
   }
 
   public activate(context: ExtensionContext) {

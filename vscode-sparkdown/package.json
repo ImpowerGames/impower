@@ -366,6 +366,48 @@
         "command": "sparkdown.extension.onBackspaceKey",
         "key": "backspace",
         "when": "editorTextFocus && !editorReadonly && editorLangId =~ /^sparkdown$/ && !editorHasMultipleSelections && vim.mode != 'Normal' && vim.mode != 'Visual' && vim.mode != 'VisualBlock' && vim.mode != 'VisualLine' && vim.mode != 'SearchInProgressMode' && vim.mode != 'CommandlineInProgress' && vim.mode != 'Replace' && vim.mode != 'EasyMotionMode' && vim.mode != 'EasyMotionInputMode' && vim.mode != 'SurroundInputMode'"
+      },
+      {
+        "command": "sparkdown.extension.editing.toggleBold",
+        "key": "ctrl+b",
+        "mac": "cmd+b",
+        "when": "editorTextFocus && !editorReadonly && editorLangId =~ /^sparkdown$/ && (editorHasSelection || sparkdown.extension.editor.cursor.inTextSymbol)"
+      },
+      {
+        "command": "sparkdown.extension.editing.toggleItalic",
+        "key": "ctrl+i",
+        "mac": "cmd+i",
+        "when": "editorTextFocus && !editorReadonly && editorLangId =~ /^sparkdown$/ && (editorHasSelection || sparkdown.extension.editor.cursor.inTextSymbol)"
+      },
+      {
+        "command": "sparkdown.extension.editing.toggleItalicAsterisk",
+        "key": "shift+8",
+        "mac": "shift+8",
+        "when": "editorTextFocus && !editorReadonly && editorLangId =~ /^sparkdown$/ && (editorHasSelection || sparkdown.extension.editor.cursor.inTextSymbol)"
+      },
+      {
+        "command": "sparkdown.extension.editing.toggleUnderline",
+        "key": "shift+-",
+        "mac": "shift+-",
+        "when": "editorTextFocus && !editorReadonly && editorLangId =~ /^sparkdown$/ && (editorHasSelection || sparkdown.extension.editor.cursor.inTextSymbol)"
+      },
+      {
+        "command": "sparkdown.extension.editing.toggleCenter",
+        "key": "shift+6",
+        "mac": "shift+6",
+        "when": "editorTextFocus && !editorReadonly && editorLangId =~ /^sparkdown$/ && (editorHasSelection || sparkdown.extension.editor.cursor.inTextSymbol)"
+      },
+      {
+        "command": "sparkdown.extension.editing.toggleWavy",
+        "key": "shift+`",
+        "mac": "shift+`",
+        "when": "editorTextFocus && !editorReadonly && editorLangId =~ /^sparkdown$/ && (editorHasSelection || sparkdown.extension.editor.cursor.inTextSymbol)"
+      },
+      {
+        "command": "sparkdown.extension.editing.toggleShaky",
+        "key": "shift+;",
+        "mac": "shift+;",
+        "when": "editorTextFocus && !editorReadonly && editorLangId =~ /^sparkdown$/ && (editorHasSelection || sparkdown.extension.editor.cursor.inTextSymbol)"
       }
     ],
     "configuration": [
