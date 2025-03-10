@@ -87,7 +87,7 @@ export class SparkdownCombinedAnnotator {
     tree: Tree,
     from?: number,
     to?: number,
-    skip?: Set<keyof SparkdownAnnotators>
+    annotate?: Set<keyof SparkdownAnnotators>
   ) {
     const ranges: SparkdownAnnotationRanges = {
       colors: [],
@@ -108,7 +108,7 @@ export class SparkdownCombinedAnnotator {
     const iteratingTo = to ?? tree.length;
 
     for (const [key, annotator] of this._currentEntries) {
-      if (!skip?.has(key as keyof SparkdownAnnotators)) {
+      if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         annotator.begin(iteratingFrom, iteratingTo);
       }
     }
@@ -117,7 +117,7 @@ export class SparkdownCombinedAnnotator {
       to,
       enter: (nodeRef) => {
         for (const [key, annotator] of this._currentEntries) {
-          if (!skip?.has(key as keyof SparkdownAnnotators)) {
+          if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
             annotator.enter(
               ranges[key as keyof SparkdownAnnotators]!,
               nodeRef,
@@ -129,7 +129,7 @@ export class SparkdownCombinedAnnotator {
       },
       leave: (nodeRef) => {
         for (const [key, annotator] of this._currentEntries) {
-          if (!skip?.has(key as keyof SparkdownAnnotators)) {
+          if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
             annotator.leave(
               ranges[key as keyof SparkdownAnnotators]!,
               nodeRef,
@@ -147,17 +147,17 @@ export class SparkdownCombinedAnnotator {
     from: number,
     to: number,
     value: SparkdownAnnotation<T>,
-    skip?: Set<keyof SparkdownAnnotators>
+    annotate?: Set<keyof SparkdownAnnotators>
   ) {
     for (const [key, annotator] of this._currentEntries) {
-      if (!skip?.has(key as keyof SparkdownAnnotators)) {
+      if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         annotator.remove(from, to, value);
       }
     }
   }
 
-  create(tree: Tree, text: Text, skip?: Set<keyof SparkdownAnnotators>) {
-    return this.update(tree, text, undefined, undefined, skip);
+  create(tree: Tree, text: Text, annotate?: Set<keyof SparkdownAnnotators>) {
+    return this.update(tree, text, undefined, undefined, annotate);
   }
 
   update(
@@ -165,7 +165,7 @@ export class SparkdownCombinedAnnotator {
     text: Text,
     changes?: ChangeSpec[],
     length: number = 0,
-    skip?: Set<keyof SparkdownAnnotators>
+    annotate?: Set<keyof SparkdownAnnotators>
   ) {
     const cachedCompiler = tree.prop(cachedCompilerProp);
     const reparsedFrom = cachedCompiler?.reparsedFrom;
@@ -173,16 +173,16 @@ export class SparkdownCombinedAnnotator {
     const iteratingFrom = reparsedFrom ?? 0;
     const iteratingTo = reparsedTo ?? text.length;
     for (const [key, annotator] of this._currentEntries) {
-      if (!skip?.has(key as keyof SparkdownAnnotators)) {
+      if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         annotator.update(tree, text);
       }
     }
     if (!changes || reparsedFrom == null) {
       // Rebuild all annotations from scratch
       for (const [key, ranges] of Object.entries(
-        this.annotate(tree, undefined, undefined, skip)
+        this.annotate(tree, undefined, undefined, annotate)
       )) {
-        if (!skip?.has(key as keyof SparkdownAnnotators)) {
+        if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
           const annotator = this.current[key as keyof SparkdownAnnotators];
           if (annotator) {
             annotator.current =
@@ -191,7 +191,7 @@ export class SparkdownCombinedAnnotator {
         }
       }
       for (const [key, annotator] of this._currentEntries) {
-        if (!skip?.has(key as keyof SparkdownAnnotators)) {
+        if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
           annotator.end(iteratingFrom, iteratingTo);
         }
       }
@@ -204,9 +204,9 @@ export class SparkdownCombinedAnnotator {
     if (reparsedTo == null) {
       // Only rebuild annotations after reparsedFrom
       for (const [key, add] of Object.entries(
-        this.annotate(tree, reparsedFrom, undefined, skip)
+        this.annotate(tree, reparsedFrom, undefined, annotate)
       )) {
-        if (!skip?.has(key as keyof SparkdownAnnotators)) {
+        if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
           const annotator = this.current[key as keyof SparkdownAnnotators];
           if (annotator) {
             annotator.current = annotator.current.map(changeDesc);
@@ -215,7 +215,7 @@ export class SparkdownCombinedAnnotator {
                 if (to < reparsedFrom) {
                   return true;
                 }
-                this.remove(from, to, value, skip);
+                this.remove(from, to, value, annotate);
                 return false;
               },
               add,
@@ -225,7 +225,7 @@ export class SparkdownCombinedAnnotator {
         }
       }
       for (const [key, annotator] of this._currentEntries) {
-        if (!skip?.has(key as keyof SparkdownAnnotators)) {
+        if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
           annotator.end(iteratingFrom, iteratingTo);
         }
       }
@@ -233,9 +233,9 @@ export class SparkdownCombinedAnnotator {
     }
     // Only rebuild annotations between reparsedFrom and reparsedTo
     for (const [key, add] of Object.entries(
-      this.annotate(tree, reparsedFrom, reparsedTo, skip)
+      this.annotate(tree, reparsedFrom, reparsedTo, annotate)
     )) {
-      if (!skip?.has(key as keyof SparkdownAnnotators)) {
+      if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         const annotator = this.current[key as keyof SparkdownAnnotators];
         if (annotator) {
           annotator.current = annotator.current.map(changeDesc);
@@ -244,7 +244,7 @@ export class SparkdownCombinedAnnotator {
               if (to < reparsedFrom || from > reparsedTo) {
                 return true;
               }
-              this.remove(from, to, value, skip);
+              this.remove(from, to, value, annotate);
               return false;
             },
             add,
@@ -254,7 +254,7 @@ export class SparkdownCombinedAnnotator {
       }
     }
     for (const [key, annotator] of this._currentEntries) {
-      if (!skip?.has(key as keyof SparkdownAnnotators)) {
+      if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         annotator.end(iteratingFrom, iteratingTo);
       }
     }

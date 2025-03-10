@@ -37,14 +37,11 @@ export class SparkdownCompiler {
   protected _config: SparkdownCompilerConfig = {};
 
   protected _documents = new SparkdownDocumentRegistry("compiler", [
-    "characters",
-    "scenes",
-    "transitions",
     "colors",
-    "declarations",
-    "formatting",
-    "links",
-    "semantics",
+    "implicits",
+    "references",
+    "transpilations",
+    "validations",
   ]);
   get documents() {
     return this._documents;

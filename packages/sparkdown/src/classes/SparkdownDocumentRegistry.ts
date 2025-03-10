@@ -44,14 +44,14 @@ export class SparkdownDocumentRegistry {
 
   protected _profilingIdentifier = "";
 
-  protected _skipAnnotating?: Set<keyof SparkdownAnnotators>;
+  protected _annotate?: Set<keyof SparkdownAnnotators>;
 
   constructor(
     profilingIdentifier: string,
-    skipAnnotating?: (keyof SparkdownAnnotators)[]
+    annotate?: (keyof SparkdownAnnotators)[]
   ) {
     this._profilingIdentifier = profilingIdentifier;
-    this._skipAnnotating = new Set(skipAnnotating);
+    this._annotate = new Set(annotate);
   }
 
   protected getDocumentState(uri: string): TextDocumentState {
@@ -147,7 +147,7 @@ export class SparkdownDocumentRegistry {
             documentLengthBeforeChange,
             documentLengthAfterChange
           ),
-          this._skipAnnotating
+          this._annotate
         );
       }
       state.treeVersion = afterDocument.version;
@@ -170,7 +170,7 @@ export class SparkdownDocumentRegistry {
       const text = Text.of(afterDocument.getText().split("\n"));
       state.tree = this._parser.parse(afterDocument);
       state.treeFragments = TreeFragment.addTree(state.tree);
-      state.annotators.create(state.tree, text, this._skipAnnotating);
+      state.annotators.create(state.tree, text, this._annotate);
       state.treeVersion = afterDocument.version;
       profile(
         "end",

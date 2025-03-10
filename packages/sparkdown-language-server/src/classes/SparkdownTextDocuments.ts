@@ -69,9 +69,15 @@ export default class SparkdownTextDocuments {
   protected _compilerWorker: Worker;
 
   protected _documents = new SparkdownDocumentRegistry("lsp", [
-    "transpilations",
-    "validations",
-    "implicits",
+    "characters",
+    "colors",
+    "declarations",
+    "formatting",
+    "links",
+    "references",
+    "scenes",
+    "semantics",
+    "transitions",
   ]);
   get parser() {
     return this._documents.parser;
