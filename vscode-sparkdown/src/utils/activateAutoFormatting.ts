@@ -14,7 +14,8 @@ import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
 
 type IModifier = "ctrl" | "shift";
 
-const LIST_MARK_REGEX = /^(\s*)((?:[!@#$%~*+-](?:$|\s+))+)(.*?)$/;
+const LIST_MARK_REGEX =
+  /^(\s*)((?:[!@#$%~](?:$|\s+)|(?:[*+-](?:$|\s+))+))(.*?)$/;
 
 export const activateAutoFormatting = (context: ExtensionContext) => {
   const activeDocument = window.activeTextEditor?.document;
