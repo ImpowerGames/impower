@@ -52,10 +52,12 @@ export class SparkdownDocument implements TextDocument {
     return this.text.offsetAt(position);
   }
 
-  range(from: number, to: number): Range {
+  range(from: number, to?: number): Range {
     return {
       start: this.text.positionAt(from),
-      end: this.text.positionAt(to),
+      end: this.text.positionAt(
+        to ?? this.text.offsetAt(this.text.positionAt(Number.MAX_VALUE))
+      ),
     };
   }
 

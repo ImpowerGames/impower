@@ -21,14 +21,14 @@ export type FormatType =
   | "define_end"
   | "knot_begin"
   | "knot_end"
+  | "stitch"
   | "case_mark"
   | "alternative_mark"
   | "choice_mark"
   | "gather_mark"
   | "indenting_colon"
   | "sol_comment"
-  | "eol_divert"
-  | "root";
+  | "eol_divert";
 
 const INDENT_REGEX: RegExp = /^[ \t]*/;
 
@@ -79,13 +79,27 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (
-      nodeRef.name === "Knot" ||
-      nodeRef.name === "Stitch" ||
-      nodeRef.name === "FunctionDeclaration"
-    ) {
+    if (nodeRef.name === "KnotBeginMark") {
       annotations.push(
-        SparkdownAnnotation.mark<FormatType>("root").range(
+        SparkdownAnnotation.mark<FormatType>("knot_begin").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "Knot_end") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("knot_end").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "Stitch") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("stitch").range(
           nodeRef.from,
           nodeRef.to
         )
@@ -173,24 +187,6 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "IndentingColon") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("indenting_colon").range(
-          nodeRef.from,
-          nodeRef.to
-        )
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "KnotBeginMark") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("knot_begin").range(
-          nodeRef.from,
-          nodeRef.to
-        )
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "Knot_end") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("knot_end").range(
           nodeRef.from,
           nodeRef.to
         )

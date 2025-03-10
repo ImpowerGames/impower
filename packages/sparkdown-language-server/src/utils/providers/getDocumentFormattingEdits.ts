@@ -17,13 +17,16 @@ const INDENT_REGEX: RegExp = /^[ \t]*/;
 const isInRange = (
   document: SparkdownDocument,
   innerRange: Range,
-  outerRange: Range
+  outerRange: Range | Position
 ) => {
-  return (
-    document.offsetAt(innerRange.start) >=
-      document.offsetAt(outerRange.start) &&
-    document.offsetAt(innerRange.end) <= document.offsetAt(outerRange.end)
-  );
+  if ("start" in outerRange) {
+    return (
+      document.offsetAt(innerRange.start) >=
+        document.offsetAt(outerRange.start) &&
+      document.offsetAt(innerRange.end) <= document.offsetAt(outerRange.end)
+    );
+  }
+  return document.offsetAt(innerRange.start) >= document.offsetAt(outerRange);
 };
 
 export const getDocumentFormattingEdits = (
@@ -31,9 +34,10 @@ export const getDocumentFormattingEdits = (
   tree: Tree | undefined,
   annotations: SparkdownAnnotations | undefined,
   options: FormattingOptions,
-  formattingRange?: Range,
+  formattingRange?: Range | Position,
   formattingOnType?: Position
 ): TextEdit[] | undefined => {
+  console.log("getDocumentFormattingEdits", formattingRange);
   if (!document || !annotations) {
     return undefined;
   }
@@ -67,8 +71,7 @@ export const getDocumentFormattingEdits = (
 
   const resetIndent = () => {
     indentStack.length = 0;
-    const indent = { type: "", level: 0 };
-    indentStack.push(indent);
+    indentStack.push({ type: "", level: 0 });
   };
 
   const setIndent = (indent: {
@@ -169,10 +172,13 @@ export const getDocumentFormattingEdits = (
     }
   };
 
+  let encounteredKnot = false;
   const cur = annotations.formatting?.iter();
   const aheadCur = annotations.formatting?.iter();
   const formattingTo = formattingRange
-    ? document.offsetAt(formattingRange.end)
+    ? "end" in formattingRange
+      ? document.offsetAt(formattingRange.end)
+      : document.length
     : undefined;
   aheadCur.next();
   if (cur) {
@@ -185,15 +191,21 @@ export const getDocumentFormattingEdits = (
       if (aheadCur.value) {
         if (aheadCur.value.type === "close_brace") {
           outdent();
+        } else if (aheadCur.value.type === "knot_begin") {
+          resetIndent();
+          encounteredKnot = true;
         } else if (
-          aheadCur.value.type === "root" ||
-          aheadCur.value.type === "knot_begin" ||
           aheadCur.value.type === "define_begin" ||
           aheadCur.value.type === "define_end" ||
           aheadCur.value.type === "frontmatter_begin" ||
           aheadCur.value.type === "frontmatter_end"
         ) {
           resetIndent();
+        } else if (aheadCur.value.type === "stitch") {
+          resetIndent();
+          if (encounteredKnot) {
+            indent({ type: aheadCur.value.type });
+          }
         } else if (
           aheadCur.value.type === "case_mark" ||
           aheadCur.value.type === "alternative_mark"
@@ -232,7 +244,7 @@ export const getDocumentFormattingEdits = (
             line += 1;
           }
           matchNextIndentLevel.to = document.offsetAt(
-            document.getLineRange(line).end
+            document.getLineRange(line - 1).end
           );
         }
       }
@@ -240,10 +252,8 @@ export const getDocumentFormattingEdits = (
       const range = document.range(cur.from, cur.to);
       if (cur.value.type === "indent") {
         if (!matchNextIndentLevel || cur.from >= matchNextIndentLevel.to) {
-          if (indentsToProcessLater) {
-            for (const indent of indentsToProcessLater) {
-              processIndent(indent.from, indent.to);
-            }
+          for (const indent of indentsToProcessLater) {
+            processIndent(indent.from, indent.to);
           }
           processIndent(cur.from, cur.to);
           matchNextIndentLevel = undefined;
@@ -360,6 +370,7 @@ export const getDocumentFormattingEdits = (
             type: cur.value.type,
           });
         }
+        indent({ type: cur.value.type });
       } else if (cur.value.type === "knot_end") {
         const text = document.getText(range);
         const expectedText = " ==";
@@ -372,6 +383,8 @@ export const getDocumentFormattingEdits = (
             type: cur.value.type,
           });
         }
+      } else if (cur.value.type === "stitch") {
+        indent({ type: cur.value.type });
       } else if (cur.value.type === "newline") {
         const range = document.range(cur.from, cur.to);
         const lineRange = document.getLineRange(range.start.line);
@@ -387,21 +400,6 @@ export const getDocumentFormattingEdits = (
                 oldText: document.getText(lineRange),
                 newText: "",
                 type: "blankline",
-              });
-            } else if (text.length > 0) {
-              // Delete extra whitespace
-              pushIfInRange({
-                lineNumber: lineRange.start.line + 1,
-                range: {
-                  start: lineRange.start,
-                  end: {
-                    line: lineRange.start.line,
-                    character: text.length,
-                  },
-                },
-                oldText: document.getText(lineRange),
-                newText: "",
-                type: "extra",
               });
             }
           }
