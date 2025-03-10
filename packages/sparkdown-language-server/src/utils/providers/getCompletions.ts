@@ -1006,10 +1006,7 @@ export const getCompletions = (
 
   // console.log("program", program);
   // console.log(printTree(tree, document.getText()));
-  // console.log(
-  //   "left",
-  //   leftStack.map((n) => n.type.name)
-  // );
+  // console.log(leftStack.map((n) => n.type.name));
 
   // FrontMatter
   if (
@@ -1093,6 +1090,8 @@ export const getCompletions = (
   if (
     (leftStack[0]?.name === "Separator" &&
       prevNode?.name === "TransitionMark") ||
+    (leftStack[0]?.name === "Separator" &&
+      leftStack.some((n) => n?.name === "Transition_begin")) ||
     leftStack.some((n) => n?.name === "Transition_content")
   ) {
     const contentNode = getDescendentInsideParent(
@@ -1133,6 +1132,8 @@ export const getCompletions = (
   }
   if (
     (leftStack[0]?.name === "Separator" && prevNode?.name === "SceneMark") ||
+    (leftStack[0]?.name === "Separator" &&
+      leftStack.some((n) => n?.name === "Scene_begin")) ||
     leftStack.some((n) => n?.name === "Scene_content")
   ) {
     const contentNode = getDescendentInsideParent(
@@ -1179,6 +1180,10 @@ export const getCompletions = (
   }
   if (
     (leftStack[0]?.name === "Separator" && prevNode?.name === "DialogueMark") ||
+    (leftStack[0]?.name === "Separator" &&
+      leftStack.some((n) => n?.name === "BlockDialogue_begin")) ||
+    (leftStack[0]?.name === "Separator" &&
+      leftStack.some((n) => n?.name === "InlineDialogue_begin")) ||
     leftStack.some((n) => n?.name === "DialogueCharacter")
   ) {
     const dialogueCharacterNode =
@@ -1213,6 +1218,10 @@ export const getCompletions = (
   }
   if (
     (leftStack[0]?.name === "Separator" && prevNode?.name === "WriteMark") ||
+    (leftStack[0]?.name === "Separator" &&
+      leftStack.some((n) => n?.name === "BlockWrite_begin")) ||
+    (leftStack[0]?.name === "Separator" &&
+      leftStack.some((n) => n?.name === "InlineWrite_begin")) ||
     leftStack.some((n) => n?.name === "WriteTarget")
   ) {
     const writeTargetNode =

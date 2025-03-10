@@ -356,6 +356,16 @@
         "when": "editorLangId == sparkdown",
         "key": "f5",
         "mac": "f5"
+      },
+      {
+        "command": "sparkdown.extension.onEnterKey",
+        "key": "enter",
+        "when": "editorTextFocus && !editorReadonly && editorLangId =~ /^sparkdown$/ && (!suggestWidgetVisible || config.editor.acceptSuggestionOnEnter == 'off') && !editorHasMultipleSelections && vim.mode != 'Normal' && vim.mode != 'Visual' && vim.mode != 'VisualBlock' && vim.mode != 'VisualLine' && vim.mode != 'SearchInProgressMode' && vim.mode != 'CommandlineInProgress' && vim.mode != 'Replace' && vim.mode != 'EasyMotionMode' && vim.mode != 'EasyMotionInputMode' && vim.mode != 'SurroundInputMode'"
+      },
+      {
+        "command": "sparkdown.extension.onBackspaceKey",
+        "key": "backspace",
+        "when": "editorTextFocus && !editorReadonly && editorLangId =~ /^sparkdown$/ && !editorHasMultipleSelections && vim.mode != 'Normal' && vim.mode != 'Visual' && vim.mode != 'VisualBlock' && vim.mode != 'VisualLine' && vim.mode != 'SearchInProgressMode' && vim.mode != 'CommandlineInProgress' && vim.mode != 'Replace' && vim.mode != 'EasyMotionMode' && vim.mode != 'EasyMotionInputMode' && vim.mode != 'SurroundInputMode'"
       }
     ],
     "configuration": [
@@ -393,6 +403,11 @@
             "type": "boolean",
             "default": true,
             "markdownDescription": "When renaming a reference to a file in the editor, also rename the asset file it refers to."
+          },
+          "sparkdown.editor.autoSpaceMarks": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Automatically indents and adds a space after gather, choice, and other start-of-line marks (-, *, +, =, etc.).\n\n*[If you are using a vim emulator, you should disable this setting.]*"
           }
         }
       },

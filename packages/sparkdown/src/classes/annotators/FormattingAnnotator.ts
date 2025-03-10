@@ -28,7 +28,10 @@ export type FormatType =
   | "gather_mark"
   | "indenting_colon"
   | "sol_comment"
-  | "eol_divert";
+  | "eol_divert"
+  | "blankline"
+  | "define"
+  | "frontmatter";
 
 const INDENT_REGEX: RegExp = /^[ \t]*/;
 

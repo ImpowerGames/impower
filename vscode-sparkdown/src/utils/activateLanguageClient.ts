@@ -1,16 +1,12 @@
-import * as vscode from "vscode";
 import {
   DidCompileTextDocumentMessage,
   DidCompileTextDocumentParams,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
+import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
 import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
-import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
-import { SparkProgramManager } from "../providers/SparkProgramManager";
-import { SparkdownStatusBarManager } from "../providers/SparkdownStatusBarManager";
-import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
-import { getEditor } from "./getEditor";
+import * as vscode from "vscode";
 import {
   ExecuteCommandParams,
   ExecuteCommandRequest,
@@ -18,9 +14,12 @@ import {
   LSPAny,
   ProvideDocumentSymbolsSignature,
 } from "vscode-languageclient";
-import { SparkdownPreviewGamePanelManager } from "../providers/SparkdownPreviewGamePanelManager";
-import { updateCommands } from "./updateCommands";
+import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { SparkdownOutlineTreeDataProvider } from "../providers/SparkdownOutlineTreeDataProvider";
+import { SparkdownPreviewGamePanelManager } from "../providers/SparkdownPreviewGamePanelManager";
+import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
+import { getEditor } from "./getEditor";
+import { updateCommands } from "./updateCommands";
 
 export const activateLanguageClient = async (
   context: vscode.ExtensionContext

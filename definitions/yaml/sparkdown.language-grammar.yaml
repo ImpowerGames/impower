@@ -2233,7 +2233,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!\1))|(?=^$)
+    end: (?=^(?!\1))|(?=^\s*$)
 
   WriteMark:
     tag: definition(typeName)
@@ -2312,7 +2312,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!\1))|(?=^$)
+    end: (?=^(?!\1))|(?=^\s*$)
 
   DialogueMark:
     tag: definition(typeName)

@@ -21,10 +21,6 @@ autoClosingPairs:
     notIn: ["DialogueCharacterPosition"]
   - open: '"'
     close: '"'
-  - open: "=== "
-    close: " ==="
-  - open: "== "
-    close: " =="
   - open: "~~"
     close: "~~"
   - open: "::"
@@ -52,6 +48,13 @@ wordPattern:
   flags: u
 
 onEnterRules:
+  - beforeText: ^\s*[=]{2,}($|\s+)
+    action:
+      indent: "indent"
+  - beforeText: ^\s*[=]($|\s+)
+    action:
+      indent: "indent"
+
   - beforeText: ^.*[-]\s+[{]\s*$
     afterText: \s*[}]
     action:
@@ -153,9 +156,9 @@ onEnterRules:
       indent: "none"
 
 indentationRules:
-  decreaseIndentPattern: ^\s*[\}\]\)].*$
+  decreaseIndentPattern: ^\s*[-]($|[ ]).*?[:]|[=]{2,}($|[ ]).*?|\s*[\}\]\)].*$
   increaseIndentPattern: ^.*(\{[^}]*|\([^)]*|\[[^\]]*)$
-  unIndentedLinePattern: ^(\t|[ ])*[ ]\*[^/]*\*/\s*$|^(\t|[ ])*[ ]\*/\s*$|^(\t|[ ])*[ ]\*([ ]([^\*]|\*(?!/))*)?$
+  unIndentedLinePattern: ^(\t|[ ])*[ ]\*[^/]*\*\/\s*$|^(\t|[ ])*[ ]\*\/\s*$|^(\t|[ ])*[ ]\*([ ]([^\*]|\*(?!\/))*)?$
   indentNextLinePattern: ^((.*=>\s*)|((.*[^\w]+|\s*)(if|while|for)\s*\(.*\)\s*))$
 
 folding:

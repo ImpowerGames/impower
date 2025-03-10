@@ -1,3 +1,4 @@
+import { FormatType } from "@impower/sparkdown/src/classes/annotators/FormattingAnnotator";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
 import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
@@ -5,8 +6,8 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { Tree } from "@lezer/common";
 import {
-  Position,
   type FormattingOptions,
+  type Position,
   type TextEdit,
 } from "vscode-languageserver";
 import { type Range } from "vscode-languageserver-textdocument";
@@ -29,28 +30,31 @@ const isInRange = (
   return document.offsetAt(innerRange.start) >= document.offsetAt(outerRange);
 };
 
-export const getDocumentFormattingEdits = (
+export const getFormatting = (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
-  annotations: SparkdownAnnotations | undefined,
+  annotations: SparkdownAnnotations,
   options: FormattingOptions,
   formattingRange?: Range | Position,
   formattingOnType?: Position
-): TextEdit[] | undefined => {
-  console.log("getDocumentFormattingEdits", formattingRange);
-  if (!document || !annotations) {
-    return undefined;
-  }
-
+) => {
   const edits: (TextEdit & {
     lineNumber: number;
     oldText: string;
     type: string;
   })[] = [];
 
-  const indentStack: { type: string; marks?: string[]; level: number }[] = [
-    { type: "", level: 0 },
-  ];
+  if (!document) {
+    return {};
+  }
+
+  const lines: { range: Range; text: string }[] = [];
+
+  const indentStack: {
+    type: FormatType;
+    marks?: string[];
+    level: number;
+  }[] = [];
 
   let tempIndentLevel: number | undefined = undefined;
   let matchNextIndentLevel: { from: number; to: number } | undefined =
@@ -71,11 +75,10 @@ export const getDocumentFormattingEdits = (
 
   const resetIndent = () => {
     indentStack.length = 0;
-    indentStack.push({ type: "", level: 0 });
   };
 
   const setIndent = (indent: {
-    type: string;
+    type: FormatType;
     marks?: string[];
     level: number;
   }) => {
@@ -83,7 +86,7 @@ export const getDocumentFormattingEdits = (
   };
 
   const indent = (indent: {
-    type: string;
+    type: FormatType;
     marks?: string[];
     level?: number;
   }) => {
@@ -172,71 +175,29 @@ export const getDocumentFormattingEdits = (
     }
   };
 
-  let encounteredKnot = false;
-  const cur = annotations.formatting?.iter();
-  const aheadCur = annotations.formatting?.iter();
+  const cur = annotations.formatting.iter();
+  const aheadCur = annotations.formatting.iter();
   const formattingTo = formattingRange
     ? "end" in formattingRange
       ? document.offsetAt(formattingRange.end)
       : document.length
     : undefined;
   aheadCur.next();
-  if (cur) {
-    let lines: { range: Range; text: string }[] = [];
-    while (cur.value) {
-      if (formattingTo != null && cur.from > formattingTo) {
-        break;
-      }
-      // Lookahead in case we need to indent or outdent a certain type of node
-      if (aheadCur.value) {
-        if (aheadCur.value.type === "close_brace") {
-          outdent();
-        } else if (aheadCur.value.type === "knot_begin") {
-          resetIndent();
-          encounteredKnot = true;
-        } else if (
-          aheadCur.value.type === "define_begin" ||
-          aheadCur.value.type === "define_end" ||
-          aheadCur.value.type === "frontmatter_begin" ||
-          aheadCur.value.type === "frontmatter_end"
-        ) {
-          resetIndent();
-        } else if (aheadCur.value.type === "stitch") {
-          resetIndent();
-          if (encounteredKnot) {
-            indent({ type: aheadCur.value.type });
-          }
-        } else if (
-          aheadCur.value.type === "case_mark" ||
-          aheadCur.value.type === "alternative_mark"
-        ) {
-          outdent();
-        } else if (
-          aheadCur.value.type === "choice_mark" ||
-          aheadCur.value.type === "gather_mark"
-        ) {
-          const text = document.read(aheadCur.from, aheadCur.to);
-          const marks = text.split(WHITESPACE_REGEX).filter((m) => Boolean(m));
-          if (marks.length > 0) {
-            const currentIndent = indentStack.at(-1);
-            const indentOffset =
-              marks.length - (currentIndent?.marks?.length ?? 0) - 1;
-            const newIndentLevel =
-              currentIndent?.type === "choice_mark" ||
-              currentIndent?.type === "gather_mark"
-                ? (currentIndent?.level ?? 0) + indentOffset
-                : currentIndent?.level ?? 0;
-            setIndent({
-              type: aheadCur.value.type,
-              marks,
-              level: Math.max(0, newIndentLevel),
-            });
-          }
-        } else if (aheadCur.value.type === "sol_comment") {
-          // Start of line comments are generally associated with the next non-blank line
-          // So have them match the indentation of the next non-blank line
+  while (cur.value) {
+    if (formattingTo != null && cur.from > formattingTo) {
+      break;
+    }
+    // Lookahead in case we need to indent or outdent a certain type of node
+    while (aheadCur.value) {
+      if (aheadCur.value.type === "sol_comment") {
+        // Start of line comments are generally associated with the next non-blank line
+        // So have them match the indentation of the next non-blank line
+        if (!matchNextIndentLevel) {
           matchNextIndentLevel = { from: aheadCur.from, to: aheadCur.to };
-          let line = document.range(aheadCur.from, aheadCur.to).end.line + 1;
+        }
+        let line = document.range(aheadCur.from, aheadCur.to).end.line;
+        if (!document.getLineText(line + 1).trim()) {
+          line += 1;
           while (
             line < document.lineCount &&
             !document.getLineText(line).trim()
@@ -247,210 +208,246 @@ export const getDocumentFormattingEdits = (
             document.getLineRange(line - 1).end
           );
         }
-      }
-      // Process current
-      const range = document.range(cur.from, cur.to);
-      if (cur.value.type === "indent") {
-        if (!matchNextIndentLevel || cur.from >= matchNextIndentLevel.to) {
-          for (const indent of indentsToProcessLater) {
-            processIndent(indent.from, indent.to);
-          }
-          processIndent(cur.from, cur.to);
-          matchNextIndentLevel = undefined;
-          indentsToProcessLater.length = 0;
-        } else if (matchNextIndentLevel) {
-          indentsToProcessLater.push({ from: cur.from, to: cur.to });
-        }
-      } else if (cur.value.type === "open_brace") {
-        indent({ type: cur.value.type });
-      } else if (cur.value.type === "separator") {
-        const text = document.getText(range);
-        const expectedText = " ";
-        if (text !== expectedText) {
-          pushIfInRange({
-            lineNumber: range.start.line + 1,
-            range,
-            oldText: document.getText(range),
-            newText: expectedText,
-            type: cur.value.type,
-          });
-        }
-      } else if (cur.value.type === "extra") {
-        const text = document.getText(range);
-        const expectedText = "";
-        if (text !== expectedText) {
-          pushIfInRange({
-            lineNumber: range.start.line + 1,
-            range,
-            oldText: document.getText(range),
-            newText: expectedText,
-            type: cur.value.type,
-          });
-        }
-      } else if (cur.value.type === "trailing") {
-        const text = document.getText(range);
-        const expectedText = "";
-        if (options.trimTrailingWhitespace && text !== expectedText) {
-          pushIfInRange({
-            lineNumber: range.start.line + 1,
-            range,
-            oldText: document.getText(range),
-            newText: expectedText,
-            type: cur.value.type,
-          });
-        }
+      } else if (aheadCur.value.type === "close_brace") {
+        outdent();
+      } else if (aheadCur.value.type === "knot_begin") {
+        resetIndent();
       } else if (
-        cur.value.type === "case_mark" ||
-        cur.value.type === "alternative_mark"
+        aheadCur.value.type === "define_begin" ||
+        aheadCur.value.type === "define_end" ||
+        aheadCur.value.type === "frontmatter_begin" ||
+        aheadCur.value.type === "frontmatter_end"
       ) {
-        indent({ type: cur.value.type });
+        resetIndent();
+      } else if (aheadCur.value.type === "stitch") {
+        resetIndent();
+        indent({ type: aheadCur.value.type });
       } else if (
-        cur.value.type === "choice_mark" ||
-        cur.value.type === "gather_mark"
+        aheadCur.value.type === "case_mark" ||
+        aheadCur.value.type === "alternative_mark"
       ) {
-        const text = document.getText(range);
+        outdent();
+      } else if (
+        aheadCur.value.type === "choice_mark" ||
+        aheadCur.value.type === "gather_mark"
+      ) {
+        const text = document.read(aheadCur.from, aheadCur.to);
         const marks = text.split(WHITESPACE_REGEX).filter((m) => Boolean(m));
-        const currentIndent = indentStack.at(-1);
-        const newIndentLevel = (currentIndent?.level ?? 0) + 1;
-        setIndent({ type: cur.value.type, marks, level: newIndentLevel });
-        const expectedText = marks.join(" ") + " ";
-        if (text !== expectedText) {
-          // Omit first char to avoid overlapping with indent edits
-          const editRange = {
-            start: {
-              line: range.start.line,
-              character: range.start.character + 1,
-            },
-            end: range.end,
-          };
-          pushIfInRange({
-            lineNumber: editRange.start.line + 1,
-            range: editRange,
-            oldText: document.getText(editRange),
-            newText: expectedText.slice(1),
-            type: cur.value.type,
-          });
-        }
-      } else if (cur.value.type === "indenting_colon") {
-        const currentIndent = indentStack.at(-1);
-        const newIndentLevel = (currentIndent?.level ?? 0) + 1;
-        setIndent({
-          type: currentIndent?.type ?? cur.value.type,
-          marks: currentIndent?.marks,
-          level: newIndentLevel,
-        });
-      } else if (cur.value.type === "eol_divert") {
-        if (
-          !document
-            .getLineText(document.range(cur.from, cur.to).start.line + 1)
-            .trim()
-        ) {
-          // If next line is blank, unindent only it
+        if (marks.length > 0) {
           const currentIndent = indentStack.at(-1);
-          const newIndentLevel = Math.max(0, (currentIndent?.level ?? 0) - 1);
-          tempIndentLevel = newIndentLevel;
-        }
-      } else if (cur.value.type === "knot_begin") {
-        const text = document.getText(range);
-        const expectedText = "== ";
-        if (text !== expectedText) {
-          // Omit first char to avoid overlapping with indent edits
-          const editRange = {
-            start: {
-              line: range.start.line,
-              character: range.start.character + 1,
-            },
-            end: range.end,
-          };
-          pushIfInRange({
-            lineNumber: editRange.start.line + 1,
-            range: editRange,
-            oldText: document.getText(editRange),
-            newText: expectedText.slice(1),
-            type: cur.value.type,
+          const indentOffset =
+            marks.length - (currentIndent?.marks?.length ?? 0) - 1;
+          const newIndentLevel = (currentIndent?.level ?? 0) + indentOffset;
+          setIndent({
+            type: aheadCur.value.type,
+            marks,
+            level: Math.max(0, newIndentLevel),
           });
         }
-        indent({ type: cur.value.type });
-      } else if (cur.value.type === "knot_end") {
-        const text = document.getText(range);
-        const expectedText = " ==";
-        if (text !== expectedText) {
-          pushIfInRange({
-            lineNumber: range.start.line + 1,
-            range,
-            oldText: document.getText(range),
-            newText: expectedText,
-            type: cur.value.type,
-          });
-        }
-      } else if (cur.value.type === "stitch") {
-        indent({ type: cur.value.type });
-      } else if (cur.value.type === "newline") {
-        const range = document.range(cur.from, cur.to);
-        const lineRange = document.getLineRange(range.start.line);
-        const text = document.getText(lineRange);
-        const prevLine = lines.at(-1);
-        if (!text.trim()) {
-          if (formattingOnType?.line !== range.start.line) {
-            if (prevLine && !prevLine.text.trim()) {
-              // Delete extra blank lines
-              pushIfInRange({
-                lineNumber: lineRange.start.line + 1,
-                range: lineRange,
-                oldText: document.getText(lineRange),
-                newText: "",
-                type: "blankline",
-              });
-            }
-          }
-        }
-        lines.push({ text, range: lineRange });
       }
-      cur.next();
-      aheadCur.next();
+      break;
     }
 
-    // console.log("LINES", [...lines]);
-
-    const lastPosition = document.positionAt(Number.MAX_VALUE);
-
-    if (
-      options.insertFinalNewline &&
-      formattingOnType?.line !== lastPosition.line
+    // Process current
+    const range = document.range(cur.from, cur.to);
+    if (cur.value.type === "indent") {
+      if (!matchNextIndentLevel || cur.from >= matchNextIndentLevel.to) {
+        for (const indent of indentsToProcessLater) {
+          processIndent(indent.from, indent.to);
+        }
+        processIndent(cur.from, cur.to);
+        matchNextIndentLevel = undefined;
+        indentsToProcessLater.length = 0;
+      } else if (matchNextIndentLevel) {
+        indentsToProcessLater.push({ from: cur.from, to: cur.to });
+      }
+    } else if (cur.value.type === "open_brace") {
+      indent({ type: cur.value.type });
+    } else if (cur.value.type === "separator") {
+      const text = document.getText(range);
+      const expectedText = " ";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
+    } else if (cur.value.type === "extra") {
+      const text = document.getText(range);
+      const expectedText = "";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
+    } else if (cur.value.type === "trailing") {
+      const text = document.getText(range);
+      const expectedText = "";
+      if (options.trimTrailingWhitespace && text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
+    } else if (
+      cur.value.type === "case_mark" ||
+      cur.value.type === "alternative_mark"
     ) {
-      const lastLine = lines.at(-1);
-      if (!lastLine || lastLine.range.end.line < lastPosition.line) {
+      indent({ type: cur.value.type });
+    } else if (
+      cur.value.type === "choice_mark" ||
+      cur.value.type === "gather_mark"
+    ) {
+      const text = document.getText(range);
+      const marks = text.split(WHITESPACE_REGEX).filter((m) => Boolean(m));
+      const currentIndent = indentStack.at(-1);
+      const newIndentLevel = (currentIndent?.level ?? 0) + 1;
+      setIndent({ type: cur.value.type, marks, level: newIndentLevel });
+      const expectedText = marks.join(" ") + " ";
+      if (text !== expectedText) {
+        // Omit first char to avoid overlapping with indent edits
         const editRange = {
-          start: lastPosition,
-          end: lastPosition,
+          start: {
+            line: range.start.line,
+            character: range.start.character + 1,
+          },
+          end: range.end,
         };
         pushIfInRange({
           lineNumber: editRange.start.line + 1,
           range: editRange,
           oldText: document.getText(editRange),
-          newText: "\n",
-          type: "newline",
+          newText: expectedText.slice(1),
+          type: cur.value.type,
         });
       }
-
-      if (options.trimFinalNewlines) {
-        let lastLine = lines.pop();
-        let docLength = document.length;
-        while (
-          lastLine &&
-          document.offsetAt(lastLine.range.end) === docLength - 1
-        ) {
-          const editRange = lastLine.range;
-          pushIfInRange({
-            lineNumber: editRange.start.line + 1,
-            range: editRange,
-            oldText: document.getText(editRange),
-            newText: "",
-            type: "newline",
-          });
-          lastLine = lines.pop();
-          docLength -= 1;
+    } else if (cur.value.type === "indenting_colon") {
+      const currentIndent = indentStack.at(-1);
+      const newIndentLevel = (currentIndent?.level ?? 0) + 1;
+      setIndent({
+        type: currentIndent?.type ?? cur.value.type,
+        marks: currentIndent?.marks,
+        level: newIndentLevel,
+      });
+    } else if (cur.value.type === "eol_divert") {
+      if (
+        !document
+          .getLineText(document.range(cur.from, cur.to).start.line + 1)
+          .trim()
+      ) {
+        // If next line is blank, unindent only it
+        const currentIndent = indentStack.at(-1);
+        const newIndentLevel = Math.max(0, (currentIndent?.level ?? 0) - 1);
+        tempIndentLevel = newIndentLevel;
+      }
+    } else if (cur.value.type === "knot_begin") {
+      const text = document.getText(range);
+      const expectedText = "== ";
+      if (text !== expectedText) {
+        // Omit first char to avoid overlapping with indent edits
+        const editRange = {
+          start: {
+            line: range.start.line,
+            character: range.start.character + 1,
+          },
+          end: range.end,
+        };
+        pushIfInRange({
+          lineNumber: editRange.start.line + 1,
+          range: editRange,
+          oldText: document.getText(editRange),
+          newText: expectedText.slice(1),
+          type: cur.value.type,
+        });
+      }
+      indent({ type: cur.value.type });
+    } else if (cur.value.type === "knot_end") {
+      const text = document.getText(range);
+      const expectedText = " ==";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
+    } else if (cur.value.type === "stitch") {
+      indent({ type: cur.value.type });
+    } else if (cur.value.type === "newline") {
+      const range = document.range(cur.from, cur.to);
+      const lineRange = document.getLineRange(range.start.line);
+      const text = document.getText(lineRange);
+      const prevLine = lines.at(-1);
+      if (!text.trim()) {
+        if (formattingOnType?.line !== range.start.line) {
+          if (prevLine && !prevLine.text.trim()) {
+            // Delete extra blank lines
+            pushIfInRange({
+              lineNumber: lineRange.start.line + 1,
+              range: lineRange,
+              oldText: document.getText(lineRange),
+              newText: "",
+              type: "blankline",
+            });
+          }
         }
+      }
+      lines.push({ text, range: lineRange });
+    }
+    cur.next();
+    aheadCur.next();
+  }
+
+  const lastPosition = document.positionAt(Number.MAX_VALUE);
+
+  if (
+    options.insertFinalNewline &&
+    formattingOnType?.line !== lastPosition.line
+  ) {
+    const lastLine = lines.at(-1);
+    if (!lastLine || lastLine.range.end.line < lastPosition.line) {
+      const editRange = {
+        start: lastPosition,
+        end: lastPosition,
+      };
+      pushIfInRange({
+        lineNumber: editRange.start.line + 1,
+        range: editRange,
+        oldText: document.getText(editRange),
+        newText: "\n",
+        type: "newline",
+      });
+    }
+
+    if (options.trimFinalNewlines) {
+      let lastLine = lines.pop();
+      let docLength = document.length;
+      while (
+        lastLine &&
+        document.offsetAt(lastLine.range.end) === docLength - 1
+      ) {
+        const editRange = lastLine.range;
+        pushIfInRange({
+          lineNumber: editRange.start.line + 1,
+          range: editRange,
+          oldText: document.getText(editRange),
+          newText: "",
+          type: "newline",
+        });
+        lastLine = lines.pop();
+        docLength -= 1;
       }
     }
   }
@@ -460,9 +457,23 @@ export const getDocumentFormattingEdits = (
       document.offsetAt(a.range.start) - document.offsetAt(b.range.start)
   );
 
-  // console.log("EDITS", edits);
+  return {
+    edits,
+    lines,
+    indentStack,
+    indentLevel: indentStack.at(-1)?.level ?? 0,
+  };
+};
 
+export const resolveFormattingConflicts = (
+  edits: (TextEdit & { type: string })[] | undefined,
+  document: SparkdownDocument,
+  formattingOnType?: Position
+): TextEdit[] => {
   const result: (TextEdit & { type: string })[] = [];
+  if (!edits) {
+    return result;
+  }
   for (let i = 0; i < edits.length; i++) {
     const curr = structuredClone(edits[i])!;
     const prev = result.at(-1)!;
@@ -563,6 +574,36 @@ export const getDocumentFormattingEdits = (
     }
     result.push({ range: curr.range, newText: curr.newText, type: curr.type });
   }
+
+  return result;
+};
+
+export const getDocumentFormattingEdits = (
+  document: SparkdownDocument | undefined,
+  tree: Tree | undefined,
+  annotations: SparkdownAnnotations | undefined,
+  options: FormattingOptions,
+  formattingRange?: Range | Position,
+  formattingOnType?: Position
+): TextEdit[] | undefined => {
+  if (!document || !annotations) {
+    return undefined;
+  }
+
+  const { edits, lines } = getFormatting(
+    document,
+    tree,
+    annotations,
+    options,
+    formattingRange,
+    formattingOnType
+  );
+
+  // console.log("LINES", [...lines]);
+
+  // console.log("EDITS", edits);
+
+  const result = resolveFormattingConflicts(edits, document, formattingOnType);
 
   // console.log("RESULT", result);
 
