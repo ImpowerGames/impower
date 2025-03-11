@@ -114,6 +114,11 @@ export class AudioModule extends Module<
     return mixerName || channel || "sound";
   }
 
+  getMixerGain(channel: string | undefined): number {
+    const mixer = this.context.mixer?.[this.getMixerName(channel)];
+    return mixer?.gain ?? 1;
+  }
+
   async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
     await new Promise<void>(async (resolve) => {
       const msg = await this.emit(LoadAudioPlayerMessage.type.request(data));
@@ -153,6 +158,7 @@ export class AudioModule extends Module<
     const d: LoadAudioPlayerParams = {
       channel,
       mixer: this.getMixerName(channel),
+      mixerGain: this.getMixerGain(channel),
       key: "",
       type: "audio",
       name: "",

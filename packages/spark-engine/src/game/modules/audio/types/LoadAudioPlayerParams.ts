@@ -4,6 +4,7 @@ import { Tone } from "./Tone";
 export interface LoadAudioPlayerParams {
   channel: string;
   mixer: string;
+  mixerGain: number;
   key: string;
   type: string;
   name: string;
