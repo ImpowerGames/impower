@@ -1,11 +1,11 @@
 import { default_animation } from "./constructors/default_animation";
 import { default_ease } from "./constructors/default_ease";
+import { default_filtered_image } from "./constructors/default_filtered_image";
 import { default_font } from "./constructors/default_font";
 import { default_gradient } from "./constructors/default_gradient";
 import { default_graphic } from "./constructors/default_graphic";
 import { default_image } from "./constructors/default_image";
 import { default_layered_image } from "./constructors/default_layered_image";
-import { default_filtered_image } from "./constructors/default_filtered_image";
 import { default_shadow } from "./constructors/default_shadow";
 import { default_style } from "./constructors/default_style";
 import { default_transition } from "./constructors/default_transition";
@@ -173,6 +173,7 @@ export const uiBuiltinDefinitions = () => ({
       gap: "8px",
       margin_bottom: "100px",
       font_size: "1.125rem",
+      color: "white",
       "> *": {
         display: "flex",
         flex_direction: "row",
