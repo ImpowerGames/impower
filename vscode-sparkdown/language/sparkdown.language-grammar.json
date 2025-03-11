@@ -2856,7 +2856,7 @@
       ]
     },
     "MultilineConditionalText": {
-      "begin": "^(?=[^\\S\\n\\r]*\\S)",
+      "begin": "(?=[^\\S\\n\\r]*\\S)",
       "patterns": [
         {
           "include": "#Annotation"

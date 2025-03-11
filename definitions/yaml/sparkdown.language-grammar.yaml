@@ -1569,7 +1569,7 @@ repository:
       - { include: "#DisplayText" }
 
   MultilineConditionalText:
-    begin: ^(?={{WS}}*\S)
+    begin: (?={{WS}}*\S)
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
