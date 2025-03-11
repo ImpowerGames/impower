@@ -40,6 +40,7 @@ export const uiBuiltinDefinitions = () => ({
       $name: "text",
       display: "block",
       pointer_events: "auto",
+      user_select: "none",
       text_wrap: "balance",
       white_space: "pre-line",
       "*": {
