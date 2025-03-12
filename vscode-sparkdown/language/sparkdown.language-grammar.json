@@ -1543,13 +1543,14 @@
       ]
     },
     "Label": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
       "match": "([(])([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([)])",
       "captures": {
         "1": {
-          "tag": "paren",
-          "name": "meta.brace.round.open.sd"
+          "patterns": [
+            {
+              "include": "#LabelBeginMark"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -1573,10 +1574,23 @@
           ]
         },
         "5": {
-          "tag": "paren",
-          "name": "meta.brace.round.close.sd"
+          "patterns": [
+            {
+              "include": "#LabelEndMark"
+            }
+          ]
         }
       }
+    },
+    "LabelBeginMark": {
+      "tag": "keyword",
+      "name": "keyword.flow.label.sd",
+      "match": "(.+)"
+    },
+    "LabelEndMark": {
+      "tag": "keyword",
+      "name": "keyword.flow.label.sd",
+      "match": "(.+)"
     },
     "LabelDeclarationName": {
       "tag": "definition(heading)",
@@ -2017,6 +2031,8 @@
       "match": "(.+)"
     },
     "Knot": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
       "begin": "^([^\\S\\n\\r]*)([=]{2,}(?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
@@ -2039,7 +2055,10 @@
           "include": "#FunctionDeclaration"
         },
         {
-          "include": "#KnotDeclaration"
+          "include": "#KnotWithParametersDeclaration"
+        },
+        {
+          "include": "#KnotWithoutParametersDeclaration"
         }
       ],
       "end": "([^\\S\\n\\r]*[=]{2,})|(?=$)",
@@ -2053,13 +2072,49 @@
         }
       }
     },
-    "KnotDeclaration": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)",
+    "KnotWithParametersDeclaration": {
+      "tag": "function(variableName)",
+      "name": "entity.name.function.sd",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
             {
               "include": "#KnotDeclarationName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#FunctionParameters"
+        }
+      ],
+      "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
+    },
+    "KnotWithoutParametersDeclaration": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#KnotDeclarationName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -2072,18 +2127,16 @@
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "KnotBeginMark": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
+      "tag": "keyword",
+      "name": "keyword.flow.knot.sd",
       "match": "(.+)"
     },
     "KnotEndMark": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
+      "tag": "keyword",
+      "name": "keyword.flow.knot.sd",
       "match": "(.+)"
     },
     "KnotDeclarationName": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
       "match": "(.+)"
     },
     "Stitch": {
@@ -2097,8 +2150,11 @@
           ]
         },
         "2": {
-          "tag": "definition(heading)",
-          "name": "keyword.control.section.sd"
+          "patterns": [
+            {
+              "include": "#StitchMark"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -2113,7 +2169,10 @@
           "include": "#Annotation"
         },
         {
-          "include": "#StitchDeclaration"
+          "include": "#StitchWithParametersDeclaration"
+        },
+        {
+          "include": "#StitchWithoutParametersDeclaration"
         }
       ],
       "end": "([=]+)|(?=$)",
@@ -2127,41 +2186,70 @@
         }
       }
     },
-    "StitchDeclaration": {
-      "begin": "([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)",
+    "StitchMark": {
+      "tag": "keyword",
+      "name": "keyword.flow.stitch.sd",
+      "match": "(.+)"
+    },
+    "StitchWithParametersDeclaration": {
+      "tag": "function(variableName)",
+      "name": "entity.name.function.sd",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
+              "include": "#StitchDeclarationName"
             }
           ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#StitchDeclarationName"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
       },
       "patterns": [
         {
-          "include": "#Annotation"
+          "include": "#FunctionParameters"
+        }
+      ],
+      "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
+    },
+    "StitchWithoutParametersDeclaration": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StitchDeclarationName"
+            }
+          ]
         },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
         {
           "include": "#FunctionParameters"
         }
       ],
-      "end": "(?=$|[=]|[/][/])"
+      "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "StitchDeclarationName": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
       "match": "(.+)"
     },
     "FunctionDeclaration": {
-      "begin": "(function)([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)",
+      "begin": "(function)([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "tag": "controlKeyword",
@@ -2178,6 +2266,13 @@
           "patterns": [
             {
               "include": "#FunctionDeclarationName"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
             }
           ]
         }

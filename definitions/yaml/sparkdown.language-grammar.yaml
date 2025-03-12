@@ -865,13 +865,11 @@ repository:
   ########## Label ##########
 
   Label:
-    tag: definition(heading)
-    name: keyword.control.section.sd
     match: ([(])({{WS}}*)({{IDENTIFIER}})({{WS}}*)([)])
     captures:
       1:
-        tag: paren
-        name: meta.brace.round.open.sd
+        patterns:
+          - { include: "#LabelBeginMark" }
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
@@ -882,8 +880,18 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       5:
-        tag: paren
-        name: meta.brace.round.close.sd
+        patterns:
+          - { include: "#LabelEndMark" }
+
+  LabelBeginMark:
+    tag: keyword
+    name: keyword.flow.label.sd
+    match: (.+)
+
+  LabelEndMark:
+    tag: keyword
+    name: keyword.flow.label.sd
+    match: (.+)
 
   LabelDeclarationName:
     tag: definition(heading)
@@ -1131,6 +1139,8 @@ repository:
   ########## Knot, Stitch, Function ##########
 
   Knot:
+    tag: definition(heading)
+    name: keyword.control.section.sd
     begin: ^({{WS}}*)([=]{2,}{{EOK}})
     beginCaptures:
       1:
@@ -1141,36 +1151,55 @@ repository:
           - { include: "#KnotBeginMark" }
     patterns:
       - { include: "#FunctionDeclaration" }
-      - { include: "#KnotDeclaration" }
+      - { include: "#KnotWithParametersDeclaration" }
+      - { include: "#KnotWithoutParametersDeclaration" }
     end: ({{WS}}*[=]{2,})|(?=$)
     endCaptures:
       1:
         patterns:
           - { include: "#KnotEndMark" }
 
-  KnotDeclaration:
-    begin: ({{IDENTIFIER}})
+  KnotWithParametersDeclaration:
+    tag: function(variableName)
+    name: entity.name.function.sd
+    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
           - { include: "#KnotDeclarationName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#FunctionParameters" }
+    end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
+
+  KnotWithoutParametersDeclaration:
+    tag: definition(heading)
+    name: keyword.control.section.sd
+    begin: ({{IDENTIFIER}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#KnotDeclarationName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#FunctionParameters" }
     end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
 
   KnotBeginMark:
-    tag: definition(heading)
-    name: keyword.control.section.sd
+    tag: keyword
+    name: keyword.flow.knot.sd
     match: (.+)
 
   KnotEndMark:
-    tag: definition(heading)
-    name: keyword.control.section.sd
+    tag: keyword
+    name: keyword.flow.knot.sd
     match: (.+)
 
   KnotDeclarationName:
-    tag: definition(heading)
-    name: keyword.control.section.sd
     match: (.+)
 
   Stitch:
@@ -1180,41 +1209,61 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: definition(heading)
-        name: keyword.control.section.sd
+        patterns:
+          - { include: "#StitchMark" }
       3:
         patterns:
           - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#StitchDeclaration" }
+      - { include: "#StitchWithParametersDeclaration" }
+      - { include: "#StitchWithoutParametersDeclaration" }
     end: ([=]+)|(?=$)
     endCaptures:
       1:
         patterns:
           - { include: "#InvalidValue" }
 
-  StitchDeclaration:
-    begin: ({{WS}}*)({{IDENTIFIER}})
+  StitchMark:
+    tag: keyword
+    name: keyword.flow.stitch.sd
+    match: (.+)
+
+  StitchWithParametersDeclaration:
+    tag: function(variableName)
+    name: entity.name.function.sd
+    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#StitchDeclarationName" }
       2:
         patterns:
-          - { include: "#StitchDeclarationName" }
+          - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
-    end: (?=$|[=]|[/][/])
+    end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
 
-  StitchDeclarationName:
+  StitchWithoutParametersDeclaration:
     tag: definition(heading)
     name: keyword.control.section.sd
+    begin: ({{IDENTIFIER}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StitchDeclarationName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#FunctionParameters" }
+    end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
+
+  StitchDeclarationName:
     match: (.+)
 
   FunctionDeclaration:
-    begin: (function)({{WS}}*)({{IDENTIFIER}})
+    begin: (function)({{WS}}*)({{IDENTIFIER}})({{WS}}*)
     beginCaptures:
       1:
         tag: controlKeyword
@@ -1225,6 +1274,9 @@ repository:
       3:
         patterns:
           - { include: "#FunctionDeclarationName" }
+      4:
+        patterns:
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
