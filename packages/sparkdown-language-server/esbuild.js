@@ -118,20 +118,16 @@ async function main() {
     await updateInlineWorkerContent();
     await ctx.watch();
     console.log(`[watch] Watching for changes in ${SPARKDOWN_SRC_PATH}`);
-    fs.watch(
-      SPARKDOWN_SRC_PATH,
-      { recursive: true },
-      debounce(
-        () => async (ctx) => {
-          console.log(
-            `[watch] Detected change in ${SPARKDOWN_SRC_PATH}, rebuilding...`
-          );
-          await updateInlineWorkerContent();
-          await ctx.rebuild();
-        },
-        500
-      )
-    );
+    const debouncedRebuild = debounce(async (ctx) => {
+      console.log(
+        `[watch] Detected change in ${SPARKDOWN_SRC_PATH}, rebuilding...`
+      );
+      await updateInlineWorkerContent();
+      await ctx.rebuild();
+    }, 500);
+    fs.watch(SPARKDOWN_SRC_PATH, { recursive: true }, () => {
+      debouncedRebuild(ctx);
+    });
   } else {
     await updateInlineWorkerContent();
     await ctx.rebuild();
