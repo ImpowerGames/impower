@@ -10,4 +10,5 @@ export const coreBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_filter>>,
 });
 
-export type CoreBuiltins = ReturnType<typeof coreBuiltinDefinitions>;
+export interface CoreBuiltins
+  extends ReturnType<typeof coreBuiltinDefinitions> {}

@@ -1,6 +1,6 @@
 import { default_audio } from "./constructors/default_audio";
-import { default_layered_audio } from "./constructors/default_layered_audio";
 import { default_channel } from "./constructors/default_channel";
+import { default_layered_audio } from "./constructors/default_layered_audio";
 import { default_mixer } from "./constructors/default_mixer";
 import { default_synth } from "./constructors/default_synth";
 
@@ -90,4 +90,5 @@ export const audioBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_channel>>,
 });
 
-export type AudioBuiltins = ReturnType<typeof audioBuiltinDefinitions>;
+export interface AudioBuiltins
+  extends ReturnType<typeof audioBuiltinDefinitions> {}

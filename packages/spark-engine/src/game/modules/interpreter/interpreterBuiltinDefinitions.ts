@@ -50,6 +50,5 @@ export const interpreterBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_character>>,
 });
 
-export type InterpreterBuiltins = ReturnType<
-  typeof interpreterBuiltinDefinitions
->;
+export interface InterpreterBuiltins
+  extends ReturnType<typeof interpreterBuiltinDefinitions> {}

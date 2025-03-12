@@ -17,4 +17,4 @@ export const logicBuiltins = () => ({
   array: { default: [] },
 });
 
-export type LogicBuiltins = ReturnType<typeof logicBuiltins>;
+export interface LogicBuiltins extends ReturnType<typeof logicBuiltins> {}

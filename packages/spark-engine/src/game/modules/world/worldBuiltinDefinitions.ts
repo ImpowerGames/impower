@@ -14,4 +14,4 @@ export const worldBuiltins = () => ({
   } as Record<string, ReturnType<typeof default_entity>>,
 });
 
-export type WorldBuiltins = ReturnType<typeof worldBuiltins>;
+export interface WorldBuiltins extends ReturnType<typeof worldBuiltins> {}

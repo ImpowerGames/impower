@@ -1259,4 +1259,4 @@ export const uiBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_graphic>>,
 });
 
-export type UIBuiltins = ReturnType<typeof uiBuiltinDefinitions>;
+export interface UIBuiltins extends ReturnType<typeof uiBuiltinDefinitions> {}
