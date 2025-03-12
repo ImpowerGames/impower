@@ -16,7 +16,7 @@ export class SparkdownPreviewScreenplayPanelSerializer
       const editor = getEditor(documentUri);
       if (editor) {
         await SparkdownPreviewScreenplayPanelManager.instance.initializePanel(
-          this._context.extensionUri,
+          this._context,
           editor.document,
           panel
         );

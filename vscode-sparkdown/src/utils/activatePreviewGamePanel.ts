@@ -20,7 +20,7 @@ export const activatePreviewGamePanel = (
         return;
       }
       SparkdownPreviewGamePanelManager.instance.showPanel(
-        context.extensionUri,
+        context,
         editor.document
       );
     })

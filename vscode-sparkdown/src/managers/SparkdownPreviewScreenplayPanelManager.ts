@@ -1,8 +1,8 @@
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
-import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
+import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
@@ -55,7 +55,10 @@ export class SparkdownPreviewScreenplayPanelManager {
 
   protected _selectedVersion?: number;
 
-  showPanel(extensionUri: Uri, document: vscode.TextDocument) {
+  async showPanel(
+    context: vscode.ExtensionContext,
+    document: vscode.TextDocument
+  ) {
     if (document.languageId !== "sparkdown") {
       vscode.window.showErrorMessage(
         `You can only preview Sparkdown documents as a Screenplay!`
@@ -66,34 +69,48 @@ export class SparkdownPreviewScreenplayPanelManager {
       const viewColumn = this._viewColumn;
       this._panel.reveal(viewColumn);
     } else {
-      this.createPanel(extensionUri, document);
+      if (
+        vscode.window.tabGroups.activeTabGroup.activeTab?.label ===
+        this._panelTitle
+      ) {
+        vscode.window.tabGroups.close(
+          vscode.window.tabGroups.activeTabGroup.activeTab
+        );
+      }
+      return this.createPanel(context, document);
     }
   }
 
-  protected createPanel(extensionUri: Uri, document: vscode.TextDocument) {
+  protected async createPanel(
+    context: vscode.ExtensionContext,
+    document: vscode.TextDocument
+  ) {
     const viewType = this._viewType;
     const panelTitle = this._panelTitle;
     const viewColumn = this._viewColumn;
     const panel = window.createWebviewPanel(viewType, panelTitle, viewColumn, {
       enableScripts: true,
       retainContextWhenHidden: true,
-      localResourceRoots: [Uri.joinPath(extensionUri, "out")],
+      localResourceRoots: [Uri.joinPath(context.extensionUri, "out")],
     });
-    this.initializePanel(extensionUri, document, panel);
+    return this.initializePanel(context, document, panel);
   }
 
   async initializePanel(
-    extensionUri: Uri,
+    context: vscode.ExtensionContext,
     document: vscode.TextDocument,
     panel: WebviewPanel
   ) {
     this._document = document;
     this._panel = panel;
     panel.iconPath = {
-      light: vscode.Uri.joinPath(extensionUri, "icon-lang.png"),
-      dark: vscode.Uri.joinPath(extensionUri, "icon-lang.png"),
+      light: vscode.Uri.joinPath(context.extensionUri, "icon-lang.png"),
+      dark: vscode.Uri.joinPath(context.extensionUri, "icon-lang.png"),
     };
-
+    panel.onDidDispose(() => {
+      this._panel = undefined;
+    });
+    panel.webview.html = this.getWebviewContent(panel.webview, context);
     panel.webview.onDidReceiveMessage(async (message) => {
       if (ConnectedPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "screenplay") {
@@ -153,12 +170,8 @@ export class SparkdownPreviewScreenplayPanelManager {
         }
       }
     });
-
-    panel.webview.html = this.getWebviewContent(panel.webview, extensionUri);
-
-    panel.onDidDispose(() => {
-      this._panel = undefined;
-    });
+    // Post an empty message so panel activates after deserialization
+    panel.webview.postMessage({});
   }
 
   loadDocument(document: vscode.TextDocument) {
@@ -265,34 +278,37 @@ export class SparkdownPreviewScreenplayPanelManager {
     }
   }
 
-  protected getWebviewContent(webview: vscode.Webview, extensionUri: Uri) {
-    const jsMainUri = getWebviewUri(webview, extensionUri, [
+  protected getWebviewContent(
+    webview: vscode.Webview,
+    context: vscode.ExtensionContext
+  ) {
+    const jsMainUri = getWebviewUri(webview, context.extensionUri, [
       "out",
       "webviews",
       "screenplay-webview.js",
     ]);
     const fontFamilyMono = "Courier Prime";
     const fontFormatMono = "truetype";
-    const fontPathMono = getWebviewUri(webview, extensionUri, [
+    const fontPathMono = getWebviewUri(webview, context.extensionUri, [
       "out",
       "data",
       "courier-prime.ttf",
     ]);
-    const fontPathMonoBold = getWebviewUri(webview, extensionUri, [
+    const fontPathMonoBold = getWebviewUri(webview, context.extensionUri, [
       "out",
       "data",
       "courier-prime-bold.ttf",
     ]);
-    const fontPathMonoItalic = getWebviewUri(webview, extensionUri, [
+    const fontPathMonoItalic = getWebviewUri(webview, context.extensionUri, [
       "out",
       "data",
       "courier-prime-italic.ttf",
     ]);
-    const fontPathMonoBoldItalic = getWebviewUri(webview, extensionUri, [
-      "out",
-      "data",
-      "courier-prime-bold-italic.ttf",
-    ]);
+    const fontPathMonoBoldItalic = getWebviewUri(
+      webview,
+      context.extensionUri,
+      ["out", "data", "courier-prime-bold-italic.ttf"]
+    );
     const styleNonce = getNonce();
     const scriptNonce = getNonce();
     return /*html*/ `

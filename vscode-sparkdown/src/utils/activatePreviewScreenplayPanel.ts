@@ -20,7 +20,7 @@ export const activatePreviewScreenplayPanel = (
         return;
       }
       SparkdownPreviewScreenplayPanelManager.instance.showPanel(
-        context.extensionUri,
+        context,
         editor.document
       );
     })
