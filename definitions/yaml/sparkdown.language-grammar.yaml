@@ -2176,7 +2176,7 @@ repository:
   InlineWrite:
     tag: string
     name: string.write.sd
-    begin: ({{WS}}*)([^])($|{{WS}}+)($|.*?)($|{{WS}}*)($|[:])($|{{WS}}*)
+    begin: ({{WS}}*)([\^])($|{{WS}}+)($|.*?)($|{{WS}}*)($|[:])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
