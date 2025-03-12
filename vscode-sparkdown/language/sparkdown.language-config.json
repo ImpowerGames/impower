@@ -22,10 +22,6 @@
   ],
   "autoClosingPairs": [
     {
-      "open": "- {",
-      "close": "  }"
-    },
-    {
       "open": "{",
       "close": "}"
     },
