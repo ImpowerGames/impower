@@ -38,13 +38,6 @@
       "close": ")"
     },
     {
-      "open": "<",
-      "close": ">",
-      "notIn": [
-        "DialogueCharacterPosition"
-      ]
-    },
-    {
       "open": "\"",
       "close": "\""
     },

@@ -16,9 +16,6 @@ autoClosingPairs:
     close: "]"
   - open: "("
     close: ")"
-  - open: "<"
-    close: ">"
-    notIn: ["DialogueCharacterPosition"]
   - open: '"'
     close: '"'
   - open: "~~"
