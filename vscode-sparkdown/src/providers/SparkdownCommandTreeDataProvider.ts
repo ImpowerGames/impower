@@ -118,7 +118,7 @@ export class SparkdownCommandTreeDataProvider
     const treePreviewScreenplay = new vscode.TreeItem("Preview Screenplay");
     treePreviewScreenplay.iconPath = new vscode.ThemeIcon("open-preview");
     treePreviewScreenplay.command = {
-      command: "sparkdown.previewscreenplay",
+      command: "sparkdown.previewScreenplay",
       title: "",
     };
     elements.push(treePreviewScreenplay);
@@ -127,7 +127,7 @@ export class SparkdownCommandTreeDataProvider
     const treePreviewGame = new vscode.TreeItem("Preview Game");
     treePreviewGame.iconPath = new vscode.ThemeIcon("open-preview");
     treePreviewGame.command = {
-      command: "sparkdown.previewgame",
+      command: "sparkdown.previewGame",
       title: "",
     };
     elements.push(treePreviewGame);

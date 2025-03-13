@@ -1,15 +1,11 @@
 import { Range } from "@codemirror/state";
-import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { uuid as UUID } from "../../utils/uuid";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
-const FLOW_MARKER_REGEX = /^([=])(.*?)([=])/;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
 
 export interface LineAugmentations {
-  uuid?: string;
   splice?: string;
   prefix?: string;
   suffix?: string;
@@ -27,14 +23,6 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
     this.prevNodeType = "";
   }
 
-  generateID() {
-    return UUID();
-  }
-
-  getFlowMarker(id: string) {
-    return `=${id}=`;
-  }
-
   override enter(
     annotations: Range<SparkdownAnnotation<LineAugmentations>>[],
     nodeRef: SparkdownSyntaxNodeRef
@@ -46,17 +34,12 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
     ) {
       const lineFrom = this.getLineAt(nodeRef.from).from;
       const lineTextBefore = this.read(lineFrom, nodeRef.to);
-      const uuid = this.generateID();
-      const flowMarker = this.getFlowMarker(uuid);
       const colonSeparator =
         lineTextBefore.trimStart().length === 1 ? " : " : ": ";
-      const splice = colonSeparator + flowMarker + "\\";
+      const splice = colonSeparator + "\\";
       this.blockPrefix = lineTextBefore;
       annotations.push(
-        SparkdownAnnotation.mark({ uuid, splice }).range(
-          nodeRef.from,
-          nodeRef.to
-        )
+        SparkdownAnnotation.mark({ splice }).range(nodeRef.from, nodeRef.to)
       );
     }
     // Annotate dialogue line with implicit character name and flow marker
@@ -66,75 +49,9 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
     ) {
       if (this.prevNodeType.startsWith("BlockLineBreak")) {
         const blockPrefix = this.blockPrefix + ": ";
-        const uuid = this.generateID();
-        const flowMarker = this.getFlowMarker(uuid);
-        const prefix = blockPrefix + flowMarker;
+        const prefix = blockPrefix;
         annotations.push(
-          SparkdownAnnotation.mark({ uuid, prefix }).range(
-            nodeRef.from,
-            nodeRef.to
-          )
-        );
-      }
-    }
-    // Annotate line with implicit flow marker
-    if (
-      nodeRef.name === "InlineDialogue_begin" ||
-      nodeRef.name === "InlineWrite_begin" ||
-      nodeRef.name === "Transition_begin" ||
-      nodeRef.name === "Scene_begin" ||
-      nodeRef.name === "Action_begin"
-    ) {
-      const lineFrom = this.getLineAt(nodeRef.from).from;
-      const lineTo = this.getLineAt(nodeRef.from).to;
-      const lineTextBefore = this.read(lineFrom, nodeRef.to);
-      const lineTextAfter = this.read(nodeRef.to, lineTo);
-      if (
-        !lineTextAfter.match(FLOW_MARKER_REGEX) &&
-        !lineTextBefore.trim().endsWith("<>")
-      ) {
-        const uuid = this.generateID();
-        const flowMarker = this.getFlowMarker(uuid);
-        const splice = flowMarker;
-        annotations.push(
-          SparkdownAnnotation.mark({ uuid, splice }).range(
-            nodeRef.from,
-            nodeRef.to
-          )
-        );
-      }
-    }
-    if (
-      (nodeRef.name === "ImageLine" ||
-        nodeRef.name === "AudioLine" ||
-        nodeRef.name === "ImageAndAudioLine") &&
-      getContextNames(nodeRef.node).length === 1
-    ) {
-      const lineFrom = this.getLineAt(nodeRef.from).from;
-      const lineTo = this.getLineAt(nodeRef.from).to;
-      const lineTextBefore = this.read(lineFrom, nodeRef.to);
-      const lineTextAfter = this.read(nodeRef.to, lineTo);
-      if (
-        !lineTextAfter.match(FLOW_MARKER_REGEX) &&
-        !lineTextBefore.trim().endsWith("<>")
-      ) {
-        const uuid = this.generateID();
-        const flowMarker = this.getFlowMarker(uuid);
-        const splice = flowMarker;
-        annotations.push(
-          SparkdownAnnotation.mark({ uuid, splice }).range(
-            nodeRef.from,
-            nodeRef.to
-          )
-        );
-      }
-    }
-    // Record explicit flow marker's source location
-    if (nodeRef.name === "UUID") {
-      const uuid = this.read(nodeRef.from, nodeRef.to).trim();
-      if (uuid) {
-        annotations.push(
-          SparkdownAnnotation.mark({ uuid }).range(nodeRef.from, nodeRef.to)
+          SparkdownAnnotation.mark({ prefix }).range(nodeRef.from, nodeRef.to)
         );
       }
     }

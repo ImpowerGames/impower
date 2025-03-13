@@ -1,7 +1,7 @@
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
+import { GameContinuedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameContinuedMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
-import { WillExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
@@ -28,8 +28,8 @@ export default class GamePreview extends Component(spec) {
       this.handleSelectedEditor
     );
     window.addEventListener(
-      WillExecuteGameCommandMessage.method,
-      this.handleWillExecuteGameCommand
+      GameContinuedMessage.method,
+      this.handleGameContinued
     );
     window.addEventListener("keydown", this.handleKeyDown);
     this.loadGame();
@@ -45,8 +45,8 @@ export default class GamePreview extends Component(spec) {
       this.handleSelectedEditor
     );
     window.removeEventListener(
-      WillExecuteGameCommandMessage.method,
-      this.handleWillExecuteGameCommand
+      GameContinuedMessage.method,
+      this.handleGameContinued
     );
     window.removeEventListener("keydown", this.handleKeyDown);
   }
@@ -75,16 +75,12 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
-  handleWillExecuteGameCommand = async (e: Event) => {
+  handleGameContinued = async (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      if (WillExecuteGameCommandMessage.type.isNotification(message)) {
-        const { textDocument, range } = message.params;
-        Workspace.window.showDocument(
-          textDocument.uri,
-          { start: range.start, end: range.start },
-          true
-        );
+      if (GameContinuedMessage.type.isNotification(message)) {
+        const { location } = message.params;
+        Workspace.window.showDocument(location.uri, location.range, true);
       }
     }
   };
@@ -118,12 +114,12 @@ export default class GamePreview extends Component(spec) {
       this._program = await Workspace.ls.getProgram();
       this._startFromFile = uri;
       this._startFromLine = startLine;
-      const waypoints: { file: string; line: number }[] = [];
+      const breakpoints: { file: string; line: number }[] = [];
       if (Workspace.window.store.debug?.breakpoints) {
         Object.entries(Workspace.window.store.debug.breakpoints).forEach(
           ([uri, ranges]) => {
             ranges.forEach((range) =>
-              waypoints.push({ file: uri, line: range.start.line })
+              breakpoints.push({ file: uri, line: range.start.line })
             );
           }
         );
@@ -135,10 +131,8 @@ export default class GamePreview extends Component(spec) {
       this.emit(
         ConfigureGameMessage.method,
         ConfigureGameMessage.type.request({
-          settings: {
-            waypoints,
-            startpoint,
-          },
+          breakpoints,
+          startpoint,
         })
       );
     }
@@ -268,21 +262,21 @@ export default class GamePreview extends Component(spec) {
     currentLine: number,
     offset: number
   ) {
-    if (program.compiled) {
+    if (program) {
       const files = Object.keys(program.scripts);
-      const uuidToSourceEntries = Object.entries(
-        program.compiled.uuidToSource || {}
+      const pathToLocationEntries = Object.entries(
+        program.pathToLocation || {}
       );
       const index = this.getClosestSourceIndex(
         files,
-        uuidToSourceEntries,
+        pathToLocationEntries,
         currentFile,
         currentLine
       );
       if (index == null) {
         return null;
       }
-      const uuidToSourceEntry = uuidToSourceEntries[index + offset];
+      const uuidToSourceEntry = pathToLocationEntries[index + offset];
       if (uuidToSourceEntry == null) {
         return null;
       }
@@ -300,7 +294,10 @@ export default class GamePreview extends Component(spec) {
 
   getClosestSourceIndex(
     allFiles: string[],
-    allUUIDToSourceEntries: [string, [number, number]][],
+    allPathToLocationEntries: [
+      string,
+      [number, number, number, number, number]
+    ][],
     currentFile: string | undefined,
     currentLine: number
   ) {
@@ -312,16 +309,16 @@ export default class GamePreview extends Component(spec) {
       return null;
     }
     let closestIndex: number | null = null;
-    for (let i = 0; i < allUUIDToSourceEntries.length; i++) {
-      const entry = allUUIDToSourceEntries[i]!;
+    for (let i = 0; i < allPathToLocationEntries.length; i++) {
+      const entry = allPathToLocationEntries[i]!;
       const [, source] = entry;
       if (source) {
-        const [currFileIndex, currLineIndex] = source;
-        if (currFileIndex === fileIndex && currLineIndex === currentLine) {
+        const [currFileIndex, currStartLine] = source;
+        if (currFileIndex === fileIndex && currStartLine === currentLine) {
           closestIndex = i;
           break;
         }
-        if (currFileIndex === fileIndex && currLineIndex > currentLine) {
+        if (currFileIndex === fileIndex && currStartLine > currentLine) {
           closestIndex = i - 1;
           break;
         }

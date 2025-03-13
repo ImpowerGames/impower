@@ -10,7 +10,7 @@ export const activatePreviewScreenplayPanel = (
 ): void => {
   // Register screenplay preview command
   context.subscriptions.push(
-    vscode.commands.registerCommand("sparkdown.previewscreenplay", () => {
+    vscode.commands.registerCommand("sparkdown.previewScreenplay", () => {
       const uri = getActiveSparkdownDocument();
       if (!uri) {
         return;

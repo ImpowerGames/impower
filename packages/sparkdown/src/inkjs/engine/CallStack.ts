@@ -281,6 +281,7 @@ export class CallStack {
 
 export namespace CallStack {
   export class Element {
+    public previousPointer: Pointer = Pointer.Null;
     public currentPointer: Pointer;
     public inExpressionEvaluation: boolean;
     public temporaryVariables: Map<string, InkObject>;
@@ -310,6 +311,7 @@ export namespace CallStack {
       copy.evaluationStackHeightWhenPushed =
         this.evaluationStackHeightWhenPushed;
       copy.functionStartInOutputStream = this.functionStartInOutputStream;
+      copy.previousPointer = this.previousPointer.copy();
       return copy;
     }
   }

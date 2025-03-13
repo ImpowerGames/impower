@@ -6,7 +6,6 @@ import {
 import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
 import { SourceMetadata } from "../inkjs/engine/Error";
 import { SimpleJson } from "../inkjs/engine/SimpleJson";
-import { StringValue } from "../inkjs/engine/Value";
 import { File } from "../types/File";
 import { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
@@ -30,7 +29,6 @@ import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 const NEWLINE_REGEX: RegExp = /\r\n|\r|\n/;
-const UUID_MARKER_REGEX = new RegExp(GRAMMAR_DEFINITION.repository.UUID.match);
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
 export class SparkdownCompiler {
@@ -42,6 +40,7 @@ export class SparkdownCompiler {
     "references",
     "transpilations",
     "validations",
+    "declarations",
   ]);
   get documents() {
     return this._documents;
@@ -133,11 +132,7 @@ export class SparkdownCompiler {
     throw new Error(`Cannot find file '${relativePath}'.`);
   }
 
-  transpile(
-    uri: string,
-    state: SparkdownCompilerState,
-    uuidToSource: Record<string, [file: number, line: number]>
-  ) {
+  transpile(uri: string, state: SparkdownCompilerState) {
     profile("start", "transpile", uri);
     state.transpiledScripts ??= {};
     if (state.transpiledScripts[uri]) {
@@ -153,7 +148,6 @@ export class SparkdownCompiler {
     const lines = script.split(NEWLINE_REGEX);
     profile("end", "splitIntoLines", uri);
     state.transpiledScripts[uri] ??= { content: script, version: doc.version };
-    const fileIndex = Object.keys(state.transpiledScripts).indexOf(uri);
     const annotations = this.documents.annotations(uri);
     const cur = annotations.transpilations.iter();
     while (cur.value) {
@@ -167,9 +161,6 @@ export class SparkdownCompiler {
         character: Number.MAX_VALUE,
       });
       const after = cur.to - lineFrom;
-      if (cur.value.type.uuid) {
-        uuidToSource[cur.value.type.uuid] ??= [fileIndex, lineIndex];
-      }
       if (cur.value.type.splice) {
         const lineTextBefore = doc.read(lineFrom, cur.to);
         const lineTextAfter = doc.read(cur.to, lineTo);
@@ -208,11 +199,11 @@ export class SparkdownCompiler {
     const program: SparkProgram = {
       uri,
       scripts: { [uri]: this.documents.get(uri)?.version ?? -1 },
+      pathToLocation: {},
+      functionLocations: {},
+      version: this.documents.get(uri)?.version ?? -1,
     };
     const state: SparkdownCompilerState = {};
-
-    const uuidToSource: Record<string, [file: number, line: number]> = {};
-    const uuidToPath: Record<string, string> = {};
 
     const options = new InkCompilerOptions(
       "",
@@ -226,21 +217,55 @@ export class SparkdownCompiler {
           return this.resolveFile(uri, filename);
         },
         LoadInkFileContents: (uri: string): string => {
-          return this.transpile(uri, state, uuidToSource);
+          return this.transpile(uri, state);
         },
       },
       {
         WriteRuntimeObject: (_, obj) => {
-          if (obj instanceof StringValue) {
-            if (!obj.isNewline && obj.value) {
-              const flowMarkers = obj.value.match(UUID_MARKER_REGEX);
-              if (flowMarkers) {
-                const path = obj.path.toString();
-                for (const m of flowMarkers) {
-                  const flowMarker = m.trim().slice(1, -1);
-                  uuidToPath[flowMarker] ??= path;
-                }
+          const metadata = obj?.debugMetadata;
+          if (metadata) {
+            let path = obj.path.toString();
+            if (path.startsWith("global ")) {
+              path = "0";
+            }
+            let [uri, startLine, startColumn, endLine, endColumn] =
+              this.getPreTranspilationLocation(metadata, state);
+            const scriptIndex = Object.keys(program.scripts).indexOf(uri || "");
+            if (scriptIndex >= 0) {
+              const [
+                _,
+                existingStartLine,
+                existingStartColumn,
+                existingEndLine,
+                existingEndColumn,
+              ] = program.pathToLocation[path] || [];
+              if (
+                existingStartLine != null &&
+                existingStartColumn != null &&
+                (existingStartLine < startLine ||
+                  (existingStartLine === startLine &&
+                    existingStartColumn < startColumn))
+              ) {
+                startLine = existingStartLine;
+                startColumn = existingStartColumn;
               }
+              if (
+                existingEndLine != null &&
+                existingEndColumn != null &&
+                (existingEndLine > endLine ||
+                  (existingEndLine === endLine &&
+                    existingEndColumn > endColumn))
+              ) {
+                endLine = existingEndLine;
+                endColumn = existingEndColumn;
+              }
+              program.pathToLocation[path] ??= [
+                scriptIndex,
+                startLine,
+                startColumn,
+                endLine,
+                endColumn,
+              ];
             }
           }
           return false;
@@ -263,8 +288,6 @@ export class SparkdownCompiler {
           profile("end", "ink/json", uri);
         }
         const compiledObj = (writer.toObject() || {}) as SparkdownRuntimeFormat;
-        compiledObj.uuidToPath = uuidToPath;
-        compiledObj.uuidToSource = uuidToSource;
         program.compiled = compiledObj;
         program.scripts = { [uri]: this.documents.get(uri)?.version ?? -1 };
         for (const [scriptUri, transpilation] of Object.entries(
@@ -272,6 +295,8 @@ export class SparkdownCompiler {
         )) {
           program.scripts[scriptUri] = transpilation.version;
         }
+        this.sortPathToLocation(program);
+        this.populateDeclarationLocations(program);
         this.populateDiagnostics(state, program, inkCompiler);
         this.populateBuiltins(program);
         this.populateAssets(program);
@@ -287,6 +312,92 @@ export class SparkdownCompiler {
 
   clone<T>(value: T) {
     return structuredClone(value);
+  }
+
+  sortPathToLocation(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", "sortPathToLocation", uri);
+    const sortedEntries = Object.entries(program.pathToLocation).sort(
+      ([, a], [, b]) => {
+        const [scriptIndexA, startLineA, startColumnA] = a;
+        const [scriptIndexB, startLineB, startColumnB] = b;
+        return (
+          scriptIndexA - scriptIndexB ||
+          startLineA - startLineB ||
+          startColumnA - startColumnB
+        );
+      }
+    );
+    program.pathToLocation = {};
+    for (const [k, v] of sortedEntries) {
+      program.pathToLocation[k] = v;
+    }
+    profile("end", "sortPathToLocation", uri);
+  }
+
+  populateDeclarationLocations(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", "populateDeclarationLocations", uri);
+    const scripts = Object.keys(program.scripts);
+    for (const uri of scripts) {
+      const doc = this.documents.get(uri);
+      const scriptIndex = scripts.indexOf(uri);
+      if (doc) {
+        const annotations = this.documents.annotations(uri);
+        const cur = annotations.declarations.iter();
+        let scopePathParts: { kind: "" | "knot" | "stitch"; name: string }[] =
+          [];
+        if (cur) {
+          while (cur.value) {
+            const name = doc.read(cur.from, cur.to);
+            const range = doc.range(cur.from, cur.to);
+            if (cur.value.type === "function") {
+              program.functionLocations[name] = [
+                scriptIndex,
+                range.start.line,
+                range.start.character,
+                range.end.line,
+                range.end.character,
+              ];
+            }
+            if (cur.value.type === "knot") {
+              scopePathParts = [];
+              scopePathParts.push({
+                kind: "knot",
+                name: doc.read(cur.from, cur.to),
+              });
+              program.functionLocations[name] = [
+                scriptIndex,
+                range.start.line,
+                range.start.character,
+                range.end.line,
+                range.end.character,
+              ];
+            }
+            if (cur.value.type === "stitch") {
+              const prevKind = scopePathParts.at(-1)?.kind || "";
+              if (prevKind === "stitch") {
+                scopePathParts.pop();
+              }
+              scopePathParts.push({
+                kind: "stitch",
+                name: doc.read(cur.from, cur.to),
+              });
+              const name = scopePathParts.map((p) => p.name).join(".");
+              program.functionLocations[name] = [
+                scriptIndex,
+                range.start.line,
+                range.start.character,
+                range.end.line,
+                range.end.character,
+              ];
+            }
+            cur.next();
+          }
+        }
+      }
+    }
+    profile("end", "populateDeclarationLocations", uri);
   }
 
   populateBuiltins(program: SparkProgram) {
@@ -719,7 +830,6 @@ export class SparkdownCompiler {
     for (const error of compiler.errors) {
       program.diagnostics ??= {};
       const diagnostic = this.convertInkCompilerDiagnostic(
-        uri,
         error.message,
         ErrorType.Error,
         error.source,
@@ -740,7 +850,6 @@ export class SparkdownCompiler {
     for (const warning of compiler.warnings) {
       program.diagnostics ??= {};
       const diagnostic = this.convertInkCompilerDiagnostic(
-        uri,
         warning.message,
         ErrorType.Warning,
         warning.source,
@@ -761,7 +870,6 @@ export class SparkdownCompiler {
     for (const info of compiler.infos) {
       program.diagnostics ??= {};
       const diagnostic = this.convertInkCompilerDiagnostic(
-        uri,
         info.message,
         ErrorType.Information,
         info.source,
@@ -783,31 +891,14 @@ export class SparkdownCompiler {
   }
 
   convertInkCompilerDiagnostic(
-    rootUri: string,
     message: string,
     type: ErrorType,
     metadata?: SourceMetadata | null,
     state?: SparkdownCompilerState
   ): SparkDiagnostic | null {
     if (metadata && metadata.fileName) {
-      const filePath = metadata?.filePath || "";
-      const startLine = metadata.startLineNumber - 1;
-      const endLine = metadata.endLineNumber - 1;
-      const startOffset = state?.sourceMap?.[filePath]?.[startLine];
-      const startOffsetAfter = startOffset?.after ?? 0;
-      const startOffsetShift = startOffset?.shift ?? 0;
-      const endOffset = state?.sourceMap?.[filePath]?.[endLine];
-      const endOffsetAfter = endOffset?.after ?? 0;
-      const endOffsetShift = endOffset?.shift ?? 0;
-      const startCharacterOffset =
-        metadata.startCharacterNumber - 1 > startOffsetAfter
-          ? startOffsetShift
-          : 0;
-      const startCharacter =
-        metadata.startCharacterNumber - 1 - startCharacterOffset;
-      const endCharacterOffset =
-        metadata.endCharacterNumber - 1 > endOffsetAfter ? endOffsetShift : 0;
-      const endCharacter = metadata.endCharacterNumber - 1 - endCharacterOffset;
+      const [uri, startLine, startCharacter, endLine, endCharacter] =
+        this.getPreTranspilationLocation(metadata, state);
       if (startCharacter < 0) {
         // This error is occurring in a part of the script that was automatically added during transpilation
         // Assume it will be properly reported elsewhere and do not report it here.
@@ -832,9 +923,6 @@ export class SparkdownCompiler {
           character: endCharacter,
         },
       };
-      const uri = metadata.fileName
-        ? this.resolveFile(rootUri, metadata.fileName) || metadata.fileName
-        : undefined;
       const relatedInformation = uri
         ? [
             {
@@ -861,5 +949,30 @@ export class SparkdownCompiler {
     }
     console.warn("HIDDEN", message, type, metadata);
     return null;
+  }
+
+  getPreTranspilationLocation(
+    metadata: SourceMetadata,
+    state?: SparkdownCompilerState
+  ): [string, number, number, number, number] {
+    const filePath = metadata?.filePath || "";
+    const startLine = metadata.startLineNumber - 1;
+    const endLine = metadata.endLineNumber - 1;
+    const startOffset = state?.sourceMap?.[filePath]?.[startLine];
+    const startOffsetAfter = startOffset?.after ?? 0;
+    const startOffsetShift = startOffset?.shift ?? 0;
+    const endOffset = state?.sourceMap?.[filePath]?.[endLine];
+    const endOffsetAfter = endOffset?.after ?? 0;
+    const endOffsetShift = endOffset?.shift ?? 0;
+    const startCharacterOffset =
+      metadata.startCharacterNumber - 1 > startOffsetAfter
+        ? startOffsetShift
+        : 0;
+    const startCharacter =
+      metadata.startCharacterNumber - 1 - startCharacterOffset;
+    const endCharacterOffset =
+      metadata.endCharacterNumber - 1 > endOffsetAfter ? endOffsetShift : 0;
+    const endCharacter = metadata.endCharacterNumber - 1 - endCharacterOffset;
+    return [filePath, startLine, startCharacter, endLine, endCharacter];
   }
 }

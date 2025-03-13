@@ -1,8 +1,8 @@
+import * as polyfill from "@esbuild-plugins/node-globals-polyfill";
 import { context } from "esbuild";
+import copy from "esbuild-plugin-copy-watch";
 import * as glob from "glob";
 import * as path from "path";
-import * as polyfill from "@esbuild-plugins/node-globals-polyfill";
-import copy from "esbuild-plugin-copy-watch";
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
@@ -81,6 +81,10 @@ const config = {
     path: "path-browserify",
     events: "events",
     stream: "stream-browserify",
+    url: "url-browserify",
+  },
+  banner: {
+    js: `const window = {};`,
   },
 
   plugins: [

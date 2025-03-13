@@ -438,7 +438,8 @@ export class Story extends InkObject {
 
       if (
         this._asyncContinueActive &&
-        durationStopwatch.ElapsedMilliseconds > millisecsLimitAsync
+        (durationStopwatch.ElapsedMilliseconds > millisecsLimitAsync ||
+          millisecsLimitAsync === Infinity)
       ) {
         break;
       }
@@ -2361,6 +2362,8 @@ export class Story extends InkObject {
 
     if (!successfulIncrement) pointer = Pointer.Null;
 
+    this.state.callStack.currentElement.previousPointer =
+      this.state.callStack.currentElement.currentPointer.copy();
     this.state.callStack.currentElement.currentPointer = pointer.copy();
 
     return successfulIncrement;

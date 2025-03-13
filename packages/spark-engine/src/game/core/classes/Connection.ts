@@ -63,55 +63,50 @@ export class Connection {
   }
 
   protected send(message: Message, transfer?: ArrayBuffer[]): void {
-    if (!this._send) {
-      throw new Error(
-        "Cannot send message: Output port is not connected to anything"
-      );
+    if (this._send) {
+      this._send(message, transfer);
     }
-    this._send(message, transfer);
     this.broadcast(message, this._outgoingListeners);
   }
 
   receive(message: Message): void {
-    if (!this._receive) {
-      throw new Error(
-        "Cannot receive message: Input port is not connected to anything"
-      );
-    }
     if ("id" in message) {
       if ("params" in message) {
-        this._receive?.(message).then((response) => {
-          if (response) {
-            const transfer = response.transfer;
-            delete response.transfer;
-            this.send(
-              {
-                jsonrpc: "2.0",
-                method: message.method,
-                id: message.id,
-                ...response,
-              },
-              transfer
-            );
-          }
-        });
+        if (this._receive) {
+          this._receive?.(message).then((response) => {
+            if (response) {
+              const transfer = response.transfer;
+              delete response.transfer;
+              this.send(
+                {
+                  jsonrpc: "2.0",
+                  method: message.method,
+                  id: message.id,
+                  ...response,
+                },
+                transfer
+              );
+            }
+          });
+        }
       } else {
         this.handleResponse(message);
       }
     } else {
-      this._receive?.(message);
+      if (this._receive) {
+        this._receive?.(message);
+      }
     }
     this.broadcast(message, this._incomingListeners);
   }
 
   async emit<M extends string, P, R>(
-    msg: RequestMessage<M, P> | NotificationMessage<M, P>,
+    msg: RequestMessage<M, P, R> | NotificationMessage<M, P>,
     transfer?: ArrayBuffer[]
-  ): Promise<ResponseMessage<M, R>> {
+  ): Promise<R> {
     if ("id" in msg && typeof msg.id === "string" && msg.id) {
-      return this.emitRequest(msg as RequestMessage, transfer) as Promise<
-        ResponseMessage<M, R>
-      >;
+      const response = await this.emitRequest(msg as RequestMessage, transfer);
+      return response.result as R;
     } else {
       this.emitNotification(msg as NotificationMessage, transfer);
       return undefined as any;

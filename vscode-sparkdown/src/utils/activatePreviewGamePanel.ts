@@ -10,7 +10,7 @@ export const activatePreviewGamePanel = (
 ): void => {
   // Register game preview command
   context.subscriptions.push(
-    vscode.commands.registerCommand("sparkdown.previewgame", () => {
+    vscode.commands.registerCommand("sparkdown.previewGame", () => {
       const uri = getActiveSparkdownDocument();
       if (!uri) {
         return;

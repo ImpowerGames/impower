@@ -3,7 +3,8 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 export type StepGameMethod = typeof StepGameMessage.method;
 
 export interface StepGameParams {
-  deltaMS: number;
+  traversal: "in" | "out" | "over";
+  reverse?: boolean;
 }
 
 export class StepGameMessage {

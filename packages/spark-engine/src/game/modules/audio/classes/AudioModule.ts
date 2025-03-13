@@ -121,13 +121,11 @@ export class AudioModule extends Module<
 
   async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
     await new Promise<void>(async (resolve) => {
-      const msg = await this.emit(LoadAudioPlayerMessage.type.request(data));
-      if (LoadAudioPlayerMessage.type.isResponse(msg)) {
-        if (msg.result?.outputLatency != null) {
-          this._outputLatency = msg.result?.outputLatency;
-        }
-        resolve();
+      const result = await this.emit(LoadAudioPlayerMessage.type.request(data));
+      if (result?.outputLatency != null) {
+        this._outputLatency = result?.outputLatency;
       }
+      resolve();
     });
   }
 

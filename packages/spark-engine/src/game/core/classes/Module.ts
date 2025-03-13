@@ -134,13 +134,10 @@ export abstract class Module<
     }
   }
 
-  async emit<K extends keyof M>(
-    msg: M[K][0],
+  async emit<M extends string, P, R>(
+    msg: RequestMessage<M, P, R> | NotificationMessage<M, P>,
     transfer?: ArrayBuffer[]
-  ): Promise<M[K][1]> {
-    return this._game.connection.emit(
-      msg as NotificationMessage | RequestMessage,
-      transfer
-    ) as Promise<M[K][1]>;
+  ): Promise<R> {
+    return this._game.connection.emit(msg, transfer);
   }
 }

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import * as vscode from "vscode";
 import { activateContextService } from "./context/activateContextService";
+import { activateDebugger } from "./debugger/activateDebugger";
 import { fileSystemWatcherState } from "./state/fileSystemWatcherState";
 import { activateAutoFormatting } from "./utils/activateAutoFormatting";
 import { activateCheatSheetView } from "./utils/activateCheatSheetView";
@@ -33,6 +34,7 @@ export const activate = async (
   activateFileWatcher(context);
   activateLanguageClient(context);
   activateNewlineHelper(context);
+  activateDebugger(context);
 };
 
 // Called when extension is deactivated

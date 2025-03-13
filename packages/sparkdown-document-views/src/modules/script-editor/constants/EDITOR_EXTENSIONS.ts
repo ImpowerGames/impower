@@ -21,13 +21,13 @@ import {
   rectangularSelection,
 } from "@codemirror/view";
 import { breakpoints } from "../../../cm-breakpoints/breakpoints";
+import { highlightExtraWhitespace } from "../../../cm-highlight-extra-whitespace/highlightExtraWhitespace";
 import { indentationGuides } from "../../../cm-indentation-guides/indentationGuides";
 import { indentedLineWrapping } from "../../../cm-indented-line-wrapping/indentedLineWrapping";
-import { highlightExtraWhitespace } from "../../../cm-highlight-extra-whitespace/highlightExtraWhitespace";
 
 const EDITOR_EXTENSIONS = [
   history(),
-  breakpoints({ singular: true }),
+  breakpoints({}),
   lineNumbers(),
   indentUnit.of("  "),
   highlightExtraWhitespace(),

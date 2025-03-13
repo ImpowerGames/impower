@@ -37,13 +37,17 @@
     "onCommand:sparkdown:exporthtml",
     "onCommand:sparkdown:exportcsv",
     "onCommand:sparkdown:exportjson",
-    "onCommand:sparkdown.previewscreenplay",
-    "onCommand:sparkdown.previewgame",
+    "onCommand:sparkdown.previewScreenplay",
+    "onCommand:sparkdown.previewGame",
     "onView:sparkdown-cheatsheet",
     "onView:sparkdown-preview-screenplay",
     "onView:sparkdown-preview-game",
     "onWebviewPanel:sparkdown-preview-screenplay",
-    "onWebviewPanel:sparkdown-preview-game"
+    "onWebviewPanel:sparkdown-preview-game",
+    "onDebugResolve:mock",
+    "onDebugDynamicConfigurations:mock",
+    "onCommand:sparkdown.getProgramName",
+    "onCommand:sparkdown.getSaveName"
   ],
   "browser": "./out/extension.js",
   "contributes": {
@@ -261,29 +265,82 @@
         }
       ]
     },
+    "submenus": [
+      {
+        "id": "sparkdown.runOrDebug",
+        "label": "Debug Game",
+        "icon": "$(debug-alt)",
+        "group": "navigation@1"
+      }
+    ],
     "menus": {
+      "sparkdown.runOrDebug": [
+        {
+          "command": "sparkdown.debugGame",
+          "when": "!inDebugMode",
+          "group": "navigation@1"
+        },
+        {
+          "command": "sparkdown.runGame",
+          "when": "!inDebugMode",
+          "group": "navigation@2"
+        }
+      ],
       "view/title": [
         {
-          "command": "sparkdown.previewgame",
+          "submenu": "sparkdown.runOrDebug",
           "group": "navigation@1",
           "when": "view == sparkdown-outline"
         },
         {
-          "command": "sparkdown.previewscreenplay",
-          "group": "navigation@2",
+          "command": "sparkdown.previewGame",
+          "group": "navigation@3",
+          "when": "view == sparkdown-outline"
+        },
+        {
+          "command": "sparkdown.previewScreenplay",
+          "group": "navigation@4",
           "when": "view == sparkdown-outline"
         }
       ],
       "editor/title": [
         {
-          "command": "sparkdown.previewgame",
+          "command": "sparkdown.previewGame",
           "when": "editorLangId == sparkdown",
+          "group": "navigation@3"
+        },
+        {
+          "command": "sparkdown.previewScreenplay",
+          "when": "editorLangId == sparkdown",
+          "group": "navigation@4"
+        }
+      ],
+      "editor/title/run": [
+        {
+          "command": "sparkdown.debugGame",
+          "when": "!inDebugMode && (resourceLangId == sparkdown || view == sparkdown-outline || activeWebviewPanelId == 'sparkdown-preview-game' || activeWebviewPanelId == 'sparkdown-preview-screenplay')",
           "group": "navigation@1"
         },
         {
-          "command": "sparkdown.previewscreenplay",
-          "when": "editorLangId == sparkdown",
+          "command": "sparkdown.runGame",
+          "when": "!inDebugMode && (resourceLangId == sparkdown || view == sparkdown-outline || activeWebviewPanelId == 'sparkdown-preview-game' || activeWebviewPanelId == 'sparkdown-preview-screenplay')",
           "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "sparkdown.debugGame",
+          "when": "!inDebugMode && (resourceLangId == sparkdown || view == sparkdown-outline || activeWebviewPanelId == 'sparkdown-preview-game' || activeWebviewPanelId == 'sparkdown-preview-screenplay')"
+        },
+        {
+          "command": "sparkdown.runGame",
+          "when": "!inDebugMode && (resourceLangId == sparkdown || view == sparkdown-outline || activeWebviewPanelId == 'sparkdown-preview-game' || activeWebviewPanelId == 'sparkdown-preview-screenplay')"
+        }
+      ],
+      "debug/variables/context": [
+        {
+          "command": "sparkdown.toggleFormatting",
+          "when": "debugType == 'mock' && debugProtocolVariableMenuContext == 'simple'"
         }
       ]
     },
@@ -296,13 +353,13 @@
         "icon": "$(remote)"
       },
       {
-        "command": "sparkdown.previewgame",
+        "command": "sparkdown.previewGame",
         "when": "editorLangId == sparkdown",
         "title": "Preview game",
         "icon": "$(game)"
       },
       {
-        "command": "sparkdown.previewscreenplay",
+        "command": "sparkdown.previewScreenplay",
         "when": "editorLangId == sparkdown",
         "title": "Preview screenplay",
         "icon": "$(book)"
@@ -336,11 +393,29 @@
         "when": "editorLangId == sparkdown",
         "title": "View statistics",
         "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.debugGame",
+        "title": "Debug Game",
+        "category": "Sparkdown Debugger",
+        "enablement": "!inDebugMode",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "sparkdown.runGame",
+        "title": "Run Game",
+        "category": "Sparkdown Debugger",
+        "enablement": "!inDebugMode",
+        "icon": "$(play)"
+      },
+      {
+        "command": "sparkdown.toggleFormatting",
+        "title": "Toggle between decimal and hex formatting"
       }
     ],
     "keybindings": [
       {
-        "command": "sparkdown.previewgame",
+        "command": "sparkdown.previewGame",
         "when": "editorLangId == sparkdown",
         "key": "ctrl+shift+v",
         "mac": "cmd+shift+v"
@@ -350,12 +425,6 @@
         "when": "editorLangId == sparkdown",
         "key": "ctrl+shift+b",
         "mac": "cmd+shift+b"
-      },
-      {
-        "command": "sparkdown.exportpdfdebug",
-        "when": "editorLangId == sparkdown",
-        "key": "f5",
-        "mac": "f5"
       },
       {
         "command": "sparkdown.extension.onEnterKey",
@@ -564,6 +633,134 @@
           }
         }
       }
+    ],
+    "breakpoints": [
+      {
+        "language": "sparkdown"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "game",
+        "languages": [
+          "sparkdown"
+        ],
+        "label": "Spark Game",
+        "program": "./out/debugAdapter.js",
+        "runtime": "node",
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Absolute path to a .sd file.",
+                "default": "${workspaceFolder}/${command:AskForProgramName}"
+              },
+              "save": {
+                "type": "string",
+                "description": "Absolute path to a .sav file.",
+                "default": "${workspaceFolder}/${command:AskForSaveName}"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Automatically stop after launch.",
+                "default": true
+              },
+              "trace": {
+                "type": "boolean",
+                "description": "Enable logging of the Debug Adapter Protocol.",
+                "default": true
+              },
+              "compileError": {
+                "type": "string",
+                "description": "Simulates a compile error in 'launch' request.",
+                "enum": [
+                  "default",
+                  "show",
+                  "hide"
+                ],
+                "enumDescriptions": [
+                  "default: show fake compile error to user",
+                  "show fake compile error to user",
+                  "do not show fake compile error to user"
+                ]
+              }
+            }
+          },
+          "attach": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Absolute path to a .sd file.",
+                "default": "${workspaceFolder}/${command:AskForProgramName}"
+              },
+              "save": {
+                "type": "string",
+                "description": "Absolute path to a .sav file.",
+                "default": "${workspaceFolder}/${command:AskForSaveName}"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Automatically stop after attach.",
+                "default": true
+              },
+              "trace": {
+                "type": "boolean",
+                "description": "Enable logging of the Debug Adapter Protocol.",
+                "default": true
+              },
+              "compileError": {
+                "type": "string",
+                "description": "Simulates a compile error in 'attach' request.",
+                "enum": [
+                  "default",
+                  "show",
+                  "hide"
+                ],
+                "enumDescriptions": [
+                  "default: show fake compile error to user",
+                  "show fake compile error to user",
+                  "do not show fake compile error to user"
+                ]
+              }
+            }
+          }
+        },
+        "initialConfigurations": [
+          {
+            "type": "game",
+            "request": "launch",
+            "name": "Launch Game",
+            "program": "${workspaceFolder}/${command:AskForProgramName}",
+            "save": "${workspaceFolder}/${command:AskForSaveName}",
+            "stopOnEntry": false
+          }
+        ],
+        "configurationSnippets": [
+          {
+            "label": "Sparkdown Debugger: Launch",
+            "description": "A new configuration for 'debugging' a user selected sparkdown file.",
+            "body": {
+              "type": "game",
+              "request": "launch",
+              "name": "Launch Game",
+              "program": "^\"\\${workspaceFolder}/\\${command:AskForProgramName}\"",
+              "save": "^\"\\${workspaceFolder}/\\${command:AskForSaveName}\"",
+              "stopOnEntry": false
+            }
+          }
+        ],
+        "variables": {
+          "AskForProgramName": "sparkdown.getProgramName",
+          "AskForSaveName": "sparkdown.getSaveName"
+        }
+      }
     ]
   },
   "scripts": {
@@ -596,19 +793,23 @@
     "@impower/sparkdown-screenplay": "file:../packages/sparkdown-screenplay",
     "@impower/sparkdown-screenplay-pdf": "file:../packages/sparkdown-screenplay-pdf",
     "@vscode/codicons": "^0.0.36",
+    "@vscode/debugadapter": "^1.68.0",
+    "@vscode/debugprotocol": "^1.68.0",
+    "await-notify": "^1.0.1",
     "buffer": "^6.0.3",
     "csv-stringify": "^6.5.2",
     "events": "^3.3.0",
     "iconv-lite": "^0.6.3",
     "os-browserify": "^0.3.0",
-    "path-browserify": "^1.0.1",
     "process": "^0.11.10",
     "stream-browserify": "^3.0.0",
+    "url-browserify": "^1.3.0",
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@types/node": "^22.13.7",
+    "@types/path-browserify": "^1.0.3",
     "@types/vscode": "^1.97.0",
     "@vscode/test-web": "^0.0.67",
     "brfs": "^2.0.2",
@@ -617,6 +818,7 @@
     "glob": "^11.0.1",
     "mocha": "^11.1.0",
     "npm-run-all": "^4.1.5",
+    "path-browserify": "^1.0.1",
     "transform-loader": "^0.2.4",
     "typescript": "^5.8.2"
   }

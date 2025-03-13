@@ -11,4 +11,23 @@ export interface SparkProgram {
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];
   };
+  pathToLocation: {
+    [path: string]: [
+      scriptIndex: number,
+      startLine: number,
+      startColumn: number,
+      endLine: number,
+      endColumn: number
+    ];
+  };
+  functionLocations: {
+    [name: string]: [
+      scriptIndex: number,
+      startLine: number,
+      startColumn: number,
+      endLine: number,
+      endColumn: number
+    ];
+  };
+  version?: number;
 }

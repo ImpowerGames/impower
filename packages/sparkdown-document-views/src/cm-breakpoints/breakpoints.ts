@@ -33,7 +33,7 @@ export const breakpointsConfig = Facet.define<
 
 export const breakpointMarker = new (class extends GutterMarker {
   override toDOM() {
-    return document.createTextNode("◈");
+    return document.createTextNode("●");
   }
 })();
 

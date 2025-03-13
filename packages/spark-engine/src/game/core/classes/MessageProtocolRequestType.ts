@@ -27,13 +27,13 @@ export class MessageProtocolRequestType<M extends string, P, R> {
     );
   }
 
-  request(params: P): RequestMessage<M, P> {
+  request(params: P): RequestMessage<M, P, R> {
     return {
       jsonrpc: "2.0",
       method: this.method,
       id: uuid(),
       params,
-    } as RequestMessage<M, P>;
+    } as RequestMessage<M, P, R>;
   }
 
   response(id: number | string, result: R): ResponseMessage<M, R> {

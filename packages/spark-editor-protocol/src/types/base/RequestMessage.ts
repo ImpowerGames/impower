@@ -1,6 +1,6 @@
 import { Message } from "./Message";
 
-export interface RequestMessage<M extends string = string, P = any>
+export interface RequestMessage<M extends string = string, P = any, R = unknown>
   extends Message<M, P> {
   /**
    * The request id.
@@ -16,4 +16,9 @@ export interface RequestMessage<M extends string = string, P = any>
    * The method's params.
    */
   params: P;
+
+  /**
+   * The type of result. (for type checking only)
+   */
+  _result?: R;
 }

@@ -1,6 +1,7 @@
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
+import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
@@ -124,6 +125,9 @@ export class SparkdownPreviewGamePanelManager {
       dark: vscode.Uri.joinPath(context.extensionUri, "icon-lang.png"),
     };
     panel.onDidDispose(() => {
+      this._connection.receive(
+        GameExitedMessage.type.notification({ reason: "quit" })
+      );
       this._panel = undefined;
     });
     panel.webview.html = this.getWebviewContent(panel.webview, context);
@@ -215,11 +219,9 @@ export class SparkdownPreviewGamePanelManager {
         }
         this.emit(
           ConfigureGameMessage.type.request({
-            settings: {
-              startpoint: {
-                file: document.uri.toString(),
-                line: selectedRange?.start.line ?? 0,
-              },
+            startpoint: {
+              file: document.uri.toString(),
+              line: selectedRange?.start.line ?? 0,
             },
           })
         );
@@ -307,11 +309,9 @@ export class SparkdownPreviewGamePanelManager {
       );
       this.emit(
         ConfigureGameMessage.type.request({
-          settings: {
-            startpoint: {
-              file: document.uri.toString(),
-              line: selectedRange?.start.line ?? 0,
-            },
+          startpoint: {
+            file: document.uri.toString(),
+            line: selectedRange?.start.line ?? 0,
           },
         })
       );

@@ -446,6 +446,8 @@ export class StoryState {
   }
 
   public GoToStart() {
+    this.callStack.currentElement.previousPointer =
+      this.callStack.currentElement.currentPointer.copy();
     this.callStack.currentElement.currentPointer = Pointer.StartOf(
       this.story.mainContentContainer
     );
@@ -1140,6 +1142,8 @@ export class StoryState {
       PushPopType.FunctionEvaluationFromGame,
       this.evaluationStack.length
     );
+    this.callStack.currentElement.previousPointer =
+      this.callStack.currentElement.currentPointer.copy();
     this.callStack.currentElement.currentPointer =
       Pointer.StartOf(funcContainer);
 

@@ -1,9 +1,9 @@
+import { Typewriter } from "../../modules/interpreter";
+import { Instructions } from "../types/Instructions";
+import { NotificationMessage } from "../types/NotificationMessage";
+import { RequestMessage } from "../types/RequestMessage";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
-import { Instructions } from "../types/Instructions";
-import { RequestMessage } from "../types/RequestMessage";
-import { NotificationMessage } from "../types/NotificationMessage";
-import { Typewriter } from "../../modules/interpreter";
 
 export class Coordinator<G extends Game> {
   protected _game: G;
@@ -46,8 +46,11 @@ export class Coordinator<G extends Game> {
       this._onTick(deltaMS);
       this._elapsedMS += deltaMS;
     }
-    if (this.shouldContinue()) {
-      this._game.continue();
+    const advance = this.shouldContinue();
+    if (advance === 1) {
+      this._game.autoAdvancedToContinue();
+    } else if (advance === 2) {
+      this._game.clickedToContinue();
     }
   }
 
@@ -62,14 +65,15 @@ export class Coordinator<G extends Game> {
     }
   }
 
-  protected shouldContinue() {
+  /**
+   *
+   * @returns 0 = don't continue, 1 = auto advance to continue, 2 = clicked to continue
+   */
+  shouldContinue(): number {
     const game = this._game;
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
-    if (!instructions) {
-      return false;
-    }
     if (this._finishedExecution && this._timeTypedMS < 0) {
       this._timeTypedMS = this._elapsedMS;
     }
@@ -78,9 +82,9 @@ export class Coordinator<G extends Game> {
       // So just autoadvance when finished
       const totalDurationMS = (instructions.end ?? 0) * 1000;
       if (this._elapsedMS >= totalDurationMS) {
-        return true;
+        return 1;
       }
-      return false;
+      return 0;
     }
     // Should autoadvance
     const timeMSSinceTyped = this._elapsedMS - this._timeTypedMS;
@@ -93,7 +97,7 @@ export class Coordinator<G extends Game> {
         this._finishedExecution &&
         timeMSSinceTyped / 1000 >= autoAdvanceDelay
       ) {
-        return true;
+        return 1;
       }
     }
     // Player clicked to advance
@@ -102,7 +106,7 @@ export class Coordinator<G extends Game> {
       if (this._finishedExecution) {
         this._finishedExecution = false;
         if (!waitingForChoice) {
-          return true;
+          return 2;
         }
       }
       if (this._startedExecution && !waitingForChoice) {
@@ -110,7 +114,7 @@ export class Coordinator<G extends Game> {
         this._finishedExecution = true;
       }
     }
-    return false;
+    return 0;
   }
 
   protected display(options?: {
@@ -168,8 +172,7 @@ export class Coordinator<G extends Game> {
             game.module.ui.text.clearAll(choiceTargets);
             game.module.ui.image.clearAll(choiceTargets);
             game.module.ui.unobserve("click", target);
-            game.choose(index);
-            game.continue();
+            game.chosePathToContinue(index);
           };
           game.module.ui.observe("click", target, handleClick);
         });
