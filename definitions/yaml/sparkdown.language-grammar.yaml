@@ -1718,13 +1718,15 @@ repository:
 
   Operator:
     patterns:
+      - { include: "#HasOperator" }
+      - { include: "#NegateOperator" }
       - { include: "#SpreadOperator" }
       - { include: "#AssignArithmeticOperator" }
       - { include: "#AssignBitwiseOperator" }
       - { include: "#BitwiseShiftOperator" }
       - { include: "#CompareEqualOperator" }
       - { include: "#CompareRelativeOperator" }
-      - { include: "#NegateOperator" }
+      - { include: "#HasntOperator" }
       - { include: "#LogicalOperator" }
       - { include: "#WordOperator" }
       - { include: "#BitwiseOperator" }
@@ -1764,6 +1766,25 @@ repository:
     tag: compareOperator
     name: keyword.operator.relational.sd
     match: ([<][=]|[>][=]|[<][>]|[<]|[>])
+
+  HasntOperator:
+    tag: updateOperator
+    match: ([!])([?])
+    captures:
+      1:
+        tag: logicOperator
+        name: keyword.operator.logical.sd
+      2:
+        tag: logicOperator
+        name: keyword.operator.logical.sd
+
+  HasOperator:
+    tag: updateOperator
+    match: ([?])
+    captures:
+      1:
+        tag: logicOperator
+        name: keyword.operator.logical.sd
 
   NegateOperator:
     tag: updateOperator
