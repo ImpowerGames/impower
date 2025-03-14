@@ -242,22 +242,26 @@ export default class SparkWebPlayer extends Component(spec) {
     message: RequestMessage<ConfigureGameMethod, ConfigureGameParams>
   ) => {
     const { startpoint, breakpoints, functionBreakpoints } = message.params;
-    if (this._game) {
-      if (startpoint) {
-        this._options ??= {};
-        this._options.startpoint = startpoint;
-        this._game.setStartpoint(startpoint);
-      }
-      if (breakpoints) {
-        this._options ??= {};
-        this._options.breakpoints = breakpoints;
-        this._game.setBreakpoints(breakpoints);
-      }
-      if (functionBreakpoints) {
-        this._options ??= {};
-        this._options.functionBreakpoints = functionBreakpoints;
-        this._game.setFunctionBreakpoints(functionBreakpoints);
-      }
+    if (!this._program) {
+      // wait for program to be loaded
+      await new Promise<void>((resolve) => {
+        this._loadListeners.add(resolve);
+      });
+    }
+    if (startpoint) {
+      this._options ??= {};
+      this._options.startpoint = startpoint;
+      this._game?.setStartpoint(startpoint);
+    }
+    if (breakpoints) {
+      this._options ??= {};
+      this._options.breakpoints = breakpoints;
+      this._game?.setBreakpoints(breakpoints);
+    }
+    if (functionBreakpoints) {
+      this._options ??= {};
+      this._options.functionBreakpoints = functionBreakpoints;
+      this._game?.setFunctionBreakpoints(functionBreakpoints);
     }
     const actualBreakpoints =
       breakpoints && this._program?.pathToLocation
