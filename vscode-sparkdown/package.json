@@ -52,6 +52,24 @@
   "browser": "./out/extension.js",
   "contributes": {
     "configurationDefaults": {
+      "[sparkdown]": {
+        "workbench.editor.revealIfOpen": true,
+        "diffEditor.ignoreTrimWhitespace": false,
+        "editor.wordWrap": "on",
+        "editor.suggest.snippetsPreventQuickSuggestions": false,
+        "editor.wordBasedSuggestions": "off",
+        "editor.suggestSelection": "first",
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2,
+        "editor.detectIndentation": false,
+        "editor.bracketPairColorization.enabled": false,
+        "editor.guides.bracketPairs": false,
+        "editor.guides.highlightActiveIndentation": true,
+        "editor.guides.bracketPairsHorizontal": false,
+        "editor.renderWhitespace": "boundary",
+        "editor.formatOnSave": true,
+        "files.trimTrailingWhitespace": false
+      },
       "editor.tokenColorCustomizations": {
         "textMateRules": [
           {
@@ -185,24 +203,6 @@
             }
           ]
         }
-      },
-      "[sparkdown]": {
-        "workbench.editor.revealIfOpen": true,
-        "diffEditor.ignoreTrimWhitespace": false,
-        "editor.wordWrap": "on",
-        "editor.suggest.snippetsPreventQuickSuggestions": false,
-        "editor.wordBasedSuggestions": "off",
-        "editor.suggestSelection": "first",
-        "editor.insertSpaces": true,
-        "editor.tabSize": 2,
-        "editor.detectIndentation": true,
-        "editor.bracketPairColorization.enabled": true,
-        "editor.guides.bracketPairs": true,
-        "editor.guides.highlightActiveIndentation": true,
-        "editor.guides.bracketPairsHorizontal": false,
-        "editor.renderWhitespace": "boundary",
-        "editor.formatOnSave": true,
-        "files.trimTrailingWhitespace": false
       }
     },
     "languages": [
