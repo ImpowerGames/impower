@@ -5,10 +5,10 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
 import {
-  GameContinuedMessage,
-  GameContinuedMethod,
-  GameContinuedParams,
-} from "@impower/spark-editor-protocol/src/protocols/game/GameContinuedMessage";
+  GameExecutedMessage,
+  GameExecutedMethod,
+  GameExecutedParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
@@ -43,8 +43,8 @@ export default class GamePreview extends Component(spec) {
       if (SelectedEditorMessage.type.is(e.detail)) {
         this.handleSelectedEditor(e.detail);
       }
-      if (GameContinuedMessage.type.is(e.detail)) {
-        this.handleGameContinued(e.detail);
+      if (GameExecutedMessage.type.is(e.detail)) {
+        this.handleGameExecuted(e.detail);
       }
     }
   };
@@ -70,8 +70,8 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
-  handleGameContinued = async (
-    message: NotificationMessage<GameContinuedMethod, GameContinuedParams>
+  handleGameExecuted = async (
+    message: NotificationMessage<GameExecutedMethod, GameExecutedParams>
   ) => {
     const { location } = message.params;
     Workspace.window.showDocument(location.uri, location.range, true);

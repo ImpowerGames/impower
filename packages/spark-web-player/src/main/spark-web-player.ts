@@ -20,7 +20,7 @@ import { GameAutoAdvancedToContinueMessage } from "@impower/spark-editor-protoco
 import { GameAwaitingInteractionMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameAwaitingInteractionMessage";
 import { GameChosePathToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameChosePathToContinueMessage";
 import { GameClickedToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameClickedToContinueMessage";
-import { GameContinuedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameContinuedMessage";
+import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
 import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedThreadMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameHitBreakpointMessage";
@@ -91,7 +91,6 @@ import { AutoAdvancedToContinueMessage } from "@impower/spark-engine/src/game/co
 import { AwaitingInteractionMessage } from "@impower/spark-engine/src/game/core/classes/messages/AwaitingInteractionMessage";
 import { ChosePathToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/ChoosePathToContinueMessage";
 import { ClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/ClickedToContinueMessage";
-import { ContinuedMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinuedMessage";
 import { ExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExitedThreadMessage";
 import { FinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/FinishedMessage";
 import { HitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/HitBreakpointMessage";
@@ -607,13 +606,13 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     );
     this._game.connection.outgoing.addListener(
-      ContinuedMessage.method,
+      GameExecutedMessage.method,
       (msg) => {
-        if (ContinuedMessage.type.isNotification(msg)) {
+        if (GameExecutedMessage.type.isNotification(msg)) {
           const { location } = msg.params;
           this.emit(
             MessageProtocol.event,
-            GameContinuedMessage.type.notification({
+            GameExecutedMessage.type.notification({
               location,
             })
           );

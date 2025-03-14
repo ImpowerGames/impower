@@ -23,7 +23,7 @@ import { AutoAdvancedToContinueMessage } from "./messages/AutoAdvancedToContinue
 import { AwaitingInteractionMessage } from "./messages/AwaitingInteractionMessage";
 import { ChosePathToContinueMessage } from "./messages/ChoosePathToContinueMessage";
 import { ClickedToContinueMessage } from "./messages/ClickedToContinueMessage";
-import { ContinuedMessage } from "./messages/ContinuedMessage";
+import { ExecutedMessage } from "./messages/ExecutedMessage";
 import { ExitedThreadMessage } from "./messages/ExitedThreadMessage";
 import { FinishedMessage } from "./messages/FinishedMessage";
 import { HitBreakpointMessage } from "./messages/HitBreakpointMessage";
@@ -468,6 +468,7 @@ export class Game<T extends M = {}> {
         if (instructions) {
           this._coordinator = new Coordinator(this, instructions);
           if (!this._coordinator.shouldContinue()) {
+            this.notifyExecuted();
             this.notifyAwaitingInteraction();
             // DONE - waiting for user interaction (or auto advance)
             return true;
@@ -481,6 +482,7 @@ export class Game<T extends M = {}> {
           const currentText = this._story.currentText || "";
           const currentChoices = this._story.currentChoices.map((c) => c.text);
           this.module.interpreter.queue(currentText, currentChoices);
+          this.notifyExecuted();
           this.notifyStepped();
           return false;
         }
@@ -507,6 +509,7 @@ export class Game<T extends M = {}> {
 
             // Handle step in: Stop at each instruction that is executed
             if (traversal === "in") {
+              this.notifyExecuted();
               this.notifyStepped();
               // DONE - stepped in
               return true;
@@ -517,6 +520,7 @@ export class Game<T extends M = {}> {
               traversal === "out" &&
               currentCallstackDepth < initialCallstackDepth
             ) {
+              this.notifyExecuted();
               this.notifyStepped();
               // DONE - stepped out
               return true;
@@ -527,6 +531,7 @@ export class Game<T extends M = {}> {
               traversal === "over" &&
               currentCallstackDepth === initialCallstackDepth
             ) {
+              this.notifyExecuted();
               this.notifyStepped();
               // DONE - stepped over
               return true;
@@ -546,6 +551,7 @@ export class Game<T extends M = {}> {
                 this._functionBreakpointMap[currScriptIndex]?.has(currLine)
               ) {
                 this._lastHitBreakpointLocation = this._executingLocation;
+                this.notifyExecuted();
                 this.notifyHitBreakpoint();
                 // DONE - hit breakpoint
                 return true;
@@ -554,6 +560,7 @@ export class Game<T extends M = {}> {
           }
         }
       } else {
+        this.notifyExecuted();
         this.notifyFinished();
         // DONE - ran out of flow
         return true;
@@ -636,9 +643,9 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected notifyContinued() {
+  protected notifyExecuted() {
     this.connection.emit(
-      ContinuedMessage.type.notification({
+      ExecutedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       })
     );
