@@ -26,6 +26,12 @@
   align-items: stretch;
 }
 
+:host .pause-game *,
+:host .pause-game *::before,
+:host .pause-game *::after {
+  animation-play-state: paused !important;
+}
+
 /*
 Reset links to optimize for opt-in styling instead of opt-out.
 */

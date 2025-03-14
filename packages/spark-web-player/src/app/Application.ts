@@ -326,6 +326,7 @@ export default class Application {
   };
 
   pause(): void {
+    this._overlay?.classList.add("pause-game");
     if (this.ticker) {
       this.ticker.speed = 0;
     }
@@ -338,6 +339,7 @@ export default class Application {
   }
 
   unpause(): void {
+    this._overlay?.classList.remove("pause-game");
     this.disableOrbitControls();
     this.scenes.forEach((scene) => {
       if (scene?.ready) {

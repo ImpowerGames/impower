@@ -25,9 +25,11 @@ import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-editor
 import { GetGameScriptsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameScriptsMessage";
 import { GetGameStackTraceMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameStackTraceMessage";
 import { GetGameThreadsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameThreadsMessage";
+import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
 import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
 import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
+import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import {
   NotificationMessage,
   RequestMessage,
@@ -344,40 +346,40 @@ export class SparkDebugSession extends LoggingDebugSession {
     // response.body.supportsDataBreakpoints = true;
 
     // make VS Code support completion in REPL
-    response.body.supportsCompletionsRequest = true;
-    response.body.completionTriggerCharacters = [".", "["];
+    // response.body.supportsCompletionsRequest = true;
+    // response.body.completionTriggerCharacters = [".", "["];
 
     // make VS Code send cancel request
-    response.body.supportsCancelRequest = true;
+    // response.body.supportsCancelRequest = true;
 
     // make VS Code send the breakpointLocations request
     response.body.supportsBreakpointLocationsRequest = true;
 
     // make VS Code provide "Step in Target" functionality
-    response.body.supportsStepInTargetsRequest = true;
+    // response.body.supportsStepInTargetsRequest = true;
 
     // the adapter defines two exceptions filters, one with support for conditions.
-    response.body.supportsExceptionFilterOptions = true;
-    response.body.exceptionBreakpointFilters = [
-      {
-        filter: "namedException",
-        label: "Named Exception",
-        description: `Break on named exceptions. Enter the exception's name as the Condition.`,
-        default: false,
-        supportsCondition: true,
-        conditionDescription: `Enter the exception's name`,
-      },
-      {
-        filter: "otherExceptions",
-        label: "Other Exceptions",
-        description: "This is a other exception",
-        default: true,
-        supportsCondition: false,
-      },
-    ];
+    // response.body.supportsExceptionFilterOptions = true;
+    // response.body.exceptionBreakpointFilters = [
+    //   {
+    //     filter: "namedException",
+    //     label: "Named Exception",
+    //     description: `Break on named exceptions. Enter the exception's name as the Condition.`,
+    //     default: false,
+    //     supportsCondition: true,
+    //     conditionDescription: `Enter the exception's name`,
+    //   },
+    //   {
+    //     filter: "otherExceptions",
+    //     label: "Other Exceptions",
+    //     description: "This is a other exception",
+    //     default: true,
+    //     supportsCondition: false,
+    //   },
+    // ];
 
     // make VS Code send exceptionInfo request
-    response.body.supportsExceptionInfoRequest = true;
+    // response.body.supportsExceptionInfoRequest = true;
 
     // make VS Code send setVariable request
     response.body.supportsSetVariable = true;
@@ -497,11 +499,22 @@ export class SparkDebugSession extends LoggingDebugSession {
     }
   }
 
+  protected override async pauseRequest(
+    response: DebugProtocol.PauseResponse,
+    args: DebugProtocol.PauseArguments,
+    request?: DebugProtocol.Request
+  ) {
+    await this._connection.emit(PauseGameMessage.type.request({}));
+    this.sendResponse(response);
+    this.sendStoppedEvent("pause");
+  }
+
   protected override async continueRequest(
     response: DebugProtocol.ContinueResponse,
     args: DebugProtocol.ContinueArguments
   ) {
     console.log("continueRequest", args);
+    await this._connection.emit(UnpauseGameMessage.type.request({}));
     await this._connection.emit(ContinueGameMessage.type.request({}));
     this.sendResponse(response);
   }
