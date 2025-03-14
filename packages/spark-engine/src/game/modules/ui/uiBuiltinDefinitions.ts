@@ -36,6 +36,12 @@ export const uiBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_filtered_image>>,
   style: {
     $default: default_style(),
+    stage: default_style({
+      $name: "text",
+      font_family: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol"`,
+    }),
     text: default_style({
       $name: "text",
       display: "block",
@@ -173,7 +179,7 @@ export const uiBuiltinDefinitions = () => ({
       width: "100%",
       gap: "8px",
       margin_bottom: "100px",
-      font_size: "1.125rem",
+      font_size: "1.25rem",
       color: "white",
       "> *": {
         display: "flex",
@@ -193,7 +199,7 @@ export const uiBuiltinDefinitions = () => ({
         background_color: "black",
         transition: "all 0.15s linear",
       },
-      "@screen(sm)": { margin_bottom: "120px", font_size: "1rem" },
+      "@screen(sm)": { margin_bottom: "120px", font_size: "1.125rem" },
     }),
     choice_0: default_style({
       $name: "choice_0",
@@ -254,6 +260,7 @@ export const uiBuiltinDefinitions = () => ({
       width: "100%",
       margin: "0 auto",
       font_size: "1.25rem",
+      line_height: "1.5",
       min_height: "200px",
       padding: "16px 32px",
       "@screen(sm)": {
