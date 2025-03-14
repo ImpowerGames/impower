@@ -291,7 +291,7 @@ The men look at each other.`.trim()
     ),
     new CheatsheetItem(
       "+ Choice -> KnotOrStitch",
-      "Display a choice that diverts to a knot or stitch",
+      "Display a sticky choice that diverts to a knot or stitch",
       `
 <span class='action'>Where do you want to go?</span>
 <span class='action'><mark class='keyword'>+</mark> To the Batcave! <span class='divert'>-></span> <span class='divert_target'>TheBatcave</span></span>
