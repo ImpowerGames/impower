@@ -267,14 +267,14 @@ The men look at each other.`.trim()
 
   cheatSheet["Diverting Flow"] = [
     new CheatsheetItem(
-      "=== Knot ===",
+      "== Knot ==",
       "Declare a knot",
-      "<span class='section'>=== ActOne ===</span>"
+      "<span class='section'>== ActOne ==</span>"
     ),
     new CheatsheetItem(
       "= Stitch",
       "Declare a stitch",
-      "<span class='section'>=== ActOne ===\n\n= PartA</span>"
+      "<span class='section'>== ActOne ==\n\n= PartA</span>"
     ),
     new CheatsheetItem(
       "-> KnotOrStitch",
@@ -333,7 +333,7 @@ The men look at each other.`.trim()
       "temp x = 0",
       "Declare a temp (local to the current scope)",
       `
-<span class='section'>=== function calculate_total() ===</span>
+<span class='section'>== function calculate_total() ==</span>
 <span class='keyword'>temp count = 0</span>`.trim()
     ),
     new CheatsheetItem(
