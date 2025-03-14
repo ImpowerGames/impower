@@ -238,7 +238,11 @@ The men look at each other.`.trim()
       "",
       "<span class='inline'>~~<span class='wavy' style='animation-delay:calc(0.06s*1)'>w</span><span class='wavy' style='animation-delay:calc(0.06s*2)'>a</span><span class='wavy' style='animation-delay:calc(0.06s*3)'>v</span><span class='wavy' style='animation-delay:calc(0.06s*4)'>y</span><span class='wavy' style='animation-delay:calc(0.06s*5)'> </span><span class='wavy' style='animation-delay:calc(0.06s*6)'>t</span><span class='wavy' style='animation-delay:calc(0.06s*7)'>e</span><span class='wavy' style='animation-delay:calc(0.06s*8)'>x</span><span class='wavy' style='animation-delay:calc(0.06s*9)'>t</span>~~</span>"
     ),
-    new CheatsheetItem("`Raw`", "(displayed literally)", "`¯\\_(ツ)_/¯`"),
+    new CheatsheetItem(
+      "`Raw`",
+      "(displayed without any styling)",
+      "`¯\\_(ツ)_/¯`"
+    ),
   ];
 
   cheatSheet["Asset Commands"] = [
