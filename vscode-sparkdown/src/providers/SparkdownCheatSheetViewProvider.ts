@@ -277,6 +277,13 @@ The men look at each other.`.trim()
       "<span class='section'>== ActOne ==\n\n= PartA</span>"
     ),
     new CheatsheetItem(
+      "== function do(x) ==",
+      "Declare a function",
+      `
+<span class='section'>== function add(x, y) ==</span>
+<span class='keyword'>return x + y</span>`.trim()
+    ),
+    new CheatsheetItem(
       "-> KnotOrStitch",
       "Jump to another knot or stitch with -> KnotOrStitchName",
       `
@@ -331,7 +338,7 @@ The men look at each other.`.trim()
     ),
     new CheatsheetItem(
       "temp x = 0",
-      "Declare a temp (local to the current scope)",
+      "Declare a temp (local to the current function, stitch, or knot)",
       `
 <span class='section'>== function calculate_total() ==</span>
 <span class='keyword'>temp count = 0</span>`.trim()
@@ -455,7 +462,7 @@ The men look at each other.`.trim()
   cheatSheet["Misc."] = [
     new CheatsheetItem(
       "---",
-      "Metadata can be declared by surrounding a block with three dashes ---",
+      "Metadata can be declared by surrounding a block with three dashes. Keys are followed by a colon. Values can be multiple lines long.",
       `
 <span class='keyword'>---</mark>
 <span><mark class='tkey'>Title</mark>: </span>
