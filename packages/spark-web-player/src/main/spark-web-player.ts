@@ -317,7 +317,7 @@ export default class SparkWebPlayer extends Component(spec) {
   protected handleStopGame = async (
     message: RequestMessage<StopGameMethod, StopGameParams>
   ) => {
-    this.stopGame("quit");
+    await this.stopGame("quit");
     return StopGameMessage.type.response(message.id, null);
   };
 
@@ -505,20 +505,13 @@ export default class SparkWebPlayer extends Component(spec) {
     return undefined;
   };
 
-  stopGame(
+  async stopGame(
     reason: "finished" | "quit" | "invalidated" | "error",
     error?: {
       message: string;
       location: DocumentLocation;
     }
   ) {
-    this.emit(
-      MessageProtocol.event,
-      GameExitedMessage.type.notification({
-        reason,
-        error,
-      })
-    );
     if (this._app) {
       this._app.destroy(true);
       this._app = undefined;
@@ -527,6 +520,14 @@ export default class SparkWebPlayer extends Component(spec) {
       this._game.destroy();
       this._game = undefined;
     }
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    this.emit(
+      MessageProtocol.event,
+      GameExitedMessage.type.notification({
+        reason,
+        error,
+      })
+    );
   }
 
   protected debouncedBuildGame = debounce(
@@ -553,7 +554,7 @@ export default class SparkWebPlayer extends Component(spec) {
     });
     this._game.connection.outgoing.addListener(
       RuntimeErrorMessage.method,
-      (msg) => {
+      async (msg) => {
         if (RuntimeErrorMessage.type.isNotification(msg)) {
           const type = msg.params.type;
           const message = msg.params.message;
@@ -570,15 +571,15 @@ export default class SparkWebPlayer extends Component(spec) {
             message,
             location,
           };
-          this.stopGame("error", error);
+          await this.stopGame("error", error);
         }
       }
     );
     this._game.connection.outgoing.addListener(
       FinishedMessage.method,
-      (msg) => {
+      async (msg) => {
         if (FinishedMessage.type.isNotification(msg)) {
-          this.stopGame("finished");
+          await this.stopGame("finished");
         }
       }
     );

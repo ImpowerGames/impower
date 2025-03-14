@@ -15,19 +15,30 @@ import {
   WorkspaceFolder,
 } from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
-import {
-  DebugAccessor,
-  FileAccessor,
-  SparkDebugSession,
-} from "./SparkDebugSession";
+import { FileAccessor, SparkDebugSession } from "./SparkDebugSession";
 
-const getActiveOrVisibleEditor = () => {
-  if (vscode.window.activeTextEditor) {
+const getActiveOrVisibleEditor = (uri?: vscode.Uri) => {
+  if (!uri) {
+    if (vscode.window.activeTextEditor) {
+      return vscode.window.activeTextEditor;
+    }
+    for (let i = 0; i < vscode.window.visibleTextEditors.length; i++) {
+      return vscode.window.visibleTextEditors[i];
+    }
+    return undefined;
+  }
+  const uriString = typeof uri === "string" ? uri : uri.toString();
+  if (vscode.window.activeTextEditor?.document.uri.toString() === uriString) {
     return vscode.window.activeTextEditor;
   }
   for (let i = 0; i < vscode.window.visibleTextEditors.length; i++) {
-    return vscode.window.visibleTextEditors[i];
+    if (
+      vscode.window.visibleTextEditors[i]?.document.uri.toString() === uriString
+    ) {
+      return vscode.window.visibleTextEditors[i];
+    }
   }
+  return undefined;
   return undefined;
 };
 
@@ -323,6 +334,34 @@ class InlineDebugAdapterFactory
           debuggingEditor.document
         );
       },
+      async getSelectedLine(path: string) {
+        const docUri = pathToUri(path);
+        const editor = getActiveOrVisibleEditor(docUri);
+        return editor?.selection.active.line;
+      },
+      async setSelectedLine(path: string, line: number) {
+        const docUri = pathToUri(path);
+        const activeOrVisibleEditor = getActiveOrVisibleEditor();
+        const selectionRange = new vscode.Range(line, 0, line, 0);
+        const debuggingEditor =
+          activeOrVisibleEditor?.document.uri.toString() === docUri.toString()
+            ? activeOrVisibleEditor
+            : await vscode.window.showTextDocument(docUri, {
+                selection: selectionRange,
+              });
+        debuggingEditor.selection = new vscode.Selection(
+          selectionRange.start,
+          selectionRange.end
+        );
+        debuggingEditor.revealRange(
+          selectionRange,
+          vscode.TextEditorRevealType.InCenterIfOutsideViewport
+        );
+        await SparkdownPreviewGamePanelManager.instance.showPanel(
+          context,
+          debuggingEditor.document
+        );
+      },
       pathToUri(path: string) {
         return pathToUri(path).toString();
       },
@@ -339,39 +378,9 @@ class InlineDebugAdapterFactory
       },
     };
 
-    const debugAccessor: DebugAccessor = {
-      continue: () => {
-        vscode.commands.executeCommand("workbench.action.debug.continue");
-      },
-      stepOver: () => {
-        vscode.commands.executeCommand("workbench.action.debug.stepOver");
-      },
-      stepInto: () => {
-        vscode.commands.executeCommand("workbench.action.debug.stepInto");
-      },
-      stepOut: () => {
-        vscode.commands.executeCommand("workbench.action.debug.stepOut");
-      },
-      stepBack: () => {
-        vscode.commands.executeCommand("workbench.action.debug.stepBack");
-      },
-      reverse: () => {
-        vscode.commands.executeCommand(
-          "workbench.action.debug.reverseContinue"
-        );
-      },
-      restart: () => {
-        vscode.commands.executeCommand("workbench.action.debug.restart");
-      },
-      stop: () => {
-        vscode.commands.executeCommand("workbench.action.debug.stop");
-      },
-    };
-
     return new vscode.DebugAdapterInlineImplementation(
       new SparkDebugSession(
         fileAccessor,
-        debugAccessor,
         SparkdownPreviewGamePanelManager.instance.connection
       )
     );

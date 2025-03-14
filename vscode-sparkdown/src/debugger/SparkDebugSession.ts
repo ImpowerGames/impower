@@ -64,34 +64,11 @@ export interface FileAccessor {
   readFile(path: string): Promise<Uint8Array>;
   writeFile(path: string, contents: Uint8Array): Promise<void>;
   showFile(path: string): Promise<void>;
+  getSelectedLine(path: string): Promise<number | undefined>;
+  setSelectedLine(path: string, line: number): Promise<void>;
   pathToUri(path: string): string;
   uriToPath(uri: string): string;
   getRootPath(path: string): string | undefined;
-}
-
-export interface DebugAccessor {
-  continue(): void;
-  stepOver(): void;
-  stepInto(): void;
-  stepOut(): void;
-  stepBack(): void;
-  reverse(): void;
-  restart(): void;
-  stop(): void;
-}
-
-export interface IRuntimeStackFrame {
-  index: number;
-  name: string;
-  file: string;
-  line: number;
-  column?: number;
-  instruction?: number;
-}
-
-export interface RuntimeStack {
-  count: number;
-  frames: IRuntimeStackFrame[];
 }
 
 /**
@@ -118,14 +95,14 @@ interface IAttachRequestArguments extends ILaunchRequestArguments {}
 export class SparkDebugSession extends LoggingDebugSession {
   private _fileAccessor: FileAccessor;
 
-  private _debugAccessor: DebugAccessor;
-
   private _connection: Connection;
 
   private _variableHandles = new Handles<
     "locals" | "globals" | RuntimeVariable
   >();
 
+  private _launchProgram = "";
+  private _launchLine = 0;
   private _configurationDone = false;
   private _configurationDoneListeners = new Set<() => void>();
 
@@ -145,15 +122,10 @@ export class SparkDebugSession extends LoggingDebugSession {
    * Creates a new debug adapter that is used for one debug session.
    * We configure the default implementation of a debug adapter here.
    */
-  public constructor(
-    fileAccessor: FileAccessor,
-    debugAccessor: DebugAccessor,
-    connection: Connection
-  ) {
+  public constructor(fileAccessor: FileAccessor, connection: Connection) {
     super("mock-debug.txt");
 
     this._fileAccessor = fileAccessor;
-    this._debugAccessor = debugAccessor;
 
     this._connection = connection;
     this._connection.connectInput((msg) => this.onReceive(msg));
@@ -339,6 +311,8 @@ export class SparkDebugSession extends LoggingDebugSession {
     response.body.supportsFunctionBreakpoints = true;
     response.body.supportsLoadedSourcesRequest = true;
 
+    response.body.supportsGotoTargetsRequest = true;
+
     // TODO
     // // make VS Code send setVariable request
     // response.body.supportsSetVariable = true;
@@ -351,6 +325,8 @@ export class SparkDebugSession extends LoggingDebugSession {
 
     // // make VS Code show a 'step back' button
     // response.body.supportsStepBack = true;
+    // // make VS Code support a restarting a frame
+    // supportsRestartFrame?: boolean;
     // // make VS Code provide "Step in Target" functionality
     // response.body.supportsStepInTargetsRequest = true;
 
@@ -411,6 +387,12 @@ export class SparkDebugSession extends LoggingDebugSession {
     request?: DebugProtocol.Request
   ) {
     console.log("disconnectRequest", args);
+    if (args.restart) {
+      await this._fileAccessor.setSelectedLine(
+        this._launchProgram,
+        this._launchLine
+      );
+    }
     await this._connection.emit(
       StopGameMessage.type.request({
         restart: args.restart,
@@ -448,6 +430,10 @@ export class SparkDebugSession extends LoggingDebugSession {
     }
 
     await this._fileAccessor.showFile(args.program);
+
+    this._launchProgram = args.program;
+    this._launchLine =
+      (await this._fileAccessor.getSelectedLine(args.program)) ?? 0;
 
     // start the program in the runtime
     const success = await this._connection.emit(
