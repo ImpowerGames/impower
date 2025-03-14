@@ -7,6 +7,7 @@ import { activateAutoFormatting } from "./utils/activateAutoFormatting";
 import { activateCheatSheetView } from "./utils/activateCheatSheetView";
 import { activateCommandView } from "./utils/activateCommandView";
 import { activateDurationStatus } from "./utils/activateDurationStatus";
+import { activateExecutionGutterDecorator } from "./utils/activateExecutionGutterDecorator";
 import { activateFileDecorations } from "./utils/activateFileDecorations";
 import { activateFileWatcher } from "./utils/activateFileWatcher";
 import { activateLanguageClient } from "./utils/activateLanguageClient";
@@ -29,6 +30,7 @@ export const activate = async (
   activatePreviewScreenplayPanel(context);
   activatePreviewGamePanel(context);
   activateAutoFormatting(context);
+  activateExecutionGutterDecorator(context);
   // TODO:
   // activateStatisticsPanel(context);
   activateFileWatcher(context);

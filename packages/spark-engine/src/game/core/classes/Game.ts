@@ -84,6 +84,8 @@ export class Game<T extends M = {}> {
 
   protected _lastHitBreakpointLocation?: ScriptLocation;
 
+  protected _frameId = 0;
+
   protected _startpoint: {
     file: string;
     line: number;
@@ -470,6 +472,7 @@ export class Game<T extends M = {}> {
           if (!this._coordinator.shouldContinue()) {
             this.notifyExecuted();
             this.notifyAwaitingInteraction();
+            this._frameId++;
             // DONE - waiting for user interaction (or auto advance)
             return true;
           }
@@ -504,12 +507,12 @@ export class Game<T extends M = {}> {
             ) {
               continue;
             }
+            this.notifyExecuted();
 
             const currentCallstackDepth = this._story.state.callstackDepth;
 
             // Handle step in: Stop at each instruction that is executed
             if (traversal === "in") {
-              this.notifyExecuted();
               this.notifyStepped();
               // DONE - stepped in
               return true;
@@ -520,7 +523,6 @@ export class Game<T extends M = {}> {
               traversal === "out" &&
               currentCallstackDepth < initialCallstackDepth
             ) {
-              this.notifyExecuted();
               this.notifyStepped();
               // DONE - stepped out
               return true;
@@ -531,7 +533,6 @@ export class Game<T extends M = {}> {
               traversal === "over" &&
               currentCallstackDepth === initialCallstackDepth
             ) {
-              this.notifyExecuted();
               this.notifyStepped();
               // DONE - stepped over
               return true;
@@ -551,7 +552,6 @@ export class Game<T extends M = {}> {
                 this._functionBreakpointMap[currScriptIndex]?.has(currLine)
               ) {
                 this._lastHitBreakpointLocation = this._executingLocation;
-                this.notifyExecuted();
                 this.notifyHitBreakpoint();
                 // DONE - hit breakpoint
                 return true;
@@ -647,6 +647,7 @@ export class Game<T extends M = {}> {
     this.connection.emit(
       ExecutedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
+        frameId: this._frameId,
       })
     );
   }

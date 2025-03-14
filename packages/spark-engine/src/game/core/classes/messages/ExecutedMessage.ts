@@ -9,6 +9,7 @@ export class ExecutedMessage {
     ExecutedMethod,
     {
       location: DocumentLocation;
+      frameId: number;
     }
   >(ExecutedMessage.method);
 }

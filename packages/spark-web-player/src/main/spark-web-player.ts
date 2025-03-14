@@ -91,6 +91,7 @@ import { AutoAdvancedToContinueMessage } from "@impower/spark-engine/src/game/co
 import { AwaitingInteractionMessage } from "@impower/spark-engine/src/game/core/classes/messages/AwaitingInteractionMessage";
 import { ChosePathToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/ChoosePathToContinueMessage";
 import { ClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/ClickedToContinueMessage";
+import { ExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExecutedMessage";
 import { ExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExitedThreadMessage";
 import { FinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/FinishedMessage";
 import { HitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/HitBreakpointMessage";
@@ -606,14 +607,15 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     );
     this._game.connection.outgoing.addListener(
-      GameExecutedMessage.method,
+      ExecutedMessage.method,
       (msg) => {
-        if (GameExecutedMessage.type.isNotification(msg)) {
-          const { location } = msg.params;
+        if (ExecutedMessage.type.isNotification(msg)) {
+          const { location, frameId } = msg.params;
           this.emit(
             MessageProtocol.event,
             GameExecutedMessage.type.notification({
               location,
+              frameId,
             })
           );
         }
