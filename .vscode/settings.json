@@ -23,6 +23,7 @@
     "**/.DS_Store": true,
     "**/*{.jpg,.png,.gif,.webp,.jpeg,.svg}": true
   },
+  "typescript.preferences.includePackageJsonAutoImports": "on",
   "editor.tabSize": 2,
   "editor.renderWhitespace": "boundary",
   "editor.wordWrap": "on",
