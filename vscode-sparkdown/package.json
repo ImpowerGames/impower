@@ -821,5 +821,8 @@
     "path-browserify": "^1.0.1",
     "transform-loader": "^0.2.4",
     "typescript": "^5.8.2"
-  }
+  },
+  "extensionDependencies": [
+    "vscode.git"
+  ]
 }
