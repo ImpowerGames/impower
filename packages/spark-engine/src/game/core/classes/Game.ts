@@ -485,8 +485,10 @@ export class Game<T extends M = {}> {
           const currentText = this._story.currentText || "";
           const currentChoices = this._story.currentChoices.map((c) => c.text);
           this.module.interpreter.queue(currentText, currentChoices);
-          this.notifyExecuted();
-          this.notifyStepped();
+          if (traversal !== "continue") {
+            this.notifyExecuted();
+            this.notifyStepped();
+          }
           return false;
         }
 
@@ -507,7 +509,9 @@ export class Game<T extends M = {}> {
             ) {
               continue;
             }
-            this.notifyExecuted();
+            if (traversal !== "continue") {
+              this.notifyExecuted();
+            }
 
             const currentCallstackDepth = this._story.state.callstackDepth;
 
