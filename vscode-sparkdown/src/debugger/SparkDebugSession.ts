@@ -57,7 +57,6 @@ import {
   ThreadEvent,
 } from "@vscode/debugadapter";
 import { DebugProtocol } from "@vscode/debugprotocol";
-import * as base64 from "base64-js";
 import { IRuntimeVariableType, RuntimeVariable, timeout } from "./mockRuntime";
 
 export interface FileAccessor {
@@ -333,32 +332,29 @@ export class SparkDebugSession extends LoggingDebugSession {
     // build and return the capabilities of this debug adapter:
     response.body = response.body || {};
 
-    // the adapter implements the configurationDone request.
     response.body.supportsConfigurationDoneRequest = true;
+    response.body.supportSuspendDebuggee = true;
+    response.body.supportTerminateDebuggee = true;
+    response.body.supportsBreakpointLocationsRequest = true;
+    response.body.supportsFunctionBreakpoints = true;
+    response.body.supportsLoadedSourcesRequest = true;
 
-    // make VS Code use 'evaluate' when hovering over source
-    response.body.supportsEvaluateForHovers = true;
-
-    // make VS Code show a 'step back' button
-    // response.body.supportsStepBack = true;
-
-    // make VS Code support data breakpoints
+    // TODO
+    // // make VS Code send setVariable request
+    // response.body.supportsSetVariable = true;
+    // // make VS Code send setExpression request
+    // response.body.supportsSetExpression = true;
+    // // make VS Code use 'evaluate' when hovering over source
+    // response.body.supportsEvaluateForHovers = true;
+    // // make VS Code support data breakpoints
     // response.body.supportsDataBreakpoints = true;
 
-    // make VS Code support completion in REPL
-    // response.body.supportsCompletionsRequest = true;
-    // response.body.completionTriggerCharacters = [".", "["];
-
-    // make VS Code send cancel request
-    // response.body.supportsCancelRequest = true;
-
-    // make VS Code send the breakpointLocations request
-    response.body.supportsBreakpointLocationsRequest = true;
-
-    // make VS Code provide "Step in Target" functionality
+    // // make VS Code show a 'step back' button
+    // response.body.supportsStepBack = true;
+    // // make VS Code provide "Step in Target" functionality
     // response.body.supportsStepInTargetsRequest = true;
 
-    // the adapter defines two exceptions filters, one with support for conditions.
+    // // the adapter defines two exceptions filters, one with support for conditions.
     // response.body.supportsExceptionFilterOptions = true;
     // response.body.exceptionBreakpointFilters = [
     //   {
@@ -377,30 +373,11 @@ export class SparkDebugSession extends LoggingDebugSession {
     //     supportsCondition: false,
     //   },
     // ];
-
-    // make VS Code send exceptionInfo request
+    // // make VS Code send exceptionInfo request
     // response.body.supportsExceptionInfoRequest = true;
 
-    // make VS Code send setVariable request
-    response.body.supportsSetVariable = true;
-
-    // make VS Code send setExpression request
-    response.body.supportsSetExpression = true;
-
-    // make VS Code send disassemble request
-    // response.body.supportsDisassembleRequest = true;
-    // response.body.supportsSteppingGranularity = true;
-    // response.body.supportsInstructionBreakpoints = true;
-
-    // make VS Code able to read and write variable memory
-    // response.body.supportsReadMemoryRequest = true;
-    // response.body.supportsWriteMemoryRequest = true;
-
-    response.body.supportSuspendDebuggee = true;
-    response.body.supportTerminateDebuggee = true;
-    response.body.supportsFunctionBreakpoints = true;
-
-    response.body.supportsLoadedSourcesRequest = true;
+    // // make VS Code send cancel request
+    //  response.body.supportsCancelRequest = true;
 
     this.sendResponse(response);
 
@@ -880,52 +857,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     this.sendResponse(response);
   }
 
-  protected override async writeMemoryRequest(
-    response: DebugProtocol.WriteMemoryResponse,
-    { data, memoryReference, offset = 0 }: DebugProtocol.WriteMemoryArguments
-  ) {
-    console.log("writeMemoryRequest");
-    const variable = this._variableHandles.get(Number(memoryReference));
-    if (typeof variable === "object") {
-      const decoded = base64.toByteArray(data);
-      variable.setMemory(decoded, offset);
-      response.body = { bytesWritten: decoded.length };
-    } else {
-      response.body = { bytesWritten: 0 };
-    }
-
-    this.sendResponse(response);
-    this.sendEvent(new InvalidatedEvent(["variables"]));
-  }
-
-  protected override async readMemoryRequest(
-    response: DebugProtocol.ReadMemoryResponse,
-    { offset = 0, count, memoryReference }: DebugProtocol.ReadMemoryArguments
-  ) {
-    console.log("readMemoryRequest");
-    const variable = this._variableHandles.get(Number(memoryReference));
-    if (typeof variable === "object" && variable.memory) {
-      const memory = variable.memory.subarray(
-        Math.min(offset, variable.memory.length),
-        Math.min(offset + count, variable.memory.length)
-      );
-
-      response.body = {
-        address: offset.toString(),
-        data: base64.fromByteArray(memory),
-        unreadableBytes: count - memory.length,
-      };
-    } else {
-      response.body = {
-        address: offset.toString(),
-        data: "",
-        unreadableBytes: count,
-      };
-    }
-
-    this.sendResponse(response);
-  }
-
   protected override async variablesRequest(
     response: DebugProtocol.VariablesResponse,
     args: DebugProtocol.VariablesArguments,
@@ -1188,42 +1119,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     //   });
     // }
 
-    this.sendResponse(response);
-  }
-
-  protected override completionsRequest(
-    response: DebugProtocol.CompletionsResponse,
-    args: DebugProtocol.CompletionsArguments
-  ): void {
-    // response.body = {
-    //   targets: [
-    //     {
-    //       label: "item 10",
-    //       sortText: "10",
-    //     },
-    //     {
-    //       label: "item 1",
-    //       sortText: "01",
-    //       detail: "detail 1",
-    //     },
-    //     {
-    //       label: "item 2",
-    //       sortText: "02",
-    //       detail: "detail 2",
-    //     },
-    //     {
-    //       label: "array[]",
-    //       selectionStart: 6,
-    //       sortText: "03",
-    //     },
-    //     {
-    //       label: "func(arg)",
-    //       selectionStart: 5,
-    //       selectionLength: 3,
-    //       sortText: "04",
-    //     },
-    //   ],
-    // };
     this.sendResponse(response);
   }
 
