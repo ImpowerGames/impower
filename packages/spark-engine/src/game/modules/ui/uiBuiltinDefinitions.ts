@@ -41,6 +41,10 @@ export const uiBuiltinDefinitions = () => ({
       font_family: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol"`,
+      font_size: "1.25rem",
+      line_height: "1.5",
+      color: "white",
+      "@screen(sm)": { font_size: "1.125rem" },
     }),
     text: default_style({
       $name: "text",
@@ -179,8 +183,6 @@ export const uiBuiltinDefinitions = () => ({
       width: "100%",
       gap: "8px",
       margin_bottom: "100px",
-      font_size: "1.25rem",
-      color: "white",
       "> *": {
         display: "flex",
         flex_direction: "row",
@@ -199,7 +201,7 @@ export const uiBuiltinDefinitions = () => ({
         background_color: "black",
         transition: "all 0.15s linear",
       },
-      "@screen(sm)": { margin_bottom: "120px", font_size: "1.125rem" },
+      "@screen(sm)": { margin_bottom: "120px" },
     }),
     choice_0: default_style({
       $name: "choice_0",
@@ -259,12 +261,9 @@ export const uiBuiltinDefinitions = () => ({
       max_width: "800px",
       width: "100%",
       margin: "0 auto",
-      font_size: "1.25rem",
-      line_height: "1.5",
       min_height: "200px",
       padding: "16px 32px",
       "@screen(sm)": {
-        font_size: "1.125rem",
         min_height: "240px",
         padding: "16px",
       },
