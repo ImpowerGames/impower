@@ -32,6 +32,11 @@ import {
   GetGamePossibleBreakpointLocationsParams,
 } from "@impower/spark-editor-protocol/src/protocols/game/GetGamePossibleBreakpointLocationsMessage";
 import {
+  GetGameScriptsMessage,
+  GetGameScriptsMethod,
+  GetGameScriptsParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/GetGameScriptsMessage";
+import {
   GetGameStackTraceMessage,
   GetGameStackTraceMethod,
   GetGameStackTraceParams,
@@ -182,6 +187,12 @@ export default class SparkWebPlayer extends Component(spec) {
       }
       if (ContinueGameMessage.type.is(e.detail)) {
         const response = await this.handleContinueGame(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (GetGameScriptsMessage.type.is(e.detail)) {
+        const response = await this.handleGetGameScripts(e.detail);
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
@@ -370,6 +381,19 @@ export default class SparkWebPlayer extends Component(spec) {
     return ContinueGameMessage.type.error(message.id, {
       code: 1,
       message: "no game loaded",
+    });
+  };
+
+  protected handleGetGameScripts = async (
+    message: RequestMessage<GetGameScriptsMethod, GetGameScriptsParams>
+  ) => {
+    if (this._program) {
+      const uris = Object.keys(this._program?.scripts || {});
+      return GetGameScriptsMessage.type.response(message.id, { uris });
+    }
+    return GetGameScriptsMessage.type.error(message.id, {
+      code: 1,
+      message: "no program loaded",
     });
   };
 

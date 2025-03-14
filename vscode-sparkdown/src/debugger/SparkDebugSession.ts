@@ -22,6 +22,7 @@ import { GameHitBreakpointMessage } from "@impower/spark-editor-protocol/src/pro
 import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameSteppedMessage";
 import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGamePossibleBreakpointLocationsMessage";
+import { GetGameScriptsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameScriptsMessage";
 import { GetGameStackTraceMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameStackTraceMessage";
 import { GetGameThreadsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameThreadsMessage";
 import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
@@ -397,6 +398,8 @@ export class SparkDebugSession extends LoggingDebugSession {
     response.body.supportTerminateDebuggee = true;
     response.body.supportsFunctionBreakpoints = true;
 
+    response.body.supportsLoadedSourcesRequest = true;
+
     this.sendResponse(response);
 
     // since this debug adapter can accept configuration requests like 'setBreakpoint' at any time,
@@ -572,6 +575,22 @@ export class SparkDebugSession extends LoggingDebugSession {
     //     return { id: t.id, label: t.label };
     //   }),
     // };
+    this.sendResponse(response);
+  }
+
+  protected override async loadedSourcesRequest(
+    response: DebugProtocol.LoadedSourcesResponse,
+    args: DebugProtocol.LoadedSourcesArguments
+  ) {
+    console.log("loadedSourcesRequest", args);
+    const { uris } = await this._connection.emit(
+      GetGameScriptsMessage.type.request({})
+    );
+    response.body = {
+      sources: uris.map((uri) =>
+        this.createSource(this._fileAccessor.uriToPath(uri))
+      ),
+    };
     this.sendResponse(response);
   }
 
