@@ -52,6 +52,9 @@
   "browser": "./out/extension.js",
   "contributes": {
     "configurationDefaults": {
+      "workbench.colorCustomizations": {
+        "editor.stackFrameHighlightBackground": "#00000000"
+      },
       "[sparkdown]": {
         "workbench.editor.revealIfOpen": true,
         "diffEditor.ignoreTrimWhitespace": false,
