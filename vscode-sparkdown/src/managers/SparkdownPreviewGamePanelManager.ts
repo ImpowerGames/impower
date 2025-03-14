@@ -105,10 +105,9 @@ export class SparkdownPreviewGamePanelManager {
     const panelTitle = this._panelTitle;
     const viewColumn = this._viewColumn;
     const panel = window.createWebviewPanel(viewType, panelTitle, viewColumn, {
-      retainContextWhenHidden: true,
       enableScripts: true,
+      retainContextWhenHidden: true,
       enableCommandUris: true,
-      enableFindWidget: true,
     });
     return this.initializePanel(context, document, panel);
   }
