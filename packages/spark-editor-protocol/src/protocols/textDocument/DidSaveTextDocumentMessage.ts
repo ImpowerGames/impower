@@ -1,8 +1,10 @@
-import { DidSaveTextDocumentParams } from "../../types";
+import type * as LSP from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidSaveTextDocumentMethod =
   typeof DidSaveTextDocumentMessage.method;
+
+export type DidSaveTextDocumentParams = LSP.DidSaveTextDocumentParams;
 
 export class DidSaveTextDocumentMessage {
   static readonly method = "textDocument/didSave";

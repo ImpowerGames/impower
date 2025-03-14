@@ -8,6 +8,9 @@ export class MessageProtocolNotificationType<
   constructor(method: M) {
     super(method);
   }
+  is(obj: any): obj is NotificationMessage<M, P> {
+    return obj.method === this.method;
+  }
   isNotification(obj: any): obj is NotificationMessage<M, P> {
     return obj.method === this.method;
   }

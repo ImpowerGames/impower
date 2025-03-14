@@ -1,7 +1,21 @@
-import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
-import { ContinueGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ContinueGameMessage";
-import { DisableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
-import { EnableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
+import {
+  ConfigureGameMessage,
+  ConfigureGameMethod,
+  ConfigureGameParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
+import {
+  ContinueGameMessage,
+  ContinueGameMethod,
+  ContinueGameParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/ContinueGameMessage";
+import {
+  DisableGameDebugMessage,
+  DisableGameDebugMethod,
+} from "@impower/spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
+import {
+  EnableGameDebugMessage,
+  EnableGameDebugMethod,
+} from "@impower/spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
 import { GameAutoAdvancedToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameAutoAdvancedToContinueMessage";
 import { GameAwaitingInteractionMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameAwaitingInteractionMessage";
 import { GameChosePathToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameChosePathToContinueMessage";
@@ -12,18 +26,61 @@ import { GameExitedThreadMessage } from "@impower/spark-editor-protocol/src/prot
 import { GameHitBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameHitBreakpointMessage";
 import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameSteppedMessage";
-import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGamePossibleBreakpointLocationsMessage";
-import { GetGameStackTraceMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameStackTraceMessage";
-import { GetGameThreadsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameThreadsMessage";
-import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
-import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
-import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
-import { StepGameClockMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameClockMessage";
-import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
-import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
-import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
+import {
+  GetGamePossibleBreakpointLocationsMessage,
+  GetGamePossibleBreakpointLocationsMethod,
+  GetGamePossibleBreakpointLocationsParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/GetGamePossibleBreakpointLocationsMessage";
+import {
+  GetGameStackTraceMessage,
+  GetGameStackTraceMethod,
+  GetGameStackTraceParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/GetGameStackTraceMessage";
+import {
+  GetGameThreadsMessage,
+  GetGameThreadsMethod,
+  GetGameThreadsParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/GetGameThreadsMessage";
+import {
+  LoadGameMessage,
+  LoadGameMethod,
+  LoadGameParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
+import {
+  PauseGameMessage,
+  PauseGameMethod,
+} from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
+import {
+  StartGameMessage,
+  StartGameMethod,
+  StartGameParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
+import {
+  StepGameClockMessage,
+  StepGameClockMethod,
+  StepGameClockParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/StepGameClockMessage";
+import {
+  StepGameMessage,
+  StepGameMethod,
+  StepGameParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
+import {
+  StopGameMessage,
+  StopGameMethod,
+  StopGameParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
+import {
+  UnpauseGameMessage,
+  UnpauseGameMethod,
+} from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
-import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
+import {
+  LoadPreviewMessage,
+  LoadPreviewMethod,
+} from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
+import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/RequestMessage";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { AutoAdvancedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/AutoAdvancedToContinueMessage";
 import { AwaitingInteractionMessage } from "@impower/spark-engine/src/game/core/classes/messages/AwaitingInteractionMessage";
@@ -62,370 +119,362 @@ export default class SparkWebPlayer extends Component(spec) {
   _loadListeners = new Set<() => void>();
 
   override onConnected() {
-    window.addEventListener(
-      ConfigureGameMessage.method,
-      this.handleConfigureGame
-    );
-    window.addEventListener(LoadGameMessage.method, this.handleLoadGame);
-    window.addEventListener(StartGameMessage.method, this.handleStartGame);
-    window.addEventListener(StopGameMessage.method, this.handleStopGame);
-    window.addEventListener(PauseGameMessage.method, this.handlePauseGame);
-    window.addEventListener(UnpauseGameMessage.method, this.handleUnpauseGame);
-    window.addEventListener(
-      StepGameClockMessage.method,
-      this.handleStepGameClock
-    );
-    window.addEventListener(StepGameMessage.method, this.handleStepGame);
-    window.addEventListener(
-      ContinueGameMessage.method,
-      this.handleContinueGame
-    );
-    window.addEventListener(
-      GetGamePossibleBreakpointLocationsMessage.method,
-      this.handleGetGamePossibleBreakpointLocations
-    );
-    window.addEventListener(
-      GetGameStackTraceMessage.method,
-      this.handleGetGameStackTrace
-    );
-    window.addEventListener(
-      GetGameThreadsMessage.method,
-      this.handleGetGameThreads
-    );
-    window.addEventListener(
-      EnableGameDebugMessage.method,
-      this.handleEnableGameDebug
-    );
-    window.addEventListener(
-      DisableGameDebugMessage.method,
-      this.handleDisableGameDebug
-    );
-    window.addEventListener(LoadPreviewMessage.method, this.handleLoadPreview);
+    window.addEventListener(MessageProtocol.event, this.handleProtocol);
     this.emit(
-      ConnectedPreviewMessage.method,
+      MessageProtocol.event,
       ConnectedPreviewMessage.type.notification({ type: "game" })
     );
   }
 
   override onDisconnected() {
-    window.removeEventListener(
-      ConfigureGameMessage.method,
-      this.handleConfigureGame
-    );
-    window.removeEventListener(LoadGameMessage.method, this.handleLoadGame);
-    window.removeEventListener(StartGameMessage.method, this.handleStartGame);
-    window.removeEventListener(StopGameMessage.method, this.handleStopGame);
-    window.removeEventListener(PauseGameMessage.method, this.handlePauseGame);
-    window.removeEventListener(
-      UnpauseGameMessage.method,
-      this.handleUnpauseGame
-    );
-    window.removeEventListener(
-      StepGameClockMessage.method,
-      this.handleStepGameClock
-    );
-    window.removeEventListener(StepGameMessage.method, this.handleStepGame);
-    window.removeEventListener(
-      ContinueGameMessage.method,
-      this.handleContinueGame
-    );
-    window.removeEventListener(
-      GetGamePossibleBreakpointLocationsMessage.method,
-      this.handleGetGamePossibleBreakpointLocations
-    );
-    window.removeEventListener(
-      GetGameStackTraceMessage.method,
-      this.handleGetGameStackTrace
-    );
-    window.removeEventListener(
-      GetGameThreadsMessage.method,
-      this.handleGetGameThreads
-    );
-    window.removeEventListener(
-      EnableGameDebugMessage.method,
-      this.handleEnableGameDebug
-    );
-    window.removeEventListener(
-      DisableGameDebugMessage.method,
-      this.handleDisableGameDebug
-    );
-    window.removeEventListener(
-      LoadPreviewMessage.method,
-      this.handleLoadPreview
-    );
+    window.removeEventListener(MessageProtocol.event, this.handleProtocol);
   }
 
-  protected handleConfigureGame = async (e: Event): Promise<void> => {
+  protected handleProtocol = async (e: Event) => {
     if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (ConfigureGameMessage.type.isRequest(message)) {
-        const { startpoint, breakpoints, functionBreakpoints } = message.params;
-        if (this._game) {
-          if (startpoint) {
-            this._options ??= {};
-            this._options.startpoint = startpoint;
-            this._game.setStartpoint(startpoint);
-          }
-          if (breakpoints) {
-            this._options ??= {};
-            this._options.breakpoints = breakpoints;
-            this._game.setBreakpoints(breakpoints);
-          }
-          if (functionBreakpoints) {
-            this._options ??= {};
-            this._options.functionBreakpoints = functionBreakpoints;
-            this._game.setFunctionBreakpoints(functionBreakpoints);
-          }
+      if (ConfigureGameMessage.type.is(e.detail)) {
+        const response = await this.handleConfigureGame(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
         }
-        const actualBreakpoints =
-          breakpoints && this._program?.pathToLocation
-            ? Game.getActualBreakpoints(
-                Object.values(this._program.pathToLocation),
-                breakpoints,
-                Object.keys(this._program.scripts)
-              )
-            : undefined;
-        const actualFunctionBreakpoints =
-          functionBreakpoints && this._program?.functionLocations
-            ? Game.getActualFunctionBreakpoints(
-                this._program.functionLocations,
-                functionBreakpoints,
-                Object.keys(this._program.scripts)
-              )
-            : undefined;
-        this.emit(
-          ConfigureGameMessage.method,
-          ConfigureGameMessage.type.response(message.id, {
-            breakpoints: actualBreakpoints,
-            functionBreakpoints: actualFunctionBreakpoints,
-          })
+      }
+      if (LoadGameMessage.type.is(e.detail)) {
+        const response = await this.handleLoadGame(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (StartGameMessage.type.is(e.detail)) {
+        const response = await this.handleStartGame(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (StopGameMessage.type.is(e.detail)) {
+        const response = await this.handleStopGame(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (PauseGameMessage.type.is(e.detail)) {
+        const response = await this.handlePauseGame(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (UnpauseGameMessage.type.is(e.detail)) {
+        const response = await this.handleUnpauseGame(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (StepGameClockMessage.type.is(e.detail)) {
+        const response = await this.handleStepGameClock(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (StepGameMessage.type.is(e.detail)) {
+        const response = await this.handleStepGame(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (ContinueGameMessage.type.is(e.detail)) {
+        const response = await this.handleContinueGame(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (GetGamePossibleBreakpointLocationsMessage.type.is(e.detail)) {
+        const response = await this.handleGetGamePossibleBreakpointLocations(
+          e.detail
         );
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
       }
-    }
-  };
-
-  protected handleLoadGame = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (LoadGameMessage.type.isRequest(message)) {
-        const params = message.params;
-        this._program = params.program;
-        this.emit(
-          LoadGameMessage.method,
-          LoadGameMessage.type.response(message.id, null)
-        );
-        this._loadListeners.forEach((callback) => {
-          callback();
-        });
-        this._loadListeners.clear();
-        if (this._game?.state === "running") {
-          // Stop and restart game if we loaded a new game while the old game was running
-          this.debouncedBuildGame();
+      if (GetGameStackTraceMessage.type.is(e.detail)) {
+        const response = await this.handleGetGameStackTrace(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (GetGameThreadsMessage.type.is(e.detail)) {
+        const response = await this.handleGetGameThreads(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (EnableGameDebugMessage.type.is(e.detail)) {
+        const response = await this.handleEnableGameDebug(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (DisableGameDebugMessage.type.is(e.detail)) {
+        const response = await this.handleDisableGameDebug(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (LoadPreviewMessage.type.is(e.detail)) {
+        const response = await this.handleLoadPreview(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
         }
       }
     }
   };
 
-  protected handleStartGame = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (StartGameMessage.type.isRequest(message)) {
-        if (!this._program) {
-          // wait for program to be loaded
-          await new Promise<void>((resolve) => {
-            this._loadListeners.add(resolve);
-          });
-        }
-        const success = this.buildGame();
-        this.emit(
-          StartGameMessage.method,
-          StartGameMessage.type.response(message.id, success)
-        );
+  protected handleConfigureGame = async (
+    message: RequestMessage<ConfigureGameMethod, ConfigureGameParams>
+  ) => {
+    const { startpoint, breakpoints, functionBreakpoints } = message.params;
+    if (this._game) {
+      if (startpoint) {
+        this._options ??= {};
+        this._options.startpoint = startpoint;
+        this._game.setStartpoint(startpoint);
+      }
+      if (breakpoints) {
+        this._options ??= {};
+        this._options.breakpoints = breakpoints;
+        this._game.setBreakpoints(breakpoints);
+      }
+      if (functionBreakpoints) {
+        this._options ??= {};
+        this._options.functionBreakpoints = functionBreakpoints;
+        this._game.setFunctionBreakpoints(functionBreakpoints);
       }
     }
+    const actualBreakpoints =
+      breakpoints && this._program?.pathToLocation
+        ? Game.getActualBreakpoints(
+            Object.values(this._program.pathToLocation),
+            breakpoints,
+            Object.keys(this._program.scripts)
+          )
+        : undefined;
+    const actualFunctionBreakpoints =
+      functionBreakpoints && this._program?.functionLocations
+        ? Game.getActualFunctionBreakpoints(
+            this._program.functionLocations,
+            functionBreakpoints,
+            Object.keys(this._program.scripts)
+          )
+        : undefined;
+    return ConfigureGameMessage.type.response(message.id, {
+      breakpoints: actualBreakpoints,
+      functionBreakpoints: actualFunctionBreakpoints,
+    });
   };
 
-  protected handleStopGame = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (StopGameMessage.type.isRequest(message)) {
-        this.stopGame("quit");
-        this.emit(
-          StopGameMessage.method,
-          StopGameMessage.type.response(message.id, null)
-        );
-      }
+  protected handleLoadGame = async (
+    message: RequestMessage<LoadGameMethod, LoadGameParams>
+  ) => {
+    const params = message.params;
+    this._program = params.program;
+    this._loadListeners.forEach((callback) => {
+      callback();
+    });
+    this._loadListeners.clear();
+    if (this._game?.state === "running") {
+      // Stop and restart game if we loaded a new game while the old game was running
+      this.debouncedBuildGame();
     }
+    return LoadGameMessage.type.response(message.id, null);
   };
 
-  protected handlePauseGame = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (PauseGameMessage.type.isRequest(message)) {
-        if (this._app) {
-          this._app.pause();
-        }
-      }
+  protected handleStartGame = async (
+    message: RequestMessage<StartGameMethod, StartGameParams>
+  ) => {
+    if (!this._program) {
+      // wait for program to be loaded
+      await new Promise<void>((resolve) => {
+        this._loadListeners.add(resolve);
+      });
     }
+    const success = this.buildGame();
+    return StartGameMessage.type.response(message.id, success);
   };
 
-  protected handleUnpauseGame = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (UnpauseGameMessage.type.isRequest(message)) {
-        if (this._app) {
-          this._app.unpause();
-        }
-      }
-    }
+  protected handleStopGame = async (
+    message: RequestMessage<StopGameMethod, StopGameParams>
+  ) => {
+    this.stopGame("quit");
+    return StopGameMessage.type.response(message.id, null);
   };
 
-  protected handleStepGameClock = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (StepGameClockMessage.type.isRequest(message)) {
-        const { deltaMS } = message.params;
-        if (this._app) {
-          this._app.step(deltaMS);
-        }
-      }
+  protected handlePauseGame = async (
+    message: RequestMessage<PauseGameMethod>
+  ) => {
+    if (this._app) {
+      this._app.pause();
+      return PauseGameMessage.type.response(message.id, null);
     }
+    return PauseGameMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
   };
 
-  protected handleStepGame = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (StepGameMessage.type.isRequest(message)) {
-        const { traversal } = message.params;
-        if (this._game) {
-          this._game.step(traversal);
-        }
-      }
+  protected handleUnpauseGame = async (
+    message: RequestMessage<UnpauseGameMethod>
+  ) => {
+    if (this._app) {
+      this._app.unpause();
+      return UnpauseGameMessage.type.response(message.id, null);
     }
+    return UnpauseGameMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
   };
 
-  protected handleContinueGame = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (ContinueGameMessage.type.isRequest(message)) {
-        if (this._game) {
-          this._game.continue();
-        }
-      }
+  protected handleStepGameClock = async (
+    message: RequestMessage<StepGameClockMethod, StepGameClockParams>
+  ) => {
+    const { deltaMS } = message.params;
+    if (this._app) {
+      this._app.step(deltaMS);
+      return StepGameClockMessage.type.response(message.id, null);
     }
+    return StepGameClockMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
   };
 
-  protected handleGetGameThreads = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (GetGameThreadsMessage.type.isRequest(message)) {
-        if (this._game) {
-          const threads = this._game.getThreads();
-          this.emit(
-            GetGameThreadsMessage.method,
-            GetGameThreadsMessage.type.response(message.id, { threads })
-          );
-        } else {
-          console.error("no game loaded");
-        }
-      }
+  protected handleStepGame = async (
+    message: RequestMessage<StepGameMethod, StepGameParams>
+  ) => {
+    const { traversal } = message.params;
+    if (this._game) {
+      this._game.step(traversal);
+      return StepGameMessage.type.response(message.id, null);
     }
+    return StepGameMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
+  };
+
+  protected handleContinueGame = async (
+    message: RequestMessage<ContinueGameMethod, ContinueGameParams>
+  ) => {
+    if (this._game) {
+      this._game.continue();
+      return ContinueGameMessage.type.response(message.id, null);
+    }
+    return ContinueGameMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
+  };
+
+  protected handleGetGameThreads = async (
+    message: RequestMessage<GetGameThreadsMethod, GetGameThreadsParams>
+  ) => {
+    if (this._game) {
+      const threads = this._game.getThreads();
+      return GetGameThreadsMessage.type.response(message.id, { threads });
+    }
+    return GetGameThreadsMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
   };
 
   protected handleGetGamePossibleBreakpointLocations = async (
-    e: Event
-  ): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (GetGamePossibleBreakpointLocationsMessage.type.isRequest(message)) {
-        const { search } = message.params;
-        const program = this._game?.program || this._program;
-        if (program) {
-          const lines: number[] = [];
-          const possibleLocations = Object.values(program.pathToLocation);
-          const scripts = Object.keys(program.scripts);
-          const searchScriptIndex = scripts.indexOf(search.uri);
-          for (const possibleLocation of possibleLocations) {
-            const [scriptIndex, line] = possibleLocation;
-            if (scriptIndex != null && scriptIndex === searchScriptIndex) {
-              if (
-                line >= search.range.start.line &&
-                line <= search.range.end.line
-              ) {
-                lines.push(line);
-              }
-            }
-            if (scriptIndex > searchScriptIndex) {
-              break;
-            }
+    message: RequestMessage<
+      GetGamePossibleBreakpointLocationsMethod,
+      GetGamePossibleBreakpointLocationsParams
+    >
+  ) => {
+    const { search } = message.params;
+    const program = this._game?.program || this._program;
+    if (program) {
+      const lines: number[] = [];
+      const possibleLocations = Object.values(program.pathToLocation);
+      const scripts = Object.keys(program.scripts);
+      const searchScriptIndex = scripts.indexOf(search.uri);
+      for (const possibleLocation of possibleLocations) {
+        const [scriptIndex, line] = possibleLocation;
+        if (scriptIndex != null && scriptIndex === searchScriptIndex) {
+          if (
+            line >= search.range.start.line &&
+            line <= search.range.end.line
+          ) {
+            lines.push(line);
           }
-          this.emit(
-            GetGamePossibleBreakpointLocationsMessage.method,
-            GetGamePossibleBreakpointLocationsMessage.type.response(
-              message.id,
-              { lines }
-            )
-          );
-        } else {
-          console.error("no program loaded");
+        }
+        if (scriptIndex > searchScriptIndex) {
+          break;
         }
       }
+      const result = { lines };
+      return GetGamePossibleBreakpointLocationsMessage.type.response(
+        message.id,
+        result
+      );
     }
+    return GetGamePossibleBreakpointLocationsMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
   };
 
-  protected handleGetGameStackTrace = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (GetGameStackTraceMessage.type.isRequest(message)) {
-        const { threadId, startFrame, levels } = message.params;
-        if (this._game) {
-          const result = this._game.getStackTrace(threadId, startFrame, levels);
-          this.emit(
-            GetGameStackTraceMessage.method,
-            GetGameStackTraceMessage.type.response(message.id, result)
-          );
-        }
-      }
+  protected handleGetGameStackTrace = async (
+    message: RequestMessage<GetGameStackTraceMethod, GetGameStackTraceParams>
+  ) => {
+    const { threadId, startFrame, levels } = message.params;
+    if (this._game) {
+      const result = this._game.getStackTrace(threadId, startFrame, levels);
+      return GetGameStackTraceMessage.type.response(message.id, result);
     }
+    return GetGameStackTraceMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
   };
 
-  protected handleEnableGameDebug = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (EnableGameDebugMessage.type.isRequest(message)) {
-        if (this._game) {
-          this._game.startDebugging();
-        }
-      }
+  protected handleEnableGameDebug = async (
+    message: RequestMessage<EnableGameDebugMethod>
+  ) => {
+    if (this._game) {
+      this._game.startDebugging();
+      return EnableGameDebugMessage.type.response(message.id, null);
     }
+    return EnableGameDebugMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
   };
 
-  protected handleDisableGameDebug = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DisableGameDebugMessage.type.isRequest(message)) {
-        if (this._game) {
-          this._game.stopDebugging();
-        }
-      }
+  protected handleDisableGameDebug = async (
+    message: RequestMessage<DisableGameDebugMethod>
+  ) => {
+    if (this._game) {
+      this._game.stopDebugging();
+      return DisableGameDebugMessage.type.response(message.id, null);
     }
+    return DisableGameDebugMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
   };
 
-  protected handleLoadPreview = async (e: Event): Promise<void> => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (LoadPreviewMessage.type.isRequest(message)) {
-        const { type, textDocument, selectedRange } = message.params;
-        if (type === "game") {
-          const line = selectedRange?.start.line ?? 0;
-          this.updatePreview(textDocument.uri, line);
-          this.emit(
-            LoadPreviewMessage.method,
-            LoadPreviewMessage.type.response(message.id, null)
-          );
-        }
-      }
+  protected handleLoadPreview = async (
+    message: RequestMessage<LoadPreviewMethod>
+  ) => {
+    const { type, textDocument, selectedRange } = message.params;
+    if (type === "game") {
+      const line = selectedRange?.start.line ?? 0;
+      this.updatePreview(textDocument.uri, line);
+      return LoadPreviewMessage.type.response(message.id, null);
     }
+    return undefined;
   };
 
   stopGame(
@@ -436,7 +485,7 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   ) {
     this.emit(
-      GameExitedMessage.type.method,
+      MessageProtocol.event,
       GameExitedMessage.type.notification({
         reason,
         error,
@@ -511,7 +560,7 @@ export default class SparkWebPlayer extends Component(spec) {
         if (StartedThreadMessage.type.isNotification(msg)) {
           const { threadId } = msg.params;
           this.emit(
-            GameStartedThreadMessage.type.method,
+            MessageProtocol.event,
             GameStartedThreadMessage.type.notification({
               threadId,
             })
@@ -525,7 +574,7 @@ export default class SparkWebPlayer extends Component(spec) {
         if (ExitedThreadMessage.type.isNotification(msg)) {
           const { threadId } = msg.params;
           this.emit(
-            GameExitedThreadMessage.type.method,
+            MessageProtocol.event,
             GameExitedThreadMessage.type.notification({
               threadId,
             })
@@ -539,7 +588,7 @@ export default class SparkWebPlayer extends Component(spec) {
         if (ContinuedMessage.type.isNotification(msg)) {
           const { location } = msg.params;
           this.emit(
-            GameContinuedMessage.type.method,
+            MessageProtocol.event,
             GameContinuedMessage.type.notification({
               location,
             })
@@ -551,7 +600,7 @@ export default class SparkWebPlayer extends Component(spec) {
       if (SteppedMessage.type.isNotification(msg)) {
         const { location } = msg.params;
         this.emit(
-          GameSteppedMessage.type.method,
+          MessageProtocol.event,
           GameSteppedMessage.type.notification({ location })
         );
       }
@@ -562,7 +611,7 @@ export default class SparkWebPlayer extends Component(spec) {
         if (HitBreakpointMessage.type.isNotification(msg)) {
           const { location } = msg.params;
           this.emit(
-            GameHitBreakpointMessage.type.method,
+            MessageProtocol.event,
             GameHitBreakpointMessage.type.notification({
               location,
             })
@@ -576,7 +625,7 @@ export default class SparkWebPlayer extends Component(spec) {
         if (AwaitingInteractionMessage.type.isNotification(msg)) {
           const { location } = msg.params;
           this.emit(
-            GameAwaitingInteractionMessage.type.method,
+            MessageProtocol.event,
             GameAwaitingInteractionMessage.type.notification({
               location,
             })
@@ -590,7 +639,7 @@ export default class SparkWebPlayer extends Component(spec) {
         if (AutoAdvancedToContinueMessage.type.isNotification(msg)) {
           const { location } = msg.params;
           this.emit(
-            GameAutoAdvancedToContinueMessage.type.method,
+            MessageProtocol.event,
             GameAutoAdvancedToContinueMessage.type.notification({
               location,
             })
@@ -604,7 +653,7 @@ export default class SparkWebPlayer extends Component(spec) {
         if (ClickedToContinueMessage.type.isNotification(msg)) {
           const { location } = msg.params;
           this.emit(
-            GameClickedToContinueMessage.type.method,
+            MessageProtocol.event,
             GameClickedToContinueMessage.type.notification({
               location,
             })
@@ -618,7 +667,7 @@ export default class SparkWebPlayer extends Component(spec) {
         if (ChosePathToContinueMessage.type.isNotification(msg)) {
           const { location } = msg.params;
           this.emit(
-            GameChosePathToContinueMessage.type.method,
+            MessageProtocol.event,
             GameChosePathToContinueMessage.type.notification({
               location,
             })

@@ -16,6 +16,9 @@ export class MessageProtocolRequestType<
   uuid() {
     return crypto.randomUUID();
   }
+  is(obj: any): obj is RequestMessage<M, P> {
+    return isRequest(obj, this.method);
+  }
   isRequest(obj: any): obj is RequestMessage<M, P> {
     return isRequest(obj, this.method);
   }
@@ -45,5 +48,14 @@ export class MessageProtocolRequestType<
       id,
       error,
     } as ResponseMessage<M, R>;
+  }
+  result(
+    result: R,
+    transfer?: ArrayBuffer[]
+  ): { result: R; transfer?: ArrayBuffer[] } {
+    return {
+      result,
+      transfer,
+    };
   }
 }

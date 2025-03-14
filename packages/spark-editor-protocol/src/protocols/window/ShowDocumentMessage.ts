@@ -1,7 +1,10 @@
-import { ShowDocumentResult, ShowDocumentParams } from "../../types";
+import type * as LSP from "../../types";
+import { ShowDocumentResult } from "../../types";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type ShowDocumentMethod = typeof ShowDocumentMessage.method;
+
+export type ShowDocumentParams = LSP.ShowDocumentParams;
 
 export class ShowDocumentMessage {
   static readonly method = "window/showDocument";

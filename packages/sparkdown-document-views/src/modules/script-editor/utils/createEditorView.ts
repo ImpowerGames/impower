@@ -1,5 +1,6 @@
 import { historyField } from "@codemirror/commands";
 import { syntaxParserRunning } from "@codemirror/language";
+import { search } from "@codemirror/search";
 import {
   Compartment,
   EditorSelection,
@@ -17,11 +18,17 @@ import {
   ViewUpdate,
   panels,
 } from "@codemirror/view";
-import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  DidCompileTextDocumentMessage,
+  DidCompileTextDocumentMethod,
+  DidCompileTextDocumentParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import {
   MessageConnection,
   ServerCapabilities,
 } from "@impower/spark-editor-protocol/src/types";
+import { NotificationMessage } from "@impower/spark-engine/src";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
   breakpointMarker,
@@ -42,6 +49,9 @@ import {
 import debounce from "../../../utils/debounce";
 import EDITOR_EXTENSIONS from "../constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../constants/EDITOR_THEME";
+import { gotoLinePanel } from "../panels/GotoLinePanel";
+import { SearchPanel } from "../panels/SearchPanel";
+import { statusPanel } from "../panels/StatusPanel";
 import {
   SerializableEditorSelection,
   SerializableEditorState,
@@ -49,10 +59,6 @@ import {
   SerializableHistoryState,
 } from "../types/editor";
 import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
-import { search } from "@codemirror/search";
-import { SearchPanel } from "../panels/SearchPanel";
-import { statusPanel } from "../panels/StatusPanel";
-import { gotoLinePanel } from "../panels/GotoLinePanel";
 
 export const readOnly = new Compartment();
 
@@ -339,26 +345,36 @@ const createEditorView = (
     parent,
     scrollTo,
   });
-  const onParse = (e: Event) => {
+  const handleProtocol = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (DidCompileTextDocumentMessage.type.isNotification(message)) {
-        const params = message.params;
-        const program = params.program;
-        const version = params.textDocument.version;
-        programContext.program = program;
-        if (version === getDocumentVersion(view.state)) {
-          view.dispatch(
-            updateVariableWidgets({ variables: /* program.variables || */ {} })
-          );
-        }
+        onParse(message);
       }
     }
   };
-  window.addEventListener(DidCompileTextDocumentMessage.method, onParse);
+  const onParse = (
+    message: NotificationMessage<
+      DidCompileTextDocumentMethod,
+      DidCompileTextDocumentParams
+    >
+  ) => {
+    const params = message.params;
+    const program = params.program;
+    const version = params.textDocument.version;
+    programContext.program = program;
+    if (version === getDocumentVersion(view.state)) {
+      view.dispatch(
+        updateVariableWidgets({
+          variables: {}, // TODO
+        })
+      );
+    }
+  };
+  window.addEventListener(MessageProtocol.event, handleProtocol);
   const disposable = {
     dispose: () => {
-      window.removeEventListener(DidCompileTextDocumentMessage.method, onParse);
+      window.removeEventListener(MessageProtocol.event, handleProtocol);
     },
   };
   return [view, disposable];

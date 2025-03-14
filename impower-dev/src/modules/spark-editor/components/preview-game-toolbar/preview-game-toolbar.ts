@@ -1,8 +1,8 @@
+import type Button from "../../../../../../packages/sparkle/src/components/button/button";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import throttle from "../../utils/throttle";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-game-toolbar";
-import type Button from "../../../../../../packages/sparkle/src/components/button/button";
 
 export default class PreviewGameToolbar extends Component(spec) {
   _controllingPlayback = 0;
@@ -171,7 +171,7 @@ export default class PreviewGameToolbar extends Component(spec) {
       }
     }
     const throttledStep = throttle(() => {
-      Workspace.window.stepGame(deltaMS);
+      Workspace.window.stepGameClock(deltaMS);
     }, 100);
     window.cancelAnimationFrame(this._controllingPlayback);
     const loop = () => {

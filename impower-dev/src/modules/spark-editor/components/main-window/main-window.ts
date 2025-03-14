@@ -1,54 +1,52 @@
-import { Component } from "../../../../../../packages/spec-component/src/component";
-import { Workspace } from "../../workspace/Workspace";
-import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
-import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import { HideEditorStatusBarMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HideEditorStatusBarMessage";
 import { ShowEditorStatusBarMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorStatusBarMessage";
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
+import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
+import { Component } from "../../../../../../packages/spec-component/src/component";
+import { Workspace } from "../../workspace/Workspace";
 import spec from "./_main-window";
 
 export default class MainWindow extends Component(spec) {
   override onConnected() {
+    window.addEventListener(MessageProtocol.event, this.handleProtocol);
     this.ref.footerVisibilityManager.addEventListener(
       "changing",
       this.handleChangingFooterVisibility
     );
-    this.ownerDocument.addEventListener("enter", this.handleEnter);
-    window.addEventListener(
-      DidExpandPreviewPaneMessage.method,
-      this.handleDidExpandPreviewPane
-    );
-    window.addEventListener(
-      DidCollapsePreviewPaneMessage.method,
-      this.handleDidCollapsePreviewPane
-    );
+    window.addEventListener("enter", this.handleEnter);
   }
 
   override onDisconnected() {
+    window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     this.ref.footerVisibilityManager.removeEventListener(
       "changing",
       this.handleChangingFooterVisibility
     );
-    this.ownerDocument.removeEventListener("enter", this.handleEnter);
-    window.removeEventListener(
-      DidExpandPreviewPaneMessage.method,
-      this.handleDidExpandPreviewPane
-    );
-    window.removeEventListener(
-      DidCollapsePreviewPaneMessage.method,
-      this.handleDidCollapsePreviewPane
-    );
+    window.removeEventListener("enter", this.handleEnter);
   }
+
+  protected handleProtocol = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      if (DidExpandPreviewPaneMessage.type.is(e.detail)) {
+        this.handleDidExpandPreviewPane();
+      }
+      if (DidCollapsePreviewPaneMessage.type.is(e.detail)) {
+        this.handleDidCollapsePreviewPane();
+      }
+    }
+  };
 
   handleChangingFooterVisibility = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (e.detail.hidden) {
         this.emit(
-          HideEditorStatusBarMessage.method,
+          MessageProtocol.event,
           HideEditorStatusBarMessage.type.request({})
         );
       } else {
         this.emit(
-          ShowEditorStatusBarMessage.method,
+          MessageProtocol.event,
           ShowEditorStatusBarMessage.type.request({})
         );
       }
@@ -65,11 +63,11 @@ export default class MainWindow extends Component(spec) {
     }
   };
 
-  handleDidExpandPreviewPane = async (e: Event) => {
+  handleDidExpandPreviewPane = async () => {
     this.ref.splitPane.setAttribute("reveal", "");
   };
 
-  handleDidCollapsePreviewPane = async (e: Event) => {
+  handleDidCollapsePreviewPane = async () => {
     this.ref.splitPane.removeAttribute("reveal");
   };
 }

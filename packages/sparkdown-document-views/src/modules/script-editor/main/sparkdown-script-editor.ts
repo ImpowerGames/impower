@@ -1,54 +1,92 @@
+import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
-import { HoveredOnEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
+import {
+  HideEditorStatusBarMessage,
+  HideEditorStatusBarMethod,
+  HideEditorStatusBarParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/HideEditorStatusBarMessage";
 import { HoveredOffEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HoveredOffEditorMessage";
-import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
+import { HoveredOnEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
+import {
+  LoadEditorMessage,
+  LoadEditorMethod,
+  LoadEditorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import {
+  SearchEditorMessage,
+  SearchEditorMethod,
+  SearchEditorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import {
+  ShowEditorStatusBarMessage,
+  ShowEditorStatusBarMethod,
+  ShowEditorStatusBarParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorStatusBarMessage";
 import { UnfocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage";
-import { SearchEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
-import { HideEditorStatusBarMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HideEditorStatusBarMessage";
-import { ShowEditorStatusBarMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorStatusBarMessage";
-import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
-import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
-import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  ScrolledPreviewMessage,
+  ScrolledPreviewMethod,
+  ScrolledPreviewParams,
+} from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
+import {
+  SelectedPreviewMessage,
+  SelectedPreviewMethod,
+  SelectedPreviewParams,
+} from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidCloseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCloseTextDocumentMessage";
 import { DidOpenTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
 import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage";
 import { WillSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/WillSaveTextDocumentMessage";
-import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
-import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
-import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
+import {
+  DidCollapsePreviewPaneMessage,
+  DidCollapsePreviewPaneMethod,
+  DidCollapsePreviewPaneParams,
+} from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
+import {
+  DidExpandPreviewPaneMessage,
+  DidExpandPreviewPaneMethod,
+  DidExpandPreviewPaneParams,
+} from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
+import {
+  ShowDocumentMessage,
+  ShowDocumentMethod,
+} from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import {
   MessageConnection,
   Range,
   ServerCapabilities,
+  ShowDocumentParams,
   TextDocumentItem,
 } from "@impower/spark-editor-protocol/src/types";
+import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
+import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/RequestMessage";
 import { Component } from "../../../../../spec-component/src/component";
 import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
+import getUnitlessValue from "../../../../../spec-component/src/utils/getUnitlessValue";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
+import { getServerChanges } from "../../../cm-language-client/utils/getServerChanges";
+import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition";
 import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset";
+import { getDocumentVersion } from "../../../cm-versioning/versioning";
+import { getScrollableParent } from "../../../utils/getScrollableParent";
 import { getScrollClientHeight } from "../../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../../utils/getScrollTop";
 import { getVisibleRange } from "../../../utils/getVisibleRange";
 import { scrollY } from "../../../utils/scrollY";
+import { gotoLinePanelOpen } from "../panels/GotoLinePanel";
 import createEditorView, {
   editable,
   readOnly,
 } from "../utils/createEditorView";
 import spec from "./_sparkdown-script-editor";
-import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
-import getUnitlessValue from "../../../../../spec-component/src/utils/getUnitlessValue";
-import { getDocumentVersion } from "../../../cm-versioning/versioning";
-import { gotoLinePanelOpen } from "../panels/GotoLinePanel";
-import { getScrollableParent } from "../../../utils/getScrollableParent";
-import { getServerChanges } from "../../../cm-language-client/utils/getServerChanges";
-import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition";
 
 export default class SparkdownScriptEditor extends Component(spec) {
   static languageServerConnection: MessageConnection;
@@ -117,43 +155,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this.root.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
       passive: true,
     });
-    window.addEventListener(LoadEditorMessage.method, this.handleLoadEditor);
-    window.addEventListener(
-      ShowDocumentMessage.method,
-      this.handleShowDocument
-    );
-    window.addEventListener(
-      HoveredOnPreviewMessage.method,
-      this.handlePointerLeaveScroller
-    );
-    window.addEventListener(
-      DidExpandPreviewPaneMessage.method,
-      this.handleExpandPreviewPane
-    );
-    window.addEventListener(
-      DidCollapsePreviewPaneMessage.method,
-      this.handleCollapsePreviewPane
-    );
-    window.addEventListener(
-      ScrolledPreviewMessage.method,
-      this.handleScrolledPreview
-    );
-    window.addEventListener(
-      SelectedPreviewMessage.method,
-      this.handleSelectedPreview
-    );
-    window.addEventListener(
-      SearchEditorMessage.method,
-      this.handleSearchEditor
-    );
-    window.addEventListener(
-      ShowEditorStatusBarMessage.method,
-      this.handleShowEditorStatusBar
-    );
-    window.addEventListener(
-      HideEditorStatusBarMessage.method,
-      this.handleHideEditorStatusBar
-    );
+    window.addEventListener(MessageProtocol.event, this.handleProtocol);
   }
 
   override onDisconnected() {
@@ -169,43 +171,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       "mouseleave",
       this.handlePointerLeaveScroller
     );
-    window.removeEventListener(LoadEditorMessage.method, this.handleLoadEditor);
-    window.removeEventListener(
-      ShowDocumentMessage.method,
-      this.handleShowDocument
-    );
-    window.removeEventListener(
-      HoveredOnPreviewMessage.method,
-      this.handlePointerLeaveScroller
-    );
-    window.removeEventListener(
-      DidExpandPreviewPaneMessage.method,
-      this.handleExpandPreviewPane
-    );
-    window.removeEventListener(
-      DidCollapsePreviewPaneMessage.method,
-      this.handleCollapsePreviewPane
-    );
-    window.removeEventListener(
-      ScrolledPreviewMessage.method,
-      this.handleScrolledPreview
-    );
-    window.removeEventListener(
-      SelectedPreviewMessage.method,
-      this.handleSelectedPreview
-    );
-    window.removeEventListener(
-      SearchEditorMessage.method,
-      this.handleSearchEditor
-    );
-    window.removeEventListener(
-      ShowEditorStatusBarMessage.method,
-      this.handleShowEditorStatusBar
-    );
-    window.removeEventListener(
-      HideEditorStatusBarMessage.method,
-      this.handleHideEditorStatusBar
-    );
+    window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     if (this._textDocument) {
       SparkdownScriptEditor.languageServerConnection.sendNotification(
         DidCloseTextDocumentMessage.type,
@@ -213,7 +179,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       );
       if (this._editing) {
         this.emit(
-          UnfocusedEditorMessage.method,
+          MessageProtocol.event,
           UnfocusedEditorMessage.type.notification({
             textDocument: this._textDocument,
           })
@@ -225,6 +191,53 @@ export default class SparkdownScriptEditor extends Component(spec) {
       this.unbindView(view);
     }
   }
+
+  protected handleProtocol = async (e: Event) => {
+    if (e instanceof CustomEvent) {
+      if (ShowDocumentMessage.type.is(e.detail)) {
+        this.handleShowDocument(e.detail);
+      }
+      if (LoadEditorMessage.type.is(e.detail)) {
+        const response = await this.handleLoadEditor(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (SearchEditorMessage.type.is(e.detail)) {
+        const response = await this.handleSearchEditor(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (ShowEditorStatusBarMessage.type.is(e.detail)) {
+        const response = await this.handleShowEditorStatusBar(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (HideEditorStatusBarMessage.type.is(e.detail)) {
+        const response = await this.handleHideEditorStatusBar(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (HoveredOnEditorMessage.type.is(e.detail)) {
+        this.handlePointerLeaveScroller();
+      }
+      if (DidExpandPreviewPaneMessage.type.is(e.detail)) {
+        this.handleDidExpandPreviewPane(e.detail);
+      }
+      if (DidCollapsePreviewPaneMessage.type.is(e.detail)) {
+        this.handleDidCollapsePreviewPane(e.detail);
+      }
+      if (ScrolledPreviewMessage.type.is(e.detail)) {
+        this.handleScrolledPreview(e.detail);
+      }
+      if (SelectedPreviewMessage.type.is(e.detail)) {
+        this.handleSelectedPreview(e.detail);
+      }
+    }
+  };
 
   override onAttributeChanged(name: string, newValue: string) {
     if (name === SparkdownScriptEditor.attrs.readonly) {
@@ -260,146 +273,154 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   }
 
-  protected handleLoadEditor = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (LoadEditorMessage.type.isRequest(message)) {
-        const params = message.params;
-        const textDocument = params.textDocument;
-        const focused = params.focused;
-        const visibleRange = params.visibleRange;
-        const selectedRange = params.selectedRange;
-        const breakpointRanges = params.breakpointRanges;
-        const languageServerCapabilities = params.languageServerCapabilities;
-        this._loadingRequest = message.id;
-        SparkdownScriptEditor.languageServerCapabilities =
-          languageServerCapabilities;
-        this.loadTextDocument(
-          textDocument,
-          focused,
-          visibleRange,
-          selectedRange,
-          breakpointRanges
-        );
-      }
-    }
+  protected handleLoadEditor = (
+    message: RequestMessage<LoadEditorMethod, LoadEditorParams>
+  ) => {
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const focused = params.focused;
+    const visibleRange = params.visibleRange;
+    const selectedRange = params.selectedRange;
+    const breakpointRanges = params.breakpointRanges;
+    const languageServerCapabilities = params.languageServerCapabilities;
+    this._loadingRequest = message.id;
+    SparkdownScriptEditor.languageServerCapabilities =
+      languageServerCapabilities;
+    this.loadTextDocument(
+      textDocument,
+      focused,
+      visibleRange,
+      selectedRange,
+      breakpointRanges
+    );
+    return LoadEditorMessage.type.response(message.id, null);
   };
 
-  protected handleExpandPreviewPane = () => {
+  protected handleDidExpandPreviewPane = (
+    _message: NotificationMessage<
+      DidExpandPreviewPaneMethod,
+      DidExpandPreviewPaneParams
+    >
+  ) => {
     this._userInitiatedScroll = false;
   };
 
-  protected handleCollapsePreviewPane = () => {
+  protected handleDidCollapsePreviewPane = (
+    _message: NotificationMessage<
+      DidCollapsePreviewPaneMethod,
+      DidCollapsePreviewPaneParams
+    >
+  ) => {
     this.scrollToRange(this._visibleRange);
   };
 
-  protected handleShowDocument = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (ShowDocumentMessage.type.isRequest(message)) {
-        const params = message.params;
-        const uri = params.uri;
-        const selection = params.selection;
-        const takeFocus = params.takeFocus;
-        if (uri === this._textDocument?.uri) {
-          if (selection) {
-            if (takeFocus) {
-              this.selectRange(selection, true);
-            } else if (takeFocus) {
-              this.scrollToRange(selection);
-            }
-          }
+  protected handleShowDocument = (
+    message: RequestMessage<ShowDocumentMethod, ShowDocumentParams>
+  ) => {
+    const params = message.params;
+    const uri = params.uri;
+    const selection = params.selection;
+    const takeFocus = params.takeFocus;
+    if (uri === this._textDocument?.uri) {
+      if (selection) {
+        if (takeFocus) {
+          this.selectRange(selection, true);
+        } else if (takeFocus) {
+          this.scrollToRange(selection);
         }
       }
     }
   };
 
-  protected handleScrolledPreview = (e: Event) => {
+  protected handleScrolledPreview = (
+    message: NotificationMessage<ScrolledPreviewMethod, ScrolledPreviewParams>
+  ) => {
     if (this._loaded) {
-      if (e instanceof CustomEvent) {
-        const message = e.detail;
-        if (ScrolledPreviewMessage.type.isNotification(message)) {
-          this._userInitiatedScroll = false;
-          const params = message.params;
-          const textDocument = params.textDocument;
-          const range = params.visibleRange;
-          const target = params.target;
-          if (textDocument.uri === this._textDocument?.uri) {
-            if (target === "element") {
-              this.scrollToRange(range);
-            } else {
-              this.cacheVisibleRange(range);
-            }
-          }
+      this._userInitiatedScroll = false;
+      const params = message.params;
+      const textDocument = params.textDocument;
+      const range = params.visibleRange;
+      const target = params.target;
+      if (textDocument.uri === this._textDocument?.uri) {
+        if (target === "element") {
+          this.scrollToRange(range);
+        } else {
+          this.cacheVisibleRange(range);
         }
       }
     }
   };
 
-  protected handleSelectedPreview = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (SelectedPreviewMessage.type.isNotification(message)) {
-        const params = message.params;
-        const textDocument = params.textDocument;
-        const selectedRange = params.selectedRange;
-        const docChanged = params.docChanged;
-        const userEvent = params.userEvent;
-        if (textDocument.uri === this._textDocument?.uri) {
-          if (!docChanged && userEvent) {
-            this.selectRange(selectedRange, false);
-          }
-        }
+  protected handleSelectedPreview = (
+    message: NotificationMessage<SelectedPreviewMethod, SelectedPreviewParams>
+  ) => {
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const selectedRange = params.selectedRange;
+    const docChanged = params.docChanged;
+    const userEvent = params.userEvent;
+    if (textDocument.uri === this._textDocument?.uri) {
+      if (!docChanged && userEvent) {
+        this.selectRange(selectedRange, false);
       }
     }
   };
 
-  protected handleSearchEditor = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (SearchEditorMessage.type.isRequest(message)) {
-        const params = message.params;
-        const textDocument = params.textDocument;
-        if (textDocument.uri === this._textDocument?.uri) {
-          this.openSearchPanel();
-        }
-      }
+  protected handleSearchEditor = (
+    message: RequestMessage<SearchEditorMethod, SearchEditorParams>
+  ) => {
+    const params = message.params;
+    const textDocument = params.textDocument;
+    if (textDocument.uri === this._textDocument?.uri) {
+      this.openSearchPanel();
+      return SearchEditorMessage.type.response(message.id, null);
     }
+    return undefined;
   };
 
-  protected handleShowEditorStatusBar = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (ShowEditorStatusBarMessage.type.isRequest(message)) {
-        const bottomPanels =
-          this.root.querySelector<HTMLElement>(".cm-panels-bottom");
+  protected handleShowEditorStatusBar = (
+    message: RequestMessage<
+      ShowEditorStatusBarMethod,
+      ShowEditorStatusBarParams
+    >
+  ) => {
+    const bottomPanels =
+      this.root.querySelector<HTMLElement>(".cm-panels-bottom");
+    if (bottomPanels) {
+      bottomPanels.style.opacity = "0";
+      bottomPanels.style.transition = "opacity 150ms";
+      bottomPanels.hidden = false;
+      this.ref.placeholder.hidden = true;
+      window.requestAnimationFrame(() => {
         if (bottomPanels) {
-          bottomPanels.style.opacity = "0";
-          bottomPanels.style.transition = "opacity 150ms";
-          bottomPanels.hidden = false;
-          this.ref.placeholder.hidden = true;
-          window.requestAnimationFrame(() => {
-            if (bottomPanels) {
-              bottomPanels.style.opacity = "1";
-            }
-          });
+          bottomPanels.style.opacity = "1";
         }
-      }
+      });
+      return ShowEditorStatusBarMessage.type.response(message.id, null);
     }
+    return ShowEditorStatusBarMessage.type.error(message.id, {
+      code: 1,
+      message: "no bottom panels found",
+    });
   };
 
-  protected handleHideEditorStatusBar = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (HideEditorStatusBarMessage.type.isRequest(message)) {
-        const bottomPanels =
-          this.root.querySelector<HTMLElement>(".cm-panels-bottom");
-        if (bottomPanels) {
-          bottomPanels.hidden = true;
-          this.ref.placeholder.hidden = false;
-        }
-      }
+  protected handleHideEditorStatusBar = (
+    message: RequestMessage<
+      HideEditorStatusBarMethod,
+      HideEditorStatusBarParams
+    >
+  ) => {
+    const bottomPanels =
+      this.root.querySelector<HTMLElement>(".cm-panels-bottom");
+    if (bottomPanels) {
+      bottomPanels.hidden = true;
+      this.ref.placeholder.hidden = false;
+      return HideEditorStatusBarMessage.type.response(message.id, null);
     }
+    return HideEditorStatusBarMessage.type.error(message.id, {
+      code: 1,
+      message: "no bottom panels found",
+    });
   };
 
   protected handleFocusFindInput = () => {
@@ -473,11 +494,12 @@ export default class SparkdownScriptEditor extends Component(spec) {
           this._editing = true;
           if (this._textDocument) {
             this.emit(
-              FocusedEditorMessage.method,
+              MessageProtocol.event,
               FocusedEditorMessage.type.notification({
                 textDocument: this._textDocument,
               })
             );
+            this.emit("input/focused");
           }
         },
         onBlur: () => {
@@ -486,11 +508,12 @@ export default class SparkdownScriptEditor extends Component(spec) {
             if (!this._searchInputFocused) {
               // Editor is still considered focused if focus was moved to search input
               this.emit(
-                UnfocusedEditorMessage.method,
+                MessageProtocol.event,
                 UnfocusedEditorMessage.type.notification({
                   textDocument: this._textDocument,
                 })
               );
+              this.emit("input/unfocused");
             }
           }
         },
@@ -516,7 +539,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
                 }
               );
               this.emit(
-                DidChangeTextDocumentMessage.method,
+                MessageProtocol.event,
                 DidChangeTextDocumentMessage.type.notification({
                   textDocument: {
                     uri,
@@ -526,14 +549,14 @@ export default class SparkdownScriptEditor extends Component(spec) {
                 })
               );
               this.emit(
-                WillSaveTextDocumentMessage.method,
+                MessageProtocol.event,
                 WillSaveTextDocumentMessage.type.notification({
                   textDocument: { uri },
                   reason: TextDocumentSaveReason.AfterDelay,
                 })
               );
               this.emit(
-                DidSaveTextDocumentMessage.method,
+                MessageProtocol.event,
                 DidSaveTextDocumentMessage.type.notification({
                   textDocument: { uri },
                   text: after,
@@ -547,7 +570,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
           const uri = this._textDocument?.uri;
           if (uri) {
             this.emit(
-              SelectedEditorMessage.method,
+              MessageProtocol.event,
               SelectedEditorMessage.type.notification({
                 textDocument: { uri },
                 selectedRange: {
@@ -566,7 +589,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
           const uri = this._textDocument?.uri;
           if (uri) {
             this.emit(
-              ChangedEditorBreakpointsMessage.method,
+              MessageProtocol.event,
               ChangedEditorBreakpointsMessage.type.notification({
                 textDocument: { uri },
                 breakpointRanges: breakpoints.map((lineNumber) => {
@@ -641,7 +664,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       { textDocument }
     );
     this.emit(
-      DidOpenTextDocumentMessage.method,
+      MessageProtocol.event,
       DidOpenTextDocumentMessage.type.notification({ textDocument })
     );
   }
@@ -730,7 +753,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
         // Only fade in once formatting has finished being applied and height is stable
         this.root.style.opacity = "1";
         this.emit(
-          LoadEditorMessage.method,
+          MessageProtocol.event,
           LoadEditorMessage.type.response(this._loadingRequest, null)
         );
         this._loadingRequest = undefined;
@@ -746,7 +769,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this._userInitiatedScroll = true;
     if (this._textDocument) {
       this.emit(
-        HoveredOnEditorMessage.method,
+        MessageProtocol.event,
         HoveredOnEditorMessage.type.notification({
           textDocument: this._textDocument,
         })
@@ -758,7 +781,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this._userInitiatedScroll = false;
     if (this._textDocument) {
       this.emit(
-        HoveredOffEditorMessage.method,
+        MessageProtocol.event,
         HoveredOffEditorMessage.type.notification({
           textDocument: this._textDocument,
         })
@@ -777,7 +800,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
           if (this._userInitiatedScroll) {
             this.cacheVisibleRange(visibleRange);
             this.emit(
-              ScrolledEditorMessage.method,
+              MessageProtocol.event,
               ScrolledEditorMessage.type.notification({
                 textDocument: this._textDocument,
                 visibleRange,

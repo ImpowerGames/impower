@@ -1,9 +1,18 @@
-import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import {
+  SelectedEditorMessage,
+  SelectedEditorMethod,
+  SelectedEditorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
-import { GameContinuedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameContinuedMessage";
+import {
+  GameContinuedMessage,
+  GameContinuedMethod,
+  GameContinuedParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/GameContinuedMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
+import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
@@ -19,37 +28,26 @@ export default class GamePreview extends Component(spec) {
   override onConnected() {
     this.configureGame();
     this.loadPreview();
-    window.addEventListener(
-      DidCompileTextDocumentMessage.method,
-      this.handleDidCompileTextDocument
-    );
-    window.addEventListener(
-      SelectedEditorMessage.method,
-      this.handleSelectedEditor
-    );
-    window.addEventListener(
-      GameContinuedMessage.method,
-      this.handleGameContinued
-    );
+    window.addEventListener(MessageProtocol.event, this.handleProtocol);
     window.addEventListener("keydown", this.handleKeyDown);
     this.loadGame();
   }
 
   override onDisconnected() {
-    window.removeEventListener(
-      DidCompileTextDocumentMessage.method,
-      this.handleDidCompileTextDocument
-    );
-    window.removeEventListener(
-      SelectedEditorMessage.method,
-      this.handleSelectedEditor
-    );
-    window.removeEventListener(
-      GameContinuedMessage.method,
-      this.handleGameContinued
-    );
+    window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     window.removeEventListener("keydown", this.handleKeyDown);
   }
+
+  protected handleProtocol = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      if (SelectedEditorMessage.type.is(e.detail)) {
+        this.handleSelectedEditor(e.detail);
+      }
+      if (GameContinuedMessage.type.is(e.detail)) {
+        this.handleGameContinued(e.detail);
+      }
+    }
+  };
 
   handleDidCompileTextDocument = async (e: Event) => {
     if (e instanceof CustomEvent) {
@@ -59,30 +57,24 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
-  handleSelectedEditor = async (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (SelectedEditorMessage.type.isNotification(message)) {
-        const { textDocument, selectedRange, docChanged } = message.params;
-        if (textDocument.uri === this._startFromFile && !docChanged) {
-          const newEntryLine = selectedRange?.start?.line ?? 0;
-          if (newEntryLine !== this._startFromLine) {
-            await this.configureGame();
-            await this.loadPreview();
-          }
-        }
+  handleSelectedEditor = async (
+    message: NotificationMessage<SelectedEditorMethod, SelectedEditorParams>
+  ) => {
+    const { textDocument, selectedRange, docChanged } = message.params;
+    if (textDocument.uri === this._startFromFile && !docChanged) {
+      const newEntryLine = selectedRange?.start?.line ?? 0;
+      if (newEntryLine !== this._startFromLine) {
+        await this.configureGame();
+        await this.loadPreview();
       }
     }
   };
 
-  handleGameContinued = async (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (GameContinuedMessage.type.isNotification(message)) {
-        const { location } = message.params;
-        Workspace.window.showDocument(location.uri, location.range, true);
-      }
-    }
+  handleGameContinued = async (
+    message: NotificationMessage<GameContinuedMethod, GameContinuedParams>
+  ) => {
+    const { location } = message.params;
+    Workspace.window.showDocument(location.uri, location.range, true);
   };
 
   handleKeyDown = async (e: KeyboardEvent) => {
@@ -129,7 +121,7 @@ export default class GamePreview extends Component(spec) {
         line: startLine,
       };
       this.emit(
-        ConfigureGameMessage.method,
+        MessageProtocol.event,
         ConfigureGameMessage.type.request({
           breakpoints,
           startpoint,
@@ -150,7 +142,7 @@ export default class GamePreview extends Component(spec) {
           this._startFromFile = uri;
           this._startFromLine = selectedRange?.start?.line ?? 0;
           this.emit(
-            LoadGameMessage.method,
+            MessageProtocol.event,
             LoadGameMessage.type.request({
               program: this._program,
             })
@@ -172,7 +164,7 @@ export default class GamePreview extends Component(spec) {
         const file = files[uri];
         if (file && file.text != null) {
           this.emit(
-            LoadPreviewMessage.method,
+            MessageProtocol.event,
             LoadPreviewMessage.type.request({
               type: "game",
               textDocument: {

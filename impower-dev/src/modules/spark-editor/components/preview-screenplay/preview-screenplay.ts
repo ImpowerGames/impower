@@ -1,7 +1,21 @@
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import { DidOpenTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
-import { DidWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage";
-import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
+import {
+  DidOpenTextDocumentMessage,
+  DidOpenTextDocumentMethod,
+  DidOpenTextDocumentParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
+import {
+  DidDeleteFilesMessage,
+  DidDeleteFilesMethod,
+  DidDeleteFilesParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
+import {
+  DidWriteFilesMessage,
+  DidWriteFilesMethod,
+  DidWriteFilesParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage";
+import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-screenplay";
@@ -9,70 +23,56 @@ import spec from "./_preview-screenplay";
 export default class PreviewScreenplay extends Component(spec) {
   override onConnected() {
     this.loadFile();
-    window.addEventListener(
-      DidOpenTextDocumentMessage.method,
-      this.handleDidOpenTextDocument
-    );
-    window.addEventListener(
-      DidWriteFilesMessage.method,
-      this.handleDidWriteFiles
-    );
-    window.addEventListener(
-      DidDeleteFilesMessage.method,
-      this.handleDidDeleteFiles
-    );
+    window.addEventListener(MessageProtocol.event, this.handleProtocol);
   }
 
   override onDisconnected() {
-    window.removeEventListener(
-      DidOpenTextDocumentMessage.method,
-      this.handleDidOpenTextDocument
-    );
-    window.removeEventListener(
-      DidWriteFilesMessage.method,
-      this.handleDidWriteFiles
-    );
-    window.removeEventListener(
-      DidDeleteFilesMessage.method,
-      this.handleDidDeleteFiles
-    );
+    window.removeEventListener(MessageProtocol.event, this.handleProtocol);
   }
 
-  protected handleDidOpenTextDocument = (e: Event) => {
+  protected handleProtocol = (e: Event) => {
     if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidOpenTextDocumentMessage.type.isNotification(message)) {
-        this.loadFile();
+      if (DidOpenTextDocumentMessage.type.is(e.detail)) {
+        this.handleDidOpenTextDocument(e.detail);
+      }
+      if (DidWriteFilesMessage.type.is(e.detail)) {
+        this.handleDidWriteFiles(e.detail);
+      }
+      if (DidDeleteFilesMessage.type.is(e.detail)) {
+        this.handleDidDeleteFiles(e.detail);
       }
     }
   };
 
-  protected handleDidWriteFiles = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidWriteFilesMessage.type.isNotification(message)) {
-        const params = message.params;
-        const remote = params.remote;
-        const files = params.files;
-        const editor = Workspace.window.getActiveEditorForPane("logic");
-        if (remote && files.find((f) => f.uri === editor?.uri)) {
-          this.loadFile();
-        }
-      }
+  protected handleDidOpenTextDocument = (
+    message: NotificationMessage<
+      DidOpenTextDocumentMethod,
+      DidOpenTextDocumentParams
+    >
+  ) => {
+    this.loadFile();
+  };
+
+  protected handleDidWriteFiles = (
+    message: NotificationMessage<DidWriteFilesMethod, DidWriteFilesParams>
+  ) => {
+    const params = message.params;
+    const remote = params.remote;
+    const files = params.files;
+    const editor = Workspace.window.getActiveEditorForPane("logic");
+    if (remote && files.find((f) => f.uri === editor?.uri)) {
+      this.loadFile();
     }
   };
 
-  protected handleDidDeleteFiles = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidDeleteFilesMessage.type.isNotification(message)) {
-        const params = message.params;
-        const files = params.files;
-        const editor = Workspace.window.getActiveEditorForPane("logic");
-        if (files.find((f) => f.uri === editor?.uri)) {
-          this.loadFile();
-        }
-      }
+  protected handleDidDeleteFiles = (
+    message: NotificationMessage<DidDeleteFilesMethod, DidDeleteFilesParams>
+  ) => {
+    const params = message.params;
+    const files = params.files;
+    const editor = Workspace.window.getActiveEditorForPane("logic");
+    if (files.find((f) => f.uri === editor?.uri)) {
+      this.loadFile();
     }
   };
 
@@ -96,7 +96,7 @@ export default class PreviewScreenplay extends Component(spec) {
         const file = files[uri];
         const existingText = file?.text || "";
         this.emit(
-          LoadPreviewMessage.method,
+          MessageProtocol.event,
           LoadPreviewMessage.type.request({
             type: "screenplay",
             textDocument: {

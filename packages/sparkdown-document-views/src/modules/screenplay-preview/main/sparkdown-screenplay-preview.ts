@@ -1,37 +1,68 @@
-import { EditorView } from "@codemirror/view";
 import { syntaxParserRunning } from "@codemirror/language";
+import { EditorSelection, Transaction } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import { HoveredOnEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
-import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
-import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
-import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
+import {
+  ScrolledEditorMessage,
+  ScrolledEditorMethod,
+  ScrolledEditorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import {
+  SelectedEditorMessage,
+  SelectedEditorMethod,
+  SelectedEditorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
-import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
-import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import { RevealPreviewRangeMessage } from "@impower/spark-editor-protocol/src/protocols/preview/RevealPreviewRangeMessage";
+import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
+import {
+  LoadPreviewMessage,
+  LoadPreviewMethod,
+  LoadPreviewParams,
+} from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
+import {
+  RevealPreviewRangeMessage,
+  RevealPreviewRangeMethod,
+  RevealPreviewRangeParams,
+} from "@impower/spark-editor-protocol/src/protocols/preview/RevealPreviewRangeMessage";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
-import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
-import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
-import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
+import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
+import {
+  DidChangeTextDocumentMessage,
+  DidChangeTextDocumentMethod,
+  DidChangeTextDocumentParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
+import {
+  DidCollapsePreviewPaneMessage,
+  DidCollapsePreviewPaneMethod,
+  DidCollapsePreviewPaneParams,
+} from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
+import {
+  DidExpandPreviewPaneMessage,
+  DidExpandPreviewPaneMethod,
+  DidExpandPreviewPaneParams,
+} from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import {
   Range,
   TextDocumentIdentifier,
   TextDocumentItem,
 } from "@impower/spark-editor-protocol/src/types";
+import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/RequestMessage";
+import { NotificationMessage } from "@impower/spark-engine/src";
 import { Component } from "../../../../../spec-component/src/component";
 import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
 import { getClientChanges } from "../../../cm-language-client";
+import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition.js";
+import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset.js";
+import debounce from "../../../utils/debounce.js";
+import { getScrollableParent } from "../../../utils/getScrollableParent.js";
 import { getScrollClientHeight } from "../../../utils/getScrollClientHeight.js";
 import { getScrollTop } from "../../../utils/getScrollTop.js";
 import { getVisibleRange } from "../../../utils/getVisibleRange.js";
 import { scrollY } from "../../../utils/scrollY";
 import createEditorView from "../utils/createEditorView";
 import spec from "./_sparkdown-screenplay-preview";
-import { getScrollableParent } from "../../../utils/getScrollableParent.js";
-import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset.js";
-import { EditorSelection, Transaction } from "@codemirror/state";
-import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition.js";
-import debounce from "../../../utils/debounce.js";
 
 const CONTENT_PADDING_TOP = 68;
 
@@ -84,37 +115,9 @@ export default class SparkScreenplayPreview extends Component(spec) {
     this.root.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
       passive: true,
     });
-    window.addEventListener(LoadPreviewMessage.method, this.handleLoadPreview);
-    window.addEventListener(
-      RevealPreviewRangeMessage.method,
-      this.handleRevealPreviewRange
-    );
-    window.addEventListener(
-      DidChangeTextDocumentMessage.method,
-      this.handleDidChangeTextDocument
-    );
-    window.addEventListener(
-      HoveredOnEditorMessage.method,
-      this.handlePointerLeaveScroller
-    );
-    window.addEventListener(
-      DidExpandPreviewPaneMessage.method,
-      this.handleExpandPreviewPane
-    );
-    window.addEventListener(
-      DidCollapsePreviewPaneMessage.method,
-      this.handleCollapsePreviewPane
-    );
-    window.addEventListener(
-      ScrolledEditorMessage.method,
-      this.handleScrolledEditor
-    );
-    window.addEventListener(
-      SelectedEditorMessage.method,
-      this.handleSelectedEditor
-    );
+    window.addEventListener(MessageProtocol.event, this.handleProtocol);
     this.emit(
-      ConnectedPreviewMessage.method,
+      MessageProtocol.event,
       ConnectedPreviewMessage.type.notification({ type: "screenplay" })
     );
   }
@@ -132,43 +135,47 @@ export default class SparkScreenplayPreview extends Component(spec) {
       "mouseleave",
       this.handlePointerLeaveScroller
     );
-    window.removeEventListener(
-      LoadPreviewMessage.method,
-      this.handleLoadPreview
-    );
-    window.removeEventListener(
-      RevealPreviewRangeMessage.method,
-      this.handleRevealPreviewRange
-    );
-    window.removeEventListener(
-      DidChangeTextDocumentMessage.method,
-      this.handleDidChangeTextDocument
-    );
-    window.removeEventListener(
-      HoveredOnEditorMessage.method,
-      this.handlePointerLeaveScroller
-    );
-    window.removeEventListener(
-      DidExpandPreviewPaneMessage.method,
-      this.handleExpandPreviewPane
-    );
-    window.removeEventListener(
-      DidCollapsePreviewPaneMessage.method,
-      this.handleCollapsePreviewPane
-    );
-    window.removeEventListener(
-      ScrolledEditorMessage.method,
-      this.handleScrolledEditor
-    );
-    window.removeEventListener(
-      SelectedEditorMessage.method,
-      this.handleSelectedEditor
-    );
+    window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     const view = this._view;
     if (view) {
       this.unbindView(view);
     }
   }
+
+  protected handleProtocol = async (e: Event) => {
+    if (e instanceof CustomEvent) {
+      if (LoadPreviewMessage.type.is(e.detail)) {
+        const response = await this.handleLoadPreview(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (RevealPreviewRangeMessage.type.is(e.detail)) {
+        const response = await this.handleRevealPreviewRange(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (DidChangeTextDocumentMessage.type.is(e.detail)) {
+        this.handleDidChangeTextDocument(e.detail);
+      }
+      if (HoveredOnEditorMessage.type.is(e.detail)) {
+        this.handlePointerLeaveScroller();
+      }
+      if (DidExpandPreviewPaneMessage.type.is(e.detail)) {
+        this.handleDidExpandPreviewPane(e.detail);
+      }
+      if (DidCollapsePreviewPaneMessage.type.is(e.detail)) {
+        this.handleDidCollapsePreviewPane(e.detail);
+      }
+      if (ScrolledEditorMessage.type.is(e.detail)) {
+        this.handleScrolledEditor(e.detail);
+      }
+      if (SelectedEditorMessage.type.is(e.detail)) {
+        this.handleSelectedEditor(e.detail);
+      }
+    }
+  };
 
   protected bindView(view: EditorView) {
     this._domClientY = view.dom.offsetTop;
@@ -181,107 +188,102 @@ export default class SparkScreenplayPreview extends Component(spec) {
     view.destroy();
   }
 
-  protected handleLoadPreview = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (LoadPreviewMessage.type.isRequest(message)) {
-        const params = message.params;
-        const textDocument = params.textDocument;
-        const focused = params.focused;
-        const visibleRange = params.visibleRange;
-        const selectedRange = params.selectedRange;
-        this._loadingRequest = message.id;
-        this.loadTextDocument(
-          textDocument,
-          focused,
-          visibleRange,
-          selectedRange
-        );
-      }
-    }
+  protected handleLoadPreview = (
+    message: RequestMessage<LoadPreviewMethod, LoadPreviewParams>
+  ) => {
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const focused = params.focused;
+    const visibleRange = params.visibleRange;
+    const selectedRange = params.selectedRange;
+    this._loadingRequest = message.id;
+    this.loadTextDocument(textDocument, focused, visibleRange, selectedRange);
+    return LoadPreviewMessage.type.response(message.id, null);
   };
 
-  protected handleExpandPreviewPane = () => {
+  protected handleDidExpandPreviewPane = (
+    _message: NotificationMessage<
+      DidExpandPreviewPaneMethod,
+      DidExpandPreviewPaneParams
+    >
+  ) => {
     this.scrollToRange(this._visibleRange);
   };
 
-  protected handleCollapsePreviewPane = () => {
+  protected handleDidCollapsePreviewPane = (
+    _message: NotificationMessage<
+      DidCollapsePreviewPaneMethod,
+      DidCollapsePreviewPaneParams
+    >
+  ) => {
     this._userInitiatedScroll = false;
   };
 
-  protected handleRevealPreviewRange = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (RevealPreviewRangeMessage.type.isRequest(message)) {
-        const params = message.params;
-        const textDocument = params.textDocument;
-        const range = params.range;
-        if (textDocument.uri !== this._textDocument?.uri) {
-          this.scrollToRange(range);
-        }
-      }
+  protected handleRevealPreviewRange = (
+    message: RequestMessage<RevealPreviewRangeMethod, RevealPreviewRangeParams>
+  ) => {
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const range = params.range;
+    if (textDocument.uri !== this._textDocument?.uri) {
+      this.scrollToRange(range);
     }
+    return RevealPreviewRangeMessage.type.response(message.id, null);
   };
 
-  protected handleDidChangeTextDocument = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidChangeTextDocumentMessage.type.isNotification(message)) {
-        const params = message.params;
-        const textDocument = params.textDocument;
-        if (textDocument.uri === this._textDocument?.uri) {
-          const contentChanges = params.contentChanges;
-          const view = this._view;
-          if (view) {
-            this._scrollTarget = undefined;
-            const changes = getClientChanges(view.state, contentChanges);
-            for (const change of changes) {
-              // Instead of simply passing in the changes array, each change must be applied individually.
-              // This is because getClientChanges returns positions relative to the previous change, not the start document,
-              // (And for some reason, setting TransactionSpec.sequential to true, will not correctly apply the changes).
-              view.dispatch({ changes: [change] });
-            }
-          }
+  protected handleDidChangeTextDocument = (
+    message: NotificationMessage<
+      DidChangeTextDocumentMethod,
+      DidChangeTextDocumentParams
+    >
+  ) => {
+    const params = message.params;
+    const textDocument = params.textDocument;
+    if (textDocument.uri === this._textDocument?.uri) {
+      const contentChanges = params.contentChanges;
+      const view = this._view;
+      if (view) {
+        this._scrollTarget = undefined;
+        const changes = getClientChanges(view.state, contentChanges);
+        for (const change of changes) {
+          // Instead of simply passing in the changes array, each change must be applied individually.
+          // This is because getClientChanges returns positions relative to the previous change, not the start document,
+          // (And for some reason, setting TransactionSpec.sequential to true, will not correctly apply the changes).
+          view.dispatch({ changes: [change] });
         }
       }
     }
   };
-  protected handleScrolledEditor = (e: Event) => {
+  protected handleScrolledEditor = (
+    message: NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams>
+  ) => {
     if (this._loaded) {
-      if (e instanceof CustomEvent) {
-        const message = e.detail;
-        if (ScrolledEditorMessage.type.isNotification(message)) {
-          this._userInitiatedScroll = false;
-          const params = message.params;
-          const textDocument = params.textDocument;
-          const range = params.visibleRange;
-          const target = params.target;
-          if (textDocument.uri === this._textDocument?.uri) {
-            if (target === "element") {
-              this.scrollToRange(range);
-            } else {
-              this.cacheVisibleRange(range);
-            }
-          }
+      this._userInitiatedScroll = false;
+      const params = message.params;
+      const textDocument = params.textDocument;
+      const range = params.visibleRange;
+      const target = params.target;
+      if (textDocument.uri === this._textDocument?.uri) {
+        if (target === "element") {
+          this.scrollToRange(range);
+        } else {
+          this.cacheVisibleRange(range);
         }
       }
     }
   };
 
-  protected handleSelectedEditor = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (SelectedEditorMessage.type.isNotification(message)) {
-        const params = message.params;
-        const textDocument = params.textDocument;
-        const selectedRange = params.selectedRange;
-        const docChanged = params.docChanged;
-        const userEvent = params.userEvent;
-        if (textDocument.uri === this._textDocument?.uri) {
-          if (!docChanged && userEvent) {
-            this.selectRange(selectedRange, false);
-          }
-        }
+  protected handleSelectedEditor = (
+    message: NotificationMessage<SelectedEditorMethod, SelectedEditorParams>
+  ) => {
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const selectedRange = params.selectedRange;
+    const docChanged = params.docChanged;
+    const userEvent = params.userEvent;
+    if (textDocument.uri === this._textDocument?.uri) {
+      if (!docChanged && userEvent) {
+        this.selectRange(selectedRange, false);
       }
     }
   };
@@ -331,7 +333,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
             const uri = this._textDocument?.uri;
             if (uri) {
               this.emit(
-                SelectedPreviewMessage.method,
+                MessageProtocol.event,
                 SelectedPreviewMessage.type.notification({
                   type: "screenplay",
                   textDocument: { uri },
@@ -412,7 +414,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
         // Only fade in once formatting has finished being applied and height is stable
         this.root.style.opacity = "1";
         this.emit(
-          LoadPreviewMessage.method,
+          MessageProtocol.event,
           LoadPreviewMessage.type.response(this._loadingRequest, null)
         );
         this._loadingRequest = undefined;
@@ -428,7 +430,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     this._userInitiatedScroll = true;
     if (this._textDocument) {
       this.emit(
-        HoveredOnPreviewMessage.method,
+        MessageProtocol.event,
         HoveredOnPreviewMessage.type.notification({
           type: "screenplay",
           textDocument: this._textDocument,
@@ -441,7 +443,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     this._userInitiatedScroll = false;
     if (this._textDocument) {
       this.emit(
-        HoveredOffPreviewMessage.method,
+        MessageProtocol.event,
         HoveredOffPreviewMessage.type.notification({
           type: "screenplay",
           textDocument: this._textDocument,
@@ -462,7 +464,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
             this.cacheVisibleRange(visibleRange);
             this._scrollTarget = undefined;
             this.emit(
-              ScrolledPreviewMessage.method,
+              MessageProtocol.event,
               ScrolledPreviewMessage.type.notification({
                 type: "screenplay",
                 textDocument: this._textDocument,

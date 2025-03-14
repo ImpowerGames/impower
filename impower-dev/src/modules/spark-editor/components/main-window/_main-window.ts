@@ -51,8 +51,8 @@ export default spec({
         <s-hidden
           id="footerVisibilityManager"
           if-below="lg"
-          hide-event="editor/focused input/focused"
-          show-event="editor/unfocused input/unfocused"
+          hide-event="input/focused"
+          show-event="input/unfocused"
           hide-instantly
           show-delay="200ms"
         >

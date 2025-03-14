@@ -1,11 +1,11 @@
-import { type DidChangeTextDocumentParams } from "../../types";
+import type * as LSP from "../../types";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type UpdateCompilerDocumentMethod =
   typeof UpdateCompilerDocumentMessage.method;
 
 export interface UpdateCompilerDocumentParams
-  extends DidChangeTextDocumentParams {}
+  extends LSP.DidChangeTextDocumentParams {}
 
 export class UpdateCompilerDocumentMessage {
   static readonly method = "compiler/updateDocument";

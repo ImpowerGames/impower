@@ -1,14 +1,32 @@
-import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
-import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
-import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  ChangedEditorBreakpointsMessage,
+  ChangedEditorBreakpointsMethod,
+  ChangedEditorBreakpointsParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
+import {
+  ScrolledEditorMessage,
+  ScrolledEditorMethod,
+  ScrolledEditorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SearchEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
+import {
+  SelectedEditorMessage,
+  SelectedEditorMethod,
+  SelectedEditorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { DisableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
 import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
 import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
-import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
+import { StepGameClockMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameClockMessage";
 import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
+import {
+  DidCompileTextDocumentMessage,
+  DidCompileTextDocumentMethod,
+  DidCompileTextDocumentParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { DidCloseFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCloseFileEditorMessage";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
@@ -27,6 +45,8 @@ import {
   SyncStatus,
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
+import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
+import { debounce } from "../utils/debounce";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
@@ -34,8 +54,6 @@ import workspace from "./WorkspaceStore";
 import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
-import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
-import { debounce } from "../utils/debounce";
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -49,26 +67,28 @@ export default class WorkspaceWindow {
     const id = cachedProjectId || WorkspaceConstants.LOCAL_PROJECT_ID;
     this.restoreProjectWorkspace(id);
     this.cacheProjectId(id);
-    window.addEventListener(
-      ScrolledEditorMessage.method,
-      this.handleScrolledEditor
-    );
-    window.addEventListener(
-      SelectedEditorMessage.method,
-      this.handleSelectedEditor
-    );
-    window.addEventListener(
-      ChangedEditorBreakpointsMessage.method,
-      this.handleChangedEditorBreakpoints
-    );
-    window.addEventListener(
-      DidCompileTextDocumentMessage.method,
-      this.handleDidParseDocument
-    );
+    window.addEventListener(MessageProtocol.event, this.handleProtocol);
     const mediaQuery = window.matchMedia("(min-width: 960px)");
     mediaQuery.addEventListener("change", this.handleScreenSizeChange);
     this.handleScreenSizeChange(mediaQuery as any as MediaQueryListEvent);
   }
+
+  protected handleProtocol = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      if (ScrolledEditorMessage.type.is(e.detail)) {
+        this.handleScrolledEditor(e.detail);
+      }
+      if (SelectedEditorMessage.type.is(e.detail)) {
+        this.handleSelectedEditor(e.detail);
+      }
+      if (ChangedEditorBreakpointsMessage.type.is(e.detail)) {
+        this.handleChangedEditorBreakpoints(e.detail);
+      }
+      if (DidCompileTextDocumentMessage.type.is(e.detail)) {
+        this.handleDidParseDocument(e.detail);
+      }
+    }
+  };
 
   get store() {
     return workspace.current;
@@ -130,135 +150,129 @@ export default class WorkspaceWindow {
     );
   }
 
-  protected handleScrolledEditor = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (ScrolledEditorMessage.type.isNotification(message)) {
-        const { textDocument, visibleRange } = message.params;
-        const uri = textDocument.uri;
-        const filename = uri.split("/").slice(-1).join("");
-        const pane = this.getPaneType(filename);
-        const panel = this.getPanelType(filename);
-        if (pane && panel) {
-          this.update({
-            ...this.store,
-            panes: {
-              ...this.store.panes,
-              [pane]: {
-                ...this.store.panes[pane],
-                panels: {
-                  ...this.store.panes[pane].panels,
-                  [panel]: {
-                    ...this.store.panes[pane].panels[panel],
-                    activeEditor: {
-                      ...this.store.panes[pane].panels[panel]!.activeEditor,
-                      visibleRange,
-                    },
-                  },
+  protected handleScrolledEditor = (
+    message: NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams>
+  ) => {
+    const { textDocument, visibleRange } = message.params;
+    const uri = textDocument.uri;
+    const filename = uri.split("/").slice(-1).join("");
+    const pane = this.getPaneType(filename);
+    const panel = this.getPanelType(filename);
+    if (pane && panel) {
+      this.update({
+        ...this.store,
+        panes: {
+          ...this.store.panes,
+          [pane]: {
+            ...this.store.panes[pane],
+            panels: {
+              ...this.store.panes[pane].panels,
+              [panel]: {
+                ...this.store.panes[pane].panels[panel],
+                activeEditor: {
+                  ...this.store.panes[pane].panels[panel]!.activeEditor,
+                  visibleRange,
                 },
               },
             },
-          });
-        }
-      }
+          },
+        },
+      });
     }
   };
 
-  protected handleSelectedEditor = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (SelectedEditorMessage.type.isNotification(message)) {
-        const { textDocument, selectedRange } = message.params;
-        const uri = textDocument.uri;
-        const filename = uri.split("/").slice(-1).join("");
-        const pane = this.getPaneType(filename);
-        const panel = this.getPanelType(filename);
-        if (pane && panel) {
-          this.update({
-            ...this.store,
-            panes: {
-              ...this.store.panes,
-              [pane]: {
-                ...this.store.panes[pane],
-                panels: {
-                  ...this.store.panes[pane].panels,
-                  [panel]: {
-                    ...this.store.panes[pane].panels[panel],
-                    activeEditor: {
-                      ...this.store.panes[pane].panels[panel]!.activeEditor,
-                      focused: true,
-                      selectedRange,
-                    },
-                  },
+  protected handleSelectedEditor = (
+    message: NotificationMessage<SelectedEditorMethod, SelectedEditorParams>
+  ) => {
+    const { textDocument, selectedRange } = message.params;
+    const uri = textDocument.uri;
+    const filename = uri.split("/").slice(-1).join("");
+    const pane = this.getPaneType(filename);
+    const panel = this.getPanelType(filename);
+    if (pane && panel) {
+      this.update({
+        ...this.store,
+        panes: {
+          ...this.store.panes,
+          [pane]: {
+            ...this.store.panes[pane],
+            panels: {
+              ...this.store.panes[pane].panels,
+              [panel]: {
+                ...this.store.panes[pane].panels[panel],
+                activeEditor: {
+                  ...this.store.panes[pane].panels[panel]!.activeEditor,
+                  focused: true,
+                  selectedRange,
                 },
               },
             },
-          });
-        }
-      }
+          },
+        },
+      });
     }
   };
 
-  protected handleChangedEditorBreakpoints = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (ChangedEditorBreakpointsMessage.type.isNotification(message)) {
-        const { textDocument, breakpointRanges } = message.params;
-        const uri = textDocument.uri;
-        const filename = uri.split("/").slice(-1).join("");
-        const pane = this.getPaneType(filename);
-        const panel = this.getPanelType(filename);
-        if (pane && panel) {
-          this.update({
-            ...this.store,
-            panes: {
-              ...this.store.panes,
-              [pane]: {
-                ...this.store.panes[pane],
-                panels: {
-                  ...this.store.panes[pane].panels,
-                  [panel]: {
-                    ...this.store.panes[pane].panels[panel],
-                    activeEditor: {
-                      ...this.store.panes[pane].panels[panel]!.activeEditor,
-                      breakpointRanges,
-                    },
-                  },
+  protected handleChangedEditorBreakpoints = (
+    message: NotificationMessage<
+      ChangedEditorBreakpointsMethod,
+      ChangedEditorBreakpointsParams
+    >
+  ) => {
+    const { textDocument, breakpointRanges } = message.params;
+    const uri = textDocument.uri;
+    const filename = uri.split("/").slice(-1).join("");
+    const pane = this.getPaneType(filename);
+    const panel = this.getPanelType(filename);
+    if (pane && panel) {
+      this.update({
+        ...this.store,
+        panes: {
+          ...this.store.panes,
+          [pane]: {
+            ...this.store.panes[pane],
+            panels: {
+              ...this.store.panes[pane].panels,
+              [panel]: {
+                ...this.store.panes[pane].panels[panel],
+                activeEditor: {
+                  ...this.store.panes[pane].panels[panel]!.activeEditor,
+                  breakpointRanges,
                 },
               },
             },
-            debug: {
-              ...this.store.debug,
-              breakpoints: {
-                ...this.store.debug.breakpoints,
-                [uri]: breakpointRanges,
-              },
-            },
-          });
-        }
-      }
+          },
+        },
+        debug: {
+          ...this.store.debug,
+          breakpoints: {
+            ...this.store.debug.breakpoints,
+            [uri]: breakpointRanges,
+          },
+        },
+      });
     }
   };
 
-  protected handleDidParseDocument = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidCompileTextDocumentMessage.type.isNotification(message)) {
-        const { textDocument, program } = message.params;
-        const uri = textDocument.uri;
-        const filename = uri.split("/").slice(-1).join("");
-        const pane = this.getPaneType(filename);
-        const panel = this.getPanelType(filename);
-        if (pane && panel) {
-          this.update({
-            ...this.store,
-            debug: {
-              ...this.store.debug,
-              diagnostics: program.diagnostics,
-            },
-          });
-        }
-      }
+  protected handleDidParseDocument = (
+    message: NotificationMessage<
+      DidCompileTextDocumentMethod,
+      DidCompileTextDocumentParams
+    >
+  ) => {
+    const { textDocument, program } = message.params;
+    const uri = textDocument.uri;
+    const filename = uri.split("/").slice(-1).join("");
+    const pane = this.getPaneType(filename);
+    const panel = this.getPanelType(filename);
+    if (pane && panel) {
+      this.update({
+        ...this.store,
+        debug: {
+          ...this.store.debug,
+          diagnostics: program.diagnostics,
+        },
+      });
     }
   };
 
@@ -440,7 +454,7 @@ export default class WorkspaceWindow {
     window.setTimeout(() => {
       // Reveal range after opening file
       this.emit(
-        ShowDocumentMessage.method,
+        MessageProtocol.event,
         ShowDocumentMessage.type.request({
           uri,
           selection,
@@ -474,15 +488,12 @@ export default class WorkspaceWindow {
         },
       });
     }
-    this.emit(
-      UnfocusWindowMessage.method,
-      UnfocusWindowMessage.type.request({})
-    );
+    this.emit(MessageProtocol.event, UnfocusWindowMessage.type.request({}));
   }
 
   search(uri: string) {
     this.emit(
-      SearchEditorMessage.method,
+      MessageProtocol.event,
       SearchEditorMessage.type.request({ textDocument: { uri } })
     );
   }
@@ -493,7 +504,7 @@ export default class WorkspaceWindow {
       pane,
     });
     this.emit(
-      DidOpenPaneMessage.method,
+      MessageProtocol.event,
       DidOpenPaneMessage.type.notification({ pane })
     );
   }
@@ -510,7 +521,7 @@ export default class WorkspaceWindow {
       },
     });
     this.emit(
-      DidOpenPanelMessage.method,
+      MessageProtocol.event,
       DidOpenPanelMessage.type.notification({ pane, panel })
     );
   }
@@ -527,7 +538,7 @@ export default class WorkspaceWindow {
       },
     });
     this.emit(
-      DidOpenViewMessage.method,
+      MessageProtocol.event,
       DidOpenViewMessage.type.notification({ pane, view })
     );
   }
@@ -570,7 +581,7 @@ export default class WorkspaceWindow {
         },
       });
       this.emit(
-        DidOpenFileEditorMessage.method,
+        MessageProtocol.event,
         DidOpenFileEditorMessage.type.notification({ pane, panel, filename })
       );
     }
@@ -600,7 +611,7 @@ export default class WorkspaceWindow {
         },
       });
       this.emit(
-        DidCloseFileEditorMessage.method,
+        MessageProtocol.event,
         DidCloseFileEditorMessage.type.notification({ pane, panel })
       );
     }
@@ -615,7 +626,7 @@ export default class WorkspaceWindow {
       },
     });
     this.emit(
-      DidExpandPreviewPaneMessage.method,
+      MessageProtocol.event,
       DidExpandPreviewPaneMessage.type.notification({})
     );
   }
@@ -629,7 +640,7 @@ export default class WorkspaceWindow {
       },
     });
     this.emit(
-      DidCollapsePreviewPaneMessage.method,
+      MessageProtocol.event,
       DidCollapsePreviewPaneMessage.type.notification({})
     );
   }
@@ -721,7 +732,7 @@ export default class WorkspaceWindow {
         },
       },
     });
-    this.emit(StartGameMessage.method, StartGameMessage.type.request({}));
+    this.emit(MessageProtocol.event, StartGameMessage.type.request({}));
     if (this.store.preview.modes.game.paused) {
       this.unpauseGame();
     }
@@ -742,7 +753,7 @@ export default class WorkspaceWindow {
         },
       },
     });
-    this.emit(StopGameMessage.method, StopGameMessage.type.request({}));
+    this.emit(MessageProtocol.event, StopGameMessage.type.request({}));
   }
 
   pauseGame() {
@@ -759,7 +770,7 @@ export default class WorkspaceWindow {
         },
       },
     });
-    this.emit(PauseGameMessage.method, PauseGameMessage.type.request({}));
+    this.emit(MessageProtocol.event, PauseGameMessage.type.request({}));
   }
 
   unpauseGame() {
@@ -776,10 +787,10 @@ export default class WorkspaceWindow {
         },
       },
     });
-    this.emit(UnpauseGameMessage.method, UnpauseGameMessage.type.request({}));
+    this.emit(MessageProtocol.event, UnpauseGameMessage.type.request({}));
   }
 
-  stepGame(deltaMS: number) {
+  stepGameClock(deltaMS: number) {
     if (deltaMS < 0) {
       const paused = this.store.preview.modes.game.paused;
       if (!paused) {
@@ -787,8 +798,8 @@ export default class WorkspaceWindow {
       }
     }
     this.emit(
-      StepGameMessage.method,
-      StepGameMessage.type.request({ deltaMS })
+      MessageProtocol.event,
+      StepGameClockMessage.type.request({ deltaMS })
     );
   }
 
@@ -822,10 +833,7 @@ export default class WorkspaceWindow {
         },
       },
     });
-    this.emit(
-      EnableGameDebugMessage.method,
-      EnableGameDebugMessage.type.request({})
-    );
+    this.emit(MessageProtocol.event, EnableGameDebugMessage.type.request({}));
   }
 
   disableDebugging() {
@@ -842,10 +850,7 @@ export default class WorkspaceWindow {
         },
       },
     });
-    this.emit(
-      DisableGameDebugMessage.method,
-      DisableGameDebugMessage.type.request({})
-    );
+    this.emit(MessageProtocol.event, DisableGameDebugMessage.type.request({}));
   }
 
   unloadProject() {

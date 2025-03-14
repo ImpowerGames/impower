@@ -1,9 +1,15 @@
-import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
+import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  DidChangeWatchedFilesMessage,
+  DidChangeWatchedFilesMethod,
+  DidChangeWatchedFilesParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
+import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import globToRegex from "../../utils/globToRegex";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_file-list";
-import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 
 export default class FileList extends Component(spec) {
   protected _uris?: string[];
@@ -13,77 +19,77 @@ export default class FileList extends Component(spec) {
   }
 
   override onConnected() {
-    window.addEventListener(
-      DidChangeWatchedFilesMessage.method,
-      this.handleDidChangeWatchedFiles
-    );
+    window.addEventListener(MessageProtocol.event, this.handleProtocol);
   }
 
   override onDisconnected() {
-    window.removeEventListener(
-      DidChangeWatchedFilesMessage.method,
-      this.handleDidChangeWatchedFiles
-    );
+    window.removeEventListener(MessageProtocol.event, this.handleProtocol);
   }
 
-  protected handleDidChangeWatchedFiles = (e: Event) => {
+  protected handleProtocol = (e: Event) => {
     if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
-        const params = message.params;
-        const changes = params.changes;
-        const include = this.include;
-        const exclude = this.exclude;
-        const includeRegex = include ? globToRegex(include) : /.*/;
-        const excludeRegex = exclude ? globToRegex(exclude) : undefined;
-        const isRelevantChange = changes.some(
-          (change) =>
-            includeRegex.test(change.uri) && !excludeRegex?.test(change.uri)
-        );
-        const isCreate = changes.every(
-          (change) => change.type === FileChangeType.Created
-        );
-        const isDelete = changes.every(
-          (change) => change.type === FileChangeType.Deleted
-        );
-        // The order of the files shouldn't shift around while the user is renaming files.
-        const isRename = changes.every((change) =>
-          // Renaming files emits a Changed and Created event for the new uri
-          change.type === FileChangeType.Created
-            ? changes.some(
-                (c) => c.uri === change.uri && c.type === FileChangeType.Changed
-              )
-            : change.type === FileChangeType.Changed
-            ? changes.some(
-                (c) => c.uri === change.uri && c.type === FileChangeType.Created
-              )
-            : true
-        );
-        if (
-          isRelevantChange &&
-          (params.remote || isCreate || isDelete || !isRename)
-        ) {
-          const firstFilename = Workspace.fs.getFilename(changes[0]?.uri || "");
-          if (
-            isCreate &&
-            changes.length === 1 &&
-            firstFilename &&
-            firstFilename.endsWith(".sd")
-          ) {
-            // We created a script, so open it.
-            const detail = { value: "logic-editor" };
-            this.emit("changing", detail);
-            this.emit("changed", detail);
-            Workspace.window.openedFileEditor(firstFilename);
-          } else {
-            // Otherwise, reload the list to reflect the changes.
-            const scrollIntoView =
-              isCreate && !params.remote
-                ? changes.map((c) => c.uri)
-                : undefined;
-            this.loadEntries(scrollIntoView);
-          }
-        }
+      if (DidChangeWatchedFilesMessage.type.is(e.detail)) {
+        this.handleDidChangeWatchedFiles(e.detail);
+      }
+    }
+  };
+
+  protected handleDidChangeWatchedFiles = (
+    message: NotificationMessage<
+      DidChangeWatchedFilesMethod,
+      DidChangeWatchedFilesParams
+    >
+  ) => {
+    const params = message.params;
+    const changes = params.changes;
+    const include = this.include;
+    const exclude = this.exclude;
+    const includeRegex = include ? globToRegex(include) : /.*/;
+    const excludeRegex = exclude ? globToRegex(exclude) : undefined;
+    const isRelevantChange = changes.some(
+      (change) =>
+        includeRegex.test(change.uri) && !excludeRegex?.test(change.uri)
+    );
+    const isCreate = changes.every(
+      (change) => change.type === FileChangeType.Created
+    );
+    const isDelete = changes.every(
+      (change) => change.type === FileChangeType.Deleted
+    );
+    // The order of the files shouldn't shift around while the user is renaming files.
+    const isRename = changes.every((change) =>
+      // Renaming files emits a Changed and Created event for the new uri
+      change.type === FileChangeType.Created
+        ? changes.some(
+            (c) => c.uri === change.uri && c.type === FileChangeType.Changed
+          )
+        : change.type === FileChangeType.Changed
+        ? changes.some(
+            (c) => c.uri === change.uri && c.type === FileChangeType.Created
+          )
+        : true
+    );
+    if (
+      isRelevantChange &&
+      (params.remote || isCreate || isDelete || !isRename)
+    ) {
+      const firstFilename = Workspace.fs.getFilename(changes[0]?.uri || "");
+      if (
+        isCreate &&
+        changes.length === 1 &&
+        firstFilename &&
+        firstFilename.endsWith(".sd")
+      ) {
+        // We created a script, so open it.
+        const detail = { value: "logic-editor" };
+        this.emit("changing", detail);
+        this.emit("changed", detail);
+        Workspace.window.openedFileEditor(firstFilename);
+      } else {
+        // Otherwise, reload the list to reflect the changes.
+        const scrollIntoView =
+          isCreate && !params.remote ? changes.map((c) => c.uri) : undefined;
+        this.loadEntries(scrollIntoView);
       }
     }
   };
