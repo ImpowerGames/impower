@@ -587,12 +587,9 @@ export default class SparkWebPlayer extends Component(spec) {
       StartedThreadMessage.method,
       (msg) => {
         if (StartedThreadMessage.type.isNotification(msg)) {
-          const { threadId } = msg.params;
           this.emit(
             MessageProtocol.event,
-            GameStartedThreadMessage.type.notification({
-              threadId,
-            })
+            GameStartedThreadMessage.type.notification(msg.params)
           );
         }
       }
@@ -601,12 +598,9 @@ export default class SparkWebPlayer extends Component(spec) {
       ExitedThreadMessage.method,
       (msg) => {
         if (ExitedThreadMessage.type.isNotification(msg)) {
-          const { threadId } = msg.params;
           this.emit(
             MessageProtocol.event,
-            GameExitedThreadMessage.type.notification({
-              threadId,
-            })
+            GameExitedThreadMessage.type.notification(msg.params)
           );
         }
       }
@@ -615,23 +609,18 @@ export default class SparkWebPlayer extends Component(spec) {
       ExecutedMessage.method,
       (msg) => {
         if (ExecutedMessage.type.isNotification(msg)) {
-          const { location, frameId } = msg.params;
           this.emit(
             MessageProtocol.event,
-            GameExecutedMessage.type.notification({
-              location,
-              frameId,
-            })
+            GameExecutedMessage.type.notification(msg.params)
           );
         }
       }
     );
     this._game.connection.outgoing.addListener(SteppedMessage.method, (msg) => {
       if (SteppedMessage.type.isNotification(msg)) {
-        const { location } = msg.params;
         this.emit(
           MessageProtocol.event,
-          GameSteppedMessage.type.notification({ location })
+          GameSteppedMessage.type.notification(msg.params)
         );
       }
     });
@@ -639,12 +628,9 @@ export default class SparkWebPlayer extends Component(spec) {
       HitBreakpointMessage.method,
       (msg) => {
         if (HitBreakpointMessage.type.isNotification(msg)) {
-          const { location } = msg.params;
           this.emit(
             MessageProtocol.event,
-            GameHitBreakpointMessage.type.notification({
-              location,
-            })
+            GameHitBreakpointMessage.type.notification(msg.params)
           );
         }
       }
@@ -653,12 +639,9 @@ export default class SparkWebPlayer extends Component(spec) {
       AwaitingInteractionMessage.method,
       (msg) => {
         if (AwaitingInteractionMessage.type.isNotification(msg)) {
-          const { location } = msg.params;
           this.emit(
             MessageProtocol.event,
-            GameAwaitingInteractionMessage.type.notification({
-              location,
-            })
+            GameAwaitingInteractionMessage.type.notification(msg.params)
           );
         }
       }
@@ -667,12 +650,9 @@ export default class SparkWebPlayer extends Component(spec) {
       AutoAdvancedToContinueMessage.method,
       (msg) => {
         if (AutoAdvancedToContinueMessage.type.isNotification(msg)) {
-          const { location } = msg.params;
           this.emit(
             MessageProtocol.event,
-            GameAutoAdvancedToContinueMessage.type.notification({
-              location,
-            })
+            GameAutoAdvancedToContinueMessage.type.notification(msg.params)
           );
         }
       }
@@ -681,12 +661,9 @@ export default class SparkWebPlayer extends Component(spec) {
       ClickedToContinueMessage.method,
       (msg) => {
         if (ClickedToContinueMessage.type.isNotification(msg)) {
-          const { location } = msg.params;
           this.emit(
             MessageProtocol.event,
-            GameClickedToContinueMessage.type.notification({
-              location,
-            })
+            GameClickedToContinueMessage.type.notification(msg.params)
           );
         }
       }
@@ -695,12 +672,9 @@ export default class SparkWebPlayer extends Component(spec) {
       ChosePathToContinueMessage.method,
       (msg) => {
         if (ChosePathToContinueMessage.type.isNotification(msg)) {
-          const { location } = msg.params;
           this.emit(
             MessageProtocol.event,
-            GameChosePathToContinueMessage.type.notification({
-              location,
-            })
+            GameChosePathToContinueMessage.type.notification(msg.params)
           );
         }
       }

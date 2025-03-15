@@ -5,6 +5,7 @@ export type GameExecutedMethod = typeof GameExecutedMessage.method;
 
 export interface GameExecutedParams {
   location: Location;
+  path: string;
   frameId: number;
 }
 

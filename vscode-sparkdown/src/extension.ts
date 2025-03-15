@@ -6,6 +6,7 @@ import { fileSystemWatcherState } from "./state/fileSystemWatcherState";
 import { activateAutoFormatting } from "./utils/activateAutoFormatting";
 import { activateCheatSheetView } from "./utils/activateCheatSheetView";
 import { activateCommandView } from "./utils/activateCommandView";
+import { activateCompilationView } from "./utils/activateCompilationView";
 import { activateDurationStatus } from "./utils/activateDurationStatus";
 import { activateExecutionGutterDecorator } from "./utils/activateExecutionGutterDecorator";
 import { activateFileDecorations } from "./utils/activateFileDecorations";
@@ -31,6 +32,7 @@ export const activate = async (
   activatePreviewGamePanel(context);
   activateAutoFormatting(context);
   activateExecutionGutterDecorator(context);
+  activateCompilationView(context);
   // TODO:
   // activateStatisticsPanel(context);
   activateFileWatcher(context);

@@ -266,6 +266,13 @@
           "visibility": "collapsed",
           "initialSize": 3
         }
+      ],
+      "debug": [
+        {
+          "id": "sparkdown-compilation",
+          "name": "Compilation Tree",
+          "visibility": "collapsed"
+        }
       ]
     },
     "submenus": [

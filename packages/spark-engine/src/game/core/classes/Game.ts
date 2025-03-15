@@ -80,6 +80,8 @@ export class Game<T extends M = {}> {
 
   protected _executionTimeout = 1000;
 
+  protected _executingPath: string;
+
   protected _executingLocation: ScriptLocation;
 
   protected _lastHitBreakpointLocation?: ScriptLocation;
@@ -201,6 +203,7 @@ export class Game<T extends M = {}> {
     }
     this._moduleNames = moduleNames;
 
+    this._executingPath = "0";
     this._executingLocation = [0, 0, 0, 0, 0];
   }
 
@@ -498,6 +501,7 @@ export class Game<T extends M = {}> {
           const location = this._program.pathToLocation[pointerPath];
           if (location) {
             const prevExecutedLocation = this._executingLocation;
+            this._executingPath = pointerPath;
             this._executingLocation = location;
 
             // Skip duplicate stops (avoid breaking at the same location)
@@ -651,6 +655,7 @@ export class Game<T extends M = {}> {
     this.connection.emit(
       ExecutedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
+        path: this._executingPath,
         frameId: this._frameId,
       })
     );

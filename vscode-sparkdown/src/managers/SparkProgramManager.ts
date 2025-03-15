@@ -1,6 +1,8 @@
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import * as vscode from "vscode";
 
+type ProgramCompiledListener = (uri: vscode.Uri, program: SparkProgram) => void;
+
 export class SparkProgramManager {
   private static _instance: SparkProgramManager;
   static get instance(): SparkProgramManager {
@@ -10,18 +12,20 @@ export class SparkProgramManager {
     return this._instance;
   }
 
-  protected _lastParsedUri?: string;
+  protected _lastCompiledUri?: string;
 
-  protected _parsedPrograms = new Map<string, SparkProgram>();
+  protected _compiledPrograms = new Map<string, SparkProgram>();
 
-  protected _parsedUris = new Set<vscode.Uri>();
+  protected _compiledUris = new Set<vscode.Uri>();
+
+  private _listeners = new Set<ProgramCompiledListener>();
 
   update(uri: vscode.Uri, program: SparkProgram) {
-    this._lastParsedUri = uri.toString();
-    this._parsedUris.add(uri);
-    this._parsedPrograms.set(uri.toString(), program);
+    this._lastCompiledUri = uri.toString();
+    this._compiledUris.add(uri);
+    this._compiledPrograms.set(uri.toString(), program);
     const resources = Array.from(
-      this._parsedUris.keys().map((uri) => uri.toString())
+      this._compiledUris.keys().map((uri) => uri.toString())
     );
     vscode.commands.executeCommand(
       "setContext",
@@ -33,20 +37,29 @@ export class SparkProgramManager {
       `sparkdown.json`,
       resources.map((uri) => uri.replace(/.sd$/, ".json"))
     );
+    this._listeners.forEach((listener) => listener(uri, program));
   }
 
   all() {
-    return Array.from(this._parsedPrograms.values());
+    return Array.from(this._compiledPrograms.values());
   }
 
   get(uri: vscode.Uri) {
-    return this._parsedPrograms.get(uri.toString());
+    return this._compiledPrograms.get(uri.toString());
   }
 
-  getLastParsed() {
-    if (this._lastParsedUri) {
-      return this._parsedPrograms.get(this._lastParsedUri);
+  getLastCompiled() {
+    if (this._lastCompiledUri) {
+      return this._compiledPrograms.get(this._lastCompiledUri);
     }
     return undefined;
+  }
+
+  addListener(listener: ProgramCompiledListener) {
+    this._listeners.add(listener);
+  }
+
+  removeListener(listener: ProgramCompiledListener) {
+    this._listeners.delete(listener);
   }
 }
