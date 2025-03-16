@@ -484,88 +484,88 @@ export class Game<T extends M = {}> {
       } else if (this._story.canContinue) {
         this._story.ContinueAsync(Infinity);
 
-        if (this._story.asyncContinueComplete) {
-          const currentText = this._story.currentText || "";
-          const currentChoices = this._story.currentChoices.map((c) => c.text);
-          this.module.interpreter.queue(currentText, currentChoices);
-          if (traversal !== "continue") {
-            this.notifyExecuted();
-            this.notifyStepped();
-          }
-          return false;
-        }
-
+        const prevExecutedLocation = this._executingLocation;
         const pointerPath =
           this._story.state.callStack.currentElement?.previousPointer.path?.toString();
         if (pointerPath) {
           const location = this._program.pathToLocation[pointerPath];
           if (location) {
-            const prevExecutedLocation = this._executingLocation;
             this._executingPath = pointerPath;
             this._executingLocation = location;
-
-            // Skip duplicate stops (avoid breaking at the same location)
-            if (
-              JSON.stringify(prevExecutedLocation) ===
-                JSON.stringify(this._executingLocation) ||
-              JSON.stringify(initialExecutedLocation) ===
-                JSON.stringify(this._executingLocation)
-            ) {
-              continue;
-            }
-            if (traversal !== "continue") {
-              this.notifyExecuted();
-            }
-
-            const currentCallstackDepth = this._story.state.callstackDepth;
-
-            // Handle step in: Stop at each instruction that is executed
-            if (traversal === "in") {
-              this.notifyStepped();
-              // DONE - stepped in
-              return true;
-            }
-
-            // Handle step out: Stop when we return to a shallower depth
-            if (
-              traversal === "out" &&
-              currentCallstackDepth < initialCallstackDepth
-            ) {
-              this.notifyStepped();
-              // DONE - stepped out
-              return true;
-            }
-
-            // Handle step over: Stop at the next line in the same function
-            if (
-              traversal === "over" &&
-              currentCallstackDepth === initialCallstackDepth
-            ) {
-              this.notifyStepped();
-              // DONE - stepped over
-              return true;
-            }
-
-            // Script index or line is different than last breakpoint
-            const [currScriptIndex, currLine] = this._executingLocation;
-            const [breakpointScriptIndex, breakpointLine] =
-              this._lastHitBreakpointLocation || [];
-            if (
-              currScriptIndex !== breakpointScriptIndex ||
-              currLine !== breakpointLine
-            ) {
-              // Stop at a breakpoint
-              if (
-                this._breakpointMap[currScriptIndex]?.has(currLine) ||
-                this._functionBreakpointMap[currScriptIndex]?.has(currLine)
-              ) {
-                this._lastHitBreakpointLocation = this._executingLocation;
-                this.notifyHitBreakpoint();
-                // DONE - hit breakpoint
-                return true;
-              }
-            }
           }
+        }
+
+        if (this._story.asyncContinueComplete) {
+          const currentText = this._story.currentText || "";
+          const currentChoices = this._story.currentChoices.map((c) => c.text);
+          this.module.interpreter.queue(currentText, currentChoices);
+        }
+
+        // Skip duplicate stops (avoid breaking at the same location)
+        if (
+          JSON.stringify(prevExecutedLocation) ===
+            JSON.stringify(this._executingLocation) ||
+          JSON.stringify(initialExecutedLocation) ===
+            JSON.stringify(this._executingLocation)
+        ) {
+          continue;
+        }
+
+        if (traversal !== "continue") {
+          this.notifyExecuted();
+        }
+
+        const currentCallstackDepth = this._story.state.callstackDepth;
+
+        // Handle step in: Stop at each instruction that is executed
+        if (traversal === "in") {
+          this.notifyStepped();
+          // DONE - stepped in
+          return true;
+        }
+
+        // Handle step over: Stop at the next line in the same function
+        if (
+          traversal === "over" &&
+          currentCallstackDepth <= initialCallstackDepth
+        ) {
+          this.notifyStepped();
+          // DONE - stepped over
+          return true;
+        }
+
+        // Handle step out: Stop when we return to a shallower depth
+        if (
+          traversal === "out" &&
+          currentCallstackDepth < initialCallstackDepth
+        ) {
+          this.notifyStepped();
+          // DONE - stepped out
+          return true;
+        }
+
+        // Script index or line is different than last breakpoint
+        const [currScriptIndex, currLine] = this._executingLocation;
+        const [breakpointScriptIndex, breakpointLine] =
+          this._lastHitBreakpointLocation || [];
+        if (
+          currScriptIndex !== breakpointScriptIndex ||
+          currLine !== breakpointLine
+        ) {
+          // Stop at a breakpoint
+          if (
+            this._breakpointMap[currScriptIndex]?.has(currLine) ||
+            this._functionBreakpointMap[currScriptIndex]?.has(currLine)
+          ) {
+            this._lastHitBreakpointLocation = this._executingLocation;
+            this.notifyHitBreakpoint();
+            // DONE - hit breakpoint
+            return true;
+          }
+        }
+
+        if (this._story.asyncContinueComplete) {
+          return false;
         }
       } else {
         this.notifyExecuted();
