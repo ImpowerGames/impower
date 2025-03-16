@@ -61,6 +61,8 @@ export const uiBuiltinDefinitions = () => ({
       $name: "stroke",
       display: "block",
       pointer_events: "none",
+      user_select: "none",
+      text_wrap: "balance",
       position: "absolute",
       inset: "0",
       text_stroke: "2",
