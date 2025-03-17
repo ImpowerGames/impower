@@ -1,4 +1,5 @@
 import { Range, TextDocumentIdentifier } from "../../types";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type ScrolledEditorMethod = typeof ScrolledEditorMessage.method;
@@ -15,4 +16,9 @@ export class ScrolledEditorMessage {
     ScrolledEditorMethod,
     ScrolledEditorParams
   >(ScrolledEditorMessage.method);
+}
+
+export namespace ScrolledEditorMessage {
+  export interface Notification
+    extends NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams> {}
 }

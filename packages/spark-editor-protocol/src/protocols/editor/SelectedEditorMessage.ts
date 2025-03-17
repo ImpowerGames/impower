@@ -1,4 +1,5 @@
 import { Range, TextDocumentIdentifier } from "../../types";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type SelectedEditorMethod = typeof SelectedEditorMessage.method;
@@ -16,4 +17,9 @@ export class SelectedEditorMessage {
     SelectedEditorMethod,
     SelectedEditorParams
   >(SelectedEditorMessage.method);
+}
+
+export namespace SelectedEditorMessage {
+  export interface Notification
+    extends NotificationMessage<SelectedEditorMethod, SelectedEditorParams> {}
 }

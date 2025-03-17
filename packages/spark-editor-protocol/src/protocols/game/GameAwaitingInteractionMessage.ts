@@ -1,4 +1,5 @@
 import { type Location } from "vscode-languageserver-protocol";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type GameAwaitingInteractionMethod =
@@ -14,4 +15,12 @@ export class GameAwaitingInteractionMessage {
     GameAwaitingInteractionMethod,
     GameAwaitingInteractionParams
   >(GameAwaitingInteractionMessage.method);
+}
+
+export namespace GameAwaitingInteractionMessage {
+  export interface Notification
+    extends NotificationMessage<
+      GameAwaitingInteractionMethod,
+      GameAwaitingInteractionParams
+    > {}
 }

@@ -1,3 +1,4 @@
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type CompilerInitializedMethod =
@@ -11,4 +12,12 @@ export class CompilerInitializedMessage {
     CompilerInitializedMethod,
     CompilerInitializedParams
   >(CompilerInitializedMessage.method);
+}
+
+export namespace CompilerInitializedMessage {
+  export interface Notification
+    extends NotificationMessage<
+      CompilerInitializedMethod,
+      CompilerInitializedParams
+    > {}
 }

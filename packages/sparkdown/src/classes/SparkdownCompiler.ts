@@ -2,10 +2,14 @@ import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
 import {
   Compiler as InkCompiler,
   CompilerOptions as InkCompilerOptions,
+  InkList,
 } from "../inkjs/compiler/Compiler";
 import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
 import { SourceMetadata } from "../inkjs/engine/Error";
+import { InkListItem } from "../inkjs/engine/InkList";
 import { SimpleJson } from "../inkjs/engine/SimpleJson";
+import { asOrNull } from "../inkjs/engine/TypeAssertion";
+import { VariableAssignment } from "../inkjs/engine/VariableAssignment";
 import { File } from "../types/File";
 import { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
@@ -201,6 +205,7 @@ export class SparkdownCompiler {
       scripts: { [uri]: this.documents.get(uri)?.version ?? -1 },
       pathToLocation: {},
       functionLocations: {},
+      dataLocations: {},
       version: this.documents.get(uri)?.version ?? -1,
     };
     const state: SparkdownCompilerState = {};
@@ -225,12 +230,41 @@ export class SparkdownCompiler {
           const metadata = obj?.debugMetadata;
           if (metadata) {
             let path = obj.path.toString();
-            if (path.startsWith("global ")) {
-              path = "0";
-            }
             let [uri, startLine, startColumn, endLine, endColumn] =
               this.getPreTranspilationLocation(metadata, state);
             const scriptIndex = Object.keys(program.scripts).indexOf(uri || "");
+            let varAss = asOrNull(obj, VariableAssignment);
+            if (varAss) {
+              if (varAss.variableName && !varAss.isNewDeclaration) {
+                if (varAss.isGlobal) {
+                  program.dataLocations[varAss.variableName] ??= [
+                    scriptIndex,
+                    startLine,
+                    startColumn,
+                    endLine,
+                    endColumn,
+                  ];
+                } else {
+                  const containerPath = varAss.path
+                    .toString()
+                    .split(".")
+                    .filter((p) => Number.isNaN(Number(p) && !p.includes("-")))
+                    .join(".");
+                  program.dataLocations[
+                    containerPath + "." + varAss.variableName
+                  ] ??= [
+                    scriptIndex,
+                    startLine,
+                    startColumn,
+                    endLine,
+                    endColumn,
+                  ];
+                }
+              }
+            }
+            if (path.startsWith("global ")) {
+              path = "0";
+            }
             if (scriptIndex >= 0) {
               const [
                 _,
@@ -308,6 +342,104 @@ export class SparkdownCompiler {
       }
     }
     return program;
+  }
+
+  evaluate(expression: string, evaluationContext: any) {
+    const options = new InkCompilerOptions(
+      "",
+      [],
+      false,
+      (message) => {
+        console.error(message);
+      },
+      undefined,
+      undefined
+    );
+    let script = "";
+    for (const [name, value] of Object.entries(evaluationContext)) {
+      if (typeof value === "object" && value) {
+        if ("$type" in value && value.$type === "list.def") {
+          // is list
+          const itemInitialization: string[] = [];
+          for (const [k, v] of Object.entries(value)) {
+            if (!k.startsWith("$")) {
+              itemInitialization.push(`${k}=${v}`);
+            }
+          }
+          const listInitialization =
+            itemInitialization.length === 0
+              ? `list ${name} = ()`
+              : `list ${name} = ${itemInitialization.join(", ")}`;
+          script += "\n" + listInitialization;
+        } else if ("$type" in value && value.$type === "list.var") {
+          // is list
+          const list = new InkList();
+          const itemInitialization: string[] = [];
+          for (const [k, v] of Object.entries(value)) {
+            if (!k.startsWith("$")) {
+              if (k.includes(".")) {
+                const [originName, itemName] = k.split(".");
+                list.Add(
+                  new InkListItem(originName ?? null, itemName ?? null),
+                  v as number
+                );
+                itemInitialization.push(`${originName}.${itemName}`);
+              }
+            }
+          }
+          const listInitialization = `(${itemInitialization.join(", ")})`;
+          script += "\n" + `var ${name} = ${listInitialization}`;
+        } else {
+          // is define (not usable in expressions)
+        }
+      } else {
+        // is primitive
+        script += "\n" + `var ${name} = ${JSON.stringify(value)}`;
+      }
+    }
+    script +=
+      "\n" +
+      `
+== function » ==
+~ return ${expression}
+`.trim();
+    const inkCompiler = new InkCompiler(script, options);
+    try {
+      const story = inkCompiler.Compile();
+      if (story) {
+        const result = story.EvaluateFunction("»");
+        if (result instanceof InkList) {
+          const listDefinition = story.listDefinitions?.TryListGetDefinition(
+            expression,
+            null
+          )?.result;
+          if (listDefinition) {
+            const listValue: Record<string, unknown> = { $type: "list.def" };
+            for (const [key, itemValue] of listDefinition.items) {
+              const keyObj = JSON.parse(key) as {
+                originName: string;
+                itemName: string;
+              };
+              listValue[keyObj.itemName] = itemValue;
+            }
+            return listValue;
+          }
+          const listValue: Record<string, unknown> = { $type: "list.var" };
+          for (const [key, value] of result.entries()) {
+            const keyObj = JSON.parse(key) as {
+              originName: string;
+              itemName: string;
+            };
+            listValue[keyObj.originName + "." + keyObj.itemName] = value;
+          }
+          return listValue;
+        }
+        return result;
+      }
+      return "<invalid expression>";
+    } catch {
+      return "<invalid expression>";
+    }
   }
 
   clone<T>(value: T) {
@@ -472,7 +604,7 @@ export class SparkdownCompiler {
         const type = file.type;
         const name = file.name;
         program.context[type] ??= {};
-        program.context[type][name] ??= { ...file };
+        program.context[type][name] ??= { $type: type, $name: name, ...file };
         const definedFile = program.context[type][name];
         delete definedFile.text;
         // Set $type and $name

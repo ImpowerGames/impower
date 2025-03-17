@@ -16,10 +16,10 @@ export class MessageProtocolRequestType<
   uuid() {
     return crypto.randomUUID();
   }
-  is(obj: any): obj is RequestMessage<M, P> {
+  is(obj: any): obj is RequestMessage<M, P, R> {
     return isRequest(obj, this.method);
   }
-  isRequest(obj: any): obj is RequestMessage<M, P> {
+  isRequest(obj: any): obj is RequestMessage<M, P, R> {
     return isRequest(obj, this.method);
   }
   isResponse(obj: any): obj is ResponseMessage<M, R> {

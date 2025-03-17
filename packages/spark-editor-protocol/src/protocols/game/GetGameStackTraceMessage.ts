@@ -1,4 +1,6 @@
 import { type StackFrame } from "../../../../spark-engine/src/game/core/types/StackFrame";
+import { RequestMessage } from "../../types/base/RequestMessage";
+import { ResponseMessage } from "../../types/base/ResponseMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type GetGameStackTraceMethod = typeof GetGameStackTraceMessage.method;
@@ -38,4 +40,15 @@ export class GetGameStackTraceMessage {
     GetGameStackTraceParams,
     GetGameStackTraceResult
   >(GetGameStackTraceMessage.method);
+}
+
+export namespace GetGameStackTraceMessage {
+  export interface Request
+    extends RequestMessage<
+      GetGameStackTraceMethod,
+      GetGameStackTraceParams,
+      GetGameStackTraceResult
+    > {}
+  export interface Response
+    extends ResponseMessage<GetGameStackTraceMethod, GetGameStackTraceResult> {}
 }

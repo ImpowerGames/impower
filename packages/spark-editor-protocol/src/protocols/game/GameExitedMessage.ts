@@ -1,4 +1,5 @@
 import { type Location } from "vscode-languageserver-protocol";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type GameExitedMethod = typeof GameExitedMessage.method;
@@ -17,4 +18,9 @@ export class GameExitedMessage {
     GameExitedMethod,
     GameExitedParams
   >(GameExitedMessage.method);
+}
+
+export namespace GameExitedMessage {
+  export interface Notification
+    extends NotificationMessage<GameExitedMethod, GameExitedParams> {}
 }

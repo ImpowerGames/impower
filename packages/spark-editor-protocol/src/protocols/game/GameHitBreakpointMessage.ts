@@ -1,4 +1,5 @@
 import { type Location } from "vscode-languageserver-protocol";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type GameHitBreakpointMethod = typeof GameHitBreakpointMessage.method;
@@ -13,4 +14,12 @@ export class GameHitBreakpointMessage {
     GameHitBreakpointMethod,
     GameHitBreakpointParams
   >(GameHitBreakpointMessage.method);
+}
+
+export namespace GameHitBreakpointMessage {
+  export interface Notification
+    extends NotificationMessage<
+      GameHitBreakpointMethod,
+      GameHitBreakpointParams
+    > {}
 }

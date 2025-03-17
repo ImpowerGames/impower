@@ -1,4 +1,5 @@
 import { Range, TextDocumentIdentifier } from "../../types";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type SelectedPreviewMethod = typeof SelectedPreviewMessage.method;
@@ -17,4 +18,9 @@ export class SelectedPreviewMessage {
     SelectedPreviewMethod,
     SelectedPreviewParams
   >(SelectedPreviewMessage.method);
+}
+
+export namespace SelectedPreviewMessage {
+  export interface Notification
+    extends NotificationMessage<SelectedPreviewMethod, SelectedPreviewParams> {}
 }

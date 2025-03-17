@@ -1,4 +1,5 @@
 import { Range, TextDocumentIdentifier } from "../../types";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type ChangedEditorBreakpointsMethod =
@@ -15,4 +16,12 @@ export class ChangedEditorBreakpointsMessage {
     ChangedEditorBreakpointsMethod,
     ChangedEditorBreakpointsParams
   >(ChangedEditorBreakpointsMessage.method);
+}
+
+export namespace ChangedEditorBreakpointsMessage {
+  export interface Notification
+    extends NotificationMessage<
+      ChangedEditorBreakpointsMethod,
+      ChangedEditorBreakpointsParams
+    > {}
 }

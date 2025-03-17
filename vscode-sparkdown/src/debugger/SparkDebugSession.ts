@@ -21,10 +21,12 @@ import { GameExitedThreadMessage } from "@impower/spark-editor-protocol/src/prot
 import { GameHitBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameHitBreakpointMessage";
 import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameSteppedMessage";
+import { GetGameEvaluationContextMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameEvaluationContextMessage";
 import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGamePossibleBreakpointLocationsMessage";
 import { GetGameScriptsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameScriptsMessage";
 import { GetGameStackTraceMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameStackTraceMessage";
 import { GetGameThreadsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameThreadsMessage";
+import { GetGameVariablesMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameVariablesMessage";
 import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
 import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
 import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
@@ -36,6 +38,7 @@ import {
   ResponseError,
 } from "@impower/spark-engine/src/game/core";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
+import { SparkdownCompiler } from "@impower/sparkdown/src/classes/SparkdownCompiler";
 import {
   ContinuedEvent,
   ExitedEvent,
@@ -55,9 +58,10 @@ import {
   StoppedEvent,
   TerminatedEvent,
   ThreadEvent,
+  Variable,
 } from "@vscode/debugadapter";
 import { DebugProtocol } from "@vscode/debugprotocol";
-import { IRuntimeVariableType, RuntimeVariable, timeout } from "./mockRuntime";
+import { timeout } from "./mockRuntime";
 
 export interface FileAccessor {
   isWindows: boolean;
@@ -98,8 +102,8 @@ export class SparkDebugSession extends LoggingDebugSession {
   private _connection: Connection;
 
   private _variableHandles = new Handles<
-    "locals" | "globals" | RuntimeVariable
-  >();
+    "temps" | "vars" | "lists" | "defines"
+  >(-3);
 
   private _launchProgram = "";
   private _launchLine = 0;
@@ -305,23 +309,27 @@ export class SparkDebugSession extends LoggingDebugSession {
     response.body = response.body || {};
 
     response.body.supportsConfigurationDoneRequest = true;
+    // make VS Code only support pause button
     response.body.supportSuspendDebuggee = true;
+    // make VS Code only support stop button
     response.body.supportTerminateDebuggee = true;
+    // make VS Code only support adding breakpoint at valid location
     response.body.supportsBreakpointLocationsRequest = true;
+    // make VS Code show "Add Function Breakpoint" plus button in "BREAKPOINTS" panel
     response.body.supportsFunctionBreakpoints = true;
+    // make VS Code show "LOADED SCRIPTS" panel
     response.body.supportsLoadedSourcesRequest = true;
 
-    response.body.supportsGotoTargetsRequest = true;
-
     // TODO
+    // make VS Code use 'evaluate' when hovering over source
+    response.body.supportsEvaluateForHovers = true;
+    // make VS Code support "Break on Value Read", "Break on Value Change", or "Break on Value Access"
+    // In the context menu of the "BREAKPOINTS" panel
+    response.body.supportsDataBreakpoints = true;
     // // make VS Code send setVariable request
     // response.body.supportsSetVariable = true;
     // // make VS Code send setExpression request
     // response.body.supportsSetExpression = true;
-    // // make VS Code use 'evaluate' when hovering over source
-    // response.body.supportsEvaluateForHovers = true;
-    // // make VS Code support data breakpoints
-    // response.body.supportsDataBreakpoints = true;
 
     // // make VS Code show a 'step back' button
     // response.body.supportsStepBack = true;
@@ -355,6 +363,8 @@ export class SparkDebugSession extends LoggingDebugSession {
     // // make VS Code send cancel request
     //  response.body.supportsCancelRequest = true;
 
+    // response.body.supportsGotoTargetsRequest = true;
+
     this.sendResponse(response);
 
     // since this debug adapter can accept configuration requests like 'setBreakpoint' at any time,
@@ -371,7 +381,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.ConfigurationDoneResponse,
     args: DebugProtocol.ConfigurationDoneArguments
   ): void {
-    console.log("configurationDoneRequest", args);
+    // console.log("configurationDoneRequest", args);
     super.configurationDoneRequest(response, args);
     this._configurationDone = true;
     // notify the launchRequest that configuration has finished
@@ -386,7 +396,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     args: DebugProtocol.DisconnectArguments,
     request?: DebugProtocol.Request
   ) {
-    console.log("disconnectRequest", args);
+    // console.log("disconnectRequest", args);
     if (args.restart) {
       await this._fileAccessor.setSelectedLine(
         this._launchProgram,
@@ -407,7 +417,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.AttachResponse,
     args: IAttachRequestArguments
   ) {
-    console.log("attachRequest", args);
+    // console.log("attachRequest", args);
     return this.launchRequest(response, args);
   }
 
@@ -415,7 +425,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.LaunchResponse,
     args: ILaunchRequestArguments
   ) {
-    console.log("launchRequest", args);
+    // console.log("launchRequest", args);
     // make sure to 'Stop' the buffered logging if 'trace' is not set
     logger.setup(
       args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop,
@@ -476,7 +486,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.ContinueResponse,
     args: DebugProtocol.ContinueArguments
   ) {
-    console.log("continueRequest", args);
+    // console.log("continueRequest", args);
     await this._connection.emit(UnpauseGameMessage.type.request({}));
     await this._connection.emit(ContinueGameMessage.type.request({}));
     this.sendResponse(response);
@@ -486,7 +496,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.ReverseContinueResponse,
     args: DebugProtocol.ReverseContinueArguments
   ) {
-    console.log("reverseContinueRequest", args);
+    // console.log("reverseContinueRequest", args);
     // TODO
     this.sendResponse(response);
   }
@@ -495,7 +505,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.NextResponse,
     args: DebugProtocol.NextArguments
   ) {
-    console.log("nextRequest", args);
+    // console.log("nextRequest", args);
     await this._connection.emit(
       StepGameMessage.type.request({
         traversal: "over",
@@ -508,7 +518,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StepInResponse,
     args: DebugProtocol.StepInArguments
   ) {
-    console.log("stepInRequest", args);
+    // console.log("stepInRequest", args);
     await this._connection.emit(
       StepGameMessage.type.request({
         traversal: "in",
@@ -521,7 +531,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StepOutResponse,
     args: DebugProtocol.StepOutArguments
   ) {
-    console.log("stepOutRequest", args);
+    // console.log("stepOutRequest", args);
     await this._connection.emit(
       StepGameMessage.type.request({
         traversal: "out",
@@ -534,7 +544,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StepBackResponse,
     args: DebugProtocol.StepBackArguments
   ) {
-    console.log("stepBackRequest", args);
+    // console.log("stepBackRequest", args);
     // TODO
     this.sendResponse(response);
   }
@@ -543,7 +553,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StepInTargetsResponse,
     args: DebugProtocol.StepInTargetsArguments
   ) {
-    console.log("stepInTargetsRequest", args);
+    // console.log("stepInTargetsRequest", args);
     // TODO ?
     // const targets = this._mockRuntime.getStepInTargets(args.frameId);
     // response.body = {
@@ -558,7 +568,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.LoadedSourcesResponse,
     args: DebugProtocol.LoadedSourcesArguments
   ) {
-    console.log("loadedSourcesRequest", args);
+    // console.log("loadedSourcesRequest", args);
     const { uris } = await this._connection.emit(
       GetGameScriptsMessage.type.request({})
     );
@@ -574,7 +584,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetBreakpointsResponse,
     args: DebugProtocol.SetBreakpointsArguments
   ): Promise<void> {
-    console.log("setBreakPointsRequest", args);
+    // console.log("setBreakPointsRequest", args);
 
     const setBreakpoints: {
       file: string;
@@ -633,7 +643,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     args: DebugProtocol.SetFunctionBreakpointsArguments,
     request?: DebugProtocol.Request
   ) {
-    console.log("setFunctionBreakPointsRequest", args);
+    // console.log("setFunctionBreakPointsRequest", args);
 
     const setFunctionBreakpoints: {
       name: string;
@@ -690,7 +700,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     args: DebugProtocol.BreakpointLocationsArguments,
     request?: DebugProtocol.Request
   ) {
-    console.log("breakpointLocationsRequest", args);
+    // console.log("breakpointLocationsRequest", args);
 
     const { lines } = await this._connection.emit(
       GetGamePossibleBreakpointLocationsMessage.type.request({
@@ -729,7 +739,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetExceptionBreakpointsResponse,
     args: DebugProtocol.SetExceptionBreakpointsArguments
   ): Promise<void> {
-    console.log("setExceptionBreakPointsRequest", args);
+    // console.log("setExceptionBreakPointsRequest", args);
     // let namedException: string | undefined = undefined;
     // let otherExceptions = false;
 
@@ -761,7 +771,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.ExceptionInfoResponse,
     args: DebugProtocol.ExceptionInfoArguments
   ) {
-    console.log("exceptionInfoRequest", args);
+    // console.log("exceptionInfoRequest", args);
     response.body = {
       exceptionId: "Exception ID",
       description: "This is a descriptive description of the exception.",
@@ -781,7 +791,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     const { threads } = await this._connection.emit(
       GetGameThreadsMessage.type.request({})
     );
-    console.log("threadsRequest", threads);
+    // console.log("threadsRequest", threads);
     response.body = {
       threads,
     };
@@ -793,6 +803,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     args: DebugProtocol.StackTraceArguments
   ) {
     console.warn("stackTraceRequest", args.threadId);
+    this._variableHandles.reset();
     const { stackFrames, totalFrames } = await this._connection.emit(
       GetGameStackTraceMessage.type.request({
         threadId: args.threadId,
@@ -833,11 +844,13 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.ScopesResponse,
     args: DebugProtocol.ScopesArguments
   ): void {
-    console.log("scopesRequest", args);
+    // console.log("scopesRequest", args);
     response.body = {
       scopes: [
-        new Scope("Locals", this._variableHandles.create("locals"), false),
-        new Scope("Globals", this._variableHandles.create("globals"), true),
+        new Scope("Temps", this._variableHandles.create("temps"), false),
+        new Scope("Vars", this._variableHandles.create("vars"), false),
+        new Scope("Lists", this._variableHandles.create("lists"), false),
+        new Scope("Defines", this._variableHandles.create("defines"), true),
       ],
     };
     this.sendResponse(response);
@@ -848,56 +861,54 @@ export class SparkDebugSession extends LoggingDebugSession {
     args: DebugProtocol.VariablesArguments,
     request?: DebugProtocol.Request
   ): Promise<void> {
-    console.log("variablesRequest", args);
-    // let vs: RuntimeVariable[] = [];
+    // console.log("variablesRequest", args);
 
-    // const v = this._variableHandles.get(args.variablesReference);
-    // if (v === "locals") {
-    //   vs = this._mockRuntime.getLocalVariables();
-    // } else if (v === "globals") {
-    //   if (request) {
-    //     this._cancellationTokens.set(request.seq, false);
-    //     vs = await this._mockRuntime.getGlobalVariables(
-    //       () => !!this._cancellationTokens.get(request.seq)
-    //     );
-    //     this._cancellationTokens.delete(request.seq);
-    //   } else {
-    //     vs = await this._mockRuntime.getGlobalVariables();
-    //   }
-    // } else if (v && Array.isArray(v.value)) {
-    //   vs = v.value;
-    // }
+    let vars: Variable[] = [];
 
-    // response.body = {
-    //   variables: vs.map((v) => this.convertFromRuntime(v)),
-    // };
-    this.sendResponse(response);
-  }
+    const scope = this._variableHandles.get(args.variablesReference);
+    if (scope === "temps") {
+      const { variables } = await this._connection.emit(
+        GetGameVariablesMessage.type.request({
+          scope: "temps",
+        })
+      );
+      vars = variables;
+    } else if (scope === "vars") {
+      const { variables } = await this._connection.emit(
+        GetGameVariablesMessage.type.request({
+          scope: "vars",
+        })
+      );
+      vars = variables;
+    } else if (scope === "lists") {
+      const { variables } = await this._connection.emit(
+        GetGameVariablesMessage.type.request({
+          scope: "lists",
+          variablesReference: args.variablesReference,
+        })
+      );
+      vars = variables;
+    } else if (scope === "defines") {
+      const { variables } = await this._connection.emit(
+        GetGameVariablesMessage.type.request({
+          scope: "defines",
+          variablesReference: args.variablesReference,
+        })
+      );
+      vars = variables;
+    } else {
+      const { variables } = await this._connection.emit(
+        GetGameVariablesMessage.type.request({
+          scope: "children",
+          variablesReference: args.variablesReference,
+        })
+      );
+      vars = variables;
+    }
 
-  protected override setVariableRequest(
-    response: DebugProtocol.SetVariableResponse,
-    args: DebugProtocol.SetVariableArguments
-  ): void {
-    console.log("setVariableRequest", args);
-    // const container = this._variableHandles.get(args.variablesReference);
-    // const rv =
-    //   container === "locals"
-    //     ? this._mockRuntime.getLocalVariable(args.name)
-    //     : container instanceof RuntimeVariable &&
-    //       container.value instanceof Array
-    //     ? container.value.find((v) => v.name === args.name)
-    //     : undefined;
-
-    // if (rv) {
-    //   rv.value = this.convertToRuntime(args.value);
-    //   response.body = this.convertFromRuntime(rv);
-
-    //   if (rv.memory && rv.reference) {
-    //     this.sendEvent(
-    //       new MemoryEvent(String(rv.reference), 0, rv.memory.length)
-    //     );
-    //   }
-    // }
+    response.body = {
+      variables: vars,
+    };
 
     this.sendResponse(response);
   }
@@ -906,84 +917,140 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.EvaluateResponse,
     args: DebugProtocol.EvaluateArguments
   ): Promise<void> {
-    console.log("evaluateRequest", args);
-    // let reply: string | undefined;
-    // let rv: RuntimeVariable | undefined;
+    // console.log("evaluateRequest", args);
 
-    // switch (args.context) {
-    //   case "repl":
-    //     // handle some REPL commands:
-    //     // 'evaluate' supports to create and delete breakpoints from the 'repl':
-    //     const matches = /new +([0-9]+)/.exec(args.expression);
-    //     if (matches && matches.length === 2) {
-    //       const mbp = await this._mockRuntime.setBreakPoint(
-    //         this._mockRuntime.sourceFile,
-    //         this.convertClientLineToDebugger(parseInt(matches[1]!))
-    //       );
-    //       const bp = new Breakpoint(
-    //         mbp.verified,
-    //         this.convertDebuggerLineToClient(mbp.line),
-    //         undefined,
-    //         this.createSource(this._mockRuntime.sourceFile)
-    //       ) as DebugProtocol.Breakpoint;
-    //       bp.id = mbp.id;
-    //       this.sendEvent(new BreakpointEvent("new", bp));
-    //       reply = `breakpoint created`;
-    //     } else {
-    //       const matches = /del +([0-9]+)/.exec(args.expression);
-    //       if (matches && matches.length === 2) {
-    //         const mbp = this._mockRuntime.clearBreakPoint(
-    //           this._mockRuntime.sourceFile,
-    //           this.convertClientLineToDebugger(parseInt(matches[1]!))
-    //         );
-    //         if (mbp) {
-    //           const bp = new Breakpoint(false) as DebugProtocol.Breakpoint;
-    //           bp.id = mbp.id;
-    //           this.sendEvent(new BreakpointEvent("removed", bp));
-    //           reply = `breakpoint deleted`;
-    //         }
-    //       } else {
-    //         const matches = /progress/.exec(args.expression);
-    //         if (matches && matches.length === 1) {
-    //           if (this._reportProgress) {
-    //             reply = `progress started`;
-    //             this.progressSequence();
-    //           } else {
-    //             reply = `frontend doesn't support progress (capability 'supportsProgressReporting' not set)`;
-    //           }
-    //         }
-    //       }
-    //     }
-    //   // fall through
+    const compiler = new SparkdownCompiler();
 
-    //   default:
-    //     if (args.expression.startsWith("$")) {
-    //       rv = this._mockRuntime.getLocalVariable(args.expression.substr(1));
-    //     } else {
-    //       rv = new RuntimeVariable(
-    //         "eval",
-    //         this.convertToRuntime(args.expression)
-    //       );
-    //     }
-    //     break;
-    // }
+    const { context } = await this._connection.emit(
+      GetGameEvaluationContextMessage.type.request({})
+    );
 
-    // if (rv) {
-    //   const v = this.convertFromRuntime(rv);
-    //   response.body = {
-    //     result: v.value,
-    //     type: v.type,
-    //     variablesReference: v.variablesReference,
-    //     presentationHint: v.presentationHint,
-    //   };
-    // } else {
-    //   response.body = {
-    //     result: reply
-    //       ? reply
-    //       : `evaluate(context: '${args.context}', '${args.expression}')`,
-    //     variablesReference: 0,
-    //   };
-    // }
+    const value = compiler.evaluate(args.expression, context);
+
+    const { variables } = await this._connection.emit(
+      GetGameVariablesMessage.type.request({
+        scope: "value",
+        value,
+      })
+    );
+    const variable = variables[0];
+
+    response.body = {
+      ...(variable || {}),
+      result: variable?.value ?? "undefined",
+      variablesReference: variable?.variablesReference ?? 0,
+    };
+
+    this.sendResponse(response);
+  }
+
+  protected override async setVariableRequest(
+    response: DebugProtocol.SetVariableResponse,
+    args: DebugProtocol.SetVariableArguments
+  ) {
+    // console.log("setVariableRequest", args);
+
+    this.sendResponse(response);
+  }
+
+  protected override async dataBreakpointInfoRequest(
+    response: DebugProtocol.DataBreakpointInfoResponse,
+    args: DebugProtocol.DataBreakpointInfoArguments
+  ) {
+    // console.log("dataBreakpointInfoRequest", args);
+
+    response.body = {
+      dataId: null,
+      description: "Cannot break on data",
+      accessTypes: undefined,
+      canPersist: false,
+    };
+
+    // NOTE: we currently don't support "read" or "readWrite" breakpoints
+
+    if (args.variablesReference && args.name) {
+      const scope = this._variableHandles.get(args.variablesReference);
+      if (scope === "temps") {
+        const { variables } = await this._connection.emit(
+          GetGameVariablesMessage.type.request({
+            scope: "temps",
+          })
+        );
+        const variable = variables.find((v) => v.name === args.name);
+        if (variable) {
+          response.body.dataId = variable.scopePath
+            ? variable.scopePath + "." + args.name
+            : args.name;
+          response.body.description = args.name;
+          response.body.accessTypes = ["write"];
+          response.body.canPersist = true;
+        }
+      } else if (scope === "vars") {
+        const { variables } = await this._connection.emit(
+          GetGameVariablesMessage.type.request({
+            scope: "vars",
+          })
+        );
+        const variable = variables.find((v) => v.name === args.name);
+        if (variable) {
+          response.body.dataId = args.name;
+          response.body.description = args.name;
+          response.body.accessTypes = ["write"];
+          response.body.canPersist = true;
+        }
+      } else {
+        response.body = {
+          dataId: null,
+          description: "Value will never change",
+          accessTypes: undefined,
+          canPersist: false,
+        };
+      }
+    }
+
+    this.sendResponse(response);
+  }
+
+  protected override async setDataBreakpointsRequest(
+    response: DebugProtocol.SetDataBreakpointsResponse,
+    args: DebugProtocol.SetDataBreakpointsArguments
+  ) {
+    // console.log("setDataBreakpointsRequest", args);
+
+    const { dataBreakpoints } = await this._connection.emit(
+      ConfigureGameMessage.type.request({
+        dataBreakpoints: args.breakpoints,
+      })
+    );
+
+    // send back the actual breakpoint positions
+    response.body = {
+      breakpoints: (dataBreakpoints || []).map((b) => ({
+        ...b,
+        source:
+          b.location != null
+            ? this.createSource(this._fileAccessor.uriToPath(b.location.uri))
+            : undefined,
+        line:
+          b.location != null
+            ? this.convertDebuggerLineToClient(b.location.range.start.line)
+            : undefined,
+        column:
+          b.location != null
+            ? this.convertDebuggerColumnToClient(
+                b.location.range.start.character
+              )
+            : undefined,
+        endLne:
+          b.location != null
+            ? this.convertDebuggerLineToClient(b.location.range.end.line)
+            : undefined,
+        endColumn:
+          b.location != null
+            ? this.convertDebuggerColumnToClient(b.location.range.end.character)
+            : undefined,
+      })),
+    };
 
     this.sendResponse(response);
   }
@@ -992,7 +1059,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.SetExpressionResponse,
     args: DebugProtocol.SetExpressionArguments
   ): void {
-    console.log("setExpressionRequest", args);
+    // console.log("setExpressionRequest", args);
     // if (args.expression.startsWith("$")) {
     //   const rv = this._mockRuntime.getLocalVariable(args.expression.substr(1));
     //   if (rv) {
@@ -1053,66 +1120,11 @@ export class SparkDebugSession extends LoggingDebugSession {
     this._cancelledProgressId = undefined;
   }
 
-  protected override dataBreakpointInfoRequest(
-    response: DebugProtocol.DataBreakpointInfoResponse,
-    args: DebugProtocol.DataBreakpointInfoArguments
-  ): void {
-    console.log("dataBreakpointInfoRequest", args);
-    // response.body = {
-    //   dataId: null,
-    //   description: "cannot break on data access",
-    //   accessTypes: undefined,
-    //   canPersist: false,
-    // };
-
-    // if (args.variablesReference && args.name) {
-    //   const v = this._variableHandles.get(args.variablesReference);
-    //   if (v === "globals") {
-    //     response.body.dataId = args.name;
-    //     response.body.description = args.name;
-    //     response.body.accessTypes = ["write"];
-    //     response.body.canPersist = true;
-    //   } else {
-    //     response.body.dataId = args.name;
-    //     response.body.description = args.name;
-    //     response.body.accessTypes = ["read", "write", "readWrite"];
-    //     response.body.canPersist = true;
-    //   }
-    // }
-
-    this.sendResponse(response);
-  }
-
-  protected override setDataBreakpointsRequest(
-    response: DebugProtocol.SetDataBreakpointsResponse,
-    args: DebugProtocol.SetDataBreakpointsArguments
-  ): void {
-    console.log("setDataBreakpointsRequest", args);
-    // // clear all data breakpoints
-    // this._mockRuntime.clearAllDataBreakpoints();
-
-    // response.body = {
-    //   breakpoints: [],
-    // };
-
-    // for (const dbp of args.breakpoints) {
-    //   const ok = this._mockRuntime.setDataBreakpoint(
-    //     dbp.dataId,
-    //     dbp.accessType || "write"
-    //   );
-    //   response.body.breakpoints.push({
-    //     verified: ok,
-    //   });
-    // }
-
-    this.sendResponse(response);
-  }
-
   protected override cancelRequest(
     response: DebugProtocol.CancelResponse,
     args: DebugProtocol.CancelArguments
   ) {
-    console.log("cancelRequest", args);
+    // console.log("cancelRequest", args);
     // if (args.requestId) {
     //   this._cancellationTokens.set(args.requestId, true);
     // }
@@ -1138,85 +1150,6 @@ export class SparkDebugSession extends LoggingDebugSession {
   }
 
   //---- helpers
-
-  private convertToRuntime(value: string): IRuntimeVariableType {
-    value = value.trim();
-
-    if (value === "true") {
-      return true;
-    }
-    if (value === "false") {
-      return false;
-    }
-    if (value[0] === "'" || value[0] === '"') {
-      return value.substr(1, value.length - 2);
-    }
-    const n = parseFloat(value);
-    if (!isNaN(n)) {
-      return n;
-    }
-    return value;
-  }
-
-  private convertFromRuntime(v: RuntimeVariable): DebugProtocol.Variable {
-    let dapVariable: DebugProtocol.Variable = {
-      name: v.name,
-      value: "???",
-      type: typeof v.value,
-      variablesReference: 0,
-      evaluateName: "$" + v.name,
-    };
-
-    if (v.name.indexOf("lazy") >= 0) {
-      // a "lazy" variable needs an additional click to retrieve its value
-
-      dapVariable.value = "lazy var"; // placeholder value
-      v.reference ??= this._variableHandles.create(
-        new RuntimeVariable("", [new RuntimeVariable("", v.value)])
-      );
-      dapVariable.variablesReference = v.reference;
-      dapVariable.presentationHint = { lazy: true };
-    } else {
-      if (Array.isArray(v.value)) {
-        dapVariable.value = "Object";
-        v.reference ??= this._variableHandles.create(v);
-        dapVariable.variablesReference = v.reference;
-      } else {
-        switch (typeof v.value) {
-          case "number":
-            if (Math.round(v.value) === v.value) {
-              dapVariable.value = this.formatNumber(v.value);
-              (<any>dapVariable).__vscodeVariableMenuContext = "simple"; // enable context menu contribution
-              dapVariable.type = "integer";
-            } else {
-              dapVariable.value = v.value.toString();
-              dapVariable.type = "float";
-            }
-            break;
-          case "string":
-            dapVariable.value = `"${v.value}"`;
-            break;
-          case "boolean":
-            dapVariable.value = v.value ? "true" : "false";
-            break;
-          default:
-            dapVariable.value = typeof v.value;
-            break;
-        }
-      }
-    }
-
-    if (v.memory) {
-      v.reference ??= this._variableHandles.create(v);
-      dapVariable.memoryReference = String(v.reference);
-    }
-
-    return dapVariable;
-  }
-
-  private formatNumber(x: number) {
-    return this._valuesInHex ? "0x" + x.toString(16) : x.toString(10);
-  }
 
   private createSource(filePath: string): Source {
     // TODO: name should be path relative to workspace root

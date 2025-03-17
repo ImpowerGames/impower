@@ -1,4 +1,5 @@
 import { TextDocumentIdentifier } from "../../types";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type FocusedEditorMethod = typeof FocusedEditorMessage.method;
@@ -13,4 +14,9 @@ export class FocusedEditorMessage {
     FocusedEditorMethod,
     FocusedEditorParams
   >(FocusedEditorMessage.method);
+}
+
+export namespace FocusedEditorMessage {
+  export interface Notification
+    extends NotificationMessage<FocusedEditorMethod, FocusedEditorParams> {}
 }

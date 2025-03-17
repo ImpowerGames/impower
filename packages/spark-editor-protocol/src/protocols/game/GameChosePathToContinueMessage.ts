@@ -1,4 +1,5 @@
 import { type Location } from "vscode-languageserver-protocol";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type GameChosePathToContinueMethod =
@@ -14,4 +15,12 @@ export class GameChosePathToContinueMessage {
     GameChosePathToContinueMethod,
     GameChosePathToContinueParams
   >(GameChosePathToContinueMessage.method);
+}
+
+export namespace GameChosePathToContinueMessage {
+  export interface Notification
+    extends NotificationMessage<
+      GameChosePathToContinueMethod,
+      GameChosePathToContinueParams
+    > {}
 }

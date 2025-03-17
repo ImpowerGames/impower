@@ -1,4 +1,5 @@
 import { TextDocumentIdentifier } from "../../types";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type HoveredOnEditorMethod = typeof HoveredOnEditorMessage.method;
@@ -13,4 +14,9 @@ export class HoveredOnEditorMessage {
     HoveredOnEditorMethod,
     HoveredOnEditorParams
   >(HoveredOnEditorMessage.method);
+}
+
+export namespace HoveredOnEditorMessage {
+  export interface Notification
+    extends NotificationMessage<HoveredOnEditorMethod, HoveredOnEditorParams> {}
 }

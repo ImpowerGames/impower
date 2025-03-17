@@ -1,4 +1,6 @@
 import { Location } from "vscode-languageserver-protocol";
+import { RequestMessage } from "../../types/base/RequestMessage";
+import { ResponseMessage } from "../../types/base/ResponseMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type GetGamePossibleBreakpointLocationsMethod =
@@ -22,4 +24,18 @@ export class GetGamePossibleBreakpointLocationsMessage {
     GetGamePossibleBreakpointLocationsParams,
     GetGamePossibleBreakpointLocationsResult
   >(GetGamePossibleBreakpointLocationsMessage.method);
+}
+
+export namespace GetGamePossibleBreakpointLocationsMessage {
+  export interface Request
+    extends RequestMessage<
+      GetGamePossibleBreakpointLocationsMethod,
+      GetGamePossibleBreakpointLocationsParams,
+      GetGamePossibleBreakpointLocationsResult
+    > {}
+  export interface Response
+    extends ResponseMessage<
+      GetGamePossibleBreakpointLocationsMethod,
+      GetGamePossibleBreakpointLocationsResult
+    > {}
 }

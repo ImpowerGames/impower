@@ -1,4 +1,5 @@
 import { type Location } from "vscode-languageserver-protocol";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type GameAutoAdvancedToContinueMethod =
@@ -14,4 +15,12 @@ export class GameAutoAdvancedToContinueMessage {
     GameAutoAdvancedToContinueMethod,
     GameAutoAdvancedToContinueParams
   >(GameAutoAdvancedToContinueMessage.method);
+}
+
+export namespace GameAutoAdvancedToContinueMessage {
+  export interface Notification
+    extends NotificationMessage<
+      GameAutoAdvancedToContinueMethod,
+      GameAutoAdvancedToContinueParams
+    > {}
 }

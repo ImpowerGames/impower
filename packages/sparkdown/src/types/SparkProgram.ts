@@ -29,5 +29,14 @@ export interface SparkProgram {
       endColumn: number
     ];
   };
+  dataLocations: {
+    [name: string]: [
+      scriptIndex: number,
+      startLine: number,
+      startColumn: number,
+      endLine: number,
+      endColumn: number
+    ];
+  };
   version?: number;
 }

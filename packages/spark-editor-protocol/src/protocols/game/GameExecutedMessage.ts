@@ -1,4 +1,5 @@
 import { type Location } from "vscode-languageserver-protocol";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type GameExecutedMethod = typeof GameExecutedMessage.method;
@@ -15,4 +16,9 @@ export class GameExecutedMessage {
     GameExecutedMethod,
     GameExecutedParams
   >(GameExecutedMessage.method);
+}
+
+export namespace GameExecutedMessage {
+  export interface Notification
+    extends NotificationMessage<GameExecutedMethod, GameExecutedParams> {}
 }

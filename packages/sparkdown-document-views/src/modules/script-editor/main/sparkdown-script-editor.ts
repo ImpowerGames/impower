@@ -293,7 +293,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       selectedRange,
       breakpointRanges
     );
-    return LoadEditorMessage.type.response(message.id, null);
+    return LoadEditorMessage.type.response(message.id, {});
   };
 
   protected handleDidExpandPreviewPane = (
@@ -373,7 +373,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     const textDocument = params.textDocument;
     if (textDocument.uri === this._textDocument?.uri) {
       this.openSearchPanel();
-      return SearchEditorMessage.type.response(message.id, null);
+      return SearchEditorMessage.type.response(message.id, {});
     }
     return undefined;
   };
@@ -396,7 +396,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
           bottomPanels.style.opacity = "1";
         }
       });
-      return ShowEditorStatusBarMessage.type.response(message.id, null);
+      return ShowEditorStatusBarMessage.type.response(message.id, {});
     }
     return ShowEditorStatusBarMessage.type.error(message.id, {
       code: 1,
@@ -415,7 +415,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     if (bottomPanels) {
       bottomPanels.hidden = true;
       this.ref.placeholder.hidden = false;
-      return HideEditorStatusBarMessage.type.response(message.id, null);
+      return HideEditorStatusBarMessage.type.response(message.id, {});
     }
     return HideEditorStatusBarMessage.type.error(message.id, {
       code: 1,
@@ -752,10 +752,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
       if (this._textDocument && this._loadingRequest != null) {
         // Only fade in once formatting has finished being applied and height is stable
         this.root.style.opacity = "1";
-        this.emit(
-          MessageProtocol.event,
-          LoadEditorMessage.type.response(this._loadingRequest, null)
-        );
         this._loadingRequest = undefined;
       }
       if (this._view) {

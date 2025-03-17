@@ -1,5 +1,6 @@
+import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
-import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { Breakpoint } from "../types/Breakpoint";
@@ -13,6 +14,7 @@ import { RequestMessage } from "../types/RequestMessage";
 import { ResponseError } from "../types/ResponseError";
 import { StackFrame } from "../types/StackFrame";
 import { Thread } from "../types/Thread";
+import { Variable, VariablePresentationHint } from "../types/Variable";
 import { evaluate } from "../utils/evaluate";
 import { setProperty } from "../utils/setProperty";
 import { uuid } from "../utils/uuid";
@@ -88,6 +90,10 @@ export class Game<T extends M = {}> {
 
   protected _frameId = 0;
 
+  protected _nextVarRef = 2000; // Start at 2000 to avoid conflicts with scope handles
+
+  protected _varRefMap = new Map<number, object>();
+
   protected _startpoint: {
     file: string;
     line: number;
@@ -97,6 +103,8 @@ export class Game<T extends M = {}> {
 
   protected _functionBreakpointMap: Record<number, Map<number, Breakpoint>> =
     {};
+
+  protected _dataBreakpointMap: Record<number, Map<number, Breakpoint>> = {};
 
   protected _state: "initial" | "previewing" | "running" | "paused" = "initial";
   get state() {
@@ -121,6 +129,7 @@ export class Game<T extends M = {}> {
       startpoint?: { file: string; line: number };
       breakpoints?: { file: string; line: number }[];
       functionBreakpoints?: { name: string }[];
+      dataBreakpoints?: { dataId: string }[];
       modules?: {
         [name in keyof T]: abstract new (...args: any) => T[name];
       };
@@ -149,8 +158,11 @@ export class Game<T extends M = {}> {
       file: this._scripts[0] || this._program.uri,
       line: 0,
     };
+
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
+    this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
+
     if (options?.executionTimeout) {
       this._executionTimeout = options.executionTimeout;
     }
@@ -285,6 +297,10 @@ export class Game<T extends M = {}> {
     return this.updateFunctionBreakpointsMap(functionBreakpoints);
   }
 
+  setDataBreakpoints(dataBreakpoints: { dataId: string }[]) {
+    return this.updateDataBreakpointsMap(dataBreakpoints);
+  }
+
   updateBreakpointsMap(breakpoints: { file: string; line: number }[]) {
     const actualBreakpoints = Game.getActualBreakpoints(
       this._instructionLocations,
@@ -326,6 +342,28 @@ export class Game<T extends M = {}> {
       }
     }
     this._functionBreakpointMap = breakpointMap;
+    return actualBreakpoints;
+  }
+
+  updateDataBreakpointsMap(dataBreakpoints: { dataId: string }[]) {
+    const actualBreakpoints = Game.getActualDataBreakpoints(
+      this._program.dataLocations,
+      dataBreakpoints,
+      this._scripts
+    );
+    const breakpointMap: Record<number, Map<number, Breakpoint>> = {};
+    for (const b of actualBreakpoints) {
+      if (b.location?.uri) {
+        const scriptIndex = this._scripts.indexOf(b.location.uri);
+        if (scriptIndex >= 0) {
+          breakpointMap[scriptIndex] ??= new Map();
+          if (b.location.range.start.line != null) {
+            breakpointMap[scriptIndex].set(b.location.range.start.line, b);
+          }
+        }
+      }
+    }
+    this._dataBreakpointMap = breakpointMap;
     return actualBreakpoints;
   }
 
@@ -455,6 +493,7 @@ export class Game<T extends M = {}> {
   }
 
   continue() {
+    this.clearVariableReferences();
     this._coordinator = null;
     let done = false;
     do {
@@ -555,7 +594,8 @@ export class Game<T extends M = {}> {
           // Stop at a breakpoint
           if (
             this._breakpointMap[currScriptIndex]?.has(currLine) ||
-            this._functionBreakpointMap[currScriptIndex]?.has(currLine)
+            this._functionBreakpointMap[currScriptIndex]?.has(currLine) ||
+            this._dataBreakpointMap[currScriptIndex]?.has(currLine)
           ) {
             this._lastHitBreakpointLocation = this._executingLocation;
             this.notifyHitBreakpoint();
@@ -667,6 +707,279 @@ export class Game<T extends M = {}> {
         location: this.getDocumentLocation(this._executingLocation),
       })
     );
+  }
+
+  getEvaluationContext() {
+    const context: any = {};
+    const variableState = this._story.state.variablesState;
+    for (const name of variableState["_globalVariables"].keys()) {
+      const valueObj = variableState.GetVariableWithName(name);
+      const value = this.getRuntimeValue(name, valueObj);
+      if (value !== undefined) {
+        context[name] = value;
+      }
+    }
+    const contextIndex = variableState.callStack.currentElementIndex + 1;
+    let contextElement =
+      variableState.callStack.currentThread.callstack[contextIndex - 1];
+    if (contextElement?.temporaryVariables) {
+      for (const [
+        name,
+        valueObj,
+      ] of contextElement?.temporaryVariables.entries()) {
+        const value = this.getRuntimeValue(name, valueObj);
+        if (value !== undefined) {
+          context[name] = value;
+        }
+      }
+    }
+    return context;
+  }
+
+  getVarVariables(): Variable[] {
+    const variables: Variable[] = [];
+    const variableState = this._story.state.variablesState;
+    for (const name of variableState["_globalVariables"].keys()) {
+      const listDefinition = this._story.listDefinitions?.TryListGetDefinition(
+        name,
+        null
+      )?.result;
+      if (!listDefinition) {
+        const valueObj = variableState.GetVariableWithName(name);
+        const value = this.getRuntimeValue(name, valueObj);
+        if (value !== undefined) {
+          variables.push(
+            this.getVariableInfo(name, value, {
+              kind: "data",
+              visibility: "public",
+            })
+          );
+        }
+      }
+    }
+    return variables;
+  }
+
+  getListVariables(): Variable[] {
+    const variables: Variable[] = [];
+    if (this._story.listDefinitions) {
+      for (const listDefinition of this._story.listDefinitions.lists) {
+        const value: Record<string, unknown> = { $type: "list.def" };
+        for (const [key, itemValue] of listDefinition.items) {
+          const keyObj = JSON.parse(key) as {
+            originName: string;
+            itemName: string;
+          };
+          value[keyObj.itemName] = itemValue;
+        }
+        if (value !== undefined) {
+          variables.push(
+            this.getVariableInfo(listDefinition.name, value, {
+              kind: "data",
+              visibility: "public",
+            })
+          );
+        }
+      }
+    }
+    return variables;
+  }
+
+  getDefineVariables(): Variable[] {
+    const variables: Variable[] = [];
+    for (const [type, structs] of Object.entries(this.context)) {
+      if (type !== "system") {
+        variables.push(
+          this.getVariableInfo(type, structs, {
+            kind: "interface",
+            visibility: "public",
+          })
+        );
+      }
+    }
+    return variables;
+  }
+
+  getTempVariables(): Variable[] {
+    const variables: Variable[] = [];
+    const variableState = this._story.state.variablesState;
+    const contextIndex = variableState.callStack.currentElementIndex + 1;
+    let contextElement =
+      variableState.callStack.currentThread.callstack[contextIndex - 1];
+    if (contextElement?.temporaryVariables) {
+      for (const [
+        name,
+        valueObj,
+      ] of contextElement?.temporaryVariables.entries()) {
+        const value = this.getRuntimeValue(name, valueObj);
+        const scopePath = this._executingPath
+          .split(".")
+          .filter((p) => Number.isNaN(Number(p) && !p.includes("-")))
+          .join(".");
+        if (value !== undefined) {
+          variables.push(
+            this.getVariableInfo(
+              name,
+              value,
+              {
+                kind: "data",
+                visibility: "private",
+              },
+              scopePath
+            )
+          );
+        }
+      }
+    }
+    return variables;
+  }
+
+  getChildVariables(varRef: number): Variable[] {
+    const variables: Variable[] = [];
+    const value = this._varRefMap.get(varRef);
+    if (typeof value === "object" && Array.isArray(value)) {
+      value.forEach((v, index) => {
+        variables.push(
+          this.getVariableInfo(index.toString(), v, {
+            kind: "property",
+            visibility: "public",
+          })
+        );
+      });
+    } else if (typeof value === "object" && value) {
+      for (const [k, v] of Object.entries(value)) {
+        if (!k.startsWith("$")) {
+          variables.push(
+            this.getVariableInfo(k, v, {
+              kind: "property",
+              visibility: "public",
+            })
+          );
+        }
+      }
+    } else {
+      variables.push(
+        this.getVariableInfo("", value, {
+          kind: "property",
+          visibility: "public",
+        })
+      );
+    }
+    return variables;
+  }
+
+  getValueVariables(value: any): Variable[] {
+    const variables: Variable[] = [];
+    variables.push(
+      this.getVariableInfo("", value, {
+        kind: "property",
+        visibility: "public",
+      })
+    );
+    return variables;
+  }
+
+  getRuntimeValue(
+    name: string,
+    valueObj: InkObject | null
+  ): unknown | undefined {
+    if (valueObj && "value" in valueObj) {
+      if (valueObj.value instanceof InkList) {
+        const listDefinition =
+          this._story.listDefinitions?.TryListGetDefinition(name, null)?.result;
+        if (listDefinition) {
+          const listValue: Record<string, unknown> = { $type: "list.def" };
+          for (const [key, itemValue] of listDefinition.items) {
+            const keyObj = JSON.parse(key) as {
+              originName: string;
+              itemName: string;
+            };
+            listValue[keyObj.itemName] = itemValue;
+          }
+          return listValue;
+        }
+        const listValue: Record<string, unknown> = { $type: "list.var" };
+        for (const [key, value] of valueObj.value.entries()) {
+          const keyObj = JSON.parse(key) as {
+            originName: string;
+            itemName: string;
+          };
+          listValue[keyObj.originName + "." + keyObj.itemName] = value;
+        }
+        return listValue;
+      }
+      return valueObj.value;
+    }
+    return undefined;
+  }
+
+  getVariableInfo(
+    name: string,
+    value: unknown,
+    presentationHint?: VariablePresentationHint,
+    scopePath?: string
+  ): Variable {
+    let variablesReference = 0;
+    if (typeof value === "object" && value != null) {
+      variablesReference = this._nextVarRef;
+      this._varRefMap.set(variablesReference, value);
+      this._nextVarRef++;
+    }
+    const indexedVariables =
+      typeof value === "object" && value != null && Array.isArray(value)
+        ? value.length
+        : 0;
+    const namedVariables =
+      typeof value === "object" && value != null && !Array.isArray(value)
+        ? Object.keys(value).length
+        : 0;
+    const displayValue =
+      value === undefined
+        ? "undefined"
+        : value === null
+        ? "null"
+        : typeof value === "object"
+        ? Array.isArray(value)
+          ? `[${value.length}]`
+          : Object.keys(value).filter((k) => !k.startsWith("$")).length > 0
+          ? "$type" in value &&
+            (value.$type === "list.def" || value.$type === "list.var")
+            ? "(...)"
+            : "{...}"
+          : "$type" in value &&
+            (value.$type === "list.def" || value.$type === "list.var")
+          ? "()"
+          : "{}"
+        : JSON.stringify(value);
+    const displayType =
+      value === undefined
+        ? "undefined"
+        : value === null
+        ? "null"
+        : typeof value === "object"
+        ? Array.isArray(value)
+          ? `array`
+          : "$type" in value && typeof value.$type === "string"
+          ? value.$type === "list.def" || value.$type === "list.var"
+            ? "list"
+            : value.$type
+          : "object"
+        : typeof value;
+    return {
+      scopePath,
+      name,
+      value: displayValue,
+      type: displayType,
+      variablesReference,
+      indexedVariables,
+      namedVariables,
+      presentationHint,
+    };
+  }
+
+  clearVariableReferences() {
+    this._varRefMap.clear();
+    this._nextVarRef = 2000;
   }
 
   getThreads(): Thread[] {
@@ -890,6 +1203,46 @@ export class Game<T extends M = {}> {
           verified: false,
           reason: "failed",
           message: "No instruction found at the breakpoint",
+        };
+        actualBreakpoints.push(invalidBreakpoint);
+      }
+    }
+    return actualBreakpoints;
+  }
+
+  static getActualDataBreakpoints(
+    dataLocations: Record<string, ScriptLocation>,
+    breakpoints: { dataId: string }[],
+    scripts: string[]
+  ) {
+    const actualBreakpoints: Breakpoint[] = [];
+    for (const breakpoint of breakpoints) {
+      const dataId = breakpoint.dataId;
+      const dataLocation = dataLocations[dataId];
+      if (dataLocation) {
+        const [scriptIndex, line] = dataLocation;
+        const validBreakpoint = {
+          verified: true,
+          location: {
+            uri: scripts[scriptIndex]!,
+            range: {
+              start: {
+                line: line,
+                character: 0,
+              },
+              end: {
+                line: line,
+                character: 0,
+              },
+            },
+          },
+        };
+        actualBreakpoints.push(validBreakpoint);
+      } else {
+        const invalidBreakpoint: Breakpoint = {
+          verified: false,
+          reason: "failed",
+          message: "No var found at the breakpoint",
         };
         actualBreakpoints.push(invalidBreakpoint);
       }

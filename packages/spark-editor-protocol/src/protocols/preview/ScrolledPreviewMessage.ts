@@ -1,4 +1,5 @@
 import { Range, TextDocumentIdentifier } from "../../types";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type ScrolledPreviewMethod = typeof ScrolledPreviewMessage.method;
@@ -16,4 +17,9 @@ export class ScrolledPreviewMessage {
     ScrolledPreviewMethod,
     ScrolledPreviewParams
   >(ScrolledPreviewMessage.method);
+}
+
+export namespace ScrolledPreviewMessage {
+  export interface Notification
+    extends NotificationMessage<ScrolledPreviewMethod, ScrolledPreviewParams> {}
 }

@@ -1,4 +1,6 @@
 import { type Thread } from "../../../../spark-engine/src/game/core/types/Thread";
+import { RequestMessage } from "../../types/base/RequestMessage";
+import { ResponseMessage } from "../../types/base/ResponseMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type GetGameThreadsMethod = typeof GetGameThreadsMessage.method;
@@ -19,4 +21,15 @@ export class GetGameThreadsMessage {
     GetGameThreadsParams,
     GetGameThreadsResult
   >(GetGameThreadsMessage.method);
+}
+
+export namespace GetGameThreadsMessage {
+  export interface Request
+    extends RequestMessage<
+      GetGameThreadsMethod,
+      GetGameThreadsParams,
+      GetGameThreadsResult
+    > {}
+  export interface Response
+    extends ResponseMessage<GetGameThreadsMethod, GetGameThreadsResult> {}
 }

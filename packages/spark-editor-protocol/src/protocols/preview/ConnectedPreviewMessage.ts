@@ -1,7 +1,7 @@
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
-export type ConnectedPreviewPreviewMethod =
-  typeof ConnectedPreviewMessage.method;
+export type ConnectedPreviewMethod = typeof ConnectedPreviewMessage.method;
 
 export interface ConnectedPreviewParams {
   type: "game" | "screenplay";
@@ -10,7 +10,15 @@ export interface ConnectedPreviewParams {
 export class ConnectedPreviewMessage {
   static readonly method = "preview/connected";
   static readonly type = new MessageProtocolNotificationType<
-    ConnectedPreviewPreviewMethod,
+    ConnectedPreviewMethod,
     ConnectedPreviewParams
   >(ConnectedPreviewMessage.method);
+}
+
+export namespace ConnectedPreviewMessage {
+  export interface Notification
+    extends NotificationMessage<
+      ConnectedPreviewMethod,
+      ConnectedPreviewParams
+    > {}
 }

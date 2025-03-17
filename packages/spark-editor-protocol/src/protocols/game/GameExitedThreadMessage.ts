@@ -1,3 +1,4 @@
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type GameExitedThreadMethod = typeof GameExitedThreadMessage.method;
@@ -15,4 +16,12 @@ export class GameExitedThreadMessage {
     GameExitedThreadMethod,
     GameExitedThreadParams
   >(GameExitedThreadMessage.method);
+}
+
+export namespace GameExitedThreadMessage {
+  export interface Notification
+    extends NotificationMessage<
+      GameExitedThreadMethod,
+      GameExitedThreadParams
+    > {}
 }

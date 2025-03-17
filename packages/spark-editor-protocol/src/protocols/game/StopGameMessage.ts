@@ -1,3 +1,5 @@
+import { RequestMessage } from "../../types/base/RequestMessage";
+import { ResponseMessage } from "../../types/base/ResponseMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type StopGameMethod = typeof StopGameMessage.method;
@@ -17,11 +19,20 @@ export interface StopGameParams {
   suspend?: boolean;
 }
 
+export interface StopGameResult {}
+
 export class StopGameMessage {
   static readonly method = "game/stop";
   static readonly type = new MessageProtocolRequestType<
     StopGameMethod,
     StopGameParams,
-    null
+    StopGameResult
   >(StopGameMessage.method);
+}
+
+export namespace StopGameMessage {
+  export interface Request
+    extends RequestMessage<StopGameMethod, StopGameParams, StopGameResult> {}
+  export interface Response
+    extends ResponseMessage<StopGameMethod, StopGameResult> {}
 }

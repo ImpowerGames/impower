@@ -198,7 +198,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     const selectedRange = params.selectedRange;
     this._loadingRequest = message.id;
     this.loadTextDocument(textDocument, focused, visibleRange, selectedRange);
-    return LoadPreviewMessage.type.response(message.id, null);
+    return LoadPreviewMessage.type.response(message.id, {});
   };
 
   protected handleDidExpandPreviewPane = (
@@ -228,7 +228,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     if (textDocument.uri !== this._textDocument?.uri) {
       this.scrollToRange(range);
     }
-    return RevealPreviewRangeMessage.type.response(message.id, null);
+    return RevealPreviewRangeMessage.type.response(message.id, {});
   };
 
   protected handleDidChangeTextDocument = (
@@ -413,10 +413,6 @@ export default class SparkScreenplayPreview extends Component(spec) {
       if (this._textDocument && this._loadingRequest != null) {
         // Only fade in once formatting has finished being applied and height is stable
         this.root.style.opacity = "1";
-        this.emit(
-          MessageProtocol.event,
-          LoadPreviewMessage.type.response(this._loadingRequest, null)
-        );
         this._loadingRequest = undefined;
       }
       if (this._view) {
