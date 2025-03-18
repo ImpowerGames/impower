@@ -5,7 +5,6 @@ import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { SparkdownCompilationTreeDataProvider } from "../providers/SparkdownCompilationTreeDataProvider";
-import { getEditor } from "./getEditor";
 
 export function activateCompilationView(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -61,18 +60,15 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
 
   const handleGameExecuted = (message: Message) => {
     if (GameExecutedMessage.type.isNotification(message)) {
-      const { location, path } = message.params;
-      const editor = getEditor(location.uri);
-      if (editor) {
-        const instructionNode =
-          SparkdownCompilationTreeDataProvider.instance.getNodeById(path);
-        if (instructionNode) {
-          treeView.reveal(instructionNode, {
-            select: true,
-            expand: true,
-            focus: true,
-          });
-        }
+      const { path } = message.params;
+      const instructionNode =
+        SparkdownCompilationTreeDataProvider.instance.getNodeById(path);
+      if (instructionNode) {
+        treeView.reveal(instructionNode, {
+          select: true,
+          expand: true,
+          focus: true,
+        });
       }
     }
   };
