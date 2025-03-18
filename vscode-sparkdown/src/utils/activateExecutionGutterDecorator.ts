@@ -50,10 +50,7 @@ export const activateExecutionGutterDecorator = (
   const handleGameExecuted = (message: Message) => {
     if (GameExecutedMessage.type.isNotification(message)) {
       const { locations } = message.params;
-      const documentLocations = Object.groupBy(
-        locations,
-        ({ uri, range }) => uri
-      );
+      const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
       for (const [uri, locations] of Object.entries(documentLocations)) {
         const editor = getEditor(uri);
         if (editor) {
