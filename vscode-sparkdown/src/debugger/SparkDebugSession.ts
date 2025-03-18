@@ -919,12 +919,11 @@ export class SparkDebugSession extends LoggingDebugSession {
   ): Promise<void> {
     // console.log("evaluateRequest", args);
 
-    const compiler = new SparkdownCompiler();
-
     const { context } = await this._connection.emit(
       GetGameEvaluationContextMessage.type.request({})
     );
 
+    const compiler = new SparkdownCompiler();
     const value = compiler.evaluate(args.expression, context);
 
     const { variables } = await this._connection.emit(

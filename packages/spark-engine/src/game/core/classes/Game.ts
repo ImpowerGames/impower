@@ -90,9 +90,9 @@ export class Game<T extends M = {}> {
 
   protected _frameId = 0;
 
-  protected _nextVarRef = 2000; // Start at 2000 to avoid conflicts with scope handles
+  protected _nextObjectVariableRef = 2000; // Start at 2000 to avoid conflicts with scope handles
 
-  protected _varRefMap = new Map<number, object>();
+  protected _objectVariableRefMap = new Map<number, object>();
 
   protected _startpoint: {
     file: string;
@@ -836,7 +836,7 @@ export class Game<T extends M = {}> {
 
   getChildVariables(varRef: number): Variable[] {
     const variables: Variable[] = [];
-    const value = this._varRefMap.get(varRef);
+    const value = this._objectVariableRefMap.get(varRef);
     if (typeof value === "object" && Array.isArray(value)) {
       value.forEach((v, index) => {
         variables.push(
@@ -921,9 +921,9 @@ export class Game<T extends M = {}> {
   ): Variable {
     let variablesReference = 0;
     if (typeof value === "object" && value != null) {
-      variablesReference = this._nextVarRef;
-      this._varRefMap.set(variablesReference, value);
-      this._nextVarRef++;
+      variablesReference = this._nextObjectVariableRef;
+      this._objectVariableRefMap.set(variablesReference, value);
+      this._nextObjectVariableRef++;
     }
     const indexedVariables =
       typeof value === "object" && value != null && Array.isArray(value)
@@ -978,8 +978,8 @@ export class Game<T extends M = {}> {
   }
 
   clearVariableReferences() {
-    this._varRefMap.clear();
-    this._nextVarRef = 2000;
+    this._objectVariableRefMap.clear();
+    this._nextObjectVariableRef = 2000;
   }
 
   getThreads(): Thread[] {
