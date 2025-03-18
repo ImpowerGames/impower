@@ -692,12 +692,6 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyExecuted() {
-    console.log(
-      "EXECUTED",
-      this._executedLocationsThisFrame.map(
-        (l) => this.getDocumentLocation(l).range.start.line + 1
-      )
-    );
     this.connection.emit(
       ExecutedMessage.type.notification({
         locations: this._executedLocationsThisFrame.map((l) =>
