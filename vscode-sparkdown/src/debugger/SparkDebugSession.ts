@@ -802,7 +802,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StackTraceResponse,
     args: DebugProtocol.StackTraceArguments
   ) {
-    console.warn("stackTraceRequest", args.threadId);
+    // console.warn("stackTraceRequest", args.threadId);
     this._variableHandles.reset();
     const { stackFrames, totalFrames } = await this._connection.emit(
       GetGameStackTraceMessage.type.request({
