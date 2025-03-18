@@ -127,7 +127,10 @@ async function main() {
     await ctx.watch();
     const debouncedRebuild = debounce(async (ctx) => {
       console.log(
-        LOG_PREFIX + `Detected change in ${SPARKDOWN_SRC_PATH}, rebuilding...`
+        LOG_PREFIX +
+          `${path.basename(
+            process.cwd()
+          )}: detected change in ${SPARKDOWN_SRC_PATH}, rebuilding...`
       );
       await updateInlineWorkerContent();
       await ctx.rebuild();

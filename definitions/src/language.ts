@@ -275,16 +275,12 @@ build().catch((err) => {
 });
 
 if (WATCH) {
-  console.log(
-    LOG_PREFIX +
-      `${path.basename(process.cwd())}: Watching ${WATCH_PATH} for changes...`
-  );
   fs.watch(WATCH_PATH, { recursive: true }, async () => {
     console.log(
       LOG_PREFIX +
         `${path.basename(
           process.cwd()
-        )}: Detected change in ${WATCH_PATH}, rebuilding...`
+        )}: detected change in ${WATCH_PATH}, rebuilding...`
     );
     await build().catch((err) => {
       console.error(err);
