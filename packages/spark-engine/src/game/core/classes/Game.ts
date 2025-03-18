@@ -512,8 +512,8 @@ export class Game<T extends M = {}> {
         if (instructions) {
           this._coordinator = new Coordinator(this, instructions);
           if (!this._coordinator.shouldContinue()) {
-            this.notifyAwaitingInteraction();
             this.notifyExecuted();
+            this.notifyAwaitingInteraction();
             // DONE - waiting for user interaction (or auto advance)
             return true;
           }
