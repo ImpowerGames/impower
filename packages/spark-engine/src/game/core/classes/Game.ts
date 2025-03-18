@@ -143,7 +143,9 @@ export class Game<T extends M = {}> {
       );
     }
 
-    this._instructionLocations = Object.values(this._program.pathToLocation);
+    this._instructionLocations = Object.values(
+      this._program.pathToLocation || {}
+    );
 
     // Create connection for sending and receiving messages
     this._connection = new Connection({
@@ -526,7 +528,7 @@ export class Game<T extends M = {}> {
         const pointerPath =
           this._story.state.callStack.currentElement?.previousPointer.path?.toString();
         if (pointerPath) {
-          const location = this._program.pathToLocation[pointerPath];
+          const location = this._program.pathToLocation?.[pointerPath];
           if (location) {
             this._executingPath = pointerPath;
             this._executingLocation = location;
@@ -1021,7 +1023,7 @@ export class Game<T extends M = {}> {
             f.previousPointer.path?.toString() ??
             f.previousPointer.container?.path?.toString();
           if (pointerPath) {
-            const location = this._program.pathToLocation[pointerPath];
+            const location = this._program.pathToLocation?.[pointerPath];
             const documentLocation = this.getDocumentLocation(location);
             if (f.type == PushPopType.Function) {
               stackFrames.unshift({
@@ -1178,14 +1180,14 @@ export class Game<T extends M = {}> {
   }
 
   static getActualFunctionBreakpoints(
-    functionLocations: Record<string, ScriptLocation>,
+    functionLocations: Record<string, ScriptLocation> | undefined,
     breakpoints: { name: string }[],
     scripts: string[]
   ) {
     const actualBreakpoints: Breakpoint[] = [];
     for (const breakpoint of breakpoints) {
       const name = breakpoint.name;
-      const functionLocation = functionLocations[name];
+      const functionLocation = functionLocations?.[name];
       if (functionLocation) {
         const [scriptIndex, line] = functionLocation;
         const validBreakpoint = {
@@ -1218,14 +1220,14 @@ export class Game<T extends M = {}> {
   }
 
   static getActualDataBreakpoints(
-    dataLocations: Record<string, ScriptLocation>,
+    dataLocations: Record<string, ScriptLocation> | undefined,
     breakpoints: { dataId: string }[],
     scripts: string[]
   ) {
     const actualBreakpoints: Breakpoint[] = [];
     for (const breakpoint of breakpoints) {
       const dataId = breakpoint.dataId;
-      const dataLocation = dataLocations[dataId];
+      const dataLocation = dataLocations?.[dataId];
       if (dataLocation) {
         const [scriptIndex, line] = dataLocation;
         const validBreakpoint = {

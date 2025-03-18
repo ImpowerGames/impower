@@ -237,6 +237,7 @@ export class SparkdownCompiler {
             if (varAss) {
               if (varAss.variableName && !varAss.isNewDeclaration) {
                 if (varAss.isGlobal) {
+                  program.dataLocations ??= {};
                   program.dataLocations[varAss.variableName] ??= [
                     scriptIndex,
                     startLine,
@@ -255,6 +256,7 @@ export class SparkdownCompiler {
                         !p.includes("$")
                     )
                     .join(".");
+                  program.dataLocations ??= {};
                   program.dataLocations[
                     containerPath + "." + varAss.variableName
                   ] ??= [
@@ -277,7 +279,7 @@ export class SparkdownCompiler {
                 existingStartColumn,
                 existingEndLine,
                 existingEndColumn,
-              ] = program.pathToLocation[path] || [];
+              ] = program.pathToLocation?.[path] || [];
               if (
                 existingStartLine != null &&
                 existingStartColumn != null &&
@@ -300,6 +302,7 @@ export class SparkdownCompiler {
                 endLine = existingEndLine;
                 endColumn = existingEndColumn;
               }
+              program.pathToLocation ??= {};
               program.pathToLocation[path] ??= [
                 scriptIndex,
                 startLine,
@@ -457,40 +460,42 @@ export class SparkdownCompiler {
     const uri = program.uri;
     const scripts = Object.keys(program.scripts);
     profile("start", "sortPathToLocation", uri);
-    const sortedEntries = Object.entries(program.pathToLocation).sort(
-      ([, a], [, b]) => {
-        const [scriptIndexA, startLineA, startColumnA] = a;
-        const [scriptIndexB, startLineB, startColumnB] = b;
-        return (
-          scriptIndexA - scriptIndexB ||
-          startLineA - startLineB ||
-          startColumnA - startColumnB
-        );
-      }
-    );
-    program.pathToLocation = {};
-    for (const [k, v] of sortedEntries) {
-      program.pathToLocation[k] = v;
-      const [scriptIndex, startLine, startColumn, endLine, endColumn] = v;
-      if (startLine < endLine && endColumn === 0) {
-        // If range stretches to only the start of a line,
-        // limit the range to the end of the previous line,
-        // (So that the document blinking cursor doesn't confusingly appear
-        // at the start of the next unrelated line when doing a stack trace)
-        const uri = scripts[scriptIndex];
-        if (uri) {
-          const document = this.documents.get(uri);
-          if (document) {
-            const endPositionWithoutNewline = document.positionAt(
-              document.offsetAt({ line: endLine, character: endColumn }) - 1
-            );
-            program.pathToLocation[k] = [
-              scriptIndex,
-              startLine,
-              startColumn,
-              endPositionWithoutNewline.line,
-              endPositionWithoutNewline.character,
-            ];
+    if (program.pathToLocation) {
+      const sortedEntries = Object.entries(program.pathToLocation).sort(
+        ([, a], [, b]) => {
+          const [scriptIndexA, startLineA, startColumnA] = a;
+          const [scriptIndexB, startLineB, startColumnB] = b;
+          return (
+            scriptIndexA - scriptIndexB ||
+            startLineA - startLineB ||
+            startColumnA - startColumnB
+          );
+        }
+      );
+      program.pathToLocation = {};
+      for (const [k, v] of sortedEntries) {
+        program.pathToLocation[k] = v;
+        const [scriptIndex, startLine, startColumn, endLine, endColumn] = v;
+        if (startLine < endLine && endColumn === 0) {
+          // If range stretches to only the start of a line,
+          // limit the range to the end of the previous line,
+          // (So that the document blinking cursor doesn't confusingly appear
+          // at the start of the next unrelated line when doing a stack trace)
+          const uri = scripts[scriptIndex];
+          if (uri) {
+            const document = this.documents.get(uri);
+            if (document) {
+              const endPositionWithoutNewline = document.positionAt(
+                document.offsetAt({ line: endLine, character: endColumn }) - 1
+              );
+              program.pathToLocation[k] = [
+                scriptIndex,
+                startLine,
+                startColumn,
+                endPositionWithoutNewline.line,
+                endPositionWithoutNewline.character,
+              ];
+            }
           }
         }
       }
@@ -508,13 +513,16 @@ export class SparkdownCompiler {
       if (doc) {
         const annotations = this.documents.annotations(uri);
         const cur = annotations.declarations.iter();
-        let scopePathParts: { kind: "" | "knot" | "stitch"; name: string }[] =
-          [];
+        let scopePathParts: {
+          kind: "" | "knot" | "stitch" | "label";
+          name: string;
+        }[] = [];
         if (cur) {
           while (cur.value) {
             const name = doc.read(cur.from, cur.to);
             const range = doc.range(cur.from, cur.to);
             if (cur.value.type === "function") {
+              program.functionLocations ??= {};
               program.functionLocations[name] = [
                 scriptIndex,
                 range.start.line,
@@ -529,7 +537,8 @@ export class SparkdownCompiler {
                 kind: "knot",
                 name: doc.read(cur.from, cur.to),
               });
-              program.functionLocations[name] = [
+              program.knotLocations ??= {};
+              program.knotLocations[name] = [
                 scriptIndex,
                 range.start.line,
                 range.start.character,
@@ -539,7 +548,7 @@ export class SparkdownCompiler {
             }
             if (cur.value.type === "stitch") {
               const prevKind = scopePathParts.at(-1)?.kind || "";
-              if (prevKind === "stitch") {
+              if (prevKind !== "knot") {
                 scopePathParts.pop();
               }
               scopePathParts.push({
@@ -547,7 +556,27 @@ export class SparkdownCompiler {
                 name: doc.read(cur.from, cur.to),
               });
               const name = scopePathParts.map((p) => p.name).join(".");
-              program.functionLocations[name] = [
+              program.stitchLocations ??= {};
+              program.stitchLocations[name] = [
+                scriptIndex,
+                range.start.line,
+                range.start.character,
+                range.end.line,
+                range.end.character,
+              ];
+            }
+            if (cur.value.type === "label") {
+              const prevKind = scopePathParts.at(-1)?.kind || "";
+              if (prevKind !== "knot" && prevKind !== "stitch") {
+                scopePathParts.pop();
+              }
+              scopePathParts.push({
+                kind: "label",
+                name: doc.read(cur.from, cur.to),
+              });
+              const name = scopePathParts.map((p) => p.name).join(".");
+              program.labelLocations ??= {};
+              program.labelLocations[name] = [
                 scriptIndex,
                 range.start.line,
                 range.start.character,

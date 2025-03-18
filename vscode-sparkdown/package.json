@@ -73,6 +73,15 @@
         "editor.formatOnSave": true,
         "files.trimTrailingWhitespace": false
       },
+      "editor.semanticHighlighting.enabled": true,
+      "editor.semanticTokenColorCustomizations": {
+        "enabled": true,
+        "rules": {
+          "keyword": {
+            "foreground": "#F9B8F9"
+          }
+        }
+      },
       "editor.tokenColorCustomizations": {
         "textMateRules": [
           {
@@ -774,6 +783,7 @@
     ]
   },
   "scripts": {
+    "postinstall:textmate-grammar-tree": "cd ../packages/textmate-grammar-tree && npm ci && cd ../../vscode-sparkdown",
     "postinstall:sparkdown": "cd ../packages/sparkdown && npm ci && cd ../../vscode-sparkdown",
     "postinstall:spark-engine": "cd ../packages/spark-engine && npm ci && cd ../../vscode-sparkdown",
     "postinstall:spark-dom": "cd ../packages/spark-dom && npm ci && cd ../../vscode-sparkdown",

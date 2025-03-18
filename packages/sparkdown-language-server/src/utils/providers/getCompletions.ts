@@ -885,14 +885,10 @@ const addStructAccessPathCompletions = (
   }
 };
 
-const addDivertPathCompletions = (
+const addDivertPathKeywords = (
   completions: Map<string, CompletionItem>,
-  scopes: {
-    [path: string]: Record<string, string[]>;
-  },
   valueText: string,
   valueCursorOffset: number,
-  scopePath: string,
   insertTextPrefix: string = ""
 ) => {
   const valueTextAfterCursor = valueText.slice(valueCursorOffset);
@@ -907,12 +903,28 @@ const addDivertPathCompletions = (
         insertTextPrefix
       );
     }
+  }
+};
+
+const addDivertPathCompletions = (
+  completions: Map<string, CompletionItem>,
+  scopes: {
+    [path: string]: Record<string, string[]>;
+  },
+  valueText: string,
+  valueCursorOffset: number,
+  scopePath: string,
+  insertTextPrefix: string = ""
+) => {
+  const valueTextAfterCursor = valueText.slice(valueCursorOffset);
+  if (!valueTextAfterCursor) {
+    const parts = valueText?.split(".") || [];
     if (scopes) {
       const types = ["knot", "stitch", "label"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (
           (parts.length <= 1 && scopePath.startsWith(path)) ||
-          (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
+          (parts.length > 1 && path === parts.slice(0, -1).join("."))
         ) {
           for (const type of types) {
             if (declarations[type]) {
@@ -1007,6 +1019,26 @@ export const getCompletions = (
   // console.log("program", program);
   // console.log(printTree(tree, document.getText()));
   // console.log(leftStack.map((n) => n.type.name));
+
+  if (
+    leftStack[0]?.name === "PunctuationAccessor" ||
+    leftStack[0]?.name === "VariableName"
+  ) {
+    const accessPathNode = leftStack.find((n) => n.name === "AccessPath");
+    if (isCursorAfterNodeText(accessPathNode)) {
+      const valueText = getNodeText(accessPathNode);
+      const valueCursorOffset = getCursorOffset(accessPathNode);
+      const scopes = getDeclarationScopes(read, scriptAnnotations);
+      addDivertPathCompletions(
+        completions,
+        scopes,
+        valueText,
+        valueCursorOffset,
+        getParentSectionPath(leftStack, read).join(".")
+      );
+    }
+    return buildCompletions();
+  }
 
   // FrontMatter
   if (
@@ -1694,6 +1726,12 @@ export const getCompletions = (
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
       const scopes = getDeclarationScopes(read, scriptAnnotations);
+      addDivertPathKeywords(
+        completions,
+        "",
+        0,
+        getParentSectionPath(leftStack, read).join(".")
+      );
       addDivertPathCompletions(
         completions,
         scopes,
@@ -1714,6 +1752,12 @@ export const getCompletions = (
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
       const scopes = getDeclarationScopes(read, scriptAnnotations);
+      addDivertPathKeywords(
+        completions,
+        "",
+        0,
+        getParentSectionPath(leftStack, read).join(".")
+      );
       addDivertPathCompletions(
         completions,
         scopes,
@@ -1729,6 +1773,12 @@ export const getCompletions = (
       const valueText = getNodeText(leftStack[0]);
       const valueCursorOffset = getCursorOffset(leftStack[0]);
       const scopes = getDeclarationScopes(read, scriptAnnotations);
+      addDivertPathKeywords(
+        completions,
+        "",
+        0,
+        getParentSectionPath(leftStack, read).join(".")
+      );
       addDivertPathCompletions(
         completions,
         scopes,

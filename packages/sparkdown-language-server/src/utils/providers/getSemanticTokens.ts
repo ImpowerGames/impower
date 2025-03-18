@@ -11,6 +11,9 @@ import {
 } from "vscode-languageserver";
 import { type Range } from "vscode-languageserver-textdocument";
 
+export const TOKEN_TYPES = [...Object.values(SemanticTokenTypes)];
+export const TOKEN_MODIFIERS = [...Object.values(SemanticTokenModifiers)];
+
 export const getSemanticTokens = (
   document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations | undefined,
@@ -20,7 +23,6 @@ export const getSemanticTokens = (
   if (!document || !annotations) {
     return { data: [] };
   }
-  const timeStarted = performance.now();
   const tokens: [number, number, number, number, number][] = [];
   const encode = (
     line: number,
@@ -29,10 +31,8 @@ export const getSemanticTokens = (
     tokenType: string,
     tokenModifiers: string[] = []
   ): [number, number, number, number, number] => {
-    const semanticTokenTypes: string[] = Object.values(SemanticTokenTypes);
-    const semanticTokenModifiers: string[] = Object.values(
-      SemanticTokenModifiers
-    );
+    const semanticTokenTypes: string[] = TOKEN_TYPES;
+    const semanticTokenModifiers: string[] = TOKEN_MODIFIERS;
     return [
       line,
       startChar,
@@ -65,7 +65,26 @@ export const getSemanticTokens = (
     if (cur.from > iterateTo) {
       break;
     }
-    add(cur);
+    const text = document.read(cur.from, cur.to);
+    if (cur.value.type.possibleDivertPath) {
+      const pathPart1 = text.split(".").slice(0, 1).join(".");
+      const pathPart2 = text.split(".").slice(0, 2).join(".");
+      if (
+        program?.knotLocations?.[text] ||
+        program?.stitchLocations?.[text] ||
+        program?.labelLocations?.[text] ||
+        program?.knotLocations?.[pathPart1] ||
+        program?.stitchLocations?.[pathPart1] ||
+        program?.labelLocations?.[pathPart1] ||
+        program?.knotLocations?.[pathPart2] ||
+        program?.stitchLocations?.[pathPart2] ||
+        program?.labelLocations?.[pathPart2]
+      ) {
+        add(cur);
+      }
+    } else {
+      add(cur);
+    }
     cur.next();
   }
   // See LSP Spec for semantic tokens for information on the encoding process:

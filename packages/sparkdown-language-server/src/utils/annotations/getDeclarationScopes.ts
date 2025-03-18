@@ -19,7 +19,7 @@ export const getDeclarationScopes = (
         }
         if (cur.value.type === "stitch") {
           const prevKind = scopePathParts.at(-1)?.kind || "";
-          if (prevKind === "stitch") {
+          if (prevKind !== "knot") {
             scopePathParts.pop();
           }
           const scopePath = scopePathParts.map((p) => p.name).join(".");

@@ -1,15 +1,13 @@
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import {
-  SemanticTokenModifiers,
-  SemanticTokenTypes,
   type InitializeResult,
   type ServerCapabilities,
 } from "vscode-languageserver";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
-  TextDocumentSyncKind,
   createConnection,
+  TextDocumentSyncKind,
 } from "vscode-languageserver/browser";
 import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
 import { canRename } from "./utils/providers/canRename";
@@ -23,7 +21,11 @@ import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
 import { getReferences } from "./utils/providers/getReferences";
 import { getRenameEdits } from "./utils/providers/getRenameEdits";
-import { getSemanticTokens } from "./utils/providers/getSemanticTokens";
+import {
+  getSemanticTokens,
+  TOKEN_MODIFIERS,
+  TOKEN_TYPES,
+} from "./utils/providers/getSemanticTokens";
 
 console.log("running sparkdown-language-server");
 
@@ -87,8 +89,8 @@ try {
       documentHighlightProvider: true,
       semanticTokensProvider: {
         legend: {
-          tokenTypes: [...Object.values(SemanticTokenTypes)],
-          tokenModifiers: [...Object.values(SemanticTokenModifiers)],
+          tokenTypes: TOKEN_TYPES,
+          tokenModifiers: TOKEN_MODIFIERS,
         },
         range: true,
         full: true,
@@ -460,11 +462,12 @@ try {
   });
 
   // semanticTokensProvider
-  connection.languages.semanticTokens.on((params) => {
+  connection.languages.semanticTokens.on(async (params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const annotations = documents.annotations(uri);
-    const program = documents.program(uri);
+    const program =
+      documents.program(uri) || (await documents.compile(uri, true));
     performance.mark(`lsp: semanticTokens.on ${uri} start`);
     const result = getSemanticTokens(document, annotations, program);
     performance.mark(`lsp: semanticTokens.on ${uri} end`);
@@ -475,11 +478,12 @@ try {
     );
     return result;
   });
-  connection.languages.semanticTokens.onRange((params) => {
+  connection.languages.semanticTokens.onRange(async (params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const annotations = documents.annotations(uri);
-    const program = documents.program(uri);
+    const program =
+      documents.program(uri) || (await documents.compile(uri, true));
     performance.mark(`lsp: semanticTokens.onRange ${uri} start`);
     const result = getSemanticTokens(
       document,

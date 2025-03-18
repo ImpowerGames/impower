@@ -11,7 +11,7 @@ export interface SparkProgram {
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];
   };
-  pathToLocation: {
+  pathToLocation?: {
     [path: string]: [
       scriptIndex: number,
       startLine: number,
@@ -20,7 +20,7 @@ export interface SparkProgram {
       endColumn: number
     ];
   };
-  functionLocations: {
+  functionLocations?: {
     [name: string]: [
       scriptIndex: number,
       startLine: number,
@@ -29,7 +29,34 @@ export interface SparkProgram {
       endColumn: number
     ];
   };
-  dataLocations: {
+  knotLocations?: {
+    [name: string]: [
+      scriptIndex: number,
+      startLine: number,
+      startColumn: number,
+      endLine: number,
+      endColumn: number
+    ];
+  };
+  stitchLocations?: {
+    [name: string]: [
+      scriptIndex: number,
+      startLine: number,
+      startColumn: number,
+      endLine: number,
+      endColumn: number
+    ];
+  };
+  labelLocations?: {
+    [name: string]: [
+      scriptIndex: number,
+      startLine: number,
+      startColumn: number,
+      endLine: number,
+      endColumn: number
+    ];
+  };
+  dataLocations?: {
     [name: string]: [
       scriptIndex: number,
       startLine: number,
