@@ -86,9 +86,9 @@ export class Game<T extends M = {}> {
 
   protected _executingLocation: ScriptLocation;
 
-  protected _lastHitBreakpointLocation?: ScriptLocation;
+  protected _executedLocationsThisFrame: ScriptLocation[] = [];
 
-  protected _frameId = 0;
+  protected _lastHitBreakpointLocation?: ScriptLocation;
 
   protected _nextObjectVariableRef = 2000; // Start at 2000 to avoid conflicts with scope handles
 
@@ -512,9 +512,8 @@ export class Game<T extends M = {}> {
         if (instructions) {
           this._coordinator = new Coordinator(this, instructions);
           if (!this._coordinator.shouldContinue()) {
-            this.notifyExecuted();
             this.notifyAwaitingInteraction();
-            this._frameId++;
+            this.notifyExecuted();
             // DONE - waiting for user interaction (or auto advance)
             return true;
           }
@@ -531,6 +530,7 @@ export class Game<T extends M = {}> {
           if (location) {
             this._executingPath = pointerPath;
             this._executingLocation = location;
+            this._executedLocationsThisFrame.push(location);
           }
         }
 
@@ -692,13 +692,21 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyExecuted() {
+    console.log(
+      "EXECUTED",
+      this._executedLocationsThisFrame.map(
+        (l) => this.getDocumentLocation(l).range.start.line + 1
+      )
+    );
     this.connection.emit(
       ExecutedMessage.type.notification({
-        location: this.getDocumentLocation(this._executingLocation),
+        locations: this._executedLocationsThisFrame.map((l) =>
+          this.getDocumentLocation(l)
+        ),
         path: this._executingPath,
-        frameId: this._frameId,
       })
     );
+    this._executedLocationsThisFrame.length = 0;
   }
 
   protected notifyStepped() {

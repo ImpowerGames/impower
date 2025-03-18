@@ -5,9 +5,8 @@ import { MessageProtocolNotificationType } from "../MessageProtocolNotificationT
 export type GameExecutedMethod = typeof GameExecutedMessage.method;
 
 export interface GameExecutedParams {
-  location: Location;
+  locations: Location[];
   path: string;
-  frameId: number;
 }
 
 export class GameExecutedMessage {

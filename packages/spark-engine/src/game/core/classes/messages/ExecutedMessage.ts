@@ -8,9 +8,8 @@ export class ExecutedMessage {
   static readonly type = new MessageProtocolNotificationType<
     ExecutedMethod,
     {
-      location: DocumentLocation;
+      locations: DocumentLocation[];
       path: string;
-      frameId: number;
     }
   >(ExecutedMessage.method);
 }

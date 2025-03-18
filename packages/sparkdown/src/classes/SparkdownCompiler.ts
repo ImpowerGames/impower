@@ -280,6 +280,7 @@ export class SparkdownCompiler {
                   (existingStartLine === startLine &&
                     existingStartColumn < startColumn))
               ) {
+                // expand range backward
                 startLine = existingStartLine;
                 startColumn = existingStartColumn;
               }
@@ -290,6 +291,7 @@ export class SparkdownCompiler {
                   (existingEndLine === endLine &&
                     existingEndColumn > endColumn))
               ) {
+                // expand range forward
                 endLine = existingEndLine;
                 endColumn = existingEndColumn;
               }
@@ -448,6 +450,7 @@ export class SparkdownCompiler {
 
   sortPathToLocation(program: SparkProgram) {
     const uri = program.uri;
+    const scripts = Object.keys(program.scripts);
     profile("start", "sortPathToLocation", uri);
     const sortedEntries = Object.entries(program.pathToLocation).sort(
       ([, a], [, b]) => {
@@ -463,6 +466,29 @@ export class SparkdownCompiler {
     program.pathToLocation = {};
     for (const [k, v] of sortedEntries) {
       program.pathToLocation[k] = v;
+      const [scriptIndex, startLine, startColumn, endLine, endColumn] = v;
+      if (startLine < endLine && endColumn === 0) {
+        // If range stretches to only the start of a line,
+        // limit the range to the end of the previous line,
+        // (So that the document blinking cursor doesn't confusingly appear
+        // at the start of the next unrelated line when doing a stack trace)
+        const uri = scripts[scriptIndex];
+        if (uri) {
+          const document = this.documents.get(uri);
+          if (document) {
+            const endPositionWithoutNewline = document.positionAt(
+              document.offsetAt({ line: endLine, character: endColumn }) - 1
+            );
+            program.pathToLocation[k] = [
+              scriptIndex,
+              startLine,
+              startColumn,
+              endPositionWithoutNewline.line,
+              endPositionWithoutNewline.character,
+            ];
+          }
+        }
+      }
     }
     profile("end", "sortPathToLocation", uri);
   }

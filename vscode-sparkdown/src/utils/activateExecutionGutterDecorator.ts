@@ -41,21 +41,40 @@ const currentlyExecutedLineDecoration: vscode.TextEditorDecorationType =
     overviewRulerLane: vscode.OverviewRulerLane.Full,
   });
 
-let executedLines: Map<number, Set<number>> = new Map();
+let previouslyExecutedLines = new Set<number>();
+let currentlyExecutedLines = new Set<number>();
 
 export const activateExecutionGutterDecorator = (
   context: vscode.ExtensionContext
 ) => {
   const handleGameExecuted = (message: Message) => {
     if (GameExecutedMessage.type.isNotification(message)) {
-      const { location, frameId } = message.params;
-      const line = location.range.start.line;
-      const editor = getEditor(location.uri);
-      if (!editor) {
-        return;
+      const { locations } = message.params;
+      const documentLocations = Object.groupBy(
+        locations,
+        ({ uri, range }) => uri
+      );
+      for (const [uri, locations] of Object.entries(documentLocations)) {
+        const editor = getEditor(uri);
+        if (editor) {
+          for (const line of currentlyExecutedLines) {
+            previouslyExecutedLines.add(line);
+          }
+          currentlyExecutedLines.clear();
+          if (locations) {
+            for (const location of locations) {
+              for (
+                let i = location.range.start.line;
+                i <= location.range.end.line;
+                i++
+              ) {
+                currentlyExecutedLines.add(i);
+              }
+            }
+          }
+          debouncedUpdateDecorations(editor);
+        }
       }
-      addExecutedLine(line, frameId);
-      debouncedUpdateDecorations(editor);
     }
   };
   SparkdownPreviewGamePanelManager.instance.connection.incoming.addListener(
@@ -90,14 +109,6 @@ export const activateExecutionGutterDecorator = (
   });
 };
 
-const addExecutedLine = (lineNumber: number, frameId: number) => {
-  const range = new vscode.Range(lineNumber, 0, lineNumber, 0);
-  if (!executedLines.has(frameId)) {
-    executedLines.set(frameId, new Set());
-  }
-  executedLines.get(frameId)!.add(range.start.line);
-};
-
 const debouncedUpdateDecorations = debounce((editor: vscode.TextEditor) => {
   updateDecorations(editor);
 }, 100);
@@ -107,55 +118,24 @@ const updateDecorations = (editor: vscode.TextEditor) => {
   editor.setDecorations(previouslyExecutedLineDecoration, []);
   editor.setDecorations(currentlyExecutedLineDecoration, []);
 
-  // Get the most recent frame
-  const latestFrameId = executedLines.size - 1;
-
-  const currentlyExecutedLines: vscode.Range[] = [];
-  const previouslyExecutedLines: vscode.Range[] = [];
-
-  // Use a Set to ensure uniqueness of previously executed lines
-  const uniqueCurrentlyExecutedLines = new Set<number>();
-  const uniquePreviouslyExecutedLines = new Set<number>();
-
-  const latestExecutedLines = executedLines.get(latestFrameId);
-  if (latestExecutedLines) {
-    for (const line of latestExecutedLines) {
-      const key = line; // Use line number as a key
-      if (!uniqueCurrentlyExecutedLines.has(key)) {
-        uniqueCurrentlyExecutedLines.add(key);
-        currentlyExecutedLines.push(new vscode.Range(line, 0, line, 0));
-      }
-    }
-  }
-
-  executedLines.forEach((lines, frameId) => {
-    if (frameId !== latestFrameId) {
-      for (const line of lines) {
-        const key = line; // Use line number as a key
-        if (
-          !uniquePreviouslyExecutedLines.has(key) &&
-          !uniqueCurrentlyExecutedLines.has(key)
-        ) {
-          uniquePreviouslyExecutedLines.add(key);
-          previouslyExecutedLines.push(new vscode.Range(line, 0, line, 0));
-        }
-      }
-    }
-  });
-
   // Apply new decorations
   editor.setDecorations(
     previouslyExecutedLineDecoration,
-    previouslyExecutedLines
+    Array.from(previouslyExecutedLines).map(
+      (line) => new vscode.Range(line, 0, line, 0)
+    )
   );
   editor.setDecorations(
     currentlyExecutedLineDecoration,
-    currentlyExecutedLines
+    Array.from(currentlyExecutedLines).map(
+      (line) => new vscode.Range(line, 0, line, 0)
+    )
   );
 };
 
 const clearExecutedLines = () => {
-  executedLines.clear();
+  previouslyExecutedLines.clear();
+  currentlyExecutedLines.clear();
   for (const editor of vscode.window.visibleTextEditors) {
     updateDecorations(editor);
   }
