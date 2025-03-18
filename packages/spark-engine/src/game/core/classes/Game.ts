@@ -816,7 +816,10 @@ export class Game<T extends M = {}> {
         const value = this.getRuntimeValue(name, valueObj);
         const scopePath = this._executingPath
           .split(".")
-          .filter((p) => Number.isNaN(Number(p) && !p.includes("-")))
+          .filter(
+            (p) =>
+              Number.isNaN(Number(p)) && !p.includes("-") && !p.includes("$")
+          )
           .join(".");
         if (value !== undefined) {
           variables.push(

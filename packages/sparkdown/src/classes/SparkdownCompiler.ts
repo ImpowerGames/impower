@@ -248,7 +248,12 @@ export class SparkdownCompiler {
                   const containerPath = varAss.path
                     .toString()
                     .split(".")
-                    .filter((p) => Number.isNaN(Number(p) && !p.includes("-")))
+                    .filter(
+                      (p) =>
+                        Number.isNaN(Number(p)) &&
+                        !p.includes("-") &&
+                        !p.includes("$")
+                    )
                     .join(".");
                   program.dataLocations[
                     containerPath + "." + varAss.variableName
