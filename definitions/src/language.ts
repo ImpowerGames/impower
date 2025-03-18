@@ -10,6 +10,8 @@ const MAGENTA = "\x1b[35m" + STRING + RESET;
 const outPaths = process.argv.slice(2).filter((path) => !path.startsWith("--"));
 const WATCH = process.argv.includes("--watch");
 
+const LOG_PREFIX = WATCH ? "[watch] " : "";
+
 console.log(BLUE, "Propagating definitions to:");
 console.log(
   MAGENTA,
@@ -273,9 +275,17 @@ build().catch((err) => {
 });
 
 if (WATCH) {
-  console.log(`[watch] Watching ${WATCH_PATH} for changes...`);
+  console.log(
+    LOG_PREFIX +
+      `${path.basename(process.cwd())}: Watching ${WATCH_PATH} for changes...`
+  );
   fs.watch(WATCH_PATH, { recursive: true }, async () => {
-    console.log(`[watch] Detected change in ${WATCH_PATH}, rebuilding...`);
+    console.log(
+      LOG_PREFIX +
+        `${path.basename(
+          process.cwd()
+        )}: Detected change in ${WATCH_PATH}, rebuilding...`
+    );
     await build().catch((err) => {
       console.error(err);
     });

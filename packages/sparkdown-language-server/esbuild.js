@@ -1,6 +1,7 @@
 import { exec } from "child_process";
 import { context } from "esbuild";
 import fs from "fs";
+import path from "path";
 
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
 
@@ -13,6 +14,8 @@ const WATCH = process.argv.includes("--watch");
 const SPARKDOWN_SRC_PATH = "../sparkdown/src";
 const SPARKDOWN_WORKER_FILE_PATH = "../sparkdown/dist/sparkdown.js";
 const SPARKDOWN_PLACEHOLDER_FILENAME = "_inline-sparkdown-placeholder";
+
+const LOG_PREFIX = WATCH ? "[watch] " : "";
 
 const debounce = (callback, delay) => {
   let timeout = 0;
@@ -28,7 +31,6 @@ let inlineWorkerContent = "";
 const updateInlineWorkerContent = async () => {
   try {
     // Build worker file
-    console.log(`Building ${SPARKDOWN_WORKER_FILE_PATH}`);
     await new Promise((resolve) => {
       exec(
         `npm run build:${PRODUCTION ? "prod" : "dev"}:workers`,
@@ -47,7 +49,6 @@ const updateInlineWorkerContent = async () => {
       SPARKDOWN_WORKER_FILE_PATH,
       "utf-8"
     );
-    console.log(`Read inline worker contents (${inlineWorkerContent.length})`);
   } catch (e) {
     console.error(`[Error] Failed to read ${SPARKDOWN_WORKER_FILE_PATH}:`, e);
     inlineWorkerContent = "";
@@ -62,7 +63,10 @@ const buildInlineWorkerPlugin = (placeholderFileName) => ({
       { filter: new RegExp(`${placeholderFileName}\.(?:ts|js)$`) },
       async () => {
         console.log(
-          `Loading inline worker contents (${inlineWorkerContent.length})`
+          LOG_PREFIX +
+            `${path.basename(process.cwd())}: loaded inline worker contents (${
+              inlineWorkerContent.length
+            })`
         );
         return {
           contents: inlineWorkerContent,
@@ -78,7 +82,9 @@ const esbuildProblemMatcher = () => ({
   name: "esbuildProblemMatcher",
   setup(build) {
     build.onStart(() => {
-      console.log("[watch] build started");
+      console.log(
+        LOG_PREFIX + `${path.basename(process.cwd())}: build started`
+      );
     });
     build.onEnd((result) => {
       result.errors.forEach(({ text, location }) => {
@@ -88,7 +94,9 @@ const esbuildProblemMatcher = () => ({
           `    ${location.file}:${location.line}:${location.column}:`
         );
       });
-      console.log("[watch] build finished");
+      console.log(
+        LOG_PREFIX + `${path.basename(process.cwd())}: build finished`
+      );
     });
   },
 });
@@ -117,10 +125,9 @@ async function main() {
   if (WATCH) {
     await updateInlineWorkerContent();
     await ctx.watch();
-    console.log(`[watch] Watching for changes in ${SPARKDOWN_SRC_PATH}`);
     const debouncedRebuild = debounce(async (ctx) => {
       console.log(
-        `[watch] Detected change in ${SPARKDOWN_SRC_PATH}, rebuilding...`
+        LOG_PREFIX + `Detected change in ${SPARKDOWN_SRC_PATH}, rebuilding...`
       );
       await updateInlineWorkerContent();
       await ctx.rebuild();

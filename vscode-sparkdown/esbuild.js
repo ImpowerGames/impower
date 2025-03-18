@@ -7,6 +7,8 @@ import * as path from "path";
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
+const LOG_PREFIX = WATCH ? "[watch] " : "";
+
 /**
  * For web extension, all tests, including the test runner, need to be bundled into
  * a single module that has a exported `run` function .
@@ -43,7 +45,9 @@ const esbuildProblemMatcher = () => ({
   name: "esbuildProblemMatcher",
   setup(build) {
     build.onStart(() => {
-      console.log("[watch] build started");
+      console.log(
+        LOG_PREFIX + `${path.basename(process.cwd())}: build started`
+      );
     });
     build.onEnd((result) => {
       result.errors.forEach(({ text, location }) => {
@@ -53,7 +57,9 @@ const esbuildProblemMatcher = () => ({
           `    ${location.file}:${location.line}:${location.column}:`
         );
       });
-      console.log("[watch] build finished");
+      console.log(
+        LOG_PREFIX + `${path.basename(process.cwd())}: build finished`
+      );
     });
   },
 });
@@ -82,6 +88,8 @@ const config = {
     events: "events",
     stream: "stream-browserify",
     url: "url-browserify",
+    "@codemirror/state": "@codemirror/state",
+    "@lezer/common": "@lezer/common",
   },
   banner: {
     js: `const window = {};`,

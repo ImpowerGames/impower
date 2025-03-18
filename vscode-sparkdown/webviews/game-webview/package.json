@@ -1,13 +1,17 @@
 {
+  "name": "game-webview",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "node ./esbuild.js",
+    "watch": "node ./esbuild.js --watch",
+    "package": "node ./esbuild.js --production"
+  },
   "dependencies": {
     "@impower/spark-dom": "file:../../../packages/spark-dom",
     "@impower/spark-editor-protocol": "file:../../../packages/spark-editor-protocol",
     "@impower/spark-engine": "file:../../../packages/spark-engine",
     "@impower/spark-web-player": "file:../../../packages/spark-web-player"
   },
-  "scripts": {
-    "build": "node ./esbuild.js",
-    "watch": "node ./esbuild.js --watch",
-    "package": "node ./esbuild.js --production"
-  }
+  "devDependencies": {}
 }

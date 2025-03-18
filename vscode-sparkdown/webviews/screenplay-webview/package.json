@@ -1,4 +1,7 @@
 {
+  "name": "screenplay-webview",
+  "version": "0.0.1",
+  "type": "module",
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../../../packages/spark-editor-protocol",
     "@impower/sparkdown-document-views": "file:../../../packages/sparkdown-document-views"
