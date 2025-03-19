@@ -7,6 +7,7 @@ export type GameExecutedMethod = typeof GameExecutedMessage.method;
 export interface GameExecutedParams {
   locations: Location[];
   path: string;
+  state: "initial" | "running" | "previewing" | "paused";
 }
 
 export class GameExecutedMessage {

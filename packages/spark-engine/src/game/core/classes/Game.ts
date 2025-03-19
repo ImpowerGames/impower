@@ -656,6 +656,7 @@ export class Game<T extends M = {}> {
           this.getDocumentLocation(l)
         ),
         path: this._executingPath,
+        state: this._state,
       })
     );
     this._executedLocationsThisFrame.length = 0;

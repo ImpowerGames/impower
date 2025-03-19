@@ -49,27 +49,29 @@ export const activateExecutionGutterDecorator = (
 ) => {
   const handleGameExecuted = (message: Message) => {
     if (GameExecutedMessage.type.isNotification(message)) {
-      const { locations } = message.params;
-      const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
-      for (const [uri, locations] of Object.entries(documentLocations)) {
-        const editor = getEditor(uri);
-        if (editor) {
-          for (const line of currentlyExecutedLines) {
-            previouslyExecutedLines.add(line);
-          }
-          currentlyExecutedLines.clear();
-          if (locations) {
-            for (const location of locations) {
-              for (
-                let i = location.range.start.line;
-                i <= location.range.end.line;
-                i++
-              ) {
-                currentlyExecutedLines.add(i);
+      const { locations, state } = message.params;
+      if (state === "running") {
+        const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
+        for (const [uri, locations] of Object.entries(documentLocations)) {
+          const editor = getEditor(uri);
+          if (editor) {
+            for (const line of currentlyExecutedLines) {
+              previouslyExecutedLines.add(line);
+            }
+            currentlyExecutedLines.clear();
+            if (locations) {
+              for (const location of locations) {
+                for (
+                  let i = location.range.start.line;
+                  i <= location.range.end.line;
+                  i++
+                ) {
+                  currentlyExecutedLines.add(i);
+                }
               }
             }
+            debouncedUpdateDecorations(editor);
           }
-          debouncedUpdateDecorations(editor);
         }
       }
     }
