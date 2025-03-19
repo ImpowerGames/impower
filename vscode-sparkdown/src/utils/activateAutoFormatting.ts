@@ -457,6 +457,7 @@ const adjustStartOfLineMark = async (
     const annotations = SparkdownDocumentManager.instance.annotations(
       editor.document.uri
     );
+    const line = Math.max(0, cursor.line - 1);
     const { indentStack } = getFormatting(
       parsedDoc,
       tree,
@@ -465,12 +466,7 @@ const adjustStartOfLineMark = async (
         tabSize: editor.options.tabSize as number,
         insertSpaces: editor.options.insertSpaces as boolean,
       },
-      new Range(
-        0,
-        0,
-        cursor.line - 1,
-        editor.document.lineAt(cursor.line - 1).text.length
-      )
+      new Range(0, 0, line, editor.document.lineAt(line).text.length)
     );
     const expectedIndentStack = [...(indentStack || [])];
     const currentIndent = expectedIndentStack.at(-1);
