@@ -347,6 +347,7 @@ export const uiBuiltinDefinitions = () => ({
       position: "absolute",
       right: "16px",
       bottom: "16px",
+      font_size: "16px",
       transition: `opacity 0.25s linear`,
       animation: "0.5s infinite bounce",
       animation_play_state: "paused",
