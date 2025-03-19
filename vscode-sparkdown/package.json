@@ -789,6 +789,7 @@
     "postinstall:spark-dom": "cd ../packages/spark-dom && npm ci && cd ../../vscode-sparkdown",
     "postinstall:spark-editor-protocol": "cd ../packages/spark-editor-protocol && npm ci && cd ../../vscode-sparkdown",
     "postinstall:sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm ci && cd ../../vscode-sparkdown",
+    "postinstall:sparkdown-screenplay": "cd ../packages/sparkdown-screenplay && npm ci && cd ../../vscode-sparkdown",
     "postinstall:sparkdown-screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm ci && cd ../../vscode-sparkdown",
     "postinstall:opfs-workspace": "cd ../packages/opfs-workspace && npm ci && cd ../../vscode-sparkdown",
     "postinstall:spark-web-player": "cd ../packages/spark-web-player && npm ci && cd ../../vscode-sparkdown",
