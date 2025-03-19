@@ -1,3 +1,4 @@
+import { File } from "../../../../sparkdown/src/types/File";
 import { RequestMessage } from "../../types/base/RequestMessage";
 import { ResponseMessage } from "../../types/base/ResponseMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
@@ -5,14 +6,7 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 export type UpdateCompilerFileMethod = typeof UpdateCompilerFileMessage.method;
 
 export interface UpdateCompilerFileParams {
-  file: {
-    uri: string;
-    type: string;
-    name: string;
-    ext: string;
-    src: string;
-    text?: string;
-  };
+  file: File;
 }
 
 export type UpdateCompilerFileResult = boolean;

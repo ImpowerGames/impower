@@ -11,7 +11,7 @@
     "@impower/spark-dom": "file:../../../packages/spark-dom",
     "@impower/spark-editor-protocol": "file:../../../packages/spark-editor-protocol",
     "@impower/spark-engine": "file:../../../packages/spark-engine",
-    "@impower/spark-web-player": "file:../../../packages/spark-web-player"
-  },
-  "devDependencies": {}
+    "@impower/spark-web-player": "file:../../../packages/spark-web-player",
+    "@impower/sparkdown": "file:../../../packages/sparkdown"
+  }
 }

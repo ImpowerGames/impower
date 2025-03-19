@@ -342,10 +342,8 @@ export class SparkdownCompiler {
         this.sortPathToLocation(program);
         this.populateDeclarationLocations(program);
         this.populateDiagnostics(state, program, inkCompiler);
-        this.populateBuiltins(program);
-        this.populateAssets(program);
+        this.buildContext(program);
         this.validateSyntax(program);
-        this.populateImplicitDefs(program);
         this.validateReferences(program);
       } catch (e) {
         // console.error(e);
@@ -590,6 +588,15 @@ export class SparkdownCompiler {
       }
     }
     profile("end", "populateDeclarationLocations", uri);
+  }
+
+  buildContext(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", "buildContext", uri);
+    this.populateBuiltins(program);
+    this.populateAssets(program);
+    this.populateImplicitDefs(program);
+    profile("end", "buildContext", uri);
   }
 
   populateBuiltins(program: SparkProgram) {

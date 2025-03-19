@@ -5,9 +5,9 @@ import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
 
-export const activatePreviewGamePanel = (
+export const activatePreviewGamePanel = async (
   context: vscode.ExtensionContext
-): void => {
+) => {
   // Register game preview command
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.previewGame", () => {

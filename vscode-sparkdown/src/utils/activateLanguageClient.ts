@@ -19,6 +19,8 @@ import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { SparkdownOutlineTreeDataProvider } from "../providers/SparkdownOutlineTreeDataProvider";
 import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
 import { getEditor } from "./getEditor";
+import { getWorkspaceFiles } from "./getWorkspaceFiles";
+import { getWorkspaceFileWatchers } from "./getWorkspaceFileWatchers";
 import { updateCommands } from "./updateCommands";
 
 export const activateLanguageClient = async (
@@ -26,52 +28,8 @@ export const activateLanguageClient = async (
 ): Promise<void> => {
   const sparkdownConfig = vscode.workspace.getConfiguration("sparkdown");
   const editor = getEditor();
-  const scriptFiles = sparkdownConfig["scriptFiles"];
-  const imageFiles = sparkdownConfig["imageFiles"];
-  const audioFiles = sparkdownConfig["audioFiles"];
-  const fontFiles = sparkdownConfig["fontFiles"];
-  const workspaceFilePatterns = [
-    scriptFiles,
-    imageFiles,
-    audioFiles,
-    fontFiles,
-  ].map((pattern) => "**/" + pattern);
-  const fileWatchers = workspaceFilePatterns.map((pattern) =>
-    vscode.workspace.createFileSystemWatcher(pattern)
-  );
-  const [scriptFileUris, imageFileUris, audioFileUris, fontFileUrls] =
-    await Promise.all(
-      workspaceFilePatterns.map((pattern) =>
-        vscode.workspace.findFiles(pattern)
-      )
-    );
-  const files = await Promise.all([
-    ...(scriptFileUris || []).map(async (fileUri) => {
-      const uri = fileUri.toString();
-      const buffer = await vscode.workspace.fs.readFile(fileUri);
-      const text = Buffer.from(buffer).toString("utf8");
-      const result = { uri, text };
-      return result;
-    }),
-    ...(imageFileUris || []).map(async (fileUri) => {
-      const uri = fileUri.toString();
-      if (uri.endsWith("svg")) {
-        const buffer = await vscode.workspace.fs.readFile(fileUri);
-        const text = Buffer.from(buffer).toString("utf8");
-        const result = { uri, text };
-        return result;
-      }
-      return { uri };
-    }),
-    ...(audioFileUris || []).map(async (fileUri) => {
-      const uri = fileUri.toString();
-      return { uri };
-    }),
-    ...(fontFileUrls || []).map(async (fileUri) => {
-      const uri = fileUri.toString();
-      return { uri };
-    }),
-  ]);
+  const fileWatchers = getWorkspaceFileWatchers();
+  const files = await getWorkspaceFiles();
   const executeCommandMiddleware = async (params: {
     command: string;
     arguments?: LSPAny[];
@@ -108,6 +66,7 @@ export const activateLanguageClient = async (
       optionalDefinitions: DEFAULT_OPTIONAL_DEFINITIONS,
       schemaDefinitions: DEFAULT_SCHEMA_DEFINITIONS,
       descriptionDefinitions: DEFAULT_DESCRIPTION_DEFINITIONS,
+      omitImageData: true,
     },
     middleware: {
       provideDocumentSymbols: async (

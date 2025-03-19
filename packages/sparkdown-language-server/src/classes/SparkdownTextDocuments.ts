@@ -132,6 +132,8 @@ export default class SparkdownTextDocuments {
 
   protected _onCompilerInitialized = new Set<() => void>();
 
+  omitImageData = false;
+
   /**
    * Create a new text document manager.
    */
@@ -485,6 +487,22 @@ export default class SparkdownTextDocuments {
     program: SparkProgram,
     version: number | undefined
   ) {
+    let programToSend = program;
+    if (this.omitImageData) {
+      const imageWithoutData: Record<string, object> = {};
+      for (const [name, image] of Object.entries(
+        program.context?.["image"] || {}
+      )) {
+        imageWithoutData[name] = { ...image, data: undefined };
+      }
+      programToSend = {
+        ...program,
+        context: {
+          ...(program.context || {}),
+          image: imageWithoutData,
+        },
+      };
+    }
     return this._connection?.sendNotification(
       DidCompileTextDocumentMessage.method,
       {
@@ -492,7 +510,7 @@ export default class SparkdownTextDocuments {
           uri,
           version,
         },
-        program,
+        program: programToSend,
       }
     );
   }

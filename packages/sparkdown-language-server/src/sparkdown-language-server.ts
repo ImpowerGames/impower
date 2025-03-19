@@ -96,6 +96,7 @@ try {
         full: true,
       },
     };
+    documents.omitImageData = params?.initializationOptions?.["omitImageData"];
     const workspaceFolders = params?.workspaceFolders;
     if (workspaceFolders) {
       documents.loadWorkspace(workspaceFolders);

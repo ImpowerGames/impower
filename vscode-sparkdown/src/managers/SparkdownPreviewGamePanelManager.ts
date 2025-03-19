@@ -1,3 +1,7 @@
+import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/AddCompilerFileMessage";
+import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
+import { RemoveCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/RemoveCompilerFileMessage";
+import { UpdateCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/UpdateCompilerFileMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
@@ -22,6 +26,12 @@ import { getServerRange } from "../utils/getServerRange";
 import { getSparkdownPreviewConfig } from "../utils/getSparkdownPreviewConfig";
 import { getUri } from "../utils/getUri";
 import { getWebviewUri } from "../utils/getWebviewUri";
+import { getWorkspaceAudioFile } from "../utils/getWorkspaceAudioFile";
+import { getWorkspaceFileWatchers } from "../utils/getWorkspaceFileWatchers";
+import { getWorkspaceFiles } from "../utils/getWorkspaceFiles";
+import { getWorkspaceFontFile } from "../utils/getWorkspaceFontFile";
+import { getWorkspaceImageFile } from "../utils/getWorkspaceImageFile";
+import { getWorkspaceScriptFile } from "../utils/getWorkspaceScriptFIle";
 import { SparkProgramManager } from "./SparkProgramManager";
 
 export class SparkdownPreviewGamePanelManager {
@@ -117,6 +127,63 @@ export class SparkdownPreviewGamePanelManager {
     document: vscode.TextDocument,
     panel: WebviewPanel
   ) {
+    const fileWatchers = getWorkspaceFileWatchers();
+    const files = await getWorkspaceFiles();
+    const [scriptWatcher, imageWatcher, audioWatcher, fontWatcher] =
+      fileWatchers;
+    // Watch script files
+    scriptWatcher.onDidCreate(async (fileUri) => {
+      const file = await getWorkspaceScriptFile(fileUri);
+      this.emit(AddCompilerFileMessage.type.request({ file }));
+    });
+    scriptWatcher.onDidChange(async (fileUri) => {
+      const file = await getWorkspaceScriptFile(fileUri);
+      this.emit(UpdateCompilerFileMessage.type.request({ file }));
+    });
+    scriptWatcher.onDidDelete(async (fileUri) => {
+      const file = await getWorkspaceScriptFile(fileUri);
+      this.emit(RemoveCompilerFileMessage.type.request({ file }));
+    });
+    // Watch image files
+    imageWatcher.onDidCreate(async (fileUri) => {
+      const file = await getWorkspaceImageFile(fileUri);
+      this.emit(AddCompilerFileMessage.type.request({ file }));
+    });
+    imageWatcher.onDidChange(async (fileUri) => {
+      const file = await getWorkspaceImageFile(fileUri);
+      this.emit(UpdateCompilerFileMessage.type.request({ file }));
+    });
+    imageWatcher.onDidDelete(async (fileUri) => {
+      const file = await getWorkspaceImageFile(fileUri);
+      this.emit(RemoveCompilerFileMessage.type.request({ file }));
+    });
+    // Watch audio files
+    audioWatcher.onDidCreate(async (fileUri) => {
+      const file = await getWorkspaceAudioFile(fileUri);
+      this.emit(AddCompilerFileMessage.type.request({ file }));
+    });
+    audioWatcher.onDidChange(async (fileUri) => {
+      const file = await getWorkspaceAudioFile(fileUri);
+      this.emit(UpdateCompilerFileMessage.type.request({ file }));
+    });
+    audioWatcher.onDidDelete(async (fileUri) => {
+      const file = await getWorkspaceAudioFile(fileUri);
+      this.emit(RemoveCompilerFileMessage.type.request({ file }));
+    });
+    // Watch font files
+    fontWatcher.onDidCreate(async (fileUri) => {
+      const file = await getWorkspaceFontFile(fileUri);
+      this.emit(AddCompilerFileMessage.type.request({ file }));
+    });
+    fontWatcher.onDidChange(async (fileUri) => {
+      const file = await getWorkspaceFontFile(fileUri);
+      this.emit(UpdateCompilerFileMessage.type.request({ file }));
+    });
+    fontWatcher.onDidDelete(async (fileUri) => {
+      const file = await getWorkspaceFontFile(fileUri);
+      this.emit(RemoveCompilerFileMessage.type.request({ file }));
+    });
+    // Setup document and panel
     this._document = document;
     this._panel = panel;
     panel.iconPath = {
@@ -127,6 +194,9 @@ export class SparkdownPreviewGamePanelManager {
       this._connection.receive(
         GameExitedMessage.type.notification({ reason: "quit" })
       );
+      for (const fileWatcher of fileWatchers) {
+        fileWatcher.dispose();
+      }
       this._panel = undefined;
     });
     panel.webview.html = this.getWebviewContent(panel.webview, context);
@@ -134,6 +204,11 @@ export class SparkdownPreviewGamePanelManager {
       if (ConnectedPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "game") {
           this._connected = true;
+          this.emit(
+            ConfigureCompilerMessage.type.request({
+              files,
+            })
+          );
           if (this._document) {
             this.loadDocument(this._document);
           }
@@ -236,7 +311,7 @@ export class SparkdownPreviewGamePanelManager {
               uri: document.uri.toString(),
               languageId: document.languageId,
               version: document.version,
-              text: document.getText(),
+              text: "",
             },
             visibleRange: visibleRange
               ? getServerRange(visibleRange)
@@ -387,7 +462,7 @@ export class SparkdownPreviewGamePanelManager {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; media-src ${webview.cspSource}; img-src ${webview.cspSource} https: data: ; script-src 'nonce-${scriptNonce}';">
+          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; media-src ${webview.cspSource}; img-src ${webview.cspSource} https: data: ; script-src 'nonce-${scriptNonce}';">
           <title>Spark Game</title>
           <style nonce="${styleNonce}">
             @font-face {

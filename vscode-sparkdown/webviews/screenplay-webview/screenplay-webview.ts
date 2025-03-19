@@ -13,9 +13,11 @@ const load = async () => {
   window.addEventListener(MessageProtocol.event, (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      vscode.postMessage(message);
-      if (LoadPreviewMessage.type.is(message)) {
-        document.body.classList.add("ready");
+      if (e.target !== window) {
+        vscode.postMessage(message);
+        if (LoadPreviewMessage.type.isResponse(message)) {
+          document.body.classList.add("ready");
+        }
       }
     }
   });

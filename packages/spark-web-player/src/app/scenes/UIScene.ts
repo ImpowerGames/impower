@@ -1,6 +1,6 @@
-import { getElementContent } from "@impower/spark-dom/src/utils/getElementContent";
-import { getCSSPropertyKeyValue } from "@impower/spark-dom/src/utils/getCSSPropertyKeyValue";
 import AnimationPlayer from "@impower/spark-dom/src/classes/AnimationPlayer";
+import { getCSSPropertyKeyValue } from "@impower/spark-dom/src/utils/getCSSPropertyKeyValue";
+import { getElementContent } from "@impower/spark-dom/src/utils/getElementContent";
 import { RequestMessage } from "@impower/spark-engine/src/game/core";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { AnimateElementsMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";

@@ -3,7 +3,8 @@ export interface File {
   type: string;
   name: string;
   ext: string;
-  src: string;
+  src?: string;
   text?: string;
   data?: string;
+  checksum?: number;
 }
