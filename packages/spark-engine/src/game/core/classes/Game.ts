@@ -76,7 +76,7 @@ export class Game<T extends M = {}> {
 
   protected _scripts: string[];
 
-  protected _instructionLocations: ScriptLocation[];
+  protected _pathLocations: [string, ScriptLocation][];
 
   protected _coordinator: Coordinator<typeof this> | null = null;
 
@@ -145,9 +145,7 @@ export class Game<T extends M = {}> {
       );
     }
 
-    this._instructionLocations = Object.values(
-      this._program.pathToLocation || {}
-    );
+    this._pathLocations = Object.entries(this._program.pathToLocation || {});
 
     // Create connection for sending and receiving messages
     this._connection = new Connection({
@@ -223,52 +221,6 @@ export class Game<T extends M = {}> {
     this._executingLocation = [0, 0, 0, 0, 0];
   }
 
-  getClosestPath(file: string | undefined, line: number | undefined) {
-    if (file == null) {
-      return "0";
-    }
-    const fileIndex = this._scripts.indexOf(file);
-    if (fileIndex < 0) {
-      return "0";
-    }
-    if (!this._program.pathToLocation) {
-      return "0";
-    }
-    if (line == null) {
-      return "0";
-    }
-    if (file === this._program.uri && line === 0) {
-      return "0";
-    }
-    const pathToLocationEntries = Object.entries(this._program.pathToLocation);
-    let closestIndex = pathToLocationEntries.length - 1;
-    for (let i = 0; i < pathToLocationEntries.length; i++) {
-      const [, source] = pathToLocationEntries[i]!;
-      const [currFileIndex, currLineIndex] = source;
-      if (currFileIndex === fileIndex && currLineIndex === line) {
-        closestIndex = i;
-        break;
-      }
-      if (currFileIndex === fileIndex && currLineIndex > line) {
-        closestIndex = i - 1;
-        break;
-      }
-      if (currFileIndex > fileIndex) {
-        closestIndex = i - 1;
-        break;
-      }
-    }
-    const match = pathToLocationEntries[closestIndex];
-    if (match == null) {
-      return "0";
-    }
-    const [path] = match;
-    if (path == null) {
-      return "0";
-    }
-    return path;
-  }
-
   supports(name: string): boolean {
     return Boolean(this._modules[name]);
   }
@@ -307,7 +259,7 @@ export class Game<T extends M = {}> {
 
   updateBreakpointsMap(breakpoints: { file: string; line: number }[]) {
     const actualBreakpoints = Game.getActualBreakpoints(
-      this._instructionLocations,
+      this._pathLocations,
       breakpoints,
       this._scripts
     );
@@ -1094,7 +1046,7 @@ export class Game<T extends M = {}> {
   }
 
   preview(file: string, line: number): void {
-    if (this._state === "previewing") {
+    if (this._state === "running") {
       // Don't preview while running
       return;
     }
@@ -1142,17 +1094,18 @@ export class Game<T extends M = {}> {
   }
 
   static getActualBreakpoints(
-    instructionLocations: ScriptLocation[],
+    pathLocationEntries: [string, ScriptLocation][],
     breakpoints: { file: string; line: number }[],
     scripts: string[]
   ) {
     const actualBreakpoints: Breakpoint[] = [];
     for (const breakpoint of breakpoints) {
-      const closestInstruction = this.findClosestInstruction(
-        instructionLocations,
-        breakpoint,
-        scripts
-      );
+      const [, closestInstruction] =
+        this.findClosestPathLocation(
+          pathLocationEntries,
+          breakpoint,
+          scripts
+        ) || [];
       if (closestInstruction) {
         const [_, closestStartLine] = closestInstruction;
         const validBreakpoint = {
@@ -1264,17 +1217,33 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
-  static findClosestInstruction(
-    instructionLocations: ScriptLocation[],
+  getClosestPath(file: string | undefined, line: number | undefined) {
+    if (file == null || line == null) {
+      return "0";
+    }
+    const [path] =
+      Game.findClosestPathLocation(
+        this._pathLocations,
+        { file, line },
+        this._scripts
+      ) || [];
+    if (path == null) {
+      return "0";
+    }
+    return path;
+  }
+
+  static findClosestPathLocation(
+    pathLocationEntries: [string, ScriptLocation][],
     breakpoint: { file: string; line: number },
     scripts: string[]
-  ): [number, number, number, number, number] | null {
+  ): [string, ScriptLocation] | null {
     const breakpointScriptIndex = scripts.indexOf(breakpoint.file);
     const breakpointStartLine = breakpoint.line;
     // Step 1: Filter only relevant instructions with the same scriptIndex
-    const relevantLocations = instructionLocations
-      .filter(([scriptIndex]) => scriptIndex === breakpointScriptIndex)
-      .sort((a, b) => a[1] - b[1] || a[2] - b[2]); // Sort by startLine, then startColumn
+    const relevantLocations = pathLocationEntries
+      .filter(([, location]) => location[0] === breakpointScriptIndex)
+      .sort(([, a], [, b]) => a[1] - b[1] || a[2] - b[2]); // Sort by startLine, then startColumn
 
     if (relevantLocations.length === 0) {
       return null; // No valid instructions for this script
@@ -1287,7 +1256,7 @@ export class Game<T extends M = {}> {
 
     while (left <= right) {
       const mid = Math.floor((left + right) / 2);
-      const midLocation = relevantLocations[mid]!;
+      const [, midLocation] = relevantLocations[mid]!;
 
       if (midLocation[1] >= breakpointStartLine) {
         closestIndex = mid; // Store as potential next instruction

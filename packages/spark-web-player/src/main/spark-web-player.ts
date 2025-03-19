@@ -280,7 +280,7 @@ export default class SparkWebPlayer extends Component(spec) {
     const actualBreakpoints =
       breakpoints && this._program?.pathToLocation
         ? Game.getActualBreakpoints(
-            Object.values(this._program.pathToLocation),
+            Object.entries(this._program.pathToLocation),
             breakpoints,
             Object.keys(this._program.scripts)
           )
