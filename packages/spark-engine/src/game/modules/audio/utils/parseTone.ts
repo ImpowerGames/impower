@@ -6,7 +6,7 @@ export const parseTone = (str: string): Tone => {
   const tone: Tone = {};
   const tokens = str.split(PARAM_REGEX);
   const firstArg = tokens[0];
-  if (!Number.isNaN(Number(firstArg))) {
+  if (firstArg && !Number.isNaN(Number(firstArg))) {
     tone.duration = Number(firstArg);
   }
   tokens.forEach((param, index) => {
