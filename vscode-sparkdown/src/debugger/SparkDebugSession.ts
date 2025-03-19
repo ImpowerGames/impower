@@ -90,8 +90,6 @@ interface ILaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
   trace?: boolean;
   /** run without debugging */
   noDebug?: boolean;
-  /** if specified, results in a simulated compile error in launch. */
-  compileError?: "default" | "show" | "hide";
 }
 
 interface IAttachRequestArguments extends ILaunchRequestArguments {}
@@ -146,11 +144,11 @@ export class SparkDebugSession extends LoggingDebugSession {
     | { result: unknown; transfer?: ArrayBuffer[] }
     | undefined
   > {
-    return new Promise((callback) => {
+    return new Promise((resolve) => {
       if ("id" in msg) {
         this.onReceiveRequest(msg).then((response) => {
           if (response) {
-            callback(response as any);
+            resolve(response as any);
           }
         });
       } else {
@@ -446,28 +444,31 @@ export class SparkDebugSession extends LoggingDebugSession {
       (await this._fileAccessor.getSelectedLine(args.program)) ?? 0;
 
     // start the program in the runtime
-    const success = await this._connection.emit(
-      StartGameMessage.type.request({
-        stopOnEntry: Boolean(args.stopOnEntry),
-        debug: !args.noDebug,
-      })
-    );
-
-    if (success) {
+    try {
+      await this._connection.emit(
+        StartGameMessage.type.request({
+          stopOnEntry: Boolean(args.stopOnEntry),
+          debug: !args.noDebug,
+        })
+      );
       this.sendResponse(response);
-    } else {
-      // simulate a compile/build error in "launch" request:
-      // the error should not result in a modal dialog since 'showUser' is set to false.
-      // A missing 'showUser' should result in a modal dialog.
+    } catch (e: unknown) {
       this.sendErrorResponse(response, {
-        id: 1001,
-        format: `The program contains errors that prevent it from being compiled`,
-        showUser:
-          args.compileError === "show"
-            ? true
-            : args.compileError === "hide"
-            ? false
-            : undefined,
+        id:
+          e &&
+          typeof e === "object" &&
+          "code" in e &&
+          typeof e.code === "number"
+            ? e.code
+            : 1001,
+        format:
+          e &&
+          typeof e === "object" &&
+          "message" in e &&
+          typeof e.message === "string"
+            ? e.message
+            : "Could not launch",
+        showUser: true,
       });
     }
   }

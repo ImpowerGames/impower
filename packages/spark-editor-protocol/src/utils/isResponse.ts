@@ -6,6 +6,7 @@ export const isResponse = <M extends string, R>(
 ): obj is ResponseMessage<M, R> => {
   return (
     obj.method === method &&
+    obj.id !== undefined &&
     (obj.result !== undefined || obj.error !== undefined)
   );
 };

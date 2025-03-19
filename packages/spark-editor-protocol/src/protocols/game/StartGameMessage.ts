@@ -9,9 +9,7 @@ export interface StartGameParams {
   debug?: boolean;
 }
 
-export interface StartGameResult {
-  success: boolean;
-}
+export interface StartGameResult {}
 
 export class StartGameMessage {
   static readonly method = "game/start";

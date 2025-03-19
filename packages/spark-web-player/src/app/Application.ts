@@ -81,8 +81,6 @@ export default class Application {
 
   protected _timeMS = 0;
 
-  protected _ready = false;
-
   constructor(game: Game, view: HTMLElement, overlay: HTMLElement) {
     this._view = view;
     this._overlay = overlay;
@@ -147,54 +145,50 @@ export default class Application {
       this._view.appendChild(this._canvas);
     }
     this.bind();
+  }
 
+  async init() {
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
-    game
-      .init({
-        send: (msg: Message, _t?: ArrayBuffer[]) => {
-          this.connection.receive(msg);
-        },
-        resolve: (path: string) => {
-          // TODO: resolve import and load paths to url
-          return path;
-        },
-        fetch: async (url: string): Promise<string> => {
-          const response = await fetch(url);
-          const text = await response.text();
-          return text;
-          // TODO: Differentiate between script text response and asset blob response
-          // const buffer = await response.arrayBuffer();
-          // return buffer;
-        },
-        log: (message: unknown, severity: "info" | "warning" | "error") => {
-          if (severity === "error") {
-            console.error(message);
-          } else if (severity === "warning") {
-            console.warn(message);
-          } else {
-            console.log(message);
-          }
-        },
-        setTimeout: (
-          handler: Function,
-          timeout?: number,
-          ...args: any[]
-        ): number => {
-          return setTimeout(handler, timeout, ...args);
-        },
-      })
-      .then(() => {
-        if (!game.context.system.previewing) {
-          game.start();
+    await this._game.init({
+      send: (msg: Message, _t?: ArrayBuffer[]) => {
+        this.connection.receive(msg);
+      },
+      resolve: (path: string) => {
+        // TODO: resolve import and load paths to url
+        return path;
+      },
+      fetch: async (url: string): Promise<string> => {
+        const response = await fetch(url);
+        const text = await response.text();
+        return text;
+        // TODO: Differentiate between script text response and asset blob response
+        // const buffer = await response.arrayBuffer();
+        // return buffer;
+      },
+      log: (message: unknown, severity: "info" | "warning" | "error") => {
+        if (severity === "error") {
+          console.error(message);
+        } else if (severity === "warning") {
+          console.warn(message);
+        } else {
+          console.log(message);
         }
+      },
+      setTimeout: (
+        handler: Function,
+        timeout?: number,
+        ...args: any[]
+      ): number => {
+        return setTimeout(handler, timeout, ...args);
+      },
+    });
 
-        this.ticker.add(this.onUpdate);
-        this.ticker.start();
+    await this.loadScenes();
+  }
 
-        this.loadScenes().then(() => {
-          this._ready = true;
-        });
-      });
+  start() {
+    this.ticker.add(this.onUpdate);
+    this.ticker.start();
   }
 
   async loadScenes(): Promise<void> {
@@ -352,14 +346,12 @@ export default class Application {
   }
 
   protected update(deltaMS: number): void {
-    if (this._ready) {
-      this.scenes.forEach((scene) => {
-        if (scene?.ready) {
-          scene.onTick(deltaMS);
-          scene.onUpdate(deltaMS);
-        }
-      });
-    }
+    this.scenes.forEach((scene) => {
+      if (scene?.ready) {
+        scene.onTick(deltaMS);
+        scene.onUpdate(deltaMS);
+      }
+    });
 
     this._timeMS += deltaMS;
 

@@ -106,6 +106,8 @@ export class Game<T extends M = {}> {
 
   protected _dataBreakpointMap: Record<number, Map<number, Breakpoint>> = {};
 
+  protected _error = false;
+
   protected _state: "initial" | "previewing" | "running" | "paused" = "initial";
   get state() {
     return this._state;
@@ -369,7 +371,7 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
-  start(save: string = ""): void {
+  start(save: string = ""): boolean {
     this._state = "running";
     this._context.system.previewing = undefined;
     if (save) {
@@ -386,6 +388,7 @@ export class Game<T extends M = {}> {
     for (const k of this._moduleNames) {
       this._modules[k]?.onStart();
     }
+    return !this._error;
   }
 
   update(deltaMS: number) {
@@ -500,14 +503,14 @@ export class Game<T extends M = {}> {
     let done = false;
     do {
       done = this.step();
-    } while (!done);
+    } while (!this._error && !done);
   }
 
   step(traversal: "in" | "out" | "over" | "continue" = "continue"): boolean {
     const initialCallstackDepth = this._story.state.callstackDepth;
     const initialExecutedLocation = this._executingLocation;
 
-    while (true) {
+    while (!this._error) {
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
         this.checkpoint();
         const instructions = this.module.interpreter.flush();
@@ -516,11 +519,10 @@ export class Game<T extends M = {}> {
           if (!this._coordinator.shouldContinue()) {
             this.notifyExecuted();
             this.notifyAwaitingInteraction();
-            // DONE - waiting for user interaction (or auto advance)
-            return true;
           }
         }
-        return false;
+        // DONE - waiting for user interaction (or auto advance)
+        return true;
       } else if (this._story.canContinue) {
         this._story.ContinueAsync(Infinity);
 
@@ -616,6 +618,8 @@ export class Game<T extends M = {}> {
         return true;
       }
     }
+
+    return true;
   }
 
   autoAdvancedToContinue() {
@@ -1051,6 +1055,7 @@ export class Game<T extends M = {}> {
   }
 
   protected Error(message: string, type: ErrorType) {
+    this._error = true;
     this.connection.emit(
       RuntimeErrorMessage.type.notification({
         message,

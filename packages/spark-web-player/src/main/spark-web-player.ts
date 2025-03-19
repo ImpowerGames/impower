@@ -335,8 +335,24 @@ export default class SparkWebPlayer extends Component(spec) {
         this._loadListeners.add(resolve);
       });
     }
-    const success = this.buildGame();
-    return messageType.response(message.id, { success });
+    await this.buildGame();
+    const programCompiled = this._program?.compiled;
+    const gameStarted = this._game?.start();
+    const success = Boolean(programCompiled && gameStarted);
+    if (success) {
+      this._app?.start();
+      return messageType.response(message.id, {});
+    }
+    return messageType.error(message.id, {
+      code: 1,
+      message: !programCompiled
+        ? "The program contains errors that prevent it from being compiled"
+        : !gameStarted
+        ? `The game cannot be started from line ${
+            (this._options?.startpoint?.line ?? 0) + 1
+          } of ${this._options?.startpoint?.file?.split("/").at(-1)}`
+        : "The game could not be started",
+    });
   };
 
   protected handleStopGame = async (
@@ -455,7 +471,7 @@ export default class SparkWebPlayer extends Component(spec) {
     const program = this._game?.program || this._program;
     if (program) {
       const lines: number[] = [];
-      const possibleLocations = Object.values(program.pathToLocation);
+      const possibleLocations = Object.values(program.pathToLocation || {});
       const scripts = Object.keys(program.scripts);
       const searchScriptIndex = scripts.indexOf(search.uri);
       for (const possibleLocation of possibleLocations) {
@@ -613,13 +629,13 @@ export default class SparkWebPlayer extends Component(spec) {
     1000
   );
 
-  buildGame(preview?: { file: string; line: number }): boolean {
+  async buildGame(preview?: { file: string; line: number }): Promise<void> {
     const options = this._options;
     const startpoint = options?.startpoint;
     const breakpoints = options?.breakpoints;
     const functionBreakpoints = options?.functionBreakpoints;
     if (!this._program || !this._program.compiled) {
-      return false;
+      return;
     }
     if (this._game) {
       this._game.destroy();
@@ -767,18 +783,18 @@ export default class SparkWebPlayer extends Component(spec) {
         this.ref.gameView,
         this.ref.gameOverlay
       );
+      await this._app.init();
     }
-    return true;
   }
 
-  updatePreview(file: string, line: number) {
+  async updatePreview(file: string, line: number) {
     if (
       !this._game ||
       (this._game.state === "previewing" &&
         this._game.program.version !== this._program?.version)
     ) {
       // If haven't built game yet, or programs have changed since last build, build game.
-      this.buildGame({ file, line });
+      await this.buildGame({ file, line });
     }
     if (this._game && this._game.state === "previewing") {
       this._game.preview(file, line);

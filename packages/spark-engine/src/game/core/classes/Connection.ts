@@ -31,9 +31,14 @@ export class Connection {
     | undefined
   >;
 
-  protected _outgoingRequestCallbacks: Record<
+  protected _outgoingRequestResolveCallbacks: Record<
     string | number,
-    (response: ResponseMessage<any, any>) => void
+    (result: any) => void
+  > = {};
+
+  protected _outgoingRequestRejectCallbacks: Record<
+    string | number,
+    (error: ResponseError) => void
   > = {};
 
   protected _incomingListeners: Record<string, MessageCallback[]> = {};
@@ -105,8 +110,8 @@ export class Connection {
     transfer?: ArrayBuffer[]
   ): Promise<R> {
     if ("id" in msg && typeof msg.id === "string" && msg.id) {
-      const response = await this.emitRequest(msg as RequestMessage, transfer);
-      return response.result as R;
+      const result = await this.emitRequest(msg as RequestMessage, transfer);
+      return result as R;
     } else {
       this.emitNotification(msg as NotificationMessage, transfer);
       return undefined as any;
@@ -125,17 +130,24 @@ export class Connection {
     transfer?: ArrayBuffer[]
   ): Promise<ResponseMessage<M, R>> {
     this.send(msg, transfer);
-    return new Promise<ResponseMessage<M, R>>((callback) => {
-      this._outgoingRequestCallbacks[msg.id] = callback;
+    return new Promise<ResponseMessage<M, R>>((resolve, reject) => {
+      this._outgoingRequestResolveCallbacks[msg.id] = resolve;
+      this._outgoingRequestRejectCallbacks[msg.id] = reject;
     });
   }
 
   protected handleResponse<M extends string, R>(
     message: ResponseMessage<M, R>
   ): void {
-    const callback = this._outgoingRequestCallbacks[message.id];
-    callback?.(message);
-    delete this._outgoingRequestCallbacks[message.id];
+    if (message.result !== undefined) {
+      const resolve = this._outgoingRequestResolveCallbacks[message.id];
+      resolve?.(message.result);
+    } else if (message.error !== undefined) {
+      const reject = this._outgoingRequestRejectCallbacks[message.id];
+      reject?.(message.error);
+    }
+    delete this._outgoingRequestResolveCallbacks[message.id];
+    delete this._outgoingRequestRejectCallbacks[message.id];
   }
 
   protected broadcast(
