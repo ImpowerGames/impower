@@ -60,15 +60,17 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
 
   const handleGameExecuted = (message: Message) => {
     if (GameExecutedMessage.type.isNotification(message)) {
-      const { path } = message.params;
-      const instructionNode =
-        SparkdownCompilationTreeDataProvider.instance.getNodeById(path);
-      if (instructionNode) {
-        treeView.reveal(instructionNode, {
-          select: true,
-          expand: true,
-          focus: true,
-        });
+      const { path, state } = message.params;
+      if (state === "running") {
+        const instructionNode =
+          SparkdownCompilationTreeDataProvider.instance.getNodeById(path);
+        if (instructionNode) {
+          treeView.reveal(instructionNode, {
+            select: true,
+            expand: true,
+            focus: false,
+          });
+        }
       }
     }
   };
@@ -84,18 +86,4 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
       );
     },
   });
-
-  context.subscriptions.push(
-    vscode.debug.onDidTerminateDebugSession(() => {
-      const instructionNode =
-        SparkdownCompilationTreeDataProvider.instance.getNodeById("");
-      if (instructionNode) {
-        treeView.reveal(instructionNode, {
-          select: true,
-          expand: true,
-          focus: true,
-        });
-      }
-    })
-  );
 }
