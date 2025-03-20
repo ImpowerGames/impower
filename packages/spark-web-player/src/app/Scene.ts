@@ -1,11 +1,11 @@
-import { Object3D } from "three";
-import * as THREE from "three/src/scenes/Scene.js";
 import {
   Message,
   NotificationMessage,
   RequestMessage,
   ResponseError,
 } from "@impower/spark-engine/src/game/core";
+import { Object3D } from "three";
+import * as THREE from "three/src/scenes/Scene.js";
 import Application from "./Application";
 import { Disposable } from "./Disposable";
 
@@ -42,6 +42,10 @@ export default class Scene extends THREE.Scene {
 
   get camera() {
     return this._app.camera;
+  }
+
+  get audioContext() {
+    return this._app.audioContext;
   }
 
   get connection() {

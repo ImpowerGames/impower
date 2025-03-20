@@ -149,13 +149,7 @@ Make sure disabled buttons don't get the pointer cursor.
   overflow: hidden;
 }
 
-:host > .root > .wrapper {
-  position: absolute;
-  inset: 0;
-  color: black;
-}
-
-#spark-game {
+#game {
   position: absolute;
   inset: 0;
   container-type: inline-size;
@@ -177,4 +171,48 @@ Make sure disabled buttons don't get the pointer cursor.
   inset: 0;
   display: flex;
   flex-direction: column;
+}
+
+#audio-overlay {
+  position: absolute;
+  inset: 0;
+  padding: 16px;
+  cursor: pointer;
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-end;
+  transition: opacity ease 300ms 750ms;
+}
+
+#audio-icon {
+  color: rgba(255, 255, 255, 0.5);
+  width: 24px;
+  height: 24px;
+}
+
+#audio-off-icon {
+  position: absolute;
+  inset: 0;
+}
+
+#audio-on-icon {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+#audio-overlay.on {
+  opacity: 0;
+}
+
+#audio-overlay.on #audio-off-icon {
+  opacity: 0;
+}
+
+#audio-overlay.on #audio-on-icon {
+  opacity: 1;
+}
+
+#audio-overlay:hover #audio-off-icon {
+  color: white;
 }

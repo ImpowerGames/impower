@@ -20,20 +20,6 @@ export default class AudioScene extends Scene {
    */
   protected _unsafeAudioContext: AudioContext = new AudioContext();
 
-  protected _audioContext?: AudioContext;
-  /** This audio context is only defined when we are sure it is allowed to start running */
-  get audioContext() {
-    if (!this._audioContext) {
-      const ac = new AudioContext();
-      if (ac.state === "running") {
-        this._audioContext = ac;
-      } else {
-        ac.close();
-      }
-    }
-    return this._audioContext;
-  }
-
   protected _audioBuffers = new Map<string, AudioBuffer>();
 
   protected _audioMixers = new Map<string, AudioMixer>();

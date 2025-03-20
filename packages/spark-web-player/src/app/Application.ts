@@ -74,16 +74,31 @@ export default class Application {
     return this._orbit;
   }
 
+  protected _audioContext?: AudioContext;
+  get audioContext() {
+    return this._audioContext;
+  }
+
   protected _connection: Connection;
   public get connection() {
     return this._connection;
   }
 
+  protected _onCreateAudioContext?: (audioContext: AudioContext) => void;
+
   protected _timeMS = 0;
 
-  constructor(game: Game, view: HTMLElement, overlay: HTMLElement) {
+  constructor(
+    game: Game,
+    view: HTMLElement,
+    overlay: HTMLElement,
+    audioContext?: AudioContext,
+    onCreateAudioContext?: (audioContext: AudioContext) => void
+  ) {
     this._view = view;
     this._overlay = overlay;
+    this._audioContext = audioContext;
+    this._onCreateAudioContext = onCreateAudioContext;
     const width = this._view.clientWidth;
     const height = this._view.clientHeight;
     this._screen = { width, height };
@@ -295,6 +310,16 @@ export default class Application {
     this.game.connection.receive(message);
   }
 
+  ensureAudioContext() {
+    if (!this._audioContext) {
+      const audioContext = new AudioContext();
+      if (audioContext.state === "running") {
+        this._audioContext = audioContext;
+        this._onCreateAudioContext?.(audioContext);
+      }
+    }
+  }
+
   onPointerDownView = (event: PointerEvent): void => {
     this.emit(EventMessage.type.notification(getEventData(event)));
   };
@@ -304,6 +329,7 @@ export default class Application {
   };
 
   onClickView = (event: MouseEvent): void => {
+    this.ensureAudioContext();
     this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
@@ -316,6 +342,7 @@ export default class Application {
   };
 
   onClickOverlay = (event: MouseEvent): void => {
+    this.ensureAudioContext();
     this.emit(EventMessage.type.notification(getEventData(event)));
   };
 

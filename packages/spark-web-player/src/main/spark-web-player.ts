@@ -66,7 +66,13 @@ export default class SparkWebPlayer extends Component(spec) {
 
   _loadListeners = new Set<() => void>();
 
+  _audioContext?: AudioContext;
+
   override onConnected() {
+    this.ref.audioOverlay.addEventListener(
+      "pointerdown",
+      this.handlePointerDownAudioOverlay
+    );
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     this.emit(
       MessageProtocol.event,
@@ -75,8 +81,35 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   override onDisconnected() {
+    this.ref.audioOverlay?.removeEventListener(
+      "pointerdown",
+      this.handlePointerDownAudioOverlay
+    );
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
   }
+
+  protected async hideAudioOverlay() {
+    if (this.ref.audioOverlay) {
+      this.ref.audioOverlay.classList.add("on");
+      const animations = this.ref.audioOverlay.getAnimations();
+      await Promise.allSettled(
+        animations.map((animation) => animation.finished)
+      );
+      this.ref.audioOverlay.remove();
+    }
+  }
+
+  protected handlePointerDownAudioOverlay = () => {
+    const audioContext = new AudioContext();
+    if (audioContext.state === "running") {
+      this._audioContext = audioContext;
+      this.hideAudioOverlay();
+    }
+  };
+
+  protected onApplicationCreateAudioContext = () => {
+    this.hideAudioOverlay();
+  };
 
   protected handleProtocol = async (e: Event) => {
     if (e instanceof CustomEvent) {
@@ -781,7 +814,9 @@ export default class SparkWebPlayer extends Component(spec) {
       this._app = new Application(
         this._game,
         this.ref.gameView,
-        this.ref.gameOverlay
+        this.ref.gameOverlay,
+        this._audioContext,
+        this.onApplicationCreateAudioContext
       );
       await this._app.init();
     }
