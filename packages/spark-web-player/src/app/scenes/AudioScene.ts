@@ -18,7 +18,13 @@ export default class AudioScene extends Scene {
    * but it can still be used for things like decoding and creating buffers
    * or checking output latency
    */
-  protected _unsafeAudioContext: AudioContext = new AudioContext();
+  protected _unsafeAudioContext?: AudioContext;
+  protected get unsafeAudioContext() {
+    if (!this._unsafeAudioContext) {
+      this._unsafeAudioContext = new AudioContext();
+    }
+    return this._unsafeAudioContext!;
+  }
 
   protected _audioBuffers = new Map<string, AudioBuffer>();
 
@@ -41,7 +47,7 @@ export default class AudioScene extends Scene {
   async loadAudioBuffer(params: LoadAudioPlayerParams): Promise<AudioBuffer> {
     // An audio context can be used to decode and create buffers,
     // even if it is not allowed to start running yet
-    const audioContext = this.audioContext || this._unsafeAudioContext;
+    const audioContext = this.audioContext || this.unsafeAudioContext;
     if (params.src) {
       const response = await fetch(params.src);
       const buffer = await response.arrayBuffer();
@@ -269,7 +275,7 @@ export default class AudioScene extends Scene {
       await this.onLoadAudioPlayer(msg.params);
       const outputLatency =
         window.AudioContext && "outputLatency" in window.AudioContext.prototype
-          ? (this.audioContext || this._unsafeAudioContext)?.outputLatency ?? 0
+          ? (this.audioContext || this.unsafeAudioContext)?.outputLatency ?? 0
           : 0;
       return LoadAudioPlayerMessage.type.result({
         ...msg.params,

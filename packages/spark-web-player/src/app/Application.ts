@@ -76,6 +76,7 @@ export default class Application {
 
   protected _audioContext?: AudioContext;
   get audioContext() {
+    this.ensureAudioContext();
     return this._audioContext;
   }
 
