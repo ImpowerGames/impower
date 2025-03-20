@@ -1726,12 +1726,7 @@ export const getCompletions = (
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
       const scopes = getDeclarationScopes(read, scriptAnnotations);
-      addDivertPathKeywords(
-        completions,
-        "",
-        0,
-        getParentSectionPath(leftStack, read).join(".")
-      );
+      addDivertPathKeywords(completions, "", 0, " ");
       addDivertPathCompletions(
         completions,
         scopes,
@@ -1752,12 +1747,7 @@ export const getCompletions = (
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
       const scopes = getDeclarationScopes(read, scriptAnnotations);
-      addDivertPathKeywords(
-        completions,
-        "",
-        0,
-        getParentSectionPath(leftStack, read).join(".")
-      );
+      addDivertPathKeywords(completions, "", 0);
       addDivertPathCompletions(
         completions,
         scopes,
@@ -1773,12 +1763,7 @@ export const getCompletions = (
       const valueText = getNodeText(leftStack[0]);
       const valueCursorOffset = getCursorOffset(leftStack[0]);
       const scopes = getDeclarationScopes(read, scriptAnnotations);
-      addDivertPathKeywords(
-        completions,
-        "",
-        0,
-        getParentSectionPath(leftStack, read).join(".")
-      );
+      addDivertPathKeywords(completions, "", 0);
       addDivertPathCompletions(
         completions,
         scopes,
