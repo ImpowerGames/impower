@@ -32,7 +32,7 @@ import { getWorkspaceFileWatchers } from "../utils/getWorkspaceFileWatchers";
 import { getWorkspaceFiles } from "../utils/getWorkspaceFiles";
 import { getWorkspaceFontFile } from "../utils/getWorkspaceFontFile";
 import { getWorkspaceImageFile } from "../utils/getWorkspaceImageFile";
-import { getWorkspaceScriptFile } from "../utils/getWorkspaceScriptFIle";
+import { getWorkspaceScriptFile } from "../utils/getWorkspaceScriptFile";
 import { SparkProgramManager } from "./SparkProgramManager";
 
 export class SparkdownPreviewGamePanelManager {

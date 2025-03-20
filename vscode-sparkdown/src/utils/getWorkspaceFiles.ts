@@ -3,7 +3,7 @@ import { getWorkspaceAudioFile } from "./getWorkspaceAudioFile";
 import { getWorkspaceFilePatterns } from "./getWorkspaceFilePatterns";
 import { getWorkspaceFontFile } from "./getWorkspaceFontFile";
 import { getWorkspaceImageFile } from "./getWorkspaceImageFile";
-import { getWorkspaceScriptFile } from "./getWorkspaceScriptFIle";
+import { getWorkspaceScriptFile } from "./getWorkspaceScriptFile";
 
 export const getWorkspaceFiles = async (): Promise<
   {
