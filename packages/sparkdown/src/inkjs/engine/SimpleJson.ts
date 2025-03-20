@@ -209,10 +209,10 @@ export namespace SimpleJson {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       escape: boolean = true
     ) {
-      if (value === null) {
-        console.error("Warning: trying to write a null value");
-        return;
-      }
+      // if (value === null) {
+      //   console.error("Warning: trying to write a null value");
+      //   return;
+      // }
 
       this.StartNewObject(false);
       this._addToCurrentObject(value);
