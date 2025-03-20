@@ -86,7 +86,7 @@ export class Game<T extends M = {}> {
 
   protected _executingLocation: ScriptLocation;
 
-  protected _executedLocationsThisFrame: ScriptLocation[] = [];
+  protected _executedLinesThisFrame: ScriptLocation[] = [];
 
   protected _lastHitBreakpointLocation?: ScriptLocation;
 
@@ -217,8 +217,8 @@ export class Game<T extends M = {}> {
     }
     this._moduleNames = moduleNames;
 
-    this._executingPath = "0";
-    this._executingLocation = [0, 0, 0, 0, 0];
+    this._executingPath = "";
+    this._executingLocation = [-1, -1, -1, -1, -1];
   }
 
   supports(name: string): boolean {
@@ -482,11 +482,19 @@ export class Game<T extends M = {}> {
         const pointerPath =
           this._story.state.callStack.currentElement?.previousPointer.path?.toString();
         if (pointerPath) {
-          const location = this._program.pathToLocation?.[pointerPath];
-          if (location) {
+          if (pointerPath !== this._executingPath) {
             this._executingPath = pointerPath;
-            this._executingLocation = location;
-            this._executedLocationsThisFrame.push(location);
+            const location = this._program.pathToLocation?.[pointerPath];
+            if (location) {
+              if (
+                location[0] !== this._executingLocation[0] ||
+                location[1] !== this._executingLocation[1]
+              ) {
+                // Only consider it a new location this frame if it starts on a different line
+                this._executedLinesThisFrame.push(location);
+              }
+              this._executingLocation = location;
+            }
           }
         }
 
@@ -652,14 +660,14 @@ export class Game<T extends M = {}> {
   protected notifyExecuted() {
     this.connection.emit(
       ExecutedMessage.type.notification({
-        locations: this._executedLocationsThisFrame.map((l) =>
-          this.getDocumentLocation(l)
-        ),
+        locations: this._executedLinesThisFrame.map((l) => {
+          return this.getDocumentLocation(l);
+        }),
         path: this._executingPath,
         state: this._state,
       })
     );
-    this._executedLocationsThisFrame.length = 0;
+    this._executedLinesThisFrame.length = 0;
   }
 
   protected notifyStepped() {
