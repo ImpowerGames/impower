@@ -44,18 +44,28 @@ window.addEventListener("message", (e: MessageEvent) => {
         fileRegistry.add({ file });
       }
     }
+    vscode.postMessage(
+      ConfigureCompilerMessage.type.response(message.id, "sparkdown")
+    );
   }
   if (AddCompilerFileMessage.type.isRequest(message)) {
     const { file } = message.params;
     fileRegistry.add({ file });
+    vscode.postMessage(AddCompilerFileMessage.type.response(message.id, true));
   }
   if (UpdateCompilerFileMessage.type.isRequest(message)) {
     const { file } = message.params;
     fileRegistry.update({ file });
+    vscode.postMessage(
+      UpdateCompilerFileMessage.type.response(message.id, true)
+    );
   }
   if (RemoveCompilerFileMessage.type.isRequest(message)) {
     const { file } = message.params;
     fileRegistry.remove({ file });
+    vscode.postMessage(
+      RemoveCompilerFileMessage.type.response(message.id, true)
+    );
   }
   if (LoadGameMessage.type.isRequest(message)) {
     const { program } = message.params;

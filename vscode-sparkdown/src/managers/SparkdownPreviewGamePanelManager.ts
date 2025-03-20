@@ -1,3 +1,5 @@
+import { MessageProtocolNotificationType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolNotificationType";
+import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/AddCompilerFileMessage";
 import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
 import { RemoveCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/RemoveCompilerFileMessage";
@@ -15,7 +17,6 @@ import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/proto
 import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
-import { type Message } from "@impower/spark-engine/src/game/core";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import * as vscode from "vscode";
 import { ViewColumn, WebviewPanel, window } from "vscode";
@@ -64,7 +65,9 @@ export class SparkdownPreviewGamePanelManager {
   }
 
   _connection = new Connection({
-    onSend: (msg, t) => this.emit(msg, t),
+    onSend: (msg) => {
+      this._panel?.webview.postMessage(msg);
+    },
     onReceive: async () => undefined,
   });
   get connection() {
@@ -134,54 +137,54 @@ export class SparkdownPreviewGamePanelManager {
     // Watch script files
     scriptWatcher.onDidCreate(async (fileUri) => {
       const file = await getWorkspaceScriptFile(fileUri);
-      this.emit(AddCompilerFileMessage.type.request({ file }));
+      await this.sendRequest(AddCompilerFileMessage.type, { file });
     });
     scriptWatcher.onDidChange(async (fileUri) => {
       const file = await getWorkspaceScriptFile(fileUri);
-      this.emit(UpdateCompilerFileMessage.type.request({ file }));
+      await this.sendRequest(UpdateCompilerFileMessage.type, { file });
     });
     scriptWatcher.onDidDelete(async (fileUri) => {
       const file = await getWorkspaceScriptFile(fileUri);
-      this.emit(RemoveCompilerFileMessage.type.request({ file }));
+      await this.sendRequest(RemoveCompilerFileMessage.type, { file });
     });
     // Watch image files
     imageWatcher.onDidCreate(async (fileUri) => {
       const file = await getWorkspaceImageFile(fileUri);
-      this.emit(AddCompilerFileMessage.type.request({ file }));
+      await this.sendRequest(AddCompilerFileMessage.type, { file });
     });
     imageWatcher.onDidChange(async (fileUri) => {
       const file = await getWorkspaceImageFile(fileUri);
-      this.emit(UpdateCompilerFileMessage.type.request({ file }));
+      await this.sendRequest(UpdateCompilerFileMessage.type, { file });
     });
     imageWatcher.onDidDelete(async (fileUri) => {
       const file = await getWorkspaceImageFile(fileUri);
-      this.emit(RemoveCompilerFileMessage.type.request({ file }));
+      await this.sendRequest(RemoveCompilerFileMessage.type, { file });
     });
     // Watch audio files
     audioWatcher.onDidCreate(async (fileUri) => {
       const file = await getWorkspaceAudioFile(fileUri);
-      this.emit(AddCompilerFileMessage.type.request({ file }));
+      await this.sendRequest(AddCompilerFileMessage.type, { file });
     });
     audioWatcher.onDidChange(async (fileUri) => {
       const file = await getWorkspaceAudioFile(fileUri);
-      this.emit(UpdateCompilerFileMessage.type.request({ file }));
+      await this.sendRequest(UpdateCompilerFileMessage.type, { file });
     });
     audioWatcher.onDidDelete(async (fileUri) => {
       const file = await getWorkspaceAudioFile(fileUri);
-      this.emit(RemoveCompilerFileMessage.type.request({ file }));
+      await this.sendRequest(RemoveCompilerFileMessage.type, { file });
     });
     // Watch font files
     fontWatcher.onDidCreate(async (fileUri) => {
       const file = await getWorkspaceFontFile(fileUri);
-      this.emit(AddCompilerFileMessage.type.request({ file }));
+      await this.sendRequest(AddCompilerFileMessage.type, { file });
     });
     fontWatcher.onDidChange(async (fileUri) => {
       const file = await getWorkspaceFontFile(fileUri);
-      this.emit(UpdateCompilerFileMessage.type.request({ file }));
+      await this.sendRequest(UpdateCompilerFileMessage.type, { file });
     });
     fontWatcher.onDidDelete(async (fileUri) => {
       const file = await getWorkspaceFontFile(fileUri);
-      this.emit(RemoveCompilerFileMessage.type.request({ file }));
+      await this.sendRequest(RemoveCompilerFileMessage.type, { file });
     });
     // Setup document and panel
     this._document = document;
@@ -204,11 +207,9 @@ export class SparkdownPreviewGamePanelManager {
       if (ConnectedPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "game") {
           this._connected = true;
-          this.emit(
-            ConfigureCompilerMessage.type.request({
-              files,
-            })
-          );
+          await this.sendRequest(ConfigureCompilerMessage.type, {
+            files,
+          });
           if (this._document) {
             this.loadDocument(this._document);
           }
@@ -273,7 +274,7 @@ export class SparkdownPreviewGamePanelManager {
     panel.webview.postMessage({});
   }
 
-  loadDocument(document: vscode.TextDocument) {
+  async loadDocument(document: vscode.TextDocument) {
     if (this._panel) {
       this._document = document;
       const editor = getEditor(document.uri);
@@ -291,36 +292,28 @@ export class SparkdownPreviewGamePanelManager {
             }
           }
         }
-        this.emit(
-          ConfigureGameMessage.type.request({
-            startpoint: {
-              file: document.uri.toString(),
-              line: selectedRange?.start.line ?? 0,
-            },
-          })
-        );
-        this.emit(
-          LoadGameMessage.type.request({
-            program,
-          })
-        );
-        this.emit(
-          LoadPreviewMessage.type.request({
-            type: "game",
-            textDocument: {
-              uri: document.uri.toString(),
-              languageId: document.languageId,
-              version: document.version,
-              text: "",
-            },
-            visibleRange: visibleRange
-              ? getServerRange(visibleRange)
-              : undefined,
-            selectedRange: selectedRange
-              ? getServerRange(selectedRange)
-              : undefined,
-          })
-        );
+        await this.sendRequest(LoadGameMessage.type, {
+          program,
+        });
+        await this.sendRequest(ConfigureGameMessage.type, {
+          startpoint: {
+            file: document.uri.toString(),
+            line: selectedRange?.start.line ?? 0,
+          },
+        });
+        await this.sendRequest(LoadPreviewMessage.type, {
+          type: "game",
+          textDocument: {
+            uri: document.uri.toString(),
+            languageId: document.languageId,
+            version: document.version,
+            text: "",
+          },
+          visibleRange: visibleRange ? getServerRange(visibleRange) : undefined,
+          selectedRange: selectedRange
+            ? getServerRange(selectedRange)
+            : undefined,
+        });
       }
     }
   }
@@ -339,18 +332,16 @@ export class SparkdownPreviewGamePanelManager {
     contentChanges: readonly vscode.TextDocumentContentChangeEvent[]
   ) {
     if (document.uri.toString() === this._document?.uri.toString()) {
-      this.emit(
-        DidChangeTextDocumentMessage.type.notification({
-          textDocument: {
-            uri: document.uri.toString(),
-            version: document.version,
-          },
-          contentChanges: contentChanges.map((c) => ({
-            range: getServerRange(c.range),
-            text: c.text,
-          })),
-        })
-      );
+      this.sendNotification(DidChangeTextDocumentMessage.type, {
+        textDocument: {
+          uri: document.uri.toString(),
+          version: document.version,
+        },
+        contentChanges: contentChanges.map((c) => ({
+          range: getServerRange(c.range),
+          text: c.text,
+        })),
+      });
     }
   }
 
@@ -359,68 +350,84 @@ export class SparkdownPreviewGamePanelManager {
       const configuration = getSparkdownPreviewConfig(
         getUri(this._document.uri.toString())
       );
-      this.emit(
-        DidChangeConfigurationMessage.type.notification({
-          settings: { ...configuration },
-        })
-      );
+      this.sendNotification(DidChangeConfigurationMessage.type, {
+        settings: { ...configuration },
+      });
     }
   }
 
-  notifySelectedEditor(
+  async notifySelectedEditor(
     document: vscode.TextDocument,
     selectedRange: vscode.Range,
     userEvent: boolean
   ) {
     if (document.uri.toString() === this._document?.uri.toString()) {
-      this.emit(
-        SelectedEditorMessage.type.notification({
-          textDocument: { uri: document.uri.toString() },
-          selectedRange: getServerRange(selectedRange),
-          userEvent,
-          docChanged: this._selectedVersion !== document.version,
-        })
-      );
-      this.emit(
-        ConfigureGameMessage.type.request({
-          startpoint: {
-            file: document.uri.toString(),
-            line: selectedRange?.start.line ?? 0,
-          },
-        })
-      );
-      this.emit(
-        LoadPreviewMessage.type.request({
-          type: "game",
-          textDocument: {
-            uri: document.uri.toString(),
-            languageId: document.languageId,
-            version: document.version,
-            text: document.getText(),
-          },
-          selectedRange: getServerRange(selectedRange),
-        })
-      );
+      this.sendNotification(SelectedEditorMessage.type, {
+        textDocument: { uri: document.uri.toString() },
+        selectedRange: getServerRange(selectedRange),
+        userEvent,
+        docChanged: this._selectedVersion !== document.version,
+      });
+      await this.sendRequest(ConfigureGameMessage.type, {
+        startpoint: {
+          file: document.uri.toString(),
+          line: selectedRange?.start.line ?? 0,
+        },
+      });
+      await this.sendRequest(LoadPreviewMessage.type, {
+        type: "game",
+        textDocument: {
+          uri: document.uri.toString(),
+          languageId: document.languageId,
+          version: document.version,
+          text: document.getText(),
+        },
+        selectedRange: getServerRange(selectedRange),
+      });
       this._selectedVersion = document.version;
     }
   }
 
   notifyScrolledEditor(document: vscode.TextDocument, range: vscode.Range) {
     if (document.uri.toString() === this._document?.uri.toString()) {
-      this.emit(
-        ScrolledEditorMessage.type.notification({
-          textDocument: { uri: document.uri.toString() },
-          visibleRange: getServerRange(range),
-          target: "element",
-        })
-      );
+      this.sendNotification(ScrolledEditorMessage.type, {
+        textDocument: { uri: document.uri.toString() },
+        visibleRange: getServerRange(range),
+        target: "element",
+      });
     }
   }
 
-  emit(message: Message, _transfer?: ArrayBuffer[]) {
-    if (this._panel) {
-      this._panel.webview.postMessage(message);
-    }
+  protected sendNotification<M extends string, P>(
+    type: MessageProtocolNotificationType<M, P>,
+    params: P
+  ): void {
+    const notification = type.notification(params);
+    this._panel?.webview.postMessage(notification);
+  }
+
+  protected async sendRequest<M extends string, P, R>(
+    type: MessageProtocolRequestType<M, P, R>,
+    params: P
+  ): Promise<R> {
+    const request = type.request(params);
+    return new Promise<R>((resolve, reject) => {
+      const onResponse = (message: any) => {
+        if (message) {
+          if (message.method === request.method && message.id === request.id) {
+            if (message.error !== undefined) {
+              reject(message.error);
+              this._listeners.delete(onResponse);
+            } else if (message.result !== undefined) {
+              resolve(message.result);
+              this._listeners.delete(onResponse);
+            }
+          }
+        }
+      };
+      this._listeners.add(onResponse);
+      this._panel?.webview.postMessage(request);
+    });
   }
 
   protected getWebviewContent(
