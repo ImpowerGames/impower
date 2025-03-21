@@ -80,8 +80,19 @@
           "keyword:sparkdown": {
             "foreground": "#F9B8F9"
           },
-          "operator": {
+          "operator:sparkdown": {
             "foreground": "#808080"
+          }
+        },
+        "[*Light*]": {
+          "enabled": true,
+          "rules": {
+            "keyword:sparkdown": {
+              "foreground": "#AD33CC"
+            },
+            "operator:sparkdown": {
+              "foreground": "#808080"
+            }
           }
         }
       },
