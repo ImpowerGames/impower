@@ -184,7 +184,7 @@ Make sure disabled buttons don't get the pointer cursor.
   pointer-events: auto;
   display: flex;
   align-items: flex-end;
-  transition: opacity ease 300ms 750ms;
+  transition: opacity ease 300ms 2000ms;
 }
 
 #audio-icon {
@@ -197,12 +197,14 @@ Make sure disabled buttons don't get the pointer cursor.
 #audio-off-icon {
   position: absolute;
   inset: 0;
+  transition: opacity ease 150ms;
 }
 
 #audio-on-icon {
   position: absolute;
   inset: 0;
   opacity: 0;
+  transition: opacity ease 150ms;
 }
 
 #audio-button.on {
@@ -218,6 +220,9 @@ Make sure disabled buttons don't get the pointer cursor.
 }
 
 #audio-button:hover #audio-icon {
-  color: white;
+  opacity: 1;
+}
+
+#audio-button.on #audio-icon {
   opacity: 1;
 }
