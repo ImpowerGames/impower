@@ -1448,7 +1448,7 @@ repository:
 
   TunnelArrow:
     tag: function(variableName)
-    name: entity.name.function.divert.sd
+    name: keyword.divert.mark.sd
     match: (->(?:->)?|>(?:>)?|:(?={{WS}})|<-)
 
   ########## ConditionalBlock (anything within {}) ##########
