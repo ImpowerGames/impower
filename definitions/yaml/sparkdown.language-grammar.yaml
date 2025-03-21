@@ -1365,7 +1365,7 @@ repository:
     end: (?=$|[{]|[}]|[)]|[|]|[-][>]|[>]|{{TAG_START}})
 
   Thread:
-    begin: ^({{WS}}*)(:(?=$|{{WS}})|<-)({{WS}}*)
+    begin: ^({{WS}}*)([:](?=$|{{WS}})|<-)({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -1398,7 +1398,7 @@ repository:
   ThreadMark:
     tag: controlKeyword
     name: keyword.control.thread.mark.sd
-    match: (:(?=$|{{WS}})|<-)
+    match: ([:](?=$|{{WS}})|<-)
 
   End:
     tag: keyword

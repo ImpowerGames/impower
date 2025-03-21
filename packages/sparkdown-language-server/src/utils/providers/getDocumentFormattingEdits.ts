@@ -383,7 +383,7 @@ export const getFormatting = (
     } else if (cur.value.type === "thread_mark") {
       if (settings?.formatter?.convertInkSyntaxToSparkdownSyntax) {
         const text = document.getText(range);
-        const expectedText = ": ";
+        const expectedText = ":";
         if (text !== expectedText) {
           pushIfInRange({
             lineNumber: range.start.line + 1,
