@@ -1594,7 +1594,7 @@
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "Label": {
-      "match": "([(])([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([)])",
+      "match": "([(])([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([)])([^\\S\\n\\r]*)",
       "captures": {
         "1": {
           "patterns": [
@@ -1628,6 +1628,13 @@
           "patterns": [
             {
               "include": "#LabelEndMark"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
             }
           ]
         }
@@ -1711,7 +1718,7 @@
     },
     "Choice": {
       "name": "entity.choice.sd",
-      "begin": "^([^\\S\\n\\r]*)((?:[*](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+|(?:[+](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+)((?:[(])(?:[^\\S\\n\\r]*)(?:[_\\p{L}][0-9_\\p{L}]*)(?:[^\\S\\n\\r]*)(?:[)]))?",
+      "begin": "^([^\\S\\n\\r]*)((?:[*](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+|(?:[+](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+)([(][^()]*[)][^\\S\\n\\r]*)?((?:[{][^{}]*[}][^\\S\\n\\r]*)+)?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1733,17 +1740,18 @@
               "include": "#Label"
             }
           ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#ConditionalBlock"
+            }
+          ]
         }
       },
       "patterns": [
         {
           "include": "#Annotation"
-        },
-        {
-          "include": "#ConditionalBlock"
-        },
-        {
-          "include": "#Newline"
         },
         {
           "include": "#ChoiceWithSuppressedText"
@@ -1760,52 +1768,45 @@
       "match": "(.+)"
     },
     "ChoiceWithSuppressedText": {
-      "match": "([^\\S\\n\\r]*)(.*?)(\\[)(.*?)(\\])(.*?)(?:([^\\S\\n\\r]*)$|([^\\S\\n\\r]*)(?=[-][>]))",
+      "match": "(.*?)(\\[)(.*?)(\\])(.*?)(?:([^\\S\\n\\r]*)$|([^\\S\\n\\r]*)(?=[-][>]))",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#ChoiceTextContent"
             }
           ]
         },
         "2": {
-          "patterns": [
-            {
-              "include": "#ChoiceTextContent"
-            }
-          ]
-        },
-        "3": {
           "tag": "keyword",
           "name": "punctuation.definition.template-expression.begin.choice.suppression.sd"
         },
-        "4": {
+        "3": {
           "patterns": [
             {
               "include": "#ChoiceTextContent"
             }
           ]
         },
-        "5": {
+        "4": {
           "tag": "keyword",
           "name": "punctuation.definition.template-expression.end.choice.suppression.sd"
         },
-        "6": {
+        "5": {
           "patterns": [
             {
               "include": "#DisplayText"
             }
           ]
         },
-        "7": {
+        "6": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
             }
           ]
         },
-        "8": {
+        "7": {
           "patterns": [
             {
               "include": "#Separator"
@@ -2038,7 +2039,7 @@
       "match": "(.+)"
     },
     "Gather": {
-      "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+)([^\\S\\n\\r]*)([(][^()]*[)])?",
+      "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+)([^\\S\\n\\r]*)([(][^()]*[)][^\\S\\n\\r]*)?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2454,7 +2455,7 @@
           "include": "#DivertMark"
         }
       ],
-      "end": "(?=$|[}]|[)]|[|]|[-][>]|[>]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
+      "end": "(?=$|[{]|[}]|[)]|[|]|[-][>]|[>]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
     },
     "Thread": {
       "begin": "^([^\\S\\n\\r]*)(:[^\\S\\n\\r]+|<-)([^\\S\\n\\r]*)",
@@ -2501,7 +2502,7 @@
           "include": "#DivertPath"
         }
       ],
-      "end": "(?=$|[}]|[)]|[|]|[-][>]|[>]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
+      "end": "(?=$|[{]|[}]|[)]|[|]|[-][>]|[>]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
     },
     "DivertMark": {
       "tag": "controlKeyword",
@@ -2540,16 +2541,21 @@
           "include": "#DivertPart"
         }
       ],
-      "end": "([^\\S\\n\\r]*)(?=$|[^_\\p{L}0-9^.])",
+      "end": "([^\\S\\n\\r]*(?=[>]|[-][>]))?(?=$|[^_\\p{L}0-9^.])",
       "endCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#OptionalSeparator"
+              "include": "#OptionalDivertSeparator"
             }
           ]
         }
       }
+    },
+    "OptionalDivertSeparator": {
+      "tag": "definition(content)",
+      "name": "markup.raw.whitespace.sd",
+      "match": "([^\\S\\n\\r]*(?=[>]|[-][>]))"
     },
     "DivertPart": {
       "emit": true,
@@ -2637,7 +2643,7 @@
           "include": "#InlineConditionalText"
         }
       ],
-      "end": "([^\\S\\n\\r]*)([}])(?:([^\\S\\n\\r]*)(?=\\S))?",
+      "end": "([^\\S\\n\\r]*)([}])([^\\S\\n\\r]*)?",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -2656,7 +2662,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#OptionalSeparator"
             }
           ]
         }

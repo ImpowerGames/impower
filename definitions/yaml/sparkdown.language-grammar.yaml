@@ -890,7 +890,7 @@ repository:
   ########## Label ##########
 
   Label:
-    match: ([(])({{WS}}*)({{IDENTIFIER}})({{WS}}*)([)])
+    match: ([(])({{WS}}*)({{IDENTIFIER}})({{WS}}*)([)])({{WS}}*)
     captures:
       1:
         patterns:
@@ -907,6 +907,9 @@ repository:
       5:
         patterns:
           - { include: "#LabelEndMark" }
+      6:
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   LabelBeginMark:
     tag: keyword
@@ -972,7 +975,7 @@ repository:
 
   Choice:
     name: entity.choice.sd
-    begin: ^({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)((?:[(])(?:{{WS}}*)(?:{{IDENTIFIER}})(?:{{WS}}*)(?:[)]))?
+    begin: ^({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)([(][^()]*[)]{{WS}}*)?((?:[{][^{}]*[}]{{WS}}*)+)?
     beginCaptures:
       1:
         patterns:
@@ -983,10 +986,11 @@ repository:
       3:
         patterns:
           - { include: "#Label" }
+      4:
+        patterns:
+          - { include: "#ConditionalBlock" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#ConditionalBlock" }
-      - { include: "#Newline" }
       - { include: "#ChoiceWithSuppressedText" }
       - { include: "#ChoiceWithNoSuppressedText" }
     end: (?=$|[-][>])
@@ -997,30 +1001,27 @@ repository:
     match: (.+)
 
   ChoiceWithSuppressedText:
-    match: ({{WS}}*)(.*?)(\[)(.*?)(\])(.*?)(?:({{WS}}*)$|({{WS}}*)(?=[-][>]))
+    match: (.*?)(\[)(.*?)(\])(.*?)(?:({{WS}}*)$|({{WS}}*)(?=[-][>]))
     captures:
       1:
         patterns:
-          - { include: "#Separator" }
-      2:
-        patterns:
           - { include: "#ChoiceTextContent" }
-      3:
+      2:
         tag: keyword
         name: punctuation.definition.template-expression.begin.choice.suppression.sd
-      4:
+      3:
         patterns:
           - { include: "#ChoiceTextContent" }
-      5:
+      4:
         tag: keyword
         name: punctuation.definition.template-expression.end.choice.suppression.sd
-      6:
+      5:
         patterns:
           - { include: "#DisplayText" }
-      7:
+      6:
         patterns:
           - { include: "#ExtraWhitespace" }
-      8:
+      7:
         patterns:
           - { include: "#Separator" }
 
@@ -1147,7 +1148,7 @@ repository:
   ########## Gather ##########
 
   Gather:
-    begin: ^({{WS}}*)((?:[-]{{EOK}})+)({{WS}}*)([(][^()]*[)])?
+    begin: ^({{WS}}*)((?:[-]{{EOK}})+)({{WS}}*)([(][^()]*[)]{{WS}}*)?
     beginCaptures:
       1:
         patterns:
@@ -1368,7 +1369,7 @@ repository:
       - { include: "#DivertPath" }
       - { include: "#TunnelMark" }
       - { include: "#DivertMark" }
-    end: (?=$|[}]|[)]|[|]|[-][>]|[>]|{{TAG_START}})
+    end: (?=$|[{]|[}]|[)]|[|]|[-][>]|[>]|{{TAG_START}})
 
   Thread:
     begin: ^({{WS}}*)(:{{WS}}+|<-)({{WS}}*)
@@ -1389,7 +1390,7 @@ repository:
       - { include: "#Done" }
       - { include: "#FunctionCall" }
       - { include: "#DivertPath" }
-    end: (?=$|[}]|[)]|[|]|[-][>]|[>]|{{TAG_START}})
+    end: (?=$|[{]|[}]|[)]|[|]|[-][>]|[>]|{{TAG_START}})
 
   DivertMark:
     tag: controlKeyword
@@ -1423,11 +1424,16 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#DivertPart" }
-    end: ({{WS}}*)(?=$|[^{{IDENTIFIER_START_CHAR}}0-9^.])
+    end: ({{WS}}*(?=[>]|[-][>]))?(?=$|[^{{IDENTIFIER_START_CHAR}}0-9^.])
     endCaptures:
       1:
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalDivertSeparator" }
+
+  OptionalDivertSeparator:
+    tag: definition(content)
+    name: markup.raw.whitespace.sd
+    match: ({{WS}}*(?=[>]|[-][>]))
 
   DivertPart:
     emit: true
@@ -1476,7 +1482,7 @@ repository:
       - { include: "#AlternativeItem" }
       - { include: "#ConditionalBlock" }
       - { include: "#InlineConditionalText" }
-    end: ({{WS}}*)([}])(?:({{WS}}*)(?=\S))?
+    end: ({{WS}}*)([}])({{WS}}*)?
     endCaptures:
       1:
         patterns:
@@ -1486,7 +1492,7 @@ repository:
           - { include: "#ConditionalBlockCloseBrace" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#OptionalSeparator" }
 
   ConditionalBlockOpenBrace:
     tag: keyword

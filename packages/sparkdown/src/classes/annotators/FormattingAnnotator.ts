@@ -366,15 +366,14 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "OptionalSeparator") {
+    if (
+      nodeRef.name === "OptionalSeparator" ||
+      nodeRef.name === "OptionalDivertSeparator"
+    ) {
       const nextChar = this.read(nodeRef.to, nodeRef.to + 1);
-      if (
-        nextChar === "\n" ||
-        nextChar === "\r" ||
-        nextChar === "}" ||
-        nextChar === "]" ||
-        nextChar === ")"
-      ) {
+      if (nextChar === "\n" || nextChar === "\r") {
+        // An optional separator that is followed by the end of the line,
+        // should be considered extra space and should be trimmed away
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("extra").range(
             nodeRef.from,
@@ -382,12 +381,22 @@ export class FormattingAnnotator extends SparkdownAnnotator<
           )
         );
       } else {
-        annotations.push(
-          SparkdownAnnotation.mark<FormatType>("separator").range(
-            nodeRef.from,
-            nodeRef.to
-          )
-        );
+        const stack = getContextStack<SparkdownNodeName>(nodeRef.node);
+        if (
+          !stack.some((n) => n.name === "ConditionalBlock_end") ||
+          stack.some((n) => n.name === "Choice_begin")
+        ) {
+          // Optional separators should be enforced to have at least one space,
+          // unless they are after a conditional block that is not part of a choice condition.
+          // (This is because whitespace or lack thereof is often significant after conditional blocks in text content)
+          // (e.g. We should not add a separator space between the block and the period in this {sentence}.)
+          annotations.push(
+            SparkdownAnnotation.mark<FormatType>("separator").range(
+              nodeRef.from,
+              nodeRef.to
+            )
+          );
+        }
       }
       return annotations;
     }
