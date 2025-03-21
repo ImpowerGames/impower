@@ -1362,7 +1362,7 @@ repository:
       - { include: "#DivertPath" }
       - { include: "#TunnelMark" }
       - { include: "#DivertMark" }
-    end: (?=$|[{]|[}]|[)]|[|]|[-][>]|[>]|{{TAG_START}})
+    end: (?=$|(?!->)(?!>)[^{{IDENTIFIER_START_CHAR}}])
 
   Thread:
     begin: ^({{WS}}*)([:](?=$|{{WS}})|<-)({{WS}}*)
@@ -1383,7 +1383,7 @@ repository:
       - { include: "#Done" }
       - { include: "#FunctionCall" }
       - { include: "#DivertPath" }
-    end: (?=$|[{]|[}]|[)]|[|]|[-][>]|[>]|{{TAG_START}})
+    end: (?=$|[^{{IDENTIFIER_START_CHAR}}\s])
 
   DivertMark:
     tag: controlKeyword
