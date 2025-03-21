@@ -525,7 +525,7 @@ export class SparkdownPreviewGamePanelManager {
           </style>
         </head>
         <body>
-          <spark-web-player></spark-web-player>
+          <spark-web-player muted></spark-web-player>
           <script type="module" nonce="${scriptNonce}" src="${jsMainUri}"></script>
         </body>
       </html>
