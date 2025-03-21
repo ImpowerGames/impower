@@ -1282,18 +1282,34 @@ export class InkParser extends StringParser {
         sb += String(str);
       }
 
-      const gotTagStartChar: boolean = this.ParseString("<") !== null;
-      if (gotTagStartChar) {
+      const gotLiteralChar: boolean = this.ParseString("`") !== null;
+      if (gotLiteralChar) {
+        sb ??= "";
+        sb += "`";
+        const content = this.ParseUntilCharactersFromString("`\n\r");
+        if (content !== null) {
+          sb += content;
+        }
+        if (this.Peek(this.ParseSingleCharacter) === "`") {
+          const c = this.ParseSingleCharacter();
+          sb += c;
+        }
+        continue;
+      }
+
+      const gotMarkupStartChar: boolean = this.ParseString("<") !== null;
+      if (gotMarkupStartChar) {
         sb ??= "";
         sb += "<";
-        const tagContent = this.ParseUntilCharactersFromString(">\n\r");
-        if (tagContent !== null) {
-          sb += tagContent;
+        const content = this.ParseUntilCharactersFromString(">\n\r");
+        if (content !== null) {
+          sb += content;
         }
         if (this.Peek(this.ParseSingleCharacter) === ">") {
           const c = this.ParseSingleCharacter();
           sb += c;
         }
+        continue;
       }
 
       const gotEscapeChar: boolean = this.ParseString("\\") !== null;
@@ -1348,9 +1364,15 @@ export class InkParser extends StringParser {
             }
           }
         }
+        continue;
       }
 
-      if (!gotTagStartChar && !gotEscapeChar && str === null) {
+      if (
+        !gotLiteralChar &&
+        !gotMarkupStartChar &&
+        !gotEscapeChar &&
+        str === null
+      ) {
         break;
       }
     } while (true);
@@ -1391,7 +1413,7 @@ export class InkParser extends StringParser {
     // "{" for start of logic
     // "|" for mid logic branch
     if (this._nonTextEndCharacters === null) {
-      this._nonTextEndCharacters = new CharacterSet("{}|\n\r\\<");
+      this._nonTextEndCharacters = new CharacterSet("{}|\n\r\\<`");
       this._notTextEndCharactersChoice = new CharacterSet(
         this._nonTextEndCharacters
       );
