@@ -163,6 +163,8 @@ export const getDocumentSymbols = (
       document.lineCount - 1
     ).character;
   }
-  const result = topMarks.map((s) => s.symbol);
+  const result = topMarks
+    .filter((s) => Boolean(s.symbol.name))
+    .map((s) => s.symbol);
   return result;
 };
