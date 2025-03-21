@@ -77,8 +77,11 @@
       "editor.semanticTokenColorCustomizations": {
         "enabled": true,
         "rules": {
-          "keyword": {
+          "keyword:sparkdown": {
             "foreground": "#F9B8F9"
+          },
+          "operator": {
+            "foreground": "#808080"
           }
         }
       },
@@ -163,6 +166,18 @@
             }
           },
           {
+            "scope": "meta.template.expression.operator",
+            "settings": {
+              "foreground": "#808080"
+            }
+          },
+          {
+            "scope": "keyword.operator",
+            "settings": {
+              "foreground": "#808080"
+            }
+          },
+          {
             "scope": "keyword.control.section",
             "settings": {
               "foreground": "#FF80F4"
@@ -189,6 +204,18 @@
         ],
         "[*Light*]": {
           "textMateRules": [
+            {
+              "scope": "meta.template.expression.operator",
+              "settings": {
+                "foreground": "#808080"
+              }
+            },
+            {
+              "scope": "keyword.operator",
+              "settings": {
+                "foreground": "#808080"
+              }
+            },
             {
               "scope": "keyword.control.section",
               "settings": {

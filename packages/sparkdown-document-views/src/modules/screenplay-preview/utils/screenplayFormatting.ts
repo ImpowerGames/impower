@@ -90,6 +90,7 @@ const INLINE_HIDDEN_TAGS = [
   tags.definition(tags.punctuation),
   tags.definition(tags.content),
   tags.definition(tags.separator),
+  tags.definition(tags.logicOperator),
   tags.special(tags.content),
   tags.comment,
   tags.blockComment,

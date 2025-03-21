@@ -615,7 +615,7 @@
         "5": {
           "patterns": [
             {
-              "include": "#DeclarationAssignOperator"
+              "include": "#ColonOperator"
             }
           ]
         }
@@ -1037,8 +1037,11 @@
           ]
         },
         "6": {
-          "tag": "separator",
-          "name": "meta.template.expression.colon.sd"
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
         },
         "7": {
           "patterns": [
@@ -1128,8 +1131,11 @@
           ]
         },
         "4": {
-          "tag": "separator",
-          "name": "meta.template.expression.colon.sd"
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
         },
         "5": {
           "patterns": [
@@ -2735,8 +2741,11 @@
       "begin": "([|])",
       "beginCaptures": {
         "1": {
-          "tag": "keyword",
-          "name": "keyword.other.sd"
+          "patterns": [
+            {
+              "include": "#AlternativeOperator"
+            }
+          ]
         }
       },
       "patterns": [
@@ -2782,8 +2791,11 @@
           ]
         },
         "3": {
-          "tag": "keyword",
-          "name": "keyword.colon.sd"
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
         },
         "4": {
           "patterns": [
@@ -2828,8 +2840,11 @@
       "begin": "([|])",
       "beginCaptures": {
         "1": {
-          "tag": "keyword",
-          "name": "keyword.other.sd"
+          "patterns": [
+            {
+              "include": "#AlternativeOperator"
+            }
+          ]
         }
       },
       "patterns": [
@@ -2872,8 +2887,11 @@
           ]
         },
         "3": {
-          "tag": "separator",
-          "name": "meta.template.expression.colon.sd"
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
         }
       },
       "patterns": [
@@ -3022,8 +3040,11 @@
           ]
         },
         "7": {
-          "tag": "separator",
-          "name": "meta.template.expression.colon.sd"
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
         },
         "8": {
           "patterns": [
@@ -3493,9 +3514,19 @@
         }
       }
     },
-    "AssignColonOperator": {
-      "tag": "punctuation",
-      "name": "punctuation.separator.colon.sd",
+    "AlternativeOperator": {
+      "tag": "logicOperator",
+      "name": "meta.template.expression.operator.pipe.sd",
+      "match": "([|])"
+    },
+    "ColonOperator": {
+      "tag": "logicOperator",
+      "name": "meta.template.expression.operator.colon.sd",
+      "match": "([:])"
+    },
+    "ColonSeparator": {
+      "tag": "definition(logicOperator)",
+      "name": "meta.template.expression.operator.colon.sd",
       "match": "([:])"
     },
     "ArrowOperator": {
@@ -3986,8 +4017,11 @@
           ]
         },
         "3": {
-          "tag": "separator",
-          "name": "meta.template.expression.colon.sd"
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
         },
         "4": {
           "patterns": [
@@ -4133,8 +4167,11 @@
           ]
         },
         "6": {
-          "tag": "definition(separator)",
-          "name": "meta.template.expression.colon.sd"
+          "patterns": [
+            {
+              "include": "#ColonSeparator"
+            }
+          ]
         },
         "7": {
           "patterns": [
@@ -4286,8 +4323,11 @@
           ]
         },
         "6": {
-          "tag": "definition(separator)",
-          "name": "meta.template.expression.colon.sd"
+          "patterns": [
+            {
+              "include": "#ColonSeparator"
+            }
+          ]
         },
         "7": {
           "patterns": [
@@ -5550,7 +5590,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#TextCommandColon"
+              "include": "#ColonOperator"
             }
           ]
         },
@@ -5589,11 +5629,6 @@
       "tag": "keyword",
       "name": "keyword.style.control.keyword.sd",
       "match": "(.+)"
-    },
-    "TextCommandColon": {
-      "tag": "separator",
-      "name": "meta.template.expression.colon.sd",
-      "match": "([:])"
     },
     "TextCommandArguments": {
       "match": "(.+)",

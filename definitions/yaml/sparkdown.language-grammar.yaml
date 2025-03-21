@@ -354,7 +354,7 @@ repository:
           - { include: "#ExtraWhitespace" }
       5:
         patterns:
-          - { include: "#DeclarationAssignOperator" }
+          - { include: "#ColonOperator" }
 
   DefineIdentifier:
     match: ({{IDENTIFIER}})(?:([.])($|{{IDENTIFIER}})?)?(.*?)
@@ -579,8 +579,8 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       6:
-        tag: separator
-        name: meta.template.expression.colon.sd
+        patterns:
+          - { include: "#ColonOperator" }
       7:
         patterns:
           - { include: "#ExtraWhitespace" }
@@ -625,8 +625,8 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       4:
-        tag: separator
-        name: meta.template.expression.colon.sd
+        patterns:
+          - { include: "#ColonOperator" }
       5:
         patterns:
           - { include: "#ExtraWhitespace" }
@@ -1535,8 +1535,8 @@ repository:
     begin: ([|])
     beginCaptures:
       1:
-        tag: keyword
-        name: keyword.other.sd
+        patterns:
+          - { include: "#AlternativeOperator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#CloseBraceAhead" }
@@ -1557,8 +1557,8 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       3:
-        tag: keyword
-        name: keyword.colon.sd
+        patterns:
+          - { include: "#ColonOperator" }
       4:
         patterns:
           - { include: "#Whitespace" }
@@ -1579,8 +1579,8 @@ repository:
     begin: ([|])
     beginCaptures:
       1:
-        tag: keyword
-        name: keyword.other.sd
+        patterns:
+          - { include: "#AlternativeOperator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#CloseBraceAhead" }
@@ -1600,8 +1600,8 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       3:
-        tag: separator
-        name: meta.template.expression.colon.sd
+        patterns:
+          - { include: "#ColonOperator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1663,8 +1663,8 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       7:
-        tag: separator
-        name: meta.template.expression.colon.sd
+        patterns:
+          - { include: "#ColonOperator" }
       8:
         patterns:
           - { include: "#Separator" }
@@ -1953,9 +1953,19 @@ repository:
         tag: arithmeticOperator
         name: keyword.operator.arithmetic.sd
 
-  AssignColonOperator:
-    tag: punctuation
-    name: punctuation.separator.colon.sd
+  AlternativeOperator:
+    tag: logicOperator
+    name: meta.template.expression.operator.pipe.sd
+    match: ([|])
+
+  ColonOperator:
+    tag: logicOperator
+    name: meta.template.expression.operator.colon.sd
+    match: ([:])
+
+  ColonSeparator:
+    tag: definition(logicOperator)
+    name: meta.template.expression.operator.colon.sd
     match: ([:])
 
   ArrowOperator:
@@ -2292,8 +2302,8 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       3:
-        tag: separator
-        name: meta.template.expression.colon.sd
+        patterns:
+          - { include: "#ColonOperator" }
       4:
         patterns:
           - { include: "#FrontMatterStringInline" }
@@ -2371,8 +2381,8 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       6:
-        tag: definition(separator)
-        name: meta.template.expression.colon.sd
+        patterns:
+          - { include: "#ColonSeparator" }
       7:
         patterns:
           - { include: "#Separator" }
@@ -2450,8 +2460,8 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       6:
-        tag: definition(separator)
-        name: meta.template.expression.colon.sd
+        patterns:
+          - { include: "#ColonSeparator" }
       7:
         patterns:
           - { include: "#Separator" }
@@ -3136,7 +3146,7 @@ repository:
           - { include: "#ExtraWhitespace" }
       4:
         patterns:
-          - { include: "#TextCommandColon" }
+          - { include: "#ColonOperator" }
       5:
         patterns:
           - { include: "#ExtraWhitespace" }
@@ -3156,11 +3166,6 @@ repository:
     tag: keyword
     name: keyword.style.control.keyword.sd
     match: (.+)
-
-  TextCommandColon:
-    tag: separator
-    name: meta.template.expression.colon.sd
-    match: ([:])
 
   TextCommandArguments:
     match: (.+)
