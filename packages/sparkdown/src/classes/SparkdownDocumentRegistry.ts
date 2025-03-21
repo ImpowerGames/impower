@@ -16,7 +16,7 @@ import {
 } from "./SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "./SparkdownDocument";
 
-const DEBUG = true;
+const DEBUG = false;
 
 const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
