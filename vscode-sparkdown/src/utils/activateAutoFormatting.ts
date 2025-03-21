@@ -32,7 +32,7 @@ enum EmphasisType {
 type IModifier = "ctrl" | "shift";
 
 const LIST_MARK_REGEX =
-  /^(\s*)((?:[!@#$%~](?:$|\s+)|(?:[*+](?:$|\s+))+))(.*?)$/;
+  /^(\s*)((?:[!@#$%~](?:$|\s+)|(?:[*+-](?:$|\s+))+))(.*?)$/;
 
 export const activateAutoFormatting = (context: ExtensionContext) => {
   const activeDocument = window.activeTextEditor?.document;
@@ -257,7 +257,7 @@ const completeKnotStartMarker = async (
       if (currentTextBeforeCursor !== expectedTextBeforeCursor) {
         await commands.executeCommand("default:type", {
           source: "keyboard",
-          text: "= ",
+          text: "=",
         });
         return true;
       }
@@ -282,7 +282,7 @@ const completeStitchStartMarker = async (
       if (currentTextBeforeCursor !== expectedTextBeforeCursor) {
         await commands.executeCommand("default:type", {
           source: "keyboard",
-          text: "= ",
+          text: "=",
         });
         return true;
       }
