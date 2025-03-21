@@ -1395,17 +1395,17 @@ repository:
     end: (?=$|[}]|[)]|[|]|[-]|{{TAG_START}})
 
   DivertMark:
-    tag: function(variableName)
+    tag: controlKeyword
     name: keyword.control.divert.mark.sd
     match: (>|->)
 
   TunnelMark:
-    tag: function(variableName)
+    tag: controlKeyword
     name: keyword.control.divert.mark.sd
     match: (->(?:->)?|>(?:>)?|:(?={{WS}})|<-)
 
   ThreadMark:
-    tag: function(variableName)
+    tag: controlKeyword
     name: keyword.control.thread.mark.sd
     match: (:|<-)
 

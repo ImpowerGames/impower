@@ -2502,17 +2502,17 @@
       "end": "(?=$|[}]|[)]|[|]|[-]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
     },
     "DivertMark": {
-      "tag": "function(variableName)",
+      "tag": "controlKeyword",
       "name": "keyword.control.divert.mark.sd",
       "match": "(>|->)"
     },
     "TunnelMark": {
-      "tag": "function(variableName)",
+      "tag": "controlKeyword",
       "name": "keyword.control.divert.mark.sd",
       "match": "(->(?:->)?|>(?:>)?|:(?=[^\\S\\n\\r])|<-)"
     },
     "ThreadMark": {
-      "tag": "function(variableName)",
+      "tag": "controlKeyword",
       "name": "keyword.control.thread.mark.sd",
       "match": "(:|<-)"
     },
