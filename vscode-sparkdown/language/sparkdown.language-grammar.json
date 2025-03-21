@@ -2442,7 +2442,7 @@
       "end": "(?=$|[{]|[}]|[)]|[|]|[-][>]|[>]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
     },
     "Thread": {
-      "begin": "^([^\\S\\n\\r]*)(:[^\\S\\n\\r]+|<-)([^\\S\\n\\r]*)",
+      "begin": "^([^\\S\\n\\r]*)(:(?=$|[^\\S\\n\\r])|<-)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2501,7 +2501,7 @@
     "ThreadMark": {
       "tag": "controlKeyword",
       "name": "keyword.control.thread.mark.sd",
-      "match": "(:[^\\S\\n\\r]+|<-)"
+      "match": "(:(?=$|[^\\S\\n\\r])|<-)"
     },
     "End": {
       "tag": "keyword",
