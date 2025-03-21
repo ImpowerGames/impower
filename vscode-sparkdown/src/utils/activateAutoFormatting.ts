@@ -269,10 +269,7 @@ const closeAngleBracket = async (editor: TextEditor): Promise<boolean> => {
     parsedDoc.offsetAt(cursor),
     1
   );
-  console.log(
-    "stack",
-    stack.map((n) => n.name)
-  );
+
   if (
     stack.some(
       (n) =>
@@ -292,10 +289,12 @@ const closeAngleBracket = async (editor: TextEditor): Promise<boolean> => {
   ) {
     return false;
   }
+
   await editor.insertSnippet(new SnippetString("<$0>"), cursor, {
     undoStopBefore: true,
     undoStopAfter: true,
   });
+
   return true;
 };
 
