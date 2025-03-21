@@ -538,6 +538,11 @@
             "type": "boolean",
             "default": true,
             "markdownDescription": "Automatically indents and adds a space after gather, choice, and other start-of-line marks (-, *, +, =, etc.).\n\n*[If you are using a vim emulator, you should disable this setting.]*"
+          },
+          "sparkdown.editor.autoCloseAngleBrackets": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Automatically closes <> inside of text.\n\n*[If you are using a vim emulator, you should disable this setting.]*"
           }
         }
       },

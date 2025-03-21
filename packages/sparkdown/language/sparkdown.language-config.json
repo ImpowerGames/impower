@@ -50,10 +50,12 @@
       "open": "/*",
       "close": "*/",
       "notIn": [
+        "string",
         "StringLiteral"
       ]
     }
   ],
+  "autoCloseBefore": ";:.,=}])>` \n\t",
   "surroundingPairs": [
     [
       "{",

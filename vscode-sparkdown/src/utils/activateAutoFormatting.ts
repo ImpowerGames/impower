@@ -5,12 +5,14 @@
  * Released under the MIT license.
  */
 
+import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 import {
   commands,
   ExtensionContext,
   Position,
   Range,
   Selection,
+  SnippetString,
   TextDocument,
   TextDocumentChangeEvent,
   TextEditor,
@@ -19,6 +21,7 @@ import {
   WorkspaceEdit,
 } from "vscode";
 import { getFormatting } from "../../../packages/sparkdown-language-server/src/utils/providers/getDocumentFormattingEdits";
+import { getStack } from "../../../packages/textmate-grammar-tree/src/tree/utils/getStack";
 import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
 
 enum EmphasisType {
@@ -83,7 +86,10 @@ export const activateAutoFormatting = (context: ExtensionContext) => {
   );
 
   const config = workspace.getConfiguration("sparkdown");
-  if (config["editor"].autoSpaceMarks) {
+  if (
+    config["editor"].autoSpaceMarks ||
+    config["editor"].autoCloseAngleBrackets
+  ) {
     context.subscriptions.push(commands.registerCommand("type", onType));
   }
 };
@@ -163,6 +169,7 @@ const onBackspaceKey = async () => {
   const document = editor.document;
   const currentLineText = document.lineAt(cursor.line).text;
   const textBeforeCursor = currentLineText.substring(0, cursor.character);
+  const textAfterCursor = currentLineText.substring(cursor.character);
   if (editor.selections.length === 1 && editor.selection.isEmpty) {
     if (LIST_MARK_REGEX.test(textBeforeCursor)) {
       if (await adjustStartOfLineMark(editor, "remove")) {
@@ -179,6 +186,11 @@ const onBackspaceKey = async () => {
         return true;
       }
     }
+    if (/([<])$/.test(textBeforeCursor) && /^([>])/.test(textAfterCursor)) {
+      if (await deleteAngleBrackets(editor)) {
+        return true;
+      }
+    }
   }
   return asNormal(editor, "backspace");
 };
@@ -189,8 +201,8 @@ const onType = async (
 ) => {
   const editor = window.activeTextEditor!;
 
-  if (e.text === "=") {
-    if (await onKnotOrStitchMark(editor, e.text)) {
+  if (e.text === "<") {
+    if (await onOpenAngleBracket(editor)) {
       return true;
     }
   }
@@ -202,6 +214,20 @@ const onType = async (
   return commands.executeCommand("default:type", e, ...args);
 };
 
+const onOpenAngleBracket = async (editor: TextEditor) => {
+  if (editor.selections.length === 1 && editor.selection.isEmpty) {
+    if (
+      workspace.getConfiguration("sparkdown")["editor"].autoCloseAngleBrackets
+    ) {
+      if (await closeAngleBracket(editor)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
 const onStartOfLineMark = async (editor: TextEditor, mark: string) => {
   const cursor = editor.selection.active;
   const currentLineText = editor.document.lineAt(cursor.line).text;
@@ -210,8 +236,10 @@ const onStartOfLineMark = async (editor: TextEditor, mark: string) => {
 
   if (editor.selections.length === 1 && editor.selection.isEmpty) {
     if (LIST_MARK_REGEX.exec(textBeforeCursor)) {
-      if (await adjustStartOfLineMark(editor, "add", mark)) {
-        return true;
+      if (workspace.getConfiguration("sparkdown")["editor"].autoSpaceMarks) {
+        if (await adjustStartOfLineMark(editor, "add", mark)) {
+          return true;
+        }
       }
     }
   }
@@ -219,76 +247,56 @@ const onStartOfLineMark = async (editor: TextEditor, mark: string) => {
   return false;
 };
 
-const onKnotOrStitchMark = async (editor: TextEditor, mark: "=") => {
+const closeAngleBracket = async (editor: TextEditor): Promise<boolean> => {
   const cursor = editor.selection.active;
   const currentLineText = editor.document.lineAt(cursor.line).text;
-  const textBeforeCursor =
-    currentLineText.substring(0, cursor.character) + mark;
+  const textAfterCursor = currentLineText.substring(cursor.character);
+  const charAfterCursor = textAfterCursor[0];
+  const parsedDoc = SparkdownDocumentManager.instance.get(editor.document.uri);
+  const tree = SparkdownDocumentManager.instance.tree(editor.document.uri);
 
-  if (editor.selections.length === 1 && editor.selection.isEmpty) {
-    if (/^(\s+[=])$/.exec(textBeforeCursor)) {
-      if (await completeStitchStartMarker(editor, mark)) {
-        return true;
-      }
-    }
-    if (/^([=]{2,})$/.exec(textBeforeCursor)) {
-      if (await completeKnotStartMarker(editor, mark)) {
-        return true;
-      }
-    }
+  if (charAfterCursor?.trim()) {
+    return false;
   }
 
-  return false;
-};
-
-const completeKnotStartMarker = async (
-  editor: TextEditor,
-  typing: string = ""
-): Promise<boolean> => {
-  const cursor = editor.selection.active;
-  const currentLineText = editor.document.lineAt(cursor.line).text;
-  const currentTextBeforeCursor =
-    currentLineText.slice(0, cursor.character) + typing;
-  const currentTextAfterCursor = currentLineText.slice(cursor.character);
-  if (!currentTextAfterCursor.trim()) {
-    const matches = /^([=][=])$/.exec(currentTextBeforeCursor);
-    if (matches) {
-      const expectedTextBeforeCursor = "== ";
-      if (currentTextBeforeCursor !== expectedTextBeforeCursor) {
-        await commands.executeCommand("default:type", {
-          source: "keyboard",
-          text: "=",
-        });
-        return true;
-      }
-    }
+  if (!parsedDoc || !tree) {
+    [];
+    return false;
   }
-  return false;
-};
 
-const completeStitchStartMarker = async (
-  editor: TextEditor,
-  typing: string = ""
-): Promise<boolean> => {
-  const cursor = editor.selection.active;
-  const currentLineText = editor.document.lineAt(cursor.line).text;
-  const currentTextBeforeCursor =
-    currentLineText.slice(0, cursor.character) + typing;
-  const currentTextAfterCursor = currentLineText.slice(cursor.character);
-  if (!currentTextAfterCursor.trim()) {
-    const matches = /^(\s+)([=])$/.exec(currentTextBeforeCursor);
-    if (matches) {
-      const expectedTextBeforeCursor = "= ";
-      if (currentTextBeforeCursor !== expectedTextBeforeCursor) {
-        await commands.executeCommand("default:type", {
-          source: "keyboard",
-          text: "=",
-        });
-        return true;
-      }
-    }
+  const stack = getStack<SparkdownNodeName>(
+    tree,
+    parsedDoc.offsetAt(cursor),
+    1
+  );
+  console.log(
+    "stack",
+    stack.map((n) => n.name)
+  );
+  if (
+    stack.some(
+      (n) =>
+        n.name === "MultilineCaseClause_begin" ||
+        n.name === "ParenExpression" ||
+        n.name === "ListTypeAssignment" ||
+        n.name === "VariableAssignment" ||
+        n.name === "Parameter" ||
+        n.name === "StructFieldValue" ||
+        n.name === "Logic" ||
+        n.name === "ReturnStatement" ||
+        n.name === "Substitution" ||
+        n.name === "ConditionalSubstitution_begin" ||
+        n.name === "MultilineBlock_begin" ||
+        n.name === "ArrayItem"
+    )
+  ) {
+    return false;
   }
-  return false;
+  await editor.insertSnippet(new SnippetString("<$0>"), cursor, {
+    undoStopBefore: true,
+    undoStopAfter: true,
+  });
+  return true;
 };
 
 const completeKnotEndMarker = async (editor: TextEditor): Promise<boolean> => {
@@ -436,6 +444,25 @@ const deleteStitch = async (editor: TextEditor): Promise<boolean> => {
     return true;
   }
   return false;
+};
+
+const deleteAngleBrackets = async (editor: TextEditor): Promise<boolean> => {
+  const cursor = editor.selection.active;
+  await editor.edit(
+    (editBuilder) => {
+      editBuilder.replace(
+        new Range(
+          cursor.line,
+          cursor.character - 1,
+          cursor.line,
+          cursor.character + 1
+        ),
+        ""
+      );
+    },
+    { undoStopBefore: false, undoStopAfter: false }
+  );
+  return true;
 };
 
 const adjustStartOfLineMark = async (

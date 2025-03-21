@@ -24,7 +24,9 @@ autoClosingPairs:
     close: "::"
   - open: "/*"
     close: "*/"
-    notIn: ["StringLiteral"]
+    notIn: ["string", "StringLiteral"]
+
+autoCloseBefore: ";:.,=}])>` \n\t"
 
 surroundingPairs:
   - ["{", "}"]
