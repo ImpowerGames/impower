@@ -42,6 +42,8 @@ patterns:
   - { include: "#Stitch" }
   - { include: "#Divert" }
   - { include: "#Thread" }
+  - { include: "#ReturnStatement" }
+  - { include: "#TempDeclaration" }
   - { include: "#Logic" }
   - { include: "#Choice" }
   - { include: "#Gather" }
@@ -1087,15 +1089,21 @@ repository:
     match: (.+)
 
   ReturnStatement:
-    begin: ({{WS}}*)(return)({{EOK}})
+    begin: ({{WS}}*)(~{{EOK}})?({{WS}}*)(return)({{EOK}})
     beginCaptures:
       1:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#ReturnKeyword" }
+          - { include: "#OptionalLogicMark" }
       3:
+        patterns:
+          - { include: "#Separator" }
+      4:
+        patterns:
+          - { include: "#ReturnKeyword" }
+      5:
         patterns:
           - { include: "#Separator" }
     patterns:
@@ -1109,21 +1117,32 @@ repository:
     match: (.+)
 
   TempDeclaration:
-    begin: ({{WS}}*)(temp)({{EOK}})
+    begin: ({{WS}}*)(~{{EOK}})?({{WS}}*)(temp)({{EOK}})
     beginCaptures:
       1:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#TempKeyword" }
+          - { include: "#OptionalLogicMark" }
       3:
+        patterns:
+          - { include: "#Separator" }
+      4:
+        patterns:
+          - { include: "#TempKeyword" }
+      5:
         patterns:
           - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#VariableAssignment" }
     end: (?=$)
+
+  OptionalLogicMark:
+    tag: keyword
+    name: keyword.other.logic.optional.sd
+    match: (.+)
 
   TempKeyword:
     tag: controlKeyword
@@ -1590,6 +1609,8 @@ repository:
       - { include: "#MultilineCaseClause" }
       - { include: "#MultilineAlternativeClause" }
       - { include: "#Divert" }
+      - { include: "#ReturnStatement" }
+      - { include: "#TempDeclaration" }
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#Todo" }
@@ -1611,6 +1632,8 @@ repository:
       - { include: "#MultilineAlternativeClause" }
       - { include: "#Divert" }
       - { include: "#Thread" }
+      - { include: "#ReturnStatement" }
+      - { include: "#TempDeclaration" }
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#Todo" }
@@ -1652,6 +1675,8 @@ repository:
       - { include: "#MultilineDashAhead" }
       - { include: "#Divert" }
       - { include: "#Thread" }
+      - { include: "#ReturnStatement" }
+      - { include: "#TempDeclaration" }
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#ConditionalBlock" }
@@ -1682,6 +1707,8 @@ repository:
       - { include: "#MultilineDashAhead" }
       - { include: "#Divert" }
       - { include: "#Thread" }
+      - { include: "#ReturnStatement" }
+      - { include: "#TempDeclaration" }
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#ConditionalBlock" }

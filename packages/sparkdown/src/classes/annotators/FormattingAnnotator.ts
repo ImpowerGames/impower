@@ -29,6 +29,7 @@ export type FormatType =
   | "gather_mark"
   | "divert_mark"
   | "thread_mark"
+  | "optional_mark"
   | "indenting_colon"
   | "sol_comment"
   | "eol_divert"
@@ -299,6 +300,15 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "ThreadMark") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("thread_mark").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "OptionalLogicMark") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("optional_mark").range(
           nodeRef.from,
           nodeRef.to
         )

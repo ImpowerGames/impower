@@ -1141,12 +1141,6 @@ export class InkParser extends StringParser {
     // (Except for escaped whitespace)
     this.Parse(this.Whitespace);
 
-    if (this.Peek(this.KeywordString("return"))) {
-      this.Warning(
-        "Do you need a '~' before 'return'? If not, perhaps use a glue: <> (since it's lowercase) or rewrite somehow?"
-      );
-    }
-
     return this.LineOfMixedTextAndLogicNoWarnings();
   };
 
@@ -1544,7 +1538,10 @@ export class InkParser extends StringParser {
       diverts.push(gatherDivert);
 
       if (!this._parsingChoice) {
-        this.Error("Empty diverts (>) are only valid on choices", gatherDivert.debugMetadata);
+        this.Error(
+          "Empty diverts (>) are only valid on choices",
+          gatherDivert.debugMetadata
+        );
       }
     }
 
@@ -3820,6 +3817,8 @@ export class InkParser extends StringParser {
       rulesAtLevel.push(this.Line(this.IncludeStatement));
 
       // Normal logic / text can go anywhere
+      rulesAtLevel.push(this.ReturnStatement);
+      rulesAtLevel.push(this.TempDeclarationOrAssignment);
       rulesAtLevel.push(this.LogicLine);
       rulesAtLevel.push(this.LineOfMixedTextAndLogic);
 
