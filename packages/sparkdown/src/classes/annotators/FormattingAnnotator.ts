@@ -8,6 +8,7 @@ import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
 export type FormatType =
+  | "keyword"
   | "separator"
   | "extra"
   | "trailing"
@@ -26,6 +27,8 @@ export type FormatType =
   | "alternative_mark"
   | "choice_mark"
   | "gather_mark"
+  | "divert_mark"
+  | "thread_mark"
   | "indenting_colon"
   | "sol_comment"
   | "eol_divert"
@@ -62,7 +65,104 @@ export class FormattingAnnotator extends SparkdownAnnotator<
             )
           );
         }
+      } else if (nodeRef.name === "Indent") {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("separator").range(
+            nodeRef.from,
+            nodeRef.to
+          )
+        );
       }
+    }
+    if (nodeRef.name === "ConstKeyword") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("keyword").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "VarKeyword") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("keyword").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "ListKeyword") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("keyword").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "DefineKeyword") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("keyword").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "ExternalKeyword") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("keyword").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "IncludeKeyword") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("keyword").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "TempKeyword") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("keyword").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "FunctionKeyword") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("keyword").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "SequenceKeyword") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("keyword").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "ElseKeyword") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("keyword").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
     }
     if (nodeRef.name === "DefineDeclaration_begin") {
       annotations.push(
@@ -181,6 +281,24 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "GatherMark") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("gather_mark").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "DivertMark") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("divert_mark").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "ThreadMark") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("thread_mark").range(
           nodeRef.from,
           nodeRef.to
         )

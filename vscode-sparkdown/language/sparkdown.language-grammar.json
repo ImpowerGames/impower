@@ -299,8 +299,11 @@
           ]
         },
         "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.import.include.sd"
+          "patterns": [
+            {
+              "include": "#IncludeKeyword"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -319,6 +322,11 @@
         }
       ],
       "end": "(?=$)"
+    },
+    "IncludeKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.include.sd",
+      "match": "(.+)"
     },
     "IncludeContent": {
       "tag": "string",
@@ -357,8 +365,11 @@
           ]
         },
         "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.var.sd"
+          "patterns": [
+            {
+              "include": "#VarKeyword"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -378,6 +389,11 @@
       ],
       "end": "(?=$)"
     },
+    "VarKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.var.sd",
+      "match": "(.+)"
+    },
     "ListDeclaration": {
       "tag": "meta",
       "name": "storage.type.list.sd",
@@ -391,8 +407,11 @@
           ]
         },
         "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.list.sd"
+          "patterns": [
+            {
+              "include": "#ListKeyword"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -412,6 +431,11 @@
       ],
       "end": "(?=$)"
     },
+    "ListKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.list.sd",
+      "match": "(.+)"
+    },
     "ConstDeclaration": {
       "tag": "meta",
       "name": "storage.type.const.sd",
@@ -425,8 +449,11 @@
           ]
         },
         "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.const.sd"
+          "patterns": [
+            {
+              "include": "#ConstKeyword"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -446,6 +473,11 @@
       ],
       "end": "(?=$)"
     },
+    "ConstKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.const.sd",
+      "match": "(.+)"
+    },
     "ExternalDeclaration": {
       "tag": "meta",
       "name": "storage.type.external.sd",
@@ -459,8 +491,11 @@
           ]
         },
         "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.external.sd"
+          "patterns": [
+            {
+              "include": "#ExternalKeyword"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -479,6 +514,11 @@
         }
       ],
       "end": "(?=$)"
+    },
+    "ExternalKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.external.sd",
+      "match": "(.+)"
     },
     "DefineDeclaration": {
       "tag": "meta",
@@ -529,6 +569,11 @@
         }
       ],
       "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+    },
+    "DefineKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.object.sd",
+      "match": "(.+)"
     },
     "DefineAssignment": {
       "match": "(?:([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]+)(?=[_\\p{L}][0-9_\\p{L}]*))?(.*?)([^\\S\\n\\r]*)($|[:])",
@@ -602,11 +647,6 @@
           ]
         }
       }
-    },
-    "DefineKeyword": {
-      "tag": "controlKeyword",
-      "name": "keyword.control.definition.object.sd",
-      "match": "(.+)"
     },
     "DefineModifierName": {
       "tag": "keyword",
@@ -1893,8 +1933,11 @@
           ]
         },
         "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.flow.return.sd"
+          "patterns": [
+            {
+              "include": "#ReturnKeyword"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -1914,6 +1957,11 @@
       ],
       "end": "(?=$)"
     },
+    "ReturnKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.return.sd",
+      "match": "(.+)"
+    },
     "TempDeclaration": {
       "begin": "([^\\S\\n\\r]*)(temp)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
@@ -1925,8 +1973,11 @@
           ]
         },
         "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.temp.sd"
+          "patterns": [
+            {
+              "include": "#TempKeyword"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -1945,6 +1996,11 @@
         }
       ],
       "end": "(?=$)"
+    },
+    "TempKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.temp.sd",
+      "match": "(.+)"
     },
     "Gather": {
       "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+)([^\\S\\n\\r]*)([(][^()]*[)])?",
@@ -2261,8 +2317,11 @@
       "begin": "(function)([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.function.sd"
+          "patterns": [
+            {
+              "include": "#FunctionKeyword"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -2295,6 +2354,11 @@
         }
       ],
       "end": "(?=$|[^\\S\\n\\r]*[=]{2,})"
+    },
+    "FunctionKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.function.sd",
+      "match": "(.+)"
     },
     "FunctionDeclarationName": {
       "tag": "function(variableName)",
@@ -2886,8 +2950,11 @@
           ]
         },
         "4": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.sd"
+          "patterns": [
+            {
+              "include": "#ElseKeyword"
+            }
+          ]
         },
         "5": {
           "patterns": [
@@ -2948,6 +3015,11 @@
         }
       ],
       "end": "(?=^|[}]|[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))"
+    },
+    "ElseKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.else.sd",
+      "match": "(.+)"
     },
     "MultilineAlternativeClause": {
       "begin": "^([^\\S\\n\\r]*)([-])((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",

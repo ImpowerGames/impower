@@ -180,8 +180,8 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: controlKeyword
-        name: keyword.control.import.include.sd
+        patterns:
+          - { include: "#IncludeKeyword" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -189,6 +189,11 @@ repository:
       - { include: "#Annotation" }
       - { include: "#IncludeContent" }
     end: (?=$)
+
+  IncludeKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.include.sd
+    match: (.+)
 
   IncludeContent:
     tag: string
@@ -214,8 +219,8 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: controlKeyword
-        name: keyword.control.definition.var.sd
+        patterns:
+          - { include: "#VarKeyword" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -223,6 +228,11 @@ repository:
       - { include: "#Annotation" }
       - { include: "#VariableAssignment" }
     end: (?=$)
+
+  VarKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.var.sd
+    match: (.+)
 
   ListDeclaration:
     tag: meta
@@ -233,8 +243,8 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: controlKeyword
-        name: keyword.control.definition.list.sd
+        patterns:
+          - { include: "#ListKeyword" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -242,6 +252,11 @@ repository:
       - { include: "#Annotation" }
       - { include: "#ListTypeAssignment" }
     end: (?=$)
+
+  ListKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.list.sd
+    match: (.+)
 
   ConstDeclaration:
     tag: meta
@@ -252,8 +267,8 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: controlKeyword
-        name: keyword.control.definition.const.sd
+        patterns:
+          - { include: "#ConstKeyword" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -261,6 +276,11 @@ repository:
       - { include: "#Annotation" }
       - { include: "#VariableAssignment" }
     end: (?=$)
+
+  ConstKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.const.sd
+    match: (.+)
 
   ExternalDeclaration:
     tag: meta
@@ -271,8 +291,8 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: controlKeyword
-        name: keyword.control.definition.external.sd
+        patterns:
+          - { include: "#ExternalKeyword" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -280,6 +300,11 @@ repository:
       - { include: "#Annotation" }
       - { include: "#ExternalFunctionDeclaration" }
     end: (?=$)
+
+  ExternalKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.external.sd
+    match: (.+)
 
   DefineDeclaration:
     tag: meta
@@ -304,6 +329,11 @@ repository:
       - { include: "#StructField" }
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
+
+  DefineKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.object.sd
+    match: (.+)
 
   DefineAssignment:
     match: (?:({{IDENTIFIER}})({{WS}}+)(?={{IDENTIFIER}}))?(.*?)({{WS}}*)($|[:])
@@ -339,11 +369,6 @@ repository:
       4:
         patterns:
           - { include: "#AccessPart" }
-
-  DefineKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.object.sd
-    match: (.+)
 
   DefineModifierName:
     tag: keyword
@@ -1068,8 +1093,8 @@ repository:
         patterns:
           - { include: "#Separator" }
       2:
-        tag: controlKeyword
-        name: keyword.control.flow.return.sd
+        patterns:
+          - { include: "#ReturnKeyword" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -1078,6 +1103,11 @@ repository:
       - { include: "#Expression" }
     end: (?=$)
 
+  ReturnKeyword:
+    tag: controlKeyword
+    name: keyword.control.return.sd
+    match: (.+)
+
   TempDeclaration:
     begin: ({{WS}}*)(temp)({{EOK}})
     beginCaptures:
@@ -1085,8 +1115,8 @@ repository:
         patterns:
           - { include: "#Separator" }
       2:
-        tag: controlKeyword
-        name: keyword.control.definition.temp.sd
+        patterns:
+          - { include: "#TempKeyword" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -1094,6 +1124,11 @@ repository:
       - { include: "#Annotation" }
       - { include: "#VariableAssignment" }
     end: (?=$)
+
+  TempKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.temp.sd
+    match: (.+)
 
   ########## Gather ##########
 
@@ -1269,8 +1304,8 @@ repository:
     begin: (function)({{WS}}*)({{IDENTIFIER}})({{WS}}*)
     beginCaptures:
       1:
-        tag: controlKeyword
-        name: keyword.control.definition.function.sd
+        patterns:
+          - { include: "#FunctionKeyword" }
       2:
         patterns:
           - { include: "#Separator" }
@@ -1284,6 +1319,11 @@ repository:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
     end: (?=$|{{WS}}*[=]{2,})
+
+  FunctionKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.function.sd
+    match: (.+)
 
   FunctionDeclarationName:
     tag: function(variableName)
@@ -1591,8 +1631,8 @@ repository:
         patterns:
           - { include: "#Separator" }
       4:
-        tag: controlKeyword
-        name: keyword.control.sd
+        patterns:
+          - { include: "#ElseKeyword" }
       5:
         patterns:
           - { include: "#Expression" }
@@ -1617,6 +1657,11 @@ repository:
       - { include: "#ConditionalBlock" }
       - { include: "#MultilineConditionalText" }
     end: (?=^|[}]|[-]{{EOK}})
+
+  ElseKeyword:
+    tag: controlKeyword
+    name: keyword.control.else.sd
+    match: (.+)
 
   MultilineAlternativeClause:
     begin: ^({{WS}}*)([-])({{EOK}})

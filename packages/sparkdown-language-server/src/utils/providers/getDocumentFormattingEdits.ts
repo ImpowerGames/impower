@@ -350,6 +350,51 @@ export const getFormatting = (
         const newIndentLevel = Math.max(0, (currentIndent?.level ?? 0) - 1);
         tempIndentLevel = newIndentLevel;
       }
+    } else if (cur.value.type === "divert_mark") {
+      const text = document.getText(range);
+      const expectedText = ">";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
+    } else if (cur.value.type === "thread_mark") {
+      const text = document.getText(range);
+      const expectedText = ":";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
+    } else if (
+      cur.value.type === "const_keyword" ||
+      cur.value.type === "var_keyword" ||
+      cur.value.type === "list_keyword" ||
+      cur.value.type === "define_keyword" ||
+      cur.value.type === "external_keyword" ||
+      cur.value.type === "include_keyword" ||
+      cur.value.type === "temp_keyword" ||
+      cur.value.type === "function_keyword"
+    ) {
+      const text = document.getText(range);
+      const expectedText = text.toLowerCase();
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
     } else if (cur.value.type === "knot_begin") {
       const text = document.getText(range);
       const expectedText = "== ";
