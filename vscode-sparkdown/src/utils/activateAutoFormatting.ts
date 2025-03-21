@@ -235,7 +235,7 @@ const onStartOfLineMark = async (editor: TextEditor, mark: string) => {
     currentLineText.substring(0, cursor.character) + mark;
 
   if (editor.selections.length === 1 && editor.selection.isEmpty) {
-    if (LIST_MARK_REGEX.exec(textBeforeCursor) && mark.trim()) {
+    if (mark.trim() && LIST_MARK_REGEX.exec(textBeforeCursor)) {
       if (workspace.getConfiguration("sparkdown")["editor"].autoSpaceMarks) {
         if (await adjustStartOfLineMark(editor, "add", mark)) {
           return true;
