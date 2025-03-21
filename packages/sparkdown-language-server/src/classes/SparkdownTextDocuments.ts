@@ -15,7 +15,6 @@ import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/utils/r
 import {
   CancellationToken,
   Connection,
-  DidChangeConfigurationParams,
   DidChangeTextDocumentParams,
   DidChangeWatchedFilesParams,
   DidCloseTextDocumentParams,
@@ -79,6 +78,7 @@ export default class SparkdownTextDocuments {
     "semantics",
     "transitions",
   ]);
+
   get parser() {
     return this._documents.parser;
   }
@@ -86,11 +86,6 @@ export default class SparkdownTextDocuments {
   protected _connection?: Connection;
   get connection() {
     return this._connection;
-  }
-
-  protected _settings?: SparkdownConfiguration;
-  get settings() {
-    return this._settings;
   }
 
   protected _compilerConfig?: SparkdownCompilerConfig;
@@ -106,6 +101,8 @@ export default class SparkdownTextDocuments {
   get mainScriptFilename() {
     return "main.sd";
   }
+
+  protected _settings?: SparkdownConfiguration;
 
   protected _watchedFileUris = new Set<string>();
 
@@ -596,14 +593,6 @@ export default class SparkdownTextDocuments {
     (<ConnectionState>(<any>connection)).__textDocumentSync =
       TextDocumentSyncKind.Incremental;
     const disposables: Disposable[] = [];
-    disposables.push(
-      connection.onDidChangeConfiguration(
-        (event: DidChangeConfigurationParams) => {
-          const settings = event.settings;
-          this.loadConfiguration(settings);
-        }
-      )
-    );
     disposables.push(
       connection.onRequest(
         DocumentDiagnosticRequest.method,

@@ -11,6 +11,7 @@ import {
   type TextEdit,
 } from "vscode-languageserver";
 import { type Range } from "vscode-languageserver-textdocument";
+import { SparkdownConfiguration } from "../../types/SparkdownConfiguration";
 
 const WHITESPACE_REGEX = /[\t ]*/;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
@@ -31,6 +32,7 @@ const isInRange = (
 };
 
 export const getFormatting = (
+  settings: SparkdownConfiguration | undefined,
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   annotations: SparkdownAnnotations,
@@ -351,64 +353,74 @@ export const getFormatting = (
         tempIndentLevel = newIndentLevel;
       }
     } else if (cur.value.type === "divert_mark") {
-      const text = document.getText(range);
-      const expectedText = ">";
-      if (text !== expectedText) {
-        pushIfInRange({
-          lineNumber: range.start.line + 1,
-          range,
-          oldText: document.getText(range),
-          newText: expectedText,
-          type: cur.value.type,
-        });
+      if (settings?.formatter?.convertInkSyntaxToSparkdownSyntax) {
+        const text = document.getText(range);
+        const expectedText = ">";
+        if (text !== expectedText) {
+          pushIfInRange({
+            lineNumber: range.start.line + 1,
+            range,
+            oldText: document.getText(range),
+            newText: expectedText,
+            type: cur.value.type,
+          });
+        }
       }
     } else if (cur.value.type === "tunnel_mark") {
-      const text = document.getText(range);
-      const expectedText = ">>";
-      if (text !== expectedText) {
-        pushIfInRange({
-          lineNumber: range.start.line + 1,
-          range,
-          oldText: document.getText(range),
-          newText: expectedText,
-          type: cur.value.type,
-        });
+      if (settings?.formatter?.convertInkSyntaxToSparkdownSyntax) {
+        const text = document.getText(range);
+        const expectedText = ">>";
+        if (text !== expectedText) {
+          pushIfInRange({
+            lineNumber: range.start.line + 1,
+            range,
+            oldText: document.getText(range),
+            newText: expectedText,
+            type: cur.value.type,
+          });
+        }
       }
     } else if (cur.value.type === "thread_mark") {
-      const text = document.getText(range);
-      const expectedText = ": ";
-      if (text !== expectedText) {
-        pushIfInRange({
-          lineNumber: range.start.line + 1,
-          range,
-          oldText: document.getText(range),
-          newText: expectedText,
-          type: cur.value.type,
-        });
+      if (settings?.formatter?.convertInkSyntaxToSparkdownSyntax) {
+        const text = document.getText(range);
+        const expectedText = ": ";
+        if (text !== expectedText) {
+          pushIfInRange({
+            lineNumber: range.start.line + 1,
+            range,
+            oldText: document.getText(range),
+            newText: expectedText,
+            type: cur.value.type,
+          });
+        }
       }
     } else if (cur.value.type === "optional_mark") {
-      const text = document.getText(range);
-      const expectedText = "";
-      if (text !== expectedText) {
-        pushIfInRange({
-          lineNumber: range.start.line + 1,
-          range,
-          oldText: document.getText(range),
-          newText: expectedText,
-          type: cur.value.type,
-        });
+      if (settings?.formatter?.convertInkSyntaxToSparkdownSyntax) {
+        const text = document.getText(range);
+        const expectedText = "";
+        if (text !== expectedText) {
+          pushIfInRange({
+            lineNumber: range.start.line + 1,
+            range,
+            oldText: document.getText(range),
+            newText: expectedText,
+            type: cur.value.type,
+          });
+        }
       }
     } else if (cur.value.type === "keyword") {
-      const text = document.getText(range);
-      const expectedText = text.toLowerCase();
-      if (text !== expectedText) {
-        pushIfInRange({
-          lineNumber: range.start.line + 1,
-          range,
-          oldText: document.getText(range),
-          newText: expectedText,
-          type: cur.value.type,
-        });
+      if (settings?.formatter?.convertInkSyntaxToSparkdownSyntax) {
+        const text = document.getText(range);
+        const expectedText = text.toLowerCase();
+        if (text !== expectedText) {
+          pushIfInRange({
+            lineNumber: range.start.line + 1,
+            range,
+            oldText: document.getText(range),
+            newText: expectedText,
+            type: cur.value.type,
+          });
+        }
       }
     } else if (cur.value.type === "knot_begin") {
       const text = document.getText(range);
@@ -639,6 +651,7 @@ export const resolveFormattingConflicts = (
 };
 
 export const getDocumentFormattingEdits = (
+  settings: SparkdownConfiguration | undefined,
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   annotations: SparkdownAnnotations | undefined,
@@ -651,6 +664,7 @@ export const getDocumentFormattingEdits = (
   }
 
   const { edits, lines } = getFormatting(
+    settings,
     document,
     tree,
     annotations,

@@ -250,13 +250,16 @@ try {
   });
 
   // documentFormattingProvider
-  connection.onDocumentFormatting((params) => {
+  connection.onDocumentFormatting(async (params) => {
+    const settings = await connection.workspace.getConfiguration("sparkdown");
+    documents.loadConfiguration(settings);
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const tree = documents.tree(uri);
     const annotations = documents.annotations(uri);
     performance.mark(`lsp: onDocumentFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
+      settings,
       document,
       tree,
       annotations,
@@ -272,13 +275,16 @@ try {
   });
 
   // documentRangeFormattingProvider
-  connection.onDocumentRangeFormatting((params) => {
+  connection.onDocumentRangeFormatting(async (params) => {
+    const settings = await connection.workspace.getConfiguration("sparkdown");
+    documents.loadConfiguration(settings);
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const tree = documents.tree(uri);
     const annotations = documents.annotations(uri);
     performance.mark(`lsp: onDocumentRangeFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
+      settings,
       document,
       tree,
       annotations,
@@ -295,13 +301,16 @@ try {
   });
 
   // documentOnTypeFormattingProvider
-  connection.onDocumentOnTypeFormatting((params) => {
+  connection.onDocumentOnTypeFormatting(async (params) => {
+    const settings = await connection.workspace.getConfiguration("sparkdown");
+    documents.loadConfiguration(settings);
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const tree = documents.tree(uri);
     const annotations = documents.annotations(uri);
     performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
+      settings,
       document,
       tree,
       annotations,
@@ -334,13 +343,16 @@ try {
   });
 
   // renameProvider
-  connection.onRenameRequest((params) => {
+  connection.onRenameRequest(async (params) => {
+    const settings = await connection.workspace.getConfiguration("sparkdown");
+    documents.loadConfiguration(settings);
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const tree = documents.tree(uri);
     const program = documents.program(uri);
     performance.mark(`lsp: onRenameRequest ${uri} start`);
     const result = getRenameEdits(
+      settings,
       document,
       tree,
       program,

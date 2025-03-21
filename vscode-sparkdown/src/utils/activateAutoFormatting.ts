@@ -20,6 +20,7 @@ import {
   workspace,
   WorkspaceEdit,
 } from "vscode";
+import { SparkdownConfiguration } from "../../../packages/sparkdown-language-server/src/types/SparkdownConfiguration";
 import { getFormatting } from "../../../packages/sparkdown-language-server/src/utils/providers/getDocumentFormattingEdits";
 import { getStack } from "../../../packages/textmate-grammar-tree/src/tree/utils/getStack";
 import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
@@ -484,7 +485,11 @@ const adjustStartOfLineMark = async (
       editor.document.uri
     );
     const line = Math.max(0, cursor.line - 1);
+    const config = workspace.getConfiguration(
+      "sparkdown"
+    ) as SparkdownConfiguration;
     const { indentStack } = getFormatting(
+      config,
       parsedDoc,
       tree,
       annotations,

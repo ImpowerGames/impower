@@ -16,10 +16,12 @@ import {
   type TextEdit,
 } from "vscode-languageserver-textdocument";
 import SparkdownTextDocuments from "../../classes/SparkdownTextDocuments";
+import { SparkdownConfiguration } from "../../types/SparkdownConfiguration";
 import { getReferences } from "./getReferences";
 import { getSymbol } from "./getSymbol";
 
 export const getRenameEdits = (
+  settings: SparkdownConfiguration | undefined,
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   program: SparkProgram | undefined,
@@ -100,7 +102,7 @@ export const getRenameEdits = (
     }
   }
 
-  if (documents.settings?.editor?.autoRenameFiles) {
+  if (settings?.editor?.autoRenameFiles) {
     if (resolvedSymbolIds?.includes(`image.${currentName}`)) {
       renameFileByType("image");
     }

@@ -552,6 +552,11 @@
             "type": "boolean",
             "default": true,
             "markdownDescription": "Automatically closes <> inside of text.\n\n*[If you are using a vim emulator, you should disable this setting.]*"
+          },
+          "sparkdown.formatter.convertInkSyntaxToSparkdownSyntax": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "When formatting, replace all ink-specific syntax with sparkdown-equivalent syntax\n\n(e.g. > instead of ->, var instead of VAR, etc.)."
           }
         }
       },
