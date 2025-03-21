@@ -129,7 +129,7 @@ export class Divert extends InkObject {
         }
       }
 
-      sb.Append(" -> ");
+      sb.Append(" > ");
       sb.Append(this.targetPathString);
 
       sb.Append(" (");

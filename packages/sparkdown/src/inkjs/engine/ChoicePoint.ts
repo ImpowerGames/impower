@@ -67,6 +67,6 @@ export class ChoicePoint extends InkObject {
       targetString = " line " + targetLineNum + "(" + targetString + ")";
     }
 
-    return "Choice: -> " + targetString;
+    return "Choice: > " + targetString;
   }
 }

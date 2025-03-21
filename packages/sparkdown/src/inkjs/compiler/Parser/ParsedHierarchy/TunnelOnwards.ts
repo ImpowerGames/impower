@@ -108,6 +108,6 @@ export class TunnelOnwards extends ParsedObject {
   }
 
   public toString = (): string => {
-    return ` -> ${this._divertAfter}`;
+    return ` > ${this._divertAfter}`;
   };
 }

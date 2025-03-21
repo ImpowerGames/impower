@@ -41,6 +41,7 @@ patterns:
   - { include: "#Knot" }
   - { include: "#Stitch" }
   - { include: "#Divert" }
+  - { include: "#Thread" }
   - { include: "#Logic" }
   - { include: "#Choice" }
   - { include: "#Gather" }
@@ -395,6 +396,7 @@ repository:
           - { include: "#AssignEqualOperator" }
     patterns:
       - { include: "#Annotation" }
+      - { include: "#Divert" }
       - { include: "#Expression" }
     end: (?=$)
 
@@ -1114,6 +1116,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Choice" }
       - { include: "#Divert" }
+      - { include: "#Thread" }
       - { include: "#Todo" }
       - { include: "#Logic" }
       - { include: "#Tag" }
@@ -1290,14 +1293,14 @@ repository:
   ########## Divert & Thread ##########
 
   Divert:
-    begin: ({{WS}}*)(->|<-)({{WS}}*)
+    begin: ({{WS}}*)(>|->)({{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#DivertArrow" }
+          - { include: "#DivertMark" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -1311,10 +1314,36 @@ repository:
       - { include: "#TunnelArrow" }
     end: (?=$|[}]|[)]|[|]|[-]|{{TAG_START}})
 
-  DivertArrow:
+  DivertMark:
     tag: function(variableName)
     name: entity.name.function.divert.sd
-    match: (->|<-)
+    match: (>|->)
+
+  Thread:
+    begin: ^({{WS}}*)(:(?={{WS}})|<-)({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ThreadMark" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#End" }
+      - { include: "#Done" }
+      - { include: "#FunctionCall" }
+      - { include: "#DivertPath" }
+    end: (?=$|[}]|[)]|[|]|[-]|{{TAG_START}})
+
+  ThreadMark:
+    tag: function(variableName)
+    name: entity.name.function.divert.sd
+    match: (:|<-)
 
   End:
     tag: keyword
@@ -1361,7 +1390,7 @@ repository:
   TunnelArrow:
     tag: function(variableName)
     name: entity.name.function.divert.sd
-    match: (->(?:->)?|<-)
+    match: (->(?:->)?|>(?:>)?|:(?={{WS}})|<-)
 
   ########## ConditionalBlock (anything within {}) ##########
 
@@ -1541,6 +1570,7 @@ repository:
       - { include: "#MultilineCaseClause" }
       - { include: "#MultilineAlternativeClause" }
       - { include: "#Divert" }
+      - { include: "#Thread" }
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#Todo" }
@@ -1581,6 +1611,7 @@ repository:
       - { include: "#MultilineCloseBraceAhead" }
       - { include: "#MultilineDashAhead" }
       - { include: "#Divert" }
+      - { include: "#Thread" }
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#ConditionalBlock" }
@@ -1605,6 +1636,7 @@ repository:
       - { include: "#MultilineCloseBraceAhead" }
       - { include: "#MultilineDashAhead" }
       - { include: "#Divert" }
+      - { include: "#Thread" }
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#ConditionalBlock" }
@@ -1670,7 +1702,6 @@ repository:
       - { include: "#Annotation" }
       - { include: "#RefModifier" }
       - { include: "#FunctionCall" }
-      - { include: "#Divert" }
       - { include: "#Operator" }
       - { include: "#Literal" }
       - { include: "#Separator" }
@@ -3085,6 +3116,7 @@ repository:
     patterns:
       - { include: "#Escape" }
       - { include: "#Divert" }
+      - { include: "#Thread" }
       - { include: "#ConditionalBlock" }
       - { include: "#InlineText" }
 

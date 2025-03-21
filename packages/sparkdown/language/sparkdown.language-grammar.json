@@ -85,6 +85,9 @@
       "include": "#Divert"
     },
     {
+      "include": "#Thread"
+    },
+    {
       "include": "#Logic"
     },
     {
@@ -688,6 +691,9 @@
       "patterns": [
         {
           "include": "#Annotation"
+        },
+        {
+          "include": "#Divert"
         },
         {
           "include": "#Expression"
@@ -1983,6 +1989,9 @@
           "include": "#Divert"
         },
         {
+          "include": "#Thread"
+        },
+        {
           "include": "#Todo"
         },
         {
@@ -2293,7 +2302,7 @@
       "match": "(.+)"
     },
     "Divert": {
-      "begin": "([^\\S\\n\\r]*)(->|<-)([^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)(>|->)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2305,7 +2314,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#DivertArrow"
+              "include": "#DivertMark"
             }
           ]
         },
@@ -2342,10 +2351,62 @@
       ],
       "end": "(?=$|[}]|[)]|[|]|[-]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
     },
-    "DivertArrow": {
+    "DivertMark": {
       "tag": "function(variableName)",
       "name": "entity.name.function.divert.sd",
-      "match": "(->|<-)"
+      "match": "(>|->)"
+    },
+    "Thread": {
+      "begin": "^([^\\S\\n\\r]*)(:(?=[^\\S\\n\\r])|<-)([^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ThreadMark"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#End"
+        },
+        {
+          "include": "#Done"
+        },
+        {
+          "include": "#FunctionCall"
+        },
+        {
+          "include": "#DivertPath"
+        }
+      ],
+      "end": "(?=$|[}]|[)]|[|]|[-]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
+    },
+    "ThreadMark": {
+      "tag": "function(variableName)",
+      "name": "entity.name.function.divert.sd",
+      "match": "(:|<-)"
     },
     "End": {
       "tag": "keyword",
@@ -2406,7 +2467,7 @@
     "TunnelArrow": {
       "tag": "function(variableName)",
       "name": "entity.name.function.divert.sd",
-      "match": "(->(?:->)?|<-)"
+      "match": "(->(?:->)?|>(?:>)?|:(?=[^\\S\\n\\r])|<-)"
     },
     "ConditionalBlock": {
       "brackets": true,
@@ -2780,6 +2841,9 @@
           "include": "#Divert"
         },
         {
+          "include": "#Thread"
+        },
+        {
           "include": "#Logic"
         },
         {
@@ -2868,6 +2932,9 @@
           "include": "#Divert"
         },
         {
+          "include": "#Thread"
+        },
+        {
           "include": "#Logic"
         },
         {
@@ -2922,6 +2989,9 @@
         },
         {
           "include": "#Divert"
+        },
+        {
+          "include": "#Thread"
         },
         {
           "include": "#Logic"
@@ -3030,9 +3100,6 @@
         },
         {
           "include": "#FunctionCall"
-        },
-        {
-          "include": "#Divert"
         },
         {
           "include": "#Operator"
@@ -5432,6 +5499,9 @@
         },
         {
           "include": "#Divert"
+        },
+        {
+          "include": "#Thread"
         },
         {
           "include": "#ConditionalBlock"

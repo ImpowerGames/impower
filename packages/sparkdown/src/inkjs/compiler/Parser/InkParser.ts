@@ -522,14 +522,14 @@ export class InkParser extends StringParser {
 
     if (emptyContent && diverts === null) {
       this.Warning(
-        "Choice is completely empty. Interpretting as a default fallback choice. Add a divert arrow to remove this warning: * ->"
+        "Choice is completely empty. Interpreting as a default fallback choice. Add a divert arrow to remove this warning: * >"
       );
     }
 
     if (!startContent && hasWeaveStyleInlineBrackets && !optionOnlyContent) {
       // * [] some text
       this.Warning(
-        "Blank choice - if you intended a default fallback choice, use the `* ->` syntax"
+        "Blank choice - if you intended a default fallback choice, use the `* >` syntax"
       );
     }
 
@@ -1282,67 +1282,81 @@ export class InkParser extends StringParser {
     let tagText: ParsedObject | null = null;
     do {
       let str = this.Parse(this.ContentTextNoEscape) as string;
-      const gotEscapeChar: boolean = this.ParseString("\\") !== null;
 
-      if (gotEscapeChar || str !== null) {
+      if (str !== null) {
         sb ??= "";
+        sb += String(str);
+      }
 
-        if (str !== null) {
-          sb += String(str);
+      const gotTagStartChar: boolean = this.ParseString("<") !== null;
+      if (gotTagStartChar) {
+        sb ??= "";
+        sb += "<";
+        const tagContent = this.ParseUntilCharactersFromString(">\n\r");
+        if (tagContent !== null) {
+          sb += tagContent;
         }
+        if (this.Peek(this.ParseSingleCharacter) === ">") {
+          const c = this.ParseSingleCharacter();
+          sb += c;
+        }
+      }
 
-        if (gotEscapeChar) {
-          const escapedSpace = this.ParseWhitespace();
-          if (escapedSpace != null) {
-            tag = this.StartTag();
-            if (tag) {
-              const tagContent = this.ParseUntilCharactersFromString("\n\r");
-              if (tagContent) {
-                tagText = new Text(tagContent);
-              }
+      const gotEscapeChar: boolean = this.ParseString("\\") !== null;
+      if (gotEscapeChar) {
+        sb ??= "";
+        const escapedSpace = this.ParseWhitespace();
+        if (escapedSpace != null) {
+          tag = this.StartTag();
+          if (tag) {
+            const tagContent = this.ParseUntilCharactersFromString("\n\r");
+            if (tagContent) {
+              tagText = new Text(tagContent);
             }
-            // Escaped space
-            const next = this.Peek(this.ParseSingleCharacter);
-            if (next === "\n") {
-              // There is no more content in this line.
-              // So consume newline as part of this text
-              const c = this.ParseSingleCharacter();
-              if (c !== null) {
-                sb += c;
-                // Ensure any logic directly following the newline is not escaped
-                sb += " ";
-              }
-            } else {
-              // There is some content after escaped space.
-              if (str && str.trim()) {
-                // There is some content before escaped space.
-                // So insert newline since we are escaping space between content.
-                sb += "\n";
-                // Ensure any logic directly following the newline is not escaped
-                sb += " ";
-              } else {
-                // Include backslash before escaped indent
-                sb += "\\";
-                sb += escapedSpace;
-              }
-            }
-          } else {
-            // Escaped newline or non-space character
+          }
+          // Escaped space
+          const next = this.Peek(this.ParseSingleCharacter);
+          if (next === "\n") {
+            // There is no more content in this line.
+            // So consume newline as part of this text
             const c = this.ParseSingleCharacter();
             if (c !== null) {
-              if (c !== "\n") {
-                // Include backslash before escaped character
-                sb += "\\";
-              }
               sb += c;
-              if (c === "\n") {
-                // Ensure any logic directly following the newline is not escaped
-                sb += " ";
-              }
+              // Ensure any logic directly following the newline is not escaped
+              sb += " ";
+            }
+          } else {
+            // There is some content after escaped space.
+            if (str && str.trim()) {
+              // There is some content before escaped space.
+              // So insert newline since we are escaping space between content.
+              sb += "\n";
+              // Ensure any logic directly following the newline is not escaped
+              sb += " ";
+            } else {
+              // Include backslash before escaped indent
+              sb += "\\";
+              sb += escapedSpace;
+            }
+          }
+        } else {
+          // Escaped newline or non-space character
+          const c = this.ParseSingleCharacter();
+          if (c !== null) {
+            if (c !== "\n") {
+              // Include backslash before escaped character
+              sb += "\\";
+            }
+            sb += c;
+            if (c === "\n") {
+              // Ensure any logic directly following the newline is not escaped
+              sb += " ";
             }
           }
         }
-      } else {
+      }
+
+      if (!gotTagStartChar && !gotEscapeChar && str === null) {
         break;
       }
     } while (true);
@@ -1376,14 +1390,14 @@ export class InkParser extends StringParser {
     // "-": possible start of divert or start of gather
     // "<": possible start of glue
     if (this._nonTextPauseCharacters === null) {
-      this._nonTextPauseCharacters = new CharacterSet("-<#/");
+      this._nonTextPauseCharacters = new CharacterSet(">-#/");
     }
 
     // If we hit any of these characters, we stop *immediately* without bothering to even check the nonTextRule
     // "{" for start of logic
     // "|" for mid logic branch
     if (this._nonTextEndCharacters === null) {
-      this._nonTextEndCharacters = new CharacterSet("{}|\n\r\\");
+      this._nonTextEndCharacters = new CharacterSet("{}|\n\r\\<");
       this._notTextEndCharactersChoice = new CharacterSet(
         this._nonTextEndCharacters
       );
@@ -1480,7 +1494,10 @@ export class InkParser extends StringParser {
       // Arrow string
       if (isArrow) {
         // Tunnel onwards
-        if ((arrowsAndDiverts[ii] as any) === "->->") {
+        if (
+          (arrowsAndDiverts[ii] as any) === "->->" ||
+          (arrowsAndDiverts[ii] as any) === ">>"
+        ) {
           const tunnelOnwardsPlacementValid: boolean =
             ii === 0 ||
             ii === arrowsAndDiverts.length - 1 ||
@@ -1488,7 +1505,7 @@ export class InkParser extends StringParser {
 
           if (!tunnelOnwardsPlacementValid) {
             this.Error(
-              "Tunnel onwards '->->' must only come at the begining or the start of a divert"
+              "Tunnel onwards '>>' must only come at the beginning or the start of a divert"
             );
           }
 
@@ -1527,7 +1544,7 @@ export class InkParser extends StringParser {
       diverts.push(gatherDivert);
 
       if (!this._parsingChoice) {
-        this.Error("Empty diverts (->) are only valid on choices");
+        this.Error("Empty diverts (>) are only valid on choices", gatherDivert.debugMetadata);
       }
     }
 
@@ -1624,7 +1641,7 @@ export class InkParser extends StringParser {
     stateAtStart.CopyFrom(this.state.currentElement);
 
     let numArrows: number = 0;
-    while (this.ParseString("->") !== null) {
+    while (this.ParseDivertArrow() !== null) {
       numArrows += 1;
     }
 
@@ -1640,16 +1657,18 @@ export class InkParser extends StringParser {
     stateAtEnd.CopyFrom(this.state.currentElement);
 
     this.Error(
-      "Unexpected number of arrows in divert. Should only have '->' or '->->'",
+      "Unexpected number of arrows in divert. Should only have '>' or '>>'",
       this.CreateDebugMetadata(stateAtStart, stateAtEnd)
     );
 
     return "->->";
   };
 
-  public readonly ParseDivertArrow = () => this.ParseString("->");
+  public readonly ParseDivertArrow = () =>
+    this.ParseString("->") || this.ParseString(">");
 
-  public readonly ParseThreadArrow = () => this.ParseString("<-");
+  public readonly ParseThreadArrow = () =>
+    this.ParseString("<-") || this.ParseKeywordString(":");
 
   /**
    * End Divert section.
@@ -1957,7 +1976,7 @@ export class InkParser extends StringParser {
     if (textAndLogic === null) {
       textAndLogic = [new Text("")];
     } else if (textAndLogic.find((c) => c instanceof Divert)) {
-      this.Error("String expressions cannot contain diverts (->)");
+      this.Error("String expressions cannot contain diverts (>)");
     }
 
     return new StringExpression(textAndLogic);

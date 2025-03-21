@@ -226,7 +226,7 @@ export class Divert extends ParsedObject {
 
               if (argument && !argument.isDivertTarget) {
                 this.Error(
-                  `Since '${argument.identifier}' is used as a variable divert target (on ${this.debugMetadata}), it should be marked as: -> ${argument.identifier}`,
+                  `Since '${argument.identifier}' is used as a variable divert target (on ${this.debugMetadata}), it should be marked as: > ${argument.identifier}`,
                   resolveResult.ownerFlow
                 );
               }
@@ -414,7 +414,7 @@ export class Divert extends ParsedObject {
           this.Error(
             `Target '${
               targetFlow!.identifier
-            }' expects a divert target for the parameter named -> ${
+            }' expects a divert target for the parameter named > ${
               flowArg.identifier
             } but saw ${divArgExpr}`,
             divArgExpr
@@ -490,11 +490,11 @@ export class Divert extends ParsedObject {
     if (this.target !== null) {
       returnString += this.target.toString();
     } else {
-      return "-> <empty divert>";
+      return "> [empty divert]";
     }
 
     if (this.isTunnel) {
-      returnString += " ->";
+      returnString += " >";
     }
     if (this.isFunctionCall) {
       returnString += " ()";

@@ -284,8 +284,8 @@ The men look at each other.`.trim()
 <span class='keyword'>return x + y</span>`.trim()
     ),
     new CheatsheetItem(
-      "-> KnotOrStitch",
-      "Jump to another knot or stitch with -> KnotOrStitchName",
+      "> KnotOrStitch",
+      "Jump to another knot or stitch with > KnotOrStitchName",
       `
 <span class='section'># TheBatcave</span>
 <span>
@@ -294,27 +294,27 @@ The men look at each other.`.trim()
 <span class='dialogue'>To the Batmobile!</span>
 <span>
 </span>
-<span class='action'><span class='divert'>-></span> <span class='divert_target'>TheBatmobile</span></span>`.trim()
+<span class='action'><span class='divert'>></span> <span class='divert_target'>TheBatmobile</span></span>`.trim()
     ),
     new CheatsheetItem(
-      "+ Choice -> KnotOrStitch",
+      "+ Choice > KnotOrStitch",
       "Display a sticky choice that diverts to a knot or stitch",
       `
 <span class='action'>Where do you want to go?</span>
-<span class='action'><mark class='keyword'>+</mark> To the Batcave! <span class='divert'>-></span> <span class='divert_target'>TheBatcave</span></span>
-<span class='action'><mark class='keyword'>+</mark> To Wayne Manor! <span class='divert'>-></span> <span class='divert_target'>WayneManor</span></span>
-<span class='action'><mark class='keyword'>+</mark> To Crime Alley! <span class='divert'>-></span> <span class='divert_target'>CrimeAlley</span></span>
+<span class='action'><mark class='keyword'>+</mark> To the Batcave! <span class='divert'>></span> <span class='divert_target'>TheBatcave</span></span>
+<span class='action'><mark class='keyword'>+</mark> To Wayne Manor! <span class='divert'>></span> <span class='divert_target'>WayneManor</span></span>
+<span class='action'><mark class='keyword'>+</mark> To Crime Alley! <span class='divert'>></span> <span class='divert_target'>CrimeAlley</span></span>
 `.trim()
     ),
     new CheatsheetItem(
-      "* Choice -> KnotOrStitch",
+      "* Choice > KnotOrStitch",
       "Display a transient choice (i.e. a choice that can only be picked once)",
       `
 <span class='dialogue_character'>@ DETECTIVE</span>
 <span class='dialogue'>And so the killer must be...</span>
-<span class='action'><mark class='keyword'>*</mark> The butler! <span class='divert'>-></span> <span class='divert_target'>AccuseButler</span></span>
-<span class='action'><mark class='keyword'>*</mark> You! <span class='divert'>-></span> <span class='divert_target'>AccusePartner</span></span>
-<span class='action'><mark class='keyword'>*</mark> Myself! <span class='divert'>-></span> <span class='divert_target'>AccuseSelf</span></span>
+<span class='action'><mark class='keyword'>*</mark> The butler! <span class='divert'>></span> <span class='divert_target'>AccuseButler</span></span>
+<span class='action'><mark class='keyword'>*</mark> You! <span class='divert'>></span> <span class='divert_target'>AccusePartner</span></span>
+<span class='action'><mark class='keyword'>*</mark> Myself! <span class='divert'>></span> <span class='divert_target'>AccuseSelf</span></span>
 `.trim()
     ),
   ];
@@ -430,7 +430,7 @@ The men look at each other.`.trim()
       `
 <span class='condition'>if (health < 0):</span>
 <span class='action'>  You are dead.</span>
-<span class='action'>  <span class='divert'>-></span> <span class='divert_target'>GameOver</span></span>
+<span class='action'>  <span class='divert'>></span> <span class='divert_target'>GameOver</span></span>
 `.trim()
     ),
     new CheatsheetItem(
@@ -439,7 +439,7 @@ The men look at each other.`.trim()
       `
 <span class='condition'>if (health < 0):</span>
 <span class='action'>  You are dead.</span>
-<span class='action'>  <span class='divert'>-></span> <span class='divert_target'>GameOver</span></span>
+<span class='action'>  <span class='divert'>></span> <span class='divert_target'>GameOver</span></span>
 <span class='condition'>elseif (health == max_health):</span>
 <span class='action'>  You are fully healed.</span>
 `.trim()
@@ -450,7 +450,7 @@ The men look at each other.`.trim()
       `
 <span class='condition'>if (health < 0):</span>
 <span class='action'>  You are dead.</span>
-<span class='action'>  <span class='divert'>-></span> <span class='divert_target'>GameOver</span></span>
+<span class='action'>  <span class='divert'>></span> <span class='divert_target'>GameOver</span></span>
 <span class='condition'>elseif (health == max_health):</span>
 <span class='action'>  You are fully healed.</span>
 <span class='condition'>else:</span>

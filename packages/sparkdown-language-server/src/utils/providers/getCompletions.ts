@@ -1719,7 +1719,7 @@ export const getCompletions = (
 
   // Divert Path
   if (
-    leftStack[0]?.name === "DivertArrow" &&
+    leftStack[0]?.name === "DivertMark" &&
     !getNodeText(
       getDescendentInsideParent("Divert_content", "Divert", leftStack)
     )
@@ -1740,7 +1740,7 @@ export const getCompletions = (
   }
   if (
     leftStack[0]?.name === "Separator" &&
-    prevNode.name === "DivertArrow" &&
+    prevNode.name === "DivertMark" &&
     !getNodeText(
       getDescendentInsideParent("Divert_content", "Divert", leftStack)
     )

@@ -61,10 +61,7 @@ export class DivertTarget extends Expression {
     super.ResolveReferences(context);
 
     if (this.divert.isDone || this.divert.isEnd) {
-      this.Error(
-        `Can't use -> DONE or -> END as variable divert targets`,
-        this
-      );
+      this.Error(`Can't use DONE or END as variable divert targets`, this);
 
       return;
     }
@@ -158,7 +155,7 @@ export class DivertTarget extends Expression {
       }
 
       this.Error(
-        `Since '${this.divert.target.dotSeparatedComponents}' is a variable, it shouldn't be preceded by '->' here.`
+        `Since '${this.divert.target.dotSeparatedComponents}' is a variable, it shouldn't be preceded by '>' here.`
       );
     }
 
