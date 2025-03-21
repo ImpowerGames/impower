@@ -9,7 +9,7 @@ export default spec({
     gameBackground: "#game-background",
     gameView: "#game-view",
     gameOverlay: "#game-overlay",
-    audioOverlay: "#audio-overlay",
+    audioButton: "#audio-button",
   } as const,
   css,
 });

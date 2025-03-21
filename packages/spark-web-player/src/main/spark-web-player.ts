@@ -69,7 +69,7 @@ export default class SparkWebPlayer extends Component(spec) {
   _audioContext?: AudioContext;
 
   override onConnected() {
-    this.ref.audioOverlay.addEventListener(
+    this.ref.audioButton.addEventListener(
       "click",
       this.handleClickAudioOverlay
     );
@@ -81,7 +81,7 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   override onDisconnected() {
-    this.ref.audioOverlay?.removeEventListener(
+    this.ref.audioButton?.removeEventListener(
       "click",
       this.handleClickAudioOverlay
     );
@@ -89,13 +89,13 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   protected async hideAudioOverlay() {
-    if (this.ref.audioOverlay) {
-      this.ref.audioOverlay.classList.add("on");
-      const animations = this.ref.audioOverlay.getAnimations();
+    if (this.ref.audioButton) {
+      this.ref.audioButton.classList.add("on");
+      const animations = this.ref.audioButton.getAnimations();
       await Promise.allSettled(
         animations.map((animation) => animation.finished)
       );
-      this.ref.audioOverlay.remove();
+      this.ref.audioButton.remove();
     }
   }
 

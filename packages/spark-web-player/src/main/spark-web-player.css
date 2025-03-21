@@ -173,9 +173,12 @@ Make sure disabled buttons don't get the pointer cursor.
   flex-direction: column;
 }
 
-#audio-overlay {
+#audio-button {
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  width: 56px;
+  height: 56px;
   padding: 16px;
   cursor: pointer;
   pointer-events: auto;
@@ -201,18 +204,18 @@ Make sure disabled buttons don't get the pointer cursor.
   opacity: 0;
 }
 
-#audio-overlay.on {
+#audio-button.on {
   opacity: 0;
 }
 
-#audio-overlay.on #audio-off-icon {
+#audio-button.on #audio-off-icon {
   opacity: 0;
 }
 
-#audio-overlay.on #audio-on-icon {
+#audio-button.on #audio-on-icon {
   opacity: 1;
 }
 
-#audio-overlay:hover #audio-off-icon {
+#audio-button:hover #audio-off-icon {
   color: white;
 }
