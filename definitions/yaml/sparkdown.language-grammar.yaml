@@ -1316,7 +1316,7 @@ repository:
 
   DivertMark:
     tag: function(variableName)
-    name: entity.name.function.divert.sd
+    name: keyword.divert.mark.sd
     match: (>|->)
 
   Thread:
@@ -1342,7 +1342,7 @@ repository:
 
   ThreadMark:
     tag: function(variableName)
-    name: entity.name.function.divert.sd
+    name: keyword.thread.mark.sd
     match: (:|<-)
 
   End:
