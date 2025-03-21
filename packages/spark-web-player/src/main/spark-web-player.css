@@ -188,9 +188,10 @@ Make sure disabled buttons don't get the pointer cursor.
 }
 
 #audio-icon {
-  color: rgba(255, 255, 255, 0.5);
+  color: white;
   width: 24px;
   height: 24px;
+  opacity: 0.5;
 }
 
 #audio-off-icon {
@@ -216,6 +217,7 @@ Make sure disabled buttons don't get the pointer cursor.
   opacity: 1;
 }
 
-#audio-button:hover #audio-off-icon {
+#audio-button:hover #audio-icon {
   color: white;
+  opacity: 1;
 }
