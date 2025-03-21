@@ -6005,7 +6005,7 @@
     },
     "Raw": {
       "tag": "content",
-      "name": "markup.inline.raw.string.sd",
+      "name": "markup.raw.text.sd",
       "match": "([`]+)(.*?)(\\1|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "captures": {
         "1": {
