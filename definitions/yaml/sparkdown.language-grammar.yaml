@@ -695,14 +695,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
-    end: ({{WS}}*)(?=$|[^(])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        patterns:
-          - { include: "#PunctuationSemicolon" }
+    end: (?=$|[^(])
 
   FunctionAccessor:
     begin: ([.])?({{IDENTIFIER}})(?=[(])

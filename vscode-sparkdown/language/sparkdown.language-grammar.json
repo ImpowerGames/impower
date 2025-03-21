@@ -1279,23 +1279,7 @@
           "include": "#FunctionParameters"
         }
       ],
-      "end": "([^\\S\\n\\r]*)(?=$|[^(])",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#OptionalSeparator"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#PunctuationSemicolon"
-            }
-          ]
-        }
-      }
+      "end": "(?=$|[^(])"
     },
     "FunctionAccessor": {
       "begin": "([.])?([_\\p{L}][0-9_\\p{L}]*)(?=[(])",
