@@ -197,14 +197,14 @@ Make sure disabled buttons don't get the pointer cursor.
 #audio-off-icon {
   position: absolute;
   inset: 0;
-  transition: opacity ease 150ms;
+  transition: opacity ease 200ms;
 }
 
 #audio-on-icon {
   position: absolute;
   inset: 0;
   opacity: 0;
-  transition: opacity ease 150ms;
+  transition: opacity ease 200ms;
 }
 
 #audio-button.on {
