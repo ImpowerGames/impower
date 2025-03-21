@@ -1370,13 +1370,8 @@ repository:
       - { include: "#Done" }
       - { include: "#FunctionCall" }
       - { include: "#DivertPath" }
-      - { include: "#TunnelArrow" }
+      - { include: "#TunnelMark" }
     end: (?=$|[}]|[)]|[|]|[-]|{{TAG_START}})
-
-  DivertMark:
-    tag: function(variableName)
-    name: keyword.divert.mark.sd
-    match: (>|->)
 
   Thread:
     begin: ^({{WS}}*)(:(?={{WS}})|<-)({{WS}}*)
@@ -1399,9 +1394,19 @@ repository:
       - { include: "#DivertPath" }
     end: (?=$|[}]|[)]|[|]|[-]|{{TAG_START}})
 
+  DivertMark:
+    tag: function(variableName)
+    name: keyword.control.divert.mark.sd
+    match: (>|->)
+
+  TunnelMark:
+    tag: function(variableName)
+    name: keyword.control.divert.mark.sd
+    match: (->(?:->)?|>(?:>)?|:(?={{WS}})|<-)
+
   ThreadMark:
     tag: function(variableName)
-    name: keyword.thread.mark.sd
+    name: keyword.control.thread.mark.sd
     match: (:|<-)
 
   End:
@@ -1445,11 +1450,6 @@ repository:
     tag: heading
     name: keyword.control.divert.path.sd
     match: ({{IDENTIFIER}})
-
-  TunnelArrow:
-    tag: function(variableName)
-    name: keyword.divert.mark.sd
-    match: (->(?:->)?|>(?:>)?|:(?={{WS}})|<-)
 
   ########## ConditionalBlock (anything within {}) ##########
 

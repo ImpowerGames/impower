@@ -2449,15 +2449,10 @@
           "include": "#DivertPath"
         },
         {
-          "include": "#TunnelArrow"
+          "include": "#TunnelMark"
         }
       ],
       "end": "(?=$|[}]|[)]|[|]|[-]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
-    },
-    "DivertMark": {
-      "tag": "function(variableName)",
-      "name": "keyword.divert.mark.sd",
-      "match": "(>|->)"
     },
     "Thread": {
       "begin": "^([^\\S\\n\\r]*)(:(?=[^\\S\\n\\r])|<-)([^\\S\\n\\r]*)",
@@ -2506,9 +2501,19 @@
       ],
       "end": "(?=$|[}]|[)]|[|]|[-]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
     },
+    "DivertMark": {
+      "tag": "function(variableName)",
+      "name": "keyword.control.divert.mark.sd",
+      "match": "(>|->)"
+    },
+    "TunnelMark": {
+      "tag": "function(variableName)",
+      "name": "keyword.control.divert.mark.sd",
+      "match": "(->(?:->)?|>(?:>)?|:(?=[^\\S\\n\\r])|<-)"
+    },
     "ThreadMark": {
       "tag": "function(variableName)",
-      "name": "keyword.thread.mark.sd",
+      "name": "keyword.control.thread.mark.sd",
       "match": "(:|<-)"
     },
     "End": {
@@ -2566,11 +2571,6 @@
       "tag": "heading",
       "name": "keyword.control.divert.path.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
-    },
-    "TunnelArrow": {
-      "tag": "function(variableName)",
-      "name": "keyword.divert.mark.sd",
-      "match": "(->(?:->)?|>(?:>)?|:(?=[^\\S\\n\\r])|<-)"
     },
     "ConditionalBlock": {
       "brackets": true,
