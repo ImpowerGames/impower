@@ -322,32 +322,12 @@
         }
       ]
     },
-    "submenus": [
-      {
-        "id": "sparkdown.runOrDebug",
-        "label": "Debug Game",
-        "icon": "$(debug-alt)",
-        "group": "navigation@1"
-      }
-    ],
     "menus": {
-      "sparkdown.runOrDebug": [
-        {
-          "command": "sparkdown.debugGame",
-          "when": "!inDebugMode",
-          "group": "navigation@1"
-        },
-        {
-          "command": "sparkdown.runGame",
-          "when": "!inDebugMode",
-          "group": "navigation@2"
-        }
-      ],
       "view/title": [
         {
-          "submenu": "sparkdown.runOrDebug",
+          "command": "sparkdown.debugGame",
           "group": "navigation@1",
-          "when": "view == sparkdown-outline"
+          "when": "view == sparkdown-outline && !inDebugMode"
         },
         {
           "command": "sparkdown.previewGame",
@@ -377,20 +357,11 @@
           "command": "sparkdown.debugGame",
           "when": "!inDebugMode && (resourceLangId == sparkdown || view == sparkdown-outline || activeWebviewPanelId == 'sparkdown-preview-game' || activeWebviewPanelId == 'sparkdown-preview-screenplay')",
           "group": "navigation@1"
-        },
-        {
-          "command": "sparkdown.runGame",
-          "when": "!inDebugMode && (resourceLangId == sparkdown || view == sparkdown-outline || activeWebviewPanelId == 'sparkdown-preview-game' || activeWebviewPanelId == 'sparkdown-preview-screenplay')",
-          "group": "navigation@2"
         }
       ],
       "commandPalette": [
         {
           "command": "sparkdown.debugGame",
-          "when": "!inDebugMode && (resourceLangId == sparkdown || view == sparkdown-outline || activeWebviewPanelId == 'sparkdown-preview-game' || activeWebviewPanelId == 'sparkdown-preview-screenplay')"
-        },
-        {
-          "command": "sparkdown.runGame",
           "when": "!inDebugMode && (resourceLangId == sparkdown || view == sparkdown-outline || activeWebviewPanelId == 'sparkdown-preview-game' || activeWebviewPanelId == 'sparkdown-preview-screenplay')"
         }
       ],
@@ -453,7 +424,7 @@
       },
       {
         "command": "sparkdown.debugGame",
-        "title": "Debug Game",
+        "title": "Run & Debug Game",
         "category": "Sparkdown Debugger",
         "enablement": "!inDebugMode",
         "icon": "$(debug-alt)"
@@ -472,10 +443,10 @@
     ],
     "keybindings": [
       {
-        "command": "sparkdown.previewGame",
+        "command": "sparkdown.debugGame",
         "when": "editorLangId == sparkdown",
-        "key": "ctrl+shift+v",
-        "mac": "cmd+shift+v"
+        "key": "f5",
+        "mac": "f5"
       },
       {
         "command": "sparkdown.exportpdf",
