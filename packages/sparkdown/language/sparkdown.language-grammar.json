@@ -675,7 +675,7 @@
       "match": "(.+)"
     },
     "ListTypeAssignment": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)($|[=]|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]*[=][^\\S\\n\\r]*|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -685,13 +685,6 @@
           ]
         },
         "2": {
-          "patterns": [
-            {
-              "include": "#Separator"
-            }
-          ]
-        },
-        "3": {
           "patterns": [
             {
               "include": "#AssignEqualOperator"
@@ -710,7 +703,7 @@
       "end": "(?=$)"
     },
     "VariableAssignment": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)($|[=]|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]*[=][^\\S\\n\\r]*|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -720,13 +713,6 @@
           ]
         },
         "2": {
-          "patterns": [
-            {
-              "include": "#Separator"
-            }
-          ]
-        },
-        "3": {
           "patterns": [
             {
               "include": "#AssignEqualOperator"
@@ -776,9 +762,20 @@
       "end": "(?=$)"
     },
     "RefModifier": {
-      "tag": "modifier",
-      "name": "storage.modifier.ref.sd",
-      "match": "(ref)"
+      "match": "(ref)([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "tag": "modifier",
+          "name": "storage.modifier.ref.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
     },
     "FunctionParameters": {
       "brackets": true,
@@ -1282,9 +1279,16 @@
           "include": "#FunctionParameters"
         }
       ],
-      "end": "([;])|(?=$|[^(])",
+      "end": "([^\\S\\n\\r]*)(?=$|[^(])",
       "endCaptures": {
         "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
           "patterns": [
             {
               "include": "#PunctuationSemicolon"
@@ -1589,17 +1593,6 @@
       "name": "entity.other.attribute-name.pseudo-class.name.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
-    "DeclarationAssignOperator": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#ArrowOperator"
-        },
-        {
-          "include": "#AssignEqualOperator"
-        }
-      ]
-    },
     "Label": {
       "match": "([(])([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([)])",
       "captures": {
@@ -1897,9 +1890,6 @@
       "patterns": [
         {
           "include": "#Annotation"
-        },
-        {
-          "include": "#Separator"
         },
         {
           "include": "#ReturnStatement"
@@ -2411,7 +2401,7 @@
       "match": "(.+)"
     },
     "Divert": {
-      "begin": "([^\\S\\n\\r]*)(>|->)([^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)(>>|->->|>|->)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2423,6 +2413,9 @@
         "2": {
           "patterns": [
             {
+              "include": "#TunnelMark"
+            },
+            {
               "include": "#DivertMark"
             }
           ]
@@ -2430,7 +2423,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#OptionalSeparator"
             }
           ]
         }
@@ -2456,12 +2449,15 @@
         },
         {
           "include": "#TunnelMark"
+        },
+        {
+          "include": "#DivertMark"
         }
       ],
-      "end": "(?=$|[}]|[)]|[|]|[-]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
+      "end": "(?=$|[}]|[)]|[|]|[-][>]|[>]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
     },
     "Thread": {
-      "begin": "^([^\\S\\n\\r]*)(:(?=[^\\S\\n\\r])|<-)([^\\S\\n\\r]*)",
+      "begin": "^([^\\S\\n\\r]*)(:[^\\S\\n\\r]+|<-)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2480,7 +2476,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#OptionalSeparator"
             }
           ]
         }
@@ -2505,7 +2501,7 @@
           "include": "#DivertPath"
         }
       ],
-      "end": "(?=$|[}]|[)]|[|]|[-]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
+      "end": "(?=$|[}]|[)]|[|]|[-][>]|[>]|(?:[#]+(?:$|[^\\S\\n\\r]+)))"
     },
     "DivertMark": {
       "tag": "controlKeyword",
@@ -2515,12 +2511,12 @@
     "TunnelMark": {
       "tag": "controlKeyword",
       "name": "keyword.control.divert.mark.sd",
-      "match": "(->(?:->)?|>(?:>)?|:(?=[^\\S\\n\\r])|<-)"
+      "match": "(->->|>>)"
     },
     "ThreadMark": {
       "tag": "controlKeyword",
       "name": "keyword.control.thread.mark.sd",
-      "match": "(:|<-)"
+      "match": "(:[^\\S\\n\\r]+|<-)"
     },
     "End": {
       "tag": "keyword",
@@ -2544,7 +2540,16 @@
           "include": "#DivertPart"
         }
       ],
-      "end": "(?=$|[^_\\p{L}0-9^.])"
+      "end": "([^\\S\\n\\r]*)(?=$|[^_\\p{L}0-9^.])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
     },
     "DivertPart": {
       "emit": true,
@@ -2774,7 +2779,7 @@
       "end": "(?=[}]|[|])"
     },
     "ConditionalSubstitution": {
-      "begin": "((?:[^{}|]|[|](?=[|]))+)((?<![^\\S\\n\\r])[^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(?!(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "((?:[^:{}|]|[|](?=[|]))+)((?<![^\\S\\n\\r])[^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(?!(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3276,9 +3281,6 @@
           "include": "#AccessPath"
         },
         {
-          "include": "#PunctuationSemicolon"
-        },
-        {
           "include": "#PunctuationComma"
         },
         {
@@ -3332,9 +3334,6 @@
           "include": "#HasOperator"
         },
         {
-          "include": "#NegateOperator"
-        },
-        {
           "include": "#SpreadOperator"
         },
         {
@@ -3351,6 +3350,9 @@
         },
         {
           "include": "#CompareRelativeOperator"
+        },
+        {
+          "include": "#NegateOperator"
         },
         {
           "include": "#HasntOperator"
@@ -3390,110 +3392,323 @@
       "match": "([.][.][.])"
     },
     "AssignArithmeticOperator": {
-      "tag": "updateOperator",
-      "name": "keyword.operator.assignment.compound.sd",
-      "match": "([*][=]|(?<!\\()[/][=]|[%][=]|[+][=]|[-][=])"
-    },
-    "AssignBitwiseOperator": {
-      "tag": "updateOperator",
-      "name": "keyword.operator.assignment.compound.bitwise.sd",
-      "match": "([&][=]|[\\^][=]|[<][<][=]|[>][>][=]|[>][>][>][=]|[|][=])"
-    },
-    "BitwiseShiftOperator": {
-      "tag": "updateOperator",
-      "name": "keyword.operator.bitwise.shift.sd",
-      "match": "([<][<]|[>][>][>]|[>][>])"
-    },
-    "CompareEqualOperator": {
-      "tag": "compareOperator",
-      "name": "keyword.operator.comparison.sd",
-      "match": "([=][=][=]|[!][=][=]|[=][=]|[!][=])"
-    },
-    "CompareRelativeOperator": {
-      "tag": "compareOperator",
-      "name": "keyword.operator.relational.sd",
-      "match": "([<][=]|[>][=]|[<][>]|[<]|[>])"
-    },
-    "HasntOperator": {
-      "tag": "updateOperator",
-      "match": "([!])([?])",
+      "match": "([^\\S\\n\\r]*)([*][=]|(?<!\\()[/][=]|[%][=]|[+][=]|[-][=])([^\\S\\n\\r]*)",
       "captures": {
         "1": {
-          "tag": "logicOperator",
-          "name": "keyword.operator.logical.sd"
-        },
-        "2": {
-          "tag": "logicOperator",
-          "name": "keyword.operator.logical.sd"
-        }
-      }
-    },
-    "HasOperator": {
-      "tag": "updateOperator",
-      "match": "([?])",
-      "captures": {
-        "1": {
-          "tag": "logicOperator",
-          "name": "keyword.operator.logical.sd"
-        }
-      }
-    },
-    "NegateOperator": {
-      "tag": "updateOperator",
-      "match": "(?<=[0-9_\\p{L}])([!])\\s*(?:([/][=])|(?:([/])(?![/*])))",
-      "captures": {
-        "1": {
-          "tag": "logicOperator",
-          "name": "keyword.operator.logical.sd"
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
         },
         "2": {
           "tag": "updateOperator",
           "name": "keyword.operator.assignment.compound.sd"
         },
         "3": {
-          "tag": "arithmeticOperator",
-          "name": "keyword.operator.arithmetic.sd"
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
+    },
+    "AssignBitwiseOperator": {
+      "match": "([^\\S\\n\\r]*)([&][=]|[\\^][=]|[<][<][=]|[>][>][=]|[>][>][>][=]|[|][=])([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.compound.bitwise.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
+    },
+    "BitwiseShiftOperator": {
+      "match": "([^\\S\\n\\r]*)([<][<]|[>][>][>]|[>][>])([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.bitwise.shift.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
+    },
+    "CompareEqualOperator": {
+      "match": "([^\\S\\n\\r]*)([=][=][=]|[!][=][=]|[=][=]|[!][=])([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "tag": "compareOperator",
+          "name": "keyword.operator.comparison.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
+    },
+    "CompareRelativeOperator": {
+      "match": "([^\\S\\n\\r]*)([<][=]|[>][=]|[<][>]|[<]|[>])([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "tag": "compareOperator",
+          "name": "keyword.operator.relational.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
+    },
+    "HasntOperator": {
+      "match": "([^\\S\\n\\r]*)([!][?])([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "tag": "logicOperator",
+          "name": "keyword.operator.logical.hasnt.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
+    },
+    "HasOperator": {
+      "match": "([^\\S\\n\\r]*)([?])([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "tag": "logicOperator",
+          "name": "keyword.operator.logical.has.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
+    },
+    "NegateOperator": {
+      "match": "([^\\S\\n\\r]*)([!])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "tag": "logicOperator",
+          "name": "keyword.operator.logical.sd"
         }
       }
     },
     "LogicalOperator": {
-      "tag": "logicOperator",
-      "name": "keyword.operator.logical.sd",
-      "match": "([!]|[&][&]|[|][|]|[?][?])"
+      "match": "([^\\S\\n\\r]*)([&][&]|[|][|]|[?][?])([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "tag": "logicOperator",
+          "name": "keyword.operator.logical.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
     },
     "BitwiseOperator": {
-      "tag": "bitwiseOperator",
-      "name": "keyword.operator.bitwise.sd",
-      "match": "([&]|[~]|[\\^]|[|])"
+      "match": "([^\\S\\n\\r]*)([&]|[~]|[\\^]|[|])([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "tag": "bitwiseOperator",
+          "name": "keyword.operator.bitwise.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
     },
     "AssignEqualOperator": {
-      "tag": "updateOperator",
-      "name": "keyword.operator.assignment.sd",
-      "match": "([=])"
+      "match": "([^\\S\\n\\r]*)([=])([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
     },
     "DecrementOperator": {
-      "tag": "updateOperator",
-      "name": "keyword.operator.decrement.sd",
-      "match": "([-][-])"
+      "match": "([-][-])([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.decrement.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
     },
     "IncrementOperator": {
-      "tag": "updateOperator",
-      "name": "keyword.operator.increment.sd",
-      "match": "([+][+])"
+      "match": "([+][+])([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.increment.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
     },
     "ArithmeticOperator": {
-      "tag": "arithmeticOperator",
-      "name": "keyword.operator.arithmetic.sd",
-      "match": "([%]|[*]|[/]|[-]|[+])"
+      "match": "([^\\S\\n\\r]*)([%]|[*]|[/]|[-]|[+])([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "tag": "arithmeticOperator",
+          "name": "keyword.operator.arithmetic.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
     },
     "AssignMultiplyOperator": {
-      "begin": "(?<=[0-9_\\p{L})\\]])\\s*(?=(\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*)+(?:(/=)|(?:(/)(?![/*]))))",
+      "begin": "(?<=[0-9_\\p{L})\\]])([^\\S\\n\\r]*)(?=(\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*)+(?:(/=)|(?:(/)(?![/*]))))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      },
       "patterns": [
         {
           "include": "#Annotation"
         }
       ],
-      "end": "(?:(/=)|(?:(/)(?![*]([^*]|([*][^\\/]))*[*][/])))",
+      "end": "(?:(/=)|(?:(/)(?![*]([^*]|([*][^\\/]))*[*][/])))([^\\S\\n\\r]*)",
       "endCaptures": {
         "1": {
           "tag": "updateOperator",
@@ -3502,15 +3717,36 @@
         "2": {
           "tag": "arithmeticOperator",
           "name": "keyword.operator.arithmetic.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
         }
       }
     },
     "AssignDivideOperator": {
-      "match": "(?<=[0-9_\\p{L})\\]])([\\s]*)([/][=]|([/])(?![/*]))",
+      "match": "(?<=[0-9_\\p{L})\\]])([^\\S\\n\\r]*)([/][=]|([/])(?![/*]))([^\\S\\n\\r]*)",
       "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
         "2": {
           "tag": "arithmeticOperator",
           "name": "keyword.operator.arithmetic.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
         }
       }
     },
@@ -3529,15 +3765,21 @@
       "name": "meta.template.expression.operator.colon.sd",
       "match": "([:])"
     },
-    "ArrowOperator": {
-      "tag": "punctuation",
-      "name": "punctuation.separator.colon.sd",
-      "match": "([=][>])"
-    },
     "WordOperator": {
-      "tag": "keyword",
-      "name": "keyword.logical.word.sd",
-      "match": "\\b(not|and|or|has|hasnt|mod)\\b"
+      "match": "\\b(not|and|or|has|hasnt|mod)\\b([^\\S\\n\\r]*)",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.logical.word.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
     },
     "Literal": {
       "patterns": [

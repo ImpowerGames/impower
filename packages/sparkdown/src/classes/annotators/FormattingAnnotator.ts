@@ -28,6 +28,7 @@ export type FormatType =
   | "choice_mark"
   | "gather_mark"
   | "divert_mark"
+  | "tunnel_mark"
   | "thread_mark"
   | "optional_mark"
   | "indenting_colon"
@@ -297,6 +298,15 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
+    if (nodeRef.name === "TunnelMark") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("tunnel_mark").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
     if (nodeRef.name === "ThreadMark") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("thread_mark").range(
@@ -354,6 +364,31 @@ export class FormattingAnnotator extends SparkdownAnnotator<
           nodeRef.to
         )
       );
+      return annotations;
+    }
+    if (nodeRef.name === "OptionalSeparator") {
+      const nextChar = this.read(nodeRef.to, nodeRef.to + 1);
+      if (
+        nextChar === "\n" ||
+        nextChar === "\r" ||
+        nextChar === "}" ||
+        nextChar === "]" ||
+        nextChar === ")"
+      ) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("extra").range(
+            nodeRef.from,
+            nodeRef.to
+          )
+        );
+      } else {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("separator").range(
+            nodeRef.from,
+            nodeRef.to
+          )
+        );
+      }
       return annotations;
     }
     if (nodeRef.name === "ExtraWhitespace") {

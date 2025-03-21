@@ -362,9 +362,21 @@ export const getFormatting = (
           type: cur.value.type,
         });
       }
+    } else if (cur.value.type === "tunnel_mark") {
+      const text = document.getText(range);
+      const expectedText = ">>";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
     } else if (cur.value.type === "thread_mark") {
       const text = document.getText(range);
-      const expectedText = ":";
+      const expectedText = ": ";
       if (text !== expectedText) {
         pushIfInRange({
           lineNumber: range.start.line + 1,

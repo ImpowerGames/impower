@@ -393,15 +393,12 @@ repository:
     match: (.+)
 
   ListTypeAssignment:
-    begin: ({{IDENTIFIER}})({{WS}}*)($|[=]|(?={{EOL}}))
+    begin: ({{IDENTIFIER}})($|{{WS}}*[=]{{WS}}*|(?={{EOL}}))
     beginCaptures:
       1:
         patterns:
           - { include: "#ListTypeDeclarationName" }
       2:
-        patterns:
-          - { include: "#Separator" }
-      3:
         patterns:
           - { include: "#AssignEqualOperator" }
     patterns:
@@ -410,15 +407,12 @@ repository:
     end: (?=$)
 
   VariableAssignment:
-    begin: ({{IDENTIFIER}})({{WS}}*)($|[=]|(?={{EOL}}))
+    begin: ({{IDENTIFIER}})($|{{WS}}*[=]{{WS}}*|(?={{EOL}}))
     beginCaptures:
       1:
         patterns:
           - { include: "#VariableDeclarationName" }
       2:
-        patterns:
-          - { include: "#Separator" }
-      3:
         patterns:
           - { include: "#AssignEqualOperator" }
     patterns:
@@ -442,9 +436,14 @@ repository:
     end: (?=$)
 
   RefModifier:
-    tag: modifier
-    name: storage.modifier.ref.sd
-    match: (ref)
+    match: (ref)({{WS}}*)
+    captures:
+      1:
+        tag: modifier
+        name: storage.modifier.ref.sd
+      2:
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   FunctionParameters:
     brackets: true
@@ -696,9 +695,12 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
-    end: ([;])|(?=$|[^(])
+    end: ({{WS}}*)(?=$|[^(])
     endCaptures:
       1:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
         patterns:
           - { include: "#PunctuationSemicolon" }
 
@@ -885,12 +887,6 @@ repository:
     name: entity.other.attribute-name.pseudo-class.name.sd
     match: ({{IDENTIFIER}})
 
-  DeclarationAssignOperator:
-    emit: true
-    patterns:
-      - { include: "#ArrowOperator" }
-      - { include: "#AssignEqualOperator" }
-
   ########## Label ##########
 
   Label:
@@ -1070,7 +1066,6 @@ repository:
           - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Separator" }
       - { include: "#ReturnStatement" }
       - { include: "#TempDeclaration" }
       - { include: "#Expression" }
@@ -1352,17 +1347,18 @@ repository:
   ########## Divert & Thread ##########
 
   Divert:
-    begin: ({{WS}}*)(>|->)({{WS}}*)
+    begin: ({{WS}}*)(>>|->->|>|->)({{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
+          - { include: "#TunnelMark" }
           - { include: "#DivertMark" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#ExtraWhitespace" }
@@ -1371,10 +1367,11 @@ repository:
       - { include: "#FunctionCall" }
       - { include: "#DivertPath" }
       - { include: "#TunnelMark" }
-    end: (?=$|[}]|[)]|[|]|[-]|{{TAG_START}})
+      - { include: "#DivertMark" }
+    end: (?=$|[}]|[)]|[|]|[-][>]|[>]|{{TAG_START}})
 
   Thread:
-    begin: ^({{WS}}*)(:(?={{WS}})|<-)({{WS}}*)
+    begin: ^({{WS}}*)(:{{WS}}+|<-)({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -1384,7 +1381,7 @@ repository:
           - { include: "#ThreadMark" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#ExtraWhitespace" }
@@ -1392,7 +1389,7 @@ repository:
       - { include: "#Done" }
       - { include: "#FunctionCall" }
       - { include: "#DivertPath" }
-    end: (?=$|[}]|[)]|[|]|[-]|{{TAG_START}})
+    end: (?=$|[}]|[)]|[|]|[-][>]|[>]|{{TAG_START}})
 
   DivertMark:
     tag: controlKeyword
@@ -1402,12 +1399,12 @@ repository:
   TunnelMark:
     tag: controlKeyword
     name: keyword.control.divert.mark.sd
-    match: (->(?:->)?|>(?:>)?|:(?={{WS}})|<-)
+    match: (->->|>>)
 
   ThreadMark:
     tag: controlKeyword
     name: keyword.control.thread.mark.sd
-    match: (:|<-)
+    match: (:{{WS}}+|<-)
 
   End:
     tag: keyword
@@ -1426,7 +1423,11 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#DivertPart" }
-    end: (?=$|[^{{IDENTIFIER_START_CHAR}}0-9^.])
+    end: ({{WS}}*)(?=$|[^{{IDENTIFIER_START_CHAR}}0-9^.])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   DivertPart:
     emit: true
@@ -1548,7 +1549,7 @@ repository:
     end: (?=[}]|[|])
 
   ConditionalSubstitution:
-    begin: ((?:[^{}|]|[|](?=[|]))+)((?<!{{WS}}){{WS}}*)([:])({{WS}}*)(?!{{EOL}})
+    begin: ((?:[^:{}|]|[|](?=[|]))+)((?<!{{WS}}){{WS}}*)([:])({{WS}}*)(?!{{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -1780,7 +1781,6 @@ repository:
       - { include: "#Newline" }
       - { include: "#ParenExpression" }
       - { include: "#AccessPath" }
-      - { include: "#PunctuationSemicolon" }
       - { include: "#PunctuationComma" }
       - { include: "#IllegalChar" }
 
@@ -1822,13 +1822,13 @@ repository:
   Operator:
     patterns:
       - { include: "#HasOperator" }
-      - { include: "#NegateOperator" }
       - { include: "#SpreadOperator" }
       - { include: "#AssignArithmeticOperator" }
       - { include: "#AssignBitwiseOperator" }
       - { include: "#BitwiseShiftOperator" }
       - { include: "#CompareEqualOperator" }
       - { include: "#CompareRelativeOperator" }
+      - { include: "#NegateOperator" }
       - { include: "#HasntOperator" }
       - { include: "#LogicalOperator" }
       - { include: "#WordOperator" }
@@ -1846,98 +1846,187 @@ repository:
     match: ([.][.][.])
 
   AssignArithmeticOperator:
-    tag: updateOperator
-    name: keyword.operator.assignment.compound.sd
-    match: ([*][=]|(?<!\()[/][=]|[%][=]|[+][=]|[-][=])
-
-  AssignBitwiseOperator:
-    tag: updateOperator
-    name: keyword.operator.assignment.compound.bitwise.sd
-    match: ([&][=]|[\^][=]|[<][<][=]|[>][>][=]|[>][>][>][=]|[|][=])
-
-  BitwiseShiftOperator:
-    tag: updateOperator
-    name: keyword.operator.bitwise.shift.sd
-    match: ([<][<]|[>][>][>]|[>][>])
-
-  CompareEqualOperator:
-    tag: compareOperator
-    name: keyword.operator.comparison.sd
-    match: ([=][=][=]|[!][=][=]|[=][=]|[!][=])
-
-  CompareRelativeOperator:
-    tag: compareOperator
-    name: keyword.operator.relational.sd
-    match: ([<][=]|[>][=]|[<][>]|[<]|[>])
-
-  HasntOperator:
-    tag: updateOperator
-    match: ([!])([?])
+    match: ({{WS}}*)([*][=]|(?<!\()[/][=]|[%][=]|[+][=]|[-][=])({{WS}}*)
     captures:
       1:
-        tag: logicOperator
-        name: keyword.operator.logical.sd
-      2:
-        tag: logicOperator
-        name: keyword.operator.logical.sd
-
-  HasOperator:
-    tag: updateOperator
-    match: ([?])
-    captures:
-      1:
-        tag: logicOperator
-        name: keyword.operator.logical.sd
-
-  NegateOperator:
-    tag: updateOperator
-    match: (?<=[{{IDENTIFIER_END_CHAR}}])([!])\s*(?:([/][=])|(?:([/])(?![/*])))
-    captures:
-      1:
-        tag: logicOperator
-        name: keyword.operator.logical.sd
+        patterns:
+          - { include: "#OptionalSeparator" }
       2:
         tag: updateOperator
         name: keyword.operator.assignment.compound.sd
       3:
-        tag: arithmeticOperator
-        name: keyword.operator.arithmetic.sd
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  AssignBitwiseOperator:
+    match: ({{WS}}*)([&][=]|[\^][=]|[<][<][=]|[>][>][=]|[>][>][>][=]|[|][=])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        tag: updateOperator
+        name: keyword.operator.assignment.compound.bitwise.sd
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  BitwiseShiftOperator:
+    match: ({{WS}}*)([<][<]|[>][>][>]|[>][>])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        tag: updateOperator
+        name: keyword.operator.bitwise.shift.sd
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  CompareEqualOperator:
+    match: ({{WS}}*)([=][=][=]|[!][=][=]|[=][=]|[!][=])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        tag: compareOperator
+        name: keyword.operator.comparison.sd
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  CompareRelativeOperator:
+    match: ({{WS}}*)([<][=]|[>][=]|[<][>]|[<]|[>])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        tag: compareOperator
+        name: keyword.operator.relational.sd
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  HasntOperator:
+    match: ({{WS}}*)([!][?])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        tag: logicOperator
+        name: keyword.operator.logical.hasnt.sd
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  HasOperator:
+    match: ({{WS}}*)([?])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        tag: logicOperator
+        name: keyword.operator.logical.has.sd
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  NegateOperator:
+    match: ({{WS}}*)([!])
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        tag: logicOperator
+        name: keyword.operator.logical.sd
 
   LogicalOperator:
-    tag: logicOperator
-    name: keyword.operator.logical.sd
-    match: ([!]|[&][&]|[|][|]|[?][?])
+    match: ({{WS}}*)([&][&]|[|][|]|[?][?])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        tag: logicOperator
+        name: keyword.operator.logical.sd
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   BitwiseOperator:
-    tag: bitwiseOperator
-    name: keyword.operator.bitwise.sd
-    match: ([&]|[~]|[\^]|[|])
+    match: ({{WS}}*)([&]|[~]|[\^]|[|])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        tag: bitwiseOperator
+        name: keyword.operator.bitwise.sd
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   AssignEqualOperator:
-    tag: updateOperator
-    name: keyword.operator.assignment.sd
-    match: ([=])
+    match: ({{WS}}*)([=])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        tag: updateOperator
+        name: keyword.operator.assignment.sd
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   DecrementOperator:
-    tag: updateOperator
-    name: keyword.operator.decrement.sd
-    match: ([-][-])
+    match: ([-][-])({{WS}}*)
+    captures:
+      1:
+        tag: updateOperator
+        name: keyword.operator.decrement.sd
+      2:
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   IncrementOperator:
-    tag: updateOperator
-    name: keyword.operator.increment.sd
-    match: ([+][+])
+    match: ([+][+])({{WS}}*)
+    captures:
+      1:
+        tag: updateOperator
+        name: keyword.operator.increment.sd
+      2:
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   ArithmeticOperator:
-    tag: arithmeticOperator
-    name: keyword.operator.arithmetic.sd
-    match: ([%]|[*]|[/]|[-]|[+])
+    match: ({{WS}}*)([%]|[*]|[/]|[-]|[+])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        tag: arithmeticOperator
+        name: keyword.operator.arithmetic.sd
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   AssignMultiplyOperator:
-    begin: (?<=[{{IDENTIFIER_END_CHAR}})\]])\s*(?=(\/[*]([^*]|([*][^\/]))*[*]\/\s*)+(?:(/=)|(?:(/)(?![/*]))))
+    begin: (?<=[{{IDENTIFIER_END_CHAR}})\]])({{WS}}*)(?=(\/[*]([^*]|([*][^\/]))*[*]\/\s*)+(?:(/=)|(?:(/)(?![/*]))))
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#Annotation" }
-    end: (?:(/=)|(?:(/)(?![*]([^*]|([*][^\/]))*[*][/])))
+    end: (?:(/=)|(?:(/)(?![*]([^*]|([*][^\/]))*[*][/])))({{WS}}*)
     endCaptures:
       1:
         tag: updateOperator
@@ -1945,13 +2034,22 @@ repository:
       2:
         tag: arithmeticOperator
         name: keyword.operator.arithmetic.sd
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   AssignDivideOperator:
-    match: (?<=[{{IDENTIFIER_END_CHAR}})\]])([\s]*)([/][=]|([/])(?![/*]))
+    match: (?<=[{{IDENTIFIER_END_CHAR}})\]])({{WS}}*)([/][=]|([/])(?![/*]))({{WS}}*)
     captures:
+      1:
+        patterns:
+          - { include: "#OptionalSeparator" }
       2:
         tag: arithmeticOperator
         name: keyword.operator.arithmetic.sd
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   AlternativeOperator:
     tag: logicOperator
@@ -1968,15 +2066,15 @@ repository:
     name: meta.template.expression.operator.colon.sd
     match: ([:])
 
-  ArrowOperator:
-    tag: punctuation
-    name: punctuation.separator.colon.sd
-    match: ([=][>])
-
   WordOperator:
-    tag: keyword
-    name: keyword.logical.word.sd
-    match: \b(not|and|or|has|hasnt|mod)\b
+    match: \b(not|and|or|has|hasnt|mod)\b({{WS}}*)
+    captures:
+      1:
+        tag: keyword
+        name: keyword.logical.word.sd
+      2:
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   Literal:
     patterns:
