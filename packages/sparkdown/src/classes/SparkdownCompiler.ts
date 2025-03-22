@@ -9,6 +9,7 @@ import { SourceMetadata } from "../inkjs/engine/Error";
 import { InkListItem } from "../inkjs/engine/InkList";
 import { SimpleJson } from "../inkjs/engine/SimpleJson";
 import { asOrNull } from "../inkjs/engine/TypeAssertion";
+import { StringValue } from "../inkjs/engine/Value";
 import { VariableAssignment } from "../inkjs/engine/VariableAssignment";
 import { File } from "../types/File";
 import { SparkDeclaration } from "../types/SparkDeclaration";
@@ -232,7 +233,7 @@ export class SparkdownCompiler {
       },
       {
         WriteRuntimeObject: (_, obj) => {
-          const metadata = obj?.debugMetadata;
+          const metadata = obj?.ownDebugMetadata;
           if (metadata) {
             let path = obj.path.toString();
             let [uri, startLine, startColumn, endLine, endColumn] =
@@ -277,7 +278,10 @@ export class SparkdownCompiler {
             if (path.startsWith("global ")) {
               path = "0";
             }
-            if (scriptIndex >= 0) {
+            if (
+              scriptIndex >= 0 &&
+              (!(obj instanceof StringValue) || !obj.isNewline)
+            ) {
               const [
                 _,
                 existingStartLine,
