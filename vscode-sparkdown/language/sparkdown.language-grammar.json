@@ -6252,9 +6252,6 @@
           "include": "#EmDash"
         },
         {
-          "include": "#IndentingColon"
-        },
-        {
           "include": "#Punctuation"
         }
       ]
@@ -6273,11 +6270,6 @@
       "tag": "content",
       "name": "markup.raw.punctuation.sd",
       "match": "([-][-])"
-    },
-    "IndentingColon": {
-      "tag": "content",
-      "name": "markup.raw.text.sd",
-      "match": "([:])(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))"
     },
     "Punctuation": {
       "tag": "content",

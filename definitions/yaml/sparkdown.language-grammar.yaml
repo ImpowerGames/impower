@@ -3478,7 +3478,6 @@ repository:
       - { include: "#Space" }
       - { include: "#Word" }
       - { include: "#EmDash" }
-      - { include: "#IndentingColon" }
       - { include: "#Punctuation" }
 
   Space:
@@ -3495,11 +3494,6 @@ repository:
     tag: content
     name: markup.raw.punctuation.sd
     match: ([-][-])
-
-  IndentingColon:
-    tag: content
-    name: markup.raw.text.sd
-    match: ([:])(?={{EOL}})
 
   Punctuation:
     tag: content
