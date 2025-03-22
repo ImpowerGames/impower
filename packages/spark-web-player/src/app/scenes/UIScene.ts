@@ -83,13 +83,16 @@ export default class UIScene extends Scene {
                 display: (font.font_display as FontDisplay) || undefined,
               }
             );
-            const fontSpec = [
-              font.font_style || "",
-              font.font_weight || "",
-              "16px",
-              `'${font.font_family}'`,
-            ].join(" ");
-            if (!document.fonts.check(fontSpec)) {
+            if (
+              !Array.from(document.fonts).some(
+                (f) =>
+                  f.family === font.font_family &&
+                  f.style === font.font_style &&
+                  f.weight === font.font_weight &&
+                  f.stretch === font.font_stretch &&
+                  f.display === font.font_display
+              )
+            ) {
               document.fonts.add(fontFace);
               await fontFace.load();
             }
