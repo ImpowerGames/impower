@@ -165,7 +165,12 @@ export class SparkdownCompiler {
         character: Number.MAX_VALUE,
       });
       const after = cur.to - lineFrom;
-      if (cur.value.type.splice) {
+      if (cur.value.type.trimEnd != null) {
+        const lineText = lines[lineIndex] || "";
+        const newText = lineText.slice(0, -cur.value.type.trimEnd);
+        lines[lineIndex] = newText;
+      }
+      if (cur.value.type.splice != null) {
         const lineTextBefore = doc.read(lineFrom, cur.to);
         const lineTextAfter = doc.read(cur.to, lineTo);
         lines[lineIndex] =
@@ -177,7 +182,7 @@ export class SparkdownCompiler {
           shift: cur.value.type.splice.length,
         };
       }
-      if (cur.value.type.prefix) {
+      if (cur.value.type.prefix != null) {
         lines[lineIndex] = cur.value.type.prefix + lines[lineIndex];
         state.sourceMap ??= {};
         state.sourceMap[uri] ??= {};
@@ -186,7 +191,7 @@ export class SparkdownCompiler {
           shift: cur.value.type.prefix.length,
         };
       }
-      if (cur.value.type.suffix) {
+      if (cur.value.type.suffix != null) {
         lines[lineIndex] = lines[lineIndex] + cur.value.type.suffix;
       }
       cur.next();

@@ -9,6 +9,7 @@ export interface LineAugmentations {
   splice?: string;
   prefix?: string;
   suffix?: string;
+  trimEnd?: number;
 }
 
 export class TranspilationAnnotator extends SparkdownAnnotator<
@@ -27,6 +28,13 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<LineAugmentations>>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<LineAugmentations>>[] {
+    if (nodeRef.name === "Break") {
+      annotations.push(
+        SparkdownAnnotation.mark({
+          trimEnd: this.read(nodeRef.from, nodeRef.to).length,
+        }).range(nodeRef.from, nodeRef.to)
+      );
+    }
     // Annotate dialogue line with implicit flow marker
     if (
       nodeRef.name === "BlockDialogue_begin" ||
