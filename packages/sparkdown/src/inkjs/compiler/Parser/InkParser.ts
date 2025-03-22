@@ -1282,6 +1282,21 @@ export class InkParser extends StringParser {
         sb += String(str);
       }
 
+      const gotBracketChar: boolean = this.ParseString("[") !== null;
+      if (gotBracketChar) {
+        sb ??= "";
+        sb += "[";
+        const content = this.ParseUntilCharactersFromString("]\n\r");
+        if (content !== null) {
+          sb += content;
+        }
+        if (this.Peek(this.ParseSingleCharacter) === "]") {
+          const c = this.ParseSingleCharacter();
+          sb += c;
+        }
+        continue;
+      }
+
       const gotLiteralChar: boolean = this.ParseString("`") !== null;
       if (gotLiteralChar) {
         sb ??= "";
@@ -1367,12 +1382,7 @@ export class InkParser extends StringParser {
         continue;
       }
 
-      if (
-        !gotLiteralChar &&
-        !gotMarkupStartChar &&
-        !gotEscapeChar &&
-        str === null
-      ) {
+      if (str === null) {
         break;
       }
     } while (true);
@@ -1413,7 +1423,7 @@ export class InkParser extends StringParser {
     // "{" for start of logic
     // "|" for mid logic branch
     if (this._nonTextEndCharacters === null) {
-      this._nonTextEndCharacters = new CharacterSet("{}|\n\r\\<`");
+      this._nonTextEndCharacters = new CharacterSet("{}|\n\r\\[<`");
       this._notTextEndCharactersChoice = new CharacterSet(
         this._nonTextEndCharacters
       );
