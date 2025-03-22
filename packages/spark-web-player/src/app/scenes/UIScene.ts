@@ -73,28 +73,29 @@ export default class UIScene extends Scene {
       if (params.content && "fonts" in params.content) {
         for (const [, font] of Object.entries(params.content.fonts)) {
           try {
-            const fontFace = new FontFace(
-              font.font_family,
-              `url(${font.src})`,
-              {
-                style: font.font_style || undefined,
-                weight: font.font_weight || undefined,
-                stretch: font.font_stretch || undefined,
-                display: (font.font_display as FontDisplay) || undefined,
+            if (font.font_family) {
+              const fontFace = new FontFace(
+                font.font_family,
+                `url(${font.src})`,
+                {
+                  style: font.font_style || undefined,
+                  weight: font.font_weight || undefined,
+                  stretch: font.font_stretch || undefined,
+                  display: (font.font_display as FontDisplay) || undefined,
+                }
+              );
+              if (
+                !Array.from(document.fonts).some(
+                  (f) =>
+                    f.family === font.font_family &&
+                    f.style === font.font_style &&
+                    f.weight === font.font_weight &&
+                    f.stretch === font.font_stretch
+                )
+              ) {
+                document.fonts.add(fontFace);
+                await fontFace.load();
               }
-            );
-            if (
-              !Array.from(document.fonts).some(
-                (f) =>
-                  f.family === font.font_family &&
-                  f.style === font.font_style &&
-                  f.weight === font.font_weight &&
-                  f.stretch === font.font_stretch &&
-                  f.display === font.font_display
-              )
-            ) {
-              document.fonts.add(fontFace);
-              await fontFace.load();
             }
           } catch (e) {
             console.error(e);

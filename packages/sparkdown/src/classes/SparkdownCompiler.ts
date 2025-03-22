@@ -700,14 +700,28 @@ export class SparkdownCompiler {
             definedFile["font_family"] = name.split("__")?.[0] || name;
           }
           if (definedFile["font_weight"] === undefined) {
-            if (name.toLowerCase().includes("bold")) {
+            if (
+              name.toLowerCase().match(/\b(?:bold|bolditalic|italicbold)\b/)
+            ) {
               definedFile["font_weight"] = "700";
+            } else {
+              definedFile["font_weight"] = "normal";
             }
           }
           if (definedFile["font_style"] === undefined) {
-            if (name.toLowerCase().includes("italic")) {
+            if (
+              name.toLowerCase().match(/\b(?:italic|bolditalic|italicbold)\b/)
+            ) {
               definedFile["font_style"] = "italic";
+            } else {
+              definedFile["font_style"] = "normal";
             }
+          }
+          if (definedFile["font_stretch"] === undefined) {
+            definedFile["font_stretch"] = "normal";
+          }
+          if (definedFile["font_display"] === undefined) {
+            definedFile["font_display"] = "block";
           }
         }
       }
