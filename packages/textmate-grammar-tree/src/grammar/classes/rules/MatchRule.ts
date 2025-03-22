@@ -78,7 +78,7 @@ export class MatchRule implements Rule {
           if (capture) {
             if (capture instanceof SwitchRule) {
               const children: Matched[] = [];
-              if (resultStr.length === 0) {
+              if (resultStr.length === 0 && capture.emit) {
                 const matched = capture.match(state, 0);
                 if (matched) {
                   matched.offset(pos);

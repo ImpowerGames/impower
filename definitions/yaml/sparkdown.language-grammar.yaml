@@ -442,6 +442,7 @@ repository:
         tag: modifier
         name: storage.modifier.ref.sd
       2:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -901,6 +902,7 @@ repository:
         patterns:
           - { include: "#LabelEndMark" }
       6:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -1351,6 +1353,7 @@ repository:
           - { include: "#TunnelMark" }
           - { include: "#DivertMark" }
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
     patterns:
@@ -1374,6 +1377,7 @@ repository:
         patterns:
           - { include: "#ThreadMark" }
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
     patterns:
@@ -1484,6 +1488,7 @@ repository:
         patterns:
           - { include: "#ConditionalBlockCloseBrace" }
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -1848,12 +1853,14 @@ repository:
     match: ({{WS}}*)([*][=]|(?<!\()[/][=]|[%][=]|[+][=]|[-][=])({{WS}}*)
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
         tag: updateOperator
         name: keyword.operator.assignment.compound.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -1861,12 +1868,14 @@ repository:
     match: ({{WS}}*)([&][=]|[\^][=]|[<][<][=]|[>][>][=]|[>][>][>][=]|[|][=])({{WS}}*)
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
         tag: updateOperator
         name: keyword.operator.assignment.compound.bitwise.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -1874,12 +1883,14 @@ repository:
     match: ({{WS}}*)([<][<]|[>][>][>]|[>][>])({{WS}}*)
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
         tag: updateOperator
         name: keyword.operator.bitwise.shift.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -1887,12 +1898,14 @@ repository:
     match: ({{WS}}*)([=][=][=]|[!][=][=]|[=][=]|[!][=])({{WS}}*)
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
         tag: compareOperator
         name: keyword.operator.comparison.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -1900,12 +1913,14 @@ repository:
     match: ({{WS}}*)([<][=]|[>][=]|[<][>]|[<]|[>])({{WS}}*)
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
         tag: compareOperator
         name: keyword.operator.relational.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -1913,12 +1928,14 @@ repository:
     match: ({{WS}}*)([!][?])({{WS}}*)
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
         tag: logicOperator
         name: keyword.operator.logical.hasnt.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -1926,12 +1943,14 @@ repository:
     match: ({{WS}}*)([?])({{WS}}*)
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
         tag: logicOperator
         name: keyword.operator.logical.has.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -1939,6 +1958,7 @@ repository:
     match: ({{WS}}*)([!])
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
@@ -1949,12 +1969,14 @@ repository:
     match: ({{WS}}*)([&][&]|[|][|]|[?][?])({{WS}}*)
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
         tag: logicOperator
         name: keyword.operator.logical.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -1962,12 +1984,14 @@ repository:
     match: ({{WS}}*)([&]|[~]|[\^]|[|])({{WS}}*)
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
         tag: bitwiseOperator
         name: keyword.operator.bitwise.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -1975,12 +1999,14 @@ repository:
     match: ({{WS}}*)([=])({{WS}}*)
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
         tag: updateOperator
         name: keyword.operator.assignment.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -1991,6 +2017,7 @@ repository:
         tag: updateOperator
         name: keyword.operator.decrement.sd
       2:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -2001,6 +2028,7 @@ repository:
         tag: updateOperator
         name: keyword.operator.increment.sd
       2:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -2008,12 +2036,14 @@ repository:
     match: ({{WS}}*)([%]|[*]|[/]|[-]|[+])({{WS}}*)
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
         tag: arithmeticOperator
         name: keyword.operator.arithmetic.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -2021,6 +2051,7 @@ repository:
     begin: (?<=[{{IDENTIFIER_END_CHAR}})\]])({{WS}}*)(?=(\/[*]([^*]|([*][^\/]))*[*]\/\s*)+(?:(/=)|(?:(/)(?![/*]))))
     beginCaptures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
     patterns:
@@ -2034,6 +2065,7 @@ repository:
         tag: arithmeticOperator
         name: keyword.operator.arithmetic.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -2041,12 +2073,14 @@ repository:
     match: (?<=[{{IDENTIFIER_END_CHAR}})\]])({{WS}}*)([/][=]|([/])(?![/*]))({{WS}}*)
     captures:
       1:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
       2:
         tag: arithmeticOperator
         name: keyword.operator.arithmetic.sd
       3:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
@@ -2072,6 +2106,7 @@ repository:
         tag: keyword
         name: keyword.logical.word.sd
       2:
+        emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
