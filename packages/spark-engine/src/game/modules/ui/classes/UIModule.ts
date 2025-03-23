@@ -5,18 +5,21 @@ import { Module } from "../../../core/classes/Module";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { Event } from "../../../core/types/Event";
 import { EventMap } from "../../../core/types/EventMap";
-import { NotificationMessage } from "../../../core/types/NotificationMessage";
 import {
   ImageInstruction,
   TextInstruction,
 } from "../../../core/types/Instruction";
+import { NotificationMessage } from "../../../core/types/NotificationMessage";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
+import { getTimeValue } from "../../../core/utils/getTimeValue";
 import { Animation } from "../types/Animation";
 import { ElementContent } from "../types/ElementContent";
 import { ElementState } from "../types/ElementState";
+import { Image } from "../types/Image";
 import { ImageState } from "../types/ImageState";
 import { TextState } from "../types/TextState";
 import { UIBuiltins, uiBuiltinDefinitions } from "../uiBuiltinDefinitions";
+import { getImageVarName } from "../utils/getImageVarName";
 import { Element } from "./helpers/Element";
 import {
   AnimateElementsMessage,
@@ -46,9 +49,6 @@ import {
   UpdateElementMessage,
   UpdateElementMessageMap,
 } from "./messages/UpdateElementMessage";
-import { Image } from "../types/Image";
-import { getTimeValue } from "../../../core/utils/getTimeValue";
-import { getImageVarName } from "../utils/getImageVarName";
 
 export interface UIState {
   text?: Record<string, TextState[]>;

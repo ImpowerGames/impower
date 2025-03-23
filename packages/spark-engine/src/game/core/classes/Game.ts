@@ -462,7 +462,7 @@ export class Game<T extends M = {}> {
     const initialCallstackDepth = this._story.state.callstackDepth;
     const initialExecutedLocation = this._executingLocation;
 
-    while (!this._error) {
+    while (true) {
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
         this.checkpoint();
         const instructions = this.module.interpreter.flush();
@@ -575,14 +575,6 @@ export class Game<T extends M = {}> {
         this.notifyFinished();
         // DONE - ran out of flow
         return true;
-      }
-    }
-
-    const instructions = this.module.interpreter.flush();
-    if (instructions) {
-      this._coordinator = new Coordinator(this, instructions);
-      if (!this._coordinator.shouldContinue()) {
-        this.notifyExecuted();
       }
     }
 
