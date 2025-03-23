@@ -1282,19 +1282,21 @@ export class InkParser extends StringParser {
         sb += String(str);
       }
 
-      const gotBracketChar: boolean = this.ParseString("[") !== null;
-      if (gotBracketChar) {
-        sb ??= "";
-        sb += "[";
-        const content = this.ParseUntilCharactersFromString("]\n\r");
-        if (content !== null) {
-          sb += content;
+      if (!this._parsingChoice) {
+        const gotBracketChar: boolean = this.ParseString("[") !== null;
+        if (gotBracketChar) {
+          sb ??= "";
+          sb += "[";
+          const content = this.ParseUntilCharactersFromString("]\n\r");
+          if (content !== null) {
+            sb += content;
+          }
+          if (this.Peek(this.ParseSingleCharacter) === "]") {
+            const c = this.ParseSingleCharacter();
+            sb += c;
+          }
+          continue;
         }
-        if (this.Peek(this.ParseSingleCharacter) === "]") {
-          const c = this.ParseSingleCharacter();
-          sb += c;
-        }
-        continue;
       }
 
       const gotLiteralChar: boolean = this.ParseString("`") !== null;
