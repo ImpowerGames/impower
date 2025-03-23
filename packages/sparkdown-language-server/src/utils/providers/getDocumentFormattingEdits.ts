@@ -84,7 +84,7 @@ export const getFormatting = (
     marks?: string[];
     level: number;
   }) => {
-    indentStack[indentStack.length - 1] = indent;
+    indentStack[Math.max(0, indentStack.length - 1)] = indent;
   };
 
   const indent = (indent: {
