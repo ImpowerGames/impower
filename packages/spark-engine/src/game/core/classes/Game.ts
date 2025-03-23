@@ -572,10 +572,17 @@ export class Game<T extends M = {}> {
           return false;
         }
       } else {
-        this.notifyExecuted();
         this.notifyFinished();
         // DONE - ran out of flow
         return true;
+      }
+    }
+
+    const instructions = this.module.interpreter.flush();
+    if (instructions) {
+      this._coordinator = new Coordinator(this, instructions);
+      if (!this._coordinator.shouldContinue()) {
+        this.notifyExecuted();
       }
     }
 

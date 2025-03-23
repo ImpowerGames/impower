@@ -690,11 +690,13 @@ export default class SparkWebPlayer extends Component(spec) {
           } else {
             console.log(message, location);
           }
-          const error = {
-            message,
-            location,
-          };
-          await this.stopGame("error", error);
+          if (this._game?.state === "running") {
+            const error = {
+              message,
+              location,
+            };
+            await this.stopGame("error", error);
+          }
         }
       }
     );
