@@ -152,7 +152,9 @@ export class StringParser {
         filePath: this._filePath,
       };
 
-      this.Error(`Expected ${message} but saw ${butSaw}`, source);
+      if (message) {
+        this.Error(`Expected ${message} but saw ${butSaw}`, source);
+      }
 
       if (recoveryRule !== null) {
         result = recoveryRule();

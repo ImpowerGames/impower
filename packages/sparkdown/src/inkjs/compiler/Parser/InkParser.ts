@@ -2351,7 +2351,7 @@ export class InkParser extends StringParser {
 
     const content = this.Expect(
       innerKnotStatements,
-      "at least one line within the knot",
+      "",
       this.KnotStitchNoContentRecoveryRule
     ) as ParsedObject[];
 
@@ -2442,7 +2442,7 @@ export class InkParser extends StringParser {
 
     const content = this.Expect(
       innerStitchStatements,
-      "at least one line within the stitch",
+      "",
       this.KnotStitchNoContentRecoveryRule
     ) as ParsedObject[];
 
