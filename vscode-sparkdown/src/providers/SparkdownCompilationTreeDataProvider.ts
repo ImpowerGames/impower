@@ -402,7 +402,7 @@ export class SparkdownCompilationTreeDataProvider
           const arg2 = node["flg"];
           const arg2SummaryParts = [];
           if (arg2 & 0x10) {
-            arg2SummaryParts.push("transient");
+            arg2SummaryParts.push("once");
           }
           if (arg2 & 0x1) {
             arg2SummaryParts.push("conditional");
