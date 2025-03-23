@@ -137,7 +137,10 @@ export const getSymbol = (
   if (textSymbol?.name !== "sparkdown") {
     if (textSymbol) {
       const textSymbolRange = document.range(textSymbol.from, textSymbol.to);
-      return { symbol: textSymbol, nameRange: textSymbolRange };
+      const name = document.read(textSymbol.from, textSymbol.to);
+      if (name.trim()) {
+        return { symbol: textSymbol, nameRange: textSymbolRange };
+      }
     }
   }
   return {};
