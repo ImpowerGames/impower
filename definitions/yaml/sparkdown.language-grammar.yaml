@@ -14,7 +14,7 @@ variables:
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
-  BREAK: (?:{{WS}}+[>])
+  BREAK: (?:{{WS}}+[>](?!{{WS}}))
   # Word
   WORD: (?:[\p{L}\p{N}\p{Mn}']+)
   # Whitespace
@@ -2876,7 +2876,7 @@ repository:
   ########## Text ##########
 
   BlockLineBreak:
-    match: ({{WS}}*)(.*?)({{BREAK}})({{WS}}*)({{EOL}})
+    match: ({{WS}}*)(.*?)({{BREAK}})({{EOL}})
     captures:
       1:
         patterns:
@@ -2890,9 +2890,6 @@ repository:
         patterns:
           - { include: "#Break" }
       4:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      5:
         patterns:
           - { include: "#EndOfLine" }
 
@@ -2932,7 +2929,7 @@ repository:
           - { include: "#Newline" }
 
   LineBreak:
-    match: ({{WS}}*)(.*?)({{BREAK}})({{WS}}*)({{EOL}})
+    match: ({{WS}}*)(.*?)({{BREAK}})({{EOL}})
     captures:
       1:
         patterns:
@@ -2944,9 +2941,6 @@ repository:
         patterns:
           - { include: "#Break" }
       4:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      5:
         patterns:
           - { include: "#EndOfLine" }
 
