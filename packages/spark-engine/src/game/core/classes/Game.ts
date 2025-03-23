@@ -600,6 +600,16 @@ export class Game<T extends M = {}> {
     this.notifyChosePathToContinue();
   }
 
+  clearChoices() {
+    // TODO: don't suffix name with number so "choice" can be searched for and cleared all at once
+    for (let i = 0; i < 10; i++) {
+      const target = `choice_${i}`;
+      this.module.ui.text.clear(target);
+      this.module.ui.image.clear(target);
+      this.module.ui.unobserve("click", target);
+    }
+  }
+
   protected notifyHitBreakpoint() {
     this.connection.emit(
       HitBreakpointMessage.type.notification({
@@ -1061,6 +1071,7 @@ export class Game<T extends M = {}> {
     const path = this.getClosestPath(file, line);
     if (path != null && this._context.system.previewing !== path) {
       this._context.system.previewing = path;
+      this.clearChoices();
       if (path) {
         if (!this._story.asyncContinueComplete) {
           this.TimeoutError();
