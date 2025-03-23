@@ -215,12 +215,17 @@ const onType = async (
 };
 
 const onOpenAngleBracket = async (editor: TextEditor) => {
+  const cursor = editor.selection.active;
+  const currentLineText = editor.document.lineAt(cursor.line).text;
+  const textAfterCursor = currentLineText.substring(cursor.character);
   if (editor.selections.length === 1 && editor.selection.isEmpty) {
-    if (
-      workspace.getConfiguration("sparkdown")["editor"].autoCloseAngleBrackets
-    ) {
-      if (await closeAngleBracket(editor)) {
-        return true;
+    if (!textAfterCursor?.trim()) {
+      if (
+        workspace.getConfiguration("sparkdown")["editor"].autoCloseAngleBrackets
+      ) {
+        if (await closeAngleBracket(editor)) {
+          return true;
+        }
       }
     }
   }
@@ -233,9 +238,14 @@ const onStartOfLineMark = async (editor: TextEditor, mark: string) => {
   const currentLineText = editor.document.lineAt(cursor.line).text;
   const textBeforeCursor =
     currentLineText.substring(0, cursor.character) + mark;
+  const textAfterCursor = currentLineText.substring(cursor.character);
 
   if (editor.selections.length === 1 && editor.selection.isEmpty) {
-    if (mark.trim() && LIST_MARK_REGEX.exec(textBeforeCursor)) {
+    if (
+      mark.trim() &&
+      LIST_MARK_REGEX.exec(textBeforeCursor) &&
+      !textAfterCursor?.trim()
+    ) {
       if (workspace.getConfiguration("sparkdown")["editor"].autoSpaceMarks) {
         if (await adjustStartOfLineMark(editor, "add", mark)) {
           return true;
@@ -249,15 +259,8 @@ const onStartOfLineMark = async (editor: TextEditor, mark: string) => {
 
 const closeAngleBracket = async (editor: TextEditor): Promise<boolean> => {
   const cursor = editor.selection.active;
-  const currentLineText = editor.document.lineAt(cursor.line).text;
-  const textAfterCursor = currentLineText.substring(cursor.character);
-  const charAfterCursor = textAfterCursor[0];
   const parsedDoc = SparkdownDocumentManager.instance.get(editor.document.uri);
   const tree = SparkdownDocumentManager.instance.tree(editor.document.uri);
-
-  if (charAfterCursor?.trim()) {
-    return false;
-  }
 
   if (!parsedDoc || !tree) {
     [];
