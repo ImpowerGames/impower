@@ -5612,9 +5612,6 @@
               "include": "#AssetCommandClauseKeyword"
             },
             {
-              "include": "#ConditionalBlock"
-            },
-            {
               "include": "#TimeValue"
             },
             {
