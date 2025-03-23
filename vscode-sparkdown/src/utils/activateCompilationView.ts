@@ -1,5 +1,6 @@
 import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
 import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
+import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkProgram } from "@impower/sparkdown/src";
 import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
@@ -58,18 +59,56 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
     },
   });
 
+  context.subscriptions.push(
+    vscode.window.onDidChangeTextEditorSelection((change) => {
+      const editor = change.textEditor;
+      const document = editor.document;
+      if (document.languageId === "sparkdown") {
+        if (treeView.visible) {
+          const program = SparkProgramManager.instance.get(editor.document.uri);
+          if (program) {
+            const range = change.selections[0];
+            if (range) {
+              const [path] =
+                Game.findClosestPathLocation(
+                  Object.entries(program.pathToLocation || {}),
+                  { file: document.uri.toString(), line: range.active.line },
+                  Object.keys(program.scripts)
+                ) || [];
+              if (path) {
+                const instructionNode =
+                  SparkdownCompilationTreeDataProvider.instance.getNodeById(
+                    path
+                  );
+                if (instructionNode) {
+                  treeView.reveal(instructionNode, {
+                    select: true,
+                    expand: true,
+                    focus: false,
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+  );
+
   const handleGameExecuted = (message: Message) => {
     if (GameExecutedMessage.type.isNotification(message)) {
       const { path, state } = message.params;
       if (state === "running") {
-        const instructionNode =
-          SparkdownCompilationTreeDataProvider.instance.getNodeById(path);
-        if (instructionNode) {
-          treeView.reveal(instructionNode, {
-            select: true,
-            expand: true,
-            focus: false,
-          });
+        if (treeView.visible) {
+          const instructionNode =
+            SparkdownCompilationTreeDataProvider.instance.getNodeById(path);
+          if (instructionNode) {
+            treeView.reveal(instructionNode, {
+              select: true,
+              expand: true,
+              focus: false,
+            });
+          }
         }
       }
     }
