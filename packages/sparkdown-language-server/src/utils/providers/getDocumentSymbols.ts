@@ -1,11 +1,27 @@
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
 import { SymbolKind, type DocumentSymbol } from "vscode-languageserver";
+import { Position, Range } from "vscode-languageserver-textdocument";
 
 export interface DocumentSymbolMark {
   type: "function" | "knot" | "stitch" | "label";
   symbol: DocumentSymbol;
 }
+
+export const isRangeContained = (outer: Range, inner: Range): boolean => {
+  const isAfterOrSame = (pos1: Position, pos2: Position): boolean =>
+    pos1.line > pos2.line ||
+    (pos1.line === pos2.line && pos1.character >= pos2.character);
+
+  const isBeforeOrSame = (pos1: Position, pos2: Position): boolean =>
+    pos1.line < pos2.line ||
+    (pos1.line === pos2.line && pos1.character <= pos2.character);
+
+  return (
+    isAfterOrSame(inner.start, outer.start) &&
+    isBeforeOrSame(inner.end, outer.end)
+  );
+};
 
 export const getDocumentSymbols = (
   document: SparkdownDocument | undefined,
@@ -164,7 +180,11 @@ export const getDocumentSymbols = (
     ).character;
   }
   const result = topMarks
-    .filter((s) => Boolean(s.symbol.name))
+    .filter(
+      (s) =>
+        Boolean(s.symbol.name) &&
+        Boolean(isRangeContained(s.symbol.range, s.symbol.selectionRange))
+    )
     .map((s) => s.symbol);
   return result;
 };
