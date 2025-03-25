@@ -51,6 +51,7 @@ export class SparkdownCompilationTreeDataProvider
 
   setTreeData(uri: vscode.Uri, compiled: any) {
     this._uri = uri;
+    console.log(compiled?.root);
     this._treeData = this.buildNodes(compiled?.root);
     this.refresh();
   }
@@ -58,7 +59,7 @@ export class SparkdownCompilationTreeDataProvider
   getTreeItem(element: InstructionNode): vscode.TreeItem {
     const treeItem = new vscode.TreeItem(
       element.label,
-      element.children && element.children.length > 0
+      element.children
         ? element.children[0]?.type === "json"
           ? vscode.TreeItemCollapsibleState.Collapsed
           : vscode.TreeItemCollapsibleState.Expanded
