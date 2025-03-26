@@ -41,8 +41,29 @@ const currentlyExecutedLineDecoration: vscode.TextEditorDecorationType =
     overviewRulerLane: vscode.OverviewRulerLane.Full,
   });
 
+const previewingLineDecoration: vscode.TextEditorDecorationType =
+  vscode.window.createTextEditorDecorationType({
+    dark: {
+      overviewRulerColor: new vscode.ThemeColor(
+        "editorOverviewRuler.infoForeground"
+      ),
+      borderColor: "#1177bb",
+    },
+    light: {
+      overviewRulerColor: new vscode.ThemeColor(
+        "editorOverviewRuler.infoForeground"
+      ),
+      borderColor: "#1177bb",
+    },
+    borderWidth: "0 0 0 2px",
+    borderStyle: "solid",
+    isWholeLine: true,
+    overviewRulerLane: vscode.OverviewRulerLane.Full,
+  });
+
 let previouslyExecutedLines = new Set<number>();
 let currentlyExecutedLines = new Set<number>();
+let previewingLines = new Set<number>();
 
 export const activateExecutionGutterDecorator = (
   context: vscode.ExtensionContext
@@ -67,6 +88,26 @@ export const activateExecutionGutterDecorator = (
                   i++
                 ) {
                   currentlyExecutedLines.add(i);
+                }
+              }
+            }
+            debouncedUpdateDecorations(editor);
+          }
+        }
+      } else {
+        const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
+        for (const [uri, locations] of Object.entries(documentLocations)) {
+          const editor = getEditor(uri);
+          if (editor) {
+            previewingLines.clear();
+            if (locations) {
+              for (const location of locations) {
+                for (
+                  let i = location.range.start.line;
+                  i <= location.range.end.line;
+                  i++
+                ) {
+                  previewingLines.add(i);
                 }
               }
             }
@@ -104,6 +145,9 @@ export const activateExecutionGutterDecorator = (
       if (currentlyExecutedLineDecoration) {
         currentlyExecutedLineDecoration.dispose();
       }
+      if (previewingLineDecoration) {
+        previewingLineDecoration.dispose();
+      }
     },
   });
 };
@@ -113,14 +157,10 @@ const debouncedUpdateDecorations = debounce((editor: vscode.TextEditor) => {
 }, 100);
 
 const updateDecorations = (editor: vscode.TextEditor) => {
-  // Clear decorations before applying new ones
-  editor.setDecorations(previouslyExecutedLineDecoration, []);
-  editor.setDecorations(currentlyExecutedLineDecoration, []);
-
-  // Apply new decorations
+  // Apply decorations
   editor.setDecorations(
     previouslyExecutedLineDecoration,
-    Array.from(previouslyExecutedLines).map(
+    Array.from(previewingLines).map(
       (line) => new vscode.Range(line, 0, line, 0)
     )
   );
@@ -130,11 +170,18 @@ const updateDecorations = (editor: vscode.TextEditor) => {
       (line) => new vscode.Range(line, 0, line, 0)
     )
   );
+  editor.setDecorations(
+    previewingLineDecoration,
+    Array.from(previewingLines).map(
+      (line) => new vscode.Range(line, 0, line, 0)
+    )
+  );
 };
 
 const clearExecutedLines = () => {
   previouslyExecutedLines.clear();
   currentlyExecutedLines.clear();
+  previewingLines.clear();
   for (const editor of vscode.window.visibleTextEditors) {
     updateDecorations(editor);
   }
