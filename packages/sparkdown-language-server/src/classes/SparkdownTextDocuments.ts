@@ -490,7 +490,9 @@ export default class SparkdownTextDocuments {
       for (const [name, image] of Object.entries(
         program.context?.["image"] || {}
       )) {
-        imageWithoutData[name] = { ...image, data: undefined };
+        if (image.uri) {
+          imageWithoutData[name] = { ...image, data: undefined };
+        }
       }
       programToSend = {
         ...program,
