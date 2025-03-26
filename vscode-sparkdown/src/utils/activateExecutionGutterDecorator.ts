@@ -131,14 +131,26 @@ export const activateExecutionGutterDecorator = (
   });
 
   context.subscriptions.push(
+    vscode.debug.onDidStartDebugSession(() => {
+      previewingLines.clear();
+      updateLineDecorationsOfAllEditors();
+    })
+  );
+
+  context.subscriptions.push(
     vscode.debug.onDidTerminateDebugSession(() => {
-      clearExecutedLines();
+      previouslyExecutedLines.clear();
+      currentlyExecutedLines.clear();
+      updateLineDecorationsOfAllEditors();
     })
   );
 
   context.subscriptions.push({
     dispose: () => {
-      clearExecutedLines();
+      previouslyExecutedLines.clear();
+      currentlyExecutedLines.clear();
+      previewingLines.clear();
+      updateLineDecorationsOfAllEditors();
       if (previouslyExecutedLineDecoration) {
         previouslyExecutedLineDecoration.dispose();
       }
@@ -178,10 +190,7 @@ const updateDecorations = (editor: vscode.TextEditor) => {
   );
 };
 
-const clearExecutedLines = () => {
-  previouslyExecutedLines.clear();
-  currentlyExecutedLines.clear();
-  previewingLines.clear();
+const updateLineDecorationsOfAllEditors = () => {
   for (const editor of vscode.window.visibleTextEditors) {
     updateDecorations(editor);
   }
