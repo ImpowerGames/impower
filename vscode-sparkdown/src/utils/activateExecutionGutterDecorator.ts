@@ -72,7 +72,6 @@ export const activateExecutionGutterDecorator = (
     const editor = getActiveOrVisibleEditor();
     if (GameExecutedMessage.type.isNotification(message)) {
       const { locations, state } = message.params;
-      console.log(locations);
       if (state === "running") {
         const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
         for (const [uri, locations] of Object.entries(documentLocations)) {
