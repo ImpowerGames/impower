@@ -3,7 +3,7 @@ import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { debounce } from "./debounce";
-import { getEditor } from "./getEditor";
+import { getActiveOrVisibleEditor } from "./getActiveOrVisibleEditor";
 
 const previouslyExecutedLineDecoration: vscode.TextEditorDecorationType =
   vscode.window.createTextEditorDecorationType({
@@ -69,13 +69,14 @@ export const activateExecutionGutterDecorator = (
   context: vscode.ExtensionContext
 ) => {
   const handleGameExecuted = (message: Message) => {
+    const editor = getActiveOrVisibleEditor();
     if (GameExecutedMessage.type.isNotification(message)) {
       const { locations, state } = message.params;
+      console.log(locations);
       if (state === "running") {
         const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
         for (const [uri, locations] of Object.entries(documentLocations)) {
-          const editor = getEditor(uri);
-          if (editor) {
+          if (editor?.document.uri.toString() === uri) {
             for (const line of currentlyExecutedLines) {
               previouslyExecutedLines.add(line);
             }
@@ -91,15 +92,13 @@ export const activateExecutionGutterDecorator = (
                 }
               }
             }
-            debouncedUpdateDecorations(editor);
           }
         }
       } else {
+        previewingLines.clear();
         const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
         for (const [uri, locations] of Object.entries(documentLocations)) {
-          const editor = getEditor(uri);
-          if (editor) {
-            previewingLines.clear();
+          if (editor?.document.uri.toString() === uri) {
             if (locations) {
               for (const location of locations) {
                 for (
@@ -111,10 +110,12 @@ export const activateExecutionGutterDecorator = (
                 }
               }
             }
-            debouncedUpdateDecorations(editor);
           }
         }
       }
+    }
+    if (editor) {
+      debouncedUpdateDecorations(editor);
     }
   };
   SparkdownPreviewGamePanelManager.instance.connection.incoming.addListener(
@@ -172,7 +173,7 @@ const updateDecorations = (editor: vscode.TextEditor) => {
   // Apply decorations
   editor.setDecorations(
     previouslyExecutedLineDecoration,
-    Array.from(previewingLines).map(
+    Array.from(previouslyExecutedLines).map(
       (line) => new vscode.Range(line, 0, line, 0)
     )
   );
