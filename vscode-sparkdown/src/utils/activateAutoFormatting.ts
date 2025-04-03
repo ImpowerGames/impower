@@ -176,16 +176,6 @@ const onBackspaceKey = async () => {
         return true;
       }
     }
-    if (/^(\s*[=]{2,}(?:$|\s+))/.test(textBeforeCursor)) {
-      if (await deleteKnot(editor)) {
-        return true;
-      }
-    }
-    if (/^(\s*[=])(?:$|\s+$)/.test(textBeforeCursor)) {
-      if (await deleteStitch(editor)) {
-        return true;
-      }
-    }
     if (/([<])$/.test(textBeforeCursor) && /^([>])/.test(textAfterCursor)) {
       if (await deleteAngleBrackets(editor)) {
         return true;
@@ -370,80 +360,6 @@ const completeStitchEndMarker = async (
       }
       return false;
     }
-  }
-  return false;
-};
-
-const deleteKnot = async (editor: TextEditor): Promise<boolean> => {
-  const cursor = editor.selection.active;
-  const currentLineText = editor.document.lineAt(cursor.line).text;
-  // TODO: iterate over references to adjust indents ahead.
-  // (until we reach a line with expectedIndentLevel == 0)
-  const matches = /^(\s*)([=]{2,}\s*)(?:(.*?)((?<!\s)\s*(?:[=]+)?)?)$/.exec(
-    currentLineText
-  );
-  if (matches) {
-    const indent = matches[1] || "";
-    const startMark = matches[2] || "";
-    const name = matches[3] || "";
-    const endMark = matches[4] || "";
-    if (name && endMark) {
-      const expectedText = indent + startMark + name;
-      await editor.edit(
-        (editBuilder) => {
-          editBuilder.replace(
-            new Range(
-              cursor.line,
-              expectedText.length,
-              cursor.line,
-              matches[0].length
-            ),
-            ""
-          );
-        },
-        { undoStopBefore: false, undoStopAfter: false }
-      );
-      return true;
-    } else if (!name) {
-      await editor.edit(
-        (editBuilder) => {
-          editBuilder.replace(
-            new Range(
-              cursor.line,
-              indent.length,
-              cursor.line,
-              matches[0].length
-            ),
-            ""
-          );
-        },
-        { undoStopBefore: false, undoStopAfter: false }
-      );
-      return true;
-    }
-  }
-  return false;
-};
-
-const deleteStitch = async (editor: TextEditor): Promise<boolean> => {
-  const cursor = editor.selection.active;
-  const currentLineText = editor.document.lineAt(cursor.line).text;
-  const currentTextBeforeCursor = currentLineText.slice(0, cursor.character);
-  // TODO: iterate over references to adjust indents ahead.
-  // (until we reach a line with expectedIndentLevel == 0)
-  const matches = /^(\s*)([=])($|\s+$)/.exec(currentTextBeforeCursor);
-  if (matches) {
-    const indent = matches[1] || "";
-    await editor.edit(
-      (editBuilder) => {
-        editBuilder.replace(
-          new Range(cursor.line, indent.length, cursor.line, matches[0].length),
-          ""
-        );
-      },
-      { undoStopBefore: false, undoStopAfter: false }
-    );
-    return true;
   }
   return false;
 };
