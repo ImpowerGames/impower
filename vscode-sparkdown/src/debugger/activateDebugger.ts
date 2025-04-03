@@ -15,32 +15,9 @@ import {
   WorkspaceFolder,
 } from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
+import { getActiveOrVisibleEditor } from "../utils/getActiveOrVisibleEditor";
+import { getEditor } from "../utils/getEditor";
 import { FileAccessor, SparkDebugSession } from "./SparkDebugSession";
-
-const getActiveOrVisibleEditor = (uri?: vscode.Uri) => {
-  if (!uri) {
-    if (vscode.window.activeTextEditor) {
-      return vscode.window.activeTextEditor;
-    }
-    for (let i = 0; i < vscode.window.visibleTextEditors.length; i++) {
-      return vscode.window.visibleTextEditors[i];
-    }
-    return undefined;
-  }
-  const uriString = typeof uri === "string" ? uri : uri.toString();
-  if (vscode.window.activeTextEditor?.document.uri.toString() === uriString) {
-    return vscode.window.activeTextEditor;
-  }
-  for (let i = 0; i < vscode.window.visibleTextEditors.length; i++) {
-    if (
-      vscode.window.visibleTextEditors[i]?.document.uri.toString() === uriString
-    ) {
-      return vscode.window.visibleTextEditors[i];
-    }
-  }
-  return undefined;
-  return undefined;
-};
 
 export const activateDebugger = (
   context: vscode.ExtensionContext,
@@ -336,7 +313,7 @@ class InlineDebugAdapterFactory
       },
       async getSelectedLine(path: string) {
         const docUri = pathToUri(path);
-        const editor = getActiveOrVisibleEditor(docUri);
+        const editor = getEditor(docUri);
         return editor?.selection.active.line;
       },
       async setSelectedLine(path: string, line: number) {
