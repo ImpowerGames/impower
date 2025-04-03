@@ -851,21 +851,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const isSpace = text === " " || text === "\t" || text === "\n";
           // Support aligning text by wrapping consecutive aligned chunks in a block div
           const textAlign = e.style?.text_align;
+          const alignStyle = textAlign
+            ? {
+                text_align: textAlign,
+              }
+            : undefined;
           // text_align must be applied to a parent element
-          if (wasNewline === undefined || isNewline !== wasNewline) {
+          if (textAlign !== prevTextAlign) {
+            // Surround group consecutive spans that have the same text alignment a text_line div
+            lineWrapperEl = $.createElement(contentEl, {
+              type: "div",
+              name: "text_line",
+              style: alignStyle,
+            });
+          } else if (wasNewline === undefined || isNewline !== wasNewline) {
             // Surround each line in a text_line div
             lineWrapperEl = $.createElement(contentEl, {
               type: "div",
               name: "text_line",
-            });
-          } else if (textAlign && textAlign !== prevTextAlign) {
-            // also surround group consecutive spans that have the same text alignment a text_line div
-            lineWrapperEl = $.createElement(contentEl, {
-              type: "div",
-              name: "text_line",
-              style: {
-                text_align: textAlign,
-              },
             });
           }
           // Support consecutive whitespace collapsing
@@ -881,6 +884,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             wordWrapperEl = $.createElement(lineWrapperEl || contentEl, {
               type: "span",
               name: "text_space",
+              style: alignStyle,
             });
           } else if (
             wasSpace === undefined ||
@@ -891,6 +895,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             wordWrapperEl = $.createElement(lineWrapperEl || contentEl, {
               type: "span",
               name: "text_word",
+              style: alignStyle,
             });
           }
           prevTextAlign = textAlign;
