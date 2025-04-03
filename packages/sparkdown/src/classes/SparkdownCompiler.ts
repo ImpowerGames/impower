@@ -156,44 +156,56 @@ export class SparkdownCompiler {
     const annotations = this.documents.annotations(uri);
     const cur = annotations.transpilations.iter();
     while (cur.value) {
-      const lineIndex = doc.lineAt(cur.from);
-      const lineFrom = doc.offsetAt({
-        line: lineIndex,
-        character: 0,
-      });
-      const lineTo = doc.offsetAt({
-        line: lineIndex,
-        character: Number.MAX_VALUE,
-      });
-      const after = cur.to - lineFrom;
-      if (cur.value.type.trimEnd != null) {
-        const lineText = lines[lineIndex] || "";
-        const newText = lineText.slice(0, -cur.value.type.trimEnd);
-        lines[lineIndex] = newText;
-      }
-      if (cur.value.type.splice != null) {
-        const lineTextBefore = doc.read(lineFrom, cur.to);
-        const lineTextAfter = doc.read(cur.to, lineTo);
-        lines[lineIndex] =
-          lineTextBefore + cur.value.type.splice + lineTextAfter;
-        state.sourceMap ??= {};
-        state.sourceMap[uri] ??= {};
-        state.sourceMap[uri][lineIndex] = {
-          after,
-          shift: cur.value.type.splice.length,
-        };
-      }
-      if (cur.value.type.prefix != null) {
-        lines[lineIndex] = cur.value.type.prefix + lines[lineIndex];
-        state.sourceMap ??= {};
-        state.sourceMap[uri] ??= {};
-        state.sourceMap[uri][lineIndex] = {
-          after: 0,
-          shift: cur.value.type.prefix.length,
-        };
-      }
-      if (cur.value.type.suffix != null) {
-        lines[lineIndex] = lines[lineIndex] + cur.value.type.suffix;
+      if (cur.value.type.whiteout) {
+        const lineFromIndex = doc.lineAt(cur.from);
+        const lineToIndex = doc.lineAt(cur.to);
+        for (
+          let lineIndex = lineFromIndex;
+          lineIndex <= lineToIndex;
+          lineIndex++
+        ) {
+          lines[lineIndex] = " ".repeat(lines[lineIndex]?.length ?? 0);
+        }
+      } else {
+        const lineIndex = doc.lineAt(cur.from);
+        const lineFrom = doc.offsetAt({
+          line: lineIndex,
+          character: 0,
+        });
+        const lineTo = doc.offsetAt({
+          line: lineIndex,
+          character: Number.MAX_VALUE,
+        });
+        const after = cur.to - lineFrom;
+        if (cur.value.type.trimEnd != null) {
+          const lineText = lines[lineIndex] || "";
+          const newText = lineText.slice(0, -cur.value.type.trimEnd);
+          lines[lineIndex] = newText;
+        }
+        if (cur.value.type.splice != null) {
+          const lineTextBefore = doc.read(lineFrom, cur.to);
+          const lineTextAfter = doc.read(cur.to, lineTo);
+          lines[lineIndex] =
+            lineTextBefore + cur.value.type.splice + lineTextAfter;
+          state.sourceMap ??= {};
+          state.sourceMap[uri] ??= {};
+          state.sourceMap[uri][lineIndex] = {
+            after,
+            shift: cur.value.type.splice.length,
+          };
+        }
+        if (cur.value.type.prefix != null) {
+          lines[lineIndex] = cur.value.type.prefix + lines[lineIndex];
+          state.sourceMap ??= {};
+          state.sourceMap[uri] ??= {};
+          state.sourceMap[uri][lineIndex] = {
+            after: 0,
+            shift: cur.value.type.prefix.length,
+          };
+        }
+        if (cur.value.type.suffix != null) {
+          lines[lineIndex] = lines[lineIndex] + cur.value.type.suffix;
+        }
       }
       cur.next();
     }
@@ -222,6 +234,31 @@ export class SparkdownCompiler {
       false,
       (message: string, type, source) => {
         // console.error(message, type, source);
+        // if (source) {
+        //   let [uri, startLine, startColumn, endLine, endColumn] =
+        //     this.getPreTranspilationLocation(source, state);
+        //   const doc = this.documents.get(uri);
+        //   if (doc) {
+        //     const from = doc.offsetAt({
+        //       line: startLine,
+        //       character: startColumn,
+        //     });
+        //     const to = doc.offsetAt({ line: endLine, character: endColumn });
+        //     const margin = 1000;
+        //     const text = doc.read(from - margin, to + margin);
+        //     console.error(text, "SOURCE");
+        //     const transpiledScript = state.transpiledScripts?.[uri];
+        //     if (transpiledScript) {
+        //       console.error(
+        //         transpiledScript?.content.slice(
+        //           from - margin * 2,
+        //           to + margin * 2
+        //         ),
+        //         "TRANSPILED"
+        //       );
+        //     }
+        //   }
+        // }
       },
       {
         ResolveInkFilename: (filename: string): string => {

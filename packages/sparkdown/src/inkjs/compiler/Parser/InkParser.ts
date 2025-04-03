@@ -1039,103 +1039,6 @@ export class InkParser extends StringParser {
     }
   };
 
-  public readonly FrontMatterBlock = (): ParsedObject[] | null => {
-    const startOfBlock = this.ParseString("---");
-    if (startOfBlock === null) {
-      return null;
-    }
-
-    const newline = this.Newline();
-    if (newline === null) {
-      return null;
-    }
-
-    let result = this.ParseRuleUntil<ParsedObject>(
-      this.Optional(this.FrontMatterField),
-      this.EndOfFrontMatterBlock
-    );
-
-    if (result === null) {
-      return null;
-    }
-
-    const firstResult = result[0];
-    if (firstResult instanceof Tag && !firstResult.isStart) {
-      // Remove first unmatched close tag
-      result.shift();
-    }
-    // Close last tag
-    result.push(new Tag(false));
-
-    this.ParseObject(this.EndOfFrontMatterBlock);
-
-    return result;
-  };
-
-  public readonly FrontMatterFieldKeyword = (): ParsedObject[] | null => {
-    const indent = this.ParseWhitespace();
-    if (indent) {
-      // the start of a front matter keyword CANNOT be indented.
-      return null;
-    }
-
-    const keywordTerminator: ParseRule = () =>
-      this.OneOf([
-        this.String(":"),
-        this.EndOfLine,
-        this.EndOfFrontMatterBlock,
-      ]);
-
-    const keyword = this.ParseUntil(
-      keywordTerminator,
-      new CharacterSet(":-\n\r"),
-      null
-    );
-    if (!keyword) {
-      return null;
-    }
-
-    // Consume colon terminator if present
-    this.ParseString(":");
-
-    // Consume newline if immediately follows keyword
-    this.ParseNewline();
-
-    const result = [new Tag(false), new Tag(true), new Text(keyword + ":")];
-
-    return result;
-  };
-
-  public readonly FrontMatterField = (): ParsedObject[] | null => {
-    const keywordResult = this.FrontMatterFieldKeyword();
-    if (keywordResult === null) {
-      return null;
-    }
-
-    const fieldValueTerminator: ParseRule = () =>
-      this.OneOf([
-        this.FrontMatterFieldKeyword,
-        this.EndOfFrontMatterBlock,
-        this.EndOfFile,
-      ]);
-
-    let fieldValueResult: ParsedObject[] =
-      this.Interleave<ParsedObject>(
-        this.Optional(this.Newline),
-        this.Optional(this.PlainText),
-        fieldValueTerminator
-      ) || [];
-
-    const stringResult = fieldValueResult.join("").trim();
-
-    const result = [...keywordResult, new Text(stringResult)];
-    return result;
-  };
-
-  public readonly EndOfFrontMatterBlock = (): ParseRuleReturn => {
-    return this.OneOf([this.String("---"), this.EndOfFile]);
-  };
-
   public readonly LineOfMixedTextAndLogic = (): ParsedObject[] | null => {
     // Consume any whitespace at the start of the line
     // (Except for escaped whitespace)
@@ -1216,54 +1119,6 @@ export class InkParser extends StringParser {
     }
 
     return results;
-  };
-
-  public readonly PlainText = () => {
-    let sb: string | null = null;
-
-    // Consume indent
-    this.ParseWhitespace();
-
-    do {
-      let str = this.ParseUntil(
-        this.EndOfLine,
-        new CharacterSet("\n\r"),
-        new CharacterSet("\n\r")
-      );
-      const gotEscapeChar: boolean = this.ParseString("\\") !== null;
-
-      if (gotEscapeChar || str !== null) {
-        sb ??= "";
-
-        if (str !== null) {
-          sb += String(str);
-        }
-
-        if (gotEscapeChar) {
-          const c = this.ParseSingleCharacter();
-          if (c !== null) {
-            sb += c;
-          }
-        }
-      } else {
-        break;
-      }
-    } while (true);
-
-    let result: string | null = null;
-
-    if (sb) {
-      result ??= "";
-      result += sb;
-    }
-
-    const newline = this.Peek(this.Newline);
-    if (newline) {
-      result ??= "";
-      result += "\n";
-    }
-
-    return result;
   };
 
   public readonly ContentText = () => {
@@ -3814,8 +3669,6 @@ export class InkParser extends StringParser {
     for (const level of levels) {
       const rulesAtLevel: ParseRule[] = [];
       const breakingRules: ParseRule[] = [];
-
-      rulesAtLevel.push(this.FrontMatterBlock);
 
       // Diverts can go anywhere
       rulesAtLevel.push(this.Line(this.MultiDivert));

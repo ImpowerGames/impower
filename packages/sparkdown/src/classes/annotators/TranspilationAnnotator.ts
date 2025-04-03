@@ -10,6 +10,7 @@ export interface LineAugmentations {
   prefix?: string;
   suffix?: string;
   trimEnd?: number;
+  whiteout?: boolean;
 }
 
 export class TranspilationAnnotator extends SparkdownAnnotator<
@@ -28,6 +29,13 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<LineAugmentations>>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<LineAugmentations>>[] {
+    if (nodeRef.name === "FrontMatter") {
+      annotations.push(
+        SparkdownAnnotation.mark({
+          whiteout: true,
+        }).range(nodeRef.from, nodeRef.to)
+      );
+    }
     if (nodeRef.name === "Break") {
       annotations.push(
         SparkdownAnnotation.mark({
