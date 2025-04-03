@@ -468,7 +468,6 @@ export class Game<T extends M = {}> {
         this.checkpoint();
         const instructions = this.module.interpreter.flush();
         if (instructions) {
-          this.clearChoices();
           this._coordinator = new Coordinator(this, instructions);
           if (!this._coordinator.shouldContinue()) {
             this.notifyExecuted();
