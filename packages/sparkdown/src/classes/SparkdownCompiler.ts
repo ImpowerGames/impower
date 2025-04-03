@@ -681,8 +681,7 @@ export class SparkdownCompiler {
         const name = file.name;
         program.context[type] ??= {};
         program.context[type][name] ??= { $type: type, $name: name };
-        const definedFile = program.context[type][name];
-        delete definedFile.text;
+        const definedFile = program.context[type][name] || {};
         // Set $type and $name
         if (definedFile["$type"] === undefined) {
           definedFile["$type"] = type;
@@ -696,12 +695,14 @@ export class SparkdownCompiler {
         }
         // Infer font settings if not defined
         if (type === "font") {
+          const [family, attrs] = name.split("__");
           if (definedFile["font_family"] === undefined) {
-            definedFile["font_family"] = name.split("__")?.[0] || name;
+            definedFile["font_family"] = family || name;
           }
           if (definedFile["font_weight"] === undefined) {
             if (
-              name
+              attrs &&
+              attrs
                 .toLowerCase()
                 .match(/(^|_|\b)(?:bold|bolditalic|italicbold)($|_|\b)/)
             ) {
@@ -712,7 +713,8 @@ export class SparkdownCompiler {
           }
           if (definedFile["font_style"] === undefined) {
             if (
-              name
+              attrs &&
+              attrs
                 .toLowerCase()
                 .match(/(^|_|\b)(?:italic|bolditalic|italicbold)($|_|\b)/)
             ) {
@@ -733,6 +735,8 @@ export class SparkdownCompiler {
             definedFile[k] = v;
           }
         }
+        program.context[type][name] = { ...file, ...definedFile };
+        delete program.context[type][name].text;
       }
     }
     profile("end", "populateAssets", uri);
