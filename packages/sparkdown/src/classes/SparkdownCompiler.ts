@@ -680,7 +680,7 @@ export class SparkdownCompiler {
         const type = file.type;
         const name = file.name;
         program.context[type] ??= {};
-        program.context[type][name] ??= { $type: type, $name: name, ...file };
+        program.context[type][name] ??= { $type: type, $name: name };
         const definedFile = program.context[type][name];
         delete definedFile.text;
         // Set $type and $name
@@ -701,7 +701,9 @@ export class SparkdownCompiler {
           }
           if (definedFile["font_weight"] === undefined) {
             if (
-              name.toLowerCase().match(/\b(?:bold|bolditalic|italicbold)\b/)
+              name
+                .toLowerCase()
+                .match(/(^|_|\b)(?:bold|bolditalic|italicbold)($|_|\b)/)
             ) {
               definedFile["font_weight"] = "700";
             } else {
@@ -710,7 +712,9 @@ export class SparkdownCompiler {
           }
           if (definedFile["font_style"] === undefined) {
             if (
-              name.toLowerCase().match(/\b(?:italic|bolditalic|italicbold)\b/)
+              name
+                .toLowerCase()
+                .match(/(^|_|\b)(?:italic|bolditalic|italicbold)($|_|\b)/)
             ) {
               definedFile["font_style"] = "italic";
             } else {
@@ -722,6 +726,11 @@ export class SparkdownCompiler {
           }
           if (definedFile["font_display"] === undefined) {
             definedFile["font_display"] = "block";
+          }
+        }
+        for (const [k, v] of Object.entries(file)) {
+          if (definedFile[k] === undefined) {
+            definedFile[k] = v;
           }
         }
       }
