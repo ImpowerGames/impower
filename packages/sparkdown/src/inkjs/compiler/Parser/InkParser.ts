@@ -3053,7 +3053,7 @@ export class InkParser extends StringParser {
   };
 
   public readonly StructProperties = (): StructDefinition | null => {
-    if (this.Peek(this.EndOfFile) || this.Peek(this.UnindentedLine)) {
+    if (this.Peek(this.EndOfFile) || this.Peek(this.UnindentedLine(""))) {
       return new StructDefinition([]);
     }
 
@@ -3077,7 +3077,7 @@ export class InkParser extends StringParser {
         break;
       }
 
-      if (this.Peek(this.UnindentedLine)) {
+      if (this.Peek(this.UnindentedLine(indent ?? ""))) {
         this.FailRule(nextElementRuleId);
         break;
       }
@@ -3210,12 +3210,12 @@ export class InkParser extends StringParser {
     return identifier;
   };
 
-  public readonly UnindentedLine = (): typeof ParseSuccess | null => {
+  public readonly UnindentedLine = (startIndent: string) => (): typeof ParseSuccess | null => {
     this.ParseNewline();
 
-    const whitespace = this.ParseWhitespace();
+    const whitespace = this.ParseWhitespace() ?? "";
 
-    if (whitespace === null) {
+    if (whitespace.length <= startIndent.length) {
       return ParseSuccess;
     }
 

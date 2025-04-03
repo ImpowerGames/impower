@@ -127,6 +127,12 @@ export const getFormatting = (
       // Define properties are indented relative to DefineDeclaration node
       const defineNode = stack.find((n) => n.name === "DefineDeclaration");
       if (defineNode) {
+        const defineIndentStack = [...indentStack];
+        while (defineIndentStack.at(-1)?.type === "define") {
+          defineIndentStack.pop();
+        }
+        const expectedDefineStartIndentLevel =
+          defineIndentStack.at(-1)?.level ?? 0;
         const defineContentNode = stack.find(
           (n) => n.name === "DefineDeclaration_content"
         );
@@ -140,10 +146,11 @@ export const getFormatting = (
         const defineNodeIndentLevel = defineNodeIndentText.includes("\t")
           ? defineNodeIndentText.split("\t").length - 1
           : Math.round(defineNodeIndentText.length / options.tabSize);
-        const indentOffset = indentLevel - defineNodeIndentLevel + 1;
-        const minLevel = defineContentNode ? 1 : 0;
-        newIndentLevel = Math.max(minLevel, indentOffset);
-        setIndent({ type: "define", level: newIndentLevel });
+        const indentOffset = indentLevel - defineNodeIndentLevel;
+        newIndentLevel = defineContentNode
+          ? expectedDefineStartIndentLevel + indentOffset
+          : expectedDefineStartIndentLevel;
+        indent({ type: "define", level: newIndentLevel });
       }
       // FrontMatter field content are indented by 1
       const unknownNode = stack.find((n) => n.name === "Unknown");
@@ -214,13 +221,14 @@ export const getFormatting = (
         outdent();
       } else if (aheadCur.value.type === "knot_begin") {
         resetIndent();
-      } else if (
-        aheadCur.value.type === "define_begin" ||
-        aheadCur.value.type === "define_end" ||
-        aheadCur.value.type === "frontmatter_begin" ||
-        aheadCur.value.type === "frontmatter_end"
-      ) {
-        resetIndent();
+      } else if (aheadCur.value.type === "define_end") {
+        while (indentStack.at(-1)?.type === "define") {
+          indentStack.pop();
+        }
+      } else if (aheadCur.value.type === "frontmatter_end") {
+        while (indentStack.at(-1)?.type === "frontmatter") {
+          indentStack.pop();
+        }
       } else if (aheadCur.value.type === "stitch") {
         resetIndent();
         indent({ type: aheadCur.value.type });
