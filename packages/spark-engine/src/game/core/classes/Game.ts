@@ -1067,22 +1067,22 @@ export class Game<T extends M = {}> {
   }
 
   preview(file: string, line: number): void {
+    this._executingPath = "";
+    this._executingLocation = [-1, -1, -1, -1, -1];
     if (this._state === "running") {
       // Don't preview while running
       return;
     }
-    const path = this.getClosestStartPath(file, line);
-    if (path != null && this._context.system.previewing !== path) {
-      this._context.system.previewing = path;
-      this.clearChoices();
-      if (path) {
+    const startPath = this.getClosestStartPath(file, line);
+    if (startPath != null) {
+      if (this._context.system.previewing !== startPath) {
+        this._context.system.previewing = startPath;
+        this.clearChoices();
         if (!this._story.asyncContinueComplete) {
           this.TimeoutError();
         } else {
-          const fileIndex = this._scripts.indexOf(file);
-          this._executedLinesThisFrame.push([fileIndex, line, 0, line, 0]);
           this._story.ResetState();
-          this._story.ChoosePathString(path);
+          this._story.ChoosePathString(startPath);
           this.continue();
           for (const k of this._moduleNames) {
             this._modules[k]?.onPreview();
