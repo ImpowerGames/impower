@@ -182,7 +182,7 @@ Make sure disabled buttons don't get the pointer cursor.
   pointer-events: auto;
   display: flex;
   align-items: flex-end;
-  transition: opacity ease 300ms 2000ms;
+  transition: opacity ease 300ms 1000ms;
   border-radius: 50%;
   background-color: rgba(0, 0, 0, 0.15);
 }
