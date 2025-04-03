@@ -71,8 +71,8 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
             if (range) {
               const [path] =
                 Game.findClosestPathLocation(
-                  Object.entries(program.pathToLocation || {}),
                   { file: document.uri.toString(), line: range.active.line },
+                  Object.entries(program.pathToLocation || {}),
                   Object.keys(program.scripts)
                 ) || [];
               if (path) {

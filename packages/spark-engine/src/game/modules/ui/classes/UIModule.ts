@@ -243,6 +243,34 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
+  show(target: string): void {
+    // TODO: use transition classes to apply show style instead
+    for (const targetEl of this.findElements(target)) {
+      this.updateElement(targetEl, { style: { display: "flex" } });
+    }
+  }
+
+  showAll(targets: string[]): void {
+    for (const target of targets) {
+      this.show(target);
+    }
+  }
+
+  hide(target: string): void {
+    // TODO: use transition classes to apply hide style instead
+    for (const targetEl of this.findElements(target)) {
+      this.updateElement(targetEl, {
+        style: { display: "none" },
+      });
+    }
+  }
+
+  hideAll(targets: string[]): void {
+    for (const target of targets) {
+      this.hide(target);
+    }
+  }
+
   getImageVarName(name: string) {
     return getImageVarName(name);
   }

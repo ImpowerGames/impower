@@ -331,7 +331,8 @@ export class Game<T extends M = {}> {
     } else {
       // Start story from startpoint
       const startpoint = this._startpoint;
-      const startPath = this.getClosestPath(startpoint.file, startpoint.line);
+      const startPath =
+        this.getClosestStartPath(startpoint.file, startpoint.line) || "0";
       if (startPath) {
         this._story.ChoosePathString(startPath);
       }
@@ -467,6 +468,7 @@ export class Game<T extends M = {}> {
         this.checkpoint();
         const instructions = this.module.interpreter.flush();
         if (instructions) {
+          this.clearChoices();
           this._coordinator = new Coordinator(this, instructions);
           if (!this._coordinator.shouldContinue()) {
             this.notifyExecuted();
@@ -607,6 +609,7 @@ export class Game<T extends M = {}> {
       this.module.ui.text.clear(target);
       this.module.ui.image.clear(target);
       this.module.ui.unobserve("click", target);
+      this.module.ui.hide(target);
     }
   }
 
@@ -1068,7 +1071,7 @@ export class Game<T extends M = {}> {
       // Don't preview while running
       return;
     }
-    const path = this.getClosestPath(file, line);
+    const path = this.getClosestStartPath(file, line);
     if (path != null && this._context.system.previewing !== path) {
       this._context.system.previewing = path;
       this.clearChoices();
@@ -1076,6 +1079,8 @@ export class Game<T extends M = {}> {
         if (!this._story.asyncContinueComplete) {
           this.TimeoutError();
         } else {
+          const fileIndex = this._scripts.indexOf(file);
+          this._executedLinesThisFrame.push([fileIndex, line, 0, line, 0]);
           this._story.ResetState();
           this._story.ChoosePathString(path);
           this.continue();
@@ -1121,8 +1126,8 @@ export class Game<T extends M = {}> {
     for (const breakpoint of breakpoints) {
       const [, closestInstruction] =
         this.findClosestPathLocation(
-          pathLocationEntries,
           breakpoint,
+          pathLocationEntries,
           scripts
         ) || [];
       if (closestInstruction) {
@@ -1236,25 +1241,28 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
-  getClosestPath(file: string | undefined, line: number | undefined) {
+  getClosestStartPath(file: string | undefined, line: number | undefined) {
     if (file == null || line == null) {
-      return "0";
+      return null;
     }
     const [path] =
       Game.findClosestPathLocation(
-        this._pathLocations,
         { file, line },
+        this._pathLocations,
         this._scripts
       ) || [];
-    if (path == null) {
-      return "0";
+    const parentPath = path?.split(".").slice(0, -1).join(".");
+    if (parentPath?.endsWith(".$s")) {
+      // If we are inside choice start content, begin from start of choice
+      const grandParentPath = parentPath?.split(".").slice(0, -1).join(".");
+      return grandParentPath;
     }
-    return path;
+    return path ?? null;
   }
 
   static findClosestPathLocation(
-    pathLocationEntries: [string, ScriptLocation][],
     breakpoint: { file: string; line: number },
+    pathLocationEntries: [string, ScriptLocation][],
     scripts: string[]
   ): [string, ScriptLocation] | null {
     const breakpointScriptIndex = scripts.indexOf(breakpoint.file);
@@ -1275,12 +1283,15 @@ export class Game<T extends M = {}> {
       const [, location] = relevantLocations[i]!;
       const [, startLine, , endLine] = location;
 
-      if (startLine <= breakpointLine && breakpointLine <= endLine) {
+      if (breakpointLine >= startLine && breakpointLine <= endLine) {
         return relevantLocations[i]!; // Exact match found
       }
 
-      // Track the closest previous instruction
-      if (endLine < breakpointLine) {
+      if (startLine > breakpointLine && endLine > breakpointLine) {
+        // We've passed the breakpoint line, so break
+        break;
+      } else {
+        // Track the closest previous instruction
         closestIndex = i;
       }
     }

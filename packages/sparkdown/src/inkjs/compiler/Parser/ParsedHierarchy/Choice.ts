@@ -188,7 +188,7 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
       // Start content itself in a named container
       this._startContentRuntimeContainer =
         this.startContent.GenerateRuntimeObject() as RuntimeContainer;
-      this._startContentRuntimeContainer.name = "s";
+      this._startContentRuntimeContainer.name = "$s";
 
       // Effectively, the "return" statement - return to the point specified by $r
       const varDivert = new RuntimeDivert();

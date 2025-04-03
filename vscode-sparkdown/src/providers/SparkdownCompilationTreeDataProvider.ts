@@ -130,6 +130,25 @@ export class SparkdownCompilationTreeDataProvider
     return this.nodeMap.get(id);
   }
 
+  getContainerSuffix(arr: any) {
+    const flags = Array.isArray(arr) ? arr.at(-1)?.["#f"] : undefined;
+    const flagsSummaryParts = [];
+    if (flags & 0x1) {
+      flagsSummaryParts.push("visits");
+    }
+    if (flags & 0x2) {
+      flagsSummaryParts.push("turns");
+    }
+    if (flags & 0x4) {
+      flagsSummaryParts.push("start");
+    }
+    const flagsSummary =
+      flagsSummaryParts.length > 0
+        ? `  (${flagsSummaryParts.join(" & ")})`
+        : "";
+    return flagsSummary;
+  }
+
   private buildNodes(data: any): InstructionNode {
     this.nodeMap.clear();
 
@@ -141,7 +160,8 @@ export class SparkdownCompilationTreeDataProvider
       node: any,
       depth: number,
       parent: InstructionNode | null,
-      idPrefix = ""
+      idPrefix = "",
+      labelSuffix = ""
     ): InstructionNode => {
       let instructionNode: InstructionNode;
       if (typeof node === "string") {
@@ -209,7 +229,7 @@ export class SparkdownCompilationTreeDataProvider
         const label = idPrefix;
         const type = "container";
         instructionNode = {
-          label: `${label}`,
+          label: `${label}${labelSuffix}`,
           id: idPrefix,
           type,
           parent,
@@ -220,11 +240,14 @@ export class SparkdownCompilationTreeDataProvider
                   return Object.entries(container).map(([key, value]) => {
                     if (key !== "#n" && key !== "#f") {
                       const prefix = idPrefix ? idPrefix + "." : "";
+                      const containerLabelSuffix =
+                        this.getContainerSuffix(value);
                       return traverse(
                         value,
                         depth + 1,
                         instructionNode,
-                        `${prefix}${key}`
+                        `${prefix}${key}`,
+                        containerLabelSuffix
                       );
                     }
                     return null;
@@ -235,13 +258,15 @@ export class SparkdownCompilationTreeDataProvider
                 const name = Array.isArray(child)
                   ? child.at(-1)?.["#n"]
                   : undefined;
+                const containerLabelSuffix = this.getContainerSuffix(child);
                 const containerName = name ?? i ?? 0;
                 const prefix = idPrefix ? idPrefix + "." : "";
                 return traverse(
                   child,
                   depth + 1,
                   instructionNode,
-                  `${prefix}${containerName}`
+                  `${prefix}${containerName}`,
+                  containerLabelSuffix
                 );
               }
             })
@@ -411,7 +436,7 @@ export class SparkdownCompilationTreeDataProvider
             arg2SummaryParts.push("fallback");
           }
           if (arg2 & 0x2) {
-            arg2SummaryParts.push("btext");
+            arg2SummaryParts.push("stext");
           }
           if (arg2 & 0x4) {
             arg2SummaryParts.push("ctext");

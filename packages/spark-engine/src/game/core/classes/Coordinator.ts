@@ -172,6 +172,7 @@ export class Coordinator<G extends Game> {
             game.module.ui.text.clearAll(choiceTargets);
             game.module.ui.image.clearAll(choiceTargets);
             game.module.ui.unobserve("click", target);
+            game.module.ui.hideAll(choiceTargets);
             game.chosePathToContinue(index);
           };
           game.module.ui.observe("click", target, handleClick);

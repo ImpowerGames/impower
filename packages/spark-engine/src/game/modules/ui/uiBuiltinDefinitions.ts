@@ -193,7 +193,7 @@ export const uiBuiltinDefinitions = () => ({
         background_color: "rgb(0 0 0 / 65%)",
         padding: "8px",
         border_radius: "8px",
-        opacity: "0",
+        border: "1px solid",
         text_align: "center",
         align_items: "center",
         justify_content: "center",
@@ -207,33 +207,21 @@ export const uiBuiltinDefinitions = () => ({
     }),
     choice_0: default_style({
       $name: "choice_0",
-      display: "flex",
-      flex_direction: "row",
     }),
     choice_1: default_style({
       $name: "choice_1",
-      display: "flex",
-      flex_direction: "row",
     }),
     choice_2: default_style({
       $name: "choice_2",
-      display: "flex",
-      flex_direction: "row",
     }),
     choice_3: default_style({
       $name: "choice_3",
-      display: "flex",
-      flex_direction: "row",
     }),
     choice_4: default_style({
       $name: "choice_4",
-      display: "flex",
-      flex_direction: "row",
     }),
     choice_5: default_style({
       $name: "choice_5",
-      display: "flex",
-      flex_direction: "row",
     }),
     textbox: default_style({
       $name: "textbox",
