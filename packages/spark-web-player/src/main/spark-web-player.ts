@@ -823,7 +823,8 @@ export default class SparkWebPlayer extends Component(spec) {
     if (
       !this._game ||
       (this._game.state === "previewing" &&
-        this._game.program.version !== this._program?.version)
+        (this._game.program.uri !== this._program?.uri ||
+          this._game.program.version !== this._program?.version))
     ) {
       // If haven't built game yet, or programs have changed since last build, build game.
       await this.buildGame({ file, line });
