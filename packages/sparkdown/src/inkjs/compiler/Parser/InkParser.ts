@@ -2812,7 +2812,7 @@ export class InkParser extends StringParser {
   };
 
   public readonly DefineDeclaration = (): VariableAssignment | null => {
-    this.Whitespace();
+    const startIndent = this.ParseWhitespace() ?? "";
 
     if (
       this.ParseKeywordString("DEFINE") === null &&
@@ -2863,7 +2863,7 @@ export class InkParser extends StringParser {
 
     this.ParseString(":");
 
-    const definition = this.StructProperties();
+    const definition = this.StructProperties(startIndent);
 
     if (definition) {
       let variableName = "";
@@ -2907,7 +2907,7 @@ export class InkParser extends StringParser {
     return null;
   };
 
-  public readonly StructProperties = (): StructDefinition | null => {
+  public readonly StructProperties = (startIndent: string): StructDefinition | null => {
     if (this.Peek(this.EndOfFile) || this.Peek(this.UnindentedLine(""))) {
       return new StructDefinition([]);
     }
@@ -2932,7 +2932,7 @@ export class InkParser extends StringParser {
         break;
       }
 
-      if (this.Peek(this.UnindentedLine(indent ?? ""))) {
+      if (this.Peek(this.UnindentedLine(startIndent))) {
         this.FailRule(nextElementRuleId);
         break;
       }
