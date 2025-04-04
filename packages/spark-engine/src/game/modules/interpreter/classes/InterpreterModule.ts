@@ -1,22 +1,22 @@
+import { getCharacterIdentifier } from "@impower/sparkdown/src/utils/getCharacterIdentifier";
 import { Module } from "../../../core/classes/Module";
-import type { Instructions } from "../../../core/types/Instructions";
-import {
-  InterpreterBuiltins as InterpreterBuiltins,
-  interpreterBuiltinDefinitions,
-} from "../interpreterBuiltinDefinitions";
-import { Phrase } from "../types/Phrase";
-import { Chunk } from "../types/Chunk";
-import { Matcher } from "./helpers/Matcher";
 import {
   AudioInstruction,
   ImageInstruction,
   TextInstruction,
 } from "../../../core/types/Instruction";
-import { stressPhrases } from "../utils/stressPhrases";
-import { InstructionOptions } from "../types/InstructionOptions";
-import { getTimeValue } from "../../../core/utils/getTimeValue";
+import type { Instructions } from "../../../core/types/Instructions";
 import { getNumberValue } from "../../../core/utils/getNumberValue";
-import { getCharacterIdentifier } from "@impower/sparkdown/src/utils/getCharacterIdentifier";
+import { getTimeValue } from "../../../core/utils/getTimeValue";
+import {
+  InterpreterBuiltins,
+  interpreterBuiltinDefinitions,
+} from "../interpreterBuiltinDefinitions";
+import { Chunk } from "../types/Chunk";
+import { InstructionOptions } from "../types/InstructionOptions";
+import { Phrase } from "../types/Phrase";
+import { stressPhrases } from "../utils/stressPhrases";
+import { Matcher } from "./helpers/Matcher";
 
 export interface InterpreterConfig {}
 
@@ -687,6 +687,7 @@ export class InterpreterModule extends Module<
       phraseUnpauseLength = 0;
       currChunk = undefined;
       escaped = false;
+      hidden = false;
 
       const chars = textLine.match(this.CHAR_REGEX);
       if (chars) {
