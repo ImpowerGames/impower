@@ -2822,7 +2822,7 @@ repository:
   ########## Parenthetical ##########
 
   ParentheticalLine:
-    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)({{WS}}*)([(][^()]*?[)])({{WS}}*)($|{{EOL}}|(?={{BREAK}})|[\\](?:{{WS}}))
+    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)({{WS}}*)([(][^()]*?[)])({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)($|{{EOL}}|(?={{BREAK}})|[\\](?:{{WS}}))
     captures:
       1:
         patterns:
@@ -2842,6 +2842,11 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       6:
+        patterns:
+          - { include: "#FlowMarker" }
+          - { include: "#TextCommand" }
+          - { include: "#ExtraWhitespace" }
+      7:
         patterns:
           - { include: "#EndOfLine" }
           - { include: "#Chain" }
