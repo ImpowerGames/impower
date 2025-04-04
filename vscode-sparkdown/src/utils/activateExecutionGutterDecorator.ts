@@ -9,11 +9,11 @@ const previouslyExecutedLineDecoration: vscode.TextEditorDecorationType =
   vscode.window.createTextEditorDecorationType({
     dark: {
       overviewRulerColor: new vscode.ThemeColor("editorGhostText.foreground"),
-      borderColor: "#ffffff4D",
+      borderColor: new vscode.ThemeColor("editorGhostText.foreground"),
     },
     light: {
       overviewRulerColor: new vscode.ThemeColor("editorGhostText.foreground"),
-      borderColor: "#0000004D",
+      borderColor: new vscode.ThemeColor("editorGhostText.foreground"),
     },
     borderWidth: "0 0 0 2px",
     borderStyle: "solid",
@@ -27,13 +27,17 @@ const currentlyExecutedLineDecoration: vscode.TextEditorDecorationType =
       overviewRulerColor: new vscode.ThemeColor(
         "editor.stackFrameHighlightBackground"
       ),
-      borderColor: "#ffcc00",
+      borderColor: new vscode.ThemeColor(
+        "editor.stackFrameHighlightBackground"
+      ),
     },
     light: {
       overviewRulerColor: new vscode.ThemeColor(
         "editor.stackFrameHighlightBackground"
       ),
-      borderColor: "#ffcc00",
+      borderColor: new vscode.ThemeColor(
+        "editor.stackFrameHighlightBackground"
+      ),
     },
     borderWidth: "0 0 0 2px",
     borderStyle: "solid",
@@ -47,13 +51,13 @@ const previewingLineDecoration: vscode.TextEditorDecorationType =
       overviewRulerColor: new vscode.ThemeColor(
         "editorOverviewRuler.infoForeground"
       ),
-      borderColor: "#1177bb",
+      borderColor: new vscode.ThemeColor("editorOverviewRuler.infoForeground"),
     },
     light: {
       overviewRulerColor: new vscode.ThemeColor(
         "editorOverviewRuler.infoForeground"
       ),
-      borderColor: "#1177bb",
+      borderColor: new vscode.ThemeColor("editorOverviewRuler.infoForeground"),
     },
     borderWidth: "0 0 0 2px",
     borderStyle: "solid",
