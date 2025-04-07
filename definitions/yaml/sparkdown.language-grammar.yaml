@@ -1343,7 +1343,7 @@ repository:
   ########## Divert & Thread ##########
 
   Divert:
-    begin: ({{WS}}*)(>>|->->|>|->)({{WS}}*)
+    begin: ({{WS}}*)([-][>][-][>]|[-][>])({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -1365,10 +1365,10 @@ repository:
       - { include: "#DivertPath" }
       - { include: "#TunnelMark" }
       - { include: "#DivertMark" }
-    end: (?=$|(?!->)(?!>)[^{{IDENTIFIER_START_CHAR}}])
+    end: (?=$|(?![-][>])[^{{IDENTIFIER_START_CHAR}}])
 
   Thread:
-    begin: ^({{WS}}*)([:](?=$|{{WS}})|<-)({{WS}}*)
+    begin: ^({{WS}}*)([<][-])({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -1392,17 +1392,17 @@ repository:
   DivertMark:
     tag: controlKeyword
     name: keyword.control.divert.mark.sd
-    match: (>|->)
+    match: ([-][>])
 
   TunnelMark:
     tag: controlKeyword
     name: keyword.control.divert.mark.sd
-    match: (->->|>>)
+    match: ([-][>][-][>])
 
   ThreadMark:
     tag: controlKeyword
     name: keyword.control.thread.mark.sd
-    match: ([:](?=$|{{WS}})|<-)
+    match: ([<][-])
 
   End:
     tag: keyword
@@ -1421,7 +1421,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#DivertPart" }
-    end: ({{WS}}*(?=[>]|[-][>]))?(?=$|[^{{IDENTIFIER_START_CHAR}}0-9^.])
+    end: ({{WS}}*(?=[-][>]))?(?=$|[^{{IDENTIFIER_START_CHAR}}0-9^.])
     endCaptures:
       1:
         patterns:
@@ -1430,7 +1430,7 @@ repository:
   OptionalDivertSeparator:
     tag: definition(content)
     name: markup.raw.whitespace.sd
-    match: ({{WS}}*(?=[>]|[-][>]))
+    match: ({{WS}}*(?=[-][>]))
 
   DivertPart:
     emit: true
@@ -2789,7 +2789,7 @@ repository:
   ########## Action ##########
 
   Action:
-    begin: ({{WS}}*)(?:([<][>])|([!])($|{{WS}}+))?(?=\S)
+    begin: ({{WS}}*)(?:([<][>])|([!])($|{{WS}}+)|(?=\S))
     beginCaptures:
       1:
         patterns:
@@ -2815,8 +2815,8 @@ repository:
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
 
   ActionMark:
-    tag: definition(content)
-    name: markup.raw.text.sd
+    tag: definition(keyword)
+    name: keyword.action.mark.sd
     match: (.+)
 
   ########## Parenthetical ##########
@@ -3250,7 +3250,7 @@ repository:
   TextCommand:
     tag: macroName
     name: meta.text.sd
-    match: ([<](?!{{WS}}))((?:\\.|[^>])*?)([>])
+    match: ([<](?!{{WS}}))((?:\\.|[^>])*?)((?<![-])[>])
     captures:
       1:
         tag: keyword

@@ -68,13 +68,13 @@ export class Path {
   public readonly toString = (): string => {
     if (this.components === null || this.components.length === 0) {
       if (this.baseTargetLevel === FlowLevel.WeavePoint) {
-        return "> [next gather point]";
+        return "-> [next gather point]";
       }
 
       return "[invalid path]";
     }
 
-    return `> ${this.dotSeparatedComponents}`;
+    return `-> ${this.dotSeparatedComponents}`;
   };
 
   public readonly ResolveFromContext = (

@@ -543,11 +543,6 @@
             "default": true,
             "markdownDescription": "When renaming a reference to a file in the editor, also rename the asset file it refers to."
           },
-          "sparkdown.editor.autoSpaceMarks": {
-            "type": "boolean",
-            "default": true,
-            "markdownDescription": "Automatically indents and adds a space after gather, choice, and other start-of-line marks (-, *, +, =, etc.).\n\n*[If you are using a vim emulator, you should disable this setting.]*"
-          },
           "sparkdown.editor.autoCloseAngleBrackets": {
             "type": "boolean",
             "default": true,
@@ -556,7 +551,7 @@
           "sparkdown.formatter.convertInkSyntaxToSparkdownSyntax": {
             "type": "boolean",
             "default": true,
-            "markdownDescription": "When formatting, replace all ink-specific syntax with sparkdown-equivalent syntax\n\n(e.g. > instead of ->, var instead of VAR, etc.)."
+            "markdownDescription": "When formatting, replace all ink-specific syntax with sparkdown-equivalent syntax\n\n(e.g. 'var' instead of 'VAR', 'temp' instead of '~ temp', etc.)."
           }
         }
       },

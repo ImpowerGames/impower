@@ -467,7 +467,7 @@ export class Story extends InkObject {
         ) {
           if (this.state.callStack.CanPop(PushPopType.Tunnel))
             this.AddError(
-              "unexpectedly reached end of content. Do you need a '>>' to return from a tunnel?"
+              "unexpectedly reached end of content. Do you need a '->->' to return from a tunnel?"
             );
           else if (this.state.callStack.CanPop(PushPopType.Function))
             this.AddError(
@@ -475,7 +475,7 @@ export class Story extends InkObject {
             );
           else if (!this.state.callStack.canPop)
             this.AddError(
-              "ran out of content. Do you need a '> DONE' or '> END'?"
+              "ran out of content. Do you need a '-> DONE' or '-> END'?"
             );
           else
             this.AddError(
@@ -1174,7 +1174,7 @@ export class Story extends InkObject {
             if (overrideTunnelReturnTarget === null) {
               this.Assert(
                 popped instanceof Void,
-                "Expected void if >> doesn't override target"
+                "Expected void if ->-> doesn't override target"
               );
             }
           }
@@ -1188,13 +1188,13 @@ export class Story extends InkObject {
             let names: Map<PushPopType, string> = new Map();
             names.set(
               PushPopType.Function,
-              "function return statement (~ return)"
+              "function return statement (return)"
             );
-            names.set(PushPopType.Tunnel, "tunnel onwards statement (>>)");
+            names.set(PushPopType.Tunnel, "tunnel onwards statement (->->)");
 
             let expected = names.get(this.state.callStack.currentElement.type);
             if (!this.state.callStack.canPop) {
-              expected = "end of flow (> END or choice)";
+              expected = "end of flow (-> END or choice)";
             }
 
             let errorMsg =
@@ -1373,7 +1373,7 @@ export class Story extends InkObject {
             let extraNote = "";
             if (target instanceof IntValue)
               extraNote =
-                ". Did you accidentally pass a read count ('knot_name') instead of a target ('> knot_name')?";
+                ". Did you accidentally pass a read count ('knot_name') instead of a target ('-> knot_name')?";
             this.Error(
               "TURNS_SINCE / READ_COUNT expected a divert target (knot, stitch, label name), but saw " +
                 target +

@@ -504,14 +504,14 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
   public readonly WarningInTermination = (terminatingObject: ParsedObject) => {
     let message: string =
-      "Apparent loose end exists where the flow runs out. Do you need a '> DONE' statement, choice or divert?";
+      "Apparent loose end exists where the flow runs out. Do you need a '-> DONE' statement, choice or divert?";
     if (terminatingObject.parent === this._rootWeave && this._firstChildFlow) {
       message = `${message} Note that if you intend to enter '${this._firstChildFlow.identifier}' next, you need to divert to it explicitly.`;
     }
 
     const terminatingDivert = asOrNull(terminatingObject, Divert);
     if (terminatingDivert && terminatingDivert.isTunnel) {
-      message += ` When final tunnel to '${terminatingDivert.target} >' returns it won't have anywhere to go.`;
+      message += ` When final tunnel to '${terminatingDivert.target} ->' returns it won't have anywhere to go.`;
     }
 
     const debugMetadata = new DebugMetadata(

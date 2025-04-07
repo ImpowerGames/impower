@@ -360,48 +360,6 @@ export const getFormatting = (
         const newIndentLevel = Math.max(0, (currentIndent?.level ?? 0) - 1);
         tempIndentLevel = newIndentLevel;
       }
-    } else if (cur.value.type === "divert_mark") {
-      if (settings?.formatter?.convertInkSyntaxToSparkdownSyntax) {
-        const text = document.getText(range);
-        const expectedText = ">";
-        if (text !== expectedText) {
-          pushIfInRange({
-            lineNumber: range.start.line + 1,
-            range,
-            oldText: document.getText(range),
-            newText: expectedText,
-            type: cur.value.type,
-          });
-        }
-      }
-    } else if (cur.value.type === "tunnel_mark") {
-      if (settings?.formatter?.convertInkSyntaxToSparkdownSyntax) {
-        const text = document.getText(range);
-        const expectedText = ">>";
-        if (text !== expectedText) {
-          pushIfInRange({
-            lineNumber: range.start.line + 1,
-            range,
-            oldText: document.getText(range),
-            newText: expectedText,
-            type: cur.value.type,
-          });
-        }
-      }
-    } else if (cur.value.type === "thread_mark") {
-      if (settings?.formatter?.convertInkSyntaxToSparkdownSyntax) {
-        const text = document.getText(range);
-        const expectedText = ":";
-        if (text !== expectedText) {
-          pushIfInRange({
-            lineNumber: range.start.line + 1,
-            range,
-            oldText: document.getText(range),
-            newText: expectedText,
-            type: cur.value.type,
-          });
-        }
-      }
     } else if (cur.value.type === "optional_mark") {
       if (settings?.formatter?.convertInkSyntaxToSparkdownSyntax) {
         const text = document.getText(range);

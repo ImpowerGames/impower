@@ -20,8 +20,6 @@ import {
   workspace,
   WorkspaceEdit,
 } from "vscode";
-import { SparkdownConfiguration } from "../../../packages/sparkdown-language-server/src/types/SparkdownConfiguration";
-import { getFormatting } from "../../../packages/sparkdown-language-server/src/utils/providers/getDocumentFormattingEdits";
 import { getStack } from "../../../packages/textmate-grammar-tree/src/tree/utils/getStack";
 import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
 
@@ -34,8 +32,6 @@ enum EmphasisType {
   SHAKY = "::",
 }
 type IModifier = "ctrl" | "shift";
-
-const LIST_MARK_REGEX = /^(\s*)((?:[*+-](?:$|\s+))+)(.*?)$/;
 
 export const activateAutoFormatting = (context: ExtensionContext) => {
   const activeDocument = window.activeTextEditor?.document;
@@ -86,10 +82,7 @@ export const activateAutoFormatting = (context: ExtensionContext) => {
   );
 
   const config = workspace.getConfiguration("sparkdown");
-  if (
-    config["editor"].autoSpaceMarks ||
-    config["editor"].autoCloseAngleBrackets
-  ) {
+  if (config["editor"].autoCloseAngleBrackets) {
     context.subscriptions.push(commands.registerCommand("type", onType));
   }
 };
@@ -171,11 +164,6 @@ const onBackspaceKey = async () => {
   const textBeforeCursor = currentLineText.substring(0, cursor.character);
   const textAfterCursor = currentLineText.substring(cursor.character);
   if (editor.selections.length === 1 && editor.selection.isEmpty) {
-    if (LIST_MARK_REGEX.test(textBeforeCursor)) {
-      if (await adjustStartOfLineMark(editor, "remove")) {
-        return true;
-      }
-    }
     if (/([<])$/.test(textBeforeCursor) && /^([>])/.test(textAfterCursor)) {
       if (await deleteAngleBrackets(editor)) {
         return true;
@@ -195,10 +183,6 @@ const onType = async (
     if (await onOpenAngleBracket(editor)) {
       return true;
     }
-  }
-
-  if (await onStartOfLineMark(editor, e.text)) {
-    return true;
   }
 
   return commands.executeCommand("default:type", e, ...args);
@@ -223,30 +207,6 @@ const onOpenAngleBracket = async (editor: TextEditor) => {
   return false;
 };
 
-const onStartOfLineMark = async (editor: TextEditor, mark: string) => {
-  const cursor = editor.selection.active;
-  const currentLineText = editor.document.lineAt(cursor.line).text;
-  const textBeforeCursor =
-    currentLineText.substring(0, cursor.character) + mark;
-  const textAfterCursor = currentLineText.substring(cursor.character);
-
-  if (editor.selections.length === 1 && editor.selection.isEmpty) {
-    if (
-      mark.trim() &&
-      LIST_MARK_REGEX.exec(textBeforeCursor) &&
-      !textAfterCursor?.trim()
-    ) {
-      if (workspace.getConfiguration("sparkdown")["editor"].autoSpaceMarks) {
-        if (await adjustStartOfLineMark(editor, "add", mark)) {
-          return true;
-        }
-      }
-    }
-  }
-
-  return false;
-};
-
 const closeAngleBracket = async (editor: TextEditor): Promise<boolean> => {
   const cursor = editor.selection.active;
   const parsedDoc = SparkdownDocumentManager.instance.get(editor.document.uri);
@@ -260,24 +220,22 @@ const closeAngleBracket = async (editor: TextEditor): Promise<boolean> => {
   const stack = getStack<SparkdownNodeName>(
     tree,
     parsedDoc.offsetAt(cursor),
-    1
+    -1
   );
 
+  console.log(stack.map((n) => n.name));
+
   if (
-    stack.some(
+    !stack.some(
       (n) =>
-        n.name === "MultilineCaseClause_begin" ||
-        n.name === "ParenExpression" ||
-        n.name === "ListTypeAssignment" ||
-        n.name === "VariableAssignment" ||
-        n.name === "Parameter" ||
-        n.name === "StructFieldValue" ||
-        n.name === "Logic" ||
-        n.name === "ReturnStatement" ||
-        n.name === "Substitution" ||
-        n.name === "ConditionalSubstitution_begin" ||
-        n.name === "MultilineBlock_begin" ||
-        n.name === "ArrayItem"
+        n.name === "TextChunk" ||
+        n.name === "Action" ||
+        n.name === "Scene" ||
+        n.name === "Transition" ||
+        n.name === "BlockDialogue" ||
+        n.name === "InlineDialogue" ||
+        n.name === "BlockWrite" ||
+        n.name === "InlineWrite"
     )
   ) {
     return false;
@@ -381,98 +339,6 @@ const deleteAngleBrackets = async (editor: TextEditor): Promise<boolean> => {
     { undoStopBefore: false, undoStopAfter: false }
   );
   return true;
-};
-
-const adjustStartOfLineMark = async (
-  editor: TextEditor,
-  action: "add" | "remove",
-  typing: string = ""
-): Promise<boolean> => {
-  const cursor = editor.selection.active;
-  const currentLineText = editor.document.lineAt(cursor.line).text;
-  const textBeforeCursor = currentLineText.substring(0, cursor.character);
-  const currentText = textBeforeCursor + typing;
-  let matches = LIST_MARK_REGEX.exec(currentText);
-  const afterMarkText = matches?.[3]?.trim();
-  if (matches && !afterMarkText) {
-    const parsedDoc = SparkdownDocumentManager.instance.get(
-      editor.document.uri
-    );
-    const tree = SparkdownDocumentManager.instance.tree(editor.document.uri);
-    const annotations = SparkdownDocumentManager.instance.annotations(
-      editor.document.uri
-    );
-    const line = Math.max(0, cursor.line - 1);
-    const config = workspace.getConfiguration(
-      "sparkdown"
-    ) as SparkdownConfiguration;
-    const { indentStack } = getFormatting(
-      config,
-      parsedDoc,
-      tree,
-      annotations,
-      {
-        tabSize: editor.options.tabSize as number,
-        insertSpaces: editor.options.insertSpaces as boolean,
-      },
-      new Range(0, 0, line, editor.document.lineAt(line).text.length)
-    );
-    const expectedIndentStack = [...(indentStack || [])];
-    const currentIndent = expectedIndentStack.at(-1);
-    const currentIndentLevel = currentIndent?.level ?? 0;
-    const markers = matches?.[2] || "";
-    const marks = markers.split(/[ \t]+/).filter((m) => Boolean(m));
-    const adjustedMarks = action === "remove" ? marks.slice(0, -1) : marks;
-    const adjustedMarkers =
-      adjustedMarks.length > 0
-        ? adjustedMarks.join(" ") + " "
-        : currentIndentLevel > 0
-        ? "  "
-        : "";
-    const indentOffset =
-      adjustedMarks.length - (currentIndent?.marks?.length ?? 0) - 1;
-    const newIndentLevel = currentIndentLevel + indentOffset;
-    const expectedLevel = Math.max(0, newIndentLevel);
-    const expectedText = getIndent(editor, expectedLevel) + adjustedMarkers;
-    if (action === "add" && expectedText.startsWith(currentText)) {
-      const insertText = expectedText.slice(textBeforeCursor.length);
-      await commands.executeCommand("default:type", {
-        source: "keyboard",
-        text: insertText,
-      });
-      return true;
-    } else if (
-      action === "remove" &&
-      textBeforeCursor.startsWith(expectedText)
-    ) {
-      await editor.edit(
-        (editBuilder) => {
-          editBuilder.delete(
-            new Range(
-              cursor.line,
-              expectedText.length,
-              cursor.line,
-              currentText.length
-            )
-          );
-        },
-        { undoStopBefore: false, undoStopAfter: false }
-      );
-      return true;
-    } else {
-      await editor.edit(
-        (editBuilder) => {
-          editBuilder.replace(
-            new Range(cursor.line, 0, cursor.line, currentText.length),
-            expectedText
-          );
-        },
-        { undoStopBefore: false, undoStopAfter: false }
-      );
-      return true;
-    }
-  }
-  return false;
 };
 
 const toggleEmphasis = (type: EmphasisType) => {

@@ -2388,7 +2388,7 @@
       "match": "(.+)"
     },
     "Divert": {
-      "begin": "([^\\S\\n\\r]*)(>>|->->|>|->)([^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)([-][>][-][>]|[-][>])([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2442,10 +2442,10 @@
           "include": "#DivertMark"
         }
       ],
-      "end": "(?=$|(?!->)(?!>)[^_\\p{L}])"
+      "end": "(?=$|(?![-][>])[^_\\p{L}])"
     },
     "Thread": {
-      "begin": "^([^\\S\\n\\r]*)([:](?=$|[^\\S\\n\\r])|<-)([^\\S\\n\\r]*)",
+      "begin": "^([^\\S\\n\\r]*)([<][-])([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2495,17 +2495,17 @@
     "DivertMark": {
       "tag": "controlKeyword",
       "name": "keyword.control.divert.mark.sd",
-      "match": "(>|->)"
+      "match": "([-][>])"
     },
     "TunnelMark": {
       "tag": "controlKeyword",
       "name": "keyword.control.divert.mark.sd",
-      "match": "(->->|>>)"
+      "match": "([-][>][-][>])"
     },
     "ThreadMark": {
       "tag": "controlKeyword",
       "name": "keyword.control.thread.mark.sd",
-      "match": "([:](?=$|[^\\S\\n\\r])|<-)"
+      "match": "([<][-])"
     },
     "End": {
       "tag": "keyword",
@@ -2529,7 +2529,7 @@
           "include": "#DivertPart"
         }
       ],
-      "end": "([^\\S\\n\\r]*(?=[>]|[-][>]))?(?=$|[^_\\p{L}0-9^.])",
+      "end": "([^\\S\\n\\r]*(?=[-][>]))?(?=$|[^_\\p{L}0-9^.])",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -2543,7 +2543,7 @@
     "OptionalDivertSeparator": {
       "tag": "definition(content)",
       "name": "markup.raw.whitespace.sd",
-      "match": "([^\\S\\n\\r]*(?=[>]|[-][>]))"
+      "match": "([^\\S\\n\\r]*(?=[-][>]))"
     },
     "DivertPart": {
       "emit": true,
@@ -4957,7 +4957,7 @@
       "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][^\\S\\n\\r]*(.*?)[^\\S\\n\\r]+[-][^\\S\\n\\r]+(.*?)[^\\S\\n\\r]*$"
     },
     "Action": {
-      "begin": "([^\\S\\n\\r]*)(?:([<][>])|([!])($|[^\\S\\n\\r]+))?(?=\\S)",
+      "begin": "([^\\S\\n\\r]*)(?:([<][>])|([!])($|[^\\S\\n\\r]+)|(?=\\S))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -5017,8 +5017,8 @@
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
     },
     "ActionMark": {
-      "tag": "definition(content)",
-      "name": "markup.raw.text.sd",
+      "tag": "definition(keyword)",
+      "name": "keyword.action.mark.sd",
       "match": "(.+)"
     },
     "ParentheticalLine": {
@@ -5807,7 +5807,7 @@
     "TextCommand": {
       "tag": "macroName",
       "name": "meta.text.sd",
-      "match": "([<](?![^\\S\\n\\r]))((?:\\\\.|[^>])*?)([>])",
+      "match": "([<](?![^\\S\\n\\r]))((?:\\\\.|[^>])*?)((?<![-])[>])",
       "captures": {
         "1": {
           "tag": "keyword",

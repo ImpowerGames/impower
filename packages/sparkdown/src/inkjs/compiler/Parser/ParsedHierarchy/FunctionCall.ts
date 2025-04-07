@@ -126,7 +126,7 @@ export class FunctionCall extends Expression {
         (divertTarget === null && variableDivertTarget === null)
       ) {
         this.Error(
-          `The ${this.name}() function should take one argument: a divert target to the target knot, stitch, gather or choice you want to check. e.g. TURNS_SINCE(> myKnot)`
+          `The ${this.name}() function should take one argument: a divert target to the target knot, stitch, gather or choice you want to check. e.g. TURNS_SINCE(-> myKnot)`
         );
         return;
       }
@@ -274,7 +274,7 @@ export class FunctionCall extends Expression {
 
       if (attemptingTurnCountOfVariableTarget) {
         this.Error(
-          `When getting the TURNS_SINCE() of a variable target, remove the '>' - i.e. it should just be TURNS_SINCE(${divert.runtimeDivert.variableDivertName})`
+          `When getting the TURNS_SINCE() of a variable target, remove the '->' - i.e. it should just be TURNS_SINCE(${divert.runtimeDivert.variableDivertName})`
         );
 
         return;
@@ -302,7 +302,7 @@ export class FunctionCall extends Expression {
 
       if (runtimeVarRef.pathForCount !== null) {
         this.Error(
-          `Should be '${FunctionCall.name}'(> '${this._variableReferenceToCount.name}). Usage without the '>' only makes sense for variable targets.`
+          `Should be '${FunctionCall.name}'(-> '${this._variableReferenceToCount.name}). Usage without the '->' only makes sense for variable targets.`
         );
       }
     }
