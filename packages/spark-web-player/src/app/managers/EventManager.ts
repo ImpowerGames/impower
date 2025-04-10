@@ -132,38 +132,24 @@ export default class EventManager extends Manager {
     }
   };
 
-  onPointerDown(_event: PointerEvent): void {
-    // NoOp
-  }
+  onPointerDown(_event: PointerEvent): void {}
 
-  onPointerMove(_event: PointerEvent): void {
-    // NoOp
-  }
+  onPointerMove(_event: PointerEvent): void {}
 
-  onPointerUp(_event: PointerEvent): void {
-    // NoOp
-  }
+  onPointerUp(_event: PointerEvent): void {}
 
-  onTap(_event: PointerEvent): void {
-    // NoOp
-  }
+  onTap(_event: PointerEvent): void {}
 
   onDragStart(
     _event: PointerEvent,
     _dragThreshold: number,
     _distanceX: number,
     _distanceY: number
-  ): void {
-    // NoOp
-  }
+  ): void {}
 
-  onDrag(_event: PointerEvent): void {
-    // NoOp
-  }
+  onDrag(_event: PointerEvent): void {}
 
-  onDragEnd(_event: PointerEvent): void {
-    // NoOp
-  }
+  onDragEnd(_event: PointerEvent): void {}
 
   override onStart(): void {
     this.bind();
