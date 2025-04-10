@@ -33,12 +33,8 @@ export class Manager {
     return this._app.audioContext;
   }
 
-  constructor(
-    app: Application
-    // assets: SparkAssets
-  ) {
+  constructor(app: Application) {
     this._app = app;
-    // this._assets = assets;
   }
 
   onStart(): void {
