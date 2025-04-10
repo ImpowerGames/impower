@@ -56,6 +56,17 @@ onmessage = async (e) => {
       result: {},
     });
   }
+
+  if (message.method === "renderer/resize") {
+    const { width, height, resolution } = message.params;
+    app.renderer.resize(width, height, resolution);
+    self.postMessage({
+      jsonrpc: "2.0",
+      id: message.id,
+      method: message.method,
+      result: {},
+    });
+  }
 };
 
 const populateScene = () => {
