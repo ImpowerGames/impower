@@ -11,7 +11,7 @@ import { Scene } from "./Scene";
 import AudioScene from "./scenes/AudioScene";
 import UIScene from "./scenes/UIScene";
 import { getEventData } from "./utils/getEventData";
-import INLINE_RENDERER_WORKER from "./workers/Renderer.worker";
+import INLINE_RENDERER_WORKER from "./workers/renderer.worker";
 
 const RENDERER_WORKER_URL = URL.createObjectURL(
   new Blob([INLINE_RENDERER_WORKER], {
@@ -206,7 +206,7 @@ export class Application {
         params: {
           timeBuffer: this._timeBuffer,
           options: {
-            view: this._offscreenCanvas,
+            canvas: this._offscreenCanvas,
             width,
             height,
             resolution: window.devicePixelRatio,
