@@ -9,6 +9,7 @@ import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messag
 import { Ticker } from "@impower/spark-engine/src/game/core/classes/Ticker";
 import { Manager } from "./Manager";
 import AudioManager from "./managers/AudioManager";
+import EventManager from "./managers/EventManager";
 import UIManager from "./managers/UIManager";
 import { getEventData } from "./utils/getEventData";
 import INLINE_RENDERER_WORKER from "./workers/renderer.worker";
@@ -72,6 +73,7 @@ export class Application {
   protected _managers: Manager[] = [
     new UIManager(this),
     new AudioManager(this),
+    new EventManager(this),
   ];
   public get managers() {
     return this._managers;
@@ -147,9 +149,9 @@ export class Application {
             },
           });
         }
-        this.managers.forEach((manager) => {
+        for (const manager of this._managers) {
           manager.onResize(entry);
-        });
+        }
       }
     });
     this._resizeObserver.observe(this._view);
@@ -280,7 +282,10 @@ export class Application {
   }
 
   start() {
-    this.ticker.add(this.onUpdate);
+    for (const manager of this._managers) {
+      manager.onStart();
+    }
+    this.ticker.add((time) => this.update(time));
     this.ticker.start();
     this.sendRendererRequest({
       method: "renderer/start",
@@ -335,10 +340,9 @@ export class Application {
     this._ticker.dispose();
     this.unbind();
     this.resizeObserver.disconnect();
-    this.managers.forEach((manager) => {
-      manager.unbind();
+    for (const manager of this._managers) {
       manager.onDispose();
-    });
+    }
     if (this.game) {
       this.game.destroy();
     }
@@ -379,23 +383,31 @@ export class Application {
   pause(): void {
     this._overlay?.classList.add("pause-game");
     this.ticker.speed = 0;
-    this.managers.forEach((manager) => {
+    for (const manager of this._managers) {
       manager.onPause();
-    });
+    }
   }
 
   unpause(): void {
     this._overlay?.classList.remove("pause-game");
-    this.managers.forEach((manager) => {
+    for (const manager of this._managers) {
       manager.onUnpause();
-    });
+    }
     this.ticker.speed = 1;
   }
 
+  step(seconds: number): void {
+    this._ticker.adjustTime(seconds);
+    for (const manager of this._managers) {
+      manager.onStep(seconds);
+    }
+    this.update(this._ticker);
+  }
+
   protected update(time: Ticker): void {
-    this.managers.forEach((manager) => {
+    for (const manager of this._managers) {
       manager.onUpdate();
-    });
+    }
 
     if (this._timeView) {
       this._timeView[0] = this._ticker.elapsedTime;
@@ -413,18 +425,6 @@ export class Application {
     }
   }
 
-  step(seconds: number): void {
-    this._ticker.adjustTime(seconds);
-    this.managers.forEach((manager) => {
-      manager.onStep(seconds);
-    });
-    this.update(this._ticker);
-  }
-
-  protected onUpdate = (time: Ticker) => {
-    this.update(time);
-  };
-
   async onReceive(
     msg: RequestMessage | NotificationMessage
   ): Promise<
@@ -433,17 +433,17 @@ export class Application {
     | undefined
   > {
     return new Promise((resolve) => {
-      this._managers.forEach((scene) => {
+      for (const manager of this._managers) {
         if ("id" in msg) {
-          scene.onReceiveRequest(msg).then((response) => {
+          manager.onReceiveRequest(msg).then((response) => {
             if (response) {
               resolve(response as any);
             }
           });
         } else {
-          scene.onReceiveNotification(msg);
+          manager.onReceiveNotification(msg);
         }
-      });
+      }
     });
   }
 }
