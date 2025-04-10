@@ -1,6 +1,6 @@
 import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/AddCompilerFileMessage";
 import { CompileProgramMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/CompileProgramMessage";
-import { CompilerInitializedMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/CompilerInitializedMessage";
+import { CompilerInitializeMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/CompilerInitializeMessage";
 import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
 import { RemoveCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/RemoveCompilerFileMessage";
 import { UpdateCompilerDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/UpdateCompilerDocumentMessage";
@@ -125,10 +125,6 @@ export default class SparkdownTextDocuments {
     ((program: SparkProgram | undefined) => void)[]
   >();
 
-  protected _compilerIsInitialized = false;
-
-  protected _onCompilerInitialized = new Set<() => void>();
-
   omitImageData = false;
 
   /**
@@ -139,15 +135,7 @@ export default class SparkdownTextDocuments {
     this._compilerWorker.onerror = (e) => {
       console.error(e);
     };
-    this._compilerWorker.addEventListener("message", (e) => {
-      if (CompilerInitializedMessage.type.isNotification(e.data)) {
-        for (const callback of this._onCompilerInitialized) {
-          callback();
-        }
-        this._onCompilerInitialized.clear();
-        this._compilerIsInitialized = true;
-      }
-    });
+    this.sendCompilerRequest(CompilerInitializeMessage.type, {});
   }
 
   protected async sendCompilerRequest<M extends string, P, R>(
@@ -156,11 +144,6 @@ export default class SparkdownTextDocuments {
     transfer: Transferable[] = [],
     onProgress?: (value: ProgressValue) => void
   ): Promise<R> {
-    if (!this._compilerIsInitialized) {
-      await new Promise<void>((resolve) =>
-        this._onCompilerInitialized.add(resolve)
-      );
-    }
     const request = type.request(params);
     return new Promise<R>((resolve, reject) => {
       const onResponse = (e: MessageEvent) => {

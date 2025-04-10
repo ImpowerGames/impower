@@ -33,8 +33,6 @@ const respond = <T>(
   return result;
 };
 
-respond("compiler/initialized");
-
 onmessage = async (e) => {
   const message: {
     jsonrpc: string;
@@ -47,6 +45,11 @@ onmessage = async (e) => {
     const params = message.params;
     const id = message.id;
     if (params) {
+      if (method === "compiler/initialize") {
+        const uri = "";
+        respond(method, id, uri, () => ({}));
+        respond("compiler/initialized");
+      }
       if (method === "compiler/configure") {
         const uri = "";
         respond(method, id, uri, () => compiler.configure(params));
