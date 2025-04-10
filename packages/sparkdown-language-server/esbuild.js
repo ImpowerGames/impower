@@ -1,4 +1,5 @@
 import * as esbuild from "esbuild";
+import fs from "fs";
 import path from "path";
 
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
@@ -10,6 +11,8 @@ const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
 const LOG_PREFIX = WATCH ? "[watch] " : "";
+
+const SPARKDOWN_SRC_PATH = "../sparkdown/src";
 
 /** @type {import('esbuild').Plugin} **/
 const esbuildInlineWorkerPlugin = (extraConfig) => ({
@@ -88,6 +91,18 @@ async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
     await ctx.watch();
+    const rebuild = async (ctx) => {
+      console.log(
+        LOG_PREFIX +
+          `${path.basename(
+            process.cwd()
+          )}: detected change in ${SPARKDOWN_SRC_PATH}, rebuilding...`
+      );
+      await ctx.rebuild();
+    };
+    fs.watch(SPARKDOWN_SRC_PATH, { recursive: true }, () => {
+      rebuild(ctx);
+    });
   } else {
     await ctx.rebuild();
     await ctx.dispose();

@@ -1,10 +1,13 @@
 import * as esbuild from "esbuild";
+import fs from "fs";
 import path from "path";
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
 const LOG_PREFIX = WATCH ? "[watch] " : "";
+
+const SPARK_WEB_PLAYER_SRC_PATH = "../../../packages/spark-web-player/src";
 
 /** @type {import('esbuild').Plugin} **/
 const esbuildInlineWorkerPlugin = (extraConfig) => ({
@@ -18,6 +21,9 @@ const esbuildInlineWorkerPlugin = (extraConfig) => ({
         minify: PRODUCTION,
         format: "esm",
         target: "esnext",
+        define: {
+          global: "globalThis",
+        },
         ...(extraConfig || {}),
       });
       let bundledText = result.outputFiles?.[0]?.text || "";
@@ -85,6 +91,18 @@ async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
     await ctx.watch();
+    const rebuild = async (ctx) => {
+      console.log(
+        LOG_PREFIX +
+          `${path.basename(
+            process.cwd()
+          )}: detected change in ${SPARK_WEB_PLAYER_SRC_PATH}, rebuilding...`
+      );
+      await ctx.rebuild();
+    };
+    fs.watch(SPARK_WEB_PLAYER_SRC_PATH, { recursive: true }, () => {
+      rebuild(ctx);
+    });
   } else {
     await ctx.rebuild();
     await ctx.dispose();
