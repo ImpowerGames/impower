@@ -8,8 +8,8 @@ import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { Ticker } from "@impower/spark-engine/src/game/core/classes/Ticker";
 import { Manager } from "./Manager";
-import AudioManager from "./scenes/AudioManager";
-import UIManager from "./scenes/UIManager";
+import AudioManager from "./managers/AudioManager";
+import UIManager from "./managers/UIManager";
 import { getEventData } from "./utils/getEventData";
 import INLINE_RENDERER_WORKER from "./workers/renderer.worker";
 
