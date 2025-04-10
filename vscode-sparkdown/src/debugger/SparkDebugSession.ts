@@ -442,6 +442,8 @@ export class SparkDebugSession extends LoggingDebugSession {
     this._launchLine =
       (await this._fileAccessor.getSelectedLine(args.program)) ?? 0;
 
+    response.success = true;
+
     this.sendResponse(response);
   }
 
