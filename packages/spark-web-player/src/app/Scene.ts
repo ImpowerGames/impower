@@ -1,45 +1,27 @@
 import {
-  type Message,
   type NotificationMessage,
   type RequestMessage,
   type ResponseError,
 } from "@impower/spark-engine/src/game/core";
-import { type Application } from "./Application";
+import { Application, Container } from "pixi.js";
 
-export class Manager {
+export class Scene {
   protected _app: Application;
-
-  get screen() {
-    return this._app.screen;
-  }
-
-  get view() {
-    return this._app.view;
-  }
-
-  get canvas() {
-    return this._app.canvas;
-  }
-
-  get overlay() {
-    return this._app.overlay;
-  }
-
-  get ticker() {
-    return this._app.ticker;
-  }
-
-  get audioContext() {
-    return this._app.audioContext;
+  get app() {
+    return this._app;
   }
 
   constructor(app: Application) {
     this._app = app;
   }
 
+  async onLoad(): Promise<Container[]> {
+    return [];
+  }
+
   onStart(): void {}
 
-  onUpdate(): void {}
+  onUpdate(_elapsedTime: number): void {}
 
   onStep(_seconds: number): void {}
 
@@ -51,6 +33,25 @@ export class Manager {
 
   onDispose() {}
 
+  onPointerDown(_event: PointerEvent): void {}
+
+  onPointerMove(_event: PointerEvent): void {}
+
+  onPointerUp(_event: PointerEvent): void {}
+
+  onTap(_event: PointerEvent): void {}
+
+  onDragStart(
+    _event: PointerEvent,
+    _dragThreshold: number,
+    _distanceX: number,
+    _distanceY: number
+  ): void {}
+
+  onDrag(_event: PointerEvent): void {}
+
+  onDragEnd(_event: PointerEvent): void {}
+
   onReceiveNotification(_msg: NotificationMessage): void {}
 
   async onReceiveRequest(
@@ -61,9 +62,5 @@ export class Manager {
     | undefined
   > {
     return undefined;
-  }
-
-  emit(message: Message, transfer?: ArrayBuffer[]) {
-    this._app.emit(message, transfer);
   }
 }

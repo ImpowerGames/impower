@@ -60,7 +60,7 @@ export class Application {
     return this._overlay;
   }
 
-  protected _screen: { width: number; height: number };
+  protected _screen: { width: number; height: number; resolution: number };
   get screen() {
     return this._screen;
   }
@@ -115,6 +115,14 @@ export class Application {
     this._view.appendChild(this._canvas);
     this._offscreenCanvas = this._canvas.transferControlToOffscreen();
 
+    const width = this._view.clientWidth;
+    const height = this._view.clientHeight;
+    this._screen = {
+      width,
+      height,
+      resolution: window.devicePixelRatio,
+    };
+
     if (window.crossOriginIsolated) {
       this._timeBuffer = new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT);
       this._timeView = new Float64Array(this._timeBuffer);
@@ -137,28 +145,23 @@ export class Application {
       if (borderBoxSize) {
         const width = borderBoxSize.inlineSize;
         const height = borderBoxSize.blockSize;
-        this._screen = { width, height };
+        const resolution = this._screen.resolution;
+        this._screen.width = width;
+        this._screen.height = height;
         if (this._rendererInitialized) {
           this.sendRendererRequest({
             jsonrpc: "2.0",
             id: crypto.randomUUID(),
             method: "renderer/resize",
-            params: {
-              width,
-              height,
-            },
+            params: this._screen,
           });
         }
         for (const manager of this._managers) {
-          manager.onResize(entry);
+          manager.onResize(width, height, resolution);
         }
       }
     });
     this._resizeObserver.observe(this._view);
-
-    const width = this._view.clientWidth;
-    const height = this._view.clientHeight;
-    this._screen = { width, height };
 
     this._game = game;
 
@@ -199,10 +202,6 @@ export class Application {
     this._initializing = new Promise<void>((resolve) => {
       this._resolveInit = resolve;
     });
-    // Initialize screen
-    const width = this._view.clientWidth;
-    const height = this._view.clientHeight;
-    this._screen = { width, height };
 
     // Initialize renderer
     await this.sendRendererRequest(
@@ -212,9 +211,9 @@ export class Application {
           timeBuffer: this._timeBuffer,
           options: {
             canvas: this._offscreenCanvas,
-            width,
-            height,
-            resolution: window.devicePixelRatio,
+            width: this._screen.width,
+            height: this._screen.height,
+            resolution: this._screen.resolution,
             antialias: true,
             autoDensity: true,
             backgroundAlpha: 0,
@@ -411,14 +410,14 @@ export class Application {
 
     if (this._timeView) {
       this._timeView[0] = this._ticker.elapsedTime;
-    } else {
-      this.sendRendererRequest({
-        method: "renderer/tick",
-        params: {
-          time: this._ticker.elapsedTime,
-        },
-      });
     }
+
+    this.sendRendererRequest({
+      method: "renderer/update",
+      params: {
+        time: this._ticker.elapsedTime,
+      },
+    });
 
     if (this.game) {
       this.game.update(time);
