@@ -10,6 +10,7 @@ import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocol
 import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedThreadMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameHitBreakpointMessage";
+import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
 import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameSteppedMessage";
 import { GetGameEvaluationContextMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameEvaluationContextMessage";
@@ -38,6 +39,7 @@ import { ExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes
 import { FinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/FinishedMessage";
 import { HitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/HitBreakpointMessage";
 import { RuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/RuntimeErrorMessage";
+import { StartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartedMessage";
 import { StartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartedThreadMessage";
 import { SteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/SteppedMessage";
 import { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
@@ -66,13 +68,8 @@ export default class SparkWebPlayer extends Component(spec) {
 
   _loadListeners = new Set<() => void>();
 
-  _audioContext?: AudioContext;
-
   override onConnected() {
-    this.ref.audioButton?.addEventListener(
-      "click",
-      this.handleClickAudioOverlay
-    );
+    this.ref.playButton?.addEventListener("click", this.handleClickPlayButton);
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     this.emit(
       MessageProtocol.event,
@@ -81,32 +78,41 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   override onDisconnected() {
-    this.ref.audioButton?.removeEventListener(
+    this.ref.playButton?.removeEventListener(
       "click",
-      this.handleClickAudioOverlay
+      this.handleClickPlayButton
     );
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
   }
 
-  protected async hideAudioOverlay() {
-    if (this.ref.audioButton) {
-      this.ref.audioButton.classList.add("on");
-      const animations = this.ref.audioButton.getAnimations();
+  protected async hidePlayButton() {
+    if (this.ref.playButton) {
+      this.ref.playButton.style.pointerEvents = "none";
+      this.ref.playButton.style.opacity = "0";
+      const animations = this.ref.playButton.getAnimations();
       await Promise.allSettled(
         animations.map((animation) => animation.finished)
       );
-      this.ref.audioButton.remove();
+      this.ref.playButton.style.display = "none";
     }
   }
 
-  protected handleClickAudioOverlay = () => {
+  protected async showPlayButton() {
+    if (this.ref.playButton) {
+      this.ref.playButton.style.pointerEvents = "";
+      this.ref.playButton.style.opacity = "";
+      this.ref.playButton.style.display = "";
+    }
+  }
+
+  protected handleClickPlayButton = async () => {
     const audioContext = new AudioContext();
     if (audioContext.state === "running") {
-      this._audioContext = audioContext;
-      if (this._app) {
-        this._app.setAudioContext(audioContext);
+      await this.buildGame();
+      const gameStarted = this._game?.start();
+      if (gameStarted) {
+        this._app?.start();
       }
-      this.hideAudioOverlay();
     }
   };
 
@@ -646,6 +652,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._game.destroy();
       this._game = undefined;
     }
+    this.showPlayButton();
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
     this.emit(
       MessageProtocol.event,
@@ -700,6 +707,18 @@ export default class SparkWebPlayer extends Component(spec) {
             };
             await this.stopGame("error", error);
           }
+        }
+      }
+    );
+    this._game.connection.outgoing.addListener(
+      StartedMessage.method,
+      async (msg) => {
+        if (StartedMessage.type.isNotification(msg)) {
+          this.hidePlayButton();
+          this.emit(
+            MessageProtocol.event,
+            GameStartedMessage.type.notification(msg.params)
+          );
         }
       }
     );
@@ -814,23 +833,26 @@ export default class SparkWebPlayer extends Component(spec) {
     this._app = new Application(
       this._game,
       this.ref.gameView,
-      this.ref.gameOverlay,
-      this._audioContext
+      this.ref.gameOverlay
     );
     await this._app.init();
   }
 
   async updatePreview(file: string, line: number) {
-    if (
-      !this._app ||
-      !this._app.initialized ||
-      !this._game ||
-      (this._game.state === "previewing" &&
-        (this._game.program.uri !== this._program?.uri ||
-          this._game.program.version !== this._program?.version))
-    ) {
-      // If haven't built game yet, or programs have changed since last build, build game.
-      await this.buildGame({ file, line });
+    if (this._app && !this._app.initialized && this._app.initializing) {
+      await this._app.initializing;
+    } else {
+      if (
+        !this._app ||
+        !this._app.initialized ||
+        !this._game ||
+        (this._game.state === "previewing" &&
+          (this._game.program.uri !== this._program?.uri ||
+            this._game.program.version !== this._program?.version))
+      ) {
+        // If haven't built game yet, or programs have changed since last build, build game.
+        await this.buildGame({ file, line });
+      }
     }
     if (this._game && this._game.state === "previewing") {
       this._game.preview(file, line);

@@ -29,6 +29,7 @@ import { ExitedThreadMessage } from "./messages/ExitedThreadMessage";
 import { FinishedMessage } from "./messages/FinishedMessage";
 import { HitBreakpointMessage } from "./messages/HitBreakpointMessage";
 import { RuntimeErrorMessage } from "./messages/RuntimeErrorMessage";
+import { StartedMessage } from "./messages/StartedMessage";
 import { StartedThreadMessage } from "./messages/StartedThreadMessage";
 import { SteppedMessage } from "./messages/SteppedMessage";
 import { Module } from "./Module";
@@ -331,6 +332,7 @@ export class Game<T extends M = {}> {
 
   start(save: string = ""): boolean {
     this._state = "running";
+    this.notifyStarted();
     this._context.system.previewing = undefined;
     if (save) {
       this.loadSave(save);
@@ -579,7 +581,9 @@ export class Game<T extends M = {}> {
           return false;
         }
       } else {
-        this.notifyFinished();
+        if (this._state === "running") {
+          this.notifyFinished();
+        }
         // DONE - ran out of flow
         return true;
       }
@@ -656,6 +660,10 @@ export class Game<T extends M = {}> {
         location: this.getDocumentLocation(this._executingLocation),
       })
     );
+  }
+
+  protected notifyStarted() {
+    this.connection.emit(StartedMessage.type.notification({}));
   }
 
   protected notifyFinished() {

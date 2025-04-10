@@ -79,6 +79,16 @@ export class Application {
     return this._audioContext;
   }
 
+  private _resolveInit!: () => void;
+
+  private _initializing?: Promise<void>;
+  get initializing() {
+    if (this._initialized) {
+      return Promise.resolve();
+    }
+    return this._initializing;
+  }
+
   protected _initialized = false;
   get initialized() {
     return this._initialized;
@@ -181,6 +191,9 @@ export class Application {
   }
 
   async init() {
+    this._initializing = new Promise<void>((resolve) => {
+      this._resolveInit = resolve;
+    });
     // Initialize screen
     const width = this._view.clientWidth;
     const height = this._view.clientHeight;
@@ -217,8 +230,18 @@ export class Application {
     // Initialize game
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
     this._game.init({
-      send: (msg: Message, _t?: ArrayBuffer[]) => {
-        this.onReceive(msg as RequestMessage | NotificationMessage);
+      send: async (msg: Message, _t?: ArrayBuffer[]) => {
+        const partialResponse = await this.onReceive(
+          msg as RequestMessage | NotificationMessage
+        );
+        if (partialResponse && "id" in msg) {
+          this.send({
+            jsonrpc: "2.0",
+            id: msg.id,
+            method: msg.method,
+            ...partialResponse,
+          });
+        }
       },
       resolve: (path: string) => {
         // TODO: resolve import and load paths to url
@@ -250,6 +273,7 @@ export class Application {
       },
     });
     this._initialized = true;
+    this._resolveInit();
   }
 
   setAudioContext(audioContext: AudioContext) {

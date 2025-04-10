@@ -325,11 +325,6 @@
     "menus": {
       "view/title": [
         {
-          "command": "sparkdown.debugGame",
-          "group": "navigation@1",
-          "when": "view == sparkdown-outline && !inDebugMode"
-        },
-        {
           "command": "sparkdown.previewGame",
           "group": "navigation@3",
           "when": "view == sparkdown-outline"
@@ -350,19 +345,6 @@
           "command": "sparkdown.previewScreenplay",
           "when": "editorLangId == sparkdown",
           "group": "navigation@4"
-        }
-      ],
-      "editor/title/run": [
-        {
-          "command": "sparkdown.debugGame",
-          "when": "!inDebugMode && (resourceLangId == sparkdown || view == sparkdown-outline || activeWebviewPanelId == 'sparkdown-preview-game' || activeWebviewPanelId == 'sparkdown-preview-screenplay')",
-          "group": "navigation@1"
-        }
-      ],
-      "commandPalette": [
-        {
-          "command": "sparkdown.debugGame",
-          "when": "!inDebugMode && (resourceLangId == sparkdown || view == sparkdown-outline || activeWebviewPanelId == 'sparkdown-preview-game' || activeWebviewPanelId == 'sparkdown-preview-screenplay')"
         }
       ],
       "debug/variables/context": [

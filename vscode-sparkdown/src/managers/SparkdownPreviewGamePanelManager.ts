@@ -8,6 +8,7 @@ import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protoc
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
 import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
+import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
@@ -261,6 +262,11 @@ export class SparkdownPreviewGamePanelManager {
               vscode.TextEditorRevealType.InCenterIfOutsideViewport
             );
           }
+        }
+      }
+      if (GameStartedMessage.type.isNotification(message)) {
+        if (!vscode.debug.activeDebugSession) {
+          vscode.commands.executeCommand("sparkdown.debugGame");
         }
       }
       if (message) {

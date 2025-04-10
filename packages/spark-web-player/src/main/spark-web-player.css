@@ -5,6 +5,9 @@
   -moz-tab-size: 4;
   tab-size: 4;
   -webkit-tap-highlight-color: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol";
 }
 
 :host * {
@@ -173,56 +176,28 @@ Make sure disabled buttons don't get the pointer cursor.
   flex-direction: column;
 }
 
-#audio-button {
+#play-button {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 16px;
+  inset: 0;
   cursor: pointer;
   pointer-events: auto;
   display: flex;
-  align-items: flex-end;
-  transition: opacity ease 300ms 1000ms;
-  border-radius: 50%;
-  background-color: rgba(0, 0, 0, 0.15);
-}
-
-#audio-icon {
-  color: white;
-  width: 24px;
-  height: 24px;
-  opacity: 0.5;
-}
-
-#audio-off-icon {
-  position: absolute;
-  inset: 0;
-  transition: opacity ease 200ms;
-}
-
-#audio-on-icon {
-  position: absolute;
-  inset: 0;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.75);
+  font-weight: 700;
+  font-size: 2.25rem;
+  color: #0e639c;
   opacity: 0;
-  transition: opacity ease 200ms;
+  transition: opacity 0.15s;
 }
 
-#audio-button.on {
-  opacity: 0;
-}
-
-#audio-button.on #audio-off-icon {
-  opacity: 0;
-}
-
-#audio-button.on #audio-on-icon {
+#play-button:hover {
   opacity: 1;
+  color: #1177bb;
 }
 
-#audio-button:hover #audio-icon {
-  opacity: 1;
-}
-
-#audio-button.on #audio-icon {
-  opacity: 1;
+#play-icon {
+  width: 6rem;
+  height: 6rem;
 }

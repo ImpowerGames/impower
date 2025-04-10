@@ -28,7 +28,6 @@ import { GetGameStackTraceMessage } from "@impower/spark-editor-protocol/src/pro
 import { GetGameThreadsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameThreadsMessage";
 import { GetGameVariablesMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameVariablesMessage";
 import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
-import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
 import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
@@ -443,34 +442,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     this._launchLine =
       (await this._fileAccessor.getSelectedLine(args.program)) ?? 0;
 
-    // start the program in the runtime
-    try {
-      await this._connection.emit(
-        StartGameMessage.type.request({
-          stopOnEntry: Boolean(args.stopOnEntry),
-          debug: !args.noDebug,
-        })
-      );
-      this.sendResponse(response);
-    } catch (e: unknown) {
-      this.sendErrorResponse(response, {
-        id:
-          e &&
-          typeof e === "object" &&
-          "code" in e &&
-          typeof e.code === "number"
-            ? e.code
-            : 1001,
-        format:
-          e &&
-          typeof e === "object" &&
-          "message" in e &&
-          typeof e.message === "string"
-            ? e.message
-            : "Could not launch",
-        showUser: true,
-      });
-    }
+    this.sendResponse(response);
   }
 
   protected override async pauseRequest(
