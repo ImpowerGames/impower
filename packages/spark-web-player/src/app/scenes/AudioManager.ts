@@ -9,9 +9,9 @@ import { AudioPlayerUpdate } from "@impower/spark-engine/src/game/modules/audio/
 import { ConfigureAudioMixerParams } from "@impower/spark-engine/src/game/modules/audio/types/ConfigureAudioMixerParams";
 import { LoadAudioPlayerParams } from "@impower/spark-engine/src/game/modules/audio/types/LoadAudioPlayerParams";
 import { UpdateAudioPlayersParams } from "@impower/spark-engine/src/game/modules/audio/types/UpdateAudioPlayersParams";
-import { Scene } from "../Scene";
+import { Manager } from "../Manager";
 
-export default class AudioScene extends Scene {
+export default class AudioManager extends Manager {
   /**
    * This audio context may not be allowed to run,
    * but it can still be used for things like decoding and creating buffers

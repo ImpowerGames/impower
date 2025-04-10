@@ -6,7 +6,7 @@ import {
 } from "@impower/spark-engine/src/game/core";
 import { type Application } from "./Application";
 
-export class Scene {
+export class Manager {
   protected _app: Application;
 
   get screen() {
@@ -31,14 +31,6 @@ export class Scene {
 
   get audioContext() {
     return this._app.audioContext;
-  }
-
-  protected _ready = false;
-  get ready(): boolean {
-    return this._ready;
-  }
-  set ready(value: boolean) {
-    this._ready = value;
   }
 
   // TODO:
@@ -101,10 +93,6 @@ export class Scene {
 
   getRequiredAssets(): Record<string, { src: string; ext: string }> {
     return {};
-  }
-
-  async onLoad(): Promise<void> {
-    // NoOp
   }
 
   onStart(): void {

@@ -7,9 +7,9 @@ import {
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { Ticker } from "@impower/spark-engine/src/game/core/classes/Ticker";
-import { Scene } from "./Scene";
-import AudioScene from "./scenes/AudioScene";
-import UIScene from "./scenes/UIScene";
+import { Manager } from "./Manager";
+import AudioManager from "./scenes/AudioManager";
+import UIManager from "./scenes/UIManager";
 import { getEventData } from "./utils/getEventData";
 import INLINE_RENDERER_WORKER from "./workers/renderer.worker";
 
@@ -69,9 +69,12 @@ export class Application {
     return this._resizeObserver;
   }
 
-  protected _scenes: Scene[] = [];
-  public get scenes() {
-    return this._scenes;
+  protected _managers: Manager[] = [
+    new UIManager(this),
+    new AudioManager(this),
+  ];
+  public get managers() {
+    return this._managers;
   }
 
   protected _audioContext?: AudioContext;
@@ -144,8 +147,8 @@ export class Application {
             },
           });
         }
-        this.scenes.forEach((scene) => {
-          scene.onResize(entry);
+        this.managers.forEach((manager) => {
+          manager.onResize(entry);
         });
       }
     });
@@ -220,13 +223,6 @@ export class Application {
     );
     this._rendererInitialized = true;
 
-    // Initialize scenes
-    const initialSceneConstructors = this.game.context.system.previewing
-      ? [UIScene]
-      : [UIScene, AudioScene];
-    const scenes = await this.loadScenes(...initialSceneConstructors);
-    scenes.forEach((scene) => this.startScene(scene));
-
     // Initialize game
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
     this._game.init({
@@ -294,52 +290,6 @@ export class Application {
     });
   }
 
-  async loadScenes(...sceneConstructors: (typeof Scene)[]): Promise<Scene[]> {
-    // Load all scenes
-    const scenes = sceneConstructors.map(
-      (sceneConstructor) => new sceneConstructor(this)
-    );
-    // TODO: Load all scene assets
-    // const loadingUIName = "loading";
-    // const loadingProgressVariable = "--loading_progress";
-    // this.game.module.ui.style.update(loadingUIName, {
-    //   [loadingProgressVariable]: "0",
-    // });
-    // this.game.module.ui.showUI(loadingUIName);
-    // const allRequiredAssets: Record<string, { src: string; ext: string }> = {};
-    // scenes.forEach((scene) => {
-    //   Object.entries(scene.getRequiredAssets()).forEach(([id, asset]) => {
-    //     allRequiredAssets[id] = asset;
-    //   });
-    // });
-    // await this.assets.loadAssets(allRequiredAssets, (p) => {
-    //   if (this.game.module.ui) {
-    //     this.game.module.ui.updateStyleProperty(
-    //       loadingProgressVariable,
-    //       p,
-    //       loadingUIName
-    //     );
-    //   }
-    // });
-    await Promise.all(scenes.map((scene) => this.loadScene(scene)));
-    // this.game.module.ui.hideUI(loadingUIName);
-    return scenes;
-  }
-
-  async loadScene(scene: Scene) {
-    // Bind scene so it can respond to dom events
-    scene.bind();
-    // Load scene
-    await scene.onLoad();
-    // Add to loaded scenes
-    this._scenes.push(scene);
-  }
-
-  async startScene(scene: Scene) {
-    scene.onStart();
-    scene.ready = true;
-  }
-
   bind() {
     const view = this._canvas || this._view;
     if (view) {
@@ -385,10 +335,9 @@ export class Application {
     this._ticker.dispose();
     this.unbind();
     this.resizeObserver.disconnect();
-    this.scenes.forEach((scene) => {
-      scene.ready = false;
-      scene.unbind();
-      scene.onDispose();
+    this.managers.forEach((manager) => {
+      manager.unbind();
+      manager.onDispose();
     });
     if (this.game) {
       this.game.destroy();
@@ -430,28 +379,22 @@ export class Application {
   pause(): void {
     this._overlay?.classList.add("pause-game");
     this.ticker.speed = 0;
-    this.scenes.forEach((scene) => {
-      if (scene?.ready) {
-        scene.onPause();
-      }
+    this.managers.forEach((manager) => {
+      manager.onPause();
     });
   }
 
   unpause(): void {
     this._overlay?.classList.remove("pause-game");
-    this.scenes.forEach((scene) => {
-      if (scene?.ready) {
-        scene.onUnpause();
-      }
+    this.managers.forEach((manager) => {
+      manager.onUnpause();
     });
     this.ticker.speed = 1;
   }
 
   protected update(time: Ticker): void {
-    this.scenes.forEach((scene) => {
-      if (scene?.ready) {
-        scene.onUpdate();
-      }
+    this.managers.forEach((manager) => {
+      manager.onUpdate();
     });
 
     if (this._timeView) {
@@ -472,10 +415,8 @@ export class Application {
 
   step(seconds: number): void {
     this._ticker.adjustTime(seconds);
-    this.scenes.forEach((scene) => {
-      if (scene?.ready) {
-        scene.onStep(seconds);
-      }
+    this.managers.forEach((manager) => {
+      manager.onStep(seconds);
     });
     this.update(this._ticker);
   }
@@ -492,7 +433,7 @@ export class Application {
     | undefined
   > {
     return new Promise((resolve) => {
-      this._scenes.forEach((scene) => {
+      this._managers.forEach((scene) => {
         if ("id" in msg) {
           scene.onReceiveRequest(msg).then((response) => {
             if (response) {

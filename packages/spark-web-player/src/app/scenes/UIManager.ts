@@ -10,10 +10,10 @@ import { ObserveElementMessage } from "@impower/spark-engine/src/game/modules/ui
 import { SetThemeMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
 import { UnobserveElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
 import { UpdateElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
-import { Scene } from "../Scene";
+import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 
-export default class UIScene extends Scene {
+export default class UIManager extends Manager {
   protected _overlayRoots: HTMLElement[] = [];
 
   protected _breakpoints: Record<string, number> = {};
