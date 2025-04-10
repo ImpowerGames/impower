@@ -18,10 +18,6 @@
   },
   "main": "dist/sparkdown-language-server.js",
   "scripts": {
-    "build:dev:workers:sparkdown": "cd ../sparkdown && node ./esbuild.js && cd ../sparkdown-language-server",
-    "build:prod:workers:sparkdown": "cd ../sparkdown && node ./esbuild.js --production && cd ../sparkdown-language-server",
-    "build:dev:workers": "npm-run-all -p build:dev:workers:*",
-    "build:prod:workers": "npm-run-all -p build:prod:workers:*",
     "build": "node ./esbuild.js",
     "watch": "node ./esbuild.js --watch"
   },

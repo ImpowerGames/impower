@@ -20,19 +20,19 @@ const esbuildInlineWorkerPlugin = (extraConfig) => ({
         target: "esnext",
         ...(extraConfig || {}),
       });
-      const bundledText = result.outputFiles[0].text;
-      const bundledTextWithoutExport = bundledText.slice(
-        0,
-        bundledText.lastIndexOf("export ")
-      );
+      let bundledText = result.outputFiles?.[0]?.text || "";
+      const exportIndex = bundledText.lastIndexOf("export {");
+      if (exportIndex >= 0) {
+        bundledText = bundledText.slice(0, exportIndex);
+      }
       console.log(
         LOG_PREFIX +
           `${path.basename(process.cwd())}: loaded inline worker contents (${
-            bundledTextWithoutExport.length
+            bundledText.length
           })`
       );
       return {
-        contents: bundledTextWithoutExport,
+        contents: bundledText,
         loader: "text",
       };
     });

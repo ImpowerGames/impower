@@ -1,16 +1,16 @@
 import { exec } from "child_process";
 import chokidar from "chokidar";
 import * as dotenv from "dotenv";
-import { build, Plugin, PluginBuild } from "esbuild";
+import * as esbuild from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import fs from "fs";
 import path from "path";
 import glob from "tiny-glob";
+import pkg from "./package.json";
 import { ComponentSpec } from "./src/build/ComponentSpec";
 import extractAllSVGs from "./src/build/extractAllSVGs";
 import getScopedCSS from "./src/build/getScopedCSS";
 import renderPage from "./src/build/renderPage";
-import pkg from "./package.json";
 
 const RESET = "\x1b[0m";
 const STRING = "%s";
@@ -69,10 +69,10 @@ const watchDirs = [
   ...localDependencies.map((depPath) => `${depPath}/src`),
 ];
 
-const args = process.argv.slice(2);
-const WATCH = args.includes("--watch");
-const PRODUCTION =
-  process.env["NODE_ENV"] === "production" || args.includes("--production");
+const PRODUCTION = process.argv.includes("--production");
+const WATCH = process.argv.includes("--watch");
+
+const LOG_PREFIX = WATCH ? "[watch] " : "";
 
 if (!PRODUCTION) {
   // During development, populate process.env with variables from local .env file
@@ -94,10 +94,42 @@ console.log(STEP_COLOR, "Populating banner...");
 console.log(SRC_COLOR, `  ${PROCESS_ENV_BANNER_JS}`);
 console.log("");
 
-const envPlugin = (): Plugin => {
+const esbuildInlineWorkerPlugin = (extraConfig?: esbuild.BuildOptions) => ({
+  name: "esbuild-inline-worker",
+  setup(build) {
+    build.onLoad({ filter: /\.worker\.(?:ts|js)$/ }, async (args) => {
+      const result = await esbuild.build({
+        entryPoints: [args.path],
+        write: false,
+        bundle: true,
+        minify: PRODUCTION,
+        format: "esm",
+        target: "esnext",
+        ...(extraConfig || {}),
+      });
+      let bundledText = result.outputFiles?.[0]?.text || "";
+      const exportIndex = bundledText.lastIndexOf("export {");
+      if (exportIndex >= 0) {
+        bundledText = bundledText.slice(0, exportIndex);
+      }
+      console.log(
+        LOG_PREFIX +
+          `${path.basename(process.cwd())}: loaded inline worker contents (${
+            bundledText.length
+          })`
+      );
+      return {
+        contents: bundledText,
+        loader: "text",
+      };
+    });
+  },
+});
+
+const envPlugin = (): esbuild.Plugin => {
   return {
     name: "env-plugin",
-    setup(build: PluginBuild) {
+    setup(build: esbuild.PluginBuild) {
       const options = build.initialOptions;
       options.write = false;
       build.onEnd(async (result) => {
@@ -144,7 +176,7 @@ const buildApi = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
-  await build({
+  await esbuild.build({
     entryPoints,
     outdir: apiOutDir,
     platform: "node",
@@ -191,7 +223,7 @@ const buildPages = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
-  await build({
+  await esbuild.build({
     entryPoints: entryPoints,
     outdir: publicOutDir,
     platform: "browser",
@@ -212,7 +244,7 @@ const buildPages = async () => {
       "@codemirror/state": "@codemirror/state",
       "@lezer/common": "@lezer/common",
     },
-    plugins: [envPlugin()],
+    plugins: [esbuildInlineWorkerPlugin(), envPlugin()],
   });
 };
 
@@ -228,7 +260,7 @@ const buildComponents = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
-  await build({
+  await esbuild.build({
     entryPoints: entryPoints,
     outdir: componentsOutDir,
     platform: "node",
@@ -418,7 +450,7 @@ const buildWorkers = async () => {
   SW_RESOURCES.forEach((p) => {
     console.log(OUT_COLOR, `    ⤷ ${p}`);
   });
-  await build({
+  await esbuild.build({
     entryPoints: workerPaths,
     outdir: publicOutDir,
     bundle: true,

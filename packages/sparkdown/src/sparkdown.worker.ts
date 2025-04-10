@@ -77,3 +77,5 @@ onmessage = async (e) => {
     }
   }
 };
+
+export default "";
