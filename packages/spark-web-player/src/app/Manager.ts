@@ -37,33 +37,19 @@ export class Manager {
     this._app = app;
   }
 
-  onStart(): void {
-    // NoOp
-  }
+  onStart(): void {}
 
-  onUpdate(): void {
-    // NoOp
-  }
+  onUpdate(): void {}
 
-  onStep(_seconds: number): void {
-    // NoOp
-  }
+  onStep(_seconds: number): void {}
 
-  onPause(): void {
-    // NoOp
-  }
+  onPause(): void {}
 
-  onUnpause(): void {
-    // NoOp
-  }
+  onUnpause(): void {}
 
-  onResize(_entry: ResizeObserverEntry): void {
-    // NoOp
-  }
+  onResize(_entry: ResizeObserverEntry): void {}
 
-  onDispose() {
-    // NoOp
-  }
+  onDispose() {}
 
   onReceiveNotification(_msg: NotificationMessage): void {}
 
