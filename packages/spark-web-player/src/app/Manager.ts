@@ -271,7 +271,7 @@ export class Manager {
     return undefined;
   }
 
-  send(message: Message, transfer?: ArrayBuffer[]) {
-    this._app.send(message, transfer);
+  emit(message: Message, transfer?: ArrayBuffer[]) {
+    this._app.emit(message, transfer);
   }
 }

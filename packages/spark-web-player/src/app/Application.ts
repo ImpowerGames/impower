@@ -231,7 +231,7 @@ export class Application {
           msg as RequestMessage | NotificationMessage
         );
         if (partialResponse && "id" in msg) {
-          this.send({
+          this.emit({
             jsonrpc: "2.0",
             id: msg.id,
             method: msg.method,
@@ -347,33 +347,33 @@ export class Application {
     }
   }
 
-  send(message: Message, _transfer?: ArrayBuffer[]) {
+  emit(message: Message, _transfer?: ArrayBuffer[]) {
     // TODO: Call gameWorker.postMessage instead (worker should call game.connection.receive from self.onmessage)
     this.game.connection.receive(message);
   }
 
   onPointerDownView = (event: PointerEvent): void => {
-    this.send(EventMessage.type.notification(getEventData(event)));
+    this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
   onPointerUpView = (event: PointerEvent): void => {
-    this.send(EventMessage.type.notification(getEventData(event)));
+    this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
   onClickView = (event: MouseEvent): void => {
-    this.send(EventMessage.type.notification(getEventData(event)));
+    this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
   onPointerDownOverlay = (event: PointerEvent): void => {
-    this.send(EventMessage.type.notification(getEventData(event)));
+    this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
   onPointerUpOverlay = (event: PointerEvent): void => {
-    this.send(EventMessage.type.notification(getEventData(event)));
+    this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
   onClickOverlay = (event: MouseEvent): void => {
-    this.send(EventMessage.type.notification(getEventData(event)));
+    this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
   pause(): void {

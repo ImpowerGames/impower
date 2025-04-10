@@ -191,7 +191,7 @@ export default class UIManager extends Manager {
       const el = this.getElement(params.element);
       if (el) {
         const listener = (event: Event) => {
-          this.send(EventMessage.type.notification(getEventData(event)));
+          this.emit(EventMessage.type.notification(getEventData(event)));
         };
         this._listeners[params.element] = listener;
         el.addEventListener(params.event, listener);
