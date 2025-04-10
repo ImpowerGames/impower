@@ -115,7 +115,7 @@ export default class PreviewGameToolbar extends Component(spec) {
   };
 
   handlePointerDownStepBackwardButton = (e: Event) => {
-    this.throttledStep(-10);
+    this.throttledStep(-0.01);
   };
 
   handlePointerUpStepBackwardButton = (e: Event) => {
@@ -123,7 +123,7 @@ export default class PreviewGameToolbar extends Component(spec) {
   };
 
   handlePointerDownFastBackwardButton = (e: Event) => {
-    this.throttledStep(-100);
+    this.throttledStep(-0.1);
   };
 
   handlePointerUpFastBackwardButton = (e: Event) => {
@@ -135,7 +135,7 @@ export default class PreviewGameToolbar extends Component(spec) {
   };
 
   handlePointerDownFastForwardButton = (e: Event) => {
-    this.throttledStep(100);
+    this.throttledStep(0.1);
   };
 
   handlePointerUpFastForwardButton = (e: Event) => {
@@ -143,7 +143,7 @@ export default class PreviewGameToolbar extends Component(spec) {
   };
 
   handlePointerDownStepForwardButton = (e: Event) => {
-    this.throttledStep(10);
+    this.throttledStep(0.01);
   };
 
   handlePointerUpStepForwardButton = (e: Event) => {
@@ -162,16 +162,16 @@ export default class PreviewGameToolbar extends Component(spec) {
     }
   };
 
-  throttledStep(deltaMS: number) {
+  throttledStep(seconds: number) {
     const store = this.stores.workspace.current;
     const paused = store.preview.modes.game.paused;
-    if (deltaMS < 0) {
+    if (seconds < 0) {
       if (!paused) {
         Workspace.window.pauseGame();
       }
     }
     const throttledStep = throttle(() => {
-      Workspace.window.stepGameClock(deltaMS);
+      Workspace.window.stepGameClock(seconds);
     }, 100);
     window.cancelAnimationFrame(this._controllingPlayback);
     const loop = () => {

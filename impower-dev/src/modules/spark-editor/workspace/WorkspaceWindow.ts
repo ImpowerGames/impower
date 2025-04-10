@@ -790,8 +790,8 @@ export default class WorkspaceWindow {
     this.emit(MessageProtocol.event, UnpauseGameMessage.type.request({}));
   }
 
-  stepGameClock(deltaMS: number) {
-    if (deltaMS < 0) {
+  stepGameClock(seconds: number) {
+    if (seconds < 0) {
       const paused = this.store.preview.modes.game.paused;
       if (!paused) {
         this.pauseGame();
@@ -799,7 +799,7 @@ export default class WorkspaceWindow {
     }
     this.emit(
       MessageProtocol.event,
-      StepGameClockMessage.type.request({ deltaMS })
+      StepGameClockMessage.type.request({ seconds })
     );
   }
 

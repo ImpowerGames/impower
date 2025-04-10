@@ -8,9 +8,6 @@
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
     "@impower/spark-engine": "file:../spark-engine",
     "@impower/sparkdown": "file:../sparkdown",
-    "three": "^0.155.0"
-  },
-  "devDependencies": {
-    "@types/three": "^0.155.0"
+    "pixi.js": "^8.9.1"
   }
 }

@@ -1,9 +1,11 @@
+import { File } from "./File";
 import { SparkDiagnostic } from "./SparkDiagnostic";
 import { SparkdownRuntimeFormat } from "./SparkdownRuntimeFormat";
 
 export interface SparkProgram {
   uri: string;
   scripts: Record<string, number>;
+  files: Record<string, Omit<File, "src" | "text" | "data">>;
   compiled?: SparkdownRuntimeFormat;
   context?: {
     [type: string]: { [name: string]: any };

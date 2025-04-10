@@ -4,6 +4,7 @@ import { NotificationMessage } from "../types/NotificationMessage";
 import { RequestMessage } from "../types/RequestMessage";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
+import { Ticker } from "./Ticker";
 
 export class Coordinator<G extends Game> {
   protected _game: G;
@@ -41,10 +42,10 @@ export class Coordinator<G extends Game> {
     this._onTick?.(0);
   }
 
-  onUpdate(deltaMS: number) {
+  onUpdate(time: Ticker) {
     if (this._onTick) {
-      this._onTick(deltaMS);
-      this._elapsedMS += deltaMS;
+      this._onTick(time.deltaMS);
+      this._elapsedMS += time.deltaMS;
     }
     const advance = this.shouldContinue();
     if (advance === 1) {

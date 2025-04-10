@@ -20,7 +20,6 @@ import { setProperty } from "../utils/setProperty";
 import { uuid } from "../utils/uuid";
 import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
-import { Module } from "./Module";
 import { AutoAdvancedToContinueMessage } from "./messages/AutoAdvancedToContinueMessage";
 import { AwaitingInteractionMessage } from "./messages/AwaitingInteractionMessage";
 import { ChosePathToContinueMessage } from "./messages/ChoosePathToContinueMessage";
@@ -32,6 +31,8 @@ import { HitBreakpointMessage } from "./messages/HitBreakpointMessage";
 import { RuntimeErrorMessage } from "./messages/RuntimeErrorMessage";
 import { StartedThreadMessage } from "./messages/StartedThreadMessage";
 import { SteppedMessage } from "./messages/SteppedMessage";
+import { Module } from "./Module";
+import { Ticker } from "./Ticker";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
 
@@ -344,13 +345,13 @@ export class Game<T extends M = {}> {
     return !this._error;
   }
 
-  update(deltaMS: number) {
+  update(time: Ticker) {
     if (!this._destroyed) {
       for (const k of this._moduleNames) {
-        this._modules[k]?.onUpdate(deltaMS);
+        this._modules[k]?.onUpdate(time);
       }
       if (this._coordinator) {
-        this._coordinator.onUpdate(deltaMS);
+        this._coordinator.onUpdate(time);
       }
     }
   }

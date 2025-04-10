@@ -5,7 +5,7 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 export type StepGameClockMethod = typeof StepGameClockMessage.method;
 
 export interface StepGameClockParams {
-  deltaMS: number;
+  seconds: number;
 }
 
 export interface StepGameClockResult {}

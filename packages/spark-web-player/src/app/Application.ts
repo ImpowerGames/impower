@@ -1,43 +1,59 @@
 import {
-  Message,
-  NotificationMessage,
-  RequestMessage,
-  ResponseError,
+  type Message,
+  type NotificationMessage,
+  type RequestMessage,
+  type ResponseError,
 } from "@impower/spark-engine/src/game/core";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
-import Scene from "./Scene";
-import Ticker from "./Ticker";
-import PerspectiveCamera from "./render/cameras/PerspectiveCamera";
-import OrbitControls from "./render/controls/OrbitControls";
-import WebGLRenderer from "./render/renderers/WebGLRenderer";
+import { Ticker } from "@impower/spark-engine/src/game/core/classes/Ticker";
+import { Scene } from "./Scene";
 import AudioScene from "./scenes/AudioScene";
-import MainScene from "./scenes/MainScene";
 import UIScene from "./scenes/UIScene";
 import { getEventData } from "./utils/getEventData";
+import INLINE_RENDERER_WORKER from "./workers/Renderer.worker";
 
-export default class Application {
+const RENDERER_WORKER_URL = URL.createObjectURL(
+  new Blob([INLINE_RENDERER_WORKER], {
+    type: "text/javascript",
+  })
+);
+
+export class Application {
   // TODO: Application should only have a reference to gameWorker
   protected _game: Game;
   public get game(): Game {
     return this._game;
   }
 
-  protected _ticker = new Ticker();
+  protected _ticker = new Ticker(
+    {
+      get currentTime() {
+        return performance.now();
+      },
+    },
+    (callback: () => void) => window.requestAnimationFrame(callback)
+  );
   get ticker() {
     return this._ticker;
   }
 
-  protected _view: HTMLElement | null;
-  public get view(): HTMLElement | null {
+  protected _view: HTMLElement;
+  public get view(): HTMLElement {
     return this._view;
   }
 
-  protected _canvas?: HTMLCanvasElement;
+  protected _canvas: HTMLCanvasElement;
   get canvas() {
     return this._canvas;
   }
+
+  protected _offscreenCanvas: OffscreenCanvas;
+
+  protected _timeBuffer?: SharedArrayBuffer;
+
+  protected _timeView?: Float64Array;
 
   protected _overlay: HTMLElement | null;
   public get overlay(): HTMLElement | null {
@@ -49,29 +65,14 @@ export default class Application {
     return this._screen;
   }
 
-  protected _renderer?: WebGLRenderer;
-  get renderer() {
-    return this._renderer;
-  }
-
   protected _resizeObserver: ResizeObserver;
   public get resizeObserver(): ResizeObserver {
     return this._resizeObserver;
   }
 
-  protected _scenes = new Map<string, Scene>();
-  public get scenes(): Map<string, Scene> {
+  protected _scenes: Scene[] = [];
+  public get scenes() {
     return this._scenes;
-  }
-
-  protected _camera?: PerspectiveCamera;
-  get camera() {
-    return this._camera;
-  }
-
-  protected _orbit?: OrbitControls;
-  get orbit() {
-    return this._orbit;
   }
 
   protected _audioContext?: AudioContext;
@@ -84,7 +85,9 @@ export default class Application {
     return this._connection;
   }
 
-  protected _timeMS = 0;
+  protected _rendererWorker: Worker;
+
+  protected _rendererInitialized?: boolean;
 
   constructor(
     game: Game,
@@ -94,26 +97,26 @@ export default class Application {
   ) {
     this._view = view;
     this._overlay = overlay;
+    this._canvas = document.createElement("canvas");
+    this._view.appendChild(this._canvas);
+    this._offscreenCanvas = this._canvas.transferControlToOffscreen();
+
+    if (window.crossOriginIsolated) {
+      this._timeBuffer = new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT);
+      this._timeView = new Float64Array(this._timeBuffer);
+    }
+
     this._audioContext = audioContext || new AudioContext();
     if (this._audioContext.state !== "running") {
       this._audioContext = undefined;
+    } else {
+      this._ticker.syncToClock(this._audioContext);
     }
-    const width = this._view.clientWidth;
-    const height = this._view.clientHeight;
-    this._screen = { width, height };
 
-    // TODO:
-    // try {
-    //   this._renderer = new WebGLRenderer({
-    //     antialias: true,
-    //   });
-    //   this._canvas = this._renderer.domElement;
-    //   this._renderer.setSize(width, height);
-    // } catch (e) {
-    //   console.error(e);
-    // }
-    // this._camera = new PerspectiveCamera(50, width / height);
-    // this._camera.position.z = 1;
+    this._rendererWorker = new Worker(RENDERER_WORKER_URL);
+    this._rendererWorker.onerror = (e) => {
+      console.error(e);
+    };
 
     this._resizeObserver = new ResizeObserver(([entry]) => {
       const borderBoxSize = entry?.borderBoxSize[0];
@@ -121,13 +124,20 @@ export default class Application {
         const width = borderBoxSize.inlineSize;
         const height = borderBoxSize.blockSize;
         this._screen = { width, height };
-        if (this._camera) {
-          this._camera.aspect = width / height;
-          this._camera.updateProjectionMatrix();
-        }
-        if (this._renderer) {
-          this._renderer.setSize(width, height);
-          this._renderer.setPixelRatio(window.devicePixelRatio);
+        if (this._rendererInitialized) {
+          const id = crypto.randomUUID();
+          this._rendererWorker.postMessage(
+            {
+              jsonrpc: "2.0",
+              id,
+              method: "renderer/resize",
+              params: {
+                width,
+                height,
+              },
+            },
+            []
+          );
         }
         this.scenes.forEach((scene) => {
           scene.onResize(entry);
@@ -136,32 +146,66 @@ export default class Application {
     });
     this._resizeObserver.observe(this._view);
 
+    const width = this._view.clientWidth;
+    const height = this._view.clientHeight;
+    this._screen = { width, height };
+
     this._game = game;
 
     this._connection = new Connection({
-      onSend: (msg, t) => this.emit(msg, t),
+      onSend: (msg, t) => this.send(msg, t),
       onReceive: (msg) => this.onReceive(msg),
     });
 
-    const scenesToLoad: Record<string, Scene> = {
-      main: new MainScene(this),
-      ui: new UIScene(this),
-    };
-    if (!game.context.system.previewing) {
-      scenesToLoad["audio"] = new AudioScene(this);
-    }
-    this._scenes.clear();
-    Object.entries(scenesToLoad).forEach(([id, scene]) => {
-      this._scenes.set(id, scene);
-    });
-
-    if (this._canvas) {
-      this._view.appendChild(this._canvas);
-    }
     this.bind();
   }
 
   async init() {
+    // Initialize screen
+    const width = this._view.clientWidth;
+    const height = this._view.clientHeight;
+    this._screen = { width, height };
+
+    // Initialize renderer
+    await new Promise<any>((resolve, reject) => {
+      const id = crypto.randomUUID();
+      const onMessage = (e: MessageEvent) => {
+        const message = e.data;
+        if (message && message.method === "renderer/initialized") {
+          if (message.error) {
+            reject(message.error);
+            this._rendererInitialized = false;
+          } else {
+            resolve(message.result);
+            this._rendererInitialized = true;
+          }
+          this._rendererWorker.removeEventListener("message", onMessage);
+        }
+      };
+      this._rendererWorker.addEventListener("message", onMessage);
+      this._rendererWorker.postMessage(
+        {
+          jsonrpc: "2.0",
+          id,
+          method: "renderer/initialize",
+          params: {
+            timeBuffer: this._timeBuffer,
+            options: {
+              view: this._offscreenCanvas,
+              width,
+              height,
+              resolution: window.devicePixelRatio,
+              antialias: true,
+              autoDensity: true,
+              backgroundAlpha: 0,
+            },
+          },
+        },
+        [this._offscreenCanvas]
+      );
+    });
+
+    // Initialize game
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
     await this._game.init({
       send: (msg: Message, _t?: ArrayBuffer[]) => {
@@ -197,32 +241,53 @@ export default class Application {
       },
     });
 
-    await this.loadScenes();
+    // Initialize scenes
+    const initialSceneConstructors = this.game.context.system.previewing
+      ? [UIScene]
+      : [UIScene, AudioScene];
+    const scenes = await this.loadScenes(...initialSceneConstructors);
+    scenes.forEach((scene) => this.startScene(scene));
+  }
+
+  setAudioContext(audioContext: AudioContext) {
+    if (audioContext.state === "running") {
+      this._audioContext = audioContext;
+      this._ticker.syncToClock(audioContext);
+    }
   }
 
   start() {
     this.ticker.add(this.onUpdate);
     this.ticker.start();
+    this._rendererWorker.postMessage(
+      {
+        jsonrpc: "2.0",
+        method: "renderer/start",
+        params: {
+          time: this._ticker.startTime,
+        },
+      },
+      []
+    );
   }
 
-  async loadScenes(): Promise<void> {
+  async loadScenes(...sceneConstructors: (typeof Scene)[]): Promise<Scene[]> {
     const loadingUIName = "loading";
     const loadingProgressVariable = "--loading_progress";
-    if (this.game.module.ui) {
-      this.game.module.ui.style.update(loadingUIName, {
-        [loadingProgressVariable]: "0",
-      });
-    }
-    if (this.game.module.ui) {
-      this.game.module.ui.showUI(loadingUIName);
-    }
-    const allRequiredAssets: Record<string, { src: string; ext: string }> = {};
-    this._scenes.forEach((scene) => {
-      Object.entries(scene.getRequiredAssets()).forEach(([id, asset]) => {
-        allRequiredAssets[id] = asset;
-      });
+    this.game.module.ui.style.update(loadingUIName, {
+      [loadingProgressVariable]: "0",
     });
-    // TODO:
+    this.game.module.ui.showUI(loadingUIName);
+    const scenes = sceneConstructors.map(
+      (sceneConstructor) => new sceneConstructor(this)
+    );
+    // TODO: Load all scene assets
+    // const allRequiredAssets: Record<string, { src: string; ext: string }> = {};
+    // scenes.forEach((scene) => {
+    //   Object.entries(scene.getRequiredAssets()).forEach(([id, asset]) => {
+    //     allRequiredAssets[id] = asset;
+    //   });
+    // });
     // await this.assets.loadAssets(allRequiredAssets, (p) => {
     //   if (this.game.module.ui) {
     //     this.game.module.ui.updateStyleProperty(
@@ -232,25 +297,24 @@ export default class Application {
     //     );
     //   }
     // });
-    const scenesArray = Array.from(this.scenes.values());
-    scenesArray.forEach((scene) => {
-      scene.bind();
-    });
-    await Promise.all(
-      scenesArray.map(async (scene): Promise<void> => {
-        const objs = await scene.onLoad();
-        objs.forEach((obj) => scene.add(obj));
-      })
-    );
-    scenesArray.forEach((scene) => {
-      scene.onStart();
-    });
-    scenesArray.forEach((scene) => {
-      scene.ready = true;
-    });
-    if (this.game.module.ui) {
-      this.game.module.ui.hideUI(loadingUIName);
-    }
+    // Load all initial scenes
+    await Promise.all(scenes.map((scene) => this.loadScene(scene)));
+    this.game.module.ui.hideUI(loadingUIName);
+    return scenes;
+  }
+
+  async loadScene(scene: Scene) {
+    // Bind scene so it can respond to dom events
+    scene.bind();
+    // Load scene
+    await scene.onLoad();
+    // Add to loaded scenes
+    this._scenes.push(scene);
+  }
+
+  async startScene(scene: Scene) {
+    scene.onStart();
+    scene.ready = true;
   }
 
   bind() {
@@ -268,11 +332,15 @@ export default class Application {
   }
 
   unbind() {
-    const view = this._canvas || this._view;
-    if (view) {
-      view.removeEventListener("pointerdown", this.onPointerDownView);
-      view.removeEventListener("pointerup", this.onPointerUpView);
-      view.removeEventListener("click", this.onClickView);
+    if (this._canvas) {
+      this._canvas.removeEventListener("pointerdown", this.onPointerDownView);
+      this._canvas.removeEventListener("pointerup", this.onPointerUpView);
+      this._canvas.removeEventListener("click", this.onClickView);
+    }
+    if (this._view) {
+      this._view.removeEventListener("pointerdown", this.onPointerDownView);
+      this._view.removeEventListener("pointerup", this.onPointerUpView);
+      this._view.removeEventListener("click", this.onClickView);
     }
     if (this._overlay) {
       this._overlay.removeEventListener(
@@ -285,8 +353,17 @@ export default class Application {
   }
 
   destroy(removeView?: boolean): void {
-    if (this._renderer) {
-      this._renderer.dispose();
+    if (this._rendererInitialized) {
+      const id = crypto.randomUUID();
+      this._rendererWorker.postMessage(
+        {
+          jsonrpc: "2.0",
+          id,
+          method: "renderer/destroy",
+          params: {},
+        },
+        []
+      );
     }
     this._ticker.dispose();
     this.unbind();
@@ -294,7 +371,7 @@ export default class Application {
     this.scenes.forEach((scene) => {
       scene.ready = false;
       scene.unbind();
-      scene.onDispose().forEach((d) => d.dispose());
+      scene.onDispose();
     });
     if (this.game) {
       this.game.destroy();
@@ -304,41 +381,38 @@ export default class Application {
     }
   }
 
-  emit(message: Message, _transfer?: ArrayBuffer[]) {
+  send(message: Message, _transfer?: ArrayBuffer[]) {
     // TODO: Call gameWorker.postMessage instead (worker should call game.connection.receive from self.onmessage)
     this.game.connection.receive(message);
   }
 
   onPointerDownView = (event: PointerEvent): void => {
-    this.emit(EventMessage.type.notification(getEventData(event)));
+    this.send(EventMessage.type.notification(getEventData(event)));
   };
 
   onPointerUpView = (event: PointerEvent): void => {
-    this.emit(EventMessage.type.notification(getEventData(event)));
+    this.send(EventMessage.type.notification(getEventData(event)));
   };
 
   onClickView = (event: MouseEvent): void => {
-    this.emit(EventMessage.type.notification(getEventData(event)));
+    this.send(EventMessage.type.notification(getEventData(event)));
   };
 
   onPointerDownOverlay = (event: PointerEvent): void => {
-    this.emit(EventMessage.type.notification(getEventData(event)));
+    this.send(EventMessage.type.notification(getEventData(event)));
   };
 
   onPointerUpOverlay = (event: PointerEvent): void => {
-    this.emit(EventMessage.type.notification(getEventData(event)));
+    this.send(EventMessage.type.notification(getEventData(event)));
   };
 
   onClickOverlay = (event: MouseEvent): void => {
-    this.emit(EventMessage.type.notification(getEventData(event)));
+    this.send(EventMessage.type.notification(getEventData(event)));
   };
 
   pause(): void {
     this._overlay?.classList.add("pause-game");
-    if (this.ticker) {
-      this.ticker.speed = 0;
-    }
-    this.enableOrbitControls();
+    this.ticker.speed = 0;
     this.scenes.forEach((scene) => {
       if (scene?.ready) {
         scene.onPause();
@@ -348,70 +422,54 @@ export default class Application {
 
   unpause(): void {
     this._overlay?.classList.remove("pause-game");
-    this.disableOrbitControls();
     this.scenes.forEach((scene) => {
       if (scene?.ready) {
         scene.onUnpause();
       }
     });
-    if (this.ticker) {
-      this.ticker.speed = 1;
-    }
+    this.ticker.speed = 1;
   }
 
-  protected update(deltaMS: number): void {
+  protected update(time: Ticker): void {
     this.scenes.forEach((scene) => {
       if (scene?.ready) {
-        scene.onTick(deltaMS);
-        scene.onUpdate(deltaMS);
+        scene.onUpdate();
       }
     });
 
-    this._timeMS += deltaMS;
-
-    if (this._orbit) {
-      this._orbit.update();
-    }
-
-    const mainScene = this._scenes.get("main");
-    if (mainScene) {
-      if (this._renderer) {
-        // TODO: this._renderer.render(mainScene, this._camera);
-      }
+    if (this._timeView) {
+      this._timeView[0] = this._ticker.elapsedTime;
+    } else {
+      this._rendererWorker.postMessage(
+        {
+          jsonrpc: "2.0",
+          method: "renderer/tick",
+          params: {
+            time: this._ticker.elapsedTime,
+          },
+        },
+        []
+      );
     }
 
     if (this.game) {
-      this.game.update(deltaMS);
+      this.game.update(time);
     }
   }
 
-  step(deltaMS: number): void {
+  step(seconds: number): void {
+    this._ticker.adjustTime(seconds);
     this.scenes.forEach((scene) => {
       if (scene?.ready) {
-        scene.onStep(deltaMS);
+        scene.onStep(seconds);
       }
     });
-    this.update(deltaMS);
+    this.update(this._ticker);
   }
 
-  protected onUpdate = (deltaMS: number) => {
-    this.update(deltaMS);
+  protected onUpdate = (time: Ticker) => {
+    this.update(time);
   };
-
-  enableOrbitControls() {
-    if (this._camera && this._canvas) {
-      this._orbit = new OrbitControls(this._camera, this._canvas);
-      this._orbit.saveState();
-    }
-  }
-
-  disableOrbitControls() {
-    if (this._orbit) {
-      this._orbit.reset();
-      this._orbit.dispose();
-      this._orbit = undefined;
-    }
-  }
 
   async onReceive(
     msg: RequestMessage | NotificationMessage

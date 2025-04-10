@@ -6,5 +6,4 @@ export interface File {
   src?: string;
   text?: string;
   data?: string;
-  checksum?: number;
 }

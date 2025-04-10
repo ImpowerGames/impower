@@ -2,6 +2,7 @@ import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/utils/sortFilteredName";
 import type { Game } from "../../../core/classes/Game";
 import { Module } from "../../../core/classes/Module";
+import { Ticker } from "../../../core/classes/Ticker";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { Event } from "../../../core/types/Event";
 import { EventMap } from "../../../core/types/EventMap";
@@ -116,12 +117,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  override onUpdate(deltaMS: number) {
+  override onUpdate(time: Ticker) {
     if (this._firstUpdate) {
       this._firstUpdate = false;
       this.reveal();
     }
-    return super.onUpdate(deltaMS);
+    return super.onUpdate(time);
   }
 
   override onPreview() {

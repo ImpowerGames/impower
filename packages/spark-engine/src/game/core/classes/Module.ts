@@ -5,6 +5,7 @@ import { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { RequestMessage } from "../types/RequestMessage";
 import { ResponseError } from "../types/ResponseError";
 import type { Game } from "./Game";
+import { Ticker } from "./Ticker";
 
 export abstract class Module<
   S = any,
@@ -44,7 +45,7 @@ export abstract class Module<
   onStart(): void {}
 
   /** Executed every frame */
-  onUpdate(_deltaMS: number): null | boolean {
+  onUpdate(time: Ticker): null | boolean {
     return true;
   }
 

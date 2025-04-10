@@ -44,7 +44,7 @@ import { DocumentLocation } from "@impower/spark-engine/src/game/core/types/Docu
 import { ErrorType } from "@impower/spark-engine/src/game/core/types/ErrorType";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../spec-component/src/component";
-import Application from "../app/Application";
+import { Application } from "../app/Application";
 import { debounce } from "../utils/debounce";
 import spec from "./_spark-web-player";
 
@@ -103,6 +103,9 @@ export default class SparkWebPlayer extends Component(spec) {
     const audioContext = new AudioContext();
     if (audioContext.state === "running") {
       this._audioContext = audioContext;
+      if (this._app) {
+        this._app.setAudioContext(audioContext);
+      }
       this.hideAudioOverlay();
     }
   };
@@ -424,9 +427,9 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof StepGameClockMessage.type,
     message: StepGameClockMessage.Request
   ) => {
-    const { deltaMS } = message.params;
+    const { seconds } = message.params;
     if (this._app) {
-      this._app.step(deltaMS);
+      this._app.step(seconds);
       return messageType.response(message.id, {});
     }
     return messageType.error(message.id, {

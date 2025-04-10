@@ -221,6 +221,7 @@ export class SparkdownCompiler {
     const program: SparkProgram = {
       uri,
       scripts: { [uri]: this.documents.get(uri)?.version ?? -1 },
+      files: {},
       pathToLocation: {},
       functionLocations: {},
       dataLocations: {},
@@ -380,6 +381,15 @@ export class SparkdownCompiler {
         const compiledObj = (writer.toObject() || {}) as SparkdownRuntimeFormat;
         program.compiled = compiledObj;
         program.scripts = { [uri]: this.documents.get(uri)?.version ?? -1 };
+        for (const file of this.files.all()) {
+          if (file.src) {
+            const f = { ...file };
+            delete f.src;
+            delete f.text;
+            delete f.data;
+            program.files[file.src] = f;
+          }
+        }
         for (const [scriptUri, transpilation] of Object.entries(
           state.transpiledScripts || {}
         )) {

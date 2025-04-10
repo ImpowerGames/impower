@@ -10,7 +10,7 @@ import { ConfigureAudioMixerParams } from "@impower/spark-engine/src/game/module
 import { LoadAudioPlayerParams } from "@impower/spark-engine/src/game/modules/audio/types/LoadAudioPlayerParams";
 import { UpdateAudioPlayersParams } from "@impower/spark-engine/src/game/modules/audio/types/UpdateAudioPlayersParams";
 import { Disposable } from "../Disposable";
-import Scene from "../Scene";
+import { Scene } from "../Scene";
 
 export default class AudioScene extends Scene {
   /**
@@ -233,12 +233,12 @@ export default class AudioScene extends Scene {
     }
   }
 
-  override onStep(deltaMS: number): void {
+  override onStep(seconds: number): void {
     if (this.audioContext) {
       const scheduledTime = this.audioContext.currentTime;
       for (const c of this._audioChannels.values()) {
         for (const p of c.values()) {
-          p.step(scheduledTime, deltaMS);
+          p.step(scheduledTime, seconds);
         }
       }
     }

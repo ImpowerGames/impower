@@ -1,15 +1,12 @@
 import {
-  Message,
-  NotificationMessage,
-  RequestMessage,
-  ResponseError,
+  type Message,
+  type NotificationMessage,
+  type RequestMessage,
+  type ResponseError,
 } from "@impower/spark-engine/src/game/core";
-import { Object3D } from "three";
-import * as THREE from "three/src/scenes/Scene.js";
-import Application from "./Application";
-import { Disposable } from "./Disposable";
+import { type Application } from "./Application";
 
-export default class Scene extends THREE.Scene {
+export class Scene {
   protected _app: Application;
 
   get screen() {
@@ -28,20 +25,8 @@ export default class Scene extends THREE.Scene {
     return this._app.overlay;
   }
 
-  get renderer() {
-    return this._app.renderer;
-  }
-
-  get maxFPS() {
-    return this._app.ticker?.maxFPS;
-  }
-
   get ticker() {
     return this._app.ticker;
-  }
-
-  get camera() {
-    return this._app.camera;
   }
 
   get audioContext() {
@@ -110,16 +95,10 @@ export default class Scene extends THREE.Scene {
     this._touchDragThreshold = value;
   }
 
-  protected _time = 0;
-  get time() {
-    return this._time;
-  }
-
   constructor(
     app: Application
     // assets: SparkAssets
   ) {
-    super();
     this._app = app;
     // this._assets = assets;
   }
@@ -128,24 +107,19 @@ export default class Scene extends THREE.Scene {
     return {};
   }
 
-  async onLoad(): Promise<Object3D[]> {
+  async onLoad(): Promise<void> {
     // NoOp
-    return [];
   }
 
   onStart(): void {
     // NoOp
   }
 
-  onTick(deltaMS: number): void {
-    this._time += deltaMS;
-  }
-
-  onUpdate(_deltaMS: number): void {
+  onUpdate(): void {
     // NoOp
   }
 
-  onStep(_deltaMS: number): void {
+  onStep(_seconds: number): void {
     // NoOp
   }
 
@@ -165,9 +139,8 @@ export default class Scene extends THREE.Scene {
     // NoOp
   }
 
-  onDispose(): Disposable[] {
+  onDispose() {
     // NoOp
-    return [];
   }
 
   _onPointerDown = (event: PointerEvent): void => {
@@ -314,7 +287,7 @@ export default class Scene extends THREE.Scene {
     return undefined;
   }
 
-  emit(message: Message, transfer?: ArrayBuffer[]) {
-    this._app.emit(message, transfer);
+  send(message: Message, transfer?: ArrayBuffer[]) {
+    this._app.send(message, transfer);
   }
 }
