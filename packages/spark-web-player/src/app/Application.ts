@@ -4,7 +4,6 @@ import {
   type RequestMessage,
   type ResponseError,
 } from "@impower/spark-engine/src/game/core";
-import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { Ticker } from "@impower/spark-engine/src/game/core/classes/Ticker";
@@ -80,9 +79,9 @@ export class Application {
     return this._audioContext;
   }
 
-  protected _connection: Connection;
-  public get connection() {
-    return this._connection;
+  protected _initialized = false;
+  get initialized() {
+    return this._initialized;
   }
 
   protected _rendererWorker: Worker;
@@ -125,19 +124,15 @@ export class Application {
         const height = borderBoxSize.blockSize;
         this._screen = { width, height };
         if (this._rendererInitialized) {
-          const id = crypto.randomUUID();
-          this._rendererWorker.postMessage(
-            {
-              jsonrpc: "2.0",
-              id,
-              method: "renderer/resize",
-              params: {
-                width,
-                height,
-              },
+          this.sendRendererRequest({
+            jsonrpc: "2.0",
+            id: crypto.randomUUID(),
+            method: "renderer/resize",
+            params: {
+              width,
+              height,
             },
-            []
-          );
+          });
         }
         this.scenes.forEach((scene) => {
           scene.onResize(entry);
@@ -152,12 +147,37 @@ export class Application {
 
     this._game = game;
 
-    this._connection = new Connection({
-      onSend: (msg, t) => this.send(msg, t),
-      onReceive: (msg) => this.onReceive(msg),
-    });
-
     this.bind();
+  }
+
+  protected async sendRendererRequest<
+    M extends { method: string; params: P },
+    P extends object,
+    R
+  >(request: M, transfer: Transferable[] = []): Promise<R> {
+    const id = "id" in request ? request.id : crypto.randomUUID();
+    return new Promise<R>((resolve, reject) => {
+      const onResponse = (e: MessageEvent) => {
+        const message = e.data;
+        if (message.method === request.method && message.id === id) {
+          if (message.error !== undefined) {
+            reject(message.error);
+          } else {
+            resolve(message.result);
+          }
+          this._rendererWorker.removeEventListener("message", onResponse);
+        }
+      };
+      this._rendererWorker.addEventListener("message", onResponse);
+      this._rendererWorker.postMessage(
+        {
+          jsonrpc: "2.0",
+          id,
+          ...request,
+        },
+        transfer
+      );
+    });
   }
 
   async init() {
@@ -167,49 +187,38 @@ export class Application {
     this._screen = { width, height };
 
     // Initialize renderer
-    await new Promise<any>((resolve, reject) => {
-      const id = crypto.randomUUID();
-      const onMessage = (e: MessageEvent) => {
-        const message = e.data;
-        if (message && message.method === "renderer/initialized") {
-          if (message.error) {
-            reject(message.error);
-            this._rendererInitialized = false;
-          } else {
-            resolve(message.result);
-            this._rendererInitialized = true;
-          }
-          this._rendererWorker.removeEventListener("message", onMessage);
-        }
-      };
-      this._rendererWorker.addEventListener("message", onMessage);
-      this._rendererWorker.postMessage(
-        {
-          jsonrpc: "2.0",
-          id,
-          method: "renderer/initialize",
-          params: {
-            timeBuffer: this._timeBuffer,
-            options: {
-              view: this._offscreenCanvas,
-              width,
-              height,
-              resolution: window.devicePixelRatio,
-              antialias: true,
-              autoDensity: true,
-              backgroundAlpha: 0,
-            },
+    await this.sendRendererRequest(
+      {
+        method: "renderer/initialize",
+        params: {
+          timeBuffer: this._timeBuffer,
+          options: {
+            view: this._offscreenCanvas,
+            width,
+            height,
+            resolution: window.devicePixelRatio,
+            antialias: true,
+            autoDensity: true,
+            backgroundAlpha: 0,
           },
         },
-        [this._offscreenCanvas]
-      );
-    });
+      },
+      [this._offscreenCanvas]
+    );
+    this._rendererInitialized = true;
+
+    // Initialize scenes
+    const initialSceneConstructors = this.game.context.system.previewing
+      ? [UIScene]
+      : [UIScene, AudioScene];
+    const scenes = await this.loadScenes(...initialSceneConstructors);
+    scenes.forEach((scene) => this.startScene(scene));
 
     // Initialize game
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
-    await this._game.init({
+    this._game.init({
       send: (msg: Message, _t?: ArrayBuffer[]) => {
-        this.connection.receive(msg);
+        this.onReceive(msg as RequestMessage | NotificationMessage);
       },
       resolve: (path: string) => {
         // TODO: resolve import and load paths to url
@@ -240,13 +249,7 @@ export class Application {
         return setTimeout(handler, timeout, ...args);
       },
     });
-
-    // Initialize scenes
-    const initialSceneConstructors = this.game.context.system.previewing
-      ? [UIScene]
-      : [UIScene, AudioScene];
-    const scenes = await this.loadScenes(...initialSceneConstructors);
-    scenes.forEach((scene) => this.startScene(scene));
+    this._initialized = true;
   }
 
   setAudioContext(audioContext: AudioContext) {
@@ -259,29 +262,26 @@ export class Application {
   start() {
     this.ticker.add(this.onUpdate);
     this.ticker.start();
-    this._rendererWorker.postMessage(
-      {
-        jsonrpc: "2.0",
-        method: "renderer/start",
-        params: {
-          time: this._ticker.startTime,
-        },
+    this.sendRendererRequest({
+      method: "renderer/start",
+      params: {
+        time: this._ticker.startTime,
       },
-      []
-    );
+    });
   }
 
   async loadScenes(...sceneConstructors: (typeof Scene)[]): Promise<Scene[]> {
-    const loadingUIName = "loading";
-    const loadingProgressVariable = "--loading_progress";
-    this.game.module.ui.style.update(loadingUIName, {
-      [loadingProgressVariable]: "0",
-    });
-    this.game.module.ui.showUI(loadingUIName);
+    // Load all scenes
     const scenes = sceneConstructors.map(
       (sceneConstructor) => new sceneConstructor(this)
     );
     // TODO: Load all scene assets
+    // const loadingUIName = "loading";
+    // const loadingProgressVariable = "--loading_progress";
+    // this.game.module.ui.style.update(loadingUIName, {
+    //   [loadingProgressVariable]: "0",
+    // });
+    // this.game.module.ui.showUI(loadingUIName);
     // const allRequiredAssets: Record<string, { src: string; ext: string }> = {};
     // scenes.forEach((scene) => {
     //   Object.entries(scene.getRequiredAssets()).forEach(([id, asset]) => {
@@ -297,9 +297,8 @@ export class Application {
     //     );
     //   }
     // });
-    // Load all initial scenes
     await Promise.all(scenes.map((scene) => this.loadScene(scene)));
-    this.game.module.ui.hideUI(loadingUIName);
+    // this.game.module.ui.hideUI(loadingUIName);
     return scenes;
   }
 
@@ -354,16 +353,10 @@ export class Application {
 
   destroy(removeView?: boolean): void {
     if (this._rendererInitialized) {
-      const id = crypto.randomUUID();
-      this._rendererWorker.postMessage(
-        {
-          jsonrpc: "2.0",
-          id,
-          method: "renderer/destroy",
-          params: {},
-        },
-        []
-      );
+      this.sendRendererRequest({
+        method: "renderer/destroy",
+        params: {},
+      });
     }
     this._ticker.dispose();
     this.unbind();
@@ -440,16 +433,12 @@ export class Application {
     if (this._timeView) {
       this._timeView[0] = this._ticker.elapsedTime;
     } else {
-      this._rendererWorker.postMessage(
-        {
-          jsonrpc: "2.0",
-          method: "renderer/tick",
-          params: {
-            time: this._ticker.elapsedTime,
-          },
+      this.sendRendererRequest({
+        method: "renderer/tick",
+        params: {
+          time: this._ticker.elapsedTime,
         },
-        []
-      );
+      });
     }
 
     if (this.game) {
@@ -478,12 +467,12 @@ export class Application {
     | { result: unknown; transfer?: ArrayBuffer[] }
     | undefined
   > {
-    return new Promise((callback) => {
+    return new Promise((resolve) => {
       this._scenes.forEach((scene) => {
         if ("id" in msg) {
           scene.onReceiveRequest(msg).then((response) => {
             if (response) {
-              callback(response as any);
+              resolve(response as any);
             }
           });
         } else {

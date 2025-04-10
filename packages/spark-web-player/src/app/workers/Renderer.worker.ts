@@ -9,6 +9,7 @@ let graphics: Graphics;
 
 onmessage = async (e) => {
   const message = e.data;
+
   if (message.method === "renderer/initialize") {
     const { timeBuffer, options } = message.params;
 
@@ -25,16 +26,35 @@ onmessage = async (e) => {
     // TODO:
     // populateScene();
 
+    self.postMessage({
+      jsonrpc: "2.0",
+      id: message.id,
+      method: message.method,
+      result: {},
+    });
+
     self.postMessage({ jsonrpc: "2.0", method: "renderer/initialized" });
   }
 
   if (message.method === "renderer/start") {
     app.ticker.start();
+    self.postMessage({
+      jsonrpc: "2.0",
+      id: message.id,
+      method: message.method,
+      result: {},
+    });
   }
 
   if (message.method === "renderer/tick") {
     const { time } = message.params;
     timeView[0] = time;
+    self.postMessage({
+      jsonrpc: "2.0",
+      id: message.id,
+      method: message.method,
+      result: {},
+    });
   }
 };
 

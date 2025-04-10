@@ -807,23 +807,23 @@ export default class SparkWebPlayer extends Component(spec) {
         }
       }
     );
-    if (this._game) {
-      if (this._app) {
-        this._app.destroy(true);
-        this._app = undefined;
-      }
-      this._app = new Application(
-        this._game,
-        this.ref.gameView,
-        this.ref.gameOverlay,
-        this._audioContext
-      );
-      await this._app.init();
+    if (this._app) {
+      this._app.destroy(true);
+      this._app = undefined;
     }
+    this._app = new Application(
+      this._game,
+      this.ref.gameView,
+      this.ref.gameOverlay,
+      this._audioContext
+    );
+    await this._app.init();
   }
 
   async updatePreview(file: string, line: number) {
     if (
+      !this._app ||
+      !this._app.initialized ||
       !this._game ||
       (this._game.state === "previewing" &&
         (this._game.program.uri !== this._program?.uri ||

@@ -226,20 +226,25 @@ export class Game<T extends M = {}> {
     return Boolean(this._modules[name]);
   }
 
-  async init(config: {
+  init(config: {
     send: (message: Message, transfer?: ArrayBuffer[]) => void;
     resolve: (path: string) => string;
     fetch: (url: string) => Promise<string | ArrayBuffer>;
     log: (message: unknown, severity: "info" | "warning" | "error") => void;
     setTimeout: (handler: Function, timeout?: number, ...args: any[]) => number;
-  }): Promise<void> {
+  }) {
     this._connection.connectOutput(config.send);
     this._context.system.resolve = config.resolve;
     this._context.system.fetch = config.fetch;
     this._context.system.log = config.log;
     this._context.system.setTimeout = config.setTimeout;
     this._context.system.initialized = true;
-    await Promise.all(this._moduleNames.map((k) => this._modules[k]?.onInit()));
+    for (const moduleName of this._moduleNames) {
+      this._modules[moduleName]?.onInit();
+    }
+    if (this._context.system.previewing) {
+      this.clearChoices();
+    }
   }
 
   setStartpoint(startpoint: { file: string; line: number }) {
@@ -1077,7 +1082,6 @@ export class Game<T extends M = {}> {
     if (startPath != null) {
       if (this._context.system.previewing !== startPath) {
         this._context.system.previewing = startPath;
-        this.clearChoices();
         if (!this._story.asyncContinueComplete) {
           this.TimeoutError();
         } else {

@@ -91,7 +91,7 @@ export class InterpreterModule extends Module<
     return [];
   }
 
-  override async onInit(): Promise<void> {
+  override onInit() {
     this.setup();
   }
 

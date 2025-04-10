@@ -33,10 +33,6 @@ export class Scene {
     return this._app.audioContext;
   }
 
-  get connection() {
-    return this._app.connection;
-  }
-
   protected _ready = false;
   get ready(): boolean {
     return this._ready;

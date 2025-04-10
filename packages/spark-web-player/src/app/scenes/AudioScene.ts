@@ -9,7 +9,6 @@ import { AudioPlayerUpdate } from "@impower/spark-engine/src/game/modules/audio/
 import { ConfigureAudioMixerParams } from "@impower/spark-engine/src/game/modules/audio/types/ConfigureAudioMixerParams";
 import { LoadAudioPlayerParams } from "@impower/spark-engine/src/game/modules/audio/types/LoadAudioPlayerParams";
 import { UpdateAudioPlayersParams } from "@impower/spark-engine/src/game/modules/audio/types/UpdateAudioPlayersParams";
-import { Disposable } from "../Disposable";
 import { Scene } from "../Scene";
 
 export default class AudioScene extends Scene {
@@ -32,7 +31,7 @@ export default class AudioScene extends Scene {
 
   protected _audioChannels = new Map<string, Map<string, AudioPlayer>>();
 
-  override onDispose(): Disposable[] {
+  override onDispose() {
     this._audioMixers.clear();
     this._audioBuffers.clear();
     for (const c of this._audioChannels.values()) {
@@ -41,7 +40,6 @@ export default class AudioScene extends Scene {
       }
     }
     this._audioChannels.clear();
-    return super.onDispose();
   }
 
   async loadAudioBuffer(params: LoadAudioPlayerParams): Promise<AudioBuffer> {

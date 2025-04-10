@@ -39,7 +39,7 @@ export abstract class Module<
   abstract getStored(): string[];
 
   /** Executed when the game is initialized (after it is safe to emit game messages) */
-  async onInit(): Promise<void> {}
+  onInit() {}
 
   /** Executed when the game starts */
   onStart(): void {}

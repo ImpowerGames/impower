@@ -10,7 +10,6 @@ import { ObserveElementMessage } from "@impower/spark-engine/src/game/modules/ui
 import { SetThemeMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
 import { UnobserveElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
 import { UpdateElementMessage } from "@impower/spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
-import { Disposable } from "../Disposable";
 import { Scene } from "../Scene";
 import { getEventData } from "../utils/getEventData";
 
@@ -21,10 +20,9 @@ export default class UIScene extends Scene {
 
   protected _listeners: Record<string, (event: Event) => void> = {};
 
-  override onDispose(): Disposable[] {
+  override onDispose() {
     this._overlayRoots.forEach((el) => el.remove());
     this._listeners = {};
-    return super.onDispose();
   }
 
   getElement(id: string | null | undefined) {

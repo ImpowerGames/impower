@@ -87,7 +87,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return [];
   }
 
-  override async onInit() {
+  override onInit() {
     this._root = this.getOrCreateRootElement();
     this.loadStyles();
     this.loadUI();
