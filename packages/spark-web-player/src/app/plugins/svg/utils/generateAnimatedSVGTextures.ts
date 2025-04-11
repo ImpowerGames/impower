@@ -21,9 +21,6 @@ export const generateAnimatedSVGTextures = (
   const frameCount = Math.floor(duration / secondsPerFrame);
   let time = 0;
   for (let i = 0; i < frameCount; i++) {
-    if (time > duration) {
-      break;
-    }
     const frameTexture = generateAnimatedSVGTexture(
       renderer,
       svg,
