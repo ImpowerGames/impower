@@ -625,6 +625,9 @@ export default class SparkdownTextDocuments {
     disposables.push(
       connection.onDidOpenTextDocument((event: DidOpenTextDocumentParams) => {
         const textDocument = event.textDocument;
+        this.updateCompilerDocument(event.textDocument, [
+          { text: textDocument.text },
+        ]);
         this.debouncedCompile(textDocument.uri, false);
         this._documents.add(event);
       })
