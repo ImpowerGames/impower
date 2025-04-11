@@ -234,6 +234,7 @@ export class Application {
   async loadScene(sceneCtr: typeof Scene) {
     const scene = new sceneCtr(this);
     const children = await scene.onLoad();
+    scene.bind();
     const sceneContainer = new Container();
     for (const child of children) {
       sceneContainer.addChild(child);
@@ -316,6 +317,7 @@ export class Application {
       manager.onDispose();
     }
     for (const scene of this._scenes) {
+      scene.unbind();
       scene.onDispose();
     }
     if (this._game) {
