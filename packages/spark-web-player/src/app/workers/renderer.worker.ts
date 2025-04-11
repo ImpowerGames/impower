@@ -6,7 +6,7 @@ import { WorkerApplication } from "../WorkerApplication";
 DOMAdapter.set(WebWorkerAdapter);
 
 let _workerApplication: WorkerApplication;
-let _initialScenes: (typeof Scene)[] = []; // [GraphicsTestScene];
+let _initialScenes: (typeof Scene)[] = []; // [SVGTestScene]
 
 onmessage = async (e) => {
   const message = e.data;

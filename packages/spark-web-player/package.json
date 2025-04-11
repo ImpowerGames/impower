@@ -8,6 +8,7 @@
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
     "@impower/spark-engine": "file:../spark-engine",
     "@impower/sparkdown": "file:../sparkdown",
+    "@xmldom/xmldom": "^0.9.8",
     "pixi.js": "^8.9.1"
   }
 }

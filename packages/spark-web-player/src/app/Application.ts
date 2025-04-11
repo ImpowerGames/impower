@@ -7,6 +7,7 @@ import {
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { Ticker } from "@impower/spark-engine/src/game/core/classes/Ticker";
+import { type ApplicationOptions } from "pixi.js";
 import { Manager } from "./Manager";
 import AudioManager from "./managers/AudioManager";
 import EventManager from "./managers/EventManager";
@@ -217,7 +218,7 @@ export class Application {
             antialias: true,
             autoDensity: true,
             backgroundAlpha: 0,
-          },
+          } as Partial<ApplicationOptions>,
         },
       },
       [this._offscreenCanvas]

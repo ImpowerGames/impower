@@ -38,7 +38,6 @@ export default class GraphicsTestScene extends Scene {
     const beatPeriod = 1.0;
     const beatProgress = (elapsedTime % beatPeriod) / beatPeriod;
     const scale = 1 + 0.5 * Math.sin(beatProgress * 2 * Math.PI);
-
     if (this._sprite) {
       this._sprite.scale.set(scale);
     }
