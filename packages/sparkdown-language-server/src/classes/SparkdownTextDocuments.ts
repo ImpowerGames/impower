@@ -638,7 +638,10 @@ export default class SparkdownTextDocuments {
       connection.onDidChangeTextDocument(
         async (event: DidChangeTextDocumentParams) => {
           this._documents.update(event);
-          this.updateCompilerDocument(event.textDocument, event.contentChanges);
+          await this.updateCompilerDocument(
+            event.textDocument,
+            event.contentChanges
+          );
         }
       )
     );
