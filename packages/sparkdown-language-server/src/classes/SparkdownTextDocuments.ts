@@ -630,7 +630,7 @@ export default class SparkdownTextDocuments {
           await this.updateCompilerDocument(event.textDocument, [
             { text: textDocument.text },
           ]);
-          this.debouncedCompile(textDocument.uri, false);
+          await this.debouncedCompile(textDocument.uri, false);
         }
       )
     );
