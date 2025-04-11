@@ -7,24 +7,19 @@ import {
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { Ticker } from "@impower/spark-engine/src/game/core/classes/Ticker";
-import { type ApplicationOptions } from "pixi.js";
+import { Container, Renderer, WebGLRenderer } from "pixi.js";
+import "pixi.js/unsafe-eval";
 import { Manager } from "./Manager";
 import AudioManager from "./managers/AudioManager";
 import EventManager from "./managers/EventManager";
 import UIManager from "./managers/UIManager";
+import { Scene } from "./Scene";
 import { getEventData } from "./utils/getEventData";
-import INLINE_RENDERER_WORKER from "./workers/renderer.worker";
-
-const RENDERER_WORKER_URL = URL.createObjectURL(
-  new Blob([INLINE_RENDERER_WORKER], {
-    type: "text/javascript",
-  })
-);
 
 export class Application {
   // TODO: Application should only have a reference to gameWorker
   protected _game: Game;
-  public get game(): Game {
+  get game(): Game {
     return this._game;
   }
 
@@ -41,7 +36,7 @@ export class Application {
   }
 
   protected _view: HTMLElement;
-  public get view(): HTMLElement {
+  get view(): HTMLElement {
     return this._view;
   }
 
@@ -50,14 +45,23 @@ export class Application {
     return this._canvas;
   }
 
-  protected _offscreenCanvas: OffscreenCanvas;
+  _scenes: Scene[] = [];
+  get scenes() {
+    return this._scenes;
+  }
 
-  protected _timeBuffer?: SharedArrayBuffer;
+  _renderer?: Renderer;
+  get renderer() {
+    return this._renderer;
+  }
 
-  protected _timeView?: Float64Array;
+  _stage: Container = new Container();
+  get stage() {
+    return this._stage;
+  }
 
   protected _overlay: HTMLElement | null;
-  public get overlay(): HTMLElement | null {
+  get overlay(): HTMLElement | null {
     return this._overlay;
   }
 
@@ -67,7 +71,7 @@ export class Application {
   }
 
   protected _resizeObserver: ResizeObserver;
-  public get resizeObserver(): ResizeObserver {
+  get resizeObserver(): ResizeObserver {
     return this._resizeObserver;
   }
 
@@ -76,7 +80,7 @@ export class Application {
     new AudioManager(this),
     new EventManager(this),
   ];
-  public get managers() {
+  get managers() {
     return this._managers;
   }
 
@@ -100,10 +104,6 @@ export class Application {
     return this._initialized;
   }
 
-  protected _rendererWorker: Worker;
-
-  protected _rendererInitialized?: boolean;
-
   constructor(
     game: Game,
     view: HTMLElement,
@@ -114,7 +114,6 @@ export class Application {
     this._overlay = overlay;
     this._canvas = document.createElement("canvas");
     this._view.appendChild(this._canvas);
-    this._offscreenCanvas = this._canvas.transferControlToOffscreen();
 
     const width = this._view.clientWidth;
     const height = this._view.clientHeight;
@@ -124,22 +123,12 @@ export class Application {
       resolution: window.devicePixelRatio,
     };
 
-    if (window.crossOriginIsolated) {
-      this._timeBuffer = new SharedArrayBuffer(Float64Array.BYTES_PER_ELEMENT);
-      this._timeView = new Float64Array(this._timeBuffer);
-    }
-
     this._audioContext = audioContext || new AudioContext();
     if (this._audioContext.state !== "running") {
       this._audioContext = undefined;
     } else {
       this._ticker.syncToClock(this._audioContext);
     }
-
-    this._rendererWorker = new Worker(RENDERER_WORKER_URL);
-    this._rendererWorker.onerror = (e) => {
-      console.error(e);
-    };
 
     this._resizeObserver = new ResizeObserver(([entry]) => {
       const borderBoxSize = entry?.borderBoxSize[0];
@@ -149,13 +138,10 @@ export class Application {
         const resolution = this._screen.resolution;
         this._screen.width = width;
         this._screen.height = height;
-        if (this._rendererInitialized) {
-          this.sendRendererRequest({
-            jsonrpc: "2.0",
-            id: crypto.randomUUID(),
-            method: "renderer/resize",
-            params: this._screen,
-          });
+        if (this._initialized) {
+          if (this._renderer) {
+            this._renderer.resize(width, height, resolution);
+          }
         }
         for (const manager of this._managers) {
           manager.onResize(width, height, resolution);
@@ -169,61 +155,25 @@ export class Application {
     this.bind();
   }
 
-  protected async sendRendererRequest<
-    M extends { method: string; params: P },
-    P extends object,
-    R
-  >(request: M, transfer: Transferable[] = []): Promise<R> {
-    const id = "id" in request ? request.id : crypto.randomUUID();
-    return new Promise<R>((resolve, reject) => {
-      const onResponse = (e: MessageEvent) => {
-        const message = e.data;
-        if (message.method === request.method && message.id === id) {
-          if (message.error !== undefined) {
-            reject(message.error);
-          } else {
-            resolve(message.result);
-          }
-          this._rendererWorker.removeEventListener("message", onResponse);
-        }
-      };
-      this._rendererWorker.addEventListener("message", onResponse);
-      this._rendererWorker.postMessage(
-        {
-          jsonrpc: "2.0",
-          id,
-          ...request,
-        },
-        transfer
-      );
-    });
-  }
-
   async init() {
     this._initializing = new Promise<void>((resolve) => {
       this._resolveInit = resolve;
     });
 
     // Initialize renderer
-    await this.sendRendererRequest(
-      {
-        method: "renderer/initialize",
-        params: {
-          timeBuffer: this._timeBuffer,
-          options: {
-            canvas: this._offscreenCanvas,
-            width: this._screen.width,
-            height: this._screen.height,
-            resolution: this._screen.resolution,
-            antialias: true,
-            autoDensity: true,
-            backgroundAlpha: 0,
-          } as Partial<ApplicationOptions>,
-        },
-      },
-      [this._offscreenCanvas]
-    );
-    this._rendererInitialized = true;
+    this._renderer = new WebGLRenderer();
+    await this._renderer.init({
+      canvas: this._canvas,
+      width: this._screen.width,
+      height: this._screen.height,
+      resolution: this._screen.resolution,
+      antialias: true,
+      autoDensity: true,
+      backgroundAlpha: 0,
+    });
+
+    // TODO: load main scene
+    // await this.loadScene(SVGTestScene);
 
     // Initialize game
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
@@ -281,18 +231,97 @@ export class Application {
     }
   }
 
+  async loadScene(sceneCtr: typeof Scene) {
+    const scene = new sceneCtr(this);
+    const children = await scene.onLoad();
+    const sceneContainer = new Container();
+    for (const child of children) {
+      sceneContainer.addChild(child);
+    }
+    this._stage.addChild(sceneContainer);
+    this._scenes.push(scene);
+  }
+
+  async loadScenes(sceneCtrs: (typeof Scene)[]) {
+    await Promise.all(sceneCtrs.map((scene) => this.loadScene(scene)));
+  }
+
   start() {
     for (const manager of this._managers) {
       manager.onStart();
     }
+    for (const scene of this._scenes) {
+      scene.onStart();
+    }
     this.ticker.add((time) => this.update(time));
     this.ticker.start();
-    this.sendRendererRequest({
-      method: "renderer/start",
-      params: {
-        time: this._ticker.startTime,
-      },
-    });
+  }
+
+  pause(): void {
+    this._overlay?.classList.add("pause-game");
+    this.ticker.speed = 0;
+    for (const manager of this._managers) {
+      manager.onPause();
+    }
+    for (const scene of this._scenes) {
+      scene.onPause();
+    }
+  }
+
+  unpause(): void {
+    this._overlay?.classList.remove("pause-game");
+    for (const manager of this._managers) {
+      manager.onUnpause();
+    }
+    for (const scene of this._scenes) {
+      scene.onUnpause();
+    }
+    this.ticker.speed = 1;
+  }
+
+  step(seconds: number): void {
+    this._ticker.adjustTime(seconds);
+    for (const manager of this._managers) {
+      manager.onStep(seconds);
+    }
+    for (const scene of this._scenes) {
+      scene.onStep(seconds);
+    }
+    this.update(this._ticker);
+  }
+
+  protected update(time: Ticker): void {
+    if (this._game) {
+      this._game.update(time);
+    }
+    for (const manager of this._managers) {
+      manager.onUpdate();
+    }
+    for (const scene of this._scenes) {
+      scene.onUpdate(time.elapsedTime);
+    }
+    if (this._renderer) {
+      this._renderer.render(this._stage);
+    }
+  }
+
+  destroy(removeCanvas?: boolean): void {
+    this._renderer.destroy();
+    this._ticker.dispose();
+    this.unbind();
+    this._resizeObserver.disconnect();
+    for (const manager of this._managers) {
+      manager.onDispose();
+    }
+    for (const scene of this._scenes) {
+      scene.onDispose();
+    }
+    if (this.game) {
+      this.game.destroy();
+    }
+    if (removeCanvas && this._canvas) {
+      this._canvas.remove();
+    }
   }
 
   bind() {
@@ -330,27 +359,6 @@ export class Application {
     }
   }
 
-  destroy(removeView?: boolean): void {
-    if (this._rendererInitialized) {
-      this.sendRendererRequest({
-        method: "renderer/destroy",
-        params: {},
-      });
-    }
-    this._ticker.dispose();
-    this.unbind();
-    this.resizeObserver.disconnect();
-    for (const manager of this._managers) {
-      manager.onDispose();
-    }
-    if (this.game) {
-      this.game.destroy();
-    }
-    if (removeView && this._canvas) {
-      this._canvas.remove();
-    }
-  }
-
   emit(message: Message, _transfer?: ArrayBuffer[]) {
     // TODO: Call gameWorker.postMessage instead (worker should call game.connection.receive from self.onmessage)
     this.game.connection.receive(message);
@@ -379,51 +387,6 @@ export class Application {
   onClickOverlay = (event: MouseEvent): void => {
     this.emit(EventMessage.type.notification(getEventData(event)));
   };
-
-  pause(): void {
-    this._overlay?.classList.add("pause-game");
-    this.ticker.speed = 0;
-    for (const manager of this._managers) {
-      manager.onPause();
-    }
-  }
-
-  unpause(): void {
-    this._overlay?.classList.remove("pause-game");
-    for (const manager of this._managers) {
-      manager.onUnpause();
-    }
-    this.ticker.speed = 1;
-  }
-
-  step(seconds: number): void {
-    this._ticker.adjustTime(seconds);
-    for (const manager of this._managers) {
-      manager.onStep(seconds);
-    }
-    this.update(this._ticker);
-  }
-
-  protected update(time: Ticker): void {
-    for (const manager of this._managers) {
-      manager.onUpdate();
-    }
-
-    if (this._timeView) {
-      this._timeView[0] = this._ticker.elapsedTime;
-    }
-
-    this.sendRendererRequest({
-      method: "renderer/update",
-      params: {
-        time: this._ticker.elapsedTime,
-      },
-    });
-
-    if (this.game) {
-      this.game.update(time);
-    }
-  }
 
   async onReceive(
     msg: RequestMessage | NotificationMessage

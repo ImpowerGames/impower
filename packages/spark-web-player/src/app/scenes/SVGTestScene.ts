@@ -13,7 +13,7 @@ export default class SVGTestScene extends Scene {
     const svgEl = parseSVG(svg);
 
     // Load the animation frames
-    const textures = generateAnimatedSVGTextures(this.app.renderer, svgEl, {
+    const textures = generateAnimatedSVGTextures(this.renderer, svgEl, {
       scale: 8,
     });
 
@@ -24,10 +24,7 @@ export default class SVGTestScene extends Scene {
     this._sprite.anchor.set(0.5);
 
     // Move the sprite to the center of the screen
-    this._sprite.position.set(
-      this.app.screen.width / 2,
-      this.app.screen.height / 2
-    );
+    this._sprite.position.set(this.screen.width / 2, this.screen.height / 2);
 
     // Play the animation
     this._sprite.play();

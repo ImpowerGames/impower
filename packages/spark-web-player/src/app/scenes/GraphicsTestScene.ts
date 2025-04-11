@@ -14,7 +14,7 @@ export default class GraphicsTestScene extends Scene {
     graphics.fill(0xde3249);
 
     // Render the graphic to a texture
-    const renderTexture = this.app.renderer?.generateTexture({
+    const renderTexture = this.renderer?.generateTexture({
       target: graphics,
       antialias: true,
     });
@@ -26,10 +26,7 @@ export default class GraphicsTestScene extends Scene {
     this._sprite.anchor.set(0.5);
 
     // Move the sprite to the center of the screen
-    this._sprite.position.set(
-      this.app.screen.width / 2,
-      this.app.screen.height / 2
-    );
+    this._sprite.position.set(this.screen.width / 2, this.screen.height / 2);
 
     return [this._sprite];
   }

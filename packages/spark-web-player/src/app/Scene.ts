@@ -3,12 +3,21 @@ import {
   type RequestMessage,
   type ResponseError,
 } from "@impower/spark-engine/src/game/core";
-import { Application, Container } from "pixi.js";
+import { Container } from "pixi.js";
+import { Application } from "./Application";
 
 export class Scene {
   protected _app: Application;
-  get app() {
-    return this._app;
+  get stage() {
+    return this._app.stage;
+  }
+
+  get screen() {
+    return this._app.screen;
+  }
+
+  get renderer() {
+    return this._app.renderer;
   }
 
   constructor(app: Application) {
