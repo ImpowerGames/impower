@@ -14,6 +14,7 @@ import AudioManager from "./managers/AudioManager";
 import EventManager from "./managers/EventManager";
 import UIManager from "./managers/UIManager";
 import { Scene } from "./Scene";
+import SVGTestScene from "./scenes/SVGTestScene";
 import { getEventData } from "./utils/getEventData";
 
 export class Application {
@@ -173,7 +174,7 @@ export class Application {
     });
 
     // TODO: load main scene
-    // await this.loadScene(SVGTestScene);
+    await this.loadScene(SVGTestScene);
 
     // Initialize game
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
