@@ -50,7 +50,7 @@ export class Application {
     return this._scenes;
   }
 
-  _renderer?: Renderer;
+  _renderer: Renderer;
   get renderer() {
     return this._renderer;
   }
@@ -114,6 +114,7 @@ export class Application {
     this._overlay = overlay;
     this._canvas = document.createElement("canvas");
     this._view.appendChild(this._canvas);
+    this._renderer = new WebGLRenderer();
 
     const width = this._view.clientWidth;
     const height = this._view.clientHeight;
@@ -161,7 +162,6 @@ export class Application {
     });
 
     // Initialize renderer
-    this._renderer = new WebGLRenderer();
     await this._renderer.init({
       canvas: this._canvas,
       width: this._screen.width,
