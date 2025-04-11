@@ -306,7 +306,9 @@ export class Application {
   }
 
   destroy(removeCanvas?: boolean): void {
-    this._renderer.destroy();
+    if (this._renderer) {
+      this._renderer.destroy();
+    }
     this._ticker.dispose();
     this.unbind();
     this._resizeObserver.disconnect();
@@ -316,8 +318,8 @@ export class Application {
     for (const scene of this._scenes) {
       scene.onDispose();
     }
-    if (this.game) {
-      this.game.destroy();
+    if (this._game) {
+      this._game.destroy();
     }
     if (removeCanvas && this._canvas) {
       this._canvas.remove();
@@ -361,7 +363,7 @@ export class Application {
 
   emit(message: Message, _transfer?: ArrayBuffer[]) {
     // TODO: Call gameWorker.postMessage instead (worker should call game.connection.receive from self.onmessage)
-    this.game.connection.receive(message);
+    this._game.connection.receive(message);
   }
 
   onPointerDownView = (event: PointerEvent): void => {
