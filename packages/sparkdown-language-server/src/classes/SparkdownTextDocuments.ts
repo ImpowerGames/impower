@@ -623,20 +623,22 @@ export default class SparkdownTextDocuments {
       )
     );
     disposables.push(
-      connection.onDidOpenTextDocument((event: DidOpenTextDocumentParams) => {
-        const textDocument = event.textDocument;
-        this.updateCompilerDocument(event.textDocument, [
-          { text: textDocument.text },
-        ]);
-        this.debouncedCompile(textDocument.uri, false);
-        this._documents.add(event);
-      })
+      connection.onDidOpenTextDocument(
+        async (event: DidOpenTextDocumentParams) => {
+          const textDocument = event.textDocument;
+          this._documents.add(event);
+          await this.updateCompilerDocument(event.textDocument, [
+            { text: textDocument.text },
+          ]);
+          this.debouncedCompile(textDocument.uri, false);
+        }
+      )
     );
     disposables.push(
       connection.onDidChangeTextDocument(
         async (event: DidChangeTextDocumentParams) => {
-          this.updateCompilerDocument(event.textDocument, event.contentChanges);
           this._documents.update(event);
+          this.updateCompilerDocument(event.textDocument, event.contentChanges);
         }
       )
     );
