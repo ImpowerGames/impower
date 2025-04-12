@@ -1,0 +1,18 @@
+{
+  "name": "@impower/animated-svg-optimizer",
+  "displayName": "Animated SVG Optimizer",
+  "description": "Supports using svgo to optimize animated svgs.",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "optimize": "node scripts/optimize.ts"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.9.8",
+    "svg-pathdata": "^7.2.0",
+    "svgo": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1"
+  }
+}
