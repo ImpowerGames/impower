@@ -28,11 +28,10 @@ function transformPathDWithMatrix(
   decimals = 1
 ): string {
   const [a, b, c, d_, e, f] = matrix;
-
   const transformed = new SVGPathData(d)
     .toAbs() // ensure all commands are absolute
     .transform(SVGPathDataTransformer.MATRIX(a, b, c, d_, e, f))
-    .round(decimals)
+    .round(decimals + 1)
     .encode();
 
   // Round numbers in result
