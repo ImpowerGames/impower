@@ -344,6 +344,16 @@ export const transformSVG = (
   return outputSVG;
 };
 
+export const optimizeFlattenedSVG = (
+  inputSVG: string,
+  precisionOrOptions: number | Config = 1
+) => {
+  const flattenedSVG = flattenSVG(inputSVG);
+  const optimizedSVG = optimizeSVG(flattenedSVG, precisionOrOptions);
+  const transformedSVG = transformSVG(optimizedSVG, precisionOrOptions);
+  return transformedSVG;
+};
+
 export const optimizeAnimatedSVG = (
   inputSVG: string,
   precisionOrOptions: number | Config = 1,

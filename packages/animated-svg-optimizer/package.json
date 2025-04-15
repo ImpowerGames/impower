@@ -8,6 +8,7 @@
     "flatten": "node scripts/flatten.ts",
     "optimize": "node scripts/optimize.ts",
     "transform": "node scripts/transform.ts",
+    "optimize-flattened": "node scripts/optimize-flattened.ts",
     "optimize-animated": "node scripts/optimize-animated.ts"
   },
   "dependencies": {

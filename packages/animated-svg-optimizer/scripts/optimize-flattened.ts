@@ -1,5 +1,5 @@
 import fs from "fs";
-import { optimizeAnimatedSVG } from "../src/animated-svg-optimizer.ts";
+import { optimizeFlattenedSVG } from "../src/animated-svg-optimizer.ts";
 
 const [, , inputPath, outputPath] = process.argv;
 
@@ -12,7 +12,7 @@ if (!outputPath) {
 }
 
 const inputSVG = fs.readFileSync(inputPath, { encoding: "utf-8" });
-const outputSVG = optimizeAnimatedSVG(inputSVG, 1, ["fill-rule"]);
+const outputSVG = optimizeFlattenedSVG(inputSVG, 1);
 
 if (!outputSVG) {
   console.error(`Could not optimize: ${outputPath}`);

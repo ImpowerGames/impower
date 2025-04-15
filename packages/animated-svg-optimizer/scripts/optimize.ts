@@ -19,6 +19,6 @@ if (!outputSVG) {
 } else {
   fs.writeFileSync(outputPath, outputSVG, "utf-8");
   console.log(
-    `✔️ (${outputSVG.length}) Optimized SVG written to: ${outputPath}`
+    `✔️  (${outputSVG.length}) Optimized SVG written to: ${outputPath}`
   );
 }
