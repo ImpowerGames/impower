@@ -5,12 +5,16 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "optimize": "node scripts/optimize.ts"
+    "flatten": "node scripts/flatten.ts",
+    "optimize": "node scripts/optimize.ts",
+    "transform": "node scripts/transform.ts",
+    "optimize-animated": "node scripts/optimize-animated.ts"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.8",
     "svg-pathdata": "^7.2.0",
-    "svgo": "^3.3.2"
+    "svgo": "^3.3.2",
+    "transformation-matrix": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.1"

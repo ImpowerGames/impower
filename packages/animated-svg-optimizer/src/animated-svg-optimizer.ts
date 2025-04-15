@@ -1,6 +1,53 @@
 import { DOMParser, Element, XMLSerializer } from "@xmldom/xmldom";
 import { SVGPathData, SVGPathDataTransformer } from "svg-pathdata";
 import { optimize, type Config } from "svgo";
+import {
+  compose,
+  fromDefinition,
+  fromTransformAttribute,
+} from "transformation-matrix";
+
+function getPrecisionFromOptions(precisionOrOptions: number | Config = 1) {
+  const userPresetDefault =
+    typeof precisionOrOptions === "number"
+      ? undefined
+      : ((precisionOrOptions.plugins ?? []).find(
+          (p) => typeof p === "object" && p.name === "preset-default"
+        ) as {
+          name: string;
+          params?: {
+            floatPrecision: number;
+            overrides: {
+              convertPathData: {};
+            };
+          };
+        });
+  const precision =
+    typeof precisionOrOptions === "number"
+      ? precisionOrOptions
+      : userPresetDefault?.params?.floatPrecision ?? 1;
+  return precision;
+}
+
+function normalizeTransformString(transform: string): string {
+  // Add space between transform functions if not already present
+  return transform.replace(/([)])(?=[a-zA-Z])/g, "$1 ");
+}
+
+function parseTransformToMatrix(
+  transform: string
+): [number, number, number, number, number, number] | null {
+  const normalizedTransform = normalizeTransformString(transform);
+  try {
+    const { a, b, c, d, e, f } = compose(
+      fromDefinition(fromTransformAttribute(normalizedTransform))
+    );
+    return [a, b, c, d, e, f];
+  } catch (err) {
+    console.warn(`Failed to parse transform: ${normalizedTransform}`, err);
+    return null;
+  }
+}
 
 const roundPathDNumbers = (d: string, decimals = 1): string => {
   return d.replace(/-?\d*\.?\d+(e[-+]?\d+)?/gi, (num) =>
@@ -10,19 +57,7 @@ const roundPathDNumbers = (d: string, decimals = 1): string => {
   );
 };
 
-function parseTransformMatrix(
-  transform: string
-): [number, number, number, number, number, number] | null {
-  const match = transform.match(/matrix\(([^)]+)\)/);
-  if (!match) return null;
-
-  const parts = match[1]?.split(/[ ,]+/).map(Number) || [];
-  if (parts.length !== 6 || parts.some(isNaN)) return null;
-
-  return parts as [number, number, number, number, number, number];
-}
-
-function transformPathDWithMatrix(
+function applyTransformMatrixToPath(
   d: string,
   matrix: [number, number, number, number, number, number],
   decimals = 1
@@ -48,173 +83,316 @@ function getStrokeScale(
   return Math.sqrt(scaleX * scaleY); // geometric mean
 }
 
-function applyTransformToStroke(
-  path: Element,
-  matrix: [number, number, number, number, number, number]
+function transformStrokeWidth(
+  strokeWidth: string,
+  matrix: [number, number, number, number, number, number],
+  precision: number
 ) {
   const scale = getStrokeScale(matrix);
-
-  // Scale stroke-width
-  const strokeWidth = path.getAttribute("stroke-width");
   if (strokeWidth) {
     const scaled = parseFloat(strokeWidth) * scale;
-    path.setAttribute("stroke-width", scaled.toFixed(3).replace(/\.?0+$/, ""));
+    return scaled.toFixed(precision).replace(/\.?0+$/, "");
   }
+  return null;
+}
 
-  // Scale stroke-dasharray
-  const dashArray = path.getAttribute("stroke-dasharray");
+function transformStrokeDashArray(
+  dashArray: string,
+  matrix: [number, number, number, number, number, number],
+  precision: number
+) {
+  const scale = getStrokeScale(matrix);
   if (dashArray) {
     const scaled = dashArray
       .split(/[ ,]+/)
-      .map((n) => (parseFloat(n) * scale).toFixed(3).replace(/\.?0+$/, ""))
+      .map((n) =>
+        (parseFloat(n) * scale).toFixed(precision).replace(/\.?0+$/, "")
+      )
       .join(" ");
-    path.setAttribute("stroke-dasharray", scaled);
+    return scaled;
   }
-
-  // Optionally scale stroke-dashoffset
-  const dashOffset = path.getAttribute("stroke-dashoffset");
-  if (dashOffset) {
-    const scaled = parseFloat(dashOffset) * scale;
-    path.setAttribute(
-      "stroke-dashoffset",
-      scaled.toFixed(3).replace(/\.?0+$/, "")
-    );
-  }
+  return null;
 }
 
-export const optimizeAnimatedSVG = (
-  inputSVG: string,
-  userSvgoOptions: Config = { multipass: true }
-) => {
-  const userPresetDefault = (userSvgoOptions.plugins ?? []).find(
-    (p) => typeof p === "object" && p.name === "preset-default"
-  ) as {
-    name: string;
-    params?: {
-      floatPrecision: number;
-      overrides: {
-        convertPathData: {};
-      };
-    };
-  };
-  const precision = userPresetDefault?.params?.floatPrecision ?? 1;
+function transformStrokeDashOffset(
+  dashOffset: string,
+  matrix: [number, number, number, number, number, number],
+  precision: number
+) {
+  const scale = getStrokeScale(matrix);
+  if (dashOffset) {
+    const scaled = parseFloat(dashOffset) * scale;
+    return scaled.toFixed(precision).replace(/\.?0+$/, "");
+  }
+  return null;
+}
 
-  const dom = new DOMParser().parseFromString(inputSVG, "image/svg+xml");
+export const flattenSVG = (inputSVG: string) => {
+  const parser = new DOMParser();
   const serializer = new XMLSerializer();
 
-  const inputPaths = Array.from(dom.getElementsByTagName("path"));
+  const inputSVGEl = parser.parseFromString(inputSVG, "image/svg+xml");
+
   const animateInfos: {
-    path: Element;
     animate: Element;
     keyframes: string[];
   }[] = [];
 
-  for (const path of inputPaths) {
-    const animates = Array.from(path.getElementsByTagName("animate"));
-    for (const animate of animates) {
-      const attrName = animate.getAttribute("attributeName");
-      const values = animate.getAttribute("values");
-      if (attrName === "d" && values) {
-        const keyframes = values.split(";").map((s) => s.trim());
-
-        animateInfos.push({ path, animate, keyframes });
-      }
+  const animates = Array.from(inputSVGEl.getElementsByTagName("animate"));
+  for (const animate of animates) {
+    const attrName = animate.getAttribute("attributeName");
+    const values = animate.getAttribute("values");
+    if (attrName === "d" && values) {
+      const keyframes = values.split(";").map((s) => s.trim());
+      animateInfos.push({ animate, keyframes });
     }
-  }
-
-  if (animateInfos.length === 0) {
-    return;
-  }
-
-  const frameCount = Math.max(
-    ...animateInfos.map((info) => info.keyframes.length)
-  );
-  const optimizedFrames: string[] = [];
-
-  for (let frameIndex = 0; frameIndex < frameCount; frameIndex++) {
-    const clone = new DOMParser().parseFromString(inputSVG, "image/svg+xml");
-    const clonedPaths = Array.from(clone.getElementsByTagName("path"));
-
-    animateInfos.forEach(({ keyframes }, pathIndex) => {
-      const clonedPath = clonedPaths[pathIndex]!;
-      const frameValue =
-        keyframes[frameIndex] ?? keyframes[keyframes.length - 1]!;
-
-      clonedPath.setAttribute("d", frameValue);
-
-      // Remove all <animate> elements from this path
-      const animates = Array.from(clonedPath.getElementsByTagName("animate"));
-      animates.forEach((a) => clonedPath.removeChild(a));
-    });
-
-    const serialized = serializer.serializeToString(clone);
-
-    // Always disable mergePaths
-    const mergedSvgoOptions: Config = {
-      ...userSvgoOptions,
-      plugins: [
-        {
-          name: "preset-default",
-          params: {
-            ...(typeof userPresetDefault === "string"
-              ? {}
-              : userPresetDefault?.params ?? {}),
-            overrides: {
-              ...(typeof userPresetDefault === "string"
-                ? {}
-                : userPresetDefault?.params?.overrides ?? {}),
-              mergePaths: false,
-              convertShapeToPath: false,
-              convertPathData: false,
-            },
-          },
-        },
-        ...(userSvgoOptions.plugins ?? []).filter(
-          (p) =>
-            typeof p === "string" ||
-            (typeof p === "object" && p.name !== "preset-default")
-        ),
-      ],
-    };
-
-    const optimized = optimize(serialized, mergedSvgoOptions).data;
-    optimizedFrames.push(optimized);
   }
 
   // Reattach <animate> elements to the first optimized frame
-  const base = new DOMParser().parseFromString(
-    optimizedFrames[0]!,
-    "image/svg+xml"
-  );
-  const outputPaths = Array.from(base.getElementsByTagName("path"));
+  const outputSVGEl = parser.parseFromString(inputSVG, "image/svg+xml");
+  const outputPaths = Array.from(outputSVGEl.getElementsByTagName("path"));
 
-  console.log(
-    `Optimizing ${inputPaths.length} input paths into ${outputPaths.length} output paths...`
-  );
-
-  animateInfos.forEach(({ animate, keyframes }, pathIndex) => {
-    const imported = base.importNode(animate, true);
-    const path = outputPaths[pathIndex];
-    if (path) {
-      const transformAttr = path.getAttribute("transform");
-      const matrix = transformAttr ? parseTransformMatrix(transformAttr) : null;
-      const transformedKeyframes = keyframes.map((frame) => {
-        const transformed = matrix
-          ? transformPathDWithMatrix(frame, matrix, precision)
-          : roundPathDNumbers(frame, precision);
-        return transformed;
+  animateInfos.forEach(({ keyframes }, pathIndex) => {
+    const pathEl = outputPaths[pathIndex];
+    if (pathEl) {
+      const groupEl = outputSVGEl.createElement("g");
+      groupEl.setAttribute("class", `animate-${pathIndex}`);
+      pathEl.parentElement?.appendChild(groupEl);
+      pathEl.parentElement?.removeChild(pathEl);
+      keyframes.forEach((keyframe) => {
+        const keyframePathEl = outputSVGEl.createElement("path");
+        Array.from(pathEl.attributes).forEach((attr) => {
+          keyframePathEl.setAttribute(attr.name, attr.value);
+        });
+        keyframePathEl.setAttribute("d", keyframe);
+        groupEl.appendChild(keyframePathEl);
       });
-      path.removeAttribute("d");
-      path.removeAttribute("fill-rule");
-      path.removeAttribute("transform");
-      if (matrix) {
-        applyTransformToStroke(path, matrix);
-      }
-      path.appendChild(imported);
-      imported.setAttribute("values", transformedKeyframes.join(";"));
     }
   });
 
-  const finalOutput = serializer.serializeToString(base);
-  return finalOutput;
+  const outputSVG = serializer.serializeToString(outputSVGEl);
+  return outputSVG;
+};
+
+export const optimizeSVG = (
+  inputSVG: string,
+  precisionOrOptions: number | Config = 1
+) => {
+  const userPresetDefault =
+    typeof precisionOrOptions === "number"
+      ? undefined
+      : ((precisionOrOptions.plugins ?? []).find(
+          (p) => typeof p === "object" && p.name === "preset-default"
+        ) as {
+          name: string;
+          params?: {
+            floatPrecision: number;
+            overrides: {
+              convertPathData: {};
+            };
+          };
+        });
+  const precision =
+    typeof precisionOrOptions === "number"
+      ? precisionOrOptions
+      : userPresetDefault?.params?.floatPrecision ?? 1;
+  const options =
+    typeof precisionOrOptions === "number" ? undefined : ({} as Config);
+
+  // Always disable mergePaths since animation requires keeping the same path structure in each frame
+  const mergedSvgoOptions: Config = {
+    ...(options ?? {}),
+    plugins: [
+      {
+        name: "preset-default",
+        params: {
+          ...(typeof userPresetDefault === "string"
+            ? {}
+            : userPresetDefault?.params ?? {}),
+          floatPrecision: precision,
+          overrides: {
+            ...(typeof userPresetDefault === "string"
+              ? {}
+              : userPresetDefault?.params?.overrides ?? {}),
+            mergePaths: false,
+            convertShapeToPath: false,
+            convertPathData: false,
+          },
+        },
+      },
+      ...(options?.plugins ?? []).filter(
+        (p) =>
+          typeof p === "string" ||
+          (typeof p === "object" && p.name !== "preset-default")
+      ),
+    ],
+  };
+
+  const optimizedSVG = optimize(inputSVG, mergedSvgoOptions).data;
+  return optimizedSVG;
+};
+
+export const transformSVG = (
+  inputSVG: string,
+  precisionOrOptions: number | Config = 1
+) => {
+  const precision = getPrecisionFromOptions(precisionOrOptions);
+
+  const parser = new DOMParser();
+  const serializer = new XMLSerializer();
+
+  const outputSVGEl = parser.parseFromString(inputSVG, "image/svg+xml");
+
+  // Remove any redundant group attributes that were applied to the group's paths
+  const outputGroupEls = Array.from(outputSVGEl.getElementsByTagName("g"));
+  for (const groupEl of outputGroupEls) {
+    // Apply transforms and group attributes to paths
+    const groupPathEls = Array.from(groupEl.getElementsByTagName("path"));
+    for (const pathEl of groupPathEls) {
+      if (pathEl) {
+        // Apply transform to path
+        const transformAttr = pathEl.getAttribute("transform");
+        const matrix = transformAttr
+          ? parseTransformToMatrix(transformAttr)
+          : null;
+        const dAttr = pathEl.getAttribute("d");
+        if (dAttr) {
+          const transformedPathD = matrix
+            ? applyTransformMatrixToPath(dAttr, matrix, precision)
+            : roundPathDNumbers(dAttr, precision);
+          pathEl.setAttribute("d", transformedPathD);
+          pathEl.removeAttribute("transform");
+        }
+        // Apply group fill to path
+        const fill = groupEl.getAttribute("fill");
+        if (fill != null) {
+          pathEl.setAttribute("fill", fill);
+        }
+        // Apply group fill-rule to path
+        const fillRule = groupEl.getAttribute("fill-rule");
+        if (fillRule != null) {
+          pathEl.setAttribute("fill-rule", fillRule);
+        }
+        // Apply group stroke to path
+        const stroke = groupEl.getAttribute("stroke");
+        if (stroke != null) {
+          pathEl.setAttribute("stroke", stroke);
+        }
+        // Apply group stroke-opacity to path
+        const strokeLineOpacity = groupEl.getAttribute("stroke-opacity");
+        if (strokeLineOpacity != null) {
+          pathEl.setAttribute("stroke-opacity", strokeLineOpacity);
+        }
+        // Apply group stroke-linecap to path
+        const strokeLineCap = groupEl.getAttribute("stroke-linecap");
+        if (strokeLineCap != null) {
+          pathEl.setAttribute("stroke-linecap", strokeLineCap);
+        }
+        // Apply group stroke-linejoin to path
+        const strokeLineJoin = groupEl.getAttribute("stroke-linejoin");
+        if (strokeLineJoin != null) {
+          pathEl.setAttribute("stroke-linejoin", strokeLineJoin);
+        }
+        // Apply group stroke-width to path
+        const strokeWidth = groupEl.getAttribute("stroke-width");
+        if (strokeWidth != null) {
+          const transformedStrokeWidth = matrix
+            ? transformStrokeWidth(strokeWidth, matrix, precision)
+            : strokeWidth;
+          if (transformedStrokeWidth != null) {
+            pathEl.setAttribute("stroke-width", transformedStrokeWidth);
+          }
+        }
+        // Apply group stroke-dasharray to path
+        const strokeDashArray = groupEl.getAttribute("stroke-dasharray");
+        if (strokeDashArray != null) {
+          const transformedStrokeDashArray = matrix
+            ? transformStrokeDashArray(strokeDashArray, matrix, precision)
+            : strokeDashArray;
+          if (transformedStrokeDashArray != null) {
+            pathEl.setAttribute("stroke-dasharray", transformedStrokeDashArray);
+          }
+        }
+        // Apply group stroke-dashoffset to path
+        const strokeDashOffset = groupEl.getAttribute("stroke-dashoffset");
+        if (strokeDashOffset != null) {
+          const transformedStrokeDashOffset = matrix
+            ? transformStrokeDashOffset(strokeDashOffset, matrix, precision)
+            : strokeDashOffset;
+          if (transformedStrokeDashOffset != null) {
+            pathEl.setAttribute(
+              "stroke-dashoffset",
+              transformedStrokeDashOffset
+            );
+          }
+        }
+      }
+    }
+
+    groupEl.removeAttribute("fill");
+    groupEl.removeAttribute("fill-rule");
+    groupEl.removeAttribute("stroke");
+    groupEl.removeAttribute("stroke-opacity");
+    groupEl.removeAttribute("stroke-linecap");
+    groupEl.removeAttribute("stroke-linejoin");
+    groupEl.removeAttribute("stroke-width");
+    groupEl.removeAttribute("stroke-dasharray");
+    groupEl.removeAttribute("stroke-dashoffset");
+  }
+
+  const outputSVG = serializer.serializeToString(outputSVGEl);
+  return outputSVG;
+};
+
+export const optimizeAnimatedSVG = (
+  inputSVG: string,
+  precisionOrOptions: number | Config = 1,
+  removePathAttributes: string[] = []
+) => {
+  const flattenedSVG = flattenSVG(inputSVG);
+  const optimizedSVG = optimizeSVG(flattenedSVG, precisionOrOptions);
+  const transformedSVG = transformSVG(optimizedSVG, precisionOrOptions);
+
+  const parser = new DOMParser();
+  const serializer = new XMLSerializer();
+
+  const outputSVGEl = parser.parseFromString(transformedSVG, "image/svg+xml");
+
+  const inputSVGEl = parser.parseFromString(inputSVG, "image/svg+xml");
+
+  const animateEls: Element[] = Array.from(
+    inputSVGEl.getElementsByTagName("animate")
+  );
+
+  const groupEls = Array.from(outputSVGEl.getElementsByTagName("g"));
+  groupEls.forEach((group, groupIndex) => {
+    const animateEl = animateEls[groupIndex];
+    if (!animateEl) {
+      return;
+    }
+    const clonedAnimateEl = outputSVGEl.importNode(animateEl, true);
+    const groupPathEls = Array.from(group.getElementsByTagName("path"));
+    const keyframes = groupPathEls
+      .map((groupPathEl) => groupPathEl.getAttribute("d"))
+      .join(";");
+    const firstPathEl = groupPathEls[0];
+    if (!firstPathEl) {
+      return;
+    }
+    const clonedFirstPathEl = outputSVGEl.importNode(firstPathEl, true);
+    group.parentElement?.replaceChild(clonedFirstPathEl, group);
+    if (clonedFirstPathEl) {
+      clonedFirstPathEl.appendChild(clonedAnimateEl);
+      clonedAnimateEl.setAttribute("values", keyframes);
+      clonedFirstPathEl.removeAttribute("d");
+      if (removePathAttributes) {
+        removePathAttributes.forEach((attr) => {
+          clonedFirstPathEl.removeAttribute(attr);
+        });
+      }
+    }
+  });
+
+  const outputSVG = serializer.serializeToString(outputSVGEl);
+  return outputSVG;
 };
