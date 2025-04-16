@@ -260,7 +260,7 @@ export class Application {
 
   pause(): void {
     this._overlay?.classList.add("pause-game");
-    this.ticker.speed = 0;
+    this._ticker.speed = 0;
     for (const manager of this._managers) {
       manager.onPause();
     }
@@ -277,7 +277,7 @@ export class Application {
     for (const scene of this._scenes) {
       scene.onUnpause();
     }
-    this.ticker.speed = 1;
+    this._ticker.speed = 1;
   }
 
   step(seconds: number): void {

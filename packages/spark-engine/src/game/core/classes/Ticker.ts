@@ -219,16 +219,18 @@ export class Ticker {
     const frameInterval = 1 / this._maxFPS;
     const currentTime = this.getCurrentTime();
 
-    this._deltaTime = currentTime - this._prevTime;
+    const rawDeltaTime = currentTime - this._prevTime;
 
-    if (this._deltaTime > frameInterval) {
+    if (rawDeltaTime > frameInterval) {
       this._prevTime = currentTime;
-      this._elapsedTime = currentTime - this._startTime;
-      this._elapsedFrames += 1;
-
-      this._callbacks.forEach((callback) => {
-        callback(this);
-      });
+      this._deltaTime = rawDeltaTime * this._speed;
+      if (this._speed !== 0) {
+        this._elapsedTime += this._deltaTime;
+        this._elapsedFrames += 1;
+        this._callbacks.forEach((callback) => {
+          callback(this);
+        });
+      }
     }
 
     this._requestFrame(this.loop);
