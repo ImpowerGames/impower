@@ -227,10 +227,10 @@ export class Ticker {
       if (this._speed !== 0) {
         this._elapsedTime += this._deltaTime;
         this._elapsedFrames += 1;
-        this._callbacks.forEach((callback) => {
-          callback(this);
-        });
       }
+      this._callbacks.forEach((callback) => {
+        callback(this);
+      });
     }
 
     this._requestFrame(this.loop);

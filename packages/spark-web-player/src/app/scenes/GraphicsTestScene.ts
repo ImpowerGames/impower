@@ -1,3 +1,4 @@
+import { Ticker } from "@impower/spark-engine/src/game/core";
 import { Graphics, Sprite } from "pixi.js";
 import { Scene } from "../Scene";
 
@@ -31,9 +32,9 @@ export default class GraphicsTestScene extends Scene {
     return [this._sprite];
   }
 
-  override onUpdate(elapsedTime: number) {
+  override onUpdate(time: Ticker) {
     const beatPeriod = 1.0;
-    const beatProgress = (elapsedTime % beatPeriod) / beatPeriod;
+    const beatProgress = (time.elapsedTime % beatPeriod) / beatPeriod;
     const scale = 1 + 0.5 * Math.sin(beatProgress * 2 * Math.PI);
     if (this._sprite) {
       this._sprite.scale.set(scale);

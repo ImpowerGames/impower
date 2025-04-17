@@ -13,6 +13,8 @@ import { Manager } from "./Manager";
 import AudioManager from "./managers/AudioManager";
 import EventManager from "./managers/EventManager";
 import UIManager from "./managers/UIManager";
+import { Camera } from "./plugins/projection/camera/camera";
+import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
 import { Scene } from "./Scene";
 import { getEventData } from "./utils/getEventData";
 
@@ -60,6 +62,16 @@ export class Application {
     return this._stage;
   }
 
+  protected _camera: Camera;
+  get camera(): Camera {
+    return this._camera;
+  }
+
+  protected _dolly: CameraOrbitControl;
+  get dolly(): CameraOrbitControl {
+    return this._dolly;
+  }
+
   protected _overlay: HTMLElement | null;
   get overlay(): HTMLElement | null {
     return this._overlay;
@@ -104,6 +116,8 @@ export class Application {
     return this._initialized;
   }
 
+  protected _paused = false;
+
   constructor(
     game: Game,
     view: HTMLElement,
@@ -113,8 +127,13 @@ export class Application {
     this._view = view;
     this._overlay = overlay;
     this._canvas = document.createElement("canvas");
+    this._canvas.style.pointerEvents = "auto";
     this._view.appendChild(this._canvas);
     this._renderer = new WebGLRenderer();
+
+    this._camera = new Camera(this._renderer);
+    this._dolly = new CameraOrbitControl(this._camera);
+    this._dolly.allowControl = false;
 
     const width = this._view.clientWidth;
     const height = this._view.clientHeight;
@@ -173,7 +192,7 @@ export class Application {
     });
 
     // TODO: load main scene
-    // await this.loadScene(SVGTestScene);
+    // await this.loadScene(ProjectionTestScene);
 
     // Initialize game
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
@@ -237,7 +256,9 @@ export class Application {
     scene.bind();
     const sceneContainer = new Container();
     for (const child of children) {
-      sceneContainer.addChild(child);
+      if (child) {
+        sceneContainer.addChild(child);
+      }
     }
     this._stage.addChild(sceneContainer);
     this._scenes.push(scene);
@@ -259,17 +280,20 @@ export class Application {
   }
 
   pause(): void {
+    this._paused = true;
     this._overlay?.classList.add("pause-game");
-    this._ticker.speed = 0;
     for (const manager of this._managers) {
       manager.onPause();
     }
     for (const scene of this._scenes) {
       scene.onPause();
     }
+    this._ticker.speed = 0;
+    this._dolly.allowControl = true;
   }
 
   unpause(): void {
+    this._paused = false;
     this._overlay?.classList.remove("pause-game");
     for (const manager of this._managers) {
       manager.onUnpause();
@@ -278,6 +302,7 @@ export class Application {
       scene.onUnpause();
     }
     this._ticker.speed = 1;
+    this._dolly.allowControl = false;
   }
 
   step(seconds: number): void {
@@ -292,14 +317,16 @@ export class Application {
   }
 
   protected update(time: Ticker): void {
-    if (this._game) {
-      this._game.update(time);
-    }
-    for (const manager of this._managers) {
-      manager.onUpdate();
-    }
-    for (const scene of this._scenes) {
-      scene.onUpdate(time.elapsedTime);
+    if (!this._paused) {
+      if (this._game) {
+        this._game.update(time);
+      }
+      for (const manager of this._managers) {
+        manager.onUpdate();
+      }
+      for (const scene of this._scenes) {
+        scene.onUpdate(time);
+      }
     }
     if (this._renderer) {
       this._renderer.render(this._stage);

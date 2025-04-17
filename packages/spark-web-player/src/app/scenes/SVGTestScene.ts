@@ -30,8 +30,6 @@ export default class SVGTestScene extends Scene {
     return [this._sprite];
   }
 
-  override onUpdate(elapsedTime: number) {}
-
   override onResize(width: number, height: number): void {
     if (this._sprite) {
       this._sprite.position.set(width / 2, height / 2);

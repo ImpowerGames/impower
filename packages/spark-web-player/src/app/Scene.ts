@@ -2,9 +2,12 @@ import {
   type NotificationMessage,
   type RequestMessage,
   type ResponseError,
+  Ticker,
 } from "@impower/spark-engine/src/game/core";
 import { Container } from "pixi.js";
 import { Application } from "./Application";
+import { Camera } from "./plugins/projection/camera/camera";
+import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
 
 export class Scene {
   protected _app: Application;
@@ -25,6 +28,14 @@ export class Scene {
     return this._app.stage;
   }
 
+  public get dolly(): CameraOrbitControl {
+    return this._app.dolly;
+  }
+
+  public get camera(): Camera {
+    return this._app.camera;
+  }
+
   constructor(app: Application) {
     this._app = app;
   }
@@ -35,7 +46,7 @@ export class Scene {
 
   onStart(): void {}
 
-  onUpdate(_elapsedTime: number): void {}
+  onUpdate(_time: Ticker): void {}
 
   onStep(_seconds: number): void {}
 
