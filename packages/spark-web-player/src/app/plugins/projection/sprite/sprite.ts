@@ -241,14 +241,14 @@ export class Sprite3D extends PerspectiveMesh {
 
     // Apply corners to mesh
     this.setCorners(
-      screenCorners[0]!.x,
-      screenCorners[0]!.y,
-      screenCorners[1]!.x,
-      screenCorners[1]!.y,
-      screenCorners[2]!.x,
-      screenCorners[2]!.y,
       screenCorners[3]!.x,
-      screenCorners[3]!.y
+      screenCorners[3]!.y, // top-left
+      screenCorners[2]!.x,
+      screenCorners[2]!.y, // top-right
+      screenCorners[1]!.x,
+      screenCorners[1]!.y, // bottom-right
+      screenCorners[0]!.x,
+      screenCorners[0]!.y // bottom-left
     );
 
     // Sprites that are closer to camera should render ontop of others
