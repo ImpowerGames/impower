@@ -29,6 +29,12 @@ export class Transform3D extends Transform {
   override scale = new Point3D(1, 1, 1, this._observer);
 
   /** The rotation in local space. */
+  // @ts-ignore - override number rotation with quaternion rotation
+  override get rotation(): Quaternion {
+    return this.rotationQuaternion;
+  }
+
+  /** The rotation in local space. */
   rotationQuaternion = new Quaternion(0, 0, 0, 1, this._observer);
 
   /** The transformation matrix in world space. */
@@ -88,7 +94,7 @@ export class Transform3D extends Transform {
    * Updates the world transformation matrix.
    * @param parentTransform The parent transform.
    */
-  updateTransform(parentTransform?: Transform) {
+  updateTransform(parentTransform?: Transform3D) {
     this.updateLocalTransform();
     if (
       parentTransform &&

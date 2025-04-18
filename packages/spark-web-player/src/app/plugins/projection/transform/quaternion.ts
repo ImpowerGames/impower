@@ -101,7 +101,7 @@ export class Quaternion extends ObservablePoint {
    * @param y The y angle.
    * @param z The z angle.
    */
-  setEulerAngles(x: number, y: number, z: number) {
+  setAngles(x: number, y: number, z: number) {
     Quat.fromEuler(x, y, z, this._array);
     this.observer._onUpdate(this);
   }

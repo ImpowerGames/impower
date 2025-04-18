@@ -82,7 +82,7 @@ export class Camera extends Container3D implements TransformId {
       Camera.main = this;
     }
     this.transform.position.z = 5;
-    this.transform.rotationQuaternion.setEulerAngles(0, 180, 0);
+    this.transform.rotationQuaternion.setAngles(0, 180, 0);
   }
 
   override destroy(options?: boolean | DestroyOptions) {
