@@ -134,6 +134,7 @@ export class Application {
     this._camera = new Camera(this._renderer);
     this._dolly = new CameraOrbitControl(this._camera);
     this._dolly.allowControl = false;
+    this._dolly.autoUpdate = false;
 
     const width = this._view.clientWidth;
     const height = this._view.clientHeight;
@@ -290,6 +291,7 @@ export class Application {
     }
     this._ticker.speed = 0;
     this._dolly.allowControl = true;
+    this._dolly.autoUpdate = true;
   }
 
   unpause(): void {
@@ -303,6 +305,7 @@ export class Application {
     }
     this._ticker.speed = 1;
     this._dolly.allowControl = false;
+    this._dolly.autoUpdate = false;
   }
 
   step(seconds: number): void {
