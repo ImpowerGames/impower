@@ -6,7 +6,7 @@ import {
   PointData,
   Renderer,
 } from "pixi.js";
-import { Container3D } from "../container";
+import { Container3D } from "../container-3d";
 import { Mat4 } from "../math/mat4";
 import { Ray } from "../math/ray";
 import { Vec3 } from "../math/vec3";

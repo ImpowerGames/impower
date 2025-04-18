@@ -6,7 +6,7 @@ import {
   UPDATE_PRIORITY,
 } from "pixi.js";
 import { Camera } from "../camera/camera";
-import { Sprite3D } from "./sprite";
+import { Sprite3D } from "./sprite-3d";
 
 export type AnimatedSpriteFrames = Texture[] | FrameObject[];
 

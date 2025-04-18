@@ -3,7 +3,7 @@ import { Container, ContainerChild } from "pixi.js";
 import { Matrix4x4 } from "./transform/matrix";
 import { Point3D } from "./transform/point";
 import { Quaternion } from "./transform/quaternion";
-import { Transform3D } from "./transform/transform";
+import { Transform3D } from "./transform/transform-3d";
 
 /**
  * A container represents a collection of 3D objects.
