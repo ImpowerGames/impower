@@ -113,6 +113,14 @@ export class Ticker {
   }
 
   /**
+   * The number of frames that have passed since the last update,
+   * (assuming max FPS).
+   */
+  get deltaFrames(): number {
+    return this._deltaTime * this.maxFPS;
+  }
+
+  /**
    * The clock that the ticker is synchronized to.
    */
   protected _clock: Clock;
