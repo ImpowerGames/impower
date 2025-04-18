@@ -9,7 +9,7 @@ import { Application } from "./Application";
 import { Camera } from "./plugins/projection/camera/camera";
 import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
 
-export class Scene {
+export class World {
   protected _app: Application;
 
   get screen() {

@@ -1,8 +1,8 @@
 import { Ticker } from "@impower/spark-engine/src/game/core";
 import { Graphics, Sprite } from "pixi.js";
-import { Scene } from "../Scene";
+import { World } from "../World";
 
-export default class GraphicsTestScene extends Scene {
+export default class GraphicsTestWorld extends World {
   protected _time = 0;
 
   protected _sprite!: Sprite;

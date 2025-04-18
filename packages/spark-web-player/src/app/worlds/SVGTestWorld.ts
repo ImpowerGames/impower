@@ -1,9 +1,9 @@
 import { AnimatedSprite } from "pixi.js";
-import { Scene } from "../Scene";
+import { World } from "../World";
 import { generateAnimatedSVGTextures } from "../plugins/svg/utils/generateAnimatedSVGTextures";
 import { parseSVG } from "../plugins/svg/utils/parseSVG";
 
-export default class SVGTestScene extends Scene {
+export default class SVGTestWorld extends World {
   protected _time = 0;
 
   protected _sprite?: AnimatedSprite;

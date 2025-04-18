@@ -15,8 +15,8 @@ import EventManager from "./managers/EventManager";
 import UIManager from "./managers/UIManager";
 import { Camera } from "./plugins/projection/camera/camera";
 import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
-import { Scene } from "./Scene";
 import { getEventData } from "./utils/getEventData";
+import { World } from "./World";
 
 export class Application {
   // TODO: Application should only have a reference to gameWorker
@@ -47,9 +47,9 @@ export class Application {
     return this._canvas;
   }
 
-  _scenes: Scene[] = [];
-  get scenes() {
-    return this._scenes;
+  _worlds: World[] = [];
+  get worlds() {
+    return this._worlds;
   }
 
   _renderer: Renderer;
@@ -192,8 +192,8 @@ export class Application {
       backgroundAlpha: 0,
     });
 
-    // TODO: load main scene
-    // await this.loadScene(ProjectionTestScene);
+    // TODO: load main
+    // await this.loadWorld(ProjectionTestWorld);
 
     // Initialize game
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
@@ -251,30 +251,30 @@ export class Application {
     }
   }
 
-  async loadScene(sceneCtr: typeof Scene) {
-    const scene = new sceneCtr(this);
-    const children = await scene.onLoad();
-    scene.bind();
-    const sceneContainer = new Container();
+  async loadWorld(worldClass: typeof World) {
+    const world = new worldClass(this);
+    const children = await world.onLoad();
+    world.bind();
+    const worldContainer = new Container();
     for (const child of children) {
       if (child) {
-        sceneContainer.addChild(child);
+        worldContainer.addChild(child);
       }
     }
-    this._stage.addChild(sceneContainer);
-    this._scenes.push(scene);
+    this._stage.addChild(worldContainer);
+    this._worlds.push(world);
   }
 
-  async loadScenes(sceneCtrs: (typeof Scene)[]) {
-    await Promise.all(sceneCtrs.map((scene) => this.loadScene(scene)));
+  async loadWorlds(worldClasses: (typeof World)[]) {
+    await Promise.all(worldClasses.map((world) => this.loadWorld(world)));
   }
 
   start() {
     for (const manager of this._managers) {
       manager.onStart();
     }
-    for (const scene of this._scenes) {
-      scene.onStart();
+    for (const world of this._worlds) {
+      world.onStart();
     }
     this.ticker.add((time) => this.update(time));
     this.ticker.start();
@@ -286,8 +286,8 @@ export class Application {
     for (const manager of this._managers) {
       manager.onPause();
     }
-    for (const scene of this._scenes) {
-      scene.onPause();
+    for (const world of this._worlds) {
+      world.onPause();
     }
     this._ticker.speed = 0;
     this._dolly.allowControl = true;
@@ -300,8 +300,8 @@ export class Application {
     for (const manager of this._managers) {
       manager.onUnpause();
     }
-    for (const scene of this._scenes) {
-      scene.onUnpause();
+    for (const world of this._worlds) {
+      world.onUnpause();
     }
     this._ticker.speed = 1;
     this._dolly.allowControl = false;
@@ -313,8 +313,8 @@ export class Application {
     for (const manager of this._managers) {
       manager.onStep(seconds);
     }
-    for (const scene of this._scenes) {
-      scene.onStep(seconds);
+    for (const world of this._worlds) {
+      world.onStep(seconds);
     }
     this.update(this._ticker);
   }
@@ -327,8 +327,8 @@ export class Application {
       for (const manager of this._managers) {
         manager.onUpdate();
       }
-      for (const scene of this._scenes) {
-        scene.onUpdate(time);
+      for (const world of this._worlds) {
+        world.onUpdate(time);
       }
     }
     if (this._renderer) {
@@ -346,9 +346,9 @@ export class Application {
     for (const manager of this._managers) {
       manager.onDispose();
     }
-    for (const scene of this._scenes) {
-      scene.unbind();
-      scene.onDispose();
+    for (const world of this._worlds) {
+      world.unbind();
+      world.onDispose();
     }
     if (this._game) {
       this._game.destroy();

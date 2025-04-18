@@ -1,9 +1,9 @@
 import { Ticker } from "@impower/spark-engine/src/game/core";
 import { Texture } from "pixi.js";
-import { Scene } from "../Scene";
+import { World } from "../World";
 import { Camera } from "../plugins/projection/camera/camera";
-import { AnimatedSprite3D } from "../plugins/projection/sprite/animated-sprite";
-import { Sprite3D } from "../plugins/projection/sprite/sprite";
+import { AnimatedSprite3D } from "../plugins/projection/sprite/animated-sprite-3d";
+import { Sprite3D } from "../plugins/projection/sprite/sprite-3d";
 import { SpriteBillboardType } from "../plugins/projection/sprite/sprite-billboard-type";
 import { generateAnimatedSVGTextures } from "../plugins/svg/utils/generateAnimatedSVGTextures";
 import { parseSVG } from "../plugins/svg/utils/parseSVG";
@@ -57,7 +57,7 @@ class Bunny extends AnimatedSprite3D {
   }
 }
 
-export default class ProjectionTestScene extends Scene {
+export default class ProjectionTestWorld extends World {
   protected _sprite3D!: Sprite3D;
 
   protected _bunnies: Bunny[] = [];
