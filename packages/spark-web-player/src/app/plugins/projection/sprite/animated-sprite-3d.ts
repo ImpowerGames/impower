@@ -268,12 +268,11 @@ export class AnimatedSprite3D extends Sprite3D {
   }
 
   /**
-   * Updates the object transform for rendering.
-   * @param ticker - the ticker to use to update the object.
+   * Advances the animation.
+   * @param deltaTime - the amount of frames since last tick
    */
-  public update(ticker: Ticker): void {
+  public tick(deltaTime: number): void {
     // Calculate elapsed time based on ticker's deltaTime and animation speed.
-    const deltaTime = ticker.deltaTime;
     const elapsed = this.animationSpeed * deltaTime;
     const previousFrame = this.currentFrame;
 
@@ -341,6 +340,18 @@ export class AnimatedSprite3D extends Sprite3D {
       // Update the texture for the current frame.
       this._updateTexture();
     }
+  }
+
+  /**
+   * Updates the object transform for rendering.
+   * @param ticker - the ticker to use to update the object.
+   */
+  public update(ticker: Ticker): void {
+    // If the animation isn't playing, no update is needed.
+    if (!this._playing) {
+      return;
+    }
+    this.update(ticker);
   }
 
   /** Updates the displayed texture to match the current frame index. */

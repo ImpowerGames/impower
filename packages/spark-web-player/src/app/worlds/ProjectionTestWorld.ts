@@ -89,13 +89,10 @@ export default class ProjectionTestWorld extends World {
     return [...this._bunnies];
   }
 
-  pixiTicker = { deltaTime: 0 };
-
   override onUpdate(time: Ticker) {
-    this.pixiTicker.deltaTime = time.deltaFrames;
     for (let bunny of this._bunnies) {
       bunny.updatePosition();
-      bunny.update(this.pixiTicker as any);
+      bunny.tick(time.deltaFrames);
     }
   }
 }
