@@ -80,6 +80,8 @@ export class Sprite3D extends PerspectiveMesh {
     this._anchor = value;
   }
 
+  protected _pixelsPerUnit: number;
+
   constructor(texture: Texture, camera: Camera) {
     const width = texture.width / camera.pixelsPerUnit;
     const height = texture.height / camera.pixelsPerUnit;
@@ -95,6 +97,8 @@ export class Sprite3D extends PerspectiveMesh {
     });
 
     this._camera = camera;
+
+    this._pixelsPerUnit = camera.pixelsPerUnit;
 
     this._camera.renderer.runners.prerender.add(this);
   }
@@ -134,6 +138,17 @@ export class Sprite3D extends PerspectiveMesh {
    * Updates the sprite's 2D screen position, rotation, and scale based on the 3D transform.
    */
   prerender() {
+    // If pixels per unit changed, update width, height, and pivot
+    if (this._pixelsPerUnit !== this._camera.pixelsPerUnit) {
+      this._pixelsPerUnit = this._camera.pixelsPerUnit;
+      const width = this.texture.width / this._camera.pixelsPerUnit;
+      const height = this.texture.height / this._camera.pixelsPerUnit;
+      this.pivot.x = width / 2;
+      this.pivot.y = height / 2;
+      this.width = width;
+      this.height = height;
+    }
+
     // Update local and world transform
     this.transform.updateTransform((this.parent as Container3D)?.transform);
 
@@ -167,11 +182,10 @@ export class Sprite3D extends PerspectiveMesh {
 
     // Get half-width and half-height in local 3D space (object space)
     const hw =
-      (this.texture.width * 0.5 * this.transform.scale.x) /
-      this._camera.pixelsPerUnit;
+      (this.texture.width * 0.5 * this.transform.scale.x) / this._pixelsPerUnit;
     const hh =
       (this.texture.height * 0.5 * this.transform.scale.y) /
-      this._camera.pixelsPerUnit;
+      this._pixelsPerUnit;
 
     // Apply billboarding by modifying rotation in local space
     let rotRight = Vec3.right;
