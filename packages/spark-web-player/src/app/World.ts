@@ -4,7 +4,7 @@ import {
   type ResponseError,
   Ticker,
 } from "@impower/spark-engine/src/game/core";
-import { Container } from "pixi.js";
+import { Color, ColorSource, Container } from "pixi.js";
 import { Application } from "./Application";
 import { Camera } from "./plugins/projection/camera/camera";
 import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
@@ -34,10 +34,6 @@ export class World {
     return this._app.renderer;
   }
 
-  get stage() {
-    return this._app.stage;
-  }
-
   public get dolly(): CameraOrbitControl {
     return this._app.dolly;
   }
@@ -46,27 +42,17 @@ export class World {
     return this._app.camera;
   }
 
-  constructor(app: Application) {
-    this._app = app;
+  get backgroundColor(): Color {
+    return this._app.renderer.background.color;
+  }
+  set backgroundColor(value: ColorSource) {
+    this._app.renderer.background.color = value;
   }
 
-  async onLoad(): Promise<Container[]> {
-    return [];
+  private _root = new Container();
+  public get root(): Container {
+    return this._root;
   }
-
-  onStart(): void {}
-
-  onUpdate(_time: Ticker): void {}
-
-  onStep(_seconds: number): void {}
-
-  onPause(): void {}
-
-  onUnpause(): void {}
-
-  onResize(_width: number, _height: number, _resolution: number): void {}
-
-  onDispose() {}
 
   private _pointerDown = false;
   get pointerDown(): boolean {
@@ -112,7 +98,17 @@ export class World {
     this._touchDragThreshold = value;
   }
 
-  bind(): void {
+  constructor(app: Application) {
+    this._app = app;
+    this.bind();
+  }
+
+  destroy() {
+    this.unbind();
+    this.onDispose();
+  }
+
+  private bind(): void {
     if (this.canvas) {
       this.canvas.addEventListener("pointerdown", this.handlePointerDown);
       this.canvas.addEventListener("pointermove", this.handlePointerMove);
@@ -121,7 +117,7 @@ export class World {
     window.addEventListener("touchend", this.handleTouchEnd);
   }
 
-  unbind(): void {
+  private unbind(): void {
     if (this.canvas) {
       this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
       this.canvas.removeEventListener("pointermove", this.handlePointerMove);
@@ -199,28 +195,44 @@ export class World {
     }
   };
 
-  onPointerDown(_event: PointerEvent): void {}
+  async onLoad(): Promise<void> {}
 
-  onPointerMove(_event: PointerEvent): void {}
+  onStart(): void {}
 
-  onPointerUp(_event: PointerEvent): void {}
+  onUpdate(_time: Ticker): void {}
 
-  onTap(_event: PointerEvent): void {}
+  onStep(_seconds: number): void {}
 
-  onDragStart(
+  onPause(): void {}
+
+  onUnpause(): void {}
+
+  onResize(_width: number, _height: number, _resolution: number): void {}
+
+  protected onDispose() {}
+
+  protected onPointerDown(_event: PointerEvent): void {}
+
+  protected onPointerMove(_event: PointerEvent): void {}
+
+  protected onPointerUp(_event: PointerEvent): void {}
+
+  protected onTap(_event: PointerEvent): void {}
+
+  protected onDragStart(
     _event: PointerEvent,
     _dragThreshold: number,
     _distanceX: number,
     _distanceY: number
   ): void {}
 
-  onDrag(_event: PointerEvent): void {}
+  protected onDrag(_event: PointerEvent): void {}
 
-  onDragEnd(_event: PointerEvent): void {}
+  protected onDragEnd(_event: PointerEvent): void {}
 
-  onReceiveNotification(_msg: NotificationMessage): void {}
+  protected onReceiveNotification(_msg: NotificationMessage): void {}
 
-  async onReceiveRequest(
+  protected async onReceiveRequest(
     _msg: RequestMessage
   ): Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
@@ -228,6 +240,10 @@ export class World {
     | undefined
   > {
     return undefined;
+  }
+
+  addChild(child: Container) {
+    return this.root.addChild(child);
   }
 
   texture(width: number, height: number, color?: number) {

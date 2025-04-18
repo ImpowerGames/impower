@@ -193,7 +193,7 @@ export class Application {
     });
 
     // TODO: load main
-    // await this.loadWorld(ProjectionTestWorld);
+    // await this.loadWorld(Minigame1World);
 
     // Initialize game
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
@@ -253,15 +253,8 @@ export class Application {
 
   async loadWorld(worldClass: typeof World) {
     const world = new worldClass(this);
-    const children = await world.onLoad();
-    world.bind();
-    const worldContainer = new Container();
-    for (const child of children) {
-      if (child) {
-        worldContainer.addChild(child);
-      }
-    }
-    this._stage.addChild(worldContainer);
+    await world.onLoad();
+    this._stage.addChild(world.root);
     this._worlds.push(world);
   }
 
@@ -337,6 +330,7 @@ export class Application {
   }
 
   destroy(removeCanvas?: boolean): void {
+    this._overlay?.classList.remove("pause-game");
     if (this._renderer) {
       this._renderer.destroy();
     }
@@ -347,8 +341,7 @@ export class Application {
       manager.onDispose();
     }
     for (const world of this._worlds) {
-      world.unbind();
-      world.onDispose();
+      world.destroy();
     }
     if (this._game) {
       this._game.destroy();
