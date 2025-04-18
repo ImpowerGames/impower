@@ -43,7 +43,7 @@ export interface AnimatedSVGParserOptions {
   /** A fillStyle to apply to all shapes */
   fillStyle?: FillStyle;
   /** A strokeStyle to apply to all shapes */
-  strokeStyle?: StrokeStyle & { scale: number };
+  strokeStyle?: StrokeStyle & { scale?: number };
 }
 
 /**
@@ -127,7 +127,7 @@ function renderChildren(
   }
 
   if (options?.fillStyle != null) {
-    strokeStyle = { ...fillStyle, ...options.fillStyle };
+    fillStyle = { ...fillStyle, ...options.fillStyle };
   }
 
   if (options?.strokeStyle != null) {

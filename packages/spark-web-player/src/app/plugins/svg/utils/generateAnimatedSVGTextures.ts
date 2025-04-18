@@ -1,17 +1,21 @@
 import { Renderer, Texture } from "pixi.js";
-import { generateAnimatedSVGTexture } from "./generateAnimatedSVGTexture";
+import {
+  generateAnimatedSVGTexture,
+  GenerateAnimatedSVGTextureOptions,
+} from "./generateAnimatedSVGTexture";
 import { parseSVGDurAttribute } from "./parseSVGDurAttribute";
+
+export interface GenerateAnimatedSVGTexturesOptions
+  extends GenerateAnimatedSVGTextureOptions {
+  fps?: number;
+}
 
 export const generateAnimatedSVGTextures = (
   renderer: Renderer,
   svg: SVGElement,
-  options?: {
-    quality?: number;
-    scale?: number;
-    fps?: number;
-  }
+  options?: GenerateAnimatedSVGTexturesOptions
 ): Texture[] => {
-  const fps = options?.fps ?? 60;
+  const { fps = 60 } = options || {};
   const textures: Texture[] = [];
   const animateDurEl = Array.from(svg.getElementsByTagName("animate")).find(
     (e) => e.getAttribute("dur")

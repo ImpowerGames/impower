@@ -1,27 +1,34 @@
 import { Graphics, GraphicsContext, Rectangle, Renderer } from "pixi.js";
-import { AnimatedSVGParser } from "../AnimatedSVGParser";
+import {
+  AnimatedSVGParser,
+  AnimatedSVGParserOptions,
+} from "../AnimatedSVGParser";
 import { parseSVGViewBoxAttribute } from "./parseSVGViewBoxAttribute";
+
+export interface GenerateAnimatedSVGTextureOptions
+  extends AnimatedSVGParserOptions {
+  quality?: number;
+  scale?: number;
+}
 
 export const generateAnimatedSVGTexture = (
   renderer: Renderer,
   svg: SVGElement,
   time: number,
-  options?: {
-    quality?: number;
-    scale?: number;
-  }
+  options?: GenerateAnimatedSVGTextureOptions
 ) => {
-  const scale = options?.scale ?? 1;
-  const quality = options?.quality ?? 4;
+  const { scale = 1, quality = 4, ...rest } = options || {};
   // Create graphicsContext
   const graphicsContext = new GraphicsContext();
   graphicsContext.scale(scale, scale);
 
   // Create svgContext
   const svgContext = AnimatedSVGParser(svg, graphicsContext, {
+    ...(rest || {}),
     time,
     strokeStyle: {
-      scale: scale,
+      scale,
+      ...(rest.strokeStyle || {}),
     },
   });
 
