@@ -1,3 +1,10 @@
+/*
+ * Based on pixi3d <https://github.com/jnsmalm/pixi3d>
+ *
+ * Copyright (c) 2023 Jens Malmborg
+ * Released under the MIT license.
+ */
+
 import { Matrix } from "pixi.js";
 import { Mat4 } from "../math/mat4";
 import { Quat } from "../math/quat";
