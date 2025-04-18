@@ -77,7 +77,7 @@ export class Sprite3D extends PerspectiveMesh {
     return this._anchor;
   }
   set anchor(value) {
-    this._anchor = value;
+    this._anchor.copyFrom(value);
   }
 
   protected _pixelsPerUnit: number;
@@ -108,28 +108,33 @@ export class Sprite3D extends PerspectiveMesh {
     this._camera.renderer.runners.prerender.remove(this);
   }
 
-  calculateScreenCorners(
-    hw: number,
-    hh: number,
+  calculateWorldCorners(
+    w: number,
+    h: number,
     rotRight: Float32Array,
     rotUp: Float32Array,
-    out: Point[] = [new Point(), new Point(), new Point(), new Point()]
+    out: Point3D[] = [
+      new Point3D(),
+      new Point3D(),
+      new Point3D(),
+      new Point3D(),
+    ]
   ) {
     const spritePos = this.transform.worldTransform.position;
+    const ax = this._anchor.x;
+    const ay = this._anchor.y;
 
     // Use rotRight and rotUp to compute corners
     for (let i = 0; i < 4; i++) {
-      const x = cornerOffsets[i]![0]! * hw;
-      const y = cornerOffsets[i]![1]! * hh;
-      const pos = localCorners[i]!;
+      const x = cornerOffsets[i]![0]! * w * 0.5 + (0.5 - ax) * w;
+      const y = cornerOffsets[i]![1]! * h * 0.5 + (0.5 - ay) * h;
+      const worldCorner = out[i]!;
 
-      pos.set(
+      worldCorner.set(
         spritePos.x + rotRight[0]! * x + rotUp[0]! * y,
         spritePos.y + rotRight[1]! * x + rotUp[1]! * y,
         spritePos.z + rotRight[2]! * x + rotUp[2]! * y
       );
-
-      this._camera.worldToScreen(pos.x, pos.y, pos.z, out[i]!);
     }
     return out;
   }
@@ -138,17 +143,6 @@ export class Sprite3D extends PerspectiveMesh {
    * Updates the sprite's 2D screen position, rotation, and scale based on the 3D transform.
    */
   prerender() {
-    // If pixels per unit changed, update width, height, and pivot
-    if (this._pixelsPerUnit !== this._camera.pixelsPerUnit) {
-      this._pixelsPerUnit = this._camera.pixelsPerUnit;
-      const width = this.texture.width / this._camera.pixelsPerUnit;
-      const height = this.texture.height / this._camera.pixelsPerUnit;
-      this.pivot.x = width / 2;
-      this.pivot.y = height / 2;
-      this.width = width;
-      this.height = height;
-    }
-
     // Update local and world transform
     this.transform.updateTransform((this.parent as Container3D)?.transform);
 
@@ -180,12 +174,11 @@ export class Sprite3D extends PerspectiveMesh {
       return;
     }
 
-    // Get half-width and half-height in local 3D space (object space)
-    const hw =
-      (this.texture.width * 0.5 * this.transform.scale.x) / this._pixelsPerUnit;
-    const hh =
-      (this.texture.height * 0.5 * this.transform.scale.y) /
-      this._pixelsPerUnit;
+    // Get width and height in local 3D space (object space)
+    const w =
+      (this.texture.width * this.transform.scale.x) / this._pixelsPerUnit;
+    const h =
+      (this.texture.height * this.transform.scale.y) / this._pixelsPerUnit;
 
     // Apply billboarding by modifying rotation in local space
     let rotRight = Vec3.right;
@@ -206,7 +199,7 @@ export class Sprite3D extends PerspectiveMesh {
       rotUp[2] = view[9]!;
 
       // Project to screen space
-      this.calculateScreenCorners(hw, hh, rotRight, rotUp, screenCorners);
+      this.calculateWorldCorners(w, h, rotRight, rotUp, worldCorners);
     } else if (this._billboardType === SpriteBillboardType.cylindrical) {
       // Extract right vector from camera's view matrix (X column)
       const view = this._camera.view.array;
@@ -220,37 +213,49 @@ export class Sprite3D extends PerspectiveMesh {
       rotUp.set(Vec3.up);
 
       // Project to screen space
-      this.calculateScreenCorners(hw, hh, rotRight, rotUp, screenCorners);
+      this.calculateWorldCorners(w, h, rotRight, rotUp, worldCorners);
     } else {
-      // No billboarding: use transform matrix
-      // Transform to world space
-      this.transform.localToWorld(
-        localCorners[0]!.set(-hw, -hh, 0),
-        worldCorners[0]
-      );
-      this.transform.localToWorld(
-        localCorners[1]!.set(hw, -hh, 0),
-        worldCorners[1]
-      );
-      this.transform.localToWorld(
-        localCorners[2]!.set(hw, hh, 0),
-        worldCorners[2]
-      );
-      this.transform.localToWorld(
-        localCorners[3]!.set(-hw, hh, 0),
-        worldCorners[3]
-      );
+      // No billboarding
+      const ax = this._anchor.x;
+      const ay = this._anchor.y;
 
-      // Project to screen space
+      // Transform to world space
       for (let i = 0; i < 4; i++) {
-        const worldCorner = worldCorners[i]!;
-        this._camera.worldToScreen(
-          worldCorner.x,
-          worldCorner.y,
-          worldCorner.z,
-          screenCorners[i]
+        const x = cornerOffsets[i]![0]! * w * 0.5 + (0.5 - ax) * w;
+        const y = cornerOffsets[i]![1]! * h * 0.5 + (0.5 - ay) * h;
+        this.transform.localToWorld(
+          localCorners[i]!.set(x, y, 0),
+          worldCorners[i]
         );
       }
+    }
+
+    // Check if any corners are behind the camera
+    for (let i = 0; i < 4; i++) {
+      const worldCorner = worldCorners[i]!;
+      this._camera.worldToView(
+        worldCorner.x,
+        worldCorner.y,
+        worldCorner.z,
+        viewPos
+      );
+      const depth = -viewPos.z;
+      if (depth <= 0) {
+        // A corner is behind the camera
+        this.visible = false;
+        return;
+      }
+    }
+
+    // Project to screen space
+    for (let i = 0; i < 4; i++) {
+      const worldCorner = worldCorners[i]!;
+      this._camera.worldToScreen(
+        worldCorner.x,
+        worldCorner.y,
+        worldCorner.z,
+        screenCorners[i]
+      );
     }
 
     // Apply corners to mesh
@@ -266,6 +271,14 @@ export class Sprite3D extends PerspectiveMesh {
     );
 
     // Sprites that are closer to camera should render ontop of others
+    const anchorOffset = point.set(0, h * (0.5 - this._anchor.y), 0);
+    this.transform.localToWorld(anchorOffset, anchorOffset);
+    this._camera.worldToView(
+      anchorOffset.x,
+      anchorOffset.y,
+      anchorOffset.z,
+      viewPos
+    );
     this.zIndex = viewPos.z;
 
     // Sprite should render
