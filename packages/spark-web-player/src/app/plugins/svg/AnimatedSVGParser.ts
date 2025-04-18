@@ -1,3 +1,11 @@
+/*
+ * Based on pixijs SVGParser
+ * <https://github.com/pixijs/pixijs/blob/dev/src/scene/graphics/shared/svg/SVGParser.ts>
+ *
+ * Copyright (c) 2013-2023 Mathew Groves, Chad Engler
+ * Released under the MIT license.
+ */
+
 import {
   FillGradient,
   FillStyle,

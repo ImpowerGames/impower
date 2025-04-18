@@ -1,3 +1,11 @@
+/*
+ * Based on pixijs AnimatedSprite
+ * <https://github.com/pixijs/pixijs/blob/dev/src/scene/sprite-animated/AnimatedSprite.ts>
+ *
+ * Copyright (c) 2013-2023 Mathew Groves, Chad Engler
+ * Released under the MIT license.
+ */
+
 import {
   Sprite,
   SpriteOptions,
