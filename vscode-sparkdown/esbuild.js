@@ -1,5 +1,5 @@
 import * as polyfill from "@esbuild-plugins/node-globals-polyfill";
-import { context } from "esbuild";
+import { analyzeMetafile, context } from "esbuild";
 import copy from "esbuild-plugin-copy-watch";
 import * as glob from "glob";
 import * as path from "path";
@@ -124,6 +124,7 @@ const config = {
     testBundle(),
     esbuildProblemMatcher() /* add to the end of plugins array */,
   ],
+  metafile: true,
 };
 
 async function main() {
@@ -131,7 +132,9 @@ async function main() {
   if (WATCH) {
     await ctx.watch();
   } else {
-    await ctx.rebuild();
+    const result = await ctx.rebuild();
+    const analysis = await analyzeMetafile(result.metafile, { color: true });
+    console.log(analysis);
     await ctx.dispose();
   }
 }
