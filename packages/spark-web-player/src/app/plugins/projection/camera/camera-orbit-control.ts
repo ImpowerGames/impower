@@ -4,6 +4,14 @@ import { Vec3 } from "../math/vec3";
 import { Point3D } from "../transform/point";
 import { Camera } from "./camera";
 
+// Allocate these once and then reuse
+const rotVec4 = new Float32Array(4);
+const dirVec3 = new Float32Array(3);
+const posVec3 = new Float32Array(3);
+const transformAVec3 = new Float32Array(3);
+const subtractAVec3 = new Float32Array(3);
+const subtractBVec3 = new Float32Array(3);
+
 /**
  * Allows the user to control the camera by orbiting the target.
  */
@@ -478,12 +486,8 @@ export class CameraOrbitControl {
     const angles = this.enableDamping ? this._dampingAngles : this.angles;
     const distance = this.enableDamping ? this._dampingDistance : this.distance;
 
-    const rot = Quat.fromEuler(angles.x, angles.y, 0, new Float32Array(4));
-    const dir = Vec3.transformQuat(
-      Vec3.set(0, 0, 1, new Float32Array(3)),
-      rot,
-      new Float32Array(3)
-    );
+    Quat.fromEuler(angles.x, angles.y, 0, rotVec4);
+    Vec3.transformQuat(Vec3.set(0, 0, 1, transformAVec3), rotVec4, dirVec3);
     if (this.enableDamping) {
       this._dampingTarget.x +=
         (this.target.x - this._dampingTarget.x) * this.dampingFactor;
@@ -497,18 +501,23 @@ export class CameraOrbitControl {
       ? this._dampingTarget
       : this.target;
 
-    const pos = Vec3.subtract(
+    Vec3.subtract(
       Vec3.set(
         effectiveTarget.x,
         effectiveTarget.y,
         effectiveTarget.z,
-        new Float32Array(3)
+        subtractAVec3
       ),
-      Vec3.scale(dir, distance, new Float32Array(3)),
-      new Float32Array(3)
+      Vec3.scale(dirVec3, distance, subtractBVec3),
+      posVec3
     );
 
-    this.camera.position.set(pos[0]!, pos[1]!, pos[2]!);
-    this.camera.rotationQuaternion.set(rot[0]!, rot[1]!, rot[2]!, rot[3]!);
+    this.camera.position.set(posVec3[0]!, posVec3[1]!, posVec3[2]!);
+    this.camera.rotationQuaternion.set(
+      rotVec4[0]!,
+      rotVec4[1]!,
+      rotVec4[2]!,
+      rotVec4[3]!
+    );
   }
 }
