@@ -262,14 +262,10 @@ export class Camera extends Container3D implements TransformId {
   }
 
   prerender() {
-    if (!this._aspect) {
-      // When there is no specific aspect set, this is used for the
-      // projection matrix to always update each frame (in case when the
-      // renderer aspect ratio has changed).
-      if (this.renderer.width / this.renderer.height !== this._aspect) {
-        this._transformId++;
-        this._aspect = this.renderer.width / this.renderer.height;
-      }
+    // Update the projection matrix if the aspect ratio changed.
+    if (this.renderer.width / this.renderer.height !== this._aspect) {
+      this._transformId++;
+      this._aspect = this.renderer.width / this.renderer.height;
     }
     // @ts-ignore: _localID do exist, but be careful if this changes.
     if (!this.parent && this._localID !== this.transform._localID) {
