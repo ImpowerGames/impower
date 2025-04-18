@@ -2,7 +2,7 @@ type TagSeparator = "#" | "." | "[";
 
 export type Ref<T> = T extends keyof HTMLElementTagNameMap
   ? HTMLElementTagNameMap[T]
-  : T extends `${infer Tag}${TagSeparator}${infer Selector}`
+  : T extends `${infer Tag}${TagSeparator}${infer _Selector}`
   ? Tag extends keyof HTMLElementTagNameMap
     ? HTMLElementTagNameMap[Tag]
     : HTMLElement

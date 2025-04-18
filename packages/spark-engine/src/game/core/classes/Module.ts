@@ -9,7 +9,7 @@ import { Ticker } from "./Ticker";
 
 export abstract class Module<
   S = any,
-  M extends Record<string, [any, any]> = {
+  _M extends Record<string, [any, any]> = {
     [method: string]: [IMessage, IMessage];
   },
   B = any,
@@ -45,7 +45,7 @@ export abstract class Module<
   onStart(): void {}
 
   /** Executed every frame */
-  onUpdate(time: Ticker): null | boolean {
+  onUpdate(_time: Ticker): null | boolean {
     return true;
   }
 

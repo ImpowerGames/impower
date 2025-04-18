@@ -1,4 +1,5 @@
 import STYLES from "../caches/STYLE_CACHE";
+import * as Idiomorph from "../idiomorph/idiomorph";
 import { ComponentSpec } from "../types/ComponentSpec";
 import { IStore } from "../types/IStore";
 import { RefMap } from "../types/RefMap";
@@ -6,7 +7,6 @@ import augmentCSS from "../utils/augmentCSS";
 import convertCamelToKebabCase from "../utils/convertCamelToKebabCase";
 import emit from "../utils/emit";
 import getPropValue from "../utils/getPropValue";
-import * as Idiomorph from "../idiomorph/idiomorph";
 
 const Component = <
   Props extends Record<string, unknown>,
@@ -140,7 +140,7 @@ const Component = <
       return this.self.querySelector(`slot:not([name])`) || null;
     }
 
-    constructor(...args: any[]) {
+    constructor(..._args: any[]) {
       super();
       const innerHTML = this.html;
       this.#html = innerHTML;
@@ -203,15 +203,15 @@ const Component = <
      * Invoked each time one of the element's attributes is added, removed, or changed.
      * Which attributes to notice change for is specified in a static get observedAttributes method
      */
-    onAttributeChanged(name: string, newValue: string): void {}
+    onAttributeChanged(_name: string, _newValue: string): void {}
 
     /**
      * @returns true if the attribute change should trigger a re-render, or false otherwise. Defaults to false.
      */
     shouldAttributeTriggerUpdate(
-      name: string,
-      oldValue: string,
-      newValue: string
+      _name: string,
+      _oldValue: string,
+      _newValue: string
     ): boolean {
       return false;
     }
@@ -299,14 +299,14 @@ const Component = <
      * Invoked when the component's context has been updated.
     
      */
-    onContextChanged(oldContext: Context, newContext: Context): void {}
+    onContextChanged(_oldContext: Context, _newContext: Context): void {}
 
     /**
      * @returns true if the attribute change should trigger a re-render, or false otherwise. Defaults to false.
      */
     shouldContextTriggerUpdate(
-      oldContext: Context,
-      newContext: Context
+      _oldContext: Context,
+      _newContext: Context
     ): boolean {
       return true;
     }
@@ -338,7 +338,7 @@ const Component = <
         Idiomorph.morph(this.shadowRoot, this.#html, {
           morphStyle: "innerHTML",
           callbacks: {
-            beforeNodeMorphed: (oldNode: Element, newNode: Node): boolean => {
+            beforeNodeMorphed: (oldNode: Element, _newNode: Node): boolean => {
               return oldNode?.tagName?.toLowerCase() !== "s-router";
             },
           },
@@ -347,7 +347,7 @@ const Component = <
         Idiomorph.morph(this, this.#html, {
           morphStyle: "innerHTML",
           callbacks: {
-            beforeNodeMorphed: (oldNode: Element, newNode: Node): boolean => {
+            beforeNodeMorphed: (oldNode: Element, _newNode: Node): boolean => {
               return oldNode?.tagName?.toLowerCase() !== "s-router";
             },
           },
