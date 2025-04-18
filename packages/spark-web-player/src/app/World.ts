@@ -8,6 +8,16 @@ import { Container } from "pixi.js";
 import { Application } from "./Application";
 import { Camera } from "./plugins/projection/camera/camera";
 import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
+import {
+  generateAnimatedSVGTexture,
+  GenerateAnimatedSVGTextureOptions,
+} from "./plugins/svg/utils/generateAnimatedSVGTexture";
+import {
+  generateAnimatedSVGTextures,
+  GenerateAnimatedSVGTexturesOptions,
+} from "./plugins/svg/utils/generateAnimatedSVGTextures";
+import { parseSVG } from "./plugins/svg/utils/parseSVG";
+import { generateSolidTexture } from "./plugins/texture/utils/generateSolidTexture";
 
 export class World {
   protected _app: Application;
@@ -58,27 +68,27 @@ export class World {
 
   onDispose() {}
 
-  protected _pointerDown = false;
+  private _pointerDown = false;
   get pointerDown(): boolean {
     return this._pointerDown;
   }
 
-  protected _pointerDownX = 0;
+  private _pointerDownX = 0;
   get pointerDownX(): number {
     return this._pointerDownX;
   }
 
-  protected _pointerDownY = 0;
+  private _pointerDownY = 0;
   get pointerDownY(): number {
     return this._pointerDownY;
   }
 
-  protected _dragging = false;
-  get dragging(): boolean {
-    return this._dragging;
+  private _pointerDragging = false;
+  get pointerDragging(): boolean {
+    return this._pointerDragging;
   }
 
-  protected _mouseDragThreshold = 1;
+  private _mouseDragThreshold = 1;
   get mouseDragThreshold(): number {
     return this._mouseDragThreshold;
   }
@@ -86,7 +96,7 @@ export class World {
     this._mouseDragThreshold = value;
   }
 
-  protected _penDragThreshold = 2;
+  private _penDragThreshold = 2;
   get penDragThreshold(): number {
     return this._penDragThreshold;
   }
@@ -94,7 +104,7 @@ export class World {
     this._penDragThreshold = value;
   }
 
-  protected _touchDragThreshold = 4;
+  private _touchDragThreshold = 4;
   get touchDragThreshold(): number {
     return this._touchDragThreshold;
   }
@@ -120,15 +130,15 @@ export class World {
     window.removeEventListener("touchend", this.handleTouchEnd);
   }
 
-  protected handlePointerDown = (event: PointerEvent): void => {
+  private handlePointerDown = (event: PointerEvent): void => {
     this.onPointerDown(event);
     this._pointerDown = true;
-    this._dragging = false;
+    this._pointerDragging = false;
     this._pointerDownX = event.offsetX;
     this._pointerDownY = event.offsetY;
   };
 
-  protected handlePointerMove = (event: PointerEvent): void => {
+  private handlePointerMove = (event: PointerEvent): void => {
     if (this._app.ticker.speed > 0) {
       this.onPointerMove(event);
       if (this._pointerDown) {
@@ -139,13 +149,13 @@ export class World {
         const dragDistance = dragDistanceX ** 2 + dragDistanceY ** 2;
         const dragThreshold =
           event.pointerType === "mouse"
-            ? this._mouseDragThreshold
+            ? this.mouseDragThreshold
             : event.pointerType === "pen"
-            ? this._penDragThreshold
-            : this._touchDragThreshold;
+            ? this.penDragThreshold
+            : this.touchDragThreshold;
         if (Math.abs(dragDistance) > dragThreshold) {
-          if (!this._dragging) {
-            this._dragging = true;
+          if (!this._pointerDragging) {
+            this._pointerDragging = true;
             this.onDragStart(
               event,
               dragThreshold,
@@ -159,21 +169,21 @@ export class World {
     }
   };
 
-  protected handlePointerUp = (event: MouseEvent): void => {
+  private handlePointerUp = (event: MouseEvent): void => {
     const pointerEvent = event as PointerEvent;
     this.onPointerUp(pointerEvent);
     if (this._pointerDown) {
-      if (this._dragging) {
+      if (this._pointerDragging) {
         this.onDragEnd(pointerEvent);
       } else {
         this.onTap(pointerEvent);
       }
     }
     this._pointerDown = false;
-    this._dragging = false;
+    this._pointerDragging = false;
   };
 
-  protected handleTouchEnd = (event: TouchEvent): void => {
+  private handleTouchEnd = (event: TouchEvent): void => {
     if (event?.touches?.length === 0) {
       const rect = (event.target as HTMLElement).getBoundingClientRect();
       const touch = event?.targetTouches?.[0];
@@ -218,5 +228,19 @@ export class World {
     | undefined
   > {
     return undefined;
+  }
+
+  texture(width: number, height: number, color?: number) {
+    return generateSolidTexture(this.renderer, width, height, color);
+  }
+
+  svgTextures(svg: string, options?: GenerateAnimatedSVGTexturesOptions) {
+    const svgEl = parseSVG(svg);
+    return generateAnimatedSVGTextures(this.renderer, svgEl, options);
+  }
+
+  svgTexture(svg: string, options?: GenerateAnimatedSVGTextureOptions) {
+    const svgEl = parseSVG(svg);
+    return generateAnimatedSVGTexture(this.renderer, svgEl, 0, options);
   }
 }
