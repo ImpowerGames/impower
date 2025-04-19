@@ -1,10 +1,16 @@
-import { IMessage } from "./IMessage";
-
 export interface RequestMessage<
   M extends string = string,
   P = unknown,
   R = unknown
-> extends IMessage<M> {
+> {
+  /**
+   * The message's jsonrpc version.
+   */
+  jsonrpc: string;
+  /**
+   * The message's method.
+   */
+  method: M;
   /**
    * The request's params.
    */
