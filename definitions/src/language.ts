@@ -252,6 +252,7 @@ const buildJson = async (inYamlPath: string, outJsonPath: string) => {
 };
 
 const build = async () => {
+  console.log(LOG_PREFIX + `build started`);
   await Promise.all(
     OUT_CONFIG_PATHS.map((outPath) => buildJson(IN_CONFIG_PATH, outPath))
   );
@@ -261,6 +262,7 @@ const build = async () => {
   await Promise.all(
     OUT_SNIPPETS_PATHS.map((outPath) => buildJson(IN_SNIPPETS_PATH, outPath))
   );
+  console.log(LOG_PREFIX + `build finished`);
 };
 
 build().catch((err) => {
