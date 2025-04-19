@@ -1,0 +1,17 @@
+{
+	"compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["esnext", "dom"],
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "outDir": "types",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "moduleResolution": "bundler", // Use "node" if you're not using ES modules
+    "types": [], // Don't include ambient types like `node`
+    "jsx": "preserve"
+	},
+  "include": ["src/app/World.ts"]
+}
