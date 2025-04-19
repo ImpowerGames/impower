@@ -83,7 +83,9 @@ export default class UIManager extends Manager {
                 }
               );
               if (
-                !Array.from(document.fonts).some(
+                !Array.from(
+                  document.fonts as unknown as Iterable<FontFace>
+                ).some(
                   (f) =>
                     f.family === font.font_family &&
                     f.style === font.font_style &&
@@ -91,7 +93,12 @@ export default class UIManager extends Manager {
                     f.stretch === font.font_stretch
                 )
               ) {
-                document.fonts.add(fontFace);
+                if (
+                  "add" in document.fonts &&
+                  typeof document.fonts.add === "function"
+                ) {
+                  document.fonts.add(fontFace);
+                }
                 await fontFace.load();
               }
             }
