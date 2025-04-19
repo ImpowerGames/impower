@@ -260,7 +260,6 @@ The men look at each other.`.trim()
       `
 <span class='dialogue_character'>@ BATMAN</span>
 <span class='note'>((sfx_thunder))</span>
-<span class='parenthetical'>(in a gravelly voice)</span>
 <span class='dialogue'>I'm Batman.</span>`.trim()
     ),
   ];
