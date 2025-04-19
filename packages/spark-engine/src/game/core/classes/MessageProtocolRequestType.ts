@@ -1,7 +1,7 @@
+import { uuid } from "@impower/sparkdown/src/utils/uuid";
 import { RequestMessage } from "../types/RequestMessage";
 import { ResponseError } from "../types/ResponseError";
 import { ResponseMessage } from "../types/ResponseMessage";
-import { uuid } from "../utils/uuid";
 
 export class MessageProtocolRequestType<M extends string, P, R> {
   method: string;

@@ -2,6 +2,7 @@ import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { uuid } from "@impower/sparkdown/src/utils/uuid";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { Breakpoint } from "../types/Breakpoint";
 import { DocumentLocation } from "../types/DocumentLocation";
@@ -15,9 +16,6 @@ import { ResponseError } from "../types/ResponseError";
 import { StackFrame } from "../types/StackFrame";
 import { Thread } from "../types/Thread";
 import { Variable, VariablePresentationHint } from "../types/Variable";
-import { evaluate } from "../utils/evaluate";
-import { setProperty } from "../utils/setProperty";
-import { uuid } from "../utils/uuid";
 import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
 import { AutoAdvancedToContinueMessage } from "./messages/AutoAdvancedToContinueMessage";
@@ -380,20 +378,14 @@ export class Game<T extends M = {}> {
     this._coordinator = null;
   }
 
-  protected cache(cache: object, accessPath: string) {
-    const value = evaluate(accessPath, this._context);
-    if (value !== undefined && typeof value != "function") {
-      setProperty(cache, accessPath, value);
-    }
-  }
-
   serialize(): string {
     const saveData: Record<string, any> & { context: any } = {
       context: {},
     };
-    for (const accessPath of this._stored) {
-      this.cache(saveData.context, accessPath);
-    }
+    // for (const accessPath of this._stored) {
+    //   TODO:
+    //   this.cache(saveData.context, accessPath);
+    // }
     for (const k of this._moduleNames) {
       const module = this._modules[k];
       if (module) {
