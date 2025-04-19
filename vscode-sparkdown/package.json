@@ -25,7 +25,7 @@
     "url": "https://www.patreon.com/impowergames"
   },
   "engines": {
-    "vscode": "^1.72.0"
+    "vscode": "^1.97.0"
   },
   "categories": [
     "Programming Languages",
@@ -792,9 +792,7 @@
     "postinstall:sparkdown-document-views": "cd ../packages/sparkdown-document-views && npm ci && cd ../../vscode-sparkdown",
     "postinstall:screenplay-webview": "cd ./webviews/screenplay-webview && npm ci && cd ../../",
     "postinstall:game-webview": "cd ./webviews/game-webview && npm ci && cd ../../",
-    "postinstall:definitions": "cd ../definitions && npm ci && cd ../vscode-sparkdown",
     "postinstall": "npm-run-all -p postinstall:*",
-    "build:sparkdown": "cd ../packages/sparkdown && npm run build && cd ../../vscode-sparkdown",
     "build:sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm run build && cd ../../vscode-sparkdown",
     "build:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm run build && cd ../../vscode-sparkdown",
     "build:screenplay-webview": "cd ./webviews/screenplay-webview && npm run build && cd ../../",
@@ -804,11 +802,11 @@
     "watch:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm run watch && cd ../../vscode-sparkdown",
     "watch:screenplay-webview": "cd ./webviews/screenplay-webview && npm run watch && cd ../../",
     "watch:game-webview": "cd ./webviews/game-webview && npm run watch && cd ../../",
-    "watch:definitions": "cd ../definitions && npm run watch && cd ../vscode-sparkdown",
     "watch:self": "node esbuild.js --watch",
     "watch": "npm-run-all -p watch:*",
     "package:screenplay-webview": "cd ./webviews/screenplay-webview && npm run package && cd ../../",
     "package:game-webview": "cd ./webviews/game-webview && npm run package && cd ../../",
+    "package:self": "node esbuild.js --production",
     "package": "npm-run-all -p package:* && node esbuild.js --production --devtool hidden-source-map",
     "pretest": "npm run build",
     "browser": "npm run build && vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
