@@ -13,5 +13,8 @@
     "@impower/spark-engine": "file:../../../packages/spark-engine",
     "@impower/spark-web-player": "file:../../../packages/spark-web-player",
     "@impower/sparkdown": "file:../../../packages/sparkdown"
+  },
+  "devDependencies": {
+    "chokidar": "^4.0.3"
   }
 }

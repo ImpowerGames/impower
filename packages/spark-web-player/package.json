@@ -3,8 +3,11 @@
   "displayName": "Spark Web Player",
   "description": "Web component that allows users to play spark games.",
   "version": "0.0.1",
+  "type": "module",
   "scripts": {
-    "types": "dts-bundle-generator -o types/types.d.ts src/app/World.ts --project tsconfig.types.json --external-inlines=pixi.js @pixi/colord eventemitter3 --no-check"
+    "build": "node ./scripts/bundle-types.ts",
+    "watch": "node ./scripts/bundle-types.ts --watch",
+    "package": "node ./scripts/bundle-types.ts --production"
   },
   "dependencies": {
     "@impower/spark-dom": "file:../spark-dom",
@@ -15,6 +18,9 @@
     "pixi.js": "^8.9.1"
   },
   "devDependencies": {
-    "dts-bundle-generator": "^9.5.1"
+    "@types/node": "^22.14.1",
+    "chokidar": "^4.0.3",
+    "dts-bundle-generator": "^9.5.1",
+    "ts-morph": "^25.0.1"
   }
 }

@@ -1,5 +1,5 @@
+import * as chokidar from "chokidar";
 import * as esbuild from "esbuild";
-import fs from "fs";
 import path from "path";
 
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
@@ -10,7 +10,8 @@ const OUTDIR = OUTDIR_ARG ? OUTDIR_ARG.split("=")?.[1] : "dist";
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
-const LOG_PREFIX = WATCH ? "[watch] " : "";
+const LOG_PREFIX =
+  (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
 const SPARKDOWN_SRC_PATH = "../sparkdown/src";
 
@@ -34,10 +35,7 @@ const esbuildInlineWorkerPlugin = (extraConfig) => ({
         bundledText = bundledText.slice(0, exportIndex);
       }
       console.log(
-        LOG_PREFIX +
-          `${path.basename(process.cwd())}: loaded inline worker contents (${
-            bundledText.length
-          })`
+        LOG_PREFIX + `loaded inline worker contents (${bundledText.length})`
       );
       return {
         contents: bundledText,
@@ -52,9 +50,7 @@ const esbuildProblemMatcher = () => ({
   name: "esbuildProblemMatcher",
   setup(build) {
     build.onStart(() => {
-      console.log(
-        LOG_PREFIX + `${path.basename(process.cwd())}: build started`
-      );
+      console.log(LOG_PREFIX + `build started`);
     });
     build.onEnd((result) => {
       result.errors.forEach(({ text, location }) => {
@@ -64,9 +60,7 @@ const esbuildProblemMatcher = () => ({
           `    ${location.file}:${location.line}:${location.column}:`
         );
       });
-      console.log(
-        LOG_PREFIX + `${path.basename(process.cwd())}: build finished`
-      );
+      console.log(LOG_PREFIX + `build finished`);
     });
   },
 });
@@ -91,18 +85,21 @@ async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
     await ctx.watch();
-    const rebuild = async (ctx) => {
+
+    const rebuild = async () => {
       console.log(
-        LOG_PREFIX +
-          `${path.basename(
-            process.cwd()
-          )}: detected change in ${SPARKDOWN_SRC_PATH}, rebuilding...`
+        LOG_PREFIX + `detected change in ${SPARKDOWN_SRC_PATH}, rebuilding...`
       );
       await ctx.rebuild();
     };
-    fs.watch(SPARKDOWN_SRC_PATH, { recursive: true }, () => {
-      rebuild(ctx);
-    });
+
+    chokidar
+      .watch(SPARKDOWN_SRC_PATH, {
+        ignoreInitial: true,
+        persistent: true,
+        depth: 99,
+      })
+      .on("all", rebuild);
   } else {
     await ctx.rebuild();
     await ctx.dispose();

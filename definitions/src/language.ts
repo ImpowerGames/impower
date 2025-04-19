@@ -1,22 +1,15 @@
+import * as chokidar from "chokidar";
 import fs from "fs";
 import path from "path";
 import YAML from "yaml";
 
-const RESET = "\x1b[0m";
-const STRING = "%s";
-const BLUE = "\x1b[34m" + STRING + RESET;
-const MAGENTA = "\x1b[35m" + STRING + RESET;
-
 const outPaths = process.argv.slice(2).filter((path) => !path.startsWith("--"));
 const WATCH = process.argv.includes("--watch");
 
-const LOG_PREFIX = WATCH ? "[watch] " : "";
+const LOG_PREFIX =
+  (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
-console.log(BLUE, "Propagating definitions to:");
-console.log(
-  MAGENTA,
-  `  ${outPaths.map((p) => path.join(process.cwd(), p)).join("\n  ")}`
-);
+console.log(LOG_PREFIX + "Propagating definitions...");
 
 const WATCH_PATH = `./yaml`;
 
@@ -275,15 +268,18 @@ build().catch((err) => {
 });
 
 if (WATCH) {
-  fs.watch(WATCH_PATH, { recursive: true }, async () => {
-    console.log(
-      LOG_PREFIX +
-        `${path.basename(
-          process.cwd()
-        )}: detected change in ${WATCH_PATH}, rebuilding...`
-    );
-    await build().catch((err) => {
-      console.error(err);
+  chokidar
+    .watch(WATCH_PATH, {
+      ignoreInitial: true,
+      persistent: true,
+      depth: 99,
+    })
+    .on("all", async (event, filePath) => {
+      console.log(
+        LOG_PREFIX + `detected ${event} in ${filePath}, rebuilding...`
+      );
+      await build().catch((err) => {
+        console.error(err);
+      });
     });
-  });
 }

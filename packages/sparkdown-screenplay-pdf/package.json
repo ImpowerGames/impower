@@ -20,7 +20,8 @@
   "main": "dist/sparkdown-screenplay-pdf.js",
   "scripts": {
     "build": "node ./esbuild.js",
-    "watch": "node ./esbuild.js --watch"
+    "watch": "node ./esbuild.js --watch",
+    "package": "node ./esbuild.js --production"
   },
   "browser": {
     "assert": "assert",

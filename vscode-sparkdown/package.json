@@ -51,6 +51,12 @@
   ],
   "browser": "./out/extension.js",
   "contributes": {
+    "typescriptServerPlugins": [
+      {
+        "name": "typescript-spark-plugin",
+        "enableForWorkspaceTypeScriptVersions": true
+      }
+    ],
     "configurationDefaults": {
       "workbench.colorCustomizations": {
         "editor.stackFrameHighlightBackground": "#00000000"
@@ -793,20 +799,28 @@
     "postinstall:screenplay-webview": "cd ./webviews/screenplay-webview && npm ci && cd ../../",
     "postinstall:game-webview": "cd ./webviews/game-webview && npm ci && cd ../../",
     "postinstall": "npm-run-all -p postinstall:*",
+    "build:definitions": "cd ../definitions && npm run build && cd ../../vscode-sparkdown",
+    "build:spark-web-player": "cd ../packages/spark-web-player && npm run build && cd ../../vscode-sparkdown",
     "build:sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm run build && cd ../../vscode-sparkdown",
     "build:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm run build && cd ../../vscode-sparkdown",
     "build:screenplay-webview": "cd ./webviews/screenplay-webview && npm run build && cd ../../",
     "build:game-webview": "cd ./webviews/game-webview && npm run build && cd ../../",
-    "build": "npm-run-all -p build:* && node esbuild.js",
+    "build": "npm-run-all -p build:* && node esbuild.ts",
+    "watch:definitions": "cd ../definitions && npm run watch && cd ../../vscode-sparkdown",
+    "watch:spark-web-player": "cd ../packages/spark-web-player && npm run watch && cd ../../vscode-sparkdown",
     "watch:sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm run watch && cd ../../vscode-sparkdown",
     "watch:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm run watch && cd ../../vscode-sparkdown",
     "watch:screenplay-webview": "cd ./webviews/screenplay-webview && npm run watch && cd ../../",
     "watch:game-webview": "cd ./webviews/game-webview && npm run watch && cd ../../",
-    "watch:self": "node esbuild.js --watch",
+    "watch:self": "node esbuild.ts --watch",
     "watch": "npm-run-all -p watch:*",
+    "package:definitions": "cd ../definitions && npm run package && cd ../../vscode-sparkdown",
+    "package:spark-web-player": "cd ../packages/spark-web-player && npm run package && cd ../../vscode-sparkdown",
+    "package:sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm run package && cd ../../vscode-sparkdown",
+    "package:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm run package && cd ../../vscode-sparkdown",
     "package:screenplay-webview": "cd ./webviews/screenplay-webview && npm run package && cd ../../",
     "package:game-webview": "cd ./webviews/game-webview && npm run package && cd ../../",
-    "package:self": "node esbuild.js --production",
+    "package:self": "node esbuild.ts --production",
     "package": "npm-run-all -p package:* && node esbuild.js --production --devtool hidden-source-map",
     "pretest": "npm run build",
     "browser": "npm run build && vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
@@ -832,6 +846,7 @@
     "os-browserify": "^0.3.0",
     "process": "^0.11.10",
     "stream-browserify": "^3.0.0",
+    "typescript-spark-plugin": "file:plugins/typescript-spark-plugin",
     "url-browserify": "^1.3.0",
     "vscode-languageclient": "^9.0.1"
   },
@@ -854,5 +869,13 @@
   "peerDependencies": {
     "@codemirror/state": "^6.5.2",
     "@lezer/common": "^1.2.3"
-  }
+  },
+  "files": [
+    "out",
+    "package.json",
+    "icon-activitybar.png",
+    "icon-lang.png",
+    "icon.png",
+    "README.md"
+  ]
 }

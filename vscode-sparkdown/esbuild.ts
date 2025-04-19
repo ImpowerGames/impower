@@ -1,19 +1,19 @@
 import * as polyfill from "@esbuild-plugins/node-globals-polyfill";
-import { analyzeMetafile, context } from "esbuild";
+import esbuild from "esbuild";
 import copy from "esbuild-plugin-copy-watch";
 import * as glob from "glob";
-import * as path from "path";
+import path from "path";
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
-const LOG_PREFIX = WATCH ? "[watch] " : "";
+const LOG_PREFIX =
+  (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
 /**
  * For web extension, all tests, including the test runner, need to be bundled into
  * a single module that has a exported `run` function .
  * This plugin bundles implements a virtual file extensionTests.ts that bundles all these together.
- * @type {import('esbuild').Plugin}
  */
 const testBundle = () => ({
   name: "testBundle",
@@ -40,14 +40,11 @@ const testBundle = () => ({
   },
 });
 
-/** @type {import('esbuild').Plugin} **/
 const esbuildProblemMatcher = () => ({
   name: "esbuildProblemMatcher",
   setup(build) {
     build.onStart(() => {
-      console.log(
-        LOG_PREFIX + `${path.basename(process.cwd())}: build started`
-      );
+      console.log(LOG_PREFIX + `build started`);
     });
     build.onEnd((result) => {
       result.errors.forEach(({ text, location }) => {
@@ -57,15 +54,12 @@ const esbuildProblemMatcher = () => ({
           `    ${location.file}:${location.line}:${location.column}:`
         );
       });
-      console.log(
-        LOG_PREFIX + `${path.basename(process.cwd())}: build finished`
-      );
+      console.log(LOG_PREFIX + `build finished`);
     });
   },
 });
 
-/** @typedef {import('esbuild').BuildOptions} BuildOptions **/
-const config = {
+const config: esbuild.BuildOptions = {
   entryPoints: ["src/extension.ts", "src/web/test/suite/extensionTests.ts"],
   bundle: true,
   format: "cjs",
@@ -103,6 +97,7 @@ const config = {
     copy({
       paths: [
         { from: "./data/*", to: "./data" },
+        { from: "../packages/spark-web-player/types/*", to: "./data" },
         {
           from: "./node_modules/@vscode/codicons/dist/*",
           to: "./data",
@@ -128,13 +123,17 @@ const config = {
 };
 
 async function main() {
-  const ctx = await context(config);
+  const ctx = await esbuild.context(config);
   if (WATCH) {
     await ctx.watch();
   } else {
     const result = await ctx.rebuild();
-    const analysis = await analyzeMetafile(result.metafile, { color: true });
-    console.log(analysis);
+    if (PRODUCTION && result.metafile) {
+      const analysis = await esbuild.analyzeMetafile(result.metafile, {
+        color: true,
+      });
+      console.log(analysis);
+    }
     await ctx.dispose();
   }
 }

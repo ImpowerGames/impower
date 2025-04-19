@@ -4,16 +4,15 @@ import path from "path";
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
-const LOG_PREFIX = WATCH ? "[watch] " : "";
+const LOG_PREFIX =
+  (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
 /** @type {import('esbuild').Plugin} **/
 const esbuildProblemMatcher = () => ({
   name: "esbuildProblemMatcher",
   setup(build) {
     build.onStart(() => {
-      console.log(
-        LOG_PREFIX + `${path.basename(process.cwd())}: build started`
-      );
+      console.log(LOG_PREFIX + `build started`);
     });
     build.onEnd((result) => {
       result.errors.forEach(({ text, location }) => {
@@ -23,9 +22,7 @@ const esbuildProblemMatcher = () => ({
           `    ${location.file}:${location.line}:${location.column}:`
         );
       });
-      console.log(
-        LOG_PREFIX + `${path.basename(process.cwd())}: build finished`
-      );
+      console.log(LOG_PREFIX + `build finished`);
     });
   },
 });

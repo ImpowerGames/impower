@@ -1,5 +1,7 @@
+import { exec } from "child_process";
 import * as chokidar from "chokidar";
-import * as esbuild from "esbuild";
+import esbuild from "esbuild";
+import fs from "fs";
 import path from "path";
 
 const PRODUCTION = process.argv.includes("--production");
@@ -10,41 +12,30 @@ const LOG_PREFIX =
 
 const SPARK_WEB_PLAYER_SRC_PATH = "../../../packages/spark-web-player/src";
 
-/** @type {import('esbuild').Plugin} **/
-const esbuildInlineWorkerPlugin = (extraConfig) => ({
-  name: "esbuild-inline-worker",
+const DECLARATIONS_PATH = "../../../packages/spark-web-player/types/types.d.ts";
+
+const esbuildInlineTextPlugin = (): esbuild.Plugin => ({
+  name: "esbuild-inline-text",
   setup(build) {
-    build.onLoad({ filter: /\.worker\.(?:ts|js)$/ }, async (args) => {
-      const result = await esbuild.build({
-        entryPoints: [args.path],
-        write: false,
-        bundle: true,
-        minify: PRODUCTION,
-        format: "esm",
-        target: "esnext",
-        define: {
-          global: "globalThis",
-        },
-        ...(extraConfig || {}),
-      });
-      let bundledText = result.outputFiles?.[0]?.text || "";
-      const exportIndex = bundledText.lastIndexOf("export {");
-      if (exportIndex >= 0) {
-        bundledText = bundledText.slice(0, exportIndex);
+    build.onLoad({ filter: /\.text\.(?:ts|js)$/ }, (args) => {
+      if (!fs.existsSync(DECLARATIONS_PATH)) {
+        console.error(
+          `[PLUGIN ERROR] Declaration file not found: ${DECLARATIONS_PATH}`
+        );
       }
+      const contents = fs.readFileSync(DECLARATIONS_PATH, "utf-8");
       console.log(
-        LOG_PREFIX + `loaded inline worker contents (${bundledText.length})`
+        LOG_PREFIX + `loaded inline text contents (${contents.length})`
       );
       return {
-        contents: bundledText,
+        contents,
         loader: "text",
       };
     });
   },
 });
 
-/** @type {import('esbuild').Plugin} **/
-const esbuildProblemMatcher = () => ({
+const esbuildProblemMatcher = (): esbuild.Plugin => ({
   name: "esbuildProblemMatcher",
   setup(build) {
     build.onStart(() => {
@@ -63,22 +54,16 @@ const esbuildProblemMatcher = () => ({
   },
 });
 
-/** @type {import('esbuild').BuildOptions} BuildOptions **/
-const config = {
+const config: esbuild.BuildOptions = {
   bundle: true,
   minify: PRODUCTION,
   sourcemap: !PRODUCTION,
-  loader: {
-    ".html": "text",
-    ".css": "text",
-    ".svg": "text",
-  },
-  target: "es2020",
-  platform: "browser",
-  format: "esm",
-  entryPoints: ["./game-webview.ts"],
-  outfile: "../../out/webviews/game-webview.js",
-  plugins: [esbuildInlineWorkerPlugin(), esbuildProblemMatcher()],
+  target: "node16",
+  platform: "node",
+  format: "cjs",
+  entryPoints: ["./index.ts"],
+  outfile: "dist/index.js",
+  plugins: [esbuildInlineTextPlugin(), esbuildProblemMatcher()],
 };
 
 async function main() {
@@ -98,7 +83,20 @@ async function main() {
         persistent: true,
         depth: 99,
       })
-      .on("all", rebuild);
+      .on("all", async () => {
+        await new Promise<void>((resolve) => {
+          exec(`npm run build`, (error, _stdout, stderr) => {
+            if (error) {
+              console.error(error);
+            }
+            if (stderr) {
+              console.error(stderr);
+            }
+            resolve();
+          });
+        });
+        rebuild(ctx);
+      });
   } else {
     await ctx.rebuild();
     await ctx.dispose();

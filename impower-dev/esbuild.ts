@@ -72,7 +72,8 @@ const watchDirs = [
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 
-const LOG_PREFIX = WATCH ? "[watch] " : "";
+const LOG_PREFIX =
+  (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
 if (!PRODUCTION) {
   // During development, populate process.env with variables from local .env file
@@ -113,10 +114,7 @@ const esbuildInlineWorkerPlugin = (extraConfig?: esbuild.BuildOptions) => ({
         bundledText = bundledText.slice(0, exportIndex);
       }
       console.log(
-        LOG_PREFIX +
-          `${path.basename(process.cwd())}: loaded inline worker contents (${
-            bundledText.length
-          })`
+        LOG_PREFIX + `loaded inline worker contents (${bundledText.length})`
       );
       return {
         contents: bundledText,

@@ -19,7 +19,8 @@
   "main": "dist/sparkdown-language-server.js",
   "scripts": {
     "build": "node ./esbuild.js",
-    "watch": "node ./esbuild.js --watch"
+    "watch": "node ./esbuild.js --watch",
+    "package": "node ./esbuild.js --production"
   },
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
+    "chokidar": "^4.0.3",
     "esbuild": "^0.25.0"
   },
   "peerDependencies": {

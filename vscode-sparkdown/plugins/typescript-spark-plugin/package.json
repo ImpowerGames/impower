@@ -1,0 +1,30 @@
+{
+  "name": "typescript-spark-plugin",
+  "displayName": "Typescript Spark Plugin",
+  "description": "Provides intellisense for ts files in spark projects.",
+  "version": "0.0.1",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "scripts": {
+    "types": "cd ../../../packages/spark-web-player && npm run types && cd ../../vscode-sparkdown/plugins/typescript-spark-plugin",
+    "build": "node ./esbuild.js",
+    "watch": "node ./esbuild.js --watch",
+    "package": "node ./esbuild.js --production"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "chokidar": "^4.0.3",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "typescript",
+    "plugin"
+  ],
+  "typescript": {
+    "languageServicePlugins": [
+      {
+        "name": "typescript-spark-plugin"
+      }
+    ]
+  }
+}
