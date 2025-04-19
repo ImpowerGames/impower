@@ -28,7 +28,7 @@ export = function init(modules: { typescript: typeof ts }) {
       virtualFilePath = path.join(projectDir, "./.spark/runtime/index.d.ts");
 
       logger.info(
-        `typescript-spark-plugin: reading types at ${virtualFileContent}`
+        `typescript-spark-plugin: reading types at ${virtualFilePath}`
       );
 
       // Ensure the virtual file exists
