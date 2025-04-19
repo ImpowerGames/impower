@@ -6,10 +6,9 @@
   "type": "commonjs",
   "main": "dist/index.js",
   "scripts": {
-    "types": "cd ../../../packages/spark-web-player && npm run types && cd ../../vscode-sparkdown/plugins/typescript-spark-plugin",
-    "build": "node ./esbuild.js",
-    "watch": "node ./esbuild.js --watch",
-    "package": "node ./esbuild.js --production"
+    "watch": "node build.js --watch",
+    "build": "node build.js",
+    "package": "node build.js"
   },
   "devDependencies": {
     "@types/node": "^22.14.1",

@@ -65,12 +65,12 @@ function bundleTypes() {
   ].join(" ");
 
   console.log(LOG_PREFIX + "build started");
-  exec(cmd, (err, stdout, stderr) => {
+  exec(cmd, async (err, stdout, stderr) => {
     if (stdout) console.log(stdout.trim());
     if (stderr) console.error(stderr.trim());
     if (err) console.error(LOG_PREFIX + "Failed:", err.message);
+    console.log(LOG_PREFIX + "build finished");
   });
-  console.log(LOG_PREFIX + "build finished");
 }
 
 async function watchDependencies() {
