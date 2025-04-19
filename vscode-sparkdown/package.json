@@ -431,7 +431,8 @@
       },
       {
         "command": "sparkdown.toggleFormatting",
-        "title": "Toggle between decimal and hex formatting"
+        "title": "Toggle between decimal and hex formatting",
+        "category": "Sparkdown Debugger"
       }
     ],
     "keybindings": [
@@ -804,14 +805,12 @@
     "postinstall:screenplay-webview": "cd ./webviews/screenplay-webview && npm ci && cd ../../",
     "postinstall:game-webview": "cd ./webviews/game-webview && npm ci && cd ../../",
     "postinstall": "npm-run-all -p postinstall:*",
-    "build:definitions": "cd ../definitions && npm run build && cd ../../vscode-sparkdown",
     "build:spark-web-player": "cd ../packages/spark-web-player && npm run build && cd ../../vscode-sparkdown",
     "build:sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm run build && cd ../../vscode-sparkdown",
     "build:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm run build && cd ../../vscode-sparkdown",
     "build:screenplay-webview": "cd ./webviews/screenplay-webview && npm run build && cd ../../",
     "build:game-webview": "cd ./webviews/game-webview && npm run build && cd ../../",
     "build": "npm-run-all -p build:* && node esbuild.ts",
-    "watch:definitions": "cd ../definitions && npm run watch && cd ../../vscode-sparkdown",
     "watch:spark-web-player": "cd ../packages/spark-web-player && npm run watch && cd ../../vscode-sparkdown",
     "watch:sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm run watch && cd ../../vscode-sparkdown",
     "watch:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm run watch && cd ../../vscode-sparkdown",
@@ -819,7 +818,6 @@
     "watch:game-webview": "cd ./webviews/game-webview && npm run watch && cd ../../",
     "watch:self": "node esbuild.ts --watch",
     "watch": "npm-run-all -p watch:*",
-    "package:definitions": "cd ../definitions && npm run package && cd ../../vscode-sparkdown",
     "package:spark-web-player": "cd ../packages/spark-web-player && npm run package && cd ../../vscode-sparkdown",
     "package:sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm run package && cd ../../vscode-sparkdown",
     "package:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm run package && cd ../../vscode-sparkdown",
