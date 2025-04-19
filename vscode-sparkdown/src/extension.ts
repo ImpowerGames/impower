@@ -16,12 +16,12 @@ import { activateNewlineHelper } from "./utils/activateNewlineHelper";
 import { activateOutlineView } from "./utils/activateOutlineView";
 import { activatePreviewGamePanel } from "./utils/activatePreviewGamePanel";
 import { activatePreviewScreenplayPanel } from "./utils/activatePreviewScreenplayPanel";
+import { activateVirtualDeclarations } from "./utils/activateVirtualDeclarations";
 
 // Called when extension is activated
-export const activate = async (
-  context: vscode.ExtensionContext
-): Promise<void> => {
+export function activate(context: vscode.ExtensionContext) {
   console.log("Sparkdown Activated");
+  activateAutoFormatting(context);
   activateContextService(context);
   activateFileDecorations(context);
   activateOutlineView(context);
@@ -30,7 +30,6 @@ export const activate = async (
   activateDurationStatus(context);
   activatePreviewScreenplayPanel(context);
   activatePreviewGamePanel(context);
-  activateAutoFormatting(context);
   activateExecutionGutterDecorator(context);
   activateCompilationView(context);
   // TODO:
@@ -39,7 +38,8 @@ export const activate = async (
   activateLanguageClient(context);
   activateNewlineHelper(context);
   activateDebugger(context);
-};
+  activateVirtualDeclarations(context);
+}
 
 // Called when extension is deactivated
 export function deactivate() {

@@ -1,0 +1,6 @@
+{
+  "name": "vscode-sparkdown-build-tools",
+  "type": "module",
+  "typecheck": true,
+  "private": true
+}

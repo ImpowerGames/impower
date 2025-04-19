@@ -15,7 +15,7 @@ const LOG_PREFIX =
  * a single module that has a exported `run` function .
  * This plugin bundles implements a virtual file extensionTests.ts that bundles all these together.
  */
-const testBundle = () => ({
+const testBundle = (): esbuild.Plugin => ({
   name: "testBundle",
   setup(build) {
     build.onResolve({ filter: /[\/\\]extensionTests\.ts$/ }, (args) => {
@@ -40,7 +40,7 @@ const testBundle = () => ({
   },
 });
 
-const esbuildProblemMatcher = () => ({
+const esbuildProblemMatcher = (): esbuild.Plugin => ({
   name: "esbuildProblemMatcher",
   setup(build) {
     build.onStart(() => {

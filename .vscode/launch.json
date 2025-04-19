@@ -5,13 +5,13 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Launch Extension",
+      "type": "extensionHost",
+      "request": "launch",
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}/vscode-sparkdown"
       ],
-      "name": "Launch Extension",
       "outFiles": ["${workspaceFolder}/vscode-sparkdown/out/**/*.js"],
-      "request": "launch",
-      "type": "extensionHost"
     }
   ]
 }
