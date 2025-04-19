@@ -1,11 +1,8 @@
-import {
-  type NotificationMessage,
-  type RequestMessage,
-  type ResponseError,
-  Ticker,
-} from "@impower/spark-engine/src/game/core";
-import { Color, ColorSource, Container } from "pixi.js";
-import { Application } from "./Application";
+import { Ticker } from "@impower/spark-engine/src/game/core/classes/Ticker";
+import { NotificationMessage } from "@impower/spark-engine/src/game/core/types/NotificationMessage";
+import { RequestMessage } from "@impower/spark-engine/src/game/core/types/RequestMessage";
+import { ResponseError } from "@impower/spark-engine/src/game/core/types/ResponseError";
+import { Color, ColorSource, Container, Renderer } from "pixi.js";
 import { Camera } from "./plugins/projection/camera/camera";
 import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
 import {
@@ -19,8 +16,17 @@ import {
 import { parseSVG } from "./plugins/svg/utils/parseSVG";
 import { generateSolidTexture } from "./plugins/texture/utils/generateSolidTexture";
 
+interface IApplication {
+  screen: { width: number; height: number; resolution: number };
+  canvas: HTMLCanvasElement;
+  renderer: Renderer;
+  dolly: CameraOrbitControl;
+  camera: Camera;
+  ticker: Ticker;
+}
+
 export class World {
-  protected _app: Application;
+  protected _app: IApplication;
 
   get screen() {
     return this._app.screen;
@@ -98,7 +104,7 @@ export class World {
     this._touchDragThreshold = value;
   }
 
-  constructor(app: Application) {
+  constructor(app: IApplication) {
     this._app = app;
     this.bind();
   }
