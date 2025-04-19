@@ -1,6 +1,7 @@
 .vscode/**
 .vscode-test-web/**
 src/**
+webviews/**
 node_modules/**
 .gitignore
 vsc-extension-quickstart.md
