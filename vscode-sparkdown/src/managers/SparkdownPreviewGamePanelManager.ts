@@ -339,7 +339,10 @@ export class SparkdownPreviewGamePanelManager {
     if (this._connected) {
       const document = editor.document;
       if (editor.document.uri.toString() !== this._document?.uri.toString()) {
-        await this.loadDocument(document);
+        if (!vscode.debug.activeDebugSession) {
+          // In preview-mode, we load whatever document is in the active editor
+          await this.loadDocument(document);
+        }
       }
     }
   }
