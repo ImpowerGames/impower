@@ -144,7 +144,7 @@ export class Connection {
       resolve?.(message.result);
     } else if (message.error !== undefined) {
       const reject = this._outgoingRequestRejectCallbacks[message.id];
-      reject?.(message.error);
+      reject?.({ data: message.method, ...message.error });
     }
     delete this._outgoingRequestResolveCallbacks[message.id];
     delete this._outgoingRequestRejectCallbacks[message.id];

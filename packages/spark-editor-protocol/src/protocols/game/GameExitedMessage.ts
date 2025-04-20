@@ -5,7 +5,7 @@ import { MessageProtocolNotificationType } from "../MessageProtocolNotificationT
 export type GameExitedMethod = typeof GameExitedMessage.method;
 
 export interface GameExitedParams {
-  reason: "finished" | "quit" | "invalidated" | "error";
+  reason: "finished" | "quit" | "invalidated" | "error" | "restart";
   error?: {
     message: string;
     location: Location;

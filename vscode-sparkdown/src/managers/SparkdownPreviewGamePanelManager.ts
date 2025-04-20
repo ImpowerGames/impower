@@ -433,7 +433,7 @@ export class SparkdownPreviewGamePanelManager {
         if (message) {
           if (message.method === request.method && message.id === request.id) {
             if (message.error !== undefined) {
-              reject(message.error);
+              reject({ data: message.method, ...message.error });
               this._listeners.delete(onResponse);
             } else if (message.result !== undefined) {
               resolve(message.result);

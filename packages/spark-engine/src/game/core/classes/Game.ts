@@ -48,8 +48,6 @@ export type ScriptLocation = [
 ];
 
 export class Game<T extends M = {}> {
-  protected _destroyed = false;
-
   protected _context: GameContext = {} as GameContext;
   get context() {
     return this._context;
@@ -120,6 +118,11 @@ export class Game<T extends M = {}> {
   protected _program: SparkProgram;
   get program() {
     return this._program;
+  }
+
+  protected _destroyed = false;
+  get destroyed() {
+    return this._destroyed;
   }
 
   constructor(

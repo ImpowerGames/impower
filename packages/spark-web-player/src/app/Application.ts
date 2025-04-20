@@ -121,6 +121,11 @@ export class Application implements IApplication {
     return this._paused;
   }
 
+  protected _destroyed = false;
+  get destroyed() {
+    return this._destroyed;
+  }
+
   constructor(
     game: Game,
     view: HTMLElement,
@@ -318,10 +323,8 @@ export class Application implements IApplication {
   }
 
   destroy(removeCanvas?: boolean): void {
+    this._destroyed = true;
     this._overlay?.classList.remove("pause-game");
-    if (this._renderer) {
-      this._renderer.destroy();
-    }
     this._clock.dispose();
     this.unbind();
     this._resizeObserver.disconnect();
@@ -333,6 +336,9 @@ export class Application implements IApplication {
     }
     if (removeCanvas && this._canvas) {
       this._canvas.remove();
+    }
+    if (this._renderer) {
+      this._renderer.destroy();
     }
   }
 

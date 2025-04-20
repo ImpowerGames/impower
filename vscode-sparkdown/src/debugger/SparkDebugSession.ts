@@ -28,6 +28,10 @@ import { GetGameStackTraceMessage } from "@impower/spark-editor-protocol/src/pro
 import { GetGameThreadsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameThreadsMessage";
 import { GetGameVariablesMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameVariablesMessage";
 import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
+import {
+  RestartGameMessage,
+  RestartGameParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/RestartGameMessage";
 import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
@@ -304,6 +308,8 @@ export class SparkDebugSession extends LoggingDebugSession {
     response.body = response.body || {};
 
     response.body.supportsConfigurationDoneRequest = true;
+    // make VS Code support restarting
+    response.body.supportsRestartRequest = true;
     // make VS Code only support pause button
     response.body.supportSuspendDebuggee = true;
     // make VS Code only support stop button
@@ -396,6 +402,21 @@ export class SparkDebugSession extends LoggingDebugSession {
   ) {
     // console.log("attachRequest", args);
     return this.launchRequest(response, args);
+  }
+
+  protected override async restartRequest(
+    response: DebugProtocol.RestartResponse,
+    args: DebugProtocol.RestartArguments
+  ): Promise<void> {
+    await this._connection.emit(
+      RestartGameMessage.type.request(
+        (args.arguments || {}) as RestartGameParams
+      )
+    );
+
+    response.success = true;
+
+    this.sendResponse(response);
   }
 
   protected override async launchRequest(

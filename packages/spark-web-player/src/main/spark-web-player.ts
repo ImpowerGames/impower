@@ -21,6 +21,7 @@ import { GetGameThreadsMessage } from "@impower/spark-editor-protocol/src/protoc
 import { GetGameVariablesMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameVariablesMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
+import { RestartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/RestartGameMessage";
 import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
 import { StepGameClockMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameClockMessage";
 import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
@@ -51,6 +52,8 @@ import { debounce } from "../utils/debounce";
 import spec from "./_spark-web-player";
 
 export default class SparkWebPlayer extends Component(spec) {
+  _audioContext?: AudioContext;
+
   _game?: Game;
 
   _app?: Application;
@@ -106,6 +109,24 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   }
 
+  getLaunchFilePath() {
+    const workspace = this._options?.workspace;
+    const startpoint = this._options?.startpoint;
+    const launchFilePath = startpoint ? startpoint.file : this._program?.uri;
+    if (!launchFilePath) {
+      return undefined;
+    }
+    return workspace && launchFilePath.startsWith(workspace)
+      ? launchFilePath.slice(workspace.length + 1)
+      : launchFilePath;
+  }
+
+  getLaunchLineNumber() {
+    const startpoint = this._options?.startpoint;
+    const launchLine = startpoint ? startpoint.line : 0;
+    return launchLine + 1;
+  }
+
   protected updateLaunchLabel(lastExecutedLocation?: DocumentLocation) {
     const workspace = this._options?.workspace;
     const startpoint = this._options?.startpoint;
@@ -141,13 +162,16 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   protected handleClickPlayButton = async () => {
-    const audioContext = new AudioContext();
-    if (audioContext.state === "running") {
-      await this.buildGame();
-      const gameStarted = this._game?.start();
-      if (gameStarted) {
-        this._app?.start();
+    if (!this._audioContext || this._audioContext.state !== "running") {
+      const audioContext = new AudioContext();
+      if (audioContext.state === "running") {
+        this._audioContext = audioContext;
       }
+    }
+    await this.buildGame();
+    const gameStarted = this._game?.start();
+    if (gameStarted) {
+      this._app?.start();
     }
   };
 
@@ -210,6 +234,15 @@ export default class SparkWebPlayer extends Component(spec) {
       if (StopGameMessage.type.is(e.detail)) {
         const response = await this.handleStopGame(
           StopGameMessage.type,
+          e.detail
+        );
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (RestartGameMessage.type.is(e.detail)) {
+        const response = await this.handleRestartGame(
+          RestartGameMessage.type,
           e.detail
         );
         if (response) {
@@ -462,31 +495,15 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof StartGameMessage.type,
     message: StartGameMessage.Request
   ) => {
-    if (!this._program) {
-      // wait for program to be loaded
-      await new Promise<void>((resolve) => {
-        this._loadListeners.add(resolve);
-      });
-    }
-    await this.buildGame();
-    const programCompiled = this._program?.compiled;
-    const gameStarted = this._game?.start();
-    const success = Boolean(programCompiled && gameStarted);
-    if (success) {
-      this._app?.start();
-    }
+    const success = await this.startGame();
     this.updateLaunchStateIcon();
     return success
       ? messageType.response(message.id, {})
       : messageType.error(message.id, {
           code: 1,
-          message: !programCompiled
+          message: !this._program?.compiled
             ? "The program contains errors that prevent it from being compiled"
-            : !gameStarted
-            ? `The game cannot be started from line ${
-                (this._options?.startpoint?.line ?? 0) + 1
-              } of ${this._options?.startpoint?.file?.split("/").at(-1)}`
-            : "The game could not be started",
+            : `The game cannot be started from line ${this.getLaunchLineNumber()} of ${this.getLaunchFilePath()}`,
         });
   };
 
@@ -495,6 +512,16 @@ export default class SparkWebPlayer extends Component(spec) {
     message: StopGameMessage.Request
   ) => {
     await this.stopGame("quit");
+    this.updateLaunchStateIcon();
+    return messageType.response(message.id, {});
+  };
+
+  protected handleRestartGame = async (
+    messageType: typeof RestartGameMessage.type,
+    message: RestartGameMessage.Request
+  ) => {
+    this.destroyGameAndApp();
+    await this.startGame();
     this.updateLaunchStateIcon();
     return messageType.response(message.id, {});
   };
@@ -702,21 +729,42 @@ export default class SparkWebPlayer extends Component(spec) {
     });
   };
 
+  async startGame() {
+    if (!this._program) {
+      // wait for program to be loaded
+      await new Promise<void>((resolve) => {
+        this._loadListeners.add(resolve);
+      });
+    }
+    await this.buildGame();
+    const programCompiled = this._program?.compiled;
+    const gameStarted = this._game?.start();
+    const success = Boolean(programCompiled && gameStarted);
+    if (success) {
+      this._app?.start();
+    }
+    return success;
+  }
+
+  destroyGameAndApp() {
+    if (this._game) {
+      this._game.destroy();
+      this._game = undefined;
+    }
+    if (this._app) {
+      this._app.destroy(true);
+      this._app = undefined;
+    }
+  }
+
   async stopGame(
-    reason: "finished" | "quit" | "invalidated" | "error",
+    reason: "finished" | "quit" | "invalidated" | "error" | "restart",
     error?: {
       message: string;
       location: DocumentLocation;
     }
   ) {
-    if (this._app) {
-      this._app.destroy(true);
-      this._app = undefined;
-    }
-    if (this._game) {
-      this._game.destroy();
-      this._game = undefined;
-    }
+    this.destroyGameAndApp();
     this.showPlayButton();
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
     this.emit(
@@ -726,6 +774,7 @@ export default class SparkWebPlayer extends Component(spec) {
         error,
       })
     );
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
   }
 
   protected debouncedBuildGame = debounce(
@@ -903,7 +952,8 @@ export default class SparkWebPlayer extends Component(spec) {
     this._app = new Application(
       this._game,
       this.ref.gameView,
-      this.ref.gameOverlay
+      this.ref.gameOverlay,
+      this._audioContext
     );
     await this._app.init();
   }
