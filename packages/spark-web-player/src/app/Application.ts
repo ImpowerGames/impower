@@ -4,28 +4,32 @@ import {
   type RequestMessage,
   type ResponseError,
 } from "@impower/spark-engine/src/game/core";
+import { Clock } from "@impower/spark-engine/src/game/core/classes/Clock";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
-import { Ticker } from "@impower/spark-engine/src/game/core/classes/Ticker";
 import { Container, Renderer, WebGLRenderer } from "pixi.js";
 import "pixi.js/unsafe-eval";
+import { IApplication } from "./IApplication";
 import { Manager } from "./Manager";
 import AudioManager from "./managers/AudioManager";
 import EventManager from "./managers/EventManager";
 import UIManager from "./managers/UIManager";
+import WorldManager from "./managers/WorldManager";
 import { Camera } from "./plugins/projection/camera/camera";
 import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
 import { getEventData } from "./utils/getEventData";
-import { World } from "./World";
 
-export class Application {
-  // TODO: Application should only have a reference to gameWorker
+export class Application implements IApplication {
   protected _game: Game;
-  get game(): Game {
+  get game() {
     return this._game;
   }
 
-  protected _ticker = new Ticker(
+  get context() {
+    return this._game.context;
+  }
+
+  protected _clock = new Clock(
     {
       get currentTime() {
         return performance.now();
@@ -33,8 +37,8 @@ export class Application {
     },
     (callback: () => void) => window.requestAnimationFrame(callback)
   );
-  get ticker() {
-    return this._ticker;
+  get clock() {
+    return this._clock;
   }
 
   protected _view: HTMLElement;
@@ -45,11 +49,6 @@ export class Application {
   protected _canvas: HTMLCanvasElement;
   get canvas() {
     return this._canvas;
-  }
-
-  _worlds: World[] = [];
-  get worlds() {
-    return this._worlds;
   }
 
   _renderer: Renderer;
@@ -90,6 +89,7 @@ export class Application {
   protected _managers: Manager[] = [
     new UIManager(this),
     new AudioManager(this),
+    new WorldManager(this),
     new EventManager(this),
   ];
   get managers() {
@@ -148,7 +148,7 @@ export class Application {
     if (this._audioContext.state !== "running") {
       this._audioContext = undefined;
     } else {
-      this._ticker.syncToClock(this._audioContext);
+      this._clock.syncToClock(this._audioContext);
     }
 
     this._resizeObserver = new ResizeObserver(([entry]) => {
@@ -181,7 +181,17 @@ export class Application {
       this._resolveInit = resolve;
     });
 
-    // Initialize renderer
+    await this.initializeRenderer();
+
+    await this.initializeGame();
+
+    await this.initializeManagers();
+
+    this._initialized = true;
+    this._resolveInit();
+  }
+
+  async initializeRenderer() {
     await this._renderer.init({
       canvas: this._canvas,
       width: this._screen.width,
@@ -191,11 +201,9 @@ export class Application {
       autoDensity: true,
       backgroundAlpha: 0,
     });
+  }
 
-    // TODO: load main
-    // await this.loadWorld(Minigame1World);
-
-    // Initialize game
+  async initializeGame() {
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
     this._game.init({
       send: async (msg: Message, _t?: ArrayBuffer[]) => {
@@ -240,37 +248,25 @@ export class Application {
         return setTimeout(handler, timeout, ...args);
       },
     });
-    this._initialized = true;
-    this._resolveInit();
+  }
+
+  async initializeManagers() {
+    await Promise.all(this._managers.map((manager) => manager.onInit()));
   }
 
   setAudioContext(audioContext: AudioContext) {
     if (audioContext.state === "running") {
       this._audioContext = audioContext;
-      this._ticker.syncToClock(audioContext);
+      this._clock.syncToClock(audioContext);
     }
-  }
-
-  async loadWorld(worldClass: typeof World) {
-    const world = new worldClass(this);
-    await world.onLoad();
-    this._stage.addChild(world.root);
-    this._worlds.push(world);
-  }
-
-  async loadWorlds(worldClasses: (typeof World)[]) {
-    await Promise.all(worldClasses.map((world) => this.loadWorld(world)));
   }
 
   start() {
     for (const manager of this._managers) {
       manager.onStart();
     }
-    for (const world of this._worlds) {
-      world.onStart();
-    }
-    this.ticker.add((time) => this.update(time));
-    this.ticker.start();
+    this.clock.add((time) => this.update(time));
+    this.clock.start();
   }
 
   pause(): void {
@@ -279,10 +275,7 @@ export class Application {
     for (const manager of this._managers) {
       manager.onPause();
     }
-    for (const world of this._worlds) {
-      world.onPause();
-    }
-    this._ticker.speed = 0;
+    this._clock.speed = 0;
     this._dolly.allowControl = true;
     this._dolly.autoUpdate = true;
   }
@@ -293,35 +286,26 @@ export class Application {
     for (const manager of this._managers) {
       manager.onUnpause();
     }
-    for (const world of this._worlds) {
-      world.onUnpause();
-    }
-    this._ticker.speed = 1;
+    this._clock.speed = 1;
     this._dolly.allowControl = false;
     this._dolly.autoUpdate = false;
   }
 
-  step(seconds: number): void {
-    this._ticker.adjustTime(seconds);
+  skip(seconds: number): void {
+    this._clock.adjustTime(seconds);
     for (const manager of this._managers) {
-      manager.onStep(seconds);
+      manager.onSkip(seconds);
     }
-    for (const world of this._worlds) {
-      world.onStep(seconds);
-    }
-    this.update(this._ticker);
+    this.update(this._clock);
   }
 
-  protected update(time: Ticker): void {
+  protected update(time: Clock): void {
     if (!this._paused) {
       if (this._game) {
         this._game.update(time);
       }
       for (const manager of this._managers) {
-        manager.onUpdate();
-      }
-      for (const world of this._worlds) {
-        world.onUpdate(time);
+        manager.onUpdate(time);
       }
     }
     if (this._renderer) {
@@ -334,14 +318,11 @@ export class Application {
     if (this._renderer) {
       this._renderer.destroy();
     }
-    this._ticker.dispose();
+    this._clock.dispose();
     this.unbind();
     this._resizeObserver.disconnect();
     for (const manager of this._managers) {
       manager.onDispose();
-    }
-    for (const world of this._worlds) {
-      world.destroy();
     }
     if (this._game) {
       this._game.destroy();

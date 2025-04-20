@@ -73,6 +73,9 @@
       "include": "#Include"
     },
     {
+      "include": "#Load"
+    },
+    {
       "include": "#Declaration"
     },
     {
@@ -338,6 +341,56 @@
       "tag": "string",
       "name": "string.include.sd",
       "match": "(.+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))"
+    },
+    "Load": {
+      "tag": "meta",
+      "name": "meta.import.load.sd",
+      "begin": "^([^\\S\\n\\r]*)(LOAD|load)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LoadKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#LoadName"
+        },
+        {
+          "include": "#Whitespace"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "LoadKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.load.sd",
+      "match": "(.+)"
+    },
+    "LoadName": {
+      "tag": "variableName",
+      "name": "variable.other.constant.load.name.sd",
+      "match": "(\\S+)"
     },
     "Declaration": {
       "patterns": [

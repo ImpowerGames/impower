@@ -37,6 +37,7 @@ patterns:
   - { include: "#FrontMatter" }
   - { include: "#Todo" }
   - { include: "#Include" }
+  - { include: "#Load" }
   - { include: "#Declaration" }
   - { include: "#Knot" }
   - { include: "#Stitch" }
@@ -201,6 +202,38 @@ repository:
     tag: string
     name: string.include.sd
     match: (.+?)(?={{EOL}})
+
+  ########## Load ##########
+
+  Load:
+    tag: meta
+    name: meta.import.load.sd
+    begin: ^({{WS}}*)(LOAD|load)({{EOK}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LoadKeyword" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#LoadName" }
+      - { include: "#Whitespace" }
+    end: (?=$)
+
+  LoadKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.load.sd
+    match: (.+)
+
+  LoadName:
+    tag: variableName
+    name: variable.other.constant.load.name.sd
+    match: (\S+)
 
   ########## Declaration: VAR LIST CONST EXTERNAL DEFINE ##########
 

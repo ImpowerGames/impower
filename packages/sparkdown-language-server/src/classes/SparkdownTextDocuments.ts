@@ -114,6 +114,8 @@ export default class SparkdownTextDocuments {
 
   protected _fontFilePattern?: RegExp;
 
+  protected _worldFilePattern?: RegExp;
+
   protected _urls: Record<string, string> = {};
 
   protected _lastCompiledUri?: string;
@@ -187,6 +189,10 @@ export default class SparkdownTextDocuments {
     const fontFiles = settings?.fontFiles;
     if (fontFiles) {
       this._fontFilePattern = globToRegex(fontFiles);
+    }
+    const worldFiles = settings?.worldFiles;
+    if (worldFiles) {
+      this._worldFilePattern = globToRegex(worldFiles);
     }
     this._settings = settings;
   }
@@ -311,6 +317,9 @@ export default class SparkdownTextDocuments {
     }
     if (this._fontFilePattern?.test(uri)) {
       return "font";
+    }
+    if (this._worldFilePattern?.test(uri)) {
+      return "world";
     }
     return "text";
   }

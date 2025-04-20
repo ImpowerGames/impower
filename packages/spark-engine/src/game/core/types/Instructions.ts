@@ -1,10 +1,12 @@
 import {
   AudioInstruction,
   ImageInstruction,
+  LoadInstruction,
   TextInstruction,
 } from "./Instruction";
 
 export interface Instructions {
+  load?: LoadInstruction[];
   text?: Record<string, TextInstruction[]>;
   image?: Record<string, ImageInstruction[]>;
   audio?: Record<string, AudioInstruction[]>;

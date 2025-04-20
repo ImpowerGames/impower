@@ -51,7 +51,7 @@ export class Sprite3D extends PerspectiveMesh {
     return this._camera;
   }
 
-  protected _billboardType: SpriteBillboardType = SpriteBillboardType.none;
+  protected _billboardType: SpriteBillboardType = "none";
   /**
    * The billboard type to use when rendering the sprite.
    * Used for making the sprite always face the viewer.
@@ -184,7 +184,7 @@ export class Sprite3D extends PerspectiveMesh {
     let rotRight = Vec3.right;
     let rotUp = Vec3.up;
 
-    if (this._billboardType === SpriteBillboardType.spherical) {
+    if (this._billboardType === "spherical") {
       // Extract right and up vectors from camera's view matrix
       const view = this._camera.view.array;
 
@@ -200,7 +200,7 @@ export class Sprite3D extends PerspectiveMesh {
 
       // Project to screen space
       this.calculateWorldCorners(w, h, rotRight, rotUp, worldCorners);
-    } else if (this._billboardType === SpriteBillboardType.cylindrical) {
+    } else if (this._billboardType === "cylindrical") {
       // Extract right vector from camera's view matrix (X column)
       const view = this._camera.view.array;
 

@@ -1,17 +1,16 @@
 /**
  * Represents different billboard types.
  */
-export enum SpriteBillboardType {
+export type SpriteBillboardType =
   /**
    * Sprite will be rotated towards the camera on both the x-plane and y-plane.
    */
-  spherical = "spherical",
+  | "spherical"
   /**
    * Sprite will be rotated towards the camera on the y-plane.
    */
-  cylindrical = "cylindrical",
+  | "cylindrical"
   /**
    * Sprite will not be rotated towards the camera.
    */
-  none = "none",
-}
+  | "none";

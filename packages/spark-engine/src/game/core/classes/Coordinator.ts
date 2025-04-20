@@ -2,9 +2,9 @@ import { Typewriter } from "../../modules/interpreter";
 import { Instructions } from "../types/Instructions";
 import { NotificationMessage } from "../types/NotificationMessage";
 import { RequestMessage } from "../types/RequestMessage";
+import { Clock } from "./Clock";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
-import { Ticker } from "./Ticker";
 
 export class Coordinator<G extends Game> {
   protected _game: G;
@@ -42,7 +42,7 @@ export class Coordinator<G extends Game> {
     this._onTick?.(0);
   }
 
-  onUpdate(time: Ticker) {
+  onUpdate(time: Clock) {
     if (this._onTick) {
       this._onTick(time.deltaMS);
       this._elapsedMS += time.deltaMS;
@@ -75,6 +75,9 @@ export class Coordinator<G extends Game> {
     const instructions = this._instructions;
     const waitingForChoice =
       instructions.choices && instructions.choices.length > 0;
+    if (instructions.load) {
+      return 0;
+    }
     if (this._finishedExecution && this._timeTypedMS < 0) {
       this._timeTypedMS = this._elapsedMS;
     }
@@ -129,6 +132,12 @@ export class Coordinator<G extends Game> {
 
     const instant = options?.instant;
     const previewing = options?.preview;
+
+    if (instructions.load && !instant && !game.context.system.simulating) {
+      for (const { name } of instructions.load) {
+        game.module.world.loadWorld(name);
+      }
+    }
 
     const transientLayers: string[] = [];
     for (const [name, typewriter] of Object.entries(

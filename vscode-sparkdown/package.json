@@ -520,6 +520,11 @@
             "type": "string",
             "default": "*.{ttf,woff,woff2,otf}",
             "description": "Recognized filename patterns for font files"
+          },
+          "sparkdown.worldFiles": {
+            "type": "string",
+            "default": "*.{js}",
+            "description": "Recognized filename patterns for world files"
           }
         }
       },

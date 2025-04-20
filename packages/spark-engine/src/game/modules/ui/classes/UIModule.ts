@@ -1,9 +1,9 @@
 import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/utils/sortFilteredName";
+import { Clock } from "../../../core/classes/Clock";
 import type { Game } from "../../../core/classes/Game";
-import { Module } from "../../../core/classes/Module";
-import { Ticker } from "../../../core/classes/Ticker";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
+import { Module } from "../../../core/classes/Module";
 import { Event } from "../../../core/types/Event";
 import { EventMap } from "../../../core/types/EventMap";
 import {
@@ -117,7 +117,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  override onUpdate(time: Ticker) {
+  override onUpdate(time: Clock) {
     if (this._firstUpdate) {
       this._firstUpdate = false;
       this.reveal();

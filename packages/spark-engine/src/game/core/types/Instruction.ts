@@ -5,6 +5,10 @@ export interface IInstruction {
   wait?: boolean;
 }
 
+export interface LoadInstruction extends IInstruction {
+  name: string;
+}
+
 export interface TextInstruction extends IInstruction {
   text: string;
   style?: {

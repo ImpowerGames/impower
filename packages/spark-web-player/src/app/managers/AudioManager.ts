@@ -231,7 +231,7 @@ export default class AudioManager extends Manager {
     }
   }
 
-  override onStep(seconds: number): void {
+  override onSkip(seconds: number): void {
     if (this.audioContext) {
       const scheduledTime = this.audioContext.currentTime;
       for (const c of this._audioChannels.values()) {

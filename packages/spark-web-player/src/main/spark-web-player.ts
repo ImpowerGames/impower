@@ -435,7 +435,7 @@ export default class SparkWebPlayer extends Component(spec) {
   ) => {
     const { seconds } = message.params;
     if (this._app) {
-      this._app.step(seconds);
+      this._app.skip(seconds);
       return messageType.response(message.id, {});
     }
     return messageType.error(message.id, {

@@ -3,6 +3,7 @@ import { Module } from "../../../core/classes/Module";
 import {
   AudioInstruction,
   ImageInstruction,
+  LoadInstruction,
   TextInstruction,
 } from "../../../core/types/Instruction";
 import type { Instructions } from "../../../core/types/Instructions";
@@ -76,6 +77,8 @@ export class InterpreterModule extends Module<
 
   PARENTHETICAL_REGEX =
     /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)$/;
+
+  WHITESPACE_REGEX = /[ \t\r\n]+/;
 
   protected _targetPrefixMap: Record<string, string> = {};
 
@@ -196,6 +199,22 @@ export class InterpreterModule extends Module<
     const options: InstructionOptions = {};
     // Trim away indent.
     content = content.trimStart();
+
+    if (content.startsWith("load ")) {
+      const args = content.split(this.WHITESPACE_REGEX).slice(1);
+      const loadInstructions: LoadInstruction[] = args
+        .map((name) => ({ name }))
+        .filter((a) => Boolean(a.name));
+      const latest = this._state.buffer.at(-1);
+      if (latest) {
+        latest.load ??= [];
+        latest.load.push(...loadInstructions);
+      } else {
+        this._state.buffer.push({ load: loadInstructions, end: 0 });
+      }
+      return;
+    }
+
     // Determine the default target (if no prefix matches).
     const defaultTarget =
       this._targetPrefixMap?.["!"] || this._targetPrefixMap?.[""] || "";
@@ -354,11 +373,13 @@ export class InterpreterModule extends Module<
    * @returns True if there is queued text to be flushed to screen, otherwise False.
    */
   shouldFlush(): boolean {
+    // There are worlds to load.
     // There is text to display.
     // Or an event takes up time
     // Or we are in preview mode and there is an image to display
     return Boolean(
-      this._state.buffer?.[0]?.text ||
+      this._state.buffer?.[0]?.load ||
+        this._state.buffer?.[0]?.text ||
         Number(this._state.buffer?.[0]?.end) > 0 ||
         (this.context.system.previewing && this._state.buffer?.[0]?.image)
     );

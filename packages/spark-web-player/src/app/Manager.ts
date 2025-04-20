@@ -1,4 +1,5 @@
 import {
+  Clock,
   type Message,
   type NotificationMessage,
   type RequestMessage,
@@ -26,22 +27,32 @@ export class Manager {
   }
 
   get ticker() {
-    return this._app.ticker;
+    return this._app.clock;
   }
 
   get audioContext() {
     return this._app.audioContext;
   }
 
+  get context() {
+    return this._app.context;
+  }
+
+  get stage() {
+    return this._app.stage;
+  }
+
   constructor(app: Application) {
     this._app = app;
   }
 
+  async onInit(): Promise<void> {}
+
   onStart(): void {}
 
-  onUpdate(): void {}
+  onUpdate(_time: Clock): void {}
 
-  onStep(_seconds: number): void {}
+  onSkip(_seconds: number): void {}
 
   onPause(): void {}
 

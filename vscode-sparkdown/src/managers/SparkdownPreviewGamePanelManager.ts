@@ -291,7 +291,7 @@ export class SparkdownPreviewGamePanelManager {
         if (program.context) {
           for (const [, structs] of Object.entries(program.context)) {
             for (const [, struct] of Object.entries(structs)) {
-              if (struct.uri && !struct.src) {
+              if (struct.uri) {
                 const uri = vscode.Uri.parse(struct.uri);
                 struct.src = this._panel?.webview.asWebviewUri(uri).toString();
               }

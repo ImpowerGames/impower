@@ -4,6 +4,7 @@ import { getWorkspaceFilePatterns } from "./getWorkspaceFilePatterns";
 import { getWorkspaceFontFile } from "./getWorkspaceFontFile";
 import { getWorkspaceImageFile } from "./getWorkspaceImageFile";
 import { getWorkspaceScriptFile } from "./getWorkspaceScriptFile";
+import { getWorkspaceWorldFile } from "./getWorkspaceWorldFile";
 
 export const getWorkspaceFiles = async (): Promise<
   {
@@ -15,16 +16,20 @@ export const getWorkspaceFiles = async (): Promise<
   }[]
 > => {
   const workspaceFilePatterns = getWorkspaceFilePatterns();
-  const [scriptFileUris, imageFileUris, audioFileUris, fontFileUrls] =
-    await Promise.all(
-      workspaceFilePatterns.map((pattern) =>
-        vscode.workspace.findFiles(pattern)
-      )
-    );
+  const [
+    scriptFileUris,
+    imageFileUris,
+    audioFileUris,
+    fontFileUrls,
+    worldFileUrls,
+  ] = await Promise.all(
+    workspaceFilePatterns.map((pattern) => vscode.workspace.findFiles(pattern))
+  );
   return Promise.all([
     ...(scriptFileUris || []).map(getWorkspaceScriptFile),
     ...(imageFileUris || []).map(getWorkspaceImageFile),
     ...(audioFileUris || []).map(getWorkspaceAudioFile),
     ...(fontFileUrls || []).map(getWorkspaceFontFile),
+    ...(worldFileUrls || []).map(getWorkspaceWorldFile),
   ]);
 };

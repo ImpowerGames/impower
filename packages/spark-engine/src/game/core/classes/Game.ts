@@ -16,6 +16,7 @@ import { ResponseError } from "../types/ResponseError";
 import { StackFrame } from "../types/StackFrame";
 import { Thread } from "../types/Thread";
 import { Variable, VariablePresentationHint } from "../types/Variable";
+import { Clock } from "./Clock";
 import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
 import { AutoAdvancedToContinueMessage } from "./messages/AutoAdvancedToContinueMessage";
@@ -31,7 +32,6 @@ import { StartedMessage } from "./messages/StartedMessage";
 import { StartedThreadMessage } from "./messages/StartedThreadMessage";
 import { SteppedMessage } from "./messages/SteppedMessage";
 import { Module } from "./Module";
-import { Ticker } from "./Ticker";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
 
@@ -350,7 +350,7 @@ export class Game<T extends M = {}> {
     return !this._error;
   }
 
-  update(time: Ticker) {
+  update(time: Clock) {
     if (!this._destroyed) {
       for (const k of this._moduleNames) {
         this._modules[k]?.onUpdate(time);

@@ -1636,7 +1636,7 @@ export class Story extends InkObject {
             for (let i = 0; i <= listItemIndex - 1; i++) {
               listEnumerator.next();
             }
-            let value = listEnumerator.next().value;
+            let value = listEnumerator.next().value!;
             let randomItem: KeyValuePair<InkListItem, number> = {
               Key: InkListItem.fromSerializedKey(value[0]),
               Value: value[1],

@@ -1,7 +1,7 @@
 /**
  * A function that is called every tick.
  */
-type TickerCallback = (time: Ticker) => void;
+type TickerCallback = (time: Clock) => void;
 
 /**
  * A function that requests a new frame.
@@ -13,11 +13,11 @@ interface FrameRequestCallback {
 /**
  * Reports a current time in seconds.
  */
-interface Clock {
+interface ClockSource {
   currentTime: number;
 }
 
-export class Ticker {
+export class Clock {
   protected _speed = 1;
   /**
    * Speeds up or slows down the clock by this factor.
@@ -106,7 +106,7 @@ export class Ticker {
   }
 
   /**
-   * The frames per second that the clock is currently ticking at (bounded by {@link Ticker.maxFPS}).
+   * The frames per second that the clock is currently ticking at (bounded by {@link Clock.maxFPS}).
    */
   get currentFPS() {
     return 1 / (this._elapsedTime / this._elapsedFrames);
@@ -123,7 +123,7 @@ export class Ticker {
   /**
    * The clock that the ticker is synchronized to.
    */
-  protected _clock: Clock;
+  protected _clock: ClockSource;
 
   /**
    * The function that will be called to request a new frame.
@@ -142,7 +142,7 @@ export class Ticker {
   protected _callbacks = new Set<TickerCallback>();
 
   constructor(
-    clock: Clock,
+    clock: ClockSource,
     requestFrame: (callback: FrameRequestCallback) => void
   ) {
     this._clock = clock;
@@ -180,7 +180,7 @@ export class Ticker {
   /**
    * Synchronize the ticker to a different clock.
    */
-  syncToClock(clock: Clock) {
+  syncToClock(clock: ClockSource) {
     const oldNow = this._clock.currentTime;
     const newNow = clock.currentTime;
     this._clock = clock;

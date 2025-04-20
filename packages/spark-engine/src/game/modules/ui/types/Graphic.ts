@@ -1,5 +1,4 @@
 import { Reference } from "../../../core/types/Reference";
-import { Vector3 } from "../../world/types/Vector3";
 
 export interface Shape {
   path?: string;
@@ -25,10 +24,5 @@ export interface Graphic extends Reference<"graphic"> {
   height: number;
   tiling: Tiling;
   shapes: Shape[];
-  transform: {
-    position: Vector3;
-    rotation: Vector3;
-    scale: Vector3;
-  };
   src?: string;
 }

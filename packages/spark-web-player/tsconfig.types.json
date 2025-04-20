@@ -9,9 +9,9 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "moduleResolution": "bundler", // Use "node" if you're not using ES modules
-    "types": [], // Don't include ambient types like `node`
+    "moduleResolution": "bundler", 
+    "types": [],
     "jsx": "preserve"
 	},
-  "include": ["src/app/World.ts"]
+  "include": ["src/app/index.ts"]
 }

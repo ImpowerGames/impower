@@ -1,5 +1,6 @@
 import { exec } from "child_process";
 import * as chokidar from "chokidar";
+import fs from "fs";
 import path from "path";
 import { Project, SourceFile } from "ts-morph";
 
@@ -19,7 +20,6 @@ const getArgArrayValue = (key: string, fallback?: string): string[] => {
     .filter(Boolean);
 };
 
-const inputPath = path.resolve(getArgValue("--input", "src/app/World.ts")!);
 const outputPath = path.resolve(getArgValue("--output", "types/spark.d.ts")!);
 const projectPath = path.resolve(
   getArgValue("--project", "tsconfig.types.json")!
@@ -30,7 +30,7 @@ const externalInlines = getArgArrayValue(
 );
 
 const project = new Project({
-  tsConfigFilePath: "tsconfig.json",
+  tsConfigFilePath: projectPath,
 });
 const watchedFiles = new Set<string>();
 let watcher: chokidar.FSWatcher;
@@ -53,13 +53,37 @@ function getAllDependencies(
   return seen;
 }
 
+// Get input paths from the tsconfig includes
+function getInputPathsFromTsConfig(): string[] {
+  return project.getSourceFiles().map((file) => file.getFilePath());
+}
+
+const inputPaths = getInputPathsFromTsConfig();
+if (inputPaths.length === 0) {
+  console.error(LOG_PREFIX + "No input files found from tsconfig includes.");
+  process.exit(1);
+}
+
+function getIncludePathsFromTsConfig(tsconfigPath: string): string[] {
+  const configJson = JSON.parse(fs.readFileSync(tsconfigPath, "utf-8"));
+  const includes = configJson.include ?? [];
+  return includes.map((p: string) => path.resolve(p));
+}
+
 function bundleTypes() {
+  const includePaths = getIncludePathsFromTsConfig(projectPath);
+  if (includePaths.length === 0) {
+    console.error(LOG_PREFIX + "No include paths found in tsconfig.");
+    process.exit(1);
+  }
   const cmd = [
     "dts-bundle-generator",
     `-o "${outputPath}"`,
-    `"${inputPath}"`,
+    ...includePaths.map((p) => `"${p}"`),
     `--project "${projectPath}"`,
     `--external-inlines=${externalInlines.join(" ")}`,
+    "--export-referenced-types",
+    "--no-banner=false",
     "--no-check",
     "--silent",
   ].join(" ");
@@ -69,18 +93,52 @@ function bundleTypes() {
     if (stdout) console.log(stdout.trim());
     if (stderr) console.error(stderr.trim());
     if (err) console.error(LOG_PREFIX + "Failed:", err.message);
+    removeShadowingInterfaces(outputPath);
     console.log(LOG_PREFIX + "build finished");
   });
 }
 
+function removeShadowingInterfaces(outputFilePath: string) {
+  let content = fs.readFileSync(outputFilePath, "utf8");
+
+  const classNames = new Set<string>();
+  const classRegex = /(?:declare\s+)?class\s+(\w+)/g;
+  let match;
+
+  // First, find all declared classes
+  while ((match = classRegex.exec(content)) !== null) {
+    classNames.add(match[1]!);
+  }
+
+  // Remove interfaces that shadow those classes
+  for (const className of classNames) {
+    const interfaceRegex = new RegExp(
+      `export\\s+interface\\s+${className}[^{]*[{][^{}]*[}]`,
+      "g"
+    );
+    content = content.replace(interfaceRegex, () => {
+      console.log(LOG_PREFIX + `removed shadowing interface: ${className}`);
+      return ""; // remove the matched interface
+    });
+  }
+
+  fs.writeFileSync(outputFilePath, content);
+}
+
 async function watchDependencies() {
-  const sourceFile =
-    project.getSourceFile(inputPath) || project.addSourceFileAtPath(inputPath);
-  const deps = Array.from(getAllDependencies(sourceFile));
+  for (const inputPath of inputPaths) {
+    const sourceFile =
+      project.getSourceFile(inputPath) ||
+      project.addSourceFileAtPath(inputPath);
+    const deps = Array.from(getAllDependencies(sourceFile));
+    deps.forEach((dep) => {
+      if (dep.replaceAll("\\", "/") !== outputPath.replaceAll("\\", "/")) {
+        watchedFiles.add(dep);
+      }
+    });
+  }
 
-  deps.forEach((dep) => watchedFiles.add(dep));
-
-  watcher = chokidar.watch(deps, { ignoreInitial: true });
+  watcher = chokidar.watch(Array.from(watchedFiles), { ignoreInitial: true });
 
   watcher.on("change", (filePath) => {
     console.log(LOG_PREFIX + `File changed: ${filePath}`);

@@ -1,8 +1,17 @@
-import { Ticker } from "@impower/spark-engine/src/game/core/classes/Ticker";
+import { Clock } from "@impower/spark-engine/src/game/core/classes/Clock";
 import { NotificationMessage } from "@impower/spark-engine/src/game/core/types/NotificationMessage";
 import { RequestMessage } from "@impower/spark-engine/src/game/core/types/RequestMessage";
 import { ResponseError } from "@impower/spark-engine/src/game/core/types/ResponseError";
-import { Color, ColorSource, Container, Renderer } from "pixi.js";
+import {
+  AnimatedSprite,
+  Color,
+  ColorSource,
+  Container,
+  Sprite,
+  Texture,
+} from "pixi.js";
+import { IApplication } from "./IApplication";
+import { AnimatedSprite3D, Sprite3D } from "./plugins/projection";
 import { Camera } from "./plugins/projection/camera/camera";
 import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
 import {
@@ -16,15 +25,9 @@ import {
 import { parseSVG } from "./plugins/svg/utils/parseSVG";
 import { generateSolidTexture } from "./plugins/texture/utils/generateSolidTexture";
 
-interface IApplication {
-  screen: { width: number; height: number; resolution: number };
-  canvas: HTMLCanvasElement;
-  renderer: Renderer;
-  dolly: CameraOrbitControl;
-  camera: Camera;
-  ticker: Ticker;
-}
-
+/**
+ * Used to render Sprites in 2D or 3D space
+ */
 export class World {
   protected _app: IApplication;
 
@@ -55,7 +58,7 @@ export class World {
     this._app.renderer.background.color = value;
   }
 
-  private _root = new Container();
+  private _root;
   public get root(): Container {
     return this._root;
   }
@@ -104,14 +107,20 @@ export class World {
     this._touchDragThreshold = value;
   }
 
-  constructor(app: IApplication) {
+  private _onExit?: () => void;
+
+  constructor(app: IApplication, onExit?: () => void) {
     this._app = app;
     this.bind();
+    this._onExit = onExit;
+    this._root = new Container();
+    this._root.sortableChildren = true;
   }
 
-  destroy() {
+  exit() {
     this.unbind();
     this.onDispose();
+    this._onExit?.();
   }
 
   private bind(): void {
@@ -141,7 +150,7 @@ export class World {
   };
 
   private handlePointerMove = (event: PointerEvent): void => {
-    if (this._app.ticker.speed > 0) {
+    if (this._app.clock.speed > 0) {
       this.onPointerMove(event);
       if (this._pointerDown) {
         const pointerX = event.offsetX;
@@ -205,9 +214,9 @@ export class World {
 
   onStart(): void {}
 
-  onUpdate(_time: Ticker): void {}
+  onUpdate(_time: Clock): void {}
 
-  onStep(_seconds: number): void {}
+  onSkip(_seconds: number): void {}
 
   onPause(): void {}
 
@@ -252,17 +261,33 @@ export class World {
     return this.root.addChild(child);
   }
 
-  texture(width: number, height: number, color?: number) {
+  createTexture(width: number, height: number, color?: number) {
     return generateSolidTexture(this.renderer, width, height, color);
   }
 
-  svgTextures(svg: string, options?: GenerateAnimatedSVGTexturesOptions) {
+  createSvgTextures(svg: string, options?: GenerateAnimatedSVGTexturesOptions) {
     const svgEl = parseSVG(svg);
     return generateAnimatedSVGTextures(this.renderer, svgEl, options);
   }
 
-  svgTexture(svg: string, options?: GenerateAnimatedSVGTextureOptions) {
+  createSvgTexture(svg: string, options?: GenerateAnimatedSVGTextureOptions) {
     const svgEl = parseSVG(svg);
     return generateAnimatedSVGTexture(this.renderer, svgEl, 0, options);
+  }
+
+  createSprite2D(texture?: Texture) {
+    return new Sprite(texture || Texture.WHITE);
+  }
+
+  createSprite3D(texture?: Texture) {
+    return new Sprite3D(texture || Texture.WHITE, this.camera);
+  }
+
+  createAnimatedSprite2D(textures: Texture[]) {
+    return new AnimatedSprite(textures);
+  }
+
+  createAnimatedSprite3D(textures: Texture[]) {
+    return new AnimatedSprite3D(textures, this.camera);
   }
 }

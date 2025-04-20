@@ -13,26 +13,6 @@ export const default_graphic: Create<Graphic> = (obj) => ({
     angle: 0,
     ...(obj?.tiling || {}),
   },
-  transform: {
-    position: {
-      x: 0,
-      y: 0,
-      z: 0,
-      ...(obj?.transform?.position || {}),
-    },
-    rotation: {
-      x: 0,
-      y: 0,
-      z: 0,
-      ...(obj?.transform?.rotation || {}),
-    },
-    scale: {
-      x: 1,
-      y: 1,
-      z: 1,
-      ...(obj?.transform?.scale || {}),
-    },
-  },
   shapes: obj?.shapes ?? [
     {
       path: "M 0 0 L 64 0 L 64 64 L 0 64 L 0 0",

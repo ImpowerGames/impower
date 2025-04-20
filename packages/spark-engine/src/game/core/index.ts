@@ -1,6 +1,6 @@
+export * from "./classes/Clock";
 export * from "./classes/Game";
 export * from "./classes/Module";
-export * from "./classes/Ticker";
 export * from "./constants/EASE";
 export * from "./types/Audio";
 export * from "./types/ClockValue";
