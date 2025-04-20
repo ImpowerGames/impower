@@ -300,24 +300,22 @@ class InlineDebugAdapterFactory
         const docUri = pathToUri(path);
         const activeOrVisibleEditor = getActiveOrVisibleEditor();
         const selectionRange = new vscode.Range(line, 0, line, 0);
-        const debuggingEditor =
+        if (
           activeOrVisibleEditor?.document.uri.toString() === docUri.toString()
-            ? activeOrVisibleEditor
-            : await vscode.window.showTextDocument(docUri, {
-                selection: selectionRange,
-              });
-        debuggingEditor.selection = new vscode.Selection(
-          selectionRange.start,
-          selectionRange.end
-        );
-        debuggingEditor.revealRange(
-          selectionRange,
-          vscode.TextEditorRevealType.InCenterIfOutsideViewport
-        );
-        await SparkdownPreviewGamePanelManager.instance.showPanel(
-          context,
-          debuggingEditor.document
-        );
+        ) {
+          activeOrVisibleEditor.selection = new vscode.Selection(
+            selectionRange.start,
+            selectionRange.end
+          );
+          activeOrVisibleEditor.revealRange(
+            selectionRange,
+            vscode.TextEditorRevealType.InCenterIfOutsideViewport
+          );
+          await SparkdownPreviewGamePanelManager.instance.showPanel(
+            context,
+            activeOrVisibleEditor.document
+          );
+        }
       },
       pathToUri(path: string) {
         return pathToUri(path).toString();
