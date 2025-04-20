@@ -352,12 +352,6 @@
           "when": "editorLangId == sparkdown",
           "group": "navigation@4"
         }
-      ],
-      "debug/variables/context": [
-        {
-          "command": "sparkdown.toggleFormatting",
-          "when": "debugType == 'mock' && debugProtocolVariableMenuContext == 'simple'"
-        }
       ]
     },
     "commands": [
@@ -423,11 +417,6 @@
         "category": "Sparkdown Debugger",
         "enablement": "!inDebugMode",
         "icon": "$(play)"
-      },
-      {
-        "command": "sparkdown.toggleFormatting",
-        "title": "Toggle between decimal and hex formatting",
-        "category": "Sparkdown Debugger"
       }
     ],
     "keybindings": [

@@ -23,57 +23,45 @@ export const activateDebugger = (
   context: vscode.ExtensionContext,
   factory?: vscode.DebugAdapterDescriptorFactory
 ) => {
+  let lastViewedSparkdownDocument: vscode.TextDocument;
+
   context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "sparkdown.runGame",
-      (resource: vscode.Uri) => {
-        let targetResource = resource;
-        const editor = getActiveOrVisibleEditor();
-        if (!targetResource && editor) {
-          targetResource = editor.document.uri;
-        }
-        if (targetResource) {
-          vscode.debug.startDebugging(
-            undefined,
-            {
-              type: "game",
-              name: "Run File",
-              request: "launch",
-              program: targetResource.fsPath,
-            },
-            { noDebug: true }
-          );
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (!vscode.debug.activeDebugSession) {
+        if (editor?.document.languageId === "sparkdown") {
+          lastViewedSparkdownDocument = editor.document;
         }
       }
-    ),
-    vscode.commands.registerCommand(
-      "sparkdown.debugGame",
-      (resource: vscode.Uri) => {
-        const editor = getActiveOrVisibleEditor();
-        let targetResource = resource;
-        if (!targetResource && editor) {
-          targetResource = editor.document.uri;
-        }
-        if (targetResource) {
-          vscode.debug.startDebugging(undefined, {
-            type: "game",
-            name: "Debug File",
-            request: "launch",
-            program: targetResource.fsPath,
-            stopOnEntry: true,
-          });
-        }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("sparkdown.runGame", () => {
+      vscode.debug.startDebugging(
+        undefined,
+        {
+          type: "game",
+          name: "Run File",
+          request: "launch",
+          program: lastViewedSparkdownDocument.uri.fsPath,
+        },
+        { noDebug: true }
+      );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("sparkdown.debugGame", () => {
+      if (lastViewedSparkdownDocument) {
+        vscode.debug.startDebugging(undefined, {
+          type: "game",
+          name: "Debug File",
+          request: "launch",
+          program: lastViewedSparkdownDocument.uri.fsPath,
+          stopOnEntry: true,
+        });
       }
-    ),
-    vscode.commands.registerCommand(
-      "sparkdown.toggleFormatting",
-      (variable) => {
-        const ds = vscode.debug.activeDebugSession;
-        if (ds) {
-          ds.customRequest("toggleFormatting");
-        }
-      }
-    )
+    })
   );
 
   context.subscriptions.push(
@@ -108,7 +96,7 @@ export const activateDebugger = (
       "game",
       {
         provideDebugConfigurations(
-          folder: WorkspaceFolder | undefined
+          _folder: WorkspaceFolder | undefined
         ): ProviderResult<DebugConfiguration[]> {
           return [
             {
@@ -302,14 +290,14 @@ class InlineDebugAdapterFactory
       async showFile(path: string) {
         const docUri = pathToUri(path);
         const activeOrVisibleEditor = getActiveOrVisibleEditor();
-        const debuggingEditor =
+        if (
           activeOrVisibleEditor?.document.uri.toString() === docUri.toString()
-            ? activeOrVisibleEditor
-            : await vscode.window.showTextDocument(docUri);
-        await SparkdownPreviewGamePanelManager.instance.showPanel(
-          context,
-          debuggingEditor.document
-        );
+        ) {
+          await SparkdownPreviewGamePanelManager.instance.showPanel(
+            context,
+            activeOrVisibleEditor.document
+          );
+        }
       },
       async getSelectedLine(path: string) {
         const docUri = pathToUri(path);
