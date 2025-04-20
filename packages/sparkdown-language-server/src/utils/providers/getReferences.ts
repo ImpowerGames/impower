@@ -57,7 +57,6 @@ export const getReferences = (
   }
   const { symbol, nameRange } = getSymbol(document, tree, position);
   if (!symbol) {
-    console.warn("no symbol available");
     return {};
   }
 
