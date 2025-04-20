@@ -40,13 +40,19 @@ export const activateAutoFormatting = (context: ExtensionContext) => {
   }
   context.subscriptions.push(
     workspace.onDidOpenTextDocument((data: TextDocument) => {
-      SparkdownDocumentManager.instance.add(data);
+      if (data.languageId === "sparkdown") {
+        SparkdownDocumentManager.instance.add(data);
+      }
     }),
     workspace.onDidChangeTextDocument((data: TextDocumentChangeEvent) => {
-      SparkdownDocumentManager.instance.update(data);
+      if (data.languageId === "sparkdown") {
+        SparkdownDocumentManager.instance.update(data);
+      }
     }),
     workspace.onDidCloseTextDocument((data: TextDocument) => {
-      SparkdownDocumentManager.instance.remove(data);
+      if (data.languageId === "sparkdown") {
+        SparkdownDocumentManager.instance.remove(data);
+      }
     }),
     commands.registerCommand("sparkdown.extension.onEnterKey", onEnterKey),
     commands.registerCommand("sparkdown.extension.onCtrlEnterKey", () => {
