@@ -671,9 +671,9 @@ export default class SparkdownTextDocuments {
       )
     );
     disposables.push(
-      connection.onDidCloseTextDocument((event: DidCloseTextDocumentParams) => {
-        this._documents.remove(event);
-      })
+      connection.onDidCloseTextDocument(
+        (_event: DidCloseTextDocumentParams) => {}
+      )
     );
     disposables.push(
       connection.onWillSaveTextDocument(

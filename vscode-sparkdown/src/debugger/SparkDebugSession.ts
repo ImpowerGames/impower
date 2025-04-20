@@ -73,6 +73,7 @@ export interface FileAccessor {
   showFile(path: string): Promise<void>;
   getSelectedLine(path: string): Promise<number | undefined>;
   revealLine(path: string, line: number): Promise<void>;
+  isActiveTextEditor(path: string): boolean;
   pathToUri(path: string): string;
   uriToPath(uri: string): string;
   getRootPath(path: string): string | undefined;
@@ -192,7 +193,14 @@ export class SparkDebugSession extends LoggingDebugSession {
       await this.sendStoppedEvent("breakpoint");
     }
     if (GameAwaitingInteractionMessage.type.isNotification(message)) {
-      await this.sendStoppedEvent("awaiting interaction");
+      const { location } = message.params;
+      if (
+        this._fileAccessor.isActiveTextEditor(
+          this._fileAccessor.uriToPath(location.uri)
+        )
+      ) {
+        await this.sendStoppedEvent("awaiting interaction");
+      }
     }
     if (GameAutoAdvancedToContinueMessage.type.isNotification(message)) {
       this.sendContinuedEvent();
@@ -380,19 +388,15 @@ export class SparkDebugSession extends LoggingDebugSession {
     request?: DebugProtocol.Request
   ) {
     // console.log("disconnectRequest", args);
-    if (args.restart) {
-      await this._fileAccessor.revealLine(
-        this._launchProgram,
-        this._launchLine
+    if (!args.restart) {
+      await this._connection.emit(
+        StopGameMessage.type.request({
+          restart: args.restart,
+          suspend: args.suspendDebuggee,
+          terminate: args.terminateDebuggee,
+        })
       );
     }
-    await this._connection.emit(
-      StopGameMessage.type.request({
-        restart: args.restart,
-        suspend: args.suspendDebuggee,
-        terminate: args.terminateDebuggee,
-      })
-    );
     this.sendResponse(response);
   }
 
@@ -414,8 +418,6 @@ export class SparkDebugSession extends LoggingDebugSession {
       )
     );
 
-    response.success = true;
-
     this.sendResponse(response);
   }
 
@@ -435,8 +437,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     this._launchProgram = args.program;
     this._launchLine =
       (await this._fileAccessor.getSelectedLine(args.program)) ?? 0;
-
-    response.success = true;
 
     this.sendResponse(response);
   }

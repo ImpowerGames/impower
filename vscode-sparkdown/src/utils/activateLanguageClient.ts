@@ -19,6 +19,7 @@ import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { SparkdownOutlineTreeDataProvider } from "../providers/SparkdownOutlineTreeDataProvider";
 import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
 import { getEditor } from "./getEditor";
+import { getOpenTextDocument } from "./getOpenTextDocument";
 import { getWorkspaceFiles } from "./getWorkspaceFiles";
 import { getWorkspaceFileWatchers } from "./getWorkspaceFileWatchers";
 import { updateCommands } from "./updateCommands";
@@ -98,7 +99,7 @@ export const activateLanguageClient = async (
   client.onNotification(
     DidCompileTextDocumentMessage.method,
     (params: DidCompileTextDocumentParams) => {
-      onParse(context, params);
+      onCompile(context, params);
     }
   );
   client.onRequest(
@@ -112,14 +113,13 @@ export const activateLanguageClient = async (
   context.subscriptions.push({ dispose: () => client.stop() });
 };
 
-const onParse = (
+const onCompile = async (
   _context: vscode.ExtensionContext,
   params: DidCompileTextDocumentParams
 ) => {
   const program = params.program;
   const textDocument = params.textDocument;
-  const editor = getEditor(textDocument.uri);
-  const document = editor?.document;
+  const document = await getOpenTextDocument(textDocument.uri);
   if (document) {
     SparkProgramManager.instance.update(document.uri, program);
     SparkdownPreviewGamePanelManager.instance.loadDocument(document);

@@ -313,6 +313,13 @@ class InlineDebugAdapterFactory
           );
         }
       },
+      isActiveTextEditor(path: string) {
+        const docUri = pathToUri(path);
+        return (
+          vscode.window.activeTextEditor?.document.uri.toString() ===
+          docUri.toString()
+        );
+      },
       pathToUri(path: string) {
         return pathToUri(path).toString();
       },

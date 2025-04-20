@@ -40,7 +40,6 @@ import { ExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes
 import { FinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/FinishedMessage";
 import { HitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/HitBreakpointMessage";
 import { RuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/RuntimeErrorMessage";
-import { StartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartedMessage";
 import { StartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartedThreadMessage";
 import { SteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/SteppedMessage";
 import { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
@@ -168,11 +167,9 @@ export default class SparkWebPlayer extends Component(spec) {
         this._audioContext = audioContext;
       }
     }
-    await this.buildGame();
-    const gameStarted = this._game?.start();
-    if (gameStarted) {
-      this._app?.start();
-    }
+    await this.startGameAndApp();
+    this.hidePlayButton();
+    this.emit(MessageProtocol.event, GameStartedMessage.type.notification({}));
   };
 
   protected handleProtocol = async (e: Event) => {
@@ -484,7 +481,7 @@ export default class SparkWebPlayer extends Component(spec) {
     this._loadListeners.clear();
     if (this._game?.state === "running") {
       // Stop and restart game if we loaded a new game while the old game was running
-      this.debouncedBuildGame();
+      this.debouncedRestartGame();
     }
     this.updateLaunchLabel();
     this.updateLaunchStateIcon();
@@ -495,7 +492,7 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof StartGameMessage.type,
     message: StartGameMessage.Request
   ) => {
-    const success = await this.startGame();
+    const success = await this.startGameAndApp();
     this.updateLaunchStateIcon();
     return success
       ? messageType.response(message.id, {})
@@ -512,7 +509,6 @@ export default class SparkWebPlayer extends Component(spec) {
     message: StopGameMessage.Request
   ) => {
     await this.stopGame("quit");
-    this.updateLaunchStateIcon();
     return messageType.response(message.id, {});
   };
 
@@ -520,9 +516,7 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof RestartGameMessage.type,
     message: RestartGameMessage.Request
   ) => {
-    this.destroyGameAndApp();
-    await this.startGame();
-    this.updateLaunchStateIcon();
+    await this.restartGame();
     return messageType.response(message.id, {});
   };
 
@@ -729,7 +723,7 @@ export default class SparkWebPlayer extends Component(spec) {
     });
   };
 
-  async startGame() {
+  async startGameAndApp() {
     if (!this._program) {
       // wait for program to be loaded
       await new Promise<void>((resolve) => {
@@ -775,12 +769,16 @@ export default class SparkWebPlayer extends Component(spec) {
       })
     );
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    this.updateLaunchStateIcon();
   }
 
-  protected debouncedBuildGame = debounce(
-    (preview?: { file: string; line: number }) => this.buildGame(preview),
-    1000
-  );
+  async restartGame() {
+    this.destroyGameAndApp();
+    await this.startGameAndApp();
+    this.updateLaunchStateIcon();
+  }
+
+  protected debouncedRestartGame = debounce(() => this.restartGame(), 100);
 
   async buildGame(preview?: { file: string; line: number }): Promise<void> {
     const options = this._options;
@@ -821,18 +819,6 @@ export default class SparkWebPlayer extends Component(spec) {
             };
             await this.stopGame("error", error);
           }
-        }
-      }
-    );
-    this._game.connection.outgoing.addListener(
-      StartedMessage.method,
-      async (msg) => {
-        if (StartedMessage.type.isNotification(msg)) {
-          this.hidePlayButton();
-          this.emit(
-            MessageProtocol.event,
-            GameStartedMessage.type.notification(msg.params)
-          );
         }
       }
     );
