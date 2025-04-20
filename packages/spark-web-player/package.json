@@ -5,9 +5,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "build": "node ./scripts/bundle-types.ts",
-    "watch": "node ./scripts/bundle-types.ts --watch",
-    "package": "node ./scripts/bundle-types.ts --production"
+    "build": "node ./scripts/bundle-globals.ts",
+    "watch": "node ./scripts/bundle-globals.ts --watch",
+    "package": "node ./scripts/bundle-globals.ts --production"
   },
   "dependencies": {
     "@impower/spark-dom": "file:../spark-dom",
