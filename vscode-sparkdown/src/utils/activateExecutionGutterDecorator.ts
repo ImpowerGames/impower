@@ -1,4 +1,5 @@
 import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
+import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
 import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
@@ -77,6 +78,7 @@ export const activateExecutionGutterDecorator = (
     if (GameExecutedMessage.type.isNotification(message)) {
       const { locations, state } = message.params;
       if (state === "running") {
+        previewingLines.clear();
         const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
         for (const [uri, locations] of Object.entries(documentLocations)) {
           if (editor?.document.uri.toString() === uri) {
@@ -98,6 +100,8 @@ export const activateExecutionGutterDecorator = (
           }
         }
       } else {
+        previouslyExecutedLines.clear();
+        currentlyExecutedLines.clear();
         previewingLines.clear();
         const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
         for (const [uri, locations] of Object.entries(documentLocations)) {
@@ -130,6 +134,30 @@ export const activateExecutionGutterDecorator = (
       SparkdownPreviewGamePanelManager.instance.connection.incoming.removeListener(
         GameExecutedMessage.method,
         handleGameExecuted
+      );
+    },
+  });
+
+  const handleGameExited = (message: Message) => {
+    const editor = getActiveOrVisibleEditor();
+    if (GameExitedMessage.type.isNotification(message)) {
+      previouslyExecutedLines.clear();
+      currentlyExecutedLines.clear();
+      previewingLines.clear();
+    }
+    if (editor) {
+      debouncedUpdateDecorations(editor);
+    }
+  };
+  SparkdownPreviewGamePanelManager.instance.connection.incoming.addListener(
+    GameExitedMessage.method,
+    handleGameExited
+  );
+  context.subscriptions.push({
+    dispose: () => {
+      SparkdownPreviewGamePanelManager.instance.connection.incoming.removeListener(
+        GameExitedMessage.method,
+        handleGameExited
       );
     },
   });
