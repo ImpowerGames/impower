@@ -22,7 +22,7 @@ const getArgArrayValue = (key: string, fallback?: string): string[] => {
 
 const outputPath = path.resolve(getArgValue("--output", "types/spark.d.ts")!);
 const projectPath = path.resolve(
-  getArgValue("--project", "tsconfig.types.json")!
+  getArgValue("--project", "tsconfig.globals.json")!
 );
 const externalInlines = getArgArrayValue(
   "--external-inlines",
