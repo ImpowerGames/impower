@@ -7,47 +7,15 @@
  */
 
 import {
-  Sprite,
-  SpriteOptions,
+  AnimatedSpriteFrames,
+  AnimatedSpriteOptions,
+  FrameObject,
   Texture,
   Ticker,
   UPDATE_PRIORITY,
 } from "pixi.js";
 import { Camera } from "../camera/camera";
 import { Sprite3D } from "./sprite-3d";
-
-export type AnimatedSpriteFrames = Texture[] | FrameObject[];
-
-/**
- * Constructor options used for `AnimatedSprite` instances.
- * @see {@link scene.AnimatedSprite}
- * @memberof scene
- */
-export interface AnimatedSpriteOptions
-  extends PixiMixins.AnimatedSpriteOptions,
-    Omit<SpriteOptions, "texture"> {
-  /** The speed that the AnimatedSprite will play at. Higher is faster, lower is slower. */
-  animationSpeed?: number;
-  /** Whether to start the animation immediately on creation. */
-  autoPlay?: boolean;
-  /** Whether to use Ticker.shared to auto update animation time. */
-  autoUpdate?: boolean;
-  /** Whether or not the animate sprite repeats after playing. */
-  loop?: boolean;
-  /** User-assigned function to call when an AnimatedSprite finishes playing. */
-  onComplete?: () => void;
-  /** User-assigned function to call when an AnimatedSprite changes which texture is being rendered. */
-  onFrameChange?: (currentFrame: number) => void;
-  /**
-   * User-assigned function to call when `loop` is true, and an AnimatedSprite is played and loops around to start again.
-   */
-  onLoop?: () => void;
-  /** An array of {@link Texture} or frame objects that make up the animation. */
-  textures: AnimatedSpriteFrames;
-  /** Update anchor to [Texture's defaultAnchor]{@link Texture#defaultAnchor} when frame changes. */
-  updateAnchor?: boolean;
-}
-export interface AnimatedSprite extends PixiMixins.AnimatedSprite, Sprite {}
 
 /**
  * An AnimatedSprite3D is a simple way to display an animation depicted by a list of textures in 3D space.
@@ -506,16 +474,4 @@ export class AnimatedSprite3D extends Sprite3D {
       }
     }
   }
-}
-
-/**
- * A reference to a frame in an {@link scene.AnimatedSprite}
- * @memberof scene
- */
-export interface FrameObject {
-  /** The {@link Texture} of the frame. */
-  texture: Texture;
-
-  /** The duration of the frame, in milliseconds. */
-  time: number;
 }

@@ -1,6 +1,8 @@
 import { Clock, RequestMessage } from "@impower/spark-engine/src/game/core";
 import { ExitWorldMessage } from "@impower/spark-engine/src/game/modules/world/classes/messages/ExitWorldMessage";
 import { LoadWorldMessage } from "@impower/spark-engine/src/game/modules/world/classes/messages/LoadWorldMessage";
+import * as globals from "../../globals";
+import { Application } from "../Application";
 import { Manager } from "../Manager";
 import { World } from "../World";
 
@@ -10,17 +12,22 @@ export default class WorldManager extends Manager {
     return this._worlds;
   }
 
+  constructor(app: Application) {
+    super(app);
+    for (const [k, v] of Object.entries(globals)) {
+      (globalThis as any)[k] = v;
+    }
+  }
+
   async loadWorld(src: string) {
     // TODO: show loading screen
     const response = await fetch(src);
     const code = await response.text();
-    const globalPrefixedCode = code.replace(
-      /export\s+default\s+class\s+extends\s+World/,
-      "export default class extends globalThis.World"
-    );
-    // Make base World class globally accessible
-    (globalThis as any).World = World;
-    const blob = new Blob([globalPrefixedCode], { type: "text/javascript" });
+    const prefix = Object.keys(globals)
+      .map((name) => `const ${name} = globalThis.${name};`)
+      .join("\n");
+    const codeWithImports = prefix + code;
+    const blob = new Blob([codeWithImports], { type: "text/javascript" });
     const moduleUrl = URL.createObjectURL(blob);
     const module = await import(moduleUrl);
     const CustomWorldClass = module.default;

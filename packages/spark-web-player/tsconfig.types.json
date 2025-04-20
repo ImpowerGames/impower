@@ -13,5 +13,5 @@
     "types": [],
     "jsx": "preserve"
 	},
-  "include": ["src/app/index.ts"]
+  "include": ["src/globals/index.ts"]
 }
