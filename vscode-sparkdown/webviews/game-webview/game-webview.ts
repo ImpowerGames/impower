@@ -5,7 +5,7 @@ import { UpdateCompilerFileMessage } from "@impower/spark-editor-protocol/src/pr
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import SparkGamePreview from "@impower/spark-web-player/src/index.js";
+import SparkWebPlayer from "@impower/spark-web-player/src/index.js";
 import { SparkdownFileRegistry } from "@impower/sparkdown/src/classes/SparkdownFileRegistry";
 
 console.log("running game-webview");
@@ -32,7 +32,7 @@ const load = async () => {
       }
     }
   });
-  await Promise.allSettled([SparkGamePreview.init()]);
+  await Promise.allSettled([SparkWebPlayer.init()]);
 };
 
 window.addEventListener("message", (e: MessageEvent) => {

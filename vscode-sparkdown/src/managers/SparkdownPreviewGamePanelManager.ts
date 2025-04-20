@@ -203,7 +203,11 @@ export class SparkdownPreviewGamePanelManager {
       }
       this._panel = undefined;
     });
-    panel.webview.html = this.getWebviewContent(panel.webview, context);
+    panel.webview.html = this.getWebviewContent(
+      panel.webview,
+      context,
+      document
+    );
     panel.webview.onDidReceiveMessage(async (message) => {
       if (ConnectedPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "game") {
@@ -273,9 +277,9 @@ export class SparkdownPreviewGamePanelManager {
         }
         this._connection.receive(message);
       }
+      // Post an empty message so panel activates after deserialization
+      panel.webview.postMessage({});
     });
-    // Post an empty message so panel activates after deserialization
-    panel.webview.postMessage({});
   }
 
   async loadDocument(document: vscode.TextDocument) {
@@ -311,6 +315,9 @@ export class SparkdownPreviewGamePanelManager {
           file: document.uri.toString(),
           line: selectedRange?.start.line ?? 0,
         },
+        workspace: vscode.workspace
+          .getWorkspaceFolder(document.uri)
+          ?.uri.toString(),
       });
       await this.sendRequest(LoadPreviewMessage.type, {
         type: "game",
@@ -328,11 +335,11 @@ export class SparkdownPreviewGamePanelManager {
     }
   }
 
-  notifyChangedActiveEditor(editor: vscode.TextEditor) {
+  async notifyChangedActiveEditor(editor: vscode.TextEditor) {
     if (this._connected) {
       const document = editor.document;
       if (editor.document.uri.toString() !== this._document?.uri.toString()) {
-        this.loadDocument(document);
+        await this.loadDocument(document);
       }
     }
   }
@@ -442,7 +449,8 @@ export class SparkdownPreviewGamePanelManager {
 
   protected getWebviewContent(
     webview: vscode.Webview,
-    context: vscode.ExtensionContext
+    context: vscode.ExtensionContext,
+    document: vscode.TextDocument
   ) {
     const jsMainUri = getWebviewUri(webview, context.extensionUri, [
       "out",
@@ -509,23 +517,30 @@ export class SparkdownPreviewGamePanelManager {
               src: url("${fontPathMonoBoldItalic}") format("${fontFormatMono}");
             }
 
+            :root {
+              --spark-toolbar-border: var(--vscode-editorWidget-border);
+            }
+
             html {
               padding: 0;
               margin: 0;
-              overflow-y: scroll;
+              overflow-y: hidden;
               overflow-x: hidden;
-              touch-action: pan-y;
+              min-height: 100%;
+              position: relative;
             }
 
             body {
-              height: 100%;
+              position: absolute;
+              inset: 0;
               padding: 0;
               margin: 0;
               opacity: 0;
               display: flex;
               flex-direction: column;
-              font-size: 0.875rem;
-              font-family: "Courier Prime";
+              font-family: var(--vscode-font-family);
+              font-size: 12px;
+              color: var(--vscode-foreground);
             }
 
             body.ready {
@@ -535,7 +550,7 @@ export class SparkdownPreviewGamePanelManager {
           </style>
         </head>
         <body>
-          <spark-web-player muted play-label="RUN"></spark-web-player>
+          <spark-web-player toolbar play-label="RUN"></spark-web-player>
           <script type="module" nonce="${scriptNonce}" src="${jsMainUri}"></script>
         </body>
       </html>

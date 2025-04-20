@@ -117,6 +117,9 @@ export class Application implements IApplication {
   }
 
   protected _paused = false;
+  get paused() {
+    return this._paused;
+  }
 
   constructor(
     game: Game,

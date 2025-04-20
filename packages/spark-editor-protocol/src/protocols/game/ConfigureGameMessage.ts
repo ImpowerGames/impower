@@ -6,10 +6,11 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 export type ConfigureGameMethod = typeof ConfigureGameMessage.method;
 
 export interface ConfigureGameParams {
+  workspace?: string;
+  startpoint?: { file: string; line: number };
   breakpoints?: { file: string; line: number }[];
   functionBreakpoints?: { name: string }[];
   dataBreakpoints?: { dataId: string }[];
-  startpoint?: { file: string; line: number };
 }
 
 export interface ConfigureGameResult {

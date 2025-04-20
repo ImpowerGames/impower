@@ -5,16 +5,26 @@ export default spec({
   tag: "spark-web-player",
   props: {
     playLabel: "PLAY",
+    toolbar: "",
   },
   selectors: {
     gameBackground: "#game-background",
     gameView: "#game-view",
     gameOverlay: "#game-overlay",
     playButton: "#play-button",
+    launchStateIcon: "#launch-state-icon",
+    launchLabel: "#launch-label",
   } as const,
   css,
   html: ({ props }) => {
-    const { playLabel } = props;
+    const { playLabel, toolbar } = props;
+    const toolbarComponent = () => html`
+      <div id="toolbar">
+        <span id="launch-state-icon" class="icon"></span>
+        <span class="spacer"></span>
+        <span id="launch-label"></span>
+      </div>
+    `;
     return html`
       <div class="root" part="root">
         <div id="game" part="game">
@@ -40,6 +50,7 @@ export default spec({
             </div>
           </div>
         </div>
+        ${toolbar != null ? toolbarComponent : ""}
       </div>
     `;
   },

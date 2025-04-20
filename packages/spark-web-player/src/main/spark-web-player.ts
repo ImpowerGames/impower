@@ -64,6 +64,7 @@ export default class SparkWebPlayer extends Component(spec) {
     breakpoints?: { file: string; line: number }[];
     functionBreakpoints?: { name: string }[];
     dataBreakpoints?: { dataId: string }[];
+    workspace?: string;
   };
 
   _loadListeners = new Set<() => void>();
@@ -105,6 +106,32 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   }
 
+  protected updateLaunchLabel() {
+    const workspace = this._options?.workspace;
+    const startpoint = this._options?.startpoint;
+    const program = this._program;
+    const launchFilePath = startpoint ? startpoint.file : program?.uri;
+    const launchLine = startpoint ? startpoint.line : 0;
+    const launchLineNumber = launchLine + 1;
+    if (launchFilePath) {
+      const relativeLaunchFile =
+        workspace && launchFilePath.startsWith(workspace)
+          ? launchFilePath.slice(workspace.length + 1)
+          : launchFilePath;
+      this.ref.launchLabel.textContent =
+        relativeLaunchFile + "    " + "Ln" + " " + launchLineNumber;
+    }
+  }
+
+  protected updateLaunchStateIcon() {
+    const icon = this._app?.paused
+      ? "pause"
+      : this._game?.state === "running"
+      ? "play"
+      : "preview";
+    this.ref.launchStateIcon.setAttribute("icon", icon);
+  }
+
   protected handleClickPlayButton = async () => {
     const audioContext = new AudioContext();
     if (audioContext.state === "running") {
@@ -121,6 +148,33 @@ export default class SparkWebPlayer extends Component(spec) {
       if (ConfigureGameMessage.type.is(e.detail)) {
         const response = await this.handleConfigureGame(
           ConfigureGameMessage.type,
+          e.detail
+        );
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (EnableGameDebugMessage.type.is(e.detail)) {
+        const response = await this.handleEnableGameDebug(
+          EnableGameDebugMessage.type,
+          e.detail
+        );
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (DisableGameDebugMessage.type.is(e.detail)) {
+        const response = await this.handleDisableGameDebug(
+          DisableGameDebugMessage.type,
+          e.detail
+        );
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
+      if (LoadPreviewMessage.type.is(e.detail)) {
+        const response = await this.handleLoadPreview(
+          LoadPreviewMessage.type,
           e.detail
         );
         if (response) {
@@ -253,33 +307,6 @@ export default class SparkWebPlayer extends Component(spec) {
           this.emit(MessageProtocol.event, response);
         }
       }
-      if (EnableGameDebugMessage.type.is(e.detail)) {
-        const response = await this.handleEnableGameDebug(
-          EnableGameDebugMessage.type,
-          e.detail
-        );
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-      }
-      if (DisableGameDebugMessage.type.is(e.detail)) {
-        const response = await this.handleDisableGameDebug(
-          DisableGameDebugMessage.type,
-          e.detail
-        );
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-      }
-      if (LoadPreviewMessage.type.is(e.detail)) {
-        const response = await this.handleLoadPreview(
-          LoadPreviewMessage.type,
-          e.detail
-        );
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-      }
     }
   };
 
@@ -287,63 +314,117 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof ConfigureGameMessage.type,
     message: ConfigureGameMessage.Request
   ) => {
-    const { startpoint, breakpoints, functionBreakpoints, dataBreakpoints } =
-      message.params;
+    const {
+      workspace,
+      startpoint,
+      breakpoints,
+      functionBreakpoints,
+      dataBreakpoints,
+    } = message.params;
     if (!this._program) {
       // wait for program to be loaded
       await new Promise<void>((resolve) => {
         this._loadListeners.add(resolve);
       });
     }
+    const program = this._program!;
+    this._options ??= {};
+    if (workspace) {
+      this._options.workspace = workspace;
+    }
     if (startpoint) {
-      this._options ??= {};
       this._options.startpoint = startpoint;
       this._game?.setStartpoint(startpoint);
     }
     if (breakpoints) {
-      this._options ??= {};
       this._options.breakpoints = breakpoints;
       this._game?.setBreakpoints(breakpoints);
     }
     if (functionBreakpoints) {
-      this._options ??= {};
       this._options.functionBreakpoints = functionBreakpoints;
       this._game?.setFunctionBreakpoints(functionBreakpoints);
     }
     if (dataBreakpoints) {
-      this._options ??= {};
       this._options.dataBreakpoints = dataBreakpoints;
       this._game?.setDataBreakpoints(dataBreakpoints);
     }
     const actualBreakpoints =
-      breakpoints && this._program?.pathToLocation
+      breakpoints && program.pathToLocation
         ? Game.getActualBreakpoints(
-            Object.entries(this._program.pathToLocation),
+            Object.entries(program.pathToLocation),
             breakpoints,
-            Object.keys(this._program.scripts)
+            Object.keys(program.scripts)
           )
         : undefined;
     const actualFunctionBreakpoints =
-      functionBreakpoints && this._program?.functionLocations
+      functionBreakpoints && program.functionLocations
         ? Game.getActualFunctionBreakpoints(
-            this._program.functionLocations,
+            program.functionLocations,
             functionBreakpoints,
-            Object.keys(this._program.scripts)
+            Object.keys(program.scripts)
           )
         : undefined;
     const actualDataBreakpoints =
-      dataBreakpoints && this._program?.dataLocations
+      dataBreakpoints && program.dataLocations
         ? Game.getActualDataBreakpoints(
-            this._program.dataLocations,
+            program.dataLocations,
             dataBreakpoints,
-            Object.keys(this._program.scripts)
+            Object.keys(program.scripts)
           )
         : undefined;
+    this.updateLaunchLabel();
+    this.updateLaunchStateIcon();
     return messageType.response(message.id, {
       breakpoints: actualBreakpoints,
       functionBreakpoints: actualFunctionBreakpoints,
       dataBreakpoints: actualDataBreakpoints,
     });
+  };
+
+  protected handleEnableGameDebug = async (
+    messageType: typeof EnableGameDebugMessage.type,
+    message: EnableGameDebugMessage.Request
+  ) => {
+    if (this._game) {
+      this._game.startDebugging();
+    }
+    this.updateLaunchStateIcon();
+    return this._game
+      ? messageType.response(message.id, {})
+      : messageType.error(message.id, {
+          code: 1,
+          message: "no game loaded",
+        });
+  };
+
+  protected handleDisableGameDebug = async (
+    messageType: typeof DisableGameDebugMessage.type,
+    message: DisableGameDebugMessage.Request
+  ) => {
+    if (this._game) {
+      this._game.stopDebugging();
+    }
+    this.updateLaunchStateIcon();
+    return this._game
+      ? messageType.response(message.id, {})
+      : messageType.error(message.id, {
+          code: 1,
+          message: "no game loaded",
+        });
+  };
+
+  protected handleLoadPreview = async (
+    messageType: typeof LoadPreviewMessage.type,
+    message: LoadPreviewMessage.Request
+  ) => {
+    const { type, textDocument, selectedRange } = message.params;
+    if (type === "game") {
+      const line = selectedRange?.start.line ?? 0;
+      this.updatePreview(textDocument.uri, line);
+      this.updateLaunchStateIcon();
+      return messageType.response(message.id, {});
+    }
+    return undefined;
   };
 
   protected handleLoadGame = async (
@@ -360,6 +441,8 @@ export default class SparkWebPlayer extends Component(spec) {
       // Stop and restart game if we loaded a new game while the old game was running
       this.debouncedBuildGame();
     }
+    this.updateLaunchLabel();
+    this.updateLaunchStateIcon();
     return messageType.response(message.id, {});
   };
 
@@ -379,18 +462,20 @@ export default class SparkWebPlayer extends Component(spec) {
     const success = Boolean(programCompiled && gameStarted);
     if (success) {
       this._app?.start();
-      return messageType.response(message.id, {});
     }
-    return messageType.error(message.id, {
-      code: 1,
-      message: !programCompiled
-        ? "The program contains errors that prevent it from being compiled"
-        : !gameStarted
-        ? `The game cannot be started from line ${
-            (this._options?.startpoint?.line ?? 0) + 1
-          } of ${this._options?.startpoint?.file?.split("/").at(-1)}`
-        : "The game could not be started",
-    });
+    this.updateLaunchStateIcon();
+    return success
+      ? messageType.response(message.id, {})
+      : messageType.error(message.id, {
+          code: 1,
+          message: !programCompiled
+            ? "The program contains errors that prevent it from being compiled"
+            : !gameStarted
+            ? `The game cannot be started from line ${
+                (this._options?.startpoint?.line ?? 0) + 1
+              } of ${this._options?.startpoint?.file?.split("/").at(-1)}`
+            : "The game could not be started",
+        });
   };
 
   protected handleStopGame = async (
@@ -398,6 +483,7 @@ export default class SparkWebPlayer extends Component(spec) {
     message: StopGameMessage.Request
   ) => {
     await this.stopGame("quit");
+    this.updateLaunchStateIcon();
     return messageType.response(message.id, {});
   };
 
@@ -407,12 +493,14 @@ export default class SparkWebPlayer extends Component(spec) {
   ) => {
     if (this._app) {
       this._app.pause();
-      return messageType.response(message.id, {});
     }
-    return messageType.error(message.id, {
-      code: 1,
-      message: "no game loaded",
-    });
+    this.updateLaunchStateIcon();
+    return this._app
+      ? messageType.response(message.id, {})
+      : messageType.error(message.id, {
+          code: 1,
+          message: "no game loaded",
+        });
   };
 
   protected handleUnpauseGame = async (
@@ -421,12 +509,14 @@ export default class SparkWebPlayer extends Component(spec) {
   ) => {
     if (this._app) {
       this._app.unpause();
-      return messageType.response(message.id, {});
     }
-    return messageType.error(message.id, {
-      code: 1,
-      message: "no game loaded",
-    });
+    this.updateLaunchStateIcon();
+    return this._app
+      ? messageType.response(message.id, {})
+      : messageType.error(message.id, {
+          code: 1,
+          message: "no game loaded",
+        });
   };
 
   protected handleStepGameClock = async (
@@ -436,12 +526,14 @@ export default class SparkWebPlayer extends Component(spec) {
     const { seconds } = message.params;
     if (this._app) {
       this._app.skip(seconds);
-      return messageType.response(message.id, {});
     }
-    return messageType.error(message.id, {
-      code: 1,
-      message: "no game loaded",
-    });
+    this.updateLaunchStateIcon();
+    return this._app
+      ? messageType.response(message.id, {})
+      : messageType.error(message.id, {
+          code: 1,
+          message: "no game loaded",
+        });
   };
 
   protected handleStepGame = async (
@@ -451,12 +543,13 @@ export default class SparkWebPlayer extends Component(spec) {
     const { traversal } = message.params;
     if (this._game) {
       this._game.step(traversal);
-      return messageType.response(message.id, {});
     }
-    return messageType.error(message.id, {
-      code: 1,
-      message: "no game loaded",
-    });
+    return this._game
+      ? messageType.response(message.id, {})
+      : messageType.error(message.id, {
+          code: 1,
+          message: "no game loaded",
+        });
   };
 
   protected handleContinueGame = async (
@@ -465,12 +558,13 @@ export default class SparkWebPlayer extends Component(spec) {
   ) => {
     if (this._game) {
       this._game.continue();
-      return messageType.response(message.id, {});
     }
-    return messageType.error(message.id, {
-      code: 1,
-      message: "no game loaded",
-    });
+    return this._game
+      ? messageType.response(message.id, {})
+      : messageType.error(message.id, {
+          code: 1,
+          message: "no game loaded",
+        });
   };
 
   protected handleGetGameScripts = async (
@@ -594,47 +688,6 @@ export default class SparkWebPlayer extends Component(spec) {
       code: 1,
       message: "no game loaded",
     });
-  };
-
-  protected handleEnableGameDebug = async (
-    messageType: typeof EnableGameDebugMessage.type,
-    message: EnableGameDebugMessage.Request
-  ) => {
-    if (this._game) {
-      this._game.startDebugging();
-      return messageType.response(message.id, {});
-    }
-    return messageType.error(message.id, {
-      code: 1,
-      message: "no game loaded",
-    });
-  };
-
-  protected handleDisableGameDebug = async (
-    messageType: typeof DisableGameDebugMessage.type,
-    message: DisableGameDebugMessage.Request
-  ) => {
-    if (this._game) {
-      this._game.stopDebugging();
-      return messageType.response(message.id, {});
-    }
-    return messageType.error(message.id, {
-      code: 1,
-      message: "no game loaded",
-    });
-  };
-
-  protected handleLoadPreview = async (
-    messageType: typeof LoadPreviewMessage.type,
-    message: LoadPreviewMessage.Request
-  ) => {
-    const { type, textDocument, selectedRange } = message.params;
-    if (type === "game") {
-      const line = selectedRange?.start.line ?? 0;
-      this.updatePreview(textDocument.uri, line);
-      return messageType.response(message.id, {});
-    }
-    return undefined;
   };
 
   async stopGame(

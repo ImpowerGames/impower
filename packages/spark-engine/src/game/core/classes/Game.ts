@@ -108,7 +108,7 @@ export class Game<T extends M = {}> {
 
   protected _error = false;
 
-  protected _state: "initial" | "previewing" | "running" | "paused" = "initial";
+  protected _state: "initial" | "previewing" | "running" = "initial";
   get state() {
     return this._state;
   }
