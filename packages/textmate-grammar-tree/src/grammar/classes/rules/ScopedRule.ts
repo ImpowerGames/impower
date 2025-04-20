@@ -82,6 +82,10 @@ export class ScopedRule implements Rule {
    * @param state - The current {@link GrammarState}.
    */
   match(state: GrammarState, from: number) {
+    if (!state.increaseMatchDepth()) {
+      return null;
+    }
+
     const wrappedBeginChildren: Matched[] = [];
     let wrappedContentChildren: Matched[] = [];
     const wrappedEndChildren: Matched[] = [];

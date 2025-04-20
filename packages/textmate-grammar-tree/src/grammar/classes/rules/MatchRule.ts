@@ -59,6 +59,10 @@ export class MatchRule implements Rule {
   }
 
   match(state: GrammarState, from: number) {
+    if (!state.increaseMatchDepth()) {
+      return null;
+    }
+
     const str = state.str;
     const result = this.matcher.match(str, from);
     if (!result) {

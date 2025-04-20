@@ -20,6 +20,8 @@ export class GrammarState {
 
   absolutePos: number;
 
+  protected _matchDepth: number = 0;
+
   constructor(
     str: string,
     next?: (absolutePos: number) => string,
@@ -28,6 +30,24 @@ export class GrammarState {
     this.str = str;
     this.next = next;
     this.absolutePos = absolutePos;
+  }
+
+  increaseMatchDepth() {
+    this._matchDepth++;
+    if (this._matchDepth > 10000) {
+      console.error(
+        "Exceeded maximum match depth!",
+        JSON.stringify(
+          this.stack.stack.map((e) => ({
+            beginCaptures: e.beginCaptures,
+            node: e.node.typeId,
+          }))
+        )
+      );
+      return false;
+      5;
+    }
+    return true;
   }
 
   advance() {
