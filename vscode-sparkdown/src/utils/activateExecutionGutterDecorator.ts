@@ -25,18 +25,18 @@ const currentlyExecutedLineDecoration: vscode.TextEditorDecorationType =
   vscode.window.createTextEditorDecorationType({
     dark: {
       overviewRulerColor: new vscode.ThemeColor(
-        "editor.stackFrameHighlightBackground"
+        "debugIcon.breakpointCurrentStackframeForeground"
       ),
       borderColor: new vscode.ThemeColor(
-        "editor.stackFrameHighlightBackground"
+        "debugIcon.breakpointCurrentStackframeForeground"
       ),
     },
     light: {
       overviewRulerColor: new vscode.ThemeColor(
-        "editor.stackFrameHighlightBackground"
+        "debugIcon.breakpointCurrentStackframeForeground"
       ),
       borderColor: new vscode.ThemeColor(
-        "editor.stackFrameHighlightBackground"
+        "debugIcon.breakpointCurrentStackframeForeground"
       ),
     },
     borderWidth: "0 0 0 2px",
