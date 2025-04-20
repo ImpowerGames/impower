@@ -1,5 +1,13 @@
+import {
+  CompileProgramMessage,
+  CompileProgramParams,
+} from "@impower/spark-editor-protocol/src/protocols/compiler/CompileProgramMessage";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import * as vscode from "vscode";
+import {
+  CancellationToken,
+  LanguageClient,
+} from "vscode-languageclient/browser";
 
 type ProgramCompiledListener = (uri: vscode.Uri, program: SparkProgram) => void;
 
@@ -12,6 +20,15 @@ export class SparkProgramManager {
     return this._instance;
   }
 
+  constructor() {
+    this._languageClientReady = new Promise<LanguageClient>((resolve) => {
+      this._resolveLanguageClientReady = resolve;
+    });
+    if (this._languageClient) {
+      this._resolveLanguageClientReady(this._languageClient);
+    }
+  }
+
   protected _lastCompiledUri?: string;
 
   protected _compiledPrograms = new Map<string, SparkProgram>();
@@ -19,6 +36,16 @@ export class SparkProgramManager {
   protected _compiledUris = new Set<vscode.Uri>();
 
   private _listeners = new Set<ProgramCompiledListener>();
+
+  protected _languageClient?: LanguageClient;
+
+  private _languageClientReady: Promise<LanguageClient>;
+
+  get languageClientReady(): Promise<LanguageClient> {
+    return this._languageClientReady;
+  }
+
+  private _resolveLanguageClientReady!: (client: LanguageClient) => void;
 
   update(uri: vscode.Uri, program: SparkProgram) {
     this._lastCompiledUri = uri.toString();
@@ -48,6 +75,14 @@ export class SparkProgramManager {
     return this._compiledPrograms.get(uri.toString());
   }
 
+  async getOrCompile(uri: vscode.Uri) {
+    const program = this._compiledPrograms.get(uri.toString());
+    if (program) {
+      return program;
+    }
+    return await this.compile(uri);
+  }
+
   getLastCompiled() {
     if (this._lastCompiledUri) {
       return this._compiledPrograms.get(this._lastCompiledUri);
@@ -61,5 +96,20 @@ export class SparkProgramManager {
 
   removeListener(listener: ProgramCompiledListener) {
     this._listeners.delete(listener);
+  }
+
+  bindLanguageClient(languageClient: LanguageClient) {
+    this._languageClient = languageClient;
+    this._resolveLanguageClientReady(languageClient);
+  }
+
+  async compile(uri: vscode.Uri) {
+    const client = await this.languageClientReady;
+    const params: CompileProgramParams = { uri: uri.toString() };
+    return client.sendRequest<SparkProgram>(
+      CompileProgramMessage.method,
+      params,
+      CancellationToken.None
+    );
   }
 }

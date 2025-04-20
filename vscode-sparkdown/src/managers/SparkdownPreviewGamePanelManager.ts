@@ -211,9 +211,7 @@ export class SparkdownPreviewGamePanelManager {
           await this.sendRequest(ConfigureCompilerMessage.type, {
             files,
           });
-          if (this._document) {
-            this.loadDocument(this._document);
-          }
+          this.loadDocument(document);
         }
       }
       if (HoveredOnPreviewMessage.type.isNotification(message)) {
@@ -286,41 +284,47 @@ export class SparkdownPreviewGamePanelManager {
       const editor = getEditor(document.uri);
       const visibleRange = editor?.visibleRanges[0];
       const selectedRange = editor?.selection;
-      const program = SparkProgramManager.instance.get(document.uri);
-      if (program) {
-        if (program.context) {
-          for (const [, structs] of Object.entries(program.context)) {
-            for (const [, struct] of Object.entries(structs)) {
-              if (struct.uri) {
-                const uri = vscode.Uri.parse(struct.uri);
-                struct.src = this._panel?.webview.asWebviewUri(uri).toString();
-              }
+      let program = await SparkProgramManager.instance.getOrCompile(
+        document.uri
+      );
+
+      if (!program) {
+        console.warn("no program loaded for: ", document.uri.toString());
+        return;
+      }
+
+      if (program.context) {
+        for (const [, structs] of Object.entries(program.context)) {
+          for (const [, struct] of Object.entries(structs)) {
+            if (struct.uri) {
+              const uri = vscode.Uri.parse(struct.uri);
+              struct.src = this._panel?.webview.asWebviewUri(uri).toString();
             }
           }
         }
-        await this.sendRequest(LoadGameMessage.type, {
-          program,
-        });
-        await this.sendRequest(ConfigureGameMessage.type, {
-          startpoint: {
-            file: document.uri.toString(),
-            line: selectedRange?.start.line ?? 0,
-          },
-        });
-        await this.sendRequest(LoadPreviewMessage.type, {
-          type: "game",
-          textDocument: {
-            uri: document.uri.toString(),
-            languageId: document.languageId,
-            version: document.version,
-            text: "",
-          },
-          visibleRange: visibleRange ? getServerRange(visibleRange) : undefined,
-          selectedRange: selectedRange
-            ? getServerRange(selectedRange)
-            : undefined,
-        });
       }
+      await this.sendRequest(LoadGameMessage.type, {
+        program,
+      });
+      await this.sendRequest(ConfigureGameMessage.type, {
+        startpoint: {
+          file: document.uri.toString(),
+          line: selectedRange?.start.line ?? 0,
+        },
+      });
+      await this.sendRequest(LoadPreviewMessage.type, {
+        type: "game",
+        textDocument: {
+          uri: document.uri.toString(),
+          languageId: document.languageId,
+          version: document.version,
+          text: "",
+        },
+        visibleRange: visibleRange ? getServerRange(visibleRange) : undefined,
+        selectedRange: selectedRange
+          ? getServerRange(selectedRange)
+          : undefined,
+      });
     }
   }
 

@@ -107,6 +107,7 @@ export const activateLanguageClient = async (
       return executeCommandMiddleware(params);
     }
   );
+  SparkProgramManager.instance.bindLanguageClient(client);
   await client.start();
   context.subscriptions.push({ dispose: () => client.stop() });
 };

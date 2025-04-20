@@ -23,41 +23,33 @@ export const activateDebugger = (
   context: vscode.ExtensionContext,
   factory?: vscode.DebugAdapterDescriptorFactory
 ) => {
-  let lastViewedSparkdownDocument: vscode.TextDocument;
-
   context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (!vscode.debug.activeDebugSession) {
-        if (editor?.document.languageId === "sparkdown") {
-          lastViewedSparkdownDocument = editor.document;
-        }
+    vscode.commands.registerCommand("sparkdown.runGame", () => {
+      if (SparkdownPreviewGamePanelManager.instance.document) {
+        vscode.debug.startDebugging(
+          undefined,
+          {
+            type: "game",
+            name: "Run File",
+            request: "launch",
+            program:
+              SparkdownPreviewGamePanelManager.instance.document.uri.fsPath,
+          },
+          { noDebug: true }
+        );
       }
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("sparkdown.runGame", () => {
-      vscode.debug.startDebugging(
-        undefined,
-        {
-          type: "game",
-          name: "Run File",
-          request: "launch",
-          program: lastViewedSparkdownDocument.uri.fsPath,
-        },
-        { noDebug: true }
-      );
-    })
-  );
-
-  context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.debugGame", () => {
-      if (lastViewedSparkdownDocument) {
+      if (SparkdownPreviewGamePanelManager.instance.document) {
         vscode.debug.startDebugging(undefined, {
           type: "game",
           name: "Debug File",
           request: "launch",
-          program: lastViewedSparkdownDocument.uri.fsPath,
+          program:
+            SparkdownPreviewGamePanelManager.instance.document.uri.fsPath,
           stopOnEntry: true,
         });
       }

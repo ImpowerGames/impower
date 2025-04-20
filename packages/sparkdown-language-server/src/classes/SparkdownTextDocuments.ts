@@ -1,5 +1,8 @@
 import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/AddCompilerFileMessage";
-import { CompileProgramMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/CompileProgramMessage";
+import {
+  CompileProgramMessage,
+  CompileProgramParams,
+} from "@impower/spark-editor-protocol/src/protocols/compiler/CompileProgramMessage";
 import { CompilerInitializeMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/CompilerInitializeMessage";
 import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
 import { RemoveCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/RemoveCompilerFileMessage";
@@ -403,6 +406,7 @@ export default class SparkdownTextDocuments {
     profile("start", "server/compile", uri);
     const document = this._documents.get(uri);
     if (!document) {
+      console.error("document not opened: ", uri);
       return undefined;
     }
     let anyDocChanged = false;
@@ -608,6 +612,18 @@ export default class SparkdownTextDocuments {
             };
           }
           return { kind: "unchanged", resultId: uri };
+        }
+      )
+    );
+    disposables.push(
+      connection.onRequest(
+        CompileProgramMessage.method,
+        async (
+          params: CompileProgramParams
+        ): Promise<SparkProgram | undefined> => {
+          const uri = params.uri;
+          const program = await this.compile(uri, true);
+          return program;
         }
       )
     );
