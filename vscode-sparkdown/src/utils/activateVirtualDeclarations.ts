@@ -22,7 +22,8 @@ export async function activateVirtualDeclarations(
   );
 
   // Watch for creating ts or sd
-  const fileWatcher = vscode.workspace.createFileSystemWatcher("**/*.{ts,sd}");
+  const fileWatcher =
+    vscode.workspace.createFileSystemWatcher("**/*.{ts,sd,json}");
   context.subscriptions.push(fileWatcher);
   fileWatcher.onDidCreate(async (uri) => {
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
