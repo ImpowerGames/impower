@@ -46,7 +46,7 @@ export class CameraOrbitControl {
     this._allowControl = value;
   }
 
-  protected _camera = Camera.main;
+  protected _camera;
   /**
    * The camera being controlled.
    */
@@ -206,7 +206,7 @@ export class CameraOrbitControl {
    * @param camera The camera to control.
    * by default.
    */
-  constructor(camera: Camera, element?: HTMLElement) {
+  constructor(camera: Camera = Camera.main, element?: HTMLElement) {
     this._element = element;
     this._camera = camera;
     this.bind();

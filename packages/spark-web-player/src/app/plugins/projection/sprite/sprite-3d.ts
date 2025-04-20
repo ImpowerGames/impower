@@ -82,7 +82,7 @@ export class Sprite3D extends PerspectiveMesh {
 
   protected _pixelsPerUnit: number;
 
-  constructor(texture: Texture, camera: Camera) {
+  constructor(texture: Texture = Texture.WHITE, camera: Camera = Camera.main) {
     const width = texture.width / camera.pixelsPerUnit;
     const height = texture.height / camera.pixelsPerUnit;
 

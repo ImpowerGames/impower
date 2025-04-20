@@ -132,6 +132,7 @@ export class Application implements IApplication {
     this._renderer = new WebGLRenderer();
 
     this._camera = new Camera(this._renderer);
+    Camera.main = this._camera;
     this._dolly = new CameraOrbitControl(this._camera);
     this._dolly.allowControl = false;
     this._dolly.autoUpdate = false;
