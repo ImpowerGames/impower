@@ -85,20 +85,19 @@ async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
     await ctx.watch();
-    const rebuild = async (ctx) => {
-      console.log(
-        LOG_PREFIX +
-          `detected change in ${SPARK_WEB_PLAYER_SRC_PATH}, rebuilding...`
-      );
-      await ctx.rebuild();
-    };
     chokidar
       .watch(SPARK_WEB_PLAYER_SRC_PATH, {
         ignoreInitial: true,
         persistent: true,
         depth: 99,
       })
-      .on("all", rebuild);
+      .on("all", async () => {
+        console.log(
+          LOG_PREFIX +
+            `detected change in ${SPARK_WEB_PLAYER_SRC_PATH}, rebuilding...`
+        );
+        await ctx.rebuild();
+      });
   } else {
     await ctx.rebuild();
     await ctx.dispose();
