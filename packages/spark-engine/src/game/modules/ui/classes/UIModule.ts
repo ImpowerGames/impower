@@ -665,7 +665,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     tag: "image" | "text" | "mask" | "stroke"
   ): Element[] {
     const contentChildren = element.findChildren(tag);
-    if (contentChildren) {
+    if (contentChildren.length > 0) {
       return contentChildren;
     }
     return [this.createElement(element, { name: tag, type: "div" })];
