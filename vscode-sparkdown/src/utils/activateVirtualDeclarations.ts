@@ -86,9 +86,12 @@ async function updateWorkspaceIfNeeded(
   workspaceFolder: vscode.WorkspaceFolder,
   globalDeclarations: string
 ) {
-  const hasSd = await hasFileInFolder(workspaceFolder, "**/*.sd");
-  const hasTs = await hasFileInFolder(workspaceFolder, "**/*.ts");
-  if (hasSd && hasTs) {
+  const [hasSd, hasTs, hasTsconfig] = await Promise.all([
+    hasFileInFolder(workspaceFolder, "**/*.sd"),
+    hasFileInFolder(workspaceFolder, "**/*.ts"),
+    hasFileInFolder(workspaceFolder, "tsconfig.json"),
+  ]);
+  if (hasSd && (hasTs || hasTsconfig)) {
     const existingFile = await readUserDeclarationsFile(workspaceFolder);
     if (!existingFile || existingFile !== globalDeclarations) {
       await createUserDeclarationsFile(workspaceFolder, globalDeclarations);
