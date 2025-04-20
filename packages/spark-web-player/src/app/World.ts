@@ -2,16 +2,8 @@ import { Clock } from "@impower/spark-engine/src/game/core/classes/Clock";
 import { NotificationMessage } from "@impower/spark-engine/src/game/core/types/NotificationMessage";
 import { RequestMessage } from "@impower/spark-engine/src/game/core/types/RequestMessage";
 import { ResponseError } from "@impower/spark-engine/src/game/core/types/ResponseError";
-import {
-  AnimatedSprite,
-  Color,
-  ColorSource,
-  Container,
-  Sprite,
-  Texture,
-} from "pixi.js";
+import { Color, ColorSource, Container } from "pixi.js";
 import { IApplication } from "./IApplication";
-import { AnimatedSprite3D, Sprite3D } from "./plugins/projection";
 import { Camera } from "./plugins/projection/camera/camera";
 import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
 import {
@@ -273,21 +265,5 @@ export class World {
   createSvgTexture(svg: string, options?: GenerateAnimatedSVGTextureOptions) {
     const svgEl = parseSVG(svg);
     return generateAnimatedSVGTexture(this.renderer, svgEl, 0, options);
-  }
-
-  createSprite2D(texture?: Texture) {
-    return new Sprite(texture || Texture.WHITE);
-  }
-
-  createSprite3D(texture?: Texture) {
-    return new Sprite3D(texture || Texture.WHITE, this.camera);
-  }
-
-  createAnimatedSprite2D(textures: Texture[]) {
-    return new AnimatedSprite(textures);
-  }
-
-  createAnimatedSprite3D(textures: Texture[]) {
-    return new AnimatedSprite3D(textures, this.camera);
   }
 }
