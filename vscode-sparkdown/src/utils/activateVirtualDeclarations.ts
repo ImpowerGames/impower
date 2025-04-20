@@ -21,7 +21,7 @@ export async function activateVirtualDeclarations(
     })
   );
 
-  // Watch for creating ts or sd
+  // Watch for creating .ts, .sd, or .json
   const fileWatcher =
     vscode.workspace.createFileSystemWatcher("**/*.{ts,sd,json}");
   context.subscriptions.push(fileWatcher);
