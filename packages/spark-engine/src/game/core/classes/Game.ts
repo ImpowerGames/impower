@@ -1079,6 +1079,7 @@ export class Game<T extends M = {}> {
       // Don't preview while running
       return;
     }
+    this.clearChoices();
     const startPath = this.getClosestStartPath(file, line);
     if (startPath != null) {
       if (this._context.system.previewing !== startPath) {
