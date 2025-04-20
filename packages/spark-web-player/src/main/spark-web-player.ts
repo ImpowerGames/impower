@@ -106,21 +106,29 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   }
 
-  protected updateLaunchLabel() {
+  protected updateLaunchLabel(lastExecutedLocation?: DocumentLocation) {
     const workspace = this._options?.workspace;
     const startpoint = this._options?.startpoint;
     const program = this._program;
-    const launchFilePath = startpoint ? startpoint.file : program?.uri;
-    const launchLine = startpoint ? startpoint.line : 0;
-    const launchLineNumber = launchLine + 1;
-    if (launchFilePath) {
-      const relativeLaunchFile =
-        workspace && launchFilePath.startsWith(workspace)
-          ? launchFilePath.slice(workspace.length + 1)
-          : launchFilePath;
-      this.ref.launchLabel.textContent =
-        relativeLaunchFile + "    " + "Ln" + " " + launchLineNumber;
+    if (!program) {
+      return;
     }
+    const launchFilePath = lastExecutedLocation
+      ? lastExecutedLocation.uri
+      : startpoint
+      ? startpoint.file
+      : program.uri;
+    const launchLine = lastExecutedLocation
+      ? lastExecutedLocation.range.start.line
+      : startpoint
+      ? startpoint.line
+      : 0;
+    const launchLineNumber = launchLine + 1;
+    const relativeLaunchFile =
+      workspace && launchFilePath.startsWith(workspace)
+        ? launchFilePath.slice(workspace.length + 1)
+        : launchFilePath;
+    this.ref.launchLabel.textContent = `${relativeLaunchFile}    Ln ${launchLineNumber}`;
   }
 
   protected updateLaunchStateIcon() {
@@ -326,6 +334,10 @@ export default class SparkWebPlayer extends Component(spec) {
       await new Promise<void>((resolve) => {
         this._loadListeners.add(resolve);
       });
+    }
+    if (this._game?.state === "running") {
+      // Ignore if game is already running
+      return undefined;
     }
     const program = this._program!;
     this._options ??= {};
@@ -809,6 +821,11 @@ export default class SparkWebPlayer extends Component(spec) {
       ExecutedMessage.method,
       (msg) => {
         if (ExecutedMessage.type.isNotification(msg)) {
+          const { locations } = msg.params;
+          const lastExecutedLocation = locations.at(-1);
+          if (lastExecutedLocation) {
+            this.updateLaunchLabel(lastExecutedLocation);
+          }
           this.emit(
             MessageProtocol.event,
             GameExecutedMessage.type.notification(msg.params)

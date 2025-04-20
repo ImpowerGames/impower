@@ -85,7 +85,6 @@ export class Game<T extends M = {}> {
   protected _executingPath: string;
 
   protected _executingLocation: ScriptLocation;
-
   protected _executedLinesThisFrame: ScriptLocation[] = [];
 
   protected _lastHitBreakpointLocation?: ScriptLocation;
@@ -1005,7 +1004,9 @@ export class Game<T extends M = {}> {
             f.previousPointer.path?.toString() ??
             f.previousPointer.container?.path?.toString();
           if (pointerPath) {
-            const location = this._program.pathToLocation?.[pointerPath];
+            const location =
+              this._program.pathToLocation?.[pointerPath] ??
+              this._executingLocation;
             const documentLocation = this.getDocumentLocation(location);
             if (f.type == PushPopType.Function) {
               stackFrames.unshift({

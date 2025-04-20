@@ -296,19 +296,15 @@ class InlineDebugAdapterFactory
         const editor = getEditor(docUri);
         return editor?.selection.active.line;
       },
-      async setSelectedLine(path: string, line: number) {
+      async revealLine(path: string, line: number) {
         const docUri = pathToUri(path);
         const activeOrVisibleEditor = getActiveOrVisibleEditor();
-        const selectionRange = new vscode.Range(line, 0, line, 0);
+        const range = new vscode.Range(line, 0, line, 0);
         if (
           activeOrVisibleEditor?.document.uri.toString() === docUri.toString()
         ) {
-          activeOrVisibleEditor.selection = new vscode.Selection(
-            selectionRange.start,
-            selectionRange.end
-          );
           activeOrVisibleEditor.revealRange(
-            selectionRange,
+            range,
             vscode.TextEditorRevealType.InCenterIfOutsideViewport
           );
           await SparkdownPreviewGamePanelManager.instance.showPanel(

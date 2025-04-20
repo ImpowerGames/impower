@@ -68,7 +68,7 @@ export interface FileAccessor {
   writeFile(path: string, contents: Uint8Array): Promise<void>;
   showFile(path: string): Promise<void>;
   getSelectedLine(path: string): Promise<number | undefined>;
-  setSelectedLine(path: string, line: number): Promise<void>;
+  revealLine(path: string, line: number): Promise<void>;
   pathToUri(path: string): string;
   uriToPath(uri: string): string;
   getRootPath(path: string): string | undefined;
@@ -395,7 +395,7 @@ export class SparkDebugSession extends LoggingDebugSession {
   ) {
     // console.log("disconnectRequest", args);
     if (args.restart) {
-      await this._fileAccessor.setSelectedLine(
+      await this._fileAccessor.revealLine(
         this._launchProgram,
         this._launchLine
       );
@@ -777,7 +777,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StackTraceResponse,
     args: DebugProtocol.StackTraceArguments
   ) {
-    // console.warn("stackTraceRequest", args.threadId);
+    // console.warn("stackTraceRequest", args);
     this._variableHandles.reset();
     const { stackFrames, totalFrames } = await this._connection.emit(
       GetGameStackTraceMessage.type.request({
