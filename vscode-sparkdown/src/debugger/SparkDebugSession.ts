@@ -104,8 +104,6 @@ export class SparkDebugSession extends LoggingDebugSession {
 
   private _launchProgram = "";
   private _launchLine = 0;
-  private _configurationDone = false;
-  private _configurationDoneListeners = new Set<() => void>();
 
   private _cancellationTokens = new Map<number, boolean>();
 
@@ -370,24 +368,6 @@ export class SparkDebugSession extends LoggingDebugSession {
     this.sendEvent(new InitializedEvent());
   }
 
-  /**
-   * Called at the end of the configuration sequence.
-   * Indicates that all breakpoints etc. have been sent to the DA and that the 'launch' can start.
-   */
-  protected override configurationDoneRequest(
-    response: DebugProtocol.ConfigurationDoneResponse,
-    args: DebugProtocol.ConfigurationDoneArguments
-  ): void {
-    // console.log("configurationDoneRequest", args);
-    super.configurationDoneRequest(response, args);
-    this._configurationDone = true;
-    // notify the launchRequest that configuration has finished
-    for (const listener of this._configurationDoneListeners) {
-      listener();
-    }
-    this._configurationDoneListeners.clear();
-  }
-
   protected override async disconnectRequest(
     response: DebugProtocol.DisconnectResponse,
     args: DebugProtocol.DisconnectArguments,
@@ -428,13 +408,6 @@ export class SparkDebugSession extends LoggingDebugSession {
       args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop,
       false
     );
-
-    if (!this._configurationDone) {
-      // wait until configuration has finished (and configurationDoneRequest has been called)
-      await new Promise<void>((resolve) => {
-        this._configurationDoneListeners.add(resolve);
-      });
-    }
 
     await this._fileAccessor.showFile(args.program);
 
