@@ -390,7 +390,7 @@ export class World {
    * Generate textures from an SVG string (supports SMIL animation).
    * @param svg SVG markup string
    * @param options Optional generation settings
-   * @returns An array of textures
+   * @returns An array of textures that can be passed to an `AnimatedSprite` or `AnimatedSprite3D`
    */
   generateSvgTextures(
     svg: string,
