@@ -50,22 +50,22 @@ export class Manager {
 
   onStart(): void {}
 
-  onUpdate(_time: Clock): void {}
+  onUpdate(time: Clock): void {}
 
-  onSkip(_seconds: number): void {}
+  onSkip(seconds: number): void {}
 
   onPause(): void {}
 
   onUnpause(): void {}
 
-  onResize(_width: number, _height: number, _resolution: number): void {}
+  onResize(width: number, height: number, resolution: number): void {}
 
   onDispose() {}
 
-  onReceiveNotification(_msg: NotificationMessage): void {}
+  onReceiveNotification(msg: NotificationMessage): void {}
 
   async onReceiveRequest(
-    _msg: RequestMessage
+    msg: RequestMessage
   ): Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
     | { result: unknown; transfer?: ArrayBuffer[] }
