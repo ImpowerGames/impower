@@ -50,9 +50,9 @@ export class World {
     this._app.renderer.background.color = value;
   }
 
-  private _root;
-  public get root(): Container {
-    return this._root;
+  private _stage;
+  public get stage(): Container {
+    return this._stage;
   }
 
   private _pointerDown = false;
@@ -105,8 +105,8 @@ export class World {
     this._app = app;
     this.bind();
     this._onExit = onExit;
-    this._root = new Container();
-    this._root.sortableChildren = true;
+    this._stage = new Container();
+    this._stage.sortableChildren = true;
   }
 
   exit() {
@@ -249,15 +249,14 @@ export class World {
     return undefined;
   }
 
-  addChild(child: Container) {
-    return this.root.addChild(child);
-  }
-
-  createSolidTexture(width: number, height: number, color?: number) {
+  generateSolidTexture(width: number, height: number, color?: number) {
     return generateSolidTexture(this.renderer, width, height, color);
   }
 
-  createSvgTextures(svg: string, options?: GenerateAnimatedSVGTexturesOptions) {
+  generateSvgTextures(
+    svg: string,
+    options?: GenerateAnimatedSVGTexturesOptions
+  ) {
     const svgEl = parseSVG(svg);
     return generateAnimatedSVGTextures(this.renderer, svgEl, options);
   }
