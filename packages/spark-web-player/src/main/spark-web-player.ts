@@ -90,16 +90,19 @@ export default class SparkWebPlayer extends Component(spec) {
 
   _resizeStartHeight = 0;
 
+  _gameResizeObserver?: ResizeObserver;
+
   override onConnected() {
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     window.addEventListener("contextmenu", this.handleContextMenu, true);
     window.addEventListener("dragstart", this.handleDragStart);
-    window.addEventListener("resize", this.handleResize);
     this.ref.playButton?.addEventListener("click", this.handleClickPlayButton);
     this.ref.toolbar?.addEventListener("pointerdown", this.handlePointerDown);
     this.ref.toolbar?.addEventListener("pointermove", this.handlePointerMove);
     this.ref.toolbar?.addEventListener("pointerup", this.handlePointerUp);
-    this.updateSizeDisplay();
+    this._gameResizeObserver = new ResizeObserver(this.handleResize);
+    this._gameResizeObserver.observe(this.ref.game);
+    this.updateSizeAndAspectRatioDisplay();
     this.emit(
       MessageProtocol.event,
       ConnectedPreviewMessage.type.notification({ type: "game" })
@@ -124,6 +127,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this.handlePointerMove
     );
     this.ref.toolbar?.removeEventListener("pointerup", this.handlePointerUp);
+    this._gameResizeObserver?.disconnect();
   }
 
   protected async hidePlayButton() {
@@ -208,22 +212,19 @@ export default class SparkWebPlayer extends Component(spec) {
     return null;
   }
 
-  updateSizeDisplay() {
-    const width = this.ref.game.offsetWidth;
-    const height = this.ref.game.offsetHeight;
-    const ratioLabel = this.getAspectRatioLabel(width, height);
-    this.ref.sizeDisplay.textContent =
-      `${width} × ${height}` + (ratioLabel ? ` (${ratioLabel})` : "");
+  updateSizeAndAspectRatioDisplay() {
+    const rect = this.ref.game.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    const ratio = this.getAspectRatioLabel(width, height);
+    const sizeLabel = `${width.toFixed(0)} × ${height.toFixed(0)}`;
+    const aspectRatioLabel = ratio ? `(${ratio})` : "";
+    this.ref.sizeDisplay.textContent = sizeLabel;
+    this.ref.aspectRatioDisplay.textContent = aspectRatioLabel;
   }
 
   protected handleResize = () => {
-    this.updateSizeDisplay();
-    const width = this.ref.game.offsetWidth;
-    const height = this.ref.game.offsetWidth;
-    this.emit(
-      MessageProtocol.event,
-      GameResizedMessage.type.notification({ width, height })
-    );
+    this.updateSizeAndAspectRatioDisplay();
   };
 
   protected handleContextMenu = (e: Event) => {
@@ -238,7 +239,24 @@ export default class SparkWebPlayer extends Component(spec) {
     this._isResizing = true;
     this._resizeStartY = e.clientY;
     this._resizeStartHeight = this.ref.game.offsetHeight;
+
     document.body.style.cursor = "ns-resize";
+
+    const width = this.ref.game.offsetWidth;
+    let minDiff = Infinity;
+    let snapped = false;
+
+    for (const [w, h] of COMMON_ASPECT_RATIOS) {
+      const expectedHeight = Math.round((width * h) / w);
+      const diff = Math.abs(expectedHeight - this._resizeStartHeight);
+      if (diff < 10 && diff < minDiff) {
+        minDiff = diff;
+        snapped = true;
+      }
+    }
+
+    this.ref.toolbar.classList.toggle("snapping", snapped);
+
     this.ref.toolbar.setPointerCapture(e.pointerId);
   };
 
@@ -249,12 +267,13 @@ export default class SparkWebPlayer extends Component(spec) {
     const dy = e.clientY - this._resizeStartY;
     let newHeight = this._resizeStartHeight + dy;
 
-    const maxHeight = window.innerHeight;
+    const maxHeight = window.innerHeight - this.ref.toolbar.offsetHeight;
     newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, newHeight));
 
     const width = this.ref.game.offsetWidth;
     let closestMatch = newHeight;
     let minDiff = Infinity;
+    let snapped = false;
 
     for (const [w, h] of COMMON_ASPECT_RATIOS) {
       const expectedHeight = Math.round((width * h) / w);
@@ -262,20 +281,26 @@ export default class SparkWebPlayer extends Component(spec) {
       if (diff < 10 && diff < minDiff) {
         closestMatch = expectedHeight;
         minDiff = diff;
+        snapped = true;
       }
     }
 
     this.ref.game.style.height = `${closestMatch}px`;
-    this.updateSizeDisplay();
+
+    this.ref.toolbar.classList.toggle("snapping", snapped);
+
+    this.updateSizeAndAspectRatioDisplay();
+
     this.emit(
       MessageProtocol.event,
-      GameResizedMessage.type.notification({ width, height: newHeight })
+      GameResizedMessage.type.notification({ width, height: closestMatch })
     );
   };
 
   protected handlePointerUp = (e: PointerEvent) => {
     this._isResizing = false;
     document.body.style.cursor = "";
+    this.ref.toolbar.classList.remove("snapping");
     this.ref.toolbar.releasePointerCapture(e.pointerId);
   };
 
@@ -481,6 +506,7 @@ export default class SparkWebPlayer extends Component(spec) {
     message: ResizeGameMessage.Request
   ) => {
     const { height } = message.params;
+    console.log("height", height);
     this.ref.game.style.height = `${height}px`;
     return messageType.response(message.id, {});
   };

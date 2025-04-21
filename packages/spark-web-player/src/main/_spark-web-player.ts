@@ -17,6 +17,7 @@ export default spec({
     launchStateIcon: "#launch-state-icon",
     launchLabel: "#launch-label",
     sizeDisplay: "#size-display",
+    aspectRatioDisplay: "#aspect-ratio-display",
   } as const,
   css,
   html: ({ props }) => {
@@ -26,6 +27,7 @@ export default spec({
         <span id="launch-state-icon" class="icon"></span>
         <span id="launch-label"></span>
         <span class="spacer"></span>
+        <div id="aspect-ratio-display"></div>
         <div id="size-display"></div>
       </div>
     `;

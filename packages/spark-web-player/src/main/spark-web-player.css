@@ -221,6 +221,23 @@ Make sure disabled buttons don't get the pointer cursor.
   pointer-events: auto;
   position: relative;
   cursor: ns-resize;
+  transition: border-color 0.2s ease;
+}
+
+#toolbar.snapping {
+  border-color: #2196f3;
+}
+
+#toolbar::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 4px;
+  border-radius: 2px;
+  background: #888;
 }
 
 .icon {
@@ -263,28 +280,25 @@ Make sure disabled buttons don't get the pointer cursor.
   align-items: stretch;
   position: relative;
   touch-action: none;
-  font-size: 11px;
   color: #ccc;
 }
 
-#toolbar::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 32px;
-  height: 4px;
-  border-radius: 2px;
-  background: #888;
-}
-
 #label-preview {
-  font-size: 11px;
   color: #ccc;
 }
 
 #size-display {
-  font-size: 11px;
   pointer-events: none;
+}
+
+#toolbar.snapping #size-display {
+  color: #66baff;
+}
+
+#aspect-ratio-display {
+  pointer-events: none;
+}
+
+#toolbar.snapping #aspect-ratio-display {
+  color: #66baff;
 }
