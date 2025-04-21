@@ -250,13 +250,13 @@ export class World {
    * Called on every animation frame while the world is active.
    * @param time The game clock object.
    */
-  onUpdate(_time: Clock): void {}
+  onUpdate(time: Clock): void {}
 
   /**
    * Called when the world is skipped ahead.
    * @param seconds Number of seconds to skip.
    */
-  onSkip(_seconds: number): void {}
+  onSkip(seconds: number): void {}
 
   /**
    * Called when the world is paused.
@@ -274,7 +274,7 @@ export class World {
    * @param height New height
    * @param resolution Device pixel ratio
    */
-  onResize(_width: number, _height: number, _resolution: number): void {}
+  onResize(width: number, height: number, resolution: number): void {}
 
   /**
    * Called when the world is disposed.
@@ -285,25 +285,25 @@ export class World {
    * Triggered when pointer goes down.
    * @param event PointerEvent from browser
    */
-  protected onPointerDown(_event: PointerEvent): void {}
+  protected onPointerDown(event: PointerEvent): void {}
 
   /**
    * Triggered when pointer moves.
    * @param event PointerEvent from browser
    */
-  protected onPointerMove(_event: PointerEvent): void {}
+  protected onPointerMove(event: PointerEvent): void {}
 
   /**
    * Triggered when pointer is released.
    * @param event PointerEvent from browser
    */
-  protected onPointerUp(_event: PointerEvent): void {}
+  protected onPointerUp(event: PointerEvent): void {}
 
   /**
    * Triggered on tap (click without drag).
    * @param event PointerEvent from browser
    */
-  protected onTap(_event: PointerEvent): void {}
+  protected onTap(event: PointerEvent): void {}
 
   /**
    * Triggered on start of a drag gesture.
@@ -313,23 +313,23 @@ export class World {
    * @param distanceY Vertical drag distance
    */
   protected onDragStart(
-    _event: PointerEvent,
-    _dragThreshold: number,
-    _distanceX: number,
-    _distanceY: number
+    event: PointerEvent,
+    dragThreshold: number,
+    distanceX: number,
+    distanceY: number
   ): void {}
 
   /**
    * Triggered on drag update.
    * @param event PointerEvent from browser
    */
-  protected onDrag(_event: PointerEvent): void {}
+  protected onDrag(event: PointerEvent): void {}
 
   /**
    * Triggered when a drag ends.
    * @param event PointerEvent from browser
    */
-  protected onDragEnd(_event: PointerEvent): void {}
+  protected onDragEnd(event: PointerEvent): void {}
 
   /**
    * Handle a notification from the engine.
@@ -343,7 +343,7 @@ export class World {
    * Triggered when a notification message is received.
    * @param msg The notification message
    */
-  protected onReceiveNotification(_msg: NotificationMessage): void {}
+  protected onReceiveNotification(msg: NotificationMessage): void {}
 
   /**
    * Handle a request from the engine.
@@ -366,7 +366,7 @@ export class World {
    * @returns Optionally a response with result or error
    */
   protected async onReceiveRequest(
-    _msg: RequestMessage
+    msg: RequestMessage
   ): Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
     | { result: unknown; transfer?: ArrayBuffer[] }
