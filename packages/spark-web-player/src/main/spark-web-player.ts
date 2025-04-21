@@ -842,6 +842,7 @@ export default class SparkWebPlayer extends Component(spec) {
     if (success) {
       this._app?.start();
     }
+    this.updateLaunchStateIcon();
     return success;
   }
 
@@ -854,6 +855,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._app.destroy(true);
       this._app = undefined;
     }
+    this.updateLaunchStateIcon();
   }
 
   async stopGame(
@@ -874,13 +876,11 @@ export default class SparkWebPlayer extends Component(spec) {
       })
     );
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
-    this.updateLaunchStateIcon();
   }
 
   async restartGame() {
     this.destroyGameAndApp();
     await this.startGameAndApp();
-    this.updateLaunchStateIcon();
   }
 
   protected debouncedRestartGame = debounce(() => this.restartGame(), 100);
