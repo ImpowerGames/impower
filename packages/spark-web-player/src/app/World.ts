@@ -7,10 +7,6 @@ import { IApplication } from "./IApplication";
 import { Camera } from "./plugins/projection/camera/camera";
 import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
 import {
-  generateAnimatedSVGTexture,
-  GenerateAnimatedSVGTextureOptions,
-} from "./plugins/svg/utils/generateAnimatedSVGTexture";
-import {
   generateAnimatedSVGTextures,
   GenerateAnimatedSVGTexturesOptions,
 } from "./plugins/svg/utils/generateAnimatedSVGTextures";
@@ -264,10 +260,5 @@ export class World {
   createSvgTextures(svg: string, options?: GenerateAnimatedSVGTexturesOptions) {
     const svgEl = parseSVG(svg);
     return generateAnimatedSVGTextures(this.renderer, svgEl, options);
-  }
-
-  createSvgTexture(svg: string, options?: GenerateAnimatedSVGTextureOptions) {
-    const svgEl = parseSVG(svg);
-    return generateAnimatedSVGTexture(this.renderer, svgEl, 0, options);
   }
 }
