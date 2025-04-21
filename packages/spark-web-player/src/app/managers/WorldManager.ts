@@ -35,7 +35,7 @@ export default class WorldManager extends Manager {
       this.exitWorld(src)
     );
     await world.onLoad();
-    this.stage.addChild(world.root);
+    this.stage.addChild(world.stage);
     this._worlds.set(src, world);
     // TODO: hide loading screen
   }
@@ -44,7 +44,7 @@ export default class WorldManager extends Manager {
     // TODO: show loading screen
     const world = this._worlds.get(src);
     if (world) {
-      this.stage.removeChild(world.root);
+      this.stage.removeChild(world.stage);
       this._worlds.delete(src);
     }
     this.emit(ExitWorldMessage.type.notification({ src }));
