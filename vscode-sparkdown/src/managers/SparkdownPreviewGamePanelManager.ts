@@ -10,6 +10,7 @@ import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protoco
 import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
 import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
+import { ResizeGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ResizeGameMessage";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
@@ -123,13 +124,14 @@ export class SparkdownPreviewGamePanelManager {
       retainContextWhenHidden: true,
       enableCommandUris: true,
     });
-    return this.initializePanel(context, document, panel);
+    return this.initializePanel(panel, context, document);
   }
 
   async initializePanel(
+    panel: WebviewPanel,
     context: vscode.ExtensionContext,
     document: vscode.TextDocument,
-    panel: WebviewPanel
+    canvasHeight?: number
   ) {
     const fileWatchers = getWorkspaceFileWatchers();
     const files = await getWorkspaceFiles();
@@ -203,11 +205,7 @@ export class SparkdownPreviewGamePanelManager {
       }
       this._panel = undefined;
     });
-    panel.webview.html = this.getWebviewContent(
-      panel.webview,
-      context,
-      document
-    );
+    panel.webview.html = this.getWebviewContent(panel.webview, context);
     panel.webview.onDidReceiveMessage(async (message) => {
       if (ConnectedPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "game") {
@@ -215,7 +213,7 @@ export class SparkdownPreviewGamePanelManager {
           await this.sendRequest(ConfigureCompilerMessage.type, {
             files,
           });
-          this.loadDocument(document);
+          this.loadDocument(document, canvasHeight);
         }
       }
       if (HoveredOnPreviewMessage.type.isNotification(message)) {
@@ -282,7 +280,7 @@ export class SparkdownPreviewGamePanelManager {
     });
   }
 
-  async loadDocument(document: vscode.TextDocument) {
+  async loadDocument(document: vscode.TextDocument, canvasHeight?: number) {
     if (this._panel) {
       this._document = document;
       const editor = getEditor(document.uri);
@@ -306,6 +304,11 @@ export class SparkdownPreviewGamePanelManager {
             }
           }
         }
+      }
+      if (canvasHeight != null) {
+        await this.sendRequest(ResizeGameMessage.type, {
+          height: canvasHeight,
+        });
       }
       await this.sendRequest(LoadGameMessage.type, {
         program,
@@ -452,8 +455,7 @@ export class SparkdownPreviewGamePanelManager {
 
   protected getWebviewContent(
     webview: vscode.Webview,
-    context: vscode.ExtensionContext,
-    document: vscode.TextDocument
+    context: vscode.ExtensionContext
   ) {
     const jsMainUri = getWebviewUri(webview, context.extensionUri, [
       "out",

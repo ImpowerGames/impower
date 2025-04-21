@@ -11,6 +11,7 @@ export default spec({
     gameBackground: "#game-background",
     gameView: "#game-view",
     gameOverlay: "#game-overlay",
+    game: "#game",
     playButton: "#play-button",
     toolbar: "#toolbar",
     launchStateIcon: "#launch-state-icon",

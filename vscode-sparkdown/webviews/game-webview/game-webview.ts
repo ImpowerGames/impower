@@ -2,6 +2,7 @@ import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/proto
 import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
 import { RemoveCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/RemoveCompilerFileMessage";
 import { UpdateCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/UpdateCompilerFileMessage";
+import { GameResizedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameResizedMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
@@ -11,6 +12,14 @@ import { SparkdownFileRegistry } from "@impower/sparkdown/src/classes/SparkdownF
 console.log("running game-webview");
 
 declare var acquireVsCodeApi: any;
+
+const state: {
+  textDocument: { uri: string };
+  canvasHeight?: number;
+} = {
+  textDocument: { uri: "" },
+  canvasHeight: undefined,
+};
 
 const vscode = acquireVsCodeApi();
 
@@ -78,9 +87,8 @@ window.addEventListener("message", (e: MessageEvent) => {
     }
   }
   if (LoadPreviewMessage.type.isRequest(message)) {
-    vscode.setState({
-      textDocument: { uri: message.params.textDocument.uri },
-    });
+    state.textDocument.uri = message.params.textDocument.uri;
+    vscode.setState(state);
   }
   // Forward protocol messages from vscode extension to window
   window.dispatchEvent(
@@ -91,6 +99,17 @@ window.addEventListener("message", (e: MessageEvent) => {
       detail: message,
     })
   );
+});
+
+window.addEventListener(MessageProtocol.event, (e) => {
+  if (e instanceof CustomEvent) {
+    if (GameResizedMessage.type.isNotification(e.detail)) {
+      // Save canvas height so it can be restored after vscode is shut down
+      const { height } = e.detail.params;
+      state.canvasHeight = height;
+      vscode.setState(state);
+    }
+  }
 });
 
 load();

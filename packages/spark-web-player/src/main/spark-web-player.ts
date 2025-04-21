@@ -10,6 +10,7 @@ import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocol
 import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedThreadMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameHitBreakpointMessage";
+import { GameResizedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameResizedMessage";
 import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
 import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameSteppedMessage";
@@ -21,6 +22,7 @@ import { GetGameThreadsMessage } from "@impower/spark-editor-protocol/src/protoc
 import { GetGameVariablesMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameVariablesMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
+import { ResizeGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ResizeGameMessage";
 import { RestartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/RestartGameMessage";
 import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
 import { StepGameClockMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameClockMessage";
@@ -92,7 +94,7 @@ export default class SparkWebPlayer extends Component(spec) {
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     window.addEventListener("contextmenu", this.handleContextMenu, true);
     window.addEventListener("dragstart", this.handleDragStart);
-    window.addEventListener("resize", this.updateSizeDisplay);
+    window.addEventListener("resize", this.handleResize);
     this.ref.playButton?.addEventListener("click", this.handleClickPlayButton);
     this.ref.toolbar?.addEventListener("pointerdown", this.handlePointerDown);
     this.ref.toolbar?.addEventListener("pointermove", this.handlePointerMove);
@@ -108,7 +110,7 @@ export default class SparkWebPlayer extends Component(spec) {
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     window.removeEventListener("contextmenu", this.handleContextMenu);
     window.removeEventListener("dragstart", this.handleDragStart);
-    window.removeEventListener("resize", this.updateSizeDisplay);
+    window.removeEventListener("resize", this.handleResize);
     this.ref.playButton?.removeEventListener(
       "click",
       this.handleClickPlayButton
@@ -123,55 +125,6 @@ export default class SparkWebPlayer extends Component(spec) {
     );
     this.ref.toolbar?.removeEventListener("pointerup", this.handlePointerUp);
   }
-
-  protected handleContextMenu = (e: Event) => {
-    e.preventDefault();
-  };
-
-  protected handleDragStart = (e: DragEvent) => {
-    e.preventDefault();
-  };
-
-  protected handlePointerDown = (e: PointerEvent) => {
-    this._isResizing = true;
-    this._resizeStartY = e.clientY;
-    this._resizeStartHeight = this.root.offsetHeight;
-    document.body.style.cursor = "ns-resize";
-    this.ref.toolbar.setPointerCapture(e.pointerId);
-  };
-
-  protected handlePointerMove = (e: PointerEvent) => {
-    if (!this._isResizing) {
-      return;
-    }
-    const dy = e.clientY - this._resizeStartY;
-    let newHeight = this._resizeStartHeight + dy;
-
-    const maxHeight = window.innerHeight;
-    newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, newHeight));
-
-    const width = this.root.offsetWidth;
-    let closestMatch = newHeight;
-    let minDiff = Infinity;
-
-    for (const [w, h] of COMMON_ASPECT_RATIOS) {
-      const expectedHeight = Math.round((width * h) / w);
-      const diff = Math.abs(expectedHeight - newHeight);
-      if (diff < 10 && diff < minDiff) {
-        closestMatch = expectedHeight;
-        minDiff = diff;
-      }
-    }
-
-    this.root.style.height = `${closestMatch}px`;
-    this.updateSizeDisplay();
-  };
-
-  protected handlePointerUp = (e: PointerEvent) => {
-    this._isResizing = false;
-    document.body.style.cursor = "";
-    this.ref.toolbar.releasePointerCapture(e.pointerId);
-  };
 
   protected async hidePlayButton() {
     if (this.ref.playButton) {
@@ -255,14 +208,75 @@ export default class SparkWebPlayer extends Component(spec) {
     return null;
   }
 
-  updateSizeDisplay = () => {
-    const width = this.root.offsetWidth;
-    const height = this.root.offsetHeight;
+  updateSizeDisplay() {
+    const width = this.ref.game.offsetWidth;
+    const height = this.ref.game.offsetHeight;
     const ratioLabel = this.getAspectRatioLabel(width, height);
     this.ref.sizeDisplay.textContent =
       `${width} × ${height}` + (ratioLabel ? ` (${ratioLabel})` : "");
-    // canvas.width = this.root.clientWidth;
-    // canvas.height = this.root.clientHeight - this.ref.toolbar.offsetHeight;
+  }
+
+  protected handleResize = () => {
+    this.updateSizeDisplay();
+    const width = this.ref.game.offsetWidth;
+    const height = this.ref.game.offsetWidth;
+    this.emit(
+      MessageProtocol.event,
+      GameResizedMessage.type.notification({ width, height })
+    );
+  };
+
+  protected handleContextMenu = (e: Event) => {
+    e.preventDefault();
+  };
+
+  protected handleDragStart = (e: DragEvent) => {
+    e.preventDefault();
+  };
+
+  protected handlePointerDown = (e: PointerEvent) => {
+    this._isResizing = true;
+    this._resizeStartY = e.clientY;
+    this._resizeStartHeight = this.ref.game.offsetHeight;
+    document.body.style.cursor = "ns-resize";
+    this.ref.toolbar.setPointerCapture(e.pointerId);
+  };
+
+  protected handlePointerMove = (e: PointerEvent) => {
+    if (!this._isResizing) {
+      return;
+    }
+    const dy = e.clientY - this._resizeStartY;
+    let newHeight = this._resizeStartHeight + dy;
+
+    const maxHeight = window.innerHeight;
+    newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, newHeight));
+
+    const width = this.ref.game.offsetWidth;
+    let closestMatch = newHeight;
+    let minDiff = Infinity;
+
+    for (const [w, h] of COMMON_ASPECT_RATIOS) {
+      const expectedHeight = Math.round((width * h) / w);
+      const diff = Math.abs(expectedHeight - newHeight);
+      if (diff < 10 && diff < minDiff) {
+        closestMatch = expectedHeight;
+        minDiff = diff;
+      }
+    }
+
+    this.ref.game.style.height = `${closestMatch}px`;
+    this.updateSizeDisplay();
+    this.emit(
+      MessageProtocol.event,
+      GameResizedMessage.type.notification({ width, height: newHeight })
+    );
+  };
+
+  protected handlePointerUp = (e: PointerEvent) => {
+    this._isResizing = false;
+    document.body.style.cursor = "";
+    this.ref.toolbar.releasePointerCapture(e.pointerId);
   };
 
   protected handleClickPlayButton = async () => {
@@ -279,6 +293,15 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleProtocol = async (e: Event) => {
     if (e instanceof CustomEvent) {
+      if (ResizeGameMessage.type.is(e.detail)) {
+        const response = await this.handleResizeGame(
+          ResizeGameMessage.type,
+          e.detail
+        );
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+      }
       if (ConfigureGameMessage.type.is(e.detail)) {
         const response = await this.handleConfigureGame(
           ConfigureGameMessage.type,
@@ -451,6 +474,15 @@ export default class SparkWebPlayer extends Component(spec) {
         }
       }
     }
+  };
+
+  protected handleResizeGame = async (
+    messageType: typeof ResizeGameMessage.type,
+    message: ResizeGameMessage.Request
+  ) => {
+    const { height } = message.params;
+    this.ref.game.style.height = `${height}px`;
+    return messageType.response(message.id, {});
   };
 
   protected handleConfigureGame = async (

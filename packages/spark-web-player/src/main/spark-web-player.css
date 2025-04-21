@@ -153,16 +153,15 @@ Make sure disabled buttons don't get the pointer cursor.
   position: absolute;
   inset: 0;
   overflow: hidden;
-  resize: none;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
 #game {
   position: relative;
-  flex: 1;
+  height: 100%;
   container-type: inline-size;
+  resize: none;
 }
 
 #game-background {
