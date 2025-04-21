@@ -13,6 +13,9 @@
 :host * {
   pointer-events: none;
   touch-action: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
 }
 
 :host *,
@@ -150,6 +153,10 @@ Make sure disabled buttons don't get the pointer cursor.
   position: absolute;
   inset: 0;
   overflow: hidden;
+  resize: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 #game {
@@ -210,8 +217,11 @@ Make sure disabled buttons don't get the pointer cursor.
   padding: 0 8px;
   height: 22px;
   gap: 6px;
+  font-size: 11px;
   white-space: pre;
   pointer-events: auto;
+  position: relative;
+  cursor: ns-resize;
 }
 
 .icon {
@@ -241,4 +251,41 @@ Make sure disabled buttons don't get the pointer cursor.
 
 .spacer {
   flex: 1;
+}
+
+#resize-handle {
+  flex: 0 0 24px;
+  background: #1e1e1e;
+  border-top: 1px solid #555;
+  cursor: ns-resize;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  position: relative;
+  touch-action: none;
+  font-size: 11px;
+  color: #ccc;
+}
+
+#toolbar::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 4px;
+  border-radius: 2px;
+  background: #888;
+}
+
+#label-preview {
+  font-size: 11px;
+  color: #ccc;
+}
+
+#size-display {
+  font-size: 11px;
+  pointer-events: none;
 }

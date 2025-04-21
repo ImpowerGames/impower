@@ -50,6 +50,17 @@ import { Application } from "../app/Application";
 import { debounce } from "../utils/debounce";
 import spec from "./_spark-web-player";
 
+const COMMON_ASPECT_RATIOS = [
+  [16, 9],
+  [9, 16],
+  [4, 3],
+  [3, 4],
+  [21, 9],
+  [1, 1],
+] as const;
+
+const MIN_HEIGHT = 100;
+
 export default class SparkWebPlayer extends Component(spec) {
   _audioContext?: AudioContext;
 
@@ -71,9 +82,22 @@ export default class SparkWebPlayer extends Component(spec) {
 
   _loadListeners = new Set<() => void>();
 
+  _isResizing = false;
+
+  _resizeStartY = 0;
+
+  _resizeStartHeight = 0;
+
   override onConnected() {
-    this.ref.playButton?.addEventListener("click", this.handleClickPlayButton);
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
+    window.addEventListener("contextmenu", this.handleContextMenu, true);
+    window.addEventListener("dragstart", this.handleDragStart);
+    window.addEventListener("resize", this.updateSizeDisplay);
+    this.ref.playButton?.addEventListener("click", this.handleClickPlayButton);
+    this.ref.toolbar?.addEventListener("pointerdown", this.handlePointerDown);
+    this.ref.toolbar?.addEventListener("pointermove", this.handlePointerMove);
+    this.ref.toolbar?.addEventListener("pointerup", this.handlePointerUp);
+    this.updateSizeDisplay();
     this.emit(
       MessageProtocol.event,
       ConnectedPreviewMessage.type.notification({ type: "game" })
@@ -81,12 +105,73 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   override onDisconnected() {
+    window.removeEventListener(MessageProtocol.event, this.handleProtocol);
+    window.removeEventListener("contextmenu", this.handleContextMenu);
+    window.removeEventListener("dragstart", this.handleDragStart);
+    window.removeEventListener("resize", this.updateSizeDisplay);
     this.ref.playButton?.removeEventListener(
       "click",
       this.handleClickPlayButton
     );
-    window.removeEventListener(MessageProtocol.event, this.handleProtocol);
+    this.ref.toolbar?.removeEventListener(
+      "pointerdown",
+      this.handlePointerDown
+    );
+    this.ref.toolbar?.removeEventListener(
+      "pointermove",
+      this.handlePointerMove
+    );
+    this.ref.toolbar?.removeEventListener("pointerup", this.handlePointerUp);
   }
+
+  protected handleContextMenu = (e: Event) => {
+    e.preventDefault();
+  };
+
+  protected handleDragStart = (e: DragEvent) => {
+    e.preventDefault();
+  };
+
+  protected handlePointerDown = (e: PointerEvent) => {
+    this._isResizing = true;
+    this._resizeStartY = e.clientY;
+    this._resizeStartHeight = this.root.offsetHeight;
+    document.body.style.cursor = "ns-resize";
+    this.ref.toolbar.setPointerCapture(e.pointerId);
+  };
+
+  protected handlePointerMove = (e: PointerEvent) => {
+    if (!this._isResizing) {
+      return;
+    }
+    const dy = e.clientY - this._resizeStartY;
+    let newHeight = this._resizeStartHeight + dy;
+
+    const maxHeight = window.innerHeight;
+    newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, newHeight));
+
+    const width = this.root.offsetWidth;
+    let closestMatch = newHeight;
+    let minDiff = Infinity;
+
+    for (const [w, h] of COMMON_ASPECT_RATIOS) {
+      const expectedHeight = Math.round((width * h) / w);
+      const diff = Math.abs(expectedHeight - newHeight);
+      if (diff < 10 && diff < minDiff) {
+        closestMatch = expectedHeight;
+        minDiff = diff;
+      }
+    }
+
+    this.root.style.height = `${closestMatch}px`;
+    this.updateSizeDisplay();
+  };
+
+  protected handlePointerUp = (e: PointerEvent) => {
+    this._isResizing = false;
+    document.body.style.cursor = "";
+    this.ref.toolbar.releasePointerCapture(e.pointerId);
+  };
 
   protected async hidePlayButton() {
     if (this.ref.playButton) {
@@ -159,6 +244,26 @@ export default class SparkWebPlayer extends Component(spec) {
       : "preview";
     this.ref.launchStateIcon.setAttribute("icon", icon);
   }
+
+  getAspectRatioLabel(width: number, height: number) {
+    for (const [w, h] of COMMON_ASPECT_RATIOS) {
+      const expectedHeight = Math.round((width * h) / w);
+      if (height === expectedHeight) {
+        return `${w}:${h}`;
+      }
+    }
+    return null;
+  }
+
+  updateSizeDisplay = () => {
+    const width = this.root.offsetWidth;
+    const height = this.root.offsetHeight;
+    const ratioLabel = this.getAspectRatioLabel(width, height);
+    this.ref.sizeDisplay.textContent =
+      `${width} × ${height}` + (ratioLabel ? ` (${ratioLabel})` : "");
+    // canvas.width = this.root.clientWidth;
+    // canvas.height = this.root.clientHeight - this.ref.toolbar.offsetHeight;
+  };
 
   protected handleClickPlayButton = async () => {
     if (!this._audioContext || this._audioContext.state !== "running") {

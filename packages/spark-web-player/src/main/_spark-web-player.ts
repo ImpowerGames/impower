@@ -12,8 +12,10 @@ export default spec({
     gameView: "#game-view",
     gameOverlay: "#game-overlay",
     playButton: "#play-button",
+    toolbar: "#toolbar",
     launchStateIcon: "#launch-state-icon",
     launchLabel: "#launch-label",
+    sizeDisplay: "#size-display",
   } as const,
   css,
   html: ({ props }) => {
@@ -21,8 +23,9 @@ export default spec({
     const toolbarComponent = () => html`
       <div id="toolbar">
         <span id="launch-state-icon" class="icon"></span>
-        <span class="spacer"></span>
         <span id="launch-label"></span>
+        <span class="spacer"></span>
+        <div id="size-display"></div>
       </div>
     `;
     return html`
