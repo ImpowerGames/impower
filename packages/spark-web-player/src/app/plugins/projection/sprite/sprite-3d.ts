@@ -43,6 +43,27 @@ export class Sprite3D extends PerspectiveMesh {
    */
   transform = new Transform3D();
 
+  /**
+   * @deprecated Use `transform.scale` instead
+   */
+  override get scale() {
+    return super.scale;
+  }
+
+  /**
+   * @deprecated Use `transform.position` instead
+   */
+  override get position() {
+    return super.position;
+  }
+
+  /**
+   * @deprecated Use `transform.rotation` instead
+   */
+  override get rotation() {
+    return super.rotation;
+  }
+
   protected _camera: Camera;
   /**
    * The camera this sprite is rendered relative to.
