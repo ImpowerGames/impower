@@ -36,7 +36,9 @@ export default class WorldManager extends Manager {
     );
     await world.onLoad();
     this.stage.addChild(world.stage);
+    world.onConnected();
     this._worlds.set(src, world);
+    world.onStart();
     // TODO: hide loading screen
   }
 
@@ -48,12 +50,6 @@ export default class WorldManager extends Manager {
       this._worlds.delete(src);
     }
     this.emit(ExitWorldMessage.type.notification({ src }));
-  }
-
-  override onStart(): void {
-    for (const world of this._worlds.values()) {
-      world.onStart();
-    }
   }
 
   override onPause(): void {

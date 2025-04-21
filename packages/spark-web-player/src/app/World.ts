@@ -176,7 +176,7 @@ export class World {
    */
   exit() {
     this.unbind();
-    this.onDispose();
+    this.onDisconnected();
     this._onExit?.();
   }
 
@@ -241,6 +241,18 @@ export class World {
   async onLoad(): Promise<void> {}
 
   /**
+   * Called once after the world has finished loading and is ready to start running.
+   * Override to register event listeners and other hooks.
+   */
+  onConnected(): void {}
+
+  /**
+   * Called once before the world is unloaded.
+   * Override to unregister event listeners and other hooks.
+   */
+  onDisconnected(): void {}
+
+  /**
    * Called once when the world starts running.
    * Override to begin animations, music, or systems.
    */
@@ -275,11 +287,6 @@ export class World {
    * @param resolution Device pixel ratio
    */
   onResize(width: number, height: number, resolution: number): void {}
-
-  /**
-   * Called when the world is disposed.
-   */
-  protected onDispose() {}
 
   /**
    * Triggered when pointer goes down.
