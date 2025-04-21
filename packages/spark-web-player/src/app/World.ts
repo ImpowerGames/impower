@@ -257,7 +257,7 @@ export class World {
     return this.root.addChild(child);
   }
 
-  createTexture(width: number, height: number, color?: number) {
+  createSolidTexture(width: number, height: number, color?: number) {
     return generateSolidTexture(this.renderer, width, height, color);
   }
 
