@@ -2,10 +2,9 @@ import { Clock } from "@impower/spark-engine/src/game/core/classes/Clock";
 import { NotificationMessage } from "@impower/spark-engine/src/game/core/types/NotificationMessage";
 import { RequestMessage } from "@impower/spark-engine/src/game/core/types/RequestMessage";
 import { ResponseError } from "@impower/spark-engine/src/game/core/types/ResponseError";
-import { Color, ColorSource, Container } from "pixi.js";
+import { ColorSource, Container } from "pixi.js";
+
 import { IApplication } from "./IApplication";
-import { Camera } from "./plugins/projection/camera/camera";
-import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
 import {
   generateAnimatedSVGTextures,
   GenerateAnimatedSVGTexturesOptions,
@@ -14,47 +13,76 @@ import { parseSVG } from "./plugins/svg/utils/parseSVG";
 import { generateSolidTexture } from "./plugins/texture/utils/generateSolidTexture";
 
 /**
- * Used to render Sprites in 2D or 3D space
+ * World manages the primary rendering stage, input event bindings,
+ * camera control, and utility texture generation.
+ *
+ * It acts as the interface between the rendering engine (PixiJS)
+ * and user interaction (pointers, drags, taps).
  */
 export class World {
   protected _app: IApplication;
 
+  /**
+   * Access the game's context.
+   */
   get context() {
     return this._app.context;
   }
 
+  /**
+   * Access the rendering screen info.
+   */
   get screen() {
     return this._app.screen;
   }
 
+  /**
+   * Access the canvas element used for rendering.
+   */
   get canvas() {
     return this._app.canvas;
   }
 
+  /**
+   * Access the PixiJS renderer.
+   */
   get renderer() {
     return this._app.renderer;
   }
 
-  public get dolly(): CameraOrbitControl {
+  /**
+   * Access the orbit control used for manipulating the camera (e.g. drag-to-rotate).
+   */
+  public get dolly() {
     return this._app.dolly;
   }
 
-  public get camera(): Camera {
+  /**
+   * Access the main projection camera.
+   */
+  public get camera() {
     return this._app.camera;
   }
 
-  get backgroundColor(): Color {
+  /**
+   * Get or set the background color of the renderer.
+   */
+  get backgroundColor() {
     return this._app.renderer.background.color;
   }
   set backgroundColor(value: ColorSource) {
     this._app.renderer.background.color = value;
   }
 
-  private _stage;
+  private _stage: Container;
+  /**
+   * Access the root display container (scene graph).
+   */
   public get stage(): Container {
     return this._stage;
   }
 
+  // Pointer tracking for interaction state
   private _pointerDown = false;
   get pointerDown(): boolean {
     return this._pointerDown;
@@ -75,6 +103,7 @@ export class World {
     return this._pointerDragging;
   }
 
+  // Thresholds for recognizing drag gestures, depending on pointer type
   private _mouseDragThreshold = 1;
   get mouseDragThreshold(): number {
     return this._mouseDragThreshold;
@@ -103,18 +132,24 @@ export class World {
 
   constructor(app: IApplication, onExit?: () => void) {
     this._app = app;
-    this.bind();
+    this.bind(); // Hook up input listeners
     this._onExit = onExit;
     this._stage = new Container();
-    this._stage.sortableChildren = true;
+    this._stage.sortableChildren = true; // Ensure children are drawn in z-index order
   }
 
+  /**
+   * Call this to exit this world and resume normal game flow.
+   */
   exit() {
     this.unbind();
     this.onDispose();
     this._onExit?.();
   }
 
+  /**
+   * Add event listeners for pointer input.
+   */
   private bind(): void {
     if (this.canvas) {
       this.canvas.addEventListener("pointerdown", this.handlePointerDown);
@@ -124,6 +159,9 @@ export class World {
     window.addEventListener("touchend", this.handleTouchEnd);
   }
 
+  /**
+   * Remove event listeners.
+   */
   private unbind(): void {
     if (this.canvas) {
       this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
@@ -133,6 +171,9 @@ export class World {
     window.removeEventListener("touchend", this.handleTouchEnd);
   }
 
+  /**
+   * Handle pointer down event and record coordinates.
+   */
   private handlePointerDown = (event: PointerEvent): void => {
     this.onPointerDown(event);
     this._pointerDown = true;
@@ -141,6 +182,9 @@ export class World {
     this._pointerDownY = event.offsetY;
   };
 
+  /**
+   * Handle pointer movement and determine drag behavior.
+   */
   private handlePointerMove = (event: PointerEvent): void => {
     if (this._app.clock.speed > 0) {
       this.onPointerMove(event);
@@ -172,6 +216,9 @@ export class World {
     }
   };
 
+  /**
+   * Handle mouse button release (may trigger tap or end drag).
+   */
   private handlePointerUp = (event: MouseEvent): void => {
     const pointerEvent = event as PointerEvent;
     this.onPointerUp(pointerEvent);
@@ -186,6 +233,9 @@ export class World {
     this._pointerDragging = false;
   };
 
+  /**
+   * Normalize touch end into a pointer event for consistency.
+   */
   private handleTouchEnd = (event: TouchEvent): void => {
     if (event?.touches?.length === 0) {
       const rect = (event.target as HTMLElement).getBoundingClientRect();
@@ -202,6 +252,8 @@ export class World {
     }
   };
 
+  // Lifecycle hooks to be optionally overridden in subclasses:
+
   async onLoad(): Promise<void> {}
 
   onStart(): void {}
@@ -217,6 +269,8 @@ export class World {
   onResize(_width: number, _height: number, _resolution: number): void {}
 
   protected onDispose() {}
+
+  // Input interaction callbacks:
 
   protected onPointerDown(_event: PointerEvent): void {}
 
@@ -237,6 +291,8 @@ export class World {
 
   protected onDragEnd(_event: PointerEvent): void {}
 
+  // Messaging hooks:
+
   protected onReceiveNotification(_msg: NotificationMessage): void {}
 
   protected async onReceiveRequest(
@@ -249,10 +305,16 @@ export class World {
     return undefined;
   }
 
+  /**
+   * Generate a simple solid-colored texture using the current renderer.
+   */
   generateSolidTexture(width: number, height: number, color?: number) {
     return generateSolidTexture(this.renderer, width, height, color);
   }
 
+  /**
+   * Generate textures from an SVG string (supports SMIL animation).
+   */
   generateSvgTextures(
     svg: string,
     options?: GenerateAnimatedSVGTexturesOptions
