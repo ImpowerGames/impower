@@ -87,6 +87,8 @@ export class SparkdownPreviewGamePanelManager {
 
   protected _listeners = new Set<(message: any) => void>();
 
+  protected _gameRunning = false;
+
   async showPanel(
     context: vscode.ExtensionContext,
     document: vscode.TextDocument
@@ -266,12 +268,16 @@ export class SparkdownPreviewGamePanelManager {
         }
       }
       if (GameStartedMessage.type.isNotification(message)) {
+        this._gameRunning = true;
         if (!vscode.debug.activeDebugSession) {
           vscode.commands.executeCommand("sparkdown.debugGame");
         }
       }
       if (GameReloadedMessage.type.isNotification(message)) {
         vscode.commands.executeCommand("sparkdown.debug.unpin");
+      }
+      if (GameExitedMessage.type.isNotification(message)) {
+        this._gameRunning = false;
       }
       if (message) {
         for (const listener of this._listeners) {
@@ -346,7 +352,7 @@ export class SparkdownPreviewGamePanelManager {
     if (this._connected) {
       const document = editor.document;
       if (editor.document.uri.toString() !== this._document?.uri.toString()) {
-        if (!vscode.debug.activeDebugSession) {
+        if (!vscode.debug.activeDebugSession && !this._gameRunning) {
           // In preview-mode, we load whatever document is in the active editor
           await this.loadDocument(document);
         }
