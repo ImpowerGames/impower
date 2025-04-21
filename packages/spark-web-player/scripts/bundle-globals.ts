@@ -82,7 +82,7 @@ function bundleTypes() {
     ...includePaths.map((p) => `"${p}"`),
     `--project "${projectPath}"`,
     `--external-inlines=${externalInlines.join(" ")}`,
-    "--no-banner=false",
+    "--no-banner",
     "--no-check",
     "--silent",
   ].join(" ");
@@ -112,10 +112,10 @@ function removeShadowingInterfaces(outputFilePath: string) {
   // Remove interfaces that shadow those classes
   for (const className of classNames) {
     const interfaceRegex = new RegExp(
-      `export\\s+interface\\s+${className}[^{]*[{][^{}]*[}]`,
+      `export\\s+interface\\s+${className}(?!\\w)[^{]*[{][^{}]*[}]`,
       "g"
     );
-    content = content.replace(interfaceRegex, () => {
+    content = content.replace(interfaceRegex, (match) => {
       console.log(LOG_PREFIX + `removed shadowing interface: ${className}`);
       return ""; // remove the matched interface
     });
