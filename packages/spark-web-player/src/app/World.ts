@@ -4,6 +4,11 @@ import { RequestMessage } from "@impower/spark-engine/src/game/core/types/Reques
 import { ResponseError } from "@impower/spark-engine/src/game/core/types/ResponseError";
 import { ColorSource, Container } from "pixi.js";
 
+import {
+  attachPointerEvents,
+  createPointerState,
+  PointerState,
+} from "./helpers/pointerEvents";
 import { IApplication } from "./IApplication";
 import {
   generateAnimatedSVGTextures,
@@ -21,6 +26,12 @@ import { generateSolidTexture } from "./plugins/texture/utils/generateSolidTextu
  */
 export class World {
   protected _app: IApplication;
+
+  private _pointerState: PointerState = createPointerState();
+
+  private _detachPointerEvents?: () => void;
+
+  private _onExit?: () => void;
 
   /**
    * Access the game's context.
@@ -74,62 +85,84 @@ export class World {
     this._app.renderer.background.color = value;
   }
 
-  private _stage: Container;
   /**
    * Access the root display container (scene graph).
    */
   public get stage(): Container {
     return this._stage;
   }
+  private _stage: Container;
 
-  // Pointer tracking for interaction state
-  private _pointerDown = false;
+  /**
+   * Whether the pointer is currently pressed down.
+   */
   get pointerDown(): boolean {
     return this._pointerDown;
   }
+  private _pointerDown = false;
 
-  private _pointerDownX = 0;
+  /**
+   * X position where the pointer was pressed.
+   */
   get pointerDownX(): number {
     return this._pointerDownX;
   }
+  private _pointerDownX = 0;
 
-  private _pointerDownY = 0;
+  /**
+   * Y position where the pointer was pressed.
+   */
   get pointerDownY(): number {
     return this._pointerDownY;
   }
+  private _pointerDownY = 0;
 
-  private _pointerDragging = false;
+  /**
+   * Whether a dragging gesture is currently active.
+   */
   get pointerDragging(): boolean {
     return this._pointerDragging;
   }
+  private _pointerDragging = false;
 
-  // Thresholds for recognizing drag gestures, depending on pointer type
-  private _mouseDragThreshold = 1;
+  /**
+   * Minimum drag distance to start mouse drag gesture.
+   */
   get mouseDragThreshold(): number {
     return this._mouseDragThreshold;
   }
   set mouseDragThreshold(value: number) {
     this._mouseDragThreshold = value;
   }
+  private _mouseDragThreshold = 1;
 
-  private _penDragThreshold = 2;
+  /**
+   * Minimum drag distance to start pen drag gesture.
+   */
   get penDragThreshold(): number {
     return this._penDragThreshold;
   }
   set penDragThreshold(value: number) {
     this._penDragThreshold = value;
   }
+  private _penDragThreshold = 2;
 
-  private _touchDragThreshold = 4;
+  /**
+   * Minimum drag distance to start touch drag gesture.
+   */
   get touchDragThreshold(): number {
     return this._touchDragThreshold;
   }
   set touchDragThreshold(value: number) {
     this._touchDragThreshold = value;
   }
+  private _touchDragThreshold = 4;
 
-  private _onExit?: () => void;
-
+  /**
+   * Create a World instance.
+   * @param app The IApplication implementation.
+   * @param onExit Optional callback to run on exit.
+   */
   constructor(app: IApplication, onExit?: () => void) {
     this._app = app;
     this.bind(); // Hook up input listeners
@@ -151,135 +184,134 @@ export class World {
    * Add event listeners for pointer input.
    */
   private bind(): void {
-    if (this.canvas) {
-      this.canvas.addEventListener("pointerdown", this.handlePointerDown);
-      this.canvas.addEventListener("pointermove", this.handlePointerMove);
-    }
-    window.addEventListener("mouseup", this.handlePointerUp);
-    window.addEventListener("touchend", this.handleTouchEnd);
+    this._detachPointerEvents = attachPointerEvents(
+      this.canvas,
+      this._pointerState,
+      {
+        onDown: (e) => {
+          if (this._app.clock.speed > 0) {
+            this.onPointerDown(e);
+          }
+        },
+        onMove: (e) => {
+          if (this._app.clock.speed > 0) {
+            this.onPointerMove(e);
+          }
+        },
+        onUp: (e) => {
+          if (this._app.clock.speed > 0) {
+            this.onPointerUp(e);
+          }
+        },
+        onTap: (e) => {
+          if (this._app.clock.speed > 0) {
+            this.onTap(e);
+          }
+        },
+        onDragStart: (e, t, dx, dy) => {
+          if (this._app.clock.speed > 0) {
+            this.onDragStart(e, t, dx, dy);
+          }
+        },
+        onDrag: (e) => {
+          if (this._app.clock.speed > 0) {
+            this.onDrag(e);
+          }
+        },
+        onDragEnd: (e) => {
+          if (this._app.clock.speed > 0) {
+            this.onDragEnd(e);
+          }
+        },
+      }
+    );
   }
 
   /**
    * Remove event listeners.
    */
   private unbind(): void {
-    if (this.canvas) {
-      this.canvas.removeEventListener("pointerdown", this.handlePointerDown);
-      this.canvas.removeEventListener("pointermove", this.handlePointerMove);
-    }
-    window.removeEventListener("mouseup", this.handlePointerUp);
-    window.removeEventListener("touchend", this.handleTouchEnd);
+    this._detachPointerEvents?.();
   }
 
   /**
-   * Handle pointer down event and record coordinates.
+   * Called once during loading phase.
+   * Override to preload assets or initialize state.
    */
-  private handlePointerDown = (event: PointerEvent): void => {
-    this.onPointerDown(event);
-    this._pointerDown = true;
-    this._pointerDragging = false;
-    this._pointerDownX = event.offsetX;
-    this._pointerDownY = event.offsetY;
-  };
-
-  /**
-   * Handle pointer movement and determine drag behavior.
-   */
-  private handlePointerMove = (event: PointerEvent): void => {
-    if (this._app.clock.speed > 0) {
-      this.onPointerMove(event);
-      if (this._pointerDown) {
-        const pointerX = event.offsetX;
-        const pointerY = event.offsetY;
-        const dragDistanceX = pointerX - this._pointerDownX;
-        const dragDistanceY = pointerY - this._pointerDownY;
-        const dragDistance = dragDistanceX ** 2 + dragDistanceY ** 2;
-        const dragThreshold =
-          event.pointerType === "mouse"
-            ? this.mouseDragThreshold
-            : event.pointerType === "pen"
-            ? this.penDragThreshold
-            : this.touchDragThreshold;
-        if (Math.abs(dragDistance) > dragThreshold) {
-          if (!this._pointerDragging) {
-            this._pointerDragging = true;
-            this.onDragStart(
-              event,
-              dragThreshold,
-              dragDistanceX,
-              dragDistanceY
-            );
-          }
-          this.onDrag(event);
-        }
-      }
-    }
-  };
-
-  /**
-   * Handle mouse button release (may trigger tap or end drag).
-   */
-  private handlePointerUp = (event: MouseEvent): void => {
-    const pointerEvent = event as PointerEvent;
-    this.onPointerUp(pointerEvent);
-    if (this._pointerDown) {
-      if (this._pointerDragging) {
-        this.onDragEnd(pointerEvent);
-      } else {
-        this.onTap(pointerEvent);
-      }
-    }
-    this._pointerDown = false;
-    this._pointerDragging = false;
-  };
-
-  /**
-   * Normalize touch end into a pointer event for consistency.
-   */
-  private handleTouchEnd = (event: TouchEvent): void => {
-    if (event?.touches?.length === 0) {
-      const rect = (event.target as HTMLElement).getBoundingClientRect();
-      const touch = event?.targetTouches?.[0];
-      const offsetX = touch?.clientX ?? 0 - rect.x;
-      const offsetY = touch?.clientY ?? 0 - rect.y;
-      const pointerEvent = {
-        ...event,
-        ...(touch || {}),
-        offsetX,
-        offsetY,
-      } as unknown as PointerEvent;
-      this.handlePointerUp(pointerEvent);
-    }
-  };
-
-  // Lifecycle hooks to be optionally overridden in subclasses:
-
   async onLoad(): Promise<void> {}
 
+  /**
+   * Called once when the world starts running.
+   * Override to begin animations, music, or systems.
+   */
   onStart(): void {}
 
+  /**
+   * Called on every animation frame while the world is active.
+   * @param time The game clock object.
+   */
   onUpdate(_time: Clock): void {}
 
+  /**
+   * Called when the world is skipped ahead.
+   * @param seconds Number of seconds to skip.
+   */
   onSkip(_seconds: number): void {}
 
+  /**
+   * Called when the world is paused.
+   */
   onPause(): void {}
 
+  /**
+   * Called when the world is unpaused.
+   */
   onUnpause(): void {}
 
+  /**
+   * Called when the screen size or resolution changes.
+   * @param width New width
+   * @param height New height
+   * @param resolution Device pixel ratio
+   */
   onResize(_width: number, _height: number, _resolution: number): void {}
 
+  /**
+   * Called when the world is disposed.
+   */
   protected onDispose() {}
 
-  // Input interaction callbacks:
-
+  /**
+   * Triggered when pointer goes down.
+   * @param event PointerEvent from browser
+   */
   protected onPointerDown(_event: PointerEvent): void {}
 
+  /**
+   * Triggered when pointer moves.
+   * @param event PointerEvent from browser
+   */
   protected onPointerMove(_event: PointerEvent): void {}
 
+  /**
+   * Triggered when pointer is released.
+   * @param event PointerEvent from browser
+   */
   protected onPointerUp(_event: PointerEvent): void {}
 
+  /**
+   * Triggered on tap (click without drag).
+   * @param event PointerEvent from browser
+   */
   protected onTap(_event: PointerEvent): void {}
 
+  /**
+   * Triggered on start of a drag gesture.
+   * @param event PointerEvent
+   * @param dragThreshold Drag threshold used
+   * @param distanceX Horizontal drag distance
+   * @param distanceY Vertical drag distance
+   */
   protected onDragStart(
     _event: PointerEvent,
     _dragThreshold: number,
@@ -287,14 +319,52 @@ export class World {
     _distanceY: number
   ): void {}
 
+  /**
+   * Triggered on drag update.
+   * @param event PointerEvent from browser
+   */
   protected onDrag(_event: PointerEvent): void {}
 
+  /**
+   * Triggered when a drag ends.
+   * @param event PointerEvent from browser
+   */
   protected onDragEnd(_event: PointerEvent): void {}
 
-  // Messaging hooks:
+  /**
+   * Handle a notification from the engine.
+   * @param msg The notification message
+   */
+  public receiveNotification(msg: NotificationMessage): void {
+    this.onReceiveNotification(msg);
+  }
 
+  /**
+   * Triggered when a notification message is received.
+   * @param msg The notification message
+   */
   protected onReceiveNotification(_msg: NotificationMessage): void {}
 
+  /**
+   * Handle a request from the engine.
+   * @param msg The request message
+   * @returns Optionally a response with result or error
+   */
+  public async receiveRequest(
+    msg: RequestMessage
+  ): Promise<
+    | { error: ResponseError; transfer?: ArrayBuffer[] }
+    | { result: unknown; transfer?: ArrayBuffer[] }
+    | undefined
+  > {
+    return this.onReceiveRequest(msg);
+  }
+
+  /**
+   * Triggered when a request message is received.
+   * @param msg The request message
+   * @returns Optionally a response with result or error
+   */
   protected async onReceiveRequest(
     _msg: RequestMessage
   ): Promise<
@@ -307,13 +377,20 @@ export class World {
 
   /**
    * Generate a simple solid-colored texture using the current renderer.
+   * @param width Width in pixels
+   * @param height Height in pixels
+   * @param color Optional color (defaults to white)
+   * @returns A texture with a solid color
    */
-  generateSolidTexture(width: number, height: number, color?: number) {
+  generateSolidTexture(width: number, height: number, color?: ColorSource) {
     return generateSolidTexture(this.renderer, width, height, color);
   }
 
   /**
    * Generate textures from an SVG string (supports SMIL animation).
+   * @param svg SVG markup string
+   * @param options Optional generation settings
+   * @returns An array of textures
    */
   generateSvgTextures(
     svg: string,
