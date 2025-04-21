@@ -285,7 +285,11 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     }
 
-    this.ref.game.style.height = `${closestMatch}px`;
+    if (closestMatch === maxHeight) {
+      this.ref.game.style.height = "";
+    } else {
+      this.ref.game.style.height = `${closestMatch}px`;
+    }
 
     this.ref.toolbar.classList.toggle("snapping", snapped);
 
