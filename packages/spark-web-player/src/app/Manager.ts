@@ -26,7 +26,7 @@ export class Manager {
     return this._app.overlay;
   }
 
-  get ticker() {
+  get clock() {
     return this._app.clock;
   }
 
