@@ -23,6 +23,10 @@ import { generateSolidTexture } from "./plugins/texture/utils/generateSolidTextu
 export class World {
   protected _app: IApplication;
 
+  get context() {
+    return this._app.context;
+  }
+
   get screen() {
     return this._app.screen;
   }

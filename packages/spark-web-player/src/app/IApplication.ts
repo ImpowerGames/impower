@@ -9,4 +9,5 @@ export interface IApplication {
   dolly: CameraOrbitControl;
   camera: Camera;
   clock: Clock;
+  context: any;
 }
