@@ -10,6 +10,7 @@ import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocol
 import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedThreadMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameHitBreakpointMessage";
+import { GameReloadedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameReloadedMessage";
 import { GameResizedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameResizedMessage";
 import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
 import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
@@ -645,6 +646,10 @@ export default class SparkWebPlayer extends Component(spec) {
     if (this._game?.state === "running") {
       // Stop and restart game if we loaded a new game while the old game was running
       this.debouncedRestartGame();
+      this.emit(
+        MessageProtocol.event,
+        GameReloadedMessage.type.notification({})
+      );
     }
     this.updateLaunchLabel();
     this.updateLaunchStateIcon();

@@ -352,6 +352,16 @@
           "when": "editorLangId == sparkdown",
           "group": "navigation@4"
         }
+      ],
+      "debug/toolBar": [
+        {
+          "command": "sparkdown.debug.pin",
+          "when": "!sparkdown.debug.pinned"
+        },
+        {
+          "command": "sparkdown.debug.unpin",
+          "when": "sparkdown.debug.pinned"
+        }
       ]
     },
     "commands": [
@@ -417,6 +427,18 @@
         "category": "Sparkdown Debugger",
         "enablement": "!inDebugMode",
         "icon": "$(play)"
+      },
+      {
+        "command": "sparkdown.debug.pin",
+        "title": "Cursor is not synced with execution location",
+        "icon": "$(pin)",
+        "category": "Debug"
+      },
+      {
+        "command": "sparkdown.debug.unpin",
+        "title": "Cursor is synced with execution location",
+        "icon": "$(pinned-dirty)",
+        "category": "Debug"
       }
     ],
     "keybindings": [

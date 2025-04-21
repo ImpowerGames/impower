@@ -64,6 +64,7 @@ import {
   Variable,
 } from "@vscode/debugadapter";
 import { DebugProtocol } from "@vscode/debugprotocol";
+import { SparkdownDebugManager } from "../managers/SparkdownDebugManager";
 import { timeout } from "./mockRuntime";
 
 export interface FileAccessor {
@@ -193,12 +194,7 @@ export class SparkDebugSession extends LoggingDebugSession {
       await this.sendStoppedEvent("breakpoint");
     }
     if (GameAwaitingInteractionMessage.type.isNotification(message)) {
-      const { location } = message.params;
-      if (
-        this._fileAccessor.isActiveTextEditor(
-          this._fileAccessor.uriToPath(location.uri)
-        )
-      ) {
+      if (SparkdownDebugManager.instance.syncCursorToExecution) {
         await this.sendStoppedEvent("awaiting interaction");
       }
     }

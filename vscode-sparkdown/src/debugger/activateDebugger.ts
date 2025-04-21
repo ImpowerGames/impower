@@ -14,6 +14,7 @@ import {
   ProviderResult,
   WorkspaceFolder,
 } from "vscode";
+import { SparkdownDebugManager } from "../managers/SparkdownDebugManager";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { getActiveOrVisibleEditor } from "../utils/getActiveOrVisibleEditor";
 import { getEditor } from "../utils/getEditor";
@@ -23,9 +24,12 @@ export const activateDebugger = (
   context: vscode.ExtensionContext,
   factory?: vscode.DebugAdapterDescriptorFactory
 ) => {
+  SparkdownDebugManager.activate(context);
+
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.runGame", () => {
       if (SparkdownPreviewGamePanelManager.instance.document) {
+        SparkdownDebugManager.instance.syncCursorToExecution = true;
         vscode.debug.startDebugging(
           undefined,
           {
@@ -44,6 +48,7 @@ export const activateDebugger = (
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.debugGame", () => {
       if (SparkdownPreviewGamePanelManager.instance.document) {
+        SparkdownDebugManager.instance.syncCursorToExecution = true;
         vscode.debug.startDebugging(undefined, {
           type: "game",
           name: "Debug File",
