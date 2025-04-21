@@ -82,7 +82,6 @@ function bundleTypes() {
     ...includePaths.map((p) => `"${p}"`),
     `--project "${projectPath}"`,
     `--external-inlines=${externalInlines.join(" ")}`,
-    "--export-referenced-types",
     "--no-banner=false",
     "--no-check",
     "--silent",
