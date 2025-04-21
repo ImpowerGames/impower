@@ -532,10 +532,6 @@ export default class SparkWebPlayer extends Component(spec) {
         this._loadListeners.add(resolve);
       });
     }
-    if (this._game?.state === "running") {
-      // Ignore if game is already running
-      return undefined;
-    }
     const program = this._program!;
     this._options ??= {};
     if (workspace) {
@@ -691,6 +687,7 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof PauseGameMessage.type,
     message: PauseGameMessage.Request
   ) => {
+    console.log("PAUSE", message);
     if (this._app) {
       this._app.pause();
     }
