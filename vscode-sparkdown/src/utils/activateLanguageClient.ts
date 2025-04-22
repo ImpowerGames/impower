@@ -119,7 +119,9 @@ const onCompile = async (
 ) => {
   const program = params.program;
   const textDocument = params.textDocument;
-  const document = await getOpenTextDocument(textDocument.uri);
+  const document = await getOpenTextDocument(
+    vscode.Uri.parse(textDocument.uri)
+  );
   if (document) {
     SparkProgramManager.instance.update(document.uri, program);
     SparkdownPreviewGamePanelManager.instance.loadDocument(document);

@@ -1,0 +1,183 @@
+details {
+  margin-bottom: 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 5px;
+  padding: 4px 16px 4px 4px;
+  background-color: var(--vscode-editor-background);
+  overflow: hidden;
+  font-size: 13px;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: bold;
+  padding: 8px;
+  background-color: var(--vscode-panel-background);
+}
+
+summary:hover {
+  background-color: var(--vscode-panel-hoverBackground);
+}
+
+.group {
+  padding-left: 26px;
+}
+
+.group > .group {
+  padding-left: 16px;
+}
+
+label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0;
+  gap: 16px;
+  height: 26px;
+}
+
+.property-label {
+  flex: 1;
+  position: relative;
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
+  height: 100%;
+}
+
+/* checkbox property-label */
+.property-label:has(+ input[type="checkbox"]) {
+  width: auto;
+  min-width: 0;
+  max-width: none;
+}
+
+.parent-property-name {
+  user-select: none;
+  margin-left: 4px;
+}
+
+.child-property-name {
+  position: absolute;
+  inset: 0;
+  user-select: none;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  align-items: center;
+  container-type: inline-size;
+}
+
+input[type="text"],
+input[type="range"] {
+  flex: 1;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 2px;
+  padding: 4px 6px;
+  height: 18px;
+}
+
+input[type="text"]:focus,
+input[type="range"]:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder); /* Focus border color */
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder); /* Focus shadow */
+}
+
+input[type="checkbox"] {
+  width: 1.1em;
+  height: 1.1em;
+  background-color: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 2px;
+  cursor: pointer;
+  position: relative;
+}
+
+input[type="text"] {
+  flex: 1;
+  min-width: 0;
+}
+
+input[type="range"] {
+  width: 100%;
+  background: var(--vscode-input-background);
+  border-radius: 100px;
+  outline: none;
+  height: 4px;
+  padding: 0;
+}
+
+.slider-container {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  align-items: center;
+  min-width: 100px;
+}
+
+.value-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+input.slider-value {
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 2px;
+  padding: 4px 6px;
+  height: 18px;
+  text-align: right;
+  flex-shrink: 1;
+  width: 60px;
+  min-width: 0;
+}
+
+input.slider-value:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+
+/* Hide arrows in number input for Webkit (Chrome, Edge, Safari) */
+input.slider-value::-webkit-outer-spin-button,
+input.slider-value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide arrows in number input for Firefox */
+input.slider-value[type="number"] {
+  -moz-appearance: textfield;
+}
+
+@container (max-width: 280px) {
+  .value-group input.slider {
+    display: none;
+  }
+
+  .value-group input.slider-value {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+
+  .child-property-name:has(+ input[type="checkbox"]) {
+    width: 90px;
+    min-width: 90px;
+    max-width: 240px;
+  }
+}

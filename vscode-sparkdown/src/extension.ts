@@ -11,6 +11,7 @@ import { activateDurationStatus } from "./utils/activateDurationStatus";
 import { activateExecutionGutterDecorator } from "./utils/activateExecutionGutterDecorator";
 import { activateFileDecorations } from "./utils/activateFileDecorations";
 import { activateFileWatcher } from "./utils/activateFileWatcher";
+import { activateInspector } from "./utils/activateInspector";
 import { activateLanguageClient } from "./utils/activateLanguageClient";
 import { activateNewlineHelper } from "./utils/activateNewlineHelper";
 import { activateOutlineView } from "./utils/activateOutlineView";
@@ -39,6 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
   activateNewlineHelper(context);
   activateDebugger(context);
   activateVirtualDeclarations(context);
+  activateInspector(context);
 }
 
 // Called when extension is deactivated

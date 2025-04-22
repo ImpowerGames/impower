@@ -1,0 +1,16 @@
+{
+  "name": "inspector-webview",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "node ./esbuild.js",
+    "watch": "node ./esbuild.js --watch",
+    "package": "node ./esbuild.js --production"
+  },
+  "dependencies": {
+    "@impower/sparkdown-inspector": "file:../../../packages/sparkdown-inspector"
+  },
+  "devDependencies": {
+    "chokidar": "^4.0.3"
+  }
+}
