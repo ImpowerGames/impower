@@ -17,11 +17,13 @@ import { activateNewlineHelper } from "./utils/activateNewlineHelper";
 import { activateOutlineView } from "./utils/activateOutlineView";
 import { activatePreviewGamePanel } from "./utils/activatePreviewGamePanel";
 import { activatePreviewScreenplayPanel } from "./utils/activatePreviewScreenplayPanel";
+import { activateScreenPreview } from "./utils/activateScreenPreview";
 import { activateVirtualDeclarations } from "./utils/activateVirtualDeclarations";
 
 // Called when extension is activated
 export function activate(context: vscode.ExtensionContext) {
   console.log("Sparkdown Activated");
+  activateScreenPreview(context);
   activateAutoFormatting(context);
   activateContextService(context);
   activateFileDecorations(context);

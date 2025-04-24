@@ -40,11 +40,9 @@
     "onCommand:sparkdown.previewScreenplay",
     "onCommand:sparkdown.previewGame",
     "onView:sparkdown-cheatsheet",
-    "onView:sparkdown-preview-screenplay",
-    "onView:sparkdown-preview-game",
-    "onView:sparkdown-inspector",
     "onWebviewPanel:sparkdown-preview-screenplay",
     "onWebviewPanel:sparkdown-preview-game",
+    "onWebviewPanel:sparkdown-preview-screen",
     "onWebviewPanel:sparkdown-inspector",
     "onDebugResolve:mock",
     "onDebugDynamicConfigurations:mock",
@@ -278,6 +276,20 @@
           "light": "icon-lang.png",
           "dark": "icon-lang.png"
         }
+      },
+      {
+        "id": "screen",
+        "aliases": [
+          "Screen",
+          "screen"
+        ],
+        "extensions": [
+          ".screen"
+        ],
+        "icon": {
+          "light": "icon-lang.png",
+          "dark": "icon-lang.png"
+        }
       }
     ],
     "grammars": [
@@ -377,20 +389,26 @@
       {
         "command": "sparkdown.previewGame",
         "when": "editorLangId == sparkdown",
-        "title": "Preview game",
+        "title": "Preview Game",
         "icon": "$(game)"
       },
       {
         "command": "sparkdown.previewScreenplay",
         "when": "editorLangId == sparkdown",
-        "title": "Preview screenplay",
+        "title": "Preview Screenplay",
         "icon": "$(book)"
+      },
+      {
+        "command": "sparkdown.previewScreen",
+        "when": "editorLangId == screen",
+        "title": "Preview Screen",
+        "icon": "$(preview)"
       },
       {
         "command": "sparkdown.openInspector",
         "when": "editorLangId == yaml",
         "title": "Open Inspector",
-        "icon": "$(settings)"
+        "icon": "$(info)"
       },
       {
         "command": "sparkdown.exportpdf",
@@ -823,6 +841,7 @@
     "postinstall:sparkdown-document-views": "cd ../packages/sparkdown-document-views && npm ci && cd ../../vscode-sparkdown",
     "postinstall:screenplay-webview": "cd ./webviews/screenplay-webview && npm ci && cd ../../",
     "postinstall:game-webview": "cd ./webviews/game-webview && npm ci && cd ../../",
+    "postinstall:screen-webview": "cd ./webviews/screen-webview && npm ci && cd ../../",
     "postinstall:inspector-webview": "cd ./webviews/inspector-webview && npm ci && cd ../../",
     "postinstall": "npm-run-all -p postinstall:*",
     "build:spark-web-player": "cd ../packages/spark-web-player && npm run build && cd ../../vscode-sparkdown",
@@ -830,6 +849,7 @@
     "build:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm run build && cd ../../vscode-sparkdown",
     "build:screenplay-webview": "cd ./webviews/screenplay-webview && npm run build && cd ../../",
     "build:game-webview": "cd ./webviews/game-webview && npm run build && cd ../../",
+    "build:screen-webview": "cd ./webviews/screen-webview && npm run build && cd ../../",
     "build:inspector-webview": "cd ./webviews/inspector-webview && npm run build && cd ../../",
     "build": "npm-run-all -p build:* && node scripts/esbuild.ts",
     "watch:spark-web-player": "cd ../packages/spark-web-player && npm run watch && cd ../../vscode-sparkdown",
@@ -837,6 +857,7 @@
     "watch:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm run watch && cd ../../vscode-sparkdown",
     "watch:screenplay-webview": "cd ./webviews/screenplay-webview && npm run watch && cd ../../",
     "watch:game-webview": "cd ./webviews/game-webview && npm run watch && cd ../../",
+    "watch:screen-webview": "cd ./webviews/screen-webview && npm run watch && cd ../../",
     "watch:inspector-webview": "cd ./webviews/inspector-webview && npm run watch && cd ../../",
     "watch:self": "node scripts/esbuild.ts --watch",
     "watch": "npm-run-all -p watch:*",
@@ -845,6 +866,7 @@
     "package:screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm run package && cd ../../vscode-sparkdown",
     "package:screenplay-webview": "cd ./webviews/screenplay-webview && npm run package && cd ../../",
     "package:game-webview": "cd ./webviews/game-webview && npm run package && cd ../../",
+    "package:screen-webview": "cd ./webviews/screen-webview && npm run package && cd ../../",
     "package:inspector-webview": "cd ./webviews/inspector-webview && npm run package && cd ../../",
     "package:self": "node scripts/esbuild.ts --production",
     "package": "npm-run-all -p package:* && node scripts/esbuild.js --production --devtool hidden-source-map",
