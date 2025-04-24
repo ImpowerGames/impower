@@ -404,12 +404,12 @@ function parseParams(args: string[]) {
       const [, label] = match;
       params["label"] = label;
     } else if (
-      (match = arg.match(/^(@?\w+)=\"(.*?)\"$/)) ||
-      (match = arg.match(/^(@?\w+)=(\S+)$/))
+      (match = arg.match(/^(@?[\w-]+)=\"(.*?)\"$/)) ||
+      (match = arg.match(/^(@?[\w-]+)=(\S+)$/))
     ) {
       const [, key, value] = match;
       params[key!] = parseValue(value);
-    } else if ((match = arg.match(/^(\w+)$/))) {
+    } else if ((match = arg.match(/^([\w-]+)$/))) {
       const [, key] = match;
       params[key!] = true;
     } else if (arg.trim()) {
