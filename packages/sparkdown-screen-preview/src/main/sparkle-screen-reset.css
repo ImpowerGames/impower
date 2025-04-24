@@ -156,8 +156,6 @@ label {
 }
 
 label:has(input[type="checkbox"]) {
-  flex-direction: row;
-  gap: 8px;
   cursor: pointer;
 }
 

@@ -210,6 +210,11 @@ style {
   border-color: var(--thumb-focus-color, var(--_focus-color));
 }
 
+.InputGroup:has(.Checkbox) {
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+}
 .Checkbox {
   width: 16px;
   height: 16px;
