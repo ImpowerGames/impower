@@ -293,6 +293,22 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
               params: {},
               children: [],
             };
+          } else if (nodeType === "match") {
+            const expression = args.join(" ").trim();
+            node = {
+              root: currentRoot.root,
+              type: nodeType,
+              params: { expression },
+              children: [],
+            };
+          } else if (nodeType.startsWith("case")) {
+            const value = args.join(" ").trim();
+            node = {
+              root: currentRoot.root,
+              type: nodeType,
+              params: { value },
+              children: [],
+            };
           } else if (nodeType === "for") {
             const match = statement.match(/^for\s+(.+?)\s+in\s+(.+)$/);
             if (!match) {
@@ -464,179 +480,203 @@ export function renderElement(
   const breakpoints = ctx.parsed.breakpoints ?? DEFAULT_BREAKPOINTS;
   const attrAliases = ctx.parsed.attrAliases ?? DEFAULT_ATTR_ALIASES;
 
-  if (type === "use") {
-    const component = components?.[params.name];
-    if (!component) {
-      console.error("component not found:", params.name, el);
+  switch (type) {
+    case "if": {
+      if (evaluate(el.params.condition, getContext(ctx))) {
+        return el.children
+          .map((child, i) => renderElement(child, ctx, el, i))
+          .join("\n");
+      }
+      let siblingOffset = 1;
+      let sibling = parent?.children[index + siblingOffset];
+      while (
+        sibling &&
+        (sibling.type === "elseif" || sibling.type === "else")
+      ) {
+        if (
+          sibling.type === "elseif" &&
+          evaluate(sibling.params.condition, getContext(ctx))
+        ) {
+          return sibling.children
+            .map((child, i) => renderElement(child, ctx, sibling, i))
+            .join("\n");
+        } else if (sibling.type === "else") {
+          return sibling.children
+            .map((child, i) => renderElement(child, ctx, sibling, i))
+            .join("\n");
+        }
+        siblingOffset++;
+        sibling = parent?.children[index + siblingOffset];
+      }
       return "";
     }
-    const base = component.params.base;
-    if (base) {
-      return renderElement({ ...component, type: base }, ctx);
+    case "elseif":
+    case "else": {
+      // These should be handled in their parent "if" block.
+      return "";
     }
-    return renderElement(component, ctx);
-  }
+    case "for": {
+      const list = evaluate(params.each, getContext(ctx)) || [];
+      const entries = Object.entries(list);
 
-  if (type in builtins) {
-    const evalContext = getContext(ctx);
-    const component = builtins[type as keyof typeof builtins];
-    const interpContext: Record<string, any> = { ...el.params, type };
-    if (el.root === "style" || el.root === "animation") {
-      interpContext["props"] = params;
-    } else {
-      interpContext["attrs"] = params;
-    }
-    const begin = interpolate(
-      component.begin,
-      interpContext,
-      evalContext,
-      attrAliases
-    );
-    const end = interpolate(
-      component.end,
-      interpContext,
-      evalContext,
-      attrAliases
-    );
-    const content = children
-      .map((child, i) => renderElement(child, ctx, el, i))
-      .join("\n");
-    return `${begin}${content}${end}`;
-  }
+      const nextSibling = parent?.children[index + 1];
+      const loopChildren = children;
 
-  if (el.root === "screen" || el.root === "component") {
-    if (components) {
-      if (type in components) {
-        const component = components[type];
-        return renderElement(component, ctx);
-      }
-    }
-  }
-
-  if (el.root === "screen" || el.root === "component") {
-    if (screens) {
-      if (type in screens) {
-        const screen = screens[type];
-        return renderElement(screen, ctx);
-      }
-    }
-  }
-
-  if (el.root === "style") {
-    if (styles) {
-      if (type in styles) {
-        const style = styles[type];
-        return renderElement(style, ctx);
-      } else if (type.startsWith("@")) {
-        const atSelector = type.slice(1);
-        const pseudo = atSelectorToPseudo(atSelector, breakpoints);
-        const selector = pseudo?.startsWith("@") ? pseudo : `&${pseudo}`;
-        return `${selector} { ${children
-          .map((child, i) => renderElement(child, ctx, el, i))
-          .join("")} }`;
-      } else {
-        return paramToProp(type, params.value);
-      }
-    }
-  }
-
-  if (type === "if") {
-    if (evaluate(el.params.condition, getContext(ctx))) {
-      return el.children
-        .map((child, i) => renderElement(child, ctx, el, i))
-        .join("\n");
-    }
-    let siblingOffset = 1;
-    let sibling = parent?.children[index + siblingOffset];
-    while (sibling && (sibling.type === "elseif" || sibling.type === "else")) {
-      if (
-        sibling.type === "elseif" &&
-        evaluate(sibling.params.condition, getContext(ctx))
-      ) {
-        return sibling.children
-          .map((child, i) => renderElement(child, ctx, sibling, i))
-          .join("\n");
-      } else if (sibling.type === "else") {
-        return sibling.children
-          .map((child, i) => renderElement(child, ctx, sibling, i))
+      if (entries.length === 0 && nextSibling?.type === "else") {
+        return nextSibling.children
+          .map((c, i) => renderElement(c, ctx, nextSibling, i))
           .join("\n");
       }
-      siblingOffset++;
-      sibling = parent?.children[index + siblingOffset];
-    }
-    return "";
-  }
 
-  if (type === "elseif") {
-    return "";
-  }
+      const asKeys = params.as.split(",").map((k: string) => k.trim());
 
-  if (type === "else") {
-    return "";
-  }
-
-  if (type === "for") {
-    const list = evaluate(params.each, getContext(ctx)) || [];
-    const entries = Object.entries(list);
-
-    const nextSibling = parent?.children[index + 1];
-    const loopChildren = children;
-
-    if (entries.length === 0 && nextSibling?.type === "else") {
-      return nextSibling.children
-        .map((c, i) => renderElement(c, ctx, nextSibling, i))
-        .join("\n");
-    }
-
-    const asKeys = params.as.split(",").map((k: string) => k.trim());
-
-    return entries
-      .map(([key, value]) => {
-        let scopeVars: Record<string, any> = {};
-        if (asKeys.length > 0) {
-          scopeVars = {
-            ...(asKeys[0] && { [asKeys[0]]: key }),
-            ...(asKeys[1] && { [asKeys[1]]: value }),
+      return entries
+        .map(([key, value]) => {
+          let scopeVars: Record<string, any> = {};
+          if (asKeys.length > 1) {
+            scopeVars = {
+              ...(asKeys[0] && { [asKeys[0]]: key }),
+              ...(asKeys[1] && { [asKeys[1]]: value }),
+            };
+          } else {
+            scopeVars = { [params.as]: value };
+          }
+          const subCtx = {
+            ...ctx,
+            scope: { ...ctx.scope, ...scopeVars },
           };
-        } else {
-          scopeVars = { [params.as]: value };
-        }
+          return loopChildren
+            .map((child, i) => renderElement(child, subCtx, el, i))
+            .join("\n");
+        })
+        .join("\n");
+    }
+    case "repeat": {
+      const times = evaluate<number>(params.times, getContext(ctx));
+
+      const nextSibling = parent?.children[index + 1];
+      const loopChildren = children;
+
+      if (Number.isNaN(times)) {
+        return "";
+      }
+
+      if (times === 0 && nextSibling?.type === "else") {
+        return nextSibling.children
+          .map((c, i) => renderElement(c, ctx, nextSibling, i))
+          .join("\n");
+      }
+
+      return Array.from({ length: times }, (_, i) => {
         const subCtx = {
           ...ctx,
-          scope: { ...ctx.scope, ...scopeVars },
+          scope: { ...(ctx.scope || EMPTY_OBJ), index: i },
         };
         return loopChildren
-          .map((child, i) => renderElement(child, subCtx, el, i))
+          .map((child, j) => renderElement(child, subCtx, el, j))
           .join("\n");
-      })
-      .join("\n");
-  }
-
-  if (type === "repeat") {
-    const times = evaluate<number>(params.times, getContext(ctx));
-
-    const nextSibling = parent?.children[index + 1];
-    const loopChildren = children;
-
-    if (Number.isNaN(times)) {
+      }).join("\n");
+    }
+    case "match": {
+      const value = evaluate(params.expression, getContext(ctx));
+      for (const child of children) {
+        if (child.type === "case") {
+          const caseValue = evaluate(child.params.value, getContext(ctx));
+          if (value === caseValue) {
+            return child.children
+              .map((c, i) => renderElement(c, ctx, child, i))
+              .join("\n");
+          }
+        } else if (child.type === "else") {
+          return child.children
+            .map((c, i) => renderElement(c, ctx, child, i))
+            .join("\n");
+        }
+      }
       return "";
     }
-
-    if (times === 0 && nextSibling?.type === "else") {
-      return nextSibling.children
-        .map((c, i) => renderElement(c, ctx, nextSibling, i))
-        .join("\n");
+    case "case": {
+      // These are handled by their parent match block.
+      return "";
     }
+    case "use": {
+      const component = components?.[params.name];
+      if (!component) {
+        console.error("component not found:", params.name, el);
+        return "";
+      }
+      const base = component.params.base;
+      if (base) {
+        return renderElement({ ...component, type: base }, ctx);
+      }
+      return renderElement(component, ctx);
+    }
+    default: {
+      if (type in builtins) {
+        const component = builtins[type as keyof typeof builtins];
+        const elementContext: Record<string, any> = { ...el.params, type };
+        const evalContext = getContext(ctx);
+        if (el.root === "style" || el.root === "animation") {
+          elementContext["props"] = params;
+        } else {
+          elementContext["attrs"] = Object.entries(params).map(([k, v]) =>
+            paramToAttr(k, v, evalContext, attrAliases)
+          );
+        }
+        const beginTemplate = interpolate(
+          component.begin,
+          elementContext,
+          attrAliases
+        );
+        const endTemplate = interpolate(
+          component.end,
+          elementContext,
+          attrAliases
+        );
+        const begin = interpolate(beginTemplate, evalContext, attrAliases);
+        const end = interpolate(endTemplate, evalContext, attrAliases);
+        const content = children
+          .map((child, i) => renderElement(child, ctx, el, i))
+          .join("\n");
+        return `${begin}${content}${end}`;
+      }
 
-    return Array.from({ length: times }, (_, i) => {
-      const subCtx = {
-        ...ctx,
-        scope: { ...(ctx.scope || EMPTY_OBJ), index: i },
-      };
-      return loopChildren
-        .map((child, j) => renderElement(child, subCtx, el, j))
-        .join("\n");
-    }).join("\n");
+      if (el.root === "screen" || el.root === "component") {
+        if (components) {
+          if (type in components) {
+            const component = components[type];
+            return renderElement(component, ctx);
+          }
+        }
+      }
+
+      if (el.root === "screen" || el.root === "component") {
+        if (screens) {
+          if (type in screens) {
+            const screen = screens[type];
+            return renderElement(screen, ctx);
+          }
+        }
+      }
+
+      if (el.root === "style") {
+        if (styles) {
+          if (type in styles) {
+            const style = styles[type];
+            return renderElement(style, ctx);
+          } else if (type.startsWith("@")) {
+            const atSelector = type.slice(1);
+            const pseudo = atSelectorToPseudo(atSelector, breakpoints);
+            const selector = pseudo?.startsWith("@") ? pseudo : `&${pseudo}`;
+            return `${selector} { ${children
+              .map((child, i) => renderElement(child, ctx, el, i))
+              .join("")} }`;
+          } else {
+            return paramToProp(type, params.value);
+          }
+        }
+      }
+    }
   }
 
   return "";
@@ -651,7 +691,7 @@ function evaluate<T>(expr: string, context: Record<string, any>): T {
     const fn = new Function("context", `with(context) { return (${expr}); }`);
     return fn(context);
   } catch (e) {
-    // console.warn("Failed to evaluate expression:", expr, e);
+    // console.warn("Failed to evaluate expression:", expr, context, e);
     return undefined as T;
   }
 }
@@ -659,7 +699,6 @@ function evaluate<T>(expr: string, context: Record<string, any>): T {
 function interpolate(
   template: string,
   context: Record<string, any>,
-  evalContext?: Record<string, any>,
   attrAliases?: Record<string, string>
 ): string {
   try {
@@ -670,32 +709,21 @@ function interpolate(
           return $1;
         }
         if ($2) {
-          return interpolate(
-            interpolate($2, context, undefined, attrAliases),
-            evalContext || context,
-            undefined,
-            attrAliases
-          );
+          return interpolate($2, context, attrAliases);
         }
         if ($3) {
           const obj = evaluate<object>($3, context);
-          if (typeof obj !== "object") {
+          if (!Array.isArray(obj)) {
+            console.warn("Object is not iterable:", obj);
             return "";
           }
-          const attrs = Object.entries(obj)
-            .map(([k, v]) =>
-              "attrs" in context
-                ? paramToAttr(k, v, context, evalContext, attrAliases)
-                : paramToProp(k, v)
-            )
-            .join(" ");
-          return attrs;
+          return obj.join(" ");
         }
         return evaluate<string>($4, context) ?? "";
       }
     );
   } catch (e) {
-    // console.warn("Failed to interpolate expression:", template, e);
+    console.warn("Failed to interpolate expression:", template, context, e);
     return "";
   }
 }
@@ -704,7 +732,6 @@ function paramToAttr(
   key: string,
   value: unknown,
   context: Record<string, any>,
-  evalContext?: Record<string, any>,
   attrAliases?: Record<string, string>
 ) {
   let k = attrAliases?.[key] ?? key;
@@ -721,16 +748,12 @@ function paramToAttr(
     return `${k}=${v}`;
   }
   if (typeof v === "string") {
-    return `${k}=${JSON.stringify(
-      interpolate(v, context, evalContext, attrAliases)
-    )}`;
+    return `${k}=${JSON.stringify(interpolate(v, context, attrAliases))}`;
   }
   if (Array.isArray(v)) {
     return `${k}="${v
       .map((x) =>
-        typeof x === "string"
-          ? interpolate(x, context, evalContext, attrAliases)
-          : x
+        typeof x === "string" ? interpolate(x, context, attrAliases) : x
       )
       .join(" ")}"`;
   }
