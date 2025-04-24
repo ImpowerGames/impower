@@ -24,70 +24,94 @@ export interface ParseContext extends ParseOptions {
 
 export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
   style: {
-    begin: "<style> :host .{type}.{name} \\{ ",
-    end: "} </style>",
+    begin: "{selector} \\{",
+    end: "}",
   },
   screen: {
-    begin: '<div class="style {type} {name}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>',
     end: "</div>",
   },
   component: {
-    begin: '<div class="style {type} {name}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>',
     end: "</div>",
   },
   Box: {
-    begin: '<div class="style {type} {name}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>',
     end: "</div>",
   },
   Row: {
-    begin: '<div class="style {type} {name}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>',
     end: "</div>",
   },
   Column: {
-    begin: '<div class="style {type} {name}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>',
     end: "</div>",
   },
   Grid: {
-    begin: '<div class="style {type} {name}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>',
     end: "</div>",
   },
   Label: {
-    begin: '<div class="style {type} {name}" {...attrs}>{{label}}',
+    begin: '<div class="style {classes}" {...attrs}>{{label}}',
     end: "</div>",
   },
   Button: {
-    begin: '<button class="style {type} {name}" {...attrs}>{{label}}',
+    begin: '<button class="style {classes}" {...attrs}>{{label}}',
     end: "</button>",
   },
   Image: {
-    begin: '<img class="style {type} {name}" {...attrs}>',
+    begin: '<img class="style {classes}" {...attrs}>',
     end: "</img>",
   },
   Input: {
-    begin:
-      '<label class="style InputGroup"><span class="style Label">{{label}}</span><input class="style {type} {name}" type="text" {...attrs}>',
-    end: "</input></label>",
+    begin: `
+<label class="style InputGroup">
+  <span class="style Label">{{label}}</span>
+  <input class="style {classes}" type="text" {...attrs}/>
+`,
+    end: `
+</label>
+`,
   },
   Slider: {
-    begin: `<label class="style InputGroup"><span class="style Label">{{label}}</span><input class="style {type} {name}" type="range" style="--fill-percentage: 50%;" oninput="this.style.setProperty('--fill-percentage', (this.value - this.min) / (this.max - this.min) * 100 + '%')" {...attrs}>`,
-    end: "</input></label>",
+    begin: `
+<label class="style InputGroup">
+  <span class="style Label">{{label}}</span>
+  <input class="style {classes}" type="range" style="--fill-percentage: 50%;" oninput="this.style.setProperty('--fill-percentage', (this.value - this.min) / (this.max - this.min) * 100 + '%')" {...attrs}/>
+`,
+    end: `
+</label>
+`,
   },
   Checkbox: {
-    begin:
-      '<label class="style InputGroup"><input class="style {type} {name}" type="checkbox" {...attrs}><span class="style Label">{{label}}</span>',
-    end: "</input></label>",
+    begin: `
+<label class="style InputGroup">
+  <input class="style {classes}" type="checkbox" {...attrs}/>
+  <span class="style Label">{{label}}</span>
+`,
+    end: `
+</label>
+`,
   },
   Dropdown: {
-    begin:
-      '<label class="style InputGroup"><span class="style Label">{{label}}</span><div class="style DropdownArrow"><select class="style {type} {name}" {...attrs}>',
-    end: "</select></div></label>",
+    begin: `
+<label class="style InputGroup">
+  <span class="style Label">{{label}}</span>
+  <div class="style DropdownArrow">
+    <select class="style {classes}" {...attrs}>
+`,
+    end: `
+    </select>
+  </div>
+</label>
+`,
   },
   Option: {
-    begin: '<option class="style {type} {name}" {...attrs}>',
+    begin: '<option class="style {classes}" {...attrs}>',
     end: "</option>",
   },
   Space: {
-    begin: '<div class="style {type} {name}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>',
     end: "</div>",
   },
 } as const;
@@ -241,7 +265,7 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
           continue;
         }
         const [, keyOrBase, key] = match;
-        const base = key ? keyOrBase : "Animation";
+        const base = key ? keyOrBase : "animation";
         const name = key ? key : keyOrBase;
         currentRoot = {
           root: "animation",
@@ -457,6 +481,7 @@ export interface RenderContext {
   scope?: Record<string, any>;
   renderStyles: () => void;
   renderHTML: () => void;
+  indent?: number;
 }
 
 export interface Node {
@@ -465,12 +490,13 @@ export interface Node {
   children: Node[];
 }
 
-export function renderElement(
+export function renderElements(
   el: Node,
   ctx: RenderContext,
   parent?: Node,
-  index: number = 0
-): string {
+  index: number = 0,
+  indentLevel = 0
+): string[] {
   const { type, params, children } = el;
 
   const components = ctx.parsed.components;
@@ -483,9 +509,9 @@ export function renderElement(
   switch (type) {
     case "if": {
       if (evaluate(el.params.condition, getContext(ctx))) {
-        return el.children
-          .map((child, i) => renderElement(child, ctx, el, i))
-          .join("\n");
+        return el.children.flatMap((child, i) =>
+          renderElements(child, ctx, el, i)
+        );
       }
       let siblingOffset = 1;
       let sibling = parent?.children[index + siblingOffset];
@@ -497,23 +523,23 @@ export function renderElement(
           sibling.type === "elseif" &&
           evaluate(sibling.params.condition, getContext(ctx))
         ) {
-          return sibling.children
-            .map((child, i) => renderElement(child, ctx, sibling, i))
-            .join("\n");
+          return sibling.children.flatMap((child, i) =>
+            renderElements(child, ctx, sibling, i)
+          );
         } else if (sibling.type === "else") {
-          return sibling.children
-            .map((child, i) => renderElement(child, ctx, sibling, i))
-            .join("\n");
+          return sibling.children.flatMap((child, i) =>
+            renderElements(child, ctx, sibling, i)
+          );
         }
         siblingOffset++;
         sibling = parent?.children[index + siblingOffset];
       }
-      return "";
+      return [];
     }
     case "elseif":
     case "else": {
       // These should be handled in their parent "if" block.
-      return "";
+      return [];
     }
     case "for": {
       const list = evaluate(params.each, getContext(ctx)) || [];
@@ -523,33 +549,31 @@ export function renderElement(
       const loopChildren = children;
 
       if (entries.length === 0 && nextSibling?.type === "else") {
-        return nextSibling.children
-          .map((c, i) => renderElement(c, ctx, nextSibling, i))
-          .join("\n");
+        return nextSibling.children.flatMap((c, i) =>
+          renderElements(c, ctx, nextSibling, i)
+        );
       }
 
       const asKeys = params.as.split(",").map((k: string) => k.trim());
 
-      return entries
-        .map(([key, value]) => {
-          let scopeVars: Record<string, any> = {};
-          if (asKeys.length > 1) {
-            scopeVars = {
-              ...(asKeys[0] && { [asKeys[0]]: key }),
-              ...(asKeys[1] && { [asKeys[1]]: value }),
-            };
-          } else {
-            scopeVars = { [params.as]: value };
-          }
-          const subCtx = {
-            ...ctx,
-            scope: { ...ctx.scope, ...scopeVars },
+      return entries.flatMap(([key, value]) => {
+        let scopeVars: Record<string, any> = {};
+        if (asKeys.length > 1) {
+          scopeVars = {
+            ...(asKeys[0] && { [asKeys[0]]: key }),
+            ...(asKeys[1] && { [asKeys[1]]: value }),
           };
-          return loopChildren
-            .map((child, i) => renderElement(child, subCtx, el, i))
-            .join("\n");
-        })
-        .join("\n");
+        } else {
+          scopeVars = { [params.as]: value };
+        }
+        const subCtx = {
+          ...ctx,
+          scope: { ...ctx.scope, ...scopeVars },
+        };
+        return loopChildren.flatMap((child, i) =>
+          renderElements(child, subCtx, el, i)
+        );
+      });
     }
     case "repeat": {
       const times = evaluate<number>(params.times, getContext(ctx));
@@ -558,24 +582,24 @@ export function renderElement(
       const loopChildren = children;
 
       if (Number.isNaN(times)) {
-        return "";
+        return [];
       }
 
       if (times === 0 && nextSibling?.type === "else") {
-        return nextSibling.children
-          .map((c, i) => renderElement(c, ctx, nextSibling, i))
-          .join("\n");
+        return nextSibling.children.flatMap((c, i) =>
+          renderElements(c, ctx, nextSibling, i)
+        );
       }
 
-      return Array.from({ length: times }, (_, i) => {
+      return Array.from({ length: times }, (_, k) => k).flatMap((_, i) => {
         const subCtx = {
           ...ctx,
           scope: { ...(ctx.scope || EMPTY_OBJ), index: i },
         };
-        return loopChildren
-          .map((child, j) => renderElement(child, subCtx, el, j))
-          .join("\n");
-      }).join("\n");
+        return loopChildren.flatMap((child, j) =>
+          renderElements(child, subCtx, el, j)
+        );
+      });
     }
     case "match": {
       const value = evaluate(params.expression, getContext(ctx));
@@ -583,45 +607,53 @@ export function renderElement(
         if (child.type === "case") {
           const caseValue = evaluate(child.params.value, getContext(ctx));
           if (value === caseValue) {
-            return child.children
-              .map((c, i) => renderElement(c, ctx, child, i))
-              .join("\n");
+            return child.children.flatMap((c, i) =>
+              renderElements(c, ctx, child, i)
+            );
           }
         } else if (child.type === "else") {
-          return child.children
-            .map((c, i) => renderElement(c, ctx, child, i))
-            .join("\n");
+          return child.children.flatMap((c, i) =>
+            renderElements(c, ctx, child, i)
+          );
         }
       }
-      return "";
+      return [];
     }
     case "case": {
       // These are handled by their parent match block.
-      return "";
+      return [];
     }
     case "use": {
       const component = components?.[params.name];
       if (!component) {
         console.error("component not found:", params.name, el);
-        return "";
+        return [];
       }
       const base = component.params.base;
       if (base) {
-        return renderElement({ ...component, type: base }, ctx);
+        return renderElements({ ...component, type: base }, ctx);
       }
-      return renderElement(component, ctx);
+      return renderElements(component, ctx);
     }
     default: {
       if (type in builtins) {
         const component = builtins[type as keyof typeof builtins];
-        const elementContext: Record<string, any> = { ...el.params, type };
+        const elementContext: Record<string, any> = {
+          ...el.params,
+        };
         const evalContext = getContext(ctx);
         if (el.root === "style" || el.root === "animation") {
           elementContext["props"] = params;
+          elementContext["selector"] = ["." + type, el.params.name]
+            .filter(Boolean)
+            .join(".");
         } else {
           elementContext["attrs"] = Object.entries(params).map(([k, v]) =>
             paramToAttr(k, v, evalContext, attrAliases)
           );
+          elementContext["classes"] = [type, el.params.name]
+            .filter(Boolean)
+            .join(" ");
         }
         const beginTemplate = interpolate(
           component.begin,
@@ -633,19 +665,40 @@ export function renderElement(
           elementContext,
           attrAliases
         );
-        const begin = interpolate(beginTemplate, evalContext, attrAliases);
-        const end = interpolate(endTemplate, evalContext, attrAliases);
-        const content = children
-          .map((child, i) => renderElement(child, ctx, el, i))
-          .join("\n");
-        return `${begin}${content}${end}`;
+        const begin = interpolate(beginTemplate, evalContext, attrAliases)
+          .split("\n")
+          .filter(Boolean);
+        const end = interpolate(endTemplate, evalContext, attrAliases)
+          .split("\n")
+          .filter(Boolean);
+        const content = children.flatMap((child, i) =>
+          renderElements(child, ctx, el, i)
+        );
+        const isMultiline = begin.length > 1 || content.length > 1;
+        if (isMultiline) {
+          let startingInnerIndent =
+            indentLevel + getIndentLevel(begin.at(-1) ?? "");
+          return [
+            ...begin.map((line) => indentLine(line, indentLevel)),
+            ...indentChildren(content, startingInnerIndent + 1),
+            ...end.map((line) => indentLine(line, indentLevel)),
+          ];
+        } else {
+          return [
+            [
+              ...begin.map((line) => indentLine(line, indentLevel)),
+              ...content,
+              ...end,
+            ].join(""),
+          ];
+        }
       }
 
       if (el.root === "screen" || el.root === "component") {
         if (components) {
           if (type in components) {
             const component = components[type];
-            return renderElement(component, ctx);
+            return renderElements(component, ctx);
           }
         }
       }
@@ -654,7 +707,7 @@ export function renderElement(
         if (screens) {
           if (type in screens) {
             const screen = screens[type];
-            return renderElement(screen, ctx);
+            return renderElements(screen, ctx);
           }
         }
       }
@@ -663,23 +716,30 @@ export function renderElement(
         if (styles) {
           if (type in styles) {
             const style = styles[type];
-            return renderElement(style, ctx);
+            return renderElements(style, ctx);
           } else if (type.startsWith("@")) {
             const atSelector = type.slice(1);
             const pseudo = atSelectorToPseudo(atSelector, breakpoints);
             const selector = pseudo?.startsWith("@") ? pseudo : `&${pseudo}`;
-            return `${selector} { ${children
-              .map((child, i) => renderElement(child, ctx, el, i))
-              .join("")} }`;
+            const begin = `${selector} {`;
+            const end = "}";
+            const content = children.flatMap((child, i) =>
+              renderElements(child, ctx, el, i)
+            );
+            return [
+              indentLine(begin, indentLevel),
+              ...indentChildren(content, indentLevel + 1),
+              indentLine(end, indentLevel),
+            ];
           } else {
-            return paramToProp(type, params.value);
+            return [paramToProp(type, params.value)];
           }
         }
       }
     }
   }
 
-  return "";
+  return [];
 }
 
 function getContext(ctx: RenderContext): Record<string, any> {
@@ -839,6 +899,26 @@ function atSelectorToPseudo(
   }
 }
 
+const INDENT = "  ";
+function indentLine(line: string, level: number) {
+  return INDENT.repeat(level) + line;
+}
+
+const indentChildren = (lines: string[], level: number) =>
+  lines.map((line) =>
+    line.trim() === "" ? "" : indentLine(line.trimEnd(), level)
+  );
+
+function getIndentLevel(line: string) {
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char !== " " && char !== "\t") {
+      return i / INDENT.length;
+    }
+  }
+  return 0;
+}
+
 export function renderStyles(
   parsed: ParseContext,
   ctx: RenderContext,
@@ -847,11 +927,12 @@ export function renderStyles(
   if (!parsed.styles) {
     return "";
   }
-  return styleName
-    ? renderElement(parsed.styles[styleName], ctx)
-    : Object.values(parsed.styles)
-        .map((screen) => renderElement(screen, ctx))
-        .join("\n");
+  if (styleName) {
+    return renderElements(parsed.styles[styleName], ctx).join("\n");
+  }
+  return Object.values(parsed.styles)
+    .map((style) => renderElements(style, ctx).join("\n"))
+    .join("\n");
 }
 
 export function renderHTML(
@@ -862,11 +943,12 @@ export function renderHTML(
   if (!parsed.screens) {
     return "";
   }
-  return screenName
-    ? renderElement(parsed.screens[screenName], ctx)
-    : Object.values(parsed.screens)
-        .map((screen) => renderElement(screen, ctx))
-        .join("\n");
+  if (screenName) {
+    return renderElements(parsed.screens[screenName], ctx).join("\n");
+  }
+  return Object.values(parsed.screens)
+    .map((screen) => renderElements(screen, ctx).join("\n"))
+    .join("\n");
 }
 
 export function mountUI(
