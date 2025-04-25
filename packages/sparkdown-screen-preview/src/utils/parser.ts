@@ -36,7 +36,12 @@ export function parseSSL(input: string): ParseContext {
     // Determine indent level
     const indentMatch = rawLine.match(INDENT_REGEX);
     const currentIndentation = indentMatch?.[0] || "";
-    const indent = currentIndentation.length;
+    let indent = currentIndentation.length;
+
+    if (indent === 0) {
+      // TODO: Support blank lines
+      currentRoot = null;
+    }
 
     // Get trimmed statement
     const trimmedLine = rawLine.trim();
@@ -47,7 +52,7 @@ export function parseSSL(input: string): ParseContext {
     if (trimmedLine) {
       // Split statement into type and args
       const [nodeType, ...args] = splitAttrArgs(statement);
-      if (nodeType === "screen") {
+      if (!currentRoot && nodeType === "screen") {
         // Root is a Screen
         const match = statement.match(/^screen\s+(\w+)(?:[.](\w+))?$/);
         if (!match) {
@@ -65,7 +70,7 @@ export function parseSSL(input: string): ParseContext {
         screens[name] = currentRoot;
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
-      } else if (nodeType === "component") {
+      } else if (!currentRoot && nodeType === "component") {
         // Root is a Component
         const match = statement.match(/^component\s+(\w+)(?:[.](\w+))?$/);
         if (!match) {
@@ -83,38 +88,34 @@ export function parseSSL(input: string): ParseContext {
         components[name] = currentRoot;
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
-      } else if (nodeType === "style") {
+      } else if (!currentRoot && nodeType === "style") {
         // Root is a Style
-        const match = statement.match(/^style\s+(\w+)(?:[.](\w+))?$/);
+        const match = statement.match(/^style\s+(\w+)$/);
         if (!match) {
           console.warn(`invalid style syntax:`, statement);
           continue;
         }
-        const [, keyOrBase, key] = match;
-        const base = key ? keyOrBase : "";
-        const name = key ? key : keyOrBase;
+        const [, name] = match;
         currentRoot = {
           root: "style",
           type: "style",
-          params: { base, name },
+          params: { name },
         };
         styles[name] = currentRoot;
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
-      } else if (nodeType === "animation") {
+      } else if (!currentRoot && nodeType === "animation") {
         // Root is a Style
-        const match = statement.match(/^animation\s+(\w+)(?:[.](\w+))?$/);
+        const match = statement.match(/^animation\s+(\w+)$/);
         if (!match) {
           console.warn(`invalid animation syntax:`, statement);
           continue;
         }
-        const [, keyOrBase, key] = match;
-        const base = key ? keyOrBase : "";
-        const name = key ? key : keyOrBase;
+        const [, name] = match;
         currentRoot = {
           root: "animation",
           type: "animation",
-          params: { base, name },
+          params: { name },
         };
         animations[name] = currentRoot;
         stack.length = 0;
@@ -124,7 +125,7 @@ export function parseSSL(input: string): ParseContext {
         while (stack.length > 0 && indent <= stack.at(-1)!.indent) {
           stack.pop();
         }
-        const parent = stack.at(-1)?.node;
+        let parent = stack.at(-1)?.node;
         if (!parent) {
           currentRoot = null;
           continue;
@@ -219,11 +220,47 @@ export function parseSSL(input: string): ParseContext {
               type: nodeType,
             };
           } else {
-            const value = args.join(" ").split("=")[1]?.trimStart();
+            const value = statement.split("=")[1]?.trimStart();
             node = {
               root: currentRoot.root,
-              type: nodeType,
-              params: { value },
+              type: "prop",
+              params: { key: nodeType, value },
+            };
+          }
+        } else if (currentRoot?.type === "animation") {
+          if (nodeType === "-") {
+            const itemNode: Node = { root: currentRoot.root, type: "item" };
+            parent.children ??= [];
+            parent.children.push(itemNode);
+            indent = indent + 1;
+            stack.push({ node: itemNode, indent });
+            parent = itemNode;
+            indent = indent + 2;
+            const [key, value] = statement.split("=");
+            node = {
+              root: currentRoot.root,
+              type: "prop",
+              params: {
+                key: key?.trim().slice(1)?.trim(),
+                value: value?.trim(),
+              },
+            };
+          } else if (nodeType === "keyframes") {
+            node = {
+              root: currentRoot.root,
+              type: "keyframes",
+            };
+          } else if (nodeType === "timing") {
+            node = {
+              root: currentRoot.root,
+              type: "timing",
+            };
+          } else {
+            const [key, value] = statement.split("=");
+            node = {
+              root: currentRoot.root,
+              type: "prop",
+              params: { key: key?.trim(), value: value?.trim() },
             };
           }
         }
@@ -232,7 +269,7 @@ export function parseSSL(input: string): ParseContext {
         if (node) {
           parent.children ??= [];
           parent.children.push(node);
-          stack.push({ node: node, indent });
+          stack.push({ node, indent });
         }
       }
     }

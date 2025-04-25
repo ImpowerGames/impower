@@ -345,7 +345,7 @@ export function renderElements(
             .filter(Boolean)
             .join(".");
         } else if (el.root === "animation") {
-          elementContext["name"] = type;
+          elementContext["name"] = el.params?.name;
         } else {
           const { base, name, ...rest } = params || {};
           const classNames =
@@ -460,39 +460,51 @@ export function renderElements(
         }
 
         if (el.root === "style") {
-          if (styles) {
-            if (type in styles) {
-              const style = styles[type];
-              return renderElements(style, ctx);
-            } else if (type.startsWith("@")) {
-              const atSelector = type.slice(1);
-              const pseudo = atSelectorToPseudo(atSelector, breakpoints);
-              const selector = pseudo?.startsWith("@") ? pseudo : `&${pseudo}`;
-              const begin = `${selector} {`;
-              const end = "}";
-              const content =
-                children?.flatMap((child, i) =>
-                  renderElements(child, ctx, el, i)
-                ) ?? [];
-              return [
-                indentLine(begin, indentLevel),
-                ...indentChildren(content, indentLevel + 1),
-                indentLine(end, indentLevel),
-              ];
-            } else {
-              return [paramToProp(type, params?.value, cssAliases)];
-            }
+          if (type.startsWith("@")) {
+            const atSelector = type.slice(1);
+            const pseudo = atSelectorToPseudo(atSelector, breakpoints);
+            const selector = pseudo?.startsWith("@") ? pseudo : `&${pseudo}`;
+            const begin = `${selector} {`;
+            const end = "}";
+            const content =
+              children?.flatMap((child, i) =>
+                renderElements(child, ctx, el, i)
+              ) ?? [];
+            return [
+              indentLine(begin, indentLevel),
+              ...indentChildren(content, indentLevel + 1),
+              indentLine(end, indentLevel),
+            ];
+          } else if (type === "prop") {
+            return [paramToProp(params?.key, params?.value, cssAliases)];
           }
         }
 
         if (el.root === "animation") {
-          if (animations) {
-            if (type in animations) {
-              const animation = animations[type];
-              return renderElements(animation, ctx);
-            } else {
-              return [paramToProp(type, params?.value, cssAliases)];
+          if (type === "keyframes") {
+            if (el.children && el.children.length > 0) {
+              const max = el.children.length - 1;
+              return el.children.flatMap((keyframe, i) => {
+                const offset = max === 0 ? "to" : `${(i / max) * 100}%`;
+                const begin = `${offset} {`;
+                const end = "}";
+                const content =
+                  keyframe.children?.flatMap((child, i) =>
+                    renderElements(child, ctx, el, i)
+                  ) ?? [];
+                return [
+                  indentLine(begin, indentLevel),
+                  ...indentChildren(content, indentLevel + 1),
+                  indentLine(end, indentLevel),
+                ];
+              });
             }
+          } else if (type === "item") {
+            // handled by keyframes
+          } else if (type === "timing") {
+            // ignored by renderer
+          } else if (type === "prop") {
+            return [paramToProp(params?.key, params?.value, cssAliases)];
           }
         }
       }
@@ -716,20 +728,19 @@ function addToInheritanceChain(
   }
 }
 
-export function renderStyles(
-  parsed: ParseContext,
-  ctx: RenderContext,
-  styleName?: string
-): string {
-  if (!parsed.styles) {
-    return "";
+export function renderStyles(parsed: ParseContext, ctx: RenderContext): string {
+  let css = "";
+  if (parsed.animations) {
+    css += Object.values(parsed.animations)
+      .map((style) => renderElements(style, ctx).join("\n"))
+      .join("\n");
   }
-  if (styleName) {
-    return renderElements(parsed.styles[styleName], ctx).join("\n");
+  if (parsed.styles) {
+    css += Object.values(parsed.styles)
+      .map((style) => renderElements(style, ctx).join("\n"))
+      .join("\n");
   }
-  return Object.values(parsed.styles)
-    .map((style) => renderElements(style, ctx).join("\n"))
-    .join("\n");
+  return css;
 }
 
 export function renderHTML(
