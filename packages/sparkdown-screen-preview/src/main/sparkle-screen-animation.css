@@ -8,18 +8,6 @@
   }
 }
 
-@keyframes ping {
-  0% {
-    box-shadow: 0 0 0 0 var(--color);
-  }
-  70% {
-    box-shadow: 0 0 0 0.5rem transparent;
-  }
-  100% {
-    box-shadow: 0 0 0 0 transparent;
-  }
-}
-
 @keyframes sheen {
   0% {
     background-position: 200% 0;
@@ -335,7 +323,6 @@
 :is(:root, :host) > * {
   /* Animations */
   --animation_spin: spin 1s linear infinite;
-  --animation_ping: ping 1.5s linear infinite;
   --animation_sheen: sheen 8s ease-in-out infinite;
   --animation_blink: blink 1s cubic-bezier(0, 0, 0.3, 1) infinite;
   --animation_float: float 3s cubic-bezier(0.5, 0, 0.5, 1) infinite;
@@ -373,4 +360,20 @@
   --animation_open: open 100ms ease-out;
   --animation_close: close 75ms linear;
   --animation_pulse: pulse 150ms ease-in-out;
+
+  --easing_linear: linear;
+  --easing_ease: ease;
+  --easing_ease-in: ease-in;
+  --easing_ease-out: ease-out;
+  --easing_ease-in-out: ease-in-out;
+  --easing_ease-elastic-1: cubic-bezier(0.5, 0.75, 0.75, 1.25);
+  --easing_ease-elastic-2: cubic-bezier(0.5, 1, 0.75, 1.25);
+  --easing_ease-elastic-3: cubic-bezier(0.5, 1.25, 0.75, 1.25);
+  --easing_ease-elastic-4: cubic-bezier(0.5, 1.5, 0.75, 1.25);
+  --easing_ease-elastic-5: cubic-bezier(0.5, 1.75, 0.75, 1.25);
+  --easing_ease-squish-1: cubic-bezier(0.5, -0.1, 0.1, 1.5);
+  --easing_ease-squish-2: cubic-bezier(0.5, -0.3, 0.1, 1.5);
+  --easing_ease-squish-3: cubic-bezier(0.5, -0.5, 0.1, 1.5);
+  --easing_ease-squish-4: cubic-bezier(0.5, -0.7, 0.1, 1.5);
+  --easing_ease-squish-5: cubic-bezier(0.5, -0.9, 0.1, 1.5);
 }
