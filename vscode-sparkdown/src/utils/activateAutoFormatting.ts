@@ -45,7 +45,7 @@ export const activateAutoFormatting = (context: ExtensionContext) => {
       }
     }),
     workspace.onDidChangeTextDocument((data: TextDocumentChangeEvent) => {
-      if (data.languageId === "sparkdown") {
+      if (data.document.languageId === "sparkdown") {
         SparkdownDocumentManager.instance.update(data);
       }
     }),
