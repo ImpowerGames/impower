@@ -108,28 +108,22 @@ export class ScopedRule implements Rule {
     const contentChildren: Matched[] = [];
     // check end
     let endMatched = this.end(state, pos);
+
     while (!endMatched && pos < state.str.length) {
       // check patterns
       const patternMatched = this.content(state, pos);
       if (patternMatched) {
+        // A pattern matched
         contentChildren.push(patternMatched);
-        const matchLength = patternMatched.length;
-        totalLength += matchLength;
-        pos += matchLength;
+        totalLength += patternMatched.length;
+        pos += patternMatched.length;
         if (pos >= state.str.length) {
           state.advance();
         }
       } else {
-        const noneMatched = Matched.create(GrammarNode.Unrecognized, pos, 1);
-        contentChildren.push(noneMatched);
-        const matchLength = noneMatched.length;
-        totalLength += matchLength;
-        pos += matchLength;
-        if (pos >= state.str.length) {
-          state.advance();
-        }
+        // None of the patterns matched, so forcibly exit scope
+        break;
       }
-      // check end
       endMatched = this.end(state, pos);
     }
     if (contentChildren.length === 1) {
@@ -164,13 +158,20 @@ export class ScopedRule implements Rule {
     if (endMatched) {
       wrappedEndChildren.push(endMatched.children?.[0]!);
       totalLength += endMatched.length;
+      return Matched.create(this.node, from, totalLength, [
+        ...wrappedBeginChildren,
+        ...wrappedContentChildren,
+        ...wrappedEndChildren,
+      ]);
+    } else {
+      // No end matched: incomplete scope
+      // TODO: Mark node as incomplete?
+      const incompleteNode = Matched.create(this.node, from, totalLength, [
+        ...wrappedBeginChildren,
+        ...wrappedContentChildren,
+      ]);
+      return incompleteNode;
     }
-
-    return Matched.create(this.node, from, totalLength, [
-      ...wrappedBeginChildren,
-      ...wrappedContentChildren,
-      ...wrappedEndChildren,
-    ]);
   }
 
   begin(state: GrammarState, from: number) {
