@@ -1,6 +1,7 @@
 import { spec } from "../../../spec-component/src/spec";
 import css from "./sparkdown-screen-preview.css";
 import html from "./sparkdown-screen-preview.html";
+import animationCSS from "./sparkle-screen-animation.css";
 import defaultCSS from "./sparkle-screen-default.css";
 import resetCSS from "./sparkle-screen-reset.css";
 import themeDarkCSS from "./sparkle-screen-theme-dark.css";
@@ -22,6 +23,7 @@ export default spec({
     themeCSS,
     themeDarkCSS,
     themeLightCSS,
+    animationCSS,
     defaultCSS,
     utilityCSS,
     css,
