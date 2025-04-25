@@ -5,16 +5,12 @@ export interface Node {
   children?: Node[];
 }
 
-export interface BuiltinDefinition {
-  begin: string;
-  end: string;
-}
-
 export interface ParseContext {
   screens?: Record<string, Node>;
   components?: Record<string, Node>;
   styles?: Record<string, Node>;
   animations?: Record<string, Node>;
+  themes?: Record<string, Node>;
 }
 
 const INDENT_REGEX: RegExp = /^[ \t]*/;
@@ -27,6 +23,7 @@ export function parseSSL(input: string): ParseContext {
   const components: Record<string, Node> = {};
   const styles: Record<string, Node> = {};
   const animations: Record<string, Node> = {};
+  const themes: Record<string, Node> = {};
   const stack: { node: Node; indent: number }[] = [];
   let currentRoot: Node | null = null;
 
@@ -133,7 +130,7 @@ export function parseSSL(input: string): ParseContext {
           type: "theme",
           params: { name },
         };
-        animations[name] = currentRoot;
+        themes[name] = currentRoot;
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
       } else {
@@ -297,6 +294,7 @@ export function parseSSL(input: string): ParseContext {
     components,
     styles,
     animations,
+    themes,
   };
 }
 

@@ -1,4 +1,9 @@
-import { BuiltinDefinition, Node, ParseContext, parseSSL } from "./parser";
+import { Node, ParseContext, parseSSL } from "./parser";
+
+export interface BuiltinDefinition {
+  begin: string;
+  end: string;
+}
 
 export interface RendererOptions {
   builtins?: Record<string, BuiltinDefinition>;
