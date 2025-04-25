@@ -1,8 +1,8 @@
 export interface Node {
   root: "screen" | "component" | "style" | "animation";
   type: string;
-  params: Record<string, any>;
-  children: Node[];
+  params?: Record<string, any>;
+  children?: Node[];
 }
 
 export interface BuiltinDefinition {
@@ -14,12 +14,14 @@ export interface ParseOptions {
   builtins?: Record<string, BuiltinDefinition>;
   breakpoints?: Record<string, number>;
   attrAliases?: Record<string, string>;
+  cssAliases?: Record<string, string>;
 }
 
 export interface ParseContext extends ParseOptions {
   screens?: Record<string, Node>;
   components?: Record<string, Node>;
   styles?: Record<string, Node>;
+  animations?: Record<string, Node>;
 }
 
 export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
@@ -27,11 +29,19 @@ export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
     begin: "{selector} \\{",
     end: "}",
   },
+  animation: {
+    begin: "@keyframes {name} \\{",
+    end: "}",
+  },
   screen: {
     begin: '<div class="style {classes}" {...attrs}>',
     end: "</div>",
   },
   component: {
+    begin: '<div class="style {classes}" {...attrs}>',
+    end: "</div>",
+  },
+  "": {
     begin: '<div class="style {classes}" {...attrs}>',
     end: "</div>",
   },
@@ -158,6 +168,13 @@ const DEFAULT_ATTR_ALIASES = {
   "focus-order": "tab-index",
 };
 
+const DEFAULT_CSS_ALIASES = {
+  easing: "animation-timing-function",
+  iterations: "animation-iteration-count",
+  duration: "animation-duration",
+  delay: "animation-delay",
+};
+
 const DEFAULT_BREAKPOINTS = {
   xs: 400,
   sm: 600,
@@ -170,16 +187,19 @@ const INDENT_REGEX: RegExp = /^[ \t]*/;
 
 const EMPTY_OBJ = {};
 
+// TODO: output diagnostics
 export function parseSSL(input: string, options?: ParseOptions): ParseContext {
   const builtins = options?.builtins ?? DEFAULT_BUILTINS;
   const breakpoints = options?.breakpoints ?? DEFAULT_BREAKPOINTS;
   const attrAliases = options?.attrAliases ?? DEFAULT_ATTR_ALIASES;
+  const cssAliases = options?.cssAliases ?? DEFAULT_CSS_ALIASES;
 
   const rawLines = input.split(/\r\n|\r|\n/);
 
   const screens: Record<string, Node> = {};
   const components: Record<string, Node> = {};
   const styles: Record<string, Node> = {};
+  const animations: Record<string, Node> = {};
   const stack: { node: Node; indent: number }[] = [];
   let currentRoot: Node | null = null;
 
@@ -208,13 +228,12 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
           continue;
         }
         const [, keyOrBase, key] = match;
-        const base = key ? keyOrBase : "screen";
+        const base = key ? keyOrBase : "";
         const name = key ? key : keyOrBase;
         currentRoot = {
           root: "screen",
           type: "screen",
           params: { base, name },
-          children: [],
         };
         screens[name] = currentRoot;
         stack.length = 0;
@@ -227,13 +246,12 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
           continue;
         }
         const [, keyOrBase, key] = match;
-        const base = key ? keyOrBase : "component";
+        const base = key ? keyOrBase : "";
         const name = key ? key : keyOrBase;
         currentRoot = {
           root: "component",
           type: "component",
           params: { base, name },
-          children: [],
         };
         components[name] = currentRoot;
         stack.length = 0;
@@ -246,13 +264,12 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
           continue;
         }
         const [, keyOrBase, key] = match;
-        const base = key ? keyOrBase : "style";
+        const base = key ? keyOrBase : "";
         const name = key ? key : keyOrBase;
         currentRoot = {
           root: "style",
           type: "style",
           params: { base, name },
-          children: [],
         };
         styles[name] = currentRoot;
         stack.length = 0;
@@ -265,15 +282,14 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
           continue;
         }
         const [, keyOrBase, key] = match;
-        const base = key ? keyOrBase : "animation";
+        const base = key ? keyOrBase : "";
         const name = key ? key : keyOrBase;
         currentRoot = {
           root: "animation",
           type: "animation",
           params: { base, name },
-          children: [],
         };
-        components[name] = currentRoot;
+        animations[name] = currentRoot;
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
       } else {
@@ -300,7 +316,6 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
               root: currentRoot.root,
               type: nodeType,
               params: { condition },
-              children: [],
             };
           } else if (nodeType === "elseif") {
             const condition = args.join(" ").trim();
@@ -308,14 +323,11 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
               root: currentRoot.root,
               type: nodeType,
               params: { condition },
-              children: [],
             };
           } else if (nodeType === "else") {
             node = {
               root: currentRoot.root,
               type: nodeType,
-              params: {},
-              children: [],
             };
           } else if (nodeType === "match") {
             const expression = args.join(" ").trim();
@@ -323,7 +335,6 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
               root: currentRoot.root,
               type: nodeType,
               params: { expression },
-              children: [],
             };
           } else if (nodeType.startsWith("case")) {
             const value = args.join(" ").trim();
@@ -331,7 +342,6 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
               root: currentRoot.root,
               type: nodeType,
               params: { value },
-              children: [],
             };
           } else if (nodeType === "for") {
             const match = statement.match(/^for\s+(.+?)\s+in\s+(.+)$/);
@@ -345,7 +355,6 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
               root: currentRoot.root,
               type: nodeType,
               params: { as, each },
-              children: [],
             };
           } else if (nodeType === "repeat") {
             const times = args.join(" ").trim();
@@ -353,23 +362,27 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
               root: currentRoot.root,
               type: nodeType,
               params: { times },
-              children: [],
             };
-          } else if (nodeType in builtins) {
+          } else if (nodeType === "slot") {
+            const name = args[0];
+            node = {
+              root: currentRoot.root,
+              type: nodeType,
+              params: { name },
+            };
+          } else if (nodeType === "fill") {
+            const name = args[0];
+            node = {
+              root: currentRoot.root,
+              type: nodeType,
+              params: { name },
+            };
+          } else if (nodeType) {
             const params = parseParams(args);
             node = {
               root: currentRoot.root,
               type: nodeType,
-              params,
-              children: [],
-            };
-          } else if (nodeType) {
-            const name = nodeType;
-            node = {
-              root: currentRoot.root,
-              type: "use",
-              params: { name },
-              children: [],
+              params: params,
             };
           }
         } else if (currentRoot?.type === "style") {
@@ -378,15 +391,12 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
             node = {
               root: currentRoot.root,
               type: nodeType,
-              params: {},
-              children: [],
             };
           } else if (SELECTOR_FUNCTION_CONDITION_NAMES.includes(nodeType)) {
             node = {
               root: currentRoot.root,
               type: nodeType,
               params: { args },
-              children: [],
             };
           } else {
             const value = args.join(" ").split("=")[1]?.trimStart();
@@ -394,13 +404,13 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
               root: currentRoot.root,
               type: nodeType,
               params: { value },
-              children: [],
             };
           }
         }
 
         // Add node to parent's children and to the stack
         if (node) {
+          parent.children ??= [];
           parent.children.push(node);
           stack.push({ node: node, indent });
         }
@@ -408,7 +418,16 @@ export function parseSSL(input: string, options?: ParseOptions): ParseContext {
     }
   }
 
-  return { screens, components, styles, builtins, breakpoints, attrAliases };
+  return {
+    screens,
+    components,
+    styles,
+    animations,
+    builtins,
+    breakpoints,
+    attrAliases,
+    cssAliases,
+  };
 }
 
 function splitAttrArgs(input: string): string[] {
@@ -484,12 +503,6 @@ export interface RenderContext {
   indent?: number;
 }
 
-export interface Node {
-  type: string;
-  params: Record<string, any>;
-  children: Node[];
-}
-
 export function renderElements(
   el: Node,
   ctx: RenderContext,
@@ -500,39 +513,46 @@ export function renderElements(
   const { type, params, children } = el;
 
   const components = ctx.parsed.components;
-  const screens = ctx.parsed.screens;
   const styles = ctx.parsed.styles;
+  const animations = ctx.parsed.animations;
   const builtins = ctx.parsed.builtins ?? DEFAULT_BUILTINS;
   const breakpoints = ctx.parsed.breakpoints ?? DEFAULT_BREAKPOINTS;
   const attrAliases = ctx.parsed.attrAliases ?? DEFAULT_ATTR_ALIASES;
+  const cssAliases = ctx.parsed.cssAliases ?? DEFAULT_CSS_ALIASES;
 
   switch (type) {
     case "if": {
-      if (evaluate(el.params.condition, getContext(ctx))) {
-        return el.children.flatMap((child, i) =>
-          renderElements(child, ctx, el, i)
+      if (evaluate(el.params?.condition, getContext(ctx))) {
+        return (
+          el.children?.flatMap((child, i) =>
+            renderElements(child, ctx, el, i)
+          ) ?? []
         );
       }
       let siblingOffset = 1;
-      let sibling = parent?.children[index + siblingOffset];
+      let sibling = parent?.children?.[index + siblingOffset];
       while (
         sibling &&
         (sibling.type === "elseif" || sibling.type === "else")
       ) {
         if (
           sibling.type === "elseif" &&
-          evaluate(sibling.params.condition, getContext(ctx))
+          evaluate(sibling.params?.condition, getContext(ctx))
         ) {
-          return sibling.children.flatMap((child, i) =>
-            renderElements(child, ctx, sibling, i)
+          return (
+            sibling.children?.flatMap((child, i) =>
+              renderElements(child, ctx, sibling, i)
+            ) || []
           );
         } else if (sibling.type === "else") {
-          return sibling.children.flatMap((child, i) =>
-            renderElements(child, ctx, sibling, i)
+          return (
+            sibling.children?.flatMap((child, i) =>
+              renderElements(child, ctx, sibling, i)
+            ) || []
           );
         }
         siblingOffset++;
-        sibling = parent?.children[index + siblingOffset];
+        sibling = parent?.children?.[index + siblingOffset];
       }
       return [];
     }
@@ -542,19 +562,21 @@ export function renderElements(
       return [];
     }
     case "for": {
-      const list = evaluate(params.each, getContext(ctx)) || [];
+      const list = evaluate(params?.each, getContext(ctx)) || [];
       const entries = Object.entries(list);
 
-      const nextSibling = parent?.children[index + 1];
+      const nextSibling = parent?.children?.[index + 1];
       const loopChildren = children;
 
       if (entries.length === 0 && nextSibling?.type === "else") {
-        return nextSibling.children.flatMap((c, i) =>
-          renderElements(c, ctx, nextSibling, i)
+        return (
+          nextSibling.children?.flatMap((c, i) =>
+            renderElements(c, ctx, nextSibling, i)
+          ) ?? []
         );
       }
 
-      const asKeys = params.as.split(",").map((k: string) => k.trim());
+      const asKeys = params?.as.split(",").map((k: string) => k.trim());
 
       return entries.flatMap(([key, value]) => {
         let scopeVars: Record<string, any> = {};
@@ -564,21 +586,23 @@ export function renderElements(
             ...(asKeys[1] && { [asKeys[1]]: value }),
           };
         } else {
-          scopeVars = { [params.as]: value };
+          scopeVars = { [params?.as]: value };
         }
         const subCtx = {
           ...ctx,
           scope: { ...ctx.scope, ...scopeVars },
         };
-        return loopChildren.flatMap((child, i) =>
-          renderElements(child, subCtx, el, i)
+        return (
+          loopChildren?.flatMap((child, i) =>
+            renderElements(child, subCtx, el, i)
+          ) ?? []
         );
       });
     }
     case "repeat": {
-      const times = evaluate<number>(params.times, getContext(ctx));
+      const times = evaluate<number>(params?.times, getContext(ctx));
 
-      const nextSibling = parent?.children[index + 1];
+      const nextSibling = parent?.children?.[index + 1];
       const loopChildren = children;
 
       if (Number.isNaN(times)) {
@@ -586,8 +610,10 @@ export function renderElements(
       }
 
       if (times === 0 && nextSibling?.type === "else") {
-        return nextSibling.children.flatMap((c, i) =>
-          renderElements(c, ctx, nextSibling, i)
+        return (
+          nextSibling.children?.flatMap((c, i) =>
+            renderElements(c, ctx, nextSibling, i)
+          ) ?? []
         );
       }
 
@@ -596,25 +622,33 @@ export function renderElements(
           ...ctx,
           scope: { ...(ctx.scope || EMPTY_OBJ), index: i },
         };
-        return loopChildren.flatMap((child, j) =>
-          renderElements(child, subCtx, el, j)
+        return (
+          loopChildren?.flatMap((child, j) =>
+            renderElements(child, subCtx, el, j)
+          ) ?? []
         );
       });
     }
     case "match": {
-      const value = evaluate(params.expression, getContext(ctx));
-      for (const child of children) {
-        if (child.type === "case") {
-          const caseValue = evaluate(child.params.value, getContext(ctx));
-          if (value === caseValue) {
-            return child.children.flatMap((c, i) =>
-              renderElements(c, ctx, child, i)
+      const value = evaluate(params?.expression, getContext(ctx));
+      if (children) {
+        for (const child of children) {
+          if (child.type === "case") {
+            const caseValue = evaluate(child.params?.value, getContext(ctx));
+            if (value === caseValue) {
+              return (
+                child.children?.flatMap((c, i) =>
+                  renderElements(c, ctx, child, i)
+                ) ?? []
+              );
+            }
+          } else if (child.type === "else") {
+            return (
+              child.children?.flatMap((c, i) =>
+                renderElements(c, ctx, child, i)
+              ) ?? []
             );
           }
-        } else if (child.type === "else") {
-          return child.children.flatMap((c, i) =>
-            renderElements(c, ctx, child, i)
-          );
         }
       }
       return [];
@@ -623,37 +657,32 @@ export function renderElements(
       // These are handled by their parent match block.
       return [];
     }
-    case "use": {
-      const component = components?.[params.name];
-      if (!component) {
-        console.error("component not found:", params.name, el);
-        return [];
-      }
-      const base = component.params.base;
-      if (base) {
-        return renderElements({ ...component, type: base }, ctx);
-      }
-      return renderElements(component, ctx);
-    }
     default: {
       if (type in builtins) {
+        // Builtin component
         const component = builtins[type as keyof typeof builtins];
         const elementContext: Record<string, any> = {
           ...el.params,
         };
         const evalContext = getContext(ctx);
-        if (el.root === "style" || el.root === "animation") {
-          elementContext["props"] = params;
-          elementContext["selector"] = ["." + type, el.params.name]
+        if (el.root === "style") {
+          elementContext["selector"] = ["." + type, el.params?.name]
             .filter(Boolean)
             .join(".");
+        } else if (el.root === "animation") {
+          elementContext["name"] = type;
         } else {
-          elementContext["attrs"] = Object.entries(params).map(([k, v]) =>
-            paramToAttr(k, v, evalContext, attrAliases)
-          );
-          elementContext["classes"] = [type, el.params.name]
+          const { base, name, ...rest } = params || {};
+          const classNames =
+            type === "component"
+              ? getInheritanceChain(el.params?.base, builtins, components)
+              : getInheritanceChain(type, builtins, components);
+          elementContext["classes"] = [...classNames, base, name]
             .filter(Boolean)
             .join(" ");
+          elementContext["attrs"] = Object.entries(rest).map(([k, v]) =>
+            paramToAttr(k, v, evalContext, attrAliases)
+          );
         }
         const beginTemplate = interpolate(
           component.begin,
@@ -671,9 +700,9 @@ export function renderElements(
         const end = interpolate(endTemplate, evalContext, attrAliases)
           .split("\n")
           .filter(Boolean);
-        const content = children.flatMap((child, i) =>
-          renderElements(child, ctx, el, i)
-        );
+        const content =
+          children?.flatMap((child, i) => renderElements(child, ctx, el, i)) ??
+          [];
         const isMultiline = begin.length > 1 || content.length > 1;
         if (isMultiline) {
           let startingInnerIndent =
@@ -692,47 +721,103 @@ export function renderElements(
             ].join(""),
           ];
         }
-      }
+      } else {
+        if (el.root === "screen" || el.root === "component") {
+          // We are using a custom component
+          const component = components?.[type];
+          if (!component) {
+            console.error("component not found:", type, el);
+            return [];
+          }
+          const namedFills: Record<string, Node[]> = {};
+          const defaultFillerChildren: Node[] = [];
+          if (children) {
+            for (const child of children) {
+              if (child.type === "fill" && child.params?.name) {
+                namedFills[child.params.name] ??= [];
+                if (child.children) {
+                  for (const fillChild of child.children) {
+                    namedFills[child.params.name].push(fillChild);
+                  }
+                }
+              } else {
+                defaultFillerChildren.push(child);
+              }
+            }
+          }
+          const slottedChildren = [];
+          let slotFound = false;
+          if (component.children) {
+            for (const child of component.children) {
+              if (child.type === "slot") {
+                slotFound = true;
+                if (child.params?.name) {
+                  const matchingNamedFillerChildren =
+                    namedFills[child.params.name];
+                  if (matchingNamedFillerChildren) {
+                    for (const fillerChild of matchingNamedFillerChildren) {
+                      slottedChildren.push(fillerChild);
+                    }
+                  }
+                } else {
+                  for (const fillerChild of defaultFillerChildren) {
+                    slottedChildren.push(fillerChild);
+                  }
+                }
+              } else {
+                slottedChildren.push(child);
+              }
+            }
+          }
+          if (children && children.length > 0 && !slotFound) {
+            for (const fillerChild of defaultFillerChildren) {
+              slottedChildren.push(fillerChild);
+            }
+          }
+          const base = component.params?.base;
+          const componentInstance: Node = {
+            ...component,
+            type: base,
+            params: { ...params, name: type },
+            children: slottedChildren,
+          };
+          return renderElements(componentInstance, ctx);
+        }
 
-      if (el.root === "screen" || el.root === "component") {
-        if (components) {
-          if (type in components) {
-            const component = components[type];
-            return renderElements(component, ctx);
+        if (el.root === "style") {
+          if (styles) {
+            if (type in styles) {
+              const style = styles[type];
+              return renderElements(style, ctx);
+            } else if (type.startsWith("@")) {
+              const atSelector = type.slice(1);
+              const pseudo = atSelectorToPseudo(atSelector, breakpoints);
+              const selector = pseudo?.startsWith("@") ? pseudo : `&${pseudo}`;
+              const begin = `${selector} {`;
+              const end = "}";
+              const content =
+                children?.flatMap((child, i) =>
+                  renderElements(child, ctx, el, i)
+                ) ?? [];
+              return [
+                indentLine(begin, indentLevel),
+                ...indentChildren(content, indentLevel + 1),
+                indentLine(end, indentLevel),
+              ];
+            } else {
+              return [paramToProp(type, params?.value, cssAliases)];
+            }
           }
         }
-      }
 
-      if (el.root === "screen" || el.root === "component") {
-        if (screens) {
-          if (type in screens) {
-            const screen = screens[type];
-            return renderElements(screen, ctx);
-          }
-        }
-      }
-
-      if (el.root === "style") {
-        if (styles) {
-          if (type in styles) {
-            const style = styles[type];
-            return renderElements(style, ctx);
-          } else if (type.startsWith("@")) {
-            const atSelector = type.slice(1);
-            const pseudo = atSelectorToPseudo(atSelector, breakpoints);
-            const selector = pseudo?.startsWith("@") ? pseudo : `&${pseudo}`;
-            const begin = `${selector} {`;
-            const end = "}";
-            const content = children.flatMap((child, i) =>
-              renderElements(child, ctx, el, i)
-            );
-            return [
-              indentLine(begin, indentLevel),
-              ...indentChildren(content, indentLevel + 1),
-              indentLine(end, indentLevel),
-            ];
-          } else {
-            return [paramToProp(type, params.value)];
+        if (el.root === "animation") {
+          if (animations) {
+            if (type in animations) {
+              const animation = animations[type];
+              return renderElements(animation, ctx);
+            } else {
+              return [paramToProp(type, params?.value, cssAliases)];
+            }
           }
         }
       }
@@ -820,8 +905,13 @@ function paramToAttr(
   return "";
 }
 
-function paramToProp(key: string, value: unknown) {
-  return `${key}: ${value};`;
+function paramToProp(
+  key: string,
+  value: unknown,
+  cssAliases?: Record<string, string>
+) {
+  let k = cssAliases?.[key] ?? key;
+  return `${k}: ${value};`;
 }
 
 function atSelectorToPseudo(
@@ -830,6 +920,10 @@ function atSelectorToPseudo(
 ) {
   const [name, arg] = splitSelectorArgs(selector);
   switch (name) {
+    case "": // @
+      return "> *";
+    case "@": // @@
+      return "*";
     case "hovered":
       return ":hover";
     case "focused":
@@ -895,7 +989,7 @@ function atSelectorToPseudo(
     case "theme":
       return `@media(prefers-color-scheme:${arg})`;
     default:
-      return selector;
+      return "." + selector;
   }
 }
 
@@ -917,6 +1011,34 @@ function getIndentLevel(line: string) {
     }
   }
   return 0;
+}
+
+function getInheritanceChain(
+  type: string,
+  builtins: Record<string, BuiltinDefinition>,
+  components?: Record<string, Node>
+) {
+  const out: string[] = [];
+  addToInheritanceChain(type, builtins, components, out);
+  return out;
+}
+
+function addToInheritanceChain(
+  type: string,
+  builtins: Record<string, BuiltinDefinition>,
+  components: Record<string, Node> | undefined,
+  out: string[]
+) {
+  if (type in builtins) {
+    out.push(type);
+  }
+  if (components) {
+    if (type in components) {
+      const component = components[type];
+      out.push(component.params.name);
+      addToInheritanceChain(component.params.base, builtins, components, out);
+    }
+  }
 }
 
 export function renderStyles(
