@@ -188,8 +188,6 @@ export function renderElements(
   const { type, params, children } = el;
 
   const components = ctx.parsed.components;
-  const styles = ctx.parsed.styles;
-  const animations = ctx.parsed.animations;
   const builtins = ctx.options?.builtins ?? DEFAULT_BUILTINS;
   const breakpoints = ctx.options?.breakpoints ?? DEFAULT_BREAKPOINTS;
   const attrAliases = ctx.options?.attrAliases ?? DEFAULT_ATTR_ALIASES;
