@@ -273,7 +273,7 @@
   --theme_color-neutral-0: hsl(0 0% 100%);
   --theme_color-neutral-100: hsl(0 0% 0%);
 
-  /* Elements */
+  /* Backgrounds & Foregrounds */
   --theme_color-bg: hsl(0 0% 100%);
   --theme_color-bg-00: hsl(0 0% 100% / 0%);
   --theme_color-bg-01: hsl(0 0% 100% / 1%);
@@ -324,10 +324,12 @@
   --theme_color-fg-70: hsl(0 0% 0% / 70%);
   --theme_color-fg-80: hsl(0 0% 0% / 80%);
   --theme_color-fg-90: hsl(0 0% 0% / 90%);
-  --theme_color-divider: hsl(0 0% 0% / 13%);
+
+  /* Elements */
   --theme_color-focus: var(--theme_color-primary-70);
   --theme_color-surface: var(--theme_color-neutral-20);
   --theme_color-surface-border: var(--theme_color-fg-12);
+  --theme_color-divider: hsl(0 0% 0% / 13%);
 
   /* Scrollbars */
   --theme_color-scrollbar-thumb: hsl(0 0% 0% / 25%);
