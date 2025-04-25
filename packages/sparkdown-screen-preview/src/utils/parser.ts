@@ -1035,8 +1035,8 @@ function addToInheritanceChain(
   if (components) {
     if (type in components) {
       const component = components[type];
-      out.push(component.params.name);
-      addToInheritanceChain(component.params.base, builtins, components, out);
+      out.push(component.params?.name);
+      addToInheritanceChain(component.params?.base, builtins, components, out);
     }
   }
 }
