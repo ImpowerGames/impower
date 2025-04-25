@@ -379,7 +379,7 @@ export function renderElements(
           children?.flatMap((child, i) => renderElements(child, ctx, el, i)) ??
           [];
         const isMultiline = begin.length > 1 || content.length > 1;
-        if (isMultiline) {
+        if (isMultiline || el.root === "style" || el.root === "animation") {
           let startingInnerIndent =
             indentLevel + getIndentLevel(begin.at(-1) ?? "");
           return [
@@ -731,16 +731,20 @@ function addToInheritanceChain(
 export function renderStyles(parsed: ParseContext, ctx: RenderContext): string {
   let css = "";
   if (parsed.animations) {
-    css += Object.values(parsed.animations)
-      .map((style) => renderElements(style, ctx).join("\n"))
-      .join("\n");
+    css +=
+      "\n" +
+      Object.values(parsed.animations)
+        .map((style) => renderElements(style, ctx).join("\n"))
+        .join("\n");
   }
   if (parsed.styles) {
-    css += Object.values(parsed.styles)
-      .map((style) => renderElements(style, ctx).join("\n"))
-      .join("\n");
+    css +=
+      "\n" +
+      Object.values(parsed.styles)
+        .map((style) => renderElements(style, ctx).join("\n"))
+        .join("\n");
   }
-  return css;
+  return css.trim();
 }
 
 export function renderHTML(
