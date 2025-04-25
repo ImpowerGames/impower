@@ -1,10 +1,6 @@
 import { Component } from "../../../spec-component/src/component";
-import {
-  parseSSL,
-  RenderContext,
-  renderHTML,
-  renderStyles,
-} from "../utils/parser";
+import { parseSSL } from "../utils/parser";
+import { RenderContext, renderHTML, renderStyles } from "../utils/renderer";
 import { throttle } from "../utils/throttle";
 import spec from "./_sparkdown-screen-preview";
 
