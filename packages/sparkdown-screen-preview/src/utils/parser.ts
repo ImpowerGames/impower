@@ -1,5 +1,5 @@
 export interface Node {
-  root: "screen" | "component" | "style" | "animation";
+  root: "screen" | "component" | "style" | "animation" | "theme";
   type: string;
   params?: Record<string, any>;
   children?: Node[];
@@ -54,7 +54,7 @@ export function parseSSL(input: string): ParseContext {
       const [nodeType, ...args] = splitAttrArgs(statement);
       if (!currentRoot && nodeType === "screen") {
         // Root is a Screen
-        const match = statement.match(/^screen\s+(\w+)(?:[.](\w+))?$/);
+        const match = statement.match(/^screen\s+([\w-]+)(?:[.]([\w-]+))?$/);
         if (!match) {
           console.warn(`invalid screen syntax:`, statement);
           continue;
@@ -72,7 +72,7 @@ export function parseSSL(input: string): ParseContext {
         stack.push({ node: currentRoot, indent });
       } else if (!currentRoot && nodeType === "component") {
         // Root is a Component
-        const match = statement.match(/^component\s+(\w+)(?:[.](\w+))?$/);
+        const match = statement.match(/^component\s+([\w-]+)(?:[.]([\w-]+))?$/);
         if (!match) {
           console.warn(`invalid component syntax:`, statement);
           continue;
@@ -90,7 +90,7 @@ export function parseSSL(input: string): ParseContext {
         stack.push({ node: currentRoot, indent });
       } else if (!currentRoot && nodeType === "style") {
         // Root is a Style
-        const match = statement.match(/^style\s+(\w+)$/);
+        const match = statement.match(/^style\s+([\w-]+)$/);
         if (!match) {
           console.warn(`invalid style syntax:`, statement);
           continue;
@@ -106,7 +106,7 @@ export function parseSSL(input: string): ParseContext {
         stack.push({ node: currentRoot, indent });
       } else if (!currentRoot && nodeType === "animation") {
         // Root is a Style
-        const match = statement.match(/^animation\s+(\w+)$/);
+        const match = statement.match(/^animation\s+([\w-]+)$/);
         if (!match) {
           console.warn(`invalid animation syntax:`, statement);
           continue;
@@ -115,6 +115,22 @@ export function parseSSL(input: string): ParseContext {
         currentRoot = {
           root: "animation",
           type: "animation",
+          params: { name },
+        };
+        animations[name] = currentRoot;
+        stack.length = 0;
+        stack.push({ node: currentRoot, indent });
+      } else if (!currentRoot && nodeType === "theme") {
+        // Root is a Style
+        const match = statement.match(/^theme\s+([\w-]+)$/);
+        if (!match) {
+          console.warn(`invalid theme syntax:`, statement);
+          continue;
+        }
+        const [, name] = match;
+        currentRoot = {
+          root: "theme",
+          type: "theme",
           params: { name },
         };
         animations[name] = currentRoot;
@@ -263,6 +279,7 @@ export function parseSSL(input: string): ParseContext {
               params: { key: key?.trim(), value: value?.trim() },
             };
           }
+        } else if (currentRoot?.type === "theme") {
         }
 
         // Add node to parent's children and to the stack
@@ -284,7 +301,7 @@ export function parseSSL(input: string): ParseContext {
 }
 
 function splitAttrArgs(input: string): string[] {
-  const regex = /(\w+=".*?"|\w+=\S+|".*?"|\S+)/g;
+  const regex = /([\w-]+=".*?"|[\w-]+=\S+|".*?"|\S+)/g;
   const result: string[] = [];
 
   let match: RegExpExecArray | null;
