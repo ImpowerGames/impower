@@ -339,12 +339,12 @@ export function renderElements(
           );
         }
         const beginTemplate = interpolate(
-          component.begin,
+          component.begin.trimEnd(),
           elementContext,
           attrAliases
         );
         const endTemplate = interpolate(
-          component.end,
+          trimLeadingNewlines(component.end),
           elementContext,
           attrAliases
         );
@@ -357,6 +357,25 @@ export function renderElements(
         const content =
           children?.flatMap((child, i) => renderElements(child, ctx, el, i)) ??
           [];
+        if (content.length <= 1) {
+          // If there is one or no content elements, render it on a single line
+          //
+          // This:
+          //   <tag>{{content}}</tag>
+          //
+          // Instead of:
+          //   <tag>
+          //     {{content}}
+          //   </tag>
+          const firstEnd = end.shift();
+          if (firstEnd != null) {
+            if (content[content.length - 1] != null) {
+              content[content.length - 1] += firstEnd.trimStart();
+            } else if (begin[begin.length - 1] != null) {
+              begin[begin.length - 1] += firstEnd.trimStart();
+            }
+          }
+        }
         const isMultiline = begin.length > 1 || content.length > 1;
         if (isMultiline || el.root === "style" || el.root === "animation") {
           let startingInnerIndent =
@@ -658,6 +677,10 @@ function getIndentLevel(line: string) {
     }
   }
   return 0;
+}
+
+export function trimLeadingNewlines(input: string): string {
+  return input.replace(/^[\r\n]+/, "");
 }
 
 function getInheritanceChain(
