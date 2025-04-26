@@ -226,9 +226,7 @@
 
   /* Focus rings */
   --theme_focus-ring-color: var(--theme_color-primary-20);
-  --theme_focus-ring-style: solid;
   --theme_focus-ring-width: 3px;
-  --theme_focus-ring-offset: 2px;
 
   /* Icon size */
   --theme_icon-size: 24px;
