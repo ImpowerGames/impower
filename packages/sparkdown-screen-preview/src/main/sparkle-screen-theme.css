@@ -157,6 +157,10 @@
 
   --theme_scrollbar-size: 8px;
   --theme_scrollbar-thickness: thin;
+  --theme_scrollbar-gutter: stable;
+  --theme_scrollbar-behavior: smooth;
+  --theme_scrollbar-margin: 1rem;
+  --theme_scrollbar-padding: 1rem;
 
   /*
    * Ratios
@@ -210,6 +214,17 @@
   /*
    * Elements
    */
+
+  /* General */
+  --theme_color-focus: var(--theme_color-primary-80);
+  --theme_color-surface: var(--theme_color-neutral-30);
+  --theme_color-surface-border: var(--theme_color-fg-12);
+  --theme_color-divider: var(--theme_color-fg-12);
+
+  /* Scrollbars */
+  --theme_color-scrollbar-thumb: var(--theme_color-neutral-50);
+  --theme_color-scrollbar-thumb-hover: var(--theme_color-neutral-60);
+  --theme_color-scrollbar-track: var(--theme_color-neutral-20);
 
   /* Focus rings */
   --theme_focus-ring-color: var(--theme_color-primary-20);
@@ -321,11 +336,4 @@
       #0000 0
     )
     calc(-1 * var(--corner, 8px)) calc(-1 * var(--corner, 8px)) !important;
-}
-
-/* THEME APPLICATORS */
-
-*::-webkit-scrollbar {
-  width: var(--theme_scrollbar-size, 8px);
-  height: var(--theme_scrollbar-size, 8px);
 }

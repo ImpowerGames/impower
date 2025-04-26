@@ -72,6 +72,17 @@ export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
 </label>
 `,
   },
+  InputArea: {
+    begin: `
+<label class="style InputGroup">
+  <span class="style Label">{{content}}
+`,
+    end: `
+  </span>
+  <textarea class="style {classes}" {...attrs}/>
+</label>
+`,
+  },
   Slider: {
     begin: `
 <label class="style InputGroup">

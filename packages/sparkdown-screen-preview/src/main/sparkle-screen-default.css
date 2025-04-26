@@ -36,6 +36,16 @@
   --_slider-track-color: var(--theme_color-neutral-40);
 }
 
+* {
+  scrollbar-color: var(--theme_color-scrollbar-thumb)
+    var(--theme_color-scrollbar-track);
+  scrollbar-width: var(--theme_scrollbar-thickness);
+  scrollbar-gutter: var(--theme_scrollbar-gutter);
+  scroll-behavior: var(--theme_scrollbar-behavior);
+  scroll-margin: var(--theme_scrollbar-margin);
+  scroll-padding: var(--theme_scrollbar-padding);
+}
+
 .screen {
   gap: 16px;
   min-height: 100vh;
@@ -142,6 +152,25 @@ style {
 }
 .Input::placeholder {
   color: var(--_input-text-placeholder);
+}
+
+.InputArea {
+  width: 100%;
+  min-height: 100px;
+  padding: 8px 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--_text-color);
+  border-radius: 8px;
+  resize: vertical;
+  outline: none;
+  resize: none; /* don't allow resizing */
+  overflow: auto;
+  transition: border-color 0.2s, background-color 0.2s;
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--_input-border);
+  background-color: var(--_input-background);
 }
 
 .Slider {
@@ -306,7 +335,7 @@ style {
 .Button,
 .Dropdown,
 .Input,
-.TextArea,
+.InputArea,
 .Checkbox,
 .Slider {
   transition: var(--theme_transition-fast) color,
@@ -315,10 +344,10 @@ style {
     var(--theme_transition-fast) background-color;
 }
 
-.Input:focus,
-.TextArea:focus,
+.Button:focus,
 .Dropdown:focus,
-.Button:focus {
+.Input:focus,
+.InputArea:focus {
   outline: none;
   box-shadow: 0 0 0 var(--theme_focus-ring-width) var(--theme_focus-ring-color);
   border-color: var(--theme_color-primary-60);

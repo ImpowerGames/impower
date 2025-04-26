@@ -325,17 +325,6 @@
   --theme_color-fg-80: hsl(0 0% 100% / 80%);
   --theme_color-fg-90: hsl(0 0% 100% / 90%);
 
-  /* Elements */
-  --theme_color-focus: var(--theme_color-primary-80);
-  --theme_color-surface: var(--theme_color-neutral-30);
-  --theme_color-surface-border: var(--theme_color-fg-12);
-  --theme_color-divider: hsl(0 0% 100% / 12%);
-
-  /* Scrollbars */
-  --theme_color-scrollbar-thumb: hsl(0 0% 100% / 15%);
-  --theme_color-scrollbar-thumb-hover: hsl(0 0% 100% / 50%);
-  --theme_color-scrollbar-track: hsl(0 0% 0% / 15%);
-
   /*
    * Opacities
    */
