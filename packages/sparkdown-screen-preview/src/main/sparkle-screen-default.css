@@ -54,6 +54,27 @@
   scroll-padding: var(--theme_scrollbar-padding);
 }
 
+.Button,
+.Dropdown,
+.Input,
+.InputArea,
+.Checkbox,
+.Slider {
+  transition: var(--theme_transition-fast) color,
+    var(--theme_transition-fast) outline, var(--theme_transition-fast) border,
+    var(--theme_transition-fast) box-shadow,
+    var(--theme_transition-fast) background-color;
+}
+
+.Button:focus,
+.Dropdown:focus,
+.Input:focus,
+.InputArea:focus {
+  outline: none;
+  box-shadow: 0 0 0 var(--theme_focus-ring-width) var(--theme_focus-ring-color);
+  border-color: var(--theme_color-primary-60);
+}
+
 .screen {
   gap: 16px;
   min-height: 100vh;
@@ -338,25 +359,4 @@ style {
 .Option[selected] {
   background: var(--_option-background-selected);
   font-weight: bold;
-}
-
-.Button,
-.Dropdown,
-.Input,
-.InputArea,
-.Checkbox,
-.Slider {
-  transition: var(--theme_transition-fast) color,
-    var(--theme_transition-fast) outline, var(--theme_transition-fast) border,
-    var(--theme_transition-fast) box-shadow,
-    var(--theme_transition-fast) background-color;
-}
-
-.Button:focus,
-.Dropdown:focus,
-.Input:focus,
-.InputArea:focus {
-  outline: none;
-  box-shadow: 0 0 0 var(--theme_focus-ring-width) var(--theme_focus-ring-color);
-  border-color: var(--theme_color-primary-60);
 }
