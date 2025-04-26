@@ -2,6 +2,7 @@ import { FormatType } from "@impower/sparkdown/src/classes/annotators/Formatting
 import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
 import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
+import { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { Tree } from "@lezer/common";
@@ -103,6 +104,41 @@ export const getFormatting = (
     indentStack.pop();
   };
 
+  const processBlockDeclaration = (
+    stack: GrammarSyntaxNode<SparkdownNodeName>[],
+    rootNodeName: SparkdownNodeName,
+    contentNodeName: SparkdownNodeName,
+    currentIndentation: string,
+    currentIndentLevel: number
+  ) => {
+    const rootNode = stack.find((n) => n.name === rootNodeName);
+    if (rootNode) {
+      const declarationIndentStack = [...indentStack];
+      while (declarationIndentStack.at(-1)?.type === "block_declaration") {
+        declarationIndentStack.pop();
+      }
+      const expectedRootIndentLevel = declarationIndentStack.at(-1)?.level ?? 0;
+      const contentNode = stack.find((n) => n.name === contentNodeName);
+      let indentLevel = currentIndentation.includes("\t")
+        ? currentIndentation.split("\t").length - 1
+        : Math.round(currentIndentation.length / options.tabSize);
+      const rootIndentNode = getDescendent("Indent", rootNode);
+      const rootNodeIndentText = rootIndentNode
+        ? document.read(rootIndentNode.from, rootIndentNode.to)
+        : "";
+      const rootNodeIndentLevel = rootNodeIndentText.includes("\t")
+        ? rootNodeIndentText.split("\t").length - 1
+        : Math.round(rootNodeIndentText.length / options.tabSize);
+      const indentOffset = indentLevel - rootNodeIndentLevel;
+      currentIndentLevel = contentNode
+        ? expectedRootIndentLevel + indentOffset + 1
+        : expectedRootIndentLevel;
+      indent({ type: "block_declaration", level: currentIndentLevel });
+      return currentIndentLevel;
+    }
+    return currentIndentLevel;
+  };
+
   const processIndent = (from: number, to: number) => {
     const range = document.range(from, to);
     let text = document.read(from, to);
@@ -124,34 +160,28 @@ export const getFormatting = (
     tempIndentLevel = undefined;
     if (tree) {
       const stack = getStack<SparkdownNodeName>(tree, from, 1);
-      // Define properties are indented relative to DefineDeclaration node
-      const defineNode = stack.find((n) => n.name === "DefineDeclaration");
-      if (defineNode) {
-        const defineIndentStack = [...indentStack];
-        while (defineIndentStack.at(-1)?.type === "define") {
-          defineIndentStack.pop();
-        }
-        const expectedDefineStartIndentLevel =
-          defineIndentStack.at(-1)?.level ?? 0;
-        const defineContentNode = stack.find(
-          (n) => n.name === "DefineDeclaration_content"
-        );
-        let indentLevel = currentIndentation.includes("\t")
-          ? currentIndentation.split("\t").length - 1
-          : Math.round(currentIndentation.length / options.tabSize);
-        const defineIndentNode = getDescendent("Indent", defineNode);
-        const defineNodeIndentText = defineIndentNode
-          ? document.read(defineIndentNode.from, defineIndentNode.to)
-          : "";
-        const defineNodeIndentLevel = defineNodeIndentText.includes("\t")
-          ? defineNodeIndentText.split("\t").length - 1
-          : Math.round(defineNodeIndentText.length / options.tabSize);
-        const indentOffset = indentLevel - defineNodeIndentLevel;
-        newIndentLevel = defineContentNode
-          ? expectedDefineStartIndentLevel + indentOffset
-          : expectedDefineStartIndentLevel;
-        indent({ type: "define", level: newIndentLevel });
-      }
+      // Block Declaration properties are indented relative to root node
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "DefineDeclaration",
+        "DefineDeclaration_content",
+        currentIndentation,
+        newIndentLevel
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "ViewDeclaration",
+        "ViewDeclaration_content",
+        currentIndentation,
+        newIndentLevel
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "CssDeclaration",
+        "CssDeclaration_content",
+        currentIndentation,
+        newIndentLevel
+      );
       // FrontMatter field content are indented by 1
       const unknownNode = stack.find((n) => n.name === "Unknown");
       const frontMatterNode = stack.find((n) => n.name === "FrontMatter");
@@ -221,8 +251,8 @@ export const getFormatting = (
         outdent();
       } else if (aheadCur.value.type === "knot_begin") {
         resetIndent();
-      } else if (aheadCur.value.type === "define_end") {
-        while (indentStack.at(-1)?.type === "define") {
+      } else if (aheadCur.value.type === "block_declaration_end") {
+        while (indentStack.at(-1)?.type === "block_declaration") {
           indentStack.pop();
         }
       } else if (aheadCur.value.type === "frontmatter_end") {

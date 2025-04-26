@@ -73,6 +73,7 @@ label {
   gap: 16px;
   align-items: center;
   container-type: inline-size;
+  container-name: input-group;
 }
 
 input[type="text"],

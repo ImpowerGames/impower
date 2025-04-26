@@ -288,7 +288,7 @@
     }
   ],
   "indentationRules": {
-    "decreaseIndentPattern": "^\\s*[-]($|[ ]).*?[:]|[=]{2,}($|[ ]).*?|\\s*[\\}\\]\\)].*$",
+    "decreaseIndentPattern": "^\\s*[-]($|[ ]).*?[:]|[=]{2,}($|[ ]).*?|^\\s*[\\}\\]\\)].*$",
     "increaseIndentPattern": "^.*(\\{[^}]*|\\([^)]*|\\[[^\\]]*)$",
     "unIndentedLinePattern": "^(\\t|[ ])*[ ]\\*[^/]*\\*\\/\\s*$|^(\\t|[ ])*[ ]\\*\\/\\s*$|^(\\t|[ ])*[ ]\\*([ ]([^\\*]|\\*(?!\\/))*)?$",
     "indentNextLinePattern": "^((.*=>\\s*)|((.*[^\\w]+|\\s*)(if|while|for)\\s*\\(.*\\)\\s*))$"

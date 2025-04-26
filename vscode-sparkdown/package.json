@@ -87,7 +87,7 @@
             "foreground": "#F9B8F9"
           },
           "operator:sparkdown": {
-            "foreground": "#808080"
+            "foreground": "#A0A0A0"
           }
         },
         "[*Light*]": {
@@ -97,7 +97,7 @@
               "foreground": "#AD33CC"
             },
             "operator:sparkdown": {
-              "foreground": "#808080"
+              "foreground": "#A0A0A0"
             }
           }
         }
@@ -185,25 +185,31 @@
           {
             "scope": "meta.template.expression.operator",
             "settings": {
-              "foreground": "#808080"
+              "foreground": "#A0A0A0"
             }
           },
           {
             "scope": "keyword.operator",
             "settings": {
-              "foreground": "#808080"
+              "foreground": "#A0A0A0"
             }
           },
           {
             "scope": "keyword.control.section",
             "settings": {
-              "foreground": "#FF80F4"
+              "foreground": "#D88CFF"
             }
           },
           {
             "scope": "keyword.control.divert.path",
             "settings": {
-              "foreground": "#F9B8F9"
+              "foreground": "#D88CFF"
+            }
+          },
+          {
+            "scope": "keyword.control.inner",
+            "settings": {
+              "foreground": "#A774B3"
             }
           },
           {
@@ -217,6 +223,24 @@
             "settings": {
               "foreground": "#FF8080"
             }
+          },
+          {
+            "scope": "support.type.component",
+            "settings": {
+              "foreground": "#FF80BB"
+            }
+          },
+          {
+            "scope": "support.type.component.custom",
+            "settings": {
+              "foreground": "#ffa8d1"
+            }
+          },
+          {
+            "scope": "string.interpolated.view",
+            "settings": {
+              "foreground": "#b19d95"
+            }
           }
         ],
         "[*Light*]": {
@@ -224,25 +248,31 @@
             {
               "scope": "meta.template.expression.operator",
               "settings": {
-                "foreground": "#808080"
+                "foreground": "#A0A0A0"
               }
             },
             {
               "scope": "keyword.operator",
               "settings": {
-                "foreground": "#808080"
+                "foreground": "#A0A0A0"
               }
             },
             {
               "scope": "keyword.control.section",
               "settings": {
-                "foreground": "#AF00DB"
+                "foreground": "#C964FF"
               }
             },
             {
               "scope": "keyword.control.divert.path",
               "settings": {
-                "foreground": "#AD33CC"
+                "foreground": "#C964FF"
+              }
+            },
+            {
+              "scope": "keyword.control.inner",
+              "settings": {
+                "foreground": "#A774B3"
               }
             },
             {
@@ -255,6 +285,18 @@
               "scope": "string.regexp.scene",
               "settings": {
                 "foreground": "#EE0000"
+              }
+            },
+            {
+              "scope": "support.type.component",
+              "settings": {
+                "foreground": "#E0569A"
+              }
+            },
+            {
+              "scope": "string.interpolated.view",
+              "settings": {
+                "foreground": "#B84B4B"
               }
             }
           ]
@@ -485,11 +527,7 @@
         "key": "enter",
         "when": "editorTextFocus && !editorReadonly && editorLangId =~ /^sparkdown$/ && (!suggestWidgetVisible || config.editor.acceptSuggestionOnEnter == 'off') && !editorHasMultipleSelections && vim.mode != 'Normal' && vim.mode != 'Visual' && vim.mode != 'VisualBlock' && vim.mode != 'VisualLine' && vim.mode != 'SearchInProgressMode' && vim.mode != 'CommandlineInProgress' && vim.mode != 'Replace' && vim.mode != 'EasyMotionMode' && vim.mode != 'EasyMotionInputMode' && vim.mode != 'SurroundInputMode'"
       },
-      {
-        "command": "sparkdown.extension.onBackspaceKey",
-        "key": "backspace",
-        "when": "editorTextFocus && !editorReadonly && editorLangId =~ /^sparkdown$/ && !editorHasMultipleSelections && vim.mode != 'Normal' && vim.mode != 'Visual' && vim.mode != 'VisualBlock' && vim.mode != 'VisualLine' && vim.mode != 'SearchInProgressMode' && vim.mode != 'CommandlineInProgress' && vim.mode != 'Replace' && vim.mode != 'EasyMotionMode' && vim.mode != 'EasyMotionInputMode' && vim.mode != 'SurroundInputMode'"
-      },
+
       {
         "command": "sparkdown.extension.editing.toggleBold",
         "key": "ctrl+b",

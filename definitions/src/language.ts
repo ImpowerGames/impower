@@ -229,14 +229,14 @@ const transformGrammarRule = (
   transformProperty: (ruleProperty: string) => string
 ) => {
   for (const propertyName of propertyNames) {
-    const value = rule[propertyName];
+    const value = rule?.[propertyName];
     if (typeof value === "string") {
       rule[propertyName] = transformProperty(value);
     }
   }
 
   for (const propertyName in rule) {
-    const value = rule[propertyName];
+    const value = rule?.[propertyName];
     if (typeof value === "object") {
       transformGrammarRule(value, propertyNames, transformProperty);
     }

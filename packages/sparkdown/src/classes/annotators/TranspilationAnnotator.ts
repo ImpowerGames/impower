@@ -29,7 +29,12 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<LineAugmentations>>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<LineAugmentations>>[] {
-    if (nodeRef.name === "FrontMatter") {
+    if (
+      nodeRef.name === "FrontMatter" ||
+      nodeRef.name === "DefineDeclaration" ||
+      nodeRef.name === "ViewDeclaration" ||
+      nodeRef.name === "CssDeclaration"
+    ) {
       annotations.push(
         SparkdownAnnotation.mark({
           whiteout: true,

@@ -161,6 +161,7 @@ Make sure disabled buttons don't get the pointer cursor.
   position: relative;
   height: 100%;
   container-type: inline-size;
+  container-name: screen;
   resize: none;
 }
 

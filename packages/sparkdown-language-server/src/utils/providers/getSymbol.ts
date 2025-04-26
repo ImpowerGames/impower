@@ -33,7 +33,6 @@ export const getSymbol = (
         n.name === "DefineTypeName" ||
         n.name === "DefineVariableName" ||
         n.name === "DeclarationScalarPropertyName" ||
-        n.name === "PropertySelectorClassName" ||
         n.name === "TypeName" ||
         n.name === "VariableName" ||
         n.name === "PropertyName" ||
@@ -79,7 +78,7 @@ export const getSymbol = (
                   );
                   if (propertyName === "name") {
                     const stringContentNode = stack.find(
-                      (n) => n.name === "DoubleQuoteString_content"
+                      (n) => n.name === "StringLiteral_content"
                     );
                     if (stringContentNode) {
                       return {

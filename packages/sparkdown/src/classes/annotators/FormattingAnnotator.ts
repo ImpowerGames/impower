@@ -18,8 +18,6 @@ export type FormatType =
   | "close_brace"
   | "frontmatter_begin"
   | "frontmatter_end"
-  | "define_begin"
-  | "define_end"
   | "knot_begin"
   | "knot_end"
   | "stitch"
@@ -35,8 +33,10 @@ export type FormatType =
   | "sol_comment"
   | "eol_divert"
   | "blankline"
-  | "define"
-  | "frontmatter";
+  | "frontmatter"
+  | "block_declaration"
+  | "block_declaration_begin"
+  | "block_declaration_end";
 
 const INDENT_REGEX: RegExp = /^[ \t]*/;
 
@@ -166,9 +166,13 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "DefineDeclaration_begin") {
+    if (
+      nodeRef.name === "DefineDeclaration_begin" ||
+      nodeRef.name === "ViewDeclaration_begin" ||
+      nodeRef.name === "CssDeclaration_begin"
+    ) {
       annotations.push(
-        SparkdownAnnotation.mark<FormatType>("define_begin").range(
+        SparkdownAnnotation.mark<FormatType>("block_declaration_begin").range(
           nodeRef.from,
           nodeRef.to
         )
@@ -325,15 +329,6 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "IndentingColon") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("indenting_colon").range(
-          nodeRef.from,
-          nodeRef.to
-        )
-      );
-      return annotations;
-    }
     if (nodeRef.name === "LineComment" || nodeRef.name === "BlockComment") {
       if (nodeRef.from === this.getLineAt(nodeRef.from).from) {
         annotations.push(
@@ -446,9 +441,13 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<FormatType>>[],
     nodeRef: SyntaxNodeRef
   ): Range<SparkdownAnnotation<FormatType>>[] {
-    if (nodeRef.name === "DefineDeclaration_end") {
+    if (
+      nodeRef.name === "DefineDeclaration_end" ||
+      nodeRef.name === "ViewDeclaration_end" ||
+      nodeRef.name === "CssDeclaration_end"
+    ) {
       annotations.push(
-        SparkdownAnnotation.mark<FormatType>("define_end").range(
+        SparkdownAnnotation.mark<FormatType>("block_declaration_end").range(
           nodeRef.from,
           nodeRef.to
         )

@@ -114,44 +114,6 @@ export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
   },
 } as const;
 
-export const SELECTOR_SIMPLE_CONDITION_NAMES = [
-  "hovered",
-  "focused",
-  "pressed",
-  "disabled",
-  "enabled",
-  "checked",
-  "unchecked",
-  "required",
-  "valid",
-  "invalid",
-  "readonly",
-  "first",
-  "last",
-  "only",
-  "odd",
-  "even",
-  "empty",
-  "blank",
-  "opened",
-  "before",
-  "after",
-  "placeholder",
-  "selection",
-  "marker",
-  "backdrop",
-  "initial",
-];
-
-export const SELECTOR_FUNCTION_CONDITION_NAMES = [
-  "language",
-  "direction",
-  "has",
-  "theme",
-  "screen-size",
-  "container-size",
-];
-
 export const DEFAULT_ATTR_ALIASES = {
   "focus-order": "tab-index",
 };
@@ -464,8 +426,7 @@ export function renderElements(
 
         if (el.root === "style") {
           if (type.startsWith("@")) {
-            const atSelector = type.slice(1);
-            const pseudo = atSelectorToPseudo(atSelector, breakpoints);
+            const pseudo = atSelectorToPseudo(type, breakpoints);
             const selector = pseudo?.startsWith("@") ? pseudo : `&${pseudo}`;
             const begin = `${selector} {`;
             const end = "}";
@@ -604,83 +565,65 @@ function paramToProp(
   return `${k}: ${value};`;
 }
 
+const PSEUDO_ALIASES = {
+  "@hovered": ":hover",
+  "@focused": ":focus",
+  "@pressed": ":active",
+  "@disabled": ":disabled",
+  "@enabled": ":enabled",
+  "@checked": ":checked",
+  "@unchecked": ":not(:checked)",
+  "@required": ":required",
+  "@valid": ":valid",
+  "@invalid": ":invalid",
+  "@readonly": ":read-only",
+  "@first": ":first-child",
+  "@last": ":last-child",
+  "@only": ":only-child",
+  "@odd": ":nth-child(odd)",
+  "@even": ":nth-child(even)",
+  "@empty": ":nth-child(empty)",
+  "@blank": ":placeholder-shown",
+  "@direction(": ":dir(",
+  "@language(": ":lang(",
+  "@theme(": "@media(prefers-color-scheme:",
+  "@container-size(": "@container(max-width:",
+  "@screen-size(": "@container screen (max-width:",
+  "@before": "::before",
+  "@after": "::after",
+  "@placeholder": "::placeholder",
+  "@selection": "::selection",
+  "@marker": "::marker",
+  "@backdrop": "::backdrop",
+  "@opened": "[open]",
+  "@initial": "@starting-style",
+};
+
 function atSelectorToPseudo(
   selector: string,
   breakpoints: Record<string, number>
 ) {
-  const [name, arg] = splitSelectorArgs(selector);
-  switch (name) {
-    case "": // @
-      return "> *";
-    case "@": // @@
-      return "*";
-    case "hovered":
-      return ":hover";
-    case "focused":
-      return ":focus";
-    case "pressed":
-      return ":active";
-    case "disabled":
-      return ":disabled";
-    case "enabled":
-      return ":enabled";
-    case "checked":
-      return ":checked";
-    case "unchecked":
-      return ":not(:checked)";
-    case "required":
-      return ":required";
-    case "valid":
-      return ":valid";
-    case "invalid":
-      return ":invalid";
-    case "readonly":
-      return ":read-only";
-    case "first":
-      return ":first-child";
-    case "last":
-      return ":last-child";
-    case "only":
-      return ":only-child";
-    case "odd":
-      return ":nth-child(odd)";
-    case "even":
-      return ":nth-child(even)";
-    case "empty":
-      return ":nth-child(empty)";
-    case "blank":
-      return ":placeholder-shown";
-    case "before":
-      return "::before";
-    case "after":
-      return "::after";
-    case "placeholder":
-      return "::placeholder";
-    case "selection":
-      return "::selection";
-    case "marker":
-      return "::marker";
-    case "backdrop":
-      return "::backdrop";
-    case "opened":
-      return `[open]`;
-    case "initial":
-      return "@starting-style";
-    case "language":
-      return `:lang(${arg})`;
-    case "direction":
-      return `:dir(${arg})`;
-    case "has":
-      return `:has(${arg})`;
-    case "screen":
-      const breakpoint = (breakpoints || DEFAULT_BREAKPOINTS)[arg];
-      const size = breakpoint != null ? `${breakpoint}px` : arg;
-      return `@container(max-width:${size})`;
-    case "theme":
-      return `@media(prefers-color-scheme:${arg})`;
-    default:
-      return "." + selector;
+  // Handles universal selectors
+  selector = selector.replace(/@@(?![a-zA-Z])/g, "*");
+  selector = selector.replace(/@(?![a-zA-Z])/g, "> *");
+
+  // Handles named breakpoints (xl, lg, md, sm, xs)
+  for (const [k, v] of Object.entries(breakpoints || DEFAULT_BREAKPOINTS)) {
+    selector = selector.replace(
+      new RegExp(`@screen-size[(]\s*${k}\s*[)]`, "g"),
+      `@container screen (max-width:${v})`
+    );
   }
+
+  // Handles shorthand aliases
+  for (const [shorthand, expanded] of Object.entries(PSEUDO_ALIASES)) {
+    selector = selector.replaceAll(shorthand, expanded);
+  }
+
+  // Handles remaining pseudo functions
+  selector = selector.replaceAll("@", ":");
+
+  return selector;
 }
 
 const INDENT = "  ";
