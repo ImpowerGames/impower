@@ -152,17 +152,6 @@
   --theme_opacity-hover: 0.05;
 
   /*
-   * Scrollbars
-   */
-
-  --theme_scrollbar-size: 8px;
-  --theme_scrollbar-thickness: thin;
-  --theme_scrollbar-gutter: stable;
-  --theme_scrollbar-behavior: smooth;
-  --theme_scrollbar-margin: 1rem;
-  --theme_scrollbar-padding: 1rem;
-
-  /*
    * Ratios
    */
   --theme_ratio-square: 1;
@@ -216,15 +205,24 @@
    */
 
   /* General */
-  --theme_color-focus: var(--theme_color-primary-80);
-  --theme_color-surface: var(--theme_color-neutral-30);
+  --theme_color-focus: var(--theme_color-primary-60);
+  --theme_color-text: var(--theme_color-neutral-90);
+  --theme_color-surface: var(--theme_color-neutral-10);
   --theme_color-surface-border: var(--theme_color-fg-12);
+
+  /* Divider */
   --theme_color-divider: var(--theme_color-fg-12);
 
   /* Scrollbars */
   --theme_color-scrollbar-thumb: var(--theme_color-neutral-50);
   --theme_color-scrollbar-thumb-hover: var(--theme_color-neutral-60);
   --theme_color-scrollbar-track: var(--theme_color-neutral-20);
+  --theme_scrollbar-size: 8px;
+  --theme_scrollbar-thickness: thin;
+  --theme_scrollbar-gutter: stable;
+  --theme_scrollbar-behavior: smooth;
+  --theme_scrollbar-margin: 1rem;
+  --theme_scrollbar-padding: 1rem;
 
   /* Focus rings */
   --theme_focus-ring-color: var(--theme_color-primary-20);
@@ -232,82 +230,8 @@
   --theme_focus-ring-width: 3px;
   --theme_focus-ring-offset: 2px;
 
-  /* Tooltips */
-  --theme_tooltip-font-size: var(--theme_font-size-sm);
-  --theme_tooltip-font-family: var(--theme_font-sans);
-  --theme_tooltip-line-height: 1.4;
-  --theme_tooltip-font-weight: normal;
-  --theme_tooltip-color: var(--theme_color-neutral-80);
-  --theme_tooltip-background-color: var(--theme_color-neutral-30);
-  --theme_tooltip-border-radius: 6px;
-  --theme_tooltip-arrow-size: 6px;
-
-  /* Buttons */
-  --theme_button-font-size-sm: var(--theme_font-size-xs);
-  --theme_button-font-size-md: var(--theme_font-size-sm);
-  --theme_button-font-size-lg: var(--theme_font-size-md);
-
-  /* Inputs */
-  --theme_input-height-sm: 28px;
-  --theme_input-height-md: 40px;
-  --theme_input-height-lg: 48px;
-
-  --theme_input-background-color: var(--theme_color-fg-05);
-
-  --theme_input-border-color: var(--theme_color-neutral-40);
-  --theme_input-border-color-hover: var(--theme_color-neutral-50);
-  --theme_input-border-color-focus: var(--theme_color-primary-60);
-  --theme_input-border-color-disabled: var(--theme_color-neutral-40);
-  --theme_input-border-width: 1px;
-  --theme_input-required-content: "*";
-  --theme_input-required-content-offset: -2px;
-  --theme_input-required-content-color: var(--theme_input-label-color);
-
-  --theme_input-border-radius-sm: 4px;
-  --theme_input-border-radius-md: 4px;
-  --theme_input-border-radius-lg: 4px;
-
-  --theme_input-font-family: var(--theme_font-sans);
-  --theme_input-font-weight: normal;
-  --theme_input-font-size-sm: var(--theme_font-size-sm);
-  --theme_input-font-size-md: var(--theme_font-size-md);
-  --theme_input-font-size-lg: var(--theme_font-size-lg);
-  --theme_input-letter-spacing: var(--theme_letter-spacing-md);
-
-  --theme_input-spacing-sm: var(--theme_spacing-sm);
-  --theme_input-spacing-md: var(--theme_spacing-md);
-  --theme_input-spacing-lg: var(--theme_spacing-lg);
-
-  --theme_input-color: var(--theme_color-neutral-90);
-  --theme_input-color-hover: var(--theme_color-neutral-90);
-  --theme_input-color-focus: var(--theme_color-neutral-80);
-  --theme_input-color-disabled: var(--theme_color-neutral-90);
-  --theme_input-icon-color: var(--theme_color-neutral-60);
-  --theme_input-icon-color-hover: var(--theme_color-neutral-70);
-  --theme_input-icon-color-focus: var(--theme_color-neutral-70);
-  --theme_input-placeholder-color: var(--theme_color-neutral-70);
-  --theme_input-placeholder-color-disabled: var(--theme_color-neutral-70);
-
-  --theme_input-focus-ring-color: hsl(198.6 88.7% 48.4% / 40%);
-  --theme_input-focus-ring-offset: 0;
-
-  --theme_input-label-font-size-sm: var(--theme_font-size-sm);
-  --theme_input-label-font-size-md: var(--theme_font-size-md);
-  --theme_input-label-font-size-lg: var(--theme_font-size-lg);
-  --theme_input-label-color: inherit;
-
-  --theme_input-help-text-font-size-sm: var(--theme_font-size-xs);
-  --theme_input-help-text-font-size-md: var(--theme_font-size-sm);
-  --theme_input-help-text-font-size-lg: var(--theme_font-size-md);
-  --theme_input-help-text-color: var(--theme_color-neutral-60);
-
-  /* Toggles (checkboxes, radios, switches) */
-  --theme_toggle-size-sm: 0.875rem; /* 14px */
-  --theme_toggle-size-md: 1.125rem; /* 18px */
-  --theme_toggle-size-lg: 1.375rem; /* 22px */
-
   /* Icon size */
-  --theme_icon-size: 1.25rem /* 20px */;
+  --theme_icon-size: 24px;
 
   /* Masks */
   --theme_mask-angled-corner: conic-gradient(

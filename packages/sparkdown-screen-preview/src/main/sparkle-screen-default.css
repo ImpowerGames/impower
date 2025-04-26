@@ -1,35 +1,43 @@
 /****************************** DEFAULT STYLES ******************************/
 
 .screen {
-  --_background: var(--theme_color-neutral-10);
-  --_text-color: var(--theme_color-neutral-90);
-  --_focus-color: var(--theme_color-primary-60);
+  /* Buttons */
   --_button-background: var(--theme_color-neutral-20);
   --_button-background-hover: var(--theme_color-neutral-30);
   --_button-border: var(--theme_color-neutral-50);
   --_button-border-hover: var(--theme_color-neutral-60);
   --_button-background-active: var(--theme_color-neutral-40);
   --_button-text: var(--theme_color-neutral-100);
+
+  /* Inputs */
   --_input-background: var(--theme_color-neutral-20);
   --_input-background-hover: var(--theme_color-neutral-20);
   --_input-border: var(--theme_color-neutral-50);
   --_input-border-hover: var(--theme_color-neutral-60);
   --_input-text: var(--theme_color-neutral-100);
   --_input-text-placeholder: var(--theme_color-neutral-70);
+
+  /* Dropdowns */
   --_dropdown-background: var(--theme_color-neutral-20);
   --_dropdown-background-hover: var(--theme_color-neutral-30);
   --_dropdown-border: var(--theme_color-neutral-50);
   --_dropdown-border-hover: var(--theme_color-neutral-60);
   --_dropdown-text: var(--theme_color-neutral-100);
+
+  /* Options */
   --_option-background: var(--theme_color-neutral-20);
   --_option-background-selected: var(--theme_color-neutral-50);
   --_option-text: var(--theme_color-neutral-100);
+
+  /* Checkboxes */
   --_checkbox-background: var(--theme_color-neutral-20);
   --_checkbox-background-hover: var(--theme_color-neutral-30);
   --_checkbox-background-checked: var(--theme_color-primary-60);
   --_checkbox-border: var(--theme_color-neutral-60);
   --_checkbox-border-hover: var(--theme_color-neutral-60);
   --_checkbox-check: var(--theme_color-fill-contrast);
+
+  /* Sliders */
   --_slider-thumb-fill: var(--theme_color-primary-60);
   --_slider-thumb-border: var(--theme_color-primary-60);
   --_slider-fill-color: var(--theme_color-primary-60);
@@ -50,7 +58,7 @@
   gap: 16px;
   min-height: 100vh;
   font-size: 16px;
-  color: var(--_text-color);
+  color: var(--theme_color-text);
 }
 
 .component {
@@ -62,7 +70,7 @@ style {
 }
 
 .Box {
-  background: var(--_background);
+  background: var(--theme_color-surface);
   padding: 16px;
   border-radius: 8px;
   gap: 16px;
@@ -160,7 +168,7 @@ style {
   padding: 8px 12px;
   font-size: 1rem;
   font-family: inherit;
-  color: var(--_text-color);
+  color: var(--theme_color-text);
   border-radius: 8px;
   resize: vertical;
   outline: none;
@@ -196,7 +204,7 @@ style {
   border: 2px solid var(--_slider-thumb-border);
 }
 .Slider:focus::-webkit-slider-thumb {
-  border-color: var(--_focus-color);
+  border-color: var(--theme_color-focus);
 }
 .Slider::-moz-range-thumb {
   border-radius: 50%;
@@ -238,7 +246,7 @@ style {
   border: var(--thumb-border, 2px solid var(--_slider-thumb-border));
 }
 [thumb_focus_color].Slider:focus::-webkit-slider-thumb {
-  border-color: var(--thumb-focus-color, var(--_focus-color));
+  border-color: var(--thumb-color-focus, var(--theme_color-focus));
 }
 
 .InputGroup:has(.Checkbox) {
