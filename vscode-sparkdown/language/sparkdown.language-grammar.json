@@ -2266,7 +2266,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#CssPropertyValue"
+          "include": "#CssSelector"
         }
       ],
       "end": "(?=$)"
@@ -2400,7 +2400,7 @@
           "include": "#CssSelectorAttribute"
         },
         {
-          "include": "#CssSelectorClassName"
+          "include": "#CssPropertyName"
         },
         {
           "include": "#Separator"
@@ -2488,11 +2488,6 @@
       "name": "variable.other.property.define.sd",
       "match": "(\\[)(.*?)(\\])"
     },
-    "CssSelectorClassName": {
-      "tag": "propertyName",
-      "name": "variable.other.property.define.sd",
-      "match": "([_\\p{L}-][0-9_\\p{L}-]*)"
-    },
     "CssSelectorFunctionConditionName": {
       "tag": "attributeName",
       "name": "entity.other.attribute-name.pseudo-class.name.sd",
@@ -2501,6 +2496,11 @@
     "CssSelectorSimpleConditionName": {
       "tag": "attributeName",
       "name": "entity.other.attribute-name.pseudo-class.name.sd",
+      "match": "([_\\p{L}-][0-9_\\p{L}-]*)"
+    },
+    "CssPropertyName": {
+      "tag": "propertyName",
+      "name": "variable.other.property.define.sd",
       "match": "([_\\p{L}-][0-9_\\p{L}-]*)"
     },
     "CssPropertyValue": {

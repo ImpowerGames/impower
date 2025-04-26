@@ -1234,7 +1234,7 @@ repository:
           - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#CssPropertyValue" }
+      - { include: "#CssSelector" }
     end: (?=$)
 
   CssObjectProperty:
@@ -1297,7 +1297,7 @@ repository:
       - { include: "#CssSelectorKeyword" }
       - { include: "#CssSelectorOperator" }
       - { include: "#CssSelectorAttribute" }
-      - { include: "#CssSelectorClassName" }
+      - { include: "#CssPropertyName" }
       - { include: "#Separator" }
       - { include: "#Unknown" }
 
@@ -1357,11 +1357,6 @@ repository:
     name: variable.other.property.define.sd
     match: (\[)(.*?)(\])
 
-  CssSelectorClassName:
-    tag: propertyName
-    name: variable.other.property.define.sd
-    match: ({{CSS_IDENTIFIER}})
-
   CssSelectorFunctionConditionName:
     tag: attributeName
     name: entity.other.attribute-name.pseudo-class.name.sd
@@ -1370,6 +1365,11 @@ repository:
   CssSelectorSimpleConditionName:
     tag: attributeName
     name: entity.other.attribute-name.pseudo-class.name.sd
+    match: ({{CSS_IDENTIFIER}})
+
+  CssPropertyName:
+    tag: propertyName
+    name: variable.other.property.define.sd
     match: ({{CSS_IDENTIFIER}})
 
   CssPropertyValue:
