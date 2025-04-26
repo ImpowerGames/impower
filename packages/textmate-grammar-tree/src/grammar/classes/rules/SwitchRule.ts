@@ -54,9 +54,6 @@ export class SwitchRule implements Rule {
    * @param state - The current {@link GrammarState}.
    */
   match(state: GrammarState, from: number) {
-    if (!state.increaseMatchDepth()) {
-      return null;
-    }
     return this.pattern(state, from);
   }
 

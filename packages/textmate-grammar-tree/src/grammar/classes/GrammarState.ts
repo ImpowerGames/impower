@@ -32,24 +32,6 @@ export class GrammarState {
     this.absolutePos = absolutePos;
   }
 
-  increaseMatchDepth() {
-    this._matchDepth++;
-    if (this._matchDepth > 10000) {
-      console.error(
-        "Exceeded maximum match depth!",
-        JSON.stringify(
-          this.stack.stack.map((e) => ({
-            beginCaptures: e.beginCaptures,
-            node: e.node.typeId,
-          }))
-        )
-      );
-      return false;
-      5;
-    }
-    return true;
-  }
-
   advance() {
     if (!this.next) {
       return;
