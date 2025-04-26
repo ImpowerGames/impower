@@ -13,7 +13,7 @@ const getCssFilter = (value: string): string => {
   ) {
     return value;
   }
-  return `var(--s-filter-${value})`;
+  return `var(--theme_filter-${value})`;
 };
 
 export default getCssFilter;

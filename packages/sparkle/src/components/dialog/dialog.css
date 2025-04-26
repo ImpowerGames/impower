@@ -1,26 +1,28 @@
 :host {
   display: contents;
-  --background-color: var(--s-color-surface);
+  --background-color: var(--theme_color-surface);
   --child-layout: column;
   --child-align: stretch;
   --child-justify: flex-start;
   --child-gap: 16px;
-  --shadow: var(--s-shadow-box-5);
-  --z: var(--s-z-index-dialog);
+  --shadow: var(--theme_shadow-box-5);
+  --z: var(--theme_z-index-dialog);
   --title-text-weight: 400;
-  --title-text-size: var(--s-text-2xl-font-size);
-  --title-text-leading: var(--s-text-2xl-line-height);
-  --text-size: var(--s-text-sm-font-size);
-  --text-leading: var(--s-text-sm-line-height);
-  --border-color: var(--s-color-surface-border);
+  --title-text-size: var(--theme_text-2xl-font-size);
+  --title-text-leading: var(--theme_text-2xl-line-height);
+  --text-size: var(--theme_text-sm-font-size);
+  --text-leading: var(--theme_text-sm-line-height);
+  --border-color: var(--theme_color-surface-border);
   --border-width: 1px;
   --corner: 8px;
   --margin: auto;
   --padding: 24px;
-  --enter: var(--s-animation-open);
-  --exit: var(--s-animation-close);
-  --mobile-enter: var(--s-animation-slide-in-up), var(--s-animation-fade-in);
-  --mobile-exit: var(--s-animation-slide-out-down), var(--s-animation-fade-out);
+  --enter: var(--theme_animation-open);
+  --exit: var(--theme_animation-close);
+  --mobile-enter: var(--theme_animation-slide-in-up),
+    var(--theme_animation-fade-in);
+  --mobile-exit: var(--theme_animation-slide-out-down),
+    var(--theme_animation-fade-out);
   --ease: ease-out;
 }
 

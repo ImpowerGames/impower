@@ -1,5 +1,5 @@
 const getCssMask = (value: string): string => {
-  return `var(--s-mask-${value})`;
+  return `var(--theme_mask-${value})`;
 };
 
 export default getCssMask;

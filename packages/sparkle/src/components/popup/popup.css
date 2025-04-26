@@ -1,6 +1,6 @@
 :host {
   display: contents;
-  --arrow-color: var(--s-color-neutral-1000);
+  --arrow-color: var(--theme_color-neutral-1000);
   --arrow-size: 6px;
 
   /*
@@ -9,7 +9,7 @@
    */
   --arrow-size-diagonal: calc(var(--arrow-size) * 0.7071);
   --arrow-padding-offset: calc(var(--arrow-size-diagonal) - var(--arrow-size));
-  --shadow: var(--s-shadow-box-2);
+  --shadow: var(--theme_shadow-box-2);
 }
 
 :host > .root {

@@ -29,7 +29,7 @@ const getCssEase = (value: string | null, defaultValue = "linear"): string => {
     const x2 = 1 - incomingPercent / 100;
     return `cubic-bezier(${x1}, 0, ${x2}, 1)`;
   }
-  return `var(--s-easing-${value})`;
+  return `var(--theme_easing-${value})`;
 };
 
 export default getCssEase;

@@ -7,7 +7,7 @@ const getCssTextLeading = (value: string): string => {
     value === "lg" ||
     value === "xl"
   ) {
-    return `var(--s-text-kerning-${value})`;
+    return `var(--theme_text-kerning-${value})`;
   }
   return value;
 };

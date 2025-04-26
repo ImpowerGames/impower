@@ -431,46 +431,46 @@
   font-size: var(--text-size, 1rem) !important;
 }
 [text-size="2xs"] > .root {
-  line-height: var(--s-text-2xs-line-height, 1.5);
+  line-height: var(--theme_text-2xs-line-height, 1.5);
 }
 [text-size="xs"] > .root {
-  line-height: var(--s-text-xs-line-height, 1.5);
+  line-height: var(--theme_text-xs-line-height, 1.5);
 }
 [text-size="sm"] > .root {
-  line-height: var(--s-text-sm-line-height, 1.5);
+  line-height: var(--theme_text-sm-line-height, 1.5);
 }
 [text-size="md"] > .root {
-  line-height: var(--s-text-md-line-height, 1.5);
+  line-height: var(--theme_text-md-line-height, 1.5);
 }
 [text-size="lg"] > .root {
-  line-height: var(--s-text-lg-line-height, 1.5);
+  line-height: var(--theme_text-lg-line-height, 1.5);
 }
 [text-size="xl"] > .root {
-  line-height: var(--s-text-xl-line-height, 1.5);
+  line-height: var(--theme_text-xl-line-height, 1.5);
 }
 [text-size="2xl"] > .root {
-  line-height: var(--s-text-2xl-line-height, 1.5);
+  line-height: var(--theme_text-2xl-line-height, 1.5);
 }
 [text-size="3xl"] > .root {
-  line-height: var(--s-text-3xl-line-height, 1.5);
+  line-height: var(--theme_text-3xl-line-height, 1.5);
 }
 [text-size="4xl"] > .root {
-  line-height: var(--s-text-4xl-line-height, 1.5);
+  line-height: var(--theme_text-4xl-line-height, 1.5);
 }
 [text-size="5xl"] > .root {
-  line-height: var(--s-text-5xl-line-height, 1.5);
+  line-height: var(--theme_text-5xl-line-height, 1.5);
 }
 [text-size="6xl"] > .root {
-  line-height: var(--s-text-6xl-line-height, 1.5);
+  line-height: var(--theme_text-6xl-line-height, 1.5);
 }
 [text-size="7xl"] > .root {
-  line-height: var(--s-text-7xl-line-height, 1.5);
+  line-height: var(--theme_text-7xl-line-height, 1.5);
 }
 [text-size="8xl"] > .root {
-  line-height: var(--s-text-8xl-line-height, 1.5);
+  line-height: var(--theme_text-8xl-line-height, 1.5);
 }
 [text-size="9xl"] > .root {
-  line-height: var(--s-text-9xl-line-height, 1.5);
+  line-height: var(--theme_text-9xl-line-height, 1.5);
 }
 
 [text-leading] > .root {
@@ -634,11 +634,11 @@
 }
 
 [animation] > .root {
-  animation: var(--animation, var(--s-animation-bounce)) !important;
+  animation: var(--animation, var(--theme_animation-bounce)) !important;
 }
 
 [mask] > .root {
-  --s-mask-angled-corner: conic-gradient(
+  --theme_mask-angled-corner: conic-gradient(
         from -45deg at var(--corner, 8px) var(--corner, 8px),
         #0000 25%,
         #000 0
@@ -651,14 +651,14 @@
       )
       calc(-1 * var(--corner, 8px)) 100%/100% 51% repeat-x !important;
 
-  --s-mask-scooped-corner: radial-gradient(
+  --theme_mask-scooped-corner: radial-gradient(
       var(--corner, 8px) at var(--corner, 8px) var(--corner, 8px),
       #0000 99%,
       #000
     )
     calc(-1 * var(--corner, 8px)) calc(-1 * var(--corner, 8px)) !important;
 
-  --s-mask-notched-corner: conic-gradient(
+  --theme_mask-notched-corner: conic-gradient(
       at calc(2 * var(--corner, 8px)) calc(2 * var(--corner, 8px)),
       #000 75%,
       #0000 0
@@ -698,25 +698,25 @@
   transition-property: outline-offset, opacity;
   transition-duration: var(--focus-duration);
   transition-timing-function: ease;
-  outline-offset: calc(-2 * var(--s-focus-ring-width));
+  outline-offset: calc(-2 * var(--theme_focus-ring-width));
   pointer-events: none;
 }
 .root.focused::after {
   display: flex;
-  outline: var(--s-color-focus) var(--s-focus-ring-style)
-    var(--s-focus-ring-width);
-  outline-offset: calc(-1 * var(--s-focus-ring-width));
+  outline: var(--theme_color-focus) var(--theme_focus-ring-style)
+    var(--theme_focus-ring-width);
+  outline-offset: calc(-1 * var(--theme_focus-ring-width));
   -webkit-mask: none;
   mask: none;
 }
 .root.focused.pressed::after {
   display: flex;
-  outline-offset: calc((-1 * var(--s-focus-ring-width)) - 2px);
+  outline-offset: calc((-1 * var(--theme_focus-ring-width)) - 2px);
 }
 
 .icon {
   /* use !important to prevent issues with browser extensions that change fonts */
-  font-family: var(--s-font-icon) !important;
+  font-family: var(--theme_font-icon) !important;
   font-style: normal;
   font-weight: normal;
   font-variant: normal;

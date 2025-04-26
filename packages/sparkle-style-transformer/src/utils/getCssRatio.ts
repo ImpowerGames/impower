@@ -8,7 +8,7 @@ const getCssRatio = (value: string): string => {
   if (value.includes(":")) {
     return value.replace(":", "/");
   }
-  return `var(--s-ratio-${value})`;
+  return `var(--theme_ratio-${value})`;
 };
 
 export default getCssRatio;

@@ -45,7 +45,7 @@ const getCssSize = (
     return defaultUnit === "px" ? "24px" : "1.5rem";
   }
   if (isVariableValue(value)) {
-    return `var(--s-size-${value})`;
+    return `var(--theme_size-${value})`;
   }
   return getCssUnit(value, defaultUnit);
 };

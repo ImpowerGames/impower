@@ -15,7 +15,7 @@ export const getCssTextSizeLineHeight = (value: string): string => {
     value === "8xl" ||
     value === "9xl"
   ) {
-    return `var(--s-text-${value}-line-height)`;
+    return `var(--theme_text-${value}-line-height)`;
   }
   return value;
 };

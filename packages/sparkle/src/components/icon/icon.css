@@ -8,10 +8,10 @@
   display: flex;
   justify-content: var(--child-justify);
   align-items: var(--child-align);
-  width: var(--icon-size, var(--s-icon-size));
-  height: var(--icon-size, var(--s-icon-size));
-  min-width: var(--icon-size, var(--s-icon-size));
-  min-height: var(--icon-size, var(--s-icon-size));
-  font-size: var(--icon-size, var(--s-icon-size));
+  width: var(--icon-size, var(--theme_icon-size));
+  height: var(--icon-size, var(--theme_icon-size));
+  min-width: var(--icon-size, var(--theme_icon-size));
+  min-height: var(--icon-size, var(--theme_icon-size));
+  font-size: var(--icon-size, var(--theme_icon-size));
   will-change: transform;
 }

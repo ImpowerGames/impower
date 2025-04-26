@@ -10,7 +10,7 @@
   --selectable: none;
   --width: auto;
   --height: auto;
-  --text-font: var(--s-font-sans);
+  --text-font: var(--theme_font-sans);
   --text-wrap: nowrap;
   --transition-property: transform, background-color, color, border, box-shadow;
   --duration: 100ms;
@@ -18,12 +18,12 @@
   --border-width: 1px;
   --corner: 0;
   --shadow: none;
-  --color: var(--s-color-neutral-100);
-  --active-color: var(--s-color-neutral-100);
+  --color: var(--theme_color-neutral-100);
+  --active-color: var(--theme_color-neutral-100);
 }
 
 :host([value]) {
-  --color: var(--s-color-neutral-70);
+  --color: var(--theme_color-neutral-70);
 }
 
 :host([active]:not([disabled])) > .root {
@@ -33,16 +33,16 @@
 :host([size="xs"]) > .root {
   --width-min: 80px;
   --height-min: 24px;
-  --text-size: var(--s-text-2xs-font-size);
-  --text-leading: var(--s-text-2xs-line-height);
+  --text-size: var(--theme_text-2xs-font-size);
+  --text-leading: var(--theme_text-2xs-line-height);
   --padding-lr: 12px;
 }
 
 :host([size="sm"]) > .root {
   --width-min: 80px;
   --height-min: 32px;
-  --text-size: var(--s-text-sm-font-size);
-  --text-leading: var(--s-text-sm-line-height);
+  --text-size: var(--theme_text-sm-font-size);
+  --text-leading: var(--theme_text-sm-line-height);
   --padding-lr: 14px;
 }
 
@@ -50,16 +50,16 @@
 :host([size="md"]) > .root {
   --width-min: 80px;
   --height-min: 40px;
-  --text-size: var(--s-text-sm-font-size);
-  --text-leading: var(--s-text-sm-line-height);
+  --text-size: var(--theme_text-sm-font-size);
+  --text-leading: var(--theme_text-sm-line-height);
   --padding-lr: 20px;
 }
 
 :host([size="lg"]) > .root {
   --width-min: 80px;
   --height-min: 48px;
-  --text-size: var(--s-text-md-font-size);
-  --text-leading: var(--s-text-md-line-height);
+  --text-size: var(--theme_text-md-font-size);
+  --text-leading: var(--theme_text-md-line-height);
   --padding-lr: 24px;
 }
 
@@ -134,11 +134,11 @@
 :host([icon]) > .root > .icon {
   position: relative;
   display: flex;
-  width: var(--icon-size, var(--s-icon-size));
-  height: var(--icon-size, var(--s-icon-size));
-  min-width: var(--icon-size, var(--s-icon-size));
-  min-height: var(--icon-size, var(--s-icon-size));
-  font-size: var(--icon-size, var(--s-icon-size));
+  width: var(--icon-size, var(--theme_icon-size));
+  height: var(--icon-size, var(--theme_icon-size));
+  min-width: var(--icon-size, var(--theme_icon-size));
+  min-height: var(--icon-size, var(--theme_icon-size));
+  font-size: var(--icon-size, var(--theme_icon-size));
   justify-content: center;
   align-items: center;
   will-change: transform;

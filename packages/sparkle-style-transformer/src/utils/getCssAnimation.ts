@@ -7,7 +7,7 @@ const getCssAnimation = (value: string | null, suffix = ""): string => {
   }
   return value
     .split(" ")
-    .map((v) => `var(--s-animation-${v}${suffix || ""})`)
+    .map((v) => `var(--theme_animation-${v}${suffix || ""})`)
     .join(", ");
 };
 

@@ -16,9 +16,9 @@
   inset: 0;
   flex: 1;
   pointer-events: none;
-  background-color: var(--s-color-panel);
-  color: var(--s-color-fg);
-  font-size: var(--s-text-xl-font-size);
+  background-color: var(--theme_color-panel);
+  color: var(--theme_color-fg);
+  font-size: var(--theme_text-xl-font-size);
   font-weight: 600;
   gap: 8px;
   display: flex;

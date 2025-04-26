@@ -4,7 +4,7 @@ const getCssShadow = (value: string): string => {
   }
   const isValidNumber = !Number.isNaN(Number(value));
   if (isValidNumber) {
-    return `var(--s-shadow-box-${value})`;
+    return `var(--theme_shadow-box-${value})`;
   }
   return value;
 };

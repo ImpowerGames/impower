@@ -8,14 +8,14 @@
   --position: relative;
   --grow: 1;
   --shrink: 1;
-  --text-font: var(--s-font-sans);
-  --text-size: var(--s-text-sm-font-size);
+  --text-font: var(--theme_font-sans);
+  --text-size: var(--theme_text-sm-font-size);
   --text-weight: 600;
   --text-wrap: nowrap;
   --transition-property: opacity, transform, box-shadow;
   --duration: 100ms;
-  --active-text-color: var(--s-color-primary-60);
-  --inactive-text-color: var(--s-color-neutral-60);
+  --active-text-color: var(--theme_color-primary-60);
+  --inactive-text-color: var(--theme_color-neutral-60);
   --padding-tb: 16px;
   --padding-lr: 20px;
 }
@@ -114,11 +114,11 @@
 :host([icon]) > .root > .icon {
   position: relative;
   display: flex;
-  width: var(--icon-size, var(--s-icon-size));
-  height: var(--icon-size, var(--s-icon-size));
-  min-width: var(--icon-size, var(--s-icon-size));
-  min-height: var(--icon-size, var(--s-icon-size));
-  font-size: var(--icon-size, var(--s-icon-size));
+  width: var(--icon-size, var(--theme_icon-size));
+  height: var(--icon-size, var(--theme_icon-size));
+  min-width: var(--icon-size, var(--theme_icon-size));
+  min-height: var(--icon-size, var(--theme_icon-size));
+  font-size: var(--icon-size, var(--theme_icon-size));
   justify-content: center;
   align-items: center;
   will-change: transform, opacity;

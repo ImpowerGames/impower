@@ -4,7 +4,7 @@ const getCssZ = (value: string): string => {
   if (isValidNumber(value) || value.startsWith("var(")) {
     return value;
   }
-  return `var(--s-z-index-${value})`;
+  return `var(--theme_z-index-${value})`;
 };
 
 export default getCssZ;

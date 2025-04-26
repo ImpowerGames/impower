@@ -9,7 +9,7 @@ const getCssImage = (value: string): string => {
   ) {
     return value;
   }
-  return `var(--s-image-${value})`;
+  return `var(--theme_image-${value})`;
 };
 
 export default getCssImage;

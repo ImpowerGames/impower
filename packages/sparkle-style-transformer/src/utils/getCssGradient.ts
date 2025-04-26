@@ -11,7 +11,7 @@ const getCssGradient = (value: string): string => {
   ) {
     return value;
   }
-  return `var(--s-gradient-${value})`;
+  return `var(--theme_gradient-${value})`;
 };
 
 export default getCssGradient;

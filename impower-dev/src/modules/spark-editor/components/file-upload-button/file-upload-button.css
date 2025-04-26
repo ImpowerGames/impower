@@ -7,7 +7,7 @@
   position: sticky;
   left: 0;
   right: 0;
-  bottom: var(--s-size-footer-nav);
+  bottom: var(--theme_size-footer-nav);
 }
 
 @media (min-width: 960px) {

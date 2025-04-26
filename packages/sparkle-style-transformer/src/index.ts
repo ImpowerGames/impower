@@ -28,18 +28,18 @@ const transformer = (
   if (patternFiles) {
     for (let i = 0; i < patternFiles.length; i += 1) {
       const patternFile = patternFiles[i] || "";
-      Object.entries(extractAllGraphics("--s-pattern-", patternFile)).forEach(
-        ([key, value]) => {
-          patterns[key] = value;
-        }
-      );
+      Object.entries(
+        extractAllGraphics("--theme_pattern-", patternFile)
+      ).forEach(([key, value]) => {
+        patterns[key] = value;
+      });
     }
   }
   const iconFiles = config?.icons;
   if (iconFiles) {
     for (let i = 0; i < iconFiles.length; i += 1) {
       const iconFile = iconFiles[i] || "";
-      Object.entries(extractAllGraphics("--s-icon-", iconFile)).forEach(
+      Object.entries(extractAllGraphics("--theme_icon-", iconFile)).forEach(
         ([key, value]) => {
           icons[key] = value;
         }

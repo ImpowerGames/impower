@@ -1,27 +1,27 @@
 :host {
   display: contents;
-  --icon-size: var(--s-text-lg-font-size);
+  --icon-size: var(--theme_text-lg-font-size);
   --interactable: auto;
   --position: relative;
   --child-layout: row;
   --child-align: center;
   --child-justify: center;
-  --shadow: var(--s-shadow-box-2);
-  --background-color: var(--s-color-surface);
-  --text-color: var(--s-color-neutral-80);
-  --text-font: var(--s-font-sans);
-  --text-size: var(--s-text-sm-font-size);
+  --shadow: var(--theme_shadow-box-2);
+  --background-color: var(--theme_color-surface);
+  --text-color: var(--theme_color-neutral-80);
+  --text-font: var(--theme_font-sans);
+  --text-size: var(--theme_text-sm-font-size);
   --text-leading: 1.6;
   --text-weight: 400;
   --spacing: 16px;
-  --border-color: var(--s-color-surface-border);
+  --border-color: var(--theme_color-surface-border);
   --border-width: 1px;
   --corner: 4px;
   --margin: 4px;
   --padding-tb: 12px;
   --padding-lr: 16px;
-  --enter: var(--s-animation-enter-fade);
-  --exit: var(--s-animation-exit-fade);
+  --enter: var(--theme_animation-enter-fade);
+  --exit: var(--theme_animation-exit-fade);
   --ease: ease-out;
 }
 

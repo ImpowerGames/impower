@@ -3,8 +3,8 @@
   border-radius: inherit;
   -webkit-mask: inherit;
   mask: inherit;
-  --hover-opacity: var(--s-opacity-hover);
-  --press-opacity: var(--s-opacity-press);
+  --hover-opacity: var(--theme_opacity-hover);
+  --press-opacity: var(--theme_opacity-press);
   --ripple-duration: 150ms;
   --hover-duration: 0ms;
   --press-duration: 105ms;
