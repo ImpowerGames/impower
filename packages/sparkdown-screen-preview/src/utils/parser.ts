@@ -316,8 +316,8 @@ function parseParams(args: string[]) {
   for (const arg of args) {
     let match: RegExpMatchArray | null = null;
     if ((match = arg.match(/^"(.+)"$/))) {
-      const [, label] = match;
-      params["label"] = label;
+      const [, content] = match;
+      params["content"] = content;
     } else if (
       (match = arg.match(/^(@?[\w-]+)=\"(.*?)\"$/)) ||
       (match = arg.match(/^(@?[\w-]+)=(\S+)$/))

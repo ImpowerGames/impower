@@ -22,62 +22,64 @@ export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
     end: "}",
   },
   screen: {
-    begin: '<div class="style {classes}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
   },
   component: {
-    begin: '<div class="style {classes}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
   },
   "": {
-    begin: '<div class="style {classes}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
   },
   Box: {
-    begin: '<div class="style {classes}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
   },
   Row: {
-    begin: '<div class="style {classes}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
   },
   Column: {
-    begin: '<div class="style {classes}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
   },
   Grid: {
-    begin: '<div class="style {classes}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
   },
-  Label: {
-    begin: '<div class="style {classes}" {...attrs}>{{label}}',
+  Text: {
+    begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
   },
   Button: {
-    begin: '<button class="style {classes}" {...attrs}>{{label}}',
+    begin: '<button class="style {classes}" {...attrs}>{{content}}',
     end: "</button>",
   },
   Image: {
-    begin: '<img class="style {classes}" {...attrs}>',
-    end: "</img>",
+    begin: '<img class="style {classes}" alt="{{content}}" {...attrs}/>',
+    end: "",
   },
   Input: {
     begin: `
 <label class="style InputGroup">
-  <span class="style Label">{{label}}</span>
-  <input class="style {classes}" type="text" {...attrs}/>
+  <span class="style Label">{{content}}
 `,
     end: `
+  </span>
+  <input class="style {classes}" type="text" {...attrs}/>
 </label>
 `,
   },
   Slider: {
     begin: `
 <label class="style InputGroup">
-  <span class="style Label">{{label}}</span>
-  <input class="style {classes}" type="range" style="--fill-percentage: 50%;" oninput="this.style.setProperty('--fill-percentage', (this.value - this.min) / (this.max - this.min) * 100 + '%')" {...attrs}/>
+  <span class="style Label">{{content}}
 `,
     end: `
+  </span>
+  <input class="style {classes}" type="range" style="--fill-percentage: 50%;" oninput="this.style.setProperty('--fill-percentage', (this.value - this.min) / (this.max - this.min) * 100 + '%')" {...attrs}/>
 </label>
 `,
   },
@@ -85,16 +87,17 @@ export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
     begin: `
 <label class="style InputGroup">
   <input class="style {classes}" type="checkbox" {...attrs}/>
-  <span class="style Label">{{label}}</span>
+  <span class="style Label">{{content}}
 `,
     end: `
+  </span>
 </label>
 `,
   },
   Dropdown: {
     begin: `
 <label class="style InputGroup">
-  <span class="style Label">{{label}}</span>
+  <span class="style Label">{{content}}</span>
   <div class="style DropdownArrow">
     <select class="style {classes}" {...attrs}>
 `,
@@ -105,11 +108,11 @@ export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
 `,
   },
   Option: {
-    begin: '<option class="style {classes}" {...attrs}>',
+    begin: '<option class="style {classes}" {...attrs}>{{content}}',
     end: "</option>",
   },
   Space: {
-    begin: '<div class="style {classes}" {...attrs}>',
+    begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
   },
 } as const;

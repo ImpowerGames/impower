@@ -36,10 +36,6 @@
   --_slider-track-color: var(--theme_color-neutral-40);
 }
 
-.Label {
-  white-space: pre;
-}
-
 .screen {
   gap: 16px;
   min-height: 100vh;
@@ -83,7 +79,7 @@ style {
   flex-shrink: 1;
 }
 
-.Label {
+.Text {
   white-space: pre-wrap;
   font-size: 16px;
   color: inherit;
@@ -123,6 +119,12 @@ style {
   gap: 4px;
   align-items: start;
   position: relative;
+}
+
+.Label {
+  white-space: pre-wrap;
+  font-size: 16px;
+  color: inherit;
 }
 
 .Input {
