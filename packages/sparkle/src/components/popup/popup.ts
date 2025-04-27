@@ -413,8 +413,8 @@ export default class Popup
 
   protected stop(): void {
     this.removeAttribute("data-current-placement");
-    this.updateRootCssVariable("--auto-size-available-width", null);
-    this.updateRootCssVariable("--auto-size-available-height", null);
+    this.updateRootCssVariable("auto-size-available-width", null);
+    this.updateRootCssVariable("auto-size-available-height", null);
   }
 
   override update = () => {
@@ -519,11 +519,11 @@ export default class Popup
                 ? `${availableWidth}px`
                 : null;
             this.updateRootCssVariable(
-              "--auto-size-available-height",
+              "---auto-size-available-height",
               autoSizeAvailableHeight
             );
             this.updateRootCssVariable(
-              "--auto-size-available-width",
+              "---auto-size-available-width",
               autoSizeAvailableWidth
             );
           },
@@ -531,8 +531,8 @@ export default class Popup
       );
     } else {
       // Cleanup styles if we're no longer using auto-size
-      this.updateRootCssVariable("--auto-size-available-height", null);
-      this.updateRootCssVariable("--auto-size-available-width", null);
+      this.updateRootCssVariable("auto-size-available-height", null);
+      this.updateRootCssVariable("auto-size-available-width", null);
     }
 
     //
