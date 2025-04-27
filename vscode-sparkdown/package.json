@@ -225,6 +225,12 @@
             }
           },
           {
+            "scope": "entity.name.type.class.view.sd",
+            "settings": {
+              "foreground": "#FFB380"
+            }
+          },
+          {
             "scope": "support.type.component",
             "settings": {
               "foreground": "#FF80BB"
@@ -285,6 +291,12 @@
               "scope": "string.regexp.scene",
               "settings": {
                 "foreground": "#EE0000"
+              }
+            },
+            {
+              "scope": "entity.name.type.class.view.sd",
+              "settings": {
+                "foreground": "#E07B3A"
               }
             },
             {

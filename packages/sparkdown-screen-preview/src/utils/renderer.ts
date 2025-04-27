@@ -343,7 +343,12 @@ export function renderElements(
             type === "component"
               ? getInheritanceChain(el.params?.base, builtins, components)
               : getInheritanceChain(type, builtins, components);
-          elementContext["classes"] = [...classNames, base, name]
+          elementContext["classes"] = [
+            ...(el.params?.classes || []),
+            ...classNames,
+            base,
+            name,
+          ]
             .filter(Boolean)
             .join(" ");
           elementContext["attrs"] = Object.entries(rest).map(([k, v]) =>

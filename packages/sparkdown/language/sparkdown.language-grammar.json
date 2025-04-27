@@ -1586,7 +1586,7 @@
     "ViewComponentProperty": {
       "tag": "meta",
       "name": "meta.definition.view.property.scalar.sd",
-      "match": "^([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
+      "match": "^([^\\S\\n\\r]*)((?:[_\\p{L}][0-9_\\p{L}]*[.])*)([_\\p{L}][0-9_\\p{L}]*)(?=[^\\S\\n\\r]*)(?:([^\\S\\n\\r]*))(.*?)(?:([^\\S\\n\\r]*))($|[:])($|[^\\S\\n\\r]*$)",
       "captures": {
         "1": {
           "patterns": [
@@ -1598,39 +1598,46 @@
         "2": {
           "patterns": [
             {
-              "include": "#ComponentName"
+              "include": "#ClassAccessor"
             }
           ]
         },
         "3": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#ComponentName"
             }
           ]
         },
         "4": {
           "patterns": [
             {
-              "include": "#ViewDeclarationAttribute"
+              "include": "#Separator"
             }
           ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
+              "include": "#ViewDeclarationAttribute"
             }
           ]
         },
         "6": {
           "patterns": [
             {
-              "include": "#ColonOperator"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
         "7": {
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
+        },
+        "8": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
@@ -1790,6 +1797,23 @@
       "tag": "propertyName",
       "name": "variable.other.readwrite.attribute.name.view.sd",
       "match": "([\\w-]+)"
+    },
+    "ClassAccessor": {
+      "begin": "(?=.*)",
+      "patterns": [
+        {
+          "include": "#ClassName"
+        },
+        {
+          "include": "#PunctuationAccessor"
+        }
+      ],
+      "end": "(?=$|[^\\S\\n\\r])"
+    },
+    "ClassName": {
+      "tag": "className",
+      "name": "entity.name.type.class.view.sd",
+      "match": "[_\\p{L}][0-9_\\p{L}]*"
     },
     "ComponentName": {
       "emit": true,

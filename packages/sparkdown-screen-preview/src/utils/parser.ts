@@ -219,12 +219,18 @@ export function parseSSL(input: string): ParseContext {
               params: { name },
             };
           } else if (nodeType) {
-            const params = parseParams(args);
-            node = {
-              root: currentRoot.root,
-              type: nodeType,
-              params: params,
-            };
+            const parts = nodeType.split(".");
+            const componentName = parts.at(-1);
+            if (componentName) {
+              const classNames = parts.length <= 1 ? [] : parts.slice(0, -1);
+              const params = parseParams(args);
+              params.classes = [...(params.classes || []), ...classNames];
+              node = {
+                root: currentRoot.root,
+                type: componentName,
+                params: params,
+              };
+            }
           }
         } else if (currentRoot?.type === "style") {
           if (nodeType.startsWith("@")) {
