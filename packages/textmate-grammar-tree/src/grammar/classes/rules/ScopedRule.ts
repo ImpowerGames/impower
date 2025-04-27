@@ -59,6 +59,10 @@ export class ScopedRule implements Rule {
     };
     this.beginRule = repo.add(beginRuleItem, beginId);
 
+    if ("while" in def) {
+      throw new Error("while rules are not currently supported");
+    }
+
     // end
     const endRuleItem: MatchRuleDefinition = {
       id: endId,
