@@ -129,9 +129,12 @@ style {
 }
 
 .Text {
-  white-space: pre-wrap;
   font-size: 16px;
   color: inherit;
+}
+
+.Span {
+  white-space: pre-wrap;
 }
 
 .Image {
