@@ -2,7 +2,7 @@ const trimEnd = (str: string, length: number) => {
   return str.slice(0, -length);
 };
 
-const getCssDurationMS = (
+export const getCssDurationMS = (
   value: string | null,
   defaultValue: number,
   emptyValue = defaultValue
@@ -31,5 +31,3 @@ const getCssDurationMS = (
     : Number(v);
   return ms;
 };
-
-export default getCssDurationMS;

@@ -1,5 +1,7 @@
-import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
-import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
+import {
+  getCssColor,
+  getCssMask,
+} from "../../../../sparkle-style-transformer/src/utils/transformers";
 import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";

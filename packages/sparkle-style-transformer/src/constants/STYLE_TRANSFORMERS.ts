@@ -1,53 +1,55 @@
-import getCssAnimation from "../utils/getCssAnimation.js";
-import getCssBgAlign from "../utils/getCssBgAlign.js";
-import getCssBgFit from "../utils/getCssBgFit.js";
-import getCssBlend from "../utils/getCssBlend.js";
-import getCssBorderStyle from "../utils/getCssBorderStyle.js";
-import getCssChildAlign from "../utils/getCssChildAlign.js";
-import getCssChildJustify from "../utils/getCssChildJustify.js";
-import getCssChildLayout from "../utils/getCssChildLayout.js";
-import getCssChildOverflow from "../utils/getCssChildOverflow.js";
-import getCssColor from "../utils/getCssColor.js";
-import getCssCorner from "../utils/getCssCorner.js";
-import getCssDimension from "../utils/getCssDimension.js";
-import getCssDuration from "../utils/getCssDuration.js";
-import getCssEase from "../utils/getCssEase.js";
-import getCssFilter from "../utils/getCssFilter.js";
-import getCssFlex from "../utils/getCssFlex.js";
-import getCssGradient from "../utils/getCssGradient.js";
-import getCssGrow from "../utils/getCssGrow.js";
-import getCssImage from "../utils/getCssImage.js";
-import getCssInteractable from "../utils/getCssInteractable.js";
-import getCssInvisible from "../utils/getCssInvisible.js";
-import getCssMask from "../utils/getCssMask.js";
-import getCssOutlineStyle from "../utils/getCssOutlineStyle.js";
-import getCssOverflow from "../utils/getCssOverflow.js";
-import getCssPattern from "../utils/getCssPattern.js";
-import getCssPosition from "../utils/getCssPosition.js";
-import getCssRatio from "../utils/getCssRatio.js";
-import getCssRepeat from "../utils/getCssRepeat.js";
-import getCssRotate from "../utils/getCssRotate.js";
-import getCssScale from "../utils/getCssScale.js";
-import getCssSelectable from "../utils/getCssSelectable.js";
-import getCssShadow from "../utils/getCssShadow.js";
-import getCssShadowInset from "../utils/getCssShadowInset.js";
-import getCssShrink from "../utils/getCssShrink.js";
-import getCssSize from "../utils/getCssSize.js";
-import getCssSkew from "../utils/getCssSkew.js";
-import getCssTextAlign from "../utils/getCssTextAlign.js";
-import getCssTextFont from "../utils/getCssTextFont.js";
-import getCssTextItalic from "../utils/getCssTextItalic.js";
-import getCssTextLeading from "../utils/getCssTextLeading.js";
-import getCssTextOverflow from "../utils/getCssTextOverflow.js";
-import getCssTextSize from "../utils/getCssTextSize.js";
-import getCssTextStrikethrough from "../utils/getCssTextStrikethrough.js";
-import getCssTextUnderline from "../utils/getCssTextUnderline.js";
-import getCssTextWeight from "../utils/getCssTextWeight.js";
-import getCssTextWhitespace from "../utils/getCssTextWhitespace.js";
-import getCssTranslate from "../utils/getCssTranslate.js";
-import getCssZ from "../utils/getCssZ.js";
-import getCssContainIntrinsicSize from "../utils/getCssContainIntrinsicSize.js";
-import getCssContentVisibility from "../utils/getCssContentVisibility.js";
+import {
+  getCssAnimation,
+  getCssBgAlign,
+  getCssBgFit,
+  getCssBlend,
+  getCssBorderStyle,
+  getCssChildAlign,
+  getCssChildJustify,
+  getCssChildLayout,
+  getCssChildOverflow,
+  getCssColor,
+  getCssContainIntrinsicSize,
+  getCssContentVisibility,
+  getCssCorner,
+  getCssDimension,
+  getCssDuration,
+  getCssEase,
+  getCssFilter,
+  getCssFlex,
+  getCssGradient,
+  getCssGrow,
+  getCssImage,
+  getCssInteractable,
+  getCssInvisible,
+  getCssMask,
+  getCssOutlineStyle,
+  getCssOverflow,
+  getCssPattern,
+  getCssPosition,
+  getCssRatio,
+  getCssRepeat,
+  getCssRotate,
+  getCssScale,
+  getCssSelectable,
+  getCssShadow,
+  getCssShadowInset,
+  getCssShrink,
+  getCssSize,
+  getCssSkew,
+  getCssTextAlign,
+  getCssTextFont,
+  getCssTextItalic,
+  getCssTextLeading,
+  getCssTextOverflow,
+  getCssTextSize,
+  getCssTextStrikethrough,
+  getCssTextUnderline,
+  getCssTextWeight,
+  getCssTextWhitespace,
+  getCssTranslate,
+  getCssZ,
+} from "../utils/transformers.js";
 
 const get = (v: string) => v;
 

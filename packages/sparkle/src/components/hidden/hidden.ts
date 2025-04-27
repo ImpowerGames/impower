@@ -1,5 +1,5 @@
-import getCssDuration from "../../../../sparkle-style-transformer/src/utils/getCssDuration";
-import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
+import { getCssDurationMS } from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
+import { getCssDuration } from "../../../../sparkle-style-transformer/src/utils/transformers";
 import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";

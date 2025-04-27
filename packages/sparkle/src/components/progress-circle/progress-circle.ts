@@ -1,5 +1,7 @@
-import getCssProportion from "../../../../sparkle-style-transformer/src/utils/getCssProportion";
-import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import {
+  getCssProportion,
+  getCssSize,
+} from "../../../../sparkle-style-transformer/src/utils/transformers";
 import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";

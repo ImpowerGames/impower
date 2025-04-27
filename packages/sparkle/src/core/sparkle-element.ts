@@ -1,7 +1,9 @@
 import STYLE_ALIASES from "../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
 import STYLE_TRANSFORMERS from "../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
-import getCssPattern from "../../../sparkle-style-transformer/src/utils/getCssPattern";
-import getCssTextStroke from "../../../sparkle-style-transformer/src/utils/getCssTextStroke";
+import {
+  getCssPattern,
+  getCssTextStroke,
+} from "../../../sparkle-style-transformer/src/utils/transformers";
 import { Component } from "../../../spec-component/src/component";
 import { Properties } from "../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../spec-component/src/utils/getAttributeNameMap";
