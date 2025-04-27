@@ -4,6 +4,6 @@ import normalize from "../styles/normalize/normalize.css";
 import utility from "../styles/utility/utility.css";
 import scopeCssToHost from "../utils/scopeCssToHost";
 
-const scopedCore = scopeCssToHost(utility);
+const scopedUtility = scopeCssToHost(utility);
 
-export default [baseNormalize, normalize, keyframes, scopedCore];
+export default [baseNormalize, normalize, keyframes, scopedUtility];
