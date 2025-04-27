@@ -90,7 +90,7 @@ export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
 `,
     end: `
   </span>
-  <input class="style {classes}" type="range" style="--fill-percentage: 50%;" oninput="this.style.setProperty('--fill-percentage', (this.value - this.min) / (this.max - this.min) * 100 + '%')" {...attrs}/>
+  <input class="style {classes}" type="range" style="---fill-percentage: 50%;" oninput="this.style.setProperty('---fill-percentage', (this.value - this.min) / (this.max - this.min) * 100 + '%')" {...attrs}/>
 </label>
 `,
   },

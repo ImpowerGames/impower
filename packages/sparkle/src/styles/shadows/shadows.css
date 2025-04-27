@@ -1,146 +1,152 @@
 .s-theme-light {
-  --theme_color-shadow-key-0: hsl(0 0% 0% / 0%);
-  --theme_color-shadow-key-1: hsl(0 0% 0% / 12%);
-  --theme_color-shadow-key-2: hsl(0 0% 0% / 16%);
-  --theme_color-shadow-key-3: hsl(0 0% 0% / 19%);
-  --theme_color-shadow-key-4: hsl(0 0% 0% / 25%);
-  --theme_color-shadow-key-5: hsl(0 0% 0% / 30%);
-  --theme_color-shadow-ambient-0: hsl(0 0% 0% / 0%);
-  --theme_color-shadow-ambient-1: hsl(0 0% 0% / 24%);
-  --theme_color-shadow-ambient-2: hsl(0 0% 0% / 23%);
-  --theme_color-shadow-ambient-3: hsl(0 0% 0% / 23%);
-  --theme_color-shadow-ambient-4: hsl(0 0% 0% / 22%);
-  --theme_color-shadow-ambient-5: hsl(0 0% 0% / 22%);
+  ---theme_color-shadow-key-0: hsl(0 0% 0% / 0%);
+  ---theme_color-shadow-key-1: hsl(0 0% 0% / 12%);
+  ---theme_color-shadow-key-2: hsl(0 0% 0% / 16%);
+  ---theme_color-shadow-key-3: hsl(0 0% 0% / 19%);
+  ---theme_color-shadow-key-4: hsl(0 0% 0% / 25%);
+  ---theme_color-shadow-key-5: hsl(0 0% 0% / 30%);
+  ---theme_color-shadow-ambient-0: hsl(0 0% 0% / 0%);
+  ---theme_color-shadow-ambient-1: hsl(0 0% 0% / 24%);
+  ---theme_color-shadow-ambient-2: hsl(0 0% 0% / 23%);
+  ---theme_color-shadow-ambient-3: hsl(0 0% 0% / 23%);
+  ---theme_color-shadow-ambient-4: hsl(0 0% 0% / 22%);
+  ---theme_color-shadow-ambient-5: hsl(0 0% 0% / 22%);
 }
 
 .s-theme-dark {
-  --theme_color-shadow-key-0: hsl(0 0% 0% / 0%);
-  --theme_color-shadow-key-1: hsl(0 0% 0% / 24%);
-  --theme_color-shadow-key-2: hsl(0 0% 0% / 32%);
-  --theme_color-shadow-key-3: hsl(0 0% 0% / 38%);
-  --theme_color-shadow-key-4: hsl(0 0% 0% / 50%);
-  --theme_color-shadow-key-5: hsl(0 0% 0% / 60%);
-  --theme_color-shadow-ambient-0: hsl(0 0% 0% / 0%);
-  --theme_color-shadow-ambient-1: hsl(0 0% 0% / 48%);
-  --theme_color-shadow-ambient-2: hsl(0 0% 0% / 46%);
-  --theme_color-shadow-ambient-3: hsl(0 0% 0% / 46%);
-  --theme_color-shadow-ambient-4: hsl(0 0% 0% / 44%);
-  --theme_color-shadow-ambient-5: hsl(0 0% 0% / 44%);
+  ---theme_color-shadow-key-0: hsl(0 0% 0% / 0%);
+  ---theme_color-shadow-key-1: hsl(0 0% 0% / 24%);
+  ---theme_color-shadow-key-2: hsl(0 0% 0% / 32%);
+  ---theme_color-shadow-key-3: hsl(0 0% 0% / 38%);
+  ---theme_color-shadow-key-4: hsl(0 0% 0% / 50%);
+  ---theme_color-shadow-key-5: hsl(0 0% 0% / 60%);
+  ---theme_color-shadow-ambient-0: hsl(0 0% 0% / 0%);
+  ---theme_color-shadow-ambient-1: hsl(0 0% 0% / 48%);
+  ---theme_color-shadow-ambient-2: hsl(0 0% 0% / 46%);
+  ---theme_color-shadow-ambient-3: hsl(0 0% 0% / 46%);
+  ---theme_color-shadow-ambient-4: hsl(0 0% 0% / 44%);
+  ---theme_color-shadow-ambient-5: hsl(0 0% 0% / 44%);
 }
 
 :root {
-  --theme_y-shadow-key-0: 0;
-  --theme_y-shadow-key-1: 1px;
-  --theme_y-shadow-key-2: 3px;
-  --theme_y-shadow-key-3: 10px;
-  --theme_y-shadow-key-4: 14px;
-  --theme_y-shadow-key-5: 19px;
-  --theme_y-shadow-ambient-0: 0;
-  --theme_y-shadow-ambient-1: 1px;
-  --theme_y-shadow-ambient-2: 3px;
-  --theme_y-shadow-ambient-3: 6px;
-  --theme_y-shadow-ambient-4: 10px;
-  --theme_y-shadow-ambient-5: 15px;
+  ---theme_y-shadow-key-0: 0;
+  ---theme_y-shadow-key-1: 1px;
+  ---theme_y-shadow-key-2: 3px;
+  ---theme_y-shadow-key-3: 10px;
+  ---theme_y-shadow-key-4: 14px;
+  ---theme_y-shadow-key-5: 19px;
+  ---theme_y-shadow-ambient-0: 0;
+  ---theme_y-shadow-ambient-1: 1px;
+  ---theme_y-shadow-ambient-2: 3px;
+  ---theme_y-shadow-ambient-3: 6px;
+  ---theme_y-shadow-ambient-4: 10px;
+  ---theme_y-shadow-ambient-5: 15px;
 
-  --theme_blur-shadow-key-0: 0;
-  --theme_blur-shadow-key-1: 1.5px;
-  --theme_blur-shadow-key-2: 3px;
-  --theme_blur-shadow-key-3: 10px;
-  --theme_blur-shadow-key-4: 14px;
-  --theme_blur-shadow-key-5: 19px;
-  --theme_blur-shadow-ambient-0: 0;
-  --theme_blur-shadow-ambient-1: 1px;
-  --theme_blur-shadow-ambient-2: 3px;
-  --theme_blur-shadow-ambient-3: 3px;
-  --theme_blur-shadow-ambient-4: 5px;
-  --theme_blur-shadow-ambient-5: 6px;
+  ---theme_blur-shadow-key-0: 0;
+  ---theme_blur-shadow-key-1: 1.5px;
+  ---theme_blur-shadow-key-2: 3px;
+  ---theme_blur-shadow-key-3: 10px;
+  ---theme_blur-shadow-key-4: 14px;
+  ---theme_blur-shadow-key-5: 19px;
+  ---theme_blur-shadow-ambient-0: 0;
+  ---theme_blur-shadow-ambient-1: 1px;
+  ---theme_blur-shadow-ambient-2: 3px;
+  ---theme_blur-shadow-ambient-3: 3px;
+  ---theme_blur-shadow-ambient-4: 5px;
+  ---theme_blur-shadow-ambient-5: 6px;
 
-  --theme_shadow-drop-key-0: 0 var(--theme_y-shadow-key-0)
-    calc(var(--theme_blur-shadow-key-0) / 2) var(--theme_color-shadow-key-0);
-  --theme_shadow-drop-key-1: 0 var(--theme_y-shadow-key-1)
-    calc(var(--theme_blur-shadow-key-1) / 2) var(--theme_color-shadow-key-1);
-  --theme_shadow-drop-key-2: 0 var(--theme_y-shadow-key-2)
-    calc(var(--theme_blur-shadow-key-2) / 2) var(--theme_color-shadow-key-2);
-  --theme_shadow-drop-key-3: 0 var(--theme_y-shadow-key-3)
-    calc(var(--theme_blur-shadow-key-3) / 2) var(--theme_color-shadow-key-3);
-  --theme_shadow-drop-key-4: 0 var(--theme_y-shadow-key-4)
-    calc(var(--theme_blur-shadow-key-4) / 2) var(--theme_color-shadow-key-4);
-  --theme_shadow-drop-key-5: 0 var(--theme_y-shadow-key-5)
-    calc(var(--theme_blur-shadow-key-5) / 2) var(--theme_color-shadow-key-5);
-  --theme_shadow-drop-ambient-0: 0 var(--theme_y-shadow-ambient-0)
-    calc(var(--theme_blur-shadow-ambient-0) / 2)
-    var(--theme_color-shadow-ambient-0);
-  --theme_shadow-drop-ambient-1: 0 var(--theme_y-shadow-ambient-1)
-    calc(var(--theme_blur-shadow-ambient-1) / 2)
-    var(--theme_color-shadow-ambient-1);
-  --theme_shadow-drop-ambient-2: 0 var(--theme_y-shadow-ambient-2)
-    calc(var(--theme_blur-shadow-ambient-2) / 2)
-    var(--theme_color-shadow-ambient-2);
-  --theme_shadow-drop-ambient-3: 0 var(--theme_y-shadow-ambient-3)
-    calc(var(--theme_blur-shadow-ambient-3) / 2)
-    var(--theme_color-shadow-ambient-3);
-  --theme_shadow-drop-ambient-4: 0 var(--theme_y-shadow-ambient-4)
-    calc(var(--theme_blur-shadow-ambient-4) / 2)
-    var(--theme_color-shadow-ambient-4);
-  --theme_shadow-drop-ambient-5: 0 var(--theme_y-shadow-ambient-5)
-    calc(var(--theme_blur-shadow-ambient-5) / 2)
-    var(--theme_color-shadow-ambient-5);
+  ---theme_shadow-drop-key-0: 0 var(---theme_y-shadow-key-0)
+    calc(var(---theme_blur-shadow-key-0) / 2) var(---theme_color-shadow-key-0);
+  ---theme_shadow-drop-key-1: 0 var(---theme_y-shadow-key-1)
+    calc(var(---theme_blur-shadow-key-1) / 2) var(---theme_color-shadow-key-1);
+  ---theme_shadow-drop-key-2: 0 var(---theme_y-shadow-key-2)
+    calc(var(---theme_blur-shadow-key-2) / 2) var(---theme_color-shadow-key-2);
+  ---theme_shadow-drop-key-3: 0 var(---theme_y-shadow-key-3)
+    calc(var(---theme_blur-shadow-key-3) / 2) var(---theme_color-shadow-key-3);
+  ---theme_shadow-drop-key-4: 0 var(---theme_y-shadow-key-4)
+    calc(var(---theme_blur-shadow-key-4) / 2) var(---theme_color-shadow-key-4);
+  ---theme_shadow-drop-key-5: 0 var(---theme_y-shadow-key-5)
+    calc(var(---theme_blur-shadow-key-5) / 2) var(---theme_color-shadow-key-5);
+  ---theme_shadow-drop-ambient-0: 0 var(---theme_y-shadow-ambient-0)
+    calc(var(---theme_blur-shadow-ambient-0) / 2)
+    var(---theme_color-shadow-ambient-0);
+  ---theme_shadow-drop-ambient-1: 0 var(---theme_y-shadow-ambient-1)
+    calc(var(---theme_blur-shadow-ambient-1) / 2)
+    var(---theme_color-shadow-ambient-1);
+  ---theme_shadow-drop-ambient-2: 0 var(---theme_y-shadow-ambient-2)
+    calc(var(---theme_blur-shadow-ambient-2) / 2)
+    var(---theme_color-shadow-ambient-2);
+  ---theme_shadow-drop-ambient-3: 0 var(---theme_y-shadow-ambient-3)
+    calc(var(---theme_blur-shadow-ambient-3) / 2)
+    var(---theme_color-shadow-ambient-3);
+  ---theme_shadow-drop-ambient-4: 0 var(---theme_y-shadow-ambient-4)
+    calc(var(---theme_blur-shadow-ambient-4) / 2)
+    var(---theme_color-shadow-ambient-4);
+  ---theme_shadow-drop-ambient-5: 0 var(---theme_y-shadow-ambient-5)
+    calc(var(---theme_blur-shadow-ambient-5) / 2)
+    var(---theme_color-shadow-ambient-5);
 
-  --theme_shadow-drop-0: drop-shadow(var(--theme_shadow-drop-key-0))
-    drop-shadow(var(--theme_shadow-drop-ambient-0));
-  --theme_shadow-drop-1: drop-shadow(var(--theme_shadow-drop-key-1))
-    drop-shadow(var(--theme_shadow-drop-ambient-1));
-  --theme_shadow-drop-2: drop-shadow(var(--theme_shadow-drop-key-2))
-    drop-shadow(var(--theme_shadow-drop-ambient-2));
-  --theme_shadow-drop-3: drop-shadow(var(--theme_shadow-drop-key-3))
-    drop-shadow(var(--theme_shadow-drop-ambient-3));
-  --theme_shadow-drop-4: drop-shadow(var(--theme_shadow-drop-key-4))
-    drop-shadow(var(--theme_shadow-drop-ambient-4));
-  --theme_shadow-drop-5: drop-shadow(var(--theme_shadow-drop-key-5))
-    drop-shadow(var(--theme_shadow-drop-ambient-5));
+  ---theme_shadow-drop-0: drop-shadow(var(---theme_shadow-drop-key-0))
+    drop-shadow(var(---theme_shadow-drop-ambient-0));
+  ---theme_shadow-drop-1: drop-shadow(var(---theme_shadow-drop-key-1))
+    drop-shadow(var(---theme_shadow-drop-ambient-1));
+  ---theme_shadow-drop-2: drop-shadow(var(---theme_shadow-drop-key-2))
+    drop-shadow(var(---theme_shadow-drop-ambient-2));
+  ---theme_shadow-drop-3: drop-shadow(var(---theme_shadow-drop-key-3))
+    drop-shadow(var(---theme_shadow-drop-ambient-3));
+  ---theme_shadow-drop-4: drop-shadow(var(---theme_shadow-drop-key-4))
+    drop-shadow(var(---theme_shadow-drop-ambient-4));
+  ---theme_shadow-drop-5: drop-shadow(var(---theme_shadow-drop-key-5))
+    drop-shadow(var(---theme_shadow-drop-ambient-5));
 
-  --theme_shadow-key-0: 0 var(--theme_y-shadow-key-0)
-    var(--theme_blur-shadow-key-0) var(--theme_color-shadow-key-0);
-  --theme_shadow-key-1: 0 var(--theme_y-shadow-key-1)
-    var(--theme_blur-shadow-key-1) var(--theme_color-shadow-key-1);
-  --theme_shadow-key-2: 0 var(--theme_y-shadow-key-2)
-    var(--theme_blur-shadow-key-2) var(--theme_color-shadow-key-2);
-  --theme_shadow-key-3: 0 var(--theme_y-shadow-key-3)
-    var(--theme_blur-shadow-key-3) var(--theme_color-shadow-key-3);
-  --theme_shadow-key-4: 0 var(--theme_y-shadow-key-4)
-    var(--theme_blur-shadow-key-4) var(--theme_color-shadow-key-4);
-  --theme_shadow-key-5: 0 var(--theme_y-shadow-key-5)
-    var(--theme_blur-shadow-key-5) var(--theme_color-shadow-key-5);
-  --theme_shadow-ambient-0: 0 var(--theme_y-shadow-ambient-0)
-    var(--theme_blur-shadow-ambient-0) var(--theme_color-shadow-ambient-0);
-  --theme_shadow-ambient-1: 0 var(--theme_y-shadow-ambient-1)
-    var(--theme_blur-shadow-ambient-1) var(--theme_color-shadow-ambient-1);
-  --theme_shadow-ambient-2: 0 var(--theme_y-shadow-ambient-2)
-    var(--theme_blur-shadow-ambient-2) var(--theme_color-shadow-ambient-2);
-  --theme_shadow-ambient-3: 0 var(--theme_y-shadow-ambient-3)
-    var(--theme_blur-shadow-ambient-3) var(--theme_color-shadow-ambient-3);
-  --theme_shadow-ambient-4: 0 var(--theme_y-shadow-ambient-4)
-    var(--theme_blur-shadow-ambient-4) var(--theme_color-shadow-ambient-4);
-  --theme_shadow-ambient-5: 0 var(--theme_y-shadow-ambient-5)
-    var(--theme_blur-shadow-ambient-5) var(--theme_color-shadow-ambient-5);
+  ---theme_shadow-key-0: 0 var(---theme_y-shadow-key-0)
+    var(---theme_blur-shadow-key-0) var(---theme_color-shadow-key-0);
+  ---theme_shadow-key-1: 0 var(---theme_y-shadow-key-1)
+    var(---theme_blur-shadow-key-1) var(---theme_color-shadow-key-1);
+  ---theme_shadow-key-2: 0 var(---theme_y-shadow-key-2)
+    var(---theme_blur-shadow-key-2) var(---theme_color-shadow-key-2);
+  ---theme_shadow-key-3: 0 var(---theme_y-shadow-key-3)
+    var(---theme_blur-shadow-key-3) var(---theme_color-shadow-key-3);
+  ---theme_shadow-key-4: 0 var(---theme_y-shadow-key-4)
+    var(---theme_blur-shadow-key-4) var(---theme_color-shadow-key-4);
+  ---theme_shadow-key-5: 0 var(---theme_y-shadow-key-5)
+    var(---theme_blur-shadow-key-5) var(---theme_color-shadow-key-5);
+  ---theme_shadow-ambient-0: 0 var(---theme_y-shadow-ambient-0)
+    var(---theme_blur-shadow-ambient-0) var(---theme_color-shadow-ambient-0);
+  ---theme_shadow-ambient-1: 0 var(---theme_y-shadow-ambient-1)
+    var(---theme_blur-shadow-ambient-1) var(---theme_color-shadow-ambient-1);
+  ---theme_shadow-ambient-2: 0 var(---theme_y-shadow-ambient-2)
+    var(---theme_blur-shadow-ambient-2) var(---theme_color-shadow-ambient-2);
+  ---theme_shadow-ambient-3: 0 var(---theme_y-shadow-ambient-3)
+    var(---theme_blur-shadow-ambient-3) var(---theme_color-shadow-ambient-3);
+  ---theme_shadow-ambient-4: 0 var(---theme_y-shadow-ambient-4)
+    var(---theme_blur-shadow-ambient-4) var(---theme_color-shadow-ambient-4);
+  ---theme_shadow-ambient-5: 0 var(---theme_y-shadow-ambient-5)
+    var(---theme_blur-shadow-ambient-5) var(---theme_color-shadow-ambient-5);
 
-  --theme_shadow-box-0: var(--theme_shadow-key-0), var(--theme_shadow-ambient-0);
-  --theme_shadow-box-1: var(--theme_shadow-key-1), var(--theme_shadow-ambient-1);
-  --theme_shadow-box-2: var(--theme_shadow-key-2), var(--theme_shadow-ambient-2);
-  --theme_shadow-box-3: var(--theme_shadow-key-3), var(--theme_shadow-ambient-3);
-  --theme_shadow-box-4: var(--theme_shadow-key-4), var(--theme_shadow-ambient-4);
-  --theme_shadow-box-5: var(--theme_shadow-key-5), var(--theme_shadow-ambient-5);
+  ---theme_shadow-box-0: var(---theme_shadow-key-0),
+    var(---theme_shadow-ambient-0);
+  ---theme_shadow-box-1: var(---theme_shadow-key-1),
+    var(---theme_shadow-ambient-1);
+  ---theme_shadow-box-2: var(---theme_shadow-key-2),
+    var(---theme_shadow-ambient-2);
+  ---theme_shadow-box-3: var(---theme_shadow-key-3),
+    var(---theme_shadow-ambient-3);
+  ---theme_shadow-box-4: var(---theme_shadow-key-4),
+    var(---theme_shadow-ambient-4);
+  ---theme_shadow-box-5: var(---theme_shadow-key-5),
+    var(---theme_shadow-ambient-5);
 
-  --theme_shadow-inset-0: inset var(--theme_shadow-key-0),
-    inset var(--theme_shadow-ambient-0);
-  --theme_shadow-inset-1: inset var(--theme_shadow-key-1),
-    inset var(--theme_shadow-ambient-1);
-  --theme_shadow-inset-2: inset var(--theme_shadow-key-2),
-    inset var(--theme_shadow-ambient-2);
-  --theme_shadow-inset-3: inset var(--theme_shadow-key-3),
-    inset var(--theme_shadow-ambient-3);
-  --theme_shadow-inset-4: inset var(--theme_shadow-key-4),
-    inset var(--theme_shadow-ambient-4);
-  --theme_shadow-inset-5: inset var(--theme_shadow-key-5),
-    inset var(--theme_shadow-ambient-5);
+  ---theme_shadow-inset-0: inset var(---theme_shadow-key-0),
+    inset var(---theme_shadow-ambient-0);
+  ---theme_shadow-inset-1: inset var(---theme_shadow-key-1),
+    inset var(---theme_shadow-ambient-1);
+  ---theme_shadow-inset-2: inset var(---theme_shadow-key-2),
+    inset var(---theme_shadow-ambient-2);
+  ---theme_shadow-inset-3: inset var(---theme_shadow-key-3),
+    inset var(---theme_shadow-ambient-3);
+  ---theme_shadow-inset-4: inset var(---theme_shadow-key-4),
+    inset var(---theme_shadow-ambient-4);
+  ---theme_shadow-inset-5: inset var(---theme_shadow-key-5),
+    inset var(---theme_shadow-ambient-5);
 }

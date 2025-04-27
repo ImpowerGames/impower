@@ -1,23 +1,23 @@
 :host {
   display: contents;
-  --interactable: auto;
-  --resizer-color: transparent;
-  --resizer-width: 8px;
-  --divider-opacity: 1;
-  --divider-color: var(--theme_color-divider);
-  --divider-width: 1px;
-  --indicator-color: var(--theme_color-primary-50);
-  --indicator-width: 4px;
-  --resizer-center: calc(var(--resizer-width) / 2);
-  --divider-center: calc(var(--divider-width) / 2);
-  --divider-offset: calc(var(--resizer-center) - var(--divider-center));
+  ---interactable: auto;
+  ---resizer-color: transparent;
+  ---resizer-width: 8px;
+  ---divider-opacity: 1;
+  ---divider-color: var(---theme_color-divider);
+  ---divider-width: 1px;
+  ---indicator-color: var(---theme_color-primary-50);
+  ---indicator-width: 4px;
+  ---resizer-center: calc(var(---resizer-width) / 2);
+  ---divider-center: calc(var(---divider-width) / 2);
+  ---divider-offset: calc(var(---resizer-center) - var(---divider-center));
 }
 
 :host(:not([vertical])) {
-  --initial-size: 50vw;
+  ---initial-size: 50vw;
 }
 :host([vertical]) {
-  --initial-size: 50vh;
+  ---initial-size: 50vh;
 }
 
 :host > .root {
@@ -39,30 +39,30 @@
   flex-direction: column;
 }
 :host(:not([vertical])) > .root > .panel {
-  max-width: calc(100% - var(--min-panel-width));
+  max-width: calc(100% - var(---min-panel-width));
   min-width: auto;
 }
 :host([vertical]) > .root > .panel {
-  max-height: calc(100% - var(--min-panel-height));
+  max-height: calc(100% - var(---min-panel-height));
   min-height: auto;
 }
 
 :host > .root > .panel > .resize {
-  pointer-events: var(--interactable);
+  pointer-events: var(---interactable);
   opacity: 0;
   overflow: hidden;
 }
 :host(:not([vertical])) > .root > .panel > .resize {
-  min-width: calc(var(--min-panel-width) + var(--resizer-width));
-  width: var(--initial-size);
+  min-width: calc(var(---min-panel-width) + var(---resizer-width));
+  width: var(---initial-size);
   height: 16px;
   transform: scaleY(1000);
   resize: horizontal;
 }
 :host([vertical]) > .root > .panel > .resize {
-  min-height: var(--min-panel-height);
+  min-height: var(---min-panel-height);
   width: 16px;
-  height: var(--initial-size);
+  height: var(---initial-size);
   transform: scaleX(1000);
   resize: vertical;
 }
@@ -74,50 +74,50 @@
   display: flex;
   pointer-events: none;
   position: absolute;
-  background-color: var(--resizer-color);
+  background-color: var(---resizer-color);
 }
 :host(:not([vertical])) > .root > .panel > .divider {
   inset: 0 0 0 auto;
-  width: var(--resizer-width);
+  width: var(---resizer-width);
 }
 :host([vertical]) > .root > .panel > .divider {
   inset: auto 0 0 0;
-  height: var(--resizer-width);
+  height: var(---resizer-width);
 }
 
 :host > .root > .panel > .divider::before {
   content: "";
   position: absolute;
-  background-color: var(--divider-color);
-  opacity: var(--divider-opacity);
+  background-color: var(---divider-color);
+  opacity: var(---divider-opacity);
 }
 :host(:not([vertical])) > .root > .panel > .divider::before {
-  inset: 0 0 0 var(--divider-offset);
-  width: var(--divider-width);
+  inset: 0 0 0 var(---divider-offset);
+  width: var(---divider-width);
 }
 :host([vertical]) > .root > .panel > .divider::before {
-  inset: var(--divider-offset) 0 0 0;
-  height: var(--divider-width);
+  inset: var(---divider-offset) 0 0 0;
+  height: var(---divider-width);
 }
 
 :host > .root > .panel > .divider::after {
-  --resizer-center: calc(var(--resizer-width) / 2);
-  --indicator-center: calc(var(--indicator-width) / 2);
-  --indicator-offset: calc(var(--resizer-center) - var(--indicator-center));
+  ---resizer-center: calc(var(---resizer-width) / 2);
+  ---indicator-center: calc(var(---indicator-width) / 2);
+  ---indicator-offset: calc(var(---resizer-center) - var(---indicator-center));
   content: "";
   position: absolute;
-  background-color: var(--indicator-color);
+  background-color: var(---indicator-color);
   opacity: 0;
   transition-property: opacity;
   transition-duration: 150ms;
 }
 :host(:not([vertical])) > .root > .panel > .divider::after {
-  inset: 0 0 0 var(--indicator-offset);
-  width: var(--indicator-width);
+  inset: 0 0 0 var(---indicator-offset);
+  width: var(---indicator-width);
 }
 :host([vertical]) > .root > .panel > .divider::after {
-  inset: var(--indicator-offset) 0 0 0;
-  height: var(--indicator-width);
+  inset: var(---indicator-offset) 0 0 0;
+  height: var(---indicator-width);
 }
 :host(:not([disabled]))
   > .root
@@ -145,12 +145,12 @@
   position: absolute;
 }
 :host(:not([vertical])) > .root > .panel > .start {
-  min-width: var(--min-panel-width);
-  inset: 0 var(--resizer-width) 0 0;
+  min-width: var(---min-panel-width);
+  inset: 0 var(---resizer-width) 0 0;
 }
 :host([vertical]) > .root > .panel > .start {
-  min-height: var(--min-panel-height);
-  inset: 0 0 var(--resizer-width) 0;
+  min-height: var(---min-panel-height);
+  inset: 0 0 var(---resizer-width) 0;
 }
 
 :host > .root > .end {
@@ -160,10 +160,10 @@
   align-self: stretch;
 }
 :host(:not([vertical])) > .root > .end {
-  min-width: var(--min-panel-width);
+  min-width: var(---min-panel-width);
 }
 :host([vertical]) > .root > .end {
-  min-height: var(--min-panel-height);
+  min-height: var(---min-panel-height);
 }
 
 /* If the container is less than 960px */

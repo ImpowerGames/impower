@@ -1,51 +1,51 @@
-[display] > .root {
-  display: var(--display, "block") !important;
+[-display] > .root {
+  display: var(---display, "block") !important;
 }
 
-[position] > .root {
-  position: var(--position, absolute) !important;
+[-position] > .root {
+  position: var(---position, absolute) !important;
 }
-[position="sticky-top"] > .root {
+[-position="sticky-top"] > .root {
   inset: 0 0 auto 0;
   z-index: 1;
 }
-[position="sticky-bottom"] > .root {
+[-position="sticky-bottom"] > .root {
   inset: auto 0 0 0;
   z-index: 1;
 }
-[position="sticky-left"] > .root {
+[-position="sticky-left"] > .root {
   inset: 0 auto 0 0;
   z-index: 1;
 }
-[position="sticky-right"] > .root {
+[-position="sticky-right"] > .root {
   inset: 0 0 0 auto;
   z-index: 1;
 }
-[position="fixed-top"] > .root {
+[-position="fixed-top"] > .root {
   inset: 0 0 auto 0;
   z-index: 1;
 }
-[position="fixed-bottom"] > .root {
+[-position="fixed-bottom"] > .root {
   inset: auto 0 0 0;
   z-index: 1;
 }
-[position="fixed-left"] > .root {
+[-position="fixed-left"] > .root {
   inset: 0 auto 0 0;
   z-index: 1;
 }
-[position="fixed-right"] > .root {
+[-position="fixed-right"] > .root {
   inset: 0 0 0 auto;
   z-index: 1;
 }
 
-[aspect] > .root {
-  aspect-ratio: var(--aspect, 1) !important;
+[-aspect] > .root {
+  aspect-ratio: var(---aspect, 1) !important;
 }
 
-[overflow] > .root {
-  overflow: var(--overflow, scroll) !important;
+[-overflow] > .root {
+  overflow: var(---overflow, scroll) !important;
 }
-[overflow="scroll"] > .root {
+[-overflow="scroll"] > .root {
   pointer-events: auto;
   min-width: 100%;
   min-height: 100%;
@@ -54,13 +54,13 @@
   right: 0;
   bottom: 0;
   left: 0;
-  --touch-action: pan-x pan-y;
+  ---touch-action: pan-x pan-y;
 }
 
-[overflow-x] > .root {
-  overflow-x: var(--overflow-x, scroll) !important;
+[-overflow-x] > .root {
+  overflow-x: var(---overflow-x, scroll) !important;
 }
-[overflow-x="scroll"] > .root {
+[-overflow-x="scroll"] > .root {
   overflow-y: clip;
   pointer-events: auto;
   min-width: 100%;
@@ -69,13 +69,13 @@
   right: 0;
   bottom: 0;
   left: 0;
-  --touch-action: pan-x;
+  ---touch-action: pan-x;
 }
 
-[overflow-y] > .root {
-  overflow-y: var(--overflow-y, scroll) !important;
+[-overflow-y] > .root {
+  overflow-y: var(---overflow-y, scroll) !important;
 }
-[overflow-y="scroll"] > .root {
+[-overflow-y="scroll"] > .root {
   overflow-x: clip;
   pointer-events: auto;
   min-height: 100%;
@@ -84,639 +84,642 @@
   right: 0;
   bottom: 0;
   left: 0;
-  --touch-action: pan-y;
+  ---touch-action: pan-y;
 }
 
-[z] > .root {
-  position: var(--position, relative) !important;
-  z-index: var(--z, 1) !important;
+[-z] > .root {
+  position: var(---position, relative) !important;
+  z-index: var(---z, 1) !important;
 }
 
-[width] > .root {
-  width: var(--width, 100%) !important;
-  min-width: var(--width, 0);
-  max-width: var(--width, 100%);
+[-width] > .root {
+  width: var(---width, 100%) !important;
+  min-width: var(---width, 0);
+  max-width: var(---width, 100%);
 }
-[width-min] > .root {
-  min-width: var(--width-min, 0) !important;
+[-width-min] > .root {
+  min-width: var(---width-min, 0) !important;
 }
-[width-max] > .root {
-  max-width: var(--width-max, 100%) !important;
-}
-
-[height] > .root {
-  height: var(--height, 100%) !important;
-  min-height: var(--height, 0);
-  max-height: var(--height, 100%);
-}
-[height-min] > .root {
-  min-height: var(--height-min, 0) !important;
-}
-[height-max] > .root {
-  max-height: var(--height-max, 100%) !important;
+[-width-max] > .root {
+  max-width: var(---width-max, 100%) !important;
 }
 
-:is([c], [corner]) > .root {
-  border-radius: var(--c, var(--corner, 8px)) !important;
+[-height] > .root {
+  height: var(---height, 100%) !important;
+  min-height: var(---height, 0);
+  max-height: var(---height, 100%);
 }
-:is([c-t], [corner-t]) > .root {
-  border-start-start-radius: var(--c-t, var(--corner-t, 8px)) !important;
-  border-start-end-radius: var(--c-t, var(--corner-t, 8px)) !important;
+[-height-min] > .root {
+  min-height: var(---height-min, 0) !important;
 }
-:is([c-b], [corner-b]) > .root {
-  border-end-start-radius: var(--c-b, var(--corner-b, 8px)) !important;
-  border-end-end-radius: var(--c-b, var(--corner-b, 8px)) !important;
-}
-:is([c-l], [corner-l]) > .root {
-  border-start-start-radius: var(--c-l, var(--corner-l, 8px)) !important;
-  border-end-start-radius: var(--c-l, var(--corner-l, 8px)) !important;
-}
-:is([c-r], [corner-r]) > .root {
-  border-start-end-radius: var(--c-r, var(--corner-r, 8px)) !important;
-  border-end-end-radius: var(--c-r, var(--corner-r, 8px)) !important;
-}
-:is([c-tl], [corner-tl]) > .root {
-  border-start-start-radius: var(--c-tl, var(--corner-tl, 8px)) !important;
-}
-:is([c-tr], [corner-tr]) > .root {
-  border-start-end-radius: var(--c-tr, var(--corner-tr, 8px)) !important;
-}
-:is([c-bl], [corner-bl]) > .root {
-  border-end-start-radius: var(--c-bl, var(--corner-bl, 8px)) !important;
-}
-:is([c-br], [corner-br]) > .root {
-  border-end-end-radius: var(--c-br, var(--corner-br, 8px)) !important;
+[-height-max] > .root {
+  max-height: var(---height-max, 100%) !important;
 }
 
-:is([o-color], [outline-color]) > .root {
+:is([-c], [-corner]) > .root {
+  border-radius: var(---c, var(---corner, 8px)) !important;
+}
+:is([-c-t], [-corner-t]) > .root {
+  border-start-start-radius: var(---c-t, var(---corner-t, 8px)) !important;
+  border-start-end-radius: var(---c-t, var(---corner-t, 8px)) !important;
+}
+:is([-c-b], [-corner-b]) > .root {
+  border-end-start-radius: var(---c-b, var(---corner-b, 8px)) !important;
+  border-end-end-radius: var(---c-b, var(---corner-b, 8px)) !important;
+}
+:is([-c-l], [-corner-l]) > .root {
+  border-start-start-radius: var(---c-l, var(---corner-l, 8px)) !important;
+  border-end-start-radius: var(---c-l, var(---corner-l, 8px)) !important;
+}
+:is([-c-r], [-corner-r]) > .root {
+  border-start-end-radius: var(---c-r, var(---corner-r, 8px)) !important;
+  border-end-end-radius: var(---c-r, var(---corner-r, 8px)) !important;
+}
+:is([-c-tl], [-corner-tl]) > .root {
+  border-start-start-radius: var(---c-tl, var(---corner-tl, 8px)) !important;
+}
+:is([-c-tr], [-corner-tr]) > .root {
+  border-start-end-radius: var(---c-tr, var(---corner-tr, 8px)) !important;
+}
+:is([-c-bl], [-corner-bl]) > .root {
+  border-end-start-radius: var(---c-bl, var(---corner-bl, 8px)) !important;
+}
+:is([-c-br], [-corner-br]) > .root {
+  border-end-end-radius: var(---c-br, var(---corner-br, 8px)) !important;
+}
+
+:is([-o-color], [-outline-color]) > .root {
   outline-style: solid;
   outline-color: var(
-    --o-color,
-    var(--outline-color, hsl(0 100% 100% / 50%))
+    ---o-color,
+    var(---outline-color, hsl(0 100% 100% / 50%))
   ) !important;
 }
 
-:is([o-width], [outline-width]) > .root {
+:is([-o-width], [-outline-width]) > .root {
   outline-style: solid;
-  outline-width: var(--o-width, var(--outline-width, 8px)) !important;
+  outline-width: var(---o-width, var(---outline-width, 8px)) !important;
 }
 
-:is([o-style], [outline-style]) > .root {
-  outline-style: var(--o-style, var(--outline-style, solid)) !important;
+:is([-o-style], [-outline-style]) > .root {
+  outline-style: var(---o-style, var(---outline-style, solid)) !important;
 }
 
-:is([b-color], [border-color]) > .root {
+:is([-b-color], [-border-color]) > .root {
   border-style: solid;
   border-color: var(
-    --b-color,
-    var(--border-color, hsl(0 100% 100% / 50%))
+    ---b-color,
+    var(---border-color, hsl(0 100% 100% / 50%))
   ) !important;
 }
-:is([b-color-tb], [border-color-tb]) > .root {
+:is([-b-color-tb], [-border-color-tb]) > .root {
   border-style: solid;
   border-block-color: var(
-    --b-color-tb,
-    var(--border-color-tb, hsl(0 100% 100% / 50%))
+    ---b-color-tb,
+    var(---border-color-tb, hsl(0 100% 100% / 50%))
   ) !important;
 }
-:is([b-color-lr], [border-color-lr]) > .root {
+:is([-b-color-lr], [-border-color-lr]) > .root {
   border-style: solid;
   border-inline-color: var(
-    --b-color-lr,
-    var(--border-color-lr, hsl(0 100% 100% / 50%))
+    ---b-color-lr,
+    var(---border-color-lr, hsl(0 100% 100% / 50%))
   ) !important;
 }
-:is([b-color-t], [border-color-t]) > .root {
+:is([-b-color-t], [-border-color-t]) > .root {
   border-style: solid;
   border-block-start-color: var(
-    --b-color-t,
-    var(--border-color-t, hsl(0 100% 100% / 50%))
+    ---b-color-t,
+    var(---border-color-t, hsl(0 100% 100% / 50%))
   ) !important;
 }
-[border-color-b] > .root {
+[-border-color-b] > .root {
   border-style: solid;
   border-block-end-color: var(
-    --b-color-b,
-    var(--border-color-b, hsl(0 100% 100% / 50%))
+    ---b-color-b,
+    var(---border-color-b, hsl(0 100% 100% / 50%))
   ) !important;
 }
-:is([b-color-l], [border-color-l]) > .root {
+:is([-b-color-l], [-border-color-l]) > .root {
   border-style: solid;
   border-inline-start-color: var(
-    --b-color-l,
-    var(--border-color-l, hsl(0 100% 100% / 50%))
+    ---b-color-l,
+    var(---border-color-l, hsl(0 100% 100% / 50%))
   ) !important;
 }
-:is([b-color-r], [border-color-r]) > .root {
+:is([-b-color-r], [-border-color-r]) > .root {
   border-style: solid;
   border-inline-end-color: var(
-    --b-color-r,
-    var(--border-color-r, hsl(0 100% 100% / 50%))
+    ---b-color-r,
+    var(---border-color-r, hsl(0 100% 100% / 50%))
   ) !important;
 }
 
-:is([b-width], [border-width]) > .root {
+:is([-b-width], [-border-width]) > .root {
   border-style: solid;
-  border-width: var(--b-width, var(--border-width, 8px)) !important;
+  border-width: var(---b-width, var(---border-width, 8px)) !important;
 }
-:is([b-width-tb], [border-width-tb]) > .root {
+:is([-b-width-tb], [-border-width-tb]) > .root {
   border-style: solid;
-  border-block-width: var(--b-width-tb, var(--border-width-tb, 8px)) !important;
+  border-block-width: var(
+    ---b-width-tb,
+    var(---border-width-tb, 8px)
+  ) !important;
 }
-:is([b-width-lr], [border-width-lr]) > .root {
+:is([-b-width-lr], [-border-width-lr]) > .root {
   border-style: solid;
   border-inline-width: var(
-    --b-width-lr,
-    var(--border-width-lr, 8px)
+    ---b-width-lr,
+    var(---border-width-lr, 8px)
   ) !important;
 }
-:is([b-width-t], [border-width-t]) > .root {
+:is([-b-width-t], [-border-width-t]) > .root {
   border-style: solid;
   border-block-start-width: var(
-    --b-width-t,
-    var(--border-width-t, 8px)
+    ---b-width-t,
+    var(---border-width-t, 8px)
   ) !important;
 }
-:is([b-width-b], [border-width-b]) > .root {
+:is([-b-width-b], [-border-width-b]) > .root {
   border-style: solid;
   border-block-end-width: var(
-    --b-width-b,
-    var(--border-width-b, 8px)
+    ---b-width-b,
+    var(---border-width-b, 8px)
   ) !important;
 }
-:is([b-width-l], [border-width-l]) > .root {
+:is([-b-width-l], [-border-width-l]) > .root {
   border-style: solid;
   border-inline-start-width: var(
-    --b-width-l,
-    var(--border-width-l, 8px)
+    ---b-width-l,
+    var(---border-width-l, 8px)
   ) !important;
 }
-:is([b-width-r], [border-width-r]) > .root {
+:is([-b-width-r], [-border-width-r]) > .root {
   border-style: solid;
   border-inline-end-width: var(
-    --b-width-r,
-    var(--border-width-r, 8px)
+    ---b-width-r,
+    var(---border-width-r, 8px)
   ) !important;
 }
 
-:is([b-style], [border-style]) > .root {
-  border-style: var(--b-style, var(--border-style, solid)) !important;
+:is([-b-style], [-border-style]) > .root {
+  border-style: var(---b-style, var(---border-style, solid)) !important;
 }
-:is([b-style-tb], [border-style-tb]) > .root {
+:is([-b-style-tb], [-border-style-tb]) > .root {
   border-block-style: var(
-    --b-style-tb,
-    var(--border-style-tb, solid)
+    ---b-style-tb,
+    var(---border-style-tb, solid)
   ) !important;
 }
-:is([b-style-lr], [border-style-lr]) > .root {
+:is([-b-style-lr], [-border-style-lr]) > .root {
   border-inline-style: var(
-    --b-style-lr,
-    var(--border-style-lr, solid)
+    ---b-style-lr,
+    var(---border-style-lr, solid)
   ) !important;
 }
-:is([b-style-t], [border-style-t]) > .root {
+:is([-b-style-t], [-border-style-t]) > .root {
   border-block-start-style: var(
-    --b-style-t,
-    var(--border-style-t, solid)
+    ---b-style-t,
+    var(---border-style-t, solid)
   ) !important;
 }
-:is([b-style-b], [border-style-b]) > .root {
+:is([-b-style-b], [-border-style-b]) > .root {
   border-block-end-style: var(
-    --b-style-b,
-    var(--border-style-b, solid)
+    ---b-style-b,
+    var(---border-style-b, solid)
   ) !important;
 }
-:is([b-style-l], [border-style-l]) > .root {
+:is([-b-style-l], [-border-style-l]) > .root {
   border-inline-start-style: var(
-    --b-style-l,
-    var(--border-style-l, solid)
+    ---b-style-l,
+    var(---border-style-l, solid)
   ) !important;
 }
-:is([b-style-r], [border-style-r]) > .root {
+:is([-b-style-r], [-border-style-r]) > .root {
   border-inline-end-style: var(
-    --b-style-r,
-    var(--border-style-r, solid)
+    ---b-style-r,
+    var(---border-style-r, solid)
   ) !important;
 }
 
-:is([i], [inset]) > .root {
-  inset: var(--i, var(--inset, 8px)) !important;
+:is([-i], [-inset]) > .root {
+  inset: var(---i, var(---inset, 8px)) !important;
 }
-:is([i-tb], [inset-tb]) > .root {
-  inset-block: var(--i-tb, var(--inset-tb, 8px)) !important;
+:is([-i-tb], [-inset-tb]) > .root {
+  inset-block: var(---i-tb, var(---inset-tb, 8px)) !important;
 }
-:is([i-lr], [inset-lr]) > .root {
-  inset-inline: var(--i-lr, var(--inset-lr, 8px)) !important;
+:is([-i-lr], [-inset-lr]) > .root {
+  inset-inline: var(---i-lr, var(---inset-lr, 8px)) !important;
 }
-:is([i-t], [inset-t]) > .root {
-  inset-block-start: var(--i-t, var(--inset-t, 8px)) !important;
+:is([-i-t], [-inset-t]) > .root {
+  inset-block-start: var(---i-t, var(---inset-t, 8px)) !important;
 }
-:is([i-b], [inset-b]) > .root {
-  inset-block-end: var(--i-b, var(--inset-b, 8px)) !important;
+:is([-i-b], [-inset-b]) > .root {
+  inset-block-end: var(---i-b, var(---inset-b, 8px)) !important;
 }
-:is([i-l], [inset-l]) > .root {
-  inset-inline-start: var(--i-l, var(--inset-l, 8px)) !important;
+:is([-i-l], [-inset-l]) > .root {
+  inset-inline-start: var(---i-l, var(---inset-l, 8px)) !important;
 }
-:is([i-r], [inset-r]) > .root {
-  inset-inline-end: var(--i-r, var(--inset-r, 8px)) !important;
-}
-
-:is([m], [margin]) > .root {
-  margin: var(--m, var(--margin, 8px)) !important;
-}
-:is([m-tb], [margin-tb]) > .root {
-  margin-block: var(--m-tb, var(--margin-tb, 8px)) !important;
-}
-:is([m-lr], [margin-lr]) > .root {
-  margin-inline: var(--m-lr, var(--margin-lr, 8px)) !important;
-}
-:is([m-t], [margin-t]) > .root {
-  margin-block-start: var(--m-t, var(--margin-t, 8px)) !important;
-}
-:is([m-b], [margin-b]) > .root {
-  margin-block-end: var(--m-b, var(--margin-b, 8px)) !important;
-}
-:is([m-l], [margin-l]) > .root {
-  margin-inline-start: var(--m-l, var(--margin-l, 8px)) !important;
-}
-:is([m-r], [margin-r]) > .root {
-  margin-inline-end: var(--m-r, var(--margin-r, 8px)) !important;
+:is([-i-r], [-inset-r]) > .root {
+  inset-inline-end: var(---i-r, var(---inset-r, 8px)) !important;
 }
 
-:is([p], [padding]) > .root {
-  padding: var(--p, var(--padding, 8px)) !important;
+:is([-m], [-margin]) > .root {
+  margin: var(---m, var(---margin, 8px)) !important;
 }
-:is([p-tb], [padding-tb]) > .root {
-  padding-block: var(--p-tb, var(--padding-tb, 8px)) !important;
+:is([-m-tb], [-margin-tb]) > .root {
+  margin-block: var(---m-tb, var(---margin-tb, 8px)) !important;
 }
-:is([p-lr], [padding-lr]) > .root {
-  padding-inline: var(--p-lr, var(--padding-lr, 8px)) !important;
+:is([-m-lr], [-margin-lr]) > .root {
+  margin-inline: var(---m-lr, var(---margin-lr, 8px)) !important;
 }
-:is([p-t], [padding-t]) > .root {
-  padding-block-start: var(--p-t, var(--padding-t, 8px)) !important;
+:is([-m-t], [-margin-t]) > .root {
+  margin-block-start: var(---m-t, var(---margin-t, 8px)) !important;
 }
-:is([p-b], [padding-b]) > .root {
-  padding-block-end: var(--p-b, var(--padding-b, 8px)) !important;
+:is([-m-b], [-margin-b]) > .root {
+  margin-block-end: var(---m-b, var(---margin-b, 8px)) !important;
 }
-:is([p-l], [padding-l]) > .root {
-  padding-inline-start: var(--p-l, var(--padding-l, 8px)) !important;
+:is([-m-l], [-margin-l]) > .root {
+  margin-inline-start: var(---m-l, var(---margin-l, 8px)) !important;
 }
-:is([p-r], [padding-r]) > .root {
-  padding-inline-end: var(--p-r, var(--padding-r, 8px)) !important;
+:is([-m-r], [-margin-r]) > .root {
+  margin-inline-end: var(---m-r, var(---margin-r, 8px)) !important;
 }
 
-[child-layout] > .root {
+:is([-p], [-padding]) > .root {
+  padding: var(---p, var(---padding, 8px)) !important;
+}
+:is([-p-tb], [-padding-tb]) > .root {
+  padding-block: var(---p-tb, var(---padding-tb, 8px)) !important;
+}
+:is([-p-lr], [-padding-lr]) > .root {
+  padding-inline: var(---p-lr, var(---padding-lr, 8px)) !important;
+}
+:is([-p-t], [-padding-t]) > .root {
+  padding-block-start: var(---p-t, var(---padding-t, 8px)) !important;
+}
+:is([-p-b], [-padding-b]) > .root {
+  padding-block-end: var(---p-b, var(---padding-b, 8px)) !important;
+}
+:is([-p-l], [-padding-l]) > .root {
+  padding-inline-start: var(---p-l, var(---padding-l, 8px)) !important;
+}
+:is([-p-r], [-padding-r]) > .root {
+  padding-inline-end: var(---p-r, var(---padding-r, 8px)) !important;
+}
+
+[-child-layout] > .root {
   display: flex;
-  flex-direction: var(--child-layout, row) !important;
+  flex-direction: var(---child-layout, row) !important;
 }
-[child-gap] > .root {
-  gap: var(--child-gap, 8px) !important;
+[-child-gap] > .root {
+  gap: var(---child-gap, 8px) !important;
 }
-[child-align] > .root {
-  align-items: var(--child-align, center) !important;
+[-child-align] > .root {
+  align-items: var(---child-align, center) !important;
 }
-[child-justify] > .root {
-  justify-content: var(--child-justify, center) !important;
+[-child-justify] > .root {
+  justify-content: var(---child-justify, center) !important;
 }
-[child-overflow] > .root {
-  flex-wrap: var(--child-overflow, nowrap) !important;
+[-child-overflow] > .root {
+  flex-wrap: var(---child-overflow, nowrap) !important;
 }
-[self-align] > .root {
-  align-self: var(--self-align, center) !important;
-}
-
-[flex] > .root {
-  flex: var(--flex, 1) !important;
+[-self-align] > .root {
+  align-self: var(---self-align, center) !important;
 }
 
-[grow] > .root {
-  flex-grow: var(--grow, 1) !important;
+[-flex] > .root {
+  flex: var(---flex, 1) !important;
 }
 
-[shrink] > .root {
-  flex-shrink: var(--shrink, 1) !important;
+[-grow] > .root {
+  flex-grow: var(---grow, 1) !important;
 }
 
-[fill] > .root path {
-  fill: var(--fill, currentColor) !important;
-}
-[stroke] > .root path {
-  stroke: var(--stroke, currentColor) !important;
-}
-[stroke-width] > .root path {
-  stroke-width: var(--stroke-width, 1) !important;
+[-shrink] > .root {
+  flex-shrink: var(---shrink, 1) !important;
 }
 
-[invisible] > .root {
-  visibility: var(--invisible, hidden) !important;
+[-fill] > .root path {
+  fill: var(---fill, currentColor) !important;
 }
-[interactable] > .root {
-  pointer-events: var(--interactable, auto) !important;
+[-stroke] > .root path {
+  stroke: var(---stroke, currentColor) !important;
 }
-[interactable="none"] > .root {
+[-stroke-width] > .root path {
+  stroke-width: var(---stroke-width, 1) !important;
+}
+
+[-invisible] > .root {
+  visibility: var(---invisible, hidden) !important;
+}
+[-interactable] > .root {
+  pointer-events: var(---interactable, auto) !important;
+}
+[-interactable="none"] > .root {
   cursor: default;
 }
-[selectable] > .root {
-  user-select: var(--selectable, auto) !important;
+[-selectable] > .root {
+  user-select: var(---selectable, auto) !important;
 }
-:is([selectable=""], [selectable="auto"]) > .root {
+:is([-selectable=""], [-selectable="auto"]) > .root {
   cursor: text;
 }
 
-[text-font] > .root {
-  font-family: var(--text-font, monospace) !important;
+[-text-font] > .root {
+  font-family: var(---text-font, monospace) !important;
 }
 
-[text-size] > .root {
-  font-size: var(--text-size, 1rem) !important;
+[-text-size] > .root {
+  font-size: var(---text-size, 1rem) !important;
 }
-[text-size="2xs"] > .root {
-  line-height: var(--theme_text-2xs-line-height, 1.5);
+[-text-size="2xs"] > .root {
+  line-height: var(---theme_text-2xs-line-height, 1.5);
 }
-[text-size="xs"] > .root {
-  line-height: var(--theme_text-xs-line-height, 1.5);
+[-text-size="xs"] > .root {
+  line-height: var(---theme_text-xs-line-height, 1.5);
 }
-[text-size="sm"] > .root {
-  line-height: var(--theme_text-sm-line-height, 1.5);
+[-text-size="sm"] > .root {
+  line-height: var(---theme_text-sm-line-height, 1.5);
 }
-[text-size="md"] > .root {
-  line-height: var(--theme_text-md-line-height, 1.5);
+[-text-size="md"] > .root {
+  line-height: var(---theme_text-md-line-height, 1.5);
 }
-[text-size="lg"] > .root {
-  line-height: var(--theme_text-lg-line-height, 1.5);
+[-text-size="lg"] > .root {
+  line-height: var(---theme_text-lg-line-height, 1.5);
 }
-[text-size="xl"] > .root {
-  line-height: var(--theme_text-xl-line-height, 1.5);
+[-text-size="xl"] > .root {
+  line-height: var(---theme_text-xl-line-height, 1.5);
 }
-[text-size="2xl"] > .root {
-  line-height: var(--theme_text-2xl-line-height, 1.5);
+[-text-size="2xl"] > .root {
+  line-height: var(---theme_text-2xl-line-height, 1.5);
 }
-[text-size="3xl"] > .root {
-  line-height: var(--theme_text-3xl-line-height, 1.5);
+[-text-size="3xl"] > .root {
+  line-height: var(---theme_text-3xl-line-height, 1.5);
 }
-[text-size="4xl"] > .root {
-  line-height: var(--theme_text-4xl-line-height, 1.5);
+[-text-size="4xl"] > .root {
+  line-height: var(---theme_text-4xl-line-height, 1.5);
 }
-[text-size="5xl"] > .root {
-  line-height: var(--theme_text-5xl-line-height, 1.5);
+[-text-size="5xl"] > .root {
+  line-height: var(---theme_text-5xl-line-height, 1.5);
 }
-[text-size="6xl"] > .root {
-  line-height: var(--theme_text-6xl-line-height, 1.5);
+[-text-size="6xl"] > .root {
+  line-height: var(---theme_text-6xl-line-height, 1.5);
 }
-[text-size="7xl"] > .root {
-  line-height: var(--theme_text-7xl-line-height, 1.5);
+[-text-size="7xl"] > .root {
+  line-height: var(---theme_text-7xl-line-height, 1.5);
 }
-[text-size="8xl"] > .root {
-  line-height: var(--theme_text-8xl-line-height, 1.5);
+[-text-size="8xl"] > .root {
+  line-height: var(---theme_text-8xl-line-height, 1.5);
 }
-[text-size="9xl"] > .root {
-  line-height: var(--theme_text-9xl-line-height, 1.5);
-}
-
-[text-leading] > .root {
-  line-height: var(--text-leading, 1.5) !important;
+[-text-size="9xl"] > .root {
+  line-height: var(---theme_text-9xl-line-height, 1.5);
 }
 
-[text-kerning] > .root {
-  letter-spacing: var(--text-kerning, 1.5) !important;
+[-text-leading] > .root {
+  line-height: var(---text-leading, 1.5) !important;
 }
 
-[text-weight] > .root {
-  font-weight: var(--text-weight, 600) !important;
+[-text-kerning] > .root {
+  letter-spacing: var(---text-kerning, 1.5) !important;
 }
-[text-italic] > .root {
-  font-style: var(--text-italic, italic) !important;
+
+[-text-weight] > .root {
+  font-weight: var(---text-weight, 600) !important;
 }
-[text-underline] > .root,
-[text-strikethrough] > .root {
+[-text-italic] > .root {
+  font-style: var(---text-italic, italic) !important;
+}
+[-text-underline] > .root,
+[-text-strikethrough] > .root {
   /* must preserve trailing comma for empty fallback */
   /* prettier-ignore */
-  text-decoration-line: var(--text-underline,) var(--text-strikethrough,) !important;
+  text-decoration-line: var(---text-underline,) var(---text-strikethrough,) !important;
 }
-[text-underline-offset] > .root {
-  text-underline-offset: var(--text-underline-offset, 4px) !important;
+[-text-underline-offset] > .root {
+  text-underline-offset: var(---text-underline-offset, 4px) !important;
 }
-[text-decoration-thickness] > .root {
-  text-decoration-thickness: var(--text-decoration-thickness, 4px) !important;
+[-text-decoration-thickness] > .root {
+  text-decoration-thickness: var(---text-decoration-thickness, 4px) !important;
 }
-[text-case] > .root {
-  text-transform: var(--text-case, uppercase) !important;
+[-text-case] > .root {
+  text-transform: var(---text-case, uppercase) !important;
 }
-[text-align] > .root {
-  text-align: var(--text-align, center) !important;
+[-text-align] > .root {
+  text-align: var(---text-align, center) !important;
 }
-[text-overflow] > .root {
-  text-overflow: var(--text-overflow, clip) !important;
+[-text-overflow] > .root {
+  text-overflow: var(---text-overflow, clip) !important;
 }
-[text-overflow=""] > .root {
+[-text-overflow=""] > .root {
   white-space: nowrap;
 }
-[text-overflow="wrap"] > .root {
+[-text-overflow="wrap"] > .root {
   white-space: break-spaces;
 }
-[text-overflow="visible"] > .root {
+[-text-overflow="visible"] > .root {
   white-space: nowrap;
 }
-[text-overflow="clip"] > .root {
+[-text-overflow="clip"] > .root {
   white-space: nowrap;
 }
-[text-overflow="ellipsis"] > .root {
+[-text-overflow="ellipsis"] > .root {
   display: block;
   overflow: hidden;
   white-space: nowrap;
 }
-[text-whitespace] > .root {
-  white-space: var(--text-whitespace, normal) !important;
+[-text-whitespace] > .root {
+  white-space: var(---text-whitespace, normal) !important;
 }
-[text-color] > .root {
-  color: var(--text-color, white) !important;
+[-text-color] > .root {
+  color: var(---text-color, white) !important;
 }
-[text-stroke] > .root,
-[text-stroke-color] > .root,
-[text-stroke-width] > .root {
-  text-shadow: var(--text-stroke) !important;
+[-text-stroke] > .root,
+[-text-stroke-color] > .root,
+[-text-stroke-width] > .root {
+  text-shadow: var(---text-stroke) !important;
 }
 
-:is([bg-color], [background-color]) > .root {
-  background-color: var(--bg-color, var(--background-color)) !important;
+:is([-bg-color], [-background-color]) > .root {
+  background-color: var(---bg-color, var(---background-color)) !important;
 }
-:is([bg-gradient], [background-gradient]) > .root,
-:is([bg-pattern], [background-pattern]) > .root,
-:is([bg-image], [background-image]) > .root {
-  background-image: var(--bg-gradient, var(--background-gradient, none)),
-    var(--bg-pattern, var(--background-pattern, none)),
-    var(--bg-image, var(--background-image, none)) !important;
+:is([-bg-gradient], [-background-gradient]) > .root,
+:is([-bg-pattern], [-background-pattern]) > .root,
+:is([-bg-image], [-background-image]) > .root {
+  background-image: var(---bg-gradient, var(---background-gradient, none)),
+    var(---bg-pattern, var(---background-pattern, none)),
+    var(---bg-image, var(---background-image, none)) !important;
 }
-:is([bg-repeat], [background-repeat]) > .root {
+:is([-bg-repeat], [-background-repeat]) > .root {
   background-repeat: no-repeat, no-repeat,
-    var(--bg-repeat, var(--background-repeat, repeat)) !important;
+    var(---bg-repeat, var(---background-repeat, repeat)) !important;
 }
-:is([bg-align], [background-align]) > .root {
+:is([-bg-align], [-background-align]) > .root {
   background-position: center, center,
-    var(--bg-align, var(--background-align, center)) !important;
+    var(---bg-align, var(---background-align, center)) !important;
 }
-:is([bg-fit], [background-fit]) > .root {
-  background-size: auto, cover, var(--bg-fit, var(--background-fit, contain)) !important;
-}
-
-[clip] > .root {
-  clip-path: var(--clip, circle(50%)) !important;
+:is([-bg-fit], [-background-fit]) > .root {
+  background-size: auto, cover, var(---bg-fit, var(---background-fit, contain)) !important;
 }
 
-[shadow] > .root {
+[-clip] > .root {
+  clip-path: var(---clip, circle(50%)) !important;
+}
+
+[-shadow] > .root {
   transition-property: opacity, transform, box-shadow !important;
   box-shadow: var(
-    --shadow,
+    ---shadow,
     0 1px 2px hsl(0 0% 0% / 30%),
     0 1px 3px hsl(0 0% 0% / 15%)
   ) !important;
 }
-[shadow-inset] > .root {
+[-shadow-inset] > .root {
   box-shadow: var(
-    --shadow-inset,
+    ---shadow-inset,
     inset 0 1px 2px hsl(0 0% 0% / 30%),
     inset 0 1px 3px hsl(0 0% 0% / 15%)
   ) !important;
 }
 
-[filter] > .root {
-  backdrop-filter: var(--filter, none) !important;
+[-filter] > .root {
+  backdrop-filter: var(---filter, none) !important;
 }
 
-[blend] > .root {
-  mix-blend-mode: var(--blend, normal) !important;
+[-blend] > .root {
+  mix-blend-mode: var(---blend, normal) !important;
 }
 
-[opacity] > .root {
+[-opacity] > .root {
   transition-property: opacity, transform, box-shadow !important;
-  opacity: var(--opacity, 1) !important;
+  opacity: var(---opacity, 1) !important;
 }
 
-[translate-x] > .root,
-[translate-y] > .root,
-[translate-z] > .root,
-[rotate-x] > .root,
-[rotate-y] > .root,
-[rotate-z] > .root,
-[scale-x] > .root,
-[scale-y] > .root,
-[scale-z] > .root,
-[skew-x] > .root,
-[skew-y] > .root {
+[-translate-x] > .root,
+[-translate-y] > .root,
+[-translate-z] > .root,
+[-rotate-x] > .root,
+[-rotate-y] > .root,
+[-rotate-z] > .root,
+[-scale-x] > .root,
+[-scale-y] > .root,
+[-scale-z] > .root,
+[-skew-x] > .root,
+[-skew-y] > .root {
   transition-property: opacity, transform, box-shadow !important;
-  transform: scale3d(var(--scale-x, 1), var(--scale-y, 1), var(--scale-z, 1))
+  transform: scale3d(var(---scale-x, 1), var(---scale-y, 1), var(---scale-z, 1))
     rotate3d(
-      var(--rotate-x, 0),
-      var(--rotate-y, 0),
-      var(--rotate-z, 0),
-      var(--rotate, 0)
+      var(---rotate-x, 0),
+      var(---rotate-y, 0),
+      var(---rotate-z, 0),
+      var(---rotate, 0)
     )
     translate3d(
-      var(--translate-x, 0),
-      var(--translate-y, 0),
-      var(--translate-z, 0)
+      var(---translate-x, 0),
+      var(---translate-y, 0),
+      var(---translate-z, 0)
     )
-    skew(var(--skew-x, 0), var(--skew-y, 0)) !important;
+    skew(var(---skew-x, 0), var(---skew-y, 0)) !important;
 }
 
-[pivot] > .root {
-  transform-origin: var(--pivot, left) !important;
+[-pivot] > .root {
+  transform-origin: var(---pivot, left) !important;
 }
 
-[delay] > .root {
-  transition-delay: var(--delay, 100ms) !important;
+[-delay] > .root {
+  transition-delay: var(---delay, 100ms) !important;
 }
-[duration] > .root {
-  transition-duration: var(--duration, 100ms) !important;
+[-duration] > .root {
+  transition-duration: var(---duration, 100ms) !important;
 }
-[ease] > .root {
-  transition-timing-function: var(--ease, ease) !important;
-}
-
-[animation] > .root {
-  animation: var(--animation, var(--theme_animation-bounce)) !important;
+[-ease] > .root {
+  transition-timing-function: var(---ease, ease) !important;
 }
 
-[mask] > .root {
-  --theme_mask-angled-corner: conic-gradient(
-        from -45deg at var(--corner, 8px) var(--corner, 8px),
+[-animation] > .root {
+  animation: var(---animation, var(---theme_animation-bounce)) !important;
+}
+
+[-mask] > .root {
+  ---theme_mask-angled-corner: conic-gradient(
+        from -45deg at var(---corner, 8px) var(---corner, 8px),
         #0000 25%,
         #000 0
       )
-      calc(-1 * var(--corner, 8px)) 0 /100% 51% repeat-x,
+      calc(-1 * var(---corner, 8px)) 0 /100% 51% repeat-x,
     conic-gradient(
-        from 135deg at var(--corner, 8px) calc(100% - var(--corner, 8px)),
+        from 135deg at var(---corner, 8px) calc(100% - var(---corner, 8px)),
         #0000 25%,
         #000 0
       )
-      calc(-1 * var(--corner, 8px)) 100%/100% 51% repeat-x !important;
+      calc(-1 * var(---corner, 8px)) 100%/100% 51% repeat-x !important;
 
-  --theme_mask-scooped-corner: radial-gradient(
-      var(--corner, 8px) at var(--corner, 8px) var(--corner, 8px),
+  ---theme_mask-scooped-corner: radial-gradient(
+      var(---corner, 8px) at var(---corner, 8px) var(---corner, 8px),
       #0000 99%,
       #000
     )
-    calc(-1 * var(--corner, 8px)) calc(-1 * var(--corner, 8px)) !important;
+    calc(-1 * var(---corner, 8px)) calc(-1 * var(---corner, 8px)) !important;
 
-  --theme_mask-notched-corner: conic-gradient(
-      at calc(2 * var(--corner, 8px)) calc(2 * var(--corner, 8px)),
+  ---theme_mask-notched-corner: conic-gradient(
+      at calc(2 * var(---corner, 8px)) calc(2 * var(---corner, 8px)),
       #000 75%,
       #0000 0
     )
-    calc(-1 * var(--corner, 8px)) calc(-1 * var(--corner, 8px)) !important;
+    calc(-1 * var(---corner, 8px)) calc(-1 * var(---corner, 8px)) !important;
 
   background-color: transparent !important;
   background-image: none !important;
 }
-[mask] > .root::before {
+[-mask] > .root::before {
   /* Apply mask to a pseudo-element so that drop-shadow filters applied to the root element will match the shape of the mask */
   position: absolute !important;
   inset: 0 !important;
   content: "" !important;
-  background-image: var(--background-gradient, none),
-    var(--background-pattern, none), var(--background-image, none) !important;
-  background-color: var(--background-color) !important;
-  -webkit-mask: var(--mask, none) !important;
-  mask: var(--mask, none) !important;
+  background-image: var(---background-gradient, none),
+    var(---background-pattern, none), var(---background-image, none) !important;
+  background-color: var(---background-color) !important;
+  -webkit-mask: var(---mask, none) !important;
+  mask: var(---mask, none) !important;
 }
 
-[content-visibility] > .root {
-  content-visibility: var(--content-visibility, auto);
+[-content-visibility] > .root {
+  content-visibility: var(---content-visibility, auto);
 }
 
-[contain-intrinsic-size] > .root {
-  contain-intrinsic-size: var(--contain-intrinsic-size, none);
+[-contain-intrinsic-size] > .root {
+  contain-intrinsic-size: var(---contain-intrinsic-size, none);
 }
 
 .root::after {
   display: none;
-  --focus-duration: 50ms;
+  ---focus-duration: 50ms;
   position: absolute;
   inset: 0;
   content: "";
   border-radius: inherit;
   transition-property: outline-offset, opacity;
-  transition-duration: var(--focus-duration);
+  transition-duration: var(---focus-duration);
   transition-timing-function: ease;
-  outline-offset: calc(-2 * var(--theme_focus-ring-width));
+  outline-offset: calc(-2 * var(---theme_focus-ring-width));
   pointer-events: none;
 }
 .root.focused::after {
   display: flex;
-  outline: var(--theme_color-focus) var(--theme_focus-ring-style)
-    var(--theme_focus-ring-width);
-  outline-offset: calc(-1 * var(--theme_focus-ring-width));
+  outline: var(---theme_color-focus) var(---theme_focus-ring-style)
+    var(---theme_focus-ring-width);
+  outline-offset: calc(-1 * var(---theme_focus-ring-width));
   -webkit-mask: none;
   mask: none;
 }
 .root.focused.pressed::after {
   display: flex;
-  outline-offset: calc((-1 * var(--theme_focus-ring-width)) - 2px);
+  outline-offset: calc((-1 * var(---theme_focus-ring-width)) - 2px);
 }
 
 .icon {
   /* use !important to prevent issues with browser extensions that change fonts */
-  font-family: var(--theme_font-icon) !important;
+  font-family: var(---theme_font-icon) !important;
   font-style: normal;
   font-weight: normal;
   font-variant: normal;

@@ -80,7 +80,7 @@ body {
   display: flex;
   flex-direction: column;
   font-size: 0.875rem;
-  font-family: var(--theme_font-sans);
+  font-family: var(---theme_font-sans);
   min-height: 100dvh;
 }
 
@@ -89,7 +89,7 @@ body {
     position: static;
     overflow-y: scroll;
     touch-action: pan-y;
-    --touch-action: pan-y;
+    ---touch-action: pan-y;
   }
   body {
     height: 100%;

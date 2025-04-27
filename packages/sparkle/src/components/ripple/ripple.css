@@ -3,12 +3,12 @@
   border-radius: inherit;
   -webkit-mask: inherit;
   mask: inherit;
-  --hover-opacity: var(--theme_opacity-hover);
-  --press-opacity: var(--theme_opacity-press);
-  --ripple-duration: 150ms;
-  --hover-duration: 0ms;
-  --press-duration: 105ms;
-  --min-color-stop-length: 75%;
+  ---hover-opacity: var(---theme_opacity-hover);
+  ---press-opacity: var(---theme_opacity-press);
+  ---ripple-duration: 150ms;
+  ---hover-duration: 0ms;
+  ---press-duration: 105ms;
+  ---min-color-stop-length: 75%;
 }
 
 :host > .root {
@@ -42,25 +42,25 @@
   background-color: currentColor;
   transition-property: opacity, background-color;
   transition-timing-function: linear;
-  transition-duration: var(--hover-duration);
+  transition-duration: var(---hover-duration);
 }
 
 :host > .root::after {
   background: radial-gradient(
     closest-side,
-    currentColor max(calc(100% - 70px), var(--min-color-stop-length)),
+    currentColor max(calc(100% - 70px), var(---min-color-stop-length)),
     transparent 100%
   );
   transition-property: opacity;
-  transition-duration: var(--ripple-duration);
+  transition-duration: var(---ripple-duration);
   transition-timing-function: linear;
   transform-origin: center center;
 }
 
 :host > .root.pressed::after {
-  opacity: var(--press-opacity);
+  opacity: var(---press-opacity);
   transition-property: opacity;
-  transition-duration: var(--press-duration);
+  transition-duration: var(---press-duration);
 }
 
 :host([animation="none"]) > .root::after {
@@ -69,6 +69,6 @@
 
 @media (hover: hover) and (pointer: fine) {
   :host > .root:hover::before {
-    opacity: var(--hover-opacity);
+    opacity: var(---hover-opacity);
   }
 }

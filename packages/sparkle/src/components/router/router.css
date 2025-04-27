@@ -1,10 +1,10 @@
 :host {
   display: contents;
-  --exit: var(--theme_animation-exit-zoom);
-  --enter: var(--theme_animation-enter-zoom);
-  --position: relative;
-  --exit-fade: var(--theme_animation-exit-fade);
-  --enter-fade: var(--theme_animation-enter-fade);
+  ---exit: var(---theme_animation-exit-zoom);
+  ---enter: var(---theme_animation-enter-zoom);
+  ---position: relative;
+  ---exit-fade: var(---theme_animation-exit-fade);
+  ---enter-fade: var(---theme_animation-enter-fade);
 }
 
 :host > .root {
@@ -45,7 +45,7 @@
   > .old-fade {
   display: flex;
   flex: 1 1 100%;
-  animation: var(--exit-fade) both;
+  animation: var(---exit-fade) both;
 }
 
 :host > .root > .content > .old-fade > .old-transform {
@@ -61,8 +61,8 @@
   > .old-transform {
   display: flex;
   flex: 1 1 100%;
-  animation: var(--exit) both;
-  transform-origin: var(--pivot, top center);
+  animation: var(---exit) both;
+  transform-origin: var(---pivot, top center);
 }
 
 :host(:not([unmount="on-enter"])) > .root:not([status]) > .content > .old-fade {
@@ -89,7 +89,7 @@
   > .old-fade {
   display: flex;
   flex: 1 1 100%;
-  animation: var(--enter-fade) both;
+  animation: var(---enter-fade) both;
 }
 
 :host(:not([unmount="on-enter"]))
@@ -126,8 +126,8 @@
   > .content
   > .old-fade
   > .old-transform {
-  animation: var(--enter) both;
-  transform-origin: var(--pivot, top center);
+  animation: var(---enter) both;
+  transform-origin: var(---pivot, top center);
 }
 
 :host > .root > .content > .new-fade {
@@ -145,7 +145,7 @@
 :host([unmount="on-enter"]) > .root[status="entering"] > .content > .new-fade {
   display: flex;
   flex: 1 1 100%;
-  animation: var(--enter-fade) both;
+  animation: var(---enter-fade) both;
 }
 
 :host > .root > .content > .new-fade > .new-transform {
@@ -160,6 +160,6 @@
   > .content
   > .new-fade
   > .new-transform {
-  animation: var(--enter) both;
-  transform-origin: var(--pivot, top center);
+  animation: var(---enter) both;
+  transform-origin: var(---pivot, top center);
 }

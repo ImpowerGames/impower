@@ -2,59 +2,60 @@
 
 .screen {
   /* Divider */
-  --_divider-background: var(--theme_color-fg-12);
+  --_divider-background: var(---theme_color-fg-12);
 
   /* Buttons */
-  --_button-background: var(--theme_color-neutral-20);
-  --_button-background-hover: var(--theme_color-neutral-30);
-  --_button-border: var(--theme_color-neutral-50);
-  --_button-border-hover: var(--theme_color-neutral-60);
-  --_button-background-active: var(--theme_color-neutral-40);
-  --_button-text: var(--theme_color-neutral-100);
+  --_button-background: var(---theme_color-neutral-20);
+  --_button-background-hover: var(---theme_color-neutral-30);
+  --_button-border: var(---theme_color-neutral-50);
+  --_button-border-hover: var(---theme_color-neutral-60);
+  --_button-background-active: var(---theme_color-neutral-40);
+  --_button-text: var(---theme_color-neutral-100);
 
   /* Inputs */
-  --_input-background: var(--theme_color-neutral-20);
-  --_input-background-hover: var(--theme_color-neutral-20);
-  --_input-border: var(--theme_color-neutral-50);
-  --_input-border-hover: var(--theme_color-neutral-60);
-  --_input-text: var(--theme_color-neutral-100);
-  --_input-text-placeholder: var(--theme_color-neutral-70);
+  --_input-background: var(---theme_color-neutral-20);
+  --_input-background-hover: var(---theme_color-neutral-20);
+  --_input-border: var(---theme_color-neutral-50);
+  --_input-border-hover: var(---theme_color-neutral-60);
+  --_input-text: var(---theme_color-neutral-100);
+  --_input-text-placeholder: var(---theme_color-neutral-70);
 
   /* Dropdowns */
-  --_dropdown-background: var(--theme_color-neutral-20);
-  --_dropdown-background-hover: var(--theme_color-neutral-30);
-  --_dropdown-border: var(--theme_color-neutral-50);
-  --_dropdown-border-hover: var(--theme_color-neutral-60);
-  --_dropdown-text: var(--theme_color-neutral-100);
+  --_dropdown-background: var(---theme_color-neutral-20);
+  --_dropdown-background-hover: var(---theme_color-neutral-30);
+  --_dropdown-border: var(---theme_color-neutral-50);
+  --_dropdown-border-hover: var(---theme_color-neutral-60);
+  --_dropdown-text: var(---theme_color-neutral-100);
 
   /* Options */
-  --_option-background: var(--theme_color-neutral-20);
-  --_option-background-selected: var(--theme_color-neutral-50);
-  --_option-text: var(--theme_color-neutral-100);
+  --_option-background: var(---theme_color-neutral-20);
+  --_option-background-selected: var(---theme_color-neutral-50);
+  --_option-text: var(---theme_color-neutral-100);
 
   /* Checkboxes */
-  --_checkbox-background: var(--theme_color-neutral-20);
-  --_checkbox-background-hover: var(--theme_color-neutral-30);
-  --_checkbox-background-checked: var(--theme_color-primary-60);
-  --_checkbox-border: var(--theme_color-neutral-60);
-  --_checkbox-border-hover: var(--theme_color-neutral-60);
-  --_checkbox-check: var(--theme_color-fill-contrast);
+  --_checkbox-background: var(---theme_color-neutral-20);
+  --_checkbox-background-hover: var(---theme_color-neutral-30);
+  --_checkbox-background-checked: var(---theme_color-primary-60);
+  --_checkbox-border: var(---theme_color-neutral-60);
+  --_checkbox-border-hover: var(---theme_color-neutral-60);
+  --_checkbox-check: var(---theme_color-fill-contrast);
 
   /* Sliders */
-  --_slider-thumb-fill: var(--theme_color-primary-60);
-  --_slider-thumb-border: var(--theme_color-primary-60);
-  --_slider-fill-color: var(--theme_color-primary-60);
-  --_slider-track-color: var(--theme_color-neutral-40);
+  --_slider-thumb-fill: var(---theme_color-primary-60);
+  --_slider-thumb-border: var(---theme_color-primary-60);
+  --_slider-thumb-color-focus: var(---theme_color-focus);
+  --_slider-fill-color: var(---theme_color-primary-60);
+  --_slider-track-color: var(---theme_color-neutral-40);
 }
 
 * {
-  scrollbar-color: var(--theme_color-scrollbar-thumb)
-    var(--theme_color-scrollbar-track);
-  scrollbar-width: var(--theme_scrollbar-thickness);
-  scrollbar-gutter: var(--theme_scrollbar-gutter);
-  scroll-behavior: var(--theme_scrollbar-behavior);
-  scroll-margin: var(--theme_scrollbar-margin);
-  scroll-padding: var(--theme_scrollbar-padding);
+  scrollbar-color: var(---theme_color-scrollbar-thumb)
+    var(---theme_color-scrollbar-track);
+  scrollbar-width: var(---theme_scrollbar-thickness);
+  scrollbar-gutter: var(---theme_scrollbar-gutter);
+  scroll-behavior: var(---theme_scrollbar-behavior);
+  scroll-margin: var(---theme_scrollbar-margin);
+  scroll-padding: var(---theme_scrollbar-padding);
 }
 
 .Button,
@@ -63,10 +64,10 @@
 .InputArea,
 .Checkbox,
 .Slider {
-  transition: var(--theme_transition-fast) color,
-    var(--theme_transition-fast) outline, var(--theme_transition-fast) border,
-    var(--theme_transition-fast) box-shadow,
-    var(--theme_transition-fast) background-color;
+  transition: var(---theme_transition-fast) color,
+    var(---theme_transition-fast) outline, var(---theme_transition-fast) border,
+    var(---theme_transition-fast) box-shadow,
+    var(---theme_transition-fast) background-color;
 }
 
 .Button:focus,
@@ -74,15 +75,16 @@
 .Input:focus,
 .InputArea:focus {
   outline: none;
-  box-shadow: 0 0 0 var(--theme_focus-ring-width) var(--theme_focus-ring-color);
-  border-color: var(--theme_color-primary-60);
+  box-shadow: 0 0 0 var(---theme_focus-ring-width)
+    var(---theme_focus-ring-color);
+  border-color: var(---theme_color-primary-60);
 }
 
 .screen {
   gap: 16px;
   min-height: 100vh;
   font-size: 16px;
-  color: var(--theme_color-text);
+  color: var(---theme_color-text);
 }
 
 .component {
@@ -94,7 +96,7 @@ style {
 }
 
 .Box {
-  background: var(--theme_color-surface);
+  background: var(---theme_color-surface);
   padding: 16px;
   border-radius: 8px;
   gap: 16px;
@@ -112,7 +114,7 @@ style {
 
 .Grid {
   display: grid;
-  grid-template-columns: var(--columns, 1fr 1fr 1fr);
+  grid-template-columns: var(---columns, 1fr 1fr 1fr);
   gap: 12px;
 }
 .Grid * {
@@ -196,7 +198,7 @@ style {
   padding: 8px 12px;
   font-size: 1rem;
   font-family: inherit;
-  color: var(--theme_color-text);
+  color: var(---theme_color-text);
   border-radius: 8px;
   resize: vertical;
   outline: none;
@@ -213,8 +215,8 @@ style {
   appearance: none;
   background: linear-gradient(
     to right,
-    var(--_slider-fill-color) var(--fill-percentage, 50%),
-    var(--_slider-track-color) var(--fill-percentage, 50%)
+    var(--_slider-fill-color) var(---fill-percentage, 50%),
+    var(--_slider-track-color) var(---fill-percentage, 50%)
   );
   height: 6px;
   border-radius: 3px;
@@ -232,7 +234,7 @@ style {
   border: 2px solid var(--_slider-thumb-border);
 }
 .Slider:focus::-webkit-slider-thumb {
-  border-color: var(--theme_color-focus);
+  border-color: var(---theme_color-focus);
 }
 .Slider::-moz-range-thumb {
   border-radius: 50%;
@@ -245,36 +247,36 @@ style {
 :is([fill_color], [track_color], [fill_percentage]).Slider {
   background: linear-gradient(
     to right,
-    var(--fill-color, var(--_slider-fill-color)) var(--fill-percentage, 50%),
-    var(--track-color, var(--_slider-track-color)) var(--fill-percentage, 50%)
+    var(---fill-color, var(--_slider-fill-color)) var(---fill-percentage, 50%),
+    var(---track-color, var(--_slider-track-color)) var(---fill-percentage, 50%)
   );
 }
 [fill_color].Slider::-moz-range-progress {
-  background: var(--fill-color, var(--_slider-fill-color));
+  background: var(---fill-color, var(--_slider-fill-color));
 }
 [thumb_color].Slider::-webkit-slider-thumb {
-  background: var(--thumb-color, var(--_slider-thumb-fill));
+  background: var(---thumb-color, var(--_slider-thumb-fill));
 }
 [thumb_color].Slider::-moz-range-thumb {
-  background: var(--thumb-color, var(--_slider-thumb-fill));
+  background: var(---thumb-color, var(--_slider-thumb-fill));
 }
 [thumb_size].Slider::-webkit-slider-thumb {
-  margin-top: calc(-1 * var(--thumb-size, 16px) / 4);
-  width: var(--thumb-size, 16px);
-  height: var(--thumb-size, 16px);
+  margin-top: calc(-1 * var(---thumb-size, 16px) / 4);
+  width: var(---thumb-size, 16px);
+  height: var(---thumb-size, 16px);
 }
 [thumb_size].Slider::-moz-range-thumb {
-  width: var(--thumb-size, 16px);
-  height: var(--thumb-size, 16px);
+  width: var(---thumb-size, 16px);
+  height: var(---thumb-size, 16px);
 }
 [thumb_border].Slider::-webkit-slider-thumb {
-  border: var(--thumb-border, 2px solid var(--_slider-thumb-border));
+  border: var(---thumb-border, 2px solid var(--_slider-thumb-border));
 }
 [thumb_border].Slider::-moz-range-thumb {
-  border: var(--thumb-border, 2px solid var(--_slider-thumb-border));
+  border: var(---thumb-border, 2px solid var(--_slider-thumb-border));
 }
 [thumb_focus_color].Slider:focus::-webkit-slider-thumb {
-  border-color: var(--thumb-color-focus, var(--theme_color-focus));
+  border-color: var(---thumb-color-focus, var(--_slider-thumb-color-focus));
 }
 
 .InputGroup:has(.Checkbox) {

@@ -1,21 +1,21 @@
 :host {
   display: contents;
-  --indicator-color: var(--theme_color-primary-60);
-  --child-layout: column;
-  --position: relative;
-  --duration: 150ms;
-  --indicator-width: 2px;
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  ---indicator-color: var(---theme_color-primary-60);
+  ---child-layout: column;
+  ---position: relative;
+  ---duration: 150ms;
+  ---indicator-width: 2px;
+  ---ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 :host([indicator="none"]) > .root {
-  --indicator-width: 0 !important;
+  ---indicator-width: 0 !important;
 }
 
 :host > .root {
   display: flex;
-  flex-direction: var(--child-layout);
-  position: var(--position);
+  flex-direction: var(---child-layout);
+  position: var(---position);
 }
 :host([vertical]) > .root {
   flex-direction: row;
@@ -45,21 +45,21 @@
 
 :host > .root > .indicator {
   position: relative;
-  background-color: var(--indicator-color);
+  background-color: var(---indicator-color);
   transition-property: transform;
-  transition-duration: var(--duration);
-  transition-timing-function: var(--ease);
+  transition-duration: var(---duration);
+  transition-timing-function: var(---ease);
   will-change: transform;
 }
 :host(:not([vertical])) > .root > .indicator {
-  bottom: var(--indicator-width);
+  bottom: var(---indicator-width);
   transform-origin: left;
-  height: var(--indicator-width);
+  height: var(---indicator-width);
   width: 1px;
 }
 :host([vertical]) > .root > .indicator {
-  right: var(--indicator-width);
+  right: var(---indicator-width);
   transform-origin: top;
   height: 1px;
-  width: var(--indicator-width);
+  width: var(---indicator-width);
 }

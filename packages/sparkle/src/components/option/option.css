@@ -1,98 +1,98 @@
 :host {
   display: contents;
-  --overflow-x: visible;
-  --overflow-y: visible;
-  --child-layout: row;
-  --child-align: center;
-  --child-justify: flex-start;
-  --position: relative;
-  --interactable: auto;
-  --selectable: none;
-  --width: auto;
-  --height: auto;
-  --text-font: var(--theme_font-sans);
-  --text-wrap: nowrap;
-  --transition-property: transform, background-color, color, border, box-shadow;
-  --duration: 100ms;
-  --spacing: 12px;
-  --border-width: 1px;
-  --corner: 0;
-  --shadow: none;
-  --color: var(--theme_color-neutral-100);
-  --active-color: var(--theme_color-neutral-100);
+  ---overflow-x: visible;
+  ---overflow-y: visible;
+  ---child-layout: row;
+  ---child-align: center;
+  ---child-justify: flex-start;
+  ---position: relative;
+  ---interactable: auto;
+  ---selectable: none;
+  ---width: auto;
+  ---height: auto;
+  ---text-font: var(---theme_font-sans);
+  ---text-wrap: nowrap;
+  ---transition-property: transform, background-color, color, border, box-shadow;
+  ---duration: 100ms;
+  ---spacing: 12px;
+  ---border-width: 1px;
+  ---corner: 0;
+  ---shadow: none;
+  ---color: var(---theme_color-neutral-100);
+  ---active-color: var(---theme_color-neutral-100);
 }
 
 :host([value]) {
-  --color: var(--theme_color-neutral-70);
+  ---color: var(---theme_color-neutral-70);
 }
 
 :host([active]:not([disabled])) > .root {
-  color: var(--active-color) !important;
+  color: var(---active-color) !important;
 }
 
 :host([size="xs"]) > .root {
-  --width-min: 80px;
-  --height-min: 24px;
-  --text-size: var(--theme_text-2xs-font-size);
-  --text-leading: var(--theme_text-2xs-line-height);
-  --padding-lr: 12px;
+  ---width-min: 80px;
+  ---height-min: 24px;
+  ---text-size: var(---theme_text-2xs-font-size);
+  ---text-leading: var(---theme_text-2xs-line-height);
+  ---padding-lr: 12px;
 }
 
 :host([size="sm"]) > .root {
-  --width-min: 80px;
-  --height-min: 32px;
-  --text-size: var(--theme_text-sm-font-size);
-  --text-leading: var(--theme_text-sm-line-height);
-  --padding-lr: 14px;
+  ---width-min: 80px;
+  ---height-min: 32px;
+  ---text-size: var(---theme_text-sm-font-size);
+  ---text-leading: var(---theme_text-sm-line-height);
+  ---padding-lr: 14px;
 }
 
 :host,
 :host([size="md"]) > .root {
-  --width-min: 80px;
-  --height-min: 40px;
-  --text-size: var(--theme_text-sm-font-size);
-  --text-leading: var(--theme_text-sm-line-height);
-  --padding-lr: 20px;
+  ---width-min: 80px;
+  ---height-min: 40px;
+  ---text-size: var(---theme_text-sm-font-size);
+  ---text-leading: var(---theme_text-sm-line-height);
+  ---padding-lr: 20px;
 }
 
 :host([size="lg"]) > .root {
-  --width-min: 80px;
-  --height-min: 48px;
-  --text-size: var(--theme_text-md-font-size);
-  --text-leading: var(--theme_text-md-line-height);
-  --padding-lr: 24px;
+  ---width-min: 80px;
+  ---height-min: 48px;
+  ---text-size: var(---theme_text-md-font-size);
+  ---text-leading: var(---theme_text-md-line-height);
+  ---padding-lr: 24px;
 }
 
 :host > .root {
   display: flex;
   cursor: pointer;
   text-decoration: none;
-  overflow-x: var(--overflow-x);
-  overflow-y: var(--overflow-y);
-  flex-direction: var(--child-layout);
-  align-items: var(--child-align);
-  justify-content: var(--child-justify);
-  position: var(--position);
-  pointer-events: var(--interactable);
-  user-select: var(--selectable);
-  width: var(--width);
-  height: var(--height);
-  min-width: var(--width-min);
-  min-height: var(--height-min);
-  font-family: var(--text-font);
-  font-size: var(--text-size);
-  line-height: var(--text-leading);
-  white-space: var(--text-wrap);
-  transition-property: var(--transition-property);
-  transition-duration: var(--duration);
-  border-color: var(--border-color);
-  border-width: var(--border-width);
-  border-radius: var(--corner);
-  padding-inline: var(--padding-lr);
+  overflow-x: var(---overflow-x);
+  overflow-y: var(---overflow-y);
+  flex-direction: var(---child-layout);
+  align-items: var(---child-align);
+  justify-content: var(---child-justify);
+  position: var(---position);
+  pointer-events: var(---interactable);
+  user-select: var(---selectable);
+  width: var(---width);
+  height: var(---height);
+  min-width: var(---width-min);
+  min-height: var(---height-min);
+  font-family: var(---text-font);
+  font-size: var(---text-size);
+  line-height: var(---text-leading);
+  white-space: var(---text-wrap);
+  transition-property: var(---transition-property);
+  transition-duration: var(---duration);
+  border-color: var(---border-color);
+  border-width: var(---border-width);
+  border-radius: var(---corner);
+  padding-inline: var(---padding-lr);
   will-change: transform;
-  color: var(--color);
-  box-shadow: var(--shadow);
-  background-color: var(--background-color);
+  color: var(---color);
+  box-shadow: var(---shadow);
+  background-color: var(---background-color);
 }
 
 :host([disabled]) > .root {
@@ -112,20 +112,20 @@
 :host > .root > .label {
   display: flex;
   visibility: visible;
-  flex-direction: var(--child-layout);
-  align-items: var(--child-align);
-  justify-content: var(--child-justify);
+  flex-direction: var(---child-layout);
+  align-items: var(---child-align);
+  justify-content: var(---child-justify);
   z-index: 1;
-  transition-duration: var(--duration);
+  transition-duration: var(---duration);
 }
 :host([child-justify]) > .root > .label {
-  flex-grow: var(--grow);
+  flex-grow: var(---grow);
 }
 :host([loading]) > .root > .label {
   visibility: hidden;
 }
 :host([icon]:not([variant="icon"])) > .root > .label {
-  padding-left: var(--spacing);
+  padding-left: var(---spacing);
 }
 
 :host > .root > .icon {
@@ -134,11 +134,11 @@
 :host([icon]) > .root > .icon {
   position: relative;
   display: flex;
-  width: var(--icon-size, var(--theme_icon-size));
-  height: var(--icon-size, var(--theme_icon-size));
-  min-width: var(--icon-size, var(--theme_icon-size));
-  min-height: var(--icon-size, var(--theme_icon-size));
-  font-size: var(--icon-size, var(--theme_icon-size));
+  width: var(---icon-size, var(---theme_icon-size));
+  height: var(---icon-size, var(---theme_icon-size));
+  min-width: var(---icon-size, var(---theme_icon-size));
+  min-height: var(---icon-size, var(---theme_icon-size));
+  font-size: var(---icon-size, var(---theme_icon-size));
   justify-content: center;
   align-items: center;
   will-change: transform;
@@ -154,7 +154,7 @@
   height: 100%;
   will-change: transform, opacity;
   transition-property: none;
-  color: var(--color);
+  color: var(---color);
 }
 :host([icon][active-icon][active]) > .root > .icon > .normal-icon {
   display: none;
@@ -170,7 +170,7 @@
   height: 100%;
   will-change: transform, opacity;
   transition-property: none;
-  color: var(--active-color);
+  color: var(---active-color);
 }
 :host([active-icon]:not([active])) > .root > .icon > .active-icon {
   display: none;

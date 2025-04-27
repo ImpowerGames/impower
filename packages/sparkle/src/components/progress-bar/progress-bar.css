@@ -1,31 +1,31 @@
 :host {
   display: contents;
-  --position: relative;
-  --overflow-x: clip;
-  --overflow-y: clip;
-  --height: 2px;
-  --height-min: var(--height);
-  --text-font: var(--theme_font-sans);
-  --text-size: var(--theme_text-xs-font-size);
-  --text-weight: 400;
-  --text-color: var(--theme_color-neutral-0);
-  --background-color: var(--theme_color-neutral-30);
-  --color: var(--theme_color-primary-60);
-  --speed: 2.5;
-  --duration: 400ms;
+  ---position: relative;
+  ---overflow-x: clip;
+  ---overflow-y: clip;
+  ---height: 2px;
+  ---height-min: var(---height);
+  ---text-font: var(---theme_font-sans);
+  ---text-size: var(---theme_text-xs-font-size);
+  ---text-weight: 400;
+  ---text-color: var(---theme_color-neutral-0);
+  ---background-color: var(---theme_color-neutral-30);
+  ---color: var(---theme_color-primary-60);
+  ---speed: 2.5;
+  ---duration: 400ms;
 }
 
 :host > .root {
   display: flex;
-  position: var(--position);
-  overflow-x: var(--overflow-x);
-  overflow-y: var(--overflow-y);
-  min-height: var(--height-min);
-  height: var(--height);
-  font-family: var(--text-font);
-  font-size: var(--text-size);
-  font-weight: var(--text-weight);
-  background-color: var(--background-color);
+  position: var(---position);
+  overflow-x: var(---overflow-x);
+  overflow-y: var(---overflow-y);
+  min-height: var(---height-min);
+  height: var(---height);
+  font-family: var(---text-font);
+  font-size: var(---text-size);
+  font-weight: var(---text-weight);
+  background-color: var(---background-color);
   contain: strict;
   will-change: transform;
 }
@@ -35,21 +35,21 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  background-color: var(--color);
-  color: var(--text-color);
-  line-height: var(--height);
+  background-color: var(---color);
+  color: var(---text-color);
+  line-height: var(---height);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   user-select: none;
   transform-origin: left;
   transition-property: transform, background-color;
-  transition-duration: var(--duration);
-  transform: scaleX(var(--value));
+  transition-duration: var(---duration);
+  transform: scaleX(var(---value));
   will-change: transform;
 }
 :host(:not([value])) > .root > .indicator {
-  animation: indeterminate-bar calc(1s * var(--speed)) infinite
+  animation: indeterminate-bar calc(1s * var(---speed)) infinite
     cubic-bezier(0.37, 0, 0.63, 1);
 }
 :host([rtl]) > .root > .indicator {

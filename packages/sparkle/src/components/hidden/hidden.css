@@ -1,6 +1,6 @@
 :host {
   display: contents;
-  --duration: 150ms;
+  ---duration: 150ms;
 }
 
 :host > .root {
@@ -10,7 +10,7 @@
 }
 
 :host > .root[loaded] {
-  transition-duration: var(--duration);
+  transition-duration: var(---duration);
 }
 
 :host > .root:not([loaded]) {

@@ -1,18 +1,18 @@
 .s-theme-light {
-  --theme_gradient-gloss-transparent: hsl(0 0% 0% / 0%);
-  --theme_gradient-gloss-shine: hsl(0 0% 0% / 5%);
+  ---theme_gradient-gloss-transparent: hsl(0 0% 0% / 0%);
+  ---theme_gradient-gloss-shine: hsl(0 0% 0% / 5%);
 }
 
 .s-theme-dark {
-  --theme_gradient-gloss-transparent: hsl(0 0% 100% / 0%);
-  --theme_gradient-gloss-shine: hsl(0 0% 100% / 5%);
+  ---theme_gradient-gloss-transparent: hsl(0 0% 100% / 0%);
+  ---theme_gradient-gloss-shine: hsl(0 0% 100% / 5%);
 }
 
 :root {
-  --theme_gradient-gloss: conic-gradient(
+  ---theme_gradient-gloss: conic-gradient(
     from 25deg at 35% 75%,
-    var(--theme_gradient-gloss-transparent),
+    var(---theme_gradient-gloss-transparent),
     85%,
-    var(--theme_gradient-gloss-shine)
+    var(---theme_gradient-gloss-shine)
   );
 }

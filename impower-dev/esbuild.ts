@@ -304,7 +304,7 @@ const expandPageComponents = async () => {
     );
     const injectedGraphics: Record<string, string> = {};
     graphicCSSArray.forEach((css) => {
-      Object.entries(extractAllSVGs("--theme_icon-", css)).forEach(
+      Object.entries(extractAllSVGs("---theme_icon-", css)).forEach(
         ([name, svg]) => {
           injectedGraphics[name] = svg;
         }

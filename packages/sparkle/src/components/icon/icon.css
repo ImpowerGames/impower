@@ -1,17 +1,17 @@
 :host {
   display: contents;
-  --child-justify: center;
-  --child-align: center;
+  ---child-justify: center;
+  ---child-align: center;
 }
 
 :host > .root {
   display: flex;
-  justify-content: var(--child-justify);
-  align-items: var(--child-align);
-  width: var(--icon-size, var(--theme_icon-size));
-  height: var(--icon-size, var(--theme_icon-size));
-  min-width: var(--icon-size, var(--theme_icon-size));
-  min-height: var(--icon-size, var(--theme_icon-size));
-  font-size: var(--icon-size, var(--theme_icon-size));
+  justify-content: var(---child-justify);
+  align-items: var(---child-align);
+  width: var(---icon-size, var(---theme_icon-size));
+  height: var(---icon-size, var(---theme_icon-size));
+  min-width: var(---icon-size, var(---theme_icon-size));
+  min-height: var(---icon-size, var(---theme_icon-size));
+  font-size: var(---icon-size, var(---theme_icon-size));
   will-change: transform;
 }

@@ -10,27 +10,27 @@ html {
 
 :root,
 .se-theme {
-  --theme_size-header-nav: 56px;
-  --theme_size-footer-nav: 60px;
-  --theme_size-panel-nav: 48px;
+  ---theme_size-header-nav: 56px;
+  ---theme_size-footer-nav: 60px;
+  ---theme_size-panel-nav: 48px;
 
-  --theme_color-tab-active: hsl(0, 0%, 95%);
-  --theme_color-tab-inactive: hsl(211 26% 48%);
-  --theme_color-fab-fg: white;
-  --theme_color-fab-bg: hsl(210.8, 44.9%, 34.9%);
-  --theme_color-primary-bg: hsl(210.7, 89.1%, 18%);
-  --theme_color-secondary-bg: hsl(210.8, 44.9%, 34.9%);
-  --theme_color-panel: hsl(210.6, 100%, 10%);
-  --theme_color-editor-bg: #0000004d;
+  ---theme_color-tab-active: hsl(0, 0%, 95%);
+  ---theme_color-tab-inactive: hsl(211 26% 48%);
+  ---theme_color-fab-fg: white;
+  ---theme_color-fab-bg: hsl(210.8, 44.9%, 34.9%);
+  ---theme_color-primary-bg: hsl(210.7, 89.1%, 18%);
+  ---theme_color-secondary-bg: hsl(210.8, 44.9%, 34.9%);
+  ---theme_color-panel: hsl(210.6, 100%, 10%);
+  ---theme_color-editor-bg: #0000004d;
 
-  --theme_color-palette-spot-0: #052d57;
-  --theme_color-palette-spot-1: #415a89;
-  --theme_color-palette-spot-2: #e3f0ff;
-  --theme_color-palette-spot-3: #d7a31a;
+  ---theme_color-palette-spot-0: #052d57;
+  ---theme_color-palette-spot-1: #415a89;
+  ---theme_color-palette-spot-2: #e3f0ff;
+  ---theme_color-palette-spot-3: #d7a31a;
 
-  --theme_color-palette-cube-0: #052d57;
-  --theme_color-palette-cube-1: #00c6bd;
-  --theme_color-palette-cube-2: #fff7d6;
+  ---theme_color-palette-cube-0: #052d57;
+  ---theme_color-palette-cube-1: #00c6bd;
+  ---theme_color-palette-cube-2: #fff7d6;
 }
 
 .picker-dialog-bg {

@@ -6,7 +6,7 @@
 
 @keyframes ping {
   0% {
-    box-shadow: 0 0 0 0 var(--color);
+    box-shadow: 0 0 0 0 var(---color);
   }
   70% {
     box-shadow: 0 0 0 0.5rem transparent;

@@ -1,50 +1,50 @@
 :host {
   display: contents;
-  --background-color: var(--theme_color-surface);
-  --child-layout: column;
-  --child-align: stretch;
-  --child-justify: flex-start;
-  --child-gap: 16px;
-  --shadow: var(--theme_shadow-box-5);
-  --z: var(--theme_z-index-dialog);
-  --title-text-weight: 400;
-  --title-text-size: var(--theme_text-2xl-font-size);
-  --title-text-leading: var(--theme_text-2xl-line-height);
-  --text-size: var(--theme_text-sm-font-size);
-  --text-leading: var(--theme_text-sm-line-height);
-  --border-color: var(--theme_color-surface-border);
-  --border-width: 1px;
-  --corner: 8px;
-  --margin: auto;
-  --padding: 24px;
-  --enter: var(--theme_animation-open);
-  --exit: var(--theme_animation-close);
-  --mobile-enter: var(--theme_animation-slide-in-up),
-    var(--theme_animation-fade-in);
-  --mobile-exit: var(--theme_animation-slide-out-down),
-    var(--theme_animation-fade-out);
-  --ease: ease-out;
+  ---background-color: var(---theme_color-surface);
+  ---child-layout: column;
+  ---child-align: stretch;
+  ---child-justify: flex-start;
+  ---child-gap: 16px;
+  ---shadow: var(---theme_shadow-box-5);
+  ---z: var(---theme_z-index-dialog);
+  ---title-text-weight: 400;
+  ---title-text-size: var(---theme_text-2xl-font-size);
+  ---title-text-leading: var(---theme_text-2xl-line-height);
+  ---text-size: var(---theme_text-sm-font-size);
+  ---text-leading: var(---theme_text-sm-line-height);
+  ---border-color: var(---theme_color-surface-border);
+  ---border-width: 1px;
+  ---corner: 8px;
+  ---margin: auto;
+  ---padding: 24px;
+  ---enter: var(---theme_animation-open);
+  ---exit: var(---theme_animation-close);
+  ---mobile-enter: var(---theme_animation-slide-in-up),
+    var(---theme_animation-fade-in);
+  ---mobile-exit: var(---theme_animation-slide-out-down),
+    var(---theme_animation-fade-out);
+  ---ease: ease-out;
 }
 
 :host > .root {
   display: flex;
   pointer-events: auto;
-  flex-direction: var(--child-layout);
-  align-items: var(--child-align);
+  flex-direction: var(---child-layout);
+  align-items: var(---child-align);
   position: fixed;
   inset: 0;
   padding: 0;
   overflow: hidden;
-  box-shadow: var(--shadow);
-  z-index: var(--z);
-  color: var(--text-color);
-  transition: opacity 0.5s var(--ease);
-  background-color: var(--background-color);
+  box-shadow: var(---shadow);
+  z-index: var(---z);
+  color: var(---text-color);
+  transition: opacity 0.5s var(---ease);
+  background-color: var(---background-color);
   border-style: solid;
-  border-color: var(--border-color);
-  border-width: var(--border-width);
-  border-radius: var(--corner);
-  margin: var(--margin);
+  border-color: var(---border-color);
+  border-width: var(---border-width);
+  border-radius: var(---corner);
+  margin: var(---margin);
   max-inline-size: min(90vw, 60ch);
   will-change: transform, opacity;
   contain: strict;
@@ -53,12 +53,12 @@
   opacity: 0;
 }
 :host([loaded][open]) > .root {
-  animation: var(--enter) forwards;
-  animation-timing-function: var(--ease);
+  animation: var(---enter) forwards;
+  animation-timing-function: var(---ease);
 }
 :host([loaded]:not([open])) > .root {
-  animation: var(--exit) forwards;
-  animation-timing-function: var(--ease);
+  animation: var(---exit) forwards;
+  animation-timing-function: var(---ease);
 }
 @media (width <= 960px) {
   :host > .root {
@@ -68,12 +68,12 @@
     max-inline-size: 100vw;
   }
   :host([loaded][open]) > .root {
-    animation: var(--mobile-enter) forwards;
-    animation-timing-function: var(--ease);
+    animation: var(---mobile-enter) forwards;
+    animation-timing-function: var(---ease);
   }
   :host([loaded]:not([open])) > .root {
-    animation: var(--mobile-exit) forwards;
-    animation-timing-function: var(--ease);
+    animation: var(---mobile-exit) forwards;
+    animation-timing-function: var(---ease);
   }
 }
 
@@ -95,19 +95,19 @@
 :host > .root > form {
   pointer-events: auto;
   display: flex;
-  flex-direction: var(--child-layout);
-  align-items: var(--child-align);
-  gap: var(--child-gap);
+  flex-direction: var(---child-layout);
+  align-items: var(---child-align);
+  gap: var(---child-gap);
   max-block-size: 80vh;
   max-block-size: 80dvb;
-  padding: var(--padding);
+  padding: var(---padding);
 }
 
 :host > .root > .form > .header {
   display: flex;
   flex-direction: column;
   align-self: flex-start;
-  gap: var(--child-gap);
+  gap: var(---child-gap);
   padding-block-end: 8px;
 }
 :host([icon]) > .root > .form > .header {
@@ -130,12 +130,12 @@
   display: flex;
   justify-items: flex-start;
   z-index: 1;
-  font-size: var(--text-size);
-  line-height: var(--text-leading);
-  gap: var(--child-gap);
+  font-size: var(---text-size);
+  line-height: var(---text-leading);
+  gap: var(---child-gap);
   border-style: color;
-  border-color: var(--border-color);
-  border-width: var(--border-width);
+  border-color: var(---border-color);
+  border-width: var(---border-width);
 }
 
 :host > .root > .form > .footer {
@@ -143,14 +143,14 @@
   flex-direction: row;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--child-gap);
+  gap: var(---child-gap);
 }
 
 :host > .root > .form > .header > .label {
   display: none;
-  font-weight: var(--title-text-weight);
-  font-size: var(--title-text-size);
-  line-height: var(--title-text-leading);
+  font-weight: var(---title-text-weight);
+  font-size: var(---title-text-size);
+  line-height: var(---title-text-leading);
   margin: 0;
 }
 :host([label]) > .root > .form > .header > .label {

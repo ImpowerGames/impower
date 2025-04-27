@@ -1,25 +1,25 @@
 :host {
   display: contents;
-  --position: absolute;
-  --width-max: 20rem;
-  --hide-delay: 0ms;
-  --show-delay: 75ms;
-  --interactable: auto;
-  --width: max-content;
-  --z: var(--theme_z-index-tooltip);
-  --background-color: var(--theme_tooltip-background-color);
-  --text-font: var(--theme_tooltip-font-family);
-  --text-size: var(--theme_tooltip-font-size);
-  --text-weight: var(--theme_tooltip-font-weight);
-  --text-leading: var(--theme_tooltip-line-height);
-  --text-color: var(--theme_tooltip-color);
-  --corner: var(--theme_tooltip-border-radius);
-  --padding-tb: 4px;
-  --padding-lr: 8px;
-  --shadow: var(--theme_shadow-box-2);
-  --enter: var(--theme_animation-open);
-  --exit: var(--theme_animation-close);
-  --ease: ease-out;
+  ---position: absolute;
+  ---width-max: 20rem;
+  ---hide-delay: 0ms;
+  ---show-delay: 75ms;
+  ---interactable: auto;
+  ---width: max-content;
+  ---z: var(---theme_z-index-tooltip);
+  ---background-color: var(---theme_tooltip-background-color);
+  ---text-font: var(---theme_tooltip-font-family);
+  ---text-size: var(---theme_tooltip-font-size);
+  ---text-weight: var(---theme_tooltip-font-weight);
+  ---text-leading: var(---theme_tooltip-line-height);
+  ---text-color: var(---theme_tooltip-color);
+  ---corner: var(---theme_tooltip-border-radius);
+  ---padding-tb: 4px;
+  ---padding-lr: 8px;
+  ---shadow: var(---theme_shadow-box-2);
+  ---enter: var(---theme_animation-open);
+  ---exit: var(---theme_animation-close);
+  ---ease: ease-out;
 }
 
 :host > .root {
@@ -30,33 +30,33 @@
   will-change: transform, opacity;
 }
 :host([open]) > .popup[anchored] {
-  animation: var(--enter) forwards;
-  animation-timing-function: var(--ease);
+  animation: var(---enter) forwards;
+  animation-timing-function: var(---ease);
 }
 :host(:not([open])) > .popup[anchored] {
-  animation: var(--exit) forwards;
-  animation-timing-function: var(--ease);
+  animation: var(---exit) forwards;
+  animation-timing-function: var(---ease);
 }
 
 :host > .popup {
   isolation: isolate;
-  pointer-events: var(--interactable);
-  z-index: var(--z);
-  position: var(--position);
-  width: var(--width);
-  max-width: var(--width-max);
-  background-color: var(--background-color);
-  font-family: var(--text-font);
-  font-size: var(--text-size);
-  font-weight: var(--text-weight);
-  line-height: var(--text-leading);
-  color: var(--text-color);
-  border-radius: var(--corner);
-  padding-block: var(--padding-tb);
-  padding-inline: var(--padding-lr);
-  max-width: var(--auto-size-available-width, none);
-  max-height: var(--auto-size-available-height, none);
-  box-shadow: var(--shadow);
+  pointer-events: var(---interactable);
+  z-index: var(---z);
+  position: var(---position);
+  width: var(---width);
+  max-width: var(---width-max);
+  background-color: var(---background-color);
+  font-family: var(---text-font);
+  font-size: var(---text-size);
+  font-weight: var(---text-weight);
+  line-height: var(---text-leading);
+  color: var(---text-color);
+  border-radius: var(---corner);
+  padding-block: var(---padding-tb);
+  padding-inline: var(---padding-lr);
+  max-width: var(---auto-size-available-width, none);
+  max-height: var(---auto-size-available-height, none);
+  box-shadow: var(---shadow);
 }
 
 :host > .popup.fixed {

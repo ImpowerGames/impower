@@ -9,7 +9,7 @@ import { Workspace } from "../modules/spark-editor/workspace/Workspace";
 
 const load = async () => {
   const graphics: Record<string, string> = {};
-  const svgs = extractAllSVGs("--theme_icon-", icons);
+  const svgs = extractAllSVGs("---theme_icon-", icons);
   Object.entries(svgs).forEach(([name, svg]) => {
     graphics[name] = svg;
   });

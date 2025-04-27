@@ -1,25 +1,25 @@
 :host {
   display: contents;
-  --background-color: var(--theme_color-divider);
-  --size: 1px;
-  --width: 100%;
-  --height: 100%;
+  ---background-color: var(---theme_color-divider);
+  ---size: 1px;
+  ---width: 100%;
+  ---height: 100%;
 }
 
 :host > .root {
   display: flex;
-  background-color: var(--background-color);
-  opacity: var(--opacity);
+  background-color: var(---background-color);
+  opacity: var(---opacity);
 }
 
 :host(:not([vertical])) > .root {
   display: block;
-  width: var(--width);
-  height: var(--size);
+  width: var(---width);
+  height: var(---size);
 }
 
 :host([vertical]) > .root {
   display: inline-block;
-  width: var(--size);
-  height: var(--height);
+  width: var(---size);
+  height: var(---height);
 }

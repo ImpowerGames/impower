@@ -1,48 +1,50 @@
 :host {
   display: contents;
-  --background-color: var(--theme_color-surface);
-  --child-layout: column;
-  --child-align: stretch;
-  --child-justify: flex-start;
-  --child-gap: 16px;
-  --shadow: var(--theme_shadow-box-5);
-  --z: var(--theme_z-index-dialog);
-  --title-text-weight: 400;
-  --title-text-size: var(--theme_text-2xl-font-size);
-  --title-text-leading: var(--theme_text-2xl-line-height);
-  --text-size: var(--theme_text-sm-font-size);
-  --text-leading: var(--theme_text-sm-line-height);
-  --border-color: var(--theme_color-surface-border);
-  --border-width: 1px;
-  --corner: 0;
-  --margin: 0;
-  --padding: 0;
-  --enter: var(--theme_animation-slide-in-right), var(--theme_animation-fade-in);
-  --exit: var(--theme_animation-slide-out-left), var(--theme_animation-fade-out);
-  --mobile-enter: var(--theme_animation-slide-in-right);
-  --mobile-exit: var(--theme_animation-slide-out-left);
-  --duration: 225ms;
-  --ease: cubic-bezier(0, 0, 0.2, 1);
+  ---background-color: var(---theme_color-surface);
+  ---child-layout: column;
+  ---child-align: stretch;
+  ---child-justify: flex-start;
+  ---child-gap: 16px;
+  ---shadow: var(---theme_shadow-box-5);
+  ---z: var(---theme_z-index-dialog);
+  ---title-text-weight: 400;
+  ---title-text-size: var(---theme_text-2xl-font-size);
+  ---title-text-leading: var(---theme_text-2xl-line-height);
+  ---text-size: var(---theme_text-sm-font-size);
+  ---text-leading: var(---theme_text-sm-line-height);
+  ---border-color: var(---theme_color-surface-border);
+  ---border-width: 1px;
+  ---corner: 0;
+  ---margin: 0;
+  ---padding: 0;
+  ---enter: var(---theme_animation-slide-in-right),
+    var(---theme_animation-fade-in);
+  ---exit: var(---theme_animation-slide-out-left),
+    var(---theme_animation-fade-out);
+  ---mobile-enter: var(---theme_animation-slide-in-right);
+  ---mobile-exit: var(---theme_animation-slide-out-left);
+  ---duration: 225ms;
+  ---ease: cubic-bezier(0, 0, 0.2, 1);
 }
 
 :host > .root {
   display: flex;
   pointer-events: auto;
-  flex-direction: var(--child-layout);
-  align-items: var(--child-align);
+  flex-direction: var(---child-layout);
+  align-items: var(---child-align);
   position: fixed;
   inset: 0;
   padding: 0;
   overflow: hidden;
-  z-index: var(--z);
-  color: var(--text-color);
+  z-index: var(---z);
+  color: var(---text-color);
   transition: opacity 0.5s;
-  background-color: var(--background-color);
+  background-color: var(---background-color);
   border-style: solid;
-  border-color: var(--border-color);
-  border-width: var(--border-width);
-  border-radius: var(--corner);
-  margin: var(--margin);
+  border-color: var(---border-color);
+  border-width: var(---border-width);
+  border-radius: var(---corner);
+  margin: var(---margin);
   width: auto;
   height: auto;
   max-width: 300px;
@@ -54,14 +56,14 @@
   opacity: 0;
 }
 :host([loaded][open]) > .root {
-  animation: var(--enter) forwards;
-  animation-duration: var(--duration);
-  animation-timing-function: var(--ease);
+  animation: var(---enter) forwards;
+  animation-duration: var(---duration);
+  animation-timing-function: var(---ease);
 }
 :host([loaded]:not([open])) > .root {
-  animation: var(--exit) forwards;
-  animation-duration: var(--duration);
-  animation-timing-function: var(--ease);
+  animation: var(---exit) forwards;
+  animation-duration: var(---duration);
+  animation-timing-function: var(---ease);
 }
 @media (width <= 960px) {
   :host > .root {
@@ -70,14 +72,14 @@
     border-end-start-radius: 0;
   }
   :host([loaded][open]) > .root {
-    animation: var(--mobile-enter) forwards;
-    animation-duration: var(--duration);
-    animation-timing-function: var(--ease);
+    animation: var(---mobile-enter) forwards;
+    animation-duration: var(---duration);
+    animation-timing-function: var(---ease);
   }
   :host([loaded]:not([open])) > .root {
-    animation: var(--mobile-exit) forwards;
-    animation-duration: var(--duration);
-    animation-timing-function: var(--ease);
+    animation: var(---mobile-exit) forwards;
+    animation-duration: var(---duration);
+    animation-timing-function: var(---ease);
   }
 }
 
