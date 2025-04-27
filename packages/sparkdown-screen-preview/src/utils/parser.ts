@@ -233,7 +233,7 @@ export function parseSSL(input: string): ParseContext {
             }
           }
         } else if (currentRoot?.type === "style") {
-          if (nodeType.startsWith("@")) {
+          if (trimmedLine.endsWith(":") || nodeType.match(/^[^a-zA-Z-]/)) {
             node = {
               root: currentRoot.root,
               type: nodeType,

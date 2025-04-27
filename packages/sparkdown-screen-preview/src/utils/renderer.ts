@@ -475,9 +475,16 @@ export function renderElements(
         }
 
         if (el.root === "style") {
-          if (type.startsWith("@")) {
+          if (type === "prop") {
+            return [paramToProp(params?.key, params?.value, cssAliases)];
+          } else {
             const pseudo = sparkleSelectorToCssSelector(type, breakpoints);
-            const selector = pseudo?.startsWith("@") ? pseudo : `&${pseudo}`;
+            const selector =
+              pseudo === "&"
+                ? "> *"
+                : pseudo?.startsWith(":")
+                ? `&${pseudo}`
+                : pseudo;
             const begin = `${selector} {`;
             const end = "}";
             const content =
@@ -489,8 +496,6 @@ export function renderElements(
               ...indentChildren(content, indentLevel + 1),
               indentLine(end, indentLevel),
             ];
-          } else if (type === "prop") {
-            return [paramToProp(params?.key, params?.value, cssAliases)];
           }
         }
 
@@ -616,6 +621,7 @@ function paramToProp(
 }
 
 const PSEUDO_ALIASES = {
+  "@child": "& ",
   "@hovered": ":hover",
   "@focused": ":focus",
   "@pressed": ":active",
@@ -678,7 +684,7 @@ function sparkleSelectorToCssSelector(
   for (const [k, v] of Object.entries(breakpoints || DEFAULT_BREAKPOINTS)) {
     selector = selector.replace(
       new RegExp(`@screen-size\\(\\s*${k}\\s*\\)`, "g"),
-      `@container screen (max-width:${v})`
+      `@container screen (max-width:${v}px)`
     );
   }
 
@@ -761,7 +767,7 @@ function sparkleSelectorToCssSelector(
   }
 
   flushBuffer(); // Final flush
-  return result;
+  return result?.trim();
 }
 
 const INDENT = "  ";
