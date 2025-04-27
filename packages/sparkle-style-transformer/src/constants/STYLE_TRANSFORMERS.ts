@@ -29,6 +29,7 @@ import {
   getCssPosition,
   getCssRatio,
   getCssRepeat,
+  getCssRing,
   getCssRotate,
   getCssScale,
   getCssSelectable,
@@ -48,6 +49,7 @@ import {
   getCssTextWeight,
   getCssTextWhitespace,
   getCssTranslate,
+  getCssVisible,
   getCssZ,
 } from "../utils/transformers.js";
 
@@ -146,6 +148,7 @@ const STYLE_TRANSFORMERS = {
   shrink: getCssShrink,
 
   invisible: getCssInvisible,
+  visible: getCssVisible,
   interactable: getCssInteractable,
   selectable: getCssSelectable,
 
@@ -181,6 +184,10 @@ const STYLE_TRANSFORMERS = {
 
   shadow: getCssShadow,
   "shadow-inset": getCssShadowInset,
+
+  ring: getCssRing,
+  "ring-color": getCssColor,
+  "ring-width": getCssSize,
 
   filter: getCssFilter,
 

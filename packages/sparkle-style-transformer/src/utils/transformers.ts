@@ -451,6 +451,16 @@ export const getCssInvisible = (value: boolean | string): string => {
   return value;
 };
 
+export const getCssVisible = (value: boolean | string): string => {
+  if (value === true || value === "") {
+    return "visible";
+  }
+  if (value === false) {
+    return "hidden";
+  }
+  return value;
+};
+
 export const getCssMask = (value: string): string => {
   return `var(---theme_mask-${value})`;
 };
@@ -556,6 +566,14 @@ export const getCssRepeat = (value: boolean | string): string => {
     return "repeat-y";
   }
   return value;
+};
+
+export const getCssRing = (value: string): string => {
+  if (value === "none") {
+    return value;
+  }
+  return `0 0 0 var(---ring-width, 2px)
+  var(---ring-color, hsl(210 100% 70%))`;
 };
 
 export const getCssRotate = (value: string): string => {

@@ -410,8 +410,11 @@
   stroke-width: var(---stroke-width, 1) !important;
 }
 
+[-visible] {
+  visibility: visible !important;
+}
 [-invisible] {
-  visibility: var(---invisible, hidden) !important;
+  visibility: hidden !important;
 }
 [-interactable] {
   pointer-events: var(---interactable, auto) !important;
@@ -580,6 +583,12 @@
     inset 0 1px 2px hsl(0 0% 0% / 30%),
     inset 0 1px 3px hsl(0 0% 0% / 15%)
   ) !important;
+}
+
+:is([-ring], [-ring-width], [-ring-color]) {
+  box-shadow: 0 0 0 var(---ring-width, 2px)
+    var(---ring-color, hsl(210 100% 70%)) !important;
+  outline: none !important;
 }
 
 [-filter] {
