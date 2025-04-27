@@ -16,7 +16,7 @@ export const getVariableSetterStyle = (
   if (!name) {
     return "";
   }
-  const varName = name.startsWith("--") ? name : `---${name}`;
+  const varName = name.startsWith("---") ? name : `---${name}`;
   const formattedValue =
     valueFormatter && value != null ? valueFormatter(value) : value;
   if (formattedValue) {
