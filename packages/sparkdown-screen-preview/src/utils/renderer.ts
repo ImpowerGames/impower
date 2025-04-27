@@ -33,6 +33,10 @@ export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
     begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
   },
+  Area: {
+    begin: '<div class="style {classes}" {...attrs}>{{content}}',
+    end: "</div>",
+  },
   Box: {
     begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
