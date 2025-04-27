@@ -1,4 +1,4 @@
-.s-theme-light {
+.theme-light {
   color-scheme: light;
 
   /*
@@ -292,6 +292,7 @@
   ---theme_color-bg-14: hsl(0 0% 100% / 14%);
   ---theme_color-bg-15: hsl(0 0% 100% / 15%);
   ---theme_color-bg-20: hsl(0 0% 100% / 20%);
+  ---theme_color-bg-25: hsl(0 0% 100% / 25%);
   ---theme_color-bg-30: hsl(0 0% 100% / 30%);
   ---theme_color-bg-40: hsl(0 0% 100% / 40%);
   ---theme_color-bg-50: hsl(0 0% 100% / 50%);
@@ -317,6 +318,7 @@
   ---theme_color-fg-14: hsl(0 0% 0% / 14%);
   ---theme_color-fg-15: hsl(0 0% 0% / 15%);
   ---theme_color-fg-20: hsl(0 0% 0% / 20%);
+  ---theme_color-fg-25: hsl(0 0% 0% / 25%);
   ---theme_color-fg-30: hsl(0 0% 0% / 30%);
   ---theme_color-fg-40: hsl(0 0% 0% / 40%);
   ---theme_color-fg-50: hsl(0 0% 0% / 50%);
@@ -324,15 +326,17 @@
   ---theme_color-fg-70: hsl(0 0% 0% / 70%);
   ---theme_color-fg-80: hsl(0 0% 0% / 80%);
   ---theme_color-fg-90: hsl(0 0% 0% / 90%);
-  ---theme_color-divider: hsl(0 0% 0% / 13%);
+
+  /* General */
   ---theme_color-focus: var(---theme_color-primary-70);
   ---theme_color-surface: var(---theme_color-neutral-20);
   ---theme_color-surface-border: var(---theme_color-fg-12);
+  ---theme_color-divider: var(---theme_color-fg-13);
 
   /* Scrollbars */
-  ---theme_color-scrollbar-thumb: hsl(0 0% 0% / 25%);
-  ---theme_color-scrollbar-thumb-hover: hsl(0 0% 0% / 50%);
-  ---theme_color-scrollbar-track: hsl(0 0% 0% / 10%);
+  ---theme_color-scrollbar-thumb: var(---theme_color-fg-25);
+  ---theme_color-scrollbar-thumb-hover: var(---theme_color-fg-50);
+  ---theme_color-scrollbar-track: var(---theme_color-bg-10);
 
   /*
    * Opacities

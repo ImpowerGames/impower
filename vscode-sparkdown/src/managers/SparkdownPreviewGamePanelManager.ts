@@ -498,7 +498,7 @@ export class SparkdownPreviewGamePanelManager {
     const scriptNonce = getNonce();
     return /*html*/ `
       <!DOCTYPE html>
-      <html class="s-theme-dark se-theme" lang="en">
+      <html class="theme-dark se-theme" lang="en">
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">

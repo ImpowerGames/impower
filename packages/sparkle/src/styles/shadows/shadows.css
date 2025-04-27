@@ -1,4 +1,4 @@
-.s-theme-light {
+.theme-light {
   ---theme_color-shadow-key-0: hsl(0 0% 0% / 0%);
   ---theme_color-shadow-key-1: hsl(0 0% 0% / 12%);
   ---theme_color-shadow-key-2: hsl(0 0% 0% / 16%);
@@ -13,7 +13,7 @@
   ---theme_color-shadow-ambient-5: hsl(0 0% 0% / 22%);
 }
 
-.s-theme-dark {
+.theme-dark {
   ---theme_color-shadow-key-0: hsl(0 0% 0% / 0%);
   ---theme_color-shadow-key-1: hsl(0 0% 0% / 24%);
   ---theme_color-shadow-key-2: hsl(0 0% 0% / 32%);

@@ -1,4 +1,4 @@
-:root {
+:is(:root, :host) > * {
   /* Primary */
   ---theme_color-primary-10: var(---theme_color-sky-10);
   ---theme_color-primary-20: var(---theme_color-sky-20);
@@ -204,6 +204,7 @@
    */
 
   /* Focus rings */
+  ---theme_focus-ring-color: var(---theme_color-primary-20);
   ---theme_focus-ring-style: solid;
   ---theme_focus-ring-width: 3px;
   ---theme_focus-ring-offset: 2px;

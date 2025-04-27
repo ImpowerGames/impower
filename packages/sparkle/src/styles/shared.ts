@@ -1,9 +1,9 @@
 import baseNormalize from "../../../spec-component/src/styles/normalize/normalize.css";
-import core from "../styles/core/core.css";
 import keyframes from "../styles/keyframes/keyframes.css";
 import normalize from "../styles/normalize/normalize.css";
+import utility from "../styles/utility/utility.css";
 import scopeCssToHost from "../utils/scopeCssToHost";
 
-const scopedCore = scopeCssToHost(core);
+const scopedCore = scopeCssToHost(utility);
 
 export default [baseNormalize, normalize, keyframes, scopedCore];

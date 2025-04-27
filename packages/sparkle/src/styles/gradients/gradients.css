@@ -1,9 +1,9 @@
-.s-theme-light {
+.theme-light {
   ---theme_gradient-gloss-transparent: hsl(0 0% 0% / 0%);
   ---theme_gradient-gloss-shine: hsl(0 0% 0% / 5%);
 }
 
-.s-theme-dark {
+.theme-dark {
   ---theme_gradient-gloss-transparent: hsl(0 0% 100% / 0%);
   ---theme_gradient-gloss-shine: hsl(0 0% 100% / 5%);
 }

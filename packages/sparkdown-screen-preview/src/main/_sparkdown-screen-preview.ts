@@ -1,13 +1,13 @@
+import animationCSS from "../../../sparkle/src/styles/animations/animations.css";
+import themeDarkCSS from "../../../sparkle/src/styles/dark/dark.css";
+import themeLightCSS from "../../../sparkle/src/styles/light/light.css";
+import themeCSS from "../../../sparkle/src/styles/theme/theme.css";
+import utilityCSS from "../../../sparkle/src/styles/utility/utility.css";
 import { spec } from "../../../spec-component/src/spec";
 import css from "./sparkdown-screen-preview.css";
 import html from "./sparkdown-screen-preview.html";
-import animationCSS from "./sparkle-screen-animation.css";
 import defaultCSS from "./sparkle-screen-default.css";
 import resetCSS from "./sparkle-screen-reset.css";
-import themeDarkCSS from "./sparkle-screen-theme-dark.css";
-import themeLightCSS from "./sparkle-screen-theme-light.css";
-import themeCSS from "./sparkle-screen-theme.css";
-import utilityCSS from "./sparkle-screen-utility.css";
 
 export default spec({
   tag: "sparkdown-screen-preview",
