@@ -1,6 +1,9 @@
 /****************************** DEFAULT STYLES ******************************/
 
 .screen {
+  /* Divider */
+  --_divider-background: var(--theme_color-fg-12);
+
   /* Buttons */
   --_button-background: var(--theme_color-neutral-20);
   --_button-background-hover: var(--theme_color-neutral-30);
@@ -116,6 +119,11 @@ style {
   min-width: 0;
   max-width: 100%;
   flex-shrink: 1;
+}
+
+.Divider {
+  background-color: var(--_divider-background);
+  border-radius: 8px;
 }
 
 .Text {
