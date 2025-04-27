@@ -543,23 +543,23 @@
 :is([-bg-color], [-background-color]) > .root {
   background-color: var(---bg-color, var(---background-color)) !important;
 }
+:is([-bg-image], [-background-image]) > .root,
 :is([-bg-gradient], [-background-gradient]) > .root,
-:is([-bg-pattern], [-background-pattern]) > .root,
-:is([-bg-image], [-background-image]) > .root {
-  background-image: var(---bg-gradient, var(---background-gradient, none)),
-    var(---bg-pattern, var(---background-pattern, none)),
-    var(---bg-image, var(---background-image, none)) !important;
+:is([-bg-pattern], [-background-pattern]) > .root {
+  background-image: var(---bg-image, var(---background-image, none)),
+    var(---bg-gradient, var(---background-gradient, none)),
+    var(---bg-pattern, var(---background-pattern, none)) !important;
 }
 :is([-bg-repeat], [-background-repeat]) > .root {
-  background-repeat: no-repeat, no-repeat,
-    var(---bg-repeat, var(---background-repeat, repeat)) !important;
+  background-repeat: var(---bg-repeat, var(---background-repeat, repeat)),
+    no-repeat, no-repeat !important;
 }
 :is([-bg-align], [-background-align]) > .root {
-  background-position: center, center,
-    var(---bg-align, var(---background-align, center)) !important;
+  background-position: var(---bg-align, var(---background-align, center)),
+    center, center !important;
 }
 :is([-bg-fit], [-background-fit]) > .root {
-  background-size: auto, cover, var(---bg-fit, var(---background-fit, contain)) !important;
+  background-size: var(---bg-fit, var(---background-fit, contain)), auto, cover !important;
 }
 
 [-clip] > .root {
