@@ -51,6 +51,9 @@
   ---theme_color-danger-95: var(---theme_color-red-95);
   ---theme_color-danger-99: var(---theme_color-red-99);
 
+  /* General */
+  ---theme_color-fill-contrast: white;
+
   /*
    * Breakpoints
    */
