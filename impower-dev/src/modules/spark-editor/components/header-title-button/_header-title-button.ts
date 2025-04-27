@@ -18,27 +18,27 @@ export default spec({
     const nameInput = () => html`
       <s-input
         id="nameInput"
-        child-justify="start"
-        text-size="lg"
-        text-weight="500"
-        p="0 4"
-        m="0 -4"
+        -child-justify="start"
+        -text-size="lg"
+        -text-weight="500"
+        -p="0 4"
+        -m="0 -4"
         placeholder-color="fab-bg"
         color="fg"
         ${bgColorAttr}
         value="${name}"
         label="${label}"
         size="sm"
-        width="100%"
+        -width="100%"
       ></s-input>
     `;
     const nameSkeleton = () => html`
       <s-skeleton id="name-skeleton">Untitled Game</s-skeleton>
     `;
     return html`
-      <s-box child-layout="row" child-align="center">
-        <s-box position="relative" height="28" width-max="600" grow>
-          <s-box position="absolute" i="0">
+      <s-box -child-layout="row" -child-align="center">
+        <s-box -position="relative" -height="28" -width-max="600" -grow>
+          <s-box -position="absolute" -i="0">
             ${name && syncState ? nameInput : nameSkeleton}
           </s-box>
         </s-box>

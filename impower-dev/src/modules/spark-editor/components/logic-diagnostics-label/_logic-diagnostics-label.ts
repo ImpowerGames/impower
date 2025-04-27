@@ -52,7 +52,7 @@ export default spec({
         : undefined;
     const textColorAttr = color ? () => html`text-color="${color}"` : "";
     return html`
-      <s-box child-layout="row" child-align="center" grow ${textColorAttr}>
+      <s-box -child-layout="row" -child-align="center" -grow ${textColorAttr}>
         <slot></slot>
       </s-box>
     `;

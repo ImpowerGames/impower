@@ -14,7 +14,7 @@ export default spec({
     const { horizontalLayout } = context;
     return html`
       <se-preview-screenplay-toolbar></se-preview-screenplay-toolbar>
-      <s-box position="relative" grow>
+      <s-box -position="relative" -grow>
         <se-scrollable>
           <sparkdown-screenplay-preview
             scroll-margin="${horizontalLayout

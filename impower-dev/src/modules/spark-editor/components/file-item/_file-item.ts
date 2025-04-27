@@ -13,54 +13,54 @@ export default spec({
     const extComponent = () =>
       ext && ext !== "sd" ? html`<span style="opacity:0.3">.${ext}</span>` : "";
     const nameInputComponent = () => html`<s-input
-      display="inline-block"
+      -display="inline-block"
       id="nameInput"
-      child-justify="start"
-      p="0 4"
-      m="0 -4"
+      -child-justify="start"
+      -p="0 4"
+      -m="0 -4"
       placeholder-color="fab-bg"
       color="fg"
       value="${name || ""}"
       label="${name || ""}"
       size="sm"
-      width="100%"
+      -width="100%"
     ></s-input>`;
     const nameLabelComponent = () => html`${nameComponent}${extComponent}`;
     return html`
       <s-button
         id="button"
         class="root"
-        width="100%"
-        height="56"
-        corner="0"
+        -width="100%"
+        -height="56"
+        -corner="0"
         variant="text"
-        text-align="left"
+        -text-align="left"
         size="lg"
         color="fg-80"
-        text-weight="normal"
-        position="relative"
-        content-visibility="auto"
-        contain-intrinsic-size="auto none auto 56px"
+        -text-weight="normal"
+        -position="relative"
+        -content-visibility="auto"
+        -contain-intrinsic-size="auto none auto 56px"
       >
         <s-box
-          position="absolute"
-          i="0"
-          child-layout="row"
-          child-align="center"
+          -position="absolute"
+          -i="0"
+          -child-layout="row"
+          -child-align="center"
         >
           <se-logic-diagnostics-label filename="${filename}">
             <s-box
-              position="relative"
-              height="100%"
-              child-layout="row"
-              child-align="center"
-              grow
+              -position="relative"
+              -height="100%"
+              -child-layout="row"
+              -child-align="center"
+              -grow
             >
               <s-box
-                p="0 0 0 32"
-                position="absolute"
-                width="100%"
-                text-overflow="ellipsis"
+                -p="0 0 0 32"
+                -position="absolute"
+                -width="100%"
+                -text-overflow="ellipsis"
               >
                 ${renaming ? nameInputComponent : nameLabelComponent}
               </s-box>

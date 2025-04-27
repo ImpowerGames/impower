@@ -1,20 +1,22 @@
-<s-box id="authenticated" grow hidden>
-  <s-button id="loadProjectButton" icon="download" variant="text" text-align="left" p="16 24" spacing="24" size="lg"
-    width="100%" color="fab-bg" text-color="fab-fg" text-weight="500" child-justify="start" corner="0" shadow="1" m="1">
+<s-box id="authenticated" -grow hidden>
+  <s-button id="loadProjectButton" icon="download" variant="text" -text-align="left" -p="16 24" spacing="24" size="lg"
+    -width="100%" color="fab-bg" -text-color="fab-fg" -text-weight="500" -child-justify="start" -corner="0" -shadow="1"
+    -m="1">
     Load Remote Project
   </s-button>
-  <s-button id="saveProjectButton" icon="upload" variant="text" text-align="left" p="16 24" spacing="24" size="lg"
-    width="100%" color="fab-bg" text-color="fab-fg" text-weight="500" child-justify="start" corner="0" shadow="1" m="1">
+  <s-button id="saveProjectButton" icon="upload" variant="text" -text-align="left" -p="16 24" spacing="24" size="lg"
+    -width="100%" color="fab-bg" -text-color="fab-fg" -text-weight="500" -child-justify="start" -corner="0" -shadow="1"
+    -m="1">
     Save Remote Project
   </s-button>
-  <s-box grow></s-box>
+  <s-box -grow></s-box>
   <s-dropdown sync-size="width">
-    <s-button type="div" icon="brand-google-drive" variant="text" text-align="left" p="16 24" spacing="24" size="lg"
-      width="100%" color="fab-bg" text-color="fab-fg" child-justify="start" corner="0" shadow="1" m="1">
-      <s-box child-layout="row" child-align="center" overflow-x="hidden">
-        <s-box child-layout="column" shrink="1">
-          <s-box id="accountName" text-size="md" text-weight="600" text-overflow="ellipsis"></s-box>
-          <s-box id="accountEmail" text-size="sm" text-weight="400" opacity="0.7" text-overflow="ellipsis"></s-box>
+    <s-button type="div" icon="brand-google-drive" variant="text" -text-align="left" -p="16 24" spacing="24" size="lg"
+      -width="100%" color="fab-bg" -text-color="fab-fg" -child-justify="start" -corner="0" -shadow="1" -m="1">
+      <s-box -child-layout="row" -child-align="center" -overflow-x="hidden">
+        <s-box -child-layout="column" -shrink="1">
+          <s-box id="accountName" -text-size="md" -text-weight="600" -text-overflow="ellipsis"></s-box>
+          <s-box id="accountEmail" -text-size="sm" -text-weight="400" -opacity="0.7" -text-overflow="ellipsis"></s-box>
         </s-box>
       </s-box>
     </s-button>
@@ -23,21 +25,21 @@
     </slot>
   </s-dropdown>
 </s-box>
-<s-box id="unauthenticated" grow hidden>
-  <s-button id="importProjectButton" type="file" accept=".zip" icon="download" variant="text" text-align="left"
-    p="16 24" spacing="24" size="lg" width="100%" color="transparent" text-color="fab-fg" text-weight="500"
-    child-justify="start" corner="0" shadow="none" m="1">
+<s-box id="unauthenticated" -grow hidden>
+  <s-button id="importProjectButton" type="file" accept=".zip" icon="download" variant="text" -text-align="left"
+    -p="16 24" spacing="24" size="lg" -width="100%" color="transparent" -text-color="fab-fg" -text-weight="500"
+    -child-justify="start" -corner="0" -shadow="none" -m="1">
     Import Project
   </s-button>
-  <s-button id="exportProjectButton" icon="upload" variant="text" text-align="left" p="16 24" spacing="24" size="lg"
-    width="100%" color="transparent" text-color="fab-fg" text-weight="500" child-justify="start" corner="0"
-    shadow="none" m="1">
+  <s-button id="exportProjectButton" icon="upload" variant="text" -text-align="left" -p="16 24" spacing="24" size="lg"
+    -width="100%" color="transparent" -text-color="fab-fg" -text-weight="500" -child-justify="start" -corner="0"
+    -shadow="none" -m="1">
     Export Project
   </s-button>
-  <s-box grow></s-box>
-  <s-button id="signinButton" icon="brand-google-drive" variant="text" text-align="left" p="16 24" spacing="24"
-    size="lg" width="100%" color="fab-bg" text-color="fab-fg" text-weight="500" child-justify="start" corner="0"
-    shadow="none" m="1">
+  <s-box -grow></s-box>
+  <s-button id="signinButton" icon="brand-google-drive" variant="text" -text-align="left" -p="16 24" spacing="24"
+    size="lg" -width="100%" color="fab-bg" -text-color="fab-fg" -text-weight="500" -child-justify="start" -corner="0"
+    -shadow="none" -m="1">
     Sync With Google Drive
   </s-button>
 </s-box>

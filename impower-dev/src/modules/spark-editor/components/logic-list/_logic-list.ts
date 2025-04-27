@@ -12,24 +12,24 @@ export default spec({
     const { panel } = context;
     return html`
       <s-router key="logic-panel" directional active="${panel}">
-        <s-box bg-color="panel" position="sticky-top" slot="header">
+        <s-box -bg-color="panel" -position="sticky-top" slot="header">
           <se-header-navigation-placeholder></se-header-navigation-placeholder>
           <s-tabs
             indicator-color="tab-active"
-            height="panel-nav"
+            -height="panel-nav"
             active="${panel}"
           >
             <s-tab
               active-text-color="tab-active"
               inactive-text-color="tab-inactive"
               disable-ripple
-              p="20"
-              child-layout="row"
+              -p="20"
+              -child-layout="row"
               value="main"
               ${panel === "main" ? "active" : ""}
             >
               <se-logic-diagnostics-label filename="main.sd">
-                <s-icon name="book-closed" m-r="8"></s-icon>
+                <s-icon name="book-closed" -m-r="8"></s-icon>
                 Main
               </se-logic-diagnostics-label>
             </s-tab>
@@ -37,13 +37,13 @@ export default spec({
               active-text-color="tab-active"
               inactive-text-color="tab-inactive"
               disable-ripple
-              p="20"
-              child-layout="row"
+              -p="20"
+              -child-layout="row"
               value="scripts"
               ${panel === "scripts" ? "active" : ""}
             >
               <se-logic-diagnostics-label>
-                <s-icon name="book" m-r="8"></s-icon>
+                <s-icon name="book" -m-r="8"></s-icon>
                 Scripts
               </se-logic-diagnostics-label>
             </s-tab>

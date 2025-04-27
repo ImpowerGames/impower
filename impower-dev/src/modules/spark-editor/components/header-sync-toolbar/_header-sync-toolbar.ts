@@ -22,9 +22,9 @@ export default spec({
         id="syncButton"
         icon="refresh"
         variant="icon"
-        width="56"
-        height="56"
-        text-size="20"
+        -width="56"
+        -height="56"
+        -text-size="20"
         color="fg"
       ></s-button>
     `;
