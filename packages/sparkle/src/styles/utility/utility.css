@@ -92,28 +92,28 @@
   z-index: var(---z, 1) !important;
 }
 
-[-width] > .root {
-  width: var(---width, 100%) !important;
-  min-width: var(---width, 0);
-  max-width: var(---width, 100%);
+:is([-w], [-width]) > .root {
+  width: var(---w, var(---width, 100%)) !important;
+  min-width: var(---w, var(---width, 0));
+  max-width: var(---w, var(---width, 100%));
 }
-[-width-min] > .root {
-  min-width: var(---width-min, 0) !important;
+:is([-w-min], [-width-min]) > .root {
+  min-width: var(---w-min, var(---width-min, 0)) !important;
 }
-[-width-max] > .root {
-  max-width: var(---width-max, 100%) !important;
+:is([-w-max], [-width-max]) > .root {
+  max-width: var(---w-max, var(---width-max, 100%)) !important;
 }
 
-[-height] > .root {
-  height: var(---height, 100%) !important;
-  min-height: var(---height, 0);
-  max-height: var(---height, 100%);
+:is([-h], [-height]) > .root {
+  height: var(---h, var(---height, 100%)) !important;
+  min-height: var(---h, var(---height, 0));
+  max-height: var(---h, var(---height, 100%));
 }
-[-height-min] > .root {
-  min-height: var(---height-min, 0) !important;
+:is([-h-min], [-height-min]) > .root {
+  min-height: var(---h-min, var(---height-min, 0)) !important;
 }
-[-height-max] > .root {
-  max-height: var(---height-max, 100%) !important;
+:is([-h-max], [-height-max]) > .root {
+  max-height: var(---h-max, var(---height-max, 100%)) !important;
 }
 
 :is([-c], [-corner]) > .root {

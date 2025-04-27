@@ -59,6 +59,14 @@ const STYLE_ALIASES = {
   "p-lr": "padding-lr",
   "p-tb": "padding-tb",
 
+  w: "width",
+  "w-min": "width-min",
+  "w-max": "width-max",
+
+  h: "height",
+  "h-min": "height-min",
+  "h-max": "height-max",
+
   "bg-color": "background-color",
   "bg-gradient": "background-gradient",
   "bg-pattern": "background-pattern",
