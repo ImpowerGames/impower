@@ -126,6 +126,10 @@ export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
     begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
   },
+  Divider: {
+    begin: "<hr>",
+    end: "",
+  },
 } as const;
 
 export const DEFAULT_ATTR_ALIASES = {
