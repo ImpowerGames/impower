@@ -476,7 +476,7 @@ export function renderElements(
 
         if (el.root === "style") {
           if (type.startsWith("@")) {
-            const pseudo = atSelectorToPseudo(type, breakpoints);
+            const pseudo = sparkleSelectorToCssSelector(type, breakpoints);
             const selector = pseudo?.startsWith("@") ? pseudo : `&${pseudo}`;
             const begin = `${selector} {`;
             const end = "}";
@@ -649,31 +649,119 @@ const PSEUDO_ALIASES = {
   "@initial": "@starting-style",
 };
 
-function atSelectorToPseudo(
+const VALID_CSS_AT_RULES = new Set([
+  "@charset",
+  "@color-profile",
+  "@container",
+  "@counter-style",
+  "@font-face",
+  "@font-feature-values",
+  "@font-palette-values",
+  "@import",
+  "@keyframes",
+  "@layer",
+  "@media",
+  "@namespace",
+  "@page",
+  "@property",
+  "@scope",
+  "@starting-style",
+  "@supports",
+  "@view-transition",
+]);
+
+function sparkleSelectorToCssSelector(
   selector: string,
   breakpoints: Record<string, number>
 ) {
-  // Handles universal selectors
-  selector = selector.replace(/@@(?![a-zA-Z])/g, "*");
-  selector = selector.replace(/@(?![a-zA-Z])/g, "> *");
-
-  // Handles named breakpoints (xl, lg, md, sm, xs)
+  // Replace named breakpoints first (safe to do globally)
   for (const [k, v] of Object.entries(breakpoints || DEFAULT_BREAKPOINTS)) {
     selector = selector.replace(
-      new RegExp(`@screen-size[(]\s*${k}\s*[)]`, "g"),
+      new RegExp(`@screen-size\\(\\s*${k}\\s*\\)`, "g"),
       `@container screen (max-width:${v})`
     );
   }
 
-  // Handles shorthand aliases
-  for (const [shorthand, expanded] of Object.entries(PSEUDO_ALIASES)) {
-    selector = selector.replaceAll(shorthand, expanded);
+  let result = "";
+  let inQuote: '"' | "'" | null = null;
+  let buffer = "";
+
+  function flushBuffer() {
+    if (buffer.length === 0) return;
+
+    let flushed = "";
+    for (let i = 0; i < buffer.length; i++) {
+      const char = buffer[i];
+
+      if (char === "#") {
+        flushed += ".";
+      } else if (char === "@") {
+        if (buffer[i + 1] === "@") {
+          flushed += "*";
+          i++;
+        } else if (i === buffer.length - 1 || !/[a-zA-Z]/.test(buffer[i + 1])) {
+          flushed += "> *";
+        } else {
+          // Handle @word or @something(
+          let word = "@";
+          let j = i + 1;
+          while (j < buffer.length && /[a-zA-Z0-9-]/.test(buffer[j])) {
+            word += buffer[j];
+            j++;
+          }
+
+          if (VALID_CSS_AT_RULES.has(word)) {
+            // Keep @media, @import, etc
+            flushed += word;
+          } else if (word in PSEUDO_ALIASES) {
+            // Expand known pseudo aliases
+            flushed += PSEUDO_ALIASES[word as keyof typeof PSEUDO_ALIASES];
+          } else {
+            // Default fallback: @word -> :word
+            flushed += ":" + word.slice(1);
+          }
+
+          i = j - 1;
+        }
+      } else {
+        flushed += char;
+      }
+    }
+
+    result += flushed;
+    buffer = "";
   }
 
-  // Handles remaining pseudo functions
-  selector = selector.replaceAll("@", ":");
+  for (let i = 0; i < selector.length; i++) {
+    const char = selector[i];
 
-  return selector;
+    if (char === "\\" && inQuote !== null) {
+      // Handle escaped character inside quotes
+      result += char + (selector[i + 1] || "");
+      i++;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      if (inQuote === null) {
+        flushBuffer(); // Finish pending buffer before quote
+        inQuote = char;
+      } else if (inQuote === char) {
+        inQuote = null;
+      }
+      result += char;
+      continue;
+    }
+
+    if (inQuote) {
+      result += char;
+    } else {
+      buffer += char;
+    }
+  }
+
+  flushBuffer(); // Final flush
+  return result;
 }
 
 const INDENT = "  ";
