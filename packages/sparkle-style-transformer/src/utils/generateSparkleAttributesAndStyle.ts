@@ -116,7 +116,7 @@ export const generateSparkleAttributesAndStyle = (
   props: Record<string, string>,
   options?: { attributePrefix?: string }
 ): { attributes: Record<string, string>; style: string } => {
-  const { attributePrefix = "" } = options || {};
+  const { attributePrefix = "-" } = options || {};
   const styleTransformers = STYLE_TRANSFORMERS;
   const attributes: Record<string, string> = {};
   let style = "";

@@ -7,14 +7,16 @@ import {
 
 const ATTR_REGEX = /([a-z-]+[=]["][^"]*["])/g;
 const QUOTE_REGEX = /([\\]["]|["'`])/g;
-const ATTR_PREFIX = "";
 
-const generateStyledHtml = (html: string): string => {
+const generateStyledHtml = (
+  html: string,
+  options?: { attributePrefix?: string }
+): string => {
+  const { attributePrefix = "-" } = options || {};
   if (!html) {
     return html;
   }
   const parts = html.split(">");
-  const attributePrefix = ATTR_PREFIX;
   const styleTransformers = STYLE_TRANSFORMERS;
   return parts
     .map((part) => {

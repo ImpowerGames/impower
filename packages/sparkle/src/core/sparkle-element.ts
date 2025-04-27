@@ -1924,15 +1924,18 @@ export default class SparkleElement
       // Forward all aria attributes to root element
       this.updateRootAttribute(attrName, value);
     } else {
-      const transformer = this.transformers[attrName];
-      if (transformer) {
-        this.updateStyleAttribute(attrName, value, transformer);
-        if (
-          attrName === SparkleElement.attrs.textStrokeWidth ||
-          attrName === SparkleElement.attrs.textStrokeColor
-        ) {
-          const width = this.textStrokeWidth || "1";
-          this.updateRootCssVariable("text-stroke", getCssTextStroke(width));
+      if (attrName.startsWith("-")) {
+        const propName = attrName.slice(1);
+        const transformer = this.transformers[propName];
+        if (transformer) {
+          this.updateStyleAttribute(propName, value, transformer);
+          if (
+            propName === SparkleElement.attrs.textStrokeWidth ||
+            propName === SparkleElement.attrs.textStrokeColor
+          ) {
+            const width = this.textStrokeWidth || "1";
+            this.updateRootCssVariable("text-stroke", getCssTextStroke(width));
+          }
         }
       }
     }
