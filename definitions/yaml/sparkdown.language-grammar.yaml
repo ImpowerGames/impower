@@ -871,7 +871,7 @@ repository:
   ViewComponentProperty:
     tag: meta
     name: meta.definition.view.property.scalar.sd
-    match: ^({{WS}}*)({{IDENTIFIER}})((?:{{IDENTIFIER}}[.])*)(?={{WS}}*)(?:({{WS}}*))(.*?)(?:({{WS}}*))($|[:])($|{{WS}}*$)
+    match: ^({{WS}}*)({{IDENTIFIER}})((?:[.]{{IDENTIFIER}})*)(?={{WS}}*)(?:({{WS}}*))(.*?)(?:({{WS}}*))($|[:])($|{{WS}}*$)
     captures:
       1:
         patterns:
