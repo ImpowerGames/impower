@@ -220,9 +220,8 @@ export function parseSSL(input: string): ParseContext {
             };
           } else if (nodeType) {
             const parts = nodeType.split(".");
-            const componentName = parts.at(-1);
+            const [componentName, ...classNames] = parts;
             if (componentName) {
-              const classNames = parts.length <= 1 ? [] : parts.slice(0, -1);
               const params = parseParams(args);
               params.classes = [...(params.classes || []), ...classNames];
               node = {

@@ -871,17 +871,17 @@ repository:
   ViewComponentProperty:
     tag: meta
     name: meta.definition.view.property.scalar.sd
-    match: ^({{WS}}*)((?:{{IDENTIFIER}}[.])*)({{IDENTIFIER}})(?={{WS}}*)(?:({{WS}}*))(.*?)(?:({{WS}}*))($|[:])($|{{WS}}*$)
+    match: ^({{WS}}*)({{IDENTIFIER}})((?:{{IDENTIFIER}}[.])*)(?={{WS}}*)(?:({{WS}}*))(.*?)(?:({{WS}}*))($|[:])($|{{WS}}*$)
     captures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#ClassAccessor" }
+          - { include: "#ComponentName" }
       3:
         patterns:
-          - { include: "#ComponentName" }
+          - { include: "#ClassAccessor" }
       4:
         patterns:
           - { include: "#Separator" }
