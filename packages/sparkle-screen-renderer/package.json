@@ -1,0 +1,6 @@
+{
+  "name": "@impower/sparkle-screen-renderer",
+  "displayName": "Sparkle Screen Renderer",
+  "description": "Renders Sparkle screens using a virtual DOM.",
+  "version": "0.0.1"
+}

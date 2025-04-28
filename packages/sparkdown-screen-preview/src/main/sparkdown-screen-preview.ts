@@ -1,13 +1,13 @@
-import { Component } from "../../../spec-component/src/component";
-import { parseSSL } from "../utils/parser";
+import { parseSSL } from "../../../sparkle-screen-renderer/src/parser/parser";
 import {
   createElement,
   diffAndPatch,
   RenderContext,
   renderCssVDOM,
   renderHtmlVDOM,
-  VNode,
-} from "../utils/renderer";
+} from "../../../sparkle-screen-renderer/src/runtime/renderer";
+import { VNode } from "../../../sparkle-screen-renderer/src/runtime/vnode";
+import { Component } from "../../../spec-component/src/component";
 import { throttle } from "../utils/throttle";
 import spec from "./_sparkdown-screen-preview";
 
