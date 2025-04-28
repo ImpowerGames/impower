@@ -8,6 +8,9 @@ import { SparkdownAnnotator } from "../SparkdownAnnotator";
 export type DeclarationType =
   | "screen"
   | "component"
+  | "style"
+  | "animation"
+  | "theme"
   | "function"
   | "knot"
   | "stitch"
@@ -28,15 +31,26 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
   ): Range<SparkdownAnnotation<DeclarationType>>[] {
     if (nodeRef.name === "ViewKeyword") {
       const stack = getContextStack(nodeRef.node);
-      const viewDeclarationNode = stack.find(
-        (n) => n.name === "ViewDeclaration"
-      );
-      if (viewDeclarationNode) {
+      const declarationNode = stack.find((n) => n.name === "ViewDeclaration");
+      if (declarationNode) {
         const type = this.read(nodeRef.from, nodeRef.to);
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>(
             type as DeclarationType
-          ).range(viewDeclarationNode.from, viewDeclarationNode.to)
+          ).range(declarationNode.from, declarationNode.to)
+        );
+      }
+      return annotations;
+    }
+    if (nodeRef.name === "CssKeyword") {
+      const stack = getContextStack(nodeRef.node);
+      const declarationNode = stack.find((n) => n.name === "CssDeclaration");
+      if (declarationNode) {
+        const type = this.read(nodeRef.from, nodeRef.to);
+        annotations.push(
+          SparkdownAnnotation.mark<DeclarationType>(
+            type as DeclarationType
+          ).range(declarationNode.from, declarationNode.to)
         );
       }
       return annotations;
