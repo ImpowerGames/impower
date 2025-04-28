@@ -70,6 +70,10 @@ export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
     begin: '<div class="style {classes}" {...attrs}>{{content}}',
     end: "</div>",
   },
+  Link: {
+    begin: '<a class="style {classes}" {...attrs}>{{content}}',
+    end: "</a>",
+  },
   Button: {
     begin: '<button class="style {classes}" {...attrs}>{{content}}',
     end: "</button>",

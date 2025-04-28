@@ -999,7 +999,7 @@ repository:
   BuiltinComponentName:
     tag: typeName
     name: support.type.component.builtin.name.sd
-    match: \b(Area|Span|Box|Row|Column|Grid|Text|Button|Image|Input|TextArea|Slider|Checkbox|Dropdown|Option|Space|Divider)\b
+    match: \b(Area|Span|Box|Row|Column|Grid|Text|Link|Button|Image|Input|TextArea|Slider|Checkbox|Dropdown|Option|Space|Divider)\b
 
   CustomComponentName:
     tag: typeName
