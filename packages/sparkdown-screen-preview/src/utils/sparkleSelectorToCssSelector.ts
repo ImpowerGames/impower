@@ -85,9 +85,7 @@ export function sparkleSelectorToCssSelector(
     for (let i = 0; i < buffer.length; i++) {
       const char = buffer[i];
 
-      if (char === "#") {
-        flushed += ".";
-      } else if (char === "@") {
+      if (char === "@") {
         if (buffer[i + 1] === "@") {
           flushed += "*";
           i++;
