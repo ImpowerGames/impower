@@ -31,9 +31,9 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "sparkdown.previewScreen",
-      async (uri: vscode.Uri, range: vscode.Range) => {
+      async (uri: vscode.Uri, ranges: vscode.Range[]) => {
         const textDocument = await vscode.workspace.openTextDocument(uri);
-        revealOrCreateWebviewPanel(context, textDocument, range);
+        revealOrCreateWebviewPanel(context, textDocument, ranges);
       }
     )
   );
@@ -46,13 +46,15 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
         const range = change.selections[0];
         if (range) {
           const screenRange = getScreenRange(editor.document, range.start);
+          const screenDependencyRanges = getAllScreenDependencyRanges(
+            editor.document
+          );
           if (screenRange) {
             if (screenPreviewPanel && screenPreviewPanel.panel.visible) {
-              updateWebviewContent(
-                screenPreviewPanel.panel,
-                editor.document,
-                screenRange
-              );
+              updateWebviewContent(screenPreviewPanel.panel, editor.document, [
+                screenRange,
+                ...screenDependencyRanges,
+              ]);
             }
           }
         }
@@ -72,6 +74,37 @@ function getAllScreenRanges(document: vscode.TextDocument) {
     if (cur) {
       while (cur.value) {
         if (cur.value.type === "screen") {
+          const range = parsedDoc.range(cur.from, cur.to);
+          ranges.push(
+            new vscode.Range(
+              new vscode.Position(range.start.line, range.start.character),
+              new vscode.Position(range.end.line, range.end.character)
+            )
+          );
+        }
+        cur.next();
+      }
+    }
+  }
+  return ranges;
+}
+
+function getAllScreenDependencyRanges(document: vscode.TextDocument) {
+  const parsedDoc = SparkdownDocumentManager.instance.get(document.uri);
+  const annotations = SparkdownDocumentManager.instance.annotations(
+    document.uri
+  );
+  const cur = annotations.declarations.iter();
+  let ranges: vscode.Range[] = [];
+  if (parsedDoc) {
+    if (cur) {
+      while (cur.value) {
+        if (
+          cur.value.type === "component" ||
+          cur.value.type === "style" ||
+          cur.value.type === "animation" ||
+          cur.value.type === "theme"
+        ) {
           const range = parsedDoc.range(cur.from, cur.to);
           ranges.push(
             new vscode.Range(
@@ -128,12 +161,13 @@ function getScreenRange(
 class ScreenPreviewCodeLensProvider implements vscode.CodeLensProvider {
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
     const ranges = getAllScreenRanges(document);
+    const screenDependencyRanges = getAllScreenDependencyRanges(document);
     return ranges.map(
       (range) =>
         new vscode.CodeLens(range, {
           title: "$(preview)$(dash)Screen Preview",
           command: "sparkdown.previewScreen",
-          arguments: [document.uri, range],
+          arguments: [document.uri, [range, ...screenDependencyRanges]],
         })
     );
   }
@@ -164,11 +198,11 @@ export class SparkdownScreenPreviewSerializer
 function revealOrCreateWebviewPanel(
   context: vscode.ExtensionContext,
   textDocument: vscode.TextDocument,
-  range: vscode.Range
+  ranges: vscode.Range[]
 ) {
   if (screenPreviewPanel) {
     screenPreviewPanel.panel.reveal();
-    updateWebviewContent(screenPreviewPanel.panel, textDocument, range);
+    updateWebviewContent(screenPreviewPanel.panel, textDocument, ranges);
     return;
   }
 
@@ -308,9 +342,9 @@ function getWebviewContent(jsWebviewUri: string): string {
 async function updateWebviewContent(
   panel: vscode.WebviewPanel,
   textDocument: vscode.TextDocument,
-  range: vscode.Range
+  ranges: vscode.Range[]
 ) {
-  const text = textDocument.getText(range);
+  const text = ranges.map((range) => textDocument.getText(range)).join("\n\n");
 
   const state = screenPreviewPanel?.state.get(textDocument.uri.toString());
 
