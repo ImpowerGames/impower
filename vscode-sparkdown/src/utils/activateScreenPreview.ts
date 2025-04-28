@@ -117,7 +117,6 @@ function getScreenRange(
           new vscode.Position(range.start.line, range.start.character),
           new vscode.Position(range.end.line, range.end.character)
         );
-        console.log("screenRange", screenRange);
         return screenRange;
       }
     }
@@ -128,7 +127,6 @@ function getScreenRange(
 
 class ScreenPreviewCodeLensProvider implements vscode.CodeLensProvider {
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
-    console.log("provideCodeLenses");
     const ranges = getAllScreenRanges(document);
     return ranges.map(
       (range) =>
@@ -313,7 +311,6 @@ async function updateWebviewContent(
   range: vscode.Range
 ) {
   const text = textDocument.getText(range);
-  console.warn("RANGE", range, JSON.stringify(text));
 
   const state = screenPreviewPanel?.state.get(textDocument.uri.toString());
 
