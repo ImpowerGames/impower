@@ -1,10 +1,13 @@
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
+import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
+import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 
 export type DeclarationType =
+  | "screen"
+  | "component"
   | "function"
   | "knot"
   | "stitch"
@@ -23,6 +26,21 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<DeclarationType>>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<DeclarationType>>[] {
+    if (nodeRef.name === "ViewKeyword") {
+      const stack = getContextStack(nodeRef.node);
+      const viewDeclarationNode = stack.find(
+        (n) => n.name === "ViewDeclaration"
+      );
+      if (viewDeclarationNode) {
+        const type = this.read(nodeRef.from, nodeRef.to);
+        annotations.push(
+          SparkdownAnnotation.mark<DeclarationType>(
+            type as DeclarationType
+          ).range(viewDeclarationNode.from, viewDeclarationNode.to)
+        );
+      }
+      return annotations;
+    }
     if (nodeRef.name === "FunctionDeclarationName") {
       annotations.push(
         SparkdownAnnotation.mark<DeclarationType>("function").range(

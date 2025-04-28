@@ -330,20 +330,6 @@
           "light": "icon-lang.png",
           "dark": "icon-lang.png"
         }
-      },
-      {
-        "id": "screen",
-        "aliases": [
-          "Screen",
-          "screen"
-        ],
-        "extensions": [
-          ".screen"
-        ],
-        "icon": {
-          "light": "icon-lang.png",
-          "dark": "icon-lang.png"
-        }
       }
     ],
     "grammars": [

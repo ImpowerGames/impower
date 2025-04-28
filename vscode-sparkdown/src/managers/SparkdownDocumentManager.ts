@@ -12,6 +12,7 @@ export class SparkdownDocumentManager {
 
   protected _documents = new SparkdownDocumentRegistry("editor", [
     "formatting",
+    "declarations",
   ]);
 
   add(document: vscode.TextDocument) {

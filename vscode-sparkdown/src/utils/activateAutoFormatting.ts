@@ -13,8 +13,6 @@ import {
   Range,
   Selection,
   SnippetString,
-  TextDocument,
-  TextDocumentChangeEvent,
   TextEditor,
   window,
   workspace,
@@ -34,26 +32,7 @@ enum EmphasisType {
 type IModifier = "ctrl" | "shift";
 
 export const activateAutoFormatting = (context: ExtensionContext) => {
-  const activeDocument = window.activeTextEditor?.document;
-  if (activeDocument?.languageId === "sparkdown") {
-    SparkdownDocumentManager.instance.add(activeDocument);
-  }
   context.subscriptions.push(
-    workspace.onDidOpenTextDocument((data: TextDocument) => {
-      if (data.languageId === "sparkdown") {
-        SparkdownDocumentManager.instance.add(data);
-      }
-    }),
-    workspace.onDidChangeTextDocument((data: TextDocumentChangeEvent) => {
-      if (data.document.languageId === "sparkdown") {
-        SparkdownDocumentManager.instance.update(data);
-      }
-    }),
-    workspace.onDidCloseTextDocument((data: TextDocument) => {
-      if (data.languageId === "sparkdown") {
-        SparkdownDocumentManager.instance.remove(data);
-      }
-    }),
     commands.registerCommand("sparkdown.extension.onEnterKey", onEnterKey),
     commands.registerCommand("sparkdown.extension.onCtrlEnterKey", () => {
       return onEnterKey("ctrl");
@@ -228,8 +207,6 @@ const closeAngleBracket = async (editor: TextEditor): Promise<boolean> => {
     parsedDoc.offsetAt(cursor),
     -1
   );
-
-  console.log(stack.map((n) => n.name));
 
   if (
     !stack.some(

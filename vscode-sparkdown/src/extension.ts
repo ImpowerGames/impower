@@ -7,6 +7,7 @@ import { activateAutoFormatting } from "./utils/activateAutoFormatting";
 import { activateCheatSheetView } from "./utils/activateCheatSheetView";
 import { activateCommandView } from "./utils/activateCommandView";
 import { activateCompilationView } from "./utils/activateCompilationView";
+import { activateDocumentManager } from "./utils/activateDocumentManager";
 import { activateDurationStatus } from "./utils/activateDurationStatus";
 import { activateExecutionGutterDecorator } from "./utils/activateExecutionGutterDecorator";
 import { activateFileDecorations } from "./utils/activateFileDecorations";
@@ -23,6 +24,7 @@ import { activateVirtualDeclarations } from "./utils/activateVirtualDeclarations
 // Called when extension is activated
 export function activate(context: vscode.ExtensionContext) {
   console.log("Sparkdown Activated");
+  activateDocumentManager(context);
   activateScreenPreview(context);
   activateAutoFormatting(context);
   activateContextService(context);

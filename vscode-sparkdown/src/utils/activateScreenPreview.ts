@@ -1,5 +1,9 @@
+import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 import * as vscode from "vscode";
 import * as yaml from "yaml";
+import { getDescendent } from "../../../packages/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { getStack } from "../../../packages/textmate-grammar-tree/src/tree/utils/getStack";
+import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
 import { getOpenTextDocument } from "./getOpenTextDocument";
 
 let screenPreviewPanel: {
@@ -12,7 +16,7 @@ const programmaticEdits = new Map<string, number>();
 export function activateScreenPreview(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(
-      { language: "screen" },
+      { language: "sparkdown" },
       new ScreenPreviewCodeLensProvider()
     )
   );
@@ -27,52 +31,113 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "sparkdown.previewScreen",
-      async (uri: vscode.Uri) => {
+      async (uri: vscode.Uri, range: vscode.Range) => {
         const textDocument = await vscode.workspace.openTextDocument(uri);
-        revealOrCreateWebviewPanel(context, textDocument);
+        revealOrCreateWebviewPanel(context, textDocument, range);
       }
     )
   );
 
   context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (
-        screenPreviewPanel &&
-        editor &&
-        editor.document.languageId === "screen"
-      ) {
-        updateWebviewContent(screenPreviewPanel.panel, editor.document);
-      }
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeTextDocument((e) => {
-      const uriStr = e.document.uri.toString();
-      if (e.document.languageId === "screen" && !isProgrammaticEdit(uriStr)) {
-        if (
-          screenPreviewPanel &&
-          screenPreviewPanel.panel.visible &&
-          vscode.window.activeTextEditor?.document.uri.toString() ===
-            e.document.uri.toString()
-        ) {
-          updateWebviewContent(screenPreviewPanel.panel, e.document);
+    vscode.window.onDidChangeTextEditorSelection((change) => {
+      const editor = change.textEditor;
+      const document = editor.document;
+      if (document.languageId === "sparkdown") {
+        const range = change.selections[0];
+        if (range) {
+          const screenRange = getScreenRange(editor.document, range.start);
+          if (screenRange) {
+            if (screenPreviewPanel && screenPreviewPanel.panel.visible) {
+              updateWebviewContent(
+                screenPreviewPanel.panel,
+                editor.document,
+                screenRange
+              );
+            }
+          }
         }
       }
     })
   );
 }
 
+function getAllScreenRanges(document: vscode.TextDocument) {
+  const parsedDoc = SparkdownDocumentManager.instance.get(document.uri);
+  const annotations = SparkdownDocumentManager.instance.annotations(
+    document.uri
+  );
+  const cur = annotations.declarations.iter();
+  let ranges: vscode.Range[] = [];
+  if (parsedDoc) {
+    if (cur) {
+      while (cur.value) {
+        if (cur.value.type === "screen") {
+          const range = parsedDoc.range(cur.from, cur.to);
+          ranges.push(
+            new vscode.Range(
+              new vscode.Position(range.start.line, range.start.character),
+              new vscode.Position(range.end.line, range.end.character)
+            )
+          );
+        }
+        cur.next();
+      }
+    }
+  }
+  return ranges;
+}
+
+function getScreenRange(
+  document: vscode.TextDocument,
+  position: vscode.Position
+) {
+  const parsedDoc = SparkdownDocumentManager.instance.get(document.uri);
+  const tree = SparkdownDocumentManager.instance.tree(document.uri);
+
+  if (!parsedDoc || !tree) {
+    return null;
+  }
+
+  const stack = getStack<SparkdownNodeName>(
+    tree,
+    parsedDoc.offsetAt(position),
+    -1
+  );
+
+  const viewDeclarationNode = stack.find((n) => n.name === "ViewDeclaration");
+  if (viewDeclarationNode) {
+    const viewKeyword = getDescendent("ViewKeyword", viewDeclarationNode);
+    if (viewKeyword) {
+      if (parsedDoc.read(viewKeyword.from, viewKeyword.to) === "screen") {
+        const range = parsedDoc.range(
+          viewDeclarationNode.from,
+          viewDeclarationNode.to
+        );
+        const screenRange = new vscode.Range(
+          new vscode.Position(range.start.line, range.start.character),
+          new vscode.Position(range.end.line, range.end.character)
+        );
+        console.log("screenRange", screenRange);
+        return screenRange;
+      }
+    }
+  }
+
+  return null;
+}
+
 class ScreenPreviewCodeLensProvider implements vscode.CodeLensProvider {
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
-    const topOfFile = new vscode.Range(0, 0, 0, 0);
-    return [
-      new vscode.CodeLens(topOfFile, {
-        title: "$(preview)$(dash)Preview Screen",
-        command: "sparkdown.previewScreen",
-        arguments: [document.uri],
-      }),
-    ];
+    console.log("provideCodeLenses");
+    const ranges = getAllScreenRanges(document);
+    return ranges.map(
+      (range) =>
+        new vscode.CodeLens(range, {
+          title: "$(preview)$(dash)Screen Preview",
+          command: "sparkdown.previewScreen",
+          arguments: [document.uri, range],
+        })
+    );
   }
 }
 
@@ -100,11 +165,12 @@ export class SparkdownScreenPreviewSerializer
 
 function revealOrCreateWebviewPanel(
   context: vscode.ExtensionContext,
-  textDocument: vscode.TextDocument
+  textDocument: vscode.TextDocument,
+  range: vscode.Range
 ) {
   if (screenPreviewPanel) {
     screenPreviewPanel.panel.reveal();
-    updateWebviewContent(screenPreviewPanel.panel, textDocument);
+    updateWebviewContent(screenPreviewPanel.panel, textDocument, range);
     return;
   }
 
@@ -243,9 +309,11 @@ function getWebviewContent(jsWebviewUri: string): string {
 
 async function updateWebviewContent(
   panel: vscode.WebviewPanel,
-  textDocument: vscode.TextDocument
+  textDocument: vscode.TextDocument,
+  range: vscode.Range
 ) {
-  const text = textDocument.getText();
+  const text = textDocument.getText(range);
+  console.warn("RANGE", range, JSON.stringify(text));
 
   const state = screenPreviewPanel?.state.get(textDocument.uri.toString());
 
