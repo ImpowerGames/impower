@@ -1,6 +1,9 @@
 import { type SparkleNode, ParseContext } from "./parser";
 import { sparkleSelectorToCssSelector } from "./sparkleSelectorToCssSelector";
 
+const ATTR_HOST_FLAG = "data-attrs-host";
+const CHILDREN_SLOT_FLAG = "data-children-slot";
+
 export interface BuiltinDefinition {
   begin: string;
   end: string;
@@ -13,9 +16,17 @@ export interface RendererOptions {
   cssAliases?: Record<string, string>;
 }
 
-export type VNode =
-  | string
-  | { tag: string; props: Record<string, string>; children: VNode[] };
+export interface VElement {
+  tag: string;
+  props: Record<string, string>;
+  children: VNode[];
+  /** diff-only metadata – never rendered to the DOM */
+  key?: string;
+  contentAttr?: string;
+  attrsHost?: true;
+  classHost?: true;
+}
+export type VNode = string | VElement;
 
 type DOMMutation =
   | { type: "insert"; parent: Node; node: Node; refNode: Node | null }
@@ -79,7 +90,7 @@ export const DEFAULT_BUILTINS: Record<string, BuiltinDefinition> = {
     end: "</button>",
   },
   Image: {
-    begin: '<img class="style {classes}" alt="{{content}}" {...attrs}/>',
+    begin: '<img class="style {classes}" src="{{content-attr}}" {...attrs}/>',
     end: "",
   },
   Input: {
@@ -166,7 +177,32 @@ export const DEFAULT_CSS_ALIASES = {
 
 const EMPTY_OBJ = {};
 
-const builtinVNodeCache = new Map<string, VNode>();
+const builtinSkeletons = new Map<string, VNode>();
+
+(function precompileBuiltins() {
+  for (const [name, def] of Object.entries(DEFAULT_BUILTINS)) {
+    // choose the proper children-slot marker
+    const childSlot = def.begin.includes("<select")
+      ? // a valid but hidden <option> sentinel *inside* <select>
+        `<option ${CHILDREN_SLOT_FLAG} hidden></option>`
+      : // any other tag can use the custom element
+        "<children-slot></children-slot>";
+
+    const tpl = (def.begin + childSlot + def.end)
+      .replaceAll("{...attrs}", ` ${ATTR_HOST_FLAG}`) // attrs host
+      .replaceAll("{{content}}", "<content-slot></content-slot>"); // content
+
+    const temp = document.createElement("template");
+    temp.innerHTML = tpl.trim();
+    const root = temp.content.firstElementChild;
+    if (!root) {
+      console.error("Failed to parse builtin:", name);
+      continue;
+    }
+    const vnode = buildVNodeFromDOM(root);
+    builtinSkeletons.set(name, vnode);
+  }
+})();
 
 const mutationQueue: DOMMutation[] = [];
 let scheduled = false;
@@ -254,10 +290,10 @@ export function renderVNode(
         const childVNodes =
           children?.map((c, i) => renderVNode(c, subCtx, el, i)) ?? [];
 
-        // Important: attach a key to the first element if missing
+        // Attach a key to the first element if missing
         for (const vnode of childVNodes) {
           if (typeof vnode !== "string" && !("key" in vnode.props)) {
-            vnode.props.key = key; // Use entry key
+            vnode.key = key; // Use entry key
           }
         }
 
@@ -286,10 +322,10 @@ export function renderVNode(
         const childVNodes =
           children?.map((c, j) => renderVNode(c, subCtx, el, j)) ?? [];
 
-        // Important: attach a key to the first element if missing
+        // Attach a key to the first element if missing
         for (const vnode of childVNodes) {
           if (typeof vnode !== "string" && !("key" in vnode.props)) {
-            vnode.props.key = String(i); // Use repeat index
+            vnode.key = String(i); // Use repeat index
           }
         }
 
@@ -420,127 +456,196 @@ function wrapChildren(children: VNode[]): VNode {
 }
 
 function renderBuiltinVNode(el: SparkleNode, ctx: RenderContext): VNode {
-  const { type, params, children } = el;
-
-  const builtins = ctx.options?.builtins ?? DEFAULT_BUILTINS;
-  const attrAliases = ctx.options?.attrAliases ?? DEFAULT_ATTR_ALIASES;
+  const { type, params = {}, children } = el;
   const components = ctx.parsed.components;
-
-  const builtin = builtins[type];
-  const evalContext = getContext(ctx);
-
-  const childVNodes: VNode[] =
-    children?.map((c, i) => renderVNode(c, ctx, el, i)) ?? [];
-
-  const elementContext: Record<string, any> = { ...params };
-
-  const { base, name, classes, content, ...rest } = params || {};
-  const inheritedClassNames =
-    type === "component"
-      ? getInheritanceChain(base, builtins, components)
-      : getInheritanceChain(type, builtins, components);
-  elementContext["classes"] = [
-    ...(classes ?? []),
-    ...inheritedClassNames,
-    base,
-    name,
-  ]
-    .filter(Boolean)
-    .join(" ");
-  elementContext["attrs"] = Object.entries(rest).map(([k, v]) =>
-    paramToAttr(k, v, evalContext, attrAliases)
-  );
-  elementContext["content"] = content;
-
-  const begin = interpolate(builtin.begin.trim(), elementContext, attrAliases);
-  const end = interpolate(builtin.end.trim(), elementContext, attrAliases);
-
-  const fullTemplate =
-    interpolate(begin, evalContext, attrAliases) +
-    "<children></children>" +
-    interpolate(end, evalContext, attrAliases);
-
-  const populatedBuiltinNode = parseFullBuiltinTemplateToVNode(
-    fullTemplate,
-    childVNodes
-  );
-  if (type === "screen") {
-    if (typeof populatedBuiltinNode !== "string") {
-      populatedBuiltinNode.props["id"] = name;
-    }
-  }
-  return populatedBuiltinNode;
-}
-
-function parseFullBuiltinTemplateToVNode(
-  template: string,
-  content: VNode[]
-): VNode {
-  if (builtinVNodeCache.has(template)) {
-    const vnode = builtinVNodeCache.get(template)!;
-    return injectContent(cloneVNode(vnode), content);
-  }
-
-  const temp = document.createElement("template");
-  temp.innerHTML = template;
-  const root = temp.content.firstElementChild;
-  if (!root) {
-    console.error("Could not parse builtin template:", template);
+  const skeleton = builtinSkeletons.get(type);
+  if (!skeleton) {
+    console.error("Un-recognised builtin:", type);
     return { tag: "fragment", props: {}, children: [] };
   }
 
-  const vnode = buildVNodeFromDOM(root, []); // build static template
-  builtinVNodeCache.set(template, vnode);
-  return injectContent(cloneVNode(vnode), content);
+  /*  1.  Clone the static skeleton  */
+  const root = cloneVNode(skeleton) as VElement;
+
+  /*  2.  Fill dynamic attrs/classes  */
+  const inherited =
+    type === "component"
+      ? getInheritanceChain(params?.base, DEFAULT_BUILTINS, components)
+      : getInheritanceChain(type, DEFAULT_BUILTINS, components);
+
+  const dynamicClass = [
+    ...(params.classes ?? []),
+    ...inherited,
+    params.base,
+    params.name,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (!mergeClassesIntoHost(root, dynamicClass)) {
+    // fallback: put classes on root if no {classes} placeholder
+    const base = root.props.class ? root.props.class + " " : "";
+    root.props.class = base + dynamicClass;
+  }
+
+  /* gather user-supplied attrs after interpolation */
+  const evalCtx = getContext(ctx);
+  const spreadProps: Record<string, string> = {};
+  for (const [k, v] of Object.entries(params).filter(
+    ([k]) => !["classes", "content", "base", "name"].includes(k)
+  )) {
+    spreadProps[k] =
+      typeof v === "string" ? interpolate(v, evalCtx) : String(v);
+  }
+
+  /* find the attrsHost in the cloned tree */
+  function mergeIntoHost(node: VNode): boolean {
+    if (typeof node === "string") return false;
+    if (node.attrsHost) {
+      Object.assign(node.props, spreadProps);
+      return true;
+    }
+    return node.children.some(mergeIntoHost);
+  }
+
+  if (!mergeIntoHost(root)) {
+    // fallback: no flag present, merge into root
+    Object.assign(root.props, spreadProps);
+  }
+
+  if (type === "screen" && params.name) root.props.id = params.name;
+
+  /*  3.  Inject slot <content-slot> and <children-slot>  */
+  const contentV: VNode =
+    typeof params.content === "string"
+      ? interpolate(params.content, evalCtx)
+      : "";
+
+  if (root.contentAttr) {
+    root.props[root.contentAttr] =
+      typeof params.content === "string"
+        ? interpolate(params.content, evalCtx)
+        : "";
+  }
+
+  root.children = root.children.map((ch) => {
+    if (typeof ch === "string") return ch;
+    if (ch.tag === "content-slot") return contentV;
+    if (ch.tag === "children-slot")
+      return wrapChildren(
+        children?.map((c, i) => renderVNode(c, ctx, el, i)) || []
+      );
+    // recurse
+    return injectSlots(ch, params.content, children, ctx, el);
+  });
+
+  return root;
 }
 
-function cloneVNode(vnode: VNode): VNode {
-  if (typeof vnode === "string") {
-    return vnode;
-  }
-  return {
-    tag: vnode.tag,
-    props: { ...vnode.props },
-    children: vnode.children.map(cloneVNode),
-  };
-}
-
-function injectContent(vnode: VNode, content: VNode[]): VNode {
-  if (typeof vnode === "string") return vnode;
-
-  if (vnode.tag === "children") {
-    return content.length === 1
-      ? content[0]
-      : { tag: "fragment", props: {}, children: content };
-  }
+function injectSlots(
+  vnode: VElement,
+  content: unknown,
+  childNodes: SparkleNode[] | undefined,
+  ctx: RenderContext,
+  owner: SparkleNode
+): VNode {
+  const evalCtx = getContext(ctx);
 
   return {
     ...vnode,
-    children: vnode.children.map((child) => injectContent(child, content)),
+    // deep-map children
+    children: vnode.children.map((ch) => {
+      if (typeof ch === "string") {
+        // "plain" text inside the builtin: run interpolation on it too
+        return ch.includes("{") ? interpolate(ch, evalCtx) : ch;
+      }
+
+      if (ch.tag === "content-slot") {
+        return typeof content === "string" ? interpolate(content, evalCtx) : "";
+      }
+      if (ch.tag === "children-slot") {
+        return wrapChildren(
+          childNodes?.map((c, i) => renderVNode(c, ctx, owner, i)) || []
+        );
+      }
+      // recurse
+      return injectSlots(ch, content, childNodes, ctx, owner);
+    }),
   };
 }
 
-function buildVNodeFromDOM(node: Element, content: VNode[]): VNode {
+function cloneVNode(v: VNode): VNode {
+  if (typeof v === "string") return v;
+  return {
+    tag: v.tag,
+    props: { ...v.props },
+    children: v.children.map(cloneVNode),
+    key: v.key,
+    contentAttr: v.contentAttr,
+    ...(v.attrsHost && { attrsHost: true }),
+    ...(v.classHost && { classHost: true }),
+  };
+}
+
+function buildVNodeFromDOM(node: Element): VNode {
   const props: Record<string, string> = {};
-  for (const attr of Array.from(node.attributes)) {
-    props[attr.name] = attr.value;
+  let contentAttr: string | undefined;
+  let attrsHost = false;
+  let classHost = false;
+
+  // recognise <option data-children-slot>
+  if (
+    node.tagName.toLowerCase() === "option" &&
+    node.hasAttribute(CHILDREN_SLOT_FLAG)
+  ) {
+    return { tag: "children-slot", props: {}, children: [] };
+  }
+
+  for (const a of Array.from(node.attributes)) {
+    if (a.name === ATTR_HOST_FLAG) {
+      attrsHost = true;
+      continue;
+    }
+
+    if (a.name === "class" && a.value.includes("{classes}")) {
+      classHost = true;
+      const cleaned = a.value.replace("{classes}", "").trim();
+      if (cleaned) {
+        props.class = cleaned; // keep static part
+      }
+      continue; // drop the placeholder
+    }
+
+    if (a.value === "{{content-attr}}") {
+      // remember: this attribute hosts the `content`
+      contentAttr = a.name; // remember which attribute
+      continue; // do NOT store the sentinel
+    }
+
+    props[a.name] = a.value;
   }
 
   const children: VNode[] = [];
-  for (const child of Array.from(node.childNodes)) {
-    if (child.nodeType === Node.ELEMENT_NODE) {
-      children.push(buildVNodeFromDOM(child as Element, content));
-    } else if (child.nodeType === Node.TEXT_NODE) {
-      const text = child.textContent?.trim();
-      if (text) children.push(text);
+  node.childNodes.forEach((ch) => {
+    if (ch.nodeType === Node.ELEMENT_NODE) {
+      children.push(buildVNodeFromDOM(ch as Element));
+    } else if (
+      ch.nodeType === Node.TEXT_NODE &&
+      ch.textContent!.trim().length // ignore pure whitespace
+    ) {
+      children.push(ch.textContent!.trim());
     }
-  }
+  });
 
-  return {
+  const vnode: VNode = {
     tag: node.tagName.toLowerCase(),
     props,
     children,
+    ...(contentAttr && { contentAttr }),
+    ...(attrsHost && { attrsHost: true }),
+    ...(classHost && { classHost: true }),
   };
+  return vnode;
 }
 
 function organizeFills(children: SparkleNode[]): Record<string, SparkleNode[]> {
@@ -614,40 +719,6 @@ function interpolate(
     console.warn("Failed to interpolate expression:", template, context, e);
     return "";
   }
-}
-
-function paramToAttr(
-  key: string,
-  value: unknown,
-  context: Record<string, any>,
-  attrAliases?: Record<string, string>
-) {
-  let k = attrAliases?.[key] ?? key;
-  const v = value;
-  if (k.startsWith("@")) {
-    // TODO: jump to label then rerender
-    //const attr = k.replaceAll("@", "on").replaceAll("-", "");
-    return "";
-  }
-  if (typeof v === "boolean") {
-    return v ? `${k}` : "";
-  }
-  if (typeof v === "number") {
-    return `${k}=${v}`;
-  }
-  if (typeof v === "string") {
-    return `${k}=${JSON.stringify(interpolate(v, context, attrAliases))}`;
-  }
-  if (Array.isArray(v)) {
-    return `${k}="${v
-      .map((x) =>
-        typeof x === "string"
-          ? JSON.stringify(interpolate(x, context, attrAliases)).slice(1, -1)
-          : x
-      )
-      .join(" ")}"`;
-  }
-  return "";
 }
 
 function paramToProp(
@@ -739,18 +810,10 @@ export function createElement(vnode: VNode): Node {
     return fragment;
   }
 
-  if (vnode.tag === "style-block" || vnode.tag === "keyframes-block") {
-    const styleEl = document.createElement("style");
-    if (typeof vnode === "string") {
-      styleEl.textContent = vnode;
-    }
-    return styleEl;
-  }
-
   const el = document.createElement(vnode.tag);
 
   for (const [key, value] of Object.entries(vnode.props)) {
-    if (key.startsWith("on") && typeof value === "function") {
+    if (key.startsWith("@")) {
       // TODO: EventHandler
       // const eventName = key.slice(2).toLowerCase();
       // el.addEventListener(eventName, value as EventListener);
@@ -774,7 +837,7 @@ export function diffAndPatch(
 ): void {
   const existingNode = container.childNodes[index];
 
-  // 1. No old node → Insert
+  // 1. No old node -> Insert
   if (!oldVNode) {
     mutationQueue.push({
       type: "insert",
@@ -786,7 +849,7 @@ export function diffAndPatch(
     return;
   }
 
-  // 2. No new node → Remove
+  // 2. No new node -> Remove
   if (!newVNode) {
     if (existingNode) {
       mutationQueue.push({
@@ -799,7 +862,7 @@ export function diffAndPatch(
     return;
   }
 
-  // 3. Different types → Replace
+  // 3. Different types -> Replace
   if (
     typeof oldVNode !== typeof newVNode ||
     (typeof oldVNode !== "string" &&
@@ -831,19 +894,48 @@ export function diffAndPatch(
     return;
   }
 
-  // 5. Normal element nodes
+  /* 4.  Element / Fragment handling   */
   if (typeof oldVNode !== "string" && typeof newVNode !== "string") {
-    if (newVNode.tag === "fragment") {
-      const oldChildren = Array.isArray(oldVNode.children)
-        ? oldVNode.children
-        : [];
-      const newChildren = Array.isArray(newVNode.children)
-        ? newVNode.children
-        : [];
-      diffChildren(container, oldChildren, newChildren, index);
+    /*  4a. Both are *fragments* -> diff their children in place */
+    if (oldVNode.tag === "fragment" && newVNode.tag === "fragment") {
+      diffChildren(container, oldVNode.children, newVNode.children, index);
       return;
     }
 
+    /*  4b.   old = fragment -------- new = element */
+    if (oldVNode.tag === "fragment") {
+      // Remove the old fragment’s real nodes
+      removeDomRange(container, index, domLen(oldVNode));
+      // Insert the new element
+      mutationQueue.push({
+        type: "insert",
+        parent: container,
+        node: createElement(newVNode),
+        refNode: container.childNodes[index] || null,
+      });
+      scheduleFlush();
+      return;
+    }
+
+    /*  4c.   old = element -------- new = fragment */
+    if (newVNode.tag === "fragment") {
+      // Patch by replacing the element with the fragment’s real nodes
+      mutationQueue.push({
+        type: "remove",
+        parent: container,
+        node: existingNode,
+      });
+      mutationQueue.push({
+        type: "insert",
+        parent: container,
+        node: createElement(newVNode), // DocumentFragment
+        refNode: container.childNodes[index] || null,
+      });
+      scheduleFlush();
+      return;
+    }
+
+    /*  4e.   normal element diff */
     const el = existingNode as Element;
     if (!el) {
       mutationQueue.push({
@@ -872,101 +964,91 @@ export function diffAndPatch(
 
 function diffChildren(
   parent: Node,
-  oldChildren: VNode[],
-  newChildren: VNode[],
-  startIndex: number = 0
+  oldKids: VNode[],
+  newKids: VNode[],
+  domStart = 0 // where the *first* old child begins
 ): void {
-  let oldStart = 0;
-  let newStart = 0;
-  let oldEnd = oldChildren.length - 1;
-  let newEnd = newChildren.length - 1;
+  let o = 0,
+    n = 0,
+    domPtr = domStart;
 
-  const oldNodes = Array.from(parent.childNodes).slice(
-    startIndex,
-    startIndex + oldChildren.length
-  );
-
-  // Fast path: match from start
-  while (oldStart <= oldEnd && newStart <= newEnd) {
-    const oldVNode = oldChildren[oldStart];
-    const newVNode = newChildren[newStart];
-    if (isSameVNode(oldVNode, newVNode)) {
-      diffAndPatch(parent, oldVNode, newVNode, startIndex + newStart);
-      oldStart++;
-      newStart++;
-    } else {
-      break;
-    }
+  /* 1. sync common prefix */
+  while (
+    o < oldKids.length &&
+    n < newKids.length &&
+    isSameVNode(oldKids[o], newKids[n])
+  ) {
+    diffAndPatch(parent, oldKids[o], newKids[n], domPtr);
+    domPtr += domLen(oldKids[o]);
+    o++;
+    n++;
   }
 
-  // Fast path: match from end
-  while (oldStart <= oldEnd && newStart <= newEnd) {
-    const oldVNode = oldChildren[oldEnd];
-    const newVNode = newChildren[newEnd];
-    if (isSameVNode(oldVNode, newVNode)) {
-      diffAndPatch(parent, oldVNode, newVNode, startIndex + newEnd);
-      oldEnd--;
-      newEnd--;
-    } else {
-      break;
-    }
+  /* 2. sync common suffix */
+  let oEnd = oldKids.length - 1,
+    nEnd = newKids.length - 1;
+  let domEnd = domStart + oldKids.reduce((t, c) => t + domLen(c), 0);
+  while (oEnd >= o && nEnd >= n && isSameVNode(oldKids[oEnd], newKids[nEnd])) {
+    const len = domLen(oldKids[oEnd]);
+    domEnd -= len;
+    diffAndPatch(parent, oldKids[oEnd], newKids[nEnd], domEnd);
+    oEnd--;
+    nEnd--;
   }
 
-  // Now only unmatched parts remain
-
-  // 1. Insert new nodes
-  if (oldStart > oldEnd) {
-    const nextNode = parent.childNodes[startIndex + newEnd + 1] || null; // Insert before this node
-    for (let i = newStart; i <= newEnd; i++) {
-      parent.insertBefore(createElement(newChildren[i]), nextNode);
+  /* 3. pure inserts */
+  if (o > oEnd) {
+    const ref = parent.childNodes[domEnd] || null;
+    for (let i = n; i <= nEnd; i++) {
+      parent.insertBefore(createElement(newKids[i]), ref);
     }
     return;
   }
 
-  // 2. Remove old nodes
-  if (newStart > newEnd) {
-    for (let i = oldStart; i <= oldEnd; i++) {
-      const node = oldNodes[i];
-      if (node) parent.removeChild(node);
-    }
+  /* 4. pure removals */
+  if (n > nEnd) {
+    removeDomRange(parent, domPtr, domEnd - domPtr);
     return;
   }
 
-  // 3. Full diff: map new keys
-  const oldKeyToIndex = new Map<string, number>();
-  for (let i = oldStart; i <= oldEnd; i++) {
-    const oldVNode = oldChildren[i];
-    if (typeof oldVNode !== "string" && oldVNode.props?.key != null) {
-      oldKeyToIndex.set(oldVNode.props.key, i);
-    }
+  /* 5. keyed diff (uses real DOM offsets) */
+  const keyToOld = new Map<string, { idx: number; domOff: number }>();
+  let scan = domPtr;
+  for (let i = o; i <= oEnd; i++) {
+    const oldKid = oldKids[i]!;
+    const k = typeof oldKid !== "string" && oldKid.key ? oldKid.key : null;
+    if (k != null) keyToOld.set(k, { idx: i, domOff: scan });
+    scan += domLen(oldKid);
   }
 
-  const toMove = new Map<number, number>();
+  let newDomPtr = domPtr;
+  for (let i = n; i <= nEnd; i++) {
+    const nkid = newKids[i];
+    const k = typeof nkid !== "string" && nkid.key ? nkid.key : null;
 
-  for (let i = newStart; i <= newEnd; i++) {
-    const newVNode = newChildren[i];
-    let idxInOld = -1;
-    if (typeof newVNode !== "string" && newVNode.props?.key != null) {
-      idxInOld = oldKeyToIndex.get(newVNode.props.key) ?? -1;
-    }
+    if (k != null && keyToOld.has(k)) {
+      const { idx: oidx, domOff } = keyToOld.get(k)!;
+      diffAndPatch(parent, oldKids[oidx], nkid, domOff);
 
-    if (idxInOld === -1) {
-      // New node, insert
-      const nextNode = parent.childNodes[startIndex + i] || null;
-      parent.insertBefore(createElement(newVNode), nextNode);
+      /* move if necessary */
+      if (domOff !== newDomPtr) {
+        const node = parent.childNodes[domOff];
+        parent.insertBefore(node, parent.childNodes[newDomPtr] || null);
+      }
+      keyToOld.delete(k);
     } else {
-      // Existing node, patch
-      diffAndPatch(parent, oldChildren[idxInOld], newVNode, startIndex + i);
-      toMove.set(idxInOld, i);
+      parent.insertBefore(
+        createElement(nkid),
+        parent.childNodes[newDomPtr] || null
+      );
     }
+    newDomPtr += domLen(nkid);
   }
 
-  // 4. Remove nodes not present anymore
-  for (let i = oldStart; i <= oldEnd; i++) {
-    if (!toMove.has(i)) {
-      const node = oldNodes[i];
-      if (node) parent.removeChild(node);
-    }
+  /* remove leftovers */
+  for (const { domOff } of keyToOld.values()) {
+    const len = domLen(oldKids[domOffset(oldKids, 0)]); // quick look-up
+    removeDomRange(parent, domOff, len);
   }
 }
 
@@ -974,7 +1056,7 @@ function isSameVNode(a: VNode, b: VNode): boolean {
   if (typeof a !== typeof b) return false;
   if (typeof a === "string" && typeof b === "string") return a === b;
   if (typeof a !== "string" && typeof b !== "string") {
-    return a.tag === b.tag && (a.props.key ?? null) === (b.props.key ?? null);
+    return a.tag === b.tag && (a.key ?? null) === (b.key ?? null);
   }
   return false;
 }
@@ -1028,4 +1110,35 @@ function flushMutations() {
   }
   mutationQueue.length = 0;
   scheduled = false;
+}
+
+function domLen(v: VNode): number {
+  if (typeof v === "string") return 1; // text
+  if (v.tag === "fragment")
+    return v.children.reduce((n, c) => n + domLen(c), 0);
+  return 1; // normal element
+}
+
+function domOffset(children: VNode[], to: number): number {
+  // Sum of real nodes rendered by children[0‥to-1]
+  let n = 0;
+  for (let i = 0; i < to; i++) n += domLen(children[i]);
+  return n;
+}
+
+function removeDomRange(parent: Node, from: number, count: number): void {
+  for (let i = 0; i < count; i++) {
+    const node = parent.childNodes[from];
+    parent.removeChild(node);
+  }
+}
+
+function mergeClassesIntoHost(node: VNode, dyn: string): boolean {
+  if (typeof node === "string") return false;
+  if (node.classHost) {
+    const base = node.props.class ? node.props.class + " " : "";
+    node.props.class = base + dyn;
+    return true;
+  }
+  return node.children.some((c) => mergeClassesIntoHost(c, dyn));
 }
