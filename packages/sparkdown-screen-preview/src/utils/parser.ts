@@ -307,16 +307,59 @@ export function parseSSL(input: string): ParseContext {
 }
 
 function splitAttrArgs(input: string): string[] {
-  const regex = /([\w-]+=".*?"|[\w-]+=\S+|".*?"|\S+)/g;
   const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  let quoteChar = "";
+  let i = 0;
 
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(input)) !== null) {
-    // If the match is quoted (group 1), use that, otherwise the whole match
-    result.push(match[1] !== undefined ? match[1] : match[0]);
+  while (i < input.length) {
+    const char = input[i];
+
+    if (inQuotes) {
+      if (char === "\\") {
+        if (i + 1 < input.length) {
+          current += char + input[i + 1];
+          i += 2;
+          continue;
+        }
+      } else if (char === quoteChar) {
+        inQuotes = false;
+      }
+      current += char;
+    } else {
+      if (char === '"' || char === "'") {
+        inQuotes = true;
+        quoteChar = char;
+        current += char;
+      } else if (char.trim() === "") {
+        if (current.length > 0) {
+          result.push(current);
+          current = "";
+        }
+      } else {
+        current += char;
+      }
+    }
+
+    i++;
+  }
+
+  if (current.length > 0) {
+    result.push(current);
   }
 
   return result;
+}
+
+function unescapeQuotes(str: string): string {
+  if (
+    (str.startsWith('"') && str.endsWith('"')) ||
+    (str.startsWith("'") && str.endsWith("'"))
+  ) {
+    str = str.slice(1, -1);
+  }
+  return str.replace(/\\(["'])/g, "$1");
 }
 
 function parseParams(args: string[]) {
@@ -325,11 +368,11 @@ function parseParams(args: string[]) {
     let match: RegExpMatchArray | null = null;
     if ((match = arg.match(/^"(.+)"$/))) {
       const [, content] = match;
-      params["content"] = content;
-    } else if (
-      (match = arg.match(/^(@?[\w-]+)=\"(.*?)\"$/)) ||
-      (match = arg.match(/^(@?[\w-]+)=(\S+)$/))
-    ) {
+      params["content"] = unescapeQuotes(content);
+    } else if ((match = arg.match(/^(@?[\w-]+)=\"(.*?)\"$/))) {
+      const [, key, value] = match;
+      params[key!] = parseValue(unescapeQuotes(value));
+    } else if ((match = arg.match(/^(@?[\w-]+)=(\S+)$/))) {
       const [, key, value] = match;
       params[key!] = parseValue(value);
     } else if ((match = arg.match(/^([\w-]+)$/))) {

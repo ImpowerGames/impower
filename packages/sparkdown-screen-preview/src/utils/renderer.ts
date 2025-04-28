@@ -430,7 +430,7 @@ function renderBuiltinVNode(el: SparkleNode, ctx: RenderContext): VNode {
 
   const elementContext: Record<string, any> = { ...params };
 
-  const { base, name, classes, ...rest } = params || {};
+  const { base, name, classes, content, ...rest } = params || {};
   const inheritedClassNames =
     type === "component"
       ? getInheritanceChain(base, builtins, components)
@@ -446,16 +446,25 @@ function renderBuiltinVNode(el: SparkleNode, ctx: RenderContext): VNode {
   elementContext["attrs"] = Object.entries(rest).map(([k, v]) =>
     paramToAttr(k, v, evalContext, attrAliases)
   );
+  elementContext["content"] = content;
+
+  const begin = interpolate(builtin.begin.trim(), elementContext, attrAliases);
+  const end = interpolate(builtin.end.trim(), elementContext, attrAliases);
 
   const fullTemplate =
-    interpolate(builtin.begin.trim(), elementContext, attrAliases) +
+    interpolate(begin, evalContext, attrAliases) +
     "<children></children>" +
-    interpolate(builtin.end.trim(), elementContext, attrAliases);
+    interpolate(end, evalContext, attrAliases);
 
   const populatedBuiltinNode = parseFullBuiltinTemplateToVNode(
     fullTemplate,
     childVNodes
   );
+  if (type === "screen") {
+    if (typeof populatedBuiltinNode !== "string") {
+      populatedBuiltinNode.props["id"] = name;
+    }
+  }
   return populatedBuiltinNode;
 }
 
@@ -628,7 +637,9 @@ function paramToAttr(
   if (Array.isArray(v)) {
     return `${k}="${v
       .map((x) =>
-        typeof x === "string" ? interpolate(x, context, attrAliases) : x
+        typeof x === "string"
+          ? JSON.stringify(interpolate(x, context, attrAliases)).slice(1, -1)
+          : x
       )
       .join(" ")}"`;
   }
