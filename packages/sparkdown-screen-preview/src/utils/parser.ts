@@ -1,16 +1,16 @@
-export interface Node {
+export interface SparkleNode {
   root: "screen" | "component" | "style" | "animation" | "theme";
   type: string;
   params?: Record<string, any>;
-  children?: Node[];
+  children?: SparkleNode[];
 }
 
 export interface ParseContext {
-  screens?: Record<string, Node>;
-  components?: Record<string, Node>;
-  styles?: Record<string, Node>;
-  animations?: Record<string, Node>;
-  themes?: Record<string, Node>;
+  screens?: Record<string, SparkleNode>;
+  components?: Record<string, SparkleNode>;
+  styles?: Record<string, SparkleNode>;
+  animations?: Record<string, SparkleNode>;
+  themes?: Record<string, SparkleNode>;
 }
 
 const INDENT_REGEX: RegExp = /^[ \t]*/;
@@ -19,13 +19,13 @@ const INDENT_REGEX: RegExp = /^[ \t]*/;
 export function parseSSL(input: string): ParseContext {
   const rawLines = input.split(/\r\n|\r|\n/);
 
-  const screens: Record<string, Node> = {};
-  const components: Record<string, Node> = {};
-  const styles: Record<string, Node> = {};
-  const animations: Record<string, Node> = {};
-  const themes: Record<string, Node> = {};
-  const stack: { node: Node; indent: number }[] = [];
-  let currentRoot: Node | null = null;
+  const screens: Record<string, SparkleNode> = {};
+  const components: Record<string, SparkleNode> = {};
+  const styles: Record<string, SparkleNode> = {};
+  const animations: Record<string, SparkleNode> = {};
+  const themes: Record<string, SparkleNode> = {};
+  const stack: { node: SparkleNode; indent: number }[] = [];
+  let currentRoot: SparkleNode | null = null;
 
   for (let i = 0; i < rawLines.length; i++) {
     const rawLine = rawLines[i]!;
@@ -145,7 +145,7 @@ export function parseSSL(input: string): ParseContext {
         }
 
         // Get child node
-        let node: Node | null = null;
+        let node: SparkleNode | null = null;
         if (
           currentRoot?.type === "screen" ||
           currentRoot?.type === "component"
@@ -248,7 +248,10 @@ export function parseSSL(input: string): ParseContext {
           }
         } else if (currentRoot?.type === "animation") {
           if (nodeType === "-") {
-            const itemNode: Node = { root: currentRoot.root, type: "item" };
+            const itemNode: SparkleNode = {
+              root: currentRoot.root,
+              type: "item",
+            };
             parent.children ??= [];
             parent.children.push(itemNode);
             indent = indent + 1;

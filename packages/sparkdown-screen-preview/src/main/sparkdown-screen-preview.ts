@@ -1,11 +1,22 @@
 import { Component } from "../../../spec-component/src/component";
 import { parseSSL } from "../utils/parser";
-import { RenderContext, renderHTML, renderStyles } from "../utils/renderer";
+import {
+  createElement,
+  diffAndPatch,
+  RenderContext,
+  renderCssVDOM,
+  renderHtmlVDOM,
+  VNode,
+} from "../utils/renderer";
 import { throttle } from "../utils/throttle";
 import spec from "./_sparkdown-screen-preview";
 
 export default class SparkdownScreenPreview extends Component(spec) {
   _textDocument?: { uri: string };
+
+  _lastHtmlVDOM?: VNode;
+
+  _lastCssVDOM?: VNode;
 
   override onConnected() {
     window.addEventListener("jsonrpc", this.handleProtocol);
@@ -29,17 +40,31 @@ export default class SparkdownScreenPreview extends Component(spec) {
             parsed,
             state: JSON.parse(stateInputEl.value || "{}"),
             renderStyles: () => {
-              const styles = renderStyles(parsed, ctx);
-              this.ref.styles.innerHTML = styles;
+              const container = this.ref.styles;
+              const newVDOM = renderCssVDOM(parsed, ctx);
+              if (!this._lastCssVDOM) {
+                container.innerHTML = "";
+                container.appendChild(createElement(newVDOM));
+              } else {
+                diffAndPatch(container, this._lastCssVDOM, newVDOM);
+              }
+              this._lastCssVDOM = newVDOM;
               console.log("STYLES!");
-              console.log(styles);
+              console.log(newVDOM);
             },
             renderHTML: () => {
-              const html = renderHTML(parsed, ctx);
-              this.ref.output.innerHTML = html;
+              const container = this.ref.output;
+              const newVDOM = renderHtmlVDOM(parsed, ctx);
+              if (!this._lastHtmlVDOM) {
+                container.innerHTML = "";
+                container.appendChild(createElement(newVDOM));
+              } else {
+                diffAndPatch(container, this._lastHtmlVDOM, newVDOM);
+              }
+              this._lastHtmlVDOM = newVDOM;
               this.ref.parsed.textContent = JSON.stringify(parsed, null, 2);
               console.log("HTML!");
-              console.log(html);
+              console.log(newVDOM);
               console.log(parsed);
             },
           };
