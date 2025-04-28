@@ -346,16 +346,18 @@ function renderBuiltinVNode(
         : "";
   }
 
-  root.children = root.children.map((ch) => {
-    if (typeof ch === "string") return ch;
-    if (ch.tag === "content-slot") return contentV;
-    if (ch.tag === "children-slot")
-      return wrapChildren(
-        children?.map((c, i) => renderVNode(c, ctx, el, i)) || []
-      );
-    // recurse
-    return injectSlots(ch, params.content, children, ctx, el);
-  });
+  root.children = root.children
+    .map((ch) => {
+      if (typeof ch === "string") return ch;
+      if (ch.tag === "content-slot") return contentV;
+      if (ch.tag === "children-slot")
+        return wrapChildren(
+          children?.map((c, i) => renderVNode(c, ctx, el, i)) || []
+        );
+      // recurse
+      return injectSlots(ch, params.content, children, ctx, el);
+    })
+    .filter(Boolean);
 
   return root;
 }
