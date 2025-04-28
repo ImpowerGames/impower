@@ -1,3 +1,8 @@
+const DOUBLE_AT_REGEX = /@@/g;
+const LONE_AT_REGEX = /@(?=\W)/g;
+const AT_SELECTOR_REGEX = /@[a-zA-Z][\w-]*/g;
+const ESCAPE_REGEX = /[-/\\^$*+?.()|[\]{}]/g;
+
 export const DEFAULT_BREAKPOINTS = {
   xs: 400,
   sm: 600,
@@ -39,7 +44,16 @@ const PSEUDO_ALIASES = {
   "@backdrop": "::backdrop",
   "@opened": "[open]",
   "@initial": "@starting-style",
-};
+} as const;
+
+/* -------- 2.  @pseudo-aliases combined into ONE RegExp ------------- */
+const ALIAS_REGEX = new RegExp(
+  Object.keys(PSEUDO_ALIASES)
+    .map((k) => k.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"))
+    .sort((a, b) => b.length - a.length) // longest first (avoids partial hits)
+    .join("|"),
+  "g"
+);
 
 const VALID_CSS_AT_RULES = new Set([
   "@charset",
@@ -62,94 +76,76 @@ const VALID_CSS_AT_RULES = new Set([
   "@view-transition",
 ]);
 
+/* -------- 1.  breakpoint → RegExp cache ---------------------------- */
+const _breakpointRegexCache: Record<string, RegExp> = {};
+function breakpointRegex(name: string) {
+  return (
+    _breakpointRegexCache[name] ??
+    (_breakpointRegexCache[name] = new RegExp(
+      `@screen-size\\(\\s*${name.replace(ESCAPE_REGEX, "\\$&")}\\s*\\)`,
+      "g"
+    ))
+  );
+}
+
+/** in–memory memo – evicted whenever it reaches 5 k entries            */
+const _memo = new Map<string, string>();
+
 export function sparkleSelectorToCssSelector(
   selector: string,
-  breakpoints?: Record<string, number>
-) {
-  // Replace named breakpoints first (safe to do globally)
-  for (const [k, v] of Object.entries(breakpoints || DEFAULT_BREAKPOINTS)) {
+  breakpoints: Record<string, number> = DEFAULT_BREAKPOINTS
+): string {
+  // Used cached selector if available
+  const cached = _memo.get(selector);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  // Replace breakpoint selector
+  for (const [name, px] of Object.entries(breakpoints)) {
     selector = selector.replace(
-      new RegExp(`@screen-size\\(\\s*${k}\\s*\\)`, "g"),
-      `@container screen (max-width:${v}px)`
+      breakpointRegex(name),
+      `@container screen (max-width:${px}px)`
     );
   }
 
-  let result = "";
-  let inQuote: '"' | "'" | null = null;
-  let buffer = "";
+  /* -----------------------------------------------------------------
+   * 1. split by quoted strings so we never touch them (= valid CSS)
+   * ----------------------------------------------------------------- */
+  const OUT: string[] = [];
+  const parts = selector.split(
+    /("[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*')/
+  );
 
-  function flushBuffer() {
-    if (buffer.length === 0) return;
-
-    let flushed = "";
-    for (let i = 0; i < buffer.length; i++) {
-      const char = buffer[i];
-
-      if (char === "@") {
-        if (buffer[i + 1] === "@") {
-          flushed += "*";
-          i++;
-        } else if (i === buffer.length - 1 || !/[a-zA-Z]/.test(buffer[i + 1])) {
-          flushed += "> *";
-        } else {
-          // Handle @word or @something(
-          let word = "@";
-          let j = i + 1;
-          while (j < buffer.length && /[a-zA-Z0-9-]/.test(buffer[j])) {
-            word += buffer[j];
-            j++;
-          }
-
-          if (VALID_CSS_AT_RULES.has(word)) {
-            // Keep @media, @import, etc
-            flushed += word;
-          } else if (word in PSEUDO_ALIASES) {
-            // Expand known pseudo aliases
-            flushed += PSEUDO_ALIASES[word as keyof typeof PSEUDO_ALIASES];
-          } else {
-            // Default fallback: @word -> :word
-            flushed += ":" + word.slice(1);
-          }
-
-          i = j - 1;
-        }
-      } else {
-        flushed += char;
-      }
-    }
-
-    result += flushed;
-    buffer = "";
-  }
-
-  for (let i = 0; i < selector.length; i++) {
-    const char = selector[i];
-
-    if (char === "\\" && inQuote !== null) {
-      // Handle escaped character inside quotes
-      result += char + (selector[i + 1] || "");
-      i++;
+  for (let idx = 0; idx < parts.length; idx++) {
+    const piece = parts[idx];
+    if (idx & 1) {
+      // quoted -> keep verbatim
+      OUT.push(piece);
       continue;
     }
 
-    if (char === '"' || char === "'") {
-      if (inQuote === null) {
-        flushBuffer(); // Finish pending buffer before quote
-        inQuote = char;
-      } else if (inQuote === char) {
-        inQuote = null;
-      }
-      result += char;
-      continue;
-    }
+    /** 2.  expand @@, @, @aliases, ... all with ONE replace() */
+    const rewritten = piece
+      .replace(DOUBLE_AT_REGEX, "*") // @@ -> *
+      .replace(LONE_AT_REGEX, "> *") // lone @ -> > *
+      .replace(ALIAS_REGEX, (m) => (PSEUDO_ALIASES as any)[m]) // pseudo
+      .replace(
+        AT_SELECTOR_REGEX,
+        (
+          m // other @word → :word  (unless at-rule)
+        ) => (VALID_CSS_AT_RULES.has(m) ? m : ":" + m.slice(1))
+      );
 
-    if (inQuote) {
-      result += char;
-    } else {
-      buffer += char;
-    }
+    OUT.push(rewritten);
   }
 
-  flushBuffer(); // Final flush
-  return result?.trim();
+  const res = OUT.join("").trim();
+
+  // Memo bookkeeping
+  if (_memo.size > 5000) {
+    _memo.clear();
+  }
+  _memo.set(selector, res);
+  return res;
 }
