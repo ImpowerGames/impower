@@ -173,7 +173,7 @@ export function renderVNode(
   // Otherwise normal node
   const builtin = builtins.get(type);
   if (builtin) {
-    return renderBuiltinVNode(el, ctx, builtin);
+    return renderBuiltinVNode(el, ctx, builtin.vnode);
   }
 
   if (el.root === "screen" || el.root === "component") {
@@ -394,14 +394,19 @@ function injectSlots(
 
 function cloneVNode(v: VNode): VNode {
   if (typeof v === "string") return v;
+
   return {
     tag: v.tag,
     props: { ...v.props },
     children: v.children.map(cloneVNode),
     key: v.key,
     contentAttr: v.contentAttr,
-    ...(v.attrsHost && { attrsHost: true }),
-    ...(v.classHost && { classHost: true }),
+    attrsHost: v.attrsHost,
+    classHost: v.classHost,
+
+    /* keep fast-path data */
+    builtin: v.builtin,
+    template: v.template,
   };
 }
 
@@ -551,34 +556,54 @@ export function renderHtmlVDOM(
 }
 
 export function createElement(vnode: VNode): Node {
-  if (typeof vnode === "string") {
-    return document.createTextNode(vnode);
+  /* ------------ TEXT ------------------------------------------------ */
+  if (typeof vnode === "string") return document.createTextNode(vnode);
+
+  /* ------------ BUILTIN fast-path ----------------------------------- */
+  if (vnode.builtin && vnode.template) {
+    // 1. clone the whole static subtree in native code
+    const frag = vnode.template.content.cloneNode(true) as DocumentFragment;
+    const root = frag.firstElementChild! as HTMLElement; // root always present
+
+    // 2. patch *root* attributes that are dynamic (class, id, ...)
+    //    deep attrsHosts were already handled while building vnode
+    for (const [k, v] of Object.entries(vnode.props)) {
+      if (k.startsWith("@")) {
+        // TODO: addEventListener
+      } else {
+        root.setAttribute(k, v);
+      }
+    }
+
+    // 3. if the children array changed (content-slot / custom children),
+    //    just wipe the slot-sentinel and insert the rendered children.
+    if (vnode.children.length) {
+      while (root.firstChild) {
+        root.removeChild(root.firstChild);
+      }
+      vnode.children.forEach((ch) => root.appendChild(createElement(ch)));
+    }
+
+    return root; // <-- one single DOM node returned
   }
 
+  /* ------------ generic fragment ------------------------------------ */
   if (vnode.tag === "fragment") {
-    const fragment = document.createDocumentFragment();
-    for (const child of vnode.children) {
-      fragment.appendChild(createElement(child));
-    }
-    return fragment;
+    const frag = document.createDocumentFragment();
+    vnode.children.forEach((ch) => frag.appendChild(createElement(ch)));
+    return frag;
   }
 
+  /* ------------ generic element (slow path) ------------------------- */
   const el = document.createElement(vnode.tag);
-
-  for (const [key, value] of Object.entries(vnode.props)) {
-    if (key.startsWith("@")) {
-      // TODO: EventHandler
-      // const eventName = key.slice(2).toLowerCase();
-      // el.addEventListener(eventName, value as EventListener);
-    } else if (value != null) {
-      el.setAttribute(key, value);
+  for (const [k, v] of Object.entries(vnode.props)) {
+    if (k.startsWith("@")) {
+      // TODO: addEventListener
+    } else {
+      el.setAttribute(k, v);
     }
   }
-
-  for (const child of vnode.children) {
-    el.appendChild(createElement(child));
-  }
-
+  vnode.children.forEach((ch) => el.appendChild(createElement(ch)));
   return el;
 }
 

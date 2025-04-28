@@ -1,9 +1,17 @@
 export interface VElement {
-  tag: string;
+  tag: string | "fragment" | "children-slot" | "content-slot";
   props: Record<string, string>;
   children: VNode[];
-  /** diff-only metadata – never rendered to the DOM */
+
+  /** used for key diffing */
   key?: string;
+
+  /** name of builtin this node originates from (if any) */
+  builtin?: string;
+  /** the pre-compiled <template> for that builtin */
+  template?: HTMLTemplateElement;
+
+  /* flags that tell us if node is meant to host certain dynamic data */
   contentAttr?: string;
   attrsHost?: true;
   classHost?: true;
