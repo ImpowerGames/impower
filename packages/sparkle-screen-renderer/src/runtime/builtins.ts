@@ -66,7 +66,7 @@ const SRC: Record<string, BuiltinDefinition> = {
     end: `</div>`,
   },
   Link: {
-    begin: `<a   class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
+    begin: `<a class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</a>`,
   },
   Button: {
