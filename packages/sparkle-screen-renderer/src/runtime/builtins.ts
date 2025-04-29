@@ -89,7 +89,6 @@ const SRC: Record<string, BuiltinDefinition> = {
   ),
   Slider: wrapWithLabelBefore(
     `<input class="style ${CLASSES_PLACEHOLDER}" type="range"
-             style="---fill-percentage:50%;"
              oninput="this.style.setProperty('---fill-percentage',
                      (this.value-this.min)/(this.max-this.min)*100 + '%')"
              ${ATTRS_PLACEHOLDER}/>`,
