@@ -1,4 +1,4 @@
-import { type SparkleNode, ParseContext } from "../parser/parser";
+import { type SparkleNode } from "../parser/parser";
 import { builtins } from "./builtins";
 import { sparkleSelectorToCssSelector } from "./css";
 import { VElement, VNode } from "./vnode";
@@ -23,7 +23,8 @@ export const DEFAULT_CSS_ALIASES = {
 const EMPTY_OBJ = {};
 
 export interface RenderContext {
-  parsed: ParseContext;
+  parsed: SparkleNode[];
+  components: Record<string, SparkleNode>;
   state: Record<string, any>;
   scope?: Record<string, any>;
   renderStyles: () => void;
@@ -39,7 +40,7 @@ export function renderVNode(
   index: number = 0
 ): VNode {
   const { type, params, children } = el;
-  const components = ctx.parsed.components;
+  const components = ctx.components;
   const breakpoints = ctx.options?.breakpoints;
   const cssAliases = ctx.options?.cssAliases ?? DEFAULT_CSS_ALIASES;
 
@@ -276,7 +277,7 @@ function renderBuiltinVNode(
   builtin: VNode
 ): VNode {
   const { type, params = {}, children } = el;
-  const components = ctx.parsed.components;
+  const components = ctx.components;
   if (!builtin) {
     console.error("Un-recognised builtin:", type);
     return { tag: "fragment", props: {}, children: [] };
@@ -534,40 +535,40 @@ function addToInheritanceChain(
   }
 }
 
-export function renderCssVDOM(parsed: ParseContext, ctx: RenderContext): VNode {
-  const children: VNode[] = [];
-  if (parsed.animations) {
-    for (const animation of Object.values(parsed.animations)) {
-      children.push(renderVNode(animation, ctx));
+export function getComponents(parsed: SparkleNode[]) {
+  const components: Record<string, SparkleNode> = {};
+  for (const root of parsed) {
+    if (root.type === "component") {
+      const name = root.params?.name;
+      if (name) {
+        components[name] = root;
+      }
     }
   }
-  if (parsed.styles) {
-    for (const style of Object.values(parsed.styles)) {
-      children.push(renderVNode(style, ctx));
+  return components;
+}
+
+export function renderCssVDOM(
+  parsed: SparkleNode[],
+  ctx: RenderContext
+): VNode {
+  const children: VNode[] = [];
+  for (const root of parsed) {
+    if (root.type === "animation" || root.type === "style") {
+      children.push(renderVNode(root, ctx));
     }
   }
   return wrapChildren(children);
 }
 
 export function renderHtmlVDOM(
-  parsed: ParseContext,
-  ctx: RenderContext,
-  screenName?: string
+  parsed: SparkleNode[],
+  ctx: RenderContext
 ): VNode {
-  if (!parsed.screens) {
-    return {
-      tag: "fragment",
-      props: {},
-      children: [],
-    };
-  }
-  if (screenName) {
-    return renderVNode(parsed.screens[screenName], ctx);
-  }
   const children: VNode[] = [];
-  if (parsed.screens) {
-    for (const screen of Object.values(parsed.screens)) {
-      children.push(renderVNode(screen, ctx));
+  for (const root of parsed) {
+    if (root.type === "screen") {
+      children.push(renderVNode(root, ctx));
     }
   }
   return wrapChildren(children);

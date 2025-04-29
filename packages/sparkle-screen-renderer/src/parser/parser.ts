@@ -5,25 +5,13 @@ export interface SparkleNode {
   children?: SparkleNode[];
 }
 
-export interface ParseContext {
-  screens?: Record<string, SparkleNode>;
-  components?: Record<string, SparkleNode>;
-  styles?: Record<string, SparkleNode>;
-  animations?: Record<string, SparkleNode>;
-  themes?: Record<string, SparkleNode>;
-}
-
 const INDENT_REGEX: RegExp = /^[ \t]*/;
 
 // TODO: output diagnostics
-export function parseSSL(input: string): ParseContext {
+export function parseSparkle(input: string): SparkleNode[] {
   const rawLines = input.split(/\r\n|\r|\n/);
 
-  const screens: Record<string, SparkleNode> = {};
-  const components: Record<string, SparkleNode> = {};
-  const styles: Record<string, SparkleNode> = {};
-  const animations: Record<string, SparkleNode> = {};
-  const themes: Record<string, SparkleNode> = {};
+  const nodes: SparkleNode[] = [];
   const stack: { node: SparkleNode; indent: number }[] = [];
   let currentRoot: SparkleNode | null = null;
 
@@ -64,7 +52,7 @@ export function parseSSL(input: string): ParseContext {
           type: "screen",
           params: { base, name },
         };
-        screens[name] = currentRoot;
+        nodes.push(currentRoot);
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
       } else if (!currentRoot && nodeType === "component") {
@@ -82,7 +70,7 @@ export function parseSSL(input: string): ParseContext {
           type: "component",
           params: { base, name },
         };
-        components[name] = currentRoot;
+        nodes.push(currentRoot);
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
       } else if (!currentRoot && nodeType === "style") {
@@ -98,7 +86,7 @@ export function parseSSL(input: string): ParseContext {
           type: "style",
           params: { name },
         };
-        styles[name] = currentRoot;
+        nodes.push(currentRoot);
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
       } else if (!currentRoot && nodeType === "animation") {
@@ -114,7 +102,7 @@ export function parseSSL(input: string): ParseContext {
           type: "animation",
           params: { name },
         };
-        animations[name] = currentRoot;
+        nodes.push(currentRoot);
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
       } else if (!currentRoot && nodeType === "theme") {
@@ -130,7 +118,7 @@ export function parseSSL(input: string): ParseContext {
           type: "theme",
           params: { name },
         };
-        themes[name] = currentRoot;
+        nodes.push(currentRoot);
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
       } else {
@@ -297,13 +285,7 @@ export function parseSSL(input: string): ParseContext {
     }
   }
 
-  return {
-    screens,
-    components,
-    styles,
-    animations,
-    themes,
-  };
+  return nodes;
 }
 
 function splitAttrArgs(input: string): string[] {

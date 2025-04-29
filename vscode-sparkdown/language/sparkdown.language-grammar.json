@@ -1456,7 +1456,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#ViewAssignment"
+              "include": "#ViewDeclarationAssignment"
             }
           ]
         }
@@ -1482,13 +1482,13 @@
       "name": "keyword.control.definition.object.sd",
       "match": "(.+)"
     },
-    "ViewAssignment": {
+    "ViewDeclarationAssignment": {
       "match": "(.*?)([^\\S\\n\\r]*)($|[:])",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#ViewName"
+              "include": "#ViewDeclarationName"
             }
           ]
         },
@@ -1508,7 +1508,7 @@
         }
       }
     },
-    "ViewName": {
+    "ViewDeclarationName": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
       "match": "(.+)"
@@ -1985,7 +1985,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#CssAssignment"
+              "include": "#CssDeclarationAssignment"
             }
           ]
         }
@@ -2011,13 +2011,13 @@
       "name": "keyword.control.definition.object.sd",
       "match": "(.+)"
     },
-    "CssAssignment": {
+    "CssDeclarationAssignment": {
       "match": "(.*?)([^\\S\\n\\r]*)($|[:])",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#CssName"
+              "include": "#CssDeclarationName"
             }
           ]
         },
@@ -2037,7 +2037,7 @@
         }
       }
     },
-    "CssName": {
+    "CssDeclarationName": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
       "match": "(.+)"

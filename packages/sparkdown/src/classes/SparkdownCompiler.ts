@@ -1,3 +1,5 @@
+import { parseSparkle } from "@impower/sparkle-screen-renderer/src/parser/parser";
+import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
 import {
   Compiler as InkCompiler,
@@ -16,6 +18,7 @@ import { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
+import { SparkdownNodeName } from "../types/SparkdownNodeName";
 import { SparkdownRuntimeFormat } from "../types/SparkdownRuntimeFormat";
 import { SparkProgram } from "../types/SparkProgram";
 import { formatList } from "../utils/formatList";
@@ -395,6 +398,7 @@ export class SparkdownCompiler {
         )) {
           program.scripts[scriptUri] = transpilation.version;
         }
+        this.populateUI(program);
         this.sortPathToLocation(program);
         this.populateDeclarationLocations(program);
         this.populateDiagnostics(state, program, inkCompiler);
@@ -508,6 +512,55 @@ export class SparkdownCompiler {
 
   clone<T>(value: T) {
     return structuredClone(value);
+  }
+
+  populateUI(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", "populateUI", uri);
+    const scripts = Object.keys(program.scripts);
+    for (const uri of scripts) {
+      const doc = this.documents.get(uri);
+      if (doc) {
+        const annotations = this.documents.annotations(uri);
+        const tree = this.documents.tree(uri);
+        const cur = annotations.declarations.iter();
+        if (tree) {
+          if (cur) {
+            while (cur.value) {
+              const type = cur.value.type;
+              if (
+                type === "screen" ||
+                type === "component" ||
+                type === "style" ||
+                type === "animation" ||
+                type === "theme"
+              ) {
+                const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
+                const declarationNode = stack.find(
+                  (n) =>
+                    n.name === "ViewDeclaration" || n.name === "CssDeclaration"
+                );
+                if (declarationNode) {
+                  const name = doc.read(cur.from, cur.to);
+                  const declaration = doc.read(
+                    declarationNode.from,
+                    declarationNode.to
+                  );
+                  const node = parseSparkle(declaration)[0];
+                  if (node) {
+                    program.ui ??= {};
+                    program.ui![type] ??= {};
+                    program.ui[type]![name] = node;
+                  }
+                }
+              }
+              cur.next();
+            }
+          }
+        }
+      }
+    }
+    profile("end", "populateUI", uri);
   }
 
   sortPathToLocation(program: SparkProgram) {

@@ -1,7 +1,8 @@
 import {
   createElement,
   diffAndPatch,
-  parseSSL,
+  getComponents,
+  parseSparkle,
   RenderContext,
   renderCssVDOM,
   renderHtmlVDOM,
@@ -33,11 +34,12 @@ export default class SparkdownScreenPreview extends Component(spec) {
         const { textDocument, text } = message.params;
         this._textDocument = textDocument;
         const input = text;
-        const parsed = parseSSL(input);
+        const parsed = parseSparkle(input);
         const stateInputEl = this.ref.state as HTMLInputElement;
         const update = throttle(() => {
           const ctx: RenderContext = {
             parsed,
+            components: getComponents(parsed),
             state: JSON.parse(stateInputEl.value || "{}"),
             renderStyles: () => {
               const container = this.ref.styles;

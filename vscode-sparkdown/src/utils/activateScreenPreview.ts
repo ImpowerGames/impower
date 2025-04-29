@@ -65,22 +65,37 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
 
 function getAllScreenRanges(document: vscode.TextDocument) {
   const parsedDoc = SparkdownDocumentManager.instance.get(document.uri);
+  const tree = SparkdownDocumentManager.instance.tree(document.uri);
   const annotations = SparkdownDocumentManager.instance.annotations(
     document.uri
   );
+
+  if (!parsedDoc || !tree) {
+    return [];
+  }
+
   const cur = annotations.declarations.iter();
   let ranges: vscode.Range[] = [];
   if (parsedDoc) {
     if (cur) {
       while (cur.value) {
         if (cur.value.type === "screen") {
-          const range = parsedDoc.range(cur.from, cur.to);
-          ranges.push(
-            new vscode.Range(
-              new vscode.Position(range.start.line, range.start.character),
-              new vscode.Position(range.end.line, range.end.character)
-            )
+          const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
+          const declarationNode = stack.find(
+            (n) => n.name === "ViewDeclaration" || n.name === "CssDeclaration"
           );
+          if (declarationNode) {
+            const range = parsedDoc.range(
+              declarationNode.from,
+              declarationNode.to
+            );
+            ranges.push(
+              new vscode.Range(
+                new vscode.Position(range.start.line, range.start.character),
+                new vscode.Position(range.end.line, range.end.character)
+              )
+            );
+          }
         }
         cur.next();
       }
@@ -91,9 +106,15 @@ function getAllScreenRanges(document: vscode.TextDocument) {
 
 function getAllScreenDependencyRanges(document: vscode.TextDocument) {
   const parsedDoc = SparkdownDocumentManager.instance.get(document.uri);
+  const tree = SparkdownDocumentManager.instance.tree(document.uri);
   const annotations = SparkdownDocumentManager.instance.annotations(
     document.uri
   );
+
+  if (!parsedDoc || !tree) {
+    return [];
+  }
+
   const cur = annotations.declarations.iter();
   let ranges: vscode.Range[] = [];
   if (parsedDoc) {
@@ -105,13 +126,22 @@ function getAllScreenDependencyRanges(document: vscode.TextDocument) {
           cur.value.type === "animation" ||
           cur.value.type === "theme"
         ) {
-          const range = parsedDoc.range(cur.from, cur.to);
-          ranges.push(
-            new vscode.Range(
-              new vscode.Position(range.start.line, range.start.character),
-              new vscode.Position(range.end.line, range.end.character)
-            )
+          const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
+          const declarationNode = stack.find(
+            (n) => n.name === "ViewDeclaration" || n.name === "CssDeclaration"
           );
+          if (declarationNode) {
+            const range = parsedDoc.range(
+              declarationNode.from,
+              declarationNode.to
+            );
+            ranges.push(
+              new vscode.Range(
+                new vscode.Position(range.start.line, range.start.character),
+                new vscode.Position(range.end.line, range.end.character)
+              )
+            );
+          }
         }
         cur.next();
       }

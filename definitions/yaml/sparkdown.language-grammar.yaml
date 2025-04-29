@@ -803,7 +803,7 @@ repository:
           - { include: "#Separator" }
       4:
         patterns:
-          - { include: "#ViewAssignment" }
+          - { include: "#ViewDeclarationAssignment" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -816,12 +816,12 @@ repository:
     name: keyword.control.definition.object.sd
     match: (.+)
 
-  ViewAssignment:
+  ViewDeclarationAssignment:
     match: (.*?)({{WS}}*)($|[:])
     captures:
       1:
         patterns:
-          - { include: "#ViewName" }
+          - { include: "#ViewDeclarationName" }
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
@@ -829,7 +829,7 @@ repository:
         patterns:
           - { include: "#ColonOperator" }
 
-  ViewName:
+  ViewDeclarationName:
     tag: variableName
     name: variable.other.constant.sd
     match: (.+)
@@ -1097,7 +1097,7 @@ repository:
           - { include: "#Separator" }
       4:
         patterns:
-          - { include: "#CssAssignment" }
+          - { include: "#CssDeclarationAssignment" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1110,12 +1110,12 @@ repository:
     name: keyword.control.definition.object.sd
     match: (.+)
 
-  CssAssignment:
+  CssDeclarationAssignment:
     match: (.*?)({{WS}}*)($|[:])
     captures:
       1:
         patterns:
-          - { include: "#CssName" }
+          - { include: "#CssDeclarationName" }
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
@@ -1123,7 +1123,7 @@ repository:
         patterns:
           - { include: "#ColonOperator" }
 
-  CssName:
+  CssDeclarationName:
     tag: variableName
     name: variable.other.constant.sd
     match: (.+)

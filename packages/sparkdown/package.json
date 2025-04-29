@@ -7,6 +7,7 @@
   "main": "dist/sparkdown.js",
   "scripts": {},
   "dependencies": {
+    "@impower/sparkle-screen-renderer": "file:../sparkle-screen-renderer",
     "@impower/textmate-grammar-tree": "file:../textmate-grammar-tree",
     "vscode-languageserver-textdocument": "^1.0.12"
   },

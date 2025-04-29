@@ -1,6 +1,5 @@
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
-import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
@@ -25,35 +24,39 @@ export type DeclarationType =
 export class DeclarationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<DeclarationType>
 > {
+  type?: DeclarationType;
+
   override enter(
     annotations: Range<SparkdownAnnotation<DeclarationType>>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<DeclarationType>>[] {
     if (nodeRef.name === "ViewDeclarationKeyword") {
-      const stack = getContextStack(nodeRef.node);
-      const declarationNode = stack.find((n) => n.name === "ViewDeclaration");
-      if (declarationNode) {
-        const type = this.read(nodeRef.from, nodeRef.to);
+      this.type = this.read(nodeRef.from, nodeRef.to) as DeclarationType;
+    }
+    if (nodeRef.name === "ViewDeclarationName") {
+      if (this.type) {
         annotations.push(
-          SparkdownAnnotation.mark<DeclarationType>(
-            type as DeclarationType
-          ).range(declarationNode.from, declarationNode.to)
+          SparkdownAnnotation.mark<DeclarationType>(this.type).range(
+            nodeRef.from,
+            nodeRef.to
+          )
         );
+        return annotations;
       }
-      return annotations;
     }
     if (nodeRef.name === "CssDeclarationKeyword") {
-      const stack = getContextStack(nodeRef.node);
-      const declarationNode = stack.find((n) => n.name === "CssDeclaration");
-      if (declarationNode) {
-        const type = this.read(nodeRef.from, nodeRef.to);
+      this.type = this.read(nodeRef.from, nodeRef.to) as DeclarationType;
+    }
+    if (nodeRef.name === "CssDeclarationName") {
+      if (this.type) {
         annotations.push(
-          SparkdownAnnotation.mark<DeclarationType>(
-            type as DeclarationType
-          ).range(declarationNode.from, declarationNode.to)
+          SparkdownAnnotation.mark<DeclarationType>(this.type).range(
+            nodeRef.from,
+            nodeRef.to
+          )
         );
+        return annotations;
       }
-      return annotations;
     }
     if (nodeRef.name === "FunctionDeclarationName") {
       annotations.push(

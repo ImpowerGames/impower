@@ -1,12 +1,28 @@
-import { File } from "./File";
-import { SparkDiagnostic } from "./SparkDiagnostic";
-import { SparkdownRuntimeFormat } from "./SparkdownRuntimeFormat";
+import { SparkleNode } from "@impower/sparkle-screen-renderer/src/parser/parser";
+import { type File } from "./File";
+import { type SparkDiagnostic } from "./SparkDiagnostic";
+import { type SparkdownRuntimeFormat } from "./SparkdownRuntimeFormat";
+
+export type Location = [
+  scriptIndex: number,
+  startLine: number,
+  startColumn: number,
+  endLine: number,
+  endColumn: number
+];
 
 export interface SparkProgram {
   uri: string;
   scripts: Record<string, number>;
   files: Record<string, Omit<File, "src" | "text" | "data">>;
   compiled?: SparkdownRuntimeFormat;
+  ui?: {
+    screen?: Record<string, SparkleNode>;
+    component?: Record<string, SparkleNode>;
+    style?: Record<string, SparkleNode>;
+    animation?: Record<string, SparkleNode>;
+    theme?: Record<string, SparkleNode>;
+  };
   context?: {
     [type: string]: { [name: string]: any };
   };
@@ -14,58 +30,22 @@ export interface SparkProgram {
     [uri: string]: SparkDiagnostic[];
   };
   pathToLocation?: {
-    [path: string]: [
-      scriptIndex: number,
-      startLine: number,
-      startColumn: number,
-      endLine: number,
-      endColumn: number
-    ];
+    [path: string]: Location;
   };
   functionLocations?: {
-    [name: string]: [
-      scriptIndex: number,
-      startLine: number,
-      startColumn: number,
-      endLine: number,
-      endColumn: number
-    ];
+    [name: string]: Location;
   };
   knotLocations?: {
-    [name: string]: [
-      scriptIndex: number,
-      startLine: number,
-      startColumn: number,
-      endLine: number,
-      endColumn: number
-    ];
+    [name: string]: Location;
   };
   stitchLocations?: {
-    [name: string]: [
-      scriptIndex: number,
-      startLine: number,
-      startColumn: number,
-      endLine: number,
-      endColumn: number
-    ];
+    [name: string]: Location;
   };
   labelLocations?: {
-    [name: string]: [
-      scriptIndex: number,
-      startLine: number,
-      startColumn: number,
-      endLine: number,
-      endColumn: number
-    ];
+    [name: string]: Location;
   };
   dataLocations?: {
-    [name: string]: [
-      scriptIndex: number,
-      startLine: number,
-      startColumn: number,
-      endLine: number,
-      endColumn: number
-    ];
+    [name: string]: Location;
   };
   version?: number;
 }
