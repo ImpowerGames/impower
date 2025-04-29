@@ -155,45 +155,49 @@ function diffChildren(
   newKids: VNode[],
   domStart = 0 // where the *first* old child begins
 ): void {
-  let o = 0,
-    n = 0,
-    domPtr = domStart;
+  let oldIndex = 0;
+  let newIndex = 0;
+  let domPtr = domStart;
 
   /* 1. sync common prefix */
   while (
-    o < oldKids.length &&
-    n < newKids.length &&
-    isSameVNode(oldKids[o], newKids[n])
+    oldIndex < oldKids.length &&
+    newIndex < newKids.length &&
+    isSameVNode(oldKids[oldIndex], newKids[newIndex])
   ) {
-    diffAndPatch(parent, oldKids[o], newKids[n], domPtr);
-    domPtr += domLen(oldKids[o]);
-    o++;
-    n++;
+    diffAndPatch(parent, oldKids[oldIndex], newKids[newIndex], domPtr);
+    domPtr += domLen(oldKids[oldIndex]);
+    oldIndex++;
+    newIndex++;
   }
 
   /* 2. sync common suffix */
-  let oEnd = oldKids.length - 1,
-    nEnd = newKids.length - 1;
+  let oldEnd = oldKids.length - 1,
+    newEnd = newKids.length - 1;
   let domEnd = domStart + oldKids.reduce((t, c) => t + domLen(c), 0);
-  while (oEnd >= o && nEnd >= n && isSameVNode(oldKids[oEnd], newKids[nEnd])) {
-    const len = domLen(oldKids[oEnd]);
+  while (
+    oldEnd >= oldIndex &&
+    newEnd >= newIndex &&
+    isSameVNode(oldKids[oldEnd], newKids[newEnd])
+  ) {
+    const len = domLen(oldKids[oldEnd]);
     domEnd -= len;
-    diffAndPatch(parent, oldKids[oEnd], newKids[nEnd], domEnd);
-    oEnd--;
-    nEnd--;
+    diffAndPatch(parent, oldKids[oldEnd], newKids[newEnd], domEnd);
+    oldEnd--;
+    newEnd--;
   }
 
   /* 3. pure inserts */
-  if (o > oEnd) {
+  if (oldIndex > oldEnd) {
     const ref = parent.childNodes[domEnd] || null;
-    for (let i = n; i <= nEnd; i++) {
+    for (let i = newIndex; i <= newEnd; i++) {
       parent.insertBefore(createElement(newKids[i]), ref);
     }
     return;
   }
 
   /* 4. pure removals */
-  if (n > nEnd) {
+  if (newIndex > newEnd) {
     removeDomRange(parent, domPtr, domEnd - domPtr);
     return;
   }
@@ -201,7 +205,7 @@ function diffChildren(
   /* 5. keyed diff (uses real DOM offsets) */
   const keyToOld = new Map<string, { idx: number; domOff: number }>();
   let scan = domPtr;
-  for (let i = o; i <= oEnd; i++) {
+  for (let i = oldIndex; i <= oldEnd; i++) {
     const oldKid = oldKids[i]!;
     const k = typeof oldKid !== "string" && oldKid.key ? oldKid.key : null;
     if (k != null) keyToOld.set(k, { idx: i, domOff: scan });
@@ -209,7 +213,7 @@ function diffChildren(
   }
 
   let newDomPtr = domPtr;
-  for (let i = n; i <= nEnd; i++) {
+  for (let i = newIndex; i <= newEnd; i++) {
     const nkid = newKids[i];
     const k = typeof nkid !== "string" && nkid.key ? nkid.key : null;
 
@@ -224,10 +228,22 @@ function diffChildren(
       }
       keyToOld.delete(k);
     } else {
-      parent.insertBefore(
-        createElement(nkid),
-        parent.childNodes[newDomPtr] || null
-      );
+      /* un-keyed node */
+      if (
+        oldIndex <= oldEnd &&
+        typeof oldKids[oldIndex] === typeof nkid &&
+        (typeof nkid === "string" ||
+          (typeof nkid !== "string" &&
+            !(oldKids[oldIndex] as VNode & { key?: string }).key))
+      ) {
+        diffAndPatch(parent, oldKids[oldIndex], nkid, newDomPtr);
+        oldIndex++; // consume one old kid
+      } else {
+        parent.insertBefore(
+          createElement(nkid),
+          parent.childNodes[newDomPtr] || null
+        );
+      }
     }
     newDomPtr += domLen(nkid);
   }
