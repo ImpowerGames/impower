@@ -150,7 +150,7 @@ function wrapWithLabelAfter(input: string, tag: string): BuiltinDefinition {
 
     // replace {...attrs} once, replace {{content}} placeholder once
     const html = (def.begin + childSlot + def.end)
-      .replace(ATTRS_PLACEHOLDER_REGEX, ` ${ATTR_HOST_FLAG}`)
+      .replace(ATTRS_PLACEHOLDER_REGEX, ATTR_HOST_FLAG)
       .replace(CONTENT_CHILDREN_PLACEHOLDER, "<content-slot></content-slot>");
 
     // create <template>
@@ -158,6 +158,11 @@ function wrapWithLabelAfter(input: string, tag: string): BuiltinDefinition {
     const template = t.cloneNode(true) as HTMLTemplateElement;
 
     const rawVNode = buildVNodeFromDOM(template.content.firstElementChild!);
+
+    // remove data-attrs-host from every element, incl. the root, since we don't need it anymore
+    for (const el of template.content.querySelectorAll(`[${ATTR_HOST_FLAG}]`)) {
+      (el as Element).removeAttribute(ATTR_HOST_FLAG);
+    }
 
     // add fast-path breadcrumbs first
     (rawVNode as VElement).builtin = name;
@@ -200,7 +205,9 @@ function buildVNodeFromDOM(el: Element): VNode {
     if (a.name === "class" && a.value.includes(CLASSES_PLACEHOLDER)) {
       classHost = true;
       const fixed = a.value.replace(CLASSES_PLACEHOLDER, "").trim();
-      if (fixed) props.class = fixed;
+      if (fixed) {
+        props.class = fixed;
+      }
       continue;
     }
 
