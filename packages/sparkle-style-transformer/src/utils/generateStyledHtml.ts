@@ -2,8 +2,8 @@ import STYLE_TRANSFORMERS from "../constants/STYLE_TRANSFORMERS.js";
 import {
   getSparkleAttribute,
   getSparklePropName,
-  getSparkleStyle,
-} from "./generateSparkleAttributesAndStyle.js";
+  setSparkleStyle,
+} from "./generateSparkleAttributesAndStyles.js";
 
 const ATTR_REGEX = /([a-z-]+[=]["][^"]*["])/g;
 const QUOTE_REGEX = /([\\]["]|["'`])/g;
@@ -20,8 +20,8 @@ const generateStyledHtml = (
   const styleTransformers = STYLE_TRANSFORMERS;
   return parts
     .map((part) => {
-      let style = "";
       const props: Record<string, string> = {};
+      const styles: Record<string, string> = {};
       const matches = part.slice(part.lastIndexOf("<") + 1).match(ATTR_REGEX);
       if (matches) {
         for (const attr of Array.from(matches)) {
@@ -34,17 +34,21 @@ const generateStyledHtml = (
           }
         }
         for (const [propName, propValue] of Object.entries(props)) {
-          style += getSparkleStyle(
+          setSparkleStyle(
             props,
             propName,
             propValue,
             attributePrefix,
-            styleTransformers
+            styleTransformers,
+            styles
           );
           const attrName = getSparkleAttribute(propName, attributePrefix);
           props[attrName] = propValue;
         }
       }
+      const style = Object.entries(styles)
+        .map(([k, v]) => `${k}:${v};`)
+        .join("");
       const suffix = style ? ` style="${style}"` : "";
       const transformedPart = part + suffix;
       return transformedPart;

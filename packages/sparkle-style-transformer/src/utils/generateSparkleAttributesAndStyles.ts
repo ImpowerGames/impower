@@ -6,24 +6,25 @@ import {
   getCssPattern,
   getCssSize,
   getCssTextStroke,
+  validateCss,
 } from "./transformers.js";
 
-export const getVariableSetterStyle = (
+export const setVariableAndValue = (
   name: string,
   value: string | null,
-  valueFormatter?: (v: string) => string
-) => {
+  valueFormatter: (v: string) => string,
+  styles: Record<string, string> = {}
+): Record<string, string> => {
   if (!name) {
-    return "";
+    return styles;
   }
   const varName = name.startsWith("---") ? name : `---${name}`;
-  const formattedValue =
-    valueFormatter && value != null ? valueFormatter(value) : value;
-  if (formattedValue) {
-    return `${varName}:${formattedValue};`;
-  } else {
-    return "";
+  const formattedValue = value != null ? valueFormatter(value) : value;
+  if (!formattedValue || !validateCss(formattedValue)) {
+    return styles;
   }
+  styles[varName] = formattedValue;
+  return styles;
 };
 
 export const inferTransformer = (
@@ -74,21 +75,21 @@ export const getSparklePropName = (
   return normalizedName;
 };
 
-export const getSparkleStyle = (
+export const setSparkleStyle = (
   props: Record<string, string>,
   propName: string,
   propValue: string,
   attributePrefix: string,
-  styleTransformers: Record<string, (v: string) => string>
-): string => {
+  styleTransformers: Record<string, (v: string) => string>,
+  styles: Record<string, string> = {}
+): Record<string, string> => {
   const normalizedName = getSparklePropName(propName, attributePrefix);
 
   const transformer =
     styleTransformers[normalizedName] || inferTransformer(normalizedName);
 
-  let style = "";
   if (transformer) {
-    style += getVariableSetterStyle(normalizedName, propValue, transformer);
+    setVariableAndValue(normalizedName, propValue, transformer, styles);
     if (
       normalizedName === "text-stroke-width" ||
       normalizedName === "text-stroke-color"
@@ -97,10 +98,10 @@ export const getSparkleStyle = (
         props["text-stroke-width"] ??
         props[attributePrefix + "text-stroke-width"] ??
         "1";
-      style += getVariableSetterStyle("text-stroke", width, getCssTextStroke);
+      setVariableAndValue("text-stroke", width, getCssTextStroke, styles);
     }
   }
-  return style;
+  return styles;
 };
 
 export const getSparkleAttribute = (
@@ -112,27 +113,31 @@ export const getSparkleAttribute = (
   return attrName;
 };
 
-export const generateSparkleAttributesAndStyle = (
+export const generateSparkleAttributesAndStyles = (
   props: Record<string, string>,
   options?: { attributePrefix?: string }
-): { attributes: Record<string, string>; style: string } => {
+): {
+  attributes: Record<string, string>;
+  styles: Record<string, string>;
+} => {
   const { attributePrefix = "-" } = options || {};
   const styleTransformers = STYLE_TRANSFORMERS;
   const attributes: Record<string, string> = {};
-  let style = "";
+  const styles: Record<string, string> = {};
   for (const [propName, propValue] of Object.entries(props)) {
     const attrName = getSparkleAttribute(propName, attributePrefix);
     attributes[attrName] = propValue;
-    style += getSparkleStyle(
+    setSparkleStyle(
       props,
       propName,
       propValue,
       attributePrefix,
-      styleTransformers
+      styleTransformers,
+      styles
     );
   }
   return {
     attributes,
-    style,
+    styles,
   };
 };

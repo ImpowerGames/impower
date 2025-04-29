@@ -1,3 +1,30 @@
+/**
+ * Quick positive‑list validator for CSS values we generate from the Sparkle
+ * property helpers.
+ *
+ *  - Identifiers / numbers / operators handled by the helper that calls us.
+ *  - `var(--foo)` references.
+ *  - `url(...)` – permissive so we can embed `data:image/svg+xml,<svg …>` with
+ *    raw angle‑brackets.
+ *
+ * If you need stronger guarantees (e.g. to block remote network URLs), wrap the
+ * call site with an additional check.  For the in‑engine authoring context this
+ * validator is primarily a typo‑guard to avoid breaking the style block.
+ */
+// eslint-disable-next-line no-useless-escape
+const SAFE_CSS_VALUE_RE =
+  /^(?:url\([^)]*\)|var\(\s*--[a-z0-9_-]+\s*\)|(?:rgb|rgba|hsl|hsla|lch)\([^)]*\)|(?:linear-gradient|radial-gradient|conic-gradient)\([^)]*\)|#[0-9a-f]{3,8}|[a-z0-9_-]+(?:\s+[a-z0-9_-]+)*|[0-9.+-]+(?:deg|px|rem|em|%|vh|vw|vmin|vmax)?)$/i;
+
+/**
+ * Whitelist‑based guard for values that will be concatenated into the `style`
+ * attribute. Anything outside the allow‑list is replaced with the CSS keyword
+ * `unset`, preventing malformed declarations from breaking the block.
+ */
+export function validateCss(value: string | null | undefined): boolean {
+  const v = value?.trim() ?? "";
+  return SAFE_CSS_VALUE_RE.test(v);
+}
+
 export const getCssAnimation = (value: string | null, suffix = ""): string => {
   if (!value || value === "none") {
     return "none";
