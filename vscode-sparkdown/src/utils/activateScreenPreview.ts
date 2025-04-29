@@ -139,9 +139,17 @@ function getScreenRange(
 
   const viewDeclarationNode = stack.find((n) => n.name === "ViewDeclaration");
   if (viewDeclarationNode) {
-    const viewKeyword = getDescendent("ViewKeyword", viewDeclarationNode);
-    if (viewKeyword) {
-      if (parsedDoc.read(viewKeyword.from, viewKeyword.to) === "screen") {
+    const viewDeclarationKeyword = getDescendent(
+      "ViewDeclarationKeyword",
+      viewDeclarationNode
+    );
+    if (viewDeclarationKeyword) {
+      if (
+        parsedDoc.read(
+          viewDeclarationKeyword.from,
+          viewDeclarationKeyword.to
+        ) === "screen"
+      ) {
         const range = parsedDoc.range(
           viewDeclarationNode.from,
           viewDeclarationNode.to

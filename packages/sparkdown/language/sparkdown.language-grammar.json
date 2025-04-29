@@ -1442,7 +1442,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#ViewKeyword"
+              "include": "#ViewDeclarationKeyword"
             }
           ]
         },
@@ -1477,7 +1477,7 @@
       ],
       "end": "(?=^(?!\\1[^\\S\\n\\r]))"
     },
-    "ViewKeyword": {
+    "ViewDeclarationKeyword": {
       "tag": "controlKeyword",
       "name": "keyword.control.definition.object.sd",
       "match": "(.+)"
@@ -1971,7 +1971,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#CssKeyword"
+              "include": "#CssDeclarationKeyword"
             }
           ]
         },
@@ -2006,7 +2006,7 @@
       ],
       "end": "(?=^(?!\\1[^\\S\\n\\r]))"
     },
-    "CssKeyword": {
+    "CssDeclarationKeyword": {
       "tag": "controlKeyword",
       "name": "keyword.control.definition.object.sd",
       "match": "(.+)"

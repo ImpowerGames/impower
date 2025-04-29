@@ -29,7 +29,7 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<DeclarationType>>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<DeclarationType>>[] {
-    if (nodeRef.name === "ViewKeyword") {
+    if (nodeRef.name === "ViewDeclarationKeyword") {
       const stack = getContextStack(nodeRef.node);
       const declarationNode = stack.find((n) => n.name === "ViewDeclaration");
       if (declarationNode) {
@@ -42,7 +42,7 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
       }
       return annotations;
     }
-    if (nodeRef.name === "CssKeyword") {
+    if (nodeRef.name === "CssDeclarationKeyword") {
       const stack = getContextStack(nodeRef.node);
       const declarationNode = stack.find((n) => n.name === "CssDeclaration");
       if (declarationNode) {

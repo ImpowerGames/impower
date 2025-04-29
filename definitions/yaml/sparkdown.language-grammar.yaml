@@ -797,7 +797,7 @@ repository:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#ViewKeyword" }
+          - { include: "#ViewDeclarationKeyword" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -811,7 +811,7 @@ repository:
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
 
-  ViewKeyword:
+  ViewDeclarationKeyword:
     tag: controlKeyword
     name: keyword.control.definition.object.sd
     match: (.+)
@@ -1091,7 +1091,7 @@ repository:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#CssKeyword" }
+          - { include: "#CssDeclarationKeyword" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -1105,7 +1105,7 @@ repository:
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
 
-  CssKeyword:
+  CssDeclarationKeyword:
     tag: controlKeyword
     name: keyword.control.definition.object.sd
     match: (.+)
