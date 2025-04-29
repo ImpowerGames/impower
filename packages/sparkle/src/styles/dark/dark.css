@@ -1,4 +1,4 @@
-:is([-theme="dark"], .theme-dark, ) {
+:is([-theme="dark"], .theme-dark) {
   color-scheme: dark;
 
   /*
