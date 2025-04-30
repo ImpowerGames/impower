@@ -30,10 +30,24 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<DeclarationType>>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<DeclarationType>>[] {
-    if (nodeRef.name === "ViewDeclarationKeyword") {
+    if (nodeRef.name === "ScreenDeclarationKeyword") {
       this.type = this.read(nodeRef.from, nodeRef.to) as DeclarationType;
     }
-    if (nodeRef.name === "ViewDeclarationName") {
+    if (nodeRef.name === "ComponentDeclarationKeyword") {
+      this.type = this.read(nodeRef.from, nodeRef.to) as DeclarationType;
+    }
+    if (nodeRef.name === "ScreenDeclarationName") {
+      if (this.type) {
+        annotations.push(
+          SparkdownAnnotation.mark<DeclarationType>(this.type).range(
+            nodeRef.from,
+            nodeRef.to
+          )
+        );
+        return annotations;
+      }
+    }
+    if (nodeRef.name === "ComponentDeclarationName") {
       if (this.type) {
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>(this.type).range(

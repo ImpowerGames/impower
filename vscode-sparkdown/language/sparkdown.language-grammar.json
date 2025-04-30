@@ -411,7 +411,10 @@
           "include": "#DefineDeclaration"
         },
         {
-          "include": "#ViewDeclaration"
+          "include": "#ScreenDeclaration"
+        },
+        {
+          "include": "#ComponentDeclaration"
         },
         {
           "include": "#CssDeclaration"
@@ -1427,10 +1430,10 @@
       "name": "variable.other.property.define.sd",
       "match": "(.+)"
     },
-    "ViewDeclaration": {
+    "ScreenDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([^\\S\\n\\r]*)(screen|component)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)$",
+      "begin": "^([^\\S\\n\\r]*)(screen)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)$",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1442,7 +1445,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#ViewDeclarationKeyword"
+              "include": "#ScreenDeclarationKeyword"
             }
           ]
         },
@@ -1456,7 +1459,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#ViewDeclarationAssignment"
+              "include": "#ScreenDeclarationAssignment"
             }
           ]
         }
@@ -1477,40 +1480,196 @@
       ],
       "end": "(?=^(?!\\1[^\\S\\n\\r]))"
     },
-    "ViewDeclarationKeyword": {
+    "ScreenDeclarationKeyword": {
       "tag": "controlKeyword",
       "name": "keyword.control.definition.object.sd",
       "match": "(.+)"
     },
-    "ViewDeclarationAssignment": {
-      "match": "(.*?)([^\\S\\n\\r]*)($|[:])",
+    "ScreenDeclarationAssignment": {
+      "match": "([_\\p{L}-][0-9_\\p{L}-]*)((?:[.][_\\p{L}-][0-9_\\p{L}-]*)*)([(].*[)])?($|[^\\S\\n\\r]*)(.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#ViewDeclarationName"
+              "include": "#ScreenDeclarationName"
             }
           ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
+              "include": "#ClassAccessor"
             }
           ]
         },
         "3": {
           "patterns": [
             {
+              "include": "#FunctionParameters"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#ViewDeclarationAttribute"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
               "include": "#ColonOperator"
+            }
+          ]
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
             }
           ]
         }
       }
     },
-    "ViewDeclarationName": {
+    "ScreenDeclarationName": {
       "tag": "variableName",
-      "name": "variable.other.constant.sd",
+      "name": "variable.other.constant.declaration.screen.sd",
+      "match": "(.+)"
+    },
+    "ComponentDeclaration": {
+      "tag": "meta",
+      "name": "meta.definition.type.sd",
+      "begin": "^([^\\S\\n\\r]*)(component)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)$",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ComponentDeclarationKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#ComponentDeclarationAssignment"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#ViewField"
+        },
+        {
+          "include": "#Unknown"
+        }
+      ],
+      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+    },
+    "ComponentDeclarationKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.object.sd",
+      "match": "(.+)"
+    },
+    "ComponentDeclarationAssignment": {
+      "match": "([_\\p{L}-][0-9_\\p{L}-]*)((?:[.][_\\p{L}-][0-9_\\p{L}-]*)*)([(].*[)])?($|[^\\S\\n\\r]*)(.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ComponentDeclarationName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ClassAccessor"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#FunctionParameters"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#ViewDeclarationAttribute"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "ComponentDeclarationName": {
+      "tag": "variableName",
+      "name": "support.type.component.custom.sd",
       "match": "(.+)"
     },
     "ViewField": {
@@ -1586,7 +1745,7 @@
     "ViewComponentProperty": {
       "tag": "meta",
       "name": "meta.definition.view.property.scalar.sd",
-      "match": "^([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)((?:[.][_\\p{L}][0-9_\\p{L}]*)*)(?=[^\\S\\n\\r]*)(?:([^\\S\\n\\r]*))(.*?)(?:([^\\S\\n\\r]*))($|[:])($|[^\\S\\n\\r]*$)",
+      "match": "^([^\\S\\n\\r]*)([_\\p{L}-][0-9_\\p{L}-]*)((?:[.][_\\p{L}-][0-9_\\p{L}-]*)*)([(].*[)])?($|[^\\S\\n\\r]*)(.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
       "captures": {
         "1": {
           "patterns": [
@@ -1612,32 +1771,39 @@
         "4": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#FunctionParameters"
             }
           ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#ViewDeclarationAttribute"
+              "include": "#Separator"
             }
           ]
         },
         "6": {
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
+              "include": "#ViewDeclarationAttribute"
             }
           ]
         },
         "7": {
           "patterns": [
             {
-              "include": "#ColonOperator"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
         "8": {
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
+        },
+        "9": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
@@ -1744,7 +1910,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#ViewStringLiteral"
+              "include": "#StringLiteral"
             }
           ]
         }
@@ -1782,7 +1948,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#ViewStringLiteral"
+              "include": "#StringLiteral"
             }
           ]
         }
@@ -1874,38 +2040,6 @@
           "include": "#Expression"
         }
       ]
-    },
-    "ViewStringLiteral": {
-      "tag": "string",
-      "name": "string.quoted.double.view.sd",
-      "begin": "([\"])",
-      "beginCaptures": {
-        "1": {
-          "tag": "string",
-          "name": "punctuation.definition.string.begin.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#StringEscape"
-        },
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#InterpolatedString"
-        },
-        {
-          "include": "#StringCharacter"
-        }
-      ],
-      "end": "([\"])|($)",
-      "endCaptures": {
-        "1": {
-          "tag": "string",
-          "name": "punctuation.definition.string.end.sd"
-        }
-      }
     },
     "ViewString": {
       "tag": "string",
@@ -4829,7 +4963,7 @@
     },
     "StringLiteral": {
       "tag": "string",
-      "name": "string.quoted.double.sd",
+      "name": "string.quoted.double.view.sd",
       "begin": "([\"])",
       "beginCaptures": {
         "1": {
@@ -4845,7 +4979,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#Color"
+          "include": "#InterpolatedString"
         },
         {
           "include": "#StringCharacter"

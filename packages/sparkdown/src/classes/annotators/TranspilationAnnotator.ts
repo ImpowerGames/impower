@@ -32,7 +32,8 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
     if (
       nodeRef.name === "FrontMatter" ||
       nodeRef.name === "DefineDeclaration" ||
-      nodeRef.name === "ViewDeclaration" ||
+      nodeRef.name === "ScreenDeclaration" ||
+      nodeRef.name === "ComponentDeclaration" ||
       nodeRef.name === "CssDeclaration"
     ) {
       annotations.push(

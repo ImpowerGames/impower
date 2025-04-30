@@ -168,7 +168,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     }
     if (
       nodeRef.name === "DefineDeclaration_begin" ||
-      nodeRef.name === "ViewDeclaration_begin" ||
+      nodeRef.name === "ScreenDeclaration_begin" ||
+      nodeRef.name === "ComponentDeclaration_begin" ||
       nodeRef.name === "CssDeclaration_begin"
     ) {
       annotations.push(
@@ -443,7 +444,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
   ): Range<SparkdownAnnotation<FormatType>>[] {
     if (
       nodeRef.name === "DefineDeclaration_end" ||
-      nodeRef.name === "ViewDeclaration_end" ||
+      nodeRef.name === "ScreenDeclaration_end" ||
+      nodeRef.name === "ComponentDeclaration_end" ||
       nodeRef.name === "CssDeclaration_end"
     ) {
       annotations.push(

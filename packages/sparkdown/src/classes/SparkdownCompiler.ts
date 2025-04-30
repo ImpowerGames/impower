@@ -538,7 +538,9 @@ export class SparkdownCompiler {
                 const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
                 const declarationNode = stack.find(
                   (n) =>
-                    n.name === "ViewDeclaration" || n.name === "CssDeclaration"
+                    n.name === "ScreenDeclaration" ||
+                    n.name === "ComponentDeclaration" ||
+                    n.name === "CssDeclaration"
                 );
                 if (declarationNode) {
                   const name = doc.read(cur.from, cur.to);

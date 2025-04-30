@@ -170,8 +170,15 @@ export const getFormatting = (
       );
       newIndentLevel = processBlockDeclaration(
         stack,
-        "ViewDeclaration",
-        "ViewDeclaration_content",
+        "ScreenDeclaration",
+        "ScreenDeclaration_content",
+        currentIndentation,
+        newIndentLevel
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "ComponentDeclaration",
+        "ComponentDeclaration_content",
         currentIndentation,
         newIndentLevel
       );

@@ -82,7 +82,10 @@ function getAllScreenRanges(document: vscode.TextDocument) {
         if (cur.value.type === "screen") {
           const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
           const declarationNode = stack.find(
-            (n) => n.name === "ViewDeclaration" || n.name === "CssDeclaration"
+            (n) =>
+              n.name === "ScreenDeclaration" ||
+              n.name === "ComponentDeclaration" ||
+              n.name === "CssDeclaration"
           );
           if (declarationNode) {
             const range = parsedDoc.range(
@@ -128,7 +131,10 @@ function getAllScreenDependencyRanges(document: vscode.TextDocument) {
         ) {
           const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
           const declarationNode = stack.find(
-            (n) => n.name === "ViewDeclaration" || n.name === "CssDeclaration"
+            (n) =>
+              n.name === "ScreenDeclaration" ||
+              n.name === "ComponentDeclaration" ||
+              n.name === "CssDeclaration"
           );
           if (declarationNode) {
             const range = parsedDoc.range(
@@ -167,11 +173,11 @@ function getScreenRange(
     -1
   );
 
-  const viewDeclarationNode = stack.find((n) => n.name === "ViewDeclaration");
-  if (viewDeclarationNode) {
+  const declarationNode = stack.find((n) => n.name === "ScreenDeclaration");
+  if (declarationNode) {
     const viewDeclarationKeyword = getDescendent(
-      "ViewDeclarationKeyword",
-      viewDeclarationNode
+      "ScreenDeclarationKeyword",
+      declarationNode
     );
     if (viewDeclarationKeyword) {
       if (
@@ -180,10 +186,7 @@ function getScreenRange(
           viewDeclarationKeyword.to
         ) === "screen"
       ) {
-        const range = parsedDoc.range(
-          viewDeclarationNode.from,
-          viewDeclarationNode.to
-        );
+        const range = parsedDoc.range(declarationNode.from, declarationNode.to);
         const screenRange = new vscode.Range(
           new vscode.Position(range.start.line, range.start.character),
           new vscode.Position(range.end.line, range.end.character)
