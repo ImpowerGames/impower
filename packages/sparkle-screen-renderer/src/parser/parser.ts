@@ -1,11 +1,13 @@
 export interface SparkleNode {
   root: "screen" | "component" | "style" | "animation" | "theme";
   type: string;
-  params?: Record<string, any>;
+  args?: Record<string, any>;
   children?: SparkleNode[];
 }
 
 const INDENT_REGEX: RegExp = /^[ \t]*/;
+const PARAMETER_SEPARATORS = [","];
+const ATTRIBUTE_SEPARATORS = [" ", "\t"];
 
 // TODO: output diagnostics
 export function parseSparkle(input: string): SparkleNode[] {
@@ -35,88 +37,64 @@ export function parseSparkle(input: string): SparkleNode[] {
       : trimmedLine;
 
     if (trimmedLine) {
-      // Split statement into type and args
-      const [nodeType, ...args] = splitAttrArgs(statement);
-      if (!currentRoot && nodeType === "screen") {
+      // Split statement into tokens
+      const match = statement.match(
+        /^(?:(screen|component|style|animation|theme)?(?:$|\s+))?([\w-]+)($|(?:[.][\w-]*)*)?(?:[(](.*)[)])?(?:$|\s+)($|.+)/
+      );
+      const declarationKeyword = match?.[1] || "";
+      const type = match?.[2] || "";
+      const classesString = match?.[3] || "";
+      const classes = classesString.split(".");
+      const parameterString = (match?.[4] || "").trim();
+      const parameters = splitArgs(parameterString, PARAMETER_SEPARATORS);
+      const attributesString = (match?.[5] || "").trim();
+      const attributes = splitArgs(attributesString, ATTRIBUTE_SEPARATORS);
+      if (!currentRoot && declarationKeyword === "screen") {
         // Root is a Screen
-        const match = statement.match(/^screen\s+([\w-]+)(?:[.]([\w-]+))?$/);
-        if (!match) {
-          console.warn(`invalid screen syntax:`, statement);
-          continue;
-        }
-        const [, keyOrBase, key] = match;
-        const base = key ? keyOrBase : "";
-        const name = key ? key : keyOrBase;
         currentRoot = {
           root: "screen",
           type: "screen",
-          params: { base, name },
+          args: { name: type, classes },
         };
         nodes.push(currentRoot);
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
-      } else if (!currentRoot && nodeType === "component") {
+      } else if (!currentRoot && declarationKeyword === "component") {
         // Root is a Component
-        const match = statement.match(/^component\s+([\w-]+)(?:[.]([\w-]+))?$/);
-        if (!match) {
-          console.warn(`invalid component syntax:`, statement);
-          continue;
-        }
-        const [, keyOrBase, key] = match;
-        const base = key ? keyOrBase : "";
-        const name = key ? key : keyOrBase;
         currentRoot = {
           root: "component",
           type: "component",
-          params: { base, name },
+          args: { name: type, classes, parameters },
         };
         nodes.push(currentRoot);
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
-      } else if (!currentRoot && nodeType === "style") {
+      } else if (!currentRoot && declarationKeyword === "style") {
         // Root is a Style
-        const match = statement.match(/^style\s+([\w-]+)$/);
-        if (!match) {
-          console.warn(`invalid style syntax:`, statement);
-          continue;
-        }
-        const [, name] = match;
         currentRoot = {
           root: "style",
           type: "style",
-          params: { name },
+          args: { name: type },
         };
         nodes.push(currentRoot);
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
-      } else if (!currentRoot && nodeType === "animation") {
-        // Root is a Style
-        const match = statement.match(/^animation\s+([\w-]+)$/);
-        if (!match) {
-          console.warn(`invalid animation syntax:`, statement);
-          continue;
-        }
-        const [, name] = match;
+      } else if (!currentRoot && declarationKeyword === "animation") {
+        // Root is a Animation
         currentRoot = {
           root: "animation",
           type: "animation",
-          params: { name },
+          args: { name: type },
         };
         nodes.push(currentRoot);
         stack.length = 0;
         stack.push({ node: currentRoot, indent });
-      } else if (!currentRoot && nodeType === "theme") {
-        // Root is a Style
-        const match = statement.match(/^theme\s+([\w-]+)$/);
-        if (!match) {
-          console.warn(`invalid theme syntax:`, statement);
-          continue;
-        }
-        const [, name] = match;
+      } else if (!currentRoot && declarationKeyword === "theme") {
+        // Root is a Theme
         currentRoot = {
           root: "theme",
           type: "theme",
-          params: { name },
+          args: { name: type },
         };
         nodes.push(currentRoot);
         stack.length = 0;
@@ -139,102 +117,103 @@ export function parseSparkle(input: string): SparkleNode[] {
           currentRoot?.type === "component"
         ) {
           // Determine child node type
-          if (nodeType === "if") {
-            const condition = args.join(" ").trim();
+          if (type === "if") {
+            const condition = attributesString;
             node = {
               root: currentRoot.root,
-              type: nodeType,
-              params: { condition },
+              type,
+              args: { condition },
             };
-          } else if (nodeType === "elseif") {
-            const condition = args.join(" ").trim();
+          } else if (type === "elseif") {
+            const condition = attributesString;
             node = {
               root: currentRoot.root,
-              type: nodeType,
-              params: { condition },
+              type,
+              args: { condition },
             };
-          } else if (nodeType === "else") {
+          } else if (type === "else") {
             node = {
               root: currentRoot.root,
-              type: nodeType,
+              type,
             };
-          } else if (nodeType === "match") {
-            const expression = args.join(" ").trim();
+          } else if (type === "match") {
+            const expression = attributesString;
             node = {
               root: currentRoot.root,
-              type: nodeType,
-              params: { expression },
+              type,
+              args: { expression },
             };
-          } else if (nodeType.startsWith("case")) {
-            const value = args.join(" ").trim();
+          } else if (type.startsWith("case")) {
+            const value = attributesString;
             node = {
               root: currentRoot.root,
-              type: nodeType,
-              params: { value },
+              type,
+              args: { value },
             };
-          } else if (nodeType === "for") {
-            const match = statement.match(/^for\s+(.+?)\s+in\s+(.+)$/);
+          } else if (type === "for") {
+            const match = attributesString.match(/^(.+?)\s+in\s+(.+)$/);
             if (!match) {
-              console.warn(`invalid ${nodeType} syntax:`, statement);
+              console.warn(`invalid ${type} syntax:`, statement);
               continue;
             }
-            const as = match[1].trim();
+            const asString = match[1].trim();
+            const as = asString.split(",").map((a) => a.trim());
             const each = match[2].trim();
             node = {
               root: currentRoot.root,
-              type: nodeType,
-              params: { as, each },
+              type,
+              args: { as, each },
             };
-          } else if (nodeType === "repeat") {
-            const times = args.join(" ").trim();
+          } else if (type === "repeat") {
+            const times = attributesString;
             node = {
               root: currentRoot.root,
-              type: nodeType,
-              params: { times },
+              type,
+              args: { times },
             };
-          } else if (nodeType === "slot") {
-            const name = args[0];
+          } else if (type === "slot") {
+            const name = attributesString;
             node = {
               root: currentRoot.root,
-              type: nodeType,
-              params: { name },
+              type,
+              args: { name },
             };
-          } else if (nodeType === "fill") {
-            const name = args[0];
+          } else if (type === "fill") {
+            const name = attributesString;
             node = {
               root: currentRoot.root,
-              type: nodeType,
-              params: { name },
+              type,
+              args: { name },
             };
-          } else if (nodeType) {
-            const parts = nodeType.split(".");
-            const [componentName, ...classNames] = parts;
-            if (componentName) {
-              const params = parseParams(args);
-              params.classes = [...(params.classes || []), ...classNames];
-              node = {
-                root: currentRoot.root,
-                type: componentName,
-                params: params,
-              };
-            }
+          } else if (type) {
+            // Use of builtin or custom component
+            const parsedAttributes = parseAttributes(attributes);
+            node = {
+              root: currentRoot.root,
+              type,
+              args: {
+                classes,
+                parameters,
+                attributes: parsedAttributes,
+              },
+            };
           }
         } else if (currentRoot?.type === "style") {
-          if (trimmedLine.endsWith(":") || nodeType.match(/^[^a-zA-Z-]/)) {
+          if (trimmedLine.endsWith(":") || type.match(/^[^a-zA-Z-]/)) {
             node = {
               root: currentRoot.root,
-              type: nodeType,
+              type,
             };
           } else {
             const value = statement.split("=")[1]?.trimStart();
             node = {
               root: currentRoot.root,
               type: "prop",
-              params: { key: nodeType, value },
+              args: { key: type, value },
             };
           }
         } else if (currentRoot?.type === "animation") {
-          if (nodeType === "-") {
+          if (type === "-") {
             const itemNode: SparkleNode = {
               root: currentRoot.root,
               type: "item",
@@ -245,21 +224,21 @@ export function parseSparkle(input: string): SparkleNode[] {
             stack.push({ node: itemNode, indent });
             parent = itemNode;
             indent = indent + 2;
-            const [key, value] = statement.split("=");
+            const [key, value] = attributesString.split("=");
             node = {
               root: currentRoot.root,
               type: "prop",
-              params: {
-                key: key?.trim().slice(1)?.trim(),
+              args: {
+                key: key?.trim(),
                 value: value?.trim(),
               },
             };
-          } else if (nodeType === "keyframes") {
+          } else if (type === "keyframes") {
             node = {
               root: currentRoot.root,
               type: "keyframes",
             };
-          } else if (nodeType === "timing") {
+          } else if (type === "timing") {
             node = {
               root: currentRoot.root,
               type: "timing",
@@ -269,7 +248,7 @@ export function parseSparkle(input: string): SparkleNode[] {
             node = {
               root: currentRoot.root,
               type: "prop",
-              params: { key: key?.trim(), value: value?.trim() },
+              args: { key: key?.trim(), value: value?.trim() },
             };
           }
         } else if (currentRoot?.type === "theme") {
@@ -288,7 +267,7 @@ export function parseSparkle(input: string): SparkleNode[] {
   return nodes;
 }
 
-function splitAttrArgs(input: string): string[] {
+function splitArgs(input: string, separators: string[]): string[] {
   const result: string[] = [];
   let current = "";
   let inQuotes = false;
@@ -314,7 +293,7 @@ function splitAttrArgs(input: string): string[] {
         inQuotes = true;
         quoteChar = char;
         current += char;
-      } else if (char.trim() === "") {
+      } else if (separators.includes(char)) {
         if (current.length > 0) {
           result.push(current);
           current = "";
@@ -331,7 +310,7 @@ function splitAttrArgs(input: string): string[] {
     result.push(current);
   }
 
-  return result;
+  return result.map((r) => r.trim());
 }
 
 function unescapeQuotes(str: string): string {
@@ -344,7 +323,7 @@ function unescapeQuotes(str: string): string {
   return str.replace(/\\(["'])/g, "$1");
 }
 
-function parseParams(args: string[]) {
+function parseAttributes(args: string[]) {
   const params: Record<string, any> = {};
   for (const arg of args) {
     let match: RegExpMatchArray | null = null;

@@ -39,7 +39,7 @@ export function renderVNode(
   parent?: SparkleNode,
   index: number = 0
 ): VNode {
-  const { type, params, children } = el;
+  const { type, args: params, children } = el;
   const components = ctx.components;
   const breakpoints = ctx.options?.breakpoints;
   const cssAliases = ctx.options?.cssAliases ?? DEFAULT_CSS_ALIASES;
@@ -58,7 +58,7 @@ export function renderVNode(
         ) {
           if (
             sibling.type === "elseif" &&
-            evaluate(sibling.params?.condition, getContext(ctx))
+            evaluate(sibling.args?.condition, getContext(ctx))
           ) {
             selectedChildren = sibling.children ?? [];
             break;
@@ -92,12 +92,12 @@ export function renderVNode(
           ) ?? []
         );
       }
-      const asKeys = params?.as?.split(",").map((k: string) => k.trim());
+      const asKeys: string[] = params?.as;
       const items = entries.flatMap(([key, value]) => {
         const newScope =
           asKeys?.length > 1
             ? { [asKeys[0]]: key, [asKeys[1]]: value }
-            : { [params?.as]: value };
+            : { [asKeys[0]]: value };
         const subCtx = {
           ...ctx,
           scope: { ...(ctx.scope ?? EMPTY_OBJ), ...newScope },
@@ -155,7 +155,7 @@ export function renderVNode(
         for (const child of children) {
           if (
             child.type === "case" &&
-            evaluate(child.params?.value, getContext(ctx)) === value
+            evaluate(child.args?.value, getContext(ctx)) === value
           ) {
             return wrapChildren(
               child.children?.map((c, i) => renderVNode(c, ctx, child, i)) ?? []
@@ -169,35 +169,63 @@ export function renderVNode(
       }
       return { tag: "fragment", props: {}, children: [] };
     }
-  }
 
-  // Otherwise normal node
-  const builtin = builtins.get(type);
-  if (builtin) {
-    return renderBuiltinVNode(el, ctx, builtin.vnode);
+    case "fill":
+      // Handled by "organizeFills"
+      return { tag: "fragment", props: {}, children: [] };
   }
 
   if (el.root === "screen" || el.root === "component") {
-    const compDef = components?.[type];
-    if (!compDef) {
-      console.error("Component not found:", type);
-      return { tag: "fragment", props: {}, children: [] };
+    // Otherwise normal node
+    const builtin = builtins.get(type);
+    const componentDef = components?.[type];
+    if (componentDef) {
+      // Look up component definition
+      const componentScope: Record<string, any> = { ...ctx.scope };
+
+      // Handle component parameters by mapping provided args to formal parameters
+      for (const [paramIndex, value] of Object.entries(el.args?.parameters)) {
+        const param = componentDef.args?.parameters?.[paramIndex];
+        // Evaluate param value if it's an expression
+        if (param != null && typeof value === "string") {
+          if (value.startsWith('"') && value.endsWith('"')) {
+            componentScope[param] = interpolate(
+              value.slice(1, -1),
+              getContext(ctx)
+            );
+          } else {
+            componentScope[param] = evaluate(value, getContext(ctx));
+          }
+        }
+      }
+
+      // Create new context with component scope
+      const componentCtx = {
+        ...ctx,
+        scope: componentScope,
+      };
+
+      // Process component children and slots
+      const fills = organizeFills(el.children || []);
+      const processedChildren = instantiateSlots(
+        componentDef.children || [],
+        fills
+      );
+      console.log("fills 1", fills);
+
+      // Render the processed component
+      return renderVNode(
+        {
+          ...componentDef,
+          children: processedChildren,
+        },
+        componentCtx,
+        el,
+        index
+      );
+    } else if (builtin) {
+      return renderBuiltinVNode(el, ctx, builtin.vnode);
     }
-    const fills = organizeFills(children ?? []);
-    const instantiatedComponent: SparkleNode = {
-      ...compDef,
-      type: compDef.params?.base,
-      params: { ...params, name: type },
-      children: instantiateSlots(compDef.children ?? [], fills),
-    };
-    return {
-      tag: "div",
-      props: {},
-      children:
-        instantiatedComponent.children?.map((c, i) =>
-          renderVNode(c, ctx, instantiatedComponent, i)
-        ) ?? [],
-    };
   }
 
   if (el.root === "style") {
@@ -206,7 +234,7 @@ export function renderVNode(
       const styleContent = (children ?? [])
         .map((c, i) => renderVNode(c, ctx, el, i))
         .join(" ");
-      const name = el.params?.name;
+      const name = el.args?.name;
       return {
         tag: "style",
         props: {},
@@ -231,7 +259,7 @@ export function renderVNode(
       const styleContent = (children ?? [])
         .map((c, i) => renderVNode(c, ctx, el, i))
         .join(" ");
-      const name = el.params?.name;
+      const name = el.args?.name;
       return {
         tag: "style",
         props: {},
@@ -276,7 +304,7 @@ function renderBuiltinVNode(
   ctx: RenderContext,
   builtin: VNode
 ): VNode {
-  const { type, params = {}, children } = el;
+  const { type, args: params = {}, children } = el;
   const components = ctx.components;
   if (!builtin) {
     console.error("Un-recognised builtin:", type);
@@ -310,11 +338,13 @@ function renderBuiltinVNode(
   /* gather user-supplied attrs after interpolation */
   const evalCtx = getContext(ctx);
   const spreadProps: Record<string, string> = {};
-  for (const [k, v] of Object.entries(params).filter(
-    ([k]) => !["classes", "content", "base", "name"].includes(k)
-  )) {
-    spreadProps[k] =
-      typeof v === "string" ? interpolate(v, evalCtx) : String(v);
+  if (params.attributes) {
+    for (const [k, v] of Object.entries(params.attributes).filter(
+      ([k]) => !["content"].includes(k)
+    )) {
+      spreadProps[k] =
+        typeof v === "string" ? interpolate(v, evalCtx) : String(v);
+    }
   }
 
   /* find the attrsHost in the cloned tree */
@@ -352,14 +382,14 @@ function renderBuiltinVNode(
 
   /*  3.  Inject slot <content-slot> and <children-slot>  */
   const contentV: VNode =
-    typeof params.content === "string"
-      ? interpolate(params.content, evalCtx)
+    typeof params.attributes?.content === "string"
+      ? interpolate(params.attributes?.content, evalCtx)
       : "";
 
   if (root.contentAttr) {
     root.props[root.contentAttr] =
-      typeof params.content === "string"
-        ? interpolate(params.content, evalCtx)
+      typeof params.attributes?.content === "string"
+        ? interpolate(params.attributes?.content, evalCtx)
         : "";
   }
 
@@ -372,7 +402,7 @@ function renderBuiltinVNode(
           children?.map((c, i) => renderVNode(c, ctx, el, i)) || []
         );
       // recurse
-      return injectSlots(ch, params.content, children, ctx, el);
+      return injectSlots(ch, params.attributes?.content, children, ctx, el);
     })
     .filter(Boolean);
 
@@ -432,8 +462,8 @@ function cloneVNode(v: VNode): VNode {
 function organizeFills(children: SparkleNode[]): Record<string, SparkleNode[]> {
   const fills: Record<string, SparkleNode[]> = {};
   for (const child of children) {
-    if (child.type === "fill" && child.params?.name) {
-      (fills[child.params.name] ??= []).push(...(child.children ?? []));
+    if (child.type === "fill" && child.args?.name) {
+      (fills[child.args.name] ??= []).push(...(child.children ?? []));
     }
   }
   return fills;
@@ -446,8 +476,8 @@ function instantiateSlots(
   const output: SparkleNode[] = [];
   for (const child of componentChildren) {
     if (child.type === "slot") {
-      if (child.params?.name && fills[child.params.name]) {
-        output.push(...fills[child.params.name]);
+      if (child.args?.name && fills[child.args.name]) {
+        output.push(...fills[child.args.name]);
       }
     } else {
       output.push(child);
@@ -529,8 +559,8 @@ function addToInheritanceChain(
   if (components) {
     if (type in components) {
       const component = components[type];
-      out.push(component.params?.name);
-      addToInheritanceChain(component.params?.base, components, out);
+      out.push(component.args?.name);
+      addToInheritanceChain(component.args?.base, components, out);
     }
   }
 }
@@ -539,7 +569,7 @@ export function getComponents(parsed: SparkleNode[]) {
   const components: Record<string, SparkleNode> = {};
   for (const root of parsed) {
     if (root.type === "component") {
-      const name = root.params?.name;
+      const name = root.args?.name;
       if (name) {
         components[name] = root;
       }
@@ -587,11 +617,7 @@ export function createElement(vnode: VNode): Node {
     // 2. patch *root* attributes that are dynamic (class, id, ...)
     //    deep attrsHosts were already handled while building vnode
     for (const [k, v] of Object.entries(vnode.props)) {
-      if (k.startsWith("@")) {
-        // TODO: addEventListener
-      } else {
-        root.setAttribute(k, v);
-      }
+      setAttribute(root, k, v);
     }
 
     // 3. if the children array changed (content-slot / custom children),
@@ -616,11 +642,7 @@ export function createElement(vnode: VNode): Node {
   /* ------------ generic element (slow path) ------------------------- */
   const el = document.createElement(vnode.tag);
   for (const [k, v] of Object.entries(vnode.props)) {
-    if (k.startsWith("@")) {
-      // TODO: addEventListener
-    } else {
-      el.setAttribute(k, v);
-    }
+    setAttribute(el, k, v);
   }
   vnode.children.forEach((ch) => el.appendChild(createElement(ch)));
   return el;
@@ -634,4 +656,20 @@ function mergeClassesIntoHost(node: VNode, dyn: string): boolean {
     return true;
   }
   return node.children.some((c) => mergeClassesIntoHost(c, dyn));
+}
+
+function setAttribute(el: Element, key: string, value: string) {
+  if (key.startsWith("@")) {
+    // TODO: addEventListener
+  } else {
+    if (value === "true") {
+      // True booleans are simply attributes set to empty string
+      el.setAttribute(key, "");
+    } else if (value === "false") {
+      // False boolean attributes are simply removed
+      el.removeAttribute(key);
+    } else {
+      el.setAttribute(key, value);
+    }
+  }
 }
