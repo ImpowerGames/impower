@@ -211,7 +211,6 @@ export function renderVNode(
         componentDef.children || [],
         fills
       );
-      console.log("fills 1", fills);
 
       // Render the processed component
       return renderVNode(
