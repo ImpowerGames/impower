@@ -1001,6 +1001,7 @@ repository:
           - { include: "#SetEqualOperator" }
       3:
         patterns:
+          - { include: "#FunctionCall" }
           - { include: "#DivertPath" }
 
   UnquotedEventAttribute:
@@ -1014,6 +1015,7 @@ repository:
           - { include: "#SetEqualOperator" }
       3:
         patterns:
+          - { include: "#FunctionCall" }
           - { include: "#DivertPath" }
 
   QuotedConfigurationAttribute:
@@ -2956,8 +2958,8 @@ repository:
     match: ({{IDENTIFIER}})(?![(])
 
   FunctionName:
-    tag: function(variableName)
-    name: entity.name.function.sd
+    tag: heading
+    name: keyword.control.divert.path.sd
     match: ({{IDENTIFIER}})
 
   Identifier:

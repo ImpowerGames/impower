@@ -1858,6 +1858,9 @@
         "3": {
           "patterns": [
             {
+              "include": "#FunctionCall"
+            },
+            {
               "include": "#DivertPath"
             }
           ]
@@ -1883,6 +1886,9 @@
         },
         "3": {
           "patterns": [
+            {
+              "include": "#FunctionCall"
+            },
             {
               "include": "#DivertPath"
             }
@@ -5305,8 +5311,8 @@
       "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
     },
     "FunctionName": {
-      "tag": "function(variableName)",
-      "name": "entity.name.function.sd",
+      "tag": "heading",
+      "name": "keyword.control.divert.path.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "Identifier": {
