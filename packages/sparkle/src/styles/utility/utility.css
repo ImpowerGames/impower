@@ -368,9 +368,13 @@
   padding-inline-end: var(---p-r, var(---padding-r, 8px)) !important;
 }
 
-[-child-layout] {
+:is([-child-layout="row"], [-child-layout="column"]) {
   display: flex;
   flex-direction: var(---child-layout, row) !important;
+}
+:is([-child-layout="grid"], [-columns]) {
+  display: grid;
+  grid-template-columns: var(---columns, 1fr 1fr 1fr);
 }
 [-child-gap] {
   gap: var(---child-gap, 8px) !important;

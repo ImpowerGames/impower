@@ -9,6 +9,7 @@ import {
   getCssChildLayout,
   getCssChildOverflow,
   getCssColor,
+  getCssColumns,
   getCssContainIntrinsicSize,
   getCssContentVisibility,
   getCssCorner,
@@ -142,6 +143,7 @@ const STYLE_TRANSFORMERS = {
   "child-justify": getCssChildJustify,
   "child-overflow": getCssChildOverflow,
   "self-align": getCssChildAlign,
+  columns: getCssColumns,
 
   flex: getCssFlex,
   grow: getCssGrow,
