@@ -53,18 +53,28 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
         if (document.languageId === "sparkdown") {
           const range = change.selections[0];
           if (range) {
-            const screenRange = getScreenRange(editor.document, range.start);
-            const screenDependencyRanges = getAllScreenDependencyRanges(
-              editor.document
-            );
+            const screenRange = getScreenRange(document, range.start);
+            const screenDependencyRanges =
+              getAllScreenDependencyRanges(document);
             if (screenRange) {
               if (screenPreviewPanel && screenPreviewPanel.panel.visible) {
                 const ranges = [screenRange, ...screenDependencyRanges];
-                updateWebviewContent(
-                  screenPreviewPanel.panel,
-                  editor.document,
-                  ranges
+                const prevSerializedScreenRange =
+                  screenPreviewPanel.state.ranges?.[0] || null;
+                const currentSerializedScreenRange = getSerializableRange(
+                  ranges[0]!
                 );
+                if (
+                  screenPreviewPanel.state.textDocument?.uri !==
+                    document.uri.toString() ||
+                  JSON.stringify(currentSerializedScreenRange) !==
+                    JSON.stringify(prevSerializedScreenRange)
+                )
+                  updateWebviewContent(
+                    screenPreviewPanel.panel,
+                    document,
+                    ranges
+                  );
               }
             }
           }
@@ -83,16 +93,7 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
             const currentSerializedScreenRange =
               screenPreviewPanel.state.ranges?.[0];
             const currentScreenRange = currentSerializedScreenRange
-              ? new vscode.Range(
-                  new vscode.Position(
-                    currentSerializedScreenRange.start.line,
-                    currentSerializedScreenRange.start.character
-                  ),
-                  new vscode.Position(
-                    currentSerializedScreenRange.end.line,
-                    currentSerializedScreenRange.end.character
-                  )
-                )
+              ? getDocumentRange(currentSerializedScreenRange)
               : null;
             const screenRange =
               getScreenRange(document, range.start) || currentScreenRange;
@@ -100,6 +101,7 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
               const screenDependencyRanges =
                 getAllScreenDependencyRanges(document);
               const ranges = [screenRange, ...screenDependencyRanges];
+              // TODO: Only update if change affects screen, screen view/css dependency, or screen variable
               updateWebviewContent(screenPreviewPanel.panel, document, ranges);
             }
           }
@@ -227,7 +229,7 @@ function getScreenRange(
   return null;
 }
 
-function getRange(range: {
+function getDocumentRange(range: {
   start: { line: number; character: number };
   end: { line: number; character: number };
 }) {
@@ -235,6 +237,16 @@ function getRange(range: {
     new vscode.Position(range.start.line, range.start.character),
     new vscode.Position(range.end.line, range.end.character)
   );
+}
+
+function getSerializableRange(range: vscode.Range): {
+  start: { line: number; character: number };
+  end: { line: number; character: number };
+} {
+  return {
+    start: { line: range.start.line, character: range.start.character },
+    end: { line: range.end.line, character: range.end.character },
+  };
 }
 
 class ScreenPreviewCodeLensProvider implements vscode.CodeLensProvider {
@@ -271,7 +283,7 @@ export class SparkdownScreenPreviewSerializer
             panel,
             this.context,
             document,
-            ranges.map((r) => getRange(r))
+            ranges.map((r) => getDocumentRange(r))
           );
         } else {
           panel.dispose();
@@ -319,10 +331,7 @@ function initializeWebviewPanel(
   const uri = document.uri.toString();
 
   const textDocument = { uri };
-  const ranges = documentRanges.map((r) => ({
-    start: { line: r.start.line, character: r.start.character },
-    end: { line: r.end.line, character: r.end.character },
-  }));
+  const ranges = documentRanges.map((r) => getSerializableRange(r));
 
   if (screenPreviewPanel) {
     screenPreviewPanel.panel = panel;
@@ -350,13 +359,6 @@ function initializeWebviewPanel(
             text,
           },
         });
-      }
-      if (message.method === "state") {
-        const { textDocument, ranges } = message.params;
-        if (screenPreviewPanel) {
-          screenPreviewPanel.state.textDocument = textDocument;
-          screenPreviewPanel.state.ranges = ranges;
-        }
       }
       if (message.method === "update") {
         const { textDocument, path, value } = message.params;
@@ -420,19 +422,27 @@ function getWebviewContent(jsWebviewUri: string): string {
 
 async function updateWebviewContent(
   panel: vscode.WebviewPanel,
-  textDocument: vscode.TextDocument,
-  ranges: vscode.Range[]
+  document: vscode.TextDocument,
+  documentRanges: vscode.Range[]
 ) {
-  const text = ranges.map((range) => textDocument.getText(range)).join("\n\n");
+  const text = documentRanges
+    .map((range) => document.getText(range))
+    .join("\n\n");
+
+  const textDocument = { uri: document.uri.toString() };
+  const ranges = documentRanges.map((r) => getSerializableRange(r));
+
+  if (screenPreviewPanel) {
+    screenPreviewPanel.panel = panel;
+    screenPreviewPanel.state.textDocument = textDocument;
+    screenPreviewPanel.state.ranges = ranges;
+  }
 
   panel.webview.postMessage({
     method: "load",
     params: {
-      textDocument: { uri: textDocument.uri.toString() },
-      ranges: ranges.map((r) => ({
-        start: { line: r.start.line, character: r.start.character },
-        end: { line: r.end.line, character: r.end.character },
-      })),
+      textDocument,
+      ranges,
       text,
     },
   });
