@@ -8,14 +8,18 @@ const vscode = acquireVsCodeApi();
 
 const state: {
   textDocument?: { uri: string };
-  openPaths?: string[];
+  ranges?: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  }[];
 } = {};
 
 window.addEventListener("message", (e) => {
   const message = e.data;
   if (message.method === "load") {
-    const { textDocument } = message.params;
+    const { textDocument, ranges } = message.params;
     state.textDocument = textDocument;
+    state.ranges = ranges;
     vscode.setState(state);
   }
   // Forward all messages from vscode extension to window
@@ -35,10 +39,6 @@ window.addEventListener("jsonrpc", (e: Event) => {
     const message = e.detail;
     if (e.target !== window) {
       if (message.method === "state") {
-        const { openPaths } = message.params;
-        if (openPaths) {
-          state.openPaths = openPaths;
-        }
         vscode.setState(state);
       }
       vscode.postMessage(message);

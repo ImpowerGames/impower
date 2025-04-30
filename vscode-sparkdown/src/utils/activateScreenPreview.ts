@@ -1,14 +1,21 @@
 import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 import * as vscode from "vscode";
 import * as yaml from "yaml";
-import { getDescendent } from "../../../packages/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getStack } from "../../../packages/textmate-grammar-tree/src/tree/utils/getStack";
 import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
 import { getOpenTextDocument } from "./getOpenTextDocument";
 
+interface ScreenPreviewPanelState {
+  textDocument?: { uri: string };
+  ranges?: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  }[];
+}
+
 let screenPreviewPanel: {
   panel: vscode.WebviewPanel;
-  state: Map<string, { openPaths?: string[] }>;
+  state: ScreenPreviewPanelState;
 } | null = null;
 
 const programmaticEdits = new Map<string, number>();
@@ -40,21 +47,60 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorSelection((change) => {
-      const editor = change.textEditor;
-      const document = editor.document;
+      if (change.kind !== vscode.TextEditorSelectionChangeKind.Keyboard) {
+        const editor = change.textEditor;
+        const document = editor.document;
+        if (document.languageId === "sparkdown") {
+          const range = change.selections[0];
+          if (range) {
+            const screenRange = getScreenRange(editor.document, range.start);
+            const screenDependencyRanges = getAllScreenDependencyRanges(
+              editor.document
+            );
+            if (screenRange) {
+              if (screenPreviewPanel && screenPreviewPanel.panel.visible) {
+                const ranges = [screenRange, ...screenDependencyRanges];
+                updateWebviewContent(
+                  screenPreviewPanel.panel,
+                  editor.document,
+                  ranges
+                );
+              }
+            }
+          }
+        }
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument((change) => {
+      const document = change.document;
       if (document.languageId === "sparkdown") {
-        const range = change.selections[0];
+        const range = change.contentChanges[0]?.range;
         if (range) {
-          const screenRange = getScreenRange(editor.document, range.start);
-          const screenDependencyRanges = getAllScreenDependencyRanges(
-            editor.document
-          );
-          if (screenRange) {
-            if (screenPreviewPanel && screenPreviewPanel.panel.visible) {
-              updateWebviewContent(screenPreviewPanel.panel, editor.document, [
-                screenRange,
-                ...screenDependencyRanges,
-              ]);
+          if (screenPreviewPanel && screenPreviewPanel.panel.visible) {
+            const currentSerializedScreenRange =
+              screenPreviewPanel.state.ranges?.[0];
+            const currentScreenRange = currentSerializedScreenRange
+              ? new vscode.Range(
+                  new vscode.Position(
+                    currentSerializedScreenRange.start.line,
+                    currentSerializedScreenRange.start.character
+                  ),
+                  new vscode.Position(
+                    currentSerializedScreenRange.end.line,
+                    currentSerializedScreenRange.end.character
+                  )
+                )
+              : null;
+            const screenRange =
+              getScreenRange(document, range.start) || currentScreenRange;
+            if (screenRange) {
+              const screenDependencyRanges =
+                getAllScreenDependencyRanges(document);
+              const ranges = [screenRange, ...screenDependencyRanges];
+              updateWebviewContent(screenPreviewPanel.panel, document, ranges);
             }
           }
         }
@@ -82,10 +128,7 @@ function getAllScreenRanges(document: vscode.TextDocument) {
         if (cur.value.type === "screen") {
           const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
           const declarationNode = stack.find(
-            (n) =>
-              n.name === "ScreenDeclaration" ||
-              n.name === "ComponentDeclaration" ||
-              n.name === "CssDeclaration"
+            (n) => n.name === "ScreenDeclaration"
           );
           if (declarationNode) {
             const range = parsedDoc.range(
@@ -132,9 +175,7 @@ function getAllScreenDependencyRanges(document: vscode.TextDocument) {
           const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
           const declarationNode = stack.find(
             (n) =>
-              n.name === "ScreenDeclaration" ||
-              n.name === "ComponentDeclaration" ||
-              n.name === "CssDeclaration"
+              n.name === "ComponentDeclaration" || n.name === "CssDeclaration"
           );
           if (declarationNode) {
             const range = parsedDoc.range(
@@ -175,28 +216,25 @@ function getScreenRange(
 
   const declarationNode = stack.find((n) => n.name === "ScreenDeclaration");
   if (declarationNode) {
-    const viewDeclarationKeyword = getDescendent(
-      "ScreenDeclarationKeyword",
-      declarationNode
+    const range = parsedDoc.range(declarationNode.from, declarationNode.to);
+    const screenRange = new vscode.Range(
+      new vscode.Position(range.start.line, range.start.character),
+      new vscode.Position(range.end.line, range.end.character)
     );
-    if (viewDeclarationKeyword) {
-      if (
-        parsedDoc.read(
-          viewDeclarationKeyword.from,
-          viewDeclarationKeyword.to
-        ) === "screen"
-      ) {
-        const range = parsedDoc.range(declarationNode.from, declarationNode.to);
-        const screenRange = new vscode.Range(
-          new vscode.Position(range.start.line, range.start.character),
-          new vscode.Position(range.end.line, range.end.character)
-        );
-        return screenRange;
-      }
-    }
+    return screenRange;
   }
 
   return null;
+}
+
+function getRange(range: {
+  start: { line: number; character: number };
+  end: { line: number; character: number };
+}) {
+  return new vscode.Range(
+    new vscode.Position(range.start.line, range.start.character),
+    new vscode.Position(range.end.line, range.end.character)
+  );
 }
 
 class ScreenPreviewCodeLensProvider implements vscode.CodeLensProvider {
@@ -221,16 +259,23 @@ export class SparkdownScreenPreviewSerializer
 
   async deserializeWebviewPanel(
     panel: vscode.WebviewPanel,
-    state: { textDocument: { uri: string }; openPaths: string[] }
+    state: ScreenPreviewPanelState
   ) {
     if (state) {
-      const { textDocument, openPaths } = state;
-      const textDocumentUri = vscode.Uri.parse(textDocument.uri);
-      const document = await getOpenTextDocument(textDocumentUri);
-      if (document) {
-        initializeWebviewPanel(panel, this.context, document, openPaths);
-      } else {
-        panel.dispose();
+      const { textDocument, ranges } = state;
+      if (textDocument) {
+        const textDocumentUri = vscode.Uri.parse(textDocument.uri);
+        const document = await getOpenTextDocument(textDocumentUri);
+        if (document && ranges) {
+          initializeWebviewPanel(
+            panel,
+            this.context,
+            document,
+            ranges.map((r) => getRange(r))
+          );
+        } else {
+          panel.dispose();
+        }
       }
     }
   }
@@ -241,7 +286,7 @@ function revealOrCreateWebviewPanel(
   textDocument: vscode.TextDocument,
   ranges: vscode.Range[]
 ) {
-  if (screenPreviewPanel) {
+  if (screenPreviewPanel?.panel) {
     screenPreviewPanel.panel.reveal();
     updateWebviewContent(screenPreviewPanel.panel, textDocument, ranges);
     return;
@@ -257,36 +302,37 @@ function revealOrCreateWebviewPanel(
     }
   );
 
-  initializeWebviewPanel(panel, context, textDocument);
+  initializeWebviewPanel(panel, context, textDocument, ranges);
 }
 
 function initializeWebviewPanel(
   panel: vscode.WebviewPanel,
   context: vscode.ExtensionContext,
   document: vscode.TextDocument,
-  openPaths?: string[]
+  documentRanges: vscode.Range[]
 ) {
   screenPreviewPanel ??= {
     panel,
-    state: new Map(),
+    state: {},
   };
 
-  const docUri = document.uri.toString();
+  const uri = document.uri.toString();
+
+  const textDocument = { uri };
+  const ranges = documentRanges.map((r) => ({
+    start: { line: r.start.line, character: r.start.character },
+    end: { line: r.end.line, character: r.end.character },
+  }));
 
   if (screenPreviewPanel) {
     screenPreviewPanel.panel = panel;
-    screenPreviewPanel.state ??= new Map();
-    if (openPaths) {
-      const state = screenPreviewPanel.state.get(docUri);
-      if (state) {
-        state.openPaths = openPaths;
-      } else {
-        screenPreviewPanel.state.set(docUri, { openPaths });
-      }
-    }
+    screenPreviewPanel.state.textDocument = textDocument;
+    screenPreviewPanel.state.ranges = ranges;
   }
 
-  const text = document.getText();
+  const text = (documentRanges || [])
+    .map((range) => document.getText(range))
+    .join("\n\n");
 
   panel.iconPath = {
     light: vscode.Uri.joinPath(context.extensionUri, "icon-lang.png"),
@@ -299,25 +345,17 @@ function initializeWebviewPanel(
         panel.webview.postMessage({
           method: "load",
           params: {
-            textDocument: { uri: docUri },
+            textDocument,
+            ranges,
             text,
-            openPaths,
           },
         });
       }
       if (message.method === "state") {
-        const { textDocument, openPaths } = message.params;
-        if (openPaths) {
-          if (screenPreviewPanel) {
-            const state = screenPreviewPanel.state.get(textDocument.uri);
-            if (state) {
-              state.openPaths = openPaths;
-            } else {
-              screenPreviewPanel.state.set(textDocument.uri, {
-                openPaths,
-              });
-            }
-          }
+        const { textDocument, ranges } = message.params;
+        if (screenPreviewPanel) {
+          screenPreviewPanel.state.textDocument = textDocument;
+          screenPreviewPanel.state.ranges = ranges;
         }
       }
       if (message.method === "update") {
@@ -387,14 +425,15 @@ async function updateWebviewContent(
 ) {
   const text = ranges.map((range) => textDocument.getText(range)).join("\n\n");
 
-  const state = screenPreviewPanel?.state.get(textDocument.uri.toString());
-
   panel.webview.postMessage({
     method: "load",
     params: {
       textDocument: { uri: textDocument.uri.toString() },
+      ranges: ranges.map((r) => ({
+        start: { line: r.start.line, character: r.start.character },
+        end: { line: r.end.line, character: r.end.character },
+      })),
       text,
-      openPaths: state?.openPaths,
     },
   });
 }
