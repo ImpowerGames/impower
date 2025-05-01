@@ -1,3 +1,5 @@
+import { generateSparkleAttributesAndStyles } from "../../../sparkle-style-transformer/src/utils/generateSparkleAttributesAndStyles";
+
 export interface SparkleNode {
   root: "screen" | "component" | "style" | "animation" | "theme";
   type: string;
@@ -48,7 +50,7 @@ export function parseSparkle(input: string): SparkleNode[] {
       const parameterString = (match?.[4] || "").trim();
       const parameters = splitArgs(parameterString, PARAMETER_SEPARATORS);
       const attributesString = (match?.[5] || "").trim();
-      const attributes = splitArgs(attributesString, ATTRIBUTE_SEPARATORS);
+      const attributeArray = splitArgs(attributesString, ATTRIBUTE_SEPARATORS);
       if (!currentRoot && declarationKeyword === "screen") {
         // Root is a Screen
         currentRoot = {
@@ -187,14 +189,19 @@ export function parseSparkle(input: string): SparkleNode[] {
             };
           } else if (type) {
             // Use of builtin or custom component
-            const parsedAttributes = parseAttributes(attributes);
+            const props = parseAttributes(attributeArray);
+            const { attributes, styles } =
+              generateSparkleAttributesAndStyles(props);
+            attributes["style"] = Object.entries(styles)
+              .map(([k, v]) => `${k}:${v};`)
+              .join("");
             node = {
               root: currentRoot.root,
               type,
               args: {
                 classes,
                 parameters,
-                attributes: parsedAttributes,
+                attributes,
               },
             };
           }

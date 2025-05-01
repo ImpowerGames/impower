@@ -12,7 +12,7 @@ const generateStyledHtml = (
   html: string,
   options?: { attributePrefix?: string }
 ): string => {
-  const { attributePrefix = "-" } = options || {};
+  const { attributePrefix = "" } = options || {};
   if (!html) {
     return html;
   }

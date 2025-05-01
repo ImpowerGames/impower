@@ -108,9 +108,12 @@ export const getSparkleAttribute = (
   propName: string,
   attributePrefix: string
 ): string => {
+  const styleTransformers = STYLE_TRANSFORMERS;
   const normalizedName = getSparklePropName(propName, attributePrefix);
-  const attrName = attributePrefix + normalizedName;
-  return attrName;
+  if (normalizedName in styleTransformers) {
+    return attributePrefix + normalizedName;
+  }
+  return propName;
 };
 
 export const generateSparkleAttributesAndStyles = (
@@ -120,7 +123,7 @@ export const generateSparkleAttributesAndStyles = (
   attributes: Record<string, string>;
   styles: Record<string, string>;
 } => {
-  const { attributePrefix = "-" } = options || {};
+  const { attributePrefix = "" } = options || {};
   const styleTransformers = STYLE_TRANSFORMERS;
   const attributes: Record<string, string> = {};
   const styles: Record<string, string> = {};
