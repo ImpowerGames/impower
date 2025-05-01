@@ -12,6 +12,7 @@ import {
   window,
   workspace,
 } from "vscode";
+import { onDidChangeCodeLensesEmitter } from "../events/onDidChangeCodeLensesEmitter";
 import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
 
 export const activateDocumentManager = (context: ExtensionContext) => {
@@ -23,11 +24,13 @@ export const activateDocumentManager = (context: ExtensionContext) => {
     workspace.onDidOpenTextDocument((data: TextDocument) => {
       if (data.languageId === "sparkdown") {
         SparkdownDocumentManager.instance.add(data);
+        onDidChangeCodeLensesEmitter.fire();
       }
     }),
     workspace.onDidChangeTextDocument((data: TextDocumentChangeEvent) => {
       if (data.document.languageId === "sparkdown") {
         SparkdownDocumentManager.instance.update(data);
+        onDidChangeCodeLensesEmitter.fire();
       }
     }),
     workspace.onDidCloseTextDocument((data: TextDocument) => {

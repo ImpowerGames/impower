@@ -2,6 +2,7 @@ import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeNam
 import * as vscode from "vscode";
 import * as yaml from "yaml";
 import { getStack } from "../../../packages/textmate-grammar-tree/src/tree/utils/getStack";
+import { onDidChangeCodeLensesEmitter } from "../events/onDidChangeCodeLensesEmitter";
 import { SparkdownDocumentManager } from "../managers/SparkdownDocumentManager";
 import { getOpenTextDocument } from "./getOpenTextDocument";
 
@@ -250,6 +251,8 @@ function getSerializableRange(range: vscode.Range): {
 }
 
 class ScreenPreviewCodeLensProvider implements vscode.CodeLensProvider {
+  public readonly onDidChangeCodeLenses: vscode.Event<void> =
+    onDidChangeCodeLensesEmitter.event;
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
     const ranges = getAllScreenRanges(document);
     const screenDependencyRanges = getAllScreenDependencyRanges(document);
