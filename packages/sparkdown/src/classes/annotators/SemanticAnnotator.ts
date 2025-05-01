@@ -44,7 +44,6 @@ export type SemanticTokenModifiers =
   | "defaultLibrary";
 
 export interface SemanticInfo {
-  possibleDivertPath?: boolean;
   tokenType: SemanticTokenTypes;
   tokenModifiers?: SemanticTokenModifiers[];
 }
@@ -178,14 +177,6 @@ export class SemanticAnnotator extends SparkdownAnnotator<
           }).range(nodeRef.from, nodeRef.to)
         );
       }
-    }
-    if (nodeRef.name === "AccessPath") {
-      annotations.push(
-        SparkdownAnnotation.mark<SemanticInfo>({
-          tokenType: "keyword",
-          possibleDivertPath: true,
-        }).range(nodeRef.from, nodeRef.to)
-      );
     }
     return annotations;
   }

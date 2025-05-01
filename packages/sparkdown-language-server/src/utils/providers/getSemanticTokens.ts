@@ -66,26 +66,7 @@ export const getSemanticTokens = (
     if (cur.from > iterateTo) {
       break;
     }
-    const text = document.read(cur.from, cur.to);
-    if (cur.value.type.possibleDivertPath) {
-      const pathPart1 = text.split(".").slice(0, 1).join(".");
-      const pathPart2 = text.split(".").slice(0, 2).join(".");
-      if (
-        program?.knotLocations?.[text] ||
-        program?.stitchLocations?.[text] ||
-        program?.labelLocations?.[text] ||
-        program?.knotLocations?.[pathPart1] ||
-        program?.stitchLocations?.[pathPart1] ||
-        program?.labelLocations?.[pathPart1] ||
-        program?.knotLocations?.[pathPart2] ||
-        program?.stitchLocations?.[pathPart2] ||
-        program?.labelLocations?.[pathPart2]
-      ) {
-        add(cur);
-      }
-    } else {
-      add(cur);
-    }
+    add(cur);
     cur.next();
   }
   // See LSP Spec for semantic tokens for information on the encoding process:
