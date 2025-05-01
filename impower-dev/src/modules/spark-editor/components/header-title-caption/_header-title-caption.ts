@@ -56,13 +56,13 @@ export default spec({
     `;
     return html`
       <s-box
-        -child-layout="row"
-        -child-align="center"
-        -text-size="sm"
-        -text-weight="500"
-        -m-t="-2px"
-        -m-b="2px"
-        -text-color="${captionColor}"
+        child-layout="row"
+        child-align="center"
+        text-size="sm"
+        text-weight="500"
+        m-t="-2px"
+        m-b="2px"
+        text-color="${captionColor}"
       >
         ${name && syncStateInfo ? syncStateInfo : stateSkeleton}
       </s-box>

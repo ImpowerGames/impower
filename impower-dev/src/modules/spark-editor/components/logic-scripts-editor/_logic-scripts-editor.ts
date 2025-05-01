@@ -20,7 +20,7 @@ export default spec({
           ${displayName}
         </se-logic-diagnostics-label>
       </se-file-editor-navigation>
-      <s-box -position="relative" -grow>
+      <s-box position="relative" grow>
         <se-logic-script-editor filename="${filename}"></se-logic-script-editor>
       </s-box>
     `;

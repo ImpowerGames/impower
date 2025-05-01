@@ -20,34 +20,34 @@ export default spec({
     const { horizontalLayout } = context;
     return html`
       <s-box
-        -bg-color="${horizontalLayout ? "panel" : "black"}"
-        -position="sticky-top"
+        bg-color="${horizontalLayout ? "panel" : "black"}"
+        position="sticky-top"
       >
         <se-header-navigation-placeholder></se-header-navigation-placeholder>
         <s-box
-          -height="panel-nav"
-          -position="relative"
-          -child-layout="row"
-          -child-align="center"
-          -bg-color="${horizontalLayout ? "panel" : "black"}"
-          -z="1"
-          -grow
+          height="panel-nav"
+          position="relative"
+          child-layout="row"
+          child-align="center"
+          bg-color="${horizontalLayout ? "panel" : "black"}"
+          z="1"
+          grow
         >
           <s-button
             id="downloadButton"
             variant="text"
-            -width="48"
-            -height="44"
-            -text-size="2xs"
-            -child-layout="column"
+            width="48"
+            height="44"
+            text-size="2xs"
+            child-layout="column"
             color="primary-70"
           >
-            <s-icon name="download" -icon-size="1.125rem"></s-icon>
+            <s-icon name="download" icon-size="1.125rem"></s-icon>
             PDF
           </s-button>
-          <s-box -child-layout="row" -child-align="center" -grow>
-            <s-box -child-layout="row" -child-align="center" -grow>
-              <s-box -text-size="md" -p="16" -text-align="center" -grow
+          <s-box child-layout="row" child-align="center" grow>
+            <s-box child-layout="row" child-align="center" grow>
+              <s-box text-size="md" p="16" text-align="center" grow
                 >Screenplay Preview</s-box
               >
             </s-box>
@@ -57,21 +57,21 @@ export default spec({
             aria-label="Preview Game"
             variant="icon"
             icon="gamepad"
-            -width="48"
-            -height="48"
+            width="48"
+            height="48"
             class="more"
             color="fg-50"
           ></s-button>
           <s-box
             id="progressBar"
-            -position="absolute"
-            -i-b="0"
-            -i-lr="0"
-            -width="100%"
-            -height="3"
-            -bg-color="primary-70"
-            -pivot="left"
-            -grow
+            position="absolute"
+            i-b="0"
+            i-lr="0"
+            width="100%"
+            height="3"
+            bg-color="primary-70"
+            pivot="left"
+            grow
           ></s-box>
         </s-box>
       </s-box>

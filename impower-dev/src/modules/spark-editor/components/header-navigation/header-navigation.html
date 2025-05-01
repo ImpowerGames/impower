@@ -1,18 +1,18 @@
 <div class="root">
   <button class="blocker"></button>
-  <s-box -height="header-nav" -child-justify="center" -z="2" -bg-color="primary-bg">
-    <s-box -child-layout="row" -child-align="center">
+  <s-box height="header-nav" child-justify="center" z="2" bg-color="primary-bg">
+    <s-box child-layout="row" child-align="center">
       <se-header-menu-button></se-header-menu-button>
-      <s-box -grow>
+      <s-box grow>
         <se-header-title-button></se-header-title-button>
         <se-header-title-caption></se-header-title-caption>
       </s-box>
       <se-header-sync-toolbar id="syncToolbar"></se-header-sync-toolbar>
-      <s-hidden initial="hide" hide-above="lg" -child-layout="row" -child-align="center">
+      <s-hidden initial="hide" hide-above="lg" child-layout="row" child-align="center">
         <se-preview-toggle-button id="previewButton"></se-preview-toggle-button>
         <se-edit-toggle-button id="previewButton"></se-edit-toggle-button>
       </s-hidden>
     </s-box>
-    <s-divider -position="absolute" -i-b="0" -bg-color="fg-06"></s-divider>
+    <s-divider position="absolute" i-b="0" bg-color="fg-06"></s-divider>
   </s-box>
 </div>

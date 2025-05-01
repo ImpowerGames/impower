@@ -12,19 +12,19 @@ export default spec({
     const { panel } = context;
     return html`
       <s-router key="assets-panel" directional active="${panel}">
-        <s-box -bg-color="panel" -position="sticky-top" slot="header">
+        <s-box bg-color="panel" position="sticky-top" slot="header">
           <se-header-navigation-placeholder></se-header-navigation-placeholder>
           <s-tabs
             indicator-color="tab-active"
-            -height="panel-nav"
+            height="panel-nav"
             active="${panel}"
           >
             <s-tab
               active-text-color="tab-active"
               inactive-text-color="tab-inactive"
               disable-ripple
-              -p="20"
-              -child-layout="row"
+              p="20"
+              child-layout="row"
               active-icon="files"
               icon="files"
               value="files"
@@ -36,8 +36,8 @@ export default spec({
               active-text-color="tab-active"
               inactive-text-color="tab-inactive"
               disable-ripple
-              -p="20"
-              -child-layout="row"
+              p="20"
+              child-layout="row"
               active-icon="link"
               icon="link"
               value="urls"

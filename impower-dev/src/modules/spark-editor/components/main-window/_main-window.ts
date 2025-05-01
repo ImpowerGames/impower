@@ -21,7 +21,7 @@ export default spec({
         divider-color="fg-06"
         responsive="hide"
       >
-        <s-box -position="relative" -child-layout="column" flex slot="start">
+        <s-box position="relative" child-layout="column" flex slot="start">
           <s-router key="pane" event-source="window" active="${pane}">
             <template value="logic">
               <se-logic></se-logic>
@@ -34,8 +34,8 @@ export default spec({
             </template>
           </s-router>
         </s-box>
-        <s-box -position="relative" -child-layout="column" flex slot="end">
-          <s-box -position="absolute" -i="48px 0 0 0" -bg-color="black"></s-box>
+        <s-box position="relative" child-layout="column" flex slot="end">
+          <s-box position="absolute" i="48px 0 0 0" bg-color="black"></s-box>
           <se-preview></se-preview>
         </s-box>
       </s-split-pane>
@@ -47,7 +47,7 @@ export default spec({
         hide-instantly
         show-instantly
       >
-        <s-box -height="footer-nav"></s-box>
+        <s-box height="footer-nav"></s-box>
         <s-hidden
           id="footerVisibilityManager"
           if-below="lg"
@@ -56,18 +56,18 @@ export default spec({
           hide-instantly
           show-delay="200ms"
         >
-          <s-box -position="fixed-bottom">
-            <s-box -position="relative" -bg-color="primary-bg">
+          <s-box position="fixed-bottom">
+            <s-box position="relative" bg-color="primary-bg">
               <s-divider
-                -position="absolute"
-                -i="0 0 auto 0"
-                -bg-color="fg-06"
+                position="absolute"
+                i="0 0 auto 0"
+                bg-color="fg-06"
               ></s-divider>
-              <s-tabs indicator="none" -height="footer-nav" active="${pane}">
+              <s-tabs indicator="none" height="footer-nav" active="${pane}">
                 <s-tab
                   active-text-color="tab-active"
                   inactive-text-color="tab-inactive"
-                  -shrink
+                  shrink
                   disable-ripple
                   icon="bolt"
                   active-icon="bolt-fill"
@@ -79,7 +79,7 @@ export default spec({
                 <s-tab
                   active-text-color="tab-active"
                   inactive-text-color="tab-inactive"
-                  -shrink
+                  shrink
                   disable-ripple
                   icon="photo"
                   active-icon="photo-fill"
@@ -91,7 +91,7 @@ export default spec({
                 <s-tab
                   active-text-color="tab-active"
                   inactive-text-color="tab-inactive"
-                  -shrink
+                  shrink
                   disable-ripple
                   icon="share"
                   active-icon="share-fill"

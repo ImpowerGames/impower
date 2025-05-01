@@ -16,7 +16,7 @@ export default spec({
   html: ({ context }) => {
     const { horizontalLayout } = context;
     return html`
-      <s-box -bg-color="editor-bg" -grow>
+      <s-box bg-color="editor-bg" grow>
         <sparkdown-script-editor
           id="sparkdownScriptEditor"
           scroll-margin="${horizontalLayout ? "0 0 0 0" : "104px 0 0 0"}"

@@ -20,10 +20,10 @@ export default spec({
     const { running, paused, debugging, loading, horizontalLayout } = context;
     const titleEl = () =>
       html`<s-box
-        -text-size="md"
-        -child-justify="center"
-        -text-align="center"
-        -grow
+        text-size="md"
+        child-justify="center"
+        text-align="center"
+        grow
         inert
         >Game Preview</s-box
       >`;
@@ -33,8 +33,8 @@ export default spec({
         aria-label="Preview Screenplay"
         variant="icon"
         icon="notes"
-        -width="48"
-        -height="48"
+        width="48"
+        height="48"
         class="more"
         color="fg-50"
       ></s-button>
@@ -42,8 +42,8 @@ export default spec({
     const settingsDropdown = () => html`
       <s-dropdown id="settingsDropdown">
         <s-button
-          -width="48"
-          -height="48"
+          width="48"
+          height="48"
           color="fg-50"
           variant="icon"
           icon="gear"
@@ -63,41 +63,41 @@ export default spec({
     const playbackControls = () => html`
       <s-button
         id="stepBackwardButton"
-        -width="48"
-        -height="48"
+        width="48"
+        height="48"
         color="fg"
         variant="icon"
         icon="player-skip-backward-fill"
       ></s-button>
       <s-button
         id="fastBackwardButton"
-        -width="48"
-        -height="48"
+        width="48"
+        height="48"
         color="fg"
         variant="icon"
         icon="player-track-previous-fill"
       ></s-button>
       <s-button
         id="pauseToggleButton"
-        -width="48"
-        -height="48"
+        width="48"
+        height="48"
         color="fg"
         variant="icon"
-        -text-size="20"
+        text-size="20"
         icon="${paused ? `player-play-fill` : `player-pause-fill`}"
       ></s-button>
       <s-button
         id="fastForwardButton"
-        -width="48"
-        -height="48"
+        width="48"
+        height="48"
         color="fg"
         variant="icon"
         icon="player-track-next-fill"
       ></s-button>
       <s-button
         id="stepForwardButton"
-        -width="48"
-        -height="48"
+        width="48"
+        height="48"
         color="fg"
         variant="icon"
         icon="player-skip-forward-fill"
@@ -107,18 +107,18 @@ export default spec({
       <s-button
         id="runToggleButton"
         variant="text"
-        -width="48"
-        -height="44"
-        -text-size="2xs"
-        -child-layout="column"
+        width="48"
+        height="44"
+        text-size="2xs"
+        child-layout="column"
         color="primary-70"
       >
         <svg
-          -width="24"
-          -height="24"
+          width="24"
+          height="24"
           viewBox="0 0 24 24"
           xmlns="http://www.w3.org/2000/svg"
-          -fill="#3abff8"
+          fill="#3abff8"
         >
           <circle cx="4" cy="12" r="3">
             <animate
@@ -154,54 +154,54 @@ export default spec({
           </circle>
         </svg>
       </s-button>
-      <s-box -grow inert></s-box>
+      <s-box grow inert></s-box>
       ${titleEl}
-      <s-box -grow inert></s-box>
+      <s-box grow inert></s-box>
       ${modeButton}
     `;
     const readyToolbar = () => html`
       <s-button
         id="runToggleButton"
         variant="text"
-        -width="48"
-        -height="48"
-        -text-size="2xs"
-        -child-layout="column"
+        width="48"
+        height="48"
+        text-size="2xs"
+        child-layout="column"
         color="primary-70"
       >
         <s-icon
-          -icon-size="1.125rem"
+          icon-size="1.125rem"
           name="${running ? `player-stop` : `player-play`}"
         ></s-icon>
         ${running ? `STOP` : `PLAY`}
       </s-button>
-      <s-box -grow inert></s-box>
+      <s-box grow inert></s-box>
       ${running ? playbackControls : titleEl}
-      <s-box -grow inert></s-box>
+      <s-box grow inert></s-box>
       ${running ? settingsDropdown : modeButton}
     `;
     return html`
       <s-box
-        -bg-color="${horizontalLayout ? "panel" : "black"}"
-        -position="sticky-top"
+        bg-color="${horizontalLayout ? "panel" : "black"}"
+        position="sticky-top"
       >
         <se-header-navigation-placeholder></se-header-navigation-placeholder>
         <s-box
-          -height="panel-nav"
-          -child-layout="row"
-          -child-align="center"
-          -bg-color="${horizontalLayout ? "panel" : "black"}"
-          -z="1"
-          -grow
+          height="panel-nav"
+          child-layout="row"
+          child-align="center"
+          bg-color="${horizontalLayout ? "panel" : "black"}"
+          z="1"
+          grow
         >
           <s-box
-            -text-size="md"
-            -child-layout="row"
-            -child-justify="center"
-            -child-align="center"
-            -grow
+            text-size="md"
+            child-layout="row"
+            child-justify="center"
+            child-align="center"
+            grow
           >
-            <s-list -child-layout="row" -child-justify="center" -grow>
+            <s-list child-layout="row" child-justify="center" grow>
               ${loading ? loadingToolbar : readyToolbar}
             </s-list>
           </s-box>

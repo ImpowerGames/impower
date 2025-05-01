@@ -37,8 +37,8 @@ export default spec({
           aria-label="Menu"
           variant="icon"
           icon="dots-vertical"
-          -width="56"
-          -height="56"
+          width="56"
+          height="56"
           color="fg-50"
         ></s-button>
         <slot slot="options"> ${optionComponents} </slot>
@@ -49,10 +49,10 @@ export default spec({
         aria-label="Done"
         variant="icon"
         icon="check"
-        -width="56"
-        -height="56"
+        width="56"
+        height="56"
         color="primary-70"
-        -icon-size="1.25rem"
+        icon-size="1.25rem"
         hidden
       >
       </s-button>
