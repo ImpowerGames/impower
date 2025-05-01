@@ -347,7 +347,7 @@ repository:
 
   DefineDeclaration:
     tag: meta
-    name: meta.definition.type.sd
+    name: meta.definition.type.define.sd
     begin: ^({{WS}}*)(define)({{EOK}})(.*?)$
     beginCaptures:
       1:
@@ -469,7 +469,7 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#FunctionParameters" }
+      - { include: "#FunctionDeclarationParameters" }
     end: (?=$)
 
   RefModifier:
@@ -483,7 +483,31 @@ repository:
         patterns:
           - { include: "#OptionalSeparator" }
 
-  FunctionParameters:
+  FunctionDeclarationParameters:
+    brackets: true
+    begin: ([(])({{WS}}*)
+    beginCaptures:
+      1:
+        tag: keyword
+        name: punctuation.definition.template-expression.begin.sd
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Separator" }
+      - { include: "#PunctuationComma" }
+      - { include: "#Parameter" }
+    end: ({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: keyword
+        name: punctuation.definition.template-expression.end.sd
+
+  FunctionCallParameters:
     brackets: true
     begin: ([(])({{WS}}*)
     beginCaptures:
@@ -707,7 +731,7 @@ repository:
           - { include: "#FunctionName" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#FunctionParameters" }
+      - { include: "#FunctionCallParameters" }
     end: (?=$|[^(])
 
   FunctionAccessor:
@@ -721,7 +745,7 @@ repository:
           - { include: "#FunctionName" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#FunctionParameters" }
+      - { include: "#FunctionCallParameters" }
     end: ([;])|(?=$|[^(])
     endCaptures:
       1:
@@ -790,7 +814,7 @@ repository:
 
   ScreenDeclaration:
     tag: meta
-    name: meta.definition.type.sd
+    name: meta.definition.type.screen.sd
     begin: ^({{WS}}*)(screen)({{EOK}})(.*?)$
     beginCaptures:
       1:
@@ -828,7 +852,7 @@ repository:
           - { include: "#ClassAccessor" }
       3:
         patterns:
-          - { include: "#FunctionParameters" }
+          - { include: "#FunctionDeclarationParameters" }
       4:
         patterns:
           - { include: "#Separator" }
@@ -852,7 +876,7 @@ repository:
 
   ComponentDeclaration:
     tag: meta
-    name: meta.definition.type.sd
+    name: meta.definition.type.component.sd
     begin: ^({{WS}}*)(component)({{EOK}})(.*?)$
     beginCaptures:
       1:
@@ -890,7 +914,7 @@ repository:
           - { include: "#ClassAccessor" }
       3:
         patterns:
-          - { include: "#FunctionParameters" }
+          - { include: "#FunctionDeclarationParameters" }
       4:
         patterns:
           - { include: "#Separator" }
@@ -909,15 +933,56 @@ repository:
 
   ComponentDeclarationName:
     tag: variableName
-    name: support.type.component.custom.sd
+    name: keyword.other.component.custom.sd
     match: (.+)
 
   ViewField:
     emit: true
     patterns:
       - { include: "#BlankProperty" }
+      - { include: "#ViewForControlProperty" }
       - { include: "#ViewControlProperty" }
       - { include: "#ViewComponentProperty" }
+      - { include: "#Whitespace" }
+
+  ViewForControlProperty:
+    tag: meta
+    name: meta.definition.view.property.scalar.sd
+    match: ^({{WS}}*)(for)({{WS}}*)(.*?)($|{{WS}}+)($|in)($|{{WS}}+)(.*?)($|{{WS}}*)($|[:])($|{{WS}}*$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ViewDeclarationControlKeyword" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+      4:
+        patterns:
+          - { include: "#ViewDeclarationAsExpression" }
+      5:
+        patterns:
+          - { include: "#Separator" }
+      6:
+        patterns:
+          - { include: "#InKeyword" }
+      7:
+        patterns:
+          - { include: "#Separator" }
+      8:
+        patterns:
+          - { include: "#ViewDeclarationControlExpression" }
+      9:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      10:
+        patterns:
+          - { include: "#ColonOperator" }
+      11:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   ViewControlProperty:
     tag: meta
@@ -962,7 +1027,7 @@ repository:
           - { include: "#ClassAccessor" }
       4:
         patterns:
-          - { include: "#FunctionParameters" }
+          - { include: "#FunctionCallParameters" }
       5:
         patterns:
           - { include: "#Separator" }
@@ -989,6 +1054,7 @@ repository:
       - { include: "#LabelAttribute" }
       - { include: "#AttributeFunctionName" }
       - { include: "#AttributePropertyName" }
+      - { include: "#Whitespace" }
 
   QuotedEventAttribute:
     match: (@[\w-]+)([=])("(?:[^"\\]|\\.)*")
@@ -1081,12 +1147,12 @@ repository:
 
   BuiltinComponentName:
     tag: typeName
-    name: support.type.component.builtin.name.sd
+    name: keyword.other.component.builtin.name.sd
     match: \b(Area|Span|Box|Row|Column|Grid|Text|Link|Button|Image|Input|TextArea|Slider|Checkbox|Dropdown|Option|Space|Divider)\b
 
   CustomComponentName:
     tag: typeName
-    name: support.type.component.custom.name.sd
+    name: keyword.other.component.custom.name.sd
     match: ([A-Z][\w]*)
 
   ViewDeclarationControlKeyword:
@@ -1109,11 +1175,14 @@ repository:
     name: keyword.control.in.view.sd
     match: \b(in)\b
 
+  ViewDeclarationAsExpression:
+    emit: true
+    patterns:
+      - { include: "#Expression" }
+
   ViewDeclarationControlExpression:
     emit: true
     patterns:
-      - { include: "#InKeyword" }
-      - { include: "#ParentheticalExpression" }
       - { include: "#Expression" }
 
   ViewString:
@@ -1123,7 +1192,7 @@ repository:
     patterns:
       - { include: "#StringEscape" }
       - { include: "#Annotation" }
-      - { include: "#InterpolatedString" }
+      - { include: "#ConditionalBlock" }
       - { include: "#StringCharacter" }
     end: (?=\s)
 
@@ -1794,7 +1863,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#FunctionParameters" }
+      - { include: "#FunctionDeclarationParameters" }
     end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
 
   KnotWithoutParametersDeclaration:
@@ -1809,7 +1878,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#FunctionParameters" }
+      - { include: "#FunctionDeclarationParameters" }
     end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
 
   KnotBeginMark:
@@ -1864,7 +1933,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#FunctionParameters" }
+      - { include: "#FunctionDeclarationParameters" }
     end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
 
   StitchWithoutParametersDeclaration:
@@ -1879,7 +1948,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#FunctionParameters" }
+      - { include: "#FunctionDeclarationParameters" }
     end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
 
   StitchDeclarationName:
@@ -1902,7 +1971,7 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#FunctionParameters" }
+      - { include: "#FunctionDeclarationParameters" }
     end: (?=$|{{WS}}*[=]{2,})
 
   FunctionKeyword:
@@ -2033,6 +2102,8 @@ repository:
   ########## ConditionalBlock (anything within {}) ##########
 
   ConditionalBlock:
+    tag: meta
+    name: meta.definition.type.conditional-block.sd
     brackets: true
     begin: ([{])({{WS}}*)
     beginCaptures:
@@ -2729,7 +2800,7 @@ repository:
     patterns:
       - { include: "#StringEscape" }
       - { include: "#Annotation" }
-      - { include: "#InterpolatedString" }
+      - { include: "#ConditionalBlock" }
       - { include: "#StringCharacter" }
     end: (["])|($)
     endCaptures:

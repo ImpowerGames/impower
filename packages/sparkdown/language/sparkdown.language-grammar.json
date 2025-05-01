@@ -591,7 +591,7 @@
     },
     "DefineDeclaration": {
       "tag": "meta",
-      "name": "meta.definition.type.sd",
+      "name": "meta.definition.type.define.sd",
       "begin": "^([^\\S\\n\\r]*)(define)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)$",
       "beginCaptures": {
         "1": {
@@ -819,7 +819,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#FunctionParameters"
+          "include": "#FunctionDeclarationParameters"
         }
       ],
       "end": "(?=$)"
@@ -841,7 +841,52 @@
         }
       }
     },
-    "FunctionParameters": {
+    "FunctionDeclarationParameters": {
+      "brackets": true,
+      "begin": "([(])([^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "tag": "keyword",
+          "name": "punctuation.definition.template-expression.begin.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Separator"
+        },
+        {
+          "include": "#PunctuationComma"
+        },
+        {
+          "include": "#Parameter"
+        }
+      ],
+      "end": "([^\\S\\n\\r]*)([)])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "punctuation.definition.template-expression.end.sd"
+        }
+      }
+    },
+    "FunctionCallParameters": {
       "brackets": true,
       "begin": "([(])([^\\S\\n\\r]*)",
       "beginCaptures": {
@@ -1289,7 +1334,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#FunctionParameters"
+          "include": "#FunctionCallParameters"
         }
       ],
       "end": "(?=$|[^(])"
@@ -1317,7 +1362,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#FunctionParameters"
+          "include": "#FunctionCallParameters"
         }
       ],
       "end": "([;])|(?=$|[^(])",
@@ -1432,7 +1477,7 @@
     },
     "ScreenDeclaration": {
       "tag": "meta",
-      "name": "meta.definition.type.sd",
+      "name": "meta.definition.type.screen.sd",
       "begin": "^([^\\S\\n\\r]*)(screen)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)$",
       "beginCaptures": {
         "1": {
@@ -1505,7 +1550,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#FunctionParameters"
+              "include": "#FunctionDeclarationParameters"
             }
           ]
         },
@@ -1553,7 +1598,7 @@
     },
     "ComponentDeclaration": {
       "tag": "meta",
-      "name": "meta.definition.type.sd",
+      "name": "meta.definition.type.component.sd",
       "begin": "^([^\\S\\n\\r]*)(component)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)$",
       "beginCaptures": {
         "1": {
@@ -1626,7 +1671,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#FunctionParameters"
+              "include": "#FunctionDeclarationParameters"
             }
           ]
         },
@@ -1669,7 +1714,7 @@
     },
     "ComponentDeclarationName": {
       "tag": "variableName",
-      "name": "support.type.component.custom.sd",
+      "name": "keyword.other.component.custom.sd",
       "match": "(.+)"
     },
     "ViewField": {
@@ -1679,12 +1724,102 @@
           "include": "#BlankProperty"
         },
         {
+          "include": "#ViewForControlProperty"
+        },
+        {
           "include": "#ViewControlProperty"
         },
         {
           "include": "#ViewComponentProperty"
+        },
+        {
+          "include": "#Whitespace"
         }
       ]
+    },
+    "ViewForControlProperty": {
+      "tag": "meta",
+      "name": "meta.definition.view.property.scalar.sd",
+      "match": "^([^\\S\\n\\r]*)(for)([^\\S\\n\\r]*)(.*?)($|[^\\S\\n\\r]+)($|in)($|[^\\S\\n\\r]+)(.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ViewDeclarationControlKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#ViewDeclarationAsExpression"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#InKeyword"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#ViewDeclarationControlExpression"
+            }
+          ]
+        },
+        "9": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "10": {
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
+        },
+        "11": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      }
     },
     "ViewControlProperty": {
       "tag": "meta",
@@ -1771,7 +1906,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#FunctionParameters"
+              "include": "#FunctionCallParameters"
             }
           ]
         },
@@ -1835,6 +1970,9 @@
         },
         {
           "include": "#AttributePropertyName"
+        },
+        {
+          "include": "#Whitespace"
         }
       ]
     },
@@ -2000,12 +2138,12 @@
     },
     "BuiltinComponentName": {
       "tag": "typeName",
-      "name": "support.type.component.builtin.name.sd",
+      "name": "keyword.other.component.builtin.name.sd",
       "match": "\\b(Area|Span|Box|Row|Column|Grid|Text|Link|Button|Image|Input|TextArea|Slider|Checkbox|Dropdown|Option|Space|Divider)\\b"
     },
     "CustomComponentName": {
       "tag": "typeName",
-      "name": "support.type.component.custom.name.sd",
+      "name": "keyword.other.component.custom.name.sd",
       "match": "([A-Z][\\w]*)"
     },
     "ViewDeclarationControlKeyword": {
@@ -2033,15 +2171,17 @@
       "name": "keyword.control.in.view.sd",
       "match": "\\b(in)\\b"
     },
-    "ViewDeclarationControlExpression": {
+    "ViewDeclarationAsExpression": {
       "emit": true,
       "patterns": [
         {
-          "include": "#InKeyword"
-        },
-        {
-          "include": "#ParentheticalExpression"
-        },
+          "include": "#Expression"
+        }
+      ]
+    },
+    "ViewDeclarationControlExpression": {
+      "emit": true,
+      "patterns": [
         {
           "include": "#Expression"
         }
@@ -2059,7 +2199,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#InterpolatedString"
+          "include": "#ConditionalBlock"
         },
         {
           "include": "#StringCharacter"
@@ -3275,7 +3415,7 @@
       },
       "patterns": [
         {
-          "include": "#FunctionParameters"
+          "include": "#FunctionDeclarationParameters"
         }
       ],
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
@@ -3302,7 +3442,7 @@
       },
       "patterns": [
         {
-          "include": "#FunctionParameters"
+          "include": "#FunctionDeclarationParameters"
         }
       ],
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
@@ -3394,7 +3534,7 @@
       },
       "patterns": [
         {
-          "include": "#FunctionParameters"
+          "include": "#FunctionDeclarationParameters"
         }
       ],
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
@@ -3421,7 +3561,7 @@
       },
       "patterns": [
         {
-          "include": "#FunctionParameters"
+          "include": "#FunctionDeclarationParameters"
         }
       ],
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
@@ -3466,7 +3606,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#FunctionParameters"
+          "include": "#FunctionDeclarationParameters"
         }
       ],
       "end": "(?=$|[^\\S\\n\\r]*[=]{2,})"
@@ -3672,6 +3812,8 @@
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "ConditionalBlock": {
+      "tag": "meta",
+      "name": "meta.definition.type.conditional-block.sd",
       "brackets": true,
       "begin": "([{])([^\\S\\n\\r]*)",
       "beginCaptures": {
@@ -4985,7 +5127,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#InterpolatedString"
+          "include": "#ConditionalBlock"
         },
         {
           "include": "#StringCharacter"

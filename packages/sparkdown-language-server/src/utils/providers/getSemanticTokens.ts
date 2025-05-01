@@ -40,6 +40,8 @@ export const getSemanticTokens = (
       semanticTokenTypes.indexOf(tokenType),
       tokenModifiers
         .map((m) => semanticTokenModifiers.indexOf(m))
+        .filter((i) => i >= 0)
+        .map((i) => 1 << i)
         .reduce((a, b) => a | b, 0),
     ];
   };
@@ -47,15 +49,14 @@ export const getSemanticTokens = (
     if (cur.value) {
       const start = document.positionAt(cur.from);
       const length = cur.to - cur.from;
-      tokens.push(
-        encode(
-          start.line,
-          start.character,
-          length,
-          cur.value.type.tokenType,
-          cur.value.type.tokenModifiers
-        )
+      const encoded = encode(
+        start.line,
+        start.character,
+        length,
+        cur.value.type.tokenType,
+        cur.value.type.tokenModifiers
       );
+      tokens.push(encoded);
     }
   };
   const iterateFrom = range ? document.offsetAt(range.start) : undefined;

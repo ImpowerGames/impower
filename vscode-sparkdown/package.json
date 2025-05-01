@@ -225,27 +225,21 @@
             }
           },
           {
-            "scope": "entity.name.type.class.view.sd",
+            "scope": "entity.name.type.class.view",
             "settings": {
               "foreground": "#FFB380"
             }
           },
           {
-            "scope": "support.type.component",
+            "scope": "keyword.other.component",
             "settings": {
               "foreground": "#FF80BB"
             }
           },
           {
-            "scope": "support.type.component.custom",
+            "scope": "keyword.other.component.custom",
             "settings": {
               "foreground": "#ffa8d1"
-            }
-          },
-          {
-            "scope": "string.interpolated.view",
-            "settings": {
-              "foreground": "#b19d95"
             }
           }
         ],
@@ -300,15 +294,15 @@
               }
             },
             {
-              "scope": "support.type.component",
+              "scope": "keyword.other.component",
               "settings": {
                 "foreground": "#E0569A"
               }
             },
             {
-              "scope": "string.interpolated.view",
+              "scope": "keyword.other.component.custom",
               "settings": {
-                "foreground": "#B84B4B"
+                "foreground": "#e04392"
               }
             }
           ]
