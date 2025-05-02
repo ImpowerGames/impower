@@ -10,7 +10,7 @@ variables:
   IDENTIFIER_START_CHAR: '_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}'
   IDENTIFIER: "[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*"
-  CSS_IDENTIFIER: "[{{IDENTIFIER_START_CHAR}}-][{{IDENTIFIER_END_CHAR}}-]*"
+  CSS_IDENTIFIER: "[{{IDENTIFIER_END_CHAR}}-]+"
   PROPERTY_IDENTIFIER: '(?:["].*?["]|\[.*?\]|\(.*?\)|[^.:=\r\n])+?'
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))

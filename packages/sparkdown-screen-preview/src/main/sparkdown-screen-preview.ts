@@ -42,7 +42,7 @@ export default class SparkdownScreenPreview extends Component(spec) {
             components: getComponents(parsed),
             state: JSON.parse(stateInputEl.value || "{}"),
             renderStyles: () => {
-              const container = this.ref.styles;
+              const container = this.ref.css;
               const newVDOM = renderCssVDOM(parsed, ctx);
               if (!this._lastCssVDOM) {
                 container.innerHTML = "";
@@ -55,7 +55,7 @@ export default class SparkdownScreenPreview extends Component(spec) {
               console.log(newVDOM);
             },
             renderHTML: () => {
-              const container = this.ref.output;
+              const container = this.ref.html;
               const newVDOM = renderHtmlVDOM(parsed, ctx);
               if (!this._lastHtmlVDOM) {
                 container.innerHTML = "";

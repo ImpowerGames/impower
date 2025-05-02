@@ -15,8 +15,8 @@ export default spec({
     state: "#state",
     renderButton: "#render-button",
     parsed: "#parsed",
-    styles: "#styles",
-    output: "#output",
+    css: "#css",
+    html: "#html",
   } as const,
   css: [
     resetCSS,

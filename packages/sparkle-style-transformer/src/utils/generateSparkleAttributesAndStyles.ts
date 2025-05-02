@@ -6,7 +6,6 @@ import {
   getCssPattern,
   getCssSize,
   getCssTextStroke,
-  validateCss,
 } from "./transformers.js";
 
 export const setVariableAndValue = (
@@ -20,7 +19,7 @@ export const setVariableAndValue = (
   }
   const varName = name.startsWith("---") ? name : `---${name}`;
   const formattedValue = value != null ? valueFormatter(value) : value;
-  if (!formattedValue || !validateCss(formattedValue)) {
+  if (!formattedValue) {
     return styles;
   }
   styles[varName] = formattedValue;

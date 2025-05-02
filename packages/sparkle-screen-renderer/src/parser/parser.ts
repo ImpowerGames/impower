@@ -264,6 +264,19 @@ export function parseSparkle(input: string): SparkleNode[] {
             };
           }
         } else if (currentRoot?.type === "theme") {
+          if (statement.includes("=")) {
+            const [key, value] = statement.split("=");
+            node = {
+              root: currentRoot.root,
+              type: "prop",
+              args: { key: key?.trim(), value: value?.trim() },
+            };
+          } else {
+            node = {
+              root: currentRoot.root,
+              type,
+            };
+          }
         }
 
         // Add node to parent's children and to the stack

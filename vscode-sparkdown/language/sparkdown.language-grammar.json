@@ -12,7 +12,7 @@
     "IDENTIFIER_START_CHAR": "_\\p{L}",
     "IDENTIFIER_END_CHAR": "0-9_\\p{L}",
     "IDENTIFIER": "[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*",
-    "CSS_IDENTIFIER": "[{{IDENTIFIER_START_CHAR}}-][{{IDENTIFIER_END_CHAR}}-]*",
+    "CSS_IDENTIFIER": "[{{IDENTIFIER_END_CHAR}}-]+",
     "PROPERTY_IDENTIFIER": "(?:[\"].*?[\"]|\\[.*?\\]|\\(.*?\\)|[^.:=\\r\\n])+?",
     "BEFORE_KEYWORD": "(?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\\.\\.\\.)|(?<!\\.))",
     "AFTER_KEYWORD": "(?![{{IDENTIFIER_END_CHAR}}])(?:(?=\\.\\.\\.)|(?!\\.))",
@@ -1531,7 +1531,7 @@
       "match": "(.+)"
     },
     "ScreenDeclarationAssignment": {
-      "match": "([_\\p{L}-][0-9_\\p{L}-]*)((?:[.][_\\p{L}-][0-9_\\p{L}-]*)*)([(].*[)])?($|[^\\S\\n\\r]*)(.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
+      "match": "([0-9_\\p{L}-]+)((?:[.][0-9_\\p{L}-]+)*)([(].*[)])?($|[^\\S\\n\\r]*)(.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
       "captures": {
         "1": {
           "patterns": [
@@ -1652,7 +1652,7 @@
       "match": "(.+)"
     },
     "ComponentDeclarationAssignment": {
-      "match": "([_\\p{L}-][0-9_\\p{L}-]*)((?:[.][_\\p{L}-][0-9_\\p{L}-]*)*)([(].*[)])?($|[^\\S\\n\\r]*)(.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
+      "match": "([0-9_\\p{L}-]+)((?:[.][0-9_\\p{L}-]+)*)([(].*[)])?($|[^\\S\\n\\r]*)(.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
       "captures": {
         "1": {
           "patterns": [
@@ -1880,7 +1880,7 @@
     "ViewComponentProperty": {
       "tag": "meta",
       "name": "meta.definition.view.property.scalar.sd",
-      "match": "^([^\\S\\n\\r]*)([_\\p{L}-][0-9_\\p{L}-]*)((?:[.][_\\p{L}-][0-9_\\p{L}-]*)*)([(].*[)])?($|[^\\S\\n\\r]*)(.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
+      "match": "^([^\\S\\n\\r]*)([0-9_\\p{L}-]+)((?:[.][0-9_\\p{L}-]+)*)([(].*[)])?($|[^\\S\\n\\r]*)(.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
       "captures": {
         "1": {
           "patterns": [
@@ -2716,7 +2716,7 @@
     },
     "CssSelectorFunctionCondition": {
       "name": "source.css",
-      "begin": "([@])([_\\p{L}-][0-9_\\p{L}-]*)?([(])",
+      "begin": "([@])([0-9_\\p{L}-]+)?([(])",
       "beginCaptures": {
         "1": {
           "tag": "attributeName",
@@ -2752,7 +2752,7 @@
     },
     "CssSelectorSimpleCondition": {
       "name": "source.css",
-      "match": "([@])([_\\p{L}-][0-9_\\p{L}-]*)",
+      "match": "([@])([0-9_\\p{L}-]+)",
       "captures": {
         "1": {
           "tag": "attributeName",
@@ -2795,17 +2795,17 @@
     "CssSelectorFunctionConditionName": {
       "tag": "attributeName",
       "name": "entity.other.attribute-name.pseudo-class.name.sd",
-      "match": "([_\\p{L}-][0-9_\\p{L}-]*)"
+      "match": "([0-9_\\p{L}-]+)"
     },
     "CssSelectorSimpleConditionName": {
       "tag": "attributeName",
       "name": "entity.other.attribute-name.pseudo-class.name.sd",
-      "match": "([_\\p{L}-][0-9_\\p{L}-]*)"
+      "match": "([0-9_\\p{L}-]+)"
     },
     "CssPropertyName": {
       "tag": "propertyName",
       "name": "variable.other.property.define.sd",
-      "match": "([_\\p{L}-][0-9_\\p{L}-]*)"
+      "match": "([0-9_\\p{L}-]+)"
     },
     "CssPropertyValue": {
       "tag": "string",

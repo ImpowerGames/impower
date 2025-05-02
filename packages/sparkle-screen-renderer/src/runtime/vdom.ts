@@ -327,9 +327,34 @@ export function renderVNode(
         .filter(Boolean)
         .join(" ");
       const animationDeclaration = `---theme_animation-${name}: ${shorthand};`;
-      return `:is(:root, :host) { ${animationDeclaration} }`;
+      return `:is(:root,:host) { ${animationDeclaration} }`;
     }
+
     return "";
+  }
+
+  if (el.root === "theme") {
+    if (type === "theme") {
+      // Special case: build a style block
+      const styleContent = (children ?? [])
+        .map((c, i) => "---theme_" + renderVNode(c, ctx, el, i))
+        .join("");
+      const name = el.args?.name;
+      return {
+        tag: "style",
+        props: {},
+        children: [
+          `:is([theme="${name}"],.theme-${name}) > * { ${styleContent} }`,
+        ],
+      };
+    }
+    if (type === "prop") {
+      return paramToProp(params?.key, params?.value, cssAliases);
+    }
+    const content = (children ?? [])
+      .map((c, i) => renderVNode(c, ctx, el, i) as string)
+      .join("");
+    return `${type}-${content}`;
   }
 
   console.warn("Unhandled node type:", type, el);
@@ -634,7 +659,11 @@ export function renderCssVDOM(
 ): VNode {
   const children: VNode[] = [];
   for (const root of parsed) {
-    if (root.type === "animation" || root.type === "style") {
+    if (
+      root.type === "animation" ||
+      root.type === "style" ||
+      root.type === "theme"
+    ) {
       children.push(renderVNode(root, ctx));
     }
   }
