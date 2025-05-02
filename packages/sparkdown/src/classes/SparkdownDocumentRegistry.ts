@@ -256,6 +256,10 @@ export class SparkdownDocumentRegistry {
         `Received document change event for ${td.uri} without valid version identifier`
       );
     }
+    const existingDocument = this._syncedDocuments.get(td.uri);
+    if (existingDocument && existingDocument.version === td.version) {
+      return false;
+    }
     let syncedDocument =
       this._syncedDocuments.get(td.uri) ||
       new SparkdownDocument(td.uri, "sparkdown", td.version - 1, "");
