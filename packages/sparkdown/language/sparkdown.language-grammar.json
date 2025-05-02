@@ -3754,7 +3754,7 @@
     "DivertPath": {
       "tag": "heading",
       "name": "keyword.control.divert.path.sd",
-      "begin": "(?=[_\\p{L}0-9^.])",
+      "begin": "(?=[_\\p{L}0-9.^])",
       "patterns": [
         {
           "include": "#Annotation"
@@ -3763,7 +3763,7 @@
           "include": "#DivertPart"
         }
       ],
-      "end": "([^\\S\\n\\r]*(?=[-][>]))?(?=$|[^_\\p{L}0-9^.])",
+      "end": "([^\\S\\n\\r]*(?=[-][>]))?(?=$|[^_\\p{L}0-9.^])",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -3804,7 +3804,7 @@
     "DivertPartOperator": {
       "tag": "heading",
       "name": "keyword.control.divert.path.sd",
-      "match": "(^)"
+      "match": "([.^])"
     },
     "DivertPartName": {
       "tag": "heading",

@@ -2061,11 +2061,11 @@ repository:
   DivertPath:
     tag: heading
     name: keyword.control.divert.path.sd
-    begin: (?=[{{IDENTIFIER_START_CHAR}}0-9^.])
+    begin: (?=[{{IDENTIFIER_START_CHAR}}0-9.^])
     patterns:
       - { include: "#Annotation" }
       - { include: "#DivertPart" }
-    end: ({{WS}}*(?=[-][>]))?(?=$|[^{{IDENTIFIER_START_CHAR}}0-9^.])
+    end: ({{WS}}*(?=[-][>]))?(?=$|[^{{IDENTIFIER_START_CHAR}}0-9.^])
     endCaptures:
       1:
         patterns:
@@ -2092,7 +2092,7 @@ repository:
   DivertPartOperator:
     tag: heading
     name: keyword.control.divert.path.sd
-    match: (^)
+    match: ([.^])
 
   DivertPartName:
     tag: heading
