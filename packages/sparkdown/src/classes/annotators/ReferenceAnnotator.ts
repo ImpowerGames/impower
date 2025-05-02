@@ -164,10 +164,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "Parameter") {
       const context = getContextNames(nodeRef.node);
-      if (
-        !context.includes("FunctionCall") &&
-        context.includes("FunctionParameters")
-      ) {
+      if (context.includes("FunctionDeclarationParameters")) {
         const functionNameNode = getDescendentInsideParent(
           "FunctionDeclarationName",
           "FunctionDeclaration",
