@@ -72,12 +72,28 @@ export function diffAndPatch(
 
   // 2) fragment → element
   if (oldIsFrag && !newIsFrag) {
-    // remove exactly oldEl.children.length nodes, starting at `index`
-    for (let i = 0; i < oldEl.children.length; i++) {
-      parent.removeChild(parent.childNodes[index]);
+    // How many real DOM nodes we expect to remove:
+    const removeCount = oldEl.children.length;
+
+    // 1) Collect the next `removeCount` nodes at position `index`
+    const toRemove: Node[] = [];
+    for (let i = 0; i < removeCount; i++) {
+      const node = parent.childNodes[index + i];
+      if (node) {
+        toRemove.push(node);
+      }
     }
-    // then insert the single new element
-    parent.insertBefore(createElement(newEl), parent.childNodes[index] || null);
+
+    // 2) Remove them
+    for (const node of toRemove) {
+      parent.removeChild(node);
+    }
+
+    // 3) Insert the single new element in their place
+    const newDom = createElement(newEl);
+    const ref = parent.childNodes[index] || null;
+    parent.insertBefore(newDom, ref);
+
     return;
   }
 
@@ -106,13 +122,15 @@ export function diffAndPatch(
 
   // same element: update props + recurse
   const el = existing as Element;
-  updateProps(el, oldEl.props, newEl.props);
+  if (el) {
+    updateProps(el, oldEl.props, newEl.props);
 
-  const oldChildren = oldEl.children;
-  const newChildren = newEl.children;
-  const max = Math.max(oldChildren.length, newChildren.length);
-  for (let i = 0; i < max; i++) {
-    diffAndPatch(el, oldChildren[i] ?? null, newChildren[i] ?? null, i);
+    const oldChildren = oldEl.children;
+    const newChildren = newEl.children;
+    const max = Math.max(oldChildren.length, newChildren.length);
+    for (let i = 0; i < max; i++) {
+      diffAndPatch(el, oldChildren[i] ?? null, newChildren[i] ?? null, i);
+    }
   }
 }
 
