@@ -257,12 +257,11 @@ export function renderVNode(
       // Special case: build a style block
       const styleContent = (children ?? [])
         .map((c, i) => renderVNode(c, ctx, el, i))
-        .join(" ");
-      const name = el.args?.name;
+        .join("\n");
       return {
         tag: "style",
         props: {},
-        children: [`@keyframes ${name} { ${styleContent} }`],
+        children: [styleContent],
       };
     }
     if (type === "prop") {
@@ -270,7 +269,7 @@ export function renderVNode(
     }
     if (type === "keyframes" && children?.length) {
       const max = children.length - 1;
-      return children
+      const styleContent = children
         .map((keyframe, i) => {
           const offset = max === 0 ? "to" : `${(i / max) * 100}%`;
           const keyframeContent = (
@@ -281,6 +280,54 @@ export function renderVNode(
           return `${offset} { ${keyframeContent} }`;
         })
         .join(" ");
+      const name = parent?.args?.name;
+      return `@keyframes ${name} { ${styleContent} }`;
+    }
+    if (type === "timing" && children?.length) {
+      const name = parent?.args?.name;
+      const timing: {
+        duration?: string;
+        delay?: string;
+        easing?: string;
+        iterations?: string;
+        direction?: string;
+        fill?: string;
+      } = {};
+      for (const c of children) {
+        const key = c.args?.key;
+        const value = c.args?.value;
+        if (key === "duration" || key === "animation-duration") {
+          timing.duration = value;
+        }
+        if (key === "delay" || key === "animation-delay") {
+          timing.delay = value;
+        }
+        if (key === "easing" || key === "animation-timing-function") {
+          timing.easing = value;
+        }
+        if (key === "iterations" || key === "animation-iteration-count") {
+          timing.iterations = value;
+        }
+        if (key === "direction" || key === "animation-direction") {
+          timing.direction = value;
+        }
+        if (key === "fill" || key === "animation-fill-mode") {
+          timing.fill = value;
+        }
+      }
+      const shorthand = [
+        timing.duration,
+        timing.easing,
+        timing.delay,
+        timing.iterations,
+        timing.direction,
+        timing.fill,
+        name,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      const animationDeclaration = `---theme_animation-${name}: ${shorthand};`;
+      return `:is(:root, :host) { ${animationDeclaration} }`;
     }
     return "";
   }
