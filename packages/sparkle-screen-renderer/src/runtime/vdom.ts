@@ -444,11 +444,19 @@ function cloneVNode(v: VNode): VNode {
 
 function organizeFills(children: SparkleNode[]): Record<string, SparkleNode[]> {
   const fills: Record<string, SparkleNode[]> = {};
+  const otherChildren = [];
   for (const child of children) {
-    if (child.type === "fill" && child.args?.name) {
-      (fills[child.args.name] ??= []).push(...(child.children ?? []));
+    if (child.type === "fill") {
+      const name = child.args?.name ?? "";
+      fills[name] ??= [];
+      fills[name].push(...(child.children ?? []));
+    } else {
+      otherChildren.push(child);
     }
   }
+  // fills for unnamed slots
+  fills[""] ??= [];
+  fills[""].push(...otherChildren);
   return fills;
 }
 
@@ -457,15 +465,27 @@ function instantiateSlots(
   fills: Record<string, SparkleNode[]>
 ): SparkleNode[] {
   const output: SparkleNode[] = [];
+
   for (const child of componentChildren) {
     if (child.type === "slot") {
-      if (child.args?.name && fills[child.args.name]) {
-        output.push(...fills[child.args.name]);
+      // if this is a slot, splice in its fills (or nothing)
+      const name = child.args?.name ?? "";
+      if (fills[name]) {
+        output.push(...fills[name]);
       }
     } else {
-      output.push(child);
+      // otherwise, clone the node…
+      const copy: SparkleNode = { ...child, args: { ...(child.args || {}) } };
+
+      // …and if it has its own children, recurse
+      if (Array.isArray(child.children)) {
+        copy.children = instantiateSlots(child.children, fills);
+      }
+
+      output.push(copy);
     }
   }
+
   return output;
 }
 
