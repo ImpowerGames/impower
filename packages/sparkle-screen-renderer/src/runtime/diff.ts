@@ -1,19 +1,6 @@
 import { createElement } from "./dom";
 import { VElement, VNode } from "./vnode";
 
-function updateProps(
-  el: Element,
-  oldProps: Record<string, string>,
-  newProps: Record<string, string>
-) {
-  for (const k of Object.keys(oldProps)) {
-    if (!(k in newProps)) el.removeAttribute(k);
-  }
-  for (const [k, v] of Object.entries(newProps)) {
-    if (oldProps[k] !== v) el.setAttribute(k, v);
-  }
-}
-
 export function diffAndPatch(
   parent: Node,
   oldVNode: VNode | null,
@@ -116,5 +103,18 @@ export function diffAndPatch(
   const max = Math.max(oldChildren.length, newChildren.length);
   for (let i = 0; i < max; i++) {
     diffAndPatch(el, oldChildren[i] ?? null, newChildren[i] ?? null, i);
+  }
+}
+
+function updateProps(
+  el: Element,
+  oldProps: Record<string, string>,
+  newProps: Record<string, string>
+) {
+  for (const k of Object.keys(oldProps)) {
+    if (!(k in newProps)) el.removeAttribute(k);
+  }
+  for (const [k, v] of Object.entries(newProps)) {
+    if (oldProps[k] !== v) el.setAttribute(k, v);
   }
 }
