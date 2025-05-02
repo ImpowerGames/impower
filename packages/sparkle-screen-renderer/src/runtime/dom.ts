@@ -44,6 +44,14 @@ export function createElement(vnode: VNode): Node {
   return el;
 }
 
+export function removeAttribute(el: Element, key: string) {
+  if (key.startsWith("@")) {
+    // TODO: addEventListener
+  } else {
+    el.removeAttribute(key);
+  }
+}
+
 export function setAttribute(el: Element, key: string, value: string) {
   if (key.startsWith("@")) {
     // TODO: addEventListener

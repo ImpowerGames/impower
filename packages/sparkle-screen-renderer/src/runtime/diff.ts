@@ -1,4 +1,4 @@
-import { createElement, setAttribute } from "./dom";
+import { createElement, removeAttribute, setAttribute } from "./dom";
 import { VElement, VNode } from "./vnode";
 
 export function diffAndPatch(
@@ -112,7 +112,7 @@ function updateProps(
   newProps: Record<string, string>
 ) {
   for (const k of Object.keys(oldProps)) {
-    if (!(k in newProps)) el.removeAttribute(k);
+    if (!(k in newProps)) removeAttribute(el, k);
   }
   for (const [k, v] of Object.entries(newProps)) {
     if (oldProps[k] !== v) setAttribute(el, k, v);
