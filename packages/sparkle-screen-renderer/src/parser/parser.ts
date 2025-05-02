@@ -192,9 +192,14 @@ export function parseSparkle(input: string): SparkleNode[] {
             const props = parseAttributes(attributeArray);
             const { attributes, styles } =
               generateSparkleAttributesAndStyles(props);
-            attributes["style"] = Object.entries(styles)
+            const sparkleStyle = Object.entries(styles)
               .map(([k, v]) => `${k}:${v};`)
               .join("");
+            const existingStyle = attributes["style"] ?? "";
+            const style = sparkleStyle + existingStyle;
+            if (style) {
+              attributes["style"] = style;
+            }
             node = {
               root: currentRoot.root,
               type,
