@@ -54,11 +54,11 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
         if (document.languageId === "sparkdown") {
           const range = change.selections[0];
           if (range) {
-            const screenRange = getScreenRange(document, range.start);
-            const screenDependencyRanges =
-              getAllScreenDependencyRanges(document);
-            if (screenRange) {
-              if (screenPreviewPanel && screenPreviewPanel.panel.visible) {
+            if (screenPreviewPanel && screenPreviewPanel.panel.visible) {
+              const screenRange = getScreenRange(document, range.start);
+              const screenDependencyRanges =
+                getAllScreenDependencyRanges(document);
+              if (screenRange) {
                 const ranges = [screenRange, ...screenDependencyRanges];
                 const prevSerializedScreenRange =
                   screenPreviewPanel.state.ranges?.[0] || null;
@@ -91,6 +91,7 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
         const range = change.contentChanges[0]?.range;
         if (range) {
           if (screenPreviewPanel && screenPreviewPanel.panel.visible) {
+            SparkdownDocumentManager.instance.update(change);
             const currentSerializedScreenRange =
               screenPreviewPanel.state.ranges?.[0];
             const currentScreenRange = currentSerializedScreenRange
