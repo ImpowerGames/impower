@@ -21,7 +21,10 @@ const SAFE_CSS_VALUE_RE =
  * `unset`, preventing malformed declarations from breaking the block.
  */
 export function validateCss(value: string | null | undefined): boolean {
-  const v = value?.trim() ?? "";
+  if (value == null) {
+    return true;
+  }
+  const v = String(value)?.trim() ?? "";
   return SAFE_CSS_VALUE_RE.test(v);
 }
 
