@@ -37,7 +37,17 @@ export function diffAndPatch(
 
   // 3b) one is text, one is element: replace entire node
   if (oldIsText !== newIsText) {
-    parent.replaceChild(createElement(newVNode!), existing!);
+    // 1) build the new DOM node
+    const newDom = createElement(newVNode!);
+
+    // 2) if there's an existing node, replace it...
+    if (existing) {
+      parent.replaceChild(newDom, existing);
+    }
+    // 3) ...otherwise insert it at the correct position
+    else {
+      parent.insertBefore(newDom, parent.childNodes[index] || null);
+    }
     return;
   }
 
