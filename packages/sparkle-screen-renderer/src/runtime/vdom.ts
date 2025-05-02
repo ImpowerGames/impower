@@ -356,22 +356,6 @@ function renderBuiltinVNode(
     return node.children.some(mergeIntoHost);
   }
 
-  if (type === "Slider") {
-    // values are already interpolated into strings in spreadProps
-    const min = Number(spreadProps.min ?? 0);
-    const max = Number(spreadProps.max ?? 100);
-    const value = Number(spreadProps.value ?? min);
-
-    const pct =
-      max === min
-        ? 0 // avoid divide-by-zero
-        : ((value - min) / (max - min)) * 100;
-
-    // preserve any author-supplied inline styles
-    spreadProps.style ??= "";
-    spreadProps.style += `---fill-percentage:${pct}%`;
-  }
-
   if (!mergeIntoHost(root)) {
     // fallback: no flag present, merge into root
     Object.assign(root.props, spreadProps);

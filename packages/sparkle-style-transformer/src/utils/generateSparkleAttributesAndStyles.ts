@@ -89,6 +89,7 @@ export const setSparkleStyle = (
     styleTransformers[normalizedName] || inferTransformer(normalizedName);
 
   if (transformer) {
+    // Automatically set `---text-stroke` based on `text-stroke-width` and `text-stroke-color`
     setVariableAndValue(normalizedName, propValue, transformer, styles);
     if (
       normalizedName === "text-stroke-width" ||
@@ -101,6 +102,19 @@ export const setSparkleStyle = (
       setVariableAndValue("text-stroke", width, getCssTextStroke, styles);
     }
   }
+
+  // Automatically set `---fill-percentage` based on `min` and `max`
+  if (props["min"] != null && props["max"] != null) {
+    const min = Number(props["min"] ?? 0);
+    const max = Number(props["max"] ?? 100);
+    const value = Number(props["value"] ?? min);
+    const percentage =
+      max === min
+        ? 0 // avoid divide-by-zero
+        : ((value - min) / (max - min)) * 100;
+    styles["---fill-percentage"] = `${percentage}%`;
+  }
+
   return styles;
 };
 
