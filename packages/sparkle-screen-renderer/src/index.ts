@@ -3,4 +3,5 @@ export * from "./runtime/builtins";
 export * from "./runtime/css";
 export * from "./runtime/diff";
 export * from "./runtime/dom";
+export * from "./runtime/vdom";
 export * from "./runtime/vnode";
