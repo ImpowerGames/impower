@@ -59,13 +59,19 @@ export class MatchRule implements Rule {
   }
 
   match(state: GrammarState, from: number) {
+    if (state.possibleStackOverflow(this.id, from)) {
+      return null; // Detected infinite recursion
+    }
+    state.enter(this.id, from);
     const str = state.str;
     const result = this.matcher.match(str, from);
     if (!result) {
+      state.exit(this.id, from);
       return null;
     }
     const total = result[0];
     if (total == null) {
+      state.exit(this.id, from);
       return null;
     }
     const matched = Matched.create(this.node, from, total.length);
@@ -128,6 +134,7 @@ export class MatchRule implements Rule {
       }
     }
 
+    state.exit(this.id, from);
     return matched;
   }
 }

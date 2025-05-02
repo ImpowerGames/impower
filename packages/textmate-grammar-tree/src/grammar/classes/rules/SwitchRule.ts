@@ -66,17 +66,24 @@ export class SwitchRule implements Rule {
   }
 
   pattern(state: GrammarState, from: number) {
+    if (state.possibleStackOverflow(this.id, from)) {
+      return null; // Detected infinite recursion
+    }
+    state.enter(this.id, from);
     this.resolve();
     for (let i = 0; i < this.rules!.length; i++) {
       const rule = this.rules![i];
       const patternMatched = rule?.match(state, from);
       if (patternMatched) {
         if (this.emit) {
+          state.exit(this.id, from);
           return patternMatched.wrap(this.node, Wrapping.FULL);
         }
+        state.exit(this.id, from);
         return patternMatched;
       }
     }
+    state.exit(this.id, from);
     return null;
   }
 }

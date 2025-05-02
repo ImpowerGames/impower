@@ -18,6 +18,8 @@ import { RegExpMatcher } from "../RegExpMatcher";
 import type { MatchRule } from "./MatchRule";
 import { SwitchRule } from "./SwitchRule";
 
+const EMPTY_MATCH_LIMIT = 10;
+
 /**
  * A {@link Rule} subclass that uses {@link RegExpMatcher} or
  * {@link StringMatcher} instances for the underlying pattern.
@@ -86,6 +88,10 @@ export class ScopedRule implements Rule {
    * @param state - The current {@link GrammarState}.
    */
   match(state: GrammarState, from: number) {
+    if (state.possibleStackOverflow(this.id, from)) {
+      return null; // Detected infinite recursion
+    }
+    state.enter(this.id, from);
     const wrappedBeginChildren: Matched[] = [];
     let wrappedContentChildren: Matched[] = [];
     const wrappedEndChildren: Matched[] = [];
@@ -96,6 +102,7 @@ export class ScopedRule implements Rule {
     // check begin
     let beginMatched = this.begin(state, pos);
     if (!beginMatched) {
+      state.exit(this.id, from);
       return null;
     }
     wrappedBeginChildren.push(beginMatched.children?.[0]!);
@@ -109,14 +116,32 @@ export class ScopedRule implements Rule {
     // check end
     let endMatched = this.end(state, pos);
 
+    let emptyMatchCount = 0;
+
     while (!endMatched && pos < state.str.length) {
       // check patterns
       const patternMatched = this.content(state, pos);
       if (patternMatched) {
+        if (patternMatched.length === 0) {
+          emptyMatchCount++;
+          if (emptyMatchCount >= EMPTY_MATCH_LIMIT) {
+            console.warn(
+              `[ScopedRule:${
+                this.id
+              }] Too many consecutive empty matches at pos=${
+                state.absolutePos + pos
+              }. Possible infinite loop!`,
+              patternMatched
+            );
+            break;
+          }
+        } else {
+          emptyMatchCount = 0; // reset counter on progress
+          pos += patternMatched.length;
+          totalLength += patternMatched.length;
+        }
         // A pattern matched
         contentChildren.push(patternMatched);
-        totalLength += patternMatched.length;
-        pos += patternMatched.length;
         if (pos >= state.str.length) {
           state.advance();
         }
@@ -158,6 +183,7 @@ export class ScopedRule implements Rule {
     if (endMatched) {
       wrappedEndChildren.push(endMatched.children?.[0]!);
       totalLength += endMatched.length;
+      state.exit(this.id, from);
       return Matched.create(this.node, from, totalLength, [
         ...wrappedBeginChildren,
         ...wrappedContentChildren,
@@ -170,6 +196,7 @@ export class ScopedRule implements Rule {
         ...wrappedBeginChildren,
         ...wrappedContentChildren,
       ]);
+      state.exit(this.id, from);
       return incompleteNode;
     }
   }
