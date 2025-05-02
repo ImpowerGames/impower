@@ -148,7 +148,7 @@ style {
 }
 
 .Button {
-  padding: 10px 20px;
+  padding: 8px 20px;
   border-radius: 8px;
   color: var(--_button-text);
   font-weight: 600;
