@@ -362,7 +362,6 @@ export function renderVNode(
 }
 
 function wrapChildren(children: VNode[]): VNode {
-  if (children.length === 1) return children[0];
   return {
     tag: "fragment",
     props: {},
@@ -449,13 +448,16 @@ function renderBuiltinVNode(
   }
 
   root.children = root.children
-    .map((ch) => {
-      if (typeof ch === "string") return ch;
-      if (ch.tag === "content-slot") return contentV;
-      if (ch.tag === "children-slot")
-        return wrapChildren(
-          children?.map((c, i) => renderVNode(c, ctx, el, i)) || []
-        );
+    .flatMap((ch) => {
+      if (typeof ch === "string") {
+        return ch;
+      }
+      if (ch.tag === "content-slot") {
+        return contentV;
+      }
+      if (ch.tag === "children-slot") {
+        return children?.map((c, i) => renderVNode(c, ctx, el, i)) || [];
+      }
       // recurse
       return injectSlots(ch, params.attributes?.content, children, ctx, el);
     })
@@ -476,23 +478,24 @@ function injectSlots(
   return {
     ...vnode,
     // deep-map children
-    children: vnode.children.map((ch) => {
-      if (typeof ch === "string") {
-        // "plain" text inside the builtin: run interpolation on it too
-        return ch.includes("{") ? interpolate(ch, evalCtx) : ch;
-      }
-
-      if (ch.tag === "content-slot") {
-        return typeof content === "string" ? interpolate(content, evalCtx) : "";
-      }
-      if (ch.tag === "children-slot") {
-        return wrapChildren(
-          childNodes?.map((c, i) => renderVNode(c, ctx, owner, i)) || []
-        );
-      }
-      // recurse
-      return injectSlots(ch, content, childNodes, ctx, owner);
-    }),
+    children: vnode.children
+      .flatMap((ch) => {
+        if (typeof ch === "string") {
+          // "plain" text inside the builtin: run interpolation on it too
+          return ch.includes("{") ? interpolate(ch, evalCtx) : ch;
+        }
+        if (ch.tag === "content-slot") {
+          return typeof content === "string"
+            ? interpolate(content, evalCtx)
+            : "";
+        }
+        if (ch.tag === "children-slot") {
+          return childNodes?.map((c, i) => renderVNode(c, ctx, owner, i)) || [];
+        }
+        // recurse
+        return injectSlots(ch, content, childNodes, ctx, owner);
+      })
+      .filter(Boolean),
   };
 }
 
