@@ -61,11 +61,27 @@ export function diffAndPatch(
 
   // 1) fragment → fragment: just diff children inline
   if (oldIsFrag && newIsFrag) {
-    const oldC = oldEl.children,
-      newC = newEl.children;
-    const max = Math.max(oldC.length, newC.length);
-    for (let i = 0; i < max; i++) {
-      diffAndPatch(parent, oldC[i] ?? null, newC[i] ?? null, index + i);
+    const oldChildren = oldEl.children;
+    const newChildren = newEl.children;
+    const oldLen = oldChildren.length;
+    const newLen = newChildren.length;
+
+    // 1) REMOVE any old extra nodes, from the end backward:
+    for (let i = oldLen - 1; i >= newLen; i--) {
+      const nodeToRemove = parent.childNodes[index + i];
+      if (nodeToRemove) parent.removeChild(nodeToRemove);
+    }
+
+    // 2) DIFF the common nodes in forward order:
+    const commonLen = Math.min(oldLen, newLen);
+    for (let i = 0; i < commonLen; i++) {
+      diffAndPatch(parent, oldChildren[i], newChildren[i], index + i);
+    }
+
+    // 3) INSERT any new extra nodes:
+    for (let i = oldLen; i < newLen; i++) {
+      const refNode = parent.childNodes[index + i] || null;
+      parent.insertBefore(createElement(newChildren[i]), refNode);
     }
     return;
   }
@@ -121,15 +137,30 @@ export function diffAndPatch(
   }
 
   // same element: update props + recurse
-  const el = existing as Element;
-  if (el) {
-    updateProps(el, oldEl.props, newEl.props);
+  if (existing instanceof Element) {
+    updateProps(existing, oldEl.props, newEl.props);
 
     const oldChildren = oldEl.children;
     const newChildren = newEl.children;
-    const max = Math.max(oldChildren.length, newChildren.length);
-    for (let i = 0; i < max; i++) {
-      diffAndPatch(el, oldChildren[i] ?? null, newChildren[i] ?? null, i);
+    const oldLen = oldChildren.length;
+    const newLen = newChildren.length;
+
+    // 1) REMOVE any old extra nodes, from the end backward:
+    for (let i = oldLen - 1; i >= newLen; i--) {
+      const node = existing.childNodes[i];
+      if (node) existing.removeChild(node);
+    }
+
+    // 2) DIFF the common nodes in forward order:
+    const commonLen = Math.min(oldLen, newLen);
+    for (let i = 0; i < commonLen; i++) {
+      diffAndPatch(existing, oldChildren[i], newChildren[i], i);
+    }
+
+    // 3) INSERT any new extra nodes:
+    for (let i = oldLen; i < newLen; i++) {
+      const refNode = existing.childNodes[i] || null;
+      existing.insertBefore(createElement(newChildren[i]), refNode);
     }
   }
 }
