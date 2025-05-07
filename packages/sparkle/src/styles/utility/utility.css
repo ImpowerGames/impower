@@ -51,13 +51,6 @@
 }
 [overflow="scroll"] {
   pointer-events: auto;
-  min-width: 100%;
-  min-height: 100%;
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
   ---touch-action: pan-x pan-y;
 }
 
@@ -68,12 +61,6 @@
 [overflow-x="scroll"] {
   overflow-y: clip;
   pointer-events: auto;
-  min-width: 100%;
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
   ---touch-action: pan-x;
 }
 
@@ -84,12 +71,6 @@
 [overflow-y="scroll"] {
   overflow-x: clip;
   pointer-events: auto;
-  min-height: 100%;
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
   ---touch-action: pan-y;
 }
 
