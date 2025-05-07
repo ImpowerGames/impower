@@ -185,10 +185,7 @@ const STYLE_TRANSFORMERS = {
 
   shadow: getCssShadow,
   "shadow-inset": getCssShadowInset,
-
   ring: getCssRing,
-  "ring-color": getCssColor,
-  "ring-width": getCssSize,
 
   filter: getCssFilter,
   "backdrop-filter": getCssFilter,

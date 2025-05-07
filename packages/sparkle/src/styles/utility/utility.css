@@ -528,7 +528,7 @@
   ---text-decoration: initial;
 }
 [text-decoration-color] {
-  text-decoration-color: var(---text-decoration-color, currentcolor) !important;
+  text-decoration-color: var(---text-decoration-color, currentColor) !important;
   ---text-decoration-color: initial;
 }
 [text-decoration-thickness] {
@@ -632,13 +632,10 @@
   ---shadow-inset: initial;
 }
 
-:is([ring], [ring-width], [ring-color]) {
-  box-shadow: 0 0 0 var(---ring-width, 2px)
-    var(---ring-color, hsl(210 100% 70%)) !important;
+[ring] {
+  box-shadow: var(---ring, 0 0 0 2px currentColor) !important;
   outline: none !important;
   ---ring: initial;
-  ---ring-width: initial;
-  ---ring-color: initial;
 }
 
 [filter] {

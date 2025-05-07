@@ -1,3 +1,5 @@
+const WHITESPACE_REGEX = /[\t ]+/;
+
 /**
  * Quick positive‑list validator for CSS values we generate from the Sparkle
  * property helpers.
@@ -78,6 +80,7 @@ export const getCssColor = (color: string): string => {
     color === "transparent" ||
     color === "black" ||
     color === "white" ||
+    color === "currentColor" ||
     color.startsWith("#") ||
     color.startsWith("rgb") ||
     color.startsWith("hsl") ||
@@ -601,8 +604,10 @@ export const getCssRing = (value: string): string => {
   if (value === "none") {
     return value;
   }
-  return `0 0 0 var(---ring-width, 2px)
-  var(---ring-color, hsl(210 100% 70%))`;
+  const [width, color] = value.split(WHITESPACE_REGEX);
+  return `0 0 0 ${getCssSize(width ?? 2)} ${getCssColor(
+    color ?? "currentColor"
+  )}`;
 };
 
 export const getCssRotate = (value: string): string => {
