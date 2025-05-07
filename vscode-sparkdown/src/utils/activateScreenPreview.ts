@@ -419,7 +419,7 @@ function getWebviewContent(jsWebviewUri: string): string {
         </style>
       </head>
       <body>
-        <sparkdown-screen-preview></sparkdown-screen-preview>
+        <sparkle-screen-preview></sparkle-screen-preview>
         <script type="module" src="${jsWebviewUri}"></script>
       </body>
     </html>

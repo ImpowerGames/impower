@@ -1,5 +1,5 @@
 import { defineAll, DefineOptions } from "../../spec-component/src/component";
-import Main from "./main/sparkdown-screen-preview";
+import Main from "./main/sparkle-screen-preview";
 
 export const DEFAULT_CONSTRUCTORS = [Main] as const;
 

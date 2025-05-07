@@ -1,5 +1,5 @@
 {
-  "name": "inspector-webview",
+  "name": "screen-webview",
   "version": "0.0.1",
   "type": "module",
   "scripts": {
@@ -8,8 +8,7 @@
     "package": "node ./esbuild.js --production"
   },
   "dependencies": {
-    "@impower/sparkdown-inspector": "file:../../../packages/sparkdown-screen-preview",
-    "@impower/sparkdown-screen-preview": "file:../../../packages/sparkdown-screen-preview"
+    "@impower/sparkle-screen-preview": "file:../../../packages/sparkle-screen-preview"
   },
   "devDependencies": {
     "chokidar": "^4.0.3"

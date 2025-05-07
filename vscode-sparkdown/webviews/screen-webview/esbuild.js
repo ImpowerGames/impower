@@ -8,8 +8,8 @@ const WATCH = process.argv.includes("--watch");
 const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
-const SPARKDOWN_SCREEN_PREVIEW_SRC_PATH =
-  "../../../packages/sparkdown-screen-preview/src";
+const SPARKLE_SCREEN_PREVIEW_SRC_PATH =
+  "../../../packages/sparkle-screen-preview/src";
 
 /** @type {import('esbuild').Plugin} **/
 const esbuildInlineWorkerPlugin = (extraConfig) => ({
@@ -87,7 +87,7 @@ async function main() {
   if (WATCH) {
     await ctx.watch();
     chokidar
-      .watch(SPARKDOWN_SCREEN_PREVIEW_SRC_PATH, {
+      .watch(SPARKLE_SCREEN_PREVIEW_SRC_PATH, {
         ignoreInitial: true,
         persistent: true,
         depth: 99,
@@ -95,7 +95,7 @@ async function main() {
       .on("all", async () => {
         console.log(
           LOG_PREFIX +
-            `detected change in ${SPARKDOWN_SCREEN_PREVIEW_SRC_PATH}, rebuilding...`
+            `detected change in ${SPARKLE_SCREEN_PREVIEW_SRC_PATH}, rebuilding...`
         );
         await ctx.rebuild();
       });

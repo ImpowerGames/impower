@@ -10,7 +10,7 @@ import {
 } from "../../../sparkle-screen-renderer/src";
 import { Component } from "../../../spec-component/src/component";
 import { throttle } from "../utils/throttle";
-import spec from "./_sparkdown-screen-preview";
+import spec from "./_sparkle-screen-preview";
 
 export default class SparkdownScreenPreview extends Component(spec) {
   _textDocument?: { uri: string };

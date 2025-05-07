@@ -1,5 +1,5 @@
 {
-  "name": "@impower/sparkdown-screen-preview",
+  "name": "@impower/sparkle-screen-preview",
   "displayName": "Sparkdown Screen Preview",
   "description": "Web component that allows users to visually edit spark structs.",
   "version": "0.0.1",

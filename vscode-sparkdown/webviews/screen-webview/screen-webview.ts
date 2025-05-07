@@ -1,4 +1,4 @@
-import SparkdownScreenPreview from "@impower/sparkdown-screen-preview/src/index.js";
+import SparkdownScreenPreview from "@impower/sparkle-screen-preview/src/index.js";
 
 console.log("running screen-webview");
 
