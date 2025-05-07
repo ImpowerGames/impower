@@ -686,9 +686,9 @@
 [translate-y],
 [translate-z] {
   transition-property: opacity, transform, box-shadow !important;
-  translate: var(--translate-x, var(---translate, 0))
-    var(--translate-y, var(---translate, 0))
-    var(--translate-z, var(---translate, 0)) !important;
+  translate: var(---translate-x, var(---translate, 0))
+    var(---translate-y, var(---translate, 0))
+    var(---translate-z, var(---translate, 0)) !important;
   ---translate: initial;
   ---translate-x: initial;
   ---translate-y: initial;
@@ -700,8 +700,8 @@
 [rotate-y],
 [rotate-z] {
   transition-property: opacity, transform, box-shadow !important;
-  rotate: var(--rotate-x, var(---rotate, 0)) var(--rotate-y, var(---rotate, 0))
-    var(--rotate-z, var(---rotate, 0)) !important;
+  rotate: var(---rotate-x, var(---rotate, 0))
+    var(---rotate-y, var(---rotate, 0)) var(---rotate-z, var(---rotate, 0)) !important;
   ---rotate: initial;
   ---rotate-x: initial;
   ---rotate-y: initial;
@@ -713,8 +713,8 @@
 [scale-y],
 [scale-z] {
   transition-property: opacity, transform, box-shadow !important;
-  scale: var(--scale-x, var(---scale, 1)) var(--scale-y, var(---scale, 1))
-    var(--scale-z, var(---scale, 1)) !important;
+  scale: var(---scale-x, var(---scale, 1)) var(---scale-y, var(---scale, 1))
+    var(---scale-z, var(---scale, 1)) !important;
   ---scale: initial;
   ---scale-x: initial;
   ---scale-y: initial;
