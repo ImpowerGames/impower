@@ -2,12 +2,10 @@ import { VElement, VNode } from "./vnode";
 
 const ATTR_HOST_FLAG = "data-attrs-host";
 const CHILDREN_SLOT_FLAG = "data-children-slot";
-const CONTENT_CHILDREN_PLACEHOLDER = "{{content}}";
-const CONTENT_ATTR_PLACEHOLDER = "{{content-attr}}";
+const CONTENT_CHILDREN_PLACEHOLDER = "{content}";
+const CONTENT_ATTR_PLACEHOLDER = "{content-attr}";
 const ATTRS_PLACEHOLDER = "{...attrs}";
-const CLASSES_PLACEHOLDER = "{classes}";
-
-const ATTRS_PLACEHOLDER_REGEX = /{\.\.\.attrs}/;
+const CLASSES_PLACEHOLDER = "{...classes}";
 
 /* ---------------- Public API -------------------- */
 
@@ -149,7 +147,7 @@ function wrapWithLabelAfter(input: string, tag: string): BuiltinDefinition {
 
     // replace {...attrs} once, replace {{content}} placeholder once
     const html = (def.begin + childSlot + def.end)
-      .replace(ATTRS_PLACEHOLDER_REGEX, ATTR_HOST_FLAG)
+      .replace(ATTRS_PLACEHOLDER, ATTR_HOST_FLAG)
       .replace(CONTENT_CHILDREN_PLACEHOLDER, "<content-slot></content-slot>");
 
     // create <template>
