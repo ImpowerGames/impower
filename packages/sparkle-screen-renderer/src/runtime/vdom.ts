@@ -207,10 +207,18 @@ export function renderVNode(
 
       // Process component children and slots
       const fills = organizeFills(el.children || []);
+      const implicitFills = fills[""];
+      const slotsFound: SparkleNode[] = [];
       const processedChildren = instantiateSlots(
         componentDef.children || [],
-        fills
+        fills,
+        slotsFound
       );
+
+      if (slotsFound.length === 0 && implicitFills.length > 0) {
+        // If no slots defined, append implicit fills as last children
+        processedChildren.push(...implicitFills);
+      }
 
       // Render the processed component
       return renderVNode(
@@ -537,7 +545,8 @@ function organizeFills(children: SparkleNode[]): Record<string, SparkleNode[]> {
 
 function instantiateSlots(
   componentChildren: SparkleNode[],
-  fills: Record<string, SparkleNode[]>
+  fills: Record<string, SparkleNode[]>,
+  slotsFound: SparkleNode[]
 ): SparkleNode[] {
   const output: SparkleNode[] = [];
 
@@ -548,13 +557,14 @@ function instantiateSlots(
       if (fills[name]) {
         output.push(...fills[name]);
       }
+      slotsFound.push(child);
     } else {
       // otherwise, clone the node…
       const copy: SparkleNode = { ...child, args: { ...(child.args || {}) } };
 
       // …and if it has its own children, recurse
       if (Array.isArray(child.children)) {
-        copy.children = instantiateSlots(child.children, fills);
+        copy.children = instantiateSlots(child.children, fills, slotsFound);
       }
 
       output.push(copy);
