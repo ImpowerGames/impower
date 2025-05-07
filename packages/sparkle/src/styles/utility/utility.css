@@ -661,8 +661,13 @@
 }
 
 [filter] {
-  backdrop-filter: var(---filter, none) !important;
+  filter: var(---filter, none) !important;
   ---filter: initial;
+}
+
+[backdrop-filter] {
+  backdrop-filter: var(---backdrop-filter, none) !important;
+  ---backdrop-filter: initial;
 }
 
 [blend] {

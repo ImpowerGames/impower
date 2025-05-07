@@ -192,6 +192,7 @@ const STYLE_TRANSFORMERS = {
   "ring-width": getCssSize,
 
   filter: getCssFilter,
+  "backdrop-filter": getCssFilter,
 
   blend: getCssBlend,
 
