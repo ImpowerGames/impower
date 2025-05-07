@@ -39,25 +39,17 @@ export function diffAndPatch(
 
   // FRAGMENT → ELEMENT|TEXT|NULL
   if (oldIsFrag && !newIsFrag) {
-    // How many real DOM nodes we expect to remove:
     const removeCount = oldLen;
 
-    // Collect the next `removeCount` nodes at position `index`
-    const toRemove: Node[] = [];
-    for (let i = 0; i < removeCount; i++) {
+    // remove each real DOM node in reverse order
+    for (let i = removeCount - 1; i >= 0; i--) {
       const node = parent.childNodes[index + i];
       if (node) {
-        toRemove.push(node);
+        parent.removeChild(node);
       }
     }
 
-    // Remove them
-    for (const node of toRemove) {
-      parent.removeChild(node);
-    }
-
     if (newVNode) {
-      // Insert the new element in their place
       const newDom = createElement(newVNode);
       const ref = parent.childNodes[index] || null;
       parent.insertBefore(newDom, ref);
