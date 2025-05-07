@@ -145,7 +145,7 @@ function wrapWithLabelAfter(input: string, tag: string): BuiltinDefinition {
       ? `<option ${CHILDREN_SLOT_FLAG} hidden></option>`
       : "<children-slot></children-slot>";
 
-    // replace {...attrs} once, replace {{content}} placeholder once
+    // replace ATTRS_PLACEHOLDER once, replace CONTENT_CHILDREN_PLACEHOLDER once
     const html = (def.begin + childSlot + def.end)
       .replace(ATTRS_PLACEHOLDER, ATTR_HOST_FLAG)
       .replace(CONTENT_CHILDREN_PLACEHOLDER, "<content-slot></content-slot>");
