@@ -292,6 +292,19 @@ export function parseSparkle(input: string): SparkleNode[] {
   return nodes;
 }
 
+export function getComponents(parsed: SparkleNode[]) {
+  const components: Record<string, SparkleNode> = {};
+  for (const root of parsed) {
+    if (root.type === "component") {
+      const name = root.args?.name;
+      if (name) {
+        components[name] = root;
+      }
+    }
+  }
+  return components;
+}
+
 function splitArgs(input: string, separators: string[]): string[] {
   const result: string[] = [];
   let current = "";

@@ -23,14 +23,40 @@ export const DEFAULT_CSS_ALIASES = {
 const EMPTY_OBJ = {};
 
 export interface RenderContext {
-  parsed: SparkleNode[];
   components: Record<string, SparkleNode>;
   state: Record<string, any>;
   scope?: Record<string, any>;
-  renderStyles: () => void;
-  renderHTML: () => void;
-  indent?: number;
   options?: RendererOptions;
+}
+
+export function renderCssVDOM(
+  parsed: SparkleNode[],
+  ctx: RenderContext
+): VNode {
+  const children: VNode[] = [];
+  for (const root of parsed) {
+    if (
+      root.type === "animation" ||
+      root.type === "style" ||
+      root.type === "theme"
+    ) {
+      children.push(renderVNode(root, ctx));
+    }
+  }
+  return wrapChildren(children);
+}
+
+export function renderHtmlVDOM(
+  parsed: SparkleNode[],
+  ctx: RenderContext
+): VNode {
+  const children: VNode[] = [];
+  for (const root of parsed) {
+    if (root.type === "screen") {
+      children.push(renderVNode(root, ctx));
+    }
+  }
+  return wrapChildren(children);
 }
 
 export function renderVNode(
@@ -651,49 +677,6 @@ function addToInheritanceChain(
       addToInheritanceChain(component.args?.base, components, out);
     }
   }
-}
-
-export function getComponents(parsed: SparkleNode[]) {
-  const components: Record<string, SparkleNode> = {};
-  for (const root of parsed) {
-    if (root.type === "component") {
-      const name = root.args?.name;
-      if (name) {
-        components[name] = root;
-      }
-    }
-  }
-  return components;
-}
-
-export function renderCssVDOM(
-  parsed: SparkleNode[],
-  ctx: RenderContext
-): VNode {
-  const children: VNode[] = [];
-  for (const root of parsed) {
-    if (
-      root.type === "animation" ||
-      root.type === "style" ||
-      root.type === "theme"
-    ) {
-      children.push(renderVNode(root, ctx));
-    }
-  }
-  return wrapChildren(children);
-}
-
-export function renderHtmlVDOM(
-  parsed: SparkleNode[],
-  ctx: RenderContext
-): VNode {
-  const children: VNode[] = [];
-  for (const root of parsed) {
-    if (root.type === "screen") {
-      children.push(renderVNode(root, ctx));
-    }
-  }
-  return wrapChildren(children);
 }
 
 function mergeClassesIntoHost(node: VNode, dyn: string): boolean {
