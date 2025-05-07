@@ -1201,33 +1201,58 @@ export default class SparkleElement
   }
 
   /**
-   * Sets the `text-style` of all text inside this element so that the text is italic.
+   * Sets the `font-style` of all text inside this element so that the text is italic.
    */
-  get textItalic(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attrs.textItalic);
+  get textStyle(): "" | string | null {
+    return this.getStringAttribute(SparkleElement.attrs.textStyle);
   }
-  set textItalic(value) {
-    this.setStringAttribute(SparkleElement.attrs.textItalic, value);
+  set textStyle(value) {
+    this.setStringAttribute(SparkleElement.attrs.textStyle, value);
   }
 
   /**
    * Sets the `text-decoration` of all text inside this element so that a line renders underneath the text.
    */
-  get textUnderline(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attrs.textUnderline);
+  get textDecoration(): "" | string | null {
+    return this.getStringAttribute(SparkleElement.attrs.textDecoration);
   }
-  set textUnderline(value) {
-    this.setStringAttribute(SparkleElement.attrs.textUnderline, value);
+  set textDecoration(value) {
+    this.setStringAttribute(SparkleElement.attrs.textDecoration, value);
   }
 
   /**
-   * Sets the `text-decoration` of all text inside this element so that a line renders through the middle of the text.
+   * Sets the `text-decoration-color` of all text inside this element so that a line renders through the middle of the text.
    */
-  get textStrikethrough(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attrs.textStrikethrough);
+  get textDecorationColor(): "" | string | null {
+    return this.getStringAttribute(SparkleElement.attrs.textDecorationColor);
   }
-  set textStrikethrough(value) {
-    this.setStringAttribute(SparkleElement.attrs.textStrikethrough, value);
+  set textDecorationColor(value) {
+    this.setStringAttribute(SparkleElement.attrs.textDecorationColor, value);
+  }
+
+  /**
+   * Sets the `text-decoration-thickness` of all underline or strikethrough lines.
+   */
+  get textDecorationThickness(): "" | SizeName | string | null {
+    return this.getStringAttribute(
+      SparkleElement.attrs.textDecorationThickness
+    );
+  }
+  set textDecorationThickness(value) {
+    this.setStringAttribute(
+      SparkleElement.attrs.textDecorationThickness,
+      value
+    );
+  }
+
+  /**
+   * Sets the `text-underline-offset` of all underlined text inside this element.
+   */
+  get textUnderlineOffset(): "" | SizeName | string | null {
+    return this.getStringAttribute(SparkleElement.attrs.textUnderlineOffset);
+  }
+  set textUnderlineOffset(value) {
+    this.setStringAttribute(SparkleElement.attrs.textUnderlineOffset, value);
   }
 
   /**
@@ -1342,31 +1367,6 @@ export default class SparkleElement
   }
   set textStrokeWidth(value) {
     this.setStringAttribute(SparkleElement.attrs.textStrokeWidth, value);
-  }
-
-  /**
-   * Sets the `text-underline-offset` of all underlined text inside this element.
-   */
-  get textUnderlineOffset(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attrs.textUnderlineOffset);
-  }
-  set textUnderlineOffset(value) {
-    this.setStringAttribute(SparkleElement.attrs.textUnderlineOffset, value);
-  }
-
-  /**
-   * Sets the `text-decoration-thickness` of all underline or strikethrough lines.
-   */
-  get textDecorationThickness(): "" | SizeName | string | null {
-    return this.getStringAttribute(
-      SparkleElement.attrs.textDecorationThickness
-    );
-  }
-  set textDecorationThickness(value) {
-    this.setStringAttribute(
-      SparkleElement.attrs.textDecorationThickness,
-      value
-    );
   }
 
   /**

@@ -538,25 +538,25 @@
   font-weight: var(---text-weight, 600) !important;
   ---text-weight: initial;
 }
-[text-italic] {
-  font-style: var(---text-italic, italic) !important;
-  ---text-italic: initial;
+[text-style] {
+  font-style: var(---text-style, italic) !important;
+  ---text-style: initial;
 }
-[text-underline],
-[text-strikethrough] {
-  /* must preserve trailing comma for empty fallback */
-  /* prettier-ignore */
-  text-decoration-line: var(---text-underline,) var(---text-strikethrough,) !important;
-  ---text-underline: initial;
-  ---text-strikethrough: initial;
+[text-decoration] {
+  text-decoration: var(---text-decoration, underline) !important;
+  ---text-decoration: initial;
+}
+[text-decoration-color] {
+  text-decoration-color: var(---text-decoration-color, currentcolor) !important;
+  ---text-decoration-color: initial;
+}
+[text-decoration-thickness] {
+  text-decoration-thickness: var(---text-decoration-thickness, auto) !important;
+  ---text-decoration-thickness: initial;
 }
 [text-underline-offset] {
   text-underline-offset: var(---text-underline-offset, 4px) !important;
   ---text-underline-offset: initial;
-}
-[text-decoration-thickness] {
-  text-decoration-thickness: var(---text-decoration-thickness, 4px) !important;
-  ---text-decoration-thickness: initial;
 }
 [text-case] {
   text-transform: var(---text-case, uppercase) !important;

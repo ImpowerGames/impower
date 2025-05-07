@@ -210,12 +210,15 @@ export const getCssTextWeight = (value: string): string => {
   return value;
 };
 
-export const getCssTextUnderline = (value: boolean | string): string => {
+export const getCssTextDecoration = (value: boolean | string): string => {
   if (value === true || value === "true" || value === "") {
     return "underline";
   }
   if (value === false || value === "false" || !value) {
     return "";
+  }
+  if (value === "strikethrough") {
+    return "line-through";
   }
   return value;
 };
@@ -237,16 +240,6 @@ export const getCssTextStroke = (
     }`;
   }
   return str;
-};
-
-export const getCssTextStrikethrough = (value: boolean | string): string => {
-  if (value === true || value === "true" || value === "") {
-    return "line-through";
-  }
-  if (value === false || value === "false" || !value) {
-    return "";
-  }
-  return value;
 };
 
 export const getCssTextSize = (value: string): string => {
@@ -288,7 +281,7 @@ export const getCssTextLeading = (value: string): string => {
   return value;
 };
 
-export const getCssTextItalic = (value: boolean | string): string => {
+export const getCssTextStyle = (value: boolean | string): string => {
   if (value === true || value === "true" || value === "") {
     return "italic";
   }
