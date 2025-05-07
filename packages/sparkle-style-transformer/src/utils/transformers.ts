@@ -138,10 +138,10 @@ export const getCssChildJustify = (value: string): string => {
 };
 
 export const getCssChildAlign = (value: boolean | string): string => {
-  if (value === true || value === "") {
+  if (value === true || value === "true" || value === "") {
     return "center";
   }
-  if (value === false || value === "start") {
+  if (value === false || value === "false" || value === "start") {
     return "flex-start";
   }
   if (value === "end") {
@@ -289,10 +289,10 @@ export const getCssTextLeading = (value: string): string => {
 };
 
 export const getCssTextItalic = (value: boolean | string): string => {
-  if (value === true || value === "") {
+  if (value === true || value === "true" || value === "") {
     return "italic";
   }
-  if (value === false) {
+  if (value === false || value === "false") {
     return "normal";
   }
   return value;
@@ -416,10 +416,10 @@ export const getCssFlex = (value: boolean | string): string => {
   if (value === "") {
     return "1";
   }
-  if (value === true) {
+  if (value === true || value === "true") {
     return "1";
   }
-  if (value === false || value === "none") {
+  if (value === false || value === "false" || value === "none") {
     return "0";
   }
   return value;
@@ -445,10 +445,10 @@ export const getCssGrow = (value: boolean | string): string => {
   if (value === "") {
     return "1";
   }
-  if (value === true) {
+  if (value === true || value === "true") {
     return "1";
   }
-  if (value === false || value === "none") {
+  if (value === false || value === "false" || value === "none") {
     return "0";
   }
   return value;
@@ -479,20 +479,20 @@ export const getCssImage = (value: string): string => {
 };
 
 export const getCssInvisible = (value: boolean | string): string => {
-  if (value === true || value === "") {
+  if (value === true || value === "true" || value === "") {
     return "hidden";
   }
-  if (value === false) {
+  if (value === false || value === "false") {
     return "visible";
   }
   return value;
 };
 
 export const getCssVisible = (value: boolean | string): string => {
-  if (value === true || value === "") {
+  if (value === true || value === "true" || value === "") {
     return "visible";
   }
-  if (value === false) {
+  if (value === false || value === "false") {
     return "hidden";
   }
   return value;
@@ -503,10 +503,10 @@ export const getCssMask = (value: string): string => {
 };
 
 export const getCssInteractable = (value: boolean | string): string => {
-  if (value === true || value === "") {
+  if (value === true || value === "true" || value === "") {
     return "auto";
   }
-  if (value === false) {
+  if (value === false || value === "false") {
     return "none";
   }
   return value;
@@ -520,10 +520,10 @@ export const getCssOutlineStyle = (value: string): string => {
 };
 
 export const getCssOverflow = (value: boolean | string): string => {
-  if (value === true || value === "") {
+  if (value === true || value === "true" || value === "") {
     return "visible";
   }
-  if (value === false) {
+  if (value === false || value === "false") {
     return "clip";
   }
   return value;
@@ -584,10 +584,15 @@ export const getCssRatio = (value: string): string => {
 };
 
 export const getCssRepeat = (value: boolean | string): string => {
-  if (value === true) {
+  if (value === true || value === "true") {
     return "repeat";
   }
-  if (value === false || value === "none" || value === "norepeat") {
+  if (
+    value === false ||
+    value === "false" ||
+    value === "none" ||
+    value === "norepeat"
+  ) {
     return "no-repeat";
   }
   if (value === "x") {
@@ -622,10 +627,10 @@ export const getCssScale = (value: string): string => {
 };
 
 export const getCssSelectable = (value: boolean | string): string => {
-  if (value === true || value === "") {
+  if (value === true || value === "true" || value === "") {
     return "auto";
   }
-  if (value === false) {
+  if (value === false || value === "false") {
     return "none";
   }
   return value;
@@ -654,10 +659,10 @@ export const getCssShrink = (value: boolean | string): string => {
   if (value === "") {
     return "1";
   }
-  if (value === true) {
+  if (value === true || value === "true") {
     return "1";
   }
-  if (value === false || value === "none") {
+  if (value === false || value === "false" || value === "none") {
     return "0";
   }
   return value;
