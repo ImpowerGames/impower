@@ -274,7 +274,7 @@ export function renderVNode(
         children: [`.style.${name} { ${styleContent} }`],
       };
     }
-    if (type === "property") {
+    if (type === "property" && params?.key) {
       return paramToProperty(params?.key, params?.value, cssAliases);
     }
     const selector = sparkleSelectorToCssSelector(type, breakpoints);
@@ -298,7 +298,7 @@ export function renderVNode(
         children: [styleContent],
       };
     }
-    if (type === "property") {
+    if (type === "property" && params?.key) {
       return paramToProperty(params?.key, params?.value, cssAliases);
     }
     if (type === "keyframes" && children?.length) {
@@ -382,7 +382,7 @@ export function renderVNode(
         ],
       };
     }
-    if (type === "property") {
+    if (type === "property" && params?.key) {
       return paramToProperty(params?.key, params?.value, cssAliases);
     }
     const content = (children ?? [])
