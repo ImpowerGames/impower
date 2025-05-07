@@ -15,64 +15,32 @@ export function diffAndPatch(
   const oldEl = oldVNode as VElement;
   const newEl = newVNode as VElement;
 
-  const oldIsFrag = oldEl.tag === "fragment";
-  const newIsFrag = newEl.tag === "fragment";
+  const oldIsFrag = oldEl?.tag === "fragment";
+  const newIsFrag = newEl?.tag === "fragment";
 
-  // REMOVE
-  if (oldVNode != null && newVNode == null) {
-    if (oldIsFrag) {
-      // recurse into each child, removing them properly
-      for (const child of oldEl.children) {
-        diffAndPatch(parent, child, null, index);
-      }
-    } else {
-      // plain text or element - just remove it
-      if (existing) {
-        parent.removeChild(existing);
-      }
+  const oldChildren = oldIsFrag ? flatten(oldEl.children) : oldEl.children;
+  const newChildren = newIsFrag ? flatten(newEl.children) : newEl.children;
+  const oldLen = oldChildren?.length;
+  const newLen = newChildren?.length;
+
+  // TEXT|ELEMENT → NULL: remove
+  if (oldVNode != null && !oldIsFrag && newVNode == null) {
+    if (existing) {
+      parent.removeChild(existing);
     }
     return;
   }
 
-  // INSERT
+  // NULL → TEXT|ELEMENT|FRAGMENT: insert
   if (oldVNode == null && newVNode != null) {
     parent.insertBefore(createElement(newVNode), existing);
     return;
   }
 
-  // FRAGMENT → FRAGMENT: just diff children inline
-  if (oldIsFrag && newIsFrag) {
-    const oldChildren = oldEl.children;
-    const newChildren = newEl.children;
-    const oldLen = oldChildren.length;
-    const newLen = newChildren.length;
-
-    // 1) REMOVE any old extra nodes, from the end backward:
-    for (let i = oldLen - 1; i >= newLen; i--) {
-      const nodeToRemove = parent.childNodes[index + i];
-      if (nodeToRemove) {
-        parent.removeChild(nodeToRemove);
-      }
-    }
-
-    // 2) DIFF the common nodes in forward order:
-    const commonLen = Math.min(oldLen, newLen);
-    for (let i = 0; i < commonLen; i++) {
-      diffAndPatch(parent, oldChildren[i], newChildren[i], index + i);
-    }
-
-    // 3) INSERT any new extra nodes:
-    for (let i = oldLen; i < newLen; i++) {
-      const refNode = parent.childNodes[index + i] || null;
-      parent.insertBefore(createElement(newChildren[i]), refNode);
-    }
-    return;
-  }
-
-  // FRAGMENT → ELEMENT|TEXT
+  // FRAGMENT → ELEMENT|TEXT|NULL
   if (oldIsFrag && !newIsFrag) {
     // How many real DOM nodes we expect to remove:
-    const removeCount = oldEl.children.length;
+    const removeCount = oldLen;
 
     // Collect the next `removeCount` nodes at position `index`
     const toRemove: Node[] = [];
@@ -94,7 +62,6 @@ export function diffAndPatch(
       const ref = parent.childNodes[index] || null;
       parent.insertBefore(newDom, ref);
     }
-
     return;
   }
 
@@ -105,11 +72,35 @@ export function diffAndPatch(
       parent.removeChild(existing);
     }
     // insert each of the new fragment's children in turn
-    for (let i = 0; i < newEl.children.length; i++) {
+    for (let i = 0; i < newLen; i++) {
       parent.insertBefore(
-        createElement(newEl.children[i]),
+        createElement(newChildren[i]),
         parent.childNodes[index + i] || null
       );
+    }
+    return;
+  }
+
+  // FRAGMENT → FRAGMENT: just diff children inline
+  if (oldIsFrag && newIsFrag) {
+    // 1) REMOVE any old extra nodes, from the end backward:
+    for (let i = oldLen - 1; i >= newLen; i--) {
+      const nodeToRemove = parent.childNodes[index + i];
+      if (nodeToRemove) {
+        parent.removeChild(nodeToRemove);
+      }
+    }
+
+    // 2) DIFF the common nodes in forward order:
+    const commonLen = Math.min(oldLen, newLen);
+    for (let i = 0; i < commonLen; i++) {
+      diffAndPatch(parent, oldChildren[i], newChildren[i], index + i);
+    }
+
+    // 3) INSERT any new extra nodes:
+    for (let i = oldLen; i < newLen; i++) {
+      const refNode = parent.childNodes[index + i] || null;
+      parent.insertBefore(createElement(newChildren[i]), refNode);
     }
     return;
   }
@@ -149,11 +140,6 @@ export function diffAndPatch(
   if (existing instanceof Element) {
     updateProps(existing, oldEl.props, newEl.props);
 
-    const oldChildren = oldEl.children;
-    const newChildren = newEl.children;
-    const oldLen = oldChildren.length;
-    const newLen = newChildren.length;
-
     // 1) REMOVE any old extra nodes, from the end backward:
     for (let i = oldLen - 1; i >= newLen; i--) {
       const node = existing.childNodes[i];
@@ -171,6 +157,7 @@ export function diffAndPatch(
       const refNode = existing.childNodes[i] || null;
       existing.insertBefore(createElement(newChildren[i]), refNode);
     }
+    return;
   }
 }
 
@@ -189,4 +176,14 @@ function updateProps(
       setAttribute(el, k, v);
     }
   }
+}
+
+function flatten<V extends VNode>(children: VNode[]): V[] {
+  return children.flatMap((c) =>
+    typeof c === "string"
+      ? [c as V]
+      : c.tag === "fragment"
+      ? flatten<V>((c as VElement).children)
+      : [c as V]
+  );
 }
