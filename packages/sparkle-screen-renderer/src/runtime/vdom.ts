@@ -274,8 +274,8 @@ export function renderVNode(
         children: [`.style.${name} { ${styleContent} }`],
       };
     }
-    if (type === "prop") {
-      return paramToProp(params?.key, params?.value, cssAliases);
+    if (type === "property") {
+      return paramToProperty(params?.key, params?.value, cssAliases);
     }
     const selector = sparkleSelectorToCssSelector(type, breakpoints);
     const blockContent = (children ?? [])
@@ -298,8 +298,8 @@ export function renderVNode(
         children: [styleContent],
       };
     }
-    if (type === "prop") {
-      return paramToProp(params?.key, params?.value, cssAliases);
+    if (type === "property") {
+      return paramToProperty(params?.key, params?.value, cssAliases);
     }
     if (type === "keyframes" && children?.length) {
       const max = children.length - 1;
@@ -382,8 +382,8 @@ export function renderVNode(
         ],
       };
     }
-    if (type === "prop") {
-      return paramToProp(params?.key, params?.value, cssAliases);
+    if (type === "property") {
+      return paramToProperty(params?.key, params?.value, cssAliases);
     }
     const content = (children ?? [])
       .map((c, i) => renderVNode(c, ctx, el, i) as string)
@@ -646,7 +646,7 @@ function interpolate(
   }
 }
 
-function paramToProp(
+function paramToProperty(
   key: string,
   value: unknown,
   cssAliases?: Record<string, string>

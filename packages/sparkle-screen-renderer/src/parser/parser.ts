@@ -220,7 +220,7 @@ export function parseSparkle(input: string): SparkleNode[] {
             const value = statement.split("=")[1]?.trimStart();
             node = {
               root: currentRoot.root,
-              type: "prop",
+              type: "property",
               args: { key: type, value },
             };
           }
@@ -239,7 +239,7 @@ export function parseSparkle(input: string): SparkleNode[] {
             const [key, value] = attributesString.split("=");
             node = {
               root: currentRoot.root,
-              type: "prop",
+              type: "property",
               args: {
                 key: key?.trim(),
                 value: value?.trim(),
@@ -259,7 +259,7 @@ export function parseSparkle(input: string): SparkleNode[] {
             const [key, value] = statement.split("=");
             node = {
               root: currentRoot.root,
-              type: "prop",
+              type: "property",
               args: { key: key?.trim(), value: value?.trim() },
             };
           }
@@ -268,7 +268,7 @@ export function parseSparkle(input: string): SparkleNode[] {
             const [key, value] = statement.split("=");
             node = {
               root: currentRoot.root,
-              type: "prop",
+              type: "property",
               args: { key: key?.trim(), value: value?.trim() },
             };
           } else {
