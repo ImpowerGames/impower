@@ -23,7 +23,7 @@ export function diffAndPatch(
   const oldLen = oldChildren?.length;
   const newLen = newChildren?.length;
 
-  // TEXT|ELEMENT → NULL: remove
+  // ELEMENT|TEXT → NULL: remove
   if (oldVNode != null && !oldIsFrag && newVNode == null) {
     if (existing) {
       parent.removeChild(existing);
@@ -31,7 +31,7 @@ export function diffAndPatch(
     return;
   }
 
-  // NULL → TEXT|ELEMENT|FRAGMENT: insert
+  // NULL → ELEMENT|TEXT|FRAGMENT: insert
   if (oldVNode == null && newVNode != null) {
     parent.insertBefore(createElement(newVNode), existing);
     return;
