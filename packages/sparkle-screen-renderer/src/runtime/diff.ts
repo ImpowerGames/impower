@@ -9,17 +9,17 @@ export function diffAndPatch(
 ): void {
   const existing = parent?.childNodes[index] || null;
 
-  // 1) INSERT
-  if (oldVNode == null && newVNode != null) {
-    parent.insertBefore(createElement(newVNode), existing);
-    return;
-  }
-
-  // 2) REMOVE
-  if (oldVNode != null && newVNode == null) {
+  // REMOVE
+  if (newVNode == null) {
     if (existing) {
       parent.removeChild(existing);
     }
+    return;
+  }
+
+  // INSERT
+  if (oldVNode == null) {
+    parent.insertBefore(createElement(newVNode), existing);
     return;
   }
 
@@ -27,58 +27,34 @@ export function diffAndPatch(
   const oldIsText = typeof oldVNode === "string";
   const newIsText = typeof newVNode === "string";
 
-  // 3a) both text: update in place
-  if (oldIsText && newIsText) {
-    if (oldVNode !== newVNode) {
-      parent.replaceChild(createElement(newVNode!), existing!);
-    }
-    return;
-  }
-
-  // 3b) one is text, one is element: replace entire node
-  if (oldIsText !== newIsText) {
-    // 1) build the new DOM node
-    const newDom = createElement(newVNode!);
-
-    // 2) if there's an existing node, replace it...
-    if (existing) {
-      parent.replaceChild(newDom, existing);
-    }
-    // 3) ...otherwise insert it at the correct position
-    else {
-      parent.insertBefore(newDom, parent.childNodes[index] || null);
-    }
-    return;
-  }
-
-  // both are VElements from here on
   const oldEl = oldVNode as VElement;
   const newEl = newVNode as VElement;
 
-  // --- SPECIAL: FRAGMENT ↔ ELEMENT ---
   const oldIsFrag = oldEl.tag === "fragment";
   const newIsFrag = newEl.tag === "fragment";
 
-  // 1) fragment → fragment: just diff children inline
+  // FRAGMENT → FRAGMENT: just diff children inline
   if (oldIsFrag && newIsFrag) {
     const oldChildren = oldEl.children;
     const newChildren = newEl.children;
     const oldLen = oldChildren.length;
     const newLen = newChildren.length;
 
-    // 1) REMOVE any old extra nodes, from the end backward:
+    // REMOVE any old extra nodes, from the end backward:
     for (let i = oldLen - 1; i >= newLen; i--) {
       const nodeToRemove = parent.childNodes[index + i];
-      if (nodeToRemove) parent.removeChild(nodeToRemove);
+      if (nodeToRemove) {
+        parent.removeChild(nodeToRemove);
+      }
     }
 
-    // 2) DIFF the common nodes in forward order:
+    // DIFF the common nodes in forward order:
     const commonLen = Math.min(oldLen, newLen);
     for (let i = 0; i < commonLen; i++) {
       diffAndPatch(parent, oldChildren[i], newChildren[i], index + i);
     }
 
-    // 3) INSERT any new extra nodes:
+    // INSERT any new extra nodes:
     for (let i = oldLen; i < newLen; i++) {
       const refNode = parent.childNodes[index + i] || null;
       parent.insertBefore(createElement(newChildren[i]), refNode);
@@ -86,12 +62,12 @@ export function diffAndPatch(
     return;
   }
 
-  // 2) fragment → element
+  // FRAGMENT → ELEMENT|TEXT
   if (oldIsFrag && !newIsFrag) {
     // How many real DOM nodes we expect to remove:
     const removeCount = oldEl.children.length;
 
-    // 1) Collect the next `removeCount` nodes at position `index`
+    // Collect the next `removeCount` nodes at position `index`
     const toRemove: Node[] = [];
     for (let i = 0; i < removeCount; i++) {
       const node = parent.childNodes[index + i];
@@ -100,20 +76,20 @@ export function diffAndPatch(
       }
     }
 
-    // 2) Remove them
+    // Remove them
     for (const node of toRemove) {
       parent.removeChild(node);
     }
 
-    // 3) Insert the single new element in their place
-    const newDom = createElement(newEl);
+    // Insert the single new element in their place
+    const newDom = createElement(newVNode);
     const ref = parent.childNodes[index] || null;
     parent.insertBefore(newDom, ref);
 
     return;
   }
 
-  // 3) element → fragment
+  // ELEMENT|TEXT → FRAGMENT
   if (!oldIsFrag && newIsFrag) {
     // remove the one old element
     if (existing) {
@@ -129,8 +105,32 @@ export function diffAndPatch(
     return;
   }
 
-  // ----- FALLBACK: element ⇄ element -----
-  // tag or key changed?
+  // TEXT → TEXT: update in place
+  if (oldIsText && newIsText) {
+    if (oldVNode !== newVNode) {
+      parent.replaceChild(createElement(newVNode!), existing!);
+    }
+    return;
+  }
+
+  // TEXT ⇄ ELEMENT: replace entire node
+  if (oldIsText !== newIsText) {
+    // build the new DOM node
+    const newDom = createElement(newVNode!);
+
+    // if there's an existing node, replace it...
+    if (existing) {
+      parent.replaceChild(newDom, existing);
+    }
+    // ...otherwise insert it at the correct position
+    else {
+      parent.insertBefore(newDom, parent.childNodes[index] || null);
+    }
+    return;
+  }
+
+  // ELEMENT ⇄ ELEMENT
+  // tag or key changed: replace the entire element
   if (oldEl.tag !== newEl.tag || oldEl.key !== newEl.key) {
     parent.replaceChild(createElement(newEl), existing!);
     return;
