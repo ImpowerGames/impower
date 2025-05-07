@@ -708,8 +708,8 @@
 [scale-y],
 [scale-z] {
   transition-property: opacity, transform, box-shadow !important;
-  scale: var(--scale-x, var(---scale, 0)) var(--scale-y, var(---scale, 0))
-    var(--scale-z, var(---scale, 0)) !important;
+  scale: var(--scale-x, var(---scale, 1)) var(--scale-y, var(---scale, 1))
+    var(--scale-z, var(---scale, 1)) !important;
   ---scale: initial;
   ---scale-x: initial;
   ---scale-y: initial;
