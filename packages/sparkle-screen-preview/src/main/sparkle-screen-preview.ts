@@ -38,9 +38,10 @@ export default class SparkdownScreenPreview extends Component(spec) {
         const components = getComponents(parsed);
         const stateInputEl = this.ref.state as HTMLInputElement;
         const update = throttle(() => {
+          const state = JSON.parse(stateInputEl.value || "{}");
           const ctx: RenderContext = {
             components,
-            state: JSON.parse(stateInputEl.value || "{}"),
+            state,
           };
           const renderStyles = () => {
             const container = this.ref.css;
