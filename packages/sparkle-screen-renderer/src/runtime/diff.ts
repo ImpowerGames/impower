@@ -40,7 +40,7 @@ export function diffAndPatch(
     const oldLen = oldChildren.length;
     const newLen = newChildren.length;
 
-    // REMOVE any old extra nodes, from the end backward:
+    // 1) REMOVE any old extra nodes, from the end backward:
     for (let i = oldLen - 1; i >= newLen; i--) {
       const nodeToRemove = parent.childNodes[index + i];
       if (nodeToRemove) {
@@ -48,13 +48,13 @@ export function diffAndPatch(
       }
     }
 
-    // DIFF the common nodes in forward order:
+    // 2) DIFF the common nodes in forward order:
     const commonLen = Math.min(oldLen, newLen);
     for (let i = 0; i < commonLen; i++) {
       diffAndPatch(parent, oldChildren[i], newChildren[i], index + i);
     }
 
-    // INSERT any new extra nodes:
+    // 3) INSERT any new extra nodes:
     for (let i = oldLen; i < newLen; i++) {
       const refNode = parent.childNodes[index + i] || null;
       parent.insertBefore(createElement(newChildren[i]), refNode);
