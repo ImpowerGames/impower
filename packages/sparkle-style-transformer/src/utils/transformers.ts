@@ -210,11 +210,11 @@ export const getCssTextWeight = (value: string): string => {
   return value;
 };
 
-export const getCssTextUnderline = (value: string): string => {
-  if (value === "") {
+export const getCssTextUnderline = (value: boolean | string): string => {
+  if (value === true || value === "true" || value === "") {
     return "underline";
   }
-  if (!value) {
+  if (value === false || value === "false" || !value) {
     return "";
   }
   return value;
@@ -239,11 +239,11 @@ export const getCssTextStroke = (
   return str;
 };
 
-export const getCssTextStrikethrough = (value: string): string => {
-  if (value === "") {
+export const getCssTextStrikethrough = (value: boolean | string): string => {
+  if (value === true || value === "true" || value === "") {
     return "line-through";
   }
-  if (!value) {
+  if (value === false || value === "false" || !value) {
     return "";
   }
   return value;
