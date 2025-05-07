@@ -9,21 +9,6 @@ export function diffAndPatch(
 ): void {
   const existing = parent?.childNodes[index] || null;
 
-  // REMOVE
-  if (newVNode == null) {
-    if (existing) {
-      parent.removeChild(existing);
-    }
-    return;
-  }
-
-  // INSERT
-  if (oldVNode == null) {
-    parent.insertBefore(createElement(newVNode), existing);
-    return;
-  }
-
-  // Now both oldVNode and newVNode are non‐null
   const oldIsText = typeof oldVNode === "string";
   const newIsText = typeof newVNode === "string";
 
@@ -32,6 +17,28 @@ export function diffAndPatch(
 
   const oldIsFrag = oldEl.tag === "fragment";
   const newIsFrag = newEl.tag === "fragment";
+
+  // REMOVE
+  if (oldVNode != null && newVNode == null) {
+    if (oldIsFrag) {
+      // recurse into each child, removing them properly
+      for (const child of oldEl.children) {
+        diffAndPatch(parent, child, null, index);
+      }
+    } else {
+      // plain text or element - just remove it
+      if (existing) {
+        parent.removeChild(existing);
+      }
+    }
+    return;
+  }
+
+  // INSERT
+  if (oldVNode == null && newVNode != null) {
+    parent.insertBefore(createElement(newVNode), existing);
+    return;
+  }
 
   // FRAGMENT → FRAGMENT: just diff children inline
   if (oldIsFrag && newIsFrag) {
@@ -81,10 +88,12 @@ export function diffAndPatch(
       parent.removeChild(node);
     }
 
-    // Insert the single new element in their place
-    const newDom = createElement(newVNode);
-    const ref = parent.childNodes[index] || null;
-    parent.insertBefore(newDom, ref);
+    if (newVNode) {
+      // Insert the new element in their place
+      const newDom = createElement(newVNode);
+      const ref = parent.childNodes[index] || null;
+      parent.insertBefore(newDom, ref);
+    }
 
     return;
   }
