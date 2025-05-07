@@ -1,12 +1,14 @@
 import { type SparkleNode } from "../parser/parser";
 import { builtins } from "./builtins";
-import { sparkleSelectorToCssSelector } from "./css";
+import { DEFAULT_BREAKPOINTS, sparkleSelectorToCssSelector } from "./css";
 import { VElement, VNode } from "./vnode";
 
 export interface RendererOptions {
   breakpoints?: Record<string, number>;
   attrAliases?: Record<string, string>;
   cssAliases?: Record<string, string>;
+  interpolate?: (template: string, context: Record<string, any>) => string;
+  evaluate?: (expr: string, context: Record<string, any>) => unknown;
 }
 
 export const DEFAULT_ATTR_ALIASES = {
@@ -67,8 +69,10 @@ export function renderVNode(
 ): VNode {
   const { type, args: params, children } = el;
   const components = ctx.components;
-  const breakpoints = ctx.options?.breakpoints;
+  const breakpoints = ctx.options?.breakpoints ?? DEFAULT_BREAKPOINTS;
   const cssAliases = ctx.options?.cssAliases ?? DEFAULT_CSS_ALIASES;
+  const evaluate = ctx.options?.evaluate ?? defaultEvaluate;
+  const interpolate = ctx.options?.interpolate ?? defaultInterpolate;
 
   switch (type) {
     case "if": {
@@ -144,7 +148,7 @@ export function renderVNode(
     }
 
     case "repeat": {
-      const times = evaluate<number>(params?.times, getContext(ctx));
+      const times = evaluate(params?.times, getContext(ctx)) as number;
       const nextSibling = parent?.children?.[index + 1];
       if (Number.isNaN(times))
         return { tag: "fragment", props: {}, children: [] };
@@ -409,7 +413,10 @@ function renderBuiltinVNode(
   builtin: VNode
 ): VNode {
   const { type, args: params = {}, children } = el;
+
   const components = ctx.components;
+  const interpolate = ctx.options?.interpolate ?? defaultInterpolate;
+
   if (!builtin) {
     console.error("Un-recognised builtin:", type);
     return { tag: "fragment", props: {}, children: [] };
@@ -508,6 +515,7 @@ function injectSlots(
   owner: SparkleNode
 ): VNode {
   const evalCtx = getContext(ctx);
+  const interpolate = ctx.options?.interpolate ?? defaultInterpolate;
 
   return {
     ...vnode,
@@ -516,7 +524,7 @@ function injectSlots(
       .flatMap((ch) => {
         if (typeof ch === "string") {
           // "plain" text inside the builtin: run interpolation on it too
-          return ch.includes("{") ? interpolate(ch, evalCtx) : ch;
+          return interpolate(ch, evalCtx);
         }
         if (ch.tag === "content-slot") {
           return typeof content === "string"
@@ -604,7 +612,7 @@ function getContext(ctx: RenderContext): Record<string, any> {
   return { ...(ctx.state || EMPTY_OBJ), ...(ctx.scope || EMPTY_OBJ) };
 }
 
-function evaluate<T>(expr: string, context: Record<string, any>): T {
+function defaultEvaluate<T>(expr: string, context: Record<string, any>): T {
   try {
     const fn = new Function("context", `with(context) { return (${expr}); }`);
     return fn(context);
@@ -614,34 +622,19 @@ function evaluate<T>(expr: string, context: Record<string, any>): T {
   }
 }
 
-function interpolate(
+function defaultInterpolate(
   template: string,
-  context: Record<string, any>,
-  attrAliases?: Record<string, string>
+  context: Record<string, any>
 ): string {
   try {
-    return template.replace(
-      /\\(.|\r\n|\r|\n)|\{(\{.*?\})\}|\{[.][.][.](.*?)\}|\{(.*?)\}/g,
-      (_, $1, $2, $3, $4) => {
-        if ($1) {
-          return $1;
-        }
-        if ($2) {
-          return interpolate($2, context, attrAliases);
-        }
-        if ($3) {
-          const obj = evaluate<object>($3, context);
-          if (!Array.isArray(obj)) {
-            console.warn("Object is not iterable:", obj);
-            return "";
-          }
-          return obj.join(" ");
-        }
-        return evaluate<string>($4, context) ?? "";
+    return template.replace(/\\(.|\r\n|\r|\n)|\{(.*?)\}/g, (_, $1, $2) => {
+      if ($1) {
+        return $1;
       }
-    );
+      return defaultEvaluate<string>($2, context) ?? "";
+    });
   } catch (e) {
-    console.warn("Failed to interpolate expression:", template, context, e);
+    // console.warn("Failed to interpolate expression:", template, context, e);
     return "";
   }
 }
