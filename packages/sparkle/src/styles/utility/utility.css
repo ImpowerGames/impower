@@ -499,7 +499,7 @@
   ---text-style: initial;
 }
 [text-decoration] {
-  text-decoration: var(---text-decoration, underline) !important;
+  text-decoration-line: var(---text-decoration, underline) !important;
   ---text-decoration: initial;
 }
 [text-decoration-color] {
