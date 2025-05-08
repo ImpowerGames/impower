@@ -98,26 +98,6 @@
   border-radius: var(---corner, 8px) !important;
   ---corner: initial;
 }
-:is([c-t], [corner-t]) {
-  border-top-left-radius: var(---corner-t, 8px) !important;
-  border-top-right-radius: var(---corner-t, 8px) !important;
-  ---corner-t: initial;
-}
-:is([c-b], [corner-b]) {
-  border-bottom-left-radius: var(---corner-b, 8px) !important;
-  border-bottom-right-radius: var(---corner-b, 8px) !important;
-  ---corner-b: initial;
-}
-:is([c-l], [corner-l]) {
-  border-top-left-radius: var(---corner-l, 8px) !important;
-  border-bottom-left-radius: var(---corner-l, 8px) !important;
-  ---corner-l: initial;
-}
-:is([c-r], [corner-r]) {
-  border-top-right-radius: var(---corner-r, 8px) !important;
-  border-bottom-right-radius: var(---corner-r, 8px) !important;
-  ---corner-r: initial;
-}
 :is([c-tl], [corner-tl]) {
   border-top-left-radius: var(---corner-tl, 8px) !important;
   ---corner-tl: initial;
@@ -157,18 +137,6 @@
   border-color: var(---border-color, currentColor) !important;
   ---border-color: initial;
 }
-:is([b-color-tb], [border-color-tb]) {
-  border-style: solid;
-  border-top-color: var(---border-color-tb, currentColor) !important;
-  border-bottom-color: var(---border-color-tb, currentColor) !important;
-  ---border-color-tb: initial;
-}
-:is([b-color-lr], [border-color-lr]) {
-  border-style: solid;
-  border-left-color: var(---border-color-lr, currentColor) !important;
-  border-right-color: var(---border-color-lr, currentColor) !important;
-  ---border-color-lr: initial;
-}
 :is([b-color-t], [border-color-t]) {
   border-style: solid;
   border-top-color: var(---border-color-t, currentColor) !important;
@@ -195,18 +163,6 @@
   border-width: var(---border-width, 8px) !important;
   ---border-width: initial;
 }
-:is([b-width-tb], [border-width-tb]) {
-  border-style: solid;
-  border-top-width: var(---border-width-tb, 8px) !important;
-  border-bottom-width: var(---border-width-tb, 8px) !important;
-  ---border-width-tb: initial;
-}
-:is([b-width-lr], [border-width-lr]) {
-  border-style: solid;
-  border-left-width: var(---border-width-lr, 8px) !important;
-  border-right-width: var(---border-width-lr, 8px) !important;
-  ---border-width-tr: initial;
-}
 :is([b-width-t], [border-width-t]) {
   border-style: solid;
   border-top-width: var(---border-width-t, 8px) !important;
@@ -232,16 +188,6 @@
   border-style: var(---border-style, solid) !important;
   ---border-style: initial;
 }
-:is([b-style-tb], [border-style-tb]) {
-  border-top-style: var(---border-style-tb, solid) !important;
-  border-bottom-style: var(---border-style-tb, solid) !important;
-  ---border-style-tb: initial;
-}
-:is([b-style-lr], [border-style-lr]) {
-  border-left-style: var(---border-style-lr, solid) !important;
-  border-right-style: var(---border-style-lr, solid) !important;
-  ---border-style-lr: initial;
-}
 :is([b-style-t], [border-style-t]) {
   border-top-style: var(---border-style-t, solid) !important;
   ---border-style-t: initial;
@@ -262,16 +208,6 @@
 :is([i], [inset]) {
   inset: var(---inset, 8px) !important;
   ---inset: initial;
-}
-:is([i-tb], [inset-tb]) {
-  top: var(---inset-tb, 8px) !important;
-  bottom: var(---inset-tb, 8px) !important;
-  ---inset-tb: initial;
-}
-:is([i-lr], [inset-lr]) {
-  left: var(---inset-lr, 8px) !important;
-  right: var(---inset-lr, 8px) !important;
-  ---inset-lr: initial;
 }
 :is([i-t], [inset-t]) {
   top: var(---inset-t, 8px) !important;
@@ -294,16 +230,6 @@
   margin: var(---margin, 8px) !important;
   ---margin: initial;
 }
-:is([m-tb], [margin-tb]) {
-  margin-top: var(---margin-tb, 8px) !important;
-  margin-bottom: var(---margin-tb, 8px) !important;
-  ---margin-tb: initial;
-}
-:is([m-lr], [margin-lr]) {
-  margin-left: var(---margin-lr, 8px) !important;
-  margin-right: var(---margin-lr, 8px) !important;
-  ---margin-lr: initial;
-}
 :is([m-t], [margin-t]) {
   margin-top: var(---margin-t, 8px) !important;
   ---margin-t: initial;
@@ -324,16 +250,6 @@
 :is([p], [padding]) {
   padding: var(---padding, 8px) !important;
   ---padding: initial;
-}
-:is([p-tb], [padding-tb]) {
-  padding-top: var(---padding-tb, 8px) !important;
-  padding-bottom: var(---padding-tb, 8px) !important;
-  ---padding-tb: initial;
-}
-:is([p-lr], [padding-lr]) {
-  padding-left: var(---padding-lr, 8px) !important;
-  padding-right: var(---padding-lr, 8px) !important;
-  ---padding-lr: initial;
 }
 :is([p-t], [padding-t]) {
   padding-top: var(---padding-t, 8px) !important;
