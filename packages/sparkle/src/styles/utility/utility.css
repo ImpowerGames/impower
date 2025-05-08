@@ -174,7 +174,7 @@
   border-top-color: var(---border-color-t, currentColor) !important;
   ---border-color-t: initial;
 }
-[border-color-b] {
+:is([b-color-b], [border-color-b]) {
   border-style: solid;
   border-bottom-color: var(---border-color-b, currentColor) !important;
   ---border-color-b: initial;
