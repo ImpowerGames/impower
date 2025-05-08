@@ -112,7 +112,7 @@ const STYLE_ALIASES = {
   "font-family": "text-font",
   "font-size": "text-size",
   "line-height": "text-leading",
-  "letter-spacing": "text-kerning",
+  "letter-spacing": "text-tracking",
   "font-weight": "text-weight",
   "font-style": "text-style",
   "text-underline-offset": "text-decoration-offset",
