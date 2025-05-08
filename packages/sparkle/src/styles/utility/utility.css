@@ -65,8 +65,6 @@
 
 :is([w], [width]) {
   width: var(---width, 100%) !important;
-  min-width: var(---width, 0);
-  max-width: var(---width, 100%);
   ---width: initial;
 }
 :is([w-min], [width-min]) {
@@ -80,8 +78,6 @@
 
 :is([h], [height]) {
   height: var(---height, 100%) !important;
-  min-height: var(---height, 0);
-  max-height: var(---height, 100%);
   ---height: initial;
 }
 :is([h-min], [height-min]) {
