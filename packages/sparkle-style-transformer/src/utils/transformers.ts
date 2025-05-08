@@ -95,7 +95,7 @@ export const getCssColor = (color: string): string => {
   return `var(---theme_color-${color}, var(---theme_color-${color}-60))`;
 };
 
-export const getCssColumns = (columns: string): string => {
+export const getCssChildColumns = (columns: string): string => {
   if (isValidNumber(columns)) {
     return "1fr ".repeat(Number(columns)).trim();
   }

@@ -357,9 +357,9 @@
   flex-direction: var(---child-layout, row) !important;
   ---child-layout: initial;
 }
-:is([child-layout="grid"], [columns]) {
+:is([child-layout="grid"], [child-columns]) {
   display: grid;
-  grid-template-columns: var(---columns, 1fr 1fr 1fr);
+  grid-template-columns: var(---child-columns, 1fr 1fr 1fr);
 }
 [child-gap] {
   gap: var(---child-gap, 8px) !important;
