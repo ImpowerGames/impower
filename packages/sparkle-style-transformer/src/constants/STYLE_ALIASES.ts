@@ -68,8 +68,6 @@ const STYLE_ALIASES = {
   "h-max": "height-max",
 
   "bg-color": "background-color",
-  "bg-gradient": "background-gradient",
-  "bg-pattern": "background-pattern",
   "bg-image": "background-image",
   "bg-repeat": "background-repeat",
   "bg-align": "background-align",

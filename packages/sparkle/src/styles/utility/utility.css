@@ -569,25 +569,20 @@
   background-color: var(---background-color) !important;
   ---background-color: initial;
 }
-:is([bg-image], [background-image]),
-:is([bg-gradient], [background-gradient]),
-:is([bg-pattern], [background-pattern]) {
-  background-image: var(---background-image, none),
-    var(---background-gradient, none), var(---background-pattern, none) !important;
+:is([bg-image], [background-image]) {
+  background-image: var(---background-image, none) !important;
   ---background-image: initial;
-  ---background-gradient: initial;
-  ---background-pattern: initial;
 }
 :is([bg-repeat], [background-repeat]) {
-  background-repeat: var(---background-repeat, repeat), no-repeat, no-repeat !important;
+  background-repeat: var(---background-repeat, repeat) !important;
   ---background-repeat: initial;
 }
 :is([bg-align], [background-align]) {
-  background-position: var(---background-align, center), center, center !important;
+  background-position: var(---background-align, center) !important;
   ---background-align: initial;
 }
 :is([bg-fit], [background-fit]) {
-  background-size: var(---background-fit, contain), auto, cover !important;
+  background-size: var(---background-fit, contain) !important;
   ---background-fit: initial;
 }
 
@@ -713,8 +708,7 @@
   position: absolute !important;
   inset: 0 !important;
   content: "" !important;
-  background-image: var(---background-gradient, none),
-    var(---background-pattern, none), var(---background-image, none) !important;
+  background-image: var(---background-image, none) !important;
   background-color: var(---background-color) !important;
   -webkit-mask: var(---mask, none) !important;
   mask: var(---mask, none) !important;
