@@ -94,39 +94,39 @@
   ---corner: initial;
 }
 :is([c-t], [corner-t]) {
-  border-start-start-radius: var(---corner-t, 8px) !important;
-  border-start-end-radius: var(---corner-t, 8px) !important;
+  border-top-left-radius: var(---corner-t, 8px) !important;
+  border-top-right-radius: var(---corner-t, 8px) !important;
   ---corner-t: initial;
 }
 :is([c-b], [corner-b]) {
-  border-end-start-radius: var(---corner-b, 8px) !important;
-  border-end-end-radius: var(---corner-b, 8px) !important;
+  border-bottom-left-radius: var(---corner-b, 8px) !important;
+  border-bottom-right-radius: var(---corner-b, 8px) !important;
   ---corner-b: initial;
 }
 :is([c-l], [corner-l]) {
-  border-start-start-radius: var(---corner-l, 8px) !important;
-  border-end-start-radius: var(---corner-l, 8px) !important;
+  border-top-left-radius: var(---corner-l, 8px) !important;
+  border-bottom-left-radius: var(---corner-l, 8px) !important;
   ---corner-l: initial;
 }
 :is([c-r], [corner-r]) {
-  border-start-end-radius: var(---corner-r, 8px) !important;
-  border-end-end-radius: var(---corner-r, 8px) !important;
+  border-top-right-radius: var(---corner-r, 8px) !important;
+  border-bottom-right-radius: var(---corner-r, 8px) !important;
   ---corner-r: initial;
 }
 :is([c-tl], [corner-tl]) {
-  border-start-start-radius: var(---corner-tl, 8px) !important;
+  border-top-left-radius: var(---corner-tl, 8px) !important;
   ---corner-tl: initial;
 }
 :is([c-tr], [corner-tr]) {
-  border-start-end-radius: var(---corner-tr, 8px) !important;
+  border-top-right-radius: var(---corner-tr, 8px) !important;
   ---corner-tr: initial;
 }
 :is([c-bl], [corner-bl]) {
-  border-end-start-radius: var(---corner-bl, 8px) !important;
+  border-bottom-left-radius: var(---corner-bl, 8px) !important;
   ---corner-bl: initial;
 }
 :is([c-br], [corner-br]) {
-  border-end-end-radius: var(---corner-br, 8px) !important;
+  border-bottom-right-radius: var(---corner-br, 8px) !important;
   ---corner-br: initial;
 }
 
@@ -149,55 +149,39 @@
 
 :is([b-color], [border-color]) {
   border-style: solid;
-  border-color: var(---border-color, hsl(0 100% 100% / 50%)) !important;
+  border-color: var(---border-color, currentColor) !important;
   ---border-color: initial;
 }
 :is([b-color-tb], [border-color-tb]) {
   border-style: solid;
-  border-block-color: var(
-    ---border-color-tb,
-    hsl(0 100% 100% / 50%)
-  ) !important;
+  border-top-color: var(---border-color-tb, currentColor) !important;
+  border-bottom-color: var(---border-color-tb, currentColor) !important;
   ---border-color-tb: initial;
 }
 :is([b-color-lr], [border-color-lr]) {
   border-style: solid;
-  border-inline-color: var(
-    ---border-color-lr,
-    hsl(0 100% 100% / 50%)
-  ) !important;
+  border-left-color: var(---border-color-lr, currentColor) !important;
+  border-right-color: var(---border-color-lr, currentColor) !important;
   ---border-color-lr: initial;
 }
 :is([b-color-t], [border-color-t]) {
   border-style: solid;
-  border-block-start-color: var(
-    ---border-color-t,
-    hsl(0 100% 100% / 50%)
-  ) !important;
+  border-top-color: var(---border-color-t, currentColor) !important;
   ---border-color-t: initial;
 }
 [border-color-b] {
   border-style: solid;
-  border-block-end-color: var(
-    ---border-color-b,
-    hsl(0 100% 100% / 50%)
-  ) !important;
+  border-bottom-color: var(---border-color-b, currentColor) !important;
   ---border-color-b: initial;
 }
 :is([b-color-l], [border-color-l]) {
   border-style: solid;
-  border-inline-start-color: var(
-    ---border-color-l,
-    hsl(0 100% 100% / 50%)
-  ) !important;
+  border-left-color: var(---border-color-l, currentColor) !important;
   ---border-color-l: initial;
 }
 :is([b-color-r], [border-color-r]) {
   border-style: solid;
-  border-inline-end-color: var(
-    ---border-color-r,
-    hsl(0 100% 100% / 50%)
-  ) !important;
+  border-right-color: var(---border-color-r, currentColor) !important;
   ---border-color-r: initial;
 }
 
@@ -208,32 +192,34 @@
 }
 :is([b-width-tb], [border-width-tb]) {
   border-style: solid;
-  border-block-width: var(---border-width-tb, 8px) !important;
+  border-top-width: var(---border-width-tb, 8px) !important;
+  border-bottom-width: var(---border-width-tb, 8px) !important;
   ---border-width-tb: initial;
 }
 :is([b-width-lr], [border-width-lr]) {
   border-style: solid;
-  border-inline-width: var(---border-width-lr, 8px) !important;
+  border-left-width: var(---border-width-lr, 8px) !important;
+  border-right-width: var(---border-width-lr, 8px) !important;
   ---border-width-tr: initial;
 }
 :is([b-width-t], [border-width-t]) {
   border-style: solid;
-  border-block-start-width: var(---border-width-t, 8px) !important;
+  border-top-width: var(---border-width-t, 8px) !important;
   ---border-width-t: initial;
 }
 :is([b-width-b], [border-width-b]) {
   border-style: solid;
-  border-block-end-width: var(---border-width-b, 8px) !important;
+  border-bottom-width: var(---border-width-b, 8px) !important;
   ---border-width-b: initial;
 }
 :is([b-width-l], [border-width-l]) {
   border-style: solid;
-  border-inline-start-width: var(---border-width-l, 8px) !important;
+  border-left-width: var(---border-width-l, 8px) !important;
   ---border-width-l: initial;
 }
 :is([b-width-r], [border-width-r]) {
   border-style: solid;
-  border-inline-end-width: var(---border-width-r, 8px) !important;
+  border-right-width: var(---border-width-r, 8px) !important;
   ---border-width-r: initial;
 }
 
@@ -242,27 +228,29 @@
   ---border-style: initial;
 }
 :is([b-style-tb], [border-style-tb]) {
-  border-block-style: var(---border-style-tb, solid) !important;
+  border-top-style: var(---border-style-tb, solid) !important;
+  border-bottom-style: var(---border-style-tb, solid) !important;
   ---border-style-tb: initial;
 }
 :is([b-style-lr], [border-style-lr]) {
-  border-inline-style: var(---border-style-lr, solid) !important;
+  border-left-style: var(---border-style-lr, solid) !important;
+  border-right-style: var(---border-style-lr, solid) !important;
   ---border-style-lr: initial;
 }
 :is([b-style-t], [border-style-t]) {
-  border-block-start-style: var(---border-style-t, solid) !important;
+  border-top-style: var(---border-style-t, solid) !important;
   ---border-style-t: initial;
 }
 :is([b-style-b], [border-style-b]) {
-  border-block-end-style: var(---border-style-b, solid) !important;
+  border-bottom-style: var(---border-style-b, solid) !important;
   ---border-style-b: initial;
 }
 :is([b-style-l], [border-style-l]) {
-  border-inline-start-style: var(---border-style-l, solid) !important;
+  border-left-style: var(---border-style-l, solid) !important;
   ---border-style-l: initial;
 }
 :is([b-style-r], [border-style-r]) {
-  border-inline-end-style: var(---border-style-r, solid) !important;
+  border-right-style: var(---border-style-r, solid) !important;
   ---border-style-r: initial;
 }
 
@@ -271,27 +259,29 @@
   ---inset: initial;
 }
 :is([i-tb], [inset-tb]) {
-  inset-block: var(---inset-tb, 8px) !important;
+  top: var(---inset-tb, 8px) !important;
+  bottom: var(---inset-tb, 8px) !important;
   ---inset-tb: initial;
 }
 :is([i-lr], [inset-lr]) {
-  inset-inline: var(---inset-lr, 8px) !important;
+  left: var(---inset-lr, 8px) !important;
+  right: var(---inset-lr, 8px) !important;
   ---inset-lr: initial;
 }
 :is([i-t], [inset-t]) {
-  inset-block-start: var(---inset-t, 8px) !important;
+  top: var(---inset-t, 8px) !important;
   ---inset-t: initial;
 }
 :is([i-b], [inset-b]) {
-  inset-block-end: var(---inset-b, 8px) !important;
+  bottom: var(---inset-b, 8px) !important;
   ---inset-b: initial;
 }
 :is([i-l], [inset-l]) {
-  inset-inline-start: var(---inset-l, 8px) !important;
+  left: var(---inset-l, 8px) !important;
   ---inset-l: initial;
 }
 :is([i-r], [inset-r]) {
-  inset-inline-end: var(---inset-r, 8px) !important;
+  right: var(---inset-r, 8px) !important;
   ---inset-r: initial;
 }
 
@@ -300,27 +290,29 @@
   ---margin: initial;
 }
 :is([m-tb], [margin-tb]) {
-  margin-block: var(---margin-tb, 8px) !important;
+  margin-top: var(---margin-tb, 8px) !important;
+  margin-bottom: var(---margin-tb, 8px) !important;
   ---margin-tb: initial;
 }
 :is([m-lr], [margin-lr]) {
-  margin-inline: var(---margin-lr, 8px) !important;
+  margin-left: var(---margin-lr, 8px) !important;
+  margin-right: var(---margin-lr, 8px) !important;
   ---margin-lr: initial;
 }
 :is([m-t], [margin-t]) {
-  margin-block-start: var(---margin-t, 8px) !important;
+  margin-top: var(---margin-t, 8px) !important;
   ---margin-t: initial;
 }
 :is([m-b], [margin-b]) {
-  margin-block-end: var(---margin-b, 8px) !important;
+  margin-bottom: var(---margin-b, 8px) !important;
   ---margin-b: initial;
 }
 :is([m-l], [margin-l]) {
-  margin-inline-start: var(---margin-l, 8px) !important;
+  margin-left: var(---margin-l, 8px) !important;
   ---margin-l: initial;
 }
 :is([m-r], [margin-r]) {
-  margin-inline-end: var(---margin-r, 8px) !important;
+  margin-right: var(---margin-r, 8px) !important;
   ---margin-r: initial;
 }
 
@@ -329,27 +321,29 @@
   ---padding: initial;
 }
 :is([p-tb], [padding-tb]) {
-  padding-block: var(---padding-tb, 8px) !important;
+  padding-top: var(---padding-tb, 8px) !important;
+  padding-bottom: var(---padding-tb, 8px) !important;
   ---padding-tb: initial;
 }
 :is([p-lr], [padding-lr]) {
-  padding-inline: var(---padding-lr, 8px) !important;
+  padding-left: var(---padding-lr, 8px) !important;
+  padding-right: var(---padding-lr, 8px) !important;
   ---padding-lr: initial;
 }
 :is([p-t], [padding-t]) {
-  padding-block-start: var(---padding-t, 8px) !important;
+  padding-top: var(---padding-t, 8px) !important;
   ---padding-t: initial;
 }
 :is([p-b], [padding-b]) {
-  padding-block-end: var(---padding-b, 8px) !important;
+  padding-bottom: var(---padding-b, 8px) !important;
   ---padding-b: initial;
 }
 :is([p-l], [padding-l]) {
-  padding-inline-start: var(---padding-l, 8px) !important;
+  padding-left: var(---padding-l, 8px) !important;
   ---padding-l: initial;
 }
 :is([p-r], [padding-r]) {
-  padding-inline-end: var(---padding-r, 8px) !important;
+  padding-right: var(---padding-r, 8px) !important;
   ---padding-r: initial;
 }
 
