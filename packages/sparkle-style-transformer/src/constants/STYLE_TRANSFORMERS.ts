@@ -139,7 +139,7 @@ const STYLE_TRANSFORMERS = {
   "text-font": getCssTextFont,
   "text-size": getCssTextSize,
   "text-leading": getCssTextLeading,
-  "text-kerning": get,
+  "text-tracking": get,
   "text-weight": getCssTextWeight,
   "text-style": getCssTextStyle,
   "text-case": get,

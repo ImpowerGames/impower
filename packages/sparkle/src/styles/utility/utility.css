@@ -408,9 +408,9 @@
   ---text-leading: initial;
 }
 
-[text-kerning] {
-  letter-spacing: var(---text-kerning, 1.5) !important;
-  ---text-kerning: initial;
+[text-tracking] {
+  letter-spacing: var(---text-tracking, 1.5) !important;
+  ---text-tracking: initial;
 }
 
 [text-weight] {
