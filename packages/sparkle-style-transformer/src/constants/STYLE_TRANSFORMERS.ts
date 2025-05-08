@@ -151,8 +151,6 @@ const STYLE_TRANSFORMERS = {
   interactable: getCssInteractable,
   selectable: getCssSelectable,
 
-  color: getCssColor,
-
   "text-font": getCssTextFont,
   "text-size": getCssTextSize,
   "text-leading": getCssTextLeading,
