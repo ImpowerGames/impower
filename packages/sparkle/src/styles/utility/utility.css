@@ -556,9 +556,7 @@
   ---text-color: initial;
 }
 
-[text-stroke],
-[text-stroke-color],
-[text-stroke-width] {
+[text-stroke] {
   text-shadow: var(---text-stroke) !important;
   ---text-stroke: initial;
 }

@@ -1,9 +1,6 @@
 import STYLE_ALIASES from "../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
 import STYLE_TRANSFORMERS from "../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
-import {
-  getCssPattern,
-  getCssTextStroke,
-} from "../../../sparkle-style-transformer/src/utils/transformers";
+import { getCssPattern } from "../../../sparkle-style-transformer/src/utils/transformers";
 import { Component } from "../../../spec-component/src/component";
 import { Properties } from "../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../spec-component/src/utils/getAttributeNameMap";
@@ -1929,13 +1926,6 @@ export default class SparkleElement
         const transformer = this.transformers[propName];
         if (transformer) {
           this.updateStyleAttribute(propName, value, transformer);
-          if (
-            propName === SparkleElement.attrs.textStrokeWidth ||
-            propName === SparkleElement.attrs.textStrokeColor
-          ) {
-            const width = this.textStrokeWidth || "1";
-            this.updateRootCssVariable("text-stroke", getCssTextStroke(width));
-          }
         }
       }
     }

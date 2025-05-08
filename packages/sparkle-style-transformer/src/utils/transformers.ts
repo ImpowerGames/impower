@@ -1,4 +1,5 @@
 const WHITESPACE_REGEX = /[\t ]+/;
+const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
 
 /**
  * Quick positive‑list validator for CSS values we generate from the Sparkle
@@ -226,11 +227,14 @@ export const getCssTextDecorationLine = (value: boolean | string): string => {
   return value;
 };
 
-export const getCssTextStroke = (
-  width: string,
-  color = "var(---text-stroke-color, black)"
-): string => {
-  const r = Number(width);
+export const getCssTextStroke = (value: string): string => {
+  const [width, color] = value.trim().split(WHITESPACE_REGEX);
+  const widthMatch = width?.match(VALUE_UNIT_REGEX);
+  const widthValue = widthMatch?.[1] || "";
+  const widthUnit = widthMatch?.[2] || "";
+  let r = isValidNumber(widthValue) ? Number(widthValue) : 1;
+  let u = widthUnit || "px";
+  let c = color || "black";
   if (r === 0) {
     return "none";
   }
@@ -238,7 +242,7 @@ export const getCssTextStroke = (
   let str = "";
   for (let i = 0; i < n; i += 1) {
     const theta = (2 * Math.PI * i) / n;
-    str += `${r * Math.cos(theta)}px ${r * Math.sin(theta)}px 0 ${color}${
+    str += `${r * Math.cos(theta)}${u} ${r * Math.sin(theta)}${u} 0 ${c}${
       i === n - 1 ? "" : ","
     }`;
   }

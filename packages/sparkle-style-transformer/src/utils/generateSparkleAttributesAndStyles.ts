@@ -5,7 +5,6 @@ import {
   getCssIcon,
   getCssPattern,
   getCssSize,
-  getCssTextStroke,
 } from "./transformers.js";
 
 export const setVariableAndValue = (
@@ -88,18 +87,7 @@ export const setSparkleStyle = (
     styleTransformers[normalizedName] || inferTransformer(normalizedName);
 
   if (transformer) {
-    // Automatically set `---text-stroke` based on `text-stroke-width` and `text-stroke-color`
     setVariableAndValue(normalizedName, propValue, transformer, styles);
-    if (
-      normalizedName === "text-stroke-width" ||
-      normalizedName === "text-stroke-color"
-    ) {
-      const width =
-        props["text-stroke-width"] ??
-        props[attributePrefix + "text-stroke-width"] ??
-        "1";
-      setVariableAndValue("text-stroke", width, getCssTextStroke, styles);
-    }
   }
 
   // Automatically set `---fill-percentage` based on `min` and `max`
