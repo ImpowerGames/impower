@@ -614,30 +614,6 @@
   ---clip: initial;
 }
 
-[shadow] {
-  transition-property: opacity, transform, box-shadow !important;
-  box-shadow: var(
-    ---shadow,
-    0 1px 2px hsl(0 0% 0% / 30%),
-    0 1px 3px hsl(0 0% 0% / 15%)
-  ) !important;
-  ---shadow: initial;
-}
-[shadow-inset] {
-  box-shadow: var(
-    ---shadow-inset,
-    inset 0 1px 2px hsl(0 0% 0% / 30%),
-    inset 0 1px 3px hsl(0 0% 0% / 15%)
-  ) !important;
-  ---shadow-inset: initial;
-}
-
-[ring] {
-  box-shadow: var(---ring, 0 0 0 2px currentColor) !important;
-  outline: none !important;
-  ---ring: initial;
-}
-
 [filter] {
   filter: var(---filter, none) !important;
   ---filter: initial;
@@ -653,9 +629,35 @@
   ---blend: initial;
 }
 
+[shadow] {
+  box-shadow: var(
+    ---shadow,
+    0 1px 2px hsl(0 0% 0% / 30%),
+    0 1px 3px hsl(0 0% 0% / 15%)
+  ) !important;
+  transition-property: opacity, translate, rotate, scale, transform, box-shadow;
+  ---shadow: initial;
+}
+[shadow-inset] {
+  box-shadow: var(
+    ---shadow-inset,
+    inset 0 1px 2px hsl(0 0% 0% / 30%),
+    inset 0 1px 3px hsl(0 0% 0% / 15%)
+  ) !important;
+  transition-property: opacity, translate, rotate, scale, transform, box-shadow;
+  ---shadow-inset: initial;
+}
+
+[ring] {
+  box-shadow: var(---ring, 0 0 0 2px currentColor) !important;
+  transition-property: opacity, translate, rotate, scale, transform, box-shadow;
+  outline: none !important;
+  ---ring: initial;
+}
+
 [opacity] {
-  transition-property: opacity, transform, box-shadow !important;
   opacity: var(---opacity, 1) !important;
+  transition-property: opacity, translate, rotate, scale, transform, box-shadow;
   ---opacity: initial;
 }
 
@@ -663,10 +665,10 @@
 [translate-x],
 [translate-y],
 [translate-z] {
-  transition-property: opacity, transform, box-shadow !important;
   translate: var(---translate-x, var(---translate, 0))
     var(---translate-y, var(---translate, 0))
     var(---translate-z, var(---translate, 0)) !important;
+  transition-property: opacity, translate, rotate, scale, transform, box-shadow;
   ---translate: initial;
   ---translate-x: initial;
   ---translate-y: initial;
@@ -677,9 +679,9 @@
 [rotate-x],
 [rotate-y],
 [rotate-z] {
-  transition-property: opacity, transform, box-shadow !important;
   rotate: var(---rotate-x, var(---rotate, 0))
     var(---rotate-y, var(---rotate, 0)) var(---rotate-z, var(---rotate, 0)) !important;
+  transition-property: opacity, translate, rotate, scale, transform, box-shadow;
   ---rotate: initial;
   ---rotate-x: initial;
   ---rotate-y: initial;
@@ -690,9 +692,9 @@
 [scale-x],
 [scale-y],
 [scale-z] {
-  transition-property: opacity, transform, box-shadow !important;
   scale: var(---scale-x, var(---scale, 1)) var(---scale-y, var(---scale, 1))
     var(---scale-z, var(---scale, 1)) !important;
+  transition-property: opacity, translate, rotate, scale, transform, box-shadow;
   ---scale: initial;
   ---scale-x: initial;
   ---scale-y: initial;
@@ -702,9 +704,9 @@
 [skew],
 [skew-x],
 [skew-y] {
-  transition-property: opacity, transform, box-shadow !important;
   transform: skewX(var(---skew-x, var(---skew, 0)))
     skewY(var(---skew-y, var(---skew, 0))) !important;
+  transition-property: opacity, translate, rotate, scale, transform, box-shadow;
   ---skew: initial;
   ---skew-x: initial;
   ---skew-y: initial;
