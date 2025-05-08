@@ -168,8 +168,8 @@ const STYLE_TRANSFORMERS = {
   "text-stroke-width": get,
   "text-decoration-line": getCssTextDecorationLine,
   "text-decoration-color": getCssColor,
-  "text-underline-offset": getCssSize,
   "text-decoration-thickness": getCssSize,
+  "text-decoration-offset": getCssSize,
 
   "background-color": getCssColor,
   "background-gradient": getCssGradient,

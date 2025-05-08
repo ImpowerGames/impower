@@ -491,10 +491,12 @@
   font-weight: var(---text-weight, 600) !important;
   ---text-weight: initial;
 }
+
 [text-style] {
   font-style: var(---text-style, italic) !important;
   ---text-style: initial;
 }
+
 [text-decoration-line] {
   text-decoration-line: var(---text-decoration-line, underline) !important;
   ---text-decoration-line: initial;
@@ -507,18 +509,21 @@
   text-decoration-thickness: var(---text-decoration-thickness, auto) !important;
   ---text-decoration-thickness: initial;
 }
-[text-underline-offset] {
-  text-underline-offset: var(---text-underline-offset, 4px) !important;
-  ---text-underline-offset: initial;
+[text-decoration-offset] {
+  text-underline-offset: var(---text-decoration-offset, 4px) !important;
+  ---text-decoration-offset: initial;
 }
+
 [text-case] {
   text-transform: var(---text-case, uppercase) !important;
   ---text-case: initial;
 }
+
 [text-align] {
   text-align: var(---text-align, center) !important;
   ---text-align: initial;
 }
+
 [text-overflow] {
   text-overflow: var(---text-overflow, clip) !important;
   ---text-overflow: initial;
@@ -540,14 +545,17 @@
   overflow: hidden;
   white-space: nowrap;
 }
+
 [text-whitespace] {
   white-space: var(---text-whitespace, normal) !important;
   ---text-whitespace: initial;
 }
+
 [text-color] {
   color: var(---text-color, white) !important;
   ---text-color: initial;
 }
+
 [text-stroke],
 [text-stroke-color],
 [text-stroke-width] {
