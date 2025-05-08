@@ -1,6 +1,7 @@
 * {
   transition-property: opacity, translate, rotate, scale, transform, filter,
-    backdrop-filter, clip-path, mix-blend-mode, box-shadow;
+    backdrop-filter, clip-path, mix-blend-mode, box-shadow, color,
+    background-color, border-color, text-decoration-color, fill, stroke;
 }
 
 [display] {
