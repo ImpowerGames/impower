@@ -67,7 +67,7 @@ export function renderVNode(
   parent?: SparkleNode,
   index: number = 0
 ): VNode {
-  const { type, args: params, children } = el;
+  const { type, args, children } = el;
   const components = ctx.components;
   const breakpoints = ctx.options?.breakpoints ?? DEFAULT_BREAKPOINTS;
   const cssAliases = ctx.options?.cssAliases ?? DEFAULT_CSS_ALIASES;
@@ -77,7 +77,7 @@ export function renderVNode(
   switch (type) {
     case "if": {
       let selectedChildren: SparkleNode[] = [];
-      if (evaluate(params?.condition, getContext(ctx))) {
+      if (evaluate(args?.condition, getContext(ctx))) {
         selectedChildren = children ?? [];
       } else {
         let offset = 1;
@@ -112,7 +112,7 @@ export function renderVNode(
       return { tag: "fragment", props: {}, children: [] }; // handled by parent if/match
 
     case "for": {
-      const list = evaluate(params?.each, getContext(ctx)) || [];
+      const list = evaluate(args?.each, getContext(ctx)) || [];
       const entries = Object.entries(list);
       const nextSibling = parent?.children?.[index + 1];
       if (entries.length === 0 && nextSibling?.type === "else") {
@@ -122,7 +122,7 @@ export function renderVNode(
           ) ?? []
         );
       }
-      const asKeys: string[] = params?.as;
+      const asKeys: string[] = args?.as;
       const items = entries.flatMap(([key, value]) => {
         const newScope =
           asKeys?.length > 1
@@ -148,7 +148,7 @@ export function renderVNode(
     }
 
     case "repeat": {
-      const times = evaluate(params?.times, getContext(ctx)) as number;
+      const times = evaluate(args?.times, getContext(ctx)) as number;
       const nextSibling = parent?.children?.[index + 1];
       if (Number.isNaN(times))
         return { tag: "fragment", props: {}, children: [] };
@@ -180,7 +180,7 @@ export function renderVNode(
     }
 
     case "match": {
-      const value = evaluate(params?.expression, getContext(ctx));
+      const value = evaluate(args?.expression, getContext(ctx));
       if (children) {
         for (const child of children) {
           if (
@@ -278,8 +278,8 @@ export function renderVNode(
         children: [`.style.${name} { ${styleContent} }`],
       };
     }
-    if (type === "property" && params?.key) {
-      return paramToProperty(params?.key, params?.value, cssAliases);
+    if (type === "property" && args?.key) {
+      return paramToProperty(args?.key, args?.value, cssAliases);
     }
     const selector = sparkleSelectorToCssSelector(type, breakpoints);
     const blockContent = (children ?? [])
@@ -302,8 +302,8 @@ export function renderVNode(
         children: [styleContent],
       };
     }
-    if (type === "property" && params?.key) {
-      return paramToProperty(params?.key, params?.value, cssAliases);
+    if (type === "property" && args?.key) {
+      return paramToProperty(args?.key, args?.value, cssAliases);
     }
     if (type === "keyframes" && children?.length) {
       const max = children.length - 1;
@@ -386,8 +386,8 @@ export function renderVNode(
         ],
       };
     }
-    if (type === "property" && params?.key) {
-      return paramToProperty(params?.key, params?.value, cssAliases);
+    if (type === "property" && args?.key) {
+      return paramToProperty(args?.key, args?.value, cssAliases);
     }
     const content = (children ?? [])
       .map((c, i) => renderVNode(c, ctx, el, i) as string)
@@ -412,7 +412,7 @@ function renderBuiltinVNode(
   ctx: RenderContext,
   builtin: VNode
 ): VNode {
-  const { type, args: params = {}, children } = el;
+  const { type, args = {}, children } = el;
 
   const components = ctx.components;
   const interpolate = ctx.options?.interpolate ?? defaultInterpolate;
@@ -428,14 +428,14 @@ function renderBuiltinVNode(
   /*  2.  Fill dynamic attrs/classes  */
   const inherited =
     type === "component"
-      ? getInheritanceChain(params?.base, components)
+      ? getInheritanceChain(args?.base, components)
       : getInheritanceChain(type, components);
 
   const dynamicClass = [
-    ...(params.classes ?? []),
+    ...(args.classes ?? []),
     ...inherited,
-    params.base,
-    params.name,
+    args.base,
+    args.name,
   ]
     .filter(Boolean)
     .join(" ");
@@ -449,8 +449,8 @@ function renderBuiltinVNode(
   /* gather user-supplied attrs after interpolation */
   const evalCtx = getContext(ctx);
   const spreadProps: Record<string, string> = {};
-  if (params.attributes) {
-    for (const [k, v] of Object.entries(params.attributes).filter(
+  if (args.attributes) {
+    for (const [k, v] of Object.entries(args.attributes).filter(
       ([k]) => !["content"].includes(k)
     )) {
       spreadProps[k] =
@@ -473,18 +473,18 @@ function renderBuiltinVNode(
     Object.assign(root.props, spreadProps);
   }
 
-  if (type === "screen" && params.name) root.props.id = params.name;
+  if (type === "screen" && args.name) root.props.id = args.name;
 
   /*  3.  Inject slot <content-slot> and <children-slot>  */
   const contentV: VNode =
-    typeof params.attributes?.content === "string"
-      ? interpolate(params.attributes?.content, evalCtx)
+    typeof args.attributes?.content === "string"
+      ? interpolate(args.attributes?.content, evalCtx)
       : "";
 
   if (root.contentAttr) {
     root.props[root.contentAttr] =
-      typeof params.attributes?.content === "string"
-        ? interpolate(params.attributes?.content, evalCtx)
+      typeof args.attributes?.content === "string"
+        ? interpolate(args.attributes?.content, evalCtx)
         : "";
   }
 
@@ -500,7 +500,7 @@ function renderBuiltinVNode(
         return children?.map((c, i) => renderVNode(c, ctx, el, i)) || [];
       }
       // recurse
-      return injectSlots(ch, params.attributes?.content, children, ctx, el);
+      return injectSlots(ch, args.attributes?.content, children, ctx, el);
     })
     .filter(Boolean);
 
