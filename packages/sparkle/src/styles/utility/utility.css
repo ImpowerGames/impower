@@ -352,6 +352,11 @@
   cursor: text;
 }
 
+[cursor] {
+  cursor: var(---cursor, auto) !important;
+  ---cursor: initial;
+}
+
 [text-font] {
   font-family: var(---text-font, monospace) !important;
   ---text-font: initial;
