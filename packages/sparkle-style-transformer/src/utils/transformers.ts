@@ -163,7 +163,7 @@ export const getCssZ = (value: string): string => {
   return `var(---theme_z-index-${value})`;
 };
 
-export const getCssUnit = (
+export const getCssWithUnit = (
   value: string | number,
   defaultUnit: string
 ): string => {
@@ -171,7 +171,7 @@ export const getCssUnit = (
     return `${value}${defaultUnit}`;
   }
   return value
-    .split(" ")
+    .split(WHITESPACE_REGEX)
     .map((part) => (isValidNumber(part) ? `${part}${defaultUnit}` : part))
     .join(" ");
 };
@@ -354,7 +354,7 @@ export const getCssDuration = (
   if (!value) {
     return defaultValue;
   }
-  return getCssUnit(value, "s");
+  return getCssWithUnit(value, "s");
 };
 
 export const getCssEase = (
@@ -613,7 +613,7 @@ export const getCssRotate = (value: string): string => {
   if (value === "none") {
     return "0";
   }
-  return getCssUnit(`${value}`, "deg");
+  return getCssWithUnit(value, "deg");
 };
 
 export const getCssScale = (value: string): string => {
@@ -719,7 +719,7 @@ export const getCssSize = (
   if (isVariableValue(value)) {
     return `var(---theme_size-${value})`;
   }
-  return getCssUnit(value, defaultUnit);
+  return getCssWithUnit(value, defaultUnit);
 };
 
 export const getCssTextOverflow = (value: string): string => {
@@ -733,5 +733,5 @@ export const getCssTranslate = (value: string): string => {
   if (value === "none") {
     return "0";
   }
-  return getCssUnit(`${value}`, "px");
+  return getCssWithUnit(value, "px");
 };

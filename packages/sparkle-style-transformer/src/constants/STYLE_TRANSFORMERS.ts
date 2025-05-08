@@ -37,7 +37,6 @@ import {
   getCssShadowInset,
   getCssShrink,
   getCssSize,
-  getCssSkew,
   getCssTextAlign,
   getCssTextDecorationLine,
   getCssTextFont,
@@ -193,20 +192,8 @@ const STYLE_TRANSFORMERS = {
   opacity: get,
 
   translate: getCssTranslate,
-  "translate-x": getCssTranslate,
-  "translate-y": getCssTranslate,
-  "translate-z": getCssTranslate,
   rotate: getCssRotate,
-  "rotate-x": getCssRotate,
-  "rotate-y": getCssRotate,
-  "rotate-z": getCssRotate,
   scale: getCssScale,
-  "scale-x": getCssScale,
-  "scale-y": getCssScale,
-  "scale-z": getCssScale,
-  skew: getCssSkew,
-  "skew-x": getCssSkew,
-  "skew-y": getCssSkew,
 
   pivot: get,
 
