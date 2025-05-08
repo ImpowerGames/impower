@@ -59,7 +59,6 @@
 }
 
 [z] {
-  position: var(---position, relative) !important;
   z-index: var(---z, 1) !important;
   ---z: initial;
 }

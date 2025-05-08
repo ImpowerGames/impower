@@ -188,6 +188,7 @@ export default spec({
         <se-header-navigation-placeholder></se-header-navigation-placeholder>
         <s-box
           height="panel-nav"
+          position="relative"
           child-layout="row"
           child-align="center"
           bg-color="${horizontalLayout ? "panel" : "black"}"
