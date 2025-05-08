@@ -84,14 +84,6 @@ const STYLE_TRANSFORMERS = {
   "corner-br": getCssCorner,
   "corner-bl": getCssCorner,
 
-  inset: getCssSize,
-  "inset-t": getCssSize,
-  "inset-r": getCssSize,
-  "inset-b": getCssSize,
-  "inset-l": getCssSize,
-  "inset-lr": getCssSize,
-  "inset-tb": getCssSize,
-
   "outline-width": getCssSize,
   "outline-color": getCssColor,
   "outline-style": getCssOutlineStyle,
@@ -117,6 +109,14 @@ const STYLE_TRANSFORMERS = {
   "border-style-l": getCssBorderStyle,
   "border-style-lr": getCssBorderStyle,
   "border-style-tb": getCssBorderStyle,
+
+  inset: getCssSize,
+  "inset-t": getCssSize,
+  "inset-r": getCssSize,
+  "inset-b": getCssSize,
+  "inset-l": getCssSize,
+  "inset-lr": getCssSize,
+  "inset-tb": getCssSize,
 
   margin: getCssSize,
   "margin-t": getCssSize,
