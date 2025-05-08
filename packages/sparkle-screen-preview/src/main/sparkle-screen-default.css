@@ -73,7 +73,9 @@
 .Button:focus,
 .Dropdown:focus,
 .Input:focus,
-.InputArea:focus {
+.InputArea:focus,
+.Checkbox:focus,
+.Slider:focus {
   outline: none;
   box-shadow: 0 0 0 var(---theme_focus-ring-width)
     var(---theme_focus-ring-color);
