@@ -164,10 +164,7 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "Parameter") {
       const context = getContextNames(nodeRef.node);
-      if (
-        !context.includes("FunctionCall") &&
-        context.includes("FunctionDeclarationParameters")
-      ) {
+      if (context.includes("FunctionDeclarationParameters")) {
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>("param").range(
             nodeRef.from,
