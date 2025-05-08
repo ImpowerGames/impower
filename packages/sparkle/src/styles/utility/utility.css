@@ -98,21 +98,21 @@
   border-radius: var(---corner, 8px) !important;
   ---corner: initial;
 }
-:is([c-tl], [corner-tl]) {
-  border-top-left-radius: var(---corner-tl, 8px) !important;
-  ---corner-tl: initial;
+:is([c-tl], [corner-top-left]) {
+  border-top-left-radius: var(---corner-top-left, 8px) !important;
+  ---corner-top-left: initial;
 }
-:is([c-tr], [corner-tr]) {
-  border-top-right-radius: var(---corner-tr, 8px) !important;
-  ---corner-tr: initial;
+:is([c-tr], [corner-top-right]) {
+  border-top-right-radius: var(---corner-top-right, 8px) !important;
+  ---corner-top-right: initial;
 }
-:is([c-bl], [corner-bl]) {
-  border-bottom-left-radius: var(---corner-bl, 8px) !important;
-  ---corner-bl: initial;
+:is([c-bl], [corner-bottom-left]) {
+  border-bottom-left-radius: var(---corner-bottom-left, 8px) !important;
+  ---corner-bottom-left: initial;
 }
-:is([c-br], [corner-br]) {
-  border-bottom-right-radius: var(---corner-br, 8px) !important;
-  ---corner-br: initial;
+:is([c-br], [corner-bottom-right]) {
+  border-bottom-right-radius: var(---corner-bottom-right, 8px) !important;
+  ---corner-bottom-right: initial;
 }
 
 :is([o-color], [outline-color]) {
@@ -137,25 +137,25 @@
   border-color: var(---border-color, currentColor) !important;
   ---border-color: initial;
 }
-:is([b-color-t], [border-color-t]) {
+:is([b-color-t], [border-color-top]) {
   border-style: solid;
-  border-top-color: var(---border-color-t, currentColor) !important;
-  ---border-color-t: initial;
+  border-top-color: var(---border-color-top, currentColor) !important;
+  ---border-color-top: initial;
 }
-:is([b-color-b], [border-color-b]) {
+:is([b-color-b], [border-color-bottom]) {
   border-style: solid;
-  border-bottom-color: var(---border-color-b, currentColor) !important;
-  ---border-color-b: initial;
+  border-bottom-color: var(---border-color-bottom, currentColor) !important;
+  ---border-color-bottom: initial;
 }
-:is([b-color-l], [border-color-l]) {
+:is([b-color-l], [border-color-left]) {
   border-style: solid;
-  border-left-color: var(---border-color-l, currentColor) !important;
-  ---border-color-l: initial;
+  border-left-color: var(---border-color-left, currentColor) !important;
+  ---border-color-left: initial;
 }
-:is([b-color-r], [border-color-r]) {
+:is([b-color-r], [border-color-right]) {
   border-style: solid;
-  border-right-color: var(---border-color-r, currentColor) !important;
-  ---border-color-r: initial;
+  border-right-color: var(---border-color-right, currentColor) !important;
+  ---border-color-right: initial;
 }
 
 :is([b-width], [border-width]) {
@@ -163,109 +163,109 @@
   border-width: var(---border-width, 8px) !important;
   ---border-width: initial;
 }
-:is([b-width-t], [border-width-t]) {
+:is([b-width-t], [border-width-top]) {
   border-style: solid;
-  border-top-width: var(---border-width-t, 8px) !important;
-  ---border-width-t: initial;
+  border-top-width: var(---border-width-top, 8px) !important;
+  ---border-width-top: initial;
 }
-:is([b-width-b], [border-width-b]) {
+:is([b-width-b], [border-width-bottom]) {
   border-style: solid;
-  border-bottom-width: var(---border-width-b, 8px) !important;
-  ---border-width-b: initial;
+  border-bottom-width: var(---border-width-bottom, 8px) !important;
+  ---border-width-bottom: initial;
 }
-:is([b-width-l], [border-width-l]) {
+:is([b-width-l], [border-width-left]) {
   border-style: solid;
-  border-left-width: var(---border-width-l, 8px) !important;
-  ---border-width-l: initial;
+  border-left-width: var(---border-width-left, 8px) !important;
+  ---border-width-left: initial;
 }
-:is([b-width-r], [border-width-r]) {
+:is([b-width-r], [border-width-right]) {
   border-style: solid;
-  border-right-width: var(---border-width-r, 8px) !important;
-  ---border-width-r: initial;
+  border-right-width: var(---border-width-right, 8px) !important;
+  ---border-width-right: initial;
 }
 
 :is([b-style], [border-style]) {
   border-style: var(---border-style, solid) !important;
   ---border-style: initial;
 }
-:is([b-style-t], [border-style-t]) {
-  border-top-style: var(---border-style-t, solid) !important;
-  ---border-style-t: initial;
+:is([b-style-t], [border-style-top]) {
+  border-top-style: var(---border-style-top, solid) !important;
+  ---border-style-top: initial;
 }
-:is([b-style-b], [border-style-b]) {
-  border-bottom-style: var(---border-style-b, solid) !important;
-  ---border-style-b: initial;
+:is([b-style-b], [border-style-bottom]) {
+  border-bottom-style: var(---border-style-bottom, solid) !important;
+  ---border-style-bottom: initial;
 }
-:is([b-style-l], [border-style-l]) {
-  border-left-style: var(---border-style-l, solid) !important;
-  ---border-style-l: initial;
+:is([b-style-l], [border-style-left]) {
+  border-left-style: var(---border-style-left, solid) !important;
+  ---border-style-left: initial;
 }
-:is([b-style-r], [border-style-r]) {
-  border-right-style: var(---border-style-r, solid) !important;
-  ---border-style-r: initial;
+:is([b-style-r], [border-style-right]) {
+  border-right-style: var(---border-style-right, solid) !important;
+  ---border-style-right: initial;
 }
 
 :is([i], [inset]) {
   inset: var(---inset, 8px) !important;
   ---inset: initial;
 }
-:is([i-t], [inset-t]) {
-  top: var(---inset-t, 8px) !important;
-  ---inset-t: initial;
+:is([i-t], [inset-top]) {
+  top: var(---inset-top, 8px) !important;
+  ---inset-top: initial;
 }
-:is([i-b], [inset-b]) {
-  bottom: var(---inset-b, 8px) !important;
-  ---inset-b: initial;
+:is([i-b], [inset-bottom]) {
+  bottom: var(---inset-bottom, 8px) !important;
+  ---inset-bottom: initial;
 }
-:is([i-l], [inset-l]) {
-  left: var(---inset-l, 8px) !important;
-  ---inset-l: initial;
+:is([i-l], [inset-left]) {
+  left: var(---inset-left, 8px) !important;
+  ---inset-left: initial;
 }
-:is([i-r], [inset-r]) {
-  right: var(---inset-r, 8px) !important;
-  ---inset-r: initial;
+:is([i-r], [inset-right]) {
+  right: var(---inset-right, 8px) !important;
+  ---inset-right: initial;
 }
 
 :is([m], [margin]) {
   margin: var(---margin, 8px) !important;
   ---margin: initial;
 }
-:is([m-t], [margin-t]) {
-  margin-top: var(---margin-t, 8px) !important;
-  ---margin-t: initial;
+:is([m-t], [margin-top]) {
+  margin-top: var(---margin-top, 8px) !important;
+  ---margin-top: initial;
 }
-:is([m-b], [margin-b]) {
-  margin-bottom: var(---margin-b, 8px) !important;
-  ---margin-b: initial;
+:is([m-b], [margin-bottom]) {
+  margin-bottom: var(---margin-bottom, 8px) !important;
+  ---margin-bottom: initial;
 }
-:is([m-l], [margin-l]) {
-  margin-left: var(---margin-l, 8px) !important;
-  ---margin-l: initial;
+:is([m-l], [margin-left]) {
+  margin-left: var(---margin-left, 8px) !important;
+  ---margin-left: initial;
 }
-:is([m-r], [margin-r]) {
-  margin-right: var(---margin-r, 8px) !important;
-  ---margin-r: initial;
+:is([m-r], [margin-right]) {
+  margin-right: var(---margin-right, 8px) !important;
+  ---margin-right: initial;
 }
 
 :is([p], [padding]) {
   padding: var(---padding, 8px) !important;
   ---padding: initial;
 }
-:is([p-t], [padding-t]) {
-  padding-top: var(---padding-t, 8px) !important;
-  ---padding-t: initial;
+:is([p-t], [padding-top]) {
+  padding-top: var(---padding-top, 8px) !important;
+  ---padding-top: initial;
 }
-:is([p-b], [padding-b]) {
-  padding-bottom: var(---padding-b, 8px) !important;
-  ---padding-b: initial;
+:is([p-b], [padding-bottom]) {
+  padding-bottom: var(---padding-bottom, 8px) !important;
+  ---padding-bottom: initial;
 }
-:is([p-l], [padding-l]) {
-  padding-left: var(---padding-l, 8px) !important;
-  ---padding-l: initial;
+:is([p-l], [padding-left]) {
+  padding-left: var(---padding-left, 8px) !important;
+  ---padding-left: initial;
 }
-:is([p-r], [padding-r]) {
-  padding-right: var(---padding-r, 8px) !important;
-  ---padding-r: initial;
+:is([p-r], [padding-right]) {
+  padding-right: var(---padding-right, 8px) !important;
+  ---padding-right: initial;
 }
 
 :is([child-layout="row"], [child-layout="column"]) {
