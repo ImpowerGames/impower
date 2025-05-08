@@ -499,7 +499,12 @@ export const getCssMask = (value: string): string => {
 };
 
 export const getCssInteractable = (value: boolean | string): string => {
-  if (value === true || value === "true" || value === "") {
+  if (
+    value === true ||
+    value === "true" ||
+    value === "" ||
+    value === "interactable"
+  ) {
     return "auto";
   }
   if (value === false || value === "false") {
@@ -625,7 +630,12 @@ export const getCssScale = (value: string): string => {
 };
 
 export const getCssSelectable = (value: boolean | string): string => {
-  if (value === true || value === "true" || value === "") {
+  if (
+    value === true ||
+    value === "true" ||
+    value === "" ||
+    value === "selectable"
+  ) {
     return "auto";
   }
   if (value === false || value === "false") {
