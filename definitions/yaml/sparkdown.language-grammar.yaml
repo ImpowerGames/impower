@@ -247,7 +247,9 @@ repository:
       - { include: "#DefineDeclaration" }
       - { include: "#ScreenDeclaration" }
       - { include: "#ComponentDeclaration" }
-      - { include: "#CssDeclaration" }
+      - { include: "#StyleDeclaration" }
+      - { include: "#AnimationDeclaration" }
+      - { include: "#ThemeDeclaration" }
 
   VarDeclaration:
     tag: meta
@@ -1214,23 +1216,23 @@ repository:
         tag: special(string)
         name: string.interpolated.view.sd
 
-  CssDeclaration:
+  StyleDeclaration:
     tag: meta
     name: meta.definition.type.css.sd
-    begin: ^({{WS}}*)(style|animation|theme)({{EOK}})(.*?)$
+    begin: ^({{WS}}*)(style)({{EOK}})(.*?)$
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#CssDeclarationKeyword" }
+          - { include: "#StyleDeclarationKeyword" }
       3:
         patterns:
           - { include: "#Separator" }
       4:
         patterns:
-          - { include: "#CssDeclarationAssignment" }
+          - { include: "#StyleDeclarationAssignment" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1238,17 +1240,17 @@ repository:
       - { include: "#Unknown" }
     end: (?=^(?!\1{{WS}}))
 
-  CssDeclarationKeyword:
+  StyleDeclarationKeyword:
     tag: controlKeyword
     name: keyword.control.definition.object.sd
     match: (.+)
 
-  CssDeclarationAssignment:
+  StyleDeclarationAssignment:
     match: (.*?)({{WS}}*)($|[:])
     captures:
       1:
         patterns:
-          - { include: "#CssDeclarationName" }
+          - { include: "#StyleDeclarationName" }
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
@@ -1256,7 +1258,101 @@ repository:
         patterns:
           - { include: "#ColonOperator" }
 
-  CssDeclarationName:
+  StyleDeclarationName:
+    tag: className
+    name: entity.name.type.class.view.sd
+    match: (.+)
+
+  AnimationDeclaration:
+    tag: meta
+    name: meta.definition.type.css.sd
+    begin: ^({{WS}}*)(animation)({{EOK}})(.*?)$
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#AnimationDeclarationKeyword" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+      4:
+        patterns:
+          - { include: "#AnimationDeclarationAssignment" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Newline" }
+      - { include: "#CssField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!\1{{WS}}))
+
+  AnimationDeclarationKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.object.sd
+    match: (.+)
+
+  AnimationDeclarationAssignment:
+    match: (.*?)({{WS}}*)($|[:])
+    captures:
+      1:
+        patterns:
+          - { include: "#AnimationDeclarationName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      3:
+        patterns:
+          - { include: "#ColonOperator" }
+
+  AnimationDeclarationName:
+    tag: variableName
+    name: variable.other.constant.sd
+    match: (.+)
+
+  ThemeDeclaration:
+    tag: meta
+    name: meta.definition.type.css.sd
+    begin: ^({{WS}}*)(theme)({{EOK}})(.*?)$
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ThemeDeclarationKeyword" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+      4:
+        patterns:
+          - { include: "#ThemeDeclarationAssignment" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Newline" }
+      - { include: "#CssField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!\1{{WS}}))
+
+  ThemeDeclarationKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.object.sd
+    match: (.+)
+
+  ThemeDeclarationAssignment:
+    match: (.*?)({{WS}}*)($|[:])
+    captures:
+      1:
+        patterns:
+          - { include: "#ThemeDeclarationName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      3:
+        patterns:
+          - { include: "#ColonOperator" }
+
+  ThemeDeclarationName:
     tag: variableName
     name: variable.other.constant.sd
     match: (.+)

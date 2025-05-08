@@ -417,7 +417,13 @@
           "include": "#ComponentDeclaration"
         },
         {
-          "include": "#CssDeclaration"
+          "include": "#StyleDeclaration"
+        },
+        {
+          "include": "#AnimationDeclaration"
+        },
+        {
+          "include": "#ThemeDeclaration"
         }
       ]
     },
@@ -2236,10 +2242,10 @@
         }
       }
     },
-    "CssDeclaration": {
+    "StyleDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.css.sd",
-      "begin": "^([^\\S\\n\\r]*)(style|animation|theme)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)$",
+      "begin": "^([^\\S\\n\\r]*)(style)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)$",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2251,7 +2257,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#CssDeclarationKeyword"
+              "include": "#StyleDeclarationKeyword"
             }
           ]
         },
@@ -2265,7 +2271,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#CssDeclarationAssignment"
+              "include": "#StyleDeclarationAssignment"
             }
           ]
         }
@@ -2286,18 +2292,18 @@
       ],
       "end": "(?=^(?!\\1[^\\S\\n\\r]))"
     },
-    "CssDeclarationKeyword": {
+    "StyleDeclarationKeyword": {
       "tag": "controlKeyword",
       "name": "keyword.control.definition.object.sd",
       "match": "(.+)"
     },
-    "CssDeclarationAssignment": {
+    "StyleDeclarationAssignment": {
       "match": "(.*?)([^\\S\\n\\r]*)($|[:])",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#CssDeclarationName"
+              "include": "#StyleDeclarationName"
             }
           ]
         },
@@ -2317,7 +2323,179 @@
         }
       }
     },
-    "CssDeclarationName": {
+    "StyleDeclarationName": {
+      "tag": "className",
+      "name": "entity.name.type.class.view.sd",
+      "match": "(.+)"
+    },
+    "AnimationDeclaration": {
+      "tag": "meta",
+      "name": "meta.definition.type.css.sd",
+      "begin": "^([^\\S\\n\\r]*)(animation)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)$",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#AnimationDeclarationKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#AnimationDeclarationAssignment"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#CssField"
+        },
+        {
+          "include": "#Unknown"
+        }
+      ],
+      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+    },
+    "AnimationDeclarationKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.object.sd",
+      "match": "(.+)"
+    },
+    "AnimationDeclarationAssignment": {
+      "match": "(.*?)([^\\S\\n\\r]*)($|[:])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AnimationDeclarationName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
+        }
+      }
+    },
+    "AnimationDeclarationName": {
+      "tag": "variableName",
+      "name": "variable.other.constant.sd",
+      "match": "(.+)"
+    },
+    "ThemeDeclaration": {
+      "tag": "meta",
+      "name": "meta.definition.type.css.sd",
+      "begin": "^([^\\S\\n\\r]*)(theme)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)$",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ThemeDeclarationKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#ThemeDeclarationAssignment"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#CssField"
+        },
+        {
+          "include": "#Unknown"
+        }
+      ],
+      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+    },
+    "ThemeDeclarationKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.object.sd",
+      "match": "(.+)"
+    },
+    "ThemeDeclarationAssignment": {
+      "match": "(.*?)([^\\S\\n\\r]*)($|[:])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ThemeDeclarationName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
+        }
+      }
+    },
+    "ThemeDeclarationName": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
       "match": "(.+)"

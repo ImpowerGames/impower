@@ -34,7 +34,9 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
       nodeRef.name === "DefineDeclaration" ||
       nodeRef.name === "ScreenDeclaration" ||
       nodeRef.name === "ComponentDeclaration" ||
-      nodeRef.name === "CssDeclaration"
+      nodeRef.name === "StyleDeclaration" ||
+      nodeRef.name === "AnimationDeclaration" ||
+      nodeRef.name === "ThemeDeclaration"
     ) {
       annotations.push(
         SparkdownAnnotation.mark({

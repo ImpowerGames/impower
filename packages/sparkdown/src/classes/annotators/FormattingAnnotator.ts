@@ -170,7 +170,9 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       nodeRef.name === "DefineDeclaration_begin" ||
       nodeRef.name === "ScreenDeclaration_begin" ||
       nodeRef.name === "ComponentDeclaration_begin" ||
-      nodeRef.name === "CssDeclaration_begin"
+      nodeRef.name === "StyleDeclaration_begin" ||
+      nodeRef.name === "AnimationDeclaration_begin" ||
+      nodeRef.name === "ThemeDeclaration_begin"
     ) {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("block_declaration_begin").range(
@@ -446,7 +448,9 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       nodeRef.name === "DefineDeclaration_end" ||
       nodeRef.name === "ScreenDeclaration_end" ||
       nodeRef.name === "ComponentDeclaration_end" ||
-      nodeRef.name === "CssDeclaration_end"
+      nodeRef.name === "StyleDeclaration_end" ||
+      nodeRef.name === "AnimationDeclaration_end" ||
+      nodeRef.name === "ThemeDeclaration_end"
     ) {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("block_declaration_end").range(

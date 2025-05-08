@@ -184,8 +184,22 @@ export const getFormatting = (
       );
       newIndentLevel = processBlockDeclaration(
         stack,
-        "CssDeclaration",
-        "CssDeclaration_content",
+        "StyleDeclaration",
+        "StyleDeclaration_content",
+        currentIndentation,
+        newIndentLevel
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "AnimationDeclaration",
+        "AnimationDeclaration_content",
+        currentIndentation,
+        newIndentLevel
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "ThemeDeclaration",
+        "ThemeDeclaration_content",
         currentIndentation,
         newIndentLevel
       );

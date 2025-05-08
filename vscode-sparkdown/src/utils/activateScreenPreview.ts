@@ -179,7 +179,10 @@ function getAllScreenDependencyRanges(document: vscode.TextDocument) {
         const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
         const declarationNode = stack.find(
           (n) =>
-            n.name === "ComponentDeclaration" || n.name === "CssDeclaration"
+            n.name === "ComponentDeclaration" ||
+            n.name === "StyleDeclaration" ||
+            n.name === "AnimationDeclaration" ||
+            n.name === "ThemeDeclaration"
         );
         if (declarationNode) {
           const range = parsedDoc.range(

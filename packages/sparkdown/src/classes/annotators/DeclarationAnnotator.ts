@@ -30,38 +30,22 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<DeclarationType>>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<DeclarationType>>[] {
-    if (nodeRef.name === "ScreenDeclarationKeyword") {
+    if (
+      nodeRef.name === "ScreenDeclarationKeyword" ||
+      nodeRef.name === "ComponentDeclarationKeyword" ||
+      nodeRef.name === "StyleDeclarationKeyword" ||
+      nodeRef.name === "AnimationDeclarationKeyword" ||
+      nodeRef.name === "ThemeDeclarationKeyword"
+    ) {
       this.type = this.read(nodeRef.from, nodeRef.to) as DeclarationType;
     }
-    if (nodeRef.name === "ComponentDeclarationKeyword") {
-      this.type = this.read(nodeRef.from, nodeRef.to) as DeclarationType;
-    }
-    if (nodeRef.name === "ScreenDeclarationName") {
-      if (this.type) {
-        annotations.push(
-          SparkdownAnnotation.mark<DeclarationType>(this.type).range(
-            nodeRef.from,
-            nodeRef.to
-          )
-        );
-        return annotations;
-      }
-    }
-    if (nodeRef.name === "ComponentDeclarationName") {
-      if (this.type) {
-        annotations.push(
-          SparkdownAnnotation.mark<DeclarationType>(this.type).range(
-            nodeRef.from,
-            nodeRef.to
-          )
-        );
-        return annotations;
-      }
-    }
-    if (nodeRef.name === "CssDeclarationKeyword") {
-      this.type = this.read(nodeRef.from, nodeRef.to) as DeclarationType;
-    }
-    if (nodeRef.name === "CssDeclarationName") {
+    if (
+      nodeRef.name === "ScreenDeclarationName" ||
+      nodeRef.name === "ComponentDeclarationName" ||
+      nodeRef.name === "StyleDeclarationName" ||
+      nodeRef.name === "AnimationDeclarationName" ||
+      nodeRef.name === "ThemeDeclarationName"
+    ) {
       if (this.type) {
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>(this.type).range(

@@ -200,7 +200,9 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     if (
       nodeRef.name === "ScreenDeclaration" ||
       nodeRef.name === "ComponentDeclaration" ||
-      nodeRef.name === "CssDeclaration"
+      nodeRef.name === "StyleDeclaration" ||
+      nodeRef.name === "AnimationDeclaration" ||
+      nodeRef.name === "ThemeDeclaration"
     ) {
       this.inViewDeclarationAsExpression = false;
       this.inViewDeclarationControlExpression = false;

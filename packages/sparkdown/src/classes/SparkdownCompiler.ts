@@ -540,7 +540,9 @@ export class SparkdownCompiler {
                   (n) =>
                     n.name === "ScreenDeclaration" ||
                     n.name === "ComponentDeclaration" ||
-                    n.name === "CssDeclaration"
+                    n.name === "StyleDeclaration" ||
+                    n.name === "AnimationDeclaration" ||
+                    n.name === "ThemeDeclaration"
                 );
                 if (declarationNode) {
                   const name = doc.read(cur.from, cur.to);
