@@ -213,7 +213,7 @@ export const getCssTextWeight = (value: string): string => {
   return value;
 };
 
-export const getCssTextDecoration = (value: boolean | string): string => {
+export const getCssTextDecorationLine = (value: boolean | string): string => {
   if (value === true || value === "true" || value === "") {
     return "underline";
   }
@@ -472,16 +472,6 @@ export const getCssImage = (value: string): string => {
     return value;
   }
   return `var(---theme_image-${value})`;
-};
-
-export const getCssInvisible = (value: boolean | string): string => {
-  if (value === true || value === "true" || value === "") {
-    return "hidden";
-  }
-  if (value === false || value === "false") {
-    return "visible";
-  }
-  return value;
 };
 
 export const getCssVisible = (value: boolean | string): string => {

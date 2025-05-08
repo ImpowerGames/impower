@@ -406,10 +406,7 @@
 }
 
 [visible] {
-  visibility: visible !important;
-}
-[invisible] {
-  visibility: hidden !important;
+  visibility: var(---visible, visible) !important;
 }
 [interactable] {
   pointer-events: var(---interactable, auto) !important;
@@ -498,9 +495,9 @@
   font-style: var(---text-style, italic) !important;
   ---text-style: initial;
 }
-[text-decoration] {
-  text-decoration-line: var(---text-decoration, underline) !important;
-  ---text-decoration: initial;
+[text-decoration-line] {
+  text-decoration-line: var(---text-decoration-line, underline) !important;
+  ---text-decoration-line: initial;
 }
 [text-decoration-color] {
   text-decoration-color: var(---text-decoration-color, currentColor) !important;
