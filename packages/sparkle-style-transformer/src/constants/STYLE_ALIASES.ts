@@ -119,6 +119,7 @@ const STYLE_ALIASES = {
   "text-transform": "text-case",
   "white-space": "text-whitespace",
   color: "text-color",
+
   "background-position": "background-align",
   "background-size": "background-fit",
 
