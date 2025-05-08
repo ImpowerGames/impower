@@ -435,9 +435,9 @@
   text-decoration-thickness: var(---text-decoration-thickness, auto) !important;
   ---text-decoration-thickness: initial;
 }
-[text-decoration-offset] {
-  text-underline-offset: var(---text-decoration-offset, 4px) !important;
-  ---text-decoration-offset: initial;
+[text-underline-offset] {
+  text-underline-offset: var(---text-underline-offset, 4px) !important;
+  ---text-underline-offset: initial;
 }
 
 [text-case] {

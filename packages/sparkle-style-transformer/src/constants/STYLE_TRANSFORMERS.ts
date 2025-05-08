@@ -151,7 +151,7 @@ const STYLE_TRANSFORMERS = {
   "text-decoration-line": getCssTextDecorationLine,
   "text-decoration-color": getCssColor,
   "text-decoration-thickness": getCssSize,
-  "text-decoration-offset": getCssSize,
+  "text-underline-offset": getCssSize,
 
   "background-color": getCssColor,
   "background-image": getCssImage,

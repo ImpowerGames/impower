@@ -115,7 +115,6 @@ const STYLE_ALIASES = {
   "letter-spacing": "text-tracking",
   "font-weight": "text-weight",
   "font-style": "text-style",
-  "text-underline-offset": "text-decoration-offset",
   "text-transform": "text-case",
   "white-space": "text-whitespace",
   color: "text-color",
