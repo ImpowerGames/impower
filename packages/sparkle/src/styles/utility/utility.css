@@ -49,29 +49,13 @@
   overflow: var(---overflow, scroll) !important;
   ---overflow: initial;
 }
-[overflow="scroll"] {
-  pointer-events: auto;
-  ---touch-action: pan-x pan-y;
-}
-
 [overflow-x] {
   overflow-x: var(---overflow-x, scroll) !important;
   ---overflow-x: initial;
 }
-[overflow-x="scroll"] {
-  overflow-y: clip;
-  pointer-events: auto;
-  ---touch-action: pan-x;
-}
-
 [overflow-y] {
   overflow-y: var(---overflow-y, scroll) !important;
   ---overflow-y: initial;
-}
-[overflow-y="scroll"] {
-  overflow-x: clip;
-  pointer-events: auto;
-  ---touch-action: pan-y;
 }
 
 [z] {
