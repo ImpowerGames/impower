@@ -730,28 +730,3 @@
   contain-intrinsic-size: var(---contain-intrinsic-size, none);
   ---contain-intrinsic-size: initial;
 }
-
-.root::after {
-  display: none;
-  ---focus-duration: 50ms;
-  position: absolute;
-  inset: 0;
-  content: "";
-  border-radius: inherit;
-  transition-duration: var(---focus-duration);
-  transition-timing-function: ease;
-  outline-offset: calc(-2 * var(---theme_focus-ring-width));
-  pointer-events: none;
-}
-.root.focused::after {
-  display: flex;
-  outline: var(---theme_color-focus) var(---theme_focus-ring-style)
-    var(---theme_focus-ring-width);
-  outline-offset: calc(-1 * var(---theme_focus-ring-width));
-  -webkit-mask: none;
-  mask: none;
-}
-.root.focused.pressed::after {
-  display: flex;
-  outline-offset: calc((-1 * var(---theme_focus-ring-width)) - 2px);
-}
