@@ -1693,7 +1693,7 @@ export default class SparkleElement
   /**
    * Specifies the `transition-delay` between property changes and their resulting transition animation.
    */
-  get delay():
+  get transitionDelay():
     | ""
     | "0"
     | "25ms"
@@ -1711,16 +1711,16 @@ export default class SparkleElement
     | "1s"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attrs.delay);
+    return this.getStringAttribute(SparkleElement.attrs.transitionDelay);
   }
-  set delay(value) {
-    this.setStringAttribute(SparkleElement.attrs.delay, value);
+  set transitionDelay(value) {
+    this.setStringAttribute(SparkleElement.attrs.transitionDelay, value);
   }
 
   /**
    * Specifies the `transition-duration` of property changes.
    */
-  get duration():
+  get transitionDuration():
     | ""
     | "0"
     | "25ms"
@@ -1738,20 +1738,20 @@ export default class SparkleElement
     | "1s"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attrs.duration);
+    return this.getStringAttribute(SparkleElement.attrs.transitionDuration);
   }
-  set duration(value) {
-    this.setStringAttribute(SparkleElement.attrs.duration, value);
+  set transitionDuration(value) {
+    this.setStringAttribute(SparkleElement.attrs.transitionDuration, value);
   }
 
   /**
    * Specifies the `transition-timing-function` used for property changes.
    */
-  get ease(): "" | EasingName | string | null {
-    return this.getStringAttribute(SparkleElement.attrs.ease);
+  get transitionEasing(): "" | EasingName | string | null {
+    return this.getStringAttribute(SparkleElement.attrs.transitionEasing);
   }
-  set ease(value) {
-    this.setStringAttribute(SparkleElement.attrs.ease, value);
+  set transitionEasing(value) {
+    this.setStringAttribute(SparkleElement.attrs.transitionEasing, value);
   }
 
   /**

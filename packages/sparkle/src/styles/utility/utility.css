@@ -717,17 +717,17 @@
   ---pivot: initial;
 }
 
-[delay] {
-  transition-delay: var(---delay, 100ms) !important;
-  ---delay: initial;
+[transition-delay] {
+  transition-delay: var(---transition-delay, 100ms) !important;
+  ---transition-delay: initial;
 }
-[duration] {
-  transition-duration: var(---duration, 100ms) !important;
-  ---duration: initial;
+[transition-duration] {
+  transition-duration: var(---transition-duration, 100ms) !important;
+  ---transition-duration: initial;
 }
-[ease] {
-  transition-timing-function: var(---ease, ease) !important;
-  ---ease: initial;
+[transition-easing] {
+  transition-timing-function: var(---transition-easing, ease) !important;
+  ---transition-easing: initial;
 }
 
 [animation] {

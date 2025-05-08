@@ -212,9 +212,9 @@ const STYLE_TRANSFORMERS = {
 
   pivot: get,
 
-  delay: getCssDuration,
-  duration: getCssDuration,
-  ease: getCssEase,
+  "transition-delay": getCssDuration,
+  "transition-duration": getCssDuration,
+  "transition-easing": getCssEase,
 
   animation: getCssAnimation,
   exit: getCssAnimation,
