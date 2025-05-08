@@ -708,7 +708,7 @@
   background-color: transparent !important;
   background-image: none !important;
 }
-[mask] ::before {
+[mask]::before {
   /* Apply mask to a pseudo-element so that drop-shadow filters applied to the root element will match the shape of the mask */
   position: absolute !important;
   inset: 0 !important;
