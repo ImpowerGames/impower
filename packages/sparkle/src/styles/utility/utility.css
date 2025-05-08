@@ -422,7 +422,9 @@
   user-select: var(---selectable, auto) !important;
   ---selectable: initial;
 }
-:is([selectable=""], [selectable="auto"]) {
+[selectable=""],
+[selectable="auto"],
+[selectable="all"] {
   cursor: text;
 }
 
