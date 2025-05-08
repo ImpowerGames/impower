@@ -22,6 +22,7 @@ import {
   getCssImage,
   getCssInteractable,
   getCssMask,
+  getCssOrder,
   getCssOutlineStyle,
   getCssOverflow,
   getCssPosition,
@@ -123,11 +124,13 @@ const STYLE_TRANSFORMERS = {
   "child-align": getCssChildAlign,
   "child-justify": getCssChildJustify,
   "child-overflow": getCssChildOverflow,
+
   "self-align": getCssChildAlign,
 
   flex: getCssFlex,
   grow: getCssGrow,
   shrink: getCssShrink,
+  order: getCssOrder,
 
   visible: getCssVisible,
   interactable: getCssInteractable,

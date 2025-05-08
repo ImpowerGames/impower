@@ -507,6 +507,19 @@ export const getCssInteractable = (value: boolean | string): string => {
   return value;
 };
 
+export const getCssOrder = (value: string): string => {
+  if (value === "" || value === "none") {
+    return "0";
+  }
+  if (value === "first") {
+    return "calc(-infinity)";
+  }
+  if (value === "last") {
+    return "calc(infinity)";
+  }
+  return value;
+};
+
 export const getCssOutlineStyle = (value: string): string => {
   if (value === "") {
     return "solid";

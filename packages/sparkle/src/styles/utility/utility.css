@@ -313,6 +313,11 @@
   ---shrink: initial;
 }
 
+[order] {
+  order: var(---order, 0) !important;
+  ---order: initial;
+}
+
 [fill] path {
   fill: var(---fill, currentColor) !important;
   ---fill: initial;
