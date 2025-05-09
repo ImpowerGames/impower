@@ -151,7 +151,7 @@ style {
   background-color: var(---theme-button-background);
 }
 
-.InputGroup {
+.Control {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -233,7 +233,7 @@ style {
   background: var(---fill-color);
 }
 
-.InputGroup:has(.Checkbox) {
+.Control:has(.Checkbox) {
   flex-direction: row;
   gap: 8px;
   align-items: center;

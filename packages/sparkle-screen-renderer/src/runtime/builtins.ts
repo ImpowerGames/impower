@@ -71,43 +71,30 @@ const SRC: Record<string, BuiltinDefinition> = {
     begin: `<button class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</button>`,
   },
-
   Image: {
     begin: `<img class="style ${CLASSES_PLACEHOLDER}" src="${CONTENT_ATTR_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}/>`,
     end: "",
   },
-
-  Input: wrapWithLabel(
-    `<input class="style ${CLASSES_PLACEHOLDER}" type="text" ${ATTRS_PLACEHOLDER}/>`,
-    "input"
-  ),
-  InputArea: wrapWithLabel(
-    `<textarea class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}/>`,
-    "textarea"
-  ),
-  Slider: wrapWithLabel(
-    `<input class="style ${CLASSES_PLACEHOLDER}" type="range"
-             oninput="this.style.setProperty('---fill-percentage',
-                     (this.value-this.min)/(this.max-this.min)*100 + '%')"
-             ${ATTRS_PLACEHOLDER}/>`,
-    "input"
-  ),
-
-  Checkbox: wrapWithLabel(
-    `<input class="style ${CLASSES_PLACEHOLDER}" type="checkbox" ${ATTRS_PLACEHOLDER}/>`,
-    "input"
-  ),
-
-  Dropdown: {
-    begin: `<label class="style InputGroup">
-             <span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}</span>
-             <div class="style DropdownArrow">
-               <select class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>`,
-    end: `   </select>
-             </div>
-           </label>`,
+  Input: {
+    begin: `<label class="style Control"><span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</span><input class="style ${CLASSES_PLACEHOLDER}" type="text" ${ATTRS_PLACEHOLDER}/></label>`,
   },
-
+  InputArea: {
+    begin: `<label class="style Control"><span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</span><textarea class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}/></label>`,
+  },
+  Slider: {
+    begin: `<label class="style Control"><span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</span><input class="style ${CLASSES_PLACEHOLDER}" type="range" oninput="this.style.setProperty('---fill-percentage', (this.value-this.min)/(this.max-this.min)*100 + '%')" ${ATTRS_PLACEHOLDER}/></label>`,
+  },
+  Checkbox: {
+    begin: `<label class="style Control"><span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</span><input class="style ${CLASSES_PLACEHOLDER}" type="checkbox" ${ATTRS_PLACEHOLDER}/></label>`,
+  },
+  Dropdown: {
+    begin: `<label class="style Control"><span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}</span><div class="style DropdownArrow"><select class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>`,
+    end: `</select></div></label>`,
+  },
   Option: {
     begin: `<option class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</option>`,
@@ -118,14 +105,6 @@ const SRC: Record<string, BuiltinDefinition> = {
   },
   Divider: { begin: `<hr>`, end: "" },
 };
-
-/* helper to build the “label + control” variants */
-function wrapWithLabel(input: string, tag: string): BuiltinDefinition {
-  return {
-    begin: `<label class="style InputGroup"><span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</span>${input}</${tag}></label>`,
-  };
-}
 
 /* ---------- one-time compilation -------------------------------- */
 
