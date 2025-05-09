@@ -18,12 +18,10 @@ export function createElement(vnode: VNode): Node {
 
     // 3. if the children array changed (content-slot / custom children),
     //    just wipe the slot-sentinel and insert the rendered children.
-    if (vnode.children.length) {
-      while (root.firstChild) {
-        root.removeChild(root.firstChild);
-      }
-      vnode.children.forEach((ch) => root.appendChild(createElement(ch)));
+    while (root.firstChild) {
+      root.removeChild(root.firstChild);
     }
+    vnode.children.forEach((ch) => root.appendChild(createElement(ch)));
 
     return root; // <-- one single DOM node returned
   }
