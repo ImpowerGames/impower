@@ -77,15 +77,15 @@ const SRC: Record<string, BuiltinDefinition> = {
     end: "",
   },
 
-  Input: wrapWithLabelBefore(
+  Input: wrapWithLabel(
     `<input class="style ${CLASSES_PLACEHOLDER}" type="text" ${ATTRS_PLACEHOLDER}/>`,
     "input"
   ),
-  InputArea: wrapWithLabelBefore(
+  InputArea: wrapWithLabel(
     `<textarea class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}/>`,
     "textarea"
   ),
-  Slider: wrapWithLabelBefore(
+  Slider: wrapWithLabel(
     `<input class="style ${CLASSES_PLACEHOLDER}" type="range"
              oninput="this.style.setProperty('---fill-percentage',
                      (this.value-this.min)/(this.max-this.min)*100 + '%')"
@@ -93,7 +93,7 @@ const SRC: Record<string, BuiltinDefinition> = {
     "input"
   ),
 
-  Checkbox: wrapWithLabelAfter(
+  Checkbox: wrapWithLabel(
     `<input class="style ${CLASSES_PLACEHOLDER}" type="checkbox" ${ATTRS_PLACEHOLDER}/>`,
     "input"
   ),
@@ -120,17 +120,10 @@ const SRC: Record<string, BuiltinDefinition> = {
 };
 
 /* helper to build the “label + control” variants */
-function wrapWithLabelBefore(input: string, tag: string): BuiltinDefinition {
+function wrapWithLabel(input: string, tag: string): BuiltinDefinition {
   return {
     begin: `<label class="style InputGroup"><span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</span>${input}</${tag}></label>`,
-  };
-}
-
-function wrapWithLabelAfter(input: string, tag: string): BuiltinDefinition {
-  return {
-    begin: `<label class="style InputGroup">${input}<span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</span></${tag}></label>`,
   };
 }
 

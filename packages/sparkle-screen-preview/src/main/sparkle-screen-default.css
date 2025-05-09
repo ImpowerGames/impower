@@ -237,6 +237,7 @@ style {
   flex-direction: row;
   gap: 8px;
   align-items: center;
+  justify-content: space-between;
 }
 .Checkbox {
   width: 16px;
