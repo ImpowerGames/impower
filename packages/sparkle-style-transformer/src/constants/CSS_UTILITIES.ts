@@ -73,10 +73,7 @@ const CSS_UTILITIES = {
     "": { "outline-color": "" },
   },
   "outline-width": {
-    "": {
-      "outline-width": "",
-      "outline-style": "solid",
-    },
+    "": { "outline-width": "" },
   },
   "outline-style": {
     "": { "outline-style": "" },
@@ -99,34 +96,19 @@ const CSS_UTILITIES = {
   },
 
   "border-width": {
-    "": {
-      "border-width": "",
-      "border-style": "solid",
-    },
+    "": { "border-width": "" },
   },
   "border-width-top": {
-    "": {
-      "border-top-width": "",
-      "border-style": "solid",
-    },
+    "": { "border-top-width": "" },
   },
   "border-width-bottom": {
-    "": {
-      "border-bottom-width": "",
-      "border-style": "solid",
-    },
+    "": { "border-bottom-width": "" },
   },
   "border-width-left": {
-    "": {
-      "border-left-width": "",
-      "border-style": "solid",
-    },
+    "": { "border-left-width": "" },
   },
   "border-width-right": {
-    "": {
-      "border-right-width": "",
-      "border-style": "solid",
-    },
+    "": { "border-right-width": "" },
   },
 
   "border-style": {

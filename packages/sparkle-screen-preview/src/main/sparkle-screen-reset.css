@@ -25,6 +25,7 @@
   box-sizing: border-box;
   border-width: 0;
   border-style: solid;
+  outline-style: solid;
   border-color: currentColor;
   background-repeat: no-repeat;
   position: relative;
