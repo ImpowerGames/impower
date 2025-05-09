@@ -1,4 +1,3 @@
-import { generateSparkleAttributesAndStyles } from "../../../sparkle-style-transformer/src/utils/generateSparkleAttributesAndStyles";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { type SparkleNode } from "../parser/parser";
 import { builtins } from "./builtins";
@@ -452,25 +451,38 @@ function renderBuiltinVNode(
   const evalCtx = getContext(ctx);
   const spreadProps: Record<string, string> = {};
   if (args.attributes) {
-    // Convert user attributes to sparkle attributes and styles
-    const { attributes, styles } = generateSparkleAttributesAndStyles(
-      args.attributes
-    );
-    const sparkleStyle = Object.entries(styles)
-      .map(([k, v]) => `${k}:${v};`)
-      .join("");
-    const existingStyle = attributes["style"] ?? "";
-    const style = sparkleStyle + existingStyle;
-    if (style) {
-      attributes["style"] = style;
-    }
-
-    for (const [k, v] of Object.entries(attributes)) {
+    for (const [k, v] of Object.entries(args.attributes)) {
       // content will be added as a child of the node later, so don't include amongst props
       if (k !== "content") {
         spreadProps[k] =
           typeof v === "string" ? interpolate(v, evalCtx) : String(v);
       }
+    }
+
+    // Convert user attributes to sparkle attributes and styles
+    const styleEntries: [string, string][] = [];
+    for (const [k, v] of Object.entries(spreadProps)) {
+      styleEntries.push(...getCssEquivalent(k, v, false));
+    }
+
+    // Set initial slider ---fill-percentage
+    if (!Number.isNaN(Number(spreadProps["value"]))) {
+      const min = Number(spreadProps["min"] ?? 0);
+      const max = Number(spreadProps["max"] ?? 100);
+      const value = Number(spreadProps["value"] ?? min);
+      const percentage =
+        max === min
+          ? 0 // avoid divide-by-zero
+          : ((value - min) / (max - min)) * 100;
+      styleEntries.push(["---fill-percentage", `${percentage}%`]);
+    }
+
+    // Add inline style to props
+    const sparkleStyle = styleEntries.map(([k, v]) => `${k}:${v};`).join(" ");
+    const existingStyle = spreadProps["style"] ?? "";
+    const style = sparkleStyle + existingStyle;
+    if (style) {
+      spreadProps["style"] = style;
     }
   }
 

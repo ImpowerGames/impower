@@ -4,7 +4,8 @@ import STYLE_TRANSFORMERS from "../constants/STYLE_TRANSFORMERS.js";
 
 export const getCssEquivalent = (
   key: string,
-  value: unknown
+  value: unknown,
+  includeUnrecognized = true
 ): [cssPropName: string, cssPropValue: string][] => {
   const styleAliases: Record<string, string> = STYLE_ALIASES;
 
@@ -49,7 +50,7 @@ export const getCssEquivalent = (
         }
       }
     }
-  } else {
+  } else if (includeUnrecognized) {
     entries.push([key, String(value)]);
   }
 

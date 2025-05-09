@@ -91,7 +91,7 @@ export const setSparkleStyle = (
   }
 
   // Automatically set `---fill-percentage` based on `min` and `max`
-  if (props["min"] != null && props["max"] != null) {
+  if (!Number.isNaN(Number(props["value"]))) {
     const min = Number(props["min"] ?? 0);
     const max = Number(props["max"] ?? 100);
     const value = Number(props["value"] ?? min);
