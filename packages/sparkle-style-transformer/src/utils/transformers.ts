@@ -283,7 +283,7 @@ export const getCssTextLeading = (value: string): string => {
     value === "lg" ||
     value === "xl"
   ) {
-    return `var(---theme-text-tracking-${value})`;
+    return `var(---theme-text-leading-${value})`;
   }
   return value;
 };
