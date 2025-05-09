@@ -347,6 +347,16 @@ export const getCssDimension = (value: number | string): string => {
   return getCssSize(value, "px");
 };
 
+export const getCssDisplay = (value: string | boolean): string => {
+  if (value === true || value === "" || value === "display") {
+    return "flex";
+  }
+  if (value === false) {
+    return "none";
+  }
+  return value;
+};
+
 export const getCssDuration = (
   value: string | null,
   defaultValue = "0s"
@@ -528,7 +538,12 @@ export const getCssOutlineStyle = (value: string): string => {
 };
 
 export const getCssOverflow = (value: boolean | string): string => {
-  if (value === true || value === "true" || value === "") {
+  if (
+    value === true ||
+    value === "true" ||
+    value === "" ||
+    value === "overflow"
+  ) {
     return "visible";
   }
   if (value === false || value === "false") {
@@ -736,7 +751,7 @@ export const getCssSize = (
 };
 
 export const getCssTextOverflow = (value: string): string => {
-  if (value === "" || value === "visible" || value === "wrap") {
+  if (value === "" || value === "wrap") {
     return "clip";
   }
   return value;

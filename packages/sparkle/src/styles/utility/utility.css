@@ -5,7 +5,7 @@
 }
 
 [display] {
-  display: var(---display, block) !important;
+  display: var(---display, flex) !important;
   ---display: initial;
 }
 

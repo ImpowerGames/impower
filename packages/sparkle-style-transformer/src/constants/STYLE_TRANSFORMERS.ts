@@ -14,6 +14,7 @@ import {
   getCssContentVisibility,
   getCssCorner,
   getCssDimension,
+  getCssDisplay,
   getCssDuration,
   getCssEase,
   getCssFilter,
@@ -54,7 +55,7 @@ import {
 const get = (v: string) => v;
 
 const STYLE_TRANSFORMERS = {
-  display: get,
+  display: getCssDisplay,
 
   position: getCssPosition,
 
