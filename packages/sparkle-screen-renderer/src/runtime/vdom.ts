@@ -1,3 +1,5 @@
+import { generateSparkleAttributesAndStyles } from "../../../sparkle-style-transformer/src/utils/generateSparkleAttributesAndStyles";
+import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { type SparkleNode } from "../parser/parser";
 import { builtins } from "./builtins";
 import { DEFAULT_BREAKPOINTS, sparkleSelectorToCssSelector } from "./css";
@@ -279,7 +281,7 @@ export function renderVNode(
       };
     }
     if (type === "property" && args?.key) {
-      return paramToProperty(args?.key, args?.value, cssAliases);
+      return sparklePropertyToCssProperty(args?.key, args?.value, cssAliases);
     }
     const selector = sparkleSelectorToCssSelector(type, breakpoints);
     const blockContent = (children ?? [])
@@ -303,7 +305,7 @@ export function renderVNode(
       };
     }
     if (type === "property" && args?.key) {
-      return paramToProperty(args?.key, args?.value, cssAliases);
+      return sparklePropertyToCssProperty(args?.key, args?.value, cssAliases);
     }
     if (type === "keyframes" && children?.length) {
       const max = children.length - 1;
@@ -387,7 +389,7 @@ export function renderVNode(
       };
     }
     if (type === "property" && args?.key) {
-      return paramToProperty(args?.key, args?.value, cssAliases);
+      return sparklePropertyToCssProperty(args?.key, args?.value, cssAliases);
     }
     const content = (children ?? [])
       .map((c, i) => renderVNode(c, ctx, el, i) as string)
@@ -450,11 +452,25 @@ function renderBuiltinVNode(
   const evalCtx = getContext(ctx);
   const spreadProps: Record<string, string> = {};
   if (args.attributes) {
-    for (const [k, v] of Object.entries(args.attributes).filter(
-      ([k]) => !["content"].includes(k)
-    )) {
-      spreadProps[k] =
-        typeof v === "string" ? interpolate(v, evalCtx) : String(v);
+    // Convert user attributes to sparkle attributes and styles
+    const { attributes, styles } = generateSparkleAttributesAndStyles(
+      args.attributes
+    );
+    const sparkleStyle = Object.entries(styles)
+      .map(([k, v]) => `${k}:${v};`)
+      .join("");
+    const existingStyle = attributes["style"] ?? "";
+    const style = sparkleStyle + existingStyle;
+    if (style) {
+      attributes["style"] = style;
+    }
+
+    for (const [k, v] of Object.entries(attributes)) {
+      // content will be added as a child of the node later, so don't include amongst props
+      if (k !== "content") {
+        spreadProps[k] =
+          typeof v === "string" ? interpolate(v, evalCtx) : String(v);
+      }
     }
   }
 
@@ -639,13 +655,14 @@ function defaultInterpolate(
   }
 }
 
-function paramToProperty(
+function sparklePropertyToCssProperty(
   key: string,
   value: unknown,
   cssAliases?: Record<string, string>
 ) {
-  let k = cssAliases?.[key] ?? key;
-  return `${k}: ${value};`;
+  let aliasedKey = cssAliases?.[key] ?? key;
+  const cssEntries = getCssEquivalent(aliasedKey, value);
+  return cssEntries.map(([k, v]) => `${k}:${v};`).join(" ");
 }
 
 function getInheritanceChain(

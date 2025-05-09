@@ -1,5 +1,3 @@
-import { generateSparkleAttributesAndStyles } from "../../../sparkle-style-transformer/src/utils/generateSparkleAttributesAndStyles";
-
 export interface SparkleNode {
   root: "screen" | "component" | "style" | "animation" | "theme";
   type: string;
@@ -189,17 +187,7 @@ export function parseSparkle(input: string): SparkleNode[] {
             };
           } else if (type) {
             // Use of builtin or custom component
-            const props = parseAttributes(attributeArray);
-            const { attributes, styles } =
-              generateSparkleAttributesAndStyles(props);
-            const sparkleStyle = Object.entries(styles)
-              .map(([k, v]) => `${k}:${v};`)
-              .join("");
-            const existingStyle = attributes["style"] ?? "";
-            const style = sparkleStyle + existingStyle;
-            if (style) {
-              attributes["style"] = style;
-            }
+            const attributes = parseAttributes(attributeArray);
             node = {
               root: currentRoot.root,
               type,
