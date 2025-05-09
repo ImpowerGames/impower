@@ -1,4 +1,4 @@
-:is(:root, :host) > * {
+:is(:root, :host, [theme], .theme-dark, .theme-light) > * {
   /* Primary */
   ---theme-color-primary-10: var(---theme-color-sky-10);
   ---theme-color-primary-20: var(---theme-color-sky-20);
@@ -56,6 +56,14 @@
   ---theme-color-danger: var(---theme-color-danger-50);
 
   /* General */
+  ---theme-color-border-focus: var(---theme-color-primary-70);
+  ---theme-color-border-hover: var(---theme-color-primary-80);
+  ---theme-color-border-active: var(---theme-color-primary-70);
+  ---theme-color-border-checked: var(---theme-color-primary-60);
+  ---theme-color-background-hover: var(---theme-color-primary-10);
+  ---theme-color-background-active: var(---theme-color-primary-20);
+  ---theme-color-background-selected: var(---theme-color-neutral-50);
+  ---theme-color-background-checked: var(---theme-color-primary-60);
   ---theme-color-fill-contrast: white;
 
   /*
@@ -215,95 +223,11 @@
   ---theme-transition-fast: 150ms;
   ---theme-transition-x-fast: 50ms;
 
-  /*
-   * Elements
+  /* 
+   * Focus rings 
    */
-
-  /* Focus rings */
   ---theme-focus-ring-color: var(---theme-color-primary-20);
   ---theme-focus-ring-style: solid;
   ---theme-focus-ring-width: 3px;
   ---theme-focus-ring-offset: 2px;
-
-  /* Tooltips */
-  ---theme-tooltip-font-size: var(---theme-font-size-sm);
-  ---theme-tooltip-font-family: var(---theme-font-sans);
-  ---theme-tooltip-line-height: 1.4;
-  ---theme-tooltip-font-weight: normal;
-  ---theme-tooltip-color: var(---theme-color-neutral-80);
-  ---theme-tooltip-background-color: var(---theme-color-neutral-30);
-  ---theme-tooltip-border-radius: 6px;
-  ---theme-tooltip-arrow-size: 6px;
-
-  /* Buttons */
-  ---theme-button-font-size-sm: var(---theme-font-size-xs);
-  ---theme-button-font-size-md: var(---theme-font-size-sm);
-  ---theme-button-font-size-lg: var(---theme-font-size-md);
-
-  /* Inputs */
-  ---theme-input-height-sm: 28px;
-  ---theme-input-height-md: 40px;
-  ---theme-input-height-lg: 48px;
-
-  ---theme-input-background-color: var(---theme-color-fg-05);
-
-  ---theme-input-border-color: var(---theme-color-neutral-40);
-  ---theme-input-border-color-hover: var(---theme-color-neutral-50);
-  ---theme-input-border-color-focus: var(---theme-color-primary-60);
-  ---theme-input-border-color-disabled: var(---theme-color-neutral-40);
-  ---theme-input-border-width: 1px;
-  ---theme-input-required-content: "*";
-  ---theme-input-required-content-offset: -2px;
-  ---theme-input-required-content-color: var(---theme-input-label-color);
-
-  ---theme-input-border-radius-sm: 4px;
-  ---theme-input-border-radius-md: 4px;
-  ---theme-input-border-radius-lg: 4px;
-
-  ---theme-input-font-family: var(---theme-font-sans);
-  ---theme-input-font-weight: normal;
-  ---theme-input-font-size-sm: var(---theme-font-size-sm);
-  ---theme-input-font-size-md: var(---theme-font-size-md);
-  ---theme-input-font-size-lg: var(---theme-font-size-lg);
-  ---theme-input-letter-spacing: var(---theme-letter-spacing-md);
-
-  ---theme-input-spacing-sm: var(---theme-spacing-sm);
-  ---theme-input-spacing-md: var(---theme-spacing-md);
-  ---theme-input-spacing-lg: var(---theme-spacing-lg);
-
-  ---theme-input-color: var(---theme-color-neutral-90);
-  ---theme-input-color-hover: var(---theme-color-neutral-90);
-  ---theme-input-color-focus: var(---theme-color-neutral-80);
-  ---theme-input-color-disabled: var(---theme-color-neutral-90);
-  ---theme-input-icon-color: var(---theme-color-neutral-60);
-  ---theme-input-icon-color-hover: var(---theme-color-neutral-70);
-  ---theme-input-icon-color-focus: var(---theme-color-neutral-70);
-  ---theme-input-placeholder-color: var(---theme-color-neutral-70);
-  ---theme-input-placeholder-color-disabled: var(---theme-color-neutral-70);
-
-  ---theme-input-focus-ring-color: hsl(198.6 88.7% 48.4% / 40%);
-  ---theme-input-focus-ring-offset: 0;
-
-  ---theme-input-label-font-size-sm: var(---theme-font-size-sm);
-  ---theme-input-label-font-size-md: var(---theme-font-size-md);
-  ---theme-input-label-font-size-lg: var(---theme-font-size-lg);
-  ---theme-input-label-color: inherit;
-
-  ---theme-input-help-text-font-size-sm: var(---theme-font-size-xs);
-  ---theme-input-help-text-font-size-md: var(---theme-font-size-sm);
-  ---theme-input-help-text-font-size-lg: var(---theme-font-size-md);
-  ---theme-input-help-text-color: var(---theme-color-neutral-60);
-
-  /* Toggles (checkboxes, radios, switches) */
-  ---theme-toggle-size-sm: 0.875rem; /* 14px */
-  ---theme-toggle-size-md: 1.125rem; /* 18px */
-  ---theme-toggle-size-lg: 1.375rem; /* 22px */
-
-  /* Icon size */
-  ---theme-icon-size: 1.25rem /* 20px */;
-}
-
-.s-scroll-lock {
-  padding-right: var(---theme-scroll-lock-size) !important;
-  overflow: hidden !important;
 }

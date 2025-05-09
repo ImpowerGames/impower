@@ -12,7 +12,7 @@
 }
 .root.focused::after {
   display: flex;
-  outline: var(---theme-color-focus) var(---theme-focus-ring-style)
+  outline: var(---theme-color-focus-ring-color) var(---theme-focus-ring-style)
     var(---theme-focus-ring-width);
   outline-offset: calc(-1 * var(---theme-focus-ring-width));
   -webkit-mask: none;

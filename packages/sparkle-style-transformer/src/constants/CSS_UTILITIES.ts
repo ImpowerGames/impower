@@ -428,6 +428,22 @@ const CSS_UTILITIES = {
   "contain-intrinsic-size": {
     "": { "contain-intrinsic-size": "" },
   },
+
+  "fill-color": {
+    "": { "---fill-color": "" },
+  },
+  "track-color": {
+    "": { "---track-color": "" },
+  },
+  "thumb-background-color": {
+    "": { "---thumb-background-color": "" },
+  },
+  "thumb-border-color": {
+    "": { "---thumb-border-color": "" },
+  },
+  "thumb-size": {
+    "": { "---thumb-size": "" },
+  },
 } as const;
 
 export default CSS_UTILITIES;

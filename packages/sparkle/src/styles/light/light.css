@@ -44,19 +44,6 @@
   ---theme-color-zinc-99: hsl(240 10% 4%);
   ---theme-color-zinc: var(---theme-color-zinc-50);
 
-  ---theme-color-neutral-10: hsl(0 0% 98%);
-  ---theme-color-neutral-20: hsl(0 0% 96%);
-  ---theme-color-neutral-30: hsl(0 0% 90%);
-  ---theme-color-neutral-40: hsl(0 0% 83%);
-  ---theme-color-neutral-50: hsl(0 0% 64%);
-  ---theme-color-neutral-60: hsl(0 0% 45%);
-  ---theme-color-neutral-70: hsl(0 0% 32%);
-  ---theme-color-neutral-80: hsl(0 0% 25%);
-  ---theme-color-neutral-90: hsl(0 0% 15%);
-  ---theme-color-neutral-95: hsl(0 0% 9%);
-  ---theme-color-neutral-99: hsl(0 0% 4%);
-  ---theme-color-neutral: var(---theme-color-neutral-50);
-
   ---theme-color-stone-10: hsl(60 9% 98%);
   ---theme-color-stone-20: hsl(60 5% 96%);
   ---theme-color-stone-30: hsl(20 6% 90%);
@@ -291,11 +278,22 @@
   ---theme-color-rose-99: hsl(343 88% 16%);
   ---theme-color-rose: var(---theme-color-rose-50);
 
+  ---theme-color-neutral-10: hsl(0 0% 98%);
+  ---theme-color-neutral-20: hsl(0 0% 96%);
+  ---theme-color-neutral-30: hsl(0 0% 90%);
+  ---theme-color-neutral-40: hsl(0 0% 83%);
+  ---theme-color-neutral-50: hsl(0 0% 64%);
+  ---theme-color-neutral-60: hsl(0 0% 45%);
+  ---theme-color-neutral-70: hsl(0 0% 32%);
+  ---theme-color-neutral-80: hsl(0 0% 25%);
+  ---theme-color-neutral-90: hsl(0 0% 15%);
+  ---theme-color-neutral-95: hsl(0 0% 9%);
+  ---theme-color-neutral-99: hsl(0 0% 4%);
+  ---theme-color-neutral: var(---theme-color-neutral-50);
+
   /* Neutral one-offs */
   ---theme-color-neutral-0: hsl(0 0% 100%);
-  ---theme-color-neutral-100: hsl(0 0% 50%);
   ---theme-color-neutral-100: hsl(0 0% 0%);
-  ---theme-color-neutral: var(---theme-color-neutral-50);
 
   /* Elements */
   ---theme-color-bg: hsl(0 0% 100%);
@@ -352,7 +350,6 @@
   ---theme-color-fg-90: hsl(0 0% 0% / 90%);
 
   /* General */
-  ---theme-color-focus: var(---theme-color-primary-70);
   ---theme-color-surface: var(---theme-color-neutral-20);
   ---theme-color-surface-border: var(---theme-color-fg-12);
   ---theme-color-divider: var(---theme-color-fg-13);

@@ -33,6 +33,7 @@ import Viewport from "./components/viewport/_viewport";
 import animations from "./styles/animations/animations.css";
 import dark from "./styles/dark/dark.css";
 import easings from "./styles/easings/easings.css";
+import elements from "./styles/elements/elements.css";
 import gradients from "./styles/gradients/gradients.css";
 import keyframes from "./styles/keyframes/keyframes.css";
 import light from "./styles/light/light.css";
@@ -82,6 +83,7 @@ const components = [
   { tag: "", css: dark },
   { tag: "", css: light },
   { tag: "", css: theme },
+  { tag: "", css: elements },
   { tag: "", css: shadows },
   style(Hidden),
   style(Box),

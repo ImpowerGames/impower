@@ -190,6 +190,12 @@ const STYLE_TRANSFORMERS = {
 
   "content-visibility": getCssContentVisibility,
   "contain-intrinsic-size": getCssContainIntrinsicSize,
+
+  "fill-color": getCssColor,
+  "track-color": getCssColor,
+  "thumb-background-color": getCssColor,
+  "thumb-border-color": getCssColor,
+  "thumb-size": getCssSize,
 } as const;
 
 export default STYLE_TRANSFORMERS;
