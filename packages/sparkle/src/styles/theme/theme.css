@@ -11,6 +11,7 @@
   ---theme_color-primary-90: var(---theme_color-sky-90);
   ---theme_color-primary-95: var(---theme_color-sky-95);
   ---theme_color-primary-99: var(---theme_color-sky-99);
+  ---theme_color-primary: var(---theme_color-primary-50);
 
   /* Success */
   ---theme_color-success-10: var(---theme_color-green-10);
@@ -24,6 +25,7 @@
   ---theme_color-success-90: var(---theme_color-green-90);
   ---theme_color-success-95: var(---theme_color-green-95);
   ---theme_color-success-99: var(---theme_color-green-99);
+  ---theme_color-success: var(---theme_color-success-50);
 
   /* Warning */
   ---theme_color-warning-10: var(---theme_color-amber-10);
@@ -37,6 +39,7 @@
   ---theme_color-warning-90: var(---theme_color-amber-90);
   ---theme_color-warning-95: var(---theme_color-amber-95);
   ---theme_color-warning-99: var(---theme_color-amber-99);
+  ---theme_color-warning: var(---theme_color-warning-50);
 
   /* Danger */
   ---theme_color-danger-10: var(---theme_color-red-10);
@@ -50,6 +53,7 @@
   ---theme_color-danger-90: var(---theme_color-red-90);
   ---theme_color-danger-95: var(---theme_color-red-95);
   ---theme_color-danger-99: var(---theme_color-red-99);
+  ---theme_color-danger: var(---theme_color-danger-50);
 
   /* General */
   ---theme_color-fill-contrast: white;

@@ -92,7 +92,7 @@ export const getCssColor = (color: string): string => {
   if (!color) {
     return color;
   }
-  return `var(---theme_color-${color}, var(---theme_color-${color}-60))`;
+  return `var(---theme_color-${color})`;
 };
 
 export const getCssChildColumns = (columns: string): string => {
