@@ -207,6 +207,15 @@
   ---theme-spacing-4xl: 72px;
 
   /*
+   * Transitions
+   */
+  ---theme-transition-x-slow: 1000ms;
+  ---theme-transition-slow: 500ms;
+  ---theme-transition-medium: 250ms;
+  ---theme-transition-fast: 150ms;
+  ---theme-transition-x-fast: 50ms;
+
+  /*
    * Elements
    */
 
