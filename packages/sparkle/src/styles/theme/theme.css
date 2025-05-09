@@ -132,13 +132,13 @@
   ---theme_text-leading-lg: 1.625;
   ---theme_text-leading-xl: 2;
 
-  /* Text Kerning */
-  ---theme_text-kerning-xs: -0.05em;
-  ---theme_text-kerning-sm: -0.025em;
-  ---theme_text-kerning-md: 0em;
-  ---theme_text-kerning-lg: 0.025em;
-  ---theme_text-kerning-xl: 0.05em;
-  ---theme_text-kerning-2xl: 0.1em;
+  /* Text Tracking */
+  ---theme_text-tracking-xs: -0.05em;
+  ---theme_text-tracking-sm: -0.025em;
+  ---theme_text-tracking-md: 0em;
+  ---theme_text-tracking-lg: 0.025em;
+  ---theme_text-tracking-xl: 0.05em;
+  ---theme_text-tracking-2xl: 0.1em;
 
   /*
    * Opacities

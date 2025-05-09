@@ -10,7 +10,7 @@
   ---text-size: var(---theme_text-2xs-font-size);
   ---text-leading: var(---theme_text-2xs-line-height);
   ---text-weight: 500;
-  ---text-kerning: var(---theme_letter-spacing-md);
+  ---text-tracking: var(---theme_letter-spacing-md);
   ---text-wrap: nowrap;
   ---height: 24px;
   ---height-min: var(---height);
@@ -35,7 +35,7 @@
   font-size: var(---text-size);
   line-height: var(---text-leading);
   font-weight: var(---text-weight);
-  letter-spacing: var(---text-kerning);
+  letter-spacing: var(---text-tracking);
   white-space: var(---text-wrap);
   border-style: solid;
   border-color: var(---border-color);
