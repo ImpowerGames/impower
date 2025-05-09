@@ -2,8 +2,8 @@
   display: contents;
   ---value: 0;
   ---size: 1em;
-  ---background-color: var(---theme_color-neutral-30);
-  ---color: var(---theme_color-primary-60);
+  ---background-color: var(---theme-color-neutral-30);
+  ---color: var(---theme-color-primary-60);
   ---position: relative;
   ---child-justify: center;
   ---child-align: center;
@@ -11,9 +11,9 @@
   ---indicator-width: var(---track-width);
   ---duration: 0.35s;
   ---speed: 2;
-  ---text-font: var(---theme_font-sans);
-  ---text-size: var(---theme_text-xs-font-size);
-  ---text-leading: var(---theme_text-xs-line-height);
+  ---text-font: var(---theme-font-sans);
+  ---text-size: var(---theme-text-xs-font-size);
+  ---text-leading: var(---theme-text-xs-line-height);
 }
 
 :host > .root {

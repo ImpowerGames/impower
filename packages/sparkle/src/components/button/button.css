@@ -10,12 +10,12 @@
   ---selectable: none;
   ---width: auto;
   ---height: auto;
-  ---text-font: var(---theme_font-sans);
+  ---text-font: var(---theme-font-sans);
   ---text-wrap: nowrap;
   ---transition-property: transform, background-color, color, border, box-shadow;
   ---duration: 100ms;
-  ---color: var(---theme_color-primary-60);
-  ---text-color: var(---theme_color-neutral-0);
+  ---color: var(---theme-color-primary-60);
+  ---text-color: var(---theme-color-neutral-0);
   ---spacing: 8px;
   ---border-width: 1px;
   ---corner: 4px;
@@ -25,30 +25,30 @@
 
 :host([size="xs"]) > .root {
   ---height-min: 24px;
-  ---text-size: var(---theme_text-2xs-font-size);
-  ---text-leading: var(---theme_text-2xs-line-height);
+  ---text-size: var(---theme-text-2xs-font-size);
+  ---text-leading: var(---theme-text-2xs-line-height);
   ---padding-lr: 8px;
 }
 
 :host([size="sm"]) > .root {
   ---height-min: 32px;
-  ---text-size: var(---theme_text-sm-font-size);
-  ---text-leading: var(---theme_text-sm-line-height);
+  ---text-size: var(---theme-text-sm-font-size);
+  ---text-leading: var(---theme-text-sm-line-height);
   ---padding-lr: 10px;
 }
 
 :host,
 :host([size="md"]) > .root {
   ---height-min: 40px;
-  ---text-size: var(---theme_text-sm-font-size);
-  ---text-leading: var(---theme_text-sm-line-height);
+  ---text-size: var(---theme-text-sm-font-size);
+  ---text-leading: var(---theme-text-sm-line-height);
   ---padding-lr: 16px;
 }
 
 :host([size="lg"]) > .root {
   ---height-min: 48px;
-  ---text-size: var(---theme_text-md-font-size);
-  ---text-leading: var(---theme_text-md-line-height);
+  ---text-size: var(---theme-text-md-font-size);
+  ---text-leading: var(---theme-text-md-line-height);
   ---padding-lr: 20px;
 }
 
@@ -97,16 +97,16 @@
 /* Filled */
 :host(:not([variant])) > .root,
 :host([variant="filled"]) > .root {
-  ---shadow: var(---theme_shadow-box-1);
+  ---shadow: var(---theme-shadow-box-1);
 }
 @media (hover: hover) and (pointer: fine) {
   :host(:not([variant])) > .root:hover,
   :host([variant="filled"]) > .root:hover {
-    ---shadow: var(---theme_shadow-box-2);
+    ---shadow: var(---theme-shadow-box-2);
   }
   :host(:not([variant])) > .root:active,
   :host([variant="filled"]) > .root:active {
-    ---shadow: var(---theme_shadow-box-0);
+    ---shadow: var(---theme-shadow-box-0);
   }
 }
 :host(:not([variant])),
@@ -142,7 +142,7 @@
   pointer-events: none;
   content: "";
   border-radius: inherit;
-  background-color: rgba(0, 0, 0, var(---theme_opacity-overlay));
+  background-color: rgba(0, 0, 0, var(---theme-opacity-overlay));
 }
 
 /* Outlined */
@@ -164,12 +164,12 @@
 @media (hover: hover) and (pointer: fine) {
   :host([variant="outlined"]:not([disabled])) > .root:hover,
   :host([variant="outlined"][checked]:not([disabled])) > .root {
-    ---text-color: var(---theme_color-neutral-0);
+    ---text-color: var(---theme-color-neutral-0);
     background-color: var(---color);
     color: var(---text-color);
   }
   :host([variant="outlined"]:not([disabled])) > .root:active {
-    ---text-color: var(---theme_color-neutral-0);
+    ---text-color: var(---theme-color-neutral-0);
     background-color: var(---color);
     color: var(---text-color);
   }
@@ -283,11 +283,11 @@
 :host([icon]) > .root > .icon {
   position: relative;
   display: flex;
-  width: var(---icon-size, var(---theme_icon-size));
-  height: var(---icon-size, var(---theme_icon-size));
-  min-width: var(---icon-size, var(---theme_icon-size));
-  min-height: var(---icon-size, var(---theme_icon-size));
-  font-size: var(---icon-size, var(---theme_icon-size));
+  width: var(---icon-size, var(---theme-icon-size));
+  height: var(---icon-size, var(---theme-icon-size));
+  min-width: var(---icon-size, var(---theme-icon-size));
+  min-height: var(---icon-size, var(---theme-icon-size));
+  font-size: var(---icon-size, var(---theme-icon-size));
   justify-content: center;
   align-items: center;
   will-change: transform, opacity;

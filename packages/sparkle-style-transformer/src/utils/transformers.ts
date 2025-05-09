@@ -40,7 +40,7 @@ export const getCssAnimation = (value: string | null, suffix = ""): string => {
   }
   return value
     .split(" ")
-    .map((v) => `var(---theme_animation-${v}${suffix || ""})`)
+    .map((v) => `var(---theme-animation-${v}${suffix || ""})`)
     .join(", ");
 };
 
@@ -92,7 +92,7 @@ export const getCssColor = (color: string): string => {
   if (!color) {
     return color;
   }
-  return `var(---theme_color-${color})`;
+  return `var(---theme-color-${color})`;
 };
 
 export const getCssChildColumns = (columns: string): string => {
@@ -160,7 +160,7 @@ export const getCssZ = (value: string): string => {
   if (isValidNumber(value) || value.startsWith("var(")) {
     return value;
   }
-  return `var(---theme_z-index-${value})`;
+  return `var(---theme-z-index-${value})`;
 };
 
 export const getCssValueWithUnit = (
@@ -266,7 +266,7 @@ export const getCssTextSize = (value: string): string => {
     value === "8xl" ||
     value === "9xl"
   ) {
-    return `var(---theme_text-${value}-font-size)`;
+    return `var(---theme-text-${value}-font-size)`;
   }
   if (!Number.isNaN(Number(value))) {
     return `${value}px`;
@@ -283,7 +283,7 @@ export const getCssTextLeading = (value: string): string => {
     value === "lg" ||
     value === "xl"
   ) {
-    return `var(---theme_text-tracking-${value})`;
+    return `var(---theme-text-tracking-${value})`;
   }
   return value;
 };
@@ -300,7 +300,7 @@ export const getCssTextStyle = (value: boolean | string): string => {
 
 export const getCssTextFont = (value: string): string => {
   if (value === "sans" || value === "serif" || value === "mono") {
-    return `var(---theme_font-${value})`;
+    return `var(---theme-font-${value})`;
   }
   return value;
 };
@@ -391,7 +391,7 @@ export const getCssEase = (
     const x2 = 1 - incomingPercent / 100;
     return `cubic-bezier(${x1}, 0, ${x2}, 1)`;
   }
-  return `var(---theme_easing-${value})`;
+  return `var(---theme-easing-${value})`;
 };
 
 export const getCssFilter = (value: string): string => {
@@ -409,7 +409,7 @@ export const getCssFilter = (value: string): string => {
   ) {
     return value;
   }
-  return `var(---theme_filter-${value})`;
+  return `var(---theme-filter-${value})`;
 };
 
 export const getCssFlex = (value: boolean | string): string => {
@@ -438,7 +438,7 @@ export const getCssGradient = (value: string): string => {
   ) {
     return value;
   }
-  return `var(---theme_gradient-${value})`;
+  return `var(---theme-gradient-${value})`;
 };
 
 export const getCssGrow = (value: boolean | string): string => {
@@ -475,7 +475,7 @@ export const getCssImage = (value: string): string => {
   ) {
     return value;
   }
-  return `var(---theme_image-${value})`;
+  return `var(---theme-image-${value})`;
 };
 
 export const getCssVisible = (value: boolean | string): string => {
@@ -489,7 +489,7 @@ export const getCssVisible = (value: boolean | string): string => {
 };
 
 export const getCssMask = (value: string): string => {
-  return `var(---theme_mask-${value})`;
+  return `var(---theme-mask-${value})`;
 };
 
 export const getCssInteractable = (value: boolean | string): string => {
@@ -588,7 +588,7 @@ export const getCssRatio = (value: string): string => {
   if (value.includes(":")) {
     return value.replace(":", "/");
   }
-  return `var(---theme_ratio-${value})`;
+  return `var(---theme-ratio-${value})`;
 };
 
 export const getCssRepeat = (value: boolean | string): string => {
@@ -657,7 +657,7 @@ export const getCssShadow = (value: string): string => {
   }
   const isValidNumber = !Number.isNaN(Number(value));
   if (isValidNumber) {
-    return `var(---theme_shadow-box-${value})`;
+    return `var(---theme-shadow-box-${value})`;
   }
   return value;
 };
@@ -665,7 +665,7 @@ export const getCssShadow = (value: string): string => {
 export const getCssShadowInset = (value: string): string => {
   const isValidNumber = !Number.isNaN(Number(value));
   if (isValidNumber) {
-    return `var(---theme_shadow-inset-${value})`;
+    return `var(---theme-shadow-inset-${value})`;
   }
   return value;
 };
@@ -730,7 +730,7 @@ export const getCssSize = (
     return defaultUnit === "px" ? "24px" : "1.5rem";
   }
   if (isVariableValue(value)) {
-    return `var(---theme_size-${value})`;
+    return `var(---theme-size-${value})`;
   }
   return getCssValueWithUnit(value, defaultUnit);
 };

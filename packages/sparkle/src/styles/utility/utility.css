@@ -367,46 +367,46 @@
   ---text-size: initial;
 }
 [text-size="2xs"] {
-  line-height: var(---theme_text-2xs-line-height, 1.5);
+  line-height: var(---theme-text-2xs-line-height, 1.5);
 }
 [text-size="xs"] {
-  line-height: var(---theme_text-xs-line-height, 1.5);
+  line-height: var(---theme-text-xs-line-height, 1.5);
 }
 [text-size="sm"] {
-  line-height: var(---theme_text-sm-line-height, 1.5);
+  line-height: var(---theme-text-sm-line-height, 1.5);
 }
 [text-size="md"] {
-  line-height: var(---theme_text-md-line-height, 1.5);
+  line-height: var(---theme-text-md-line-height, 1.5);
 }
 [text-size="lg"] {
-  line-height: var(---theme_text-lg-line-height, 1.5);
+  line-height: var(---theme-text-lg-line-height, 1.5);
 }
 [text-size="xl"] {
-  line-height: var(---theme_text-xl-line-height, 1.5);
+  line-height: var(---theme-text-xl-line-height, 1.5);
 }
 [text-size="2xl"] {
-  line-height: var(---theme_text-2xl-line-height, 1.5);
+  line-height: var(---theme-text-2xl-line-height, 1.5);
 }
 [text-size="3xl"] {
-  line-height: var(---theme_text-3xl-line-height, 1.5);
+  line-height: var(---theme-text-3xl-line-height, 1.5);
 }
 [text-size="4xl"] {
-  line-height: var(---theme_text-4xl-line-height, 1.5);
+  line-height: var(---theme-text-4xl-line-height, 1.5);
 }
 [text-size="5xl"] {
-  line-height: var(---theme_text-5xl-line-height, 1.5);
+  line-height: var(---theme-text-5xl-line-height, 1.5);
 }
 [text-size="6xl"] {
-  line-height: var(---theme_text-6xl-line-height, 1.5);
+  line-height: var(---theme-text-6xl-line-height, 1.5);
 }
 [text-size="7xl"] {
-  line-height: var(---theme_text-7xl-line-height, 1.5);
+  line-height: var(---theme-text-7xl-line-height, 1.5);
 }
 [text-size="8xl"] {
-  line-height: var(---theme_text-8xl-line-height, 1.5);
+  line-height: var(---theme-text-8xl-line-height, 1.5);
 }
 [text-size="9xl"] {
-  line-height: var(---theme_text-9xl-line-height, 1.5);
+  line-height: var(---theme-text-9xl-line-height, 1.5);
 }
 
 [text-leading] {
@@ -595,12 +595,12 @@
 }
 
 [animation] {
-  animation: var(---animation, var(---theme_animation-bounce)) !important;
+  animation: var(---animation, var(---theme-animation-bounce)) !important;
   ---animation: initial;
 }
 
 [mask] {
-  ---theme_mask-angled-corner: conic-gradient(
+  ---theme-mask-angled-corner: conic-gradient(
         from -45deg at var(---corner, 8px) var(---corner, 8px),
         #0000 25%,
         #000 0
@@ -613,14 +613,14 @@
       )
       calc(-1 * var(---corner, 8px)) 100%/100% 51% repeat-x !important;
 
-  ---theme_mask-scooped-corner: radial-gradient(
+  ---theme-mask-scooped-corner: radial-gradient(
       var(---corner, 8px) at var(---corner, 8px) var(---corner, 8px),
       #0000 99%,
       #000
     )
     calc(-1 * var(---corner, 8px)) calc(-1 * var(---corner, 8px)) !important;
 
-  ---theme_mask-notched-corner: conic-gradient(
+  ---theme-mask-notched-corner: conic-gradient(
       at calc(2 * var(---corner, 8px)) calc(2 * var(---corner, 8px)),
       #000 75%,
       #0000 0

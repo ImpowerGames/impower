@@ -1,10 +1,10 @@
 :host {
   display: contents;
-  ---exit: var(---theme_animation-exit-zoom);
-  ---enter: var(---theme_animation-enter-zoom);
+  ---exit: var(---theme-animation-exit-zoom);
+  ---enter: var(---theme-animation-enter-zoom);
   ---position: relative;
-  ---exit-fade: var(---theme_animation-exit-fade);
-  ---enter-fade: var(---theme_animation-enter-fade);
+  ---exit-fade: var(---theme-animation-exit-fade);
+  ---enter-fade: var(---theme-animation-enter-fade);
 }
 
 :host > .root {

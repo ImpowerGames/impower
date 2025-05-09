@@ -5,12 +5,12 @@
   ---overflow-y: clip;
   ---height: 2px;
   ---height-min: var(---height);
-  ---text-font: var(---theme_font-sans);
-  ---text-size: var(---theme_text-xs-font-size);
+  ---text-font: var(---theme-font-sans);
+  ---text-size: var(---theme-text-xs-font-size);
   ---text-weight: 400;
-  ---text-color: var(---theme_color-neutral-0);
-  ---background-color: var(---theme_color-neutral-30);
-  ---color: var(---theme_color-primary-60);
+  ---text-color: var(---theme-color-neutral-0);
+  ---background-color: var(---theme-color-neutral-30);
+  ---color: var(---theme-color-primary-60);
   ---speed: 2.5;
   ---duration: 400ms;
 }

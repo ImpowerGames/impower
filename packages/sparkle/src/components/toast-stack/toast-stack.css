@@ -3,7 +3,7 @@
   ---overflow-y: visible;
   ---child-layout: column-reverse;
   ---position: absolute;
-  ---z: var(---theme_z-index-toast);
+  ---z: var(---theme-z-index-toast);
   ---width-max: 100%;
   ---height-max: 100%;
   ---inset-t: auto;

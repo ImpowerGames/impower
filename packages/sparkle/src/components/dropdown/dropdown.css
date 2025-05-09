@@ -8,17 +8,17 @@
   ---width-max: 20rem;
   ---interactable: auto;
   ---width: max-content;
-  ---z: var(---theme_z-index-tooltip);
-  ---background-color: var(---theme_tooltip-background-color);
-  ---text-font: var(---theme_tooltip-font-family);
-  ---text-size: var(---theme_tooltip-font-size);
-  ---text-weight: var(---theme_tooltip-font-weight);
-  ---text-leading: var(---theme_tooltip-line-height);
-  ---text-color: var(---theme_tooltip-color);
-  ---corner: var(---theme_tooltip-border-radius);
-  ---shadow: var(---theme_shadow-box-2);
-  ---enter: var(---theme_animation-open);
-  ---exit: var(---theme_animation-close);
+  ---z: var(---theme-z-index-tooltip);
+  ---background-color: var(---theme-tooltip-background-color);
+  ---text-font: var(---theme-tooltip-font-family);
+  ---text-size: var(---theme-tooltip-font-size);
+  ---text-weight: var(---theme-tooltip-font-weight);
+  ---text-leading: var(---theme-tooltip-line-height);
+  ---text-color: var(---theme-tooltip-color);
+  ---corner: var(---theme-tooltip-border-radius);
+  ---shadow: var(---theme-shadow-box-2);
+  ---enter: var(---theme-animation-open);
+  ---exit: var(---theme-animation-close);
   ---ease: ease-out;
 }
 

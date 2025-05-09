@@ -1,6 +1,6 @@
 :host {
   display: contents;
-  ---background-color: var(---theme_color-divider);
+  ---background-color: var(---theme-color-divider);
   ---size: 1px;
   ---width: 100%;
   ---height: 100%;

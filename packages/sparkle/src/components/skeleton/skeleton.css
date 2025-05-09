@@ -1,7 +1,7 @@
 :host {
   display: contents;
-  ---color: var(---theme_color-fg-05);
-  ---sheen-color: var(---theme_color-fg-15);
+  ---color: var(---theme-color-fg-05);
+  ---sheen-color: var(---theme-color-fg-15);
   ---width-min: 40px;
   ---grow: 0;
   ---shrink: 0;
@@ -26,6 +26,6 @@
   background-image: var(---background-gradient);
   border-radius: var(---corner);
   color: transparent;
-  animation: var(---animation, var(---theme_animation-sheen));
+  animation: var(---animation, var(---theme-animation-sheen));
   will-change: transform, opacity;
 }

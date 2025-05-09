@@ -1,6 +1,6 @@
 :host {
   display: contents;
-  ---indicator-color: var(---theme_color-primary-60);
+  ---indicator-color: var(---theme-color-primary-60);
   ---child-layout: column;
   ---position: relative;
   ---duration: 150ms;

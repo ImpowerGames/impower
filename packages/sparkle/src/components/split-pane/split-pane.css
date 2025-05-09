@@ -4,9 +4,9 @@
   ---resizer-color: transparent;
   ---resizer-width: 8px;
   ---divider-opacity: 1;
-  ---divider-color: var(---theme_color-divider);
+  ---divider-color: var(---theme-color-divider);
   ---divider-width: 1px;
-  ---indicator-color: var(---theme_color-primary-50);
+  ---indicator-color: var(---theme-color-primary-50);
   ---indicator-width: 4px;
   ---resizer-center: calc(var(---resizer-width) / 2);
   ---divider-center: calc(var(---divider-width) / 2);

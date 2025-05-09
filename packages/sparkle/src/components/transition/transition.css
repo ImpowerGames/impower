@@ -1,7 +1,7 @@
 :host {
   display: contents;
-  ---exit: var(---theme_animation-close);
-  ---enter: var(---theme_animation-open);
+  ---exit: var(---theme-animation-close);
+  ---enter: var(---theme-animation-open);
   ---ease: ease-out;
   ---position: relative;
 }

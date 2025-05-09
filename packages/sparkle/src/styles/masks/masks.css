@@ -1,37 +1,37 @@
 :root {
-  ---theme_mask-scooped-edge-tb: radial-gradient(
+  ---theme-mask-scooped-edge-tb: radial-gradient(
       20px at 50% 20px,
       #0000 97%,
       #000
     )
     50% -20px / calc(1.9 * 20px) 100%;
-  ---theme_mask-scooped-edge-lr: radial-gradient(
+  ---theme-mask-scooped-edge-lr: radial-gradient(
       20px at 20px 50%,
       #0000 97%,
       #000
     ) -20px / 100% calc(1.9 * 20px);
-  ---theme_mask-scooped-edge-t: radial-gradient(20px at 50% 0, #0000 97%, #000)
+  ---theme-mask-scooped-edge-t: radial-gradient(20px at 50% 0, #0000 97%, #000)
     50% / calc(1.9 * 20px) 100%;
-  ---theme_mask-scooped-edge-b: radial-gradient(
+  ---theme-mask-scooped-edge-b: radial-gradient(
       20px at 50% 100%,
       #0000 97%,
       #000
     )
     50% / calc(1.9 * 20px) 100%;
-  ---theme_mask-scooped-edge-l: radial-gradient(20px at 0 50%, #0000 97%, #000)
+  ---theme-mask-scooped-edge-l: radial-gradient(20px at 0 50%, #0000 97%, #000)
     50%/ 100% calc(1.9 * 20px);
-  ---theme_mask-scooped-edge-r: radial-gradient(
+  ---theme-mask-scooped-edge-r: radial-gradient(
       20px at 100% 50%,
       #0000 97%,
       #000
     )
     50% / 100% calc(1.9 * 20px);
 
-  ---theme_mask-scalloped-edge: radial-gradient(farthest-side, #000 97%, #0000)
+  ---theme-mask-scalloped-edge: radial-gradient(farthest-side, #000 97%, #0000)
       0 0 / 20px 20px round,
     linear-gradient(#000 0 0) 50% / calc(100% - 20px) calc(100% - 20px)
       no-repeat;
-  ---theme_mask-scalloped-edge-tb: linear-gradient(
+  ---theme-mask-scalloped-edge-tb: linear-gradient(
         0deg,
         #0000 calc(2 * 20px),
         #000 0
@@ -39,7 +39,7 @@
       0 20px,
     radial-gradient(20px, #000 97%, #0000) 50% / calc(1.9 * 20px) calc(2 * 20px)
       repeat space;
-  ---theme_mask-scalloped-edge-lr: linear-gradient(
+  ---theme-mask-scalloped-edge-lr: linear-gradient(
         -90deg,
         #0000 calc(2 * 20px),
         #000 0
@@ -47,16 +47,16 @@
       20px,
     radial-gradient(20px, #000 97%, #0000) 50% / calc(2 * 20px) calc(1.9 * 20px)
       space repeat;
-  ---theme_mask-scalloped-edge-t: linear-gradient(to bottom, #0000 20px, #000 0),
+  ---theme-mask-scalloped-edge-t: linear-gradient(to bottom, #0000 20px, #000 0),
     radial-gradient(20px at bottom, #000 97%, #0000) top / calc(1.9 * 20px) 20px;
-  ---theme_mask-scalloped-edge-b: linear-gradient(to top, #0000 20px, #000 0),
+  ---theme-mask-scalloped-edge-b: linear-gradient(to top, #0000 20px, #000 0),
     radial-gradient(20px at top, #000 97%, #0000) bottom / calc(1.9 * 20px) 20px;
-  ---theme_mask-scalloped-edge-l: linear-gradient(to right, #0000 20px, #000 0),
+  ---theme-mask-scalloped-edge-l: linear-gradient(to right, #0000 20px, #000 0),
     radial-gradient(20px at right, #000 97%, #0000) left / 20px calc(1.9 * 20px);
-  ---theme_mask-scalloped-edge-r: linear-gradient(to left, #0000 20px, #000 0),
+  ---theme-mask-scalloped-edge-r: linear-gradient(to left, #0000 20px, #000 0),
     radial-gradient(20px at left, #000 97%, #0000) right / 20px calc(1.9 * 20px);
 
-  ---theme_mask-drip-edge-tb: radial-gradient(20px at top, #0000 97%, #000) 50%
+  ---theme-mask-drip-edge-tb: radial-gradient(20px at top, #0000 97%, #000) 50%
       20px / calc(2 * 20px) 51% repeat-x,
     radial-gradient(20px at bottom, #0000 97%, #000) 50% calc(100% - 20px) /
       calc(2 * 20px) 51% repeat-x,
@@ -64,7 +64,7 @@
       calc(4 * 20px) calc(2 * 20px) repeat-x,
     radial-gradient(20px at 25% 50%, #000 97%, #0000) calc(50% - 3 * 20px) 99% /
       calc(4 * 20px) calc(2 * 20px) repeat-x;
-  ---theme_mask-drip-edge-lr: radial-gradient(20px at left, #0000 97%, #000)
+  ---theme-mask-drip-edge-lr: radial-gradient(20px at left, #0000 97%, #000)
       20px 50% / 51% calc(2 * 20px) repeat-y,
     radial-gradient(20px at right, #0000 97%, #000) calc(100% - 20px) 50% / 51%
       calc(2 * 20px) repeat-y,
@@ -72,24 +72,24 @@
       calc(2 * 20px) calc(4 * 20px) repeat-y,
     radial-gradient(20px at 50% 25%, #000 97%, #0000) 99% calc(50% - 3 * 20px) /
       calc(2 * 20px) calc(4 * 20px) repeat-y;
-  ---theme_mask-drip-edge-t: radial-gradient(20px at top, #0000 97%, #000) 50%
+  ---theme-mask-drip-edge-t: radial-gradient(20px at top, #0000 97%, #000) 50%
       20px / calc(2 * 20px) 100% repeat-x,
     radial-gradient(20px at 25% 50%, #000 97%, #0000) calc(50% - 20px) 1% /
       calc(4 * 20px) calc(2 * 20px) repeat-x;
-  ---theme_mask-drip-edge-b: radial-gradient(20px at bottom, #0000 97%, #000)
+  ---theme-mask-drip-edge-b: radial-gradient(20px at bottom, #0000 97%, #000)
       50% calc(100% - 20px) / calc(2 * 20px) 100% repeat-x,
     radial-gradient(20px at 25% 50%, #000 97%, #0000) calc(50% - 20px) 99% /
       calc(4 * 20px) calc(2 * 20px) repeat-x;
-  ---theme_mask-drip-edge-l: radial-gradient(20px at left, #0000 97%, #000) 20px
+  ---theme-mask-drip-edge-l: radial-gradient(20px at left, #0000 97%, #000) 20px
       50% / 100% calc(2 * 20px) repeat-y,
     radial-gradient(20px at 50% 25%, #000 97%, #0000) 1% calc(50% - 20px) /
       calc(2 * 20px) calc(4 * 20px) repeat-y;
-  ---theme_mask-drip-edge-r: radial-gradient(20px at right, #0000 97%, #000)
+  ---theme-mask-drip-edge-r: radial-gradient(20px at right, #0000 97%, #000)
       calc(100% - 20px) 50% / 100% calc(2 * 20px) repeat-y,
     radial-gradient(20px at 50% 25%, #000 97%, #0000) 99% calc(50% - 20px) /
       calc(2 * 20px) calc(4 * 20px) repeat-y;
 
-  ---theme_mask-zigzag-edge-tb: conic-gradient(
+  ---theme-mask-zigzag-edge-tb: conic-gradient(
         from 135deg at top,
         #0000,
         #000 1deg 90deg,
@@ -98,7 +98,7 @@
       top / calc(2 * 20px) 51% repeat-x,
     conic-gradient(from -45deg at bottom, #0000, #000 1deg 90deg, #0000 91deg)
       bottom / calc(2 * 20px) 51% repeat-x;
-  ---theme_mask-zigzag-edge-lr: conic-gradient(
+  ---theme-mask-zigzag-edge-lr: conic-gradient(
         from 45deg at left,
         #0000,
         #000 1deg 90deg,
@@ -107,28 +107,28 @@
       left / 51% calc(2 * 20px) repeat-y,
     conic-gradient(from -135deg at right, #0000, #000 1deg 90deg, #0000 91deg)
       right / 51% calc(2 * 20px) repeat-y;
-  ---theme_mask-zigzag-edge-t: conic-gradient(
+  ---theme-mask-zigzag-edge-t: conic-gradient(
       from 135deg at top,
       #0000,
       #000 1deg 90deg,
       #0000 91deg
     )
     50% / calc(2 * 20px) 100%;
-  ---theme_mask-zigzag-edge-b: conic-gradient(
+  ---theme-mask-zigzag-edge-b: conic-gradient(
       from -45deg at bottom,
       #0000,
       #000 1deg 90deg,
       #0000 91deg
     )
     50% / calc(2 * 20px) 100%;
-  ---theme_mask-zigzag-edge-l: conic-gradient(
+  ---theme-mask-zigzag-edge-l: conic-gradient(
       from 45deg at left,
       #0000,
       #000 1deg 90deg,
       #0000 91deg
     )
     50% / 100% calc(2 * 20px);
-  ---theme_mask-zigzag-edge-r: conic-gradient(
+  ---theme-mask-zigzag-edge-r: conic-gradient(
       from -135deg at right,
       #0000,
       #000 1deg 90deg,

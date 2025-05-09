@@ -19,7 +19,7 @@ export const lockBodyScrolling = (lockingEl: HTMLElement) => {
     const scrollbarWidth = getScrollbarWidth(); // must be measured before the `s-scroll-lock` class is applied
     document.documentElement.classList.add("s-scroll-lock");
     document.documentElement.style.setProperty(
-      "---theme_scroll-lock-size",
+      "---theme-scroll-lock-size",
       `${scrollbarWidth}px`
     );
   }
@@ -33,6 +33,6 @@ export const unlockBodyScrolling = (lockingEl: HTMLElement) => {
 
   if (locks.size === 0) {
     document.documentElement.classList.remove("s-scroll-lock");
-    document.documentElement.style.removeProperty("---theme_scroll-lock-size");
+    document.documentElement.style.removeProperty("---theme-scroll-lock-size");
   }
 };
