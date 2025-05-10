@@ -24,7 +24,7 @@ type BuiltinDefinition = { begin: string; end: string };
 
 const SRC: Record<string, BuiltinDefinition> = {
   screen: {
-    begin: `<div class="style" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
+    begin: `<div class="style screen" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</div>`,
   },
   component: {
