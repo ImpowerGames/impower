@@ -362,6 +362,9 @@ const CSS_UTILITIES = {
   "shadow-inset": {
     "": { "box-shadow": "" },
   },
+  glow: {
+    "": { "box-shadow": "" },
+  },
   ring: {
     "": { "box-shadow": "" },
   },

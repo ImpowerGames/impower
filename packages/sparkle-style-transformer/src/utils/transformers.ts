@@ -638,6 +638,16 @@ export const getCssRepeat = (value: boolean | string): string => {
   return value;
 };
 
+export const getCssGlow = (value: string): string => {
+  if (value === "none") {
+    return value;
+  }
+  const [width, color] = value.split(WHITESPACE_REGEX);
+  return `0 0 ${getCssSize(width ?? 2)} 0 ${getCssColor(
+    color ?? "currentColor"
+  )}`;
+};
+
 export const getCssRing = (value: string): string => {
   if (value === "none") {
     return value;

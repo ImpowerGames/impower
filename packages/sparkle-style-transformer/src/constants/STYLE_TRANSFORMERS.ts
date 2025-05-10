@@ -19,6 +19,7 @@ import {
   getCssEase,
   getCssFilter,
   getCssFlex,
+  getCssGlow,
   getCssGrow,
   getCssImage,
   getCssInteractable,
@@ -166,6 +167,7 @@ const STYLE_TRANSFORMERS = {
 
   shadow: getCssShadow,
   "shadow-inset": getCssShadowInset,
+  glow: getCssGlow,
   ring: getCssRing,
 
   filter: getCssFilter,
