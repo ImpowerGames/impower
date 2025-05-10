@@ -6,18 +6,18 @@
 
   /* Buttons */
   ---theme-button-background: var(---theme-color-neutral-20);
-  ---theme-button-border: var(---theme-color-neutral-50);
+  ---theme-button-border: var(---theme-color-neutral-40);
   ---theme-button-text: var(---theme-color-neutral-100);
 
   /* Inputs */
   ---theme-input-background: var(---theme-color-neutral-20);
-  ---theme-input-border: var(---theme-color-neutral-50);
+  ---theme-input-border: var(---theme-color-neutral-40);
   ---theme-input-text: var(---theme-color-neutral-100);
   ---theme-input-text-placeholder: var(---theme-color-neutral-70);
 
   /* Dropdowns */
   ---theme-dropdown-background: var(---theme-color-neutral-20);
-  ---theme-dropdown-border: var(---theme-color-neutral-50);
+  ---theme-dropdown-border: var(---theme-color-neutral-40);
   ---theme-dropdown-text: var(---theme-color-neutral-100);
 
   /* Options */
