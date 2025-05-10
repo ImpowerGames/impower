@@ -129,6 +129,12 @@ const STYLE_ALIASES = {
   "box-shadow": "shadow",
 
   "transform-origin": "pivot",
+
+  "transition-timing-function": "transition-easing",
+
+  "animation-timing-function": "animation-easing",
+  "animation-iteration-count": "animation-iterations",
+  "animation-fill-mode": "animation-fill",
 } as const;
 
 export default STYLE_ALIASES;

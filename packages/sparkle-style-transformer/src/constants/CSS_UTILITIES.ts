@@ -399,6 +399,25 @@ const CSS_UTILITIES = {
     "": { "transition-timing-function": "" },
   },
 
+  "animation-delay": {
+    "": { "animation-delay": "" },
+  },
+  "animation-duration": {
+    "": { "animation-duration": "" },
+  },
+  "animation-easing": {
+    "": { "animation-timing-function": "" },
+  },
+  "animation-iterations": {
+    "": { "animation-iteration-count": "" },
+  },
+  "animation-direction": {
+    "": { "animation-direction": "" },
+  },
+  "animation-fill": {
+    "": { "animation-fill-mode": "" },
+  },
+
   animation: {
     "": { animation: "" },
   },

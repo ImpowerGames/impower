@@ -1,6 +1,7 @@
 import STYLE_ALIASES from "../constants/STYLE_ALIASES.js";
 import STYLE_TRANSFORMERS from "../constants/STYLE_TRANSFORMERS.js";
 import {
+  getCssAnimation,
   getCssColor,
   getCssIcon,
   getCssPattern,
@@ -53,6 +54,12 @@ export const inferTransformer = (
   }
   if (name === "speed" || name.endsWith("-speed")) {
     return (v: string) => v;
+  }
+  if (name === "enter") {
+    return getCssAnimation;
+  }
+  if (name === "exit") {
+    return getCssAnimation;
   }
   if (name === "value") {
     return (v: string) => v;

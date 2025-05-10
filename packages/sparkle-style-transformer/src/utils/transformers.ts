@@ -784,3 +784,10 @@ export const getCssTranslate = (value: string): string => {
   }
   return getCssValueWithUnit(value, "px");
 };
+
+export const getCssIterations = (value: string | number): string => {
+  if (value === Infinity) {
+    return "infinite";
+  }
+  return String(value);
+};

@@ -23,6 +23,7 @@ import {
   getCssGrow,
   getCssImage,
   getCssInteractable,
+  getCssIterations,
   getCssMask,
   getCssOrder,
   getCssOutlineStyle,
@@ -188,8 +189,12 @@ const STYLE_TRANSFORMERS = {
   "transition-easing": getCssEase,
 
   animation: getCssAnimation,
-  exit: getCssAnimation,
-  enter: getCssAnimation,
+  "animation-delay": getCssDuration,
+  "animation-duration": getCssDuration,
+  "animation-easing": getCssEase,
+  "animation-iterations": getCssIterations,
+  "animation-direction": get,
+  "animation-fill": get,
 
   "content-visibility": getCssContentVisibility,
   "contain-intrinsic-size": getCssContainIntrinsicSize,
