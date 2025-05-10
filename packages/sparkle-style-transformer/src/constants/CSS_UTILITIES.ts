@@ -1,4 +1,4 @@
-const CSS_UTILITIES = {
+export const CSS_UTILITIES = {
   display: {
     "": { display: "" },
   },
@@ -449,5 +449,3 @@ const CSS_UTILITIES = {
     "": { "---thumb-size": "" },
   },
 } as const;
-
-export default CSS_UTILITIES;

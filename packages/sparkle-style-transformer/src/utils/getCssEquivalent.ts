@@ -1,6 +1,6 @@
-import CSS_UTILITIES from "../constants/CSS_UTILITIES.js";
-import STYLE_ALIASES from "../constants/STYLE_ALIASES.js";
-import STYLE_TRANSFORMERS from "../constants/STYLE_TRANSFORMERS.js";
+import { CSS_UTILITIES } from "../constants/CSS_UTILITIES.js";
+import { STYLE_ALIASES } from "../constants/STYLE_ALIASES.js";
+import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS.js";
 
 export const getCssEquivalent = (
   key: string,

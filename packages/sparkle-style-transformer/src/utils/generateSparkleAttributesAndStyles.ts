@@ -1,5 +1,5 @@
-import STYLE_ALIASES from "../constants/STYLE_ALIASES.js";
-import STYLE_TRANSFORMERS from "../constants/STYLE_TRANSFORMERS.js";
+import { STYLE_ALIASES } from "../constants/STYLE_ALIASES.js";
+import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS.js";
 import {
   getCssAnimation,
   getCssColor,

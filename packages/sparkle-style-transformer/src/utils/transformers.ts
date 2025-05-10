@@ -1,3 +1,5 @@
+import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/STYLE_ALIASES.js";
+
 const WHITESPACE_REGEX = /[\t ]+/;
 const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
 
@@ -176,10 +178,24 @@ export const getCssValueWithUnit = (
   if (typeof value === "number") {
     return `${value}${defaultUnit}`;
   }
+  if (value.includes(",")) {
+    return value
+      .split(",")
+      .map((part) => (isValidNumber(part) ? `${part}${defaultUnit}` : part))
+      .join(",");
+  } else {
+    return value
+      .split(WHITESPACE_REGEX)
+      .map((part) => (isValidNumber(part) ? `${part}${defaultUnit}` : part))
+      .join(" ");
+  }
+};
+
+export const getCssProperty = (value: string): string => {
   return value
-    .split(WHITESPACE_REGEX)
-    .map((part) => (isValidNumber(part) ? `${part}${defaultUnit}` : part))
-    .join(" ");
+    .split(",")
+    .map((part) => SPARKLE_TO_CSS_NAME_MAP[part] ?? part)
+    .join(",");
 };
 
 export const getCssTextWhitespace = (value: string): string => {

@@ -29,6 +29,7 @@ import {
   getCssOutlineStyle,
   getCssOverflow,
   getCssPosition,
+  getCssProperty,
   getCssRatio,
   getCssRepeat,
   getCssRing,
@@ -56,7 +57,7 @@ import {
 
 const get = (v: string) => v;
 
-const STYLE_TRANSFORMERS = {
+export const STYLE_TRANSFORMERS = {
   display: getCssDisplay,
 
   position: getCssPosition,
@@ -187,6 +188,7 @@ const STYLE_TRANSFORMERS = {
   "transition-delay": getCssDuration,
   "transition-duration": getCssDuration,
   "transition-easing": getCssEase,
+  "transition-property": getCssProperty,
 
   animation: getCssAnimation,
   "animation-delay": getCssDuration,
@@ -205,5 +207,3 @@ const STYLE_TRANSFORMERS = {
   "thumb-border-color": getCssColor,
   "thumb-size": getCssSize,
 } as const;
-
-export default STYLE_TRANSFORMERS;
