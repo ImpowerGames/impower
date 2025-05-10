@@ -501,7 +501,10 @@ function renderBuiltinVNode(
     Object.assign(root.props, spreadProps);
   }
 
-  if (type === "screen" && args.name) root.props.id = args.name;
+  if (type === "screen" && args.name) {
+    root.props.id = args.name;
+    delete root.props.class;
+  }
 
   /*  3.  Inject slot <content-slot> and <children-slot>  */
   const contentV: VNode =
