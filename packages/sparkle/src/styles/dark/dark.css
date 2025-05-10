@@ -350,7 +350,7 @@
   ---theme-color-fg-90: rgba(255 255 255 / 0.9);
 
   /* General */
-  ---theme-color-surface: var(---theme-color-neutral-30);
+  ---theme-color-surface: var(---theme-color-neutral-10);
   ---theme-color-surface-border: var(---theme-color-fg-12);
   ---theme-color-divider: var(---theme-color-fg-12);
 
