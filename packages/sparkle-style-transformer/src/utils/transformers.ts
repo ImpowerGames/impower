@@ -55,6 +55,12 @@ export const getCssBgFit = (value: string): string => {
   if (value === "") {
     return "contain";
   }
+  if (value === "contain-vertically") {
+    return "auto 100%";
+  }
+  if (value === "contain-horizontally") {
+    return "100% auto";
+  }
   return value;
 };
 
@@ -348,10 +354,15 @@ export const getCssDimension = (value: number | string): string => {
 };
 
 export const getCssDisplay = (value: string | boolean): string => {
-  if (value === true || value === "" || value === "display") {
+  if (
+    value === true ||
+    value === "true" ||
+    value === "" ||
+    value === "display"
+  ) {
     return "flex";
   }
-  if (value === false) {
+  if (value === false || value === "false") {
     return "none";
   }
   return value;
