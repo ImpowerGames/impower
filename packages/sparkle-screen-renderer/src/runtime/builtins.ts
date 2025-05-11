@@ -76,23 +76,23 @@ const SRC: Record<string, BuiltinDefinition> = {
     end: "",
   },
   Input: {
-    begin: `<label class="style Control"><span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</span><input class="style ${CLASSES_PLACEHOLDER}" type="text" ${ATTRS_PLACEHOLDER}/></label>`,
+    begin: `<label class="style Control"><div class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</div><input class="style ${CLASSES_PLACEHOLDER}" type="text" ${ATTRS_PLACEHOLDER}/></label>`,
   },
   InputArea: {
-    begin: `<label class="style Control"><span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</span><textarea class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}/></label>`,
+    begin: `<label class="style Control"><div class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</div><textarea class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}/></label>`,
   },
   Slider: {
-    begin: `<label class="style Control"><span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</span><input class="style ${CLASSES_PLACEHOLDER}" type="range" oninput="this.style.setProperty('---fill-percentage', (this.value-this.min)/(this.max-this.min)*100 + '%')" ${ATTRS_PLACEHOLDER}/></label>`,
+    begin: `<label class="style Control"><div class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</div><input class="style ${CLASSES_PLACEHOLDER}" type="range" oninput="this.style.setProperty('---fill-percentage', (this.value-this.min)/(this.max-this.min)*100 + '%')" ${ATTRS_PLACEHOLDER}/></label>`,
   },
   Checkbox: {
-    begin: `<label class="style Control"><span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</span><input class="style ${CLASSES_PLACEHOLDER}" type="checkbox" ${ATTRS_PLACEHOLDER}/></label>`,
+    begin: `<label class="style Control"><div class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</div><input class="style ${CLASSES_PLACEHOLDER}" type="checkbox" ${ATTRS_PLACEHOLDER}/></label>`,
   },
   Dropdown: {
-    begin: `<label class="style Control"><span class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}</span><div class="style DropdownArrow"><select class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>`,
+    begin: `<label class="style Control"><div class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}</div><div class="style DropdownArrow"><select class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>`,
     end: `</select></div></label>`,
   },
   Option: {
