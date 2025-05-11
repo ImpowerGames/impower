@@ -187,6 +187,7 @@ export class Story extends InkObject {
     } else {
       if (typeof arguments[0] === "string") {
         let jsonString = arguments[0] as string;
+
         json = SimpleJson.TextToDictionary(jsonString);
       } else {
         json = arguments[0] as Record<string, any>;
@@ -236,7 +237,7 @@ export class Story extends InkObject {
         );
       } else if (formatFromFile != Story.inkVersionCurrent) {
         console.warn(
-          "WARNING: Version of ink used to build story doesn't match current version of engine. Non-critical, but recommend synchronising."
+          `WARNING: Version of ink ${Story.inkVersionCurrent} used to build story doesn't match current version of engine (${formatFromFile}). Non-critical, but recommend synchronising.`
         );
       }
 
@@ -521,14 +522,14 @@ export class Story extends InkObject {
         if (this.state.hasError) {
           sb.Append(`${this.state.currentErrors!.length}`);
           sb.Append(
-            this.state.currentErrors!.length == 1 ? " error" : "errors"
+            this.state.currentErrors!.length == 1 ? " error" : " errors"
           );
           if (this.state.hasWarning) sb.Append(" and ");
         }
         if (this.state.hasWarning) {
           sb.Append(`${this.state.currentWarnings!.length}`);
           sb.Append(
-            this.state.currentWarnings!.length == 1 ? " warning" : "warnings"
+            this.state.currentWarnings!.length == 1 ? " warning" : " warnings"
           );
           if (this.state.hasWarning) sb.Append(" and ");
         }

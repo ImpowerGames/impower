@@ -8,6 +8,7 @@ import { DebugMetadata } from "../engine/DebugMetadata";
 import { StringValue } from "../engine/Value";
 import { asOrNull } from "../engine/TypeAssertion";
 import { SourceMetadata } from "../engine/Error";
+import { GenerateStoryStats, Stats } from "./Stats";
 
 export { CompilerOptions } from "./CompilerOptions";
 export { InkParser } from "./Parser/InkParser";
@@ -110,6 +111,13 @@ export class Compiler {
         }
       }
     }
+  };
+
+  public readonly GenerateStats = (): Stats | null => {
+    if (this._parsedStory === null) {
+      return null;
+    }
+    return GenerateStoryStats(this._parsedStory);
   };
 
   public readonly DebugMetadataForContentAtOffset = (
