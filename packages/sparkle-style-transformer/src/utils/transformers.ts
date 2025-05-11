@@ -709,7 +709,7 @@ export const getCssShadow = (value: string): string => {
   }
   const isValidNumber = !Number.isNaN(Number(value));
   if (isValidNumber) {
-    return `var(---theme-shadow-box-${value})`;
+    return generateShadow(Number(value));
   }
   return value;
 };
@@ -820,3 +820,60 @@ export const getCssIterations = (value: string | number): string => {
   }
   return String(value);
 };
+
+export function generateShadow(elevation: number): string {
+  const shadowColorRgb = "0,0,0";
+  const keyShadowOpacity = 0.3;
+  const ambientShadowOpacity = 0.15;
+
+  // --- Key Shadow Calculations ---
+  const keyL1y = Math.max(0, Math.min(elevation, 1));
+  const keyL4y = Math.max(0, Math.min(elevation - 3, 1));
+  const keyL5y = 2 * Math.max(0, Math.min(elevation - 4, 1));
+  const keyOffsetY = keyL1y + keyL4y + keyL5y;
+
+  // Blur Radius for Key Shadow
+  const keyL1Blur = 2 * Math.max(0, Math.min(elevation, 1));
+  const keyL3Blur = Math.max(0, Math.min(elevation - 2, 1));
+  const keyL5Blur = Math.max(0, Math.min(elevation - 4, 1));
+  const keyBlurRadius = keyL1Blur + keyL3Blur + keyL5Blur;
+
+  // Spread Radius for Key Shadow is 0px
+  const keySpreadRadius = 0;
+
+  // --- Ambient Shadow Calculations --
+  const ambL1y = Math.max(0, Math.min(elevation, 1));
+  const ambL2y = Math.max(0, Math.min(elevation - 1, 1));
+  const ambL3to5y = 2 * Math.max(0, Math.min(elevation - 2, 3));
+  const ambientOffsetY = ambL1y + ambL2y + ambL3to5y;
+
+  // Blur Radius for Ambient Shadow
+  const ambL1to2Blur = 3 * Math.max(0, Math.min(elevation, 2));
+  const ambL3to5Blur = 2 * Math.max(0, Math.min(elevation - 2, 3));
+  const ambientBlurRadius = ambL1to2Blur + ambL3to5Blur;
+
+  // Spread Radius for Ambient Shadow
+  const ambL1to4Spread = Math.max(0, Math.min(elevation, 4));
+  const ambL5Spread = 2 * Math.max(0, Math.min(elevation - 4, 1));
+  const ambientSpreadRadius = ambL1to4Spread + ambL5Spread;
+
+  // If all calculated metrics that define a shadow are zero, return 'none'.
+  if (
+    keyOffsetY === 0 &&
+    keyBlurRadius === 0 &&
+    keySpreadRadius === 0 && // keySpreadRadius is always 0 in this specific model
+    ambientOffsetY === 0 &&
+    ambientBlurRadius === 0 &&
+    ambientSpreadRadius === 0
+  ) {
+    return "none";
+  }
+
+  const keyShadowCssColor = `rgba(${shadowColorRgb}, ${keyShadowOpacity})`;
+  const keyShadowString = `0px ${keyOffsetY}px ${keyBlurRadius}px ${keySpreadRadius}px ${keyShadowCssColor}`;
+
+  const ambientShadowCssColor = `rgba(${shadowColorRgb}, ${ambientShadowOpacity})`;
+  const ambientShadowString = `0px ${ambientOffsetY}px ${ambientBlurRadius}px ${ambientSpreadRadius}px ${ambientShadowCssColor}`;
+
+  return `${keyShadowString}, ${ambientShadowString}`;
+}

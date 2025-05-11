@@ -1,6 +1,4 @@
-import animationCSS from "../../../sparkle/src/styles/animations/animations.css";
 import darkCSS from "../../../sparkle/src/styles/dark/dark.css";
-import elementsCSS from "../../../sparkle/src/styles/elements/elements.css";
 import lightCSS from "../../../sparkle/src/styles/light/light.css";
 import themeCSS from "../../../sparkle/src/styles/theme/theme.css";
 import { spec } from "../../../spec-component/src/spec";
@@ -18,15 +16,6 @@ export default spec({
     css: "#css",
     html: "#html",
   } as const,
-  css: [
-    resetCSS,
-    darkCSS,
-    lightCSS,
-    themeCSS,
-    elementsCSS,
-    animationCSS,
-    defaultCSS,
-    css,
-  ],
+  css: [resetCSS, darkCSS, lightCSS, themeCSS, defaultCSS, css],
   html,
 });
