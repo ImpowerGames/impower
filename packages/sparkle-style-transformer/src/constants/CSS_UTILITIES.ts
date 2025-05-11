@@ -214,6 +214,10 @@ export const CSS_UTILITIES = {
     "": { "flex-shrink": "" },
   },
 
+  basis: {
+    "": { "flex-basis": "" },
+  },
+
   order: {
     "": { order: "" },
   },
@@ -416,6 +420,9 @@ export const CSS_UTILITIES = {
   },
   "animation-fill": {
     "": { "animation-fill-mode": "" },
+  },
+  "animation-state": {
+    "": { "animation-play-state": "" },
   },
 
   animation: {

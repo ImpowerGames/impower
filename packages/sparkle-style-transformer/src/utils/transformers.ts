@@ -735,6 +735,19 @@ export const getCssShrink = (value: boolean | string): string => {
   return value;
 };
 
+export const getCssBasis = (value: boolean | string): string => {
+  if (value === "") {
+    return "0";
+  }
+  if (value === true || value === "true") {
+    return "0";
+  }
+  if (value === false || value === "false" || value === "none") {
+    return "auto";
+  }
+  return value;
+};
+
 export const isNumberChar = (c: string | undefined): boolean =>
   !Number.isNaN(Number(c));
 

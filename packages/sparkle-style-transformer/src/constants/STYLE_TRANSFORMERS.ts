@@ -1,5 +1,6 @@
 import {
   getCssAnimation,
+  getCssBasis,
   getCssBgAlign,
   getCssBgFit,
   getCssBlend,
@@ -134,6 +135,7 @@ export const STYLE_TRANSFORMERS = {
   flex: getCssFlex,
   grow: getCssGrow,
   shrink: getCssShrink,
+  basis: getCssBasis,
   order: getCssOrder,
 
   visible: getCssVisible,
@@ -197,6 +199,7 @@ export const STYLE_TRANSFORMERS = {
   "animation-iterations": getCssIterations,
   "animation-direction": get,
   "animation-fill": get,
+  "animation-state": get,
 
   "content-visibility": getCssContentVisibility,
   "contain-intrinsic-size": getCssContainIntrinsicSize,
