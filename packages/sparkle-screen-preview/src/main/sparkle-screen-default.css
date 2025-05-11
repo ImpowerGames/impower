@@ -58,16 +58,16 @@
 }
 
 .Button:hover,
-.Dropdown:hover,
-.Checkbox:hover,
-.Slider:hover {
+.DropdownField:hover,
+.CheckboxField:hover,
+.SliderField:hover {
   background-color: var(---theme-color-background-hover);
 }
 
 .Button:active,
-.Dropdown:active,
-.Checkbox:active,
-.Slider:active {
+.DropdownField:active,
+.CheckboxField:active,
+.SliderField:active {
   background-color: var(---theme-color-background-active);
 }
 
@@ -151,7 +151,7 @@ style {
   background-color: var(---theme-button-background);
 }
 
-.Control {
+.Label {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -159,12 +159,7 @@ style {
   position: relative;
 }
 
-.Label {
-  font-size: 16px;
-  color: inherit;
-}
-
-.Input {
+.InputField {
   padding: 8px 12px;
   border-radius: 6px;
   color: var(---theme-input-text);
@@ -173,11 +168,11 @@ style {
   border-color: var(---theme-input-border);
   background-color: var(---theme-input-background);
 }
-.Input::placeholder {
+.InputField::placeholder {
   color: var(---theme-input-text-placeholder);
 }
 
-.InputArea {
+.InputAreaField {
   width: 100%;
   min-height: 100px;
   padding: 8px 12px;
@@ -195,7 +190,7 @@ style {
   background-color: var(---theme-input-background);
 }
 
-.Slider {
+.SliderField {
   appearance: none;
   height: 6px;
   border-radius: 3px;
@@ -207,7 +202,7 @@ style {
     var(---track-color) var(---fill-percentage)
   );
 }
-.Slider::-webkit-slider-thumb {
+.SliderField::-webkit-slider-thumb {
   appearance: none;
   border-radius: 50%;
   cursor: pointer;
@@ -219,7 +214,7 @@ style {
   border-style: solid;
   border-color: var(---thumb-border-color);
 }
-.Slider::-moz-range-thumb {
+.SliderField::-moz-range-thumb {
   border-radius: 50%;
   cursor: pointer;
   width: var(---thumb-size);
@@ -229,17 +224,17 @@ style {
   border-style: solid;
   border: var(---thumb-border-color);
 }
-.Slider::-moz-range-progress {
+.SliderField::-moz-range-progress {
   background: var(---fill-color);
 }
 
-.Control:has(.Checkbox) {
+.Checkbox {
   flex-direction: row;
   gap: 8px;
   align-items: center;
   justify-content: space-between;
 }
-.Checkbox {
+.CheckboxField {
   width: 16px;
   height: 16px;
   min-width: 16px;
@@ -254,11 +249,11 @@ style {
   border-color: var(---theme-checkbox-border);
   background-color: var(---theme-checkbox-background);
 }
-.Checkbox:checked {
+.CheckboxField:checked {
   border-color: var(---theme-color-border-checked);
   background: var(---theme-color-background-checked);
 }
-.Checkbox:checked::after {
+.CheckboxField:checked::after {
   content: "";
   position: absolute;
   top: 2px;
@@ -270,7 +265,7 @@ style {
   transform: rotate(45deg);
 }
 
-.Dropdown {
+.DropdownField {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -317,50 +312,50 @@ style {
   font-weight: bold;
 }
 
-.Input:hover,
-.InputArea:hover,
+.InputField:hover,
+.InputAreaField:hover,
 .Button:hover,
-.Dropdown:hover,
-.Checkbox:hover,
-.Slider:hover {
+.DropdownField:hover,
+.CheckboxField:hover,
+.SliderField:hover {
   border-color: var(---theme-color-border-hover);
 }
-.Slider:hover::-webkit-slider-thumb {
+.SliderField:hover::-webkit-slider-thumb {
   border-color: var(---theme-color-border-hover);
 }
-.Slider:hover::-moz-range-thumb {
+.SliderField:hover::-moz-range-thumb {
   border-color: var(---theme-color-border-hover);
 }
 
-.Input:active,
-.InputArea:active,
+.InputField:active,
+.InputAreaField:active,
 .Button:active,
-.Dropdown:active,
-.Checkbox:active,
-.Slider:active {
+.DropdownField:active,
+.CheckboxField:active,
+.SliderField:active {
   border-color: var(---theme-color-border-active);
 }
-.Slider:active::-webkit-slider-thumb {
+.SliderField:active::-webkit-slider-thumb {
   border-color: var(---theme-color-border-active);
 }
-.Slider:active::-moz-range-thumb {
+.SliderField:active::-moz-range-thumb {
   border-color: var(---theme-color-border-active);
 }
 
-.Input:focus-visible,
-.InputArea:focus-visible,
+.InputField:focus-visible,
+.InputAreaField:focus-visible,
 .Button:focus-visible,
-.Dropdown:focus-visible,
-.Checkbox:focus-visible,
-.Slider:focus-visible {
+.DropdownField:focus-visible,
+.CheckboxField:focus-visible,
+.SliderField:focus-visible {
   outline: none;
   box-shadow: 0 0 0 var(---theme-focus-ring-width)
     var(---theme-focus-ring-color);
   border-color: var(---theme-color-border-focus);
 }
-.Slider:focus-visible::-webkit-slider-thumb {
+.SliderField:focus-visible::-webkit-slider-thumb {
   border-color: var(---theme-color-border-focus);
 }
-.Slider:focus-visible::-moz-range-thumb {
+.SliderField:focus-visible::-moz-range-thumb {
   border-color: var(---theme-color-border-focus);
 }

@@ -75,24 +75,28 @@ const SRC: Record<string, BuiltinDefinition> = {
     begin: `<img class="style ${CLASSES_PLACEHOLDER}" src="${CONTENT_ATTR_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}/>`,
     end: "",
   },
+  Label: {
+    begin: `<label class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</label>`,
+  },
   Input: {
-    begin: `<label class="style Control"><div class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div><input class="style ${CLASSES_PLACEHOLDER}" type="text" ${ATTRS_PLACEHOLDER}/></label>`,
+    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style InputLabel">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</div><input class="style InputField" type="text" ${ATTRS_PLACEHOLDER}/></label>`,
   },
   InputArea: {
-    begin: `<label class="style Control"><div class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div><textarea class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}/></label>`,
+    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style InputAreaLabel">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</div><textarea class="style InputAreaField" ${ATTRS_PLACEHOLDER}/></label>`,
   },
   Slider: {
-    begin: `<label class="style Control"><div class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div><input class="style ${CLASSES_PLACEHOLDER}" type="range" oninput="this.style.setProperty('---fill-percentage', (this.value-this.min)/(this.max-this.min)*100 + '%')" ${ATTRS_PLACEHOLDER}/></label>`,
+    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style SliderLabel">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</div><input class="style SliderField" type="range" ${ATTRS_PLACEHOLDER} oninput="this.style.setProperty('---fill-percentage', (this.value-this.min)/(this.max-this.min)*100 + '%')"/></label>`,
   },
   Checkbox: {
-    begin: `<label class="style Control"><div class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div><input class="style ${CLASSES_PLACEHOLDER}" type="checkbox" ${ATTRS_PLACEHOLDER}/></label>`,
+    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style CheckboxLabel">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</div><input class="style CheckboxField" type="checkbox" ${ATTRS_PLACEHOLDER}/></label>`,
   },
   Dropdown: {
-    begin: `<label class="style Control"><div class="style Label">${CONTENT_CHILDREN_PLACEHOLDER}</div><div class="style DropdownArrow"><select class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>`,
+    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style DropdownLabel">${CONTENT_CHILDREN_PLACEHOLDER}</div><div class="style DropdownArrow"><select class="style DropdownField" ${ATTRS_PLACEHOLDER}>`,
     end: `</select></div></label>`,
   },
   Option: {
