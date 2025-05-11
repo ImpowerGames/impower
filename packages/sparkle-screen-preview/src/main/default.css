@@ -1,27 +1,44 @@
 /****************************** DEFAULT STYLES ******************************/
 
 .screen {
-  /* Controls */
-  ---theme-color-control-background: var(---theme-color-neutral-20);
-  ---theme-color-control-border: var(---theme-color-neutral-40);
-  ---theme-color-control-text: var(---theme-color-neutral-100);
+  /* Divider */
+  ---theme-divider-background-color: var(---theme-color-fg-12);
+
+  /* Buttons */
+  ---theme-button-background-color: var(---theme-color-neutral-20);
+  ---theme-button-border-color: var(---theme-color-neutral-40);
+  ---theme-button-text-color: var(---theme-color-neutral-100);
 
   /* Inputs */
-  ---theme-color-input-placeholder: var(---theme-color-neutral-70);
+  ---theme-input-background-color: var(---theme-color-neutral-20);
+  ---theme-input-border-color: var(---theme-color-neutral-40);
+  ---theme-input-text-color: var(---theme-color-neutral-100);
+  ---theme-input-text-placeholder-color: var(---theme-color-neutral-70);
+
+  /* Dropdowns */
+  ---theme-dropdown-background-color: var(---theme-color-neutral-20);
+  ---theme-dropdown-border-color: var(---theme-color-neutral-40);
+  ---theme-dropdown-text-color: var(---theme-color-neutral-100);
+
+  /* Options */
+  ---theme-option-background-color: var(---theme-color-neutral-20);
+  ---theme-option-text-color: var(---theme-color-neutral-100);
 
   /* Checkboxes */
-  ---theme-color-checkbox-check: var(---theme-color-neutral-100);
+  ---theme-checkbox-background-color: var(---theme-color-neutral-20);
+  ---theme-checkbox-border-color: var(---theme-color-neutral-60);
+  ---theme-checkbox-check-color: var(---theme-color-fill-contrast);
 
   /* Sliders */
-  ---theme-color-slider-thumb-background: var(---theme-color-primary-60);
-  ---theme-color-slider-thumb-border: var(---theme-color-primary-60);
-  ---theme-color-slider-fill: var(---theme-color-primary-60);
-  ---theme-color-slider-track: var(---theme-color-neutral-40);
+  ---theme-slider-thumb-background-color: var(---theme-color-primary-60);
+  ---theme-slider-thumb-border-color: var(---theme-color-primary-60);
+  ---theme-slider-fill-color: var(---theme-color-primary-60);
+  ---theme-slider-track-color: var(---theme-color-neutral-40);
 
-  ---fill-color: var(---theme-color-slider-fill);
-  ---track-color: var(---theme-color-slider-track);
-  ---thumb-background-color: var(---theme-color-slider-thumb-background);
-  ---thumb-border-color: var(---theme-color-slider-thumb-border);
+  ---fill-color: var(---theme-slider-fill-color);
+  ---track-color: var(---theme-slider-track-color);
+  ---thumb-background-color: var(---theme-slider-thumb-background-color);
+  ---thumb-border-color: var(---theme-slider-thumb-border-color);
   ---thumb-size: var(---theme-size-thumb);
 }
 
@@ -126,7 +143,7 @@ style {
 }
 
 .Divider {
-  background-color: var(---theme-color-fg-12);
+  background-color: var(---theme-divider-background-color);
   border-radius: var(---theme-radius-lg);
 }
 
@@ -151,14 +168,14 @@ style {
 .Button {
   padding: 8px 20px;
   border-radius: var(---theme-radius-lg);
-  color: var(---theme-color-control-text);
+  color: var(---theme-button-text-color);
   font-weight: 600;
   text-align: center;
   justify-content: center;
-  border-width: var(---theme-border-width-control);
+  border-width: 1px;
   border-style: solid;
-  border-color: var(---theme-color-control-border);
-  background-color: var(---theme-color-control-background);
+  border-color: var(---theme-button-border-color);
+  background-color: var(---theme-button-background-color);
 }
 
 .Label {
@@ -172,14 +189,14 @@ style {
 .InputField {
   padding: var(---theme-padding-input);
   border-radius: var(---theme-radius-md);
-  color: var(---theme-color-control-text);
-  border-width: var(---theme-border-width-control);
+  color: var(---theme-input-text-color);
+  border-width: 1px;
   border-style: solid;
-  border-color: var(---theme-color-control-border);
-  background-color: var(---theme-color-control-background);
+  border-color: var(---theme-input-border-color);
+  background-color: var(---theme-input-background-color);
 }
 .InputField::placeholder {
-  color: var(---theme-color-input-placeholder);
+  color: var(---theme-input-text-placeholder-color);
 }
 
 .InputAreaField {
@@ -193,10 +210,10 @@ style {
   resize: none; /* don't allow resizing */
   overflow: auto;
   transition: border-color 0.2s, background-color 0.2s;
-  border-width: var(---theme-border-width-control);
+  border-width: 1px;
   border-style: solid;
-  border-color: var(---theme-color-control-border);
-  background-color: var(---theme-color-control-background);
+  border-color: var(---theme-input-border-color);
+  background-color: var(---theme-input-background-color);
 }
 
 .SliderField {
@@ -219,7 +236,7 @@ style {
   width: var(---thumb-size);
   height: var(---thumb-size);
   background: var(---thumb-background-color);
-  border-width: var(---theme-border-width-control);
+  border-width: 2px;
   border-style: solid;
   border-color: var(---thumb-border-color);
 }
@@ -229,7 +246,7 @@ style {
   width: var(---thumb-size);
   height: var(---thumb-size);
   background: var(---thumb-background-color);
-  border-width: var(---theme-border-width-control);
+  border-width: 2px;
   border-style: solid;
   border: var(---thumb-border-color);
 }
@@ -253,29 +270,25 @@ style {
   cursor: pointer;
   position: relative;
   align-self: center;
-  border-width: var(---theme-border-width-control);
+  border-width: 1px;
   border-style: solid;
-  border-color: var(---theme-color-control-border);
-  background-color: var(---theme-color-control-background);
+  border-color: var(---theme-checkbox-border-color);
+  background-color: var(---theme-checkbox-background-color);
 }
 .CheckboxField:checked {
   border-color: var(---theme-color-border-checked);
-  background-color: var(---theme-color-background-checked);
+  background: var(---theme-color-background-checked);
 }
 .CheckboxField:checked::after {
   content: "";
   position: absolute;
-  inset: 0;
-  background-color: var(---theme-color-checkbox-check);
-  mask-image: var(---theme-icon-check);
-  -webkit-mask-image: var(---theme-icon-check);
-  mask-repeat: no-repeat;
-  -webkit-mask-repeat: no-repeat;
-  mask-position: center;
-  -webkit-mask-position: center;
-  mask-size: contain;
-  -webkit-mask-size: contain;
-  pointer-events: none;
+  top: var(---theme-spacing-3xs);
+  left: var(---theme-spacing-sm);
+  width: var(---theme-spacing-2xs);
+  height: var(---theme-spacing-sm);
+  border: solid var(---theme-checkbox-check-color);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 .DropdownField {
@@ -284,15 +297,15 @@ style {
   -moz-appearance: none;
   padding: var(---theme-padding-input);
   border-radius: var(---theme-radius-md);
-  color: var(---theme-color-control-text);
+  color: var(---theme-dropdown-text-color);
   line-height: 1.25;
   min-width: 160px;
   cursor: pointer;
   padding-right: 36px;
-  border-width: var(---theme-border-width-control);
+  border-width: 1px;
   border-style: solid;
-  border-color: var(---theme-color-control-border);
-  background-color: var(---theme-color-control-background);
+  border-color: var(---theme-dropdown-border-color);
+  background-color: var(---theme-dropdown-background-color);
 }
 .DropdownArrow::after {
   content: "";
@@ -303,8 +316,8 @@ style {
   width: var(---theme-size-thumb);
   height: var(---theme-size-thumb);
   background-color: currentColor;
-  mask-image: var(---theme-icon-arrow-down);
-  -webkit-mask-image: var(---theme-icon-arrow-down);
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M7 10l5 5 5-5z'/></svg>");
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M7 10l5 5 5-5z'/></svg>");
   mask-repeat: no-repeat;
   -webkit-mask-repeat: no-repeat;
   mask-position: center;
@@ -315,8 +328,8 @@ style {
 }
 
 .Option {
-  background: var(---theme-color-control-background);
-  color: var(---theme-color-control-text);
+  background: var(---theme-option-background-color);
+  color: var(---theme-option-text-color);
   padding: 4px 10px;
 }
 .Option[selected] {

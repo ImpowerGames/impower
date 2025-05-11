@@ -57,14 +57,13 @@
 
   /* General */
   ---theme-color-border-focus: var(---theme-color-primary-70);
-  ---theme-color-border-hover: var(---theme-color-primary-80);
-  ---theme-color-border-active: var(---theme-color-primary-70);
+  ---theme-color-border-hover: var(---theme-color-neutral-80);
+  ---theme-color-border-active: var(---theme-color-neutral-70);
   ---theme-color-border-checked: var(---theme-color-primary-60);
-  ---theme-color-background-hover: var(---theme-color-primary-10);
-  ---theme-color-background-active: var(---theme-color-primary-20);
+  ---theme-color-background-hover: var(---theme-color-neutral-30);
+  ---theme-color-background-active: var(---theme-color-neutral-40);
   ---theme-color-background-selected: var(---theme-color-neutral-50);
   ---theme-color-background-checked: var(---theme-color-primary-60);
-  ---theme-color-fill-contrast: white;
 
   /*
    * Breakpoints
@@ -223,4 +222,35 @@
   ---theme-focus-ring-style: solid;
   ---theme-focus-ring-width: 3px;
   ---theme-focus-ring-offset: 2px;
+
+  /* 
+   * Radius
+   */
+  ---theme-radius-sm: 4px;
+  ---theme-radius-md: 6px;
+  ---theme-radius-lg: 8px;
+
+  /* 
+   * Padding
+   */
+  ---theme-padding-button: var(---theme-spacing-xs) var(---theme-spacing-lg);
+  ---theme-padding-input: var(---theme-spacing-xs) var(---theme-spacing-sm);
+  ---theme-padding-option: var(---theme-spacing-2xs) 10px;
+
+  /* 
+   * Sizes
+   */
+  ---theme-size-thumb: 16px;
+  ---theme-size-checkbox: 16px;
+
+  /*
+   * Borders
+   */
+  ---theme-border-width-control: 1px;
+
+  /*
+  * Icons
+  */
+  ---theme-icon-check: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m9 20.42l-6.21-6.21l2.83-2.83L9 14.77l9.88-9.89l2.83 2.83z"/></svg>');
+  ---theme-icon-arrow-down: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor"  d="M7 10l5 5 5-5z"/></svg>');
 }
