@@ -77,6 +77,7 @@
         "editor.guides.bracketPairsHorizontal": false,
         "editor.renderWhitespace": "boundary",
         "editor.formatOnSave": true,
+        "editor.formatOnPaste": true,
         "files.trimTrailingWhitespace": false
       },
       "editor.semanticHighlighting.enabled": true,
