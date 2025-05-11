@@ -2129,7 +2129,7 @@
     "ClassName": {
       "tag": "className",
       "name": "entity.name.type.class.view.sd",
-      "match": "[_\\p{L}][0-9_\\p{L}]*"
+      "match": "[0-9_\\p{L}-]+"
     },
     "ComponentName": {
       "emit": true,

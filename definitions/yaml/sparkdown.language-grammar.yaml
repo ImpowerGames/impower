@@ -1139,7 +1139,7 @@ repository:
   ClassName:
     tag: className
     name: entity.name.type.class.view.sd
-    match: "{{IDENTIFIER}}"
+    match: "{{CSS_IDENTIFIER}}"
 
   ComponentName:
     emit: true
