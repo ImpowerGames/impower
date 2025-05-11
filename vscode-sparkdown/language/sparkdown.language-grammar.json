@@ -2145,7 +2145,7 @@
     "BuiltinComponentName": {
       "tag": "typeName",
       "name": "keyword.other.component.builtin.name.sd",
-      "match": "\\b(Area|Span|Box|Row|Column|Grid|Text|Link|Button|Image|Input|TextArea|Slider|Checkbox|Dropdown|Option|Space|Divider)\\b"
+      "match": "\\b(Area|Span|Box|Row|Column|Grid|ScrollArea|Text|Link|Label|Field|Button|Image|Input|TextArea|Slider|Checkbox|Dropdown|Option|Space|Divider)\\b"
     },
     "CustomComponentName": {
       "tag": "typeName",

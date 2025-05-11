@@ -59,6 +59,10 @@ const SRC: Record<string, BuiltinDefinition> = {
     begin: `<div class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</div>`,
   },
+  ScrollArea: {
+    begin: `<div class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</div>`,
+  },
   Text: {
     begin: `<div class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</div>`,
@@ -78,6 +82,10 @@ const SRC: Record<string, BuiltinDefinition> = {
   Label: {
     begin: `<label class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</label>`,
+  },
+  Field: {
+    begin: `<input class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</input>`,
   },
   Input: {
     begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style InputLabel">${CONTENT_CHILDREN_PLACEHOLDER}`,

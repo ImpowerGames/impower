@@ -114,6 +114,35 @@ style {
   flex-shrink: 1;
 }
 
+.ScrollArea {
+  flex-direction: column;
+  gap: 12px;
+  max-width: 100%;
+  max-height: 100%;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  scrollbar-color: var(---theme-color-scrollbar-thumb)
+    var(---theme-color-scrollbar-track);
+  scrollbar-width: var(---theme-scrollbar-thickness);
+}
+.ScrollArea * {
+  min-width: 0;
+  flex-shrink: 0;
+}
+.ScrollArea[scroll="vertical"] {
+  overflow-x: hidden;
+  overflow-y: scroll;
+}
+.ScrollArea[scroll="horizontal"] {
+  overflow-x: scroll;
+  overflow-y: hidden;
+}
+.ScrollArea[scroll="both"] {
+  overflow-x: scroll;
+  overflow-y: scroll;
+}
+
 .Divider {
   background-color: var(---theme-divider-background);
   border-radius: 8px;
