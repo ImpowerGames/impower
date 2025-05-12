@@ -2598,8 +2598,8 @@ repository:
       - { include: "#BitwiseShiftOperator" }
       - { include: "#CompareEqualOperator" }
       - { include: "#CompareRelativeOperator" }
-      - { include: "#NegateOperator" }
       - { include: "#HasntOperator" }
+      - { include: "#NegateOperator" }
       - { include: "#LogicalOperator" }
       - { include: "#WordOperator" }
       - { include: "#BitwiseOperator" }

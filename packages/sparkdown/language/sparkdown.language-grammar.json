@@ -4806,10 +4806,10 @@
           "include": "#CompareRelativeOperator"
         },
         {
-          "include": "#NegateOperator"
+          "include": "#HasntOperator"
         },
         {
-          "include": "#HasntOperator"
+          "include": "#NegateOperator"
         },
         {
           "include": "#LogicalOperator"
