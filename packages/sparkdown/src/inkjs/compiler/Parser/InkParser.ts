@@ -1530,22 +1530,21 @@ export class InkParser extends StringParser {
   public _binaryOperators: InfixOperator[] = [];
   public _maxBinaryOpLength: number = 0;
 
-  public readonly TempDeclarationOrAssignment = (): ParsedObject | null => {
+  public readonly TempDeclaration = (): ParsedObject | null => {
     this.Whitespace();
 
     const isNewDeclaration: boolean = this.ParseTempKeyword();
 
+    if (!isNewDeclaration) {
+      return null;
+    }
+
     this.Whitespace();
 
-    let varIdentifier: Identifier | null = null;
-    if (isNewDeclaration) {
-      varIdentifier = this.Expect(
-        this.IdentifierWithMetadata,
-        "variable name"
-      ) as Identifier;
-    } else {
-      varIdentifier = this.Parse(this.IdentifierWithMetadata) as Identifier;
-    }
+    let varIdentifier = this.Expect(
+      this.IdentifierWithMetadata,
+      "variable name"
+    ) as Identifier;
 
     if (varIdentifier === null) {
       return null;
@@ -1588,6 +1587,53 @@ export class InkParser extends StringParser {
       variableIdentifier: varIdentifier,
       assignedExpression,
       isTemporaryNewDeclaration: isNewDeclaration,
+    });
+
+    return result;
+  };
+
+  public readonly Assignment = (): ParsedObject | null => {
+    this.Whitespace();
+
+    let varIdentifier = this.Parse(this.IdentifierWithMetadata) as Identifier;
+
+    if (varIdentifier === null) {
+      return null;
+    }
+
+    this.Whitespace();
+
+    // += -=
+    const isIncrement: boolean = this.ParseString("+") !== null;
+    const isDecrement: boolean = this.ParseString("-") !== null;
+
+    if (isIncrement && isDecrement) {
+      this.Error("Unexpected sequence '+-'");
+    }
+
+    if (this.ParseString("=") === null) {
+      // Definitely in an assignment expression?
+      return null;
+    }
+
+    const assignedExpression: Expression = this.Expect(
+      this.Expression,
+      "value expression to be assigned"
+    ) as Expression;
+
+    if (isIncrement || isDecrement) {
+      const result = new IncDecExpression(
+        varIdentifier,
+        assignedExpression,
+        isIncrement
+      );
+      return result;
+    }
+
+    const result = new VariableAssignment({
+      variableIdentifier: varIdentifier,
+      assignedExpression,
+      isTemporaryNewDeclaration: false,
     });
 
     return result;
@@ -2470,7 +2516,8 @@ export class InkParser extends StringParser {
     const afterTilde: ParseRule = () =>
       this.OneOf([
         this.ReturnStatement,
-        this.TempDeclarationOrAssignment,
+        this.TempDeclaration,
+        this.Assignment,
         this.Expression,
       ]);
 
@@ -2870,7 +2917,9 @@ export class InkParser extends StringParser {
     return null;
   };
 
-  public readonly StructProperties = (startIndent: string): StructDefinition | null => {
+  public readonly StructProperties = (
+    startIndent: string
+  ): StructDefinition | null => {
     if (this.Peek(this.EndOfFile) || this.Peek(this.UnindentedLine(""))) {
       return new StructDefinition([]);
     }
@@ -3028,17 +3077,18 @@ export class InkParser extends StringParser {
     return identifier;
   };
 
-  public readonly UnindentedLine = (startIndent: string) => (): typeof ParseSuccess | null => {
-    this.ParseNewline();
+  public readonly UnindentedLine =
+    (startIndent: string) => (): typeof ParseSuccess | null => {
+      this.ParseNewline();
 
-    const whitespace = this.ParseWhitespace() ?? "";
+      const whitespace = this.ParseWhitespace() ?? "";
 
-    if (whitespace.length <= startIndent.length) {
-      return ParseSuccess;
-    }
+      if (whitespace.length <= startIndent.length) {
+        return ParseSuccess;
+      }
 
-    return null;
-  };
+      return null;
+    };
 
   public readonly InlineLogicOrGlueOrStartTag = (): ParsedObject =>
     this.OneOf([this.InlineLogic, this.Glue, this.StartTag]) as ParsedObject;
@@ -3668,7 +3718,7 @@ export class InkParser extends StringParser {
 
       // Normal logic / text can go anywhere
       rulesAtLevel.push(this.ReturnStatement);
-      rulesAtLevel.push(this.TempDeclarationOrAssignment);
+      rulesAtLevel.push(this.TempDeclaration);
       rulesAtLevel.push(this.LogicLine);
       rulesAtLevel.push(this.LineOfMixedTextAndLogic);
 
