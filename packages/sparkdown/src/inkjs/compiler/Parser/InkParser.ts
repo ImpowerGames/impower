@@ -283,15 +283,11 @@ export class InkParser extends StringParser {
   public readonly AuthorWarning = (): AuthorWarning | null => {
     this.Whitespace();
 
-    const identifier = this.Parse(
-      this.IdentifierWithMetadata
-    ) as unknown as Identifier | null;
-    if (identifier === null || identifier.name !== "TODO") {
+    const keyword = this.ParseKeywordString("TODO:");
+    if (keyword == null) {
       return null;
     }
 
-    this.Whitespace();
-    this.ParseString(":");
     this.Whitespace();
 
     const message = this.ParseUntilCharactersFromString("\n\r");

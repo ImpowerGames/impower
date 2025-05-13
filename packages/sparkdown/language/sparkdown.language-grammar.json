@@ -260,7 +260,7 @@
     "Todo": {
       "tag": "docComment",
       "name": "comment.line.sd entity.todo.sd",
-      "begin": "([^\\S\\n\\r]*)(TODO|todo)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "([^\\S\\n\\r]*)(TODO:|todo:)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
           "patterns": [

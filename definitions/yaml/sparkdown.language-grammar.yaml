@@ -152,7 +152,7 @@ repository:
   Todo:
     tag: docComment
     name: comment.line.sd entity.todo.sd
-    begin: ({{WS}}*)(TODO|todo)({{EOK}})
+    begin: ({{WS}}*)(TODO:|todo:)({{EOK}})
     beginCaptures:
       1:
         patterns:
