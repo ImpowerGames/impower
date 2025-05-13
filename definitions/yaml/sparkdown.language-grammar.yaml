@@ -2521,6 +2521,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#RefModifier" }
       - { include: "#FunctionCall" }
+      - { include: "#Divert" }
       - { include: "#Operator" }
       - { include: "#Literal" }
       - { include: "#Separator" }
