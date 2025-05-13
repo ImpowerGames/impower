@@ -858,34 +858,6 @@ export class InterpreterModule extends Module<
                 }
                 continue;
               }
-              // Flow Tag
-              if (char === "=") {
-                let id = "";
-                const startIndex = i;
-                i += 1;
-                while (chars[i] && chars[i] !== "=") {
-                  id += chars[i];
-                  i += 1;
-                }
-                const closed = chars[i] === "=";
-                if (closed) {
-                  i += 1;
-                  if (id) {
-                    uuids.push(id);
-                  }
-                  // consume trailing whitespace
-                  while (i < chars.length) {
-                    if (!this.isSpace(chars[i])) {
-                      break;
-                    }
-                    i += 1;
-                  }
-                } else {
-                  i = startIndex;
-                  escaped = true;
-                }
-                continue;
-              }
               // Style Tag
               const styleMarker = this.MARKERS.find(
                 (marker) =>

@@ -6491,9 +6491,6 @@
         "2": {
           "patterns": [
             {
-              "include": "#FlowMarker"
-            },
-            {
               "include": "#TextCommand"
             },
             {
@@ -6524,9 +6521,6 @@
         },
         "6": {
           "patterns": [
-            {
-              "include": "#FlowMarker"
-            },
             {
               "include": "#TextCommand"
             },
@@ -6812,40 +6806,6 @@
           "include": "#InlineTextAndLogic"
         }
       ]
-    },
-    "FlowMarker": {
-      "tag": "macroName",
-      "name": "meta.source.sd",
-      "match": "([=])(.*?)([=])([^\\S\\n\\r]*)",
-      "captures": {
-        "1": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.begin.source.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#UUID"
-            }
-          ]
-        },
-        "3": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.end.source.sd"
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Separator"
-            }
-          ]
-        }
-      }
-    },
-    "UUID": {
-      "tag": "keyword",
-      "name": "keyword.source.identifier.sd",
-      "match": "([=])(.*?)([=])"
     },
     "ImageLine": {
       "match": "^([^\\S\\n\\r]*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\]])*?\\]\\]|[^\\S\\n\\r]+)+)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
@@ -7458,9 +7418,6 @@
       "patterns": [
         {
           "include": "#Glue"
-        },
-        {
-          "include": "#FlowMarker"
         },
         {
           "include": "#TextCommand"

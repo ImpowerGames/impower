@@ -3596,7 +3596,6 @@ repository:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#FlowMarker" }
           - { include: "#TextCommand" }
           - { include: "#ExtraWhitespace" }
       3:
@@ -3610,7 +3609,6 @@ repository:
           - { include: "#ExtraWhitespace" }
       6:
         patterns:
-          - { include: "#FlowMarker" }
           - { include: "#TextCommand" }
           - { include: "#ExtraWhitespace" }
       7:
@@ -3749,31 +3747,6 @@ repository:
       - { include: "#ImageCommand" }
       - { include: "#AudioCommand" }
       - { include: "#InlineTextAndLogic" }
-
-  ########## FlowMarker ##########
-
-  FlowMarker:
-    tag: macroName
-    name: meta.source.sd
-    match: ([=])(.*?)([=])({{WS}}*)
-    captures:
-      1:
-        tag: keyword
-        name: keyword.operator.expression.begin.source.sd
-      2:
-        patterns:
-          - { include: "#UUID" }
-      3:
-        tag: keyword
-        name: keyword.operator.expression.end.source.sd
-      4:
-        patterns:
-          - { include: "#Separator" }
-
-  UUID:
-    tag: keyword
-    name: keyword.source.identifier.sd
-    match: ([=])(.*?)([=])
 
   ########## Commands ##########
 
@@ -4132,7 +4105,6 @@ repository:
   Styling:
     patterns:
       - { include: "#Glue" }
-      - { include: "#FlowMarker" }
       - { include: "#TextCommand" }
       - { include: "#Underline" }
       - { include: "#BoldItalic" }
