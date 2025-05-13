@@ -308,7 +308,10 @@ export class Story extends InkObject {
       writer.WritePropertyEnd();
     }
 
-    if (this._structDefinitions != null) {
+    if (
+      this._structDefinitions != null &&
+      Object.keys(this._structDefinitions).length > 0
+    ) {
       writer.InjectObject("structDefs", this._structDefinitions);
     }
 
