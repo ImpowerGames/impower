@@ -30,7 +30,6 @@ export class StoryState {
   // v9:  multi-flows
   public readonly kInkSaveStateVersion = 10;
   public readonly kMinCompatibleLoadVersion = 8;
-  public collapseWhitespace = false;
 
   public onDidLoadState: (() => void) | null = null;
 
@@ -305,7 +304,7 @@ export class StoryState {
 
   public CleanOutputWhitespace(str: string) {
     // IMPORTANT ENGINE CHANGE! DO NOT COLLAPSE WHITESPACE BY DEFAULT!
-    if (this.collapseWhitespace) {
+    if (this.story.collapseWhitespace) {
       let sb = new StringBuilder();
       let currentWhitespaceStart = -1;
       let startOfLine = 0;

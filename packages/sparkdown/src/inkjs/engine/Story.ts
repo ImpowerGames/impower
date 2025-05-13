@@ -1884,6 +1884,8 @@ export class Story extends InkObject {
 
   public allowExternalFunctionFallbacks: boolean = false;
 
+  public collapseWhitespace: boolean = false;
+
   public CallExternalFunction(
     funcName: string | null,
     numberOfArguments: number
