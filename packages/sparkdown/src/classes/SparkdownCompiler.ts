@@ -378,11 +378,10 @@ export class SparkdownCompiler {
         const writer = new SimpleJson.Writer();
         if (story) {
           profile("start", "ink/json", uri);
-          story.ToJson(writer);
+          program.compiled = story.ToJson(writer) || undefined;
+          state.story = story;
           profile("end", "ink/json", uri);
         }
-        const compiledObj = (writer.toObject() || {}) as SparkdownRuntimeFormat;
-        program.compiled = compiledObj;
         program.scripts = { [uri]: this.documents.get(uri)?.version ?? -1 };
         for (const file of this.files.all()) {
           if (file.src) {
@@ -402,7 +401,7 @@ export class SparkdownCompiler {
         this.sortPathToLocation(program);
         this.populateDeclarationLocations(program);
         this.populateDiagnostics(state, program, inkCompiler);
-        this.buildContext(program);
+        this.buildContext(state, program);
         this.validateSyntax(program);
         this.validateReferences(program);
       } catch (e) {
@@ -703,19 +702,18 @@ export class SparkdownCompiler {
     profile("end", "populateDeclarationLocations", uri);
   }
 
-  buildContext(program: SparkProgram) {
+  buildContext(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "buildContext", uri);
-    this.populateBuiltins(program);
+    this.populateBuiltins(state, program);
     this.populateAssets(program);
     this.populateImplicitDefs(program);
     profile("end", "buildContext", uri);
   }
 
-  populateBuiltins(program: SparkProgram) {
+  populateBuiltins(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "populateBuiltins", uri);
-    const compiled = program.compiled;
     program.context ??= {};
     const builtins = this._config.builtinDefinitions;
     if (builtins) {
@@ -725,8 +723,10 @@ export class SparkdownCompiler {
           program.context[type][name] ??= this.clone(builtinStruct);
         }
       }
-      if (compiled?.structDefs) {
-        for (const [type, structs] of Object.entries(compiled.structDefs)) {
+      if (state?.story?.structDefinitions) {
+        for (const [type, structs] of Object.entries(
+          state?.story?.structDefinitions
+        )) {
           program.context[type] ??= {};
           for (const [name, definedStruct] of Object.entries(structs)) {
             if (Array.isArray(definedStruct)) {

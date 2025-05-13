@@ -49,9 +49,10 @@ export class SparkdownCompilationTreeDataProvider
     return element.parent;
   }
 
-  setTreeData(uri: vscode.Uri, compiled: any) {
+  setTreeData(uri: vscode.Uri, compiled: string | undefined) {
     this._uri = uri;
-    this._treeData = this.buildNodes(compiled?.root);
+    const compiledObj = compiled ? JSON.parse(compiled) : undefined;
+    this._treeData = this.buildNodes(compiledObj?.root);
     this.refresh();
   }
 

@@ -1,7 +1,6 @@
 import { SparkleNode } from "@impower/sparkle-screen-renderer/src/parser/parser";
 import { type File } from "./File";
 import { type SparkDiagnostic } from "./SparkDiagnostic";
-import { type SparkdownRuntimeFormat } from "./SparkdownRuntimeFormat";
 
 export type Location = [
   scriptIndex: number,
@@ -15,7 +14,7 @@ export interface SparkProgram {
   uri: string;
   scripts: Record<string, number>;
   files: Record<string, Omit<File, "src" | "text" | "data">>;
-  compiled?: SparkdownRuntimeFormat;
+  compiled?: string;
   ui?: {
     screen?: Record<string, SparkleNode>;
     component?: Record<string, SparkleNode>;
