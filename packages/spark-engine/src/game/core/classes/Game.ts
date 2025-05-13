@@ -173,6 +173,8 @@ export class Game<T extends M = {}> {
 
     // Create story to control flow and state
     this._story = new Story(this._program.compiled);
+    this._story.collapseWhitespace = false;
+    this._story.processEscapes = false;
     this._story.onError = (message: string, type: ErrorType) => {
       this.Error(message, type);
     };

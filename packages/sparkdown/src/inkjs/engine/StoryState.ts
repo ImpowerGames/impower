@@ -303,7 +303,25 @@ export class StoryState {
   private _currentText: string | null = null;
 
   public CleanOutputWhitespace(str: string) {
-    // IMPORTANT ENGINE CHANGE! DO NOT COLLAPSE WHITESPACE BY DEFAULT!
+    // IMPORTANT ENGINE CHANGE! DO NOT PROCESS ESCAPES OR COLLAPSE WHITESPACE BY DEFAULT!
+    if (this.story.processEscapes) {
+      let sb = new StringBuilder();
+      let escaped = false;
+      for (let i = 0; i < str.length; i++) {
+        let c = str.charAt(i);
+        if (escaped) {
+          sb.Append(c);
+          escaped = false;
+        } else {
+          const isEscape = c == "\\";
+          if (!isEscape) {
+            sb.Append(c);
+          }
+          escaped = isEscape;
+        }
+      }
+      str = sb.toString();
+    }
     if (this.story.collapseWhitespace) {
       let sb = new StringBuilder();
       let currentWhitespaceStart = -1;

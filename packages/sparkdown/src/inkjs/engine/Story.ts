@@ -1006,7 +1006,7 @@ export class Story extends InkObject {
     choice.isInvisibleDefault = choicePoint.isInvisibleDefault;
     choice.threadAtGeneration = this.state.callStack.ForkThread();
     choice.tags = tags.reverse(); //C# is a stack
-    choice.text = (startText + choiceOnlyText).replace(/^[ \t]+|[ \t]+$/g, "");
+    choice.text = this.state.CleanOutputWhitespace(startText + choiceOnlyText);
 
     return choice;
   }
@@ -1884,7 +1884,9 @@ export class Story extends InkObject {
 
   public allowExternalFunctionFallbacks: boolean = false;
 
-  public collapseWhitespace: boolean = false;
+  public collapseWhitespace: boolean = true;
+
+  public processEscapes: boolean = true;
 
   public CallExternalFunction(
     funcName: string | null,
