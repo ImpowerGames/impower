@@ -3572,8 +3572,8 @@
       }
     },
     "KnotWithParametersDeclaration": {
-      "tag": "function(variableName)",
-      "name": "entity.name.function.sd",
+      "tag": "heading",
+      "name": "keyword.control.divert.path.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
@@ -3691,8 +3691,8 @@
       "match": "(.+)"
     },
     "StitchWithParametersDeclaration": {
-      "tag": "function(variableName)",
-      "name": "entity.name.function.sd",
+      "tag": "heading",
+      "name": "keyword.control.divert.path.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
@@ -3795,8 +3795,8 @@
       "match": "(.+)"
     },
     "FunctionDeclarationName": {
-      "tag": "function(variableName)",
-      "name": "entity.name.function.sd",
+      "tag": "heading",
+      "name": "keyword.control.divert.path.sd",
       "match": "(.+)"
     },
     "Divert": {

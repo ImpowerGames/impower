@@ -1948,8 +1948,8 @@ repository:
           - { include: "#KnotEndMark" }
 
   KnotWithParametersDeclaration:
-    tag: function(variableName)
-    name: entity.name.function.sd
+    tag: heading
+    name: keyword.control.divert.path.sd
     begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
@@ -2018,8 +2018,8 @@ repository:
     match: (.+)
 
   StitchWithParametersDeclaration:
-    tag: function(variableName)
-    name: entity.name.function.sd
+    tag: heading
+    name: keyword.control.divert.path.sd
     begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
@@ -2076,8 +2076,8 @@ repository:
     match: (.+)
 
   FunctionDeclarationName:
-    tag: function(variableName)
-    name: entity.name.function.sd
+    tag: heading
+    name: keyword.control.divert.path.sd
     match: (.+)
 
   ########## Divert & Thread ##########
