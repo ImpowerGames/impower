@@ -514,14 +514,14 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       message += ` When final tunnel to '${terminatingDivert.target} ->' returns it won't have anywhere to go.`;
     }
 
-    const debugMetadata = new DebugMetadata(
-      terminatingObject?.debugMetadata || undefined
-    );
-    debugMetadata.startCharacterNumber = 1;
-    debugMetadata.startLineNumber = debugMetadata.endLineNumber
-    debugMetadata.endLineNumber = debugMetadata.endLineNumber + 1;
-    debugMetadata.endCharacterNumber = 1;
-    this.Warning(message, debugMetadata);
+    if (terminatingObject) {
+      const debugMetadata = new DebugMetadata(
+        terminatingObject?.debugMetadata || undefined
+      );
+      debugMetadata.startLineNumber = debugMetadata.endLineNumber;
+      debugMetadata.startCharacterNumber = debugMetadata.endCharacterNumber;
+      this.Warning(message, debugMetadata);
+    }
   };
 
   public readonly toString = (): string =>
