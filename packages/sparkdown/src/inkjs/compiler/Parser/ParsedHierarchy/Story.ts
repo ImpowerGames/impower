@@ -412,6 +412,9 @@ export class Story extends FlowBase {
   ) => {
     let errorType: ErrorType = isWarning ? ErrorType.Warning : ErrorType.Error;
 
+    this._hadError = errorType === ErrorType.Error;
+    this._hadWarning = errorType === ErrorType.Warning;
+
     if (this._errorHandler !== null) {
       const debugMetadata =
         source instanceof DebugMetadata ? source : source?.debugMetadata;
@@ -453,9 +456,6 @@ export class Story extends FlowBase {
       message = sb;
       throw new Error(message);
     }
-
-    this._hadError = errorType === ErrorType.Error;
-    this._hadWarning = errorType === ErrorType.Warning;
   };
 
   public readonly ResetError = (): void => {
