@@ -378,7 +378,8 @@ export class SparkdownCompiler {
         const writer = new SimpleJson.Writer();
         if (story) {
           profile("start", "ink/json", uri);
-          program.compiled = story.ToJson(writer) || undefined;
+          story.ToJson(writer);
+          program.compiled = writer.toString();
           state.story = story;
           profile("end", "ink/json", uri);
         }
