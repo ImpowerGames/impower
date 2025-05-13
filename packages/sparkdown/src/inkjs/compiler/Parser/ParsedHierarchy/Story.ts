@@ -286,7 +286,9 @@ export class Story extends FlowBase {
     // conventions as the script format, so we resolve to actual objects before
     // translating into an INKPath. (This also allows us to choose whether
     // we want the paths to be absolute)
-    this.ResolveReferences(this);
+    try {
+      this.ResolveReferences(this);
+    } catch {}
 
     runtimeStory.ResetState();
 

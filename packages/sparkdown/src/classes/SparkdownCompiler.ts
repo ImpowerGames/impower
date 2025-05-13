@@ -367,10 +367,10 @@ export class SparkdownCompiler {
       }
     );
     const file = this.files.get(uri);
+    const rootFilename =
+      (uri.includes("/") ? uri.split("/").at(-1) : uri) || "main.sd";
+    const inkCompiler = new InkCompiler(`include ${rootFilename}`, options);
     if (file) {
-      const rootFilename =
-        (uri.includes("/") ? uri.split("/").at(-1) : uri) || "main.sd";
-      const inkCompiler = new InkCompiler(`include ${rootFilename}`, options);
       try {
         profile("start", "ink/compile", uri);
         const story = inkCompiler.Compile();
@@ -383,32 +383,32 @@ export class SparkdownCompiler {
           state.story = story;
           profile("end", "ink/json", uri);
         }
-        program.scripts = { [uri]: this.documents.get(uri)?.version ?? -1 };
-        for (const file of this.files.all()) {
-          if (file.src) {
-            const f = { ...file };
-            delete f.src;
-            delete f.text;
-            delete f.data;
-            program.files[file.src] = f;
-          }
-        }
-        for (const [scriptUri, transpilation] of Object.entries(
-          state.transpiledScripts || {}
-        )) {
-          program.scripts[scriptUri] = transpilation.version;
-        }
-        this.populateUI(program);
-        this.sortPathToLocation(program);
-        this.populateDeclarationLocations(program);
-        this.populateDiagnostics(state, program, inkCompiler);
-        this.buildContext(state, program);
-        this.validateSyntax(program);
-        this.validateReferences(program);
       } catch (e) {
         // console.error(e);
       }
     }
+    program.scripts = { [uri]: this.documents.get(uri)?.version ?? -1 };
+    for (const file of this.files.all()) {
+      if (file.src) {
+        const f = { ...file };
+        delete f.src;
+        delete f.text;
+        delete f.data;
+        program.files[file.src] = f;
+      }
+    }
+    for (const [scriptUri, transpilation] of Object.entries(
+      state.transpiledScripts || {}
+    )) {
+      program.scripts[scriptUri] = transpilation.version;
+    }
+    this.populateUI(program);
+    this.sortPathToLocation(program);
+    this.populateDeclarationLocations(program);
+    this.populateDiagnostics(state, program, inkCompiler);
+    this.buildContext(state, program);
+    this.validateSyntax(program);
+    this.validateReferences(program);
     return program;
   }
 
