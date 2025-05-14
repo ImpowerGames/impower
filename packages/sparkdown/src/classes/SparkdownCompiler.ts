@@ -232,8 +232,16 @@ export class SparkdownCompiler {
     };
     const state: SparkdownCompilerState = {};
 
+    const file = this.files.get(uri);
+    const rootFilename =
+      (uri.includes("/") ? uri.split("/").at(-1) : uri) || "main.sd";
+
+    const load = (uri: string): string => {
+      return this.transpile(uri, state);
+    };
+
     const options = new InkCompilerOptions(
-      "",
+      rootFilename,
       [],
       false,
       (message: string, type, source) => {
@@ -269,7 +277,7 @@ export class SparkdownCompiler {
           return this.resolveFile(uri, filename);
         },
         LoadInkFileContents: (uri: string): string => {
-          return this.transpile(uri, state);
+          return load(uri);
         },
       },
       {
@@ -366,10 +374,7 @@ export class SparkdownCompiler {
         },
       }
     );
-    const file = this.files.get(uri);
-    const rootFilename =
-      (uri.includes("/") ? uri.split("/").at(-1) : uri) || "main.sd";
-    const inkCompiler = new InkCompiler(`include ${rootFilename}`, options);
+    const inkCompiler = new InkCompiler(load(uri), options);
     if (file) {
       try {
         profile("start", "ink/compile", uri);
