@@ -2613,8 +2613,9 @@ export class InkParser extends StringParser {
         expr instanceof List;
 
       if (!check) {
-        this.Error(
-          "Initial value for a variable must be a number, string, boolean, constant, list item, or divert target"
+        this.ErrorWithParsedObject(
+          "Initial value for a variable must be a number, string, boolean, constant, list item, or divert target",
+          expr
         );
       }
 
