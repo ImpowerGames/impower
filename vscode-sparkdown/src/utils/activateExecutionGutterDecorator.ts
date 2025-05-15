@@ -52,16 +52,14 @@ const previewingLineDecoration: vscode.TextEditorDecorationType =
       overviewRulerColor: new vscode.ThemeColor(
         "editorOverviewRuler.infoForeground"
       ),
-      borderColor: new vscode.ThemeColor("editorOverviewRuler.infoForeground"),
+      backgroundColor: "rgba(255,255,255,0.04)",
     },
     light: {
       overviewRulerColor: new vscode.ThemeColor(
         "editorOverviewRuler.infoForeground"
       ),
-      borderColor: new vscode.ThemeColor("editorOverviewRuler.infoForeground"),
+      backgroundColor: "rgba(0,0,0,0.04)",
     },
-    borderWidth: "0 0 0 2px",
-    borderStyle: "solid",
     isWholeLine: true,
     overviewRulerLane: vscode.OverviewRulerLane.Full,
   });
