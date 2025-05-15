@@ -84,6 +84,9 @@
       "editor.semanticTokenColorCustomizations": {
         "enabled": true,
         "rules": {
+          "keyword:sparkdown": {
+            "foreground": "#D88CFF"
+          },
           "operator:sparkdown": {
             "foreground": "#A0A0A0"
           }
@@ -91,6 +94,9 @@
         "[*Light*]": {
           "enabled": true,
           "rules": {
+            "keyword:sparkdown": {
+              "foreground": "#C964FF"
+            },
             "operator:sparkdown": {
               "foreground": "#A0A0A0"
             }

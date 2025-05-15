@@ -46,6 +46,7 @@ export type SemanticTokenModifiers =
 export interface SemanticInfo {
   tokenType: SemanticTokenTypes;
   tokenModifiers?: SemanticTokenModifiers[];
+  possibleDivertPath?: boolean;
 }
 
 export class SemanticAnnotator extends SparkdownAnnotator<
@@ -123,6 +124,13 @@ export class SemanticAnnotator extends SparkdownAnnotator<
           const name = this.read(nodeRef.from, nodeRef.to);
           inScope.push(name);
         }
+      } else {
+        annotations.push(
+          SparkdownAnnotation.mark<SemanticInfo>({
+            tokenType: "keyword",
+            possibleDivertPath: true,
+          }).range(nodeRef.from, nodeRef.to)
+        );
       }
     }
     if (this.inViewField) {
