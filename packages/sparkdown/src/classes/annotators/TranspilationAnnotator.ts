@@ -31,7 +31,6 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
   ): Range<SparkdownAnnotation<LineAugmentations>>[] {
     if (
       nodeRef.name === "FrontMatter" ||
-      nodeRef.name === "DefineDeclaration" ||
       nodeRef.name === "ScreenDeclaration" ||
       nodeRef.name === "ComponentDeclaration" ||
       nodeRef.name === "StyleDeclaration" ||
