@@ -6,7 +6,7 @@ import { NumberExpression } from "../Expression/NumberExpression";
 import { StringExpression } from "../Expression/StringExpression";
 import { VariableReference } from "../Variable/VariableReference";
 
-export class StructProperty extends ParsedObject {
+export class StructPropertyDefinition extends ParsedObject {
   override get typeName(): string {
     return "StructProperty";
   }

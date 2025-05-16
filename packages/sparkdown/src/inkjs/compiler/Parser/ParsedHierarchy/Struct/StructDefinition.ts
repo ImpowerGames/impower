@@ -1,5 +1,5 @@
 import { StructDefinition as RuntimeStructDefinition } from "../../../../engine/StructDefinition";
-import { StructProperty } from "./StructProperty";
+import { StructPropertyDefinition } from "./StructPropertyDefinition";
 import { ParsedObject } from "../Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
@@ -53,7 +53,7 @@ export class StructDefinition extends ParsedObject {
     return new RuntimeStructDefinition(type, name, value);
   }
 
-  constructor(public propertyDefinitions: StructProperty[]) {
+  constructor(public propertyDefinitions: StructPropertyDefinition[]) {
     super();
     this.AddContent(propertyDefinitions as any);
   }
@@ -71,7 +71,7 @@ export class StructDefinition extends ParsedObject {
     );
   }
 
-  BuildValue(propertyDefinitions: StructProperty[]) {
+  BuildValue(propertyDefinitions: StructPropertyDefinition[]) {
     // console.log(
     //   propertyDefinitions
     //     .map(
@@ -83,7 +83,7 @@ export class StructDefinition extends ParsedObject {
     //     .join("\n")
     // );
     let parentStack: {
-      property: StructProperty | null;
+      property: StructPropertyDefinition | null;
       value: any;
       currentPath: string;
     }[] = [{ property: null, value: {}, currentPath: "" }];

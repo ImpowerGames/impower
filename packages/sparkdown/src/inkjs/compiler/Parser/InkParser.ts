@@ -60,7 +60,7 @@ import { NumberExpression } from "./ParsedHierarchy/Expression/NumberExpression"
 import { ObjectExpression } from "./ParsedHierarchy/Expression/ObjectExpression";
 import { ErrorType } from "./ErrorType";
 import { DefaultFileHandler } from "../FileHandler/DefaultFileHandler";
-import { StructProperty } from "./ParsedHierarchy/Struct/StructProperty";
+import { StructPropertyDefinition } from "./ParsedHierarchy/Struct/StructPropertyDefinition";
 
 export class InkParser extends StringParser {
   /**
@@ -2928,9 +2928,11 @@ export class InkParser extends StringParser {
     let level = indent?.length ?? 0;
     // Parse property
     const firstElements =
-      (this.Parse(() => this.StructProperty(level)) as StructProperty[]) || [];
+      (this.Parse(() =>
+        this.StructProperty(level)
+      ) as StructPropertyDefinition[]) || [];
 
-    const properties: StructProperty[] = [];
+    const properties: StructPropertyDefinition[] = [];
     properties.push(...firstElements);
 
     do {
@@ -2951,7 +2953,7 @@ export class InkParser extends StringParser {
       // Parse property
       const nextElements = this.Parse(() =>
         this.StructProperty(level)
-      ) as StructProperty[];
+      ) as StructPropertyDefinition[];
       if (nextElements === null) {
         this.FailRule(nextElementRuleId);
         break;
@@ -2974,7 +2976,9 @@ export class InkParser extends StringParser {
     return "\n";
   };
 
-  public readonly StructProperty = (level: number): StructProperty[] | null => {
+  public readonly StructProperty = (
+    level: number
+  ): StructPropertyDefinition[] | null => {
     const itemDash = this.ParseString("-");
     if (itemDash !== null) {
       this.Whitespace();
@@ -2984,12 +2988,12 @@ export class InkParser extends StringParser {
           this.Whitespace();
           const expr = this.Expression();
           return [
-            new StructProperty(
+            new StructPropertyDefinition(
               level,
               new Identifier("-"),
               new ObjectExpression()
             ),
-            new StructProperty(level + 2, assignedIdentifier, expr),
+            new StructPropertyDefinition(level + 2, assignedIdentifier, expr),
           ];
         }
       }
@@ -2997,12 +3001,12 @@ export class InkParser extends StringParser {
         const assignedIdentifier = this.ObjectPropertyIdentifier();
         if (assignedIdentifier) {
           return [
-            new StructProperty(
+            new StructPropertyDefinition(
               level,
               new Identifier("-"),
               new ObjectExpression()
             ),
-            new StructProperty(
+            new StructPropertyDefinition(
               level + 2,
               assignedIdentifier,
               new ObjectExpression()
@@ -3013,15 +3017,19 @@ export class InkParser extends StringParser {
       if (!this.Peek(this.EndOfLine)) {
         this.Whitespace();
         const expr = this.Expression();
-        return [new StructProperty(level, new Identifier("-"), expr)];
+        return [new StructPropertyDefinition(level, new Identifier("-"), expr)];
       }
       return [
-        new StructProperty(level, new Identifier("-"), new ObjectExpression()),
+        new StructPropertyDefinition(
+          level,
+          new Identifier("-"),
+          new ObjectExpression()
+        ),
       ];
     }
 
     if (this.Peek(this.EndOfLine)) {
-      return [new StructProperty(level, new Identifier(""))];
+      return [new StructPropertyDefinition(level, new Identifier(""))];
     }
 
     const identifier = this.Parse(
@@ -3041,7 +3049,7 @@ export class InkParser extends StringParser {
       expr = new ObjectExpression();
     }
 
-    return [new StructProperty(level, identifier, expr)];
+    return [new StructPropertyDefinition(level, identifier, expr)];
   };
 
   public readonly ScalarPropertyIdentifier = (): Identifier | null => {
