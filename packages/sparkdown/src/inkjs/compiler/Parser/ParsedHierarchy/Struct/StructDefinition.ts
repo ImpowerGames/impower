@@ -109,14 +109,14 @@ export class StructDefinition extends ParsedObject {
       ) {
         parentStack.pop();
       }
-      const parent = parentStack[parentStack.length - 1]!;
+      const parent = parentStack[parentStack.length - 1];
 
-      const parentPath = parent.currentPath;
+      const parentPath = parent?.currentPath || "";
       let currentPropKey: string = "";
       // Construct the dot-access key for the current property
       if (prop.identifier.name === "-") {
         // Property is an array item
-        if (Array.isArray(parent.value)) {
+        if (parent && Array.isArray(parent.value)) {
           const index = parent.value.length;
           currentPropKey = `${parentPath}.${index}`;
         }
