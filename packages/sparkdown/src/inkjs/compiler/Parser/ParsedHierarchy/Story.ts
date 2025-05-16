@@ -79,7 +79,7 @@ export class Story extends FlowBase {
     return this._hadWarning;
   }
 
-  public constants: Map<string, Expression> = new Map();
+  public constants: Map<string, ConstantDeclaration> = new Map();
   public externals: Map<string, ExternalDeclaration> = new Map();
 
   // Build setting for exporting:
@@ -177,18 +177,16 @@ export class Story extends FlowBase {
     this.constants = new Map();
     for (const constDecl of this.FindAll(ConstantDeclaration)()) {
       // Check for duplicate definitions
-      const existingDefinition: Expression = this.constants.get(
-        constDecl.constantName!
-      ) as any;
+      const existingDefinition = this.constants.get(constDecl.constantName!);
 
       if (existingDefinition) {
-        if (!existingDefinition.Equals(constDecl.expression)) {
+        if (!existingDefinition.expression.Equals(constDecl.expression)) {
           const errorMsg = `Cannot redeclare const '${constDecl.constantName}' with a different value. (It is already declared on ${existingDefinition.debugMetadata})`;
           this.Error(errorMsg, constDecl, false);
         }
       }
 
-      this.constants.set(constDecl.constantName!, constDecl.expression);
+      this.constants.set(constDecl.constantName!, constDecl);
     }
 
     // List definitions are treated like constants too - they should be usable
@@ -635,6 +633,17 @@ export class Story extends FlowBase {
           value.scopedIdentifier || value
         );
       }
+    }
+
+    // Global variable collision
+    const constDecl =
+      (identifier?.name && this.constants.get(identifier.name)) || null;
+    if (constDecl && constDecl !== obj) {
+      this.NameConflictError(
+        constDecl,
+        constDecl.constantIdentifier,
+        identifier
+      );
     }
 
     // Don't check for var->var conflicts because that's handled separately

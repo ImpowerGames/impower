@@ -54,16 +54,14 @@ export class VariableReference extends Expression {
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer
   ): void => {
-    let constantValue: Expression | null | undefined = this.story.constants.get(
-      this.name
-    );
+    let constantValue = this.story.constants.get(this.name);
 
     // If it's a constant reference, just generate the literal expression value
     // It's okay to access the constants at code generation time, since the
     // first thing the ExportRuntime function does it search for all the constants
     // in the story hierarchy, so they're all available.
     if (constantValue) {
-      constantValue.GenerateConstantIntoContainer(container);
+      constantValue.expression.GenerateConstantIntoContainer(container);
       this.isConstantReference = true;
 
       return;
