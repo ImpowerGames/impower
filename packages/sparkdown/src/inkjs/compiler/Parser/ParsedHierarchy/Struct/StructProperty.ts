@@ -11,6 +11,8 @@ export class StructProperty extends ParsedObject {
     return "StructProperty";
   }
 
+  public key: string | null = null;
+
   constructor(
     public readonly level: number,
     public readonly identifier: Identifier,

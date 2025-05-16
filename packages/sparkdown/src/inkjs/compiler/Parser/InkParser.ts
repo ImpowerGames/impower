@@ -1591,7 +1591,7 @@ export class InkParser extends StringParser {
   public readonly Assignment = (): ParsedObject | null => {
     this.Whitespace();
 
-    let varIdentifier = this.Parse(this.IdentifierWithMetadata) as Identifier;
+    let varIdentifier = this.Parse(this.AccessIdentifier) as Identifier;
 
     if (varIdentifier === null) {
       return null;
@@ -3233,6 +3233,21 @@ export class InkParser extends StringParser {
     }
 
     return expr;
+  };
+
+  public readonly AccessIdentifier = (): Identifier | null => {
+    const path = this.Interleave<Identifier>(
+      this.Spaced(this.IdentifierWithMetadata),
+      this.Exclude(this.String("."))
+    );
+    const identifier = new Identifier(path.map((p) => p.name).join("."));
+    const first = path[0];
+    const last = path.at(-1);
+    identifier.debugMetadata =
+      (last?.debugMetadata
+        ? first?.debugMetadata?.Merge(last?.debugMetadata)
+        : first?.debugMetadata) || null;
+    return identifier;
   };
 
   public readonly IdentifierWithMetadata = (): Identifier | null => {

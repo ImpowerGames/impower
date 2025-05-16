@@ -102,6 +102,15 @@ export class VariableReference extends Expression {
       return;
     }
 
+    if (
+      context.ResolveVariableWithName(this.name, this).found &&
+      !context.ResolveStruct(this.name)
+    ) {
+      // Allow reference to struct property
+      // (but not struct itself)
+      return;
+    }
+
     // Is it a read count?
     const parsedPath = new Path(this.pathIdentifiers);
     const targetForCount: ParsedObject | null =

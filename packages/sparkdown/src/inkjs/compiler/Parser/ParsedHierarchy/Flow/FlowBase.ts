@@ -200,12 +200,14 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     if (this.variableDeclarations.has(varName)) {
       const varab = this.variableDeclarations.get(varName)!;
 
-      this.Error(
-        `Duplicate identifier '${varName}'. A ${varab.typeName.toLowerCase()} named '${varName}' already exists on ${
-          varab.debugMetadata
-        }`,
-        varDecl.variableIdentifier.debugMetadata
-      );
+      if (!varDecl.isPropertyDeclaration) {
+        this.Error(
+          `Duplicate identifier '${varName}'. A ${varab.typeName.toLowerCase()} named '${varName}' already exists on ${
+            varab.debugMetadata
+          }`,
+          varDecl.variableIdentifier.debugMetadata
+        );
+      }
 
       return;
     }

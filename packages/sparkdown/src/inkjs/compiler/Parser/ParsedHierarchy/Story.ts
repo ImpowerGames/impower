@@ -27,6 +27,8 @@ import { Path } from "./Path";
 import { VariableAssignment } from "./Variable/VariableAssignment";
 import { DebugMetadata } from "../../../engine/DebugMetadata";
 import { Stitch } from "./Stitch";
+import { ObjectExpression } from "./Expression/ObjectExpression";
+import { VariableReference } from "./Variable/VariableReference";
 
 export class Story extends FlowBase {
   public static readonly IsReservedKeyword = (name?: string): boolean => {
@@ -201,9 +203,33 @@ export class Story extends FlowBase {
     // Struct definitions are treated like constants too - they should be usable
     // from other variable declarations.
     this._structDefs = new Map();
+    const runtimeStructs: RuntimeStructDefinition[] = [];
     for (const structDef of this.FindAll(StructDefinition)()) {
       if (structDef.scopedIdentifier?.name) {
         this._structDefs.set(structDef.scopedIdentifier?.name, structDef);
+        runtimeStructs.push(structDef.runtimeStructDefinition);
+        if (!structDef.modifier?.name && structDef.name?.name !== "$default") {
+          // Each struct property should be saved as its own dot-accessible variable
+          for (const prop of structDef.propertyDefinitions) {
+            if (
+              prop.expression &&
+              !(prop.expression instanceof ObjectExpression) &&
+              !(prop.expression instanceof VariableReference)
+            ) {
+              const variableIdentifier = new Identifier(
+                structDef.key + prop.key
+              );
+              variableIdentifier.debugMetadata = prop.debugMetadata;
+              const variableDeclaration = new VariableAssignment({
+                assignedExpression: prop.expression,
+                isGlobalDeclaration: true,
+                isPropertyDeclaration: true,
+                variableIdentifier,
+              });
+              this.AddNewVariableDeclaration(variableDeclaration);
+            }
+          }
+        }
       }
     }
 
@@ -225,7 +251,6 @@ export class Story extends FlowBase {
 
     // Global variables are those that are local to the story and marked as global
     const runtimeLists: RuntimeListDefinition[] = [];
-    const runtimeStructs: RuntimeStructDefinition[] = [];
     for (const [key, value] of this.variableDeclarations) {
       if (value.isGlobalDeclaration) {
         if (value.listDefinition) {
@@ -293,6 +318,18 @@ export class Story extends FlowBase {
     runtimeStory.ResetState();
 
     return runtimeStory;
+  };
+
+  public readonly ResolveStruct = (
+    structName: string
+  ): StructDefinition | null => {
+    let struct: StructDefinition | null | undefined =
+      this._structDefs.get(structName);
+    if (!struct) {
+      return null;
+    }
+
+    return struct;
   };
 
   public readonly ResolveList = (listName: string): ListDefinition | null => {
@@ -566,7 +603,7 @@ export class Story extends FlowBase {
         obj !== value &&
         value.variableAssignment !== obj
       ) {
-        this.NameConflictError(obj, identifier, value);
+        this.NameConflictError(obj, identifier, value.identifier || value);
       }
 
       // We don't check for conflicts between individual elements in
@@ -574,7 +611,7 @@ export class Story extends FlowBase {
       if (!(obj instanceof ListElementDefinition)) {
         for (const item of value.itemDefinitions) {
           if (identifier?.name === item.name) {
-            this.NameConflictError(obj, identifier, item);
+            this.NameConflictError(obj, identifier, item.indentifier || item);
           }
         }
       }
@@ -592,7 +629,11 @@ export class Story extends FlowBase {
         obj !== value &&
         value.variableAssignment !== obj
       ) {
-        this.NameConflictError(obj, identifier, value);
+        this.NameConflictError(
+          obj,
+          identifier,
+          value.scopedIdentifier || value
+        );
       }
     }
 

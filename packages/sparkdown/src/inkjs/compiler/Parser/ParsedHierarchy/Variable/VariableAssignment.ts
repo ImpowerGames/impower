@@ -25,6 +25,7 @@ export class VariableAssignment extends ParsedObject {
   public readonly structDefinition: StructDefinition | null = null;
   public readonly isGlobalDeclaration: boolean;
   public readonly isNewTemporaryDeclaration: boolean;
+  public readonly isPropertyDeclaration: boolean;
 
   override get typeName() {
     if (this.listDefinition !== null) {
@@ -35,18 +36,25 @@ export class VariableAssignment extends ParsedObject {
       return "temp";
     } else if (this.isGlobalDeclaration) {
       return "var";
+    } else if (this.isPropertyDeclaration) {
+      return "property";
     }
 
     return "variable assignment";
   }
 
   get isDeclaration(): boolean {
-    return this.isGlobalDeclaration || this.isNewTemporaryDeclaration;
+    return (
+      this.isGlobalDeclaration ||
+      this.isPropertyDeclaration ||
+      this.isNewTemporaryDeclaration
+    );
   }
 
   constructor({
     assignedExpression,
     isGlobalDeclaration,
+    isPropertyDeclaration,
     isTemporaryNewDeclaration,
     listDef,
     structDef,
@@ -54,6 +62,7 @@ export class VariableAssignment extends ParsedObject {
   }: {
     readonly assignedExpression?: Expression;
     readonly isGlobalDeclaration?: boolean;
+    readonly isPropertyDeclaration?: boolean;
     readonly isTemporaryNewDeclaration?: boolean;
     readonly listDef?: ListDefinition;
     readonly structDef?: StructDefinition;
@@ -63,6 +72,7 @@ export class VariableAssignment extends ParsedObject {
 
     this.variableIdentifier = variableIdentifier;
     this.isGlobalDeclaration = Boolean(isGlobalDeclaration);
+    this.isPropertyDeclaration = Boolean(isPropertyDeclaration);
     this.isNewTemporaryDeclaration = Boolean(isTemporaryNewDeclaration);
 
     // Defensive programming in case parsing of assignedExpression failed
@@ -125,6 +135,7 @@ export class VariableAssignment extends ParsedObject {
     // List and struct definitions are checked for conflicts separately
     if (
       this.isDeclaration &&
+      !this.isPropertyDeclaration &&
       this.listDefinition === null &&
       this.structDefinition === null
     ) {
@@ -179,7 +190,7 @@ export class VariableAssignment extends ParsedObject {
       this.isGlobalDeclaration
         ? "var"
         : this.isNewTemporaryDeclaration
-        ? "~ temp"
-        : ""
+          ? "~ temp"
+          : ""
     } ${this.variableName}`;
 }

@@ -22,6 +22,12 @@ export class StructDefinition extends ParsedObject {
 
   public variableAssignment: VariableAssignment | null = null;
 
+  get key(): string {
+    const typeId = this.type?.name || "";
+    const nameId = this.name?.name || "";
+    return [typeId, nameId].filter(Boolean).join(".");
+  }
+
   get runtimeStructDefinition(): RuntimeStructDefinition {
     const modifierId = this.modifier?.name || "";
     const typeId = this.type?.name || "";
@@ -76,9 +82,11 @@ export class StructDefinition extends ParsedObject {
     //     )
     //     .join("\n")
     // );
-    let parentStack: { property: StructProperty | null; value: any }[] = [
-      { property: null, value: {} },
-    ];
+    let parentStack: {
+      property: StructProperty | null;
+      value: any;
+      currentPath: string;
+    }[] = [{ property: null, value: {}, currentPath: "" }];
     const firstProp = propertyDefinitions[0];
     if (firstProp && firstProp.identifier.name === "-") {
       // Is defining array struct
@@ -101,7 +109,27 @@ export class StructDefinition extends ParsedObject {
       ) {
         parentStack.pop();
       }
-      const parent = parentStack[parentStack.length - 1];
+      const parent = parentStack[parentStack.length - 1]!;
+
+      const parentPath = parent.currentPath;
+      let currentPropKey: string = "";
+      // Construct the dot-access key for the current property
+      if (prop.identifier.name === "-") {
+        // Property is an array item
+        if (Array.isArray(parent.value)) {
+          const index = parent.value.length;
+          currentPropKey = `${parentPath}.${index}`;
+        }
+      } else {
+        // Property is an object key
+        const propName = prop.identifier.name;
+        currentPropKey = `${parentPath}.${propName}`;
+      }
+      // Save the constructed dot-access key back to the property itself.
+      if (currentPropKey) {
+        prop.key = currentPropKey;
+      }
+
       if (prop.expression instanceof ObjectExpression) {
         // If first child property is an array item, this property is an array
         const isArray =
@@ -129,7 +157,11 @@ export class StructDefinition extends ParsedObject {
             parent.value[prop.identifier.name] = value;
           }
         }
-        parentStack.push({ property: prop, value });
+        parentStack.push({
+          property: prop,
+          value,
+          currentPath: currentPropKey,
+        });
       } else {
         const value = prop.GetValue();
         if (parent) {
