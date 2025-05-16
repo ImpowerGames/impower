@@ -5,13 +5,26 @@ export interface SparkleNode {
   children?: SparkleNode[];
 }
 
-const INDENT_REGEX: RegExp = /^[ \t]*/;
+const INDENT_REGEX = /^[ \t]*/;
+const NEWLINE_REGEX = /\r\n|\r|\n/;
+const ESCAPED_QUOTE_REGEX = /\\(["'])/g;
+const CONTENT_ATTRIBUTE_REGEX = /^"(.+)"$/;
+const QUOTED_ATTRIBUTE_REGEX = /^(@?[\w-]+)=\"(.*)\"$/;
+const UNQUOTED_ATTRIBUTE_REGEX = /^(@?[\w-]+)=(\S*)$/;
+const BOOLEAN_ATTRIBUTE_REGEX = /^([\w-]+)$/;
+const DECLARATION_REGEX =
+  /^(screen|component|style|animation|theme)(?:$|\s+)($|.+)/;
+const KEYWORD_FIELD_REGEX =
+  /^([\w-]+)($|(?:[.][\w-]*)*)?(?:[(](.*)[)])?(?:$|\s+)($|.+)/;
+const FOR_ARGUMENTS_REGEX = /^(.+?)(?:\s+)(?:in)(?:$|\s+)($|.+)$/;
+const PROPERTY_VALUE_REGEX = /^([-]\s+)?([\w-]+)(?:\s*)(?:[=])(?:$|\s+)($|.+)$/;
+
 const PARAMETER_SEPARATORS = [","];
 const ATTRIBUTE_SEPARATORS = [" ", "\t"];
 
 // TODO: output diagnostics
 export function parseSparkle(input: string): SparkleNode[] {
-  const rawLines = input.split(/\r\n|\r|\n/);
+  const rawLines = input.split(NEWLINE_REGEX);
 
   const nodes: SparkleNode[] = [];
   const stack: { node: SparkleNode; indent: number }[] = [];
@@ -38,67 +51,69 @@ export function parseSparkle(input: string): SparkleNode[] {
 
     if (trimmedLine) {
       // Split statement into tokens
-      const match = statement.match(
-        /^(?:(screen|component|style|animation|theme)?(?:$|\s+))?([\w-]+)($|(?:[.][\w-]*)*)?(?:[(](.*)[)])?(?:$|\s+)($|.+)/
-      );
-      const declarationKeyword = match?.[1] || "";
-      const type = match?.[2] || "";
-      const classesString = match?.[3] || "";
-      const classes = classesString.split(".");
-      const parameterString = (match?.[4] || "").trim();
-      const parameters = splitArgs(parameterString, PARAMETER_SEPARATORS);
-      const attributesString = (match?.[5] || "").trim();
-      const attributeArray = splitArgs(attributesString, ATTRIBUTE_SEPARATORS);
-      if (!currentRoot && declarationKeyword === "screen") {
-        // Root is a Screen
-        currentRoot = {
-          root: "screen",
-          type: "screen",
-          args: { name: type, classes },
-        };
-        nodes.push(currentRoot);
-        stack.length = 0;
-        stack.push({ node: currentRoot, indent });
-      } else if (!currentRoot && declarationKeyword === "component") {
-        // Root is a Component
-        currentRoot = {
-          root: "component",
-          type: "component",
-          args: { name: type, classes, parameters },
-        };
-        nodes.push(currentRoot);
-        stack.length = 0;
-        stack.push({ node: currentRoot, indent });
-      } else if (!currentRoot && declarationKeyword === "style") {
-        // Root is a Style
-        currentRoot = {
-          root: "style",
-          type: "style",
-          args: { name: type },
-        };
-        nodes.push(currentRoot);
-        stack.length = 0;
-        stack.push({ node: currentRoot, indent });
-      } else if (!currentRoot && declarationKeyword === "animation") {
-        // Root is a Animation
-        currentRoot = {
-          root: "animation",
-          type: "animation",
-          args: { name: type },
-        };
-        nodes.push(currentRoot);
-        stack.length = 0;
-        stack.push({ node: currentRoot, indent });
-      } else if (!currentRoot && declarationKeyword === "theme") {
-        // Root is a Theme
-        currentRoot = {
-          root: "theme",
-          type: "theme",
-          args: { name: type },
-        };
-        nodes.push(currentRoot);
-        stack.length = 0;
-        stack.push({ node: currentRoot, indent });
+      if (!currentRoot) {
+        let match: RegExpMatchArray | null = null;
+        if ((match = statement.match(DECLARATION_REGEX))) {
+          const declarationKeyword = match?.[1] || "";
+          const assignment = match?.[2] || "";
+          const assignmentMatch = assignment.match(KEYWORD_FIELD_REGEX);
+          const type = assignmentMatch?.[1] || "";
+          const classesString = assignmentMatch?.[2] || "";
+          const classes = classesString.split(".");
+          const parameterString = (assignmentMatch?.[3] || "").trim();
+          const parameters = splitArgs(parameterString, PARAMETER_SEPARATORS);
+          if (declarationKeyword === "screen") {
+            // Root is a Screen
+            currentRoot = {
+              root: "screen",
+              type: "screen",
+              args: { name: type, classes },
+            };
+            nodes.push(currentRoot);
+            stack.length = 0;
+            stack.push({ node: currentRoot, indent });
+          } else if (declarationKeyword === "component") {
+            // Root is a Component
+            currentRoot = {
+              root: "component",
+              type: "component",
+              args: { name: type, classes, parameters },
+            };
+            nodes.push(currentRoot);
+            stack.length = 0;
+            stack.push({ node: currentRoot, indent });
+          } else if (declarationKeyword === "style") {
+            // Root is a Style
+            currentRoot = {
+              root: "style",
+              type: "style",
+              args: { name: type },
+            };
+            nodes.push(currentRoot);
+            stack.length = 0;
+            stack.push({ node: currentRoot, indent });
+          } else if (declarationKeyword === "animation") {
+            // Root is a Animation
+            currentRoot = {
+              root: "animation",
+              type: "animation",
+              args: { name: type },
+            };
+            nodes.push(currentRoot);
+            stack.length = 0;
+            stack.push({ node: currentRoot, indent });
+          } else if (declarationKeyword === "theme") {
+            // Root is a Theme
+            currentRoot = {
+              root: "theme",
+              type: "theme",
+              args: { name: type },
+            };
+            nodes.push(currentRoot);
+            stack.length = 0;
+            stack.push({ node: currentRoot, indent });
+          }
+        }
       } else {
         // Determine parent from indentation
         while (stack.length > 0 && indent <= stack.at(-1)!.indent) {
@@ -116,6 +131,18 @@ export function parseSparkle(input: string): SparkleNode[] {
           currentRoot?.type === "screen" ||
           currentRoot?.type === "component"
         ) {
+          const match = statement.match(KEYWORD_FIELD_REGEX);
+          const type = match?.[1] || "";
+          const classesString = match?.[2] || "";
+          const classes = classesString.split(".");
+          const parameterString = (match?.[3] || "").trim();
+          const parameters = splitArgs(parameterString, PARAMETER_SEPARATORS);
+          const attributesString = (match?.[4] || "").trim();
+          const attributeArray = splitArgs(
+            attributesString,
+            ATTRIBUTE_SEPARATORS
+          );
+
           // Determine child node type
           if (type === "if") {
             const condition = attributesString;
@@ -151,7 +178,7 @@ export function parseSparkle(input: string): SparkleNode[] {
               args: { value },
             };
           } else if (type === "for") {
-            const match = attributesString.match(/^(.+?)\s+in\s+(.+)$/);
+            const match = attributesString.match(FOR_ARGUMENTS_REGEX);
             if (!match) {
               console.warn(`invalid ${type} syntax:`, statement);
               continue;
@@ -199,61 +226,64 @@ export function parseSparkle(input: string): SparkleNode[] {
             };
           }
         } else if (currentRoot?.type === "style") {
-          if (trimmedLine.endsWith(":") || type.match(/^[^a-zA-Z-]/)) {
-            node = {
-              root: currentRoot.root,
-              type,
-            };
-          } else {
-            const value = statement.split("=")[1]?.trimStart();
+          let match: RegExpMatchArray | null = null;
+          if (
+            !trimmedLine.endsWith(":") &&
+            (match = statement.match(PROPERTY_VALUE_REGEX))
+          ) {
+            const key = match?.[2] || "";
+            const value = match?.[3] || "";
             node = {
               root: currentRoot.root,
               type: "property",
-              args: { key: type, value },
+              args: { key: key?.trim(), value: value?.trim() },
+            };
+          } else {
+            node = {
+              root: currentRoot.root,
+              type: statement,
             };
           }
         } else if (currentRoot?.type === "animation") {
-          if (type === "-") {
-            const itemNode: SparkleNode = {
-              root: currentRoot.root,
-              type: "item",
-            };
-            parent.children ??= [];
-            parent.children.push(itemNode);
-            indent = indent + 1;
-            stack.push({ node: itemNode, indent });
-            parent = itemNode;
-            indent = indent + 2;
-            const [key, value] = attributesString.split("=");
-            node = {
-              root: currentRoot.root,
-              type: "property",
-              args: {
-                key: key?.trim(),
-                value: value?.trim(),
-              },
-            };
-          } else if (type === "keyframes") {
-            node = {
-              root: currentRoot.root,
-              type: "keyframes",
-            };
-          } else if (type === "timing") {
-            node = {
-              root: currentRoot.root,
-              type: "timing",
-            };
-          } else {
-            const [key, value] = statement.split("=");
+          let match: RegExpMatchArray | null = null;
+          if (
+            !trimmedLine.endsWith(":") &&
+            (match = statement.match(PROPERTY_VALUE_REGEX))
+          ) {
+            const itemMark = match?.[1] || "";
+            const key = match?.[2] || "";
+            const value = match?.[3] || "";
+            if (itemMark) {
+              const itemNode: SparkleNode = {
+                root: currentRoot.root,
+                type: "item",
+              };
+              parent.children ??= [];
+              parent.children.push(itemNode);
+              indent = indent + 1;
+              stack.push({ node: itemNode, indent });
+              parent = itemNode;
+              indent = indent + 2;
+            }
             node = {
               root: currentRoot.root,
               type: "property",
               args: { key: key?.trim(), value: value?.trim() },
+            };
+          } else {
+            node = {
+              root: currentRoot.root,
+              type: statement,
             };
           }
         } else if (currentRoot?.type === "theme") {
-          if (statement.includes("=")) {
-            const [key, value] = statement.split("=");
+          let match: RegExpMatchArray | null = null;
+          if (
+            !trimmedLine.endsWith(":") &&
+            (match = statement.match(PROPERTY_VALUE_REGEX))
+          ) {
+            const key = match?.[2] || "";
+            const value = match?.[3] || "";
             node = {
               root: currentRoot.root,
               type: "property",
@@ -262,7 +292,7 @@ export function parseSparkle(input: string): SparkleNode[] {
           } else {
             node = {
               root: currentRoot.root,
-              type,
+              type: statement,
             };
           }
         }
@@ -346,23 +376,23 @@ function unescapeQuotes(str: string): string {
   ) {
     str = str.slice(1, -1);
   }
-  return str.replace(/\\(["'])/g, "$1");
+  return str.replace(ESCAPED_QUOTE_REGEX, "$1");
 }
 
 function parseAttributes(args: string[]) {
   const params: Record<string, any> = {};
   for (const arg of args) {
     let match: RegExpMatchArray | null = null;
-    if ((match = arg.match(/^"(.+)"$/))) {
+    if ((match = arg.match(CONTENT_ATTRIBUTE_REGEX))) {
       const [, content] = match;
       params["content"] = unescapeQuotes(content);
-    } else if ((match = arg.match(/^(@?[\w-]+)=\"(.*?)\"$/))) {
+    } else if ((match = arg.match(QUOTED_ATTRIBUTE_REGEX))) {
       const [, key, value] = match;
       params[key!] = parseValue(unescapeQuotes(value));
-    } else if ((match = arg.match(/^(@?[\w-]+)=(\S+)$/))) {
+    } else if ((match = arg.match(UNQUOTED_ATTRIBUTE_REGEX))) {
       const [, key, value] = match;
       params[key!] = parseValue(value);
-    } else if ((match = arg.match(/^([\w-]+)$/))) {
+    } else if ((match = arg.match(BOOLEAN_ATTRIBUTE_REGEX))) {
       const [, key] = match;
       params[key!] = true;
     } else if (arg.trim()) {
