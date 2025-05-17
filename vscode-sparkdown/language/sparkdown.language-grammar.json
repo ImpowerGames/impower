@@ -643,7 +643,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "DefineKeyword": {
       "tag": "controlKeyword",
@@ -1034,7 +1034,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "StructObjectItemWithInlineScalarProperty": {
       "tag": "meta",
@@ -1109,7 +1109,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "StructObjectItemWithInlineObjectProperty": {
       "tag": "meta",
@@ -1177,7 +1177,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "StructScalarItem": {
       "tag": "meta",
@@ -1271,7 +1271,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "StructScalarProperty": {
       "tag": "meta",
@@ -1529,7 +1529,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "ScreenDeclarationKeyword": {
       "tag": "controlKeyword",
@@ -1650,7 +1650,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "ComponentDeclarationKeyword": {
       "tag": "controlKeyword",
@@ -2290,7 +2290,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "StyleDeclarationKeyword": {
       "tag": "controlKeyword",
@@ -2376,7 +2376,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "AnimationDeclarationKeyword": {
       "tag": "controlKeyword",
@@ -2462,7 +2462,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "ThemeDeclarationKeyword": {
       "tag": "controlKeyword",
@@ -2571,7 +2571,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "CssObjectItemWithInlineScalarProperty": {
       "tag": "meta",
@@ -2646,7 +2646,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "CssObjectItemWithInlineObjectProperty": {
       "tag": "meta",
@@ -2714,7 +2714,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "CssScalarItem": {
       "tag": "meta",
@@ -2808,7 +2808,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "CssScalarProperty": {
       "tag": "meta",

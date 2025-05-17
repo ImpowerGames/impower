@@ -369,7 +369,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#StructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   DefineKeyword:
     tag: controlKeyword
@@ -583,7 +583,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#StructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   StructObjectItemWithInlineScalarProperty:
     tag: meta
@@ -619,7 +619,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#StructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   StructObjectItemWithInlineObjectProperty:
     tag: meta
@@ -652,7 +652,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#StructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   StructScalarItem:
     tag: meta
@@ -698,7 +698,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#StructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   StructScalarProperty:
     tag: meta
@@ -836,7 +836,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#ViewField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   ScreenDeclarationKeyword:
     tag: controlKeyword
@@ -898,7 +898,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#ViewField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   ComponentDeclarationKeyword:
     tag: controlKeyword
@@ -1238,7 +1238,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#CssField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   StyleDeclarationKeyword:
     tag: controlKeyword
@@ -1285,7 +1285,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#CssField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   AnimationDeclarationKeyword:
     tag: controlKeyword
@@ -1332,7 +1332,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#CssField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   ThemeDeclarationKeyword:
     tag: controlKeyword
@@ -1391,7 +1391,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#CssField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   CssObjectItemWithInlineScalarProperty:
     tag: meta
@@ -1427,7 +1427,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#CssField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   CssObjectItemWithInlineObjectProperty:
     tag: meta
@@ -1460,7 +1460,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#CssField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   CssScalarItem:
     tag: meta
@@ -1506,7 +1506,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#CssField" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}))
 
   CssScalarProperty:
     tag: meta

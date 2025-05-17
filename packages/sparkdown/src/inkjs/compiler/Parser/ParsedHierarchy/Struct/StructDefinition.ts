@@ -77,7 +77,7 @@ export class StructDefinition extends ParsedObject {
     //     .map(
     //       (p) =>
     //         `${" ".repeat(p.level)} ${p.identifier.name} = ${JSON.stringify(
-    //           p.value
+    //           p.GetValue()
     //         )}`
     //     )
     //     .join("\n")

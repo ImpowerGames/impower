@@ -2979,6 +2979,9 @@ export class InkParser extends StringParser {
   public readonly StructProperty = (
     level: number
   ): StructPropertyDefinition[] | null => {
+    if (level === 0) {
+      return [];
+    }
     const itemDash = this.ParseString("-");
     if (itemDash !== null) {
       this.Whitespace();
@@ -3086,8 +3089,14 @@ export class InkParser extends StringParser {
     (startIndent: string) => (): typeof ParseSuccess | null => {
       this.ParseNewline();
 
-      const whitespace = this.ParseWhitespace() ?? "";
+      const newline = this.ParseNewline();
+      if (newline) {
+        // Is completely blank line.
+        // Don't consider completely blank lines unindented.
+        return null;
+      }
 
+      const whitespace = this.ParseWhitespace() ?? "";
       if (whitespace.length <= startIndent.length) {
         return ParseSuccess;
       }
