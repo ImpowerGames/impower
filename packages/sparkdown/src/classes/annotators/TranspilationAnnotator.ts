@@ -9,7 +9,7 @@ export interface LineAugmentations {
   splice?: string;
   prefix?: string;
   suffix?: string;
-  removeFromEnd?: boolean;
+  remove?: boolean;
   whiteout?: boolean;
 }
 
@@ -46,7 +46,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "Break") {
       annotations.push(
         SparkdownAnnotation.mark({
-          removeFromEnd: true,
+          remove: true,
         }).range(nodeRef.from, nodeRef.to)
       );
     }
@@ -62,7 +62,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
       const splice = colonSeparator + "\\";
       this.blockPrefix = lineTextBefore;
       annotations.push(
-        SparkdownAnnotation.mark({ splice }).range(nodeRef.from, nodeRef.to)
+        SparkdownAnnotation.mark({ splice }).range(nodeRef.to, nodeRef.to)
       );
     }
     // Annotate dialogue line with implicit character name and flow marker
@@ -74,7 +74,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
         const blockPrefix = this.blockPrefix + ": ";
         const prefix = blockPrefix;
         annotations.push(
-          SparkdownAnnotation.mark({ prefix }).range(nodeRef.from, nodeRef.to)
+          SparkdownAnnotation.mark({ prefix }).range(nodeRef.from, nodeRef.from)
         );
       }
     }
@@ -113,7 +113,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
           // (So they are grouped together with following text line)
           const suffix = " \\";
           annotations.push(
-            SparkdownAnnotation.mark({ suffix }).range(nodeRef.from, nodeRef.to)
+            SparkdownAnnotation.mark({ suffix }).range(nodeRef.to, nodeRef.to)
           );
           return annotations;
         }

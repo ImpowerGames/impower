@@ -169,7 +169,7 @@ export class SparkdownCompiler {
           lines[lineIndex] = " ".repeat(lines[lineIndex]?.length ?? 0);
         }
       } else {
-        if (cur.value.type.removeFromEnd != null) {
+        if (cur.value.type.remove != null) {
           const lineIndex = doc.lineAt(cur.to);
           const lineTo = doc.offsetAt({
             line: lineIndex,
@@ -195,7 +195,7 @@ export class SparkdownCompiler {
             character: Number.MAX_VALUE,
           });
           const after = cur.to - lineFrom;
-          const lineTextBefore = doc.read(lineFrom, cur.to);
+          const lineTextBefore = doc.read(lineFrom, cur.from);
           const lineTextAfter = doc.read(cur.to, lineTo);
           lines[lineIndex] =
             lineTextBefore + cur.value.type.splice + lineTextAfter;
