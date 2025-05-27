@@ -180,10 +180,14 @@ export class SparkdownCompiler {
         });
         const after = cur.to - lineFrom;
         if (cur.value.type.removeFromEnd != null) {
-          const length = cur.to - cur.from;
-          const lineText = lines[lineIndex] || "";
-          const newText = lineText.slice(0, -length);
-          lines[lineIndex] = newText;
+          const lineText = lines[lineIndex] ?? "";
+          const removeLength = cur.to - cur.from;
+          const distanceFromLineEnd = lineTo - cur.from;
+          const lineTextBefore = lineText.slice(0, -distanceFromLineEnd);
+          const lineTextAfter = lineText.slice(
+            lineTextBefore.length + removeLength
+          );
+          lines[lineIndex] = lineTextBefore + lineTextAfter;
         }
         if (cur.value.type.splice != null) {
           const lineTextBefore = doc.read(lineFrom, cur.to);
@@ -215,6 +219,8 @@ export class SparkdownCompiler {
     const result = lines.join("\n");
     state.transpiledScripts[uri] = { content: result, version: doc.version };
     profile("end", "transpile", uri);
+    console.log("TRANSPILED", uri);
+    console.log(result);
     return result;
   }
 
