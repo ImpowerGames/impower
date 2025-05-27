@@ -15,7 +15,7 @@ variables:
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
-  BREAK: (?:{{WS}}+[>](?!{{WS}}))
+  BREAK: (?:{{WS}}+[>]{{WS}}*)
   # Word
   WORD: (?:[\p{L}\p{N}\p{Mn}']+)
   # Whitespace
