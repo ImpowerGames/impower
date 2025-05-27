@@ -1537,7 +1537,7 @@
       "match": "(.+)"
     },
     "ScreenDeclarationAssignment": {
-      "match": "([0-9_\\p{L}-]+)((?:[.][0-9_\\p{L}-]+)*)([(].*[)])?($|[^\\S\\n\\r]*)(.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
+      "match": "([0-9_\\p{L}-]+)([^\\S\\n\\r]*)([(].*[)])?($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
       "captures": {
         "1": {
           "patterns": [
@@ -1549,7 +1549,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#ClassAccessor"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -1563,32 +1563,18 @@
         "4": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#ViewDeclarationAttribute"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
               "include": "#ColonOperator"
             }
           ]
         },
-        "8": {
+        "6": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
@@ -1658,7 +1644,7 @@
       "match": "(.+)"
     },
     "ComponentDeclarationAssignment": {
-      "match": "([0-9_\\p{L}-]+)((?:[.][0-9_\\p{L}-]+)*)([(].*[)])?($|[^\\S\\n\\r]*)(.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
+      "match": "([0-9_\\p{L}-]+)([^\\S\\n\\r]*)([(].*[)])?($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
       "captures": {
         "1": {
           "patterns": [
@@ -1670,7 +1656,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#ClassAccessor"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
@@ -1684,32 +1670,18 @@
         "4": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#ExtraWhitespace"
             }
           ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#ViewDeclarationAttribute"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
               "include": "#ColonOperator"
             }
           ]
         },
-        "8": {
+        "6": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"

@@ -844,30 +844,24 @@ repository:
     match: (.+)
 
   ScreenDeclarationAssignment:
-    match: ({{CSS_IDENTIFIER}})((?:[.]{{CSS_IDENTIFIER}})*)([(].*[)])?($|{{WS}}*)(.*?)($|{{WS}}*)($|[:])($|{{WS}}*$)
+    match: ({{CSS_IDENTIFIER}})({{WS}}*)([(].*[)])?($|{{WS}}*)($|[:])($|{{WS}}*$)
     captures:
       1:
         patterns:
           - { include: "#ScreenDeclarationName" }
       2:
         patterns:
-          - { include: "#ClassAccessor" }
+          - { include: "#ExtraWhitespace" }
       3:
         patterns:
           - { include: "#FunctionDeclarationParameters" }
       4:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#ExtraWhitespace" }
       5:
         patterns:
-          - { include: "#ViewDeclarationAttribute" }
-      6:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      7:
-        patterns:
           - { include: "#ColonOperator" }
-      8:
+      6:
         patterns:
           - { include: "#ExtraWhitespace" }
 
@@ -906,30 +900,24 @@ repository:
     match: (.+)
 
   ComponentDeclarationAssignment:
-    match: ({{CSS_IDENTIFIER}})((?:[.]{{CSS_IDENTIFIER}})*)([(].*[)])?($|{{WS}}*)(.*?)($|{{WS}}*)($|[:])($|{{WS}}*$)
+    match: ({{CSS_IDENTIFIER}})({{WS}}*)([(].*[)])?($|{{WS}}*)($|[:])($|{{WS}}*$)
     captures:
       1:
         patterns:
           - { include: "#ComponentDeclarationName" }
       2:
         patterns:
-          - { include: "#ClassAccessor" }
+          - { include: "#ExtraWhitespace" }
       3:
         patterns:
           - { include: "#FunctionDeclarationParameters" }
       4:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#ExtraWhitespace" }
       5:
         patterns:
-          - { include: "#ViewDeclarationAttribute" }
-      6:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      7:
-        patterns:
           - { include: "#ColonOperator" }
-      8:
+      6:
         patterns:
           - { include: "#ExtraWhitespace" }
 
