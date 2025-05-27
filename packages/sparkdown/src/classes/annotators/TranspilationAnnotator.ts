@@ -108,7 +108,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
         const indent = indentMatch?.[0] || "";
         const nextLineText = this.readNextLine(nodeRef.from);
         // Check that this dialogue line is not the last in the block
-        if (nextLineText.startsWith(indent)) {
+        if (nextLineText.trim() && nextLineText.startsWith(indent)) {
           // All lines (except the last in a block) should end with implicit \
           // (So they are grouped together with following text line)
           const suffix = " \\";
