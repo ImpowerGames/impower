@@ -169,17 +169,12 @@ export class SparkdownCompiler {
           lines[lineIndex] = " ".repeat(lines[lineIndex]?.length ?? 0);
         }
       } else {
-        const lineIndex = doc.lineAt(cur.from);
-        const lineFrom = doc.offsetAt({
-          line: lineIndex,
-          character: 0,
-        });
-        const lineTo = doc.offsetAt({
-          line: lineIndex,
-          character: Number.MAX_VALUE,
-        });
-        const after = cur.to - lineFrom;
         if (cur.value.type.removeFromEnd != null) {
+          const lineIndex = doc.lineAt(cur.to);
+          const lineTo = doc.offsetAt({
+            line: lineIndex,
+            character: Number.MAX_VALUE,
+          });
           const lineText = lines[lineIndex] ?? "";
           const removeLength = cur.to - cur.from;
           const distanceFromLineEnd = lineTo - cur.from;
@@ -190,6 +185,16 @@ export class SparkdownCompiler {
           lines[lineIndex] = lineTextBefore + lineTextAfter;
         }
         if (cur.value.type.splice != null) {
+          const lineIndex = doc.lineAt(cur.from);
+          const lineFrom = doc.offsetAt({
+            line: lineIndex,
+            character: 0,
+          });
+          const lineTo = doc.offsetAt({
+            line: lineIndex,
+            character: Number.MAX_VALUE,
+          });
+          const after = cur.to - lineFrom;
           const lineTextBefore = doc.read(lineFrom, cur.to);
           const lineTextAfter = doc.read(cur.to, lineTo);
           lines[lineIndex] =
@@ -202,6 +207,7 @@ export class SparkdownCompiler {
           };
         }
         if (cur.value.type.prefix != null) {
+          const lineIndex = doc.lineAt(cur.from);
           lines[lineIndex] = cur.value.type.prefix + lines[lineIndex];
           state.sourceMap ??= {};
           state.sourceMap[uri] ??= {};
@@ -211,6 +217,7 @@ export class SparkdownCompiler {
           };
         }
         if (cur.value.type.suffix != null) {
+          const lineIndex = doc.lineAt(cur.to);
           lines[lineIndex] = lines[lineIndex] + cur.value.type.suffix;
         }
       }
