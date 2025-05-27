@@ -106,7 +106,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
       ) {
         const indentMatch = lineTextBefore.match(INDENT_REGEX);
         const indent = indentMatch?.[0] || "";
-        const nextLineText = this.readNextLine(nodeRef.from);
+        const nextLineText = this.readNextLine(nodeRef.to);
         // Check that this dialogue line is not the last in the block
         if (nextLineText.trim() && nextLineText.startsWith(indent)) {
           // All lines (except the last in a block) should end with implicit \
