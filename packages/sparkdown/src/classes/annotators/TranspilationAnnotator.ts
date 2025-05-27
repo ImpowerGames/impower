@@ -7,7 +7,6 @@ const INDENT_REGEX: RegExp = /^[ \t]*/;
 
 export interface LineAugmentations {
   splice?: string;
-  prefix?: string;
   suffix?: string;
   remove?: boolean;
   whiteout?: boolean;
@@ -50,7 +49,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
         }).range(nodeRef.from, nodeRef.to)
       );
     }
-    // Annotate dialogue line with implicit flow marker
+    // Insert implicit colon and chain escape after dialogue block begin
     if (
       nodeRef.name === "BlockDialogue_begin" ||
       nodeRef.name === "BlockWrite_begin"
@@ -65,16 +64,16 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
         SparkdownAnnotation.mark({ splice }).range(nodeRef.to, nodeRef.to)
       );
     }
-    // Annotate dialogue line with implicit character name and flow marker
+    // Insert implicit character name and colon before dialogue line
     if (
       nodeRef.name === "BlockLineContinue" ||
       nodeRef.name === "BlockLineBreak"
     ) {
       if (this.prevNodeType.startsWith("BlockLineBreak")) {
         const blockPrefix = this.blockPrefix + ": ";
-        const prefix = blockPrefix;
+        const splice = blockPrefix;
         annotations.push(
-          SparkdownAnnotation.mark({ prefix }).range(nodeRef.from, nodeRef.from)
+          SparkdownAnnotation.mark({ splice }).range(nodeRef.from, nodeRef.from)
         );
       }
     }
@@ -95,6 +94,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
       this.blockPrefix = "";
       return annotations;
     }
+    // Insert implicit chain escape after dialogue block line
     if (nodeRef.name === "BlockLineContinue") {
       const lineFrom = this.getLineAt(nodeRef.from).from;
       const lineTo = this.getLineAt(nodeRef.from).to;

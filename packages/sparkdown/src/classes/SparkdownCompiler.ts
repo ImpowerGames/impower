@@ -206,16 +206,6 @@ export class SparkdownCompiler {
             shift: cur.value.type.splice.length,
           };
         }
-        if (cur.value.type.prefix != null) {
-          const lineIndex = doc.lineAt(cur.from);
-          lines[lineIndex] = cur.value.type.prefix + lines[lineIndex];
-          state.sourceMap ??= {};
-          state.sourceMap[uri] ??= {};
-          state.sourceMap[uri][lineIndex] = {
-            after: 0,
-            shift: cur.value.type.prefix.length,
-          };
-        }
         if (cur.value.type.suffix != null) {
           const lineIndex = doc.lineAt(cur.to);
           lines[lineIndex] = lines[lineIndex] + cur.value.type.suffix;
