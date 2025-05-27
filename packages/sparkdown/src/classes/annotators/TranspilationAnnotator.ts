@@ -9,7 +9,7 @@ export interface LineAugmentations {
   splice?: string;
   prefix?: string;
   suffix?: string;
-  trimEnd?: number;
+  removeFromEnd?: boolean;
   whiteout?: boolean;
 }
 
@@ -46,7 +46,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "Break") {
       annotations.push(
         SparkdownAnnotation.mark({
-          trimEnd: this.read(nodeRef.from, nodeRef.to).length,
+          removeFromEnd: true,
         }).range(nodeRef.from, nodeRef.to)
       );
     }

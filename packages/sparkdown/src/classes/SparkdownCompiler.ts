@@ -19,7 +19,6 @@ import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
-import { SparkdownRuntimeFormat } from "../types/SparkdownRuntimeFormat";
 import { SparkProgram } from "../types/SparkProgram";
 import { formatList } from "../utils/formatList";
 import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
@@ -180,9 +179,10 @@ export class SparkdownCompiler {
           character: Number.MAX_VALUE,
         });
         const after = cur.to - lineFrom;
-        if (cur.value.type.trimEnd != null) {
+        if (cur.value.type.removeFromEnd != null) {
+          const length = cur.to - cur.from;
           const lineText = lines[lineIndex] || "";
-          const newText = lineText.slice(0, -cur.value.type.trimEnd);
+          const newText = lineText.slice(0, -length);
           lines[lineIndex] = newText;
         }
         if (cur.value.type.splice != null) {
