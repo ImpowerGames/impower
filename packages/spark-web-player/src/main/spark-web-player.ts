@@ -511,7 +511,6 @@ export default class SparkWebPlayer extends Component(spec) {
     message: ResizeGameMessage.Request
   ) => {
     const { height } = message.params;
-    console.log("height", height);
     this.ref.game.style.height = `${height}px`;
     return messageType.response(message.id, {});
   };
@@ -692,7 +691,6 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof PauseGameMessage.type,
     message: PauseGameMessage.Request
   ) => {
-    console.log("PAUSE", message);
     if (this._app) {
       this._app.pause();
     }
