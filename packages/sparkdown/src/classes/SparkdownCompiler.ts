@@ -216,8 +216,6 @@ export class SparkdownCompiler {
     const result = lines.join("\n");
     state.transpiledScripts[uri] = { content: result, version: doc.version };
     profile("end", "transpile", uri);
-    console.log("TRANSPILED", uri);
-    console.log(result);
     return result;
   }
 
