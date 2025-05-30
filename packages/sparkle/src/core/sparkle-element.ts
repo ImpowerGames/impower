@@ -1921,12 +1921,9 @@ export default class SparkleElement
       // Forward all aria attributes to root element
       this.updateRootAttribute(attrName, value);
     } else {
-      if (attrName.startsWith("-")) {
-        const propName = attrName.slice(1);
-        const transformer = this.transformers[propName];
-        if (transformer) {
-          this.updateStyleAttribute(propName, value, transformer);
-        }
+      const transformer = this.transformers[attrName];
+      if (transformer) {
+        this.updateStyleAttribute(attrName, value, transformer);
       }
     }
   }

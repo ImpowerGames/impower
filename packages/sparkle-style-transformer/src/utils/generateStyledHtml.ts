@@ -1,4 +1,4 @@
-import STYLE_TRANSFORMERS from "../constants/STYLE_TRANSFORMERS.js";
+import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS.js";
 import {
   getSparkleAttribute,
   getSparklePropName,

@@ -241,14 +241,6 @@ Make sure disabled buttons don't get the pointer cursor.
   background: #888;
 }
 
-.icon {
-  width: 14px;
-  height: 14px;
-  mask-size: contain;
-  mask-repeat: no-repeat;
-  background-color: currentColor;
-}
-
 #launch-state-icon:not([icon]) {
   display: none;
 }
