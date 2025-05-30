@@ -718,76 +718,84 @@ export default class WorkspaceWindow {
   }
 
   startGame() {
-    this.update({
-      ...this.store,
-      preview: {
-        ...this.store.preview,
-        modes: {
-          ...this.store.preview.modes,
-          game: {
-            ...this.store.preview.modes.game,
-            loading: false,
-            running: true,
+    if (!this.store.preview.modes.game.running) {
+      this.update({
+        ...this.store,
+        preview: {
+          ...this.store.preview,
+          modes: {
+            ...this.store.preview.modes,
+            game: {
+              ...this.store.preview.modes.game,
+              loading: false,
+              running: true,
+            },
           },
         },
-      },
-    });
-    this.emit(MessageProtocol.event, StartGameMessage.type.request({}));
-    if (this.store.preview.modes.game.paused) {
-      this.unpauseGame();
+      });
+      this.emit(MessageProtocol.event, StartGameMessage.type.request({}));
+      if (this.store.preview.modes.game.paused) {
+        this.unpauseGame();
+      }
     }
   }
 
   stopGame() {
-    this.update({
-      ...this.store,
-      preview: {
-        ...this.store.preview,
-        modes: {
-          ...this.store.preview.modes,
-          game: {
-            ...this.store.preview.modes.game,
-            loading: false,
-            running: false,
+    if (this.store.preview.modes.game.running) {
+      this.update({
+        ...this.store,
+        preview: {
+          ...this.store.preview,
+          modes: {
+            ...this.store.preview.modes,
+            game: {
+              ...this.store.preview.modes.game,
+              loading: false,
+              running: false,
+            },
           },
         },
-      },
-    });
-    this.emit(MessageProtocol.event, StopGameMessage.type.request({}));
+      });
+      this.emit(MessageProtocol.event, StopGameMessage.type.request({}));
+    }
   }
 
   pauseGame() {
-    this.update({
-      ...this.store,
-      preview: {
-        ...this.store.preview,
-        modes: {
-          ...this.store.preview.modes,
-          game: {
-            ...this.store.preview.modes.game,
-            paused: true,
+    if (!this.store.preview.modes.game.paused) {
+      this.update({
+        ...this.store,
+        preview: {
+          ...this.store.preview,
+          modes: {
+            ...this.store.preview.modes,
+            game: {
+              ...this.store.preview.modes.game,
+              paused: true,
+            },
           },
         },
-      },
-    });
-    this.emit(MessageProtocol.event, PauseGameMessage.type.request({}));
+      });
+      this.emit(MessageProtocol.event, PauseGameMessage.type.request({}));
+    }
   }
 
   unpauseGame() {
-    this.update({
-      ...this.store,
-      preview: {
-        ...this.store.preview,
-        modes: {
-          ...this.store.preview.modes,
-          game: {
-            ...this.store.preview.modes.game,
-            paused: false,
+    if (this.store.preview.modes.game.paused) {
+      this.update({
+        ...this.store,
+        preview: {
+          ...this.store.preview,
+          modes: {
+            ...this.store.preview.modes,
+            game: {
+              ...this.store.preview.modes.game,
+              paused: false,
+            },
           },
         },
-      },
-    });
-    this.emit(MessageProtocol.event, UnpauseGameMessage.type.request({}));
+      });
+      this.emit(MessageProtocol.event, UnpauseGameMessage.type.request({}));
+    }
   }
 
   stepGameClock(seconds: number) {
@@ -820,37 +828,44 @@ export default class WorkspaceWindow {
   }
 
   enableDebugging() {
-    this.update({
-      ...this.store,
-      preview: {
-        ...this.store.preview,
-        modes: {
-          ...this.store.preview.modes,
-          game: {
-            ...this.store.preview.modes.game,
-            debugging: true,
+    if (!this.store.preview.modes.game.debugging) {
+      this.update({
+        ...this.store,
+        preview: {
+          ...this.store.preview,
+          modes: {
+            ...this.store.preview.modes,
+            game: {
+              ...this.store.preview.modes.game,
+              debugging: true,
+            },
           },
         },
-      },
-    });
-    this.emit(MessageProtocol.event, EnableGameDebugMessage.type.request({}));
+      });
+      this.emit(MessageProtocol.event, EnableGameDebugMessage.type.request({}));
+    }
   }
 
   disableDebugging() {
-    this.update({
-      ...this.store,
-      preview: {
-        ...this.store.preview,
-        modes: {
-          ...this.store.preview.modes,
-          game: {
-            ...this.store.preview.modes.game,
-            debugging: false,
+    if (this.store.preview.modes.game.debugging) {
+      this.update({
+        ...this.store,
+        preview: {
+          ...this.store.preview,
+          modes: {
+            ...this.store.preview.modes,
+            game: {
+              ...this.store.preview.modes.game,
+              debugging: false,
+            },
           },
         },
-      },
-    });
-    this.emit(MessageProtocol.event, DisableGameDebugMessage.type.request({}));
+      });
+      this.emit(
+        MessageProtocol.event,
+        DisableGameDebugMessage.type.request({})
+      );
+    }
   }
 
   unloadProject() {

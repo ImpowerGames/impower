@@ -73,8 +73,12 @@ export default class GamePreview extends Component(spec) {
   handleGameExecuted = async (
     message: NotificationMessage<GameExecutedMethod, GameExecutedParams>
   ) => {
-    const { location } = message.params;
-    Workspace.window.showDocument(location.uri, location.range, true);
+    const { locations } = message.params;
+    const location = locations[0];
+    if (location) {
+      Workspace.window.startGame();
+      Workspace.window.showDocument(location.uri, location.range, true);
+    }
   };
 
   handleKeyDown = async (e: KeyboardEvent) => {
