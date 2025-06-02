@@ -1,4 +1,4 @@
-import type { Animation } from "@impower/spark-engine/src/game/modules/ui/types/Animation";
+import type { Animation } from "../../../spark-engine/src/game/modules/ui/types/Animation";
 import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
 
 export const getAnimationContent = (

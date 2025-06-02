@@ -1,8 +1,9 @@
-import { Clock, RequestMessage } from "@impower/spark-engine/src/game/core";
-import { ExitWorldMessage } from "@impower/spark-engine/src/game/modules/world/classes/messages/ExitWorldMessage";
-import { LoadWorldMessage } from "@impower/spark-engine/src/game/modules/world/classes/messages/LoadWorldMessage";
+import { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
+import { RequestMessage } from "../../../../spark-engine/src/game/core/types/RequestMessage";
+import { ExitWorldMessage } from "../../../../spark-engine/src/game/modules/world/classes/messages/ExitWorldMessage";
+import { LoadWorldMessage } from "../../../../spark-engine/src/game/modules/world/classes/messages/LoadWorldMessage";
 import * as globals from "../../globals";
-import { Application } from "../Application";
+import { IApplication } from "../IApplication";
 import { Manager } from "../Manager";
 import { World } from "../World";
 
@@ -12,7 +13,7 @@ export default class WorldManager extends Manager {
     return this._worlds;
   }
 
-  constructor(app: Application) {
+  constructor(app: IApplication) {
     super(app);
     for (const [k, v] of Object.entries(globals)) {
       (globalThis as any)[k] = v;

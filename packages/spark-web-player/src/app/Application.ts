@@ -1,14 +1,14 @@
+import { Container, Renderer, WebGLRenderer } from "pixi.js";
+import "pixi.js/unsafe-eval";
 import {
   type Message,
   type NotificationMessage,
   type RequestMessage,
   type ResponseError,
-} from "@impower/spark-engine/src/game/core";
-import { Clock } from "@impower/spark-engine/src/game/core/classes/Clock";
-import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
-import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
-import { Container, Renderer, WebGLRenderer } from "pixi.js";
-import "pixi.js/unsafe-eval";
+} from "../../../spark-engine/src/game/core";
+import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
+import { Game } from "../../../spark-engine/src/game/core/classes/Game";
+import { EventMessage } from "../../../spark-engine/src/game/core/classes/messages/EventMessage";
 import { IApplication } from "./IApplication";
 import { Manager } from "./Manager";
 import AudioManager from "./managers/AudioManager";
@@ -86,12 +86,22 @@ export class Application implements IApplication {
     return this._resizeObserver;
   }
 
-  protected _managers: Manager[] = [
-    new UIManager(this),
-    new AudioManager(this),
-    new WorldManager(this),
-    new EventManager(this),
-  ];
+  protected _manager: {
+    ui: UIManager;
+    audio: AudioManager;
+    world: WorldManager;
+    event: EventManager;
+  } = {
+    ui: new UIManager(this),
+    audio: new AudioManager(this),
+    world: new WorldManager(this),
+    event: new EventManager(this),
+  };
+  get manager() {
+    return this._manager;
+  }
+
+  protected _managers: Manager[] = Object.values(this._manager);
   get managers() {
     return this._managers;
   }

@@ -1,14 +1,12 @@
-import {
-  Clock,
-  type Message,
-  type NotificationMessage,
-  type RequestMessage,
-  type ResponseError,
-} from "@impower/spark-engine/src/game/core";
-import { type Application } from "./Application";
+import { type Clock } from "../../../spark-engine/src/game/core/classes/Clock";
+import { type Message } from "../../../spark-engine/src/game/core/types/Message";
+import { type NotificationMessage } from "../../../spark-engine/src/game/core/types/NotificationMessage";
+import { type RequestMessage } from "../../../spark-engine/src/game/core/types/RequestMessage";
+import { type ResponseError } from "../../../spark-engine/src/game/core/types/ResponseError";
+import { type IApplication } from "./IApplication";
 
 export class Manager {
-  protected _app: Application;
+  protected _app: IApplication;
 
   get screen() {
     return this._app.screen;
@@ -42,7 +40,7 @@ export class Manager {
     return this._app.stage;
   }
 
-  constructor(app: Application) {
+  constructor(app: IApplication) {
     this._app = app;
   }
 

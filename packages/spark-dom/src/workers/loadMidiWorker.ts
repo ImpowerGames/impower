@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
-import { convertMidiToToneSequences } from "@impower/spark-engine/src/game/modules/audio/utils/convertMidiToToneSequences";
-import { parseMidi } from "@impower/spark-engine/src/game/modules/audio/utils/parseMidi";
+import { convertMidiToToneSequences } from "../../../spark-engine/src/game/modules/audio/utils/convertMidiToToneSequences";
+import { parseMidi } from "../../../spark-engine/src/game/modules/audio/utils/parseMidi";
 
 self.onmessage = (event): void => {
   self.postMessage({ progress: 0 });

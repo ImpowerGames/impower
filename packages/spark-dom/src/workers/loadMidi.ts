@@ -1,4 +1,4 @@
-import { ToneSequence } from "@impower/spark-engine/src/game/modules/audio/types/ToneSequence";
+import { ToneSequence } from "../../../spark-engine/src/game/modules/audio/types/ToneSequence";
 
 export const loadMidi = async (
   arrayBuffer: ArrayBuffer,

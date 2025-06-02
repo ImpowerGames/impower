@@ -1,5 +1,5 @@
 {
-	"compilerOptions": {
+  "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
     "lib": ["esnext", "dom"],
@@ -9,9 +9,9 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "moduleResolution": "bundler", 
+    "moduleResolution": "bundler",
     "types": [],
     "jsx": "preserve"
-	},
+  },
   "include": ["src/globals/index.ts"]
 }

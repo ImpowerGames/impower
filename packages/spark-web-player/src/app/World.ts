@@ -1,8 +1,8 @@
-import { Clock } from "@impower/spark-engine/src/game/core/classes/Clock";
-import { NotificationMessage } from "@impower/spark-engine/src/game/core/types/NotificationMessage";
-import { RequestMessage } from "@impower/spark-engine/src/game/core/types/RequestMessage";
-import { ResponseError } from "@impower/spark-engine/src/game/core/types/ResponseError";
 import { ColorSource, Container } from "pixi.js";
+import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
+import { NotificationMessage } from "../../../spark-engine/src/game/core/types/NotificationMessage";
+import { RequestMessage } from "../../../spark-engine/src/game/core/types/RequestMessage";
+import { ResponseError } from "../../../spark-engine/src/game/core/types/ResponseError";
 
 import {
   attachPointerEvents,
