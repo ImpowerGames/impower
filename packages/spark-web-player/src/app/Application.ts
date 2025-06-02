@@ -1,4 +1,15 @@
-import { Container, Renderer, WebGLRenderer } from "pixi.js";
+import {
+  Container,
+  DOMAdapter,
+  extensions,
+  ExtensionType,
+  Loader,
+  LoaderParser,
+  LoaderParserPriority,
+  Renderer,
+  ResolvedAsset,
+  WebGLRenderer,
+} from "pixi.js";
 import "pixi.js/unsafe-eval";
 import {
   type Message,
@@ -18,6 +29,23 @@ import WorldManager from "./managers/WorldManager";
 import { Camera } from "./plugins/projection/camera/camera";
 import { CameraOrbitControl } from "./plugins/projection/camera/camera-orbit-control";
 import { getEventData } from "./utils/getEventData";
+
+export const loadBuffer: LoaderParser = {
+  extension: {
+    name: "loadBuffer",
+    priority: LoaderParserPriority.Normal, // Actually will be last priority according to the console.log
+    type: ExtensionType.LoadParser,
+  },
+  test(url: string, resolvedAsset?: ResolvedAsset, loader?: Loader) {
+    return resolvedAsset?.loadParser === "loadBuffer";
+  },
+  async load(url: string, resolvedAsset?: ResolvedAsset, loader?: Loader) {
+    const response = await DOMAdapter.get().fetch(url);
+    const buffer = await response.arrayBuffer();
+    return buffer;
+  },
+} as LoaderParser;
+extensions.add(loadBuffer);
 
 export class Application implements IApplication {
   protected _game: Game;
@@ -97,13 +125,18 @@ export class Application implements IApplication {
     world: new WorldManager(this),
     event: new EventManager(this),
   };
-  get manager() {
-    return this._manager;
-  }
 
   protected _managers: Manager[] = Object.values(this._manager);
   get managers() {
     return this._managers;
+  }
+
+  get ui() {
+    return this._manager.ui;
+  }
+
+  get audio() {
+    return this._manager.audio;
   }
 
   protected _audioContext?: AudioContext;

@@ -8,7 +8,11 @@ import { UpdateAudioPlayersMessage } from "../../../../spark-engine/src/game/mod
 import { AudioPlayerUpdate } from "../../../../spark-engine/src/game/modules/audio/types/AudioPlayerUpdate";
 import { ConfigureAudioMixerParams } from "../../../../spark-engine/src/game/modules/audio/types/ConfigureAudioMixerParams";
 import { LoadAudioPlayerParams } from "../../../../spark-engine/src/game/modules/audio/types/LoadAudioPlayerParams";
+import { Midi } from "../../../../spark-engine/src/game/modules/audio/types/Midi";
+import { ToneSequence } from "../../../../spark-engine/src/game/modules/audio/types/ToneSequence";
 import { UpdateAudioPlayersParams } from "../../../../spark-engine/src/game/modules/audio/types/UpdateAudioPlayersParams";
+import { convertMidiToToneSequences } from "../../../../spark-engine/src/game/modules/audio/utils/convertMidiToToneSequences";
+import { parseMidi } from "../../../../spark-engine/src/game/modules/audio/utils/parseMidi";
 import { Manager } from "../Manager";
 
 export default class AudioManager extends Manager {
@@ -42,10 +46,12 @@ export default class AudioManager extends Manager {
     this._audioChannels.clear();
   }
 
-  async loadAudioBuffer(params: LoadAudioPlayerParams): Promise<AudioBuffer> {
+  protected async loadAudioBuffer(
+    params: LoadAudioPlayerParams
+  ): Promise<AudioBuffer> {
     // An audio context can be used to decode and create buffers,
     // even if it is not allowed to start running yet
-    const audioContext = this.audioContext || this.unsafeAudioContext;
+    const audioContext = this.app.audioContext || this.unsafeAudioContext;
     if (params.src) {
       const response = await fetch(params.src);
       const buffer = await response.arrayBuffer();
@@ -69,7 +75,9 @@ export default class AudioManager extends Manager {
     return audioContext.createBuffer(1, 1, audioContext.sampleRate);
   }
 
-  async getAudioBuffer(params: LoadAudioPlayerParams): Promise<AudioBuffer> {
+  protected async getAudioBuffer(
+    params: LoadAudioPlayerParams
+  ): Promise<AudioBuffer> {
     const existingAudioBuffer = this._audioBuffers.get(params.key);
     if (existingAudioBuffer) {
       return existingAudioBuffer;
@@ -81,17 +89,17 @@ export default class AudioManager extends Manager {
     return audioBuffer;
   }
 
-  getAudioMixer(mixer: string, gain: number): AudioMixer | undefined {
+  protected getAudioMixer(mixer: string, gain: number): AudioMixer | undefined {
     const existingAudioMixer = this._audioMixers.get(mixer);
     if (existingAudioMixer) {
       return existingAudioMixer;
     }
-    if (this.audioContext) {
+    if (this.app.audioContext) {
       const destination =
         mixer === "main"
-          ? this.audioContext.destination
+          ? this.app.audioContext.destination
           : this.getAudioMixer("main", gain)?.volumeNode;
-      const audioMixer = new AudioMixer(this.audioContext, destination);
+      const audioMixer = new AudioMixer(this.app.audioContext, destination);
       audioMixer.gain = gain;
       this._audioMixers.set(mixer, audioMixer);
       return audioMixer;
@@ -99,7 +107,7 @@ export default class AudioManager extends Manager {
     return undefined;
   }
 
-  getAudioChannel(channel: string): Map<string, AudioPlayer> {
+  protected getAudioChannel(channel: string): Map<string, AudioPlayer> {
     const existingAudioChannel = this._audioChannels.get(channel);
     if (existingAudioChannel) {
       return existingAudioChannel;
@@ -110,7 +118,7 @@ export default class AudioManager extends Manager {
   }
 
   // TODO: Destroy old audio to free up memory
-  destroyAudio(key: string, channel: string) {
+  protected destroyAudio(key: string, channel: string) {
     const audioChannel = this._audioChannels.get(channel);
     if (audioChannel) {
       const audioPlayer = audioChannel.get(key);
@@ -122,7 +130,7 @@ export default class AudioManager extends Manager {
     this._audioBuffers.delete(key);
   }
 
-  async getAudioPlayer(
+  protected async getAudioPlayer(
     params: LoadAudioPlayerParams
   ): Promise<AudioPlayer | undefined> {
     const audioChannel = this.getAudioChannel(params.channel);
@@ -134,8 +142,8 @@ export default class AudioManager extends Manager {
       return audioChannel.get(params.key)!;
     }
     const audioMixer = this.getAudioMixer(params.mixer, params.mixerGain);
-    if (audioBuffer && this.audioContext) {
-      const audioPlayer = new AudioPlayer(audioBuffer, this.audioContext, {
+    if (audioBuffer && this.app.audioContext) {
+      const audioPlayer = new AudioPlayer(audioBuffer, this.app.audioContext, {
         volume: params.volume,
         cues: params.cues,
         loop: params.loop,
@@ -149,7 +157,7 @@ export default class AudioManager extends Manager {
     return undefined;
   }
 
-  async updateAudioPlayer(
+  protected async updateAudioPlayer(
     audioPlayer: AudioPlayer,
     update: AudioPlayerUpdate,
     currentTime: number
@@ -173,20 +181,20 @@ export default class AudioManager extends Manager {
     }
   }
 
-  async onConfigureAudioMixer(params: ConfigureAudioMixerParams) {
+  protected async onConfigureAudioMixer(params: ConfigureAudioMixerParams) {
     const mixer = this.getAudioMixer(params.mixer, params.gain);
     if (mixer) {
       mixer.gain = params.gain;
     }
   }
 
-  async onLoadAudioPlayer(params: LoadAudioPlayerParams) {
+  protected async onLoadAudioPlayer(params: LoadAudioPlayerParams) {
     return this.getAudioPlayer(params);
   }
 
-  async onUpdateAudioPlayers(params: UpdateAudioPlayersParams) {
-    if (this.audioContext) {
-      let currentTime = this.audioContext.currentTime;
+  protected async onUpdateAudioPlayers(params: UpdateAudioPlayersParams) {
+    if (this.app.audioContext) {
+      let currentTime = this.app.audioContext.currentTime;
       const audioChannel = this.getAudioChannel(params.channel);
       let queueCreatedAt: number | undefined = undefined;
       for (const update of params.updates) {
@@ -223,7 +231,7 @@ export default class AudioManager extends Manager {
                 // So, skip the remaining queued updates
                 break;
               }
-              currentTime = this.audioContext.currentTime;
+              currentTime = this.app.audioContext.currentTime;
             }
           }
         }
@@ -232,8 +240,8 @@ export default class AudioManager extends Manager {
   }
 
   override onSkip(seconds: number): void {
-    if (this.audioContext) {
-      const scheduledTime = this.audioContext.currentTime;
+    if (this.app.audioContext) {
+      const scheduledTime = this.app.audioContext.currentTime;
       for (const c of this._audioChannels.values()) {
         for (const p of c.values()) {
           p.step(scheduledTime, seconds);
@@ -243,8 +251,8 @@ export default class AudioManager extends Manager {
   }
 
   override onPause(): void {
-    if (this.audioContext) {
-      const scheduledTime = this.audioContext.currentTime;
+    if (this.app.audioContext) {
+      const scheduledTime = this.app.audioContext.currentTime;
       for (const c of this._audioChannels.values()) {
         for (const p of c.values()) {
           p.pause(scheduledTime);
@@ -254,14 +262,25 @@ export default class AudioManager extends Manager {
   }
 
   override onUnpause(): void {
-    if (this.audioContext) {
-      const scheduledTime = this.audioContext.currentTime;
+    if (this.app.audioContext) {
+      const scheduledTime = this.app.audioContext.currentTime;
       for (const c of this._audioChannels.values()) {
         for (const p of c.values()) {
           p.unpause(scheduledTime);
         }
       }
     }
+  }
+
+  parseMidi(arrayBuffer: ArrayBuffer): Midi {
+    return parseMidi(arrayBuffer);
+  }
+
+  convertMidiToToneSequences(midi: Midi): ToneSequence[] {
+    return convertMidiToToneSequences(
+      midi,
+      (this.app.audioContext || this.unsafeAudioContext)?.sampleRate
+    );
   }
 
   override async onReceiveRequest(msg: RequestMessage) {
@@ -273,7 +292,8 @@ export default class AudioManager extends Manager {
       await this.onLoadAudioPlayer(msg.params);
       const outputLatency =
         window.AudioContext && "outputLatency" in window.AudioContext.prototype
-          ? (this.audioContext || this.unsafeAudioContext)?.outputLatency ?? 0
+          ? (this.app.audioContext || this.unsafeAudioContext)?.outputLatency ??
+            0
           : 0;
       return LoadAudioPlayerMessage.type.result({
         ...msg.params,

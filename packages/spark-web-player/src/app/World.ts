@@ -25,8 +25,6 @@ import { generateSolidTexture } from "./plugins/texture/utils/generateSolidTextu
  * and user interaction (pointers, drags, taps).
  */
 export class World {
-  protected _app: IApplication;
-
   private _pointerState: PointerState = createPointerState();
 
   private _detachPointerEvents?: () => void;
@@ -34,61 +32,17 @@ export class World {
   private _onExit?: () => void;
 
   /**
-   * Access the game's context.
+   * The application.
    */
-  get context() {
-    return this._app.context;
+  get app() {
+    return this._app;
   }
-
-  /**
-   * Access the rendering screen info.
-   */
-  get screen() {
-    return this._app.screen;
-  }
-
-  /**
-   * Access the canvas element used for rendering.
-   */
-  get canvas() {
-    return this._app.canvas;
-  }
-
-  /**
-   * Access the PixiJS renderer.
-   */
-  get renderer() {
-    return this._app.renderer;
-  }
-
-  /**
-   * Access the orbit control used for manipulating the camera (e.g. drag-to-rotate).
-   */
-  public get dolly() {
-    return this._app.dolly;
-  }
-
-  /**
-   * Access the main projection camera.
-   */
-  public get camera() {
-    return this._app.camera;
-  }
-
-  /**
-   * Get or set the background color of the renderer.
-   */
-  get backgroundColor() {
-    return this._app.renderer.background.color;
-  }
-  set backgroundColor(value: ColorSource) {
-    this._app.renderer.background.color = value;
-  }
+  private _app: IApplication;
 
   /**
    * Access the root display container (scene graph).
    */
-  public get stage(): Container {
+  get stage(): Container {
     return this._stage;
   }
   private _stage: Container;
@@ -185,7 +139,7 @@ export class World {
    */
   private bind(): void {
     this._detachPointerEvents = attachPointerEvents(
-      this.canvas,
+      this._app.canvas,
       this._pointerState,
       {
         onDown: (e) => {
@@ -390,7 +344,7 @@ export class World {
    * @returns A texture with a solid color
    */
   generateSolidTexture(width: number, height: number, color?: ColorSource) {
-    return generateSolidTexture(this.renderer, width, height, color);
+    return generateSolidTexture(this._app.renderer, width, height, color);
   }
 
   /**
@@ -404,6 +358,6 @@ export class World {
     options?: GenerateAnimatedSVGTexturesOptions
   ) {
     const svgEl = parseSVG(svg);
-    return generateAnimatedSVGTextures(this.renderer, svgEl, options);
+    return generateAnimatedSVGTextures(this._app.renderer, svgEl, options);
   }
 }

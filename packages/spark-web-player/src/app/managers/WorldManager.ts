@@ -32,11 +32,11 @@ export default class WorldManager extends Manager {
     const moduleUrl = URL.createObjectURL(blob);
     const module = await import(moduleUrl);
     const CustomWorldClass = module.default;
-    const world: World = new CustomWorldClass(this._app, () =>
+    const world: World = new CustomWorldClass(this.app, () =>
       this.exitWorld(src)
     );
     await world.onLoad();
-    this.stage.addChild(world.stage);
+    this.app.stage.addChild(world.stage);
     world.onConnected();
     this._worlds.set(src, world);
     world.onStart();
@@ -47,10 +47,10 @@ export default class WorldManager extends Manager {
     // TODO: show loading screen
     const world = this._worlds.get(src);
     if (world) {
-      this.stage.removeChild(world.stage);
+      this.app.stage.removeChild(world.stage);
       this._worlds.delete(src);
     }
-    this.emit(ExitWorldMessage.type.notification({ src }));
+    this.app.emit(ExitWorldMessage.type.notification({ src }));
   }
 
   override onPause(): void {

@@ -27,9 +27,9 @@ export default class UIManager extends Manager {
 
   getElement(id: string | null | undefined) {
     if (!id) {
-      return this.overlay;
+      return this.app.overlay;
     }
-    return this.overlay?.querySelector(`#${id}`) as HTMLElement;
+    return this.app.overlay?.querySelector(`#${id}`) as HTMLElement;
   }
 
   override async onReceiveRequest(msg: RequestMessage) {
@@ -110,7 +110,7 @@ export default class UIManager extends Manager {
         const parent = this.getElement(params.parent);
         if (parent) {
           const appendedEl = parent.appendChild(el);
-          if (parent === this.overlay) {
+          if (parent === this.app.overlay) {
             this._overlayRoots.push(appendedEl);
           }
         }
@@ -198,7 +198,7 @@ export default class UIManager extends Manager {
       const el = this.getElement(params.element);
       if (el) {
         const listener = (event: Event) => {
-          this.emit(EventMessage.type.notification(getEventData(event)));
+          this.app.emit(EventMessage.type.notification(getEventData(event)));
         };
         this._listeners[params.element] = listener;
         el.addEventListener(params.event, listener);
