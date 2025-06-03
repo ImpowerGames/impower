@@ -108,17 +108,6 @@ export class AudioModule extends Module<
     );
   }
 
-  getMixerName(channel: string | undefined): string {
-    const mixer = this.context?.channel?.[channel || "sound"]?.mixer;
-    const mixerName = (typeof mixer === "string" ? mixer : mixer?.$name) || "";
-    return mixerName || channel || "sound";
-  }
-
-  getMixerGain(channel: string | undefined): number {
-    const mixer = this.context.mixer?.[this.getMixerName(channel)];
-    return mixer?.gain ?? 1;
-  }
-
   async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
     await new Promise<void>(async (resolve) => {
       const result = await this.emit(LoadAudioPlayerMessage.type.request(data));
@@ -155,8 +144,6 @@ export class AudioModule extends Module<
     }
     const d: LoadAudioPlayerParams = {
       channel,
-      mixer: this.getMixerName(channel),
-      mixerGain: this.getMixerGain(channel),
       key: "",
       type: "audio",
       name: "",
@@ -178,35 +165,38 @@ export class AudioModule extends Module<
       }
     }
     d.key = d.type + "." + d.name + suffix;
-    const resolvedAsset = this.context?.[d.type as "audio" | "synth"]?.[d.name];
-    if (resolvedAsset) {
-      if ("src" in resolvedAsset && typeof resolvedAsset.src === "string") {
-        d.src = resolvedAsset.src;
+    if (d.name) {
+      const resolvedAsset =
+        this.context?.[d.type as "audio" | "synth"]?.[d.name];
+      if (resolvedAsset) {
+        if ("src" in resolvedAsset && typeof resolvedAsset.src === "string") {
+          d.src = resolvedAsset.src;
+        }
+        if (
+          "volume" in resolvedAsset &&
+          typeof resolvedAsset.volume === "number"
+        ) {
+          d.volume = resolvedAsset.volume;
+        }
+        if (
+          "cues" in resolvedAsset &&
+          Array.isArray(resolvedAsset.cues) &&
+          resolvedAsset.cues.length > 0
+        ) {
+          d.syncedTo = `${d.type}.${d.name}`;
+          d.cues = resolvedAsset.cues;
+        }
+        if ("loop_start" in resolvedAsset) {
+          d.loopStart = resolvedAsset.loop_start;
+        }
+        if ("loop_end" in resolvedAsset) {
+          d.loopEnd = resolvedAsset.loop_end;
+        }
+        if ("shape" in resolvedAsset) {
+          d.synth = resolvedAsset as Synth;
+        }
+        d.tones = this.parseTones(d.key);
       }
-      if (
-        "volume" in resolvedAsset &&
-        typeof resolvedAsset.volume === "number"
-      ) {
-        d.volume = resolvedAsset.volume;
-      }
-      if (
-        "cues" in resolvedAsset &&
-        Array.isArray(resolvedAsset.cues) &&
-        resolvedAsset.cues.length > 0
-      ) {
-        d.syncedTo = `${d.type}.${d.name}`;
-        d.cues = resolvedAsset.cues;
-      }
-      if ("loop_start" in resolvedAsset) {
-        d.loopStart = resolvedAsset.loop_start;
-      }
-      if ("loop_end" in resolvedAsset) {
-        d.loopEnd = resolvedAsset.loop_end;
-      }
-      if ("shape" in resolvedAsset) {
-        d.synth = resolvedAsset as Synth;
-      }
-      d.tones = this.parseTones(d.key);
     }
     return d;
   }

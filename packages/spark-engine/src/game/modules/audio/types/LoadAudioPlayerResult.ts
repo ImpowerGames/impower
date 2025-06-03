@@ -1,18 +1,5 @@
-import { Synth } from "./Synth";
-import { Tone } from "./Tone";
+import { LoadAudioPlayerParams } from "./LoadAudioPlayerParams";
 
-export interface LoadAudioPlayerResult {
-  channel: string;
-  mixer: string;
-  key: string;
-  type: string;
-  name: string;
-  synth?: Synth;
-  src?: string;
-  cues?: number[];
-  tones?: Tone[];
-  volume: number;
-  loop?: boolean;
-  syncedTo?: string;
+export interface LoadAudioPlayerResult extends LoadAudioPlayerParams {
   outputLatency?: number;
 }

@@ -46,6 +46,17 @@ export default class AudioManager extends Manager {
     this._audioChannels.clear();
   }
 
+  protected getMixerName(channel: string | undefined): string {
+    const mixer = this.app.context?.channel?.[channel || "sound"]?.mixer;
+    const mixerName = (typeof mixer === "string" ? mixer : mixer?.$name) || "";
+    return mixerName || channel || "sound";
+  }
+
+  protected getMixerGain(channel: string | undefined): number {
+    const mixer = this.app.context.mixer?.[this.getMixerName(channel)];
+    return mixer?.gain ?? 1;
+  }
+
   protected async loadAudioBuffer(
     params: LoadAudioPlayerParams
   ): Promise<AudioBuffer> {
@@ -89,7 +100,10 @@ export default class AudioManager extends Manager {
     return audioBuffer;
   }
 
-  protected getAudioMixer(mixer: string, gain: number): AudioMixer | undefined {
+  protected getAudioMixer(
+    mixer: string,
+    gain?: number
+  ): AudioMixer | undefined {
     const existingAudioMixer = this._audioMixers.get(mixer);
     if (existingAudioMixer) {
       return existingAudioMixer;
@@ -100,7 +114,9 @@ export default class AudioManager extends Manager {
           ? this.app.audioContext.destination
           : this.getAudioMixer("main", gain)?.volumeNode;
       const audioMixer = new AudioMixer(this.app.audioContext, destination);
-      audioMixer.gain = gain;
+      if (gain != null) {
+        audioMixer.gain = gain;
+      }
       this._audioMixers.set(mixer, audioMixer);
       return audioMixer;
     }
@@ -141,7 +157,9 @@ export default class AudioManager extends Manager {
     if (audioChannel.get(params.key)) {
       return audioChannel.get(params.key)!;
     }
-    const audioMixer = this.getAudioMixer(params.mixer, params.mixerGain);
+    const mixerName = this.getMixerName(params.channel);
+    const mixerGain = this.getMixerGain(params.channel);
+    const audioMixer = this.getAudioMixer(mixerName, mixerGain);
     if (audioBuffer && this.app.audioContext) {
       const audioPlayer = new AudioPlayer(audioBuffer, this.app.audioContext, {
         volume: params.volume,
@@ -270,6 +288,16 @@ export default class AudioManager extends Manager {
         }
       }
     }
+  }
+
+  loadAudioPlayer(
+    params: LoadAudioPlayerParams
+  ): Promise<AudioPlayer | undefined> {
+    return this.onLoadAudioPlayer(params);
+  }
+
+  updateAudioPlayers(params: UpdateAudioPlayersParams): Promise<void> {
+    return this.onUpdateAudioPlayers(params);
   }
 
   parseMidi(arrayBuffer: ArrayBuffer): Midi {
