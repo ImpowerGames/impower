@@ -340,23 +340,18 @@ export default class AudioPlayer {
     return [...this._instances];
   }
 
-  pause(when: number, fadeDuration = DEFAULT_FADE_DURATION): AudioInstance[] {
+  pause(when: number): AudioInstance[] {
     for (const instance of this._instances) {
-      this._fade(instance, when, 0, fadeDuration);
-      instance.sourceNode.stop(when + fadeDuration);
-      instance.pausedAt = when + fadeDuration;
+      instance.sourceNode.playbackRate.cancelScheduledValues(when);
+      instance.sourceNode.playbackRate.setValueAtTime(0, when);
     }
     return [...this._instances];
   }
 
-  unpause(when: number, fadeDuration = DEFAULT_FADE_DURATION): AudioInstance[] {
+  unpause(when: number): AudioInstance[] {
     for (const instance of this._instances) {
-      if (instance.pausedAt != null) {
-        const offset = instance.startedAt - instance.pausedAt;
-        instance.pausedAt = undefined;
-        instance.sourceNode.start(0, offset);
-        this._fade(instance, when, this._gain, fadeDuration);
-      }
+      instance.sourceNode.playbackRate.cancelScheduledValues(when);
+      instance.sourceNode.playbackRate.setValueAtTime(1, when);
     }
     return [...this._instances];
   }
