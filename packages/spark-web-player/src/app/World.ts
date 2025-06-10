@@ -5,10 +5,10 @@ import { RequestMessage } from "../../../spark-engine/src/game/core/types/Reques
 import { ResponseError } from "../../../spark-engine/src/game/core/types/ResponseError";
 
 import {
-  attachPointerEvents,
-  createPointerState,
-  PointerState,
-} from "./helpers/pointerEvents";
+  attachInputEvents,
+  createInputState,
+  InputState,
+} from "./helpers/inputEvents";
 import { IApplication } from "./IApplication";
 import {
   generateAnimatedSVGTextures,
@@ -25,9 +25,9 @@ import { generateSolidTexture } from "./plugins/texture/utils/generateSolidTextu
  * and user interaction (pointers, drags, taps).
  */
 export class World {
-  private _pointerState: PointerState = createPointerState();
+  private _inputState: InputState = createInputState();
 
-  private _detachPointerEvents?: () => void;
+  private _detachInputEvents?: () => void;
 
   private _onExit?: () => void;
 
@@ -138,43 +138,58 @@ export class World {
    * Add event listeners for pointer input.
    */
   private bind(): void {
-    this._detachPointerEvents = attachPointerEvents(
+    this._detachInputEvents = attachInputEvents(
       this._app.canvas,
-      this._pointerState,
+      this._inputState,
       {
-        onDown: (e) => {
+        onDown: (e: PointerEvent) => {
           if (this._app.clock.speed > 0) {
             this.onPointerDown(e);
           }
         },
-        onMove: (e) => {
+        onMove: (e: PointerEvent) => {
           if (this._app.clock.speed > 0) {
             this.onPointerMove(e);
           }
         },
-        onUp: (e) => {
+        onUp: (e: PointerEvent) => {
           if (this._app.clock.speed > 0) {
             this.onPointerUp(e);
           }
         },
-        onTap: (e) => {
+        onTap: (e: PointerEvent) => {
           if (this._app.clock.speed > 0) {
             this.onTap(e);
           }
         },
-        onDragStart: (e, t, dx, dy) => {
+        onDragStart: (e: PointerEvent, t: number, dx: number, dy: number) => {
           if (this._app.clock.speed > 0) {
             this.onDragStart(e, t, dx, dy);
           }
         },
-        onDrag: (e) => {
+        onDrag: (e: PointerEvent) => {
           if (this._app.clock.speed > 0) {
             this.onDrag(e);
           }
         },
-        onDragEnd: (e) => {
+        onDragEnd: (e: PointerEvent) => {
           if (this._app.clock.speed > 0) {
             this.onDragEnd(e);
+          }
+        },
+        onKeyDown: (e: KeyboardEvent) => {
+          if (this._app.clock.speed > 0) {
+            this.onKeyDown(e);
+          }
+        },
+        onKeyUp: (e: KeyboardEvent) => {
+          if (this._app.clock.speed > 0) {
+            this.onKeyUp(e);
+          }
+        },
+        onKeyPress: (e: KeyboardEvent) => {
+          if (this._app.clock.speed > 0) {
+            this.onKeyPress(e);
           }
         },
       }
@@ -185,7 +200,7 @@ export class World {
    * Remove event listeners.
    */
   private unbind(): void {
-    this._detachPointerEvents?.();
+    this._detachInputEvents?.();
   }
 
   /**
@@ -291,6 +306,24 @@ export class World {
    * @param event PointerEvent from browser
    */
   protected onDragEnd(event: PointerEvent): void {}
+
+  /**
+   * Triggered when a key is pressed down.
+   * @param event KeyboardEvent from browser
+   */
+  protected onKeyDown(event: KeyboardEvent): void {}
+
+  /**
+   * Triggered when a key is released.
+   * @param event KeyboardEvent from browser
+   */
+  protected onKeyUp(event: KeyboardEvent): void {}
+
+  /**
+   * Triggered when a key is pressed down and then released.
+   * @param event KeyboardEvent from browser
+   */
+  protected onKeyPress(event: KeyboardEvent): void {}
 
   /**
    * Handle a notification from the engine.

@@ -7,7 +7,7 @@ type PointerType = "mouse" | "pen" | "touch";
  * Stores the internal state of pointer interaction,
  * including drag state and pointer coordinates.
  */
-export interface PointerState {
+export interface InputState {
   down: boolean;
   dragging: boolean;
   downX: number;
@@ -18,7 +18,7 @@ export interface PointerState {
 /**
  * A collection of callback functions for various pointer interaction events.
  */
-export interface PointerEventCallbacks {
+export interface InputEventCallbacks {
   onDown?: (e: PointerEvent) => void;
   onMove?: (e: PointerEvent) => void;
   onUp?: (e: PointerEvent) => void;
@@ -31,12 +31,15 @@ export interface PointerEventCallbacks {
   ) => void;
   onDrag?: (e: PointerEvent) => void;
   onDragEnd?: (e: PointerEvent) => void;
+  onKeyPress?: (e: KeyboardEvent) => void;
+  onKeyDown?: (e: KeyboardEvent) => void;
+  onKeyUp?: (e: KeyboardEvent) => void;
 }
 
 /**
- * Creates a new PointerState with default drag thresholds.
+ * Creates a new InputState with default drag thresholds.
  */
-export function createPointerState(): PointerState {
+export function createInputState(): InputState {
   return {
     down: false,
     dragging: false,
@@ -59,10 +62,10 @@ export function createPointerState(): PointerState {
  * @param callbacks - Optional callback hooks for each interaction phase
  * @returns A cleanup function to detach the listeners
  */
-export function attachPointerEvents(
+export function attachInputEvents(
   canvas: HTMLElement | null,
-  state: PointerState,
-  callbacks: PointerEventCallbacks
+  state: InputState,
+  callbacks: InputEventCallbacks
 ) {
   if (!canvas) return;
 
@@ -120,34 +123,33 @@ export function attachPointerEvents(
     }
   };
 
+  const handleKeyDown = (e: KeyboardEvent) => {
+    callbacks.onKeyDown?.(e);
+  };
+
+  const handleKeyUp = (e: KeyboardEvent) => {
+    callbacks.onKeyUp?.(e);
+  };
+
+  const handleKeyPress = (e: KeyboardEvent) => {
+    callbacks.onKeyPress?.(e);
+  };
+
   canvas.addEventListener("pointerdown", handleDown);
   canvas.addEventListener("pointermove", handleMove);
   window.addEventListener("mouseup", handleUp);
   window.addEventListener("touchend", handleTouchEnd);
+  window.addEventListener("keydown", handleKeyDown);
+  window.addEventListener("keyup", handleKeyUp);
+  window.addEventListener("keypress", handleKeyPress);
 
-  return () =>
-    detachPointerEvents(
-      canvas,
-      handleDown,
-      handleMove,
-      handleUp,
-      handleTouchEnd
-    );
-}
-
-/**
- * Detaches pointer event listeners that were previously attached.
- */
-export function detachPointerEvents(
-  canvas: HTMLElement | null,
-  handleDown: (e: PointerEvent) => void,
-  handleMove: (e: PointerEvent) => void,
-  handleUp: (e: PointerEvent | MouseEvent) => void,
-  handleTouchEnd: (e: TouchEvent) => void
-) {
-  if (!canvas) return;
-  canvas.removeEventListener("pointerdown", handleDown);
-  canvas.removeEventListener("pointermove", handleMove);
-  window.removeEventListener("mouseup", handleUp);
-  window.removeEventListener("touchend", handleTouchEnd);
+  return () => {
+    canvas.removeEventListener("pointerdown", handleDown);
+    canvas.removeEventListener("pointermove", handleMove);
+    window.removeEventListener("mouseup", handleUp);
+    window.removeEventListener("touchend", handleTouchEnd);
+    window.removeEventListener("keydown", handleKeyDown);
+    window.removeEventListener("keyup", handleKeyUp);
+    window.removeEventListener("keypress", handleKeyPress);
+  };
 }
