@@ -185,17 +185,19 @@ export default class AudioManager extends Manager {
       ? updateTime
       : audioPlayer.getNextCueTime(updateTime);
     const over = update.over;
+    const gain = update.fadeto;
+    const at = update.at;
     if (update.loop != null) {
       audioPlayer.loop = update.loop;
     }
     if (update.control === "start") {
-      audioPlayer.start(when, over, update.fadeto);
+      audioPlayer.start(when, over, gain, at);
     }
     if (update.control === "stop") {
       audioPlayer.stop(when, over);
     }
     if (update.control === "modulate") {
-      audioPlayer.fade(when, over, update.fadeto);
+      audioPlayer.fade(when, over, gain);
     }
   }
 
