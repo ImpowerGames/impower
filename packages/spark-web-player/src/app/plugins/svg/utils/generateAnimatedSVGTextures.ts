@@ -9,6 +9,7 @@ export interface GenerateAnimatedSVGTexturesOptions
   extends GenerateAnimatedSVGTextureOptions {
   fps?: number;
   batchCount?: number;
+  duration?: number;
 }
 
 export const generateAnimatedSVGTextures = async (
@@ -21,13 +22,16 @@ export const generateAnimatedSVGTextures = async (
   const animateDurEl = Array.from(svg.getElementsByTagName("animate")).find(
     (e) => e.getAttribute("dur")
   );
-  const duration = animateDurEl ? parseSVGDurAttribute(animateDurEl) : 0;
-  const secondsPerFrame = 1 / fps;
-  const frameCount = Math.floor(duration / secondsPerFrame);
+  const animationDuration = animateDurEl
+    ? parseSVGDurAttribute(animateDurEl)
+    : 0;
+  const duration = options?.duration ?? animationDuration;
+  const textureCount = duration * fps;
+  const secondsPerTexture = animationDuration / textureCount;
   let time = 0;
-  for (let i = 0; i < frameCount; i++) {
+  for (let i = 0; i < textureCount; i++) {
     if (i > 0 && i % batchCount === 0) {
-      // Wait to so we don't generate too many textures in the same frame
+      // Wait so we don't generate too many textures in the same frame
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
     }
     const frameTexture = generateAnimatedSVGTexture(
@@ -37,7 +41,7 @@ export const generateAnimatedSVGTextures = async (
       options
     );
     textures.push(frameTexture);
-    time += secondsPerFrame;
+    time += secondsPerTexture;
   }
 
   // Wait to so we don't generate too many textures in the same frame
