@@ -9,6 +9,11 @@ import {
   GameExecutedMethod,
   GameExecutedParams,
 } from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
+import {
+  GameStartedMessage,
+  GameStartedMethod,
+  GameStartedParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
@@ -43,6 +48,9 @@ export default class GamePreview extends Component(spec) {
       if (SelectedEditorMessage.type.is(e.detail)) {
         this.handleSelectedEditor(e.detail);
       }
+      if (GameStartedMessage.type.is(e.detail)) {
+        this.handleGameStarted(e.detail);
+      }
       if (GameExecutedMessage.type.is(e.detail)) {
         this.handleGameExecuted(e.detail);
       }
@@ -70,13 +78,18 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
+  handleGameStarted = async (
+    message: NotificationMessage<GameStartedMethod, GameStartedParams>
+  ) => {
+    Workspace.window.startGame();
+  };
+
   handleGameExecuted = async (
     message: NotificationMessage<GameExecutedMethod, GameExecutedParams>
   ) => {
     const { locations } = message.params;
     const location = locations[0];
     if (location) {
-      Workspace.window.startGame();
       Workspace.window.showDocument(location.uri, location.range, true);
     }
   };
