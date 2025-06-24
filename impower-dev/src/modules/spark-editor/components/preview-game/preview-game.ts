@@ -17,6 +17,11 @@ import {
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
+import {
+  DidCompileTextDocumentMessage,
+  DidCompileTextDocumentMethod,
+  DidCompileTextDocumentParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
@@ -54,15 +59,21 @@ export default class GamePreview extends Component(spec) {
       if (GameExecutedMessage.type.is(e.detail)) {
         this.handleGameExecuted(e.detail);
       }
+      if (DidCompileTextDocumentMessage.type.is(e.detail)) {
+        this.handleDidCompileTextDocument(e.detail);
+      }
     }
   };
 
-  handleDidCompileTextDocument = async (e: Event) => {
-    if (e instanceof CustomEvent) {
-      await this.configureGame();
-      await this.loadGame();
-      await this.loadPreview();
-    }
+  handleDidCompileTextDocument = async (
+    message: NotificationMessage<
+      DidCompileTextDocumentMethod,
+      DidCompileTextDocumentParams
+    >
+  ) => {
+    await this.configureGame();
+    await this.loadGame();
+    await this.loadPreview();
   };
 
   handleSelectedEditor = async (
@@ -87,9 +98,9 @@ export default class GamePreview extends Component(spec) {
   handleGameExecuted = async (
     message: NotificationMessage<GameExecutedMethod, GameExecutedParams>
   ) => {
-    const { locations } = message.params;
+    const { locations, state } = message.params;
     const location = locations[0];
-    if (location) {
+    if (location && state !== "previewing") {
       Workspace.window.showDocument(location.uri, location.range, true);
     }
   };
