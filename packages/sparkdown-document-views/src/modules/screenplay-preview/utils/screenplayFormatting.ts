@@ -73,13 +73,6 @@ const LANGUAGE_NAME = "sparkdown";
 
 const LANGUAGE_SUPPORT = new TextmateLanguageSupport(LANGUAGE_NAME, GRAMMAR);
 
-const INLINE_HIDDEN_STYLE = {
-  display: "inline-block",
-  visibility: "hidden",
-  width: "0",
-  height: "0",
-};
-
 const INLINE_HIDDEN_TAGS = [
   tags.definition(tags.escape),
   tags.definition(tags.keyword),
@@ -99,30 +92,42 @@ const INLINE_HIDDEN_TAGS = [
   tags.meta,
 ];
 
-const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
-  { tag: tags.emphasis, fontStyle: "italic" },
-  { tag: tags.strong, fontWeight: "bold" },
-  { tag: tags.link, textDecoration: "underline", textUnderlineOffset: "5px" },
-  { tag: tags.strikethrough, textDecoration: "line-through" },
-  { tag: tags.regexp, fontWeight: "bold" },
-  { tag: tags.labelName, display: "block", textAlign: "right" },
+const createHighlightStyle = (inlineHiddenStyle: Record<string, string>) =>
+  HighlightStyle.define([
+    { tag: tags.emphasis, fontStyle: "italic" },
+    { tag: tags.strong, fontWeight: "bold" },
+    { tag: tags.link, textDecoration: "underline", textUnderlineOffset: "5px" },
+    { tag: tags.strikethrough, textDecoration: "line-through" },
+    { tag: tags.regexp, fontWeight: "bold" },
+    { tag: tags.labelName, display: "block", textAlign: "right" },
 
-  {
-    tag: tags.special(tags.meta),
-    display: "block",
-    visibility: "hidden",
-    height: "0",
-  },
+    {
+      tag: tags.special(tags.meta),
+      display: "block",
+      visibility: "hidden",
+      height: "0",
+    },
 
-  ...INLINE_HIDDEN_TAGS.map((tag) => ({ tag, ...INLINE_HIDDEN_STYLE })),
+    ...INLINE_HIDDEN_TAGS.map((tag) => ({ tag, ...inlineHiddenStyle })),
 
-  {
-    tag: tags.contentSeparator,
-    display: "block",
-    color: "transparent",
-    borderBottom: "1px solid #00000033",
-  },
-]);
+    {
+      tag: tags.contentSeparator,
+      display: "block",
+      color: "transparent",
+      borderBottom: "1px solid #00000033",
+    },
+  ]);
+
+const LANGUAGE_HIGHLIGHTS = createHighlightStyle({
+  display: "inline-block",
+  visibility: "hidden",
+  width: "0",
+  height: "0",
+});
+
+const DUAL_LANGUAGE_HIGHLIGHTS = createHighlightStyle({
+  display: "none",
+});
 
 export const debugDecorations = (
   decorations: RangeSet<Decoration>,
@@ -200,6 +205,13 @@ const createDecorations = (
   }
   if (spec.type === "dialogue") {
     if (spec.grid) {
+      console.log(
+        doc.sliceString(spec.from, spec.to),
+        spec.from,
+        spec.to,
+        JSON.stringify(spec.blocks),
+        spec.blocks
+      );
       return [
         ...createRevealDecorations(doc, spec.from, spec.to),
         Decoration.replace({
@@ -549,7 +561,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
               from,
               to: to - 1,
               language: LANGUAGE_SUPPORT.language,
-              highlighter: LANGUAGE_HIGHLIGHTS,
+              highlighter: DUAL_LANGUAGE_HIGHLIGHTS,
               blocks: [
                 dialogueContent.map((c) => {
                   c.attributes = {
@@ -574,6 +586,9 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
                 };
               });
             });
+            decorations.push(
+              ...createDecorations(doc, { type: "replace", from, to })
+            );
           }
         } else {
           const spec: DialogueSpec = {
@@ -673,6 +688,7 @@ const screenplayFormatting = (): Extension => {
     LANGUAGE_SUPPORT,
     replaceDecorations,
     EditorView.styleModule.of(LANGUAGE_HIGHLIGHTS.module!),
+    EditorView.styleModule.of(DUAL_LANGUAGE_HIGHLIGHTS.module!),
   ];
 };
 
