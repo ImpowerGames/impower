@@ -205,13 +205,6 @@ const createDecorations = (
   }
   if (spec.type === "dialogue") {
     if (spec.grid) {
-      console.log(
-        doc.sliceString(spec.from, spec.to),
-        spec.from,
-        spec.to,
-        JSON.stringify(spec.blocks),
-        spec.blocks
-      );
       return [
         ...createRevealDecorations(doc, spec.from, spec.to),
         Decoration.replace({
