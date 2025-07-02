@@ -2564,7 +2564,7 @@ repository:
     match: ({{WS}}+)
 
   Separator:
-    tag: content
+    tag: definition(content)
     name: markup.raw.whitespace.sd
     match: ({{WS}}+)
 

@@ -4738,7 +4738,7 @@
       "match": "([^\\S\\n\\r]+)"
     },
     "Separator": {
-      "tag": "content",
+      "tag": "definition(content)",
       "name": "markup.raw.whitespace.sd",
       "match": "([^\\S\\n\\r]+)"
     },
