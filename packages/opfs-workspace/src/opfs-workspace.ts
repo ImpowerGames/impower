@@ -1,7 +1,5 @@
 import { ErrorCodes } from "@impower/spark-editor-protocol/src/enums/ErrorCodes";
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
-import { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
-import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
@@ -18,6 +16,8 @@ import { WillRenameFilesMessage } from "@impower/spark-editor-protocol/src/proto
 import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import { FileData, FileEvent } from "@impower/spark-editor-protocol/src/types";
+import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
+import { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
 import { Zippable, unzipSync, zipSync } from "fflate";
 import debounce from "./utils/debounce";
 import { getAllFilesRecursive } from "./utils/getAllFilesRecursive";
@@ -390,7 +390,7 @@ const zipFiles = async (files: { uri: string }[]) => {
 const unzipFiles = async (data: ArrayBuffer) => {
   const unzipped = unzipSync(new Uint8Array(data));
   const files = Object.entries(unzipped).map(([filename, data]) => ({
-    filename,
+    filename: getFileName(filename),
     data: data.buffer,
   }));
   console.log(MAGENTA, "UNZIP", `${files.length} files`);
