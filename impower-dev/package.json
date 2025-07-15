@@ -4,11 +4,13 @@
   "type": "module",
   "scripts": {
     "kill": "kill-port 8080",
+    "postinstall:textmate-grammar-tree": "cd ../packages/textmate-grammar-tree && npm ci && cd ../../impower-dev",
     "postinstall:sparkdown": "cd ../packages/sparkdown && npm ci && cd ../../impower-dev",
     "postinstall:spark-engine": "cd ../packages/spark-engine && npm ci && cd ../../impower-dev",
     "postinstall:spark-dom": "cd ../packages/spark-dom && npm ci && cd ../../impower-dev",
     "postinstall:spark-editor-protocol": "cd ../packages/spark-editor-protocol && npm ci && cd ../../impower-dev",
     "postinstall:sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm ci && cd ../../impower-dev",
+    "postinstall:sparkdown-screenplay": "cd ../packages/sparkdown-screenplay && npm ci && cd ../../impower-dev",
     "postinstall:sparkdown-screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm ci && cd ../../impower-dev",
     "postinstall:opfs-workspace": "cd ../packages/opfs-workspace && npm ci && cd ../../impower-dev",
     "postinstall:spark-web-player": "cd ../packages/spark-web-player && npm ci && cd ../../impower-dev",
