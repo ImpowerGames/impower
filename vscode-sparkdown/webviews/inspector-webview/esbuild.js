@@ -29,7 +29,7 @@ const esbuildInlineWorkerPlugin = (extraConfig) => ({
         ...(extraConfig || {}),
       });
       let bundledText = result.outputFiles?.[0]?.text || "";
-      const exportIndex = bundledText.lastIndexOf("export {");
+      const exportIndex = bundledText.lastIndexOf("export");
       if (exportIndex >= 0) {
         bundledText = bundledText.slice(0, exportIndex);
       }
