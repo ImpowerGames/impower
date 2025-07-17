@@ -97,7 +97,6 @@ export const uiBuiltinDefinitions = () => ({
       isolation: "isolate",
       will_change: "transform",
       "*": {
-        mix_blend_mode: "plus-lighter",
         position: "absolute",
         inset: "0",
         background_position: "center",
@@ -173,6 +172,9 @@ export const uiBuiltinDefinitions = () => ({
       flex_direction: "column",
       background_size: "auto 100%",
       background_position: "center",
+      "image *": {
+        mix_blend_mode: "plus-lighter",
+      },
     }),
     choices: default_style({
       $name: "choices",
