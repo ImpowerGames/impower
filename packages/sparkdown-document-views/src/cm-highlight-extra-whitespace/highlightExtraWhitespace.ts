@@ -1,4 +1,4 @@
-import { Extension, RangeSetBuilder, Range, Text } from "@codemirror/state";
+import { Extension, Range, RangeSetBuilder, Text } from "@codemirror/state";
 import {
   Decoration,
   DecorationSet,
@@ -269,8 +269,7 @@ export class MatchDecorator {
 
 const whitespaceHighlighter = matcher(
   new MatchDecorator({
-    regexp:
-      /\t|[ ]$|(?<=\S)[ ](?=[ ])|(?<=\S[ ]+)[ ](?=[ ])|(?<=\S[ ]+)[ ](?=\S)/gm,
+    regexp: /(?<=\S)[ ](?=[ ])|(?<=\S[ ]+)[ ](?=[ ])|(?<=\S[ ]+)[ ](?=\S)/gm,
     decoration: (match) => getDecoration(match[0]),
     boundary: /\S/,
   })
