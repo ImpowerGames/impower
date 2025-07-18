@@ -1,13 +1,17 @@
-import { Panel, EditorView, ViewUpdate, showPanel } from "@codemirror/view";
 import {
-  openLintPanel,
   closeLintPanel,
   forEachDiagnostic,
   linter,
+  openLintPanel,
 } from "@codemirror/lint";
-import { closeGotoLinePanel, openGotoLinePanel } from "./GotoLinePanel";
-import EDITOR_COLORS from "../constants/EDITOR_COLORS";
 import { EditorState, Extension, StateField } from "@codemirror/state";
+import { EditorView, Panel, ViewUpdate, showPanel } from "@codemirror/view";
+import EDITOR_COLORS from "../constants/EDITOR_COLORS";
+import {
+  closeGotoLinePanel,
+  gotoLinePanelOpen,
+  openGotoLinePanel,
+} from "./GotoLinePanel";
 
 export class StatusPanel implements Panel {
   dom: HTMLElement;
@@ -27,8 +31,6 @@ export class StatusPanel implements Panel {
   lineColumnLabel: HTMLSpanElement;
 
   isLintPanelOpen = false;
-
-  isGotoLinePanelOpen = false;
 
   constructor(readonly view: EditorView) {
     this.dom = document.createElement("div");
@@ -56,7 +58,7 @@ export class StatusPanel implements Panel {
     this.gotoLineButton.className = "cm-button";
     this.gotoLineButton.name = "problems";
     this.gotoLineButton.type = "button";
-    this.gotoLineButton.onclick = this.toggleGotoLinePanel.bind(this);
+    this.gotoLineButton.onclick = () => this.toggleGotoLinePanel(view.state);
 
     this.lineColumnLabel = document.createElement("span");
     this.lineColumnLabel.className = "cm-statusLabel cm-lineColumnLabel";
@@ -81,12 +83,10 @@ export class StatusPanel implements Panel {
     }
   }
 
-  toggleGotoLinePanel() {
-    if (this.isGotoLinePanelOpen) {
-      this.isGotoLinePanelOpen = false;
+  toggleGotoLinePanel(state: EditorState) {
+    if (gotoLinePanelOpen(state)) {
       closeGotoLinePanel(this.view);
     } else {
-      this.isGotoLinePanelOpen = true;
       openGotoLinePanel(this.view);
     }
   }
