@@ -1,9 +1,12 @@
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage";
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
+import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage";
 import { DidWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage";
+import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import {
   ReadDirectoryFilesMessage,
   ReadDirectoryFilesParams,
@@ -25,10 +28,8 @@ import {
   WillRenameFilesMessage,
   WillRenameFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WillRenameFilesMessage";
-import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage";
 import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
-import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import {
   FileData,
   ProjectMetadataField,
@@ -159,16 +160,16 @@ export default class WorkspaceFileSystem {
         this._files[file.uri] = file;
         this.preloadFile(file);
       });
-      this.emit(message.method, message);
+      this.emit(MessageProtocol.event, message);
     } else if (DidCreateFilesMessage.type.isNotification(message)) {
       Workspace.ls.connection.sendNotification(message.method, message.params);
-      this.emit(message.method, message);
+      this.emit(MessageProtocol.event, message);
     } else if (DidDeleteFilesMessage.type.isNotification(message)) {
       message.params.files.forEach((file) => {
         delete this._files?.[file.uri];
       });
       Workspace.ls.connection.sendNotification(message.method, message.params);
-      this.emit(message.method, message);
+      this.emit(MessageProtocol.event, message);
     } else if (DidRenameFilesMessage.type.isNotification(message)) {
       message.params.files.forEach((file) => {
         this._files ??= {};
@@ -182,10 +183,10 @@ export default class WorkspaceFileSystem {
         }
       });
       Workspace.ls.connection.sendNotification(message.method, message.params);
-      this.emit(message.method, message);
+      this.emit(MessageProtocol.event, message);
     } else if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
       Workspace.ls.connection.sendNotification(message.method, message.params);
-      this.emit(message.method, message);
+      this.emit(MessageProtocol.event, message);
     } else if (message.error) {
       const handler = this._messageQueue[message.id];
       if (handler) {
