@@ -532,10 +532,6 @@ export class SparkdownPreviewGamePanelManager {
               src: url("${fontPathMonoBoldItalic}") format("${fontFormatMono}");
             }
 
-            :root {
-              --spark-toolbar-border: var(--vscode-editorWidget-border);
-            }
-
             html {
               padding: 0;
               margin: 0;
@@ -556,6 +552,7 @@ export class SparkdownPreviewGamePanelManager {
               font-family: var(--vscode-font-family);
               font-size: 12px;
               color: var(--vscode-foreground);
+              background-color: var(--vscode-editor-background);
             }
 
             body.ready {

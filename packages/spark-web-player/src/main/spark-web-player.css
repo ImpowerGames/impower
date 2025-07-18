@@ -1,5 +1,6 @@
 :host {
   display: contents;
+  background-color: inherit;
   line-height: 1.35;
   -webkit-text-size-adjust: 100%;
   -moz-tab-size: 4;
@@ -155,6 +156,7 @@ Make sure disabled buttons don't get the pointer cursor.
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  background-color: inherit;
 }
 
 #game {
@@ -213,7 +215,7 @@ Make sure disabled buttons don't get the pointer cursor.
   display: flex;
   flex-direction: row;
   align-items: center;
-  border-top: 1px solid var(--spark-toolbar-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
   padding: 0 8px;
   height: 22px;
   gap: 6px;
@@ -223,6 +225,7 @@ Make sure disabled buttons don't get the pointer cursor.
   position: relative;
   cursor: ns-resize;
   transition: border-color 0.2s ease;
+  background-color: inherit;
 }
 
 #toolbar.snapping {
