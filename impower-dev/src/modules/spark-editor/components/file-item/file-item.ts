@@ -8,6 +8,7 @@ export default class FileItem extends Component(spec) {
     document.addEventListener("click", this.handleDocumentClick);
     this.ref.button.addEventListener("click", this.handleButtonClick);
     this.addEventListener("changing", this.handleChanging);
+    this.addEventListener("changed", this.handleChanged);
     const nameInput = this.ref.nameInput as Input;
     nameInput?.addEventListener("focus", this.handleFocusNameInput);
     nameInput?.addEventListener("blur", this.handleBlurNameInput);
@@ -25,6 +26,7 @@ export default class FileItem extends Component(spec) {
     document.removeEventListener("click", this.handleDocumentClick);
     this.ref.button.removeEventListener("click", this.handleButtonClick);
     this.removeEventListener("changing", this.handleChanging);
+    this.removeEventListener("changed", this.handleChanged);
     const nameInput = this.ref.nameInput as Input;
     nameInput?.removeEventListener("focus", this.handleFocusNameInput);
     nameInput?.removeEventListener("blur", this.handleBlurNameInput);
@@ -85,6 +87,20 @@ export default class FileItem extends Component(spec) {
           }
           if (e.detail.value === "rename") {
             this.renaming = true;
+          }
+        }
+      }
+    }
+  };
+
+  handleChanged = async (e: Event) => {
+    if (e instanceof CustomEvent) {
+      if (e.detail.key === "file-options") {
+        const filename = this.filename;
+        if (filename) {
+          if (e.detail.value === "rename") {
+            const nameInput = this.ref.nameInput as Input;
+            nameInput.select();
           }
         }
       }

@@ -31,7 +31,6 @@ const DEFAULT_ATTRIBUTES = {
     "autocorrect",
     "autocomplete",
     "autofocus",
-    "autoselect",
     "spellcheck",
     "label",
     "min",
@@ -60,7 +59,6 @@ export default class Input
       type: this.type,
       name: this.name,
       autofocus: this.autofocus,
-      autoselect: this.autoselect,
       autocomplete: this.autocomplete,
       autocorrect: this.autocorrect,
       autocapitalize: this.autocapitalize,
@@ -184,14 +182,6 @@ export default class Input
     return this.getStringAttribute(Input.attrs.autocomplete);
   }
   set autocomplete(value) {
-    this.setStringAttribute(Input.attrs.autocomplete, value);
-  }
-
-  /** Auto selects the input. */
-  get autoselect() {
-    return this.getStringAttribute(Input.attrs.autocomplete);
-  }
-  set autoselect(value) {
     this.setStringAttribute(Input.attrs.autocomplete, value);
   }
 
@@ -321,9 +311,6 @@ export default class Input
     const ripple = this.ref.ripple;
     if (ripple) {
       ripple?.bind?.(this.root);
-    }
-    if (this.autoselect) {
-      this.ref.input.select();
     }
   }
 

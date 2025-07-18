@@ -9,6 +9,7 @@ export default spec({
     name: null as string | null,
     autocomplete: null as string | null,
     autocorrect: null as string | null,
+    autofocus: null as string | null,
     autocapitalize: null as string | null,
     pattern: null as string | null,
     maxLength: 0 as number | null,
@@ -28,6 +29,7 @@ export default spec({
       name,
       autocomplete,
       autocorrect,
+      autofocus,
       autocapitalize,
       pattern,
       maxLength,
@@ -49,6 +51,7 @@ export default spec({
     const autocorrectAttr = autocorrect
       ? () => html`autocorrect="${autocorrect}"`
       : "";
+    const autofocusAttr = autofocus ? () => html`autofocus` : "";
     const autocapitalizeAttr = autocapitalize
       ? () => html`autocapitalize="${autocapitalize}"`
       : "";
@@ -77,6 +80,7 @@ export default spec({
           ${nameAttr}
           ${autocompleteAttr}
           ${autocorrectAttr}
+          ${autofocusAttr}
           ${autocapitalizeAttr}
           ${spellcheckAttr}
           ${patternAttr}
