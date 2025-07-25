@@ -30,6 +30,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorStatusBarMessage";
 import { UnfocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import {
   ScrolledPreviewMessage,
   ScrolledPreviewMethod,
@@ -221,7 +222,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
           this.emit(MessageProtocol.event, response);
         }
       }
-      if (HoveredOnEditorMessage.type.is(e.detail)) {
+      if (HoveredOnPreviewMessage.type.is(e.detail)) {
         this.handlePointerLeaveScroller();
       }
       if (DidExpandPreviewPaneMessage.type.is(e.detail)) {
