@@ -270,7 +270,7 @@ export class MatchDecorator {
 const whitespaceHighlighter = matcher(
   new MatchDecorator({
     regexp:
-      /(?<=\S[ ]+)[ ]$|(?<=\S)[ ](?=[ ])|(?<=\S[ ]+)[ ](?=[ ])|(?<=\S[ ]+)[ ](?=\S)/gm,
+      /(?<=\S[ ]*)[ ]$|(?<=\S)[ ](?=[ ])|(?<=\S[ ]+)[ ](?=[ ])|(?<=\S[ ]+)[ ](?=\S)/gm,
     decoration: (match) => getDecoration(match[0]),
     boundary: /\S/,
   })
