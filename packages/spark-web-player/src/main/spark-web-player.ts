@@ -659,6 +659,7 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof StartGameMessage.type,
     message: StartGameMessage.Request
   ) => {
+    this.hidePlayButton();
     const success = await this.startGameAndApp();
     this.updateLaunchStateIcon();
     return success
