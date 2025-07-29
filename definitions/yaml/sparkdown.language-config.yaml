@@ -57,7 +57,7 @@ onEnterRules:
     action:
       indent: "indent"
 
-  - beforeText: ^.*[-]\s+[{]\s*$
+  - beforeText: ^\s*[-]\s+[{]\s*$
     afterText: \s*[}]
     action:
       indent: "indentOutdent"
@@ -94,7 +94,7 @@ onEnterRules:
   - beforeText: \s*([*]\s+)+.*?(?![-][>]).*?$
     action:
       indent: "indent"
-  - beforeText: \s*([-]\s+)+.*?(?![-][>]).*?$
+  - beforeText: ^\s*([-]\s+)+.*?(?![-][>]).*?$
     action:
       indent: "indent"
 

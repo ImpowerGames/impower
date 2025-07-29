@@ -125,7 +125,7 @@
       }
     },
     {
-      "beforeText": "^.*[-]\\s+[{]\\s*$",
+      "beforeText": "^\\s*[-]\\s+[{]\\s*$",
       "afterText": "\\s*[}]",
       "action": {
         "indent": "indentOutdent",
@@ -186,7 +186,7 @@
       }
     },
     {
-      "beforeText": "\\s*([-]\\s+)+.*?(?![-][>]).*?$",
+      "beforeText": "^\\s*([-]\\s+)+.*?(?![-][>]).*?$",
       "action": {
         "indent": "indent"
       }
