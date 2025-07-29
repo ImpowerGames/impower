@@ -10,7 +10,7 @@ import spec from "./_main-window";
 export default class MainWindow extends Component(spec) {
   override onConnected() {
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
-    this.ref.footerVisibilityManager.addEventListener(
+    this.ref.footerVisibilityManager?.addEventListener(
       "changing",
       this.handleChangingFooterVisibility
     );
@@ -19,7 +19,7 @@ export default class MainWindow extends Component(spec) {
 
   override onDisconnected() {
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
-    this.ref.footerVisibilityManager.removeEventListener(
+    this.ref.footerVisibilityManager?.removeEventListener(
       "changing",
       this.handleChangingFooterVisibility
     );
