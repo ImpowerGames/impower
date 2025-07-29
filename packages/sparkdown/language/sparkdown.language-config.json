@@ -274,13 +274,6 @@
       }
     },
     {
-      "beforeText": "^\\s*$",
-      "action": {
-        "indent": "none",
-        "deleteText": "  "
-      }
-    },
-    {
       "beforeText": "^\\s*",
       "action": {
         "indent": "none"

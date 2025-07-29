@@ -148,11 +148,6 @@ onEnterRules:
     action:
       indent: "indent"
 
-  - beforeText: ^\s*$
-    action:
-      indent: "none"
-      deleteText: "  "
-
   - beforeText: ^\s*
     action:
       indent: "none"
