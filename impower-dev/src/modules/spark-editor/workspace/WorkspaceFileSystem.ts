@@ -102,6 +102,25 @@ export default class WorkspaceFileSystem {
       result[file.uri] = file;
       this.preloadFile(file);
     });
+    if (!files.some((f) => f.name === "main" && f.type === "script")) {
+      // Create a default empty main script if one doesn't exist
+      this._files ??= {};
+      const mainScriptUri = this.getFileUri(projectId, "main.sd");
+      const text = "";
+      const encoder = new TextEncoder();
+      const encodedText = encoder.encode(text);
+      this._files[mainScriptUri] = {
+        name: "main",
+        ext: "sd",
+        type: "script",
+        uri: mainScriptUri,
+        version: 0,
+        text,
+        src: URL.createObjectURL(
+          new Blob([encodedText], { type: "text/plain" })
+        ),
+      };
+    }
     Workspace.ls.connection.onRequest(
       ExecuteCommandMessage.type,
       async (params) => {
