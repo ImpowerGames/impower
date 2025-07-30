@@ -1,20 +1,20 @@
 import { Language } from "@codemirror/language";
 import { Extension, Facet, combineConfig } from "@codemirror/state";
 import { ViewPlugin } from "@codemirror/view";
-import { NodeType } from "@lezer/common";
-import { Tag } from "@lezer/highlight";
 import {
   MessageConnection,
   ServerCapabilities,
 } from "@impower/spark-editor-protocol/src/types";
+import { NodeType } from "@lezer/common";
+import { Tag } from "@lezer/highlight";
 import { versioning } from "../../cm-versioning/versioning";
 import LanguageClientPluginValue from "../classes/LanguageClientPluginValue";
 import ColorSupport from "../classes/features/ColorSupport";
 import CompletionSupport from "../classes/features/CompletionSupport";
 import FoldingSupport from "../classes/features/FoldingSupport";
 import HoverSupport from "../classes/features/HoverSupport";
-import { FileSystemReader } from "../types/FileSystemReader";
 import LintSupport from "../classes/features/LintSupport";
+import { FileSystemReader } from "../types/FileSystemReader";
 
 export interface LanguageClientConfig {
   textDocument: { uri: string; version: number };
@@ -49,7 +49,7 @@ const languageClient = (config: LanguageClientConfig): Extension[] => {
   const hover = new HoverSupport();
   const lint = new LintSupport();
   return [
-    versioning(),
+    versioning(config.textDocument.version),
     languageClientConfig.of(config),
     ViewPlugin.define((view) => {
       const plugin = new LanguageClientPluginValue(view, {

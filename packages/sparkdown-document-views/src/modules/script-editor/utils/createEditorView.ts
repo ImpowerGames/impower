@@ -42,10 +42,7 @@ import {
   updateVariableWidgets,
   variableWidgets,
 } from "../../../cm-variable-widgets/variableWidgets";
-import {
-  getDocumentVersion,
-  versioning,
-} from "../../../cm-versioning/versioning";
+import { getDocumentVersion } from "../../../cm-versioning/versioning";
 import debounce from "../../../utils/debounce";
 import EDITOR_EXTENSIONS from "../constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../constants/EDITOR_THEME";
@@ -189,7 +186,6 @@ const createEditorView = (
       gotoLinePanel(),
       readOnly.of(EditorState.readOnly.of(false)),
       editable.of(EditorView.editable.of(true)),
-      versioning(),
       breakpointsField.init((state) => {
         const gutterMarkers: Range<GutterMarker>[] =
           breakpoints?.map((lineNumber) => {
