@@ -44,6 +44,9 @@ const FLOW_KEYWORDS = ["DONE", "END"];
 
 const isPrefilteredName = (name: string) => name.includes("~");
 
+const isWhitespaceNode = (name?: SparkdownNodeName) =>
+  name === "Separator" || name === "ExtraWhitespace";
+
 const traverse = <T>(
   obj: T,
   process: (fieldPath: string, fieldValue: any) => void,
@@ -976,6 +979,7 @@ export const getCompletions = (
     document.offsetAt(position),
     -1
   );
+
   if (!leftStack[0]) {
     return null;
   }
@@ -1120,9 +1124,9 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    (leftStack[0]?.name === "Separator" &&
+    (isWhitespaceNode(leftStack[0]?.name) &&
       prevNode?.name === "TransitionMark") ||
-    (leftStack[0]?.name === "Separator" &&
+    (isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n?.name === "Transition_begin")) ||
     leftStack.some((n) => n?.name === "Transition_content")
   ) {
@@ -1163,8 +1167,8 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    (leftStack[0]?.name === "Separator" && prevNode?.name === "SceneMark") ||
-    (leftStack[0]?.name === "Separator" &&
+    (isWhitespaceNode(leftStack[0]?.name) && prevNode?.name === "SceneMark") ||
+    (isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n?.name === "Scene_begin")) ||
     leftStack.some((n) => n?.name === "Scene_content")
   ) {
@@ -1211,10 +1215,11 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    (leftStack[0]?.name === "Separator" && prevNode?.name === "DialogueMark") ||
-    (leftStack[0]?.name === "Separator" &&
+    (isWhitespaceNode(leftStack[0]?.name) &&
+      prevNode?.name === "DialogueMark") ||
+    (isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n?.name === "BlockDialogue_begin")) ||
-    (leftStack[0]?.name === "Separator" &&
+    (isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n?.name === "InlineDialogue_begin")) ||
     leftStack.some((n) => n?.name === "DialogueCharacter")
   ) {
@@ -1249,10 +1254,10 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    (leftStack[0]?.name === "Separator" && prevNode?.name === "WriteMark") ||
-    (leftStack[0]?.name === "Separator" &&
+    (isWhitespaceNode(leftStack[0]?.name) && prevNode?.name === "WriteMark") ||
+    (isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n?.name === "BlockWrite_begin")) ||
-    (leftStack[0]?.name === "Separator" &&
+    (isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n?.name === "InlineWrite_begin")) ||
     leftStack.some((n) => n?.name === "WriteTarget")
   ) {
@@ -1291,7 +1296,7 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      (leftStack[0]?.name === "Separator" &&
+      (isWhitespaceNode(leftStack[0]?.name) &&
         prevNode.name === "AssetCommandControl") ||
       leftStack[0]?.name === "AssetCommandTarget"
     ) {
@@ -1301,7 +1306,7 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      leftStack[0]?.name === "Separator" &&
+      isWhitespaceNode(leftStack[0]?.name) &&
       prevNode.name === "AssetCommandTarget"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
@@ -1351,7 +1356,7 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      (leftStack[0]?.name === "Separator" &&
+      (isWhitespaceNode(leftStack[0]?.name) &&
         leftStack.some((n) => n.name === "AssetCommandContent") &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
@@ -1366,7 +1371,7 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      leftStack[0]?.name === "Separator" &&
+      isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n.name === "AssetCommandContent")
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
@@ -1417,7 +1422,7 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      (leftStack[0]?.name === "Separator" &&
+      (isWhitespaceNode(leftStack[0]?.name) &&
         prevNode.name === "AssetCommandControl") ||
       leftStack[0]?.name === "AssetCommandTarget"
     ) {
@@ -1427,7 +1432,7 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      leftStack[0]?.name === "Separator" &&
+      isWhitespaceNode(leftStack[0]?.name) &&
       prevNode.name === "AssetCommandTarget"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
@@ -1467,7 +1472,7 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      leftStack[0]?.name === "Separator" &&
+      isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n.name === "AssetCommandContent")
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
@@ -1496,7 +1501,7 @@ export const getCompletions = (
       }
     }
     if (
-      (leftStack[0]?.name === "Separator" &&
+      (isWhitespaceNode(leftStack[0]?.name) &&
         leftStack.some((n) => n.name === "AssetCommandContent") &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
@@ -1513,10 +1518,10 @@ export const getCompletions = (
   if (
     leftStack.some(
       (n) =>
-        (n.type.name === "Separator" &&
+        (isWhitespaceNode(n.name) &&
           (prevNode.name === "DefineKeyword" ||
             prevNode.name === "DefineModifierName")) ||
-        n.type.name === "DefineTypeName"
+        n.name === "DefineTypeName"
     )
   ) {
     if (
@@ -1622,11 +1627,11 @@ export const getCompletions = (
   if (
     leftStack.some(
       (n) =>
-        (n.type.name === "Separator" &&
+        (isWhitespaceNode(n.name) &&
           (prevNode.name === "SetEqualOperator" ||
             prevNode.name === "ArrayItemMark") &&
           leftStack.some((x) => x.name === "DefineDeclaration")) ||
-        n.type.name === "StructFieldValue"
+        n.name === "StructFieldValue"
     ) &&
     !leftStack.some((n) => n.type.name === "AccessPath")
   ) {
@@ -1739,7 +1744,7 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    leftStack[0]?.name === "Separator" &&
+    isWhitespaceNode(leftStack[0]?.name) &&
     prevNode.name === "DivertMark" &&
     !getNodeText(
       getDescendentInsideParent("Divert_content", "Divert", leftStack)
