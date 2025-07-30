@@ -10,8 +10,6 @@ import {
 import { Language } from "@codemirror/language";
 import { setDiagnostics } from "@codemirror/lint";
 import { EditorView, PluginValue, ViewUpdate } from "@codemirror/view";
-import { NodeType } from "@lezer/common";
-import { Tag } from "@lezer/highlight";
 import { CompletionMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/CompletionMessage";
 import { DocumentColorMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DocumentColorMessage";
 import { DocumentDiagnosticMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DocumentDiagnosticMessage";
@@ -19,13 +17,15 @@ import { FoldingRangeMessage } from "@impower/spark-editor-protocol/src/protocol
 import { HoverMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/HoverMessage";
 import { PublishDiagnosticsMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import {
+  Diagnostic,
   Disposable,
   InsertTextFormat,
   MarkupContent,
   MessageConnection,
   ServerCapabilities,
-  Diagnostic,
 } from "@impower/spark-editor-protocol/src/types";
+import { NodeType } from "@lezer/common";
+import { Tag } from "@lezer/highlight";
 import { getDocumentVersion } from "../../cm-versioning/versioning";
 import { languageClientConfig } from "../extensions/languageClient";
 import { FileSystemReader } from "../types/FileSystemReader";
@@ -120,11 +120,7 @@ export default class LanguageClientPluginValue implements PluginValue {
           if (params.uri !== this._textDocument.uri) {
             return;
           }
-          this.updateDiagnostics(
-            this._view,
-            params.diagnostics,
-            params.version
-          );
+          this.updateDiagnostics(this._view, params.diagnostics);
           this.updateFoldingRanges(this._view);
           this.updateDocumentColors(this._view);
         }
@@ -330,19 +326,12 @@ export default class LanguageClientPluginValue implements PluginValue {
     }
   }
 
-  async updateDiagnostics(
-    view: EditorView,
-    diagnostics: Diagnostic[],
-    version?: number
-  ) {
-    const docVersion = getDocumentVersion(view.state);
-    if (version === docVersion) {
-      const transaction = setDiagnostics(
-        view.state,
-        getClientDiagnostics(view.state, diagnostics)
-      );
-      view.dispatch(transaction);
-    }
+  async updateDiagnostics(view: EditorView, diagnostics: Diagnostic[]) {
+    const transaction = setDiagnostics(
+      view.state,
+      getClientDiagnostics(view.state, diagnostics)
+    );
+    view.dispatch(transaction);
   }
 
   async updateFoldingRanges(view: EditorView) {
