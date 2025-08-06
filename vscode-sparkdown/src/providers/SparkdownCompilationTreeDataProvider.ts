@@ -240,11 +240,8 @@ export class SparkdownCompilationTreeDataProvider
                   const children = Object.entries(container).filter(
                     ([key]) => key !== "#n" && key !== "#f"
                   );
-                  if (children.length === 0) {
-                    return [];
-                  }
                   instructionNode = {
-                    label: ``,
+                    label: children.length > 0 ? `{ ... }` : "{ }",
                     id: `${idPrefix}.${i}`,
                     type: "container",
                     parent: instructionNode,
