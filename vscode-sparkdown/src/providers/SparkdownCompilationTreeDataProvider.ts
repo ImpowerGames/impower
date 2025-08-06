@@ -228,18 +228,27 @@ export class SparkdownCompilationTreeDataProvider
       } else if (Array.isArray(node)) {
         const container = node.at(-1);
         const label = idPrefix;
-        const type = "container";
         instructionNode = {
           label: `${label}${labelSuffix}`,
           id: idPrefix,
-          type,
+          type: "container",
           parent,
           children: node
             .flatMap((child, i) => {
               if (i === node.length - 1) {
                 if (typeof container === "object" && container) {
-                  return Object.entries(container).map(([key, value]) => {
-                    if (key !== "#n" && key !== "#f") {
+                  const children = Object.entries(container).filter(
+                    ([key]) => key !== "#n" && key !== "#f"
+                  );
+                  if (children.length === 0) {
+                    return [];
+                  }
+                  instructionNode = {
+                    label: ``,
+                    id: `${idPrefix}.${i}`,
+                    type: "container",
+                    parent: instructionNode,
+                    children: children.map(([key, value]) => {
                       const prefix = idPrefix ? idPrefix + "." : "";
                       const containerLabelSuffix =
                         this.getContainerSuffix(value);
@@ -250,9 +259,9 @@ export class SparkdownCompilationTreeDataProvider
                         `${prefix}${key}`,
                         containerLabelSuffix
                       );
-                    }
-                    return null;
-                  });
+                    }),
+                  };
+                  return [instructionNode];
                 }
                 return null;
               } else {
