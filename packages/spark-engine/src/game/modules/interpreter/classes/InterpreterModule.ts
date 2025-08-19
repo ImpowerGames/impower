@@ -374,14 +374,12 @@ export class InterpreterModule extends Module<
    */
   shouldFlush(): boolean {
     // There are worlds to load.
-    // There is text to display.
-    // Or an event takes up time
-    // Or we are in preview mode and there is an image to display
+    // Or there is text to display.
+    // Or an event takes up time.
     return Boolean(
       this._state.buffer?.[0]?.load ||
         this._state.buffer?.[0]?.text ||
-        Number(this._state.buffer?.[0]?.end) > 0 ||
-        (this.context.system.previewing && this._state.buffer?.[0]?.image)
+        Number(this._state.buffer?.[0]?.end) > 0
     );
   }
 
