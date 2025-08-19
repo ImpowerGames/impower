@@ -7,6 +7,7 @@ import {
   InkList,
 } from "../inkjs/compiler/Compiler";
 import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
+import { ControlCommand } from "../inkjs/engine/ControlCommand";
 import { SourceMetadata } from "../inkjs/engine/Error";
 import { InkListItem } from "../inkjs/engine/InkList";
 import { SimpleJson } from "../inkjs/engine/SimpleJson";
@@ -330,7 +331,11 @@ export class SparkdownCompiler {
             }
             if (
               scriptIndex >= 0 &&
-              (!(obj instanceof StringValue) || !obj.isNewline)
+              !(
+                obj instanceof ControlCommand &&
+                obj.commandType === ControlCommand.CommandType.NoOp
+              ) &&
+              !(obj instanceof StringValue && obj.isNewline)
             ) {
               const [
                 _,
