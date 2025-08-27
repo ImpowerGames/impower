@@ -185,6 +185,13 @@ Make sure disabled buttons don't get the pointer cursor.
   flex-direction: column;
 }
 
+#game-overlay.pause-game::after {
+  border: 1px solid #ffcc00;
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
 #play-button {
   position: absolute;
   inset: 0;
