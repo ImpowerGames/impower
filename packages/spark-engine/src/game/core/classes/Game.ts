@@ -47,6 +47,12 @@ export type ScriptLocation = [
   endColumn: number
 ];
 
+export interface SaveData {
+  modules: Record<string, any>;
+  context: any;
+  story: string;
+}
+
 export class Game<T extends M = {}> {
   protected _context: GameContext = {} as GameContext;
   get context() {
@@ -96,12 +102,16 @@ export class Game<T extends M = {}> {
     line: number;
   };
 
+  protected _startPath?: string;
+
   protected _breakpointMap: Record<number, Map<number, Breakpoint>> = {};
 
   protected _functionBreakpointMap: Record<number, Map<number, Breakpoint>> =
     {};
 
   protected _dataBreakpointMap: Record<number, Map<number, Breakpoint>> = {};
+
+  protected _checkpoint?: string;
 
   protected _error = false;
 
@@ -337,15 +347,13 @@ export class Game<T extends M = {}> {
     this.notifyStarted();
     this._context.system.previewing = undefined;
     if (save) {
-      this.loadSave(save);
+      this.load(save);
     } else {
-      // Start story from startpoint
       const startpoint = this._startpoint;
       const startPath =
         this.getClosestStartPath(startpoint.file, startpoint.line) || "0";
-      if (startPath) {
-        this._story.ChoosePathString(startPath);
-      }
+      this._startPath = startPath;
+      this._story.ChoosePathString(startPath);
     }
     this.continue();
     for (const k of this._moduleNames) {
@@ -382,31 +390,44 @@ export class Game<T extends M = {}> {
     this._coordinator = null;
   }
 
-  serialize(): string {
-    const saveData: Record<string, any> & { context: any } = {
+  checkpoint(): void {
+    this._checkpoint = this.save();
+  }
+
+  save(): string {
+    const saveData: SaveData = {
+      modules: {},
       context: {},
+      story: this._story.state.toJson(),
     };
-    // for (const accessPath of this._stored) {
-    //   TODO:
-    //   this.cache(saveData.context, accessPath);
-    // }
     for (const k of this._moduleNames) {
       const module = this._modules[k];
       if (module) {
         module.onSerialize();
-        saveData[k] = module.state;
+        saveData.modules[k] = module.state;
       }
     }
     const serialized = JSON.stringify(saveData);
     return serialized;
   }
 
-  checkpoint(): void {
-    for (const k of this._moduleNames) {
-      this._modules[k]?.onCheckpoint();
+  load(saveJSON: string) {
+    try {
+      const saveData: SaveData = JSON.parse(saveJSON);
+      for (const k of this._moduleNames) {
+        const module = this._modules[k];
+        if (module) {
+          module.load(saveData.modules[k]);
+        }
+      }
+      if (saveData.story) {
+        this._story.state.LoadJson(saveData.story);
+        return true;
+      }
+    } catch (e) {
+      this.log(e, "error");
     }
-    // const storyState = this._story.state.ToJson();
-    // const moduleState = this.serialize();
+    return false;
   }
 
   async onReceive(
@@ -1053,18 +1074,6 @@ export class Game<T extends M = {}> {
     this.Error("Execution timed out: Possible infinite loop", ErrorType.Error);
   }
 
-  loadSave(saveData: string) {
-    try {
-      if (saveData) {
-        this._story.state.LoadJson(saveData);
-        return true;
-      }
-    } catch (e) {
-      this.log(e, "error");
-    }
-    return false;
-  }
-
   log(message: unknown, severity: "info" | "warning" | "error" = "info") {
     this._context.system.log?.(message, severity);
   }
@@ -1087,6 +1096,7 @@ export class Game<T extends M = {}> {
     this.clearChoices();
     const startPath = this.getClosestStartPath(file, line);
     if (startPath != null) {
+      this._startPath = startPath;
       if (this._context.system.previewing !== startPath) {
         this._context.system.previewing = startPath;
         if (!this._story.asyncContinueComplete) {
@@ -1278,16 +1288,11 @@ export class Game<T extends M = {}> {
   ): [string, ScriptLocation] | null {
     const breakpointScriptIndex = scripts.indexOf(breakpoint.file);
     const breakpointLine = breakpoint.line;
+
     // Step 1: Filter only relevant instructions with the same scriptIndex
-    const relevantLocations = pathLocationEntries
-      .filter(([, location]) => location[0] === breakpointScriptIndex)
-      .sort(([, a], [, b]) => a[1] - b[1] || a[2] - b[2]); // Sort by startLine, then startColumn
-
-    if (relevantLocations.length === 0) {
-      return null; // No valid instructions for this script
-    }
-
-    let closestIndex = -1;
+    const relevantLocations = pathLocationEntries.filter(
+      ([, location]) => location[0] === breakpointScriptIndex
+    );
 
     // Step 2: Check for an exact match within startLine and endLine
     for (let i = 0; i < relevantLocations.length; i++) {
@@ -1299,15 +1304,11 @@ export class Game<T extends M = {}> {
       }
 
       if (startLine > breakpointLine && endLine > breakpointLine) {
-        // We've passed the breakpoint line, so break
-        break;
-      } else {
-        // Track the closest previous instruction
-        closestIndex = i;
+        // We've passed the breakpoint line, so return
+        return relevantLocations[i]!;
       }
     }
 
-    // Step 3: Return the closest previous instruction if found, otherwise null
-    return closestIndex !== -1 ? relevantLocations[closestIndex]! : null;
+    return null; // No valid instructions for this script
   }
 }

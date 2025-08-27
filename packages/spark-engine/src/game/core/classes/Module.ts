@@ -70,11 +70,8 @@ export abstract class Module<
   /** Executed when game is restarted from its initial state */
   onRestart() {}
 
-  /** Executed before manager state is serialized */
+  /** Executed before state is serialized */
   onSerialize() {}
-
-  /** Executed before game is checkpointed */
-  onCheckpoint() {}
 
   /** Executed when game is previewed at a specific checkpoint location */
   onPreview() {}
