@@ -15,6 +15,7 @@ import { GameResizedMessage } from "@impower/spark-editor-protocol/src/protocols
 import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
 import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameSteppedMessage";
+import { GameWillContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillContinueMessage";
 import { GetGameEvaluationContextMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameEvaluationContextMessage";
 import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGamePossibleBreakpointLocationsMessage";
 import { GetGameScriptsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameScriptsMessage";
@@ -45,6 +46,7 @@ import { HitBreakpointMessage } from "@impower/spark-engine/src/game/core/classe
 import { RuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/RuntimeErrorMessage";
 import { StartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartedThreadMessage";
 import { SteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/SteppedMessage";
+import { WillContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/WillContinueMessage";
 import { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import { ErrorType } from "@impower/spark-engine/src/game/core/types/ErrorType";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
@@ -1032,6 +1034,17 @@ export default class SparkWebPlayer extends Component(spec) {
           this.emit(
             MessageProtocol.event,
             GameExecutedMessage.type.notification(msg.params)
+          );
+        }
+      }
+    );
+    this._game.connection.outgoing.addListener(
+      WillContinueMessage.method,
+      (msg) => {
+        if (WillContinueMessage.type.isNotification(msg)) {
+          this.emit(
+            MessageProtocol.event,
+            GameWillContinueMessage.type.notification(msg.params)
           );
         }
       }

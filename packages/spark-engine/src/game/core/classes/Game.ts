@@ -31,6 +31,7 @@ import { RuntimeErrorMessage } from "./messages/RuntimeErrorMessage";
 import { StartedMessage } from "./messages/StartedMessage";
 import { StartedThreadMessage } from "./messages/StartedThreadMessage";
 import { SteppedMessage } from "./messages/SteppedMessage";
+import { WillContinueMessage } from "./messages/WillContinueMessage";
 import { Module } from "./Module";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
@@ -89,7 +90,7 @@ export class Game<T extends M = {}> {
   protected _executingPath: string;
 
   protected _executingLocation: ScriptLocation;
-  protected _executedLinesThisFrame: ScriptLocation[] = [];
+  protected _executedPathsThisFrame: Set<string> = new Set();
 
   protected _lastHitBreakpointLocation?: ScriptLocation;
 
@@ -187,6 +188,11 @@ export class Game<T extends M = {}> {
     this._story.processEscapes = false;
     this._story.onError = (message: string, type: ErrorType) => {
       this.Error(message, type);
+    };
+    this._story.onExecute = (path: string | undefined) => {
+      if (path) {
+        this._executedPathsThisFrame.add(path);
+      }
     };
     // Create context
     this._context = {
@@ -456,10 +462,6 @@ export class Game<T extends M = {}> {
   reset() {
     // Reset story to its initial state
     this._story.ResetState();
-    // Notify modules about reset
-    for (const k of this._moduleNames) {
-      this._modules[k]?.onReset();
-    }
   }
 
   restart() {
@@ -476,6 +478,7 @@ export class Game<T extends M = {}> {
   }
 
   continue() {
+    this.notifyWillContinue();
     this.clearVariableReferences();
     this._coordinator = null;
     let done = false;
@@ -485,6 +488,15 @@ export class Game<T extends M = {}> {
   }
 
   step(traversal: "in" | "out" | "over" | "continue" = "continue"): boolean {
+    this._executedPathsThisFrame.clear();
+    const done = this.execute(traversal);
+    this.notifyExecuted();
+    return done;
+  }
+
+  protected execute(
+    traversal: "in" | "out" | "over" | "continue" = "continue"
+  ): boolean {
     const initialCallstackDepth = this._story.state.callstackDepth;
     const initialExecutedLocation = this._executingLocation;
 
@@ -495,7 +507,6 @@ export class Game<T extends M = {}> {
         if (instructions) {
           this._coordinator = new Coordinator(this, instructions);
           if (!this._coordinator.shouldContinue()) {
-            this.notifyExecuted();
             this.notifyAwaitingInteraction();
           }
         }
@@ -512,13 +523,6 @@ export class Game<T extends M = {}> {
             this._executingPath = pointerPath;
             const location = this._program.pathToLocation?.[pointerPath];
             if (location) {
-              if (
-                location[0] !== this._executingLocation[0] ||
-                location[1] !== this._executingLocation[1]
-              ) {
-                // Only consider it a new location this frame if it starts on a different line
-                this._executedLinesThisFrame.push(location);
-              }
               this._executingLocation = location;
             }
           }
@@ -538,10 +542,6 @@ export class Game<T extends M = {}> {
             JSON.stringify(this._executingLocation)
         ) {
           continue;
-        }
-
-        if (traversal !== "continue") {
-          this.notifyExecuted();
         }
 
         const currentCallstackDepth = this._story.state.callstackDepth;
@@ -699,17 +699,42 @@ export class Game<T extends M = {}> {
     );
   }
 
+  protected notifyWillContinue() {
+    this.connection.emit(
+      WillContinueMessage.type.notification({
+        location: {
+          uri: this._startpoint.file,
+          range: {
+            start: {
+              line: this._startpoint.line,
+              character: 0,
+            },
+            end: {
+              line: this._startpoint.line,
+              character: 0,
+            },
+          },
+        },
+        path: this._startPath || "0",
+      })
+    );
+  }
+
   protected notifyExecuted() {
+    const locations: DocumentLocation[] = [];
+    this._executedPathsThisFrame.forEach((p) => {
+      const l = this._program.pathToLocation?.[p];
+      if (l) {
+        locations.push(this.getDocumentLocation(l));
+      }
+    });
     this.connection.emit(
       ExecutedMessage.type.notification({
-        locations: this._executedLinesThisFrame.map((l) => {
-          return this.getDocumentLocation(l);
-        }),
+        locations,
         path: this._executingPath,
         state: this._state,
       })
     );
-    this._executedLinesThisFrame.length = 0;
   }
 
   protected notifyStepped() {
@@ -1102,7 +1127,6 @@ export class Game<T extends M = {}> {
         if (!this._story.asyncContinueComplete) {
           this.TimeoutError();
         } else {
-          this._story.ResetState();
           this._story.ChoosePathString(startPath);
           this.continue();
           for (const k of this._moduleNames) {

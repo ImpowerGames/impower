@@ -141,6 +141,8 @@ export class Story extends InkObject {
   public onChoosePathString: ((arg1: string, arg2: any[]) => void) | null =
     null;
 
+  public onExecute: ((arg1: string | undefined) => void) | null = null;
+
   public onWriteRuntimeObject?: (
     writer: SimpleJson.Writer,
     obj: InkObject
@@ -2370,10 +2372,12 @@ export class Story extends InkObject {
 
     if (!successfulIncrement) pointer = Pointer.Null;
 
+    if (this.onExecute !== null) this.onExecute(this.state.callStack.currentElement?.previousPointer.path?.toString());
+
     this.state.callStack.currentElement.previousPointer =
       this.state.callStack.currentElement.currentPointer.copy();
     this.state.callStack.currentElement.currentPointer = pointer.copy();
-
+    
     return successfulIncrement;
   }
 

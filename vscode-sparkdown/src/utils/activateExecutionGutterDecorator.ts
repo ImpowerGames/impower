@@ -1,5 +1,6 @@
 import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
 import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
+import { GameWillContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillContinueMessage";
 import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
@@ -71,6 +72,15 @@ let previewingLines = new Set<number>();
 export const activateExecutionGutterDecorator = (
   context: vscode.ExtensionContext
 ) => {
+  const handleGameWillContinue = (message: Message) => {
+    const editor = getActiveOrVisibleEditor();
+    if (GameWillContinueMessage.type.isNotification(message)) {
+      previewingLines.clear();
+    }
+    if (editor) {
+      debouncedUpdateDecorations(editor);
+    }
+  };
   const handleGameExecuted = (message: Message) => {
     const editor = getActiveOrVisibleEditor();
     if (GameExecutedMessage.type.isNotification(message)) {
@@ -100,7 +110,6 @@ export const activateExecutionGutterDecorator = (
       } else {
         previouslyExecutedLines.clear();
         currentlyExecutedLines.clear();
-        previewingLines.clear();
         const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
         for (const [uri, locations] of Object.entries(documentLocations)) {
           if (editor?.document.uri.toString() === uri) {
@@ -123,6 +132,10 @@ export const activateExecutionGutterDecorator = (
       debouncedUpdateDecorations(editor);
     }
   };
+  SparkdownPreviewGamePanelManager.instance.connection.incoming.addListener(
+    GameWillContinueMessage.method,
+    handleGameWillContinue
+  );
   SparkdownPreviewGamePanelManager.instance.connection.incoming.addListener(
     GameExecutedMessage.method,
     handleGameExecuted

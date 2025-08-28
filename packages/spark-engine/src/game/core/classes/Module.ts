@@ -64,9 +64,6 @@ export abstract class Module<
   /** Executed when game has finished instant simulation and should restore from current state */
   async onRestore() {}
 
-  /** Executed when game is reset to its initial state */
-  onReset() {}
-
   /** Executed when game is restarted from its initial state */
   onRestart() {}
 
