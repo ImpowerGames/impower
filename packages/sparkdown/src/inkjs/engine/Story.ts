@@ -2300,6 +2300,8 @@ export class Story extends InkObject {
     this.state.previousPointer = this.state.currentPointer.copy();
 
     if (!this.state.divertedPointer.isNull) {
+      if (this.onExecute !== null) this.onExecute(this.state.callStack.currentElement?.currentPointer.path?.toString());
+
       this.state.currentPointer = this.state.divertedPointer.copy();
       this.state.divertedPointer = Pointer.Null;
 
