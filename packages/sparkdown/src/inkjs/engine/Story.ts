@@ -2312,6 +2312,8 @@ export class Story extends InkObject {
       }
     }
 
+    if (this.onExecute !== null) this.onExecute(this.state.callStack.currentElement?.previousPointer.path?.toString());
+
     let successfulPointerIncrement = this.IncrementContentPointer();
 
     if (!successfulPointerIncrement) {
@@ -2373,8 +2375,6 @@ export class Story extends InkObject {
     }
 
     if (!successfulIncrement) pointer = Pointer.Null;
-
-    if (this.onExecute !== null) this.onExecute(this.state.callStack.currentElement?.previousPointer.path?.toString());
 
     this.state.callStack.currentElement.previousPointer =
       this.state.callStack.currentElement.currentPointer.copy();
