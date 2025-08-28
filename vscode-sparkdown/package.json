@@ -78,6 +78,8 @@
         "editor.renderWhitespace": "boundary",
         "editor.formatOnSave": true,
         "editor.formatOnPaste": true,
+        "editor.selectionHighlight": false,
+        "editor.occurrencesHighlight": "off",
         "files.trimTrailingWhitespace": false
       },
       "editor.semanticHighlighting.enabled": true,
