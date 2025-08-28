@@ -7,42 +7,20 @@ import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGa
 import { debounce } from "./debounce";
 import { getActiveOrVisibleEditor } from "./getActiveOrVisibleEditor";
 
-const previouslyExecutedLineDecoration: vscode.TextEditorDecorationType =
-  vscode.window.createTextEditorDecorationType({
-    dark: {
-      overviewRulerColor: new vscode.ThemeColor("editorGhostText.foreground"),
-      borderColor: new vscode.ThemeColor("editorGhostText.foreground"),
-    },
-    light: {
-      overviewRulerColor: new vscode.ThemeColor("editorGhostText.foreground"),
-      borderColor: new vscode.ThemeColor("editorGhostText.foreground"),
-    },
-    borderWidth: "0 0 0 2px",
-    borderStyle: "solid",
-    isWholeLine: true,
-    overviewRulerLane: vscode.OverviewRulerLane.Full,
-  });
-
 const currentlyExecutedLineDecoration: vscode.TextEditorDecorationType =
   vscode.window.createTextEditorDecorationType({
     dark: {
       overviewRulerColor: new vscode.ThemeColor(
-        "debugIcon.breakpointCurrentStackframeForeground"
+        "editorOverviewRuler.infoForeground"
       ),
-      borderColor: new vscode.ThemeColor(
-        "debugIcon.breakpointCurrentStackframeForeground"
-      ),
+      backgroundColor: "rgba(255,255,255,0.04)",
     },
     light: {
       overviewRulerColor: new vscode.ThemeColor(
-        "debugIcon.breakpointCurrentStackframeForeground"
+        "editorOverviewRuler.infoForeground"
       ),
-      borderColor: new vscode.ThemeColor(
-        "debugIcon.breakpointCurrentStackframeForeground"
-      ),
+      backgroundColor: "rgba(0,0,0,0.04)",
     },
-    borderWidth: "0 0 0 2px",
-    borderStyle: "solid",
     isWholeLine: true,
     overviewRulerLane: vscode.OverviewRulerLane.Full,
   });
@@ -65,7 +43,6 @@ const previewingLineDecoration: vscode.TextEditorDecorationType =
     overviewRulerLane: vscode.OverviewRulerLane.Full,
   });
 
-let previouslyExecutedLines = new Set<number>();
 let currentlyExecutedLines = new Set<number>();
 let previewingLines = new Set<number>();
 
@@ -90,9 +67,6 @@ export const activateExecutionGutterDecorator = (
         const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
         for (const [uri, locations] of Object.entries(documentLocations)) {
           if (editor?.document.uri.toString() === uri) {
-            for (const line of currentlyExecutedLines) {
-              previouslyExecutedLines.add(line);
-            }
             currentlyExecutedLines.clear();
             if (locations) {
               for (const location of locations) {
@@ -108,7 +82,6 @@ export const activateExecutionGutterDecorator = (
           }
         }
       } else {
-        previouslyExecutedLines.clear();
         currentlyExecutedLines.clear();
         const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
         for (const [uri, locations] of Object.entries(documentLocations)) {
@@ -152,7 +125,6 @@ export const activateExecutionGutterDecorator = (
   const handleGameExited = (message: Message) => {
     const editor = getActiveOrVisibleEditor();
     if (GameExitedMessage.type.isNotification(message)) {
-      previouslyExecutedLines.clear();
       currentlyExecutedLines.clear();
       previewingLines.clear();
     }
@@ -182,7 +154,6 @@ export const activateExecutionGutterDecorator = (
 
   context.subscriptions.push(
     vscode.debug.onDidTerminateDebugSession(() => {
-      previouslyExecutedLines.clear();
       currentlyExecutedLines.clear();
       updateLineDecorationsOfAllEditors();
     })
@@ -190,13 +161,9 @@ export const activateExecutionGutterDecorator = (
 
   context.subscriptions.push({
     dispose: () => {
-      previouslyExecutedLines.clear();
       currentlyExecutedLines.clear();
       previewingLines.clear();
       updateLineDecorationsOfAllEditors();
-      if (previouslyExecutedLineDecoration) {
-        previouslyExecutedLineDecoration.dispose();
-      }
       if (currentlyExecutedLineDecoration) {
         currentlyExecutedLineDecoration.dispose();
       }
@@ -213,12 +180,6 @@ const debouncedUpdateDecorations = debounce((editor: vscode.TextEditor) => {
 
 const updateDecorations = (editor: vscode.TextEditor) => {
   // Apply decorations
-  editor.setDecorations(
-    previouslyExecutedLineDecoration,
-    Array.from(previouslyExecutedLines).map(
-      (line) => new vscode.Range(line, 0, line, 0)
-    )
-  );
   editor.setDecorations(
     currentlyExecutedLineDecoration,
     Array.from(currentlyExecutedLines).map(
