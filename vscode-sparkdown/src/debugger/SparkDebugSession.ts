@@ -121,7 +121,7 @@ export class SparkDebugSession extends LoggingDebugSession {
   private _valuesInHex = false;
   private _useInvalidatedEvent = false;
 
-  private _addressesInHex = true;
+  private _stoppedReason = new Map<number, string>();
 
   /**
    * Creates a new debug adapter that is used for one debug session.
@@ -237,6 +237,7 @@ export class SparkDebugSession extends LoggingDebugSession {
       GetGameThreadsMessage.type.request({})
     );
     for (const thread of threads) {
+      this._stoppedReason.set(thread.id, reason);
       this.sendEvent(new StoppedEvent(reason, thread.id));
     }
   }
@@ -767,8 +768,9 @@ export class SparkDebugSession extends LoggingDebugSession {
     response: DebugProtocol.StackTraceResponse,
     args: DebugProtocol.StackTraceArguments
   ) {
-    // console.warn("stackTraceRequest", args);
     this._variableHandles.reset();
+    const reason = this._stoppedReason.get(args.threadId);
+    this._stoppedReason.delete(args.threadId);
     const { stackFrames, totalFrames } = await this._connection.emit(
       GetGameStackTraceMessage.type.request({
         threadId: args.threadId,
@@ -778,24 +780,37 @@ export class SparkDebugSession extends LoggingDebugSession {
     );
     const clientStackFrames: StackFrame[] = [];
     for (const stackFrame of stackFrames) {
-      const clientStackFrame: StackFrame = {
-        ...stackFrame,
-        source: this.createSource(
-          this._fileAccessor.uriToPath(stackFrame.location.uri)
-        ),
-        line: this.convertDebuggerLineToClient(
-          stackFrame.location.range.start.line
-        ),
-        column: this.convertDebuggerColumnToClient(
-          stackFrame.location.range.start.character
-        ),
-        endLine: this.convertDebuggerLineToClient(
-          stackFrame.location.range.end.line
-        ),
-        endColumn: this.convertDebuggerColumnToClient(
-          stackFrame.location.range.end.character
-        ),
-      };
+      const clientStackFrame: StackFrame =
+        reason === "awaiting interaction"
+          ? // Show stackframe marker for entire line when awaiting interaction
+            {
+              ...stackFrame,
+              source: this.createSource(
+                this._fileAccessor.uriToPath(stackFrame.location.uri)
+              ),
+              line: this.convertDebuggerLineToClient(
+                stackFrame.location.range.start.line
+              ),
+              column: 0,
+            }
+          : {
+              ...stackFrame,
+              source: this.createSource(
+                this._fileAccessor.uriToPath(stackFrame.location.uri)
+              ),
+              line: this.convertDebuggerLineToClient(
+                stackFrame.location.range.start.line
+              ),
+              column: this.convertDebuggerColumnToClient(
+                stackFrame.location.range.start.character
+              ),
+              endLine: this.convertDebuggerLineToClient(
+                stackFrame.location.range.end.line
+              ),
+              endColumn: this.convertDebuggerColumnToClient(
+                stackFrame.location.range.end.character
+              ),
+            };
       clientStackFrames.push(clientStackFrame);
     }
     response.body = {
