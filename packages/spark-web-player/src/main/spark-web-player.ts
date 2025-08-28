@@ -95,14 +95,37 @@ export default class SparkWebPlayer extends Component(spec) {
 
   _gameResizeObserver?: ResizeObserver;
 
+  _previewing?: { file: string; line: number };
+
   override onConnected() {
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     window.addEventListener("contextmenu", this.handleContextMenu, true);
     window.addEventListener("dragstart", this.handleDragStart);
     this.ref.playButton?.addEventListener("click", this.handleClickPlayButton);
-    this.ref.toolbar?.addEventListener("pointerdown", this.handlePointerDown);
-    this.ref.toolbar?.addEventListener("pointermove", this.handlePointerMove);
-    this.ref.toolbar?.addEventListener("pointerup", this.handlePointerUp);
+    this.ref.toolbar?.addEventListener(
+      "pointerdown",
+      this.handlePointerDownToolbar
+    );
+    this.ref.toolbar?.addEventListener(
+      "pointermove",
+      this.handlePointerMoveToolbar
+    );
+    this.ref.toolbar?.addEventListener(
+      "pointerup",
+      this.handlePointerUpToolbar
+    );
+    this.ref.resetButton?.addEventListener(
+      "pointerdown",
+      this.handlePointerDownResetButton
+    );
+    this.ref.resetButton?.addEventListener(
+      "pointerup",
+      this.handlePointerUpResetButton
+    );
+    this.ref.resetButton?.addEventListener(
+      "click",
+      this.handleClickResetButton
+    );
     this._gameResizeObserver = new ResizeObserver(this.handleResize);
     this._gameResizeObserver.observe(this.ref.game);
     this.updateSizeAndAspectRatioDisplay();
@@ -123,13 +146,28 @@ export default class SparkWebPlayer extends Component(spec) {
     );
     this.ref.toolbar?.removeEventListener(
       "pointerdown",
-      this.handlePointerDown
+      this.handlePointerDownToolbar
     );
     this.ref.toolbar?.removeEventListener(
       "pointermove",
-      this.handlePointerMove
+      this.handlePointerMoveToolbar
     );
-    this.ref.toolbar?.removeEventListener("pointerup", this.handlePointerUp);
+    this.ref.toolbar?.removeEventListener(
+      "pointerup",
+      this.handlePointerUpToolbar
+    );
+    this.ref.resetButton?.removeEventListener(
+      "pointerdown",
+      this.handlePointerDownResetButton
+    );
+    this.ref.resetButton?.removeEventListener(
+      "pointerup",
+      this.handlePointerUpResetButton
+    );
+    this.ref.resetButton?.removeEventListener(
+      "click",
+      this.handleClickResetButton
+    );
     this._gameResizeObserver?.disconnect();
   }
 
@@ -193,7 +231,7 @@ export default class SparkWebPlayer extends Component(spec) {
       workspace && launchFilePath.startsWith(workspace)
         ? launchFilePath.slice(workspace.length + 1)
         : launchFilePath;
-    this.ref.launchLabel.textContent = `${relativeLaunchFile}    Ln ${launchLineNumber}`;
+    this.ref.launchLabel.textContent = `${relativeLaunchFile} : ${launchLineNumber}`;
   }
 
   protected updateLaunchStateIcon() {
@@ -238,7 +276,7 @@ export default class SparkWebPlayer extends Component(spec) {
     e.preventDefault();
   };
 
-  protected handlePointerDown = (e: PointerEvent) => {
+  protected handlePointerDownToolbar = (e: PointerEvent) => {
     this._isResizing = true;
     this._resizeStartY = e.clientY;
     this._resizeStartHeight = this.ref.game.offsetHeight;
@@ -263,7 +301,7 @@ export default class SparkWebPlayer extends Component(spec) {
     this.ref.toolbar.setPointerCapture(e.pointerId);
   };
 
-  protected handlePointerMove = (e: PointerEvent) => {
+  protected handlePointerMoveToolbar = (e: PointerEvent) => {
     if (!this._isResizing) {
       return;
     }
@@ -304,7 +342,7 @@ export default class SparkWebPlayer extends Component(spec) {
     );
   };
 
-  protected handlePointerUp = (e: PointerEvent) => {
+  protected handlePointerUpToolbar = (e: PointerEvent) => {
     this._isResizing = false;
     document.body.style.cursor = "";
     this.ref.toolbar.classList.remove("snapping");
@@ -321,6 +359,29 @@ export default class SparkWebPlayer extends Component(spec) {
     await this.startGameAndApp();
     this.hidePlayButton();
     this.emit(MessageProtocol.event, GameStartedMessage.type.notification({}));
+  };
+
+  protected handlePointerDownResetButton = (e: PointerEvent) => {
+    this.ref.resetButton.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+  };
+
+  protected handlePointerUpResetButton = async (e: PointerEvent) => {
+    this.ref.resetButton.releasePointerCapture(e.pointerId);
+  };
+
+  protected handleClickResetButton = async () => {
+    if (this._game?.state === "running") {
+      await this.restartGame();
+    } else {
+      if (this._previewing) {
+        await this.updatePreview(
+          this._previewing.file,
+          this._previewing.line,
+          true
+        );
+      }
+    }
   };
 
   protected handleProtocol = async (e: Event) => {
@@ -894,6 +955,7 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   async startGameAndApp() {
+    this._previewing = undefined;
     if (!this._program) {
       // wait for program to be loaded
       await new Promise<void>((resolve) => {
@@ -1125,11 +1187,12 @@ export default class SparkWebPlayer extends Component(spec) {
     await this._app.init();
   }
 
-  async updatePreview(file: string, line: number) {
+  async updatePreview(file: string, line: number, force?: boolean) {
     if (this._app && !this._app.initialized && this._app.initializing) {
       await this._app.initializing;
     } else {
       if (
+        force ||
         !this._app ||
         !this._app.initialized ||
         !this._game ||
@@ -1142,6 +1205,7 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     }
     if (this._game && this._game.state === "previewing") {
+      this._previewing = { file, line };
       this._game.preview(file, line);
     }
   }
