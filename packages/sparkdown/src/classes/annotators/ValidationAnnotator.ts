@@ -323,10 +323,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         if (
           (nextValueNodeType !== "ConditionalBlock" &&
             nextValueNodeType !== "NumberValue") ||
-          (nextValueNodeType === "NumberValue" &&
-            (Number(nextValueNodeText) < 0 || Number(nextValueNodeText) > 1))
+          (nextValueNodeType === "NumberValue" && Number(nextValueNodeText) < 0)
         ) {
-          const message = `'${text}' should be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 0.5' or 'fadeto 1')`;
+          const message = `'${text}' should be followed by a number greater than 0 (e.g. 'fadeto 0' or 'fadeto 0.5' or 'fadeto 1')`;
           annotations.push(
             SparkdownAnnotation.mark<Diagnostic>({
               message,
