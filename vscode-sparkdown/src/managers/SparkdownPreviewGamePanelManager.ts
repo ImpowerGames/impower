@@ -324,7 +324,7 @@ export class SparkdownPreviewGamePanelManager {
         program,
       });
       await this.sendRequest(ConfigureGameMessage.type, {
-        startpoint: {
+        startFrom: {
           file: document.uri.toString(),
           line: selectedRange?.start.line ?? 0,
         },
@@ -402,7 +402,7 @@ export class SparkdownPreviewGamePanelManager {
         docChanged: this._selectedVersion !== document.version,
       });
       await this.sendRequest(ConfigureGameMessage.type, {
-        startpoint: {
+        startFrom: {
           file: document.uri.toString(),
           line: selectedRange?.start.line ?? 0,
         },

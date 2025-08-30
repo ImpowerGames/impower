@@ -135,6 +135,7 @@ export default class GamePreview extends Component(spec) {
       this._startFromFile = uri;
       this._startFromLine = startLine;
       const breakpoints: { file: string; line: number }[] = [];
+      const workspace = Workspace.window.store.project.directory;
       if (Workspace.window.store.debug?.breakpoints) {
         Object.entries(Workspace.window.store.debug.breakpoints).forEach(
           ([uri, ranges]) => {
@@ -144,15 +145,16 @@ export default class GamePreview extends Component(spec) {
           }
         );
       }
-      const startpoint = {
+      const startFrom = {
         file: uri,
         line: startLine,
       };
       this.emit(
         MessageProtocol.event,
         ConfigureGameMessage.type.request({
+          workspace,
           breakpoints,
-          startpoint,
+          startFrom,
         })
       );
     }

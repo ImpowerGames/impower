@@ -1,7 +1,6 @@
 import { Reference } from "../../../core/types/Reference";
 
 export interface Typewriter extends Reference<"typewriter"> {
-  clear_on_continue: boolean;
   fade_duration: number;
   animation_offset: number;
   letter_pause: number;

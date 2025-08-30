@@ -1,10 +1,9 @@
 import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
 import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
-import { GameWillContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillContinueMessage";
+import { GamePreviewedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GamePreviewedMessage";
 import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
-import { debounce } from "./debounce";
 import { getActiveOrVisibleEditor } from "./getActiveOrVisibleEditor";
 
 const currentlyExecutedLineDecoration: vscode.TextEditorDecorationType =
@@ -49,13 +48,9 @@ let previewingLines = new Set<number>();
 export const activateExecutionGutterDecorator = (
   context: vscode.ExtensionContext
 ) => {
-  const handleGameWillContinue = (message: Message) => {
-    const editor = getActiveOrVisibleEditor();
-    if (GameWillContinueMessage.type.isNotification(message)) {
+  const handleGamePreviewed = (message: Message) => {
+    if (GamePreviewedMessage.type.isNotification(message)) {
       previewingLines.clear();
-    }
-    if (editor) {
-      debouncedUpdateDecorations(editor);
     }
   };
   const handleGameExecuted = (message: Message) => {
@@ -102,12 +97,12 @@ export const activateExecutionGutterDecorator = (
       }
     }
     if (editor) {
-      debouncedUpdateDecorations(editor);
+      updateDecorations(editor);
     }
   };
   SparkdownPreviewGamePanelManager.instance.connection.incoming.addListener(
-    GameWillContinueMessage.method,
-    handleGameWillContinue
+    GamePreviewedMessage.method,
+    handleGamePreviewed
   );
   SparkdownPreviewGamePanelManager.instance.connection.incoming.addListener(
     GameExecutedMessage.method,
@@ -129,7 +124,7 @@ export const activateExecutionGutterDecorator = (
       previewingLines.clear();
     }
     if (editor) {
-      debouncedUpdateDecorations(editor);
+      updateDecorations(editor);
     }
   };
   SparkdownPreviewGamePanelManager.instance.connection.incoming.addListener(
@@ -173,10 +168,6 @@ export const activateExecutionGutterDecorator = (
     },
   });
 };
-
-const debouncedUpdateDecorations = debounce((editor: vscode.TextEditor) => {
-  updateDecorations(editor);
-}, 100);
 
 const updateDecorations = (editor: vscode.TextEditor) => {
   // Apply decorations

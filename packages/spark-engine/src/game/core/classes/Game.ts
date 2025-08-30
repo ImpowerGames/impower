@@ -27,11 +27,11 @@ import { ExecutedMessage } from "./messages/ExecutedMessage";
 import { ExitedThreadMessage } from "./messages/ExitedThreadMessage";
 import { FinishedMessage } from "./messages/FinishedMessage";
 import { HitBreakpointMessage } from "./messages/HitBreakpointMessage";
+import { PreviewedMessage } from "./messages/PreviewedMessage";
 import { RuntimeErrorMessage } from "./messages/RuntimeErrorMessage";
 import { StartedMessage } from "./messages/StartedMessage";
 import { StartedThreadMessage } from "./messages/StartedThreadMessage";
 import { SteppedMessage } from "./messages/SteppedMessage";
-import { WillContinueMessage } from "./messages/WillContinueMessage";
 import { Module } from "./Module";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
@@ -85,7 +85,11 @@ export class Game<T extends M = {}> {
 
   protected _coordinator: Coordinator<typeof this> | null = null;
 
+  protected _executionStartTime = 0;
+
   protected _executionTimeout = 1000;
+
+  protected _executionTimedOut = false;
 
   protected _executingPath: string;
 
@@ -98,12 +102,33 @@ export class Game<T extends M = {}> {
 
   protected _objectVariableRefMap = new Map<number, object>();
 
-  protected _startpoint: {
+  protected _simulateFrom?: {
     file: string;
     line: number;
   };
+  get simulateFrom() {
+    return this._simulateFrom;
+  }
 
-  protected _startPath?: string;
+  protected _startFrom: {
+    file: string;
+    line: number;
+  };
+  get startFrom() {
+    return this._startFrom;
+  }
+
+  protected _previewFrom?: {
+    file: string;
+    line: number;
+  };
+  get previewFrom() {
+    return this._previewFrom;
+  }
+
+  protected _simulatePath?: string | null;
+
+  protected _startPath: string;
 
   protected _breakpointMap: Record<number, Map<number, Breakpoint>> = {};
 
@@ -141,7 +166,8 @@ export class Game<T extends M = {}> {
     options?: {
       executionTimeout?: number;
       preview?: { file: string; line: number };
-      startpoint?: { file: string; line: number };
+      simulateFrom?: { file: string; line: number };
+      startFrom?: { file: string; line: number };
       breakpoints?: { file: string; line: number }[];
       functionBreakpoints?: { name: string }[];
       dataBreakpoints?: { dataId: string }[];
@@ -169,10 +195,14 @@ export class Game<T extends M = {}> {
     const modules = options?.modules;
     const previewing = options?.preview ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
-    this._startpoint = options?.startpoint ?? {
+    this._simulateFrom = options?.simulateFrom;
+    this._startFrom = options?.startFrom ?? {
       file: this._scripts[0] || this._program.uri,
       line: 0,
     };
+    const startPath =
+      this.getClosestPath(this._startFrom.file, this._startFrom.line) || "0";
+    this._startPath = startPath;
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
@@ -203,6 +233,9 @@ export class Game<T extends M = {}> {
         checkpoint: () => this.checkpoint(),
         uuid: () => uuid(),
         supports: (module: string) => this.supports(module),
+        now: () => {
+          throw new Error("now not configured");
+        },
         setTimeout: () => {
           throw new Error("setTimeout not configured");
         },
@@ -245,14 +278,16 @@ export class Game<T extends M = {}> {
     return Boolean(this._modules[name]);
   }
 
-  init(config: {
+  async init(config: {
     send: (message: Message, transfer?: ArrayBuffer[]) => void;
+    now: () => number;
     resolve: (path: string) => string;
     fetch: (url: string) => Promise<string | ArrayBuffer>;
     log: (message: unknown, severity: "info" | "warning" | "error") => void;
     setTimeout: (handler: Function, timeout?: number, ...args: any[]) => number;
   }) {
     this._connection.connectOutput(config.send);
+    this._context.system.now = config.now;
     this._context.system.resolve = config.resolve;
     this._context.system.fetch = config.fetch;
     this._context.system.log = config.log;
@@ -261,13 +296,19 @@ export class Game<T extends M = {}> {
     for (const moduleName of this._moduleNames) {
       this._modules[moduleName]?.onInit();
     }
-    if (this._context.system.previewing) {
-      this.clearChoices();
+    if (this._simulateFrom) {
+      this.simulate(this._simulateFrom);
+      // Restore module state
+      await this.restore();
     }
   }
 
-  setStartpoint(startpoint: { file: string; line: number }) {
-    this._startpoint = startpoint;
+  setSimulateFrom(simulateFrom: { file: string; line: number } | undefined) {
+    this._simulateFrom = simulateFrom;
+  }
+
+  setStartFrom(startFrom: { file: string; line: number }) {
+    this._startFrom = startFrom;
   }
 
   setBreakpoints(breakpoints: { file: string; line: number }[]) {
@@ -348,23 +389,35 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
+  simulate(simulateFrom: { file: string; line: number }): void {
+    this._simulateFrom = simulateFrom;
+    this._simulatePath = this.getClosestPath(
+      simulateFrom.file,
+      simulateFrom.line
+    );
+    if (this._simulatePath) {
+      this._context.system.simulating = this._simulatePath;
+      this._story.ChoosePathString(this._simulatePath);
+      this.continue();
+    }
+  }
+
   start(save: string = ""): boolean {
     this._state = "running";
     this.notifyStarted();
     this._context.system.previewing = undefined;
-    if (save) {
-      this.load(save);
-    } else {
-      const startpoint = this._startpoint;
-      const startPath =
-        this.getClosestStartPath(startpoint.file, startpoint.line) || "0";
-      this._startPath = startPath;
-      this._story.ChoosePathString(startPath);
-    }
-    this.continue();
+    this._context.system.simulating = undefined;
     for (const k of this._moduleNames) {
       this._modules[k]?.onStart();
     }
+    if (!this._simulateFrom) {
+      if (save) {
+        this.load(save);
+      } else {
+        this._story.ChoosePathString(this._startPath);
+      }
+    }
+    this.continue();
     return !this._error;
   }
 
@@ -478,7 +531,9 @@ export class Game<T extends M = {}> {
   }
 
   continue() {
-    this.notifyWillContinue();
+    this._executionTimedOut = false;
+    this._executionStartTime = this.context.system.now();
+
     this.clearVariableReferences();
     this._coordinator = null;
     let done = false;
@@ -501,6 +556,19 @@ export class Game<T extends M = {}> {
     const initialExecutedLocation = this._executingLocation;
 
     while (true) {
+      this._executionTimedOut =
+        this.context.system.now() >=
+        this._executionStartTime + this._executionTimeout;
+
+      if (this._executionTimedOut) {
+        this.Error(
+          "Execution timed out: Possible infinite loop",
+          ErrorType.Error
+        );
+        // Execution is taking too long. Force it to stop.
+        return true;
+      }
+
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
         this.checkpoint();
         const instructions = this.module.interpreter.flush();
@@ -509,6 +577,10 @@ export class Game<T extends M = {}> {
           if (!this._coordinator.shouldContinue()) {
             this.notifyAwaitingInteraction();
           }
+        }
+        if (this.context.system.simulating) {
+          // Continue without user interaction
+          continue;
         }
         // DONE - waiting for user interaction (or auto advance)
         return true;
@@ -532,65 +604,76 @@ export class Game<T extends M = {}> {
           const currentText = this._story.currentText || "";
           const currentChoices = this._story.currentChoices.map((c) => c.text);
           this.module.interpreter.queue(currentText, currentChoices);
-        }
 
-        // Skip duplicate stops (avoid breaking at the same location)
-        if (
-          JSON.stringify(prevExecutedLocation) ===
-            JSON.stringify(this._executingLocation) ||
-          JSON.stringify(initialExecutedLocation) ===
-            JSON.stringify(this._executingLocation)
-        ) {
-          continue;
-        }
-
-        const currentCallstackDepth = this._story.state.callstackDepth;
-
-        // Handle step in: Stop at each instruction that is executed
-        if (traversal === "in") {
-          this.notifyStepped();
-          // DONE - stepped in
-          return true;
-        }
-
-        // Handle step over: Stop at the next line in the same function
-        if (
-          traversal === "over" &&
-          currentCallstackDepth <= initialCallstackDepth
-        ) {
-          this.notifyStepped();
-          // DONE - stepped over
-          return true;
-        }
-
-        // Handle step out: Stop when we return to a shallower depth
-        if (
-          traversal === "out" &&
-          currentCallstackDepth < initialCallstackDepth
-        ) {
-          this.notifyStepped();
-          // DONE - stepped out
-          return true;
-        }
-
-        // Script index or line is different than last breakpoint
-        const [currScriptIndex, currLine] = this._executingLocation;
-        const [breakpointScriptIndex, breakpointLine] =
-          this._lastHitBreakpointLocation || [];
-        if (
-          currScriptIndex !== breakpointScriptIndex ||
-          currLine !== breakpointLine
-        ) {
-          // Stop at a breakpoint
           if (
-            this._breakpointMap[currScriptIndex]?.has(currLine) ||
-            this._functionBreakpointMap[currScriptIndex]?.has(currLine) ||
-            this._dataBreakpointMap[currScriptIndex]?.has(currLine)
+            this.context.system.simulating &&
+            this._executedPathsThisFrame.has(this._startPath)
           ) {
-            this._lastHitBreakpointLocation = this._executingLocation;
-            this.notifyHitBreakpoint();
-            // DONE - hit breakpoint
+            // End simulation
+            this._context.system.simulating = false;
             return true;
+          }
+        }
+
+        if (!this.context.system.simulating) {
+          // Skip duplicate stops (avoid breaking at the same location)
+          if (
+            JSON.stringify(prevExecutedLocation) ===
+              JSON.stringify(this._executingLocation) ||
+            JSON.stringify(initialExecutedLocation) ===
+              JSON.stringify(this._executingLocation)
+          ) {
+            continue;
+          }
+
+          const currentCallstackDepth = this._story.state.callstackDepth;
+
+          // Handle step in: Stop at each instruction that is executed
+          if (traversal === "in") {
+            this.notifyStepped();
+            // DONE - stepped in
+            return true;
+          }
+
+          // Handle step over: Stop at the next line in the same function
+          if (
+            traversal === "over" &&
+            currentCallstackDepth <= initialCallstackDepth
+          ) {
+            this.notifyStepped();
+            // DONE - stepped over
+            return true;
+          }
+
+          // Handle step out: Stop when we return to a shallower depth
+          if (
+            traversal === "out" &&
+            currentCallstackDepth < initialCallstackDepth
+          ) {
+            this.notifyStepped();
+            // DONE - stepped out
+            return true;
+          }
+
+          // Script index or line is different than last breakpoint
+          const [currScriptIndex, currLine] = this._executingLocation;
+          const [breakpointScriptIndex, breakpointLine] =
+            this._lastHitBreakpointLocation || [];
+          if (
+            currScriptIndex !== breakpointScriptIndex ||
+            currLine !== breakpointLine
+          ) {
+            // Stop at a breakpoint
+            if (
+              this._breakpointMap[currScriptIndex]?.has(currLine) ||
+              this._functionBreakpointMap[currScriptIndex]?.has(currLine) ||
+              this._dataBreakpointMap[currScriptIndex]?.has(currLine)
+            ) {
+              this._lastHitBreakpointLocation = this._executingLocation;
+              this.notifyHitBreakpoint();
+              // DONE - hit breakpoint
+              return true;
+            }
           }
         }
 
@@ -605,8 +688,6 @@ export class Game<T extends M = {}> {
         return true;
       }
     }
-
-    return true;
   }
 
   autoAdvancedToContinue() {
@@ -699,23 +780,14 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected notifyWillContinue() {
+  protected notifyPreviewed(path: string) {
+    const location = this.getDocumentLocation(
+      this._program.pathToLocation?.[path]
+    );
     this.connection.emit(
-      WillContinueMessage.type.notification({
-        location: {
-          uri: this._startpoint.file,
-          range: {
-            start: {
-              line: this._startpoint.line,
-              character: 0,
-            },
-            end: {
-              line: this._startpoint.line,
-              character: 0,
-            },
-          },
-        },
-        path: this._startPath || "0",
+      PreviewedMessage.type.notification({
+        location,
+        path,
       })
     );
   }
@@ -1095,10 +1167,6 @@ export class Game<T extends M = {}> {
     );
   }
 
-  protected TimeoutError() {
-    this.Error("Execution timed out: Possible infinite loop", ErrorType.Error);
-  }
-
   log(message: unknown, severity: "info" | "warning" | "error" = "info") {
     this._context.system.log?.(message, severity);
   }
@@ -1111,31 +1179,34 @@ export class Game<T extends M = {}> {
     this._context.system.debugging = true;
   }
 
-  preview(file: string, line: number): void {
-    this._executingPath = "";
-    this._executingLocation = [-1, -1, -1, -1, -1];
+  preview(file: string, line: number): boolean {
     if (this._state === "running") {
       // Don't preview while running
-      return;
+      return false;
     }
-    this.clearChoices();
-    const startPath = this.getClosestStartPath(file, line);
-    if (startPath != null) {
-      this._startPath = startPath;
-      if (this._context.system.previewing !== startPath) {
-        this._context.system.previewing = startPath;
-        if (!this._story.asyncContinueComplete) {
-          this.TimeoutError();
-        } else {
-          this._story.ChoosePathString(startPath);
-          this.continue();
-          for (const k of this._moduleNames) {
-            this._modules[k]?.onPreview();
-          }
-          this._coordinator = null;
+    this._previewFrom = { file, line };
+    this._executingPath = "";
+    this._executingLocation = [-1, -1, -1, -1, -1];
+    const previewPath = this.getClosestPath(file, line);
+    if (previewPath != null) {
+      if (this._context.system.previewing !== previewPath) {
+        this._context.system.previewing = previewPath;
+        if (!this._simulateFrom) {
+          this.clearChoices();
+          this._startPath = previewPath;
+          this._story.ChoosePathString(previewPath);
         }
       }
     }
+    this.continue();
+    for (const k of this._moduleNames) {
+      this._modules[k]?.onPreview();
+    }
+    this._coordinator = null;
+    if (previewPath) {
+      this.notifyPreviewed(previewPath);
+    }
+    return !this._executionTimedOut;
   }
 
   protected getDocumentLocation(
@@ -1286,7 +1357,7 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
-  getClosestStartPath(file: string | undefined, line: number | undefined) {
+  getClosestPath(file: string | undefined, line: number | undefined) {
     if (file == null || line == null) {
       return null;
     }

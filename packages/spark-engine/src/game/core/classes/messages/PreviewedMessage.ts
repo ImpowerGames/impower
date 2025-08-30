@@ -1,15 +1,15 @@
 import { DocumentLocation } from "../../types/DocumentLocation";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
-export type WillContinueMethod = typeof WillContinueMessage.method;
+export type PreviewedMethod = typeof PreviewedMessage.method;
 
-export class WillContinueMessage {
-  static readonly method = "story/willContinue";
+export class PreviewedMessage {
+  static readonly method = "story/previewed";
   static readonly type = new MessageProtocolNotificationType<
-    WillContinueMethod,
+    PreviewedMethod,
     {
       location: DocumentLocation;
       path: string;
     }
-  >(WillContinueMessage.method);
+  >(PreviewedMessage.method);
 }

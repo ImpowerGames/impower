@@ -15,7 +15,9 @@ export default spec({
     playButton: "#play-button",
     toolbar: "#toolbar",
     launchStateIcon: "#launch-state-icon",
+    launchButton: "#launch-button",
     launchLabel: "#launch-label",
+    executedLabel: "#executed-label",
     sizeDisplay: "#size-display",
     aspectRatioDisplay: "#aspect-ratio-display",
     resetButton: "#reset-button",
@@ -25,13 +27,20 @@ export default spec({
     const { playLabel, toolbar } = props;
     const toolbarComponent = () => html`
       <div id="toolbar">
-        <span id="launch-state-icon"></span>
-        <span id="launch-label"></span>
+        <div id="left-items">
+          <div id="launch-button">
+            <span id="launch-state-icon"></span>
+            <span id="launch-label"></span>
+          </div>
+          <span id="executed-label"></span>
+        </div>
         <span class="spacer"></span>
-        <div id="aspect-ratio-display"></div>
-        <div id="size-display"></div>
-        <div id="reset-button">
-          <div id="reset-icon"></div>
+        <div id="right-items">
+          <div id="aspect-ratio-display"></div>
+          <div id="size-display"></div>
+          <div id="reset-button">
+            <div id="reset-icon"></div>
+          </div>
         </div>
       </div>
     `;

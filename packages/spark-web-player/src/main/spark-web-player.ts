@@ -10,12 +10,12 @@ import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocol
 import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedThreadMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameHitBreakpointMessage";
+import { GamePreviewedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GamePreviewedMessage";
 import { GameReloadedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameReloadedMessage";
 import { GameResizedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameResizedMessage";
 import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
 import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameSteppedMessage";
-import { GameWillContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillContinueMessage";
 import { GetGameEvaluationContextMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameEvaluationContextMessage";
 import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGamePossibleBreakpointLocationsMessage";
 import { GetGameScriptsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameScriptsMessage";
@@ -43,10 +43,10 @@ import { ExecutedMessage } from "@impower/spark-engine/src/game/core/classes/mes
 import { ExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExitedThreadMessage";
 import { FinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/FinishedMessage";
 import { HitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/HitBreakpointMessage";
+import { PreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/PreviewedMessage";
 import { RuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/RuntimeErrorMessage";
 import { StartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartedThreadMessage";
 import { SteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/SteppedMessage";
-import { WillContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/WillContinueMessage";
 import { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import { ErrorType } from "@impower/spark-engine/src/game/core/types/ErrorType";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
@@ -78,7 +78,8 @@ export default class SparkWebPlayer extends Component(spec) {
   _program?: SparkProgram;
 
   _options?: {
-    startpoint?: { file: string; line: number };
+    simulateFrom?: { file: string; line: number };
+    startFrom?: { file: string; line: number };
     breakpoints?: { file: string; line: number }[];
     functionBreakpoints?: { name: string }[];
     dataBreakpoints?: { dataId: string }[];
@@ -94,8 +95,6 @@ export default class SparkWebPlayer extends Component(spec) {
   _resizeStartHeight = 0;
 
   _gameResizeObserver?: ResizeObserver;
-
-  _previewing?: { file: string; line: number };
 
   override onConnected() {
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
@@ -113,6 +112,18 @@ export default class SparkWebPlayer extends Component(spec) {
     this.ref.toolbar?.addEventListener(
       "pointerup",
       this.handlePointerUpToolbar
+    );
+    this.ref.launchButton?.addEventListener(
+      "pointerdown",
+      this.handlePointerDownLaunchButton
+    );
+    this.ref.launchButton?.addEventListener(
+      "pointerup",
+      this.handlePointerUpLaunchButton
+    );
+    this.ref.launchButton?.addEventListener(
+      "click",
+      this.handleClickLaunchButton
     );
     this.ref.resetButton?.addEventListener(
       "pointerdown",
@@ -156,6 +167,18 @@ export default class SparkWebPlayer extends Component(spec) {
       "pointerup",
       this.handlePointerUpToolbar
     );
+    this.ref.launchButton?.removeEventListener(
+      "pointerdown",
+      this.handlePointerDownLaunchButton
+    );
+    this.ref.launchButton?.removeEventListener(
+      "pointerup",
+      this.handlePointerUpLaunchButton
+    );
+    this.ref.launchButton?.removeEventListener(
+      "click",
+      this.handleClickLaunchButton
+    );
     this.ref.resetButton?.removeEventListener(
       "pointerdown",
       this.handlePointerDownResetButton
@@ -191,47 +214,20 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   }
 
-  getLaunchFilePath() {
-    const workspace = this._options?.workspace;
-    const startpoint = this._options?.startpoint;
-    const launchFilePath = startpoint ? startpoint.file : this._program?.uri;
-    if (!launchFilePath) {
-      return undefined;
+  getRelativeFilePath(path: string | undefined) {
+    if (!path) {
+      return path;
     }
-    return workspace && launchFilePath.startsWith(workspace)
-      ? launchFilePath.slice(workspace.length + 1)
-      : launchFilePath;
-  }
-
-  getLaunchLineNumber() {
-    const startpoint = this._options?.startpoint;
-    const launchLine = startpoint ? startpoint.line : 0;
-    return launchLine + 1;
-  }
-
-  protected updateLaunchLabel(lastExecutedLocation?: DocumentLocation) {
     const workspace = this._options?.workspace;
-    const startpoint = this._options?.startpoint;
-    const program = this._program;
-    if (!program) {
-      return;
+    const relativePath =
+      workspace && path.startsWith(workspace)
+        ? path.slice(workspace.length + 1)
+        : path;
+    const extIndex = relativePath.lastIndexOf(".");
+    if (extIndex < 0) {
+      return relativePath;
     }
-    const launchFilePath = lastExecutedLocation
-      ? lastExecutedLocation.uri
-      : startpoint
-      ? startpoint.file
-      : program.uri;
-    const launchLine = lastExecutedLocation
-      ? lastExecutedLocation.range.start.line
-      : startpoint
-      ? startpoint.line
-      : 0;
-    const launchLineNumber = launchLine + 1;
-    const relativeLaunchFile =
-      workspace && launchFilePath.startsWith(workspace)
-        ? launchFilePath.slice(workspace.length + 1)
-        : launchFilePath;
-    this.ref.launchLabel.textContent = `${relativeLaunchFile} : ${launchLineNumber}`;
+    return relativePath.slice(0, extIndex);
   }
 
   protected updateLaunchStateIcon() {
@@ -241,6 +237,51 @@ export default class SparkWebPlayer extends Component(spec) {
       ? "play"
       : "preview";
     this.ref.launchStateIcon.setAttribute("icon", icon);
+  }
+
+  protected getLaunchFilePath() {
+    const simulateFrom = this._options?.simulateFrom;
+    const startFrom = this._options?.startFrom;
+    const launchFilePath = simulateFrom
+      ? simulateFrom.file
+      : startFrom
+      ? startFrom.file
+      : this._program?.uri;
+    return this.getRelativeFilePath(launchFilePath);
+  }
+
+  protected getLaunchLineNumber() {
+    const simulateFrom = this._options?.simulateFrom;
+    const startFrom = this._options?.startFrom;
+    const launchLine = simulateFrom
+      ? simulateFrom.line
+      : startFrom
+      ? startFrom.line
+      : 0;
+    return launchLine + 1;
+  }
+
+  protected updateLaunchLabel() {
+    this.ref.launchLabel.textContent = `${this.getLaunchFilePath()} : ${this.getLaunchLineNumber()}`;
+  }
+
+  protected updateExecutedLabel(lastExecutedLocation: DocumentLocation | null) {
+    if (lastExecutedLocation) {
+      const executedFilePath = this.getRelativeFilePath(
+        lastExecutedLocation.uri
+      );
+      const executedLineNumber = lastExecutedLocation.range.start.line + 1;
+      if (
+        this.getLaunchFilePath() !== executedFilePath ||
+        this.getLaunchLineNumber() !== executedLineNumber
+      ) {
+        this.ref.executedLabel.textContent = `→   ${executedFilePath} : ${executedLineNumber}`;
+      } else {
+        this.ref.executedLabel.textContent = "";
+      }
+    } else {
+      this.ref.executedLabel.textContent = "";
+    }
   }
 
   getAspectRatioLabel(width: number, height: number) {
@@ -361,12 +402,37 @@ export default class SparkWebPlayer extends Component(spec) {
     this.emit(MessageProtocol.event, GameStartedMessage.type.notification({}));
   };
 
+  protected handlePointerDownLaunchButton = (e: PointerEvent) => {
+    this.ref.launchButton.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+  };
+
+  protected handlePointerUpLaunchButton = (e: PointerEvent) => {
+    this.ref.launchButton.releasePointerCapture(e.pointerId);
+  };
+
+  protected handleClickLaunchButton = async () => {
+    if (this._options?.simulateFrom) {
+      this._options.simulateFrom = undefined;
+      this._game?.setSimulateFrom(undefined);
+      this.ref.launchButton.classList.toggle("pinned", false);
+    } else {
+      const simulateFrom = this._options?.startFrom;
+      this._options ??= {};
+      this._options.simulateFrom = simulateFrom;
+      this._game?.setSimulateFrom(simulateFrom);
+      this.ref.launchButton.classList.toggle("pinned", true);
+    }
+    this.updateLaunchLabel();
+    this.updateExecutedLabel(null);
+  };
+
   protected handlePointerDownResetButton = (e: PointerEvent) => {
     this.ref.resetButton.setPointerCapture(e.pointerId);
     e.stopPropagation();
   };
 
-  protected handlePointerUpResetButton = async (e: PointerEvent) => {
+  protected handlePointerUpResetButton = (e: PointerEvent) => {
     this.ref.resetButton.releasePointerCapture(e.pointerId);
   };
 
@@ -374,10 +440,10 @@ export default class SparkWebPlayer extends Component(spec) {
     if (this._game?.state === "running") {
       await this.restartGame();
     } else {
-      if (this._previewing) {
+      if (this._game?.previewFrom) {
         await this.updatePreview(
-          this._previewing.file,
-          this._previewing.line,
+          this._game.previewFrom.file,
+          this._game.previewFrom.line,
           true
         );
       }
@@ -584,7 +650,8 @@ export default class SparkWebPlayer extends Component(spec) {
   ) => {
     const {
       workspace,
-      startpoint,
+      simulateFrom,
+      startFrom,
       breakpoints,
       functionBreakpoints,
       dataBreakpoints,
@@ -600,9 +667,13 @@ export default class SparkWebPlayer extends Component(spec) {
     if (workspace) {
       this._options.workspace = workspace;
     }
-    if (startpoint) {
-      this._options.startpoint = startpoint;
-      this._game?.setStartpoint(startpoint);
+    if (simulateFrom) {
+      this._options.simulateFrom = simulateFrom;
+      this._game?.setSimulateFrom(simulateFrom);
+    }
+    if (startFrom) {
+      this._options.startFrom = startFrom;
+      this._game?.setStartFrom(startFrom);
     }
     if (breakpoints) {
       this._options.breakpoints = breakpoints;
@@ -688,6 +759,7 @@ export default class SparkWebPlayer extends Component(spec) {
     const { type, textDocument, selectedRange } = message.params;
     if (type === "game") {
       const line = selectedRange?.start.line ?? 0;
+      this.updateExecutedLabel(null);
       this.updatePreview(textDocument.uri, line);
       this.updateLaunchStateIcon();
       return messageType.response(message.id, {});
@@ -731,7 +803,7 @@ export default class SparkWebPlayer extends Component(spec) {
           code: 1,
           message: !this._program?.compiled
             ? "The program contains errors that prevent it from being compiled"
-            : `The game cannot be started from line ${this.getLaunchLineNumber()} of ${this.getLaunchFilePath()}`,
+            : `The game could not be started`,
         });
   };
 
@@ -955,7 +1027,6 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   async startGameAndApp() {
-    this._previewing = undefined;
     if (!this._program) {
       // wait for program to be loaded
       await new Promise<void>((resolve) => {
@@ -1014,7 +1085,8 @@ export default class SparkWebPlayer extends Component(spec) {
 
   async buildGame(preview?: { file: string; line: number }): Promise<void> {
     const options = this._options;
-    const startpoint = options?.startpoint;
+    const simulateFrom = options?.simulateFrom;
+    const startFrom = options?.startFrom;
     const breakpoints = options?.breakpoints;
     const functionBreakpoints = options?.functionBreakpoints;
     if (!this._program || !this._program.compiled) {
@@ -1024,7 +1096,8 @@ export default class SparkWebPlayer extends Component(spec) {
       this._game.destroy();
     }
     this._game = new Game(this._program, {
-      startpoint,
+      simulateFrom,
+      startFrom,
       breakpoints,
       functionBreakpoints,
       preview,
@@ -1091,7 +1164,7 @@ export default class SparkWebPlayer extends Component(spec) {
           const { locations } = msg.params;
           const lastExecutedLocation = locations.at(-1);
           if (lastExecutedLocation) {
-            this.updateLaunchLabel(lastExecutedLocation);
+            this.updateExecutedLabel(lastExecutedLocation);
           }
           this.emit(
             MessageProtocol.event,
@@ -1101,12 +1174,12 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     );
     this._game.connection.outgoing.addListener(
-      WillContinueMessage.method,
+      PreviewedMessage.method,
       (msg) => {
-        if (WillContinueMessage.type.isNotification(msg)) {
+        if (PreviewedMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
-            GameWillContinueMessage.type.notification(msg.params)
+            GamePreviewedMessage.type.notification(msg.params)
           );
         }
       }
@@ -1190,22 +1263,21 @@ export default class SparkWebPlayer extends Component(spec) {
   async updatePreview(file: string, line: number, force?: boolean) {
     if (this._app && !this._app.initialized && this._app.initializing) {
       await this._app.initializing;
-    } else {
-      if (
-        force ||
-        !this._app ||
-        !this._app.initialized ||
-        !this._game ||
-        (this._game.state === "previewing" &&
-          (this._game.program.uri !== this._program?.uri ||
-            this._game.program.version !== this._program?.version))
-      ) {
-        // If haven't built game yet, or programs have changed since last build, build game.
-        await this.buildGame({ file, line });
-      }
+    }
+    if (
+      force ||
+      !this._app ||
+      !this._app.initialized ||
+      !this._game ||
+      (this._game.state === "previewing" &&
+        (this._game.program.uri !== this._program?.uri ||
+          this._game.program.version !== this._program?.version)) ||
+      this._game.simulateFrom
+    ) {
+      // If haven't built game yet, or programs have changed since last build, build game.
+      await this.buildGame({ file, line });
     }
     if (this._game && this._game.state === "previewing") {
-      this._previewing = { file, line };
       this._game.preview(file, line);
     }
   }

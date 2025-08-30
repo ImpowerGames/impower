@@ -257,7 +257,7 @@ export class Application implements IApplication {
 
   async initializeGame() {
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
-    this._game.init({
+    await this._game.init({
       send: async (msg: Message, _t?: ArrayBuffer[]) => {
         const partialResponse = await this.onReceive(
           msg as RequestMessage | NotificationMessage
@@ -271,6 +271,7 @@ export class Application implements IApplication {
           });
         }
       },
+      now: () => window.performance.now(),
       resolve: (path: string) => {
         // TODO: resolve import and load paths to url
         return path;

@@ -1,4 +1,3 @@
-import { Typewriter } from "../../modules/interpreter";
 import { Instructions } from "../types/Instructions";
 import { NotificationMessage } from "../types/NotificationMessage";
 import { RequestMessage } from "../types/RequestMessage";
@@ -139,14 +138,7 @@ export class Coordinator<G extends Game> {
       }
     }
 
-    const transientLayers: string[] = [];
-    for (const [name, typewriter] of Object.entries(
-      game.context["typewriter"]
-    )) {
-      if ((typewriter as Typewriter)?.clear_on_continue) {
-        transientLayers.push(name);
-      }
-    }
+    const transientLayers: string[] = game.module.ui.getTransientTargets();
 
     if (!instant) {
       // Stop stale sound and voice audio on new dialogue line

@@ -7,7 +7,6 @@ export const default_typewriter: Create<Typewriter> = (obj) => ({
   $link: {
     synth: {},
   },
-  clear_on_continue: true,
   fade_duration: 0,
   animation_offset: 0.06,
   letter_pause: 0,

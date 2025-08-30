@@ -7,7 +7,7 @@ export type GameContext<B = any> = {
       initialized?: boolean;
       transitions?: boolean;
       skipping?: boolean;
-      simulating?: boolean;
+      simulating?: boolean | string;
       previewing?: boolean | string | null;
       debugging?: boolean;
       locale?: string;
@@ -19,6 +19,7 @@ export type GameContext<B = any> = {
         ...args: any[]
       ) => number;
       supports: (module: string) => void;
+      now: () => number;
       resolve?: (path: string) => string;
       fetch?: (url: string) => Promise<string | ArrayBuffer>;
       log?: (message: unknown, severity: "info" | "warning" | "error") => void;

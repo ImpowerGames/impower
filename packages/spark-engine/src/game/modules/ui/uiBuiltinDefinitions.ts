@@ -23,6 +23,7 @@ export const uiBuiltinDefinitions = () => ({
         lg: 1280,
         xl: 1920,
       },
+      persistent: ["backdrop"],
     },
   },
   image: {

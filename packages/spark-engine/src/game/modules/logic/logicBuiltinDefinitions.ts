@@ -1,12 +1,6 @@
-import { BlockData } from "./types/BlockData";
-
 export const logicBuiltins = () => ({
   config: {
-    logic: {
-      blockMap: {} as Record<string, BlockData>,
-      waypoints: [] as string[],
-      startpoint: "",
-    },
+    logic: {},
   },
   $seed: "",
   $key: "",

@@ -75,6 +75,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     Record<string, Record<string, (event: Event) => void>>
   > = {};
 
+  protected _clearOnContinue: Set<string> = new Set();
+
   constructor(game: Game) {
     super(game);
   }
@@ -675,6 +677,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return this.findElements(target).map((c) => c.id);
   }
 
+  getTransientTargets() {
+    return Array.from(this._clearOnContinue.values());
+  }
+
   queueAnimationEvent(
     event: { name: string; after?: number; over?: number },
     instant: boolean,
@@ -1036,7 +1042,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: TextInstruction[],
         instant = false
       ): void {
-        this.saveState(target, sequence);
+        if ($.context.config?.ui.persistent.includes(target)) {
+          this.saveState(target, sequence);
+        } else {
+          $._clearOnContinue.add(target);
+        }
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
         }
@@ -1389,7 +1399,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: ImageInstruction[],
         instant = false
       ): void {
-        this.saveState(target, sequence);
+        if ($.context.config?.ui.persistent.includes(target)) {
+          this.saveState(target, sequence);
+        } else {
+          $._clearOnContinue.add(target);
+        }
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
         }
