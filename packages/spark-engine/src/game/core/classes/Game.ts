@@ -1187,16 +1187,16 @@ export class Game<T extends M = {}> {
     this._previewFrom = { file, line };
     this._executingPath = "";
     this._executingLocation = [-1, -1, -1, -1, -1];
+
     const previewPath = this.getClosestPath(file, line);
-    if (previewPath != null) {
-      if (this._context.system.previewing !== previewPath) {
-        this._context.system.previewing = previewPath;
-        if (!this._simulateFrom) {
-          this.clearChoices();
-          this._startPath = previewPath;
-          this._story.ChoosePathString(previewPath);
-        }
-      }
+    if (!previewPath || this._context.system.previewing === previewPath) {
+      return true;
+    }
+    this._context.system.previewing = previewPath;
+    if (!this._simulateFrom) {
+      this.clearChoices();
+      this._startPath = previewPath;
+      this._story.ChoosePathString(previewPath);
     }
     this.continue();
     for (const k of this._moduleNames) {
