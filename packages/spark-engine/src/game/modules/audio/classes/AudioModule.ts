@@ -300,7 +300,7 @@ export class AudioModule extends Module<
       update.key = data.key;
     }
     if (update.control === "start") {
-      update.loop ??= data?.loop ?? this.context?.channel?.[channel]?.loop;
+      update.loop ??= this.context?.channel?.[channel]?.loop;
     }
     return update;
   }
