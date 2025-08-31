@@ -718,7 +718,7 @@ export class SparkdownCompiler {
     const uri = program.uri;
     profile("start", "buildContext", uri);
     this.populateBuiltins(state, program);
-    this.populateAssets(program);
+    this.populateAssets(state, program);
     this.populateImplicitDefs(program);
     profile("end", "buildContext", uri);
   }
@@ -742,7 +742,7 @@ export class SparkdownCompiler {
           program.context[type] ??= {};
           for (const [name, definedStruct] of Object.entries(structs)) {
             if (Array.isArray(definedStruct)) {
-              program.context[type][name] = definedStruct;
+              program.context[type][name] = this.clone(definedStruct);
             } else {
               const isSpecialDefinition =
                 name.startsWith("$") && name !== "$default";
@@ -786,7 +786,7 @@ export class SparkdownCompiler {
     profile("end", "populateBuiltins", uri);
   }
 
-  populateAssets(program: SparkProgram) {
+  populateAssets(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "populateAssets", uri);
     program.context ??= {};
@@ -797,61 +797,62 @@ export class SparkdownCompiler {
         const name = file.name;
         program.context[type] ??= {};
         program.context[type][name] ??= { $type: type, $name: name };
-        const definedFile = program.context[type][name] || {};
+        const definedFile = state.story?.structDefinitions?.[type]?.[name];
+        const contextFile = program.context[type][name] || {};
         // Set $type and $name
-        if (definedFile["$type"] === undefined) {
-          definedFile["$type"] = type;
+        if (contextFile["$type"] === undefined) {
+          contextFile["$type"] = type;
         }
-        if (definedFile["$name"] === undefined) {
-          definedFile["$name"] = name;
+        if (contextFile["$name"] === undefined) {
+          contextFile["$name"] = name;
         }
         // Infer asset src if not defined
-        if (definedFile["src"] === undefined) {
-          definedFile["src"] = file["src"];
+        if (definedFile?.["src"] === undefined) {
+          contextFile["src"] = file["src"];
         }
         // Infer font settings if not defined
         if (type === "font") {
           const [family, attrs] = name.split("__");
-          if (definedFile["font_family"] === undefined) {
-            definedFile["font_family"] = family || name;
+          if (definedFile?.["font_family"] === undefined) {
+            contextFile["font_family"] = family || name;
           }
-          if (definedFile["font_weight"] === undefined) {
+          if (definedFile?.["font_weight"] === undefined) {
             if (
               attrs &&
               attrs
                 .toLowerCase()
                 .match(/(^|_|\b)(?:bold|bolditalic|italicbold)($|_|\b)/)
             ) {
-              definedFile["font_weight"] = "700";
+              contextFile["font_weight"] = "700";
             } else {
-              definedFile["font_weight"] = "normal";
+              contextFile["font_weight"] = "normal";
             }
           }
-          if (definedFile["font_style"] === undefined) {
+          if (definedFile?.["font_style"] === undefined) {
             if (
               attrs &&
               attrs
                 .toLowerCase()
                 .match(/(^|_|\b)(?:italic|bolditalic|italicbold)($|_|\b)/)
             ) {
-              definedFile["font_style"] = "italic";
+              contextFile["font_style"] = "italic";
             } else {
-              definedFile["font_style"] = "normal";
+              contextFile["font_style"] = "normal";
             }
           }
-          if (definedFile["font_stretch"] === undefined) {
-            definedFile["font_stretch"] = "normal";
+          if (definedFile?.["font_stretch"] === undefined) {
+            contextFile["font_stretch"] = "normal";
           }
-          if (definedFile["font_display"] === undefined) {
-            definedFile["font_display"] = "block";
+          if (definedFile?.["font_display"] === undefined) {
+            contextFile["font_display"] = "block";
           }
         }
         for (const [k, v] of Object.entries(file)) {
-          if (definedFile[k] === undefined) {
-            definedFile[k] = v;
+          if (definedFile?.[k] === undefined) {
+            contextFile[k] = v;
           }
         }
-        program.context[type][name] = { ...file, ...definedFile };
+        program.context[type][name] = { ...file, ...contextFile };
         delete program.context[type][name].text;
       }
     }
