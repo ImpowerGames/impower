@@ -186,6 +186,12 @@ export class AudioModule extends Module<
           d.syncedTo = `${d.type}.${d.name}`;
           d.cues = resolvedAsset.cues;
         }
+        if (
+          "loop" in resolvedAsset &&
+          typeof resolvedAsset.loop === "boolean"
+        ) {
+          d.loop = resolvedAsset.loop;
+        }
         if ("loop_start" in resolvedAsset) {
           d.loopStart = resolvedAsset.loop_start;
         }
@@ -294,7 +300,7 @@ export class AudioModule extends Module<
       update.key = data.key;
     }
     if (update.control === "start") {
-      update.loop ??= this.context?.channel?.[channel]?.loop;
+      update.loop ??= data?.loop ?? this.context?.channel?.[channel]?.loop;
     }
     return update;
   }
