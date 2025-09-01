@@ -50,15 +50,7 @@ export class InterpreterModule extends Module<
 
   ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "fadeto", "with"];
 
-  ASSET_FLAG_ARG_KEYWORDS = [
-    "wait",
-    "nowait",
-    "loop",
-    "noloop",
-    "mute",
-    "unmute",
-    "now",
-  ];
+  ASSET_FLAG_ARG_KEYWORDS = ["wait", "loop", "noloop", "mute", "unmute", "now"];
 
   ASSET_ARG_KEYWORDS = [
     ...this.ASSET_VALUE_ARG_KEYWORDS,
@@ -530,7 +522,7 @@ export class InterpreterModule extends Module<
       ...allAnimations.map((a) => getTimeValue(a?.timing?.duration) ?? 0)
     );
     // Add to duration
-    if (!imageChunk.clauses?.nowait) {
+    if (imageChunk.clauses?.wait) {
       imageChunk.duration += afterDuration ?? 0;
       imageChunk.duration += overDuration ?? maxAnimationDuration ?? 0;
     }
@@ -550,11 +542,9 @@ export class InterpreterModule extends Module<
     const afterDuration = audioChunk.clauses?.["after"];
     const overDuration = audioChunk.clauses?.["over"];
     // Add to duration
-    if (!audioChunk.clauses?.nowait) {
-      if (audioChunk.clauses?.wait) {
-        audioChunk.duration += afterDuration ?? 0;
-        audioChunk.duration += overDuration ?? 0;
-      }
+    if (audioChunk.clauses?.wait) {
+      audioChunk.duration += afterDuration ?? 0;
+      audioChunk.duration += overDuration ?? 0;
     }
     return audioChunk;
   }

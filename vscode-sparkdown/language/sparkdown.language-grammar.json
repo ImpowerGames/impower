@@ -32,8 +32,7 @@
       "after",
       "over",
       "with",
-      "wait",
-      "nowait"
+      "wait"
     ],
     "AUDIO_CONTROL_KEYWORDS": [
       "start",
@@ -6972,7 +6971,7 @@
       }
     },
     "AssetCommandContent": {
-      "match": "([^\\S\\n\\r]*)(.*?)($|(?:\\b(?:after|over|with|wait|nowait)\\b|\\b(?:after|over|fadeto|loop|noloop|mute|unmute|now)\\b)(?=$|[^\\S\\n\\r]).*)",
+      "match": "([^\\S\\n\\r]*)(.*?)($|(?:\\b(?:after|over|with|wait)\\b|\\b(?:after|over|fadeto|loop|noloop|mute|unmute|now)\\b)(?=$|[^\\S\\n\\r]).*)",
       "captures": {
         "1": {
           "patterns": [
@@ -7088,7 +7087,7 @@
     "AssetCommandClauseKeyword": {
       "tag": "keyword",
       "name": "keyword.asset.clause.keyword.sd",
-      "match": "(\\b(?:after|over|with|wait|nowait)\\b|\\b(?:after|over|fadeto|loop|noloop|mute|unmute|now)\\b)"
+      "match": "(\\b(?:after|over|with|wait)\\b|\\b(?:after|over|fadeto|loop|noloop|mute|unmute|now)\\b)"
     },
     "AssetCommandName": {
       "match": "(.+?)(?=$|[+])",
