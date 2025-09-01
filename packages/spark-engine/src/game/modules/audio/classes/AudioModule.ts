@@ -337,7 +337,7 @@ export class AudioModule extends Module<
     if (
       update.control === "stop" ||
       update.control === "await" ||
-      !update.loop
+      (update.control === "start" && !update.loop)
     ) {
       if (data?.key) {
         const existingUpdateIndex = this._state.channels?.[
