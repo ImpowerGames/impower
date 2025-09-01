@@ -424,7 +424,6 @@ export default class SparkWebPlayer extends Component(spec) {
       this.ref.launchButton.classList.toggle("pinned", true);
     }
     this.updateLaunchLabel();
-    this.updateExecutedLabel(null);
   };
 
   protected handlePointerDownResetButton = (e: PointerEvent) => {
