@@ -79,6 +79,11 @@ export const audioBuiltinDefinitions = () => ({
       mixer: "music",
       loop: true,
     }),
+    ambient: default_channel({
+      $name: "sound",
+      mixer: "sound",
+      loop: true,
+    }),
     sound: default_channel({
       $name: "sound",
       mixer: "sound",
