@@ -69,7 +69,7 @@ export class AudioModule extends Module<
 
   async restoreChannel(channel: string) {
     const updates: AudioPlayerUpdate[] = [];
-    const audioToLoad = new Set<LoadAudioPlayerParams>();
+    const audioToLoad: LoadAudioPlayerParams[] = [];
     const channelState = this._state.channels?.[channel];
     if (channelState?.looping) {
       for (const state of channelState.looping) {
@@ -82,7 +82,7 @@ export class AudioModule extends Module<
                 d.cues = cues;
               }
             }
-            audioToLoad.add(d);
+            audioToLoad.push(d);
           }
         }
         const update: AudioPlayerUpdate = {
@@ -95,7 +95,7 @@ export class AudioModule extends Module<
         updates.push(update);
       }
     }
-    await this.loadAllAudio(Array.from(audioToLoad));
+    await this.loadAllAudio(audioToLoad);
     this.update(channel, updates);
   }
 
@@ -212,17 +212,19 @@ export class AudioModule extends Module<
     key: string
   ): LoadAudioPlayerParams[] {
     const indexOfFirstSeparator = key.indexOf("~");
-    const name =
+    const asset =
       indexOfFirstSeparator >= 0 ? key.slice(0, indexOfFirstSeparator) : key;
     const suffix =
       indexOfFirstSeparator >= 0 ? key.slice(indexOfFirstSeparator) : "";
+    const [type, name] = asset.includes(".") ? asset.split(".") : ["", asset];
     if (!name) {
       return [];
     }
-    const compiled =
-      this.context?.audio?.[name] ||
-      this.context?.layered_audio?.[name] ||
-      this.context?.synth?.[name];
+    const compiled = type
+      ? this.context?.[type as "audio" | "synth"]?.[name]
+      : this.context?.audio?.[name] ||
+        this.context?.layered_audio?.[name] ||
+        this.context?.synth?.[name];
     if (!compiled) {
       return [];
     }

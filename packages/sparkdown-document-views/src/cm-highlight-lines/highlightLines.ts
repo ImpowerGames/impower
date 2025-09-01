@@ -54,7 +54,7 @@ const highlightLinesStateField = StateField.define<DecorationSet>({
         const builder = new RangeSetBuilder<Decoration>();
 
         // Add decorations for currently highlighted lines
-        for (const lineNumber of lines) {
+        for (const lineNumber of Array.from(lines).sort()) {
           if (lineNumber <= tr.state.doc.lines) {
             const line = tr.state.doc.line(lineNumber);
             builder.add(line.from, line.from, highlightedLineDeco);
