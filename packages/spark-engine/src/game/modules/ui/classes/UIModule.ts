@@ -1026,7 +1026,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       clear(target: string): void {
         this.saveState(target, null);
-        if ($.context?.system?.previewing || !$.context?.system?.simulating) {
+        if (!$.context?.system?.simulating) {
           this.applyChanges(target, null, true);
         }
       }
@@ -1042,15 +1042,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: TextInstruction[],
         instant = false
       ): void {
-        if (
-          sequence.some((e) => e.control === "set" || e.control === "show") &&
-          !$.context.config?.ui.persistent.includes(target)
+        if ($.context.config?.ui.persistent.includes(target)) {
+          this.saveState(target, sequence);
+        } else if (
+          sequence.some((e) => e.control === "set" || e.control === "show")
         ) {
           $._clearOnContinue.add(target);
-        } else if ($.context.config?.ui.persistent.includes(target)) {
-          this.saveState(target, sequence);
         }
-        if ($.context?.system?.previewing || !$.context?.system?.simulating) {
+        if (!$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
         }
       }
@@ -1386,7 +1385,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       clear(target: string): void {
         this.saveState(target, null);
-        if ($.context?.system?.previewing || !$.context?.system?.simulating) {
+        if (!$.context?.system?.simulating) {
           this.applyChanges(target, null, true);
         }
       }
@@ -1402,15 +1401,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: ImageInstruction[],
         instant = false
       ): void {
-        if (
-          sequence.some((e) => e.control === "set" || e.control === "show") &&
-          !$.context.config?.ui.persistent.includes(target)
+        if ($.context.config?.ui.persistent.includes(target)) {
+          this.saveState(target, sequence);
+        } else if (
+          sequence.some((e) => e.control === "set" || e.control === "show")
         ) {
           $._clearOnContinue.add(target);
-        } else if ($.context.config?.ui.persistent.includes(target)) {
-          this.saveState(target, sequence);
         }
-        if ($.context?.system?.previewing || !$.context?.system?.simulating) {
+        if (!$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
         }
       }
@@ -1463,7 +1461,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         style: Record<string, string | null> | null
       ): void {
         this.saveState(target, style);
-        if ($.context?.system?.previewing || !$.context?.system?.simulating) {
+        if (!$.context?.system?.simulating) {
           this.applyChanges(target, style);
         }
       }
@@ -1516,7 +1514,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         attributes: Record<string, string | null> | null
       ): void {
         this.saveState(target, attributes);
-        if ($.context?.system?.previewing || !$.context?.system?.simulating) {
+        if (!$.context?.system?.simulating) {
           this.applyChanges(target, attributes);
         }
       }
