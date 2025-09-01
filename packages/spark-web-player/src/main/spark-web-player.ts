@@ -758,7 +758,6 @@ export default class SparkWebPlayer extends Component(spec) {
     const { type, textDocument, selectedRange } = message.params;
     if (type === "game") {
       const line = selectedRange?.start.line ?? 0;
-      this.updateExecutedLabel(null);
       this.updatePreview(textDocument.uri, line);
       this.updateLaunchStateIcon();
       return messageType.response(message.id, {});
