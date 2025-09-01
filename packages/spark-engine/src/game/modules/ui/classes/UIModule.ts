@@ -1047,7 +1047,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           !$.context.config?.ui.persistent.includes(target)
         ) {
           $._clearOnContinue.add(target);
-        } else {
+        } else if ($.context.config?.ui.persistent.includes(target)) {
           this.saveState(target, sequence);
         }
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
@@ -1407,7 +1407,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           !$.context.config?.ui.persistent.includes(target)
         ) {
           $._clearOnContinue.add(target);
-        } else {
+        } else if ($.context.config?.ui.persistent.includes(target)) {
           this.saveState(target, sequence);
         }
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
