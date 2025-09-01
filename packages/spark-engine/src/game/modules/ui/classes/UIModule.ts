@@ -1042,10 +1042,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: TextInstruction[],
         instant = false
       ): void {
-        if ($.context.config?.ui.persistent.includes(target)) {
-          this.saveState(target, sequence);
-        } else {
+        if (
+          sequence.some((e) => e.control === "set" || e.control === "show") &&
+          !$.context.config?.ui.persistent.includes(target)
+        ) {
           $._clearOnContinue.add(target);
+        } else {
+          this.saveState(target, sequence);
         }
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
@@ -1399,10 +1402,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: ImageInstruction[],
         instant = false
       ): void {
-        if ($.context.config?.ui.persistent.includes(target)) {
-          this.saveState(target, sequence);
-        } else {
+        if (
+          sequence.some((e) => e.control === "set" || e.control === "show") &&
+          !$.context.config?.ui.persistent.includes(target)
+        ) {
           $._clearOnContinue.add(target);
+        } else {
+          this.saveState(target, sequence);
         }
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
