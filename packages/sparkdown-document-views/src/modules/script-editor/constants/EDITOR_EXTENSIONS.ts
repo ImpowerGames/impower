@@ -7,7 +7,7 @@ import {
 } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
 import { lintKeymap } from "@codemirror/lint";
-import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import { searchKeymap } from "@codemirror/search";
 import { EditorState } from "@codemirror/state";
 import {
   EditorView,
@@ -39,7 +39,6 @@ const EDITOR_EXTENSIONS = [
   rectangularSelection(),
   highlightActiveLine(),
   highlightActiveLineGutter(),
-  highlightSelectionMatches(),
   highlightExtraWhitespace(),
   highlightLines(),
   keymap.of([
