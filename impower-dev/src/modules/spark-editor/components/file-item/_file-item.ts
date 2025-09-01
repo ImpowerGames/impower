@@ -61,6 +61,7 @@ export default spec({
                 position="absolute"
                 width="100%"
                 text-overflow="ellipsis"
+                child-layout="row"
               >
                 ${renaming ? nameInputComponent : nameLabelComponent}
               </s-box>
