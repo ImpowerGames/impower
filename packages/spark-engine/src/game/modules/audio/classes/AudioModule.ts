@@ -334,26 +334,27 @@ export class AudioModule extends Module<
     update: AudioPlayerUpdate,
     data?: LoadAudioPlayerParams
   ) {
-    this._state.channels ??= {};
-    this._state.channels[channel] ??= {};
     if (
       update.control === "stop" ||
       update.control === "await" ||
-      update.loop === false
+      !update.loop
     ) {
       if (data?.key) {
-        const existingUpdateIndex = this._state.channels[
+        const existingUpdateIndex = this._state.channels?.[
           channel
-        ].looping?.findIndex((s) => s.key === data.key);
+        ]?.looping?.findIndex((s) => s.key === data.key);
         if (existingUpdateIndex != null && existingUpdateIndex >= 0) {
-          this._state.channels[channel].looping?.splice(existingUpdateIndex, 1);
+          this._state.channels?.[channel]?.looping?.splice(
+            existingUpdateIndex,
+            1
+          );
         }
       } else {
-        delete this._state.channels[channel].looping;
+        delete this._state.channels?.[channel]?.looping;
       }
     } else {
       if (data?.key) {
-        const existingUpdate = this._state.channels[channel]?.looping?.find(
+        const existingUpdate = this._state.channels?.[channel]?.looping?.find(
           (s) => s.key === data.key
         );
         if (existingUpdate) {
@@ -364,6 +365,8 @@ export class AudioModule extends Module<
             existingUpdate.fadeto = update.fadeto;
           }
         } else if (update.control === "start") {
+          this._state.channels ??= {};
+          this._state.channels[channel] ??= {};
           this._state.channels[channel].looping ??= [];
           this._state.channels[channel].looping.push({
             key: data.key,
