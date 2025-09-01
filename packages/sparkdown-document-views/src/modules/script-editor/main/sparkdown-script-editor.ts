@@ -29,6 +29,21 @@ import {
   ShowEditorStatusBarParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorStatusBarMessage";
 import { UnfocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage";
+import {
+  GameExecutedMessage,
+  GameExecutedMethod,
+  GameExecutedParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
+import {
+  GameExitedMessage,
+  GameExitedMethod,
+  GameExitedParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
+import {
+  GamePreviewedMessage,
+  GamePreviewedMethod,
+  GamePreviewedParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/GamePreviewedMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import {
@@ -72,6 +87,7 @@ import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/Re
 import { Component } from "../../../../../spec-component/src/component";
 import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
 import getUnitlessValue from "../../../../../spec-component/src/utils/getUnitlessValue";
+import { setHighlightedLines } from "../../../cm-highlight-lines/highlightLines";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { getServerChanges } from "../../../cm-language-client/utils/getServerChanges";
 import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition";
@@ -127,6 +143,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected _searchInputFocused = false;
 
   protected _breakpoints: number[] = [];
+
+  protected _highlightedLines = new Set<number>();
 
   protected _scrollMargin: {
     top?: number;
@@ -236,6 +254,15 @@ export default class SparkdownScriptEditor extends Component(spec) {
       }
       if (SelectedPreviewMessage.type.is(e.detail)) {
         this.handleSelectedPreview(e.detail);
+      }
+      if (GameExecutedMessage.type.is(e.detail)) {
+        this.handleGameExecuted(e.detail);
+      }
+      if (GamePreviewedMessage.type.is(e.detail)) {
+        this.handleGamePreviewed(e.detail);
+      }
+      if (GameExitedMessage.type.is(e.detail)) {
+        this.handleGameExited(e.detail);
       }
     }
   };
@@ -452,6 +479,58 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected handleBlurGotoLineInput = () => {
     this.emit("input/unfocused");
     this._searchInputFocused = false;
+  };
+
+  protected handleGamePreviewed = (
+    _message: NotificationMessage<GamePreviewedMethod, GamePreviewedParams>
+  ): void => {
+    this._highlightedLines.clear();
+  };
+
+  protected handleGameExecuted = (
+    message: NotificationMessage<GameExecutedMethod, GameExecutedParams>
+  ): void => {
+    if (!this._textDocument) {
+      return;
+    }
+
+    const { locations, state } = message.params;
+
+    // Helper to group locations by document URI
+    const documentLocations = (locations || []).reduce((acc, loc) => {
+      (acc[loc.uri] = acc[loc.uri] || []).push(loc);
+      return acc;
+    }, {} as Record<string, typeof locations>);
+
+    const currentDocLocations = documentLocations[this._textDocument.uri] || [];
+
+    // Reset state before populating
+    if (state === "running") {
+      this._highlightedLines.clear();
+    }
+
+    for (const location of currentDocLocations) {
+      for (
+        let i = location.range.start.line;
+        i <= location.range.end.line;
+        i++
+      ) {
+        this._highlightedLines.add(i + 1);
+      }
+    }
+
+    if (this._view) {
+      setHighlightedLines(this._view, this._highlightedLines);
+    }
+  };
+
+  protected handleGameExited = (
+    _message: NotificationMessage<GameExitedMethod, GameExitedParams>
+  ): void => {
+    this._highlightedLines.clear();
+    if (this._view) {
+      setHighlightedLines(this._view, this._highlightedLines);
+    }
   };
 
   protected loadTextDocument(

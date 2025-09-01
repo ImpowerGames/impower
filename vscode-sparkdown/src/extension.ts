@@ -9,7 +9,7 @@ import { activateCommandView } from "./utils/activateCommandView";
 import { activateCompilationView } from "./utils/activateCompilationView";
 import { activateDocumentManager } from "./utils/activateDocumentManager";
 import { activateDurationStatus } from "./utils/activateDurationStatus";
-import { activateExecutionGutterDecorator } from "./utils/activateExecutionGutterDecorator";
+import { activateExecutionLineDecorator } from "./utils/activateExecutionLineDecorator";
 import { activateFileDecorations } from "./utils/activateFileDecorations";
 import { activateFileWatcher } from "./utils/activateFileWatcher";
 import { activateInspector } from "./utils/activateInspector";
@@ -35,7 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
   activateDurationStatus(context);
   activatePreviewScreenplayPanel(context);
   activatePreviewGamePanel(context);
-  activateExecutionGutterDecorator(context);
+  activateExecutionLineDecorator(context);
   activateCompilationView(context);
   // TODO:
   // activateStatisticsPanel(context);

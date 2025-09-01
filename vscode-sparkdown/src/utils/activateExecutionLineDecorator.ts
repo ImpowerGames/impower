@@ -45,7 +45,7 @@ const previewingLineDecoration: vscode.TextEditorDecorationType =
 let currentlyExecutedLines = new Set<number>();
 let previewingLines = new Set<number>();
 
-export const activateExecutionGutterDecorator = (
+export const activateExecutionLineDecorator = (
   context: vscode.ExtensionContext
 ) => {
   const handleGamePreviewed = (message: Message) => {

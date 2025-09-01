@@ -94,7 +94,7 @@ const EDITOR_THEME: {
     backgroundColor: "transparent",
     color: EDITOR_COLORS.activeLineNumber,
   },
-  "& .cm-line.cm-activeLine": {
+  "& .cm-activeLine": {
     backgroundColor: "transparent",
     outline: "2px solid #FFFFFF12",
   },

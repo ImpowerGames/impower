@@ -22,6 +22,7 @@ import {
 } from "@codemirror/view";
 import { breakpoints } from "../../../cm-breakpoints/breakpoints";
 import { highlightExtraWhitespace } from "../../../cm-highlight-extra-whitespace/highlightExtraWhitespace";
+import { highlightLines } from "../../../cm-highlight-lines/highlightLines";
 import { indentationGuides } from "../../../cm-indentation-guides/indentationGuides";
 import { indentedLineWrapping } from "../../../cm-indented-line-wrapping/indentedLineWrapping";
 
@@ -30,7 +31,6 @@ const EDITOR_EXTENSIONS = [
   breakpoints({}),
   lineNumbers(),
   indentUnit.of("  "),
-  highlightExtraWhitespace(),
   indentationGuides(),
   indentedLineWrapping(),
   drawSelection(),
@@ -40,6 +40,8 @@ const EDITOR_EXTENSIONS = [
   highlightActiveLine(),
   highlightActiveLineGutter(),
   highlightSelectionMatches(),
+  highlightExtraWhitespace(),
+  highlightLines(),
   keymap.of([
     indentWithTab,
     ...defaultKeymap,
