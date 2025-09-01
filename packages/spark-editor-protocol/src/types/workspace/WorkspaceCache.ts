@@ -1,5 +1,5 @@
-import type { Range } from "../base/Range";
 import type { Diagnostic } from "../base/Diagnostic";
+import type { Range } from "../base/Range";
 
 export type PanelType =
   | "main"
@@ -129,6 +129,7 @@ export interface ScreenState {
 }
 
 export interface DebugState {
+  simulateFrom?: { file: string; line: number };
   breakpoints?: Record<string, Range[]>;
   diagnostics?: Record<string, Diagnostic[]>;
 }

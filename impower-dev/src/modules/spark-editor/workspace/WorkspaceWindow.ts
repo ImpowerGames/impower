@@ -17,6 +17,11 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { DisableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
+import {
+  GameWillSimulateFromMessage,
+  GameWillSimulateFromMethod,
+  GameWillSimulateFromParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateFromMessage";
 import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
 import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
 import { StepGameClockMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameClockMessage";
@@ -87,6 +92,9 @@ export default class WorkspaceWindow {
       if (DidCompileTextDocumentMessage.type.is(e.detail)) {
         this.handleDidParseDocument(e.detail);
       }
+      if (GameWillSimulateFromMessage.type.is(e.detail)) {
+        this.handleGameWillSimulateFrom(e.detail);
+      }
     }
   };
 
@@ -102,8 +110,8 @@ export default class WorkspaceWindow {
     copy.screen = {};
     // Reset sync state
     copy.sync = {};
-    // Reset debug state
-    copy.debug = {};
+    // Reset diagnostics state
+    copy.debug.diagnostics = undefined;
     // Reset game preview state
     copy.preview.modes.game = {};
     return copy;
@@ -260,20 +268,31 @@ export default class WorkspaceWindow {
       DidCompileTextDocumentParams
     >
   ) => {
-    const { textDocument, program } = message.params;
-    const uri = textDocument.uri;
-    const filename = uri.split("/").slice(-1).join("");
-    const pane = this.getPaneType(filename);
-    const panel = this.getPanelType(filename);
-    if (pane && panel) {
-      this.update({
-        ...this.store,
-        debug: {
-          ...this.store.debug,
-          diagnostics: program.diagnostics,
-        },
-      });
-    }
+    const { program } = message.params;
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        diagnostics: program.diagnostics,
+      },
+    });
+  };
+
+  protected handleGameWillSimulateFrom = (
+    message: NotificationMessage<
+      GameWillSimulateFromMethod,
+      GameWillSimulateFromParams
+    >
+  ) => {
+    console.log("handleGameWillSimulateFrom", message);
+    const { simulateFrom } = message.params;
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        simulateFrom,
+      },
+    });
   };
 
   protected handleScreenSizeChange = (query: MediaQueryListEvent) => {

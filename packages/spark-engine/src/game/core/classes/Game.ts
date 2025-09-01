@@ -234,7 +234,7 @@ export class Game<T extends M = {}> {
         uuid: () => uuid(),
         supports: (module: string) => this.supports(module),
         now: () => {
-          throw new Error("now not configured");
+          return 0;
         },
         setTimeout: () => {
           throw new Error("setTimeout not configured");

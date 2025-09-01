@@ -16,6 +16,7 @@ import { GameResizedMessage } from "@impower/spark-editor-protocol/src/protocols
 import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
 import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameSteppedMessage";
+import { GameWillSimulateFromMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateFromMessage";
 import { GetGameEvaluationContextMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameEvaluationContextMessage";
 import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGamePossibleBreakpointLocationsMessage";
 import { GetGameScriptsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameScriptsMessage";
@@ -262,6 +263,10 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   protected updateLaunchLabel() {
+    this.ref.launchButton.classList.toggle(
+      "pinned",
+      Boolean(this._options?.simulateFrom)
+    );
     this.ref.launchLabel.textContent = `${this.getLaunchFilePath()} : ${this.getLaunchLineNumber()}`;
   }
 
@@ -415,15 +420,19 @@ export default class SparkWebPlayer extends Component(spec) {
     if (this._options?.simulateFrom) {
       this._options.simulateFrom = undefined;
       this._game?.setSimulateFrom(undefined);
-      this.ref.launchButton.classList.toggle("pinned", false);
     } else {
       const simulateFrom = this._options?.startFrom;
       this._options ??= {};
       this._options.simulateFrom = simulateFrom;
       this._game?.setSimulateFrom(simulateFrom);
-      this.ref.launchButton.classList.toggle("pinned", true);
     }
     this.updateLaunchLabel();
+    this.emit(
+      MessageProtocol.event,
+      GameWillSimulateFromMessage.type.notification({
+        simulateFrom: this._options?.simulateFrom,
+      })
+    );
   };
 
   protected handlePointerDownResetButton = (e: PointerEvent) => {

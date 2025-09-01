@@ -127,6 +127,7 @@ export default class GamePreview extends Component(spec) {
           }
         );
       }
+      const simulateFrom = Workspace.window.store.debug.simulateFrom;
       const startFrom = {
         file: uri,
         line: startLine,
@@ -137,6 +138,7 @@ export default class GamePreview extends Component(spec) {
           workspace,
           breakpoints,
           startFrom,
+          simulateFrom,
         })
       );
     }
