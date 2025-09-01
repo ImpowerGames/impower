@@ -5,11 +5,6 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
 import {
-  GameExecutedMessage,
-  GameExecutedMethod,
-  GameExecutedParams,
-} from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
-import {
   GameStartedMessage,
   GameStartedMethod,
   GameStartedParams,
@@ -56,9 +51,6 @@ export default class GamePreview extends Component(spec) {
       if (GameStartedMessage.type.is(e.detail)) {
         this.handleGameStarted(e.detail);
       }
-      if (GameExecutedMessage.type.is(e.detail)) {
-        this.handleGameExecuted(e.detail);
-      }
       if (DidCompileTextDocumentMessage.type.is(e.detail)) {
         this.handleDidCompileTextDocument(e.detail);
       }
@@ -93,16 +85,6 @@ export default class GamePreview extends Component(spec) {
     message: NotificationMessage<GameStartedMethod, GameStartedParams>
   ) => {
     Workspace.window.startGame();
-  };
-
-  handleGameExecuted = async (
-    message: NotificationMessage<GameExecutedMethod, GameExecutedParams>
-  ) => {
-    const { locations, state } = message.params;
-    const location = locations[0];
-    if (location && state !== "previewing") {
-      Workspace.window.showDocument(location.uri, location.range, true);
-    }
   };
 
   handleKeyDown = async (e: KeyboardEvent) => {
