@@ -387,7 +387,7 @@ export default class AudioPlayer {
   }
 
   getNextCueTime(from: number) {
-    if (!this._cues || this._cues.length === 0) {
+    if (!this._loop || !this._cues || this._cues.length === 0) {
       return from;
     }
     if (!this._instances[0]?.startedAt) {
