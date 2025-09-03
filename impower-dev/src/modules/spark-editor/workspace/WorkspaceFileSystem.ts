@@ -523,11 +523,7 @@ export default class WorkspaceFileSystem {
     }
   }
 
-  async getUrl(uri: string) {
-    if (this._loadedProjectId) {
-      const files = await this.getFiles(this._loadedProjectId);
-      return files[uri]?.src;
-    }
-    return undefined;
+  getUrl(uri: string) {
+    return this._files?.[uri]?.src;
   }
 }

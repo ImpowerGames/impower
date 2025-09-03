@@ -113,7 +113,6 @@ export default class GamePreview extends Component(spec) {
     if (editor) {
       const { uri, selectedRange } = editor;
       const startLine = selectedRange?.start?.line ?? 0;
-      this._program = await Workspace.ls.getProgram();
       this._startFromFile = uri;
       this._startFromLine = startLine;
       const breakpoints: { file: string; line: number }[] = [];
@@ -152,13 +151,23 @@ export default class GamePreview extends Component(spec) {
       if (editor) {
         const { uri, selectedRange } = editor;
         if (uri) {
-          this._program = await Workspace.ls.getProgram();
+          const program = await Workspace.ls.getProgram();
+          if (program.context) {
+            for (const [, structs] of Object.entries(program.context)) {
+              for (const [, struct] of Object.entries(structs)) {
+                if (struct.uri) {
+                  struct.src = Workspace.fs.getUrl(struct.uri);
+                }
+              }
+            }
+          }
+          this._program = program;
           this._startFromFile = uri;
           this._startFromLine = selectedRange?.start?.line ?? 0;
           this.emit(
             MessageProtocol.event,
             LoadGameMessage.type.request({
-              program: this._program,
+              program,
             })
           );
         }
