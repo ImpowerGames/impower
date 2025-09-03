@@ -18,9 +18,12 @@
   },
   "main": "dist/opfs-workspace.js",
   "scripts": {
-    "build": "node ./esbuild.js"
+    "build": "node ./esbuild.js",
+    "watch": "node ./esbuild.js --watch",
+    "package": "node ./esbuild.js --production"
   },
   "devDependencies": {
+    "chokidar": "^4.0.3",
     "esbuild": "^0.18.10"
   },
   "dependencies": {
