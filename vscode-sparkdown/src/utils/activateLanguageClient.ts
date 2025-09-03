@@ -47,6 +47,14 @@ export const activateLanguageClient = async (
         return result;
       }
     }
+    if (params.command === "sparkdown.getSrc") {
+      const [uri] = params.arguments || [];
+      if (uri && typeof uri === "string") {
+        return SparkdownPreviewGamePanelManager.instance.panel?.webview
+          .asWebviewUri(vscode.Uri.parse(uri))
+          .toString();
+      }
+    }
     return undefined;
   };
   const client = await createSparkdownLanguageClient(context, {

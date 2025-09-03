@@ -259,13 +259,19 @@ export default class SparkdownTextDocuments {
         : type === "script" || type === "text" || ext === "svg"
         ? await this.loadText(file)
         : undefined;
+    const src =
+      file.src ||
+      (await this._connection?.sendRequest(ExecuteCommandRequest.type, {
+        command: "sparkdown.getSrc",
+        arguments: [file.uri],
+      }));
 
     return {
       uri: file.uri,
       name,
       type,
       ext,
-      src: file.src || file.uri,
+      src,
       text: loadedText,
     };
   }

@@ -134,6 +134,12 @@ export default class WorkspaceFileSystem {
             return result;
           }
         }
+        if (params.command === "sparkdown.getSrc") {
+          const [uri] = params.arguments || [];
+          if (uri && typeof uri === "string") {
+            return this._files?.[uri]?.src;
+          }
+        }
         return undefined;
       }
     );

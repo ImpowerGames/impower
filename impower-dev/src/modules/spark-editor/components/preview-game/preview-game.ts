@@ -152,15 +152,6 @@ export default class GamePreview extends Component(spec) {
         const { uri, selectedRange } = editor;
         if (uri) {
           const program = await Workspace.ls.getProgram();
-          if (program.context) {
-            for (const [, structs] of Object.entries(program.context)) {
-              for (const [, struct] of Object.entries(structs)) {
-                if (struct.uri) {
-                  struct.src = Workspace.fs.getUrl(struct.uri);
-                }
-              }
-            }
-          }
           this._program = program;
           this._startFromFile = uri;
           this._startFromLine = selectedRange?.start?.line ?? 0;
