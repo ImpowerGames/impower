@@ -455,7 +455,7 @@ export default class SparkdownTextDocuments {
         }
       }
     }
-    if (uri !== mainScriptUri && !program?.scripts[uri]) {
+    if (uri !== mainScriptUri && program?.scripts[uri] == null) {
       // Target script is not included by main,
       // So it must be parsed on its own to report diagnostics
       program = await this.compileDocument(uri);
