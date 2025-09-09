@@ -216,35 +216,29 @@ export const getStyleContent = (
   let textContent = "";
   Object.entries(styles).forEach(([name, style]) => {
     let styleContent = "";
-    const nestedEntries: [string, any][] = [];
-    Object.entries(style).forEach(([k, v]) => {
-      if (!k.startsWith("$") && k !== "target") {
+    let level = 1;
+    const process = (k: string, v: unknown) => {
+      const indent = "  ".repeat(level);
+      if (!k.startsWith("$")) {
         if (v && typeof v === "object" && !("$name" in v)) {
-          nestedEntries.push([k, v]);
+          const elementSelector = getCSSSelector(k, options);
+          styleContent += `\n${indent}${elementSelector} {`;
+          level++;
+          Object.entries(v).forEach(([nk, nv]) => {
+            process(nk, nv);
+          });
+          level--;
+          styleContent += `\n${indent}}`;
         } else {
           const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v);
           if (cssValue) {
-            styleContent += `\n  ${cssProp}: ${cssValue};`;
+            styleContent += `\n${indent}${cssProp}: ${cssValue};`;
           }
         }
       }
-    });
-    // Process Nested CSS
-    nestedEntries.forEach(([k, v]) => {
-      const elementSelector = getCSSSelector(k, options);
-      let nestedStyleContent = "";
-      Object.entries(v).forEach(([nk, nv]) => {
-        if (!nk.startsWith("$")) {
-          const [cssProp, cssValue] = getCSSPropertyKeyValue(nk, nv);
-          if (cssValue) {
-            nestedStyleContent += `\n    ${cssProp}: ${cssValue};`;
-          }
-        }
-      });
-      nestedStyleContent = nestedStyleContent.trim();
-      if (nestedStyleContent) {
-        styleContent += `\n  ${elementSelector} {\n    ${nestedStyleContent}\n  }\n`;
-      }
+    };
+    Object.entries(style).forEach(([k, v]) => {
+      process(k, v);
     });
     // Concatenate all
     styleContent = styleContent.trim();
