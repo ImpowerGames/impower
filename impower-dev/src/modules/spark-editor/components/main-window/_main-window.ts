@@ -16,7 +16,7 @@ export default spec({
       <s-split-pane
         id="splitPane"
         flex
-        min-panel-width="378px"
+        min-panel-width="320px"
         divider-offset="0"
         divider-color="fg-06"
         responsive="hide"
