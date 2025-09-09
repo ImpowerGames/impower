@@ -10,7 +10,7 @@ const createShadows = (r: number, color = "black", unit = "px"): string[] => {
     return [];
   }
   // number of shadows
-  const n = Math.ceil(2 * Math.PI * r);
+  const n = Math.ceil(16 * Math.PI);
   const shadows: string[] = [];
   for (let i = 0; i < n; i += 1) {
     const theta = (2 * Math.PI * i) / n;
