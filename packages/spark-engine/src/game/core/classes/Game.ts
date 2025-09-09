@@ -165,8 +165,8 @@ export class Game<T extends M = {}> {
     program: SparkProgram,
     options?: {
       executionTimeout?: number;
-      preview?: { file: string; line: number };
       simulateFrom?: { file: string; line: number };
+      previewFrom?: { file: string; line: number };
       startFrom?: { file: string; line: number };
       breakpoints?: { file: string; line: number }[];
       functionBreakpoints?: { name: string }[];
@@ -193,13 +193,14 @@ export class Game<T extends M = {}> {
 
     this._scripts = Object.keys(this._program.scripts);
     const modules = options?.modules;
-    const previewing = options?.preview ? true : undefined;
+    const previewing = options?.previewFrom ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
     this._simulateFrom = options?.simulateFrom;
-    this._startFrom = options?.startFrom ?? {
-      file: this._scripts[0] || this._program.uri,
-      line: 0,
-    };
+    this._startFrom = options?.previewFrom ??
+      options?.startFrom ?? {
+        file: this._scripts[0] || this._program.uri,
+        line: 0,
+      };
     const startPath =
       this.getClosestPath(this._startFrom.file, this._startFrom.line) || "0";
     this._startPath = startPath;

@@ -1090,7 +1090,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected debouncedRestartGame = debounce(() => this.restartGame(), 100);
 
-  async buildGame(preview?: { file: string; line: number }): Promise<void> {
+  async buildGame(previewFrom?: { file: string; line: number }): Promise<void> {
     const options = this._options;
     const simulateFrom = options?.simulateFrom;
     const startFrom = options?.startFrom;
@@ -1104,10 +1104,10 @@ export default class SparkWebPlayer extends Component(spec) {
     }
     this._game = new Game(this._program, {
       simulateFrom,
+      previewFrom,
       startFrom,
       breakpoints,
       functionBreakpoints,
-      preview,
     });
     this._game.connection.outgoing.addListener(
       RuntimeErrorMessage.method,
@@ -1271,6 +1271,7 @@ export default class SparkWebPlayer extends Component(spec) {
     if (this._app && !this._app.initialized && this._app.initializing) {
       await this._app.initializing;
     }
+    const previewPath = this._game?.getClosestPath(file, line);
     if (
       force ||
       !this._app ||
@@ -1279,7 +1280,10 @@ export default class SparkWebPlayer extends Component(spec) {
       (this._game.state === "previewing" &&
         (this._game.program.uri !== this._program?.uri ||
           this._game.program.version !== this._program?.version)) ||
-      (this._game.state === "previewing" && this._game.simulateFrom)
+      (this._game.state === "previewing" &&
+        this._game.simulateFrom &&
+        previewPath &&
+        this._game.context.system.previewing !== previewPath)
     ) {
       // If haven't built game yet, or programs have changed since last build, build game.
       await this.buildGame({ file, line });
