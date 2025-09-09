@@ -138,6 +138,18 @@ export default class SparkWebPlayer extends Component(spec) {
       "click",
       this.handleClickResetButton
     );
+    this.ref.fullscreenButton?.addEventListener(
+      "pointerdown",
+      this.handlePointerDownFullscreenButton
+    );
+    this.ref.fullscreenButton?.addEventListener(
+      "pointerup",
+      this.handlePointerUpFullscreenButton
+    );
+    this.ref.fullscreenButton?.addEventListener(
+      "click",
+      this.handleClickFullscreenButton
+    );
     this._gameResizeObserver = new ResizeObserver(this.handleResize);
     this._gameResizeObserver.observe(this.ref.game);
     this.updateSizeAndAspectRatioDisplay();
@@ -191,6 +203,18 @@ export default class SparkWebPlayer extends Component(spec) {
     this.ref.resetButton?.removeEventListener(
       "click",
       this.handleClickResetButton
+    );
+    this.ref.fullscreenButton?.removeEventListener(
+      "pointerdown",
+      this.handlePointerDownFullscreenButton
+    );
+    this.ref.fullscreenButton?.removeEventListener(
+      "pointerup",
+      this.handlePointerUpFullscreenButton
+    );
+    this.ref.fullscreenButton?.removeEventListener(
+      "click",
+      this.handleClickFullscreenButton
     );
     this._gameResizeObserver?.disconnect();
   }
@@ -268,6 +292,7 @@ export default class SparkWebPlayer extends Component(spec) {
       Boolean(this._options?.simulateFrom)
     );
     this.ref.launchLabel.textContent = `${this.getLaunchFilePath()} : ${this.getLaunchLineNumber()}`;
+    this.ref.leftItems.hidden = false;
   }
 
   protected updateExecutedLabel(lastExecutedLocation: DocumentLocation | null) {
@@ -455,6 +480,23 @@ export default class SparkWebPlayer extends Component(spec) {
           true
         );
       }
+    }
+  };
+
+  protected handlePointerDownFullscreenButton = (e: PointerEvent) => {
+    this.ref.fullscreenButton.setPointerCapture(e.pointerId);
+    e.stopPropagation();
+  };
+
+  protected handlePointerUpFullscreenButton = (e: PointerEvent) => {
+    this.ref.fullscreenButton.releasePointerCapture(e.pointerId);
+  };
+
+  protected handleClickFullscreenButton = async () => {
+    if (document.fullscreenElement || this.shadowRoot?.fullscreenElement) {
+      await document.exitFullscreen();
+    } else {
+      await this.root.requestFullscreen();
     }
   };
 

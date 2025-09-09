@@ -15,6 +15,7 @@ export default spec({
     game: "#game",
     playButton: "#play-button",
     toolbar: "#toolbar",
+    leftItems: "#left-items",
     launchStateIcon: "#launch-state-icon",
     launchButton: "#launch-button",
     launchLabel: "#launch-label",
@@ -22,25 +23,32 @@ export default spec({
     sizeDisplay: "#size-display",
     aspectRatioDisplay: "#aspect-ratio-display",
     resetButton: "#reset-button",
+    fullscreenButton: "#fullscreen-button",
   } as const,
   css,
   html: ({ props }) => {
     const { toolbar, playButton, playLabel } = props;
     const toolbarComponent = () => html`
       <div id="toolbar">
-        <div id="left-items">
-          <div id="launch-button">
-            <span id="launch-state-icon"></span>
-            <span id="launch-label"></span>
+        <div id="left-items" hidden>
+          <div id="location-items">
+            <div id="launch-button">
+              <span id="launch-state-icon"></span>
+              <span id="launch-label"></span>
+            </div>
+            <span id="executed-label"></span>
           </div>
-          <span id="executed-label"></span>
+          <div id="reset-button">
+            <div id="reset-icon"></div>
+            Reset
+          </div>
         </div>
         <span class="spacer"></span>
         <div id="right-items">
           <div id="aspect-ratio-display"></div>
           <div id="size-display"></div>
-          <div id="reset-button">
-            <div id="reset-icon"></div>
+          <div id="fullscreen-button">
+            <div id="fullscreen-icon"></div>
           </div>
         </div>
       </div>

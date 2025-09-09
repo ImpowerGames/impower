@@ -147,7 +147,7 @@ Make sure disabled buttons don't get the pointer cursor.
 
 /* Make elements with the HTML hidden attribute stay hidden by default */
 :host [hidden] {
-  display: none;
+  display: none !important;
 }
 
 :host > .root {
@@ -165,6 +165,10 @@ Make sure disabled buttons don't get the pointer cursor.
   container-type: size;
   container-name: screen;
   resize: none;
+}
+
+:fullscreen #game {
+  height: 100% !important;
 }
 
 #game-background {
@@ -225,12 +229,28 @@ Make sure disabled buttons don't get the pointer cursor.
   border-top: 1px solid rgba(255, 255, 255, 0.15);
   min-height: 27px;
   font-size: 11px;
-  white-space: pre;
-  pointer-events: auto;
   position: relative;
+  pointer-events: auto;
   cursor: ns-resize;
   transition: border-color 0.2s ease;
   background-color: inherit;
+}
+
+:fullscreen #toolbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-color: transparent;
+  background-color: transparent;
+  background-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.5) 25%,
+    rgba(0, 0, 0, 1) 100%
+  );
+  pointer-events: none;
+  cursor: default;
 }
 
 #toolbar.snapping {
@@ -249,6 +269,10 @@ Make sure disabled buttons don't get the pointer cursor.
   background: #888;
 }
 
+:fullscreen #toolbar::before {
+  display: none;
+}
+
 #left-items {
   background-color: inherit;
   height: 100%;
@@ -257,6 +281,7 @@ Make sure disabled buttons don't get the pointer cursor.
   align-items: center;
   justify-content: center;
   pointer-events: none;
+  gap: 10px;
 }
 
 #right-items {
@@ -267,6 +292,14 @@ Make sure disabled buttons don't get the pointer cursor.
   align-items: center;
   justify-content: center;
   pointer-events: none;
+}
+
+#location-items {
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
 }
 
 #launch-button {
@@ -317,6 +350,7 @@ Make sure disabled buttons don't get the pointer cursor.
 }
 
 #executed-label {
+  white-space: pre;
   padding: 0 3px;
 }
 
@@ -326,8 +360,10 @@ Make sure disabled buttons don't get the pointer cursor.
   height: 100%;
   padding: 0 6px;
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
+  gap: 6px;
 }
 
 #reset-button:hover {
@@ -341,22 +377,33 @@ Make sure disabled buttons don't get the pointer cursor.
   mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256"><path fill="currentColor" d="M235.5 216.81c-22.56-11-35.5-34.58-35.5-64.8v-17.28a15.94 15.94 0 0 0-10.09-14.87L165 110a8 8 0 0 1-4.48-10.34l21.32-53a28 28 0 0 0-16.1-37a28.14 28.14 0 0 0-35.82 16a.6.6 0 0 0 0 .12L108.9 79a8 8 0 0 1-10.37 4.49L73.11 73.14a15.89 15.89 0 0 0-17.37 3.66C34.68 98.45 24 123.75 24 152a111.45 111.45 0 0 0 31.18 77.53A8 8 0 0 0 61 232h171a8 8 0 0 0 3.5-15.19M67.14 88l25.41 10.3a24 24 0 0 0 31.23-13.45l21-53c2.56-6.11 9.47-9.27 15.43-7a12 12 0 0 1 6.88 15.92l-21.4 52.99a24 24 0 0 0 13.43 31.14l24.88 9.83V153L55.77 101.71A109 109 0 0 1 67.14 88m48 128a87.53 87.53 0 0 1-24.34-42a8 8 0 0 0-15.49 4a105.2 105.2 0 0 0 18.36 38H64.44A95.54 95.54 0 0 1 40 152a85.9 85.9 0 0 1 7.73-36.29l137.8 55.12c3 18 10.56 33.48 21.89 45.16Z"/></svg>');
 }
 
-.spacer {
-  flex: 1;
+#fullscreen-button {
+  pointer-events: auto;
+  cursor: pointer;
+  height: 100%;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-#resize-handle {
-  flex: 0 0 24px;
-  background: #1e1e1e;
-  border-top: 1px solid #555;
-  cursor: ns-resize;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: stretch;
-  position: relative;
-  touch-action: none;
-  color: #ccc;
+#fullscreen-button:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+#fullscreen-icon {
+  background-color: currentColor;
+  width: 16px;
+  height: 16px;
+  mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M2.5 2H6V3H3V6H2V2.5L2.5 2ZM3 10H2V13.5L2.5 14H6V13H3V10ZM13 13H10V14H13.5L14 13.5V10H13V13ZM13.5 2H10V3H13V6H14V2.5L13.5 2Z"/></svg>');
+}
+
+:fullscreen #fullscreen-icon {
+  mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M5 2H6V5.5L5.5 6H2V5H5V2ZM2 10V11H5V14H6V10.5L5.5 10H2ZM10 10.5V14H11V11H14V10H10.5L10 10.5ZM11 5V2H10V5.5L10.5 6H14V5H11Z"/></svg>');
+}
+
+.spacer {
+  flex: 1;
 }
 
 #label-preview {
