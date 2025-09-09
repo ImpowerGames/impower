@@ -284,7 +284,6 @@ export default class WorkspaceWindow {
       GameWillSimulateFromParams
     >
   ) => {
-    console.log("handleGameWillSimulateFrom", message);
     const { simulateFrom } = message.params;
     this.update({
       ...this.store,
