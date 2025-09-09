@@ -162,7 +162,7 @@ Make sure disabled buttons don't get the pointer cursor.
 #game {
   position: relative;
   height: 100%;
-  container-type: inline-size;
+  container-type: size;
   container-name: screen;
   resize: none;
 }
