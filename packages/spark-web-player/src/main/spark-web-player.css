@@ -212,9 +212,11 @@ Make sure disabled buttons don't get the pointer cursor.
   transition: opacity 0.15s;
 }
 
-#play-button:hover {
-  opacity: 1;
-  color: #1177bb;
+@media (hover: hover) and (pointer: fine) {
+  #play-button:hover {
+    opacity: 1;
+    color: #1177bb;
+  }
 }
 
 #play-icon {
@@ -314,8 +316,10 @@ Make sure disabled buttons don't get the pointer cursor.
   padding: 0 6px;
 }
 
-#launch-button:hover {
-  background-color: rgba(255, 255, 255, 0.12);
+@media (hover: hover) and (pointer: fine) {
+  #launch-button:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+  }
 }
 
 #launch-button.pinned {
@@ -366,8 +370,10 @@ Make sure disabled buttons don't get the pointer cursor.
   gap: 6px;
 }
 
-#reset-button:hover {
-  background-color: rgba(255, 255, 255, 0.12);
+@media (hover: hover) and (pointer: fine) {
+  #reset-button:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+  }
 }
 
 #reset-icon {
@@ -387,8 +393,10 @@ Make sure disabled buttons don't get the pointer cursor.
   justify-content: center;
 }
 
-#fullscreen-button:hover {
-  background-color: rgba(255, 255, 255, 0.12);
+@media (hover: hover) and (pointer: fine) {
+  #fullscreen-button:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+  }
 }
 
 #fullscreen-icon {
