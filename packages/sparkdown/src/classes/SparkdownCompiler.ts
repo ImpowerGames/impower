@@ -920,6 +920,27 @@ export class SparkdownCompiler {
     profile("end", "populateImplicitDefs", uri);
   }
 
+  getPropertyPath(
+    program: SparkProgram,
+    structType: string,
+    structProperty: string
+  ) {
+    // Use the default property value specified in $default and $optional to infer main type
+    const recursive =
+      program.context?.[structType]?.["$default"]?.["$recursive"];
+    const propertyPath =
+      recursive != null
+        ? structProperty.split(".").at(-1) || ""
+        : structProperty;
+    const trimmedPropertyPath = propertyPath.startsWith(".")
+      ? propertyPath.slice(1)
+      : propertyPath;
+    return trimmedPropertyPath
+      .split(".")
+      .map((x) => (!Number.isNaN(Number(x)) ? 0 : x))
+      .join(".");
+  }
+
   getExpectedPropertyValue(
     program: SparkProgram,
     declaration: SparkDeclaration | undefined
@@ -928,19 +949,11 @@ export class SparkdownCompiler {
     const structName = declaration?.name;
     const structProperty = declaration?.property;
     if (structType && structProperty) {
-      // Use the default property value specified in $default and $optional to infer main type
-      const propertyPath = program.context?.[structType]?.["$default"]?.[
-        "$recursive"
-      ]
-        ? structProperty.split(".").at(-1) || ""
-        : structProperty;
-      const trimmedPropertyPath = propertyPath.startsWith(".")
-        ? propertyPath.slice(1)
-        : propertyPath;
-      const expectedPropertyPath = trimmedPropertyPath
-        .split(".")
-        .map((x) => (!Number.isNaN(Number(x)) ? 0 : x))
-        .join(".");
+      const expectedPropertyPath = this.getPropertyPath(
+        program,
+        structType,
+        structProperty
+      );
       const expectedPropertyValue =
         getProperty(
           program.context?.[structType]?.["$default"],
@@ -959,6 +972,37 @@ export class SparkdownCompiler {
           expectedPropertyPath
         );
       return expectedPropertyValue;
+    }
+    return undefined;
+  }
+
+  getSchemaPropertyValues(
+    program: SparkProgram,
+    declaration: SparkDeclaration | undefined
+  ) {
+    const structType = declaration?.type;
+    const structName = declaration?.name;
+    const structProperty = declaration?.property;
+    if (structType && structProperty) {
+      const expectedPropertyPath = this.getPropertyPath(
+        program,
+        structType,
+        structProperty
+      );
+      const schemaPropertyValues =
+        getProperty(
+          program.context?.[structType]?.[`$schema:${structName}`],
+          expectedPropertyPath
+        ) ??
+        getProperty(
+          program.context?.[structType]?.["$schema"],
+          expectedPropertyPath
+        ) ??
+        getProperty(
+          this._config?.schemaDefinitions?.[structType]?.["$schema"],
+          expectedPropertyPath
+        );
+      return schemaPropertyValues;
     }
     return undefined;
   }
@@ -1144,21 +1188,34 @@ export class SparkdownCompiler {
                       typeof definedPropertyValue !==
                       typeof expectedPropertyValue
                     ) {
-                      const message = `Cannot assign '${typeof definedPropertyValue}' to '${typeof expectedPropertyValue}' property`;
-                      program.diagnostics ??= {};
-                      program.diagnostics[uri] ??= [];
-                      program.diagnostics[uri].push({
-                        range,
-                        severity: DiagnosticSeverity.Error,
-                        message,
-                        relatedInformation: [
-                          {
-                            location: { uri, range },
-                            message: "",
-                          },
-                        ],
-                        source: LANGUAGE_NAME,
-                      });
+                      const schemaPropertyValues = this.getSchemaPropertyValues(
+                        program,
+                        declaration
+                      );
+                      const isSchemaSupportedScalarType =
+                        Array.isArray(schemaPropertyValues) &&
+                        schemaPropertyValues.some(
+                          (v) =>
+                            typeof v !== "object" &&
+                            typeof v === typeof definedPropertyValue
+                        );
+                      if (!isSchemaSupportedScalarType) {
+                        const message = `Cannot assign '${typeof definedPropertyValue}' to '${typeof expectedPropertyValue}' property`;
+                        program.diagnostics ??= {};
+                        program.diagnostics[uri] ??= [];
+                        program.diagnostics[uri].push({
+                          range,
+                          severity: DiagnosticSeverity.Error,
+                          message,
+                          relatedInformation: [
+                            {
+                              location: { uri, range },
+                              message: "",
+                            },
+                          ],
+                          source: LANGUAGE_NAME,
+                        });
+                      }
                     }
                   }
                 }
