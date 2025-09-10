@@ -67,7 +67,7 @@ export class AudioModule extends Module<
     }
   }
 
-  async restoreChannel(channel: string) {
+  protected async restoreChannel(channel: string) {
     const updates: AudioPlayerUpdate[] = [];
     const audioToLoad: LoadAudioPlayerParams[] = [];
     const channelState = this._state.channels?.[channel];
@@ -99,7 +99,7 @@ export class AudioModule extends Module<
     this.update(channel, updates);
   }
 
-  update(channel: string, updates: AudioPlayerUpdate[]) {
+  protected update(channel: string, updates: AudioPlayerUpdate[]) {
     this.emit(
       UpdateAudioPlayersMessage.type.request({
         channel,
@@ -108,7 +108,7 @@ export class AudioModule extends Module<
     );
   }
 
-  async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
+  protected async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
     await new Promise<void>(async (resolve) => {
       const result = await this.emit(LoadAudioPlayerMessage.type.request(data));
       if (result?.outputLatency != null) {
@@ -118,7 +118,9 @@ export class AudioModule extends Module<
     });
   }
 
-  async loadAllAudio(dataArray: LoadAudioPlayerParams[]): Promise<void> {
+  protected async loadAllAudio(
+    dataArray: LoadAudioPlayerParams[]
+  ): Promise<void> {
     await Promise.all(dataArray.map((d) => this.loadAudio(d)));
   }
 
@@ -385,7 +387,7 @@ export class AudioModule extends Module<
     }
   }
 
-  configure(mixer: string, gain: number) {
+  protected configure(mixer: string, gain: number) {
     this.emit(
       ConfigureAudioMixerMessage.type.request({
         mixer,
@@ -458,6 +460,10 @@ export class AudioModule extends Module<
       }
     }
     const id = this.nextTriggerId();
+    if (this.context.system.simulating) {
+      this.enableTrigger(id);
+      return id;
+    }
     const trigger = () => {
       this.update(channel, updates);
     };

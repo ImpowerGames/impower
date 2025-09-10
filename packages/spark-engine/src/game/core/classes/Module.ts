@@ -26,7 +26,7 @@ export abstract class Module<
     return this._state as RecursiveReadonly<S>;
   }
 
-  protected _triggerReady: Map<number, () => void> = new Map();
+  protected _triggerReady: Map<number, boolean | (() => void)> = new Map();
 
   protected _triggersCreated = 0;
 
@@ -100,8 +100,8 @@ export abstract class Module<
   }
 
   /** Allow the event to be triggered */
-  protected enableTrigger(triggerId: number, callback: () => void) {
-    this._triggerReady.set(triggerId, callback);
+  protected enableTrigger(triggerId: number, callback?: () => void) {
+    this._triggerReady.set(triggerId, callback ?? true);
   }
 
   /** Is the event ready to be triggered? */
@@ -113,7 +113,7 @@ export abstract class Module<
   trigger(triggerId: number) {
     if (this.isReady(triggerId)) {
       const t = this._triggerReady.get(triggerId);
-      if (t) {
+      if (t && typeof t === "function") {
         t();
       }
       this._triggerReady.delete(triggerId);
