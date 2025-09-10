@@ -94,6 +94,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.loadStyles();
     this.loadUI();
     this.loadTheme();
+    const transientTargets = this.getTransientTargets();
+    this.text.clearAll(transientTargets);
+    this.text.clearAll(transientTargets);
   }
 
   override async onRestore() {
@@ -502,32 +505,41 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         let cursor: Element = uiEl;
         for (let i = 0; i < path.length; i += 1) {
           const name = path[i]!;
-          const child = cursor.findChild(name);
+          const child = cursor.children.find((c) => c.name === name);
           if (child) {
             cursor = child;
           } else {
-            const isLast = i === path.length - 1;
-            const parent = path.at(-1);
-            const parentClasses = parent?.split(" ") || [];
-            const text =
-              isLast &&
-              (parentClasses.includes("text") ||
-                parentClasses.includes("stroke")) &&
-              typeof v === "string"
-                ? v
-                : undefined;
-            const background_image =
-              isLast && parentClasses.includes("image")
-                ? this.getBackgroundImageFromValue(v)
-                : undefined;
-            const mask_image =
-              isLast && parentClasses.includes("mask")
-                ? this.getBackgroundImageFromValue(v)
-                : undefined;
             cursor = this.createElement(cursor, {
               type: "div",
               name,
             });
+            const isLast = i === path.length - 1;
+            const parent = path.at(-1);
+            const parentClasses = parent?.split(" ") || [];
+            const isText = parentClasses.includes("text");
+            const isStroke = parentClasses.includes("stroke");
+            const isImage = parentClasses.includes("image");
+            const isMask = parentClasses.includes("mask");
+            if (isText || isStroke || isImage || isMask) {
+              if (typeof v === "object" && Object.keys(v).length === 0) {
+                const grandParent = path.at(-2);
+                if (grandParent) {
+                  this._clearOnContinue.add(grandParent);
+                }
+              }
+            }
+            const text =
+              isLast && (isText || isStroke) && typeof v === "string"
+                ? v
+                : undefined;
+            const background_image =
+              isLast && isImage
+                ? this.getBackgroundImageFromValue(v)
+                : undefined;
+            const mask_image =
+              isLast && isMask
+                ? this.getBackgroundImageFromValue(v)
+                : undefined;
             if (text) {
               cursor = this.createElement(cursor, {
                 type: "span",
@@ -829,120 +841,100 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       protected process(
-        targetEl: Element,
-        contentEls: Element[],
+        contentEl: Element,
         sequence: TextInstruction[],
         instant: boolean,
         enterElements: Map<Element, Animation[]>,
         _exitElements: Map<Element, Animation[]>
       ) {
-        let targetRevealed = false;
-        for (const contentEl of contentEls) {
-          let lineWrapperEl: Element | undefined = undefined;
-          let wordWrapperEl: Element | undefined = undefined;
-          let wasSpace: boolean | undefined = undefined;
-          let wasNewline: boolean | undefined = undefined;
-          let prevTextAlign: string | undefined = undefined;
-          for (const e of sequence) {
-            if (
-              (e.control === "show" || e.control === "set") &&
-              !targetRevealed
-            ) {
-              if (!enterElements.has(targetEl)) {
-                enterElements.set(targetEl, []);
+        let lineWrapperEl: Element | undefined = undefined;
+        let wordWrapperEl: Element | undefined = undefined;
+        let wasSpace: boolean | undefined = undefined;
+        let wasNewline: boolean | undefined = undefined;
+        let prevTextAlign: string | undefined = undefined;
+        for (const e of sequence) {
+          const text = e.text;
+          // Wrap each line in a block div
+          const isNewline = text === "\n";
+          // Support transform animations and text-wrapping by wrapping each word in an inline-block span
+          const isSpace = text === " " || text === "\t" || text === "\n";
+          // Support aligning text by wrapping consecutive aligned chunks in a block div
+          const textAlign = e.style?.text_align;
+          const alignStyle = textAlign
+            ? {
+                text_align: textAlign,
               }
-              const targetAnimations = enterElements.get(targetEl)!;
-              $.queueAnimationEvent(
-                { name: "show", after: e.after },
-                instant,
-                targetAnimations
-              );
-              targetRevealed = true;
-            }
-
-            const text = e.text;
-            // Wrap each line in a block div
-            const isNewline = text === "\n";
-            // Support transform animations and text-wrapping by wrapping each word in an inline-block span
-            const isSpace = text === " " || text === "\t" || text === "\n";
-            // Support aligning text by wrapping consecutive aligned chunks in a block div
-            const textAlign = e.style?.text_align;
-            const alignStyle = textAlign
-              ? {
-                  text_align: textAlign,
-                }
-              : undefined;
-            // text_align must be applied to a parent element
-            if (textAlign !== prevTextAlign) {
-              // Surround group consecutive spans that have the same text alignment a text_line div
-              lineWrapperEl = $.createElement(contentEl, {
-                type: "div",
-                name: "text_line",
-                style: alignStyle,
-              });
-            } else if (wasNewline === undefined || isNewline !== wasNewline) {
-              // Surround each line in a text_line div
-              lineWrapperEl = $.createElement(contentEl, {
-                type: "div",
-                name: "text_line",
-              });
-            }
-            // Support consecutive whitespace collapsing
-            const style: Record<string, string | number | null> = {
-              display: null,
-              opacity: "0",
-              ...(e.style || {}),
-            };
-            if (text === "\n" || text === " " || text === "\t") {
-              style["display"] = "inline";
-            }
-            if (text === "\n" || isSpace) {
-              wordWrapperEl = $.createElement(lineWrapperEl || contentEl, {
-                type: "span",
-                name: "text_space",
-                style: alignStyle,
-              });
-            } else if (
-              wasSpace === undefined ||
-              isSpace !== wasSpace ||
-              textAlign !== prevTextAlign
-            ) {
-              // this is the start of a new word chunk so create a text_word span
-              wordWrapperEl = $.createElement(lineWrapperEl || contentEl, {
-                type: "span",
-                name: "text_word",
-                style: alignStyle,
-              });
-            }
-            prevTextAlign = textAlign;
-            wasNewline = isNewline;
-            wasSpace = isSpace;
-            // Append text to wordWrapper, blockWrapper, or content
-            const textParentEl = wordWrapperEl || lineWrapperEl || contentEl;
-            const newSpanEl =
-              text === "\n"
-                ? $.createElement(textParentEl, {
-                    type: "span",
-                    name: "text_letter",
-                    content: { text: "" }, // text_line div already handles breaking up lines
-                    style,
-                  })
-                : $.createElement(textParentEl, {
-                    type: "span",
-                    name: "text_letter",
-                    content: { text },
-                    style,
-                  });
-            if (!enterElements.has(newSpanEl)) {
-              enterElements.set(newSpanEl, []);
-            }
-            const newSpanAnimations = enterElements.get(newSpanEl)!;
-            $.queueAnimationEvent(
-              { name: "show", after: e.after, over: e.over },
-              instant,
-              newSpanAnimations
-            );
+            : undefined;
+          // text_align must be applied to a parent element
+          if (textAlign !== prevTextAlign) {
+            // Surround group consecutive spans that have the same text alignment a text_line div
+            lineWrapperEl = $.createElement(contentEl, {
+              type: "div",
+              name: "text_line",
+              style: alignStyle,
+            });
+          } else if (wasNewline === undefined || isNewline !== wasNewline) {
+            // Surround each line in a text_line div
+            lineWrapperEl = $.createElement(contentEl, {
+              type: "div",
+              name: "text_line",
+            });
           }
+          // Support consecutive whitespace collapsing
+          const style: Record<string, string | number | null> = {
+            display: null,
+            opacity: "0",
+            ...(e.style || {}),
+          };
+          if (text === "\n" || text === " " || text === "\t") {
+            style["display"] = "inline";
+          }
+          if (text === "\n" || isSpace) {
+            wordWrapperEl = $.createElement(lineWrapperEl || contentEl, {
+              type: "span",
+              name: "text_space",
+              style: alignStyle,
+            });
+          } else if (
+            wasSpace === undefined ||
+            isSpace !== wasSpace ||
+            textAlign !== prevTextAlign
+          ) {
+            // this is the start of a new word chunk so create a text_word span
+            wordWrapperEl = $.createElement(lineWrapperEl || contentEl, {
+              type: "span",
+              name: "text_word",
+              style: alignStyle,
+            });
+          }
+          prevTextAlign = textAlign;
+          wasNewline = isNewline;
+          wasSpace = isSpace;
+          // Append text to wordWrapper, blockWrapper, or content
+          const textParentEl = wordWrapperEl || lineWrapperEl || contentEl;
+          const newSpanEl =
+            text === "\n"
+              ? $.createElement(textParentEl, {
+                  type: "span",
+                  name: "text_letter",
+                  content: { text: "" }, // text_line div already handles breaking up lines
+                  style,
+                })
+              : $.createElement(textParentEl, {
+                  type: "span",
+                  name: "text_letter",
+                  content: { text },
+                  style,
+                });
+          if (!enterElements.has(newSpanEl)) {
+            enterElements.set(newSpanEl, []);
+          }
+          const newSpanAnimations = enterElements.get(newSpanEl)!;
+          $.queueAnimationEvent(
+            { name: "show", after: e.after, over: e.over },
+            instant,
+            newSpanAnimations
+          );
         }
       }
 
@@ -955,24 +947,35 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const exitElements = new Map<Element, Animation[]>();
         for (const targetEl of $.findElements(target)) {
           if (targetEl) {
-            $.updateElement(targetEl, {
-              style: { display: null },
-              attributes: {
-                text: sequence?.map((t) => t.text).join("") ?? null,
-              },
-            });
             const textEls = $.getContentElements(targetEl, "text");
             const strokeEls = $.getContentElements(targetEl, "stroke");
             if (sequence) {
+              $.updateElement(targetEl, {
+                style: { display: null },
+                attributes: {
+                  text: sequence?.map((t) => t.text).join("") ?? null,
+                },
+              });
               // Create and set text
-              this.process(
-                targetEl,
-                [...textEls, ...strokeEls],
-                sequence,
-                instant,
-                enterElements,
-                exitElements
-              );
+              for (const textEl of textEls) {
+                this.process(
+                  textEl,
+                  sequence,
+                  instant,
+                  enterElements,
+                  exitElements
+                );
+              }
+              // Create and set stroke
+              for (const strokeEl of strokeEls) {
+                this.process(
+                  strokeEl,
+                  sequence,
+                  instant,
+                  enterElements,
+                  exitElements
+                );
+              }
             } else {
               // Clear text and stroke
               for (const textEl of textEls) {
@@ -982,7 +985,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 $.clearElement(strokeEl);
               }
               $.updateElement(targetEl, {
-                style: { display: "none", opacity: "0" },
+                style: { display: "none" },
+                attributes: {
+                  text: null,
+                },
               });
             }
           }
@@ -1022,12 +1028,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: TextInstruction[],
         instant = false
       ): void {
-        if ($.context.config?.ui.persistent.includes(target)) {
+        if (!$._clearOnContinue.has(target)) {
           this.saveState(target, sequence);
-        } else if (
-          sequence.some((e) => e.control === "set" || e.control === "show")
-        ) {
-          $._clearOnContinue.add(target);
         }
         if (!$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
@@ -1102,7 +1104,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         enterElements: Map<Element, Animation[]>,
         exitElements: Map<Element, Animation[]>
       ) {
-        let targetRevealed = false;
         for (const e of sequence) {
           const transitionWith = e.with || "";
           const transition = $.context?.transition?.[transitionWith];
@@ -1187,22 +1188,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
           if (e.assets && e.assets.length > 0) {
             for (const c of content) {
-              if (
-                (e.control === "show" || e.control === "set") &&
-                !targetRevealed
-              ) {
-                if (!enterElements.has(targetEl)) {
-                  enterElements.set(targetEl, []);
-                }
-                const targetEnterAnimations = enterElements.get(targetEl)!;
-                $.queueAnimationEvent(
-                  { name: "show", after: e.after },
-                  instant,
-                  targetEnterAnimations
-                );
-                targetRevealed = true;
-              }
-
               const contentElement = c.element;
               const contentProperty = c.property;
               // We are affecting the image
@@ -1312,13 +1297,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const exitElements = new Map<Element, Animation[]>();
         for (const targetEl of $.findElements(target)) {
           if (targetEl) {
-            $.updateElement(targetEl, {
-              style: { display: null },
-            });
             const imageEls = $.getContentElements(targetEl, "image");
             const maskEls = $.getContentElements(targetEl, "mask");
             // Enqueue image events
             if (sequence) {
+              $.updateElement(targetEl, {
+                style: { display: null },
+              });
               this.process(
                 targetEl,
                 [
@@ -1343,6 +1328,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               for (const maskEl of maskEls) {
                 $.clearElement(maskEl);
               }
+              $.updateElement(targetEl, {
+                style: { display: "none" },
+              });
             }
           }
         }
@@ -1381,12 +1369,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: ImageInstruction[],
         instant = false
       ): void {
-        if ($.context.config?.ui.persistent.includes(target)) {
+        if (!$._clearOnContinue.has(target)) {
           this.saveState(target, sequence);
-        } else if (
-          sequence.some((e) => e.control === "set" || e.control === "show")
-        ) {
-          $._clearOnContinue.add(target);
         }
         if (!$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
