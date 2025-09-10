@@ -395,14 +395,7 @@ export default class SparkdownTextDocuments {
   }, THROTTLE_DELAY);
 
   debouncedCompile = debounce(async (uri: string, force: boolean) => {
-    const program = await this.compile(uri, force);
-    await this._connection?.sendDiagnostics(
-      getDocumentDiagnostics(
-        uri,
-        program,
-        this.getProgramState(uri).compiledProgramVersion
-      )
-    );
+    return this.compile(uri, force);
   }, DEBOUNCE_DELAY);
 
   async compile(
@@ -504,7 +497,7 @@ export default class SparkdownTextDocuments {
         },
       };
     }
-    return this._connection?.sendNotification(
+    await this._connection?.sendNotification(
       DidCompileTextDocumentMessage.method,
       {
         textDocument: {
@@ -513,6 +506,13 @@ export default class SparkdownTextDocuments {
         },
         program: programToSend,
       }
+    );
+    await this._connection?.sendDiagnostics(
+      getDocumentDiagnostics(
+        uri,
+        program,
+        this.getProgramState(uri).compiledProgramVersion
+      )
     );
   }
 
