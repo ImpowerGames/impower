@@ -532,6 +532,7 @@ export class Game<T extends M = {}> {
   }
 
   continue() {
+    this._executedPathsThisFrame.clear();
     this._executionTimedOut = false;
     this._executionStartTime = this.context.system.now();
 
@@ -541,12 +542,11 @@ export class Game<T extends M = {}> {
     do {
       done = this.step();
     } while (!this._error && !done);
+    this.notifyExecuted();
   }
 
   step(traversal: "in" | "out" | "over" | "continue" = "continue"): boolean {
-    this._executedPathsThisFrame.clear();
     const done = this.execute(traversal);
-    this.notifyExecuted();
     return done;
   }
 
@@ -571,11 +571,16 @@ export class Game<T extends M = {}> {
       }
 
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
-        this.checkpoint();
+        if (!this.context.system.simulating) {
+          this.checkpoint();
+        }
         const instructions = this.module.interpreter.flush();
         if (instructions) {
           this._coordinator = new Coordinator(this, instructions);
-          if (!this._coordinator.shouldContinue()) {
+          if (
+            !this._coordinator.shouldContinue() &&
+            !this.context.system.simulating
+          ) {
             this.notifyAwaitingInteraction();
           }
         }
