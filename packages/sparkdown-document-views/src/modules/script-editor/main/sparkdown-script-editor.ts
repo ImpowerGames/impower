@@ -494,7 +494,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       return;
     }
 
-    const { locations, state } = message.params;
+    const { locations, state, restarted } = message.params;
 
     // Helper to group locations by document URI
     const documentLocations = (locations || []).reduce((acc, loc) => {
@@ -521,6 +521,15 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
     if (this._view) {
       setHighlightedLines(this._view, this._highlightedLines);
+      if (state === "running" && !restarted) {
+        const lastExecutedRange = currentDocLocations.at(-1)?.range;
+        if (lastExecutedRange != null) {
+          this.selectRange(
+            { start: lastExecutedRange.end, end: lastExecutedRange.end },
+            "center"
+          );
+        }
+      }
     }
   };
 
@@ -783,7 +792,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   }
 
-  protected selectRange(range: Range, scrollIntoView: boolean) {
+  protected selectRange(
+    range: Range,
+    scrollIntoView: "start" | "end" | "center" | boolean
+  ) {
     const view = this._view;
     if (view) {
       const doc = view.state.doc;
@@ -793,7 +805,13 @@ export default class SparkdownScriptEditor extends Component(spec) {
         selection: EditorSelection.create([
           EditorSelection.range(anchor, head),
         ]),
-        scrollIntoView,
+        scrollIntoView: scrollIntoView === true,
+        effects:
+          typeof scrollIntoView === "string"
+            ? EditorView.scrollIntoView(EditorSelection.range(anchor, head), {
+                y: scrollIntoView ?? "start",
+              })
+            : undefined,
       });
     }
   }

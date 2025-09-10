@@ -81,6 +81,7 @@ export default class SparkWebPlayer extends Component(spec) {
   _options?: {
     simulateFrom?: { file: string; line: number };
     startFrom?: { file: string; line: number };
+    previewFrom?: { file: string; line: number };
     breakpoints?: { file: string; line: number }[];
     functionBreakpoints?: { name: string }[];
     dataBreakpoints?: { dataId: string }[];
@@ -1075,14 +1076,14 @@ export default class SparkWebPlayer extends Component(spec) {
     });
   };
 
-  async startGameAndApp() {
+  async startGameAndApp(restarted?: boolean) {
     if (!this._program) {
       // wait for program to be loaded
       await new Promise<void>((resolve) => {
         this._loadListeners.add(resolve);
       });
     }
-    await this.buildGame();
+    await this.buildGame(restarted);
     const programCompiled = this._program?.compiled;
     const gameStarted = this._game?.start();
     const success = Boolean(programCompiled && gameStarted);
@@ -1112,6 +1113,7 @@ export default class SparkWebPlayer extends Component(spec) {
       location: DocumentLocation;
     }
   ) {
+    const previewFrom = this._game?.getLastExecutedDocumentLocation();
     this.destroyGameAndApp();
     this.showPlayButton();
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
@@ -1123,19 +1125,23 @@ export default class SparkWebPlayer extends Component(spec) {
       })
     );
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    if (previewFrom) {
+      this.updatePreview(previewFrom.uri, previewFrom.range.start.line);
+    }
   }
 
   async restartGame() {
     this.destroyGameAndApp();
-    await this.startGameAndApp();
+    await this.startGameAndApp(true);
   }
 
   protected debouncedRestartGame = debounce(() => this.restartGame(), 100);
 
-  async buildGame(previewFrom?: { file: string; line: number }): Promise<void> {
+  async buildGame(restarted?: boolean): Promise<void> {
     const options = this._options;
     const simulateFrom = options?.simulateFrom;
     const startFrom = options?.startFrom;
+    const previewFrom = options?.previewFrom;
     const breakpoints = options?.breakpoints;
     const functionBreakpoints = options?.functionBreakpoints;
     if (!this._program || !this._program.compiled) {
@@ -1145,6 +1151,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._game.destroy();
     }
     this._game = new Game(this._program, {
+      restarted,
       simulateFrom,
       previewFrom,
       startFrom,
@@ -1328,7 +1335,9 @@ export default class SparkWebPlayer extends Component(spec) {
         this._game.context.system.previewing !== previewPath)
     ) {
       // If haven't built game yet, or programs have changed since last build, build game.
-      await this.buildGame({ file, line });
+      this._options ??= {};
+      this._options.previewFrom = { file, line };
+      await this.buildGame();
     }
     if (this._game && this._game.state === "previewing") {
       this._game.preview(file, line);

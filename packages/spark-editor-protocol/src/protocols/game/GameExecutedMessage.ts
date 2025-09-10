@@ -8,6 +8,7 @@ export interface GameExecutedParams {
   locations: Location[];
   path: string;
   state: "initial" | "running" | "previewing" | "paused";
+  restarted?: boolean;
 }
 
 export class GameExecutedMessage {

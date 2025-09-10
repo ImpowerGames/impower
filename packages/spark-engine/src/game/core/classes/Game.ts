@@ -141,6 +141,11 @@ export class Game<T extends M = {}> {
 
   protected _error = false;
 
+  protected _restarted = false;
+  get restarted() {
+    return this._restarted;
+  }
+
   protected _state: "initial" | "previewing" | "running" = "initial";
   get state() {
     return this._state;
@@ -164,6 +169,7 @@ export class Game<T extends M = {}> {
   constructor(
     program: SparkProgram,
     options?: {
+      restarted?: boolean;
       executionTimeout?: number;
       simulateFrom?: { file: string; line: number };
       previewFrom?: { file: string; line: number };
@@ -192,6 +198,7 @@ export class Game<T extends M = {}> {
     });
 
     this._scripts = Object.keys(this._program.scripts);
+    this._restarted = options?.restarted ?? false;
     const modules = options?.modules;
     const previewing = options?.previewFrom ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
@@ -222,6 +229,8 @@ export class Game<T extends M = {}> {
     };
     this._story.onExecute = (path: string | undefined) => {
       if (path) {
+        // Delete before adding so that last item in set is always the most recently executed
+        this._executedPathsThisFrame.delete(path);
         this._executedPathsThisFrame.add(path);
       }
     };
@@ -811,6 +820,7 @@ export class Game<T extends M = {}> {
         locations,
         path: this._executingPath,
         state: this._state,
+        restarted: this._restarted,
       })
     );
   }
@@ -1215,9 +1225,11 @@ export class Game<T extends M = {}> {
     return !this._executionTimedOut;
   }
 
-  protected getDocumentLocation(
-    location: ScriptLocation | undefined
-  ): DocumentLocation {
+  getLastExecutedDocumentLocation() {
+    return this.getDocumentLocation(this._executingLocation);
+  }
+
+  getDocumentLocation(location: ScriptLocation | undefined): DocumentLocation {
     const [scriptIndex, startLine, startColumn, endLine, endColumn] =
       location || [];
     const uri =

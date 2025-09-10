@@ -11,6 +11,7 @@ export class ExecutedMessage {
       locations: DocumentLocation[];
       path: string;
       state: "initial" | "running" | "previewing" | "paused";
+      restarted?: boolean;
     }
   >(ExecutedMessage.method);
 }
