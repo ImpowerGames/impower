@@ -265,24 +265,26 @@ export default class SparkWebPlayer extends Component(spec) {
     this.ref.launchStateIcon.setAttribute("icon", icon);
   }
 
-  protected getLaunchFilePath() {
-    const launchFilePath = this._game?.simulatePath
-      ? this._game?.getPathDocumentLocation(this._game?.simulatePath)?.uri
-      : this._game?.startPath
-      ? this._game?.getPathDocumentLocation(this._game?.startPath)?.uri
-      : this._game?.program.uri;
-    return this.getRelativeFilePath(launchFilePath);
-  }
-
-  protected getLaunchLineNumber() {
-    const launchLine = this._game?.simulatePath
-      ? this._game?.getPathDocumentLocation(this._game?.simulatePath)?.range
-          .start.line
-      : this._game?.startPath
-      ? this._game?.getPathDocumentLocation(this._game?.startPath)?.range.start
-          .line
-      : 0;
-    return (launchLine ?? 0) + 1;
+  protected getLaunchLocation() {
+    if (!this._game) {
+      return undefined;
+    }
+    const mainFallbackLocation = {
+      uri: this._game.program.uri,
+      range: {
+        start: { line: 0, character: 0 },
+        end: { line: 0, character: 0 },
+      },
+    };
+    const location = this._game.simulatePath
+      ? this._game.getPathDocumentLocation(this._game.simulatePath)
+      : this._game.startPath
+      ? this._game.getPathDocumentLocation(this._game.startPath)
+      : mainFallbackLocation;
+    if (this._game.state === "running") {
+      return location ?? mainFallbackLocation;
+    }
+    return location;
   }
 
   protected updateLaunchLabel() {
@@ -290,20 +292,29 @@ export default class SparkWebPlayer extends Component(spec) {
       "pinned",
       Boolean(this._options?.simulateFrom)
     );
-    this.ref.launchLabel.textContent = `${this.getLaunchFilePath()} : ${this.getLaunchLineNumber()}`;
+    const launchLocation = this.getLaunchLocation();
+    if (launchLocation) {
+      const launchFilePath = this.getRelativeFilePath(launchLocation.uri);
+      const launchLineNumber = launchLocation.range.start.line + 1;
+      this.ref.launchLabel.textContent = `${launchFilePath} : ${launchLineNumber}`;
+      this.ref.locationItems.hidden = false;
+    } else {
+      this.ref.locationItems.hidden = true;
+    }
     this.ref.leftItems.hidden = false;
   }
 
   protected updateExecutedLabel(lastExecutedLocation: DocumentLocation | null) {
     if (lastExecutedLocation) {
-      const executedFilePath = this.getRelativeFilePath(
-        lastExecutedLocation.uri
-      );
-      const executedLineNumber = lastExecutedLocation.range.end.line + 1;
+      const launchLocation = this.getLaunchLocation();
       if (
-        this.getLaunchFilePath() !== executedFilePath ||
-        this.getLaunchLineNumber() !== executedLineNumber
+        launchLocation?.uri !== lastExecutedLocation.uri ||
+        launchLocation?.range.start.line !== lastExecutedLocation.range.end.line
       ) {
+        const executedFilePath = this.getRelativeFilePath(
+          lastExecutedLocation.uri
+        );
+        const executedLineNumber = lastExecutedLocation.range.end.line + 1;
         this.ref.executedLabel.textContent = `→   ${executedFilePath} : ${executedLineNumber}`;
       } else {
         this.ref.executedLabel.textContent = "";
@@ -1220,6 +1231,7 @@ export default class SparkWebPlayer extends Component(spec) {
           const { locations } = msg.params;
           const lastExecutedLocation = locations.at(-1);
           if (lastExecutedLocation) {
+            this.updateLaunchLabel();
             this.updateExecutedLabel(lastExecutedLocation);
           }
           this.emit(

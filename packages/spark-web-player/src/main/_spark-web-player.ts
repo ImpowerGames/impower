@@ -16,6 +16,7 @@ export default spec({
     playButton: "#play-button",
     toolbar: "#toolbar",
     leftItems: "#left-items",
+    locationItems: "#location-items",
     launchStateIcon: "#launch-state-icon",
     launchButton: "#launch-button",
     launchLabel: "#launch-label",
