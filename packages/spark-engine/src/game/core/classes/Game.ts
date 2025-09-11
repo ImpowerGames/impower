@@ -127,8 +127,14 @@ export class Game<T extends M = {}> {
   }
 
   protected _simulatePath?: string | null;
+  get simulatePath() {
+    return this._simulatePath;
+  }
 
   protected _startPath: string;
+  get startPath() {
+    return this._startPath;
+  }
 
   protected _breakpointMap: Record<number, Map<number, Breakpoint>> = {};
 
@@ -203,14 +209,19 @@ export class Game<T extends M = {}> {
     const previewing = options?.previewFrom ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
     this._simulateFrom = options?.simulateFrom;
+    if (this._simulateFrom) {
+      this._simulatePath = this.getClosestPath(
+        this._simulateFrom.file,
+        this._simulateFrom.line
+      );
+    }
     this._startFrom = options?.previewFrom ??
       options?.startFrom ?? {
         file: this._scripts[0] || this._program.uri,
         line: 0,
       };
-    const startPath =
+    this._startPath =
       this.getClosestPath(this._startFrom.file, this._startFrom.line) || "0";
-    this._startPath = startPath;
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
@@ -307,7 +318,7 @@ export class Game<T extends M = {}> {
       this._modules[moduleName]?.onInit();
     }
     if (this._simulateFrom) {
-      this.simulate(this._simulateFrom);
+      this.simulate();
       // Restore module state
       await this.restore();
     }
@@ -315,10 +326,18 @@ export class Game<T extends M = {}> {
 
   setSimulateFrom(simulateFrom: { file: string; line: number } | undefined) {
     this._simulateFrom = simulateFrom;
+    if (this._simulateFrom) {
+      this._simulatePath = this.getClosestPath(
+        this._simulateFrom.file,
+        this._simulateFrom.line
+      );
+    }
   }
 
   setStartFrom(startFrom: { file: string; line: number }) {
     this._startFrom = startFrom;
+    this._startPath =
+      this.getClosestPath(this._startFrom.file, this._startFrom.line) || "0";
   }
 
   setBreakpoints(breakpoints: { file: string; line: number }[]) {
@@ -399,12 +418,7 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
-  simulate(simulateFrom: { file: string; line: number }): void {
-    this._simulateFrom = simulateFrom;
-    this._simulatePath = this.getClosestPath(
-      simulateFrom.file,
-      simulateFrom.line
-    );
+  simulate(): void {
     if (this._simulatePath) {
       this._context.system.simulating = this._simulatePath;
       this._story.ChoosePathString(this._simulatePath);
@@ -1223,6 +1237,14 @@ export class Game<T extends M = {}> {
       this.notifyPreviewed(previewPath);
     }
     return !this._executionTimedOut;
+  }
+
+  getPathDocumentLocation(path: string) {
+    const location = this._program.pathToLocation?.[path];
+    if (location) {
+      return this.getDocumentLocation(location);
+    }
+    return null;
   }
 
   getLastExecutedDocumentLocation() {

@@ -266,25 +266,23 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   protected getLaunchFilePath() {
-    const simulateFrom = this._options?.simulateFrom;
-    const startFrom = this._options?.startFrom;
-    const launchFilePath = simulateFrom
-      ? simulateFrom.file
-      : startFrom
-      ? startFrom.file
-      : this._program?.uri;
+    const launchFilePath = this._game?.simulatePath
+      ? this._game?.getPathDocumentLocation(this._game?.simulatePath)?.uri
+      : this._game?.startPath
+      ? this._game?.getPathDocumentLocation(this._game?.startPath)?.uri
+      : this._game?.program.uri;
     return this.getRelativeFilePath(launchFilePath);
   }
 
   protected getLaunchLineNumber() {
-    const simulateFrom = this._options?.simulateFrom;
-    const startFrom = this._options?.startFrom;
-    const launchLine = simulateFrom
-      ? simulateFrom.line
-      : startFrom
-      ? startFrom.line
+    const launchLine = this._game?.simulatePath
+      ? this._game?.getPathDocumentLocation(this._game?.simulatePath)?.range
+          .start.line
+      : this._game?.startPath
+      ? this._game?.getPathDocumentLocation(this._game?.startPath)?.range.start
+          .line
       : 0;
-    return launchLine + 1;
+    return (launchLine ?? 0) + 1;
   }
 
   protected updateLaunchLabel() {
@@ -301,7 +299,7 @@ export default class SparkWebPlayer extends Component(spec) {
       const executedFilePath = this.getRelativeFilePath(
         lastExecutedLocation.uri
       );
-      const executedLineNumber = lastExecutedLocation.range.start.line + 1;
+      const executedLineNumber = lastExecutedLocation.range.end.line + 1;
       if (
         this.getLaunchFilePath() !== executedFilePath ||
         this.getLaunchLineNumber() !== executedLineNumber
@@ -1158,6 +1156,8 @@ export default class SparkWebPlayer extends Component(spec) {
       breakpoints,
       functionBreakpoints,
     });
+    this.updateLaunchLabel();
+    this.updateExecutedLabel(null);
     this._game.connection.outgoing.addListener(
       RuntimeErrorMessage.method,
       async (msg) => {
