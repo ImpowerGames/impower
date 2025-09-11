@@ -577,9 +577,7 @@ export class Game<T extends M = {}> {
     this.notifyExecuted();
   }
 
-  protected step(
-    traversal: "in" | "out" | "over" | "continue" = "continue"
-  ): boolean {
+  step(traversal: "in" | "out" | "over" | "continue" = "continue"): boolean {
     const initialCallstackDepth = this._story.state.callstackDepth;
     const initialExecutedLocation = this._executingLocation;
 
