@@ -20,7 +20,6 @@ import {
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
-import { breakpoints } from "../../../cm-breakpoints/breakpoints";
 import { highlightExtraWhitespace } from "../../../cm-highlight-extra-whitespace/highlightExtraWhitespace";
 import { highlightLines } from "../../../cm-highlight-lines/highlightLines";
 import { indentationGuides } from "../../../cm-indentation-guides/indentationGuides";
@@ -28,7 +27,7 @@ import { indentedLineWrapping } from "../../../cm-indented-line-wrapping/indente
 
 const EDITOR_EXTENSIONS = [
   history(),
-  breakpoints({}),
+  // TODO: breakpoints({}),
   lineNumbers(),
   indentUnit.of("  "),
   indentationGuides(),
