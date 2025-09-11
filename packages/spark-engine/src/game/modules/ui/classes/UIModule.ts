@@ -96,30 +96,32 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.loadTheme();
     const transientTargets = this.getTransientTargets();
     this.text.clearAll(transientTargets);
-    this.text.clearAll(transientTargets);
+    this.image.clearAll(transientTargets);
   }
 
   override async onRestore() {
+    const tasks: Promise<void>[] = [];
     if (this._state.text) {
       for (const [target] of Object.entries(this._state.text)) {
-        this.text.restore(target);
+        tasks.push(this.text.restore(target));
       }
     }
     if (this._state.image) {
       for (const [target] of Object.entries(this._state.image)) {
-        this.image.restore(target);
+        tasks.push(this.image.restore(target));
       }
     }
     if (this._state.style) {
       for (const [target] of Object.entries(this._state.style)) {
-        this.style.restore(target);
+        tasks.push(this.style.restore(target));
       }
     }
     if (this._state.attributes) {
       for (const [target] of Object.entries(this._state.attributes)) {
-        this.attributes.restore(target);
+        tasks.push(this.attributes.restore(target));
       }
     }
+    await Promise.all(tasks);
   }
 
   override onUpdate(time: Clock) {
@@ -833,10 +835,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      restore(target: string) {
+      async restore(target: string) {
         const state = $._state.text?.[target];
         if (state) {
-          this.applyChanges(target, state, true);
+          await this.applyChanges(target, state, true);
         }
       }
 
@@ -938,13 +940,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      protected applyChanges(
+      protected async applyChanges(
         target: string,
         sequence: TextInstruction[] | null,
         instant: boolean
-      ): void {
-        const enterElements = new Map<Element, Animation[]>();
-        const exitElements = new Map<Element, Animation[]>();
+      ) {
+        const enterContentAnimationMap = new Map<Element, Animation[]>();
+        const exitContentAnimationMap = new Map<Element, Animation[]>();
         for (const targetEl of $.findElements(target)) {
           if (targetEl) {
             const textEls = $.getContentElements(targetEl, "text");
@@ -962,8 +964,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   textEl,
                   sequence,
                   instant,
-                  enterElements,
-                  exitElements
+                  enterContentAnimationMap,
+                  exitContentAnimationMap
                 );
               }
               // Create and set stroke
@@ -972,8 +974,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   strokeEl,
                   sequence,
                   instant,
-                  enterElements,
-                  exitElements
+                  enterContentAnimationMap,
+                  exitContentAnimationMap
                 );
               }
             } else {
@@ -993,46 +995,44 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
         }
-        const enterEffects = Array.from(enterElements).map(
+        const enterContentEffects = Array.from(enterContentAnimationMap).map(
           ([element, animations]) => ({ element, animations })
         );
-        const exitEffects = Array.from(exitElements).map(
+        const exitContentEffects = Array.from(exitContentAnimationMap).map(
           ([element, animations]) => ({ element, animations })
         );
-        // Animate in elements
-        $.animateElements(enterEffects);
-        // Animate out elements
-        $.animateElements(exitEffects).then(() => {
-          // Then destroy exited elements
-          for (const e of exitEffects) {
-            $.destroyElement(e.element);
-          }
-        });
+        // Animate in and out content
+        await Promise.all([
+          $.animateElements(enterContentEffects),
+          $.animateElements(exitContentEffects),
+        ]);
+        // Then destroy exited content
+        for (const e of exitContentEffects) {
+          $.destroyElement(e.element);
+        }
       }
 
-      clear(target: string): void {
+      async clear(target: string) {
         this.saveState(target, null);
         if (!$.context?.system?.simulating) {
-          this.applyChanges(target, null, true);
+          await this.applyChanges(target, null, true);
         }
       }
 
-      clearAll(targets: string[]): void {
-        for (const target of targets) {
-          this.clear(target);
-        }
+      async clearAll(targets: string[]) {
+        await Promise.all(targets.map((target) => this.clear(target)));
       }
 
-      write(
+      async write(
         target: string,
         sequence: TextInstruction[],
         instant = false
-      ): void {
+      ) {
         if (!$._clearOnContinue.has(target)) {
           this.saveState(target, sequence);
         }
         if (!$.context?.system?.simulating) {
-          this.applyChanges(target, sequence, instant);
+          await this.applyChanges(target, sequence, instant);
         }
       }
     }
@@ -1047,8 +1047,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           $._state.image[target] ??= [];
           let state = $._state.image[target];
           for (const event of sequence) {
-            const targetingLayer = !event.assets?.length;
-            if (targetingLayer) {
+            const targetingContent = Boolean(event.assets?.length);
+            if (targetingContent) {
+              if (event.control === "show" || event.control === "set") {
+                // Clear all previous hide target events
+                state = state.filter(
+                  (e) => !(e.control === "hide" && !e.assets?.length)
+                );
+              }
+              // TODO: If animate with none, clear all previous animation events
+              if (event.control === "set") {
+                // Clear all previous content events
+                state = state.filter((e) => !e.assets?.length);
+                $._state.image ??= {};
+                $._state.image[target] = state;
+              }
+              state.push({
+                control: event.control,
+                with: event.with,
+                assets: event.assets,
+                over: 0,
+              });
+            } else {
               // TODO: If animate with none, clear all previous animation events
               const changingVisibility = event.control !== "animate";
               const latestLayerVisibilityEvent = state.findLast(
@@ -1065,20 +1085,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   over: 0,
                 });
               }
-            } else {
-              // TODO: If animate with none, clear all previous animation events
-              if (event.control === "set") {
-                // Clear all previous content events
-                state = state.filter((e) => !e.assets?.length);
-                $._state.image ??= {};
-                $._state.image[target] = state;
-              }
-              state.push({
-                control: event.control,
-                with: event.with,
-                assets: event.assets,
-                over: 0,
-              });
             }
           }
         } else {
@@ -1086,10 +1092,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      restore(target: string) {
+      async restore(target: string) {
         const state = $._state.image?.[target];
         if (state) {
-          this.applyChanges(target, state, true);
+          await this.applyChanges(target, state, true);
         }
       }
 
@@ -1101,8 +1107,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }[],
         sequence: ImageInstruction[],
         instant: boolean,
-        enterElements: Map<Element, Animation[]>,
-        exitElements: Map<Element, Animation[]>
+        enterContentAnimationMap: Map<Element, Animation[]>,
+        exitContentAnimationMap: Map<Element, Animation[]>,
+        targetAnimationMap: Map<Element, Animation[]>
       ) {
         for (const e of sequence) {
           const transitionWith = e.with || "";
@@ -1171,16 +1178,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 const animateWith = typeof v === "string" ? v : v?.$name;
                 if (animateWith) {
                   for (const el of $.findElements(k)) {
-                    if (!enterElements.has(el)) {
-                      enterElements.set(el, []);
-                    }
-                    const elAnimations = enterElements.get(el)!;
                     const animateEvent = {
                       name: animateWith,
                       after: e.after,
                       over: e.over,
                     };
-                    $.queueAnimationEvent(animateEvent, instant, elAnimations);
+                    if (!enterContentAnimationMap.has(el)) {
+                      enterContentAnimationMap.set(el, []);
+                    }
+                    $.queueAnimationEvent(
+                      animateEvent,
+                      instant,
+                      enterContentAnimationMap.get(el)!
+                    );
                   }
                 }
               }
@@ -1209,24 +1219,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   image: imageNames,
                 },
               });
-              if (!enterElements.has(newSpanEl)) {
-                enterElements.set(newSpanEl, []);
-              }
               // 'set' is equivalent to calling 'hide' on all previous elements on the layer,
               // before calling 'show' on the new element
               if (e.control === "set") {
                 // Hide previous elements
                 for (const prevSpanEl of prevSpanEls) {
-                  if (!exitElements.has(prevSpanEl)) {
-                    exitElements.set(prevSpanEl, []);
-                  }
                   const hideEvent = {
                     name: hideWith,
                     after: hideAfter,
                     over: hideOver,
                   };
-                  const prevSpanAnimations = exitElements.get(prevSpanEl)!;
-                  $.queueAnimationEvent(hideEvent, instant, prevSpanAnimations);
+                  if (!exitContentAnimationMap.has(prevSpanEl)) {
+                    exitContentAnimationMap.set(prevSpanEl, []);
+                  }
+                  $.queueAnimationEvent(
+                    hideEvent,
+                    instant,
+                    exitContentAnimationMap.get(prevSpanEl)!
+                  );
                 }
                 // Show new elements
                 const showEvent = {
@@ -1234,46 +1244,74 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   after: showAfter,
                   over: showOver,
                 };
-                const newSpanAnimations = enterElements.get(newSpanEl)!;
-                $.queueAnimationEvent(showEvent, instant, newSpanAnimations);
+                if (!enterContentAnimationMap.has(newSpanEl)) {
+                  enterContentAnimationMap.set(newSpanEl, []);
+                }
+                $.queueAnimationEvent(
+                  showEvent,
+                  instant,
+                  enterContentAnimationMap.get(newSpanEl)!
+                );
               } else if (e.control === "hide") {
                 const hideEvent = {
                   name: hideWith,
                   after: hideAfter,
                   over: hideOver,
                 };
-                const newSpanAnimations = enterElements.get(newSpanEl)!;
-                $.queueAnimationEvent(hideEvent, instant, newSpanAnimations);
+                if (!exitContentAnimationMap.has(newSpanEl)) {
+                  exitContentAnimationMap.set(newSpanEl, []);
+                }
+                $.queueAnimationEvent(
+                  hideEvent,
+                  instant,
+                  exitContentAnimationMap.get(newSpanEl)!
+                );
               } else if (e.control === "show" || e.control === "animate") {
                 const showEvent = {
                   name: showWith,
                   after: showAfter,
                   over: showOver,
                 };
-                const newSpanAnimations = enterElements.get(newSpanEl)!;
-                $.queueAnimationEvent(showEvent, instant, newSpanAnimations);
+                if (!enterContentAnimationMap.has(newSpanEl)) {
+                  enterContentAnimationMap.set(newSpanEl, []);
+                }
+                $.queueAnimationEvent(
+                  showEvent,
+                  instant,
+                  enterContentAnimationMap.get(newSpanEl)!
+                );
               }
             }
           } else {
             // We are affecting the image wrapper
-            if (!enterElements.has(targetEl)) {
-              enterElements.set(targetEl, []);
-            }
-            const targetAnimations = enterElements.get(targetEl)!;
             if (e.control === "hide") {
               const hideEvent = {
                 name: hideWith,
                 after: hideAfter,
                 over: hideOver,
               };
-              $.queueAnimationEvent(hideEvent, instant, targetAnimations);
+              if (!targetAnimationMap.has(targetEl)) {
+                targetAnimationMap.set(targetEl, []);
+              }
+              $.queueAnimationEvent(
+                hideEvent,
+                instant,
+                targetAnimationMap.get(targetEl)!
+              );
             } else if (e.control === "show" || e.control === "set") {
               const showEvent = {
                 name: showWith,
                 after: showAfter,
                 over: showOver,
               };
-              $.queueAnimationEvent(showEvent, instant, targetAnimations);
+              if (!targetAnimationMap.has(targetEl)) {
+                targetAnimationMap.set(targetEl, []);
+              }
+              $.queueAnimationEvent(
+                showEvent,
+                instant,
+                targetAnimationMap.get(targetEl)!
+              );
             } else if (e.control === "animate") {
               if (e.with) {
                 const animateEvent = {
@@ -1281,20 +1319,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   after: e.after,
                   over: e.over,
                 };
-                $.queueAnimationEvent(animateEvent, instant, targetAnimations);
+                if (!targetAnimationMap.has(targetEl)) {
+                  targetAnimationMap.set(targetEl, []);
+                }
+                $.queueAnimationEvent(
+                  animateEvent,
+                  instant,
+                  targetAnimationMap.get(targetEl)!
+                );
               }
             }
           }
         }
       }
 
-      protected applyChanges(
+      protected async applyChanges(
         target: string,
         sequence: ImageInstruction[] | null,
         instant: boolean
-      ): void {
-        const enterElements = new Map<Element, Animation[]>();
-        const exitElements = new Map<Element, Animation[]>();
+      ) {
+        const enterContentAnimationMap = new Map<Element, Animation[]>();
+        const exitContentAnimationMap = new Map<Element, Animation[]>();
+        const targetAnimationMap = new Map<Element, Animation[]>();
         for (const targetEl of $.findElements(target)) {
           if (targetEl) {
             const imageEls = $.getContentElements(targetEl, "image");
@@ -1304,6 +1350,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               $.updateElement(targetEl, {
                 style: { display: null },
               });
+              // Reveal target before showing content
+              const firstContentReveal = sequence.find(
+                (e) =>
+                  (e.control === "show" || e.control === "set") &&
+                  e.assets?.length
+              );
+              if (firstContentReveal) {
+                const showEvent = {
+                  name: "show",
+                  after: firstContentReveal.after,
+                  over: 0,
+                };
+                if (!targetAnimationMap.has(targetEl)) {
+                  targetAnimationMap.set(targetEl, []);
+                }
+                $.queueAnimationEvent(
+                  showEvent,
+                  instant,
+                  targetAnimationMap.get(targetEl)!
+                );
+              }
               this.process(
                 targetEl,
                 [
@@ -1318,8 +1385,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 ],
                 sequence,
                 instant,
-                enterElements,
-                exitElements
+                enterContentAnimationMap,
+                exitContentAnimationMap,
+                targetAnimationMap
               );
             } else {
               for (const imageEl of imageEls) {
@@ -1334,46 +1402,49 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
         }
-        const enterEffects = Array.from(enterElements).map(
+        const targetEffects = Array.from(targetAnimationMap).map(
           ([element, animations]) => ({ element, animations })
         );
-        const exitEffects = Array.from(exitElements).map(
+        const enterContentEffects = Array.from(enterContentAnimationMap).map(
           ([element, animations]) => ({ element, animations })
         );
-        // Animate in elements
-        $.animateElements(enterEffects);
-        // Animate out elements
-        $.animateElements(exitEffects).then(() => {
-          // Then destroy exited elements
-          for (const e of exitEffects) {
-            $.destroyElement(e.element);
-          }
-        });
+        const exitContentEffects = Array.from(exitContentAnimationMap).map(
+          ([element, animations]) => ({ element, animations })
+        );
+        // Animate target
+        await $.animateElements(targetEffects);
+        // Animate in and out content
+        await Promise.all([
+          $.animateElements(enterContentEffects),
+          $.animateElements(exitContentEffects),
+        ]);
+        // Then destroy exited content
+        for (const e of exitContentEffects) {
+          $.destroyElement(e.element);
+        }
       }
 
-      clear(target: string): void {
+      async clear(target: string) {
         this.saveState(target, null);
         if (!$.context?.system?.simulating) {
-          this.applyChanges(target, null, true);
+          await this.applyChanges(target, null, true);
         }
       }
 
-      clearAll(targets: string[]): void {
-        for (const target of targets) {
-          this.clear(target);
-        }
+      async clearAll(targets: string[]) {
+        await Promise.all(targets.map((target) => this.clear(target)));
       }
 
-      write(
+      async write(
         target: string,
         sequence: ImageInstruction[],
         instant = false
-      ): void {
+      ) {
         if (!$._clearOnContinue.has(target)) {
           this.saveState(target, sequence);
         }
         if (!$.context?.system?.simulating) {
-          this.applyChanges(target, sequence, instant);
+          await this.applyChanges(target, sequence, instant);
         }
       }
     }
@@ -1402,17 +1473,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      restore(target: string) {
+      async restore(target: string) {
         const state = $._state.style?.[target];
         if (state) {
-          this.applyChanges(target, state);
+          await this.applyChanges(target, state);
         }
       }
 
-      protected applyChanges(
+      protected async applyChanges(
         target: string,
         style: Record<string, string | null> | null
-      ): void {
+      ) {
         for (const targetEl of $.findElements(target)) {
           if (targetEl) {
             $.updateElement(targetEl, { style });
@@ -1420,13 +1491,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      update(
+      async update(
         target: string,
         style: Record<string, string | null> | null
-      ): void {
+      ) {
         this.saveState(target, style);
         if (!$.context?.system?.simulating) {
-          this.applyChanges(target, style);
+          await this.applyChanges(target, style);
         }
       }
     }
@@ -1455,17 +1526,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      restore(target: string) {
+      async restore(target: string) {
         const state = $._state.attributes?.[target];
         if (state) {
-          this.applyChanges(target, state);
+          await this.applyChanges(target, state);
         }
       }
 
-      protected applyChanges(
+      protected async applyChanges(
         target: string,
         attributes: Record<string, string | null> | null
-      ): void {
+      ) {
         for (const targetEl of $.findElements(target)) {
           if (targetEl) {
             $.updateElement(targetEl, { attributes });
@@ -1473,13 +1544,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      update(
+      async update(
         target: string,
         attributes: Record<string, string | null> | null
-      ): void {
+      ) {
         this.saveState(target, attributes);
         if (!$.context?.system?.simulating) {
-          this.applyChanges(target, attributes);
+          await this.applyChanges(target, attributes);
         }
       }
     }
