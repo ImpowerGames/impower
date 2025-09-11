@@ -8,8 +8,8 @@ import { resolveSelector } from "@impower/sparkdown/src/utils/resolveSelector";
 import { sortFilteredName } from "@impower/sparkdown/src/utils/sortFilteredName";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 
-const getRootImage = (
-  name: string,
+const resolveRootImage = (
+  ref: { $type: string; $name: string },
   context: { [type: string]: { [name: string]: any } } | undefined,
   stack: Set<{ $type: string; $name: string }>
 ):
@@ -21,23 +21,29 @@ const getRootImage = (
     }
   | "circular"
   | undefined => {
-  const filteredImage = context?.["filtered_image"]?.[name];
-  if (filteredImage) {
-    return filteredImage;
+  const referencedValue = ref?.$type
+    ? context?.[ref?.$type]?.[ref.$name]
+    : context?.["filtered_image"]?.[ref.$name] ??
+      context?.["image"]?.[ref.$name] ??
+      context?.["layered_image"]?.[ref.$name];
+
+  if (stack.has(referencedValue)) {
+    return "circular";
   }
-  const image = context?.["image"]?.[name];
-  if (image) {
-    return image;
+  stack.add(referencedValue);
+
+  if (referencedValue?.$type === "filtered_image") {
+    return referencedValue;
   }
-  const layeredImage = context?.["layered_image"]?.[name];
-  if (layeredImage) {
-    if (stack.has(layeredImage)) {
-      return "circular";
-    }
-    stack.add(layeredImage);
-    const firstLayerName = layeredImage?.layers?.[0]?.$name;
-    return getRootImage(firstLayerName, context, stack);
+
+  if (referencedValue?.$type === "image") {
+    return referencedValue;
   }
+
+  if (referencedValue?.$type === "layered_image") {
+    return resolveRootImage(referencedValue?.layers?.[0], context, stack);
+  }
+
   return undefined;
 };
 
@@ -92,8 +98,8 @@ export const getHover = (
               );
             }
             const stack = new Set<{ $type: string; $name: string }>();
-            const rootImage = getRootImage(
-              resolvedValue?.$name,
+            const rootImage = resolveRootImage(
+              resolvedValue,
               program.context,
               stack
             );
