@@ -424,6 +424,7 @@ export class Game<T extends M = {}> {
       this._story.ChoosePathString(this._simulatePath);
       this.continue();
       while (
+        this.context.system.simulating &&
         !this._story.canContinue &&
         this._story.currentChoices.length > 0
       ) {
@@ -564,7 +565,10 @@ export class Game<T extends M = {}> {
   }
 
   continue() {
-    this._executedPathsThisFrame.clear();
+    if (!this.context.system.simulating) {
+      this._executedPathsThisFrame.clear();
+    }
+
     this._executionTimedOut = false;
     this._executionStartTime = this.context.system.now();
 
@@ -574,7 +578,10 @@ export class Game<T extends M = {}> {
     do {
       done = this.step();
     } while (!this._error && !done);
-    this.notifyExecuted();
+
+    if (!this.context.system.simulating) {
+      this.notifyExecuted();
+    }
   }
 
   step(traversal: "in" | "out" | "over" | "continue" = "continue"): boolean {
@@ -1228,6 +1235,7 @@ export class Game<T extends M = {}> {
     this._executingPath = "";
     this._executingLocation = [-1, -1, -1, -1, -1];
     this._context.system.previewing = previewPath;
+    this._context.system.simulating = undefined;
     if (!this._simulateFrom) {
       this.clearChoices();
       this._startPath = previewPath;
