@@ -21,11 +21,26 @@ const EDITOR_THEME: {
     caretColor: "white",
     minHeight: "100%",
   },
+  "@media (hover: hover) and (pointer: fine)": {
+    ".cm-textfield:hover": {
+      borderColor: EDITOR_COLORS.borderHover,
+    },
+    "label:has(input[type='checkbox']):hover::before": {
+      backgroundColor: EDITOR_COLORS.buttonHover,
+    },
+    "button:hover": {
+      backgroundColor: EDITOR_COLORS.buttonHover,
+    },
+    ".cm-panel.cm-search button[name='close']:hover": {
+      backgroundColor: EDITOR_COLORS.buttonHover,
+    },
+  },
   "& label:has(input[type='checkbox'])": {
     cursor: "pointer",
   },
   "& button": {
     cursor: "pointer",
+    backgroundColor: "transparent",
   },
   "& button:focus-visible": {
     outline: `2px solid ${EDITOR_COLORS.focus}`,
@@ -48,9 +63,6 @@ const EDITOR_THEME: {
     borderWidth: "1px",
     borderStyle: "solid",
     borderColor: EDITOR_COLORS.border,
-    "&:hover": {
-      borderColor: EDITOR_COLORS.borderHover,
-    },
     "&:focus-visible": {
       outline: "none",
       borderColor: EDITOR_COLORS.selectedForeground,
@@ -147,23 +159,13 @@ const EDITOR_THEME: {
       borderRadius: "4px",
       textIndent: "-99999em",
       overflow: "hidden",
-      backgroundColor: "transparent",
       backgroundRepeat: "no-repeat",
       backgroundPosition: "center",
-      "&:hover": {
-        backgroundColor: EDITOR_COLORS.buttonHover,
-        color: "white",
-      },
     },
     "& button[name='close']": {
       backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
         EDITOR_COLORS.closeButton
       )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M 12 12 L 6 6 M 12 12 L 18 6 M 12 12 L 18 18 M 12 12 L 6 18"></path></svg>')`,
-      "&:hover": {
-        backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
-          EDITOR_COLORS.closeButtonHover
-        )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M 12 12 L 6 6 M 12 12 L 18 6 M 12 12 L 18 18 M 12 12 L 6 18"></path></svg>')`,
-      },
     },
     "& button[name='submit']": {
       backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
@@ -197,21 +199,11 @@ const EDITOR_THEME: {
       borderRadius: "4px",
       textIndent: "-99999em",
       overflow: "hidden",
-      backgroundColor: "transparent",
       backgroundRepeat: "no-repeat",
       backgroundPosition: "center",
       backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
         EDITOR_COLORS.closeButton
       )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M 12 12 L 6 6 M 12 12 L 18 6 M 12 12 L 18 18 M 12 12 L 6 18"></path></svg>')`,
-      "&:hover": {
-        backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
-          EDITOR_COLORS.closeButtonHover
-        )}" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M 12 12 L 6 6 M 12 12 L 18 6 M 12 12 L 18 18 M 12 12 L 6 18"></path></svg>')`,
-      },
-    },
-    "& button:hover": {
-      backgroundColor: EDITOR_COLORS.buttonHover,
-      color: "white",
     },
     "& button:not([name='close'])": {
       display: "inline-block",
@@ -222,14 +214,9 @@ const EDITOR_THEME: {
       textIndent: "-99999em",
       overflow: "hidden",
       border: "none",
-      backgroundColor: "transparent",
       backgroundRepeat: "no-repeat",
       backgroundPosition: "center",
       margin: "0",
-      "&:hover": {
-        backgroundColor: EDITOR_COLORS.buttonHover,
-        color: "white",
-      },
     },
     "& button[name='prev']": {
       backgroundImage: `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="${encodeURIComponent(
@@ -279,9 +266,6 @@ const EDITOR_THEME: {
         backgroundRepeat: "no-repeat",
         backgroundPosition: "center",
       },
-    },
-    "& label:has(input[type='checkbox']):hover::before": {
-      backgroundColor: EDITOR_COLORS.buttonHover,
     },
     "& label:has(input[type='checkbox']:checked)::before": {
       backgroundColor: EDITOR_COLORS.checked,
@@ -346,9 +330,6 @@ const EDITOR_THEME: {
     },
     "& button[name='close']": {
       display: "none",
-    },
-    "& button:hover": {
-      backgroundColor: EDITOR_COLORS.buttonHover,
     },
   },
   "& .cm-lintRange": {
