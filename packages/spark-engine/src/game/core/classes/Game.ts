@@ -423,6 +423,15 @@ export class Game<T extends M = {}> {
       this._context.system.simulating = this._simulatePath;
       this._story.ChoosePathString(this._simulatePath);
       this.continue();
+      while (
+        !this._story.canContinue &&
+        this._story.currentChoices.length > 0
+      ) {
+        // TODO: Determine which choice will lead to the destination
+        const choiceIndex = 0;
+        this._story.ChooseChoiceIndex(choiceIndex);
+        this.continue();
+      }
     }
   }
 
@@ -568,12 +577,7 @@ export class Game<T extends M = {}> {
     this.notifyExecuted();
   }
 
-  step(traversal: "in" | "out" | "over" | "continue" = "continue"): boolean {
-    const done = this.execute(traversal);
-    return done;
-  }
-
-  protected execute(
+  protected step(
     traversal: "in" | "out" | "over" | "continue" = "continue"
   ): boolean {
     const initialCallstackDepth = this._story.state.callstackDepth;
@@ -608,6 +612,9 @@ export class Game<T extends M = {}> {
           }
         }
         if (this.context.system.simulating) {
+          if (!this._story.canContinue) {
+            return true;
+          }
           // Continue without user interaction
           continue;
         }
