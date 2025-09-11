@@ -27,7 +27,7 @@ variables:
   IMAGE_CONTROL_KEYWORDS: ["set", "show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["after", "over", "with", "wait"]
   AUDIO_CONTROL_KEYWORDS:
-    ["start", "stop", "play", "modulate", "queue", "await"]
+    ["play", "start", "stop", "modulate", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
     ["after", "over", "fadeto", "loop", "noloop", "mute", "unmute", "now"]
 

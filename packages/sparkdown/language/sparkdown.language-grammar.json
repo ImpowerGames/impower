@@ -35,9 +35,9 @@
       "wait"
     ],
     "AUDIO_CONTROL_KEYWORDS": [
+      "play",
       "start",
       "stop",
-      "play",
       "modulate",
       "queue",
       "await"
@@ -7015,7 +7015,7 @@
       }
     },
     "AssetCommandInstruction": {
-      "match": "(?:(\\b(?:set|show|hide|animate)\\b|\\b(?:start|stop|play|modulate|queue|await)\\b)([^\\S\\n\\r]*)($|\\S+))?([^\\S\\n\\r]*)($|\\S+)?([^\\S\\n\\r]*)(.*)",
+      "match": "(?:(\\b(?:set|show|hide|animate)\\b|\\b(?:play|start|stop|modulate|queue|await)\\b)([^\\S\\n\\r]*)($|\\S+))?([^\\S\\n\\r]*)($|\\S+)?([^\\S\\n\\r]*)(.*)",
       "captures": {
         "1": {
           "patterns": [
