@@ -1,6 +1,6 @@
 import {
   Extension,
-  RangeSetBuilder,
+  RangeSet,
   StateEffect,
   StateField,
 } from "@codemirror/state";
@@ -50,18 +50,14 @@ const highlightLinesStateField = StateField.define<DecorationSet>({
 
     for (const effect of tr.effects) {
       if (effect.is(setHighlightedLinesEffect)) {
-        const lines = effect.value;
-        const builder = new RangeSetBuilder<Decoration>();
-
-        // Add decorations for currently highlighted lines
-        for (const lineNumber of Array.from(lines).sort()) {
-          if (lineNumber <= tr.state.doc.lines) {
-            const line = tr.state.doc.line(lineNumber);
-            builder.add(line.from, line.from, highlightedLineDeco);
-          }
-        }
-
-        decorations = builder.finish();
+        const lineNumbers = effect.value;
+        decorations = RangeSet.empty;
+        decorations = decorations.update({
+          add: Array.from(lineNumbers).map((lineNumber) =>
+            highlightedLineDeco.range(tr.state.doc.line(lineNumber).from)
+          ),
+          sort: true,
+        });
       }
     }
 
