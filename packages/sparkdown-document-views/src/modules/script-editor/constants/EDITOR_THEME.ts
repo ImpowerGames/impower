@@ -42,6 +42,9 @@ const EDITOR_THEME: {
     cursor: "pointer",
     backgroundColor: "transparent",
   },
+  "& button:active": {
+    backgroundColor: EDITOR_COLORS.buttonActive,
+  },
   "& button:focus-visible": {
     outline: `2px solid ${EDITOR_COLORS.focus}`,
   },

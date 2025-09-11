@@ -395,7 +395,7 @@ Make sure disabled buttons don't get the pointer cursor.
   }
 }
 .toolbar-button:active {
-  background-color: rgba(255, 255, 255, 0.12);
+  background-color: rgba(255, 255, 255, 0.18);
 }
 
 .spacer {

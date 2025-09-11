@@ -188,14 +188,6 @@ export class StatusPanel implements Panel {
 }
 
 const statusPanelTheme = EditorView.baseTheme({
-  "@media (hover: hover) and (pointer: fine)": {
-    ".cm-status .cm-button:hover": {
-      backgroundColor: "#FFFFFF0D",
-    },
-  },
-  ".cm-status .cm-button:active": {
-    backgroundColor: "#FFFFFF0D",
-  },
   ".cm-status": {
     height: "28px",
     color: "#516A85",
@@ -206,7 +198,6 @@ const statusPanelTheme = EditorView.baseTheme({
       height: "100%",
       border: "none",
       backgroundImage: "none",
-      backgroundColor: "transparent",
       whiteSpace: "pre",
       padding: "1px 8px",
       fontSize: "14px",
