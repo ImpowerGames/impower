@@ -7104,6 +7104,9 @@
               "include": "#AssetCommandKeywordNone"
             },
             {
+              "include": "#AssetCommandFilteredFileName"
+            },
+            {
               "include": "#AssetCommandFileName"
             },
             {
@@ -7120,6 +7123,27 @@
       "tag": "keyword",
       "name": "keyword.asset.keyword.none.sd",
       "match": "(none)"
+    },
+    "AssetCommandFilteredFileName": {
+      "tag": "variableName",
+      "name": "variable.other.constant.asset.file.sd",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)((?:[~][^~\\s]+)+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetCommandFileName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#AssetCommandFilter"
+            }
+          ]
+        }
+      }
     },
     "AssetCommandFileName": {
       "tag": "variableName",

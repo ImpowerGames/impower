@@ -466,7 +466,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    if (nodeRef.name === "AssetCommandName") {
+    if (nodeRef.name === "AssetCommandFilteredFileName") {
       const context = getContextNames(nodeRef.node);
       // Record image name (and filter) reference
       if (context.includes("ImageCommand")) {

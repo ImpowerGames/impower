@@ -3905,6 +3905,7 @@ repository:
           - { include: "#ExtraWhitespace" }
           - { include: "#StringLiteral" }
           - { include: "#AssetCommandKeywordNone" }
+          - { include: "#AssetCommandFilteredFileName" }
           - { include: "#AssetCommandFileName" }
           - { include: "#AssetCommandFilter" }
           - { include: "#IllegalChar" }
@@ -3913,6 +3914,18 @@ repository:
     tag: keyword
     name: keyword.asset.keyword.none.sd
     match: (none)
+
+  AssetCommandFilteredFileName:
+    tag: variableName
+    name: variable.other.constant.asset.file.sd
+    match: ({{IDENTIFIER}})((?:[~][^~\s]+)+)
+    captures:
+      1:
+        patterns:
+          - { include: "#AssetCommandFileName" }
+      2:
+        patterns:
+          - { include: "#AssetCommandFilter" }
 
   AssetCommandFileName:
     tag: variableName
