@@ -490,8 +490,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       if (context.includes("ImageCommand")) {
         const types = ["filtered_image", "layered_image", "image", "graphic"];
         const name = this.read(nodeRef.from, nodeRef.to);
+        const displayType = "image";
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
+            selector: { types, name, displayType },
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
