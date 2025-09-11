@@ -8,6 +8,39 @@ import { resolveSelector } from "@impower/sparkdown/src/utils/resolveSelector";
 import { sortFilteredName } from "@impower/sparkdown/src/utils/sortFilteredName";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 
+const getRootImage = (
+  name: string,
+  context: { [type: string]: { [name: string]: any } } | undefined,
+  stack: Set<{ $type: string; $name: string }>
+):
+  | { $type: "image"; $name: string; src: string; uri: string; data: string }
+  | {
+      $type: "filtered_image";
+      $name: string;
+      filtered_src: string;
+    }
+  | "circular"
+  | undefined => {
+  const filteredImage = context?.["filtered_image"]?.[name];
+  if (filteredImage) {
+    return filteredImage;
+  }
+  const image = context?.["image"]?.[name];
+  if (image) {
+    return image;
+  }
+  const layeredImage = context?.["layered_image"]?.[name];
+  if (layeredImage) {
+    if (stack.has(layeredImage)) {
+      return "circular";
+    }
+    stack.add(layeredImage);
+    const firstLayerName = layeredImage?.layers?.[0]?.$name;
+    return getRootImage(firstLayerName, context, stack);
+  }
+  return undefined;
+};
+
 export const getHover = (
   document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations | undefined,
@@ -58,24 +91,29 @@ export const getHover = (
                 ]
               );
             }
-            const src =
-              type === "filtered_image"
-                ? resolvedValue?.filtered_src
-                : type === "layered_image"
-                ? resolvedValue?.assets?.[0]?.src ||
-                  resolvedValue?.assets?.[0]?.uri
-                : type === "image"
-                ? resolvedValue?.src || resolvedValue?.uri
-                : undefined;
-            if (src) {
-              result = {
-                contents: {
-                  kind: MarkupKind.Markdown,
-                  value: `<img src="${src}" alt="${name}" height="180" />`,
-                },
-                range,
-              };
-              return false;
+            const stack = new Set<{ $type: string; $name: string }>();
+            const rootImage = getRootImage(
+              resolvedValue?.$name,
+              program.context,
+              stack
+            );
+            if (rootImage !== "circular") {
+              const src =
+                rootImage?.$type === "filtered_image"
+                  ? rootImage?.filtered_src
+                  : rootImage?.$type === "image"
+                  ? rootImage?.src || rootImage?.uri
+                  : undefined;
+              if (src) {
+                result = {
+                  contents: {
+                    kind: MarkupKind.Markdown,
+                    value: `<img src="${src}" alt="${name}" height="180" />`,
+                  },
+                  range,
+                };
+                return false;
+              }
             }
           }
           // TODO: const name: type
