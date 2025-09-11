@@ -32,13 +32,13 @@ export default spec({
       <div id="toolbar">
         <div id="left-items" hidden>
           <div id="location-items">
-            <div id="launch-button">
+            <div id="launch-button" class="toolbar-button">
               <span id="launch-state-icon"></span>
               <span id="launch-label"></span>
             </div>
             <span id="executed-label"></span>
           </div>
-          <div id="reset-button">
+          <div id="reset-button" class="toolbar-button">
             <div id="reset-icon"></div>
             Reset
           </div>
@@ -47,7 +47,7 @@ export default spec({
         <div id="right-items">
           <div id="aspect-ratio-display"></div>
           <div id="size-display"></div>
-          <div id="fullscreen-button">
+          <div id="fullscreen-button" class="toolbar-button">
             <div id="fullscreen-icon"></div>
           </div>
         </div>
