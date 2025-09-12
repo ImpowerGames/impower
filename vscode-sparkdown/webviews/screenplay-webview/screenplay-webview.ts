@@ -1,6 +1,6 @@
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import SparkdownScriptPreview from "@impower/sparkdown-document-views/src/modules/screenplay-preview/index.js";
+import SparkdownScreenplayPreview from "@impower/sparkdown-document-views/src/modules/screenplay-preview/index.js";
 
 console.log("running screenplay-webview");
 
@@ -40,7 +40,7 @@ window.addEventListener(MessageProtocol.event, (e: Event) => {
 });
 
 const load = async () => {
-  await Promise.allSettled([SparkdownScriptPreview.init()]);
+  await Promise.allSettled([SparkdownScreenplayPreview.init()]);
 };
 
 load();
