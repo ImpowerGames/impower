@@ -30,7 +30,8 @@ export default class WorldManager extends Manager {
     const codeWithImports = prefix + code;
     const blob = new Blob([codeWithImports], { type: "text/javascript" });
     const moduleUrl = URL.createObjectURL(blob);
-    const module = await import(moduleUrl);
+
+    const module = await import(/* @vite-ignore */ moduleUrl);
     const CustomWorldClass = module.default;
     const world: World = new CustomWorldClass(this.app, () =>
       this.exitWorld(src)
