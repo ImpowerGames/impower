@@ -1,3 +1,4 @@
+import { CSS_ALIASES } from "../constants/CSS_ALIASES.js";
 import { CSS_UTILITIES } from "../constants/CSS_UTILITIES.js";
 import { STYLE_ALIASES } from "../constants/STYLE_ALIASES.js";
 import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS.js";
@@ -7,7 +8,10 @@ export const getCssEquivalent = (
   value: unknown,
   includeUnrecognized = true
 ): [cssPropName: string, cssPropValue: string][] => {
-  const styleAliases: Record<string, string> = STYLE_ALIASES;
+  const aliases: Record<string, string> = {
+    ...STYLE_ALIASES,
+    ...CSS_ALIASES,
+  };
 
   const styleTransformers: Record<string, (v: string) => string> =
     STYLE_TRANSFORMERS;
@@ -19,7 +23,7 @@ export const getCssEquivalent = (
 
   const entries: [string, string][] = [];
 
-  const sparklePropName: string = styleAliases[key] ?? key;
+  const sparklePropName: string = aliases[key] ?? key;
   const cssUtility = cssUtilities[sparklePropName];
   if (cssUtility) {
     const defaultSelector = cssUtility[""];

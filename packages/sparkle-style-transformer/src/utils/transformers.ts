@@ -1,4 +1,4 @@
-import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/STYLE_ALIASES.js";
+import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
 
 const WHITESPACE_REGEX = /[\t ]+/;
 const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;

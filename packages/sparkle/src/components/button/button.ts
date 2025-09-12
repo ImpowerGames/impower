@@ -23,6 +23,7 @@ const DEFAULT_TRANSFORMERS = {
   icon: (v: string) => getCssIcon(v),
   "active-icon": (v: string) => getCssIcon(v),
   "active-color": getCssColor,
+  color: getCssColor,
   spacing: getCssSize,
   size: getCssSize,
   "icon-size": getCssSize,
