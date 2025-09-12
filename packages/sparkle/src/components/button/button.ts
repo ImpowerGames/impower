@@ -415,7 +415,16 @@ export default class Button
   };
 
   protected handleInputChange = (e: Event) => {
-    this.propagateEvent(e);
+    const propagatableEvent = new Event(e.type, {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+    });
+    Object.defineProperty(propagatableEvent, "target", {
+      writable: false,
+      value: e.target,
+    });
+    return this.dispatchEvent(propagatableEvent);
   };
 
   emitChange(value: string | null) {
