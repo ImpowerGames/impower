@@ -486,7 +486,7 @@ const DEBOUNCE_DELAY = 200;
 let pendingBuildTimeout: NodeJS.Timeout | undefined;
 
 const watchFiles = async () => {
-  // @ts-expect-error
+  // @ts-ignore
   const { app } = (await import("./out/api/index.js")).default;
   await app.ready();
   const rebuild = async () => {
