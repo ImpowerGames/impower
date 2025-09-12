@@ -1,8 +1,57 @@
 :host {
+  /* ===== Design Tokens ===== */
+  --swp-background-color: inherit;
+  --swp-foreground-color: currentColor;
+
+  /* Colors */
+  --swp-game-background-color: #000;
+  --swp-accent-color: #66baff;
+  --swp-pause-color: #ffcc00;
+  --swp-resize-handle-color: #888;
+  --swp-toolbar-border-color: rgba(255, 255, 255, 0.15);
+  --swp-toolbar-button-hover-color: rgba(255, 255, 255, 0.12);
+  --swp-toolbar-button-active-color: rgba(255, 255, 255, 0.18);
+  --swp-play-button-color: #0e639c;
+  --swp-play-button-hover-color: #1177bb;
+  --swp-play-overlay-color: rgba(0, 0, 0, 0.75);
+
+  /* Sizing */
+  --swp-toolbar-height: 27px;
+  --swp-toolbar-font-size: 11px;
+  --swp-toolbar-icon-size: 16px;
+  --swp-play-icon-size: 6rem;
+
+  /* Spacing */
+  --swp-toolbar-button-gap: 6px;
+  --swp-toolbar-items-gap: 10px;
+  --swp-toolbar-label-padding: 0 3px;
+
+  /* Resize Handle */
+  --swp-resize-handle-height: 4px;
+  --swp-resize-handle-width: 32px;
+  --swp-resize-handle-radius: 2px;
+
+  /* Fullscreen */
+  --swp-toolbar-fullscreen-gradient: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.5) 25%,
+    rgba(0, 0, 0, 1) 100%
+  );
+
+  /* Transitions */
+  --swp-transition-fast: 0.15s;
+  --swp-transition-med: 0.2s ease;
+
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: inherit;
+}
+
+#viewport {
+  height: 100%;
+  background-color: var(--swp-background-color);
+  color: var(--swp-foreground-color);
 }
 
 #game {
@@ -13,10 +62,6 @@
   resize: none;
 }
 
-#viewport {
-  height: 100%;
-}
-
 :fullscreen #game {
   height: 100% !important;
 }
@@ -24,7 +69,7 @@
 #game-background {
   position: absolute;
   inset: 0;
-  background-color: black;
+  background-color: var(--swp-game-background-color);
 }
 
 #game-view {
@@ -40,7 +85,7 @@
 }
 
 #game-overlay.pause-game::after {
-  border: 1px solid #ffcc00;
+  border: 1px solid var(--swp-pause-color);
   content: "";
   position: absolute;
   inset: 0;
@@ -54,38 +99,39 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(0, 0, 0, 0.75);
+  background-color: var(--swp-play-overlay-color);
   font-weight: 700;
-  font-size: 2.25rem;
-  color: #0e639c;
+  font-size: 2.25rem; /* keep text size explicit */
+  color: var(--swp-play-button-color);
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity var(--swp-transition-fast),
+    color var(--swp-transition-fast);
 }
 
 @media (hover: hover) and (pointer: fine) {
   #play-button:hover {
     opacity: 1;
-    color: #1177bb;
+    color: var(--swp-play-button-hover-color);
   }
 }
 
 #play-icon {
-  width: 6rem;
-  height: 6rem;
+  width: var(--swp-play-icon-size);
+  height: var(--swp-play-icon-size);
 }
 
 #toolbar {
   display: flex;
   flex-direction: row;
   align-items: center;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  height: 27px;
-  font-size: 11px;
+  border-top: 1px solid var(--swp-toolbar-border-color);
+  height: var(--swp-toolbar-height);
+  font-size: var(--swp-toolbar-font-size);
   position: relative;
   pointer-events: auto;
   cursor: ns-resize;
-  transition: border-color 0.2s ease;
-  background-color: inherit;
+  transition: border-color var(--swp-transition-med);
+  background-color: var(--swp-background-color);
 }
 
 :fullscreen #toolbar {
@@ -95,18 +141,13 @@
   right: 0;
   border-color: transparent;
   background-color: transparent;
-  background-image: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.5) 25%,
-    rgba(0, 0, 0, 1) 100%
-  );
+  background-image: var(--swp-toolbar-fullscreen-gradient);
   pointer-events: none;
   cursor: default;
 }
 
 #toolbar.snapping {
-  border-color: #2196f3;
+  border-color: var(--swp-accent-color);
 }
 
 #resize-handle {
@@ -114,35 +155,29 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 32px;
-  height: 4px;
-  border-radius: 2px;
-  background: #888;
+  width: var(--swp-resize-handle-width);
+  height: var(--swp-resize-handle-height);
+  border-radius: var(--swp-resize-handle-radius);
+  background: var(--swp-resize-handle-color);
 }
 
 :fullscreen #resize-handle {
   display: none;
 }
 
-#left-items {
-  background-color: inherit;
+#left-items,
+#right-items {
+  background-color: var(--swp-background-color);
   height: 100%;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  gap: 10px;
 }
 
-#right-items {
-  background-color: inherit;
-  height: 100%;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
+#left-items {
+  gap: var(--swp-toolbar-items-gap);
 }
 
 #location-items {
@@ -154,13 +189,15 @@
 }
 
 #launch-button.pinned {
-  color: #66baff;
+  color: var(--swp-accent-color);
 }
 
-#launch-state-icon {
+#launch-state-icon,
+#reset-icon,
+#fullscreen-icon {
   background-color: currentColor;
-  width: 16px;
-  height: 16px;
+  width: var(--swp-toolbar-icon-size);
+  height: var(--swp-toolbar-icon-size);
 }
 
 #launch-state-icon:not([icon]) {
@@ -180,71 +217,51 @@
 }
 
 #launch-state-icon[icon="pause"] {
-  color: #ffcc00;
+  color: var(--swp-pause-color);
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M4.5 3H6v10H4.5V3zm7 0v10H10V3h1.5z"/></svg>');
 }
 
-#executed-label {
-  white-space: pre;
-  padding: 0 3px;
-}
-
 #reset-icon {
-  background-color: currentColor;
-  width: 16px;
-  height: 16px;
   mask-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 256 256"><path fill="currentColor" d="M235.5 216.81c-22.56-11-35.5-34.58-35.5-64.8v-17.28a15.94 15.94 0 0 0-10.09-14.87L165 110a8 8 0 0 1-4.48-10.34l21.32-53a28 28 0 0 0-16.1-37a28.14 28.14 0 0 0-35.82 16a.6.6 0 0 0 0 .12L108.9 79a8 8 0 0 1-10.37 4.49L73.11 73.14a15.89 15.89 0 0 0-17.37 3.66C34.68 98.45 24 123.75 24 152a111.45 111.45 0 0 0 31.18 77.53A8 8 0 0 0 61 232h171a8 8 0 0 0 3.5-15.19M67.14 88l25.41 10.3a24 24 0 0 0 31.23-13.45l21-53c2.56-6.11 9.47-9.27 15.43-7a12 12 0 0 1 6.88 15.92l-21.4 52.99a24 24 0 0 0 13.43 31.14l24.88 9.83V153L55.77 101.71A109 109 0 0 1 67.14 88m48 128a87.53 87.53 0 0 1-24.34-42a8 8 0 0 0-15.49 4a105.2 105.2 0 0 0 18.36 38H64.44A95.54 95.54 0 0 1 40 152a85.9 85.9 0 0 1 7.73-36.29l137.8 55.12c3 18 10.56 33.48 21.89 45.16Z"/></svg>');
 }
 
 #fullscreen-icon {
-  background-color: currentColor;
-  width: 16px;
-  height: 16px;
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M2.5 2H6V3H3V6H2V2.5L2.5 2ZM3 10H2V13.5L2.5 14H6V13H3V10ZM13 13H10V14H13.5L14 13.5V10H13V13ZM13.5 2H10V3H13V6H14V2.5L13.5 2Z"/></svg>');
 }
-
 :fullscreen #fullscreen-icon {
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M5 2H6V5.5L5.5 6H2V5H5V2ZM2 10V11H5V14H6V10.5L5.5 10H2ZM10 10.5V14H11V11H14V10H10.5L10 10.5ZM11 5V2H10V5.5L10.5 6H14V5H11Z"/></svg>');
 }
 
-#label-preview {
-  color: #ccc;
+#size-label,
+#aspect-ratio-label,
+#executed-label {
+  padding: var(--swp-toolbar-label-padding);
 }
 
-#size-label {
-  padding: 0 3px;
-}
-
-#toolbar.snapping #size-label {
-  color: #66baff;
-}
-
-#aspect-ratio-label {
-  padding: 0 3px;
-}
-
+#toolbar.snapping #size-label,
 #toolbar.snapping #aspect-ratio-label {
-  color: #66baff;
+  color: var(--swp-accent-color);
 }
 
 .toolbar-button {
   pointer-events: auto;
   cursor: pointer;
   height: 100%;
-  padding: 0 6px;
+  padding: 0 var(--swp-toolbar-button-gap);
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--swp-toolbar-button-gap);
 }
+
 @media (hover: hover) and (pointer: fine) {
   .toolbar-button:hover {
-    background-color: rgba(255, 255, 255, 0.12);
+    background-color: var(--swp-toolbar-button-hover-color);
   }
 }
 .toolbar-button:active {
-  background-color: rgba(255, 255, 255, 0.18);
+  background-color: var(--swp-toolbar-button-active-color);
 }
 
 #middle-items {
