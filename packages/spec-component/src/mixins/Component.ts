@@ -302,7 +302,7 @@ const Component = <
     onContextChanged(_oldContext: Context, _newContext: Context): void {}
 
     /**
-     * @returns true if the attribute change should trigger a re-render, or false otherwise. Defaults to false.
+     * @returns true if the attribute change should trigger a re-render, or false otherwise. Defaults to true.
      */
     shouldContextTriggerUpdate(
       _oldContext: Context,
