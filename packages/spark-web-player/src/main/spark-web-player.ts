@@ -341,8 +341,8 @@ export default class SparkWebPlayer extends Component(spec) {
     const ratio = this.getAspectRatioLabel(width, height);
     const sizeLabel = `${width.toFixed(0)} × ${height.toFixed(0)}`;
     const aspectRatioLabel = ratio ? `(${ratio})` : "";
-    this.ref.sizeDisplay.textContent = sizeLabel;
-    this.ref.aspectRatioDisplay.textContent = aspectRatioLabel;
+    this.ref.sizeLabel.textContent = sizeLabel;
+    this.ref.aspectRatioLabel.textContent = aspectRatioLabel;
   }
 
   protected handleResize = () => {

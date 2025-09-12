@@ -22,8 +22,8 @@ export default spec({
     launchButton: "#launch-button",
     launchLabel: "#launch-label",
     executedLabel: "#executed-label",
-    sizeDisplay: "#size-display",
-    aspectRatioDisplay: "#aspect-ratio-display",
+    sizeLabel: "#size-label",
+    aspectRatioLabel: "#aspect-ratio-label",
     resetButton: "#reset-button",
     fullscreenButton: "#fullscreen-button",
   } as const,
@@ -48,8 +48,8 @@ export default spec({
         </div>
         <div id="middle-items"></div>
         <div id="right-items">
-          <div id="aspect-ratio-display"></div>
-          <div id="size-display"></div>
+          <div id="aspect-ratio-label"></div>
+          <div id="size-label"></div>
           <div id="fullscreen-button" class="toolbar-button">
             <div id="fullscreen-icon"></div>
           </div>

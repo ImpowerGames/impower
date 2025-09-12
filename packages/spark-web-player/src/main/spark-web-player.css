@@ -211,19 +211,19 @@
   color: #ccc;
 }
 
-#size-display {
+#size-label {
   padding: 0 3px;
 }
 
-#toolbar.snapping #size-display {
+#toolbar.snapping #size-label {
   color: #66baff;
 }
 
-#aspect-ratio-display {
+#aspect-ratio-label {
   padding: 0 3px;
 }
 
-#toolbar.snapping #aspect-ratio-display {
+#toolbar.snapping #aspect-ratio-label {
   color: #66baff;
 }
 
