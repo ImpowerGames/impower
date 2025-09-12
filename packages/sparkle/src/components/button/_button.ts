@@ -31,6 +31,9 @@ export default spec({
     const isToggle = type === "toggle";
     const tag = isLink ? "a" : isLabel ? "label" : isDiv ? "div" : "button";
     const rippleAttr = disableRipple ? () => html`animation="none"` : "";
+    const acceptAttr = accept ? () => html`accept="${accept}"` : "";
+    const multipleAttr = multiple != null ? `multiple` : "";
+    const roleAttr = isToggle ? () => html`role="checkbox"` : "";
     const normalIconComponent = () =>
       icon
         ? html`<div class="normal-icon" part="normal-icon">
@@ -56,16 +59,11 @@ export default spec({
     const inputComponent = () =>
       type === "file"
         ? html`
-            <input
-              id="input"
-              type="${type}"
-              ${accept ? `accept="${accept}"` : ""}
-              ${multiple != null ? `multiple` : ""}
-            />
+            <input id="input" type="${type}" ${acceptAttr} ${multipleAttr} />
           `
         : "";
     return html`
-    <${tag} class="root" part="root" ${isToggle ? `role="checkbox"` : ""}>
+    <${tag} class="root" part="root" ${roleAttr}>
     ${inputButtonComponent}
     <s-ripple class="ripple" part="ripple" ${rippleAttr}></s-ripple>
     ${iconComponent}
