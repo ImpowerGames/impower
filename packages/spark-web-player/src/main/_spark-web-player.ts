@@ -1,6 +1,6 @@
 import { html, spec } from "../../../spec-component/src/spec";
-import resetCSS from "./reset.css?inline";
 import css from "./spark-web-player.css?inline";
+import resetCSS from "./styles/reset.css?inline";
 
 export default spec({
   tag: "spark-web-player",
