@@ -1,5 +1,5 @@
 import STYLES from "../caches/STYLE_CACHE";
-import * as Idiomorph from "../idiomorph/idiomorph";
+import Idiomorph from "../idiomorph/idiomorph";
 import { ComponentSpec } from "../types/ComponentSpec";
 import { IStore } from "../types/IStore";
 import { RefMap } from "../types/RefMap";
