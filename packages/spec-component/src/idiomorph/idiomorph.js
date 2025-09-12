@@ -89,7 +89,7 @@
  *
  * @type {{defaults: ConfigInternal, morph: Morph}}
  */
-var Idiomorph = (function () {
+const Idiomorph = (() => {
   "use strict";
 
   /**
@@ -1420,4 +1420,5 @@ var Idiomorph = (function () {
     defaults,
   };
 })();
-module.exports = Idiomorph;
+
+export default Idiomorph;
