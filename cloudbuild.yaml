@@ -8,7 +8,7 @@ steps:
         $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
       - .
       - "-f"
-      - Dockerfile
+      - impower-dev/Dockerfile
       - "--build-arg"
       - BROWSER_GOOGLE_API_KEY=$$BROWSER_GOOGLE_API_KEY
       - "--build-arg"
