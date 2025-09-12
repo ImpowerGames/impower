@@ -8,22 +8,6 @@ declare var acquireVsCodeApi: any;
 
 const vscode = acquireVsCodeApi();
 
-const load = async () => {
-  // Forward protocol messages from window to vscode extension
-  window.addEventListener(MessageProtocol.event, (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (e.target !== window) {
-        vscode.postMessage(message);
-        if (LoadPreviewMessage.type.isResponse(message)) {
-          document.body.classList.add("ready");
-        }
-      }
-    }
-  });
-  await Promise.allSettled([SparkdownScriptPreview.init()]);
-};
-
 window.addEventListener("message", (e: MessageEvent) => {
   const message = e.data;
   if (LoadPreviewMessage.type.isRequest(message)) {
@@ -41,5 +25,22 @@ window.addEventListener("message", (e: MessageEvent) => {
     })
   );
 });
+
+window.addEventListener(MessageProtocol.event, (e: Event) => {
+  if (e instanceof CustomEvent) {
+    const message = e.detail;
+    if (e.target !== window) {
+      // Forward responses and notifications from window to vscode extension
+      vscode.postMessage(message);
+      if (LoadPreviewMessage.type.isResponse(message)) {
+        document.body.classList.add("ready");
+      }
+    }
+  }
+});
+
+const load = async () => {
+  await Promise.allSettled([SparkdownScriptPreview.init()]);
+};
 
 load();

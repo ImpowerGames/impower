@@ -28,22 +28,6 @@ const vscode = acquireVsCodeApi();
 // Instead we use a SparkdownFileRegistry to track and populate the image data inside this worker.
 const fileRegistry = new SparkdownFileRegistry();
 
-const load = async () => {
-  // Forward responses and notifications from window to vscode extension
-  window.addEventListener(MessageProtocol.event, (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (e.target !== window) {
-        vscode.postMessage(message);
-        if (LoadPreviewMessage.type.isResponse(message)) {
-          document.body.classList.add("ready");
-        }
-      }
-    }
-  });
-  await Promise.allSettled([SparkWebPlayer.init()]);
-};
-
 window.addEventListener("message", (e: MessageEvent) => {
   const message = e.data;
   if (ConfigureCompilerMessage.type.isRequest(message)) {
@@ -103,13 +87,25 @@ window.addEventListener("message", (e: MessageEvent) => {
 
 window.addEventListener(MessageProtocol.event, (e) => {
   if (e instanceof CustomEvent) {
-    if (GameResizedMessage.type.isNotification(e.detail)) {
+    const message = e.detail;
+    if (e.target !== window) {
+      // Forward responses and notifications from window to vscode extension
+      vscode.postMessage(message);
+      if (LoadPreviewMessage.type.isResponse(message)) {
+        document.body.classList.add("ready");
+      }
+    }
+    if (GameResizedMessage.type.isNotification(message)) {
       // Save canvas height so it can be restored after vscode is shut down
-      const { height } = e.detail.params;
+      const { height } = message.params;
       state.canvasHeight = height;
       vscode.setState(state);
     }
   }
 });
+
+const load = async () => {
+  await Promise.allSettled([SparkWebPlayer.init()]);
+};
 
 load();
