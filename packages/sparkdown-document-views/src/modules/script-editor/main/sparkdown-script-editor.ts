@@ -418,7 +418,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       bottomPanels.style.opacity = "0";
       bottomPanels.style.transition = "opacity 150ms";
       bottomPanels.hidden = false;
-      this.ref.placeholder.hidden = true;
+      this.refs.placeholder.hidden = true;
       window.requestAnimationFrame(() => {
         if (bottomPanels) {
           bottomPanels.style.opacity = "1";
@@ -442,7 +442,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       this.root.querySelector<HTMLElement>(".cm-panels-bottom");
     if (bottomPanels) {
       bottomPanels.hidden = true;
-      this.ref.placeholder.hidden = false;
+      this.refs.placeholder.hidden = false;
       return HideEditorStatusBarMessage.type.response(message.id, {});
     }
     return HideEditorStatusBarMessage.type.error(message.id, {
@@ -563,7 +563,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this._searching = false;
     this._searchInputFocused = false;
     this._textDocument = textDocument;
-    const mainContainer = this.ref.main;
+    const mainContainer = this.refs.main;
     if (mainContainer) {
       this._scrollMargin = getBoxValues(this.scrollMargin);
       this._top = getUnitlessValue(this.top, 0);

@@ -71,8 +71,8 @@ export default class Tabs
     return spec.selectors;
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -155,7 +155,7 @@ export default class Tabs
   override onAttributeChanged(name: string, newValue: string) {
     if (name === Tabs.attrs.indicator) {
       this.updateTabs(false);
-      const indicatorEl = this.ref.indicator;
+      const indicatorEl = this.refs.indicator;
       if (indicatorEl && newValue === "none") {
         indicatorEl.hidden = true;
       }
@@ -173,7 +173,7 @@ export default class Tabs
   override onConnected() {
     this._activatingValue = this.active;
     const indicator = this.indicator;
-    const indicatorEl = this.ref.indicator;
+    const indicatorEl = this.refs.indicator;
     if (indicatorEl && indicator === "none") {
       indicatorEl.hidden = true;
     }
@@ -229,11 +229,11 @@ export default class Tabs
 
     await animationsComplete(
       tab.root,
-      tab.ref.label,
-      tab.ref.icon,
-      tab.ref.inactiveIcon,
-      tab.ref.activeIcon,
-      this.ref.indicator
+      tab.refs.label,
+      tab.refs.icon,
+      tab.refs.inactiveIcon,
+      tab.refs.activeIcon,
+      this.refs.indicator
     );
     if (this.interrupted(newValue)) {
       return;
@@ -258,8 +258,8 @@ export default class Tabs
     oldTab?: Tab,
     instantly?: boolean
   ): Promise<void> {
-    const indicator = this.ref.indicator;
-    const navEl = this.ref.nav;
+    const indicator = this.refs.indicator;
+    const navEl = this.refs.nav;
     const vertical = this.vertical;
     const tabEl = tab?.root;
 

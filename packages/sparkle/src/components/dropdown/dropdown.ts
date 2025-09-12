@@ -77,8 +77,8 @@ export default class Dropdown
     return { ...super.selectors, ...spec.selectors };
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -133,7 +133,7 @@ export default class Dropdown
   protected _activatingValue: string | null = null;
 
   override onAttributeChanged(name: string, newValue: string) {
-    const popupEl = this.ref.popup;
+    const popupEl = this.refs.popup;
     if (name === Dropdown.attrs.open) {
       const open = newValue != null;
       if (popupEl) {
@@ -161,13 +161,13 @@ export default class Dropdown
 
   override onConnected() {
     this._activatingValue = this.active;
-    this.ref.dialog.addEventListener("click", this.handleLightDismiss);
-    this.ref.dialog.addEventListener("cancel", this.handleCancel);
+    this.refs.dialog.addEventListener("click", this.handleLightDismiss);
+    this.refs.dialog.addEventListener("cancel", this.handleCancel);
     this.root.addEventListener("click", this.handleClick);
   }
 
   override onParsed() {
-    const popupEl = this.ref.popup;
+    const popupEl = this.refs.popup;
     if (popupEl) {
       popupEl.hidden = !this.open;
     }
@@ -175,23 +175,23 @@ export default class Dropdown
     if (this.open) {
       this.reposition();
     }
-    if (this.ref.optionsSlot) {
+    if (this.refs.optionsSlot) {
       this.setupOptions(
-        this.ref.optionsSlot.assignedElements({ flatten: true })
+        this.refs.optionsSlot.assignedElements({ flatten: true })
       );
     }
   }
 
   override onDisconnected() {
-    this.ref.dialog.removeEventListener("click", this.handleLightDismiss);
-    this.ref.dialog.removeEventListener("cancel", this.handleCancel);
+    this.refs.dialog.removeEventListener("click", this.handleLightDismiss);
+    this.refs.dialog.removeEventListener("cancel", this.handleCancel);
     this.root.removeEventListener("click", this.handleClick);
   }
 
   protected handleLightDismiss = (e: Event) => {
     e.stopPropagation();
     const el = e.target as HTMLElement;
-    if (el === this.ref.dialog) {
+    if (el === this.refs.dialog) {
       this.hide();
     }
   };
@@ -216,12 +216,12 @@ export default class Dropdown
       return;
     }
 
-    const el = this.ref.popup;
+    const el = this.refs.popup;
 
     el.inert = true;
     el.hidden = false;
     el.style.opacity = "0";
-    this.ref.dialog.showModal();
+    this.refs.dialog.showModal();
 
     await this.start();
 
@@ -238,7 +238,7 @@ export default class Dropdown
   }
 
   async animateClose(): Promise<void> {
-    const el = this.ref.popup;
+    const el = this.refs.popup;
     el.inert = true;
 
     this.emit(CLOSING_EVENT, { key: this.key });
@@ -247,7 +247,7 @@ export default class Dropdown
 
     el.hidden = true;
 
-    this.ref.dialog.close();
+    this.refs.dialog.close();
 
     this.stop();
 
@@ -318,10 +318,10 @@ export default class Dropdown
 
     await animationsComplete(
       option.root,
-      option.ref.label,
-      option.ref.icon,
-      option.ref.inactiveIcon,
-      option.ref.activeIcon
+      option.refs.label,
+      option.refs.icon,
+      option.refs.inactiveIcon,
+      option.refs.activeIcon
     );
     if (this.interrupted(newValue)) {
       return;

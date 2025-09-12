@@ -4,11 +4,11 @@ import spec from "./_edit-toggle-button";
 
 export default class EditToggleButton extends Component(spec) {
   override onConnected() {
-    this.ref.doneButton.addEventListener(
+    this.refs.doneButton.addEventListener(
       "pointerdown",
       this.handlePointerDownDoneButton
     );
-    this.ref.menuDropdown.addEventListener(
+    this.refs.menuDropdown.addEventListener(
       "changed",
       this.handleChangedMenuDropdown
     );
@@ -19,11 +19,11 @@ export default class EditToggleButton extends Component(spec) {
   }
 
   override onDisconnected() {
-    this.ref.doneButton.removeEventListener(
+    this.refs.doneButton.removeEventListener(
       "pointerdown",
       this.handlePointerDownDoneButton
     );
-    this.ref.menuDropdown.removeEventListener(
+    this.refs.menuDropdown.removeEventListener(
       "changed",
       this.handleChangedMenuDropdown
     );
@@ -68,13 +68,13 @@ export default class EditToggleButton extends Component(spec) {
 
   startEditing() {
     window.setTimeout(() => {
-      this.ref.doneButton.hidden = false;
-      this.ref.menuDropdown.hidden = true;
+      this.refs.doneButton.hidden = false;
+      this.refs.menuDropdown.hidden = true;
     }, 100);
   }
 
   finishEditing() {
-    this.ref.doneButton.hidden = true;
-    this.ref.menuDropdown.hidden = false;
+    this.refs.doneButton.hidden = true;
+    this.refs.menuDropdown.hidden = false;
   }
 }

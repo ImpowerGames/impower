@@ -82,8 +82,8 @@ export default class Option
     return spec.selectors;
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -258,13 +258,13 @@ export default class Option
       this.updateRootAttribute(name, newValue);
     }
     if (name === Option.attrs.disabled) {
-      const ripple = this.ref.ripple;
+      const ripple = this.refs.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
     if (name === Option.attrs.mask) {
-      const ripple = this.ref.ripple;
+      const ripple = this.refs.ripple;
       if (ripple) {
         if (newValue) {
           const mask = getCssMask(newValue);
@@ -274,7 +274,7 @@ export default class Option
       }
     }
     if (name === Option.attrs.icon) {
-      const iconEl = this.ref.icon;
+      const iconEl = this.refs.icon;
       if (iconEl) {
         iconEl.hidden = newValue == null;
       }
@@ -293,16 +293,16 @@ export default class Option
       this.setAssignedToSlot(label);
     }
     const icon = this.icon;
-    const iconEl = this.ref.icon;
+    const iconEl = this.refs.icon;
     if (iconEl) {
       iconEl.hidden = icon == null;
     }
-    this.ref.ripple?.bind?.(this.root);
+    this.refs.ripple?.bind?.(this.root);
     this.root.addEventListener("click", this.handleClick);
   }
 
   override onDisconnected() {
-    this.ref.ripple?.unbind?.(this.root);
+    this.refs.ripple?.unbind?.(this.root);
     this.root.removeEventListener("click", this.handleClick);
   }
 

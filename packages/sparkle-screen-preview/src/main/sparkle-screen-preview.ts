@@ -36,7 +36,7 @@ export default class SparkdownScreenPreview extends Component(spec) {
         const input = text;
         const parsed = parseSparkle(input);
         const components = getComponents(parsed);
-        const stateInputEl = this.ref.state as HTMLInputElement;
+        const stateInputEl = this.refs.state as HTMLInputElement;
         const update = throttle(() => {
           const state = JSON.parse(stateInputEl.value || "{}");
           const ctx: RenderContext = {
@@ -44,7 +44,7 @@ export default class SparkdownScreenPreview extends Component(spec) {
             state,
           };
           const renderStyles = () => {
-            const container = this.ref.css;
+            const container = this.refs.css;
             const newVDOM = renderCssVDOM(parsed, ctx);
             if (!this._lastCssVDOM) {
               container.innerHTML = "";
@@ -57,7 +57,7 @@ export default class SparkdownScreenPreview extends Component(spec) {
             console.log(newVDOM);
           };
           const renderHTML = () => {
-            const container = this.ref.html;
+            const container = this.refs.html;
             const newVDOM = renderHtmlVDOM(parsed, ctx);
             if (!this._lastHtmlVDOM) {
               container.innerHTML = "";
@@ -66,7 +66,7 @@ export default class SparkdownScreenPreview extends Component(spec) {
               diffAndPatch(container, this._lastHtmlVDOM, newVDOM);
             }
             this._lastHtmlVDOM = newVDOM;
-            this.ref.parsed.textContent = JSON.stringify(parsed, null, 2);
+            this.refs.parsed.textContent = JSON.stringify(parsed, null, 2);
             console.log("HTML!");
             console.log(newVDOM);
             console.log(parsed);

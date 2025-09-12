@@ -4,11 +4,11 @@ import spec from "./_header-sync-toolbar";
 
 export default class HeaderSyncConflictToolbar extends Component(spec) {
   override onConnected() {
-    this.ref.syncButton?.addEventListener("click", this.handleClickSyncButton);
+    this.refs.syncButton?.addEventListener("click", this.handleClickSyncButton);
   }
 
   override onDisconnected() {
-    this.ref.syncButton?.removeEventListener(
+    this.refs.syncButton?.removeEventListener(
       "click",
       this.handleClickSyncButton
     );
@@ -25,7 +25,7 @@ export default class HeaderSyncConflictToolbar extends Component(spec) {
   setup() {
     const store = this.stores.workspace.current;
     const syncStatus = store?.sync?.status;
-    const syncButton = this.ref.syncButton;
+    const syncButton = this.refs.syncButton;
     if (syncButton) {
       if (
         syncStatus === "load_error" ||
@@ -33,30 +33,30 @@ export default class HeaderSyncConflictToolbar extends Component(spec) {
         syncStatus === "export_error" ||
         syncStatus === "sync_error"
       ) {
-        this.ref.syncButton.removeAttribute("animation");
-        this.ref.syncButton.removeAttribute("disabled");
-        this.ref.syncButton.setAttribute("color", "red");
+        this.refs.syncButton.removeAttribute("animation");
+        this.refs.syncButton.removeAttribute("disabled");
+        this.refs.syncButton.setAttribute("color", "red");
       } else if (
         syncStatus === "syncing" ||
         syncStatus === "loading" ||
         syncStatus === "importing" ||
         syncStatus === "exporting"
       ) {
-        this.ref.syncButton.setAttribute("animation", "spin");
-        this.ref.syncButton.setAttribute("disabled", "");
-        this.ref.syncButton.setAttribute("color", "fg");
+        this.refs.syncButton.setAttribute("animation", "spin");
+        this.refs.syncButton.setAttribute("disabled", "");
+        this.refs.syncButton.setAttribute("color", "fg");
       } else if (syncStatus === "synced") {
-        this.ref.syncButton.removeAttribute("animation");
-        this.ref.syncButton.removeAttribute("disabled");
-        this.ref.syncButton.setAttribute("color", "fg");
+        this.refs.syncButton.removeAttribute("animation");
+        this.refs.syncButton.removeAttribute("disabled");
+        this.refs.syncButton.setAttribute("color", "fg");
       } else if (syncStatus === "offline") {
-        this.ref.syncButton.removeAttribute("animation");
-        this.ref.syncButton.removeAttribute("disabled");
-        this.ref.syncButton.setAttribute("color", "yellow");
+        this.refs.syncButton.removeAttribute("animation");
+        this.refs.syncButton.removeAttribute("disabled");
+        this.refs.syncButton.setAttribute("color", "yellow");
       } else if (syncStatus === "unsynced") {
-        this.ref.syncButton.removeAttribute("animation");
-        this.ref.syncButton.removeAttribute("disabled");
-        this.ref.syncButton.setAttribute("color", "primary");
+        this.refs.syncButton.removeAttribute("animation");
+        this.refs.syncButton.removeAttribute("disabled");
+        this.refs.syncButton.setAttribute("color", "primary");
       }
     }
   }

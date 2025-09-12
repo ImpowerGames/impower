@@ -47,8 +47,8 @@ export default class Toast
     return spec.selectors;
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -110,7 +110,7 @@ export default class Toast
 
   override onAttributeChanged(name: string, newValue: string) {
     if (name === Toast.attrs.color) {
-      const buttonEl = this.ref.button;
+      const buttonEl = this.refs.button;
       if (buttonEl) {
         if (newValue != null) {
           buttonEl.setAttribute(name, newValue);
@@ -141,7 +141,7 @@ export default class Toast
       if (action) {
         this.setAssignedToSlot(action, "action");
       }
-      const closeEl = this.ref.close;
+      const closeEl = this.refs.close;
       if (closeEl) {
         closeEl.hidden = action == null;
       }
@@ -160,31 +160,31 @@ export default class Toast
     if (action) {
       this.setAssignedToSlot(action, "action");
     }
-    const closeEl = this.ref.close;
+    const closeEl = this.refs.close;
     if (closeEl) {
       closeEl.hidden = action == null;
     }
     this.root.addEventListener("mousemove", this.handleHover, {
       passive: true,
     });
-    this.ref.button.addEventListener("click", this.handleButtonClick);
+    this.refs.button.addEventListener("click", this.handleButtonClick);
     if (this.shadowRoot) {
-      this.ref.actionSlot.addEventListener(
+      this.refs.actionSlot.addEventListener(
         "slotchange",
         this.handleActionSlotAssigned
       );
     } else {
       this.handleActionChildrenAssigned(
-        Array.from(this.ref.actionSlot.children || [])
+        Array.from(this.refs.actionSlot.children || [])
       );
     }
   }
 
   override onDisconnected() {
     this.root.removeEventListener("mousemove", this.handleHover);
-    this.ref.button.removeEventListener("click", this.handleButtonClick);
+    this.refs.button.removeEventListener("click", this.handleButtonClick);
     if (this.shadowRoot) {
-      this.ref.actionSlot.removeEventListener(
+      this.refs.actionSlot.removeEventListener(
         "slotchange",
         this.handleActionSlotAssigned
       );

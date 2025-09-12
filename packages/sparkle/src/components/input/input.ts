@@ -93,8 +93,8 @@ export default class Input
     return spec.selectors;
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -243,14 +243,14 @@ export default class Input
 
   /** The current value of the input, submitted as a name/value pair with form data. */
   get value() {
-    if (this.ref.input) {
-      return this.ref.input.value;
+    if (this.refs.input) {
+      return this.refs.input.value;
     }
     return this.getStringAttribute(Input.attrs.value);
   }
   set value(value) {
-    if (this.ref.input) {
-      this.ref.input.value = value || "";
+    if (this.refs.input) {
+      this.refs.input.value = value || "";
     }
     this.setStringAttribute(Input.attrs.value, value);
   }
@@ -290,13 +290,13 @@ export default class Input
 
   override onAttributeChanged(name: string, newValue: string) {
     if (name === Input.attrs.disabled) {
-      const ripple = this.ref.ripple;
+      const ripple = this.refs.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
     if (name === Input.attrs.mask) {
-      const ripple = this.ref.ripple;
+      const ripple = this.refs.ripple;
       if (ripple) {
         if (newValue) {
           const mask = getCssMask(newValue);
@@ -308,21 +308,21 @@ export default class Input
   }
 
   override onConnected() {
-    const ripple = this.ref.ripple;
+    const ripple = this.refs.ripple;
     if (ripple) {
       ripple?.bind?.(this.root);
     }
   }
 
   override onDisconnected() {
-    const ripple = this.ref.ripple;
+    const ripple = this.refs.ripple;
     if (ripple) {
       ripple?.unbind?.(this.root);
     }
   }
 
   select() {
-    this.ref.input.select();
+    this.refs.input.select();
   }
 }
 

@@ -71,8 +71,8 @@ export default class SplitPane
     return spec.selectors;
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -284,7 +284,7 @@ export default class SplitPane
     if (unrevealEvent) {
       window.addEventListener(unrevealEvent, this.handleUnrevealEvent);
     }
-    this.ref.divider.addEventListener("keydown", this.handleKeyDownDivider);
+    this.refs.divider.addEventListener("keydown", this.handleKeyDownDivider);
   }
 
   override onDisconnected() {
@@ -296,7 +296,7 @@ export default class SplitPane
     if (unrevealEvent) {
       window.removeEventListener(unrevealEvent, this.handleUnrevealEvent);
     }
-    this.ref.divider.removeEventListener("keydown", this.handleKeyDownDivider);
+    this.refs.divider.removeEventListener("keydown", this.handleKeyDownDivider);
   }
 
   handleRevealEvent = () => {
@@ -310,7 +310,7 @@ export default class SplitPane
   handleKeyDownDivider = (e: KeyboardEvent) => {
     const vertical = this.vertical;
     const step = this.step;
-    const resizeEl = this.ref.resize;
+    const resizeEl = this.refs.resize;
     if (resizeEl) {
       if (vertical) {
         if (e.key === "ArrowUp") {

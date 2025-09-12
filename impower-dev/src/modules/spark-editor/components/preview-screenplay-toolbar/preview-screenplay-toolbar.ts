@@ -1,36 +1,36 @@
+import type Button from "../../../../../../packages/sparkle/src/components/button/button";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { downloadFile } from "../../utils/downloadFile";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-screenplay-toolbar";
-import type Button from "../../../../../../packages/sparkle/src/components/button/button";
 
 export default class PreviewScreenplayToolbar extends Component(spec) {
   get progressBarEl() {
-    return this.ref.progressBar?.shadowRoot?.firstElementChild as HTMLElement;
+    return this.refs.progressBar?.shadowRoot?.firstElementChild as HTMLElement;
   }
 
   override onConnected() {
-    this.ref.downloadButton?.addEventListener(
+    this.refs.downloadButton?.addEventListener(
       "click",
       this.handleClickDownloadButton
     );
-    this.ref.modeButton?.addEventListener("click", this.handleClickModeButton);
+    this.refs.modeButton?.addEventListener("click", this.handleClickModeButton);
     this.progressBarEl.style.transform = `scaleX(0)`;
   }
 
   override onDisconnected() {
-    this.ref.downloadButton?.removeEventListener(
+    this.refs.downloadButton?.removeEventListener(
       "click",
       this.handleClickDownloadButton
     );
-    this.ref.modeButton?.removeEventListener(
+    this.refs.modeButton?.removeEventListener(
       "click",
       this.handleClickModeButton
     );
   }
 
   handleClickDownloadButton = async (e: Event) => {
-    this.ref.downloadButton?.setAttribute("disabled", "");
+    this.refs.downloadButton?.setAttribute("disabled", "");
     this.progressBarEl.style.opacity = "1";
     this.progressBarEl.style.transform = `scaleX(0)`;
     const store = this.stores.workspace.current;
@@ -49,10 +49,10 @@ export default class PreviewScreenplayToolbar extends Component(spec) {
     }
     this.progressBarEl.style.opacity = "0";
     this.progressBarEl.style.transform = "scaleX(0)";
-    this.ref.downloadButton?.removeAttribute("disabled");
+    this.refs.downloadButton?.removeAttribute("disabled");
   };
 
   handleClickModeButton = (e: Event) => {
-    (this.ref.modeButton as Button)?.emitChange("game");
+    (this.refs.modeButton as Button)?.emitChange("game");
   };
 }

@@ -74,8 +74,8 @@ export default class Tab
     return spec.selectors;
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -211,13 +211,13 @@ export default class Tab
         Tab.attrs.ariaDisabled,
         newValue != null ? "true" : "false"
       );
-      const ripple = this.ref.ripple;
+      const ripple = this.refs.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
     if (name === Tab.attrs.mask) {
-      const ripple = this.ref.ripple;
+      const ripple = this.refs.ripple;
       if (ripple) {
         if (newValue) {
           const mask = getCssMask(newValue);
@@ -227,7 +227,7 @@ export default class Tab
       }
     }
     if (name === Tab.attrs.icon) {
-      const iconEl = this.ref.icon;
+      const iconEl = this.refs.icon;
       if (iconEl) {
         iconEl.hidden = name == null;
       }
@@ -243,10 +243,10 @@ export default class Tab
   }
 
   override onConnected() {
-    this.ref.ripple?.bind?.(this.root);
+    this.refs.ripple?.bind?.(this.root);
     this.root.addEventListener("click", this.handleClick);
     const icon = this.icon;
-    const iconEl = this.ref.icon;
+    const iconEl = this.refs.icon;
     if (iconEl) {
       iconEl.hidden = icon == null;
     }
@@ -256,7 +256,7 @@ export default class Tab
   }
 
   override onDisconnected() {
-    this.ref.ripple?.unbind?.(this.root);
+    this.refs.ripple?.unbind?.(this.root);
     this.root.removeEventListener("click", this.handleClick);
   }
 

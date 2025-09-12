@@ -63,8 +63,8 @@ export default class Dialog
     return { ...super.selectors, ...spec.selectors } as typeof spec.selectors;
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -154,7 +154,7 @@ export default class Dialog
     }
     if (name === Dialog.attrs.icon) {
       const icon = newValue;
-      const iconEl = this.ref.icon;
+      const iconEl = this.refs.icon;
       if (iconEl) {
         iconEl.hidden = icon == null;
       }
@@ -164,7 +164,7 @@ export default class Dialog
       if (label) {
         this.setAssignedToSlot(label, "label");
       }
-      const labelEl = this.ref.label;
+      const labelEl = this.refs.label;
       if (labelEl) {
         labelEl.hidden = label == null;
       }
@@ -174,7 +174,7 @@ export default class Dialog
       if (cancel) {
         this.setAssignedToSlot(cancel, "cancel");
       }
-      const cancelButton = this.ref.cancel;
+      const cancelButton = this.refs.cancel;
       if (cancelButton) {
         cancelButton.hidden = cancel == null;
       }
@@ -184,73 +184,73 @@ export default class Dialog
       if (confirm) {
         this.setAssignedToSlot(confirm, "confirm");
       }
-      const confirmButton = this.ref.confirm;
+      const confirmButton = this.refs.confirm;
       if (confirmButton) {
         confirmButton.hidden = confirm == null;
       }
     }
     if (name === Dialog.attrs.loading) {
       if (newValue != null) {
-        this.ref.confirm.setAttribute("loading", "");
+        this.refs.confirm.setAttribute("loading", "");
       } else {
-        this.ref.confirm.removeAttribute("loading");
+        this.refs.confirm.removeAttribute("loading");
       }
     }
   }
 
   override onConnected() {
     const icon = this.icon;
-    const iconEl = this.ref.icon;
+    const iconEl = this.refs.icon;
     if (iconEl) {
       iconEl.hidden = icon == null;
     }
     const label = this.label;
-    const labelEl = this.ref.label;
+    const labelEl = this.refs.label;
     if (labelEl) {
       labelEl.hidden = label == null;
     }
     const cancel = this.cancel;
-    const cancelButton = this.ref.cancel;
+    const cancelButton = this.refs.cancel;
     if (cancelButton) {
       cancelButton.hidden = cancel == null;
     }
     const confirm = this.confirm;
-    const confirmButton = this.ref.confirm;
+    const confirmButton = this.refs.confirm;
     if (confirmButton) {
       confirmButton.hidden = confirm == null;
     }
-    this.ref.dialog.addEventListener("click", this.handleLightDismiss);
-    this.ref.dialog.addEventListener("cancel", this.handleCancel);
-    this.ref.cancel.addEventListener("click", this.handleClickCancelButton);
-    this.ref.confirm.addEventListener("click", this.handleClickConfirmButton);
+    this.refs.dialog.addEventListener("click", this.handleLightDismiss);
+    this.refs.dialog.addEventListener("cancel", this.handleCancel);
+    this.refs.cancel.addEventListener("click", this.handleClickCancelButton);
+    this.refs.confirm.addEventListener("click", this.handleClickConfirmButton);
     if (this.shadowRoot) {
-      this.ref.labelSlot.addEventListener(
+      this.refs.labelSlot.addEventListener(
         "slotchange",
         this.handleLabelSlotAssigned
       );
     } else {
       this.handleLabelChildrenAssigned(
-        Array.from(this.ref.labelSlot.children || [])
+        Array.from(this.refs.labelSlot.children || [])
       );
     }
     if (this.shadowRoot) {
-      this.ref.cancelSlot.addEventListener(
+      this.refs.cancelSlot.addEventListener(
         "slotchange",
         this.handleCancelSlotAssigned
       );
     } else {
       this.handleCancelChildrenAssigned(
-        Array.from(this.ref.cancelSlot.children || [])
+        Array.from(this.refs.cancelSlot.children || [])
       );
     }
     if (this.shadowRoot) {
-      this.ref.confirmSlot.addEventListener(
+      this.refs.confirmSlot.addEventListener(
         "slotchange",
         this.handleConfirmSlotAssigned
       );
     } else {
       this.handleConfirmChildrenAssigned(
-        Array.from(this.ref.confirmSlot.children || [])
+        Array.from(this.refs.confirmSlot.children || [])
       );
     }
   }
@@ -260,27 +260,27 @@ export default class Dialog
   }
 
   override onDisconnected() {
-    this.ref.dialog.removeEventListener("click", this.handleLightDismiss);
-    this.ref.dialog.removeEventListener("cancel", this.handleCancel);
-    this.ref.cancel.removeEventListener("click", this.handleClickCancelButton);
-    this.ref.confirm.removeEventListener(
+    this.refs.dialog.removeEventListener("click", this.handleLightDismiss);
+    this.refs.dialog.removeEventListener("cancel", this.handleCancel);
+    this.refs.cancel.removeEventListener("click", this.handleClickCancelButton);
+    this.refs.confirm.removeEventListener(
       "click",
       this.handleClickConfirmButton
     );
     if (this.shadowRoot) {
-      this.ref.labelSlot.removeEventListener(
+      this.refs.labelSlot.removeEventListener(
         "slotchange",
         this.handleLabelSlotAssigned
       );
     }
     if (this.shadowRoot) {
-      this.ref.cancelSlot.removeEventListener(
+      this.refs.cancelSlot.removeEventListener(
         "slotchange",
         this.handleCancelSlotAssigned
       );
     }
     if (this.shadowRoot) {
-      this.ref.confirmSlot.removeEventListener(
+      this.refs.confirmSlot.removeEventListener(
         "slotchange",
         this.handleConfirmSlotAssigned
       );
@@ -329,7 +329,7 @@ export default class Dialog
 
   protected handleLightDismiss = (e: Event) => {
     const el = e.target as HTMLElement;
-    if (el === this.ref.dialog && this.dismissable) {
+    if (el === this.refs.dialog && this.dismissable) {
       e.stopPropagation();
       this.close("dismiss");
     }
@@ -339,9 +339,9 @@ export default class Dialog
     this.root.hidden = false;
     this.root.inert = false;
     if (modal) {
-      this.ref.dialog.showModal();
+      this.refs.dialog.showModal();
     } else {
-      this.ref.dialog.show();
+      this.refs.dialog.show();
     }
 
     const focusTarget = this.root.querySelector<HTMLElement>("[focus]");
@@ -349,7 +349,7 @@ export default class Dialog
     if (focusTarget) {
       focusTarget.focus();
     } else {
-      const cancelButton = this.ref.cancel;
+      const cancelButton = this.refs.cancel;
       if (cancelButton) {
         cancelButton.focus();
       } else {
@@ -372,13 +372,13 @@ export default class Dialog
   protected async animateClose(
     returnValue?: string
   ): Promise<string | undefined> {
-    this.ref.dialog.inert = true;
+    this.refs.dialog.inert = true;
     this.open = false;
     this.emit(CLOSING_EVENT, returnValue);
 
     await animationsComplete(this.root);
 
-    this.ref.dialog.close();
+    this.refs.dialog.close();
 
     this.emit(CLOSED_EVENT, returnValue);
 

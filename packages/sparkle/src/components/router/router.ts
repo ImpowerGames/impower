@@ -59,8 +59,8 @@ export default class Router
     return spec.selectors;
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -164,21 +164,21 @@ export default class Router
   }
 
   get exitFadeEl() {
-    return this.ref.oldFade;
+    return this.refs.oldFade;
   }
 
   get exitTransformEl() {
-    return this.ref.oldTransform;
+    return this.refs.oldTransform;
   }
 
   get enterFadeEl() {
-    return this.unmount === "on-enter" ? this.ref.newFade : this.ref.oldFade;
+    return this.unmount === "on-enter" ? this.refs.newFade : this.refs.oldFade;
   }
 
   get enterTransformEl() {
     return this.unmount === "on-enter"
-      ? this.ref.newTransform
-      : this.ref.oldTransform;
+      ? this.refs.newTransform
+      : this.refs.oldTransform;
   }
 
   get contentTemplates(): HTMLTemplateElement[] {
@@ -194,7 +194,7 @@ export default class Router
   }
 
   get headerTemplates(): HTMLTemplateElement[] {
-    const slot = this.ref.headerTemplatesSlot;
+    const slot = this.refs.headerTemplatesSlot;
     if (slot) {
       const assignedElements = slot.assignedElements({ flatten: true });
       return assignedElements.filter(
@@ -205,7 +205,7 @@ export default class Router
   }
 
   get footerTemplates(): HTMLTemplateElement[] {
-    const slot = this.ref.footerTemplatesSlot;
+    const slot = this.refs.footerTemplatesSlot;
     if (slot) {
       const assignedElements = slot.assignedElements({ flatten: true });
       return assignedElements.filter(

@@ -59,9 +59,9 @@ const Component = <
       return this.#selectors;
     }
 
-    #ref = {} as RefMap<typeof this.selectors>;
-    get ref() {
-      return this.#ref;
+    #refs = {} as RefMap<typeof this.selectors>;
+    get refs() {
+      return this.#refs;
     }
 
     #props: Props = Object.keys(CustomElement.attrs).reduce((obj, key) => {
@@ -160,7 +160,7 @@ const Component = <
           STYLES.adoptStyle(this.ownerDocument, augmentCSS(c, tagName));
         });
       }
-      this.#ref = this.getRefMap(this.selectors);
+      this.#refs = this.getRefMap(this.selectors);
     }
 
     getRefMap<S extends Record<string, null | string | string[]>>(
@@ -353,7 +353,7 @@ const Component = <
           },
         });
       }
-      this.#ref = this.getRefMap(this.selectors);
+      this.#refs = this.getRefMap(this.selectors);
       this.onRender();
       this.connectedCallback();
     }

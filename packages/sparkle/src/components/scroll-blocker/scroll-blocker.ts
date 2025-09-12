@@ -29,8 +29,8 @@ export default class ScrollBlocker extends SparkleElement {
     return spec.selectors;
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   override onConnected() {

@@ -72,8 +72,8 @@ export default class Tooltip
     return { ...super.selectors, ...spec.selectors };
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -127,7 +127,7 @@ export default class Tooltip
   private hoverTimeout?: number;
 
   override onAttributeChanged(name: string, newValue: string) {
-    const tooltipEl = this.ref.popup;
+    const tooltipEl = this.refs.popup;
     if (name === Tooltip.attrs.label) {
       if (tooltipEl) {
         tooltipEl.textContent = newValue;
@@ -169,7 +169,7 @@ export default class Tooltip
   }
 
   override onParsed() {
-    const popupEl = this.ref.popup;
+    const popupEl = this.refs.popup;
     if (popupEl) {
       popupEl.hidden = !this.open;
     }
@@ -251,7 +251,7 @@ export default class Tooltip
     if (this.disabled) {
       return;
     }
-    const el = this.ref.popup;
+    const el = this.refs.popup;
 
     el.inert = true;
     el.hidden = false;
@@ -272,7 +272,7 @@ export default class Tooltip
   }
 
   async handleClose(): Promise<void> {
-    const el = this.ref.popup;
+    const el = this.refs.popup;
 
     el.inert = true;
 

@@ -200,9 +200,9 @@ export default class LogicScriptEditor extends Component(spec) {
       syncStatus === "importing" ||
       syncStatus === "exporting"
     ) {
-      this.ref.sparkdownScriptEditor.setAttribute("readonly", "");
+      this.refs.sparkdownScriptEditor.setAttribute("readonly", "");
     } else {
-      this.ref.sparkdownScriptEditor.removeAttribute("readonly");
+      this.refs.sparkdownScriptEditor.removeAttribute("readonly");
     }
   }
 }

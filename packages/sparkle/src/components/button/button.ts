@@ -91,8 +91,8 @@ export default class Button
     return spec.selectors;
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -324,13 +324,13 @@ export default class Button
       this.updateRootAttribute(name, newValue);
     }
     if (name === Button.attrs.disabled) {
-      const ripple = this.ref.ripple;
+      const ripple = this.refs.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
     if (name === Button.attrs.mask) {
-      const ripple = this.ref.ripple;
+      const ripple = this.refs.ripple;
       if (ripple) {
         if (newValue) {
           const mask = getCssMask(newValue);
@@ -340,7 +340,7 @@ export default class Button
       }
     }
     if (name === Button.attrs.icon) {
-      const iconEl = this.ref.icon;
+      const iconEl = this.refs.icon;
       if (iconEl) {
         iconEl.hidden = newValue == null;
       }
@@ -366,27 +366,27 @@ export default class Button
       this.setAssignedToSlot(label);
     }
     const icon = this.icon;
-    const iconEl = this.ref.icon;
+    const iconEl = this.refs.icon;
     if (iconEl) {
       iconEl.hidden = icon == null;
     }
-    const inputEl = this.ref.input;
+    const inputEl = this.refs.input;
     if (inputEl) {
       inputEl.addEventListener("change", this.handleInputChange);
       this.bindFocus(inputEl);
     }
-    const rippleEl = this.ref.ripple;
+    const rippleEl = this.refs.ripple;
     rippleEl?.bind?.(this.root);
     this.root.addEventListener("click", this.handleClick);
   }
 
   override onDisconnected() {
-    const inputEl = this.ref.input;
+    const inputEl = this.refs.input;
     if (inputEl) {
       inputEl.removeEventListener("change", this.handleInputChange);
       this.unbindFocus(inputEl);
     }
-    const rippleEl = this.ref.ripple;
+    const rippleEl = this.refs.ripple;
     rippleEl?.unbind?.(this.root);
     this.root.removeEventListener("click", this.handleClick);
   }

@@ -9,46 +9,46 @@ export default class Account extends Component(spec) {
   override onConnected() {
     this.load();
     Workspace.sync.google.addEventListener("revoke", this.handleRevoke);
-    this.ref.importProjectButton.addEventListener(
+    this.refs.importProjectButton.addEventListener(
       "change",
       this.handleImportLocalProject
     );
-    this.ref.exportProjectButton.addEventListener(
+    this.refs.exportProjectButton.addEventListener(
       "click",
       this.handleExportLocalProject
     );
-    this.ref.loadProjectButton.addEventListener(
+    this.refs.loadProjectButton.addEventListener(
       "click",
       this.handleLoadRemoteProject
     );
-    this.ref.saveProjectButton.addEventListener(
+    this.refs.saveProjectButton.addEventListener(
       "click",
       this.handleSaveRemoteProject
     );
-    this.ref.signinButton.addEventListener("click", this.handleSignIn);
-    this.ref.signoutButton.addEventListener("click", this.handleSignOut);
+    this.refs.signinButton.addEventListener("click", this.handleSignIn);
+    this.refs.signoutButton.addEventListener("click", this.handleSignOut);
   }
 
   override onDisconnected() {
     Workspace.sync.google.removeEventListener("revoke", this.handleRevoke);
-    this.ref.importProjectButton.removeEventListener(
+    this.refs.importProjectButton.removeEventListener(
       "change",
       this.handleImportLocalProject
     );
-    this.ref.exportProjectButton.removeEventListener(
+    this.refs.exportProjectButton.removeEventListener(
       "click",
       this.handleExportLocalProject
     );
-    this.ref.loadProjectButton.removeEventListener(
+    this.refs.loadProjectButton.removeEventListener(
       "click",
       this.handleLoadRemoteProject
     );
-    this.ref.saveProjectButton.removeEventListener(
+    this.refs.saveProjectButton.removeEventListener(
       "click",
       this.handleSaveRemoteProject
     );
-    this.ref.signinButton.removeEventListener("click", this.handleSignIn);
-    this.ref.signoutButton.removeEventListener("click", this.handleSignOut);
+    this.refs.signinButton.removeEventListener("click", this.handleSignIn);
+    this.refs.signoutButton.removeEventListener("click", this.handleSignOut);
   }
 
   async load() {
@@ -168,31 +168,31 @@ export default class Account extends Component(spec) {
 
   loadAuthenticatedUI(accountInfo: AccountInfo) {
     if (accountInfo.displayName) {
-      this.ref.accountName.textContent = accountInfo.displayName;
-      this.ref.accountName.hidden = false;
+      this.refs.accountName.textContent = accountInfo.displayName;
+      this.refs.accountName.hidden = false;
     } else {
-      this.ref.accountName.hidden = true;
+      this.refs.accountName.hidden = true;
     }
     if (accountInfo.email) {
-      this.ref.accountEmail.textContent = accountInfo.email;
-      this.ref.accountEmail.hidden = false;
+      this.refs.accountEmail.textContent = accountInfo.email;
+      this.refs.accountEmail.hidden = false;
     } else {
-      this.ref.accountEmail.hidden = true;
+      this.refs.accountEmail.hidden = true;
     }
-    this.ref.unauthenticated.hidden = true;
-    this.ref.authenticated.hidden = false;
+    this.refs.unauthenticated.hidden = true;
+    this.refs.authenticated.hidden = false;
     if (accountInfo.offline) {
-      this.ref.importProjectButton.setAttribute("disabled", "");
-      this.ref.exportProjectButton.setAttribute("disabled", "");
+      this.refs.importProjectButton.setAttribute("disabled", "");
+      this.refs.exportProjectButton.setAttribute("disabled", "");
     } else {
-      this.ref.importProjectButton.removeAttribute("disabled");
-      this.ref.exportProjectButton.removeAttribute("disabled");
+      this.refs.importProjectButton.removeAttribute("disabled");
+      this.refs.exportProjectButton.removeAttribute("disabled");
     }
   }
 
   loadUnauthenticatedUI(label: string = "Sync With Google Drive") {
-    this.ref.signinButton.textContent = label;
-    this.ref.unauthenticated.hidden = false;
-    this.ref.authenticated.hidden = true;
+    this.refs.signinButton.textContent = label;
+    this.refs.unauthenticated.hidden = false;
+    this.refs.authenticated.hidden = true;
   }
 }

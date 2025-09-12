@@ -6,10 +6,10 @@ import spec from "./_file-item";
 export default class FileItem extends Component(spec) {
   override onConnected() {
     document.addEventListener("click", this.handleDocumentClick);
-    this.ref.button.addEventListener("click", this.handleButtonClick);
+    this.refs.button.addEventListener("click", this.handleButtonClick);
     this.addEventListener("changing", this.handleChanging);
     this.addEventListener("changed", this.handleChanged);
-    const nameInput = this.ref.nameInput as Input;
+    const nameInput = this.refs.nameInput as Input;
     nameInput?.addEventListener("focus", this.handleFocusNameInput);
     nameInput?.addEventListener("blur", this.handleBlurNameInput);
     nameInput?.addEventListener("keydown", this.handleKeyDownNameInput);
@@ -18,16 +18,16 @@ export default class FileItem extends Component(spec) {
       const filename = this.filename;
       const [name] = filename.split(".");
       const selectionLength = name != null ? name.length : filename.length;
-      nameInput.ref.input.setSelectionRange(0, selectionLength);
+      nameInput.refs.input.setSelectionRange(0, selectionLength);
     }
   }
 
   override onDisconnected() {
     document.removeEventListener("click", this.handleDocumentClick);
-    this.ref.button.removeEventListener("click", this.handleButtonClick);
+    this.refs.button.removeEventListener("click", this.handleButtonClick);
     this.removeEventListener("changing", this.handleChanging);
     this.removeEventListener("changed", this.handleChanged);
-    const nameInput = this.ref.nameInput as Input;
+    const nameInput = this.refs.nameInput as Input;
     nameInput?.removeEventListener("focus", this.handleFocusNameInput);
     nameInput?.removeEventListener("blur", this.handleBlurNameInput);
     nameInput?.removeEventListener("keydown", this.handleKeyDownNameInput);
@@ -99,7 +99,7 @@ export default class FileItem extends Component(spec) {
         const filename = this.filename;
         if (filename) {
           if (e.detail.value === "rename") {
-            const nameInput = this.ref.nameInput as Input;
+            const nameInput = this.refs.nameInput as Input;
             nameInput.select();
           }
         }
@@ -108,8 +108,8 @@ export default class FileItem extends Component(spec) {
   };
 
   finishEditingName() {
-    const nameInput = this.ref.nameInput as Input;
-    const newName = nameInput.ref.input.value;
+    const nameInput = this.refs.nameInput as Input;
+    const newName = nameInput.refs.input.value;
     const oldFilename = this.filename;
     const [oldName, oldExt] = oldFilename.split(".");
     if (newName != null && oldName !== newName) {

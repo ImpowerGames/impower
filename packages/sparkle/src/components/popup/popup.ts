@@ -71,8 +71,8 @@ export default class Popup
     return spec.selectors;
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -353,9 +353,9 @@ export default class Popup
     if (name === Popup.attrs.strategy) {
       const fixed = newValue === "fixed";
       if (fixed) {
-        this.ref.popup.classList.add("fixed");
+        this.refs.popup.classList.add("fixed");
       } else {
-        this.ref.popup.classList.remove("fixed");
+        this.refs.popup.classList.remove("fixed");
       }
     }
 
@@ -394,7 +394,7 @@ export default class Popup
   protected async start(): Promise<void> {
     await nextAnimationFrame();
     const anchorEl = this.anchorEl;
-    const popupEl = this.ref.popup;
+    const popupEl = this.refs.popup;
     if (!anchorEl) {
       // We can't start the positioner without an anchor
       throw new Error(
@@ -425,7 +425,7 @@ export default class Popup
   async reposition(): Promise<void> {
     await nextAnimationFrame();
     const anchorEl = this.anchorEl;
-    const popupEl = this.ref.popup;
+    const popupEl = this.refs.popup;
     // Nothing to do if the popup or anchor doesn't exist
     if (!anchorEl || !popupEl) {
       return;

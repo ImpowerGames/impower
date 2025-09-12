@@ -4,31 +4,31 @@ import spec from "./_header-sync-conflict-toolbar";
 
 export default class HeaderSyncConflictToolbar extends Component(spec) {
   override onConnected() {
-    this.ref.pullButton.addEventListener("click", this.handleClickPullButton);
-    this.ref.pushButton.addEventListener("click", this.handleClickPushButton);
-    this.ref.pullDialog.addEventListener("confirm", this.handleConfirmPull);
-    this.ref.pushDialog.addEventListener("confirm", this.handleConfirmPush);
+    this.refs.pullButton.addEventListener("click", this.handleClickPullButton);
+    this.refs.pushButton.addEventListener("click", this.handleClickPushButton);
+    this.refs.pullDialog.addEventListener("confirm", this.handleConfirmPull);
+    this.refs.pushDialog.addEventListener("confirm", this.handleConfirmPush);
   }
 
   override onDisconnected() {
-    this.ref.pullButton.removeEventListener(
+    this.refs.pullButton.removeEventListener(
       "click",
       this.handleClickPullButton
     );
-    this.ref.pushButton.removeEventListener(
+    this.refs.pushButton.removeEventListener(
       "click",
       this.handleClickPushButton
     );
-    this.ref.pullDialog.removeEventListener("confirm", this.handleConfirmPull);
-    this.ref.pushDialog.removeEventListener("confirm", this.handleConfirmPush);
+    this.refs.pullDialog.removeEventListener("confirm", this.handleConfirmPull);
+    this.refs.pushDialog.removeEventListener("confirm", this.handleConfirmPush);
   }
 
   handleClickPullButton = () => {
-    this.ref.pullDialog.setAttribute("open", "");
+    this.refs.pullDialog.setAttribute("open", "");
   };
 
   handleClickPushButton = () => {
-    this.ref.pushDialog.setAttribute("open", "");
+    this.refs.pushDialog.setAttribute("open", "");
   };
 
   handleConfirmPull = async () => {

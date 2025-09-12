@@ -8,99 +8,99 @@ export default class PreviewGameToolbar extends Component(spec) {
   _controllingPlayback = 0;
 
   override onConnected() {
-    this.ref.runToggleButton?.addEventListener(
+    this.refs.runToggleButton?.addEventListener(
       "click",
       this.handleClickRunToggleButton
     );
-    this.ref.modeButton?.addEventListener("click", this.handleClickModeButton);
-    this.ref.stepBackwardButton?.addEventListener(
+    this.refs.modeButton?.addEventListener("click", this.handleClickModeButton);
+    this.refs.stepBackwardButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownStepBackwardButton
     );
-    this.ref.stepBackwardButton?.addEventListener(
+    this.refs.stepBackwardButton?.addEventListener(
       "pointerup",
       this.handlePointerUpStepBackwardButton
     );
-    this.ref.fastBackwardButton?.addEventListener(
+    this.refs.fastBackwardButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownFastBackwardButton
     );
-    this.ref.fastBackwardButton?.addEventListener(
+    this.refs.fastBackwardButton?.addEventListener(
       "pointerup",
       this.handlePointerUpFastBackwardButton
     );
-    this.ref.pauseToggleButton?.addEventListener(
+    this.refs.pauseToggleButton?.addEventListener(
       "click",
       this.handleClickPauseToggleButton
     );
-    this.ref.fastForwardButton?.addEventListener(
+    this.refs.fastForwardButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownFastForwardButton
     );
-    this.ref.fastForwardButton?.addEventListener(
+    this.refs.fastForwardButton?.addEventListener(
       "pointerup",
       this.handlePointerUpFastForwardButton
     );
-    this.ref.stepForwardButton?.addEventListener(
+    this.refs.stepForwardButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownStepForwardButton
     );
-    this.ref.stepForwardButton?.addEventListener(
+    this.refs.stepForwardButton?.addEventListener(
       "pointerup",
       this.handlePointerUpStepForwardButton
     );
-    this.ref.settingsDropdown?.addEventListener(
+    this.refs.settingsDropdown?.addEventListener(
       "changed",
       this.handleSettingsDropdownChanged
     );
   }
 
   override onDisconnected() {
-    this.ref.runToggleButton?.removeEventListener(
+    this.refs.runToggleButton?.removeEventListener(
       "click",
       this.handleClickRunToggleButton
     );
-    this.ref.modeButton?.removeEventListener(
+    this.refs.modeButton?.removeEventListener(
       "click",
       this.handleClickModeButton
     );
-    this.ref.stepBackwardButton?.removeEventListener(
+    this.refs.stepBackwardButton?.removeEventListener(
       "pointerdown",
       this.handlePointerDownStepBackwardButton
     );
-    this.ref.stepBackwardButton?.removeEventListener(
+    this.refs.stepBackwardButton?.removeEventListener(
       "pointerup",
       this.handlePointerUpStepBackwardButton
     );
-    this.ref.fastBackwardButton?.removeEventListener(
+    this.refs.fastBackwardButton?.removeEventListener(
       "pointerdown",
       this.handlePointerDownFastBackwardButton
     );
-    this.ref.fastBackwardButton?.removeEventListener(
+    this.refs.fastBackwardButton?.removeEventListener(
       "pointerup",
       this.handlePointerUpFastBackwardButton
     );
-    this.ref.pauseToggleButton?.removeEventListener(
+    this.refs.pauseToggleButton?.removeEventListener(
       "click",
       this.handleClickPauseToggleButton
     );
-    this.ref.fastForwardButton?.removeEventListener(
+    this.refs.fastForwardButton?.removeEventListener(
       "pointerdown",
       this.handlePointerDownFastForwardButton
     );
-    this.ref.fastForwardButton?.removeEventListener(
+    this.refs.fastForwardButton?.removeEventListener(
       "pointerup",
       this.handlePointerUpFastForwardButton
     );
-    this.ref.stepForwardButton?.removeEventListener(
+    this.refs.stepForwardButton?.removeEventListener(
       "pointerdown",
       this.handlePointerDownStepForwardButton
     );
-    this.ref.stepForwardButton?.removeEventListener(
+    this.refs.stepForwardButton?.removeEventListener(
       "pointerup",
       this.handlePointerUpStepForwardButton
     );
-    this.ref.settingsDropdown?.removeEventListener(
+    this.refs.settingsDropdown?.removeEventListener(
       "changed",
       this.handleSettingsDropdownChanged
     );
@@ -111,7 +111,7 @@ export default class PreviewGameToolbar extends Component(spec) {
   };
 
   handleClickModeButton = (e: Event) => {
-    (this.ref.modeButton as Button)?.emitChange("screenplay");
+    (this.refs.modeButton as Button)?.emitChange("screenplay");
   };
 
   handlePointerDownStepBackwardButton = (e: Event) => {

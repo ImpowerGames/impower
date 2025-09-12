@@ -19,11 +19,11 @@ export default class FileOptionsButton extends Component(spec) {
       syncStatus === "importing" ||
       syncStatus === "exporting"
     ) {
-      this.ref.deleteOption.setAttribute("disabled", "");
-      this.ref.renameOption.setAttribute("disabled", "");
+      this.refs.deleteOption.setAttribute("disabled", "");
+      this.refs.renameOption.setAttribute("disabled", "");
     } else {
-      this.ref.deleteOption.removeAttribute("disabled");
-      this.ref.renameOption.removeAttribute("disabled");
+      this.refs.deleteOption.removeAttribute("disabled");
+      this.refs.renameOption.removeAttribute("disabled");
     }
   }
 }

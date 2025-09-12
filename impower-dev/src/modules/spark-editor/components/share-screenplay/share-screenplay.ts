@@ -5,28 +5,29 @@ import spec from "./_share-screenplay";
 
 export default class ShareScreenplay extends Component(spec) {
   get pdfButtonEl() {
-    return this.ref.pdfButton.shadowRoot?.firstElementChild as HTMLElement;
+    return this.refs.pdfButton.shadowRoot?.firstElementChild as HTMLElement;
   }
 
   get htmlButtonEl() {
-    return this.ref.htmlButton.shadowRoot?.firstElementChild as HTMLElement;
+    return this.refs.htmlButton.shadowRoot?.firstElementChild as HTMLElement;
   }
 
   get pdfProgressBarEl() {
-    return this.ref.pdfProgressBar.shadowRoot?.firstElementChild as HTMLElement;
+    return this.refs.pdfProgressBar.shadowRoot
+      ?.firstElementChild as HTMLElement;
   }
 
   get htmlProgressBarEl() {
-    return this.ref.htmlProgressBar.shadowRoot
+    return this.refs.htmlProgressBar.shadowRoot
       ?.firstElementChild as HTMLElement;
   }
 
   override onConnected() {
-    this.ref.pdfButton.addEventListener(
+    this.refs.pdfButton.addEventListener(
       "click",
       this.handleClickPdfExportButton
     );
-    this.ref.htmlButton.addEventListener(
+    this.refs.htmlButton.addEventListener(
       "click",
       this.handleClickHtmlExportButton
     );
@@ -35,11 +36,11 @@ export default class ShareScreenplay extends Component(spec) {
   }
 
   override onDisconnected() {
-    this.ref.pdfButton.removeEventListener(
+    this.refs.pdfButton.removeEventListener(
       "click",
       this.handleClickPdfExportButton
     );
-    this.ref.htmlButton.removeEventListener(
+    this.refs.htmlButton.removeEventListener(
       "click",
       this.handleClickHtmlExportButton
     );

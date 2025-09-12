@@ -19,7 +19,7 @@ export default class SparkdownInspector extends Component(spec) {
       if (message.method === "load") {
         const { textDocument, data, openPaths } = message.params;
         this._textDocument = textDocument;
-        this.ref.editor.innerHTML = this.getFormContent(data, openPaths);
+        this.refs.editor.innerHTML = this.getFormContent(data, openPaths);
       }
     }
   };

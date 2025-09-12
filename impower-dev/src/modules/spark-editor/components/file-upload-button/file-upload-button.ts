@@ -5,11 +5,11 @@ import spec from "./_file-upload-button";
 
 export default class FileAddButton extends Component(spec) {
   override onConnected() {
-    this.ref.button.addEventListener("change", this.handleInputChange);
+    this.refs.button.addEventListener("change", this.handleInputChange);
   }
 
   override onDisconnected() {
-    this.ref.button.removeEventListener("change", this.handleInputChange);
+    this.refs.button.removeEventListener("change", this.handleInputChange);
   }
 
   handleInputChange = async (e: Event) => {
@@ -62,9 +62,9 @@ export default class FileAddButton extends Component(spec) {
       syncStatus === "importing" ||
       syncStatus === "exporting"
     ) {
-      this.ref.button.setAttribute("disabled", "");
+      this.refs.button.setAttribute("disabled", "");
     } else {
-      this.ref.button.removeAttribute("disabled");
+      this.refs.button.removeAttribute("disabled");
     }
   }
 }

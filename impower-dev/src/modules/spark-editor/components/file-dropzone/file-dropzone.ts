@@ -21,25 +21,25 @@ export default class FileDropzone extends Component(spec) {
   handleDragEnter = async (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    this.ref.dragover.hidden = false;
+    this.refs.dragover.hidden = false;
   };
 
   handleDragLeave = async (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    this.ref.dragover.hidden = true;
+    this.refs.dragover.hidden = true;
   };
 
   handleDragOver = async (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    this.ref.dragover.hidden = false;
+    this.refs.dragover.hidden = false;
   };
 
   handleDrop = async (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    this.ref.dragover.hidden = true;
+    this.refs.dragover.hidden = true;
     const files = Array.from(e.dataTransfer?.files || []);
     if (files.length > 0) {
       this.upload(files);

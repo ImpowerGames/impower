@@ -102,57 +102,57 @@ export default class SparkWebPlayer extends Component(spec) {
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     window.addEventListener("contextmenu", this.handleContextMenu, true);
     window.addEventListener("dragstart", this.handleDragStart);
-    this.ref.playButton?.addEventListener("click", this.handleClickPlayButton);
-    this.ref.toolbar?.addEventListener(
+    this.refs.playButton?.addEventListener("click", this.handleClickPlayButton);
+    this.refs.toolbar?.addEventListener(
       "pointerdown",
       this.handlePointerDownToolbar
     );
-    this.ref.toolbar?.addEventListener(
+    this.refs.toolbar?.addEventListener(
       "pointermove",
       this.handlePointerMoveToolbar
     );
-    this.ref.toolbar?.addEventListener(
+    this.refs.toolbar?.addEventListener(
       "pointerup",
       this.handlePointerUpToolbar
     );
-    this.ref.launchButton?.addEventListener(
+    this.refs.launchButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownLaunchButton
     );
-    this.ref.launchButton?.addEventListener(
+    this.refs.launchButton?.addEventListener(
       "pointerup",
       this.handlePointerUpLaunchButton
     );
-    this.ref.launchButton?.addEventListener(
+    this.refs.launchButton?.addEventListener(
       "click",
       this.handleClickLaunchButton
     );
-    this.ref.resetButton?.addEventListener(
+    this.refs.resetButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownResetButton
     );
-    this.ref.resetButton?.addEventListener(
+    this.refs.resetButton?.addEventListener(
       "pointerup",
       this.handlePointerUpResetButton
     );
-    this.ref.resetButton?.addEventListener(
+    this.refs.resetButton?.addEventListener(
       "click",
       this.handleClickResetButton
     );
-    this.ref.fullscreenButton?.addEventListener(
+    this.refs.fullscreenButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownFullscreenButton
     );
-    this.ref.fullscreenButton?.addEventListener(
+    this.refs.fullscreenButton?.addEventListener(
       "pointerup",
       this.handlePointerUpFullscreenButton
     );
-    this.ref.fullscreenButton?.addEventListener(
+    this.refs.fullscreenButton?.addEventListener(
       "click",
       this.handleClickFullscreenButton
     );
     this._gameResizeObserver = new ResizeObserver(this.handleResize);
-    this._gameResizeObserver.observe(this.ref.game);
+    this._gameResizeObserver.observe(this.refs.game);
     this.updateSizeAndAspectRatioDisplay();
     this.emit(
       MessageProtocol.event,
@@ -165,55 +165,55 @@ export default class SparkWebPlayer extends Component(spec) {
     window.removeEventListener("contextmenu", this.handleContextMenu);
     window.removeEventListener("dragstart", this.handleDragStart);
     window.removeEventListener("resize", this.handleResize);
-    this.ref.playButton?.removeEventListener(
+    this.refs.playButton?.removeEventListener(
       "click",
       this.handleClickPlayButton
     );
-    this.ref.toolbar?.removeEventListener(
+    this.refs.toolbar?.removeEventListener(
       "pointerdown",
       this.handlePointerDownToolbar
     );
-    this.ref.toolbar?.removeEventListener(
+    this.refs.toolbar?.removeEventListener(
       "pointermove",
       this.handlePointerMoveToolbar
     );
-    this.ref.toolbar?.removeEventListener(
+    this.refs.toolbar?.removeEventListener(
       "pointerup",
       this.handlePointerUpToolbar
     );
-    this.ref.launchButton?.removeEventListener(
+    this.refs.launchButton?.removeEventListener(
       "pointerdown",
       this.handlePointerDownLaunchButton
     );
-    this.ref.launchButton?.removeEventListener(
+    this.refs.launchButton?.removeEventListener(
       "pointerup",
       this.handlePointerUpLaunchButton
     );
-    this.ref.launchButton?.removeEventListener(
+    this.refs.launchButton?.removeEventListener(
       "click",
       this.handleClickLaunchButton
     );
-    this.ref.resetButton?.removeEventListener(
+    this.refs.resetButton?.removeEventListener(
       "pointerdown",
       this.handlePointerDownResetButton
     );
-    this.ref.resetButton?.removeEventListener(
+    this.refs.resetButton?.removeEventListener(
       "pointerup",
       this.handlePointerUpResetButton
     );
-    this.ref.resetButton?.removeEventListener(
+    this.refs.resetButton?.removeEventListener(
       "click",
       this.handleClickResetButton
     );
-    this.ref.fullscreenButton?.removeEventListener(
+    this.refs.fullscreenButton?.removeEventListener(
       "pointerdown",
       this.handlePointerDownFullscreenButton
     );
-    this.ref.fullscreenButton?.removeEventListener(
+    this.refs.fullscreenButton?.removeEventListener(
       "pointerup",
       this.handlePointerUpFullscreenButton
     );
-    this.ref.fullscreenButton?.removeEventListener(
+    this.refs.fullscreenButton?.removeEventListener(
       "click",
       this.handleClickFullscreenButton
     );
@@ -221,22 +221,22 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   protected async hidePlayButton() {
-    if (this.ref.playButton) {
-      this.ref.playButton.style.pointerEvents = "none";
-      this.ref.playButton.style.opacity = "0";
-      const animations = this.ref.playButton.getAnimations();
+    if (this.refs.playButton) {
+      this.refs.playButton.style.pointerEvents = "none";
+      this.refs.playButton.style.opacity = "0";
+      const animations = this.refs.playButton.getAnimations();
       await Promise.allSettled(
         animations.map((animation) => animation.finished)
       );
-      this.ref.playButton.style.display = "none";
+      this.refs.playButton.style.display = "none";
     }
   }
 
   protected async showPlayButton() {
-    if (this.ref.playButton) {
-      this.ref.playButton.style.pointerEvents = "";
-      this.ref.playButton.style.opacity = "";
-      this.ref.playButton.style.display = "";
+    if (this.refs.playButton) {
+      this.refs.playButton.style.pointerEvents = "";
+      this.refs.playButton.style.opacity = "";
+      this.refs.playButton.style.display = "";
     }
   }
 
@@ -262,7 +262,7 @@ export default class SparkWebPlayer extends Component(spec) {
       : this._game?.state === "running"
       ? "play"
       : "preview";
-    this.ref.launchStateIcon.setAttribute("icon", icon);
+    this.refs.launchStateIcon.setAttribute("icon", icon);
   }
 
   protected getLaunchLocation() {
@@ -288,7 +288,7 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   protected updateLaunchLabel() {
-    this.ref.launchButton.classList.toggle(
+    this.refs.launchButton.classList.toggle(
       "pinned",
       Boolean(this._options?.simulateFrom)
     );
@@ -296,12 +296,12 @@ export default class SparkWebPlayer extends Component(spec) {
     if (launchLocation) {
       const launchFilePath = this.getRelativeFilePath(launchLocation.uri);
       const launchLineNumber = launchLocation.range.start.line + 1;
-      this.ref.launchLabel.textContent = `${launchFilePath} : ${launchLineNumber}`;
-      this.ref.locationItems.hidden = false;
+      this.refs.launchLabel.textContent = `${launchFilePath} : ${launchLineNumber}`;
+      this.refs.locationItems.hidden = false;
     } else {
-      this.ref.locationItems.hidden = true;
+      this.refs.locationItems.hidden = true;
     }
-    this.ref.leftItems.hidden = false;
+    this.refs.leftItems.hidden = false;
   }
 
   protected updateExecutedLabel(lastExecutedLocation: DocumentLocation | null) {
@@ -315,12 +315,12 @@ export default class SparkWebPlayer extends Component(spec) {
           lastExecutedLocation.uri
         );
         const executedLineNumber = lastExecutedLocation.range.end.line + 1;
-        this.ref.executedLabel.textContent = `→   ${executedFilePath} : ${executedLineNumber}`;
+        this.refs.executedLabel.textContent = `→   ${executedFilePath} : ${executedLineNumber}`;
       } else {
-        this.ref.executedLabel.textContent = "";
+        this.refs.executedLabel.textContent = "";
       }
     } else {
-      this.ref.executedLabel.textContent = "";
+      this.refs.executedLabel.textContent = "";
     }
   }
 
@@ -335,14 +335,14 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   updateSizeAndAspectRatioDisplay() {
-    const rect = this.ref.game.getBoundingClientRect();
+    const rect = this.refs.game.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
     const ratio = this.getAspectRatioLabel(width, height);
     const sizeLabel = `${width.toFixed(0)} × ${height.toFixed(0)}`;
     const aspectRatioLabel = ratio ? `(${ratio})` : "";
-    this.ref.sizeLabel.textContent = sizeLabel;
-    this.ref.aspectRatioLabel.textContent = aspectRatioLabel;
+    this.refs.sizeLabel.textContent = sizeLabel;
+    this.refs.aspectRatioLabel.textContent = aspectRatioLabel;
   }
 
   protected handleResize = () => {
@@ -360,11 +360,11 @@ export default class SparkWebPlayer extends Component(spec) {
   protected handlePointerDownToolbar = (e: PointerEvent) => {
     this._isResizing = true;
     this._resizeStartY = e.clientY;
-    this._resizeStartHeight = this.ref.game.offsetHeight;
+    this._resizeStartHeight = this.refs.game.offsetHeight;
 
     document.body.style.cursor = "ns-resize";
 
-    const width = this.ref.game.offsetWidth;
+    const width = this.refs.game.offsetWidth;
     let minDiff = Infinity;
     let snapped = false;
 
@@ -377,9 +377,9 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     }
 
-    this.ref.toolbar.classList.toggle("snapping", snapped);
+    this.refs.toolbar.classList.toggle("snapping", snapped);
 
-    this.ref.toolbar.setPointerCapture(e.pointerId);
+    this.refs.toolbar.setPointerCapture(e.pointerId);
   };
 
   protected handlePointerMoveToolbar = (e: PointerEvent) => {
@@ -389,10 +389,10 @@ export default class SparkWebPlayer extends Component(spec) {
     const dy = e.clientY - this._resizeStartY;
     let newHeight = this._resizeStartHeight + dy;
 
-    const maxHeight = window.innerHeight - this.ref.toolbar.offsetHeight;
+    const maxHeight = window.innerHeight - this.refs.toolbar.offsetHeight;
     newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, newHeight));
 
-    const width = this.ref.game.offsetWidth;
+    const width = this.refs.game.offsetWidth;
     let closestMatch = newHeight;
     let minDiff = Infinity;
     let snapped = false;
@@ -408,12 +408,12 @@ export default class SparkWebPlayer extends Component(spec) {
     }
 
     if (closestMatch === maxHeight) {
-      this.ref.game.style.height = "";
+      this.refs.game.style.height = "";
     } else {
-      this.ref.game.style.height = `${closestMatch}px`;
+      this.refs.game.style.height = `${closestMatch}px`;
     }
 
-    this.ref.toolbar.classList.toggle("snapping", snapped);
+    this.refs.toolbar.classList.toggle("snapping", snapped);
 
     this.updateSizeAndAspectRatioDisplay();
 
@@ -426,8 +426,8 @@ export default class SparkWebPlayer extends Component(spec) {
   protected handlePointerUpToolbar = (e: PointerEvent) => {
     this._isResizing = false;
     document.body.style.cursor = "";
-    this.ref.toolbar.classList.remove("snapping");
-    this.ref.toolbar.releasePointerCapture(e.pointerId);
+    this.refs.toolbar.classList.remove("snapping");
+    this.refs.toolbar.releasePointerCapture(e.pointerId);
   };
 
   protected handleClickPlayButton = async () => {
@@ -443,12 +443,12 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   protected handlePointerDownLaunchButton = (e: PointerEvent) => {
-    this.ref.launchButton.setPointerCapture(e.pointerId);
+    this.refs.launchButton.setPointerCapture(e.pointerId);
     e.stopPropagation();
   };
 
   protected handlePointerUpLaunchButton = (e: PointerEvent) => {
-    this.ref.launchButton.releasePointerCapture(e.pointerId);
+    this.refs.launchButton.releasePointerCapture(e.pointerId);
   };
 
   protected handleClickLaunchButton = async () => {
@@ -471,12 +471,12 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   protected handlePointerDownResetButton = (e: PointerEvent) => {
-    this.ref.resetButton.setPointerCapture(e.pointerId);
+    this.refs.resetButton.setPointerCapture(e.pointerId);
     e.stopPropagation();
   };
 
   protected handlePointerUpResetButton = (e: PointerEvent) => {
-    this.ref.resetButton.releasePointerCapture(e.pointerId);
+    this.refs.resetButton.releasePointerCapture(e.pointerId);
   };
 
   protected handleClickResetButton = async () => {
@@ -494,12 +494,12 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   protected handlePointerDownFullscreenButton = (e: PointerEvent) => {
-    this.ref.fullscreenButton.setPointerCapture(e.pointerId);
+    this.refs.fullscreenButton.setPointerCapture(e.pointerId);
     e.stopPropagation();
   };
 
   protected handlePointerUpFullscreenButton = (e: PointerEvent) => {
-    this.ref.fullscreenButton.releasePointerCapture(e.pointerId);
+    this.refs.fullscreenButton.releasePointerCapture(e.pointerId);
   };
 
   protected handleClickFullscreenButton = async () => {
@@ -700,7 +700,7 @@ export default class SparkWebPlayer extends Component(spec) {
     message: ResizeGameMessage.Request
   ) => {
     const { height } = message.params;
-    this.ref.game.style.height = `${height}px`;
+    this.refs.game.style.height = `${height}px`;
     return messageType.response(message.id, {});
   };
 
@@ -1321,8 +1321,8 @@ export default class SparkWebPlayer extends Component(spec) {
     }
     this._app = new Application(
       this._game,
-      this.ref.gameView,
-      this.ref.gameOverlay,
+      this.refs.gameView,
+      this.refs.gameOverlay,
       this._audioContext
     );
     await this._app.init();

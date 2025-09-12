@@ -1,21 +1,24 @@
-import { Component } from "../../../../../../packages/spec-component/src/component";
 import type Drawer from "../../../../../../packages/sparkle/src/components/drawer/drawer";
+import { Component } from "../../../../../../packages/spec-component/src/component";
 import spec from "./_header-menu-button";
 
 export default class HeaderMenuButton extends Component(spec) {
   protected _pickingResource?: boolean;
 
   override onConnected() {
-    this.ref.openButton.addEventListener("click", this.handleClickOpenButton);
-    this.ref.closeButton.addEventListener("click", this.handleClickCloseButton);
+    this.refs.openButton.addEventListener("click", this.handleClickOpenButton);
+    this.refs.closeButton.addEventListener(
+      "click",
+      this.handleClickCloseButton
+    );
   }
 
   override onDisconnected() {
-    this.ref.openButton.removeEventListener(
+    this.refs.openButton.removeEventListener(
       "click",
       this.handleClickOpenButton
     );
-    this.ref.closeButton.removeEventListener(
+    this.refs.closeButton.removeEventListener(
       "click",
       this.handleClickCloseButton
     );
@@ -44,14 +47,14 @@ export default class HeaderMenuButton extends Component(spec) {
 
   openDrawer() {
     window.requestAnimationFrame(() => {
-      const drawerEl = this.ref.drawer as Drawer;
+      const drawerEl = this.refs.drawer as Drawer;
       drawerEl.showModal();
     });
   }
 
   closeDrawer() {
     window.requestAnimationFrame(() => {
-      const drawerEl = this.ref.drawer as Drawer;
+      const drawerEl = this.refs.drawer as Drawer;
       drawerEl.close();
     });
   }

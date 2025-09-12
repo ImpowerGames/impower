@@ -96,7 +96,7 @@ export default class FileList extends Component(spec) {
 
   async loadEntries(scrollIntoView?: string[]) {
     this._uris = await this.loadFiles();
-    const outletEl = this.ref.outlet;
+    const outletEl = this.refs.outlet;
     if (outletEl) {
       const items = this.createItems(this._uris);
       outletEl.innerHTML = items.join("\n");
@@ -173,8 +173,8 @@ export default class FileList extends Component(spec) {
 
   updateState() {
     const state = this.getState();
-    const emptyEl = this.ref.empty;
-    const listEl = this.ref.list;
+    const emptyEl = this.refs.empty;
+    const listEl = this.refs.list;
     const els = { empty: emptyEl, list: listEl };
     Object.entries(els).forEach(([k, v]) => {
       if (v) {

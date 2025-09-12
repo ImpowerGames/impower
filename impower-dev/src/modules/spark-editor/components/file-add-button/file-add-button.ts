@@ -52,9 +52,9 @@ export default class FileAddButton extends Component(spec) {
       syncStatus === "importing" ||
       syncStatus === "exporting"
     ) {
-      this.ref.button.setAttribute("disabled", "");
+      this.refs.button.setAttribute("disabled", "");
     } else {
-      this.ref.button.removeAttribute("disabled");
+      this.refs.button.removeAttribute("disabled");
     }
   }
 }

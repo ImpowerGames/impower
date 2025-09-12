@@ -54,8 +54,8 @@ export default class ProgressCircle
     return spec.selectors;
   }
 
-  override get ref() {
-    return super.ref as RefMap<typeof this.selectors>;
+  override get refs() {
+    return super.refs as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -121,7 +121,7 @@ export default class ProgressCircle
       const proportion = getCssProportion(newValue, 0);
       this.updateRootCssVariable(name, String(proportion));
       this.updateRootAttribute(ProgressCircle.attrs.ariaValueNow, newValue);
-      const labelEl = this.ref.label;
+      const labelEl = this.refs.label;
       if (labelEl) {
         if (newValue != null) {
           labelEl.textContent = `${proportion * 100}%`;
