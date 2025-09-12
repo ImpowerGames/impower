@@ -15,7 +15,6 @@ const load = async () => {
   });
   await Promise.allSettled([
     Sparkle.init({ graphics }),
-    SparkWebPlayer.init({ graphics }),
     SparkdownScriptEditor.init({
       languageServerConnection: Workspace.ls.connection,
       fileSystemReader: {
@@ -24,7 +23,8 @@ const load = async () => {
       },
       graphics,
     }),
-    SparkdownScreenplayPreview.init({ graphics }),
+    SparkWebPlayer.init(),
+    SparkdownScreenplayPreview.init(),
     SparkEditor.init({ graphics }),
   ]);
   // Once all web components (and their constructable stylesheets) are loaded,
