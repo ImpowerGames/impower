@@ -583,10 +583,6 @@ export default class SparkdownTextDocuments {
       textDocument,
       contentChanges,
     });
-    // update periodically while user types.
-    this.throttledCompile(textDocument.uri, false);
-    // ensure final call once user is completely done typing.
-    this.debouncedCompile(textDocument.uri, false);
   }
 
   public listen(connection: Connection): Disposable {
@@ -602,7 +598,7 @@ export default class SparkdownTextDocuments {
         ): Promise<DocumentDiagnosticReport> => {
           const uri = params.textDocument.uri;
           const document = this._documents.get(uri);
-          const program = await this.compile(uri, true);
+          const program = await this.compile(uri, false);
           if (document && program) {
             return {
               kind: "full",
@@ -658,7 +654,7 @@ export default class SparkdownTextDocuments {
           await this.updateCompilerDocument(event.textDocument, [
             { text: textDocument.text },
           ]);
-          await this.debouncedCompile(textDocument.uri, false);
+          this.debouncedCompile(textDocument.uri, false);
         }
       )
     );
@@ -666,10 +662,13 @@ export default class SparkdownTextDocuments {
       connection.onDidChangeTextDocument(
         async (event: DidChangeTextDocumentParams) => {
           this._documents.update(event);
-          await this.updateCompilerDocument(
-            event.textDocument,
-            event.contentChanges
-          );
+          const textDocument = event.textDocument;
+          const contentChanges = event.contentChanges;
+          await this.updateCompilerDocument(textDocument, contentChanges);
+          // update periodically while user types.
+          this.throttledCompile(textDocument.uri, false);
+          // ensure final call once user is completely done typing.
+          this.debouncedCompile(textDocument.uri, false);
         }
       )
     );
