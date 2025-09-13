@@ -105,7 +105,7 @@ export class SparkdownCompiler {
         textDocument: {
           uri: file.uri,
           languageId: "sparkdown",
-          version: -1,
+          version: 0,
           text: file.text || "",
         },
       });

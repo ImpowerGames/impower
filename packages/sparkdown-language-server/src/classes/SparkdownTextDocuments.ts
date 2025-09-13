@@ -211,7 +211,7 @@ export default class SparkdownTextDocuments {
             textDocument: {
               uri: file.uri,
               languageId: "sparkdown",
-              version: -1,
+              version: 0,
               text: file.text || "",
             },
           });
@@ -539,7 +539,7 @@ export default class SparkdownTextDocuments {
     this._watchedFileUris.add(uri);
     if (this.getFileType(uri) === "script") {
       this._documents.add({
-        textDocument: { uri, languageId: "sparkdown", version: -1, text: "" },
+        textDocument: { uri, languageId: "sparkdown", version: 0, text: "" },
       });
     }
     const file = await this.loadFile({
