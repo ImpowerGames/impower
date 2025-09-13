@@ -359,7 +359,7 @@ const readFile = async (fileUri: string) => {
   const fileHandle = await getFileHandleFromUri(root, fileUri);
   const fileRef = await fileHandle.getFile();
   const buffer = await fileRef.arrayBuffer();
-  updateFileCache(fileUri, buffer, false, fileRef);
+  updateFileCache(fileUri, buffer, false);
   return buffer;
 };
 
@@ -482,8 +482,7 @@ const write = async (fileUri: string) => {
     syncAccessHandle.flush();
     syncAccessHandle.close();
     const arrayBuffer = buffer.buffer as ArrayBuffer;
-    const fileRef = await fileHandle.getFile();
-    const file = updateFileCache(fileUri, arrayBuffer, true, fileRef, version);
+    const file = updateFileCache(fileUri, arrayBuffer, true, version);
     listeners.forEach((l) => {
       l({ file, created });
     });
@@ -563,7 +562,6 @@ const updateFileCache = (
   uri: string,
   buffer: ArrayBuffer,
   overwrite: boolean,
-  fileRef: File,
   version?: number
 ) => {
   const existingFile = State.files[uri];
@@ -573,7 +571,7 @@ const updateFileCache = (
   const type = getFileType(uri);
   if (name) {
     if (!src || overwrite) {
-      src = getSrcFromUri(uri) + `?v=${fileRef.lastModified}`;
+      src = getSrcFromUri(uri) + `?v=${crypto.randomUUID()}`;
     }
   }
   const text =
