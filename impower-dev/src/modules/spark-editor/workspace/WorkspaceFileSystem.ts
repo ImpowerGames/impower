@@ -192,6 +192,7 @@ export default class WorkspaceFileSystem {
     } else if (DidDeleteFilesMessage.type.isNotification(message)) {
       message.params.files.forEach((file) => {
         delete this._files?.[file.uri];
+        delete this._preloaded[file.uri];
       });
       Workspace.ls.connection.sendNotification(message.method, message.params);
       this.emit(MessageProtocol.event, message);
