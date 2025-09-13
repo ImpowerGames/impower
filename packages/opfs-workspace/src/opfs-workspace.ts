@@ -571,7 +571,7 @@ const updateFileCache = (
   const type = getFileType(uri);
   if (name) {
     if (!src || overwrite) {
-      src = getSrcFromUri(uri) + `?v=${crypto.randomUUID()}`;
+      src = getSrcFromUri(uri) + `?v=${Date.now()}`;
     }
   }
   const text =

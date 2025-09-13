@@ -63,8 +63,9 @@ const globToRegex = (glob: string) => {
 
 interface ProgramState {
   program?: SparkProgram;
-  compilingProgramVersion?: number;
-  compiledProgramVersion?: number;
+  version: number;
+  compilingDocumentVersion?: number;
+  compiledDocumentVersion?: number;
 }
 
 export default class SparkdownTextDocuments {
@@ -384,7 +385,7 @@ export default class SparkdownTextDocuments {
     if (state) {
       return state;
     }
-    const newState = {};
+    const newState = { version: 0 };
     this._programStates.set(uri, newState);
     return newState;
   }
@@ -411,7 +412,7 @@ export default class SparkdownTextDocuments {
     for (let [documentUri] of this._programStates) {
       const state = this.getProgramState(documentUri);
       const document = this._documents.get(documentUri);
-      if (state.compiledProgramVersion !== document?.version) {
+      if (state.compiledDocumentVersion !== document?.version) {
         anyDocChanged = true;
       }
     }
@@ -421,8 +422,8 @@ export default class SparkdownTextDocuments {
     }
     if (
       !force &&
-      state.compilingProgramVersion != null &&
-      document.version <= state.compilingProgramVersion
+      state.compilingDocumentVersion != null &&
+      document.version <= state.compilingDocumentVersion
     ) {
       return new Promise((resolve) => {
         const nextCompiledCallbacks = this._onNextCompiled.get(uri) || [];
@@ -430,7 +431,7 @@ export default class SparkdownTextDocuments {
         this._onNextCompiled.set(uri, nextCompiledCallbacks);
       });
     }
-    state.compilingProgramVersion = document?.version;
+    state.compilingDocumentVersion = document?.version;
     let program: SparkProgram | undefined = undefined;
     const mainScriptUri = this.getMainScriptUri(uri);
     if (mainScriptUri) {
@@ -440,8 +441,9 @@ export default class SparkdownTextDocuments {
         for (const [uri, version] of Object.entries(program.scripts)) {
           const state = this.getProgramState(uri);
           state.program = program;
-          state.compilingProgramVersion = undefined;
-          state.compiledProgramVersion = version;
+          state.compilingDocumentVersion = undefined;
+          state.compiledDocumentVersion = version;
+          state.version++;
           this._onNextCompiled.get(uri)?.forEach((c) => c?.(program));
           this._onNextCompiled.delete(uri);
         }
@@ -453,13 +455,15 @@ export default class SparkdownTextDocuments {
       program = await this.compileDocument(uri);
       const state = this.getProgramState(uri);
       state.program = program;
-      state.compilingProgramVersion = undefined;
-      state.compiledProgramVersion = program?.scripts[uri];
+      state.compilingDocumentVersion = undefined;
+      state.compiledDocumentVersion = program?.scripts[uri];
+      state.version++;
       this._onNextCompiled.get(uri)?.forEach((c) => c?.(program));
       this._onNextCompiled.delete(uri);
     }
     if (program) {
-      await this.sendProgram(uri, program, state.compiledProgramVersion);
+      program.version = state.version;
+      await this.sendProgram(uri, program, state.compiledDocumentVersion);
     }
     profile("end", "server/compile", uri);
     return program;
@@ -476,7 +480,7 @@ export default class SparkdownTextDocuments {
   async sendProgram(
     uri: string,
     program: SparkProgram,
-    version: number | undefined
+    documentVersion: number | undefined
   ) {
     let programToSend = program;
     if (this.omitImageData) {
@@ -501,17 +505,13 @@ export default class SparkdownTextDocuments {
       {
         textDocument: {
           uri,
-          version,
+          version: documentVersion,
         },
         program: programToSend,
       }
     );
     await this._connection?.sendDiagnostics(
-      getDocumentDiagnostics(
-        uri,
-        program,
-        this.getProgramState(uri).compiledProgramVersion
-      )
+      getDocumentDiagnostics(uri, program, this.getProgramState(uri).version)
     );
   }
 
