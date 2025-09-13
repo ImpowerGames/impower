@@ -28,6 +28,7 @@ import { getFileName } from "./utils/getFileName";
 import { getName } from "./utils/getName";
 import { getParentPath } from "./utils/getParentPath";
 import { getPathFromUri } from "./utils/getPathFromUri";
+import { getSrcFromUri } from "./utils/getSrcFromUri";
 import { getUriFromPath } from "./utils/getUriFromPath";
 
 console.log("running opfs-workspace");
@@ -570,12 +571,7 @@ const updateFileCache = (
   const type = getFileType(uri);
   if (name) {
     if (!src || overwrite) {
-      if (src) {
-        URL.revokeObjectURL(src);
-      }
-      src = URL.createObjectURL(
-        new Blob([buffer], { type: getMimeType(type, ext) })
-      );
+      src = getSrcFromUri(uri);
     }
   }
   const text =
