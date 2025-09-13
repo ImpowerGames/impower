@@ -38,9 +38,15 @@ async function handleLocalAssetRequest(request: Request, url: URL) {
   const size = file.size;
   const type = file.type;
 
+  const lastModifiedHttp = new Date(file.lastModified).toUTCString();
+  const etag = `"${size}-${file.lastModified}"`;
+
   // 2) Common headers
   const baseHeaders = {
     "Content-Type": type,
+    "Cache-Control": "no-cache, must-revalidate",
+    "Last-Modified": lastModifiedHttp,
+    ETag: etag,
     "Accept-Ranges": "bytes",
     Vary: "Origin",
     //"Cross-Origin-Resource-Policy": "cross-origin",
@@ -48,19 +54,10 @@ async function handleLocalAssetRequest(request: Request, url: URL) {
   };
 
   // 3) Optional: ETag/Last-Modified for caching
-  const etag = `"${size}-${file.lastModified}"`;
-  const ims = request.headers.get("If-Modified-Since");
   const inm = request.headers.get("If-None-Match");
-  const lastModifiedHttp = new Date(file.lastModified).toUTCString();
+  const ims = request.headers.get("If-Modified-Since");
   if (inm === etag || (ims && Date.parse(ims) >= file.lastModified)) {
-    return new Response(null, {
-      status: 304,
-      headers: {
-        ...baseHeaders,
-        ETag: etag,
-        "Last-Modified": lastModifiedHttp,
-      },
-    });
+    return new Response(null, { status: 304, headers: baseHeaders });
   }
 
   // 4) Options handling
