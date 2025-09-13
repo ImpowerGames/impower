@@ -48,6 +48,7 @@
 
 :host > .root .cm-editor .cm-scroller {
   max-height: 100%;
+  overflow-x: hidden;
 }
 @media (max-width: 960px) {
   :host > .root .cm-editor .cm-scroller {
