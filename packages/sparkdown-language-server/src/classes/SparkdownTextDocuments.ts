@@ -249,7 +249,7 @@ export default class SparkdownTextDocuments {
     );
   }
 
-  async loadFile(file: { uri: string; src: string; text?: string }) {
+  async loadFile(file: { uri: string; src?: string; text?: string }) {
     const name = this.getFileName(file.uri);
     const type = this.getFileType(file.uri);
     const ext = this.getFileExtension(file.uri);
@@ -276,7 +276,7 @@ export default class SparkdownTextDocuments {
     };
   }
 
-  async loadText(file: { uri: string; src: string; text?: string }) {
+  async loadText(file: { uri: string; src?: string; text?: string }) {
     if (file.text != null) {
       return file.text;
     }
@@ -545,7 +545,7 @@ export default class SparkdownTextDocuments {
     }
     const file = await this.loadFile({
       uri,
-      src: this._urls[uri] || "",
+      src: this._urls[uri],
     });
     await this.sendCompilerRequest(AddCompilerFileMessage.type, { file });
     if (this._lastCompiledUri) {
@@ -557,7 +557,7 @@ export default class SparkdownTextDocuments {
     if (!this._documents.get(uri)) {
       const file = await this.loadFile({
         uri,
-        src: this._urls[uri] || "",
+        src: this._urls[uri],
       });
       await this.sendCompilerRequest(UpdateCompilerFileMessage.type, { file });
       if (this._lastCompiledUri) {
