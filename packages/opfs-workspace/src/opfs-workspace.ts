@@ -135,7 +135,7 @@ onmessage = async (e) => {
   if (ZipFilesMessage.type.isRequest(message)) {
     const { files } = message.params;
     try {
-      const buffer = await zipFiles(files);
+      const buffer = (await zipFiles(files)) as ArrayBuffer;
       const response = ZipFilesMessage.type.response(message.id, buffer);
       respond(response, [buffer]);
     } catch (err: any) {
@@ -359,7 +359,7 @@ const readFile = async (fileUri: string) => {
   const fileHandle = await getFileHandleFromUri(root, fileUri);
   const fileRef = await fileHandle.getFile();
   const buffer = await fileRef.arrayBuffer();
-  updateFileCache(fileUri, buffer, false);
+  updateFileCache(fileUri, buffer, false, fileRef);
   return buffer;
 };
 
@@ -481,8 +481,9 @@ const write = async (fileUri: string) => {
     syncAccessHandle.write(buffer, { at: 0 });
     syncAccessHandle.flush();
     syncAccessHandle.close();
-    const arrayBuffer = buffer.buffer;
-    const file = updateFileCache(fileUri, arrayBuffer, true, version);
+    const arrayBuffer = buffer.buffer as ArrayBuffer;
+    const fileRef = await fileHandle.getFile();
+    const file = updateFileCache(fileUri, arrayBuffer, true, fileRef, version);
     listeners.forEach((l) => {
       l({ file, created });
     });
@@ -562,6 +563,7 @@ const updateFileCache = (
   uri: string,
   buffer: ArrayBuffer,
   overwrite: boolean,
+  fileRef: File,
   version?: number
 ) => {
   const existingFile = State.files[uri];
@@ -571,7 +573,7 @@ const updateFileCache = (
   const type = getFileType(uri);
   if (name) {
     if (!src || overwrite) {
-      src = getSrcFromUri(uri);
+      src = getSrcFromUri(uri) + `?v=${fileRef.lastModified}`;
     }
   }
   const text =
