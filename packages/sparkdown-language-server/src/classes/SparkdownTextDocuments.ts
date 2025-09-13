@@ -119,8 +119,6 @@ export default class SparkdownTextDocuments {
 
   protected _worldFilePattern?: RegExp;
 
-  protected _urls: Record<string, string> = {};
-
   protected _lastCompiledUri?: string;
 
   protected _programStates = new Map<string, ProgramState>();
