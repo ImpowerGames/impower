@@ -80,8 +80,6 @@ async function handleLocalAssetRequest(request: Request, url: URL) {
       headers: {
         ...baseHeaders,
         "Content-Length": String(size),
-        ETag: etag,
-        "Last-Modified": lastModifiedHttp,
       },
     });
   }
@@ -134,9 +132,6 @@ async function handleLocalAssetRequest(request: Request, url: URL) {
         ...baseHeaders,
         "Content-Range": `bytes ${start}-${end}/${size}`,
         "Content-Length": String(end - start + 1),
-        ETag: etag,
-        "Last-Modified": lastModifiedHttp,
-        "Cache-Control": "private, max-age=300",
       },
     });
   }
@@ -147,9 +142,6 @@ async function handleLocalAssetRequest(request: Request, url: URL) {
     headers: {
       ...baseHeaders,
       "Content-Length": String(size),
-      ETag: etag,
-      "Last-Modified": lastModifiedHttp,
-      "Cache-Control": "private, max-age=300",
     },
   });
 }
