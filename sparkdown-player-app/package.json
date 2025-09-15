@@ -6,6 +6,7 @@
   "scripts": {
     "postinstall:textmate-grammar-tree": "cd ../packages/textmate-grammar-tree && npm ci && cd ../../impower-dev",
     "postinstall:sparkdown": "cd ../packages/sparkdown && npm ci && cd ../../sparkdown-player-app",
+    "postinstall:spark-engine": "cd ../packages/spark-engine && npm ci && cd ../../impower-dev",
     "postinstall:spark-dom": "cd ../packages/spark-dom && npm ci && cd ../../impower-dev",
     "postinstall:spark-editor-protocol": "cd ../packages/spark-editor-protocol && npm ci && cd ../../sparkdown-player-app",
     "postinstall:spark-web-player": "cd ../packages/spark-web-player && npm ci && cd ../../sparkdown-player-app",
