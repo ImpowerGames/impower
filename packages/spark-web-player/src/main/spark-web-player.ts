@@ -2,6 +2,8 @@ import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protoco
 import { ContinueGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ContinueGameMessage";
 import { DisableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
+import { EnterGameFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnterGameFullscreenModeMessage";
+import { ExitGameFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/ExitGameFullscreenModeMessage";
 import { GameAutoAdvancedToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameAutoAdvancedToContinueMessage";
 import { GameAwaitingInteractionMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameAwaitingInteractionMessage";
 import { GameChosePathToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameChosePathToContinueMessage";
@@ -16,6 +18,7 @@ import { GameResizedMessage } from "@impower/spark-editor-protocol/src/protocols
 import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
 import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameSteppedMessage";
+import { GameToggledFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameToggledFullscreenModeMessage";
 import { GameWillSimulateFromMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateFromMessage";
 import { GetGameEvaluationContextMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameEvaluationContextMessage";
 import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGamePossibleBreakpointLocationsMessage";
@@ -503,11 +506,10 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   protected handleClickFullscreenButton = async () => {
-    if (document.fullscreenElement || this.shadowRoot?.fullscreenElement) {
-      await document.exitFullscreen();
-    } else {
-      await this.root.requestFullscreen();
-    }
+    this.emit(
+      MessageProtocol.event,
+      GameToggledFullscreenModeMessage.type.notification({})
+    );
   };
 
   protected handleProtocol = async (e: Event) => {
@@ -691,6 +693,12 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+      }
+      if (EnterGameFullscreenModeMessage.type.is(e.detail)) {
+        this.refs.viewport.classList.add("fullscreen");
+      }
+      if (ExitGameFullscreenModeMessage.type.is(e.detail)) {
+        this.refs.viewport.classList.remove("fullscreen");
       }
     }
   };

@@ -1,0 +1,24 @@
+{
+  "name": "sparkdown-player-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "postinstall:spark-editor-protocol": "cd ../packages/spark-editor-protocol && npm ci && cd ../../sparkdown-player-app",
+    "postinstall:spark-web-player": "cd ../packages/spark-web-player && npm ci && cd ../../sparkdown-player-app",
+    "postinstall": "npm-run-all -p postinstall:*",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/node": "^24.4.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.5"
+  },
+  "dependencies": {
+    "@impower/spark-editor-protocol": "file:../packages/spark-editor-protocol",
+    "@impower/spark-web-player": "file:../packages/spark-web-player"
+  }
+}

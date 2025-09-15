@@ -10,6 +10,7 @@ export default spec({
     toolbar: false,
   },
   selectors: {
+    viewport: "#viewport",
     gameBackground: "#game-background",
     gameView: "#game-view",
     gameOverlay: "#game-overlay",

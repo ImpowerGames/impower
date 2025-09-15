@@ -62,7 +62,7 @@
   resize: none;
 }
 
-:fullscreen #game {
+.fullscreen #game {
   height: 100% !important;
 }
 
@@ -134,7 +134,7 @@
   background-color: var(--swp-background-color);
 }
 
-:fullscreen #toolbar {
+.fullscreen #toolbar {
   position: fixed;
   bottom: 0;
   left: 0;
@@ -161,7 +161,7 @@
   background: var(--swp-resize-handle-color);
 }
 
-:fullscreen #resize-handle {
+.fullscreen #resize-handle {
   display: none;
 }
 
@@ -228,7 +228,7 @@
 #fullscreen-icon {
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M2.5 2H6V3H3V6H2V2.5L2.5 2ZM3 10H2V13.5L2.5 14H6V13H3V10ZM13 13H10V14H13.5L14 13.5V10H13V13ZM13.5 2H10V3H13V6H14V2.5L13.5 2Z"/></svg>');
 }
-:fullscreen #fullscreen-icon {
+.fullscreen #fullscreen-icon {
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M5 2H6V5.5L5.5 6H2V5H5V2ZM2 10V11H5V14H6V10.5L5.5 10H2ZM10 10.5V14H11V11H14V10H10.5L10 10.5ZM11 5V2H10V5.5L10.5 6H14V5H11Z"/></svg>');
 }
 

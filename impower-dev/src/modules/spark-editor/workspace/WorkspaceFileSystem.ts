@@ -242,6 +242,11 @@ export default class WorkspaceFileSystem {
     });
   }
 
+  getUriFromPath(path: string) {
+    const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
+    return this._scheme + normalizedPath;
+  }
+
   getDirectoryUri(projectId: string) {
     return `${this._scheme}${projectId}`;
   }
