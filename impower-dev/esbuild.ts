@@ -75,22 +75,30 @@ const WATCH = process.argv.includes("--watch");
 const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
-if (!PRODUCTION) {
-  // During development, populate process.env with variables from local .env file
-  dotenv.config();
+// Collect all matching .env files
+const envPrefix = PRODUCTION ? ".env.production" : ".env.development";
+const envDir = process.cwd();
+const envFiles = fs
+  .readdirSync(envDir)
+  .filter((f) => f.startsWith(envPrefix))
+  .sort();
+for (const file of envFiles) {
+  const fullPath = path.join(envDir, file);
+  dotenv.config({ path: fullPath, override: false });
 }
 
 const BROWSER_VARIABLES_ENV: Record<string, string> = {};
 Object.entries(process.env).forEach(([key, value]) => {
-  if (value && key.startsWith("BROWSER_")) {
+  if (value && (key.startsWith("BROWSER_") || key.startsWith("VITE_"))) {
     BROWSER_VARIABLES_ENV[key] = value;
   }
 });
 // Because esbuild's built-in `define` and `banner` features occasionally cause "process not defined" errors in production builds,
 // We simply concatenate the process.env definition to the top of the minified files.
-const PROCESS_ENV_BANNER_JS = `var process = { env: ${JSON.stringify(
-  BROWSER_VARIABLES_ENV
-)} };`.trim();
+const PROCESS_ENV_BANNER_JS = `
+var process = { env: ${JSON.stringify(BROWSER_VARIABLES_ENV)} };
+import.meta.env = ${JSON.stringify(BROWSER_VARIABLES_ENV)};
+`.trim();
 console.log(STEP_COLOR, "Populating banner...");
 console.log(SRC_COLOR, `  ${PROCESS_ENV_BANNER_JS}`);
 console.log("");

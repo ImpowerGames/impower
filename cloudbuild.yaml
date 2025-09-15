@@ -20,6 +20,8 @@ steps:
     secretEnv:
       - BROWSER_GOOGLE_API_KEY
       - BROWSER_GOOGLE_OAUTH_CLIENT_ID
+    env:
+      - VITE_SPARKDOWN_PLAYER_ORIGIN=$_VITE_SPARKDOWN_PLAYER_ORIGIN
   # 2) Build a small runtime image from the compiled output
   - name: gcr.io/cloud-builders/docker
     args:

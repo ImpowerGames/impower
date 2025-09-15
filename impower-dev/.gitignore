@@ -3,5 +3,5 @@ out/
 dist/
 https/
 
-.env
+*.local
 .DS_Store
