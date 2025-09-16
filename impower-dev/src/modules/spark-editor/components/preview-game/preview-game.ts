@@ -59,6 +59,8 @@ export default class GamePreview extends Component(spec) {
     window.addEventListener("message", this.handleMessage);
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     window.addEventListener("keydown", this.handleKeyDown);
+    window.addEventListener("resizing", this.handleResizingSplitPane);
+    window.addEventListener("resized", this.handleResizedSplitPane);
     document.addEventListener("fullscreenchange", this.handleFullscreenChange);
   }
 
@@ -66,6 +68,8 @@ export default class GamePreview extends Component(spec) {
     window.removeEventListener("message", this.handleMessage);
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     window.removeEventListener("keydown", this.handleKeyDown);
+    window.removeEventListener("resizing", this.handleResizingSplitPane);
+    window.removeEventListener("resized", this.handleResizedSplitPane);
     document.removeEventListener(
       "fullscreenchange",
       this.handleFullscreenChange
@@ -241,6 +245,14 @@ export default class GamePreview extends Component(spec) {
     if (e.key === "PageDown") {
       await this.pageDown();
     }
+  };
+
+  handleResizingSplitPane = async (e: Event) => {
+    this.refs.iframe.style.pointerEvents = "none";
+  };
+
+  handleResizedSplitPane = async (e: Event) => {
+    this.refs.iframe.style.pointerEvents = "auto";
   };
 
   override onStoreUpdate() {

@@ -14,6 +14,9 @@ import { ColorName } from "../../types/colorName";
 import { SizeName } from "../../types/sizeName";
 import spec from "./_split-pane";
 
+const RESIZING_EVENT = "resizing";
+const RESIZED_EVENT = "resized";
+
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   "min-panel-width": getCssSize,
@@ -285,6 +288,11 @@ export default class SplitPane
       window.addEventListener(unrevealEvent, this.handleUnrevealEvent);
     }
     this.refs.divider.addEventListener("keydown", this.handleKeyDownDivider);
+    this.refs.resize.addEventListener(
+      "pointerdown",
+      this.handlePointerDownResize
+    );
+    this.refs.resize.addEventListener("pointerup", this.handlePointerUpResize);
   }
 
   override onDisconnected() {
@@ -297,6 +305,14 @@ export default class SplitPane
       window.removeEventListener(unrevealEvent, this.handleUnrevealEvent);
     }
     this.refs.divider.removeEventListener("keydown", this.handleKeyDownDivider);
+    this.refs.resize.removeEventListener(
+      "pointerdown",
+      this.handlePointerDownResize
+    );
+    this.refs.resize.removeEventListener(
+      "pointerup",
+      this.handlePointerUpResize
+    );
   }
 
   handleRevealEvent = () => {
@@ -328,6 +344,14 @@ export default class SplitPane
         }
       }
     }
+  };
+
+  handlePointerDownResize = (e: PointerEvent) => {
+    this.emit(RESIZING_EVENT);
+  };
+
+  handlePointerUpResize = (e: PointerEvent) => {
+    this.emit(RESIZED_EVENT);
   };
 }
 
