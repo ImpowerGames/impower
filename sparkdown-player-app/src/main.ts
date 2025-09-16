@@ -1,5 +1,9 @@
+import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { DragFilesEnterMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesEnterMessage";
+import { DragFilesLeaveMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesLeaveMessage";
+import { DragFilesOverMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesOverMessage";
+import { DropFilesMessage } from "@impower/spark-editor-protocol/src/protocols/window/DropFilesMessage";
 import SparkWebPlayer from "@impower/spark-web-player/src/index.js";
-import { MessageProtocol } from "../../packages/spark-editor-protocol/src/protocols/MessageProtocol";
 import "./style.css";
 
 const SPARKDOWN_EDITOR_ORIGIN = import.meta.env.VITE_SPARKDOWN_EDITOR_ORIGIN;
@@ -42,6 +46,49 @@ window.addEventListener(MessageProtocol.event, (e) => {
       );
     }
   }
+});
+window.addEventListener("dragenter", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  window.parent.postMessage(
+    DragFilesEnterMessage.type.request({}),
+    SPARKDOWN_EDITOR_ORIGIN
+  );
+});
+window.addEventListener("dragleave", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  window.parent.postMessage(
+    DragFilesLeaveMessage.type.request({}),
+    SPARKDOWN_EDITOR_ORIGIN
+  );
+});
+window.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  window.parent.postMessage(
+    DragFilesOverMessage.type.request({}),
+    SPARKDOWN_EDITOR_ORIGIN
+  );
+});
+window.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const files = await Promise.all(
+    Array.from(e.dataTransfer?.files || []).map(async (f) => {
+      const name = f.name;
+      const buffer = await f.arrayBuffer();
+      return {
+        name,
+        buffer,
+      };
+    })
+  );
+  window.parent.postMessage(
+    DropFilesMessage.type.request({ files }),
+    SPARKDOWN_EDITOR_ORIGIN,
+    files.map((f) => f.buffer)
+  );
 });
 
 if ("serviceWorker" in navigator) {
