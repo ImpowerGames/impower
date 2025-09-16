@@ -9,19 +9,42 @@ import {
   GameStartedMethod,
   GameStartedParams,
 } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
+import {
+  GameToggledFullscreenModeMessage,
+  GameToggledFullscreenModeMethod,
+  GameToggledFullscreenModeParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/GameToggledFullscreenModeMessage";
+
+import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
+import { EnterGameFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnterGameFullscreenModeMessage";
+import { ExitGameFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/ExitGameFullscreenModeMessage";
+import { FetchGameAssetMessage } from "@impower/spark-editor-protocol/src/protocols/game/FetchGameAssetMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
+import {
+  UpdateGameAssetsMessage,
+  UpdateGameAssetsParams,
+} from "@impower/spark-editor-protocol/src/protocols/game/UpdateGameAssetsMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import {
   DidCompileTextDocumentMessage,
   DidCompileTextDocumentMethod,
   DidCompileTextDocumentParams,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
+import {
+  DidChangeWatchedFilesMessage,
+  DidChangeWatchedFilesMethod,
+  DidChangeWatchedFilesParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-game";
+
+const SPARKDOWN_PLAYER_ORIGIN =
+  process?.env?.["VITE_SPARKDOWN_PLAYER_ORIGIN"] || "";
 
 export default class GamePreview extends Component(spec) {
   _program?: SparkProgram;
@@ -30,29 +53,91 @@ export default class GamePreview extends Component(spec) {
 
   _startFromLine = 0;
 
+  _previewIsConnected = false;
+
   override onConnected() {
-    this.configureGame();
-    this.loadPreview();
+    window.addEventListener("message", this.handleMessage);
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     window.addEventListener("keydown", this.handleKeyDown);
-    this.loadGame();
+    document.addEventListener("fullscreenchange", this.handleFullscreenChange);
   }
 
   override onDisconnected() {
+    window.removeEventListener("message", this.handleMessage);
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     window.removeEventListener("keydown", this.handleKeyDown);
+    document.removeEventListener(
+      "fullscreenchange",
+      this.handleFullscreenChange
+    );
   }
+
+  handleMessage = async (e: MessageEvent) => {
+    if (e.origin !== SPARKDOWN_PLAYER_ORIGIN) {
+      return;
+    }
+
+    // Forward messages from player to editor
+    const message = (e as MessageEvent).data;
+    this.emit(MessageProtocol.event, message);
+
+    // Once player is ready, send assets and load the game
+    if (ConnectedPreviewMessage.type.is(message)) {
+      this._previewIsConnected = true;
+      await this.configureGame();
+      await this.loadGame();
+      await this.loadPreview();
+    }
+    if (FetchGameAssetMessage.type.is(message)) {
+      const { path } = message.params;
+      const uri = Workspace.fs.getUriFromPath(path);
+      const buffer = await Workspace.fs.readFile({ file: { uri } });
+      const response = FetchGameAssetMessage.type.response(message.id, {
+        transfer: [buffer],
+      });
+      const iframe = this.refs.iframe as HTMLIFrameElement;
+      if (iframe?.contentWindow) {
+        iframe.contentWindow.postMessage(
+          response,
+          SPARKDOWN_PLAYER_ORIGIN,
+          response.result?.transfer
+        );
+      }
+    }
+  };
 
   protected handleProtocol = (e: Event) => {
     if (e instanceof CustomEvent) {
-      if (SelectedEditorMessage.type.is(e.detail)) {
-        this.handleSelectedEditor(e.detail);
+      const message = e.detail;
+      if (
+        typeof message.method === "string" &&
+        (message.method.startsWith("game/") ||
+          message.method.startsWith("preview/"))
+      ) {
+        // Forward messages from editor to player
+        const iframe = this.refs.iframe as HTMLIFrameElement;
+        if (iframe?.contentWindow) {
+          iframe.contentWindow.postMessage(
+            message,
+            SPARKDOWN_PLAYER_ORIGIN,
+            message.result?.transfer || message.params?.transfer
+          );
+        }
       }
-      if (GameStartedMessage.type.is(e.detail)) {
-        this.handleGameStarted(e.detail);
+      if (SelectedEditorMessage.type.is(message)) {
+        this.handleSelectedEditor(message);
       }
-      if (DidCompileTextDocumentMessage.type.is(e.detail)) {
-        this.handleDidCompileTextDocument(e.detail);
+      if (GameStartedMessage.type.is(message)) {
+        this.handleGameStarted(message);
+      }
+      if (GameToggledFullscreenModeMessage.type.is(message)) {
+        this.handleGameToggledFullscreenMode(message);
+      }
+      if (DidCompileTextDocumentMessage.type.is(message)) {
+        this.handleDidCompileTextDocument(message);
+      }
+      if (DidChangeWatchedFilesMessage.type.is(message)) {
+        this.handleDidChangeWatchedFiles(message);
       }
     }
   };
@@ -66,6 +151,41 @@ export default class GamePreview extends Component(spec) {
     await this.configureGame();
     await this.loadGame();
     await this.loadPreview();
+  };
+
+  handleDidChangeWatchedFiles = async (
+    message: NotificationMessage<
+      DidChangeWatchedFilesMethod,
+      DidChangeWatchedFilesParams
+    >
+  ) => {
+    const { changes } = message.params;
+    const update: UpdateGameAssetsParams = {
+      update: [],
+      delete: [],
+    };
+    await Promise.all(
+      changes.map(async (change) => {
+        if (
+          change.type === FileChangeType.Created ||
+          change.type === FileChangeType.Changed
+        ) {
+          const src = Workspace.fs.getUrl(change.uri);
+          if (src) {
+            const response = await fetch(src);
+            const data = await response.arrayBuffer();
+            update.update.push({ uri: change.uri, data });
+          }
+        }
+        if (change.type === FileChangeType.Deleted) {
+          update.delete.push({ uri: change.uri });
+        }
+      })
+    );
+    this.emit(
+      MessageProtocol.event,
+      UpdateGameAssetsMessage.type.request(update)
+    );
   };
 
   handleSelectedEditor = async (
@@ -85,6 +205,33 @@ export default class GamePreview extends Component(spec) {
     message: NotificationMessage<GameStartedMethod, GameStartedParams>
   ) => {
     Workspace.window.startGame();
+  };
+
+  handleGameToggledFullscreenMode = async (
+    message: NotificationMessage<
+      GameToggledFullscreenModeMethod,
+      GameToggledFullscreenModeParams
+    >
+  ) => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      this.refs.iframe.requestFullscreen();
+    }
+  };
+
+  handleFullscreenChange = async (e: Event) => {
+    if (document.fullscreenElement) {
+      this.emit(
+        MessageProtocol.event,
+        EnterGameFullscreenModeMessage.type.request({})
+      );
+    } else {
+      this.emit(
+        MessageProtocol.event,
+        ExitGameFullscreenModeMessage.type.request({})
+      );
+    }
   };
 
   handleKeyDown = async (e: KeyboardEvent) => {
