@@ -827,7 +827,7 @@ export default class SparkWebPlayer extends Component(spec) {
     const { type, textDocument, selectedRange } = message.params;
     if (type === "game") {
       const line = selectedRange?.start.line ?? 0;
-      this.updatePreview(textDocument.uri, line);
+      await this.updatePreview(textDocument.uri, line);
       this.updateLaunchStateIcon();
       return messageType.response(message.id, {});
     }
@@ -1145,7 +1145,7 @@ export default class SparkWebPlayer extends Component(spec) {
     );
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
     if (previewFrom) {
-      this.updatePreview(previewFrom.uri, previewFrom.range.start.line);
+      await this.updatePreview(previewFrom.uri, previewFrom.range.start.line);
     }
   }
 

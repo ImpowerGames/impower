@@ -8,12 +8,6 @@ import "./style.css";
 
 const SPARKDOWN_EDITOR_ORIGIN = import.meta.env.VITE_SPARKDOWN_EDITOR_ORIGIN;
 
-const load = async () => {
-  await Promise.allSettled([SparkWebPlayer.init()]);
-};
-
-load();
-
 window.addEventListener("message", (e) => {
   if (e.origin !== SPARKDOWN_EDITOR_ORIGIN) {
     return;
@@ -105,3 +99,9 @@ navigator.serviceWorker.addEventListener("message", (e) => {
     message.result?.transfer || message.params?.transfer
   );
 });
+
+const load = async () => {
+  await Promise.allSettled([SparkWebPlayer.init()]);
+};
+
+load();
