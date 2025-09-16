@@ -1,4 +1,3 @@
-import SparkWebPlayer from "@impower/spark-web-player/src/index.js";
 import SparkdownScreenplayPreview from "@impower/sparkdown-document-views/src/modules/screenplay-preview/index.js";
 import SparkdownScriptEditor from "@impower/sparkdown-document-views/src/modules/script-editor/index.js";
 import Sparkle from "@impower/sparkle/src/index.js";
@@ -23,7 +22,6 @@ const load = async () => {
       },
       graphics,
     }),
-    SparkWebPlayer.init(),
     SparkdownScreenplayPreview.init(),
     SparkEditor.init({ graphics }),
   ]);
