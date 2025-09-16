@@ -577,7 +577,7 @@ export class Game<T extends M = {}> {
   }
 
   continue() {
-    if (!this.context.system.simulating) {
+    if (!this._simulateFrom) {
       this._executedPathsThisFrame.clear();
     }
 
@@ -591,7 +591,7 @@ export class Game<T extends M = {}> {
       done = this.step();
     } while (!this._error && !done);
 
-    if (!this.context.system.simulating) {
+    if (!this._simulateFrom) {
       this.notifyExecuted();
     }
   }
@@ -1254,6 +1254,9 @@ export class Game<T extends M = {}> {
       this._story.ChoosePathString(previewPath);
     }
     this.continue();
+    if (this._simulateFrom) {
+      this.notifyExecuted();
+    }
     for (const k of this._moduleNames) {
       this._modules[k]?.onPreview();
     }
