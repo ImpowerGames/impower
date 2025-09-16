@@ -98,6 +98,13 @@
   animation: fade-out-overlay 200ms forwards;
 }
 
+:host > .root > slot {
+  display: flex;
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
 @keyframes fade-in-overlay {
   from {
     opacity: 0;
