@@ -1100,6 +1100,8 @@ export default class SparkWebPlayer extends Component(spec) {
         this._loadListeners.add(resolve);
       });
     }
+    this._options ??= {};
+    this._options.previewFrom = undefined;
     await this.buildGame(restarted);
     const programCompiled = this._program?.compiled;
     const gameStarted = this._game?.start();
