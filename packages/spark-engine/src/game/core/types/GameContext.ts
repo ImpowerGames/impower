@@ -4,7 +4,6 @@ export type GameContext<B = any> = {
   [K in keyof B]?: B[K];
 } & Partial<CoreBuiltins> & {
     system: {
-      initialized?: boolean;
       transitions?: boolean;
       skipping?: boolean;
       simulating?: boolean | string;

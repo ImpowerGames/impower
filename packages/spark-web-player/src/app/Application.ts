@@ -212,9 +212,11 @@ export class Application implements IApplication {
         this._screen.width = width;
         this._screen.height = height;
         if (this._initialized) {
-          if (this._renderer) {
-            this._renderer.resize(width, height, resolution);
-          }
+          try {
+            if (this._renderer) {
+              this._renderer.resize(width, height, resolution);
+            }
+          } catch {}
         }
         for (const manager of this._managers) {
           manager.onResize(width, height, resolution);
@@ -233,11 +235,14 @@ export class Application implements IApplication {
       this._resolveInit = resolve;
     });
 
-    await this.initializeRenderer();
-
-    await this.initializeGame();
+    if (!this._game.context.system.previewing) {
+      // Don't initialize renderer in preview mode
+      await this.initializeRenderer();
+    }
 
     await this.initializeManagers();
+
+    await this.connectGame();
 
     this._initialized = true;
     this._resolveInit();
@@ -255,51 +260,20 @@ export class Application implements IApplication {
     });
   }
 
-  async initializeGame() {
+  async connectGame() {
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
-    await this._game.init({
-      send: async (msg: Message, _t?: ArrayBuffer[]) => {
-        const partialResponse = await this.onReceive(
-          msg as RequestMessage | NotificationMessage
-        );
-        if (partialResponse && "id" in msg) {
-          this.emit({
-            jsonrpc: "2.0",
-            id: msg.id,
-            method: msg.method,
-            ...partialResponse,
-          });
-        }
-      },
-      now: () => window.performance.now(),
-      resolve: (path: string) => {
-        // TODO: resolve import and load paths to url
-        return path;
-      },
-      fetch: async (url: string): Promise<string> => {
-        const response = await fetch(url);
-        const text = await response.text();
-        return text;
-        // TODO: Differentiate between script text response and asset blob response
-        // const buffer = await response.arrayBuffer();
-        // return buffer;
-      },
-      log: (message: unknown, severity: "info" | "warning" | "error") => {
-        if (severity === "error") {
-          console.error(message);
-        } else if (severity === "warning") {
-          console.warn(message);
-        } else {
-          console.log(message);
-        }
-      },
-      setTimeout: (
-        handler: Function,
-        timeout?: number,
-        ...args: any[]
-      ): number => {
-        return setTimeout(handler, timeout, ...args);
-      },
+    await this._game.connect(async (msg: Message, _t?: ArrayBuffer[]) => {
+      const partialResponse = await this.onReceive(
+        msg as RequestMessage | NotificationMessage
+      );
+      if (partialResponse && "id" in msg) {
+        this.emit({
+          jsonrpc: "2.0",
+          id: msg.id,
+          method: msg.method,
+          ...partialResponse,
+        });
+      }
     });
   }
 

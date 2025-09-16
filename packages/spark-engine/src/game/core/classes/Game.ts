@@ -183,6 +183,15 @@ export class Game<T extends M = {}> {
       breakpoints?: { file: string; line: number }[];
       functionBreakpoints?: { name: string }[];
       dataBreakpoints?: { dataId: string }[];
+      now?: () => number;
+      resolve?: (path: string) => string;
+      fetch?: (url: string) => Promise<string | ArrayBuffer>;
+      log?: (message: unknown, severity: "info" | "warning" | "error") => void;
+      setTimeout?: (
+        handler: Function,
+        timeout?: number,
+        ...args: any[]
+      ) => number;
       modules?: {
         [name in keyof T]: abstract new (...args: any) => T[name];
       };
@@ -223,6 +232,9 @@ export class Game<T extends M = {}> {
     this._startPath =
       this.getClosestPath(this._startFrom.file, this._startFrom.line) || "0";
 
+    this._executingPath = "";
+    this._executingLocation = [-1, -1, -1, -1, -1];
+
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
     this.updateDataBreakpointsMap(options?.dataBreakpoints ?? []);
@@ -245,24 +257,32 @@ export class Game<T extends M = {}> {
         this._executedPathsThisFrame.add(path);
       }
     };
+
     // Create context
     this._context = {
       system: {
         previewing,
-        initialized: false,
         transitions: true,
         checkpoint: () => this.checkpoint(),
         uuid: () => uuid(),
         supports: (module: string) => this.supports(module),
-        now: () => {
-          return 0;
-        },
-        setTimeout: () => {
-          throw new Error("setTimeout not configured");
-        },
+        now:
+          options?.now ??
+          (() => {
+            return 0;
+          }),
+        setTimeout:
+          options?.setTimeout ??
+          (() => {
+            throw new Error("setTimeout not configured");
+          }),
+        log: options?.log,
+        fetch: options?.fetch,
+        resolve: options?.resolve,
       },
       ...(this._program.context || {}),
     };
+
     // Override default modules with custom ones if specified
     const allModules = {
       ...modules, // custom modules should be first in call order
@@ -291,34 +311,26 @@ export class Game<T extends M = {}> {
     }
     this._moduleNames = moduleNames;
 
-    this._executingPath = "";
-    this._executingLocation = [-1, -1, -1, -1, -1];
+    for (const moduleName of this._moduleNames) {
+      this._modules[moduleName]?.onInit();
+    }
+
+    if (this._simulateFrom) {
+      // Simulate module state
+      this.simulate();
+    }
   }
 
   supports(name: string): boolean {
     return Boolean(this._modules[name]);
   }
 
-  async init(config: {
-    send: (message: Message, transfer?: ArrayBuffer[]) => void;
-    now: () => number;
-    resolve: (path: string) => string;
-    fetch: (url: string) => Promise<string | ArrayBuffer>;
-    log: (message: unknown, severity: "info" | "warning" | "error") => void;
-    setTimeout: (handler: Function, timeout?: number, ...args: any[]) => number;
-  }) {
-    this._connection.connectOutput(config.send);
-    this._context.system.now = config.now;
-    this._context.system.resolve = config.resolve;
-    this._context.system.fetch = config.fetch;
-    this._context.system.log = config.log;
-    this._context.system.setTimeout = config.setTimeout;
-    this._context.system.initialized = true;
+  async connect(send: (message: Message, transfer?: ArrayBuffer[]) => void) {
+    this._connection.connectOutput(send);
     for (const moduleName of this._moduleNames) {
-      this._modules[moduleName]?.onInit();
+      this._modules[moduleName]?.onConnected();
     }
     if (this._simulateFrom) {
-      this.simulate();
       // Restore module state
       await this.restore();
     }

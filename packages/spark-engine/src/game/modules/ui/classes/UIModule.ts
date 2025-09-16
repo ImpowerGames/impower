@@ -89,7 +89,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return [];
   }
 
-  override onInit() {
+  override onConnected() {
+    this._root = undefined;
     this._root = this.getOrCreateRootElement();
     this.loadStyles();
     this.loadUI();
@@ -135,13 +136,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override onPreview() {
     this.reveal();
     return super.onPreview();
-  }
-
-  override onDestroy(): void {
-    super.onDestroy();
-    if (this._root) {
-      this.destroyElement(this._root);
-    }
   }
 
   protected generateId() {

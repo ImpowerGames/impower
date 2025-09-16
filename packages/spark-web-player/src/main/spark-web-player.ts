@@ -1176,6 +1176,35 @@ export default class SparkWebPlayer extends Component(spec) {
       startFrom,
       breakpoints,
       functionBreakpoints,
+      now: () => window.performance.now(),
+      resolve: (path: string) => {
+        // TODO: resolve import and load paths to url
+        return path;
+      },
+      fetch: async (url: string): Promise<string> => {
+        const response = await fetch(url);
+        const text = await response.text();
+        return text;
+        // TODO: Differentiate between script text response and asset blob response
+        // const buffer = await response.arrayBuffer();
+        // return buffer;
+      },
+      log: (message: unknown, severity: "info" | "warning" | "error") => {
+        if (severity === "error") {
+          console.error(message);
+        } else if (severity === "warning") {
+          console.warn(message);
+        } else {
+          console.log(message);
+        }
+      },
+      setTimeout: (
+        handler: Function,
+        timeout?: number,
+        ...args: any[]
+      ): number => {
+        return setTimeout(handler, timeout, ...args);
+      },
     });
     this.updateLaunchLabel();
     this.updateExecutedLabel(null);

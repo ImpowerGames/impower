@@ -38,8 +38,11 @@ export abstract class Module<
 
   abstract getStored(): string[];
 
-  /** Executed when the game is initialized (after it is safe to emit game messages) */
+  /** Executed when the game is initialized */
   onInit() {}
+
+  /** Executed when the game is ready to send messages */
+  onConnected() {}
 
   /** Executed when the game starts */
   onStart(): void {}
