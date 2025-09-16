@@ -18,6 +18,7 @@ export default spec({
           id="iframe"
           src="${SPARKDOWN_PLAYER_ORIGIN}/"
           sandbox="allow-scripts allow-forms allow-same-origin"
+          allow="autoplay"
           referrerpolicy="no-referrer"
           style="visibility:hidden;"
           onload="this.style.visibility = 'visible';"
