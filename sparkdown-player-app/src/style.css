@@ -1,4 +1,5 @@
 :root {
+  --swp-background-color: hsl(210.6, 100%, 10%);
   background-color: hsl(210.6, 100%, 10%);
   color: #ffffffde;
 }
