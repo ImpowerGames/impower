@@ -89,6 +89,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return [];
   }
 
+  override onReset() {
+    this._firstUpdate = true;
+    this._events = {};
+  }
+
   override onConnected() {
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
@@ -1106,6 +1111,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         targetAnimationMap: Map<Element, Animation[]>
       ) {
         for (const e of sequence) {
+          // Reveal target before showing content
+          const isFirstContentReveal =
+            (e.control === "show" || e.control === "set") &&
+            e.assets &&
+            e.assets.length > 0;
+          if (isFirstContentReveal) {
+            const showEvent = {
+              name: "show",
+              after: e.after,
+              over: 0,
+            };
+            if (!targetAnimationMap.has(targetEl)) {
+              targetAnimationMap.set(targetEl, []);
+            }
+            $.queueAnimationEvent(
+              showEvent,
+              instant,
+              targetAnimationMap.get(targetEl)!
+            );
+          }
           const transitionWith = e.with || "";
           const transition = $.context?.transition?.[transitionWith];
           // Calculate transition speed
@@ -1344,27 +1369,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               $.updateElement(targetEl, {
                 style: { display: null },
               });
-              // Reveal target before showing content
-              const firstContentReveal = sequence.find(
-                (e) =>
-                  (e.control === "show" || e.control === "set") &&
-                  e.assets?.length
-              );
-              if (firstContentReveal) {
-                const showEvent = {
-                  name: "show",
-                  after: firstContentReveal.after,
-                  over: 0,
-                };
-                if (!targetAnimationMap.has(targetEl)) {
-                  targetAnimationMap.set(targetEl, []);
-                }
-                $.queueAnimationEvent(
-                  showEvent,
-                  instant,
-                  targetAnimationMap.get(targetEl)!
-                );
-              }
               this.process(
                 targetEl,
                 [
