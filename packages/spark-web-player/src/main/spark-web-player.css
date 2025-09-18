@@ -168,7 +168,7 @@
 
 #left-items,
 #right-items {
-  background-color: var(--swp-background-color);
+  background-color: inherit;
   height: 100%;
   display: flex;
   flex-direction: row;
