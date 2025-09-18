@@ -110,6 +110,7 @@ export default class SparkWebPlayer extends Component(spec) {
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     window.addEventListener("contextmenu", this.handleContextMenu, true);
     window.addEventListener("dragstart", this.handleDragStart);
+    window.addEventListener("resize", this.handleResize);
     this.refs.playButton?.addEventListener("click", this.handleClickPlayButton);
     this.refs.toolbar?.addEventListener(
       "pointerdown",
@@ -375,10 +376,10 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   }
 
-  getAspectRatioLabel(width: number, height: number) {
+  getAspectRatio(width: number, height: number) {
     for (const [w, h] of COMMON_ASPECT_RATIOS) {
-      const expectedHeight = Math.round((width * h) / w);
-      if (height === expectedHeight) {
+      const expectedHeight = (width * h) / w;
+      if (Math.round(height) === Math.round(expectedHeight)) {
         return `${w}:${h}`;
       }
     }
@@ -389,7 +390,7 @@ export default class SparkWebPlayer extends Component(spec) {
     const rect = this.refs.game.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
-    const ratio = this.getAspectRatioLabel(width, height);
+    const ratio = this.getAspectRatio(width, height);
     const sizeLabel = `${width.toFixed(0)} × ${height.toFixed(0)}`;
     const aspectRatioLabel = ratio ? `(${ratio})` : "";
     this.refs.sizeLabel.textContent = sizeLabel;
