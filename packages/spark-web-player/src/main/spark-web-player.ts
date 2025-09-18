@@ -296,9 +296,12 @@ export default class SparkWebPlayer extends Component(spec) {
   protected updateLaunchButton() {
     const simulation = Boolean(this._options?.simulateFrom);
     this.refs.launchButton.classList.toggle("pinned", simulation);
-    if (!simulation) {
+    if (simulation) {
+      this.refs.resetButton.hidden = true;
+    } else {
       this.refs.locationItems.classList.toggle("error", false);
       this.refs.connectionLabel.textContent = `→`;
+      this.refs.resetButton.hidden = false;
     }
   }
 
