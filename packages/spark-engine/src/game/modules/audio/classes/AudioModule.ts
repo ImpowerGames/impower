@@ -51,6 +51,10 @@ export class AudioModule extends Module<
     return [];
   }
 
+  override onReset() {
+    this._channelsCurrentlyPlaying = new Map();
+  }
+
   override async onRestore() {
     if (this.context.mixer) {
       // TODO: retrieve saved mixer gain from preferences instead

@@ -55,11 +55,19 @@ export abstract class Module<
   /** Executed when the game is destroyed */
   onDestroy(): void {}
 
+  /** Resets module state */
+  async reset() {
+    this._state = {} as S;
+    this.onReset();
+  }
+
   /** Restores state from save file */
   async load(state: S) {
     this._state = state;
     this.onLoad();
   }
+
+  onReset() {}
 
   /** Executed when a save file is loaded */
   async onLoad() {}

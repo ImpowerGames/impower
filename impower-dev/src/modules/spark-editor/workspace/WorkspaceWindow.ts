@@ -4,6 +4,8 @@ import {
   ChangedEditorBreakpointsMethod,
   ChangedEditorBreakpointsParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
+import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
+import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import {
   ScrolledEditorMessage,
   ScrolledEditorMethod,
@@ -15,13 +17,10 @@ import {
   SelectedEditorMethod,
   SelectedEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
+import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
 import { DisableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
-import {
-  GameWillSimulateFromMessage,
-  GameWillSimulateFromMethod,
-  GameWillSimulateFromParams,
-} from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateFromMessage";
 import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
 import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
 import { StepGameClockMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameClockMessage";
@@ -89,11 +88,14 @@ export default class WorkspaceWindow {
       if (ChangedEditorBreakpointsMessage.type.is(e.detail)) {
         this.handleChangedEditorBreakpoints(e.detail);
       }
+      if (ChangedEditorPinpointsMessage.type.is(e.detail)) {
+        this.handleChangedEditorPinpoints(e.detail);
+      }
+      if (ChangedEditorHighlightsMessage.type.is(e.detail)) {
+        this.handleChangedEditorHighlights(e.detail);
+      }
       if (DidCompileTextDocumentMessage.type.is(e.detail)) {
         this.handleDidParseDocument(e.detail);
-      }
-      if (GameWillSimulateFromMessage.type.is(e.detail)) {
-        this.handleGameWillSimulateFrom(e.detail);
       }
     }
   };
@@ -111,7 +113,9 @@ export default class WorkspaceWindow {
     // Reset sync state
     copy.sync = {};
     // Reset diagnostics state
-    copy.debug.diagnostics = undefined;
+    copy.debug.diagnostics = {};
+    // Reset highlights state
+    copy.debug.highlights = {};
     // Reset game preview state
     copy.preview.modes.game = {};
     return copy;
@@ -227,39 +231,52 @@ export default class WorkspaceWindow {
       ChangedEditorBreakpointsParams
     >
   ) => {
-    const { textDocument, breakpointRanges } = message.params;
+    const { textDocument, breakpointLines } = message.params;
     const uri = textDocument.uri;
-    const filename = uri.split("/").slice(-1).join("");
-    const pane = this.getPaneType(filename);
-    const panel = this.getPanelType(filename);
-    if (pane && panel) {
-      this.update({
-        ...this.store,
-        panes: {
-          ...this.store.panes,
-          [pane]: {
-            ...this.store.panes[pane],
-            panels: {
-              ...this.store.panes[pane].panels,
-              [panel]: {
-                ...this.store.panes[pane].panels[panel],
-                activeEditor: {
-                  ...this.store.panes[pane].panels[panel]!.activeEditor,
-                  breakpointRanges,
-                },
-              },
-            },
-          },
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        breakpoints: {
+          ...this.store.debug.breakpoints,
+          [uri]: breakpointLines,
         },
-        debug: {
-          ...this.store.debug,
-          breakpoints: {
-            ...this.store.debug.breakpoints,
-            [uri]: breakpointRanges,
-          },
+      },
+    });
+  };
+
+  protected handleChangedEditorPinpoints = (
+    message: ChangedEditorPinpointsMessage.Notification
+  ) => {
+    const { textDocument, pinpointLines } = message.params;
+    const uri = textDocument.uri;
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        pinpoints: {
+          ...this.store.debug.pinpoints,
+          [uri]: pinpointLines,
         },
-      });
-    }
+      },
+    });
+  };
+
+  protected handleChangedEditorHighlights = (
+    message: ChangedEditorHighlightsMessage.Notification
+  ) => {
+    const { textDocument, highlightLines } = message.params;
+    const uri = textDocument.uri;
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        highlights: {
+          ...this.store.debug.highlights,
+          [uri]: highlightLines,
+        },
+      },
+    });
   };
 
   protected handleDidParseDocument = (
@@ -277,23 +294,6 @@ export default class WorkspaceWindow {
       },
     });
   };
-
-  protected handleGameWillSimulateFrom = (
-    message: NotificationMessage<
-      GameWillSimulateFromMethod,
-      GameWillSimulateFromParams
-    >
-  ) => {
-    const { simulateFrom } = message.params;
-    this.update({
-      ...this.store,
-      debug: {
-        ...this.store.debug,
-        simulateFrom,
-      },
-    });
-  };
-
   protected handleScreenSizeChange = (query: MediaQueryListEvent) => {
     const horizontalLayout = query.matches;
     this.update({
@@ -304,6 +304,46 @@ export default class WorkspaceWindow {
       },
     });
   };
+
+  setHighlights(highlights: Record<string, number[]>) {
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        highlights,
+      },
+    });
+    const locations = Object.entries(highlights).flatMap(([uri, lines]) =>
+      lines.map((line) => ({
+        uri,
+        range: { start: { line, character: 0 }, end: { line, character: 0 } },
+      }))
+    );
+    this.emit(
+      MessageProtocol.event,
+      SetEditorHighlightsMessage.type.request({ locations })
+    );
+  }
+
+  setPinpoints(pinpoints: Record<string, number[]>) {
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        pinpoints,
+      },
+    });
+    const locations = Object.entries(pinpoints).flatMap(([uri, lines]) =>
+      lines.map((line) => ({
+        uri,
+        range: { start: { line, character: 0 }, end: { line, character: 0 } },
+      }))
+    );
+    this.emit(
+      MessageProtocol.event,
+      SetEditorPinpointsMessage.type.request({ locations })
+    );
+  }
 
   getPaneState(pane: PaneType) {
     const paneState = this.store.panes[pane];
@@ -359,7 +399,9 @@ export default class WorkspaceWindow {
   getActiveEditorForFile(filenameOrUri: string):
     | (EditorState & {
         uri: string;
-        breakpointRanges: Range[] | undefined;
+        breakpointLines: number[] | undefined;
+        pinpointLines: number[] | undefined;
+        highlightLines: number[] | undefined;
       })
     | undefined {
     const projectId = this.store.project.id;
@@ -378,7 +420,9 @@ export default class WorkspaceWindow {
             focused: panelState?.activeEditor?.focused,
             visibleRange: panelState?.activeEditor?.visibleRange,
             selectedRange: panelState?.activeEditor?.selectedRange,
-            breakpointRanges: this.store.debug?.breakpoints?.[uri],
+            breakpointLines: this.store.debug?.breakpoints?.[uri],
+            pinpointLines: this.store.debug?.pinpoints?.[uri],
+            highlightLines: this.store.debug?.highlights?.[uri],
           };
         }
       }
@@ -392,7 +436,8 @@ export default class WorkspaceWindow {
         uri: string;
         visibleRange: Range | undefined;
         selectedRange: Range | undefined;
-        breakpointRanges: Range[] | undefined;
+        breakpointLines: number[] | undefined;
+        pinpointLines: number[] | undefined;
       }
     | undefined {
     const projectId = this.store.project.id;
@@ -410,7 +455,8 @@ export default class WorkspaceWindow {
           uri,
           visibleRange: openEditor.visibleRange,
           selectedRange: openEditor.selectedRange,
-          breakpointRanges: this.store.debug?.breakpoints?.[uri],
+          breakpointLines: this.store.debug?.breakpoints?.[uri],
+          pinpointLines: this.store.debug?.pinpoints?.[uri],
         };
       }
     }
@@ -429,7 +475,7 @@ export default class WorkspaceWindow {
     return undefined;
   }
 
-  showDocument(uri: string, selection?: Range, takeFocus?: boolean) {
+  showDocument(uri: string, range?: Range, takeFocus?: boolean) {
     const filename = Workspace.fs.getFilename(uri);
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
@@ -453,13 +499,13 @@ export default class WorkspaceWindow {
                     ? takeFocus
                     : this.store.panes[pane].panels[panel]?.activeEditor
                         ?.focused,
-                  visibleRange: selection
-                    ? { ...selection }
+                  visibleRange: range
+                    ? { ...range }
                     : this.store.panes[pane].panels[panel]?.activeEditor
                         ?.visibleRange,
                   selectedRange:
-                    selection && takeFocus
-                      ? { ...selection }
+                    range && takeFocus
+                      ? { ...range }
                       : this.store.panes[pane].panels[panel]?.activeEditor
                           ?.selectedRange,
                 },
@@ -475,7 +521,7 @@ export default class WorkspaceWindow {
         MessageProtocol.event,
         ShowDocumentMessage.type.request({
           uri,
-          selection,
+          selection: range,
           takeFocus,
         })
       );

@@ -22,6 +22,8 @@ export default spec({
     launchStateIcon: "#launch-state-icon",
     launchButton: "#launch-button",
     launchLabel: "#launch-label",
+    executionInfo: "#execution-info",
+    connectionLabel: "#connection-label",
     executedLabel: "#executed-label",
     sizeLabel: "#size-label",
     aspectRatioLabel: "#aspect-ratio-label",
@@ -40,7 +42,10 @@ export default spec({
               <span id="launch-state-icon"></span>
               <span id="launch-label"></span>
             </div>
-            <span id="executed-label"></span>
+            <div id="execution-info">
+              <span id="connection-label"></span>
+              <span id="executed-label"></span>
+            </div>
           </div>
           <div id="reset-button" class="toolbar-button">
             <div id="reset-icon"></div>

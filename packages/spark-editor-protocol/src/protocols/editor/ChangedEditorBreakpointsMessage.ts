@@ -1,4 +1,4 @@
-import { Range, TextDocumentIdentifier } from "../../types";
+import { TextDocumentIdentifier } from "../../types";
 import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
@@ -7,11 +7,11 @@ export type ChangedEditorBreakpointsMethod =
 
 export interface ChangedEditorBreakpointsParams {
   textDocument: TextDocumentIdentifier;
-  breakpointRanges: Range[];
+  breakpointLines: number[];
 }
 
 export class ChangedEditorBreakpointsMessage {
-  static readonly method = "editor/breakpoints";
+  static readonly method = "editor/breakpointsChanged";
   static readonly type = new MessageProtocolNotificationType<
     ChangedEditorBreakpointsMethod,
     ChangedEditorBreakpointsParams

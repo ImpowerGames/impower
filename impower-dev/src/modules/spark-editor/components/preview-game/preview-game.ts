@@ -1,33 +1,21 @@
-import {
-  SelectedEditorMessage,
-  SelectedEditorMethod,
-  SelectedEditorParams,
-} from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
+import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
+import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
 import { EnterGameFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnterGameFullscreenModeMessage";
 import { ExitGameFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/ExitGameFullscreenModeMessage";
 import { FetchGameAssetMessage } from "@impower/spark-editor-protocol/src/protocols/game/FetchGameAssetMessage";
-import {
-  GameStartedMessage,
-  GameStartedMethod,
-  GameStartedParams,
-} from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
-import {
-  GameToggledFullscreenModeMessage,
-  GameToggledFullscreenModeMethod,
-  GameToggledFullscreenModeParams,
-} from "@impower/spark-editor-protocol/src/protocols/game/GameToggledFullscreenModeMessage";
+import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
+import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
+import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
+import { GameToggledFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameToggledFullscreenModeMessage";
+import { GameWillSimulateFromMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateFromMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import {
-  DidCompileTextDocumentMessage,
-  DidCompileTextDocumentMethod,
-  DidCompileTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
-import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
+import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
@@ -141,17 +129,29 @@ export default class GamePreview extends Component(spec) {
       if (GameToggledFullscreenModeMessage.type.is(message)) {
         this.handleGameToggledFullscreenMode(message);
       }
+      if (GameWillSimulateFromMessage.type.is(message)) {
+        this.handleGameWillSimulateFrom(message);
+      }
+      if (GameExecutedMessage.type.is(e.detail)) {
+        this.handleGameExecuted(e.detail);
+      }
+      if (GameExitedMessage.type.is(e.detail)) {
+        this.handleGameExited(e.detail);
+      }
       if (DidCompileTextDocumentMessage.type.is(message)) {
         this.handleDidCompileTextDocument(message);
+      }
+      if (ChangedEditorBreakpointsMessage.type.is(message)) {
+        this.handleChangedEditorBreakpoints(message);
+      }
+      if (ChangedEditorPinpointsMessage.type.is(message)) {
+        this.handleChangedEditorPinpoints(message);
       }
     }
   };
 
   handleDidCompileTextDocument = async (
-    message: NotificationMessage<
-      DidCompileTextDocumentMethod,
-      DidCompileTextDocumentParams
-    >
+    message: DidCompileTextDocumentMessage.Notification
   ) => {
     if (this._previewIsConnected) {
       const { program } = message.params;
@@ -159,8 +159,20 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
+  handleChangedEditorBreakpoints = async (
+    message: ChangedEditorBreakpointsMessage.Notification
+  ) => {
+    await this.configureGame();
+  };
+
+  handleChangedEditorPinpoints = async (
+    message: ChangedEditorPinpointsMessage.Notification
+  ) => {
+    await this.configureGame();
+  };
+
   handleSelectedEditor = async (
-    message: NotificationMessage<SelectedEditorMethod, SelectedEditorParams>
+    message: SelectedEditorMessage.Notification
   ) => {
     const { textDocument, selectedRange, docChanged } = message.params;
     if (textDocument.uri === this._startFromFile && !docChanged) {
@@ -172,23 +184,85 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
-  handleGameStarted = async (
-    message: NotificationMessage<GameStartedMethod, GameStartedParams>
-  ) => {
+  handleGameStarted = async (message: GameStartedMessage.Notification) => {
     Workspace.window.startGame();
   };
 
   handleGameToggledFullscreenMode = async (
-    message: NotificationMessage<
-      GameToggledFullscreenModeMethod,
-      GameToggledFullscreenModeParams
-    >
+    message: GameToggledFullscreenModeMessage.Notification
   ) => {
     if (document.fullscreenElement) {
       document.exitFullscreen();
     } else {
       this.refs.iframe.requestFullscreen();
     }
+  };
+
+  handleGameWillSimulateFrom = async (
+    message: GameWillSimulateFromMessage.Notification
+  ) => {
+    const { simulateFrom } = message.params;
+    const pinpoints = simulateFrom
+      ? { [simulateFrom.file]: [simulateFrom.line] }
+      : {};
+    Workspace.window.setPinpoints(pinpoints);
+  };
+
+  protected handleGameExecuted = (
+    message: GameExecutedMessage.Notification
+  ): void => {
+    const { locations, state, restarted, simulation, simulateFrom } =
+      message.params;
+
+    const executedSets: Record<string, Set<number>> = {};
+    for (const location of locations) {
+      executedSets[location.uri] ??= new Set();
+      for (
+        let i = location.range.start.line;
+        i <= location.range.end.line;
+        i++
+      ) {
+        executedSets[location.uri]?.add(i);
+      }
+    }
+    const executedMap: Record<string, number[]> = {};
+    for (const [uri, set] of Object.entries(executedSets)) {
+      executedMap[uri] = Array.from(set);
+    }
+    Workspace.window.setHighlights(executedMap);
+
+    // TODO:
+    // if (simulateFrom && simulateFrom.file === this._textDocument?.uri) {
+    //   this._view.dom.classList.toggle("pinpointError", simulation === "fail");
+    // }
+
+    if (state === "running" && !restarted) {
+      const editor = Workspace.window.getActiveEditorForPane("logic");
+      if (editor) {
+        const { uri } = editor;
+        const currentDocExecutedLines = executedMap[uri];
+        const lastExecutedLine = currentDocExecutedLines?.at(-1);
+        if (lastExecutedLine != null) {
+          const range = {
+            start: {
+              line: lastExecutedLine,
+              character: 0,
+            },
+            end: {
+              line: lastExecutedLine,
+              character: 0,
+            },
+          };
+          Workspace.window.showDocument(uri, range, false);
+        }
+      }
+    }
+  };
+
+  protected handleGameExited = (
+    _message: GameExitedMessage.Notification
+  ): void => {
+    Workspace.window.setHighlights({});
   };
 
   handleFullscreenChange = async (e: Event) => {
@@ -254,25 +328,22 @@ export default class GamePreview extends Component(spec) {
       const startLine = selectedRange?.start?.line ?? 0;
       this._startFromFile = uri;
       this._startFromLine = startLine;
-      const breakpoints: { file: string; line: number }[] = [];
       const workspace = Workspace.window.store.project.directory;
-      if (Workspace.window.store.debug?.breakpoints) {
-        Object.entries(Workspace.window.store.debug.breakpoints).forEach(
-          ([uri, ranges]) => {
-            ranges.forEach((range) =>
-              breakpoints.push({ file: uri, line: range.start.line })
-            );
-          }
-        );
-      }
-      const simulateFrom = Workspace.window.store.debug.simulateFrom;
+      const [file, lines] =
+        Object.entries(Workspace.window.store.debug.pinpoints || {})[0] || [];
+      const simulateFrom =
+        file && lines && lines.length > 0
+          ? {
+              file,
+              line: lines[0]!,
+            }
+          : null;
       const startFrom = {
         file: uri,
         line: startLine,
       };
       await this.sendRequest(ConfigureGameMessage.type, {
         workspace,
-        breakpoints,
         startFrom,
         simulateFrom,
       });

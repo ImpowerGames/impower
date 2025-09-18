@@ -10,7 +10,6 @@
  * The most important class of the Debug Adapter is the MockDebugSession which implements many DAP requests by talking to the MockRuntime.
  */
 
-import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
 import { ContinueGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ContinueGameMessage";
 import { GameAutoAdvancedToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameAutoAdvancedToContinueMessage";
 import { GameAwaitingInteractionMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameAwaitingInteractionMessage";
@@ -32,6 +31,9 @@ import {
   RestartGameMessage,
   RestartGameParams,
 } from "@impower/spark-editor-protocol/src/protocols/game/RestartGameMessage";
+import { SetGameBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/game/SetGameBreakpointsMessage";
+import { SetGameDataBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/game/SetGameDataBreakpointsMessage";
+import { SetGameFunctionBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/game/SetGameFunctionBreakpointsMessage";
 import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
@@ -567,7 +569,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     }
 
     const { breakpoints } = await this._connection.emit(
-      ConfigureGameMessage.type.request({
+      SetGameBreakpointsMessage.type.request({
         breakpoints: setBreakpoints,
       })
     );
@@ -624,7 +626,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     }
 
     const { functionBreakpoints } = await this._connection.emit(
-      ConfigureGameMessage.type.request({
+      SetGameFunctionBreakpointsMessage.type.request({
         functionBreakpoints: setFunctionBreakpoints,
       })
     );
@@ -997,7 +999,7 @@ export class SparkDebugSession extends LoggingDebugSession {
     // console.log("setDataBreakpointsRequest", args);
 
     const { dataBreakpoints } = await this._connection.emit(
-      ConfigureGameMessage.type.request({
+      SetGameDataBreakpointsMessage.type.request({
         dataBreakpoints: args.breakpoints,
       })
     );

@@ -10,7 +10,9 @@ export interface LoadEditorParams {
   focused?: boolean;
   visibleRange?: Range;
   selectedRange?: Range;
-  breakpointRanges?: Range[];
+  breakpointLines?: number[];
+  pinpointLines?: number[];
+  highlightLines?: number[];
   languageServerCapabilities: ServerCapabilities;
 }
 

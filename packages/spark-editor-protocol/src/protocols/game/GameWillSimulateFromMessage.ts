@@ -5,7 +5,7 @@ export type GameWillSimulateFromMethod =
   typeof GameWillSimulateFromMessage.method;
 
 export interface GameWillSimulateFromParams {
-  simulateFrom?: { file: string; line: number };
+  simulateFrom?: { file: string; line: number } | null;
 }
 
 export class GameWillSimulateFromMessage {

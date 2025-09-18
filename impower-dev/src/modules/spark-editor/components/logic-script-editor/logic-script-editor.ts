@@ -153,7 +153,9 @@ export default class LogicScriptEditor extends Component(spec) {
         const focused = editor.focused;
         const visibleRange = editor.visibleRange;
         const selectedRange = editor.selectedRange;
-        const breakpointRanges = editor.breakpointRanges;
+        const breakpointLines = editor.breakpointLines;
+        const pinpointLines = editor.pinpointLines;
+        const highlightLines = editor.highlightLines;
         const files = await Workspace.fs.getFiles(projectId);
         const file = files[uri];
         const text = file?.text || "";
@@ -174,7 +176,9 @@ export default class LogicScriptEditor extends Component(spec) {
             focused,
             visibleRange,
             selectedRange,
-            breakpointRanges,
+            breakpointLines,
+            pinpointLines,
+            highlightLines,
             languageServerCapabilities,
           })
         );

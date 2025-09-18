@@ -1,5 +1,6 @@
 import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
 import { VersionedTextDocumentIdentifier } from "../../types";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidCompileTextDocumentMethod =
@@ -22,4 +23,12 @@ export class DidCompileTextDocumentMessage {
     DidCompileTextDocumentMethod,
     DidCompileTextDocumentParams
   >(DidCompileTextDocumentMessage.method);
+}
+
+export namespace DidCompileTextDocumentMessage {
+  export interface Notification
+    extends NotificationMessage<
+      DidCompileTextDocumentMethod,
+      DidCompileTextDocumentParams
+    > {}
 }

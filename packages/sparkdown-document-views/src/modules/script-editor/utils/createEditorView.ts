@@ -37,7 +37,19 @@ import {
   getBreakpointLineNumbers,
 } from "../../../cm-breakpoints/breakpoints";
 import { foldedField } from "../../../cm-folded/foldedField";
+import {
+  getHighlightLineNumbers,
+  highlightDeco,
+  highlightsChanged,
+  highlightsField,
+} from "../../../cm-highlight-lines/highlightLines";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
+import {
+  getPinpointLineNumbers,
+  pinpointDeco,
+  pinpointsChanged,
+  pinpointsField,
+} from "../../../cm-pinpoints/pinpoints";
 import {
   updateVariableWidgets,
   variableWidgets,
@@ -76,7 +88,9 @@ interface EditorConfig {
   bottom: number;
   defaultState?: SerializableEditorState;
   stabilizationDuration?: number;
-  breakpoints?: number[];
+  breakpointLineNumbers?: number[];
+  pinpointLineNumbers?: number[];
+  highlightLineNumbers?: number[];
   topContainer?: HTMLElement;
   bottomContainer?: HTMLElement;
   scrollToLineNumber?: number;
@@ -92,7 +106,9 @@ interface EditorConfig {
     anchor: number,
     head: number
   ) => void;
-  onBreakpointsChanged?: (update: ViewUpdate, ranges: number[]) => void;
+  onBreakpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
+  onPinpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
+  onHighlightsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onHeightChanged?: () => void;
   changeFilter?: (tr: Transaction) => boolean | readonly number[];
   transactionFilter?: (
@@ -116,7 +132,9 @@ const createEditorView = (
   const bottom = config?.bottom;
   const defaultState = config?.defaultState;
   const stabilizationDuration = config?.stabilizationDuration ?? 50;
-  const breakpoints = config?.breakpoints;
+  const breakpointLineNumbers = config?.breakpointLineNumbers;
+  const pinpointLineNumbers = config?.pinpointLineNumbers;
+  const highlightLineNumbers = config?.highlightLineNumbers;
   const topContainer = config.topContainer;
   const bottomContainer = config.bottomContainer;
   const scrollToLineNumber = config?.scrollToLineNumber;
@@ -127,6 +145,8 @@ const createEditorView = (
   const onIdle = config?.onIdle ?? (() => {});
   const onSelectionChanged = config?.onSelectionChanged;
   const onBreakpointsChanged = config?.onBreakpointsChanged;
+  const onPinpointsChanged = config?.onPinpointsChanged;
+  const onHighlightsChanged = config?.onHighlightsChanged;
   const onHeightChanged = config?.onHeightChanged;
   const debouncedIdle = debounce(onIdle, stabilizationDuration);
   const getEditorState = config?.getEditorState;
@@ -168,6 +188,9 @@ const createEditorView = (
         ),
       ]
     : [];
+  let prevBreakpointLineNumbers = breakpointLineNumbers;
+  let prevPinpointLineNumbers = pinpointLineNumbers;
+  let prevHighlightLineNumbers = highlightLineNumbers;
   const startState = EditorState.create({
     doc,
     selection,
@@ -188,10 +211,34 @@ const createEditorView = (
       editable.of(EditorView.editable.of(true)),
       breakpointsField.init((state) => {
         const gutterMarkers: Range<GutterMarker>[] =
-          breakpoints?.map((lineNumber) => {
+          breakpointLineNumbers?.map((lineNumber) => {
             return breakpointMarker.range(state.doc.line(lineNumber).from);
           }) ?? [];
         return RangeSet.of(gutterMarkers, true);
+      }),
+      pinpointsField.init((state) => {
+        let decorations = RangeSet.empty;
+        if (pinpointLineNumbers) {
+          decorations = decorations.update({
+            add: pinpointLineNumbers.map((lineNumber) =>
+              pinpointDeco.range(state.doc.line(lineNumber).from)
+            ),
+            sort: true,
+          });
+        }
+        return decorations;
+      }),
+      highlightsField.init((state) => {
+        let decorations = RangeSet.empty;
+        if (highlightLineNumbers) {
+          decorations = decorations.update({
+            add: highlightLineNumbers.map((lineNumber) =>
+              highlightDeco.range(state.doc.line(lineNumber).from)
+            ),
+            sort: true,
+          });
+        }
+        return decorations;
       }),
       EditorView.scrollMargins.of(() => {
         return scrollMargin ?? null;
@@ -258,8 +305,35 @@ const createEditorView = (
           const head = cursorRange?.head;
           onSelectionChanged?.(u, anchor, head);
         }
-        if (breakpointsChanged(u)) {
-          onBreakpointsChanged?.(u, getBreakpointLineNumbers(u.view));
+        if (u.docChanged || breakpointsChanged(u)) {
+          const currentBreakpointLineNumbers = getBreakpointLineNumbers(u.view);
+          if (
+            JSON.stringify(currentBreakpointLineNumbers) !==
+            JSON.stringify(prevBreakpointLineNumbers)
+          ) {
+            prevBreakpointLineNumbers = currentBreakpointLineNumbers;
+            onBreakpointsChanged?.(u, currentBreakpointLineNumbers);
+          }
+        }
+        if (u.docChanged || pinpointsChanged(u)) {
+          const currentPinpointLineNumbers = getPinpointLineNumbers(u.view);
+          if (
+            JSON.stringify(currentPinpointLineNumbers) !==
+            JSON.stringify(prevPinpointLineNumbers)
+          ) {
+            prevPinpointLineNumbers = currentPinpointLineNumbers;
+            onPinpointsChanged?.(u, currentPinpointLineNumbers);
+          }
+        }
+        if (u.docChanged || highlightsChanged(u)) {
+          const currentHighlightLineNumbers = getHighlightLineNumbers(u.view);
+          if (
+            JSON.stringify(currentHighlightLineNumbers) !==
+            JSON.stringify(prevHighlightLineNumbers)
+          ) {
+            prevHighlightLineNumbers = currentHighlightLineNumbers;
+            onHighlightsChanged?.(u, currentHighlightLineNumbers);
+          }
         }
         onViewUpdate?.(u);
         const json: {

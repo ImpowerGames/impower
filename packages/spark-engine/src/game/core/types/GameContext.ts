@@ -6,7 +6,7 @@ export type GameContext<B = any> = {
     system: {
       transitions?: boolean;
       skipping?: boolean;
-      simulating?: boolean | string;
+      simulating?: string;
       previewing?: boolean | string | null;
       debugging?: boolean;
       locale?: string;

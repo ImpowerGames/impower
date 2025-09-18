@@ -129,8 +129,9 @@ export interface ScreenState {
 }
 
 export interface DebugState {
-  simulateFrom?: { file: string; line: number };
-  breakpoints?: Record<string, Range[]>;
+  breakpoints?: Record<string, number[]>;
+  pinpoints?: Record<string, number[]>;
+  highlights?: Record<string, number[]>;
   diagnostics?: Record<string, Diagnostic[]>;
 }
 

@@ -4,30 +4,59 @@ import {
   StateEffect,
   StateField,
 } from "@codemirror/state";
-import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
+import {
+  Decoration,
+  DecorationSet,
+  EditorView,
+  ViewUpdate,
+} from "@codemirror/view";
 
 /**
  * A StateEffect used to dispatch updates to the line highlights.
  * Your application logic will use this to send new highlight data to the editor.
  */
-export const setHighlightedLinesEffect = StateEffect.define<Set<number>>();
+export const setHighlightsEffect = StateEffect.define<number[]>();
 
-export const setHighlightedLines = (view: EditorView, lines: Set<number>) => {
+export const setHighlights = (view: EditorView, lines: number[]) => {
   view.dispatch({
-    effects: setHighlightedLinesEffect.of(lines),
+    effects: setHighlightsEffect.of(lines),
   });
+};
+
+export const getHighlightPositions = (view: EditorView) => {
+  let rangeSet = view.state.field(highlightsField);
+  const highlightPositions: number[] = [];
+  const iter = rangeSet.iter(0);
+  while (iter.value) {
+    const from = iter.from;
+    iter.next();
+    highlightPositions.push(from);
+  }
+  return highlightPositions;
+};
+
+export const getHighlightLineNumbers = (view: EditorView) => {
+  return getHighlightPositions(view).map(
+    (pos) => view.state.doc.lineAt(pos).number
+  );
+};
+
+export const highlightsChanged = (update: ViewUpdate): boolean => {
+  return update.transactions.some((t) =>
+    t.effects.some((e) => e.is(setHighlightsEffect))
+  );
 };
 
 // Define CSS classes for styling the decorated lines.
 const highlightedLineClass = "cm-highlightedLine";
 
 // Create the line decorations that apply our CSS classes.
-const highlightedLineDeco = Decoration.line({ class: highlightedLineClass });
+export const highlightDeco = Decoration.line({ class: highlightedLineClass });
 
 /**
  * A CodeMirror theme to style the highlighted lines.
  */
-const highlightLinesTheme = EditorView.baseTheme({
+const highlightsTheme = EditorView.baseTheme({
   [`&light .cm-line.${highlightedLineClass}`]: {
     backgroundColor: "rgba(0, 0, 0, 0.04)",
   },
@@ -40,7 +69,7 @@ const highlightLinesTheme = EditorView.baseTheme({
  * The StateField that manages the DecorationSet for the highlighted lines.
  * It listens for `setLineHighlightEffect` to update its state.
  */
-const highlightLinesStateField = StateField.define<DecorationSet>({
+export const highlightsField = StateField.define<DecorationSet>({
   create() {
     return Decoration.none;
   },
@@ -49,12 +78,12 @@ const highlightLinesStateField = StateField.define<DecorationSet>({
     decorations = decorations.map(tr.changes);
 
     for (const effect of tr.effects) {
-      if (effect.is(setHighlightedLinesEffect)) {
+      if (effect.is(setHighlightsEffect)) {
         const lineNumbers = effect.value;
         decorations = RangeSet.empty;
         decorations = decorations.update({
           add: Array.from(lineNumbers).map((lineNumber) =>
-            highlightedLineDeco.range(tr.state.doc.line(lineNumber).from)
+            highlightDeco.range(tr.state.doc.line(lineNumber).from)
           ),
           sort: true,
         });
@@ -73,5 +102,5 @@ const highlightLinesStateField = StateField.define<DecorationSet>({
  * @returns {Extension} A CodeMirror extension array.
  */
 export function highlightLines(): Extension {
-  return [highlightLinesStateField, highlightLinesTheme];
+  return [highlightsField, highlightsTheme];
 }

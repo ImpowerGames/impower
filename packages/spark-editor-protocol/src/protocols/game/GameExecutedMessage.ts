@@ -5,10 +5,13 @@ import { MessageProtocolNotificationType } from "../MessageProtocolNotificationT
 export type GameExecutedMethod = typeof GameExecutedMessage.method;
 
 export interface GameExecutedParams {
+  simulateFrom?: { file: string; line: number } | null;
+  startFrom?: { file: string; line: number };
   locations: Location[];
   path: string;
   state: "initial" | "running" | "previewing" | "paused";
   restarted?: boolean;
+  simulation?: "none" | "simulating" | "success" | "fail";
 }
 
 export class GameExecutedMessage {

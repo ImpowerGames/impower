@@ -3,6 +3,8 @@ import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
+import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
+import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import {
   HideEditorStatusBarMessage,
@@ -23,27 +25,14 @@ import {
   SearchEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
+import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
 import {
   ShowEditorStatusBarMessage,
   ShowEditorStatusBarMethod,
   ShowEditorStatusBarParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorStatusBarMessage";
 import { UnfocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage";
-import {
-  GameExecutedMessage,
-  GameExecutedMethod,
-  GameExecutedParams,
-} from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
-import {
-  GameExitedMessage,
-  GameExitedMethod,
-  GameExitedParams,
-} from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
-import {
-  GamePreviewedMessage,
-  GamePreviewedMethod,
-  GamePreviewedParams,
-} from "@impower/spark-editor-protocol/src/protocols/game/GamePreviewedMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import {
@@ -87,11 +76,12 @@ import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/Re
 import { Component } from "../../../../../spec-component/src/component";
 import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
 import getUnitlessValue from "../../../../../spec-component/src/utils/getUnitlessValue";
-import { setHighlightedLines } from "../../../cm-highlight-lines/highlightLines";
+import { setHighlights } from "../../../cm-highlight-lines/highlightLines";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { getServerChanges } from "../../../cm-language-client/utils/getServerChanges";
 import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition";
 import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset";
+import { setPinpoints } from "../../../cm-pinpoints/pinpoints";
 import { getDocumentVersion } from "../../../cm-versioning/versioning";
 import { getScrollableParent } from "../../../utils/getScrollableParent";
 import { getScrollClientHeight } from "../../../utils/getScrollClientHeight";
@@ -255,14 +245,17 @@ export default class SparkdownScriptEditor extends Component(spec) {
       if (SelectedPreviewMessage.type.is(e.detail)) {
         this.handleSelectedPreview(e.detail);
       }
-      if (GameExecutedMessage.type.is(e.detail)) {
-        this.handleGameExecuted(e.detail);
+      if (SetEditorHighlightsMessage.type.is(e.detail)) {
+        const response = await this.handleSetEditorHighlights(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
       }
-      if (GamePreviewedMessage.type.is(e.detail)) {
-        this.handleGamePreviewed(e.detail);
-      }
-      if (GameExitedMessage.type.is(e.detail)) {
-        this.handleGameExited(e.detail);
+      if (SetEditorPinpointsMessage.type.is(e.detail)) {
+        const response = await this.handleSetEditorPinpoints(e.detail);
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
       }
     }
   };
@@ -309,7 +302,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
     const focused = params.focused;
     const visibleRange = params.visibleRange;
     const selectedRange = params.selectedRange;
-    const breakpointRanges = params.breakpointRanges;
+    const breakpointLines = params.breakpointLines;
+    const pinpointLines = params.pinpointLines;
+    const highlightLines = params.highlightLines;
     const languageServerCapabilities = params.languageServerCapabilities;
     this._loadingRequest = message.id;
     SparkdownScriptEditor.languageServerCapabilities =
@@ -319,7 +314,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
       focused,
       visibleRange,
       selectedRange,
-      breakpointRanges
+      breakpointLines,
+      pinpointLines,
+      highlightLines
     );
     return LoadEditorMessage.type.response(message.id, {});
   };
@@ -352,9 +349,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
     if (uri === this._textDocument?.uri) {
       if (selection) {
         if (takeFocus) {
-          this.selectRange(selection, true);
-        } else if (takeFocus) {
-          this.scrollToRange(selection);
+          this.selectRange(selection, "center");
+        } else {
+          this.scrollToRange(selection, "center");
         }
       }
     }
@@ -451,6 +448,36 @@ export default class SparkdownScriptEditor extends Component(spec) {
     });
   };
 
+  protected handleSetEditorHighlights = (
+    message: SetEditorHighlightsMessage.Request
+  ) => {
+    const { locations } = message.params;
+    if (this._view) {
+      setHighlights(
+        this._view,
+        locations
+          .filter((l) => l.uri === this._textDocument?.uri)
+          .map((l) => l.range.start.line + 1)
+      );
+    }
+    return SetEditorHighlightsMessage.type.response(message.id, {});
+  };
+
+  protected handleSetEditorPinpoints = (
+    message: SetEditorPinpointsMessage.Request
+  ) => {
+    const { locations } = message.params;
+    if (this._view) {
+      setPinpoints(
+        this._view,
+        locations
+          .filter((l) => l.uri === this._textDocument?.uri)
+          .map((l) => l.range.start.line + 1)
+      );
+    }
+    return SetEditorPinpointsMessage.type.response(message.id, {});
+  };
+
   protected handleFocusFindInput = () => {
     this.emit("input/focused");
     this._searchInputFocused = true;
@@ -481,73 +508,14 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this._searchInputFocused = false;
   };
 
-  protected handleGamePreviewed = (
-    _message: NotificationMessage<GamePreviewedMethod, GamePreviewedParams>
-  ): void => {
-    this._highlightedLines.clear();
-  };
-
-  protected handleGameExecuted = (
-    message: NotificationMessage<GameExecutedMethod, GameExecutedParams>
-  ): void => {
-    if (!this._textDocument) {
-      return;
-    }
-
-    const { locations, state, restarted } = message.params;
-
-    // Helper to group locations by document URI
-    const documentLocations = (locations || []).reduce((acc, loc) => {
-      (acc[loc.uri] = acc[loc.uri] || []).push(loc);
-      return acc;
-    }, {} as Record<string, typeof locations>);
-
-    const currentDocLocations = documentLocations[this._textDocument.uri] || [];
-
-    // Reset state before populating
-    if (state === "running") {
-      this._highlightedLines.clear();
-    }
-
-    for (const location of currentDocLocations) {
-      for (
-        let i = location.range.start.line;
-        i <= location.range.end.line;
-        i++
-      ) {
-        this._highlightedLines.add(i + 1);
-      }
-    }
-
-    if (this._view) {
-      setHighlightedLines(this._view, this._highlightedLines);
-      if (state === "running" && !restarted) {
-        const lastExecutedRange = currentDocLocations.at(-1)?.range;
-        if (lastExecutedRange != null) {
-          this.selectRange(
-            { start: lastExecutedRange.end, end: lastExecutedRange.end },
-            "center"
-          );
-        }
-      }
-    }
-  };
-
-  protected handleGameExited = (
-    _message: NotificationMessage<GameExitedMethod, GameExitedParams>
-  ): void => {
-    this._highlightedLines.clear();
-    if (this._view) {
-      setHighlightedLines(this._view, this._highlightedLines);
-    }
-  };
-
   protected loadTextDocument(
     textDocument: TextDocumentItem,
     focused: boolean | undefined,
     visibleRange: Range | undefined,
     selectedRange: Range | undefined,
-    breakpointRanges: Range[] | undefined
+    breakpointLines: number[] | undefined,
+    pinpointLines: number[] | undefined,
+    highlightLines: number[] | undefined
   ) {
     if (this._view) {
       this.unbindView(this._view);
@@ -576,7 +544,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
         scrollMargin: this._scrollMargin,
         top: this._top,
         bottom: this._bottom,
-        breakpoints: breakpointRanges?.map((range) => range.start.line + 1),
+        breakpointLineNumbers: breakpointLines?.map((line) => line + 1),
+        pinpointLineNumbers: pinpointLines?.map((line) => line + 1),
+        highlightLineNumbers: highlightLines?.map((line) => line + 1),
         scrollToLineNumber: (visibleRange?.start.line ?? 0) + 1,
         onIdle: this.handleIdle,
         onFocus: () => {
@@ -674,25 +644,44 @@ export default class SparkdownScriptEditor extends Component(spec) {
             );
           }
         },
-        onBreakpointsChanged: (update, breakpoints) => {
+        onBreakpointsChanged: (update, breakpointLineNumbers) => {
           const uri = this._textDocument?.uri;
           if (uri) {
             this.emit(
               MessageProtocol.event,
               ChangedEditorBreakpointsMessage.type.notification({
                 textDocument: { uri },
-                breakpointRanges: breakpoints.map((lineNumber) => {
-                  return {
-                    start: offsetToPosition(
-                      update.state.doc,
-                      update.state.doc.line(lineNumber).from
-                    ),
-                    end: offsetToPosition(
-                      update.state.doc,
-                      update.state.doc.line(lineNumber).to
-                    ),
-                  };
-                }),
+                breakpointLines: breakpointLineNumbers.map(
+                  (lineNumber) => lineNumber - 1
+                ),
+              })
+            );
+          }
+        },
+        onPinpointsChanged: (update, pinpointLineNumbers) => {
+          const uri = this._textDocument?.uri;
+          if (uri) {
+            this.emit(
+              MessageProtocol.event,
+              ChangedEditorPinpointsMessage.type.notification({
+                textDocument: { uri },
+                pinpointLines: pinpointLineNumbers.map(
+                  (lineNumber) => lineNumber - 1
+                ),
+              })
+            );
+          }
+        },
+        onHighlightsChanged: (update, highlightLineNumbers) => {
+          const uri = this._textDocument?.uri;
+          if (uri) {
+            this.emit(
+              MessageProtocol.event,
+              ChangedEditorHighlightsMessage.type.notification({
+                textDocument: { uri },
+                highlightLines: highlightLineNumbers.map(
+                  (lineNumber) => lineNumber - 1
+                ),
               })
             );
           }
@@ -767,7 +756,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   }
 
-  protected scrollToRange(range: Range | undefined) {
+  protected scrollToRange(
+    range: Range | undefined,
+    strategy: "nearest" | "start" | "end" | "center" = "start"
+  ) {
     const view = this._view;
     if (view) {
       if (range) {
@@ -783,7 +775,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
             effects: EditorView.scrollIntoView(
               EditorSelection.range(line.from, line.to),
               {
-                y: "start",
+                y: strategy,
               }
             ),
           });
@@ -794,7 +786,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected selectRange(
     range: Range,
-    scrollIntoView: "start" | "end" | "center" | boolean
+    scrollIntoView: "nearest" | "start" | "end" | "center" | false
   ) {
     const view = this._view;
     if (view) {
@@ -805,11 +797,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
         selection: EditorSelection.create([
           EditorSelection.range(anchor, head),
         ]),
-        scrollIntoView: scrollIntoView === true,
         effects:
           typeof scrollIntoView === "string"
             ? EditorView.scrollIntoView(EditorSelection.range(anchor, head), {
-                y: scrollIntoView ?? "start",
+                y: scrollIntoView,
               })
             : undefined,
       });

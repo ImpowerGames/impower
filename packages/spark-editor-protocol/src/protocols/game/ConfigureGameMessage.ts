@@ -1,4 +1,3 @@
-import { Breakpoint } from "../../../../spark-engine/src/game/core/types/Breakpoint";
 import { RequestMessage } from "../../types/base/RequestMessage";
 import { ResponseMessage } from "../../types/base/ResponseMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
@@ -7,18 +6,11 @@ export type ConfigureGameMethod = typeof ConfigureGameMessage.method;
 
 export interface ConfigureGameParams {
   workspace?: string;
-  simulateFrom?: { file: string; line: number };
+  simulateFrom?: { file: string; line: number } | null;
   startFrom?: { file: string; line: number };
-  breakpoints?: { file: string; line: number }[];
-  functionBreakpoints?: { name: string }[];
-  dataBreakpoints?: { dataId: string }[];
 }
 
-export interface ConfigureGameResult {
-  breakpoints?: Breakpoint[];
-  functionBreakpoints?: Breakpoint[];
-  dataBreakpoints?: Breakpoint[];
-}
+export interface ConfigureGameResult {}
 
 export class ConfigureGameMessage {
   static readonly method = "game/configure";

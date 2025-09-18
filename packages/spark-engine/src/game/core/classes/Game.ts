@@ -105,12 +105,12 @@ export class Game<T extends M = {}> {
   protected _simulateFrom?: {
     file: string;
     line: number;
-  };
+  } | null;
   get simulateFrom() {
     return this._simulateFrom;
   }
 
-  protected _startFrom: {
+  protected _startFrom?: {
     file: string;
     line: number;
   };
@@ -131,7 +131,7 @@ export class Game<T extends M = {}> {
     return this._simulatePath;
   }
 
-  protected _startPath: string;
+  protected _startPath?: string;
   get startPath() {
     return this._startPath;
   }
@@ -146,6 +146,11 @@ export class Game<T extends M = {}> {
   protected _checkpoint?: string;
 
   protected _error = false;
+
+  protected _simulation?: "none" | "simulating" | "success" | "fail";
+  get simulation() {
+    return this._simulation;
+  }
 
   protected _restarted = false;
   get restarted() {
@@ -177,9 +182,9 @@ export class Game<T extends M = {}> {
     options?: {
       restarted?: boolean;
       executionTimeout?: number;
-      simulateFrom?: { file: string; line: number };
-      previewFrom?: { file: string; line: number };
-      startFrom?: { file: string; line: number };
+      simulateFrom?: { file: string; line: number } | null;
+      previewFrom?: { file: string; line: number } | null;
+      startFrom?: { file: string; line: number } | null;
       breakpoints?: { file: string; line: number }[];
       functionBreakpoints?: { name: string }[];
       dataBreakpoints?: { dataId: string }[];
@@ -217,20 +222,13 @@ export class Game<T extends M = {}> {
     const modules = options?.modules;
     const previewing = options?.previewFrom ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
-    this._simulateFrom = options?.simulateFrom;
-    if (this._simulateFrom) {
-      this._simulatePath = this.getClosestPath(
-        this._simulateFrom.file,
-        this._simulateFrom.line
-      );
-    }
-    this._startFrom = options?.previewFrom ??
+    this.setSimulateFrom(options?.simulateFrom ?? null);
+    const startFrom = options?.previewFrom ??
       options?.startFrom ?? {
         file: this._scripts[0] || this._program.uri,
         line: 0,
       };
-    this._startPath =
-      this.getClosestPath(this._startFrom.file, this._startFrom.line) || "0";
+    this.setStartFrom(startFrom);
 
     this._executingPath = "";
     this._executingLocation = [-1, -1, -1, -1, -1];
@@ -315,7 +313,7 @@ export class Game<T extends M = {}> {
       this._modules[moduleName]?.onInit();
     }
 
-    if (this._simulateFrom) {
+    if (this._simulation === "simulating") {
       // Simulate module state
       this.simulate();
     }
@@ -330,26 +328,58 @@ export class Game<T extends M = {}> {
     for (const moduleName of this._moduleNames) {
       this._modules[moduleName]?.onConnected();
     }
-    if (this._simulateFrom) {
+    if (this._simulation === "success") {
       // Restore module state
       await this.restore();
     }
   }
 
-  setSimulateFrom(simulateFrom: { file: string; line: number } | undefined) {
-    this._simulateFrom = simulateFrom;
-    if (this._simulateFrom) {
-      this._simulatePath = this.getClosestPath(
-        this._simulateFrom.file,
-        this._simulateFrom.line
-      );
+  setSimulateFrom(simulateFrom: { file: string; line: number } | null) {
+    if (simulateFrom) {
+      if (!this._simulation || this._simulation === "none") {
+        this._simulation = "simulating";
+      }
+    } else {
+      this._simulation = "none";
     }
+    this._simulateFrom = simulateFrom;
+    this._simulatePath = undefined;
+    if (simulateFrom) {
+      this._simulatePath = this.getClosestPath(
+        simulateFrom.file,
+        simulateFrom.line
+      );
+      if (this._simulatePath) {
+        const trueLocation = this._program.pathToLocation?.[this._simulatePath];
+        if (trueLocation) {
+          const [scriptIndex, line] = trueLocation;
+          const file = this._scripts[scriptIndex];
+          if (file) {
+            this._simulateFrom = { file, line };
+            return this._simulateFrom;
+          }
+        }
+      }
+    }
+    return null;
   }
 
   setStartFrom(startFrom: { file: string; line: number }) {
     this._startFrom = startFrom;
     this._startPath =
       this.getClosestPath(this._startFrom.file, this._startFrom.line) || "0";
+    if (this._startPath) {
+      const trueLocation = this._program.pathToLocation?.[this._startPath];
+      if (trueLocation) {
+        const [scriptIndex, line] = trueLocation;
+        const file = this._scripts[scriptIndex];
+        if (file) {
+          this._startFrom = { file, line };
+          return this._startFrom;
+        }
+      }
+    }
+    return null;
   }
 
   setBreakpoints(breakpoints: { file: string; line: number }[]) {
@@ -434,36 +464,41 @@ export class Game<T extends M = {}> {
     if (this._simulatePath) {
       this._context.system.simulating = this._simulatePath;
       this._story.ChoosePathString(this._simulatePath);
-      this.continue();
+      this.continue(true);
       while (
-        this.context.system.simulating &&
+        this._simulation === "simulating" &&
         !this._story.canContinue &&
         this._story.currentChoices.length > 0
       ) {
         // TODO: Determine which choice will lead to the destination
         const choiceIndex = 0;
         this._story.ChooseChoiceIndex(choiceIndex);
-        this.continue();
+        this.continue(true);
       }
     }
   }
 
   start(save: string = ""): boolean {
     this._state = "running";
+    if (this._simulation === "simulating") {
+      this._simulation = "fail";
+    }
     this.notifyStarted();
     this._context.system.previewing = undefined;
     this._context.system.simulating = undefined;
     for (const k of this._moduleNames) {
       this._modules[k]?.onStart();
     }
-    if (!this._simulateFrom) {
+    if (this._simulation === "success") {
+      this.continue(true);
+    } else {
       if (save) {
         this.load(save);
-      } else {
+      } else if (this._startPath) {
         this._story.ChoosePathString(this._startPath);
       }
+      this.continue();
     }
-    this.continue();
     return !this._error;
   }
 
@@ -561,23 +596,17 @@ export class Game<T extends M = {}> {
   reset() {
     // Reset story to its initial state
     this._story.ResetState();
-  }
-
-  restart() {
-    // Reset state
-    this.reset();
-    // Save initial state
-    this.checkpoint();
-    // Continue story for the first time
-    this.continue();
-    // Notify modules about restart
+    // Reset modules to their initial state
     for (const k of this._moduleNames) {
-      this._modules[k]?.onRestart();
+      const module = this._modules[k];
+      if (module) {
+        module.reset();
+      }
     }
   }
 
-  continue() {
-    if (!this._simulateFrom) {
+  continue(preserveExecutedPaths?: boolean) {
+    if (!preserveExecutedPaths) {
       this._executedPathsThisFrame.clear();
     }
 
@@ -591,7 +620,7 @@ export class Game<T extends M = {}> {
       done = this.step();
     } while (!this._error && !done);
 
-    if (!this._simulateFrom) {
+    if (this._simulation !== "simulating") {
       this.notifyExecuted();
     }
   }
@@ -615,7 +644,7 @@ export class Game<T extends M = {}> {
       }
 
       if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
-        if (!this.context.system.simulating) {
+        if (this._simulation !== "simulating") {
           this.checkpoint();
         }
         const instructions = this.module.interpreter.flush();
@@ -623,12 +652,12 @@ export class Game<T extends M = {}> {
           this._coordinator = new Coordinator(this, instructions);
           if (
             !this._coordinator.shouldContinue() &&
-            !this.context.system.simulating
+            this._simulation !== "simulating"
           ) {
             this.notifyAwaitingInteraction();
           }
         }
-        if (this.context.system.simulating) {
+        if (this._simulation === "simulating") {
           if (!this._story.canContinue) {
             return true;
           }
@@ -659,16 +688,17 @@ export class Game<T extends M = {}> {
           this.module.interpreter.queue(currentText, currentChoices);
 
           if (
-            this.context.system.simulating &&
+            this._simulation === "simulating" &&
+            this._startPath &&
             this._executedPathsThisFrame.has(this._startPath)
           ) {
             // End simulation
-            this._context.system.simulating = false;
+            this._simulation = "success";
             return true;
           }
         }
 
-        if (!this.context.system.simulating) {
+        if (this._simulation !== "simulating") {
           // Skip duplicate stops (avoid breaking at the same location)
           if (
             JSON.stringify(prevExecutedLocation) ===
@@ -855,10 +885,13 @@ export class Game<T extends M = {}> {
     });
     this.connection.emit(
       ExecutedMessage.type.notification({
+        simulateFrom: this._simulateFrom,
+        startFrom: this._startFrom,
         locations,
         path: this._executingPath,
         state: this._state,
         restarted: this._restarted,
+        simulation: this._simulation,
       })
     );
   }
@@ -1246,16 +1279,24 @@ export class Game<T extends M = {}> {
     this._previewFrom = { file, line };
     this._executingPath = "";
     this._executingLocation = [-1, -1, -1, -1, -1];
+    if (this._simulation === "simulating") {
+      this._simulation = "fail";
+    }
     this._context.system.previewing = previewPath;
     this._context.system.simulating = undefined;
-    if (!this._simulateFrom) {
+    if (this._simulation === "success") {
+      this.continue(true);
+    } else if (this._simulation === "fail") {
+      this.reset();
       this.clearChoices();
       this._startPath = previewPath;
       this._story.ChoosePathString(previewPath);
-    }
-    this.continue();
-    if (this._simulateFrom) {
-      this.notifyExecuted();
+      this.continue();
+    } else {
+      this.clearChoices();
+      this._startPath = previewPath;
+      this._story.ChoosePathString(previewPath);
+      this.continue();
     }
     for (const k of this._moduleNames) {
       this._modules[k]?.onPreview();
