@@ -238,11 +238,12 @@
 }
 
 #size-label,
-#aspect-ratio-label,
-#connection-label,
-#executed-label {
-  white-space: pre;
+#aspect-ratio-label {
   padding: var(--swp-toolbar-label-padding);
+}
+
+#executed-label {
+  padding: 0 var(--swp-toolbar-button-gap);
 }
 
 #location-items.error {
