@@ -104,6 +104,8 @@ export default class SparkWebPlayer extends Component(spec) {
 
   _gameResizeObserver?: ResizeObserver;
 
+  _preloadedImages: Map<string, HTMLElement> = new Map();
+
   override onConnected() {
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     window.addEventListener("contextmenu", this.handleContextMenu, true);
@@ -914,12 +916,24 @@ export default class SparkWebPlayer extends Component(spec) {
   ) => {
     const params = message.params;
     this._program = params.program;
+    // Preload all images
+    // TODO: Only preload images that are going to be shown before the next interaction
+    this._preloadedImages.clear();
+    const images = this._program.context?.["image"];
+    if (images) {
+      for (const [, image] of Object.entries(images)) {
+        if (image.src) {
+          this.preloadImage(image.src);
+        }
+      }
+    }
+    // Notify program is loaded
     this._loadListeners.forEach((callback) => {
       callback();
     });
     this._loadListeners.clear();
+    // Stop and restart game if we loaded a new game while the old game was running
     if (this._game && this._game.state === "running") {
-      // Stop and restart game if we loaded a new game while the old game was running
       this.debouncedRestartGame();
       this.emit(
         MessageProtocol.event,
@@ -1171,6 +1185,24 @@ export default class SparkWebPlayer extends Component(spec) {
       message: "no game loaded",
     });
   };
+
+  async preloadImage(src: string) {
+    try {
+      await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = src;
+        img.onload = () => {
+          resolve(img);
+        };
+        img.onerror = () => {
+          reject(img);
+        };
+        this._preloadedImages.set(src, img);
+      });
+    } catch (e) {
+      console.warn("Could not preload: ", src);
+    }
+  }
 
   async startGameAndApp(restarted?: boolean) {
     if (!this._program) {

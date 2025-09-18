@@ -44,7 +44,7 @@ async function handleLocalAssetRequest(url: URL) {
     "Content-Type": contentType,
     "Content-Length": String(contentLength),
     "Accept-Ranges": "bytes",
-    "Cache-Control": "no-store",
+    "Cache-Control": "max-age=31536000, immutable",
     "Content-Disposition": filename
       ? `attachment; filename="${filename}"`
       : "inline",
