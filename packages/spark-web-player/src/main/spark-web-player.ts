@@ -439,7 +439,7 @@ export default class SparkWebPlayer extends Component(spec) {
       return;
     }
     const dy = e.clientY - this._resizeStartY;
-    let newHeight = this._resizeStartHeight + dy;
+    let newHeight = Math.round(this._resizeStartHeight + dy);
 
     const maxHeight = window.innerHeight - this.refs.toolbar.offsetHeight;
     newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, newHeight));
@@ -461,8 +461,10 @@ export default class SparkWebPlayer extends Component(spec) {
 
     if (closestMatch === maxHeight) {
       this.refs.game.style.height = "";
+      this.refs.game.style.minHeight = "";
     } else {
       this.refs.game.style.height = `${closestMatch}px`;
+      this.refs.game.style.minHeight = `${closestMatch}px`;
     }
 
     this.refs.toolbar.classList.toggle("snapping", snapped);
