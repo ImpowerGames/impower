@@ -293,15 +293,21 @@ export default class SparkWebPlayer extends Component(spec) {
     return location;
   }
 
+  protected updateResetButton() {
+    const simulation = Boolean(this._options?.simulateFrom);
+    if (simulation || this._game?.state === "running") {
+      this.refs.resetButton.hidden = true;
+    } else {
+      this.refs.resetButton.hidden = false;
+    }
+  }
+
   protected updateLaunchButton() {
     const simulation = Boolean(this._options?.simulateFrom);
     this.refs.launchButton.classList.toggle("pinned", simulation);
-    if (simulation) {
-      this.refs.resetButton.hidden = true;
-    } else {
+    if (!simulation) {
       this.refs.locationItems.classList.toggle("error", false);
       this.refs.connectionLabel.textContent = `→`;
-      this.refs.resetButton.hidden = false;
     }
   }
 
@@ -507,6 +513,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._options.simulateFrom = this._game.setSimulateFrom(startFrom);
     }
     this.updateLaunchButton();
+    this.updateResetButton();
     this.emit(
       MessageProtocol.event,
       GameWillSimulateFromMessage.type.notification({
@@ -803,6 +810,7 @@ export default class SparkWebPlayer extends Component(spec) {
     }
     this.updateLaunchButton();
     this.updateLaunchStateIcon();
+    this.updateResetButton();
     return messageType.response(message.id, {});
   };
 
@@ -859,6 +867,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._game.startDebugging();
     }
     this.updateLaunchStateIcon();
+    this.updateResetButton();
     return this._game
       ? messageType.response(message.id, {})
       : messageType.error(message.id, {
@@ -875,6 +884,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._game.stopDebugging();
     }
     this.updateLaunchStateIcon();
+    this.updateResetButton();
     return this._game
       ? messageType.response(message.id, {})
       : messageType.error(message.id, {
@@ -892,6 +902,7 @@ export default class SparkWebPlayer extends Component(spec) {
       const line = selectedRange?.start.line ?? 0;
       await this.updatePreview(textDocument.uri, line);
       this.updateLaunchStateIcon();
+      this.updateResetButton();
       return messageType.response(message.id, {});
     }
     return undefined;
@@ -917,6 +928,7 @@ export default class SparkWebPlayer extends Component(spec) {
     }
     this.updateLaunchButton();
     this.updateLaunchStateIcon();
+    this.updateResetButton();
     return messageType.response(message.id, {});
   };
 
@@ -927,6 +939,7 @@ export default class SparkWebPlayer extends Component(spec) {
     this.hidePlayButton();
     const success = await this.startGameAndApp();
     this.updateLaunchStateIcon();
+    this.updateResetButton();
     return success
       ? messageType.response(message.id, {})
       : messageType.error(message.id, {
@@ -961,6 +974,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._app.pause();
     }
     this.updateLaunchStateIcon();
+    this.updateResetButton();
     return this._app
       ? messageType.response(message.id, {})
       : messageType.error(message.id, {
@@ -977,6 +991,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._app.unpause();
     }
     this.updateLaunchStateIcon();
+    this.updateResetButton();
     return this._app
       ? messageType.response(message.id, {})
       : messageType.error(message.id, {
@@ -994,6 +1009,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._app.skip(seconds);
     }
     this.updateLaunchStateIcon();
+    this.updateResetButton();
     return this._app
       ? messageType.response(message.id, {})
       : messageType.error(message.id, {
@@ -1173,6 +1189,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._app?.start();
     }
     this.updateLaunchStateIcon();
+    this.updateResetButton();
     return success;
   }
 
@@ -1186,6 +1203,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._app = undefined;
     }
     this.updateLaunchStateIcon();
+    this.updateResetButton();
   }
 
   async stopGame(
@@ -1424,6 +1442,9 @@ export default class SparkWebPlayer extends Component(spec) {
       this._audioContext
     );
     await this._app.init();
+
+    this.updateResetButton();
+
     return this._game;
   }
 
