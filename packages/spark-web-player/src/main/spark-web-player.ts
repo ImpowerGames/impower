@@ -924,11 +924,9 @@ export default class SparkWebPlayer extends Component(spec) {
     this._preloadedImages.clear();
     const images = this._program.context?.["image"];
     if (images) {
-      for (const [, image] of Object.entries(images)) {
-        if (image.src) {
-          this.preloadImage(image.src);
-        }
-      }
+      await Promise.all(
+        Object.values(images).map((image) => this.preloadImage(image.src))
+      );
     }
     // Notify program is loaded
     this._loadListeners.forEach((callback) => {
@@ -1190,20 +1188,22 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   async preloadImage(src: string) {
-    try {
-      await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.src = src;
-        img.onload = () => {
-          resolve(img);
-        };
-        img.onerror = () => {
-          reject(img);
-        };
-        this._preloadedImages.set(src, img);
-      });
-    } catch (e) {
-      console.warn("Could not preload: ", src);
+    if (src) {
+      try {
+        await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.src = src;
+          img.onload = () => {
+            resolve(img);
+          };
+          img.onerror = () => {
+            reject(img);
+          };
+          this._preloadedImages.set(src, img);
+        });
+      } catch (e) {
+        console.warn("Could not preload: ", src);
+      }
     }
   }
 
