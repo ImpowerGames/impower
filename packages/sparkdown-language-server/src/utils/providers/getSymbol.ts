@@ -33,6 +33,7 @@ export const getSymbol = (
         n.name === "DefineTypeName" ||
         n.name === "DefineVariableName" ||
         n.name === "DeclarationScalarPropertyName" ||
+        n.name === "DeclarationObjectPropertyName" ||
         n.name === "TypeName" ||
         n.name === "VariableName" ||
         n.name === "PropertyName" ||

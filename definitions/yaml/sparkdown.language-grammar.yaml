@@ -11,7 +11,7 @@ variables:
   IDENTIFIER_END_CHAR: '0-9_\p{L}'
   IDENTIFIER: "[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*"
   CSS_IDENTIFIER: "[{{IDENTIFIER_END_CHAR}}-]+"
-  PROPERTY_IDENTIFIER: '(?:["].*?["]|\[.*?\]|\(.*?\)|[^.:=\r\n])+?'
+  DECLARATION_PROPERTY_IDENTIFIER: '(?:["].*?["]|\[.*?\]|\(.*?\)|[^.:=\r\n])+'
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
@@ -588,7 +588,7 @@ repository:
   StructObjectItemWithInlineScalarProperty:
     tag: meta
     name: meta.definition.struct.item.object.sd
-    begin: ^({{WS}}*)([-])({{WS}}+)({{PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)($|.*)$
+    begin: ^({{WS}}*)([-])({{WS}}+)({{DECLARATION_PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)($|.*)$
     beginCaptures:
       1:
         patterns:
@@ -624,7 +624,7 @@ repository:
   StructObjectItemWithInlineObjectProperty:
     tag: meta
     name: meta.definition.struct.item.object.sd
-    begin: ^({{WS}}*)([-])({{WS}}+)({{PROPERTY_IDENTIFIER}})({{WS}}*)([:])($|{{WS}}*$)
+    begin: ^({{WS}}*)([-])({{WS}}+)({{DECLARATION_PROPERTY_IDENTIFIER}})({{WS}}*)([:])($|{{WS}}*$)
     beginCaptures:
       1:
         patterns:
@@ -676,7 +676,7 @@ repository:
   StructObjectProperty:
     tag: meta
     name: meta.definition.struct.property.object.sd
-    begin: ^({{WS}}*)({{PROPERTY_IDENTIFIER}})($|{{WS}}*)($|[:])($|{{WS}}*$)
+    begin: ^({{WS}}*)({{DECLARATION_PROPERTY_IDENTIFIER}})($|{{WS}}*)($|[:])($|{{WS}}*$)
     beginCaptures:
       1:
         patterns:
@@ -703,7 +703,7 @@ repository:
   StructScalarProperty:
     tag: meta
     name: meta.definition.struct.property.scalar.sd
-    begin: ^({{WS}}*)({{PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)
+    begin: ^({{WS}}*)({{DECLARATION_PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -805,9 +805,9 @@ repository:
       - { include: "#Unknown" }
 
   DeclarationObjectPropertyName:
-    emit: true
-    patterns:
-      - { include: "#PropertyName" }
+    tag: propertyName
+    name: variable.other.property.define.sd
+    match: (.+)
 
   DeclarationScalarPropertyName:
     tag: propertyName
@@ -1384,7 +1384,7 @@ repository:
   CssObjectItemWithInlineScalarProperty:
     tag: meta
     name: meta.definition.css.item.object.sd
-    begin: ^({{WS}}*)([-])({{WS}}+)({{PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)($|.*)$
+    begin: ^({{WS}}*)([-])({{WS}}+)({{DECLARATION_PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)($|.*)$
     beginCaptures:
       1:
         patterns:
@@ -1420,7 +1420,7 @@ repository:
   CssObjectItemWithInlineObjectProperty:
     tag: meta
     name: meta.definition.css.item.object.sd
-    begin: ^({{WS}}*)([-])({{WS}}+)({{PROPERTY_IDENTIFIER}})({{WS}}*)([:])($|{{WS}}*$)
+    begin: ^({{WS}}*)([-])({{WS}}+)({{DECLARATION_PROPERTY_IDENTIFIER}})({{WS}}*)([:])($|{{WS}}*$)
     beginCaptures:
       1:
         patterns:
@@ -1472,7 +1472,7 @@ repository:
   CssObjectProperty:
     tag: meta
     name: meta.definition.css.property.object.sd
-    begin: ^({{WS}}*)({{PROPERTY_IDENTIFIER}})($|{{WS}}*)($|[:])($|{{WS}}*$)
+    begin: ^({{WS}}*)({{DECLARATION_PROPERTY_IDENTIFIER}})($|{{WS}}*)($|[:])($|{{WS}}*$)
     beginCaptures:
       1:
         patterns:
@@ -1499,7 +1499,7 @@ repository:
   CssScalarProperty:
     tag: meta
     name: meta.definition.css.property.scalar.sd
-    begin: ^({{WS}}*)({{PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)
+    begin: ^({{WS}}*)({{DECLARATION_PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
