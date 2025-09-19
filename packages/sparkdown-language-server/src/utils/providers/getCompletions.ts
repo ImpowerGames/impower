@@ -1400,10 +1400,7 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (
-      isWhitespaceNode(leftStack[0]?.name) &&
-      leftStack.some((n) => n.name === "ImageCommand")
-    ) {
+    if (isWhitespaceNode(leftStack[0]?.name)) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
           prevNode?.name === "AssetCommandClauseKeyword" &&
@@ -1509,10 +1506,7 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (
-      isWhitespaceNode(leftStack[0]?.name) &&
-      leftStack.some((n) => n.name === "AudioCommand")
-    ) {
+    if (isWhitespaceNode(leftStack[0]?.name)) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
           prevNode?.name === "AssetCommandClauseKeyword" &&
