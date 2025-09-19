@@ -29,8 +29,8 @@
       "animate"
     ],
     "IMAGE_CLAUSE_KEYWORDS": [
-      "after",
       "over",
+      "after",
       "with",
       "wait"
     ],
@@ -43,8 +43,8 @@
       "await"
     ],
     "AUDIO_CLAUSE_KEYWORDS": [
-      "after",
       "over",
+      "after",
       "fadeto",
       "loop",
       "noloop",
@@ -6968,7 +6968,7 @@
       }
     },
     "AssetCommandContent": {
-      "match": "([^\\S\\n\\r]*)(.*?)($|(?:\\b(?:after|over|with|wait)\\b|\\b(?:after|over|fadeto|loop|noloop|mute|unmute|now)\\b)(?=$|[^\\S\\n\\r]).*)",
+      "match": "([^\\S\\n\\r]*)(.*?)($|(?:\\b(?:over|after|with|wait)\\b|\\b(?:over|after|fadeto|loop|noloop|mute|unmute|now)\\b)(?=$|[^\\S\\n\\r]).*)",
       "captures": {
         "1": {
           "patterns": [
@@ -7084,7 +7084,7 @@
     "AssetCommandClauseKeyword": {
       "tag": "keyword",
       "name": "keyword.asset.clause.keyword.sd",
-      "match": "(\\b(?:after|over|with|wait)\\b|\\b(?:after|over|fadeto|loop|noloop|mute|unmute|now)\\b)"
+      "match": "(\\b(?:over|after|with|wait)\\b|\\b(?:over|after|fadeto|loop|noloop|mute|unmute|now)\\b)"
     },
     "AssetCommandName": {
       "match": "(.+?)(?=$|[+])",

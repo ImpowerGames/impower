@@ -25,11 +25,11 @@ variables:
   # End Of Keyword
   EOK: "(?:$|{{WS}}+|(?={{TAG_START}}|[/][/]|[/][*]))"
   IMAGE_CONTROL_KEYWORDS: ["set", "show", "hide", "animate"]
-  IMAGE_CLAUSE_KEYWORDS: ["after", "over", "with", "wait"]
+  IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait"]
   AUDIO_CONTROL_KEYWORDS:
     ["play", "start", "stop", "modulate", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
-    ["after", "over", "fadeto", "loop", "noloop", "mute", "unmute", "now"]
+    ["over", "after", "fadeto", "loop", "noloop", "mute", "unmute", "now"]
 
 patterns:
   - { include: "#EndOfLine" }

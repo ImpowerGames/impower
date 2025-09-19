@@ -1305,13 +1305,12 @@ export const getCompletions = (
         "ImageCommand",
         leftStack
       );
+      const control = getNodeText(controlNode);
       if (isCursorAfterNodeText(leftStack[0])) {
         addUIElementReferenceCompletions(
           completions,
           program,
-          getNodeText(controlNode) === "animate"
-            ? ["animation", "image"]
-            : ["image"]
+          control === "animate" ? ["animation", "image"] : ["image"]
         );
       }
       return buildCompletions();
@@ -1321,13 +1320,25 @@ export const getCompletions = (
       prevNode.name === "AssetCommandTarget"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
-        addStructReferenceCompletions(
-          completions,
-          program,
-          IMAGE_TYPES,
-          isPrefilteredName
+        const controlNode = getDescendentInsideParent(
+          "AssetCommandControl",
+          "ImageCommand",
+          leftStack
         );
-        addKeywordCompletions(completions, "clause", IMAGE_CLAUSE_KEYWORDS);
+        const control = getNodeText(controlNode);
+        if (control !== "hide" && control !== "animate") {
+          addStructReferenceCompletions(
+            completions,
+            program,
+            IMAGE_TYPES,
+            isPrefilteredName
+          );
+        }
+        const clauses =
+          control === "animate"
+            ? ["with", ...IMAGE_CLAUSE_KEYWORDS.filter((k) => k !== "with")]
+            : IMAGE_CLAUSE_KEYWORDS;
+        addKeywordCompletions(completions, "clause", clauses);
       }
       return buildCompletions();
     }
@@ -1368,22 +1379,30 @@ export const getCompletions = (
     }
     if (
       (isWhitespaceNode(leftStack[0]?.name) &&
-        leftStack.some((n) => n.name === "AssetCommandContent") &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
       leftStack[0]?.name === "NameValue"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
-        addStructReferenceCompletions(completions, program, [
-          "transition",
-          "animation",
-        ]);
+        const controlNode = getDescendentInsideParent(
+          "AssetCommandControl",
+          "ImageCommand",
+          leftStack
+        );
+        const control = getNodeText(controlNode);
+        const types =
+          control === "animate"
+            ? ["animation"]
+            : control === "set"
+            ? ["transition"]
+            : ["transition", "animation"];
+        addStructReferenceCompletions(completions, program, types);
       }
       return buildCompletions();
     }
     if (
       isWhitespaceNode(leftStack[0]?.name) &&
-      leftStack.some((n) => n.name === "AssetCommandContent")
+      leftStack.some((n) => n.name === "ImageCommand")
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
@@ -1395,7 +1414,7 @@ export const getCompletions = (
         if (!prevClauseTakesArgument) {
           const exclude = getOtherMatchesInsideParent(
             "AssetCommandClauseKeyword",
-            "AssetCommandContent",
+            "ImageCommand",
             leftStack,
             tree,
             read
@@ -1447,7 +1466,15 @@ export const getCompletions = (
       prevNode.name === "AssetCommandTarget"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
-        addStructReferenceCompletions(completions, program, AUDIO_TYPES);
+        const controlNode = getDescendentInsideParent(
+          "AssetCommandControl",
+          "AudioCommand",
+          leftStack
+        );
+        const control = getNodeText(controlNode);
+        if (control !== "stop") {
+          addStructReferenceCompletions(completions, program, AUDIO_TYPES);
+        }
         addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS);
       }
       return buildCompletions();
@@ -1484,7 +1511,7 @@ export const getCompletions = (
     }
     if (
       isWhitespaceNode(leftStack[0]?.name) &&
-      leftStack.some((n) => n.name === "AssetCommandContent")
+      leftStack.some((n) => n.name === "AudioCommand")
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
@@ -1496,7 +1523,7 @@ export const getCompletions = (
         if (!prevClauseTakesArgument) {
           const exclude = getOtherMatchesInsideParent(
             "AssetCommandClauseKeyword",
-            "AssetCommandContent",
+            "AudioCommand",
             leftStack,
             tree,
             read
@@ -1513,7 +1540,6 @@ export const getCompletions = (
     }
     if (
       (isWhitespaceNode(leftStack[0]?.name) &&
-        leftStack.some((n) => n.name === "AssetCommandContent") &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
       leftStack[0]?.name === "NameValue"
