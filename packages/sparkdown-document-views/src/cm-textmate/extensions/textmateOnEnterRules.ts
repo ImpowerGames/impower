@@ -1,7 +1,11 @@
-import { closeBracketsKeymap, startCompletion } from "@codemirror/autocomplete";
-import { Prec, EditorSelection, Facet, combineConfig } from "@codemirror/state";
-import { EditorView, keymap } from "@codemirror/view";
+import {
+  closeBracketsKeymap,
+  closeCompletion,
+  startCompletion,
+} from "@codemirror/autocomplete";
 import { getIndentUnit, indentString } from "@codemirror/language";
+import { EditorSelection, Facet, Prec, combineConfig } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
 
 const INDENT_REGEX = /([ \t]*)/;
 
@@ -156,7 +160,8 @@ export const onEnterRulesCommand =
     });
 
     if (triggeredRule) {
-      dispatch(state.update(changes, { userEvent: "input" }));
+      closeCompletion(view);
+      dispatch(state.update(changes, { userEvent: "input.type" }));
       startCompletion(view);
       return true;
     }
@@ -175,7 +180,8 @@ export const onEnterRulesCommand =
         ],
       };
     });
-    dispatch(state.update(defaultChanges, { userEvent: "input" }));
+    closeCompletion(view);
+    dispatch(state.update(defaultChanges, { userEvent: "input.type" }));
     startCompletion(view);
     return true;
   };
