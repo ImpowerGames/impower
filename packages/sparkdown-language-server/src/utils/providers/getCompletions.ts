@@ -354,7 +354,7 @@ const addStructReferenceCompletions = (
 const addUIElementReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  contentTypes: ("image" | "text")[],
+  contentTypes: ("image" | "text" | "animation")[],
   insertTextPrefix = ""
 ) => {
   for (const contentType of contentTypes) {
@@ -1300,8 +1300,23 @@ export const getCompletions = (
         prevNode.name === "AssetCommandControl") ||
       leftStack[0]?.name === "AssetCommandTarget"
     ) {
+      const controlNode = getDescendentInsideParent(
+        "AssetCommandControl",
+        "ImageCommand",
+        leftStack
+      );
+      console.log(
+        leftStack.map((n) => n.name),
+        controlNode?.name
+      );
       if (isCursorAfterNodeText(leftStack[0])) {
-        addUIElementReferenceCompletions(completions, program, ["image"]);
+        addUIElementReferenceCompletions(
+          completions,
+          program,
+          getNodeText(controlNode) === "animate"
+            ? ["animation", "image"]
+            : ["image"]
+        );
       }
       return buildCompletions();
     }
@@ -1561,7 +1576,7 @@ export const getCompletions = (
   }
   const propertyNameNode = leftStack.find(
     (n) =>
-      n.type.name === "StructBlankProperty" ||
+      n.type.name === "BlankProperty" ||
       n.type.name === "DeclarationObjectPropertyName" ||
       n.type.name === "DeclarationScalarPropertyName" ||
       n.type.name === "StructObjectItemBlock"

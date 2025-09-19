@@ -354,9 +354,10 @@ export const uiBuiltinDefinitions = () => ({
     }),
     stage: default_ui({
       $name: "stage",
-      background: {
+      camera: {
+        animation: {},
         backdrop: {
-          image: {},
+          image: "transparent",
         },
         portrait: {
           image: {},
@@ -416,7 +417,9 @@ export const uiBuiltinDefinitions = () => ({
           text: "▼",
         },
       },
-      screen: {},
+      screen: {
+        animation: {},
+      },
     }),
   } as Record<string, ReturnType<typeof default_ui>>,
   animation: {
