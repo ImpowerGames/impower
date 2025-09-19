@@ -693,16 +693,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): void {
     if (animations) {
       const eventInstance = { ...event };
-      if (instant) {
-        if (eventInstance.after != null && eventInstance.after > 0) {
-          eventInstance.after = 0;
-        }
-        if (eventInstance.over != null && eventInstance.over > 0) {
-          eventInstance.over = 0;
-        }
-      }
       const definition = this.getAnimationDefinition(eventInstance);
       if (definition) {
+        if (instant) {
+          definition.timing.delay = "0s";
+          definition.timing.duration = "0s";
+        }
         animations.push(definition);
       }
     }

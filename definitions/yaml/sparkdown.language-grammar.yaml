@@ -11,7 +11,7 @@ variables:
   IDENTIFIER_END_CHAR: '0-9_\p{L}'
   IDENTIFIER: "[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*"
   CSS_IDENTIFIER: "[{{IDENTIFIER_END_CHAR}}-]+"
-  DECLARATION_PROPERTY_IDENTIFIER: '(?:["].*?["]|\[.*?\]|\(.*?\)|[^.:=\r\n])+'
+  DECLARATION_PROPERTY_IDENTIFIER: '(?:["].*?["]|\[.*?\]|\(.*?\)|[^.:=\r\n])+?'
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
