@@ -1305,10 +1305,6 @@ export const getCompletions = (
         "ImageCommand",
         leftStack
       );
-      console.log(
-        leftStack.map((n) => n.name),
-        controlNode?.name
-      );
       if (isCursorAfterNodeText(leftStack[0])) {
         addUIElementReferenceCompletions(
           completions,
