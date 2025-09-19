@@ -15,9 +15,6 @@ const completionTheme = EditorView.baseTheme({
     border: `solid 1px #FFFFFF21`,
     borderRadius: "4px",
   },
-  "& .cm-tooltip img": {
-    width: "320px",
-  },
   "& .cm-tooltip p": {
     margin: "4px 8px",
   },
