@@ -29,7 +29,7 @@ variables:
   AUDIO_CONTROL_KEYWORDS:
     ["play", "start", "stop", "modulate", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
-    ["over", "after", "fadeto", "loop", "noloop", "mute", "unmute", "now"]
+    ["over", "after", "fadeto", "loop", "once", "mute", "unmute", "now"]
 
 patterns:
   - { include: "#EndOfLine" }

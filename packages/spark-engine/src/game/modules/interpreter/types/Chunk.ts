@@ -11,7 +11,7 @@ export interface Chunk {
     with?: string;
     wait?: boolean;
     loop?: boolean;
-    noloop?: boolean;
+    once?: boolean;
     mute?: boolean;
     unmute?: boolean;
     now?: boolean;

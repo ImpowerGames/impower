@@ -338,7 +338,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       if (
         text === "wait" ||
         text === "loop" ||
-        text === "noloop" ||
+        text === "once" ||
         text === "mute" ||
         text === "unmute" ||
         text === "now"

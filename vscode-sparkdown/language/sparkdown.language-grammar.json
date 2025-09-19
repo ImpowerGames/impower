@@ -47,7 +47,7 @@
       "after",
       "fadeto",
       "loop",
-      "noloop",
+      "once",
       "mute",
       "unmute",
       "now"
@@ -6968,7 +6968,7 @@
       }
     },
     "AssetCommandContent": {
-      "match": "([^\\S\\n\\r]*)(.*?)($|(?:\\b(?:over|after|with|wait)\\b|\\b(?:over|after|fadeto|loop|noloop|mute|unmute|now)\\b)(?=$|[^\\S\\n\\r]).*)",
+      "match": "([^\\S\\n\\r]*)(.*?)($|(?:\\b(?:over|after|with|wait)\\b|\\b(?:over|after|fadeto|loop|once|mute|unmute|now)\\b)(?=$|[^\\S\\n\\r]).*)",
       "captures": {
         "1": {
           "patterns": [
@@ -7084,7 +7084,7 @@
     "AssetCommandClauseKeyword": {
       "tag": "keyword",
       "name": "keyword.asset.clause.keyword.sd",
-      "match": "(\\b(?:over|after|with|wait)\\b|\\b(?:over|after|fadeto|loop|noloop|mute|unmute|now)\\b)"
+      "match": "(\\b(?:over|after|with|wait)\\b|\\b(?:over|after|fadeto|loop|once|mute|unmute|now)\\b)"
     },
     "AssetCommandName": {
       "match": "(.+?)(?=$|[+])",

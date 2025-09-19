@@ -50,7 +50,7 @@ export class InterpreterModule extends Module<
 
   ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "fadeto", "with"];
 
-  ASSET_FLAG_ARG_KEYWORDS = ["wait", "loop", "noloop", "mute", "unmute", "now"];
+  ASSET_FLAG_ARG_KEYWORDS = ["wait", "loop", "once", "mute", "unmute", "now"];
 
   ASSET_ARG_KEYWORDS = [
     ...this.ASSET_VALUE_ARG_KEYWORDS,
@@ -1361,8 +1361,8 @@ export class InterpreterModule extends Module<
               if (loopValue) {
                 event.loop = true;
               }
-              const noloopValue = c.clauses?.noloop;
-              if (noloopValue) {
+              const onceValue = c.clauses?.once;
+              if (onceValue) {
                 event.loop = false;
               }
               const nowValue = c.clauses?.now;
