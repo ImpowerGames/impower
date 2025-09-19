@@ -1506,6 +1506,17 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
+    if (
+      (isWhitespaceNode(leftStack[0]?.name) &&
+        prevNode?.name === "AssetCommandClauseKeyword" &&
+        prevText === "with") ||
+      leftStack[0]?.name === "NameValue"
+    ) {
+      if (isCursorAfterNodeText(leftStack[0])) {
+        addStructReferenceCompletions(completions, program, ["modulation"]);
+      }
+      return buildCompletions();
+    }
     if (isWhitespaceNode(leftStack[0]?.name)) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
@@ -1531,17 +1542,6 @@ export const getCompletions = (
         }
         return buildCompletions();
       }
-    }
-    if (
-      (isWhitespaceNode(leftStack[0]?.name) &&
-        prevNode?.name === "AssetCommandClauseKeyword" &&
-        prevText === "with") ||
-      leftStack[0]?.name === "NameValue"
-    ) {
-      if (isCursorAfterNodeText(leftStack[0])) {
-        addStructReferenceCompletions(completions, program, ["modulation"]);
-      }
-      return buildCompletions();
     }
   }
 
