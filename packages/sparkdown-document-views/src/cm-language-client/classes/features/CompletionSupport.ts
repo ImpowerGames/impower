@@ -153,7 +153,7 @@ export default class CompletionSupport implements FeatureSupport {
   sources: CompletionSource[] = [];
 
   addSource(source: CompletionSource): void {
-    this.sources.push(debounceSource(source, 100));
+    this.sources.push(debounceSource(source, 50));
   }
 
   removeSource(source: CompletionSource): void {
@@ -176,7 +176,7 @@ export default class CompletionSupport implements FeatureSupport {
         // This way we can ensure that the most recent edit takes precedence when calculating document completions.
         activateOnTypingDelay: 0,
         updateSyncTime: 1000,
-        interactionDelay: 200,
+        interactionDelay: 100,
       }),
     ];
   }
