@@ -53,7 +53,6 @@ const indentationGuideTheme = EditorView.baseTheme({
     background: "var(--indent-guides)",
     pointerEvents: "none",
     zIndex: "-1",
-    transform: "translateX(-3px)",
   },
 });
 

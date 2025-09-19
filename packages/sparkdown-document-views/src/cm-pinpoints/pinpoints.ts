@@ -60,26 +60,26 @@ const pinpointsTheme = EditorView.baseTheme({
   [`.cm-line.${pinpointClass}`]: {
     position: "relative",
   },
-  [`&light .cm-line.${pinpointClass}::after`]: {
+  [`&light .cm-line.${pinpointClass}::before`]: {
     content: "''",
     position: "absolute",
-    inset: "-1px 0 0 0",
+    inset: "0",
     borderTopWidth: "2px",
     borderTopStyle: "solid",
     borderTopColor: "#66baff",
   },
-  [`&dark .cm-line.${pinpointClass}::after`]: {
+  [`&dark .cm-line.${pinpointClass}::before`]: {
     content: "''",
     position: "absolute",
-    inset: "-1px 0 0 0",
+    inset: "0",
     borderTopWidth: "2px",
     borderTopStyle: "solid",
     borderTopColor: "rgba(102, 186, 255, 1)",
   },
-  [`&light .pinpointError .cm-line.${pinpointClass}::after`]: {
+  [`&light .pinpointError .cm-line.${pinpointClass}::before`]: {
     borderTopColor: "#f14c4c",
   },
-  [`&dark .pinpointError .cm-line.${pinpointClass}::after`]: {
+  [`&dark .pinpointError .cm-line.${pinpointClass}::before`]: {
     borderTopColor: "#f14c4c",
   },
 });
