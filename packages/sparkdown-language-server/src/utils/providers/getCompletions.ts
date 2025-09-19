@@ -94,12 +94,17 @@ const rankMostRecentTexts = (
   const afterScriptEntries = scriptAnnotationEntries.slice(
     currentScriptIndex + 1
   );
+  const currentText = contentNode
+    ? read(contentNode.from, contentNode.to)
+    : null;
   for (const [, annotations] of beforeScriptEntries) {
     const cur = annotations[type]?.iter();
     if (cur) {
       while (cur.value) {
         const text = read(cur.from, cur.to);
-        before.push(text);
+        if (text !== currentText) {
+          before.push(text);
+        }
         cur.next();
       }
     }
@@ -110,10 +115,14 @@ const rankMostRecentTexts = (
       while (cur.value) {
         if (!contentNode || cur.to < contentNode.from) {
           const text = read(cur.from, cur.to);
-          before.push(text);
+          if (text !== currentText) {
+            before.push(text);
+          }
         } else if (cur.from > contentNode.from && cur.to > contentNode.to) {
           const text = read(cur.from, cur.to);
-          after.push(text);
+          if (text !== currentText) {
+            after.push(text);
+          }
         }
         cur.next();
       }
@@ -124,7 +133,9 @@ const rankMostRecentTexts = (
     if (cur) {
       while (cur.value) {
         const text = read(cur.from, cur.to);
-        after.push(text);
+        if (text !== currentText) {
+          after.push(text);
+        }
         cur.next();
       }
     }
@@ -1108,7 +1119,7 @@ export const getCompletions = (
   if (leftStack[0]?.name === "TransitionMark") {
     const contentNode = getDescendentInsideParent(
       "Transition_content",
-      "Transition_begin",
+      "Transition",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
@@ -1132,7 +1143,7 @@ export const getCompletions = (
   ) {
     const contentNode = getDescendentInsideParent(
       "Transition_content",
-      "Transition_begin",
+      "Transition",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
@@ -1151,7 +1162,7 @@ export const getCompletions = (
   if (leftStack[0]?.name === "SceneMark") {
     const contentNode = getDescendentInsideParent(
       "Scene_content",
-      "Scene_begin",
+      "Scene",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
@@ -1174,7 +1185,7 @@ export const getCompletions = (
   ) {
     const contentNode = getDescendentInsideParent(
       "Scene_content",
-      "Scene_begin",
+      "Scene",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
