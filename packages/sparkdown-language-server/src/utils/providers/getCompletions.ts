@@ -1035,26 +1035,6 @@ export const getCompletions = (
   // console.log(printTree(tree, document.getText()));
   // console.log(leftStack.map((n) => n.type.name));
 
-  if (
-    leftStack[0]?.name === "PunctuationAccessor" ||
-    leftStack[0]?.name === "VariableName"
-  ) {
-    const accessPathNode = leftStack.find((n) => n.name === "AccessPath");
-    if (isCursorAfterNodeText(accessPathNode)) {
-      const valueText = getNodeText(accessPathNode);
-      const valueCursorOffset = getCursorOffset(accessPathNode);
-      const scopes = getDeclarationScopes(read, scriptAnnotations);
-      addDivertPathCompletions(
-        completions,
-        scopes,
-        valueText,
-        valueCursorOffset,
-        getParentSectionPath(leftStack, read).join(".")
-      );
-    }
-    return buildCompletions();
-  }
-
   // FrontMatter
   if (
     leftStack.some((n) => n.name === "FrontMatter") &&
@@ -1746,19 +1726,27 @@ export const getCompletions = (
       );
     } else {
       const scopes = getDeclarationScopes(read, scriptAnnotations);
+      const scopePath = getParentSectionPath(leftStack, read).join(".");
       addMutableAccessPathCompletions(
         completions,
         scopes,
         valueText,
         valueCursorOffset,
-        getParentSectionPath(leftStack, read).join(".")
+        scopePath
       );
       addImmutableAccessPathCompletions(
         completions,
         scopes,
         valueText,
         valueCursorOffset,
-        getParentSectionPath(leftStack, read).join(".")
+        scopePath
+      );
+      addDivertPathCompletions(
+        completions,
+        scopes,
+        valueText,
+        valueCursorOffset,
+        scopePath
       );
     }
     return buildCompletions();
