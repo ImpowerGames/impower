@@ -133,15 +133,12 @@ const debounceSource = (source: CompletionSource, wait: number) => {
       const timeoutId = window.setTimeout(async () => {
         try {
           const result = await source(context);
-          console.log("result", result);
           resolve(result);
         } catch (error) {
-          console.error(error);
           resolve(null);
         }
       }, wait);
       const cancel = () => {
-        console.error("cancel", null);
         clearTimeout(timeoutId);
         resolve(null);
       };
@@ -178,7 +175,7 @@ export default class CompletionSupport implements FeatureSupport {
         // we use `debounceSource` to debounce completions ourselves.
         // This way we can ensure that the most recent edit takes precedence when calculating document completions.
         activateOnTypingDelay: 0,
-        updateSyncTime: 1000,
+        updateSyncTime: 0,
       }),
     ];
   }
