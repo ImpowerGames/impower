@@ -133,12 +133,15 @@ const debounceSource = (source: CompletionSource, wait: number) => {
       const timeoutId = window.setTimeout(async () => {
         try {
           const result = await source(context);
+          console.log("result", result);
           resolve(result);
         } catch (error) {
+          console.error(error);
           resolve(null);
         }
       }, wait);
       const cancel = () => {
+        console.error("cancel", null);
         clearTimeout(timeoutId);
         resolve(null);
       };
