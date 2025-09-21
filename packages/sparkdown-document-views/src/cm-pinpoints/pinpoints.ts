@@ -102,7 +102,11 @@ export const pinpointsField = StateField.define<DecorationSet>({
         decorations = RangeSet.empty;
         decorations = decorations.update({
           add: lineNumbers
-            .filter((lineNumber) => lineNumber <= tr.state.doc.lines)
+            .filter(
+              (lineNumber) =>
+                typeof lineNumber === "number" &&
+                lineNumber <= tr.state.doc.lines
+            )
             .map((lineNumber) =>
               pinpointDeco.range(tr.state.doc.line(lineNumber).from)
             ),

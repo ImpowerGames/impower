@@ -220,9 +220,15 @@ const createEditorView = (
         let decorations = RangeSet.empty;
         if (pinpointLineNumbers) {
           decorations = decorations.update({
-            add: pinpointLineNumbers.map((lineNumber) =>
-              pinpointDeco.range(state.doc.line(lineNumber).from)
-            ),
+            add: pinpointLineNumbers
+              .filter(
+                (lineNumber) =>
+                  typeof lineNumber === "number" &&
+                  lineNumber <= state.doc.lines
+              )
+              .map((lineNumber) =>
+                pinpointDeco.range(state.doc.line(lineNumber).from)
+              ),
             sort: true,
           });
         }
@@ -232,9 +238,15 @@ const createEditorView = (
         let decorations = RangeSet.empty;
         if (highlightLineNumbers) {
           decorations = decorations.update({
-            add: highlightLineNumbers.map((lineNumber) =>
-              highlightDeco.range(state.doc.line(lineNumber).from)
-            ),
+            add: highlightLineNumbers
+              .filter(
+                (lineNumber) =>
+                  typeof lineNumber === "number" &&
+                  lineNumber <= state.doc.lines
+              )
+              .map((lineNumber) =>
+                highlightDeco.range(state.doc.line(lineNumber).from)
+              ),
             sort: true,
           });
         }
