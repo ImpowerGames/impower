@@ -82,9 +82,11 @@ export const highlightsField = StateField.define<DecorationSet>({
         const lineNumbers = effect.value;
         decorations = RangeSet.empty;
         decorations = decorations.update({
-          add: Array.from(lineNumbers).map((lineNumber) =>
-            highlightDeco.range(tr.state.doc.line(lineNumber).from)
-          ),
+          add: lineNumbers
+            .filter((lineNumber) => lineNumber <= tr.state.doc.lines)
+            .map((lineNumber) =>
+              highlightDeco.range(tr.state.doc.line(lineNumber).from)
+            ),
           sort: true,
         });
       }

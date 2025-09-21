@@ -101,9 +101,11 @@ export const pinpointsField = StateField.define<DecorationSet>({
         const lineNumbers = effect.value;
         decorations = RangeSet.empty;
         decorations = decorations.update({
-          add: lineNumbers.map((lineNumber) =>
-            pinpointDeco.range(tr.state.doc.line(lineNumber).from)
-          ),
+          add: lineNumbers
+            .filter((lineNumber) => lineNumber <= tr.state.doc.lines)
+            .map((lineNumber) =>
+              pinpointDeco.range(tr.state.doc.line(lineNumber).from)
+            ),
           sort: true,
         });
       }
