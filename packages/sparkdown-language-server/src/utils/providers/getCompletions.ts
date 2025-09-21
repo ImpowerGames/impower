@@ -1714,7 +1714,7 @@ export const getCompletions = (
 
   // Access Path
   const accessPathNode = leftStack.find((n) => n.type.name === "AccessPath");
-  if (accessPathNode) {
+  if (accessPathNode || leftStack[0]?.name === "ConditionalBlockOpenBrace") {
     const valueText = getNodeText(accessPathNode);
     const valueCursorOffset = getCursorOffset(accessPathNode);
     if (leftStack.find((n) => n.type.name === "StructField")) {
