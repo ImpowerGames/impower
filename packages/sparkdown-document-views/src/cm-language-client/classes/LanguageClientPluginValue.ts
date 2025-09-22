@@ -267,7 +267,6 @@ export default class LanguageClientPluginValue implements PluginValue {
     const validFor = getClientCompletionValidFor(triggerCharacters);
     const active = clientContext.matchBefore(validFor);
     const from = active?.from ?? clientContext.pos;
-    // TODO: Ensure all options are shown again after backspacing until completed range is empty
     return {
       from,
       validFor,

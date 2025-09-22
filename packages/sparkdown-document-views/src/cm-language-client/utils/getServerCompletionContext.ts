@@ -1,5 +1,4 @@
 import { CompletionContext as ClientCompletionContext } from "@codemirror/autocomplete";
-import { historyField } from "@codemirror/commands";
 import { CompletionTriggerKind } from "@impower/spark-editor-protocol/src/enums/CompletionTriggerKind";
 import {
   ServerCapabilities,
@@ -13,20 +12,7 @@ export const getServerCompletionContext = (
   const line = context.state.doc.lineAt(context.pos);
   let triggerKind: CompletionTriggerKind = CompletionTriggerKind.Invoked;
   let triggerCharacter = line.text[context.pos - line.from - 1];
-  const historyState = context.state.field<{ prevUserEvent: string }>(
-    historyField
-  );
   if (
-    context.explicit &&
-    serverCapabilities?.completionProvider?.triggerCharacters?.includes(
-      context.state.lineBreak
-    ) &&
-    historyState.prevUserEvent === "input"
-  ) {
-    // Handle startCompletion from onEnterRules
-    triggerKind = CompletionTriggerKind.TriggerCharacter;
-    triggerCharacter = context.state.lineBreak;
-  } else if (
     !context.explicit &&
     triggerCharacter &&
     serverCapabilities?.completionProvider?.triggerCharacters?.includes(
