@@ -1,6 +1,7 @@
 import {
   autocompletion,
   CompletionContext,
+  completionKeymap,
   CompletionResult,
   CompletionSource,
   completionStatus,
@@ -176,6 +177,7 @@ export default class CompletionSupport implements FeatureSupport {
               return false;
             },
           },
+          ...completionKeymap,
         ])
       ),
       autocompletion({
