@@ -19,8 +19,9 @@ export type SeparatorTokenType = "separator";
 export type BlockTokenType =
   | "knot"
   | "stitch"
-  | "scene"
-  | "transition"
+  | "title"
+  | "heading"
+  | "transitional"
   | "action"
   | "dialogue"
   | "choice";

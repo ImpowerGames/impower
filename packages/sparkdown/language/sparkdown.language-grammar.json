@@ -112,10 +112,13 @@
       "include": "#Dialogue"
     },
     {
-      "include": "#Transition"
+      "include": "#Title"
     },
     {
-      "include": "#Scene"
+      "include": "#Heading"
+    },
+    {
+      "include": "#Transitional"
     },
     {
       "include": "#AssetLine"
@@ -3465,10 +3468,13 @@
           "include": "#Dialogue"
         },
         {
-          "include": "#Transition"
+          "include": "#Title"
         },
         {
-          "include": "#Scene"
+          "include": "#Heading"
+        },
+        {
+          "include": "#Transitional"
         },
         {
           "include": "#Action"
@@ -4574,10 +4580,13 @@
           "include": "#Dialogue"
         },
         {
-          "include": "#Transition"
+          "include": "#Title"
         },
         {
-          "include": "#Scene"
+          "include": "#Heading"
+        },
+        {
+          "include": "#Transitional"
         },
         {
           "include": "#Action"
@@ -5821,7 +5830,7 @@
     "InlineWrite": {
       "tag": "string",
       "name": "string.write.sd",
-      "begin": "([^\\S\\n\\r]*)([\\^])($|[^\\S\\n\\r]+)($|.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)([>])($|[^\\S\\n\\r]+)($|.*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -5904,7 +5913,7 @@
     "BlockWrite": {
       "tag": "string",
       "name": "string.write.sd",
-      "begin": "([^\\S\\n\\r]*)([\\^])($|[^\\S\\n\\r]+)($|[^:\\r\\n]+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "([^\\S\\n\\r]*)([>])($|[^\\S\\n\\r]+)($|[^:\\r\\n]+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6279,9 +6288,60 @@
     "DialogueCharacterPositionContent": {
       "match": "(.+$)"
     },
-    "Transition": {
+    "Title": {
       "tag": "labelName",
-      "name": "keyword.control.transition.sd",
+      "name": "keyword.control.title.sd",
+      "begin": "([^\\S\\n\\r]*)(\\^)($|[^\\S\\n\\r]+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#TitleMark"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#LineBreak"
+        },
+        {
+          "include": "#LineChain"
+        },
+        {
+          "include": "#LineEnd"
+        }
+      ],
+      "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
+    },
+    "TitleMark": {
+      "tag": "definition(punctuation)",
+      "name": "punctuation.title.mark.sd",
+      "match": "(.+)"
+    },
+    "Transitional": {
+      "tag": "labelName",
+      "name": "keyword.control.transitional.sd",
       "begin": "([^\\S\\n\\r]*)([%])($|[^\\S\\n\\r]+)",
       "beginCaptures": {
         "1": {
@@ -6294,7 +6354,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#TransitionMark"
+              "include": "#TransitionalMark"
             }
           ]
         },
@@ -6325,14 +6385,14 @@
       ],
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
     },
-    "TransitionMark": {
+    "TransitionalMark": {
       "tag": "definition(punctuation)",
-      "name": "punctuation.transition.mark.sd",
+      "name": "punctuation.transitional.mark.sd",
       "match": "(.+)"
     },
-    "Scene": {
+    "Heading": {
       "tag": "regexp",
-      "name": "string.regexp.scene.sd",
+      "name": "string.regexp.heading.sd",
       "begin": "([^\\S\\n\\r]*)([$])($|[^\\S\\n\\r]+)",
       "beginCaptures": {
         "1": {
@@ -6345,7 +6405,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#SceneMark"
+              "include": "#HeadingMark"
             }
           ]
         },
@@ -6376,12 +6436,12 @@
       ],
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
     },
-    "SceneMark": {
+    "HeadingMark": {
       "tag": "definition(punctuation)",
-      "name": "punctuation.scene.mark.sd",
+      "name": "punctuation.heading.mark.sd",
       "match": "(.+)"
     },
-    "SceneLocationTime": {
+    "HeadingLocationTime": {
       "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][^\\S\\n\\r]*(.*?)[^\\S\\n\\r]+[-][^\\S\\n\\r]+(.*?)[^\\S\\n\\r]*$"
     },
     "Action": {

@@ -4,9 +4,9 @@ import {
   ExportPDFParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ExportPDFMessage";
 import { ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
+import ScreenplayParser from "../../../../../packages/sparkdown-screenplay/src/classes/ScreenplayParser";
 import { ScreenplayConfig } from "../../../../../packages/sparkdown-screenplay/src/types/ScreenplayConfig";
 import { generateScreenplayHtmlData } from "../../../../../packages/sparkdown-screenplay/src/utils/generateScreenplayHtmlData";
-import ScreenplayParser from "../../../../../packages/sparkdown-screenplay/src/classes/ScreenplayParser";
 
 export default class WorkspacePrint {
   protected _worker: Worker;
@@ -23,7 +23,7 @@ export default class WorkspacePrint {
     screenplay_print_bookmarks_for_invisible_headings: true,
     screenplay_print_dialogue_split_across_pages: true,
     screenplay_print_page_numbers: true,
-    screenplay_print_scene_headers_bold: true,
+    screenplay_print_headings_bold: true,
     screenplay_print_scene_numbers: "left",
   };
   get config() {

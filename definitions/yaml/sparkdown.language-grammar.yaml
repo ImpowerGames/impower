@@ -51,8 +51,9 @@ patterns:
   - { include: "#Gather" }
   - { include: "#Write" }
   - { include: "#Dialogue" }
-  - { include: "#Transition" }
-  - { include: "#Scene" }
+  - { include: "#Title" }
+  - { include: "#Heading" }
+  - { include: "#Transitional" }
   - { include: "#AssetLine" }
   - { include: "#Action" }
   - { include: "#Whitespace" }
@@ -1895,8 +1896,9 @@ repository:
       - { include: "#Tag" }
       - { include: "#Write" }
       - { include: "#Dialogue" }
-      - { include: "#Transition" }
-      - { include: "#Scene" }
+      - { include: "#Title" }
+      - { include: "#Heading" }
+      - { include: "#Transitional" }
       - { include: "#Action" }
     end: ({{EOL}})(\r\n|\r|\n)?
     endCaptures:
@@ -2466,8 +2468,9 @@ repository:
       - { include: "#Newline" }
       - { include: "#MultilineCloseBraceAhead" }
       - { include: "#Dialogue" }
-      - { include: "#Transition" }
-      - { include: "#Scene" }
+      - { include: "#Title" }
+      - { include: "#Heading" }
+      - { include: "#Transitional" }
       - { include: "#Action" }
       - { include: "#DisplayText" }
     end: (?=$|{{WS}}*[}])
@@ -3250,7 +3253,7 @@ repository:
   InlineWrite:
     tag: string
     name: string.write.sd
-    begin: ({{WS}}*)([\^])($|{{WS}}+)($|.*?)($|{{WS}}*)($|[:])($|{{WS}}*)
+    begin: ({{WS}}*)([>])($|{{WS}}+)($|.*?)($|{{WS}}*)($|[:])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3287,7 +3290,7 @@ repository:
   BlockWrite:
     tag: string
     name: string.write.sd
-    begin: ({{WS}}*)([\^])($|{{WS}}+)($|[^:\r\n]+?)(?={{EOL}})
+    begin: ({{WS}}*)([>])($|{{WS}}+)($|[^:\r\n]+?)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3481,11 +3484,40 @@ repository:
   DialogueCharacterPositionContent:
     match: (.+$)
 
-  ########## Transition ##########
+  ########## Title ##########
 
-  Transition:
+  Title:
     tag: labelName
-    name: keyword.control.transition.sd
+    name: keyword.control.title.sd
+    begin: ({{WS}}*)(\^)($|{{WS}}+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#TitleMark" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Newline" }
+      - { include: "#LineBreak" }
+      - { include: "#LineChain" }
+      - { include: "#LineEnd" }
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
+
+  TitleMark:
+    tag: definition(punctuation)
+    name: punctuation.title.mark.sd
+    match: (.+)
+
+  ########## Transitional ##########
+
+  Transitional:
+    tag: labelName
+    name: keyword.control.transitional.sd
     begin: ({{WS}}*)([%])($|{{WS}}+)
     beginCaptures:
       1:
@@ -3493,7 +3525,7 @@ repository:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#TransitionMark" }
+          - { include: "#TransitionalMark" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -3505,16 +3537,16 @@ repository:
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
 
-  TransitionMark:
+  TransitionalMark:
     tag: definition(punctuation)
-    name: punctuation.transition.mark.sd
+    name: punctuation.transitional.mark.sd
     match: (.+)
 
-  ########## Scene ##########
+  ########## Heading ##########
 
-  Scene:
+  Heading:
     tag: regexp
-    name: string.regexp.scene.sd
+    name: string.regexp.heading.sd
     begin: ({{WS}}*)([$])($|{{WS}}+)
     beginCaptures:
       1:
@@ -3522,7 +3554,7 @@ repository:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#SceneMark" }
+          - { include: "#HeadingMark" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -3534,12 +3566,12 @@ repository:
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
 
-  SceneMark:
+  HeadingMark:
     tag: definition(punctuation)
-    name: punctuation.scene.mark.sd
+    name: punctuation.heading.mark.sd
     match: (.+)
 
-  SceneLocationTime:
+  HeadingLocationTime:
     match: INT[.]?[\/]EXT[.]|INT[.]|EXT[.]{{WS}}*(.*?){{WS}}+[-]{{WS}}+(.*?){{WS}}*$
 
   ########## Action ##########

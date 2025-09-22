@@ -12,11 +12,11 @@ export const generateScreenplayCsvData = (
     if (t.tag === "action") {
       strings.push([t.id, `A`, t.text]);
     }
-    if (t.tag === "transition") {
+    if (t.tag === "transitional") {
       strings.push([t.id, `T`, t.text]);
     }
-    if (t.tag === "scene") {
-      strings.push([t.id, `S`, t.text]);
+    if (t.tag === "heading") {
+      strings.push([t.id, `H`, t.text]);
     }
   });
   return strings;

@@ -264,11 +264,12 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         name !== "FrontMatter" &&
         name !== "Knot" && // TODO: hide knot if config doesn't print knot
         //name !== "Stitch" && // TODO: Only hide stitch if config doesn't print stitch
-        name !== "Transition" &&
-        name !== "Scene" &&
-        name !== "Action" &&
+        name !== "Title" &&
+        name !== "Heading" &&
+        name !== "Transitional" &&
         name !== "BlockDialogue" &&
         name !== "InlineDialogue" &&
+        name !== "Action" &&
         name !== "Choice" &&
         name !== "Newline" &&
         name !== "Whitespace"
@@ -508,8 +509,8 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             ...frontMatterFieldCaptureBlocks
           );
         }
-      } else if (name === "Transition") {
-        // Add Transition Spec
+      } else if (name === "Title") {
+        // Add Title Spec
         decorations.push(
           ...createDecorations(doc, {
             type: "reveal",
@@ -517,8 +518,17 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             to,
           })
         );
-      } else if (name === "Scene") {
-        // Add Scene Spec
+      } else if (name === "Heading") {
+        // Add Heading Spec
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "reveal",
+            from,
+            to,
+          })
+        );
+      } else if (name === "Transitional") {
+        // Add Transitional Spec
         decorations.push(
           ...createDecorations(doc, {
             type: "reveal",

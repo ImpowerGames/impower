@@ -1,14 +1,14 @@
 import { Range } from "@codemirror/state";
+import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 
-export class TransitionAnnotator extends SparkdownAnnotator {
+export class TitleAnnotator extends SparkdownAnnotator {
   override enter(
     annotations: Range<SparkdownAnnotation>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation>[] {
-    if (nodeRef.name === "Transition_content") {
+    if (nodeRef.name === "Title_content") {
       annotations.push(
         SparkdownAnnotation.mark().range(nodeRef.from, nodeRef.to)
       );

@@ -26,11 +26,11 @@ const USLETTER: PrintProfile = {
       color: "#555555",
       level_indent: 0.2,
     },
-    scene: {
+    heading: {
       left_margin: 1.5,
       right_margin: 1,
     },
-    transition: {
+    transitional: {
       left_margin: 1.5,
       right_margin: 1,
       align: "right",

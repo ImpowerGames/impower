@@ -2,17 +2,17 @@ import { PAGE_ALIGNMENTS } from "../constants/PAGE_ALIGNMENTS";
 import { PAGE_POSITIONS } from "../constants/PAGE_POSITIONS";
 import { BlockLayout, DocumentSpan, PageLine } from "../types/DocumentSpan";
 import { FormattedText } from "../types/FormattedText";
+import { LineOptions } from "../types/LineOptions";
 import { PrintProfile } from "../types/PrintProfile";
+import { ScreenplayConfig } from "../types/ScreenplayConfig";
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import {
   BlockTokenType,
   MetadataTokenType,
   ScreenplayTokenType,
 } from "../types/ScreenplayTokenType";
-import { ScreenplayConfig } from "../types/ScreenplayConfig";
 import { TextOptions } from "../types/TextOptions";
 import { styleText } from "../utils/styleText";
-import { LineOptions } from "../types/LineOptions";
 
 export default class ScreenplayTypesetter {
   getInfo(spans: DocumentSpan[]) {
@@ -96,8 +96,8 @@ export default class ScreenplayTypesetter {
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
         }
-      } else if (t.tag === "scene") {
-        const style = config?.screenplay_print_scene_headers_bold
+      } else if (t.tag === "heading") {
+        const style = config?.screenplay_print_headings_bold
           ? { bold: true }
           : undefined;
         const lines = this.format(
@@ -113,7 +113,7 @@ export default class ScreenplayTypesetter {
           spans.push({ tag: t.tag, lines });
           sceneIndex++;
         }
-      } else if (t.tag === "transition") {
+      } else if (t.tag === "transitional") {
         const style = { align: "right" };
         const lines = this.format(
           t.tag,

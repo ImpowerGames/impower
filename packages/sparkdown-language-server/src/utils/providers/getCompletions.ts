@@ -152,7 +152,7 @@ const rankMostRecentTexts = (
   return mostRecentTexts;
 };
 
-const addTransitionCompletions = (
+const addTitleCompletions = (
   completions: Map<string, CompletionItem>,
   read: (from: number, to: number) => string,
   scriptAnnotations: Map<string, SparkdownAnnotations>,
@@ -161,7 +161,7 @@ const addTransitionCompletions = (
   insertTextPrefix: string = ""
 ) => {
   const mostRecentTexts = rankMostRecentTexts(
-    "transitions",
+    "titles",
     read,
     scriptAnnotations,
     uri,
@@ -169,7 +169,7 @@ const addTransitionCompletions = (
   );
   // Add completions
   for (const text of mostRecentTexts) {
-    const labelDetails = { description: "transition" };
+    const labelDetails = { description: "title" };
     const kind = CompletionItemKind.Constant;
     const completion: CompletionItem = {
       label: text,
@@ -183,7 +183,7 @@ const addTransitionCompletions = (
   }
 };
 
-const addSceneCompletions = (
+const addTransitionalCompletions = (
   completions: Map<string, CompletionItem>,
   read: (from: number, to: number) => string,
   scriptAnnotations: Map<string, SparkdownAnnotations>,
@@ -192,7 +192,7 @@ const addSceneCompletions = (
   insertTextPrefix: string = ""
 ) => {
   const mostRecentTexts = rankMostRecentTexts(
-    "scenes",
+    "transitionals",
     read,
     scriptAnnotations,
     uri,
@@ -200,7 +200,38 @@ const addSceneCompletions = (
   );
   // Add completions
   for (const text of mostRecentTexts) {
-    const labelDetails = { description: "scene" };
+    const labelDetails = { description: "transitional" };
+    const kind = CompletionItemKind.Constant;
+    const completion: CompletionItem = {
+      label: text,
+      insertText: insertTextPrefix + text,
+      labelDetails,
+      kind,
+    };
+    if (completion.label && !completions.has(completion.label)) {
+      completions.set(completion.label, completion);
+    }
+  }
+};
+
+const addHeadingCompletions = (
+  completions: Map<string, CompletionItem>,
+  read: (from: number, to: number) => string,
+  scriptAnnotations: Map<string, SparkdownAnnotations>,
+  uri: string,
+  contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
+  insertTextPrefix: string = ""
+) => {
+  const mostRecentTexts = rankMostRecentTexts(
+    "headings",
+    read,
+    scriptAnnotations,
+    uri,
+    contentNode
+  );
+  // Add completions
+  for (const text of mostRecentTexts) {
+    const labelDetails = { description: "heading" };
     const kind = CompletionItemKind.Constant;
     const completion: CompletionItem = {
       label: text,
@@ -1095,15 +1126,15 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  // Transition
-  if (leftStack[0]?.name === "TransitionMark") {
+  // Transitional
+  if (leftStack[0]?.name === "TransitionalMark") {
     const contentNode = getDescendentInsideParent(
-      "Transition_content",
-      "Transition",
+      "Transitional_content",
+      "Transitional",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
-      addTransitionCompletions(
+      addTransitionalCompletions(
         completions,
         read,
         scriptAnnotations,
@@ -1116,18 +1147,18 @@ export const getCompletions = (
   }
   if (
     (isWhitespaceNode(leftStack[0]?.name) &&
-      prevNode?.name === "TransitionMark") ||
+      prevNode?.name === "TransitionalMark") ||
     (isWhitespaceNode(leftStack[0]?.name) &&
-      leftStack.some((n) => n?.name === "Transition_begin")) ||
-    leftStack.some((n) => n?.name === "Transition_content")
+      leftStack.some((n) => n?.name === "Transitional_begin")) ||
+    leftStack.some((n) => n?.name === "Transitional_content")
   ) {
     const contentNode = getDescendentInsideParent(
-      "Transition_content",
-      "Transition",
+      "Transitional_content",
+      "Transitional",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
-      addTransitionCompletions(
+      addTransitionalCompletions(
         completions,
         read,
         scriptAnnotations,
@@ -1138,15 +1169,15 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  // Scene
-  if (leftStack[0]?.name === "SceneMark") {
+  // Title
+  if (leftStack[0]?.name === "TitleMark") {
     const contentNode = getDescendentInsideParent(
-      "Scene_content",
-      "Scene",
+      "Title_content",
+      "Title",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
-      addSceneCompletions(
+      addTitleCompletions(
         completions,
         read,
         scriptAnnotations,
@@ -1158,18 +1189,61 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (
-    (isWhitespaceNode(leftStack[0]?.name) && prevNode?.name === "SceneMark") ||
+    (isWhitespaceNode(leftStack[0]?.name) && prevNode?.name === "TitleMark") ||
     (isWhitespaceNode(leftStack[0]?.name) &&
-      leftStack.some((n) => n?.name === "Scene_begin")) ||
-    leftStack.some((n) => n?.name === "Scene_content")
+      leftStack.some((n) => n?.name === "Title_begin")) ||
+    leftStack.some((n) => n?.name === "Title_content")
   ) {
     const contentNode = getDescendentInsideParent(
-      "Scene_content",
-      "Scene",
+      "Title_content",
+      "Title",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
-      addSceneCompletions(
+      addTitleCompletions(
+        completions,
+        read,
+        scriptAnnotations,
+        document.uri,
+        contentNode
+      );
+    }
+    return buildCompletions();
+  }
+
+  // Heading
+  if (leftStack[0]?.name === "HeadingMark") {
+    const contentNode = getDescendentInsideParent(
+      "Heading_content",
+      "Heading",
+      leftStack
+    );
+    if (isCursorAfterNodeText(contentNode)) {
+      addHeadingCompletions(
+        completions,
+        read,
+        scriptAnnotations,
+        document.uri,
+        contentNode,
+        " "
+      );
+    }
+    return buildCompletions();
+  }
+  if (
+    (isWhitespaceNode(leftStack[0]?.name) &&
+      prevNode?.name === "HeadingMark") ||
+    (isWhitespaceNode(leftStack[0]?.name) &&
+      leftStack.some((n) => n?.name === "Heading_begin")) ||
+    leftStack.some((n) => n?.name === "Heading_content")
+  ) {
+    const contentNode = getDescendentInsideParent(
+      "Heading_content",
+      "Heading",
+      leftStack
+    );
+    if (isCursorAfterNodeText(contentNode)) {
+      addHeadingCompletions(
         completions,
         read,
         scriptAnnotations,

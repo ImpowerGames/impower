@@ -216,13 +216,13 @@
             }
           },
           {
-            "scope": "keyword.control.transition",
+            "scope": "keyword.control.transitional",
             "settings": {
               "foreground": "#BEA3A3"
             }
           },
           {
-            "scope": "string.regexp.scene",
+            "scope": "string.regexp.heading",
             "settings": {
               "foreground": "#FF8080"
             }
@@ -279,13 +279,13 @@
               }
             },
             {
-              "scope": "keyword.control.transition",
+              "scope": "keyword.control.transitional",
               "settings": {
                 "foreground": "#800000"
               }
             },
             {
-              "scope": "string.regexp.scene",
+              "scope": "string.regexp.heading",
               "settings": {
                 "foreground": "#EE0000"
               }
@@ -657,10 +657,10 @@
         "title": "Sparkdown Export",
         "type": "object",
         "properties": {
-          "sparkdown.screenplay.formatting.printSceneHeadersBold": {
+          "sparkdown.screenplay.formatting.printHeadingsBold": {
             "type": "boolean",
             "default": true,
-            "description": "Make scene headers bold in screenplay"
+            "description": "Make scene headings bold in screenplay"
           },
           "sparkdown.screenplay.markup.printKnotHeadings": {
             "type": "boolean",

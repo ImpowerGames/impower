@@ -212,9 +212,10 @@ const closeAngleBracket = async (editor: TextEditor): Promise<boolean> => {
     !stack.some(
       (n) =>
         n.name === "TextChunk" ||
+        n.name === "Title" ||
+        n.name === "Heading" ||
+        n.name === "Transitional" ||
         n.name === "Action" ||
-        n.name === "Scene" ||
-        n.name === "Transition" ||
         n.name === "BlockDialogue" ||
         n.name === "InlineDialogue" ||
         n.name === "BlockWrite" ||

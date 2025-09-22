@@ -5,11 +5,12 @@ export const interpreterBuiltinDefinitions = () => ({
   config: {
     interpreter: {
       directives: {
-        scene: "$",
-        transition: "%",
+        title: "^",
+        heading: "$",
+        transitional: "%",
         dialogue: "@",
         action: "!",
-        write: "^",
+        write: ">",
       },
       fallbacks: {
         layer: "portrait",
@@ -19,20 +20,24 @@ export const interpreterBuiltinDefinitions = () => ({
   },
   typewriter: {
     $default: default_typewriter(),
-    action: default_typewriter({
-      $name: "action",
+    title: default_typewriter({
+      $name: "title",
+      letter_pause: 0,
+    }),
+    heading: default_typewriter({
+      $name: "heading",
       letter_pause: 0.025,
     }),
-    transition: default_typewriter({
-      $name: "transition",
-      letter_pause: 0.025,
-    }),
-    scene: default_typewriter({
-      $name: "scene",
+    transitional: default_typewriter({
+      $name: "transitional",
       letter_pause: 0.025,
     }),
     dialogue: default_typewriter({
       $name: "dialogue",
+      letter_pause: 0.025,
+    }),
+    action: default_typewriter({
+      $name: "action",
       letter_pause: 0.025,
     }),
     character_name: default_typewriter({

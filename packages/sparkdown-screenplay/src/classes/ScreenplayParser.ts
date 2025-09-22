@@ -18,8 +18,8 @@ export default class ScreenplayParser {
     const tokens: ScreenplayToken[] = [{ tag: "page_break" }];
     let frontMatterKey = "";
     let frontMatterValue = "";
-    let scene = "";
-    let transition = "";
+    let heading = "";
+    let transitional = "";
     let action = "";
     let choice = "";
     let choice_prefix = "";
@@ -47,11 +47,12 @@ export default class ScreenplayParser {
             name !== "FrontMatter" &&
             name !== "Knot" &&
             name !== "Stitch" &&
-            name !== "Transition" &&
-            name !== "Scene" &&
-            name !== "Action" &&
+            name !== "Title" &&
+            name !== "Heading" &&
+            name !== "Transitional" &&
             name !== "BlockDialogue" &&
             name !== "InlineDialogue" &&
+            name !== "Action" &&
             name !== "Choice" &&
             name !== "Newline" &&
             name !== "Whitespace"
@@ -96,27 +97,27 @@ export default class ScreenplayParser {
           tokens.push({ tag: "stitch", text });
         }
 
-        // Transition
-        if (stack.includes("Transition")) {
+        // Transitional
+        if (stack.includes("Transitional")) {
           if (name === "TextChunk") {
             const text = read(from, to);
-            transition += text + "\n";
+            transitional += text + "\n";
           }
           if (name === "ParentheticalLineContent") {
             const text = read(from, to);
-            transition += text + "\n";
+            transitional += text + "\n";
           }
         }
 
-        // Scene
-        if (stack.includes("Scene")) {
+        // Heading
+        if (stack.includes("Heading")) {
           if (name === "TextChunk") {
             const text = read(from, to);
-            scene += text + "\n";
+            heading += text + "\n";
           }
           if (name === "ParentheticalLineContent") {
             const text = read(from, to);
-            scene += text + "\n";
+            heading += text + "\n";
           }
         }
 
@@ -195,22 +196,22 @@ export default class ScreenplayParser {
           });
         }
 
-        // Transition
-        if (name === "Transition") {
+        // Transitional
+        if (name === "Transitional") {
           tokens.push({
-            tag: "transition",
-            text: transition,
+            tag: "transitional",
+            text: transitional,
           });
-          transition = "";
+          transitional = "";
         }
 
-        // Scene
-        if (name === "Scene") {
+        // Heading
+        if (name === "Heading") {
           tokens.push({
-            tag: "scene",
-            text: scene,
+            tag: "heading",
+            text: heading,
           });
-          scene = "";
+          heading = "";
         }
 
         // Action

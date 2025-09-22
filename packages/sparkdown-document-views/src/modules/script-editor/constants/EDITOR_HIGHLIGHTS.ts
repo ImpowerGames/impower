@@ -24,8 +24,8 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
 
   { tag: tags.contentSeparator, color: c.break },
   { tag: tags.heading, color: c.sectionNameAccessor },
-  { tag: tags.regexp, color: c.scene },
-  { tag: tags.labelName, color: c.transition },
+  { tag: tags.regexp, color: c.heading },
+  { tag: tags.labelName, color: c.transitional },
 
   { tag: tags.escape, color: c.escape },
 

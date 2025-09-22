@@ -1,5 +1,5 @@
 export interface ScreenplayConfig {
-  screenplay_print_scene_headers_bold?: boolean;
+  screenplay_print_headings_bold?: boolean;
   screenplay_print_knot_headings?: boolean;
   screenplay_print_stitch_headings?: boolean;
   screenplay_print_page_numbers?: boolean;

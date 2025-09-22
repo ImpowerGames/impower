@@ -184,15 +184,15 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     ),
     new CheatsheetItem(
       "$",
-      "Scene text is prefixed with a $",
+      "Heading text is prefixed with a $",
       `
-<span class='scene'>$ INT. BRICK'S ROOM - DAY</span>`.trim()
+<span class='heading'>$ INT. BRICK'S ROOM - DAY</span>`.trim()
     ),
     new CheatsheetItem(
       "%",
-      "Transition text is prefixed with a %",
+      "Transitional text is prefixed with a %",
       `
-<span class='transition'>% CUT TO:</span>`.trim()
+<span class='transitional'>% CUT TO:</span>`.trim()
     ),
     new CheatsheetItem(
       "!",

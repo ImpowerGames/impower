@@ -104,7 +104,7 @@ details[open] > summary::before {
 .condition {
   color: #c586c0;
 }
-.scene {
+.heading {
   color: #ff8080;
 }
 .keyword {
@@ -116,7 +116,7 @@ details[open] > summary::before {
 .divert_target {
   color: #f9b8f9;
 }
-.transition {
+.transitional {
   color: #bea3a3;
 }
 .dialogue_character {

@@ -27,8 +27,8 @@ export const getSparkdownPreviewConfig = (
       screenplayConfig["previewSynchronizedWithCursor"],
     screenplay_preview_theme: screenplayConfig["previewTheme"],
     screenplay_preview_texture: screenplayConfig["previewTexture"],
-    screenplay_print_scene_headers_bold:
-      screenplayConfig["formatting"].printSceneHeadersBold,
+    screenplay_print_headings_bold:
+      screenplayConfig["formatting"].printHeadingsBold,
     screenplay_print_knot_headings:
       screenplayConfig["markup"].printKnotHeadings,
     screenplay_print_stitch_headings:

@@ -1,19 +1,18 @@
-import PDFKit, { text } from "pdfkit";
-import { printTextbox } from "../textbox-for-pdfkit/src/utils/printTextbox";
-import { getHeightOfTextbox } from "../textbox-for-pdfkit/src/utils/getHeightOfTextbox";
-import { getWidthOfTextbox } from "../textbox-for-pdfkit/src/utils/getWidthOfTextbox";
-import { wrapTextbox } from "../textbox-for-pdfkit/src/utils/wrapTextbox";
-import { FormattedText } from "../textbox-for-pdfkit/src/types/FormattedText";
-import { TextOptions } from "../textbox-for-pdfkit/src/types/TextOptions";
 import {
   DocumentSpan,
   MetaLayout,
   PageLine,
 } from "@impower/sparkdown-screenplay/src/types/DocumentSpan";
-import { ScreenplayPrintData } from "@impower/sparkdown-screenplay/src/types/ScreenplayPrintData";
 import { PrintProfile } from "@impower/sparkdown-screenplay/src/types/PrintProfile";
-import { ScreenplayTokenType } from "@impower/sparkdown-screenplay/src/types/ScreenplayTokenType";
 import { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/types/ScreenplayConfig";
+import { ScreenplayPrintData } from "@impower/sparkdown-screenplay/src/types/ScreenplayPrintData";
+import { ScreenplayTokenType } from "@impower/sparkdown-screenplay/src/types/ScreenplayTokenType";
+import { FormattedText } from "../textbox-for-pdfkit/src/types/FormattedText";
+import { TextOptions } from "../textbox-for-pdfkit/src/types/TextOptions";
+import { getHeightOfTextbox } from "../textbox-for-pdfkit/src/utils/getHeightOfTextbox";
+import { getWidthOfTextbox } from "../textbox-for-pdfkit/src/utils/getWidthOfTextbox";
+import { printTextbox } from "../textbox-for-pdfkit/src/utils/printTextbox";
+import { wrapTextbox } from "../textbox-for-pdfkit/src/utils/wrapTextbox";
 
 // pdfkit accepts sizes in PDF points (72 per inch)
 // https://pdfkit.org/docs/getting_started.html
@@ -405,7 +404,7 @@ export default class ScreenplayPrinter {
         const sceneNumber = String(span.scene);
         const sceneNumberWidth = sceneNumber.length * this._state.fontWidth;
         const sceneTextOptions = { ...textOptions };
-        if (this._config?.screenplay_print_scene_headers_bold) {
+        if (this._config?.screenplay_print_headings_bold) {
           sceneTextOptions.bold = true;
         }
         if (

@@ -78,9 +78,10 @@ export default class SparkdownTextDocuments {
     "formatting",
     "links",
     "references",
-    "scenes",
+    "titles",
+    "headings",
+    "transitionals",
     "semantics",
-    "transitions",
   ]);
 
   get parser() {
