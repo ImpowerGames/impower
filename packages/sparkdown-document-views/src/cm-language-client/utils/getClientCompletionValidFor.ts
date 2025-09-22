@@ -4,5 +4,5 @@ export const getClientCompletionValidFor = (
   const chars = triggerCharacters
     ? triggerCharacters.join("").replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&")
     : "";
-  return new RegExp(`[^${chars}]*$`);
+  return new RegExp(`^[^${chars}]*$`);
 };

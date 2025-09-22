@@ -152,11 +152,6 @@ export default class LanguageClientPluginValue implements PluginValue {
       return null;
     }
     const versionBefore = getDocumentVersion(clientContext.state);
-    console.log(
-      "version before",
-      getDocumentVersion(clientContext.state),
-      getDocumentVersion(clientContext.view?.state)
-    );
     const result = await this._serverConnection.sendRequest(
       CompletionMessage.type,
       {
@@ -166,11 +161,6 @@ export default class LanguageClientPluginValue implements PluginValue {
       }
     );
     const versionAfter = getDocumentVersion(clientContext.state);
-    console.log(
-      "version after",
-      getDocumentVersion(clientContext.state),
-      getDocumentVersion(clientContext.view?.state)
-    );
     if (versionAfter !== versionBefore) {
       return null;
     }
@@ -284,19 +274,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     const from = active?.from ?? clientContext.pos;
     return {
       from,
-      validFor: (text, from, to, state) => {
-        console.log("version validFor", getDocumentVersion(state));
-        let { source } = validFor;
-        let addStart = source[0] != "^",
-          addEnd = source[source.length - 1] != "$";
-        if (!addStart && !addEnd) {
-          return validFor.test(text);
-        }
-        return new RegExp(
-          `${addStart ? "^" : ""}(?:${source})${addEnd ? "$" : ""}`,
-          validFor.flags ?? (validFor.ignoreCase ? "i" : "")
-        ).test(text);
-      },
+      validFor,
       options,
       commitCharacters: itemDefaults?.commitCharacters,
     };
