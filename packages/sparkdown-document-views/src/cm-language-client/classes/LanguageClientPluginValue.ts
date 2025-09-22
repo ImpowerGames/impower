@@ -244,10 +244,10 @@ export default class LanguageClientPluginValue implements PluginValue {
           completion.displayLabel = label;
         }
         if (documentation) {
-          completion.info = async () => {
+          completion.info = () => {
             let content = documentation;
             if (typeof content !== "string") {
-              const { value, kind } = await getClientMarkupContent(
+              const { value, kind } = getClientMarkupContent(
                 content,
                 this._fileSystemReader
               );
@@ -302,7 +302,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     const to = range?.end
       ? positionToOffset(clientContext.view.state.doc, range.end)
       : clientContext.pos;
-    const { value, kind } = await getClientMarkupContent(
+    const { value, kind } = getClientMarkupContent(
       contents,
       this._fileSystemReader
     );

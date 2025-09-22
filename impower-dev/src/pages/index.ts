@@ -18,7 +18,7 @@ const load = async () => {
       languageServerConnection: Workspace.ls.connection,
       fileSystemReader: {
         scheme: Workspace.fs.scheme,
-        url: async (uri: string) => Workspace.fs.getUrl(uri),
+        url: (uri: string) => Workspace.fs.getUrl(uri),
       },
       graphics,
     }),
