@@ -2,7 +2,6 @@ import {
   Completion,
   CompletionContext,
   CompletionResult,
-  completionStatus,
   insertCompletionText,
   pickedCompletion,
   snippet,
@@ -151,8 +150,8 @@ export default class LanguageClientPluginValue implements PluginValue {
     );
     if (clientContext.view) {
       console.log(
-        "completion status before",
-        completionStatus(clientContext.view?.state)
+        "version before",
+        getDocumentVersion(clientContext.view?.state)
       );
     }
     console.log("context.pos before", clientContext.pos);
@@ -276,8 +275,8 @@ export default class LanguageClientPluginValue implements PluginValue {
     const active = clientContext.matchBefore(validFor);
     if (clientContext.view) {
       console.log(
-        "completion status after",
-        completionStatus(clientContext.view?.state)
+        "version after",
+        getDocumentVersion(clientContext.view?.state)
       );
     }
     console.log("context.pos after", clientContext.pos);
