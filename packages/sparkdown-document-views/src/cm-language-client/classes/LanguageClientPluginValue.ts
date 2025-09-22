@@ -152,6 +152,11 @@ export default class LanguageClientPluginValue implements PluginValue {
       return null;
     }
     const versionBefore = getDocumentVersion(clientContext.state);
+    console.log(
+      "version before",
+      getDocumentVersion(clientContext.state),
+      getDocumentVersion(clientContext.view?.state)
+    );
     const result = await this._serverConnection.sendRequest(
       CompletionMessage.type,
       {
@@ -161,6 +166,11 @@ export default class LanguageClientPluginValue implements PluginValue {
       }
     );
     const versionAfter = getDocumentVersion(clientContext.state);
+    console.log(
+      "version after",
+      getDocumentVersion(clientContext.state),
+      getDocumentVersion(clientContext.view?.state)
+    );
     if (versionAfter !== versionBefore) {
       return null;
     }
