@@ -1,3 +1,4 @@
+import { completionKeymap } from "@codemirror/autocomplete";
 import {
   defaultKeymap,
   history,
@@ -46,6 +47,7 @@ const EDITOR_EXTENSIONS = [
     ...defaultKeymap,
     ...searchKeymap,
     ...historyKeymap,
+    ...completionKeymap,
     ...lintKeymap,
   ]),
   EditorView.lineWrapping,

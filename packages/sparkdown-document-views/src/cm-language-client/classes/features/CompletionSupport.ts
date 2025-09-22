@@ -1,13 +1,11 @@
 import {
   autocompletion,
   CompletionContext,
-  completionKeymap,
   CompletionResult,
   CompletionSource,
-  completionStatus,
 } from "@codemirror/autocomplete";
-import { EditorState, Prec, TransactionSpec } from "@codemirror/state";
-import { Direction, EditorView, keymap, Rect } from "@codemirror/view";
+import { EditorState, TransactionSpec } from "@codemirror/state";
+import { Direction, EditorView, Rect } from "@codemirror/view";
 import { FeatureSupport } from "../../types/FeatureSupport";
 
 const completionTheme = EditorView.baseTheme({
@@ -135,6 +133,7 @@ const debounceSource = (source: CompletionSource, wait: number) => {
       const timeoutId = window.setTimeout(async () => {
         try {
           const result = await source(context);
+          console.log("aborted", context.aborted);
           resolve(result);
         } catch (error) {
           resolve(null);
@@ -168,18 +167,6 @@ export default class CompletionSupport implements FeatureSupport {
   load() {
     return [
       completionTheme,
-      Prec.highest(
-        keymap.of([
-          {
-            key: "Enter",
-            run: (view) => {
-              console.log("completionStatus", completionStatus(view.state));
-              return false;
-            },
-          },
-          ...completionKeymap,
-        ])
-      ),
       autocompletion({
         override: this.sources,
         aboveCursor: true,
