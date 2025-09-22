@@ -7,11 +7,5 @@
   position: sticky;
   left: 0;
   right: 0;
-  bottom: var(---theme-size-footer-nav);
-}
-
-@media (min-width: 960px) {
-  :host > .root {
-    bottom: 0;
-  }
+  bottom: 0;
 }

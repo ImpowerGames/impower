@@ -185,7 +185,6 @@ export default spec({
         bg-color="${horizontalLayout ? "panel" : "black"}"
         position="sticky-top"
       >
-        <se-header-navigation-placeholder></se-header-navigation-placeholder>
         <s-box
           height="panel-nav"
           position="relative"

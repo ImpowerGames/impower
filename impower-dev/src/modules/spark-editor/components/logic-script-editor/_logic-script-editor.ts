@@ -11,17 +11,15 @@ export default spec({
   reducer: ({ stores }) =>
     ({
       textPulledAt: stores?.workspace?.current?.sync?.textPulledAt || "",
-      horizontalLayout: stores?.workspace?.current?.screen?.horizontalLayout,
     } as const),
-  html: ({ context }) => {
-    const { horizontalLayout } = context;
+  html: () => {
     return html`
       <s-box bg-color="editor-bg" grow>
         <sparkdown-script-editor
           id="sparkdownScriptEditor"
-          scroll-margin="${horizontalLayout ? "0 0 0 0" : "104px 0 0 0"}"
-          top="${horizontalLayout ? "0px" : "104px"}"
-          bottom="${horizontalLayout ? "0px" : "60px"}"
+          scroll-margin="0 0 0 0"
+          top="0px"
+          bottom="0px"
         ></sparkdown-script-editor>
       </s-box>
     `;

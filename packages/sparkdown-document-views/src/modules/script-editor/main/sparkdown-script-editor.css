@@ -24,12 +24,6 @@
   bottom: 0;
   left: 0;
 }
-@media (max-width: 960px) {
-  :host > .root #main {
-    position: relative;
-    min-height: 100%;
-  }
-}
 
 :host > .root #placeholder {
   height: 28px;
@@ -39,34 +33,10 @@
   max-height: 100%;
   height: 100%;
 }
-@media (max-width: 960px) {
-  :host > .root .cm-editor {
-    min-height: 100%;
-    max-height: none;
-  }
-}
 
 :host > .root .cm-editor .cm-scroller {
   max-height: 100%;
   overflow-x: hidden;
-}
-@media (max-width: 960px) {
-  :host > .root .cm-editor .cm-scroller {
-    overflow: visible;
-    min-height: 100%;
-    max-height: none;
-  }
-  :host > .root .cm-editor .cm-scroller::before {
-    /* Force scroller to always be able to scroll,
-       even if the content isn't long enough to warrant it.
-       This is what allows us to prevent users on Safari iOS from
-       scrolling the page when the on-screen keyboard is shown */
-    content: "";
-    opacity: 0;
-    position: absolute;
-    inset: 0 0 -64px 0;
-    pointer-events: none;
-  }
 }
 
 *::-webkit-scrollbar {

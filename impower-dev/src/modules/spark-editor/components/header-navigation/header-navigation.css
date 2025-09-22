@@ -1,13 +1,7 @@
 :host > .root {
-  position: fixed;
+  position: relative;
   inset: 0 0 auto 0;
   z-index: 10;
-}
-
-@media (min-width: 960px) {
-  :host > .root {
-    position: relative;
-  }
 }
 
 :host > .root .blocker {

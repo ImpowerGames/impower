@@ -13,7 +13,6 @@ export default spec({
     return html`
       <s-router key="share-panel" directional active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
-          <se-header-navigation-placeholder></se-header-navigation-placeholder>
           <s-tabs
             indicator-color="tab-active"
             height="panel-nav"
