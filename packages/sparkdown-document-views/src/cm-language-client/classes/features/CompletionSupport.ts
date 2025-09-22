@@ -180,6 +180,7 @@ export default class CompletionSupport implements FeatureSupport {
         // This way we can ensure that the most recent edit takes precedence when calculating document completions.
         activateOnTypingDelay: 0,
         updateSyncTime: Infinity,
+        interactionDelay: 0,
       }),
     ];
   }
