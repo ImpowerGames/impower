@@ -173,7 +173,7 @@ const addTransitionCompletions = (
     const kind = CompletionItemKind.Constant;
     const completion: CompletionItem = {
       label: text,
-      insertText: insertTextPrefix + text + "\n\n",
+      insertText: insertTextPrefix + text,
       labelDetails,
       kind,
     };
@@ -204,7 +204,7 @@ const addSceneCompletions = (
     const kind = CompletionItemKind.Constant;
     const completion: CompletionItem = {
       label: text,
-      insertText: insertTextPrefix + text + "\n\n",
+      insertText: insertTextPrefix + text,
       labelDetails,
       kind,
     };
@@ -235,7 +235,7 @@ const addCharacterCompletions = (
     const kind = CompletionItemKind.Constant;
     const completion: CompletionItem = {
       label: text,
-      insertText: insertTextPrefix + text + "\n",
+      insertText: insertTextPrefix + text,
       labelDetails,
       kind,
     };
