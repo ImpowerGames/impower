@@ -148,16 +148,10 @@ export default class LanguageClientPluginValue implements PluginValue {
       this._serverCapabilities,
       clientContext
     );
-    if (clientContext.view) {
-      console.log(
-        "version before",
-        getDocumentVersion(clientContext.view?.state)
-      );
-    }
-    console.log("context.pos before", clientContext.pos);
     if (!serverContext) {
       return null;
     }
+    const versionBefore = getDocumentVersion(clientContext.state);
     const result = await this._serverConnection.sendRequest(
       CompletionMessage.type,
       {
@@ -166,6 +160,10 @@ export default class LanguageClientPluginValue implements PluginValue {
         context: serverContext,
       }
     );
+    const versionAfter = getDocumentVersion(clientContext.state);
+    if (versionAfter !== versionBefore) {
+      return null;
+    }
     if (!result) {
       return null;
     }
@@ -273,14 +271,6 @@ export default class LanguageClientPluginValue implements PluginValue {
       this._serverCapabilities.completionProvider?.triggerCharacters;
     const validFor = getClientCompletionValidFor(triggerCharacters);
     const active = clientContext.matchBefore(validFor);
-    if (clientContext.view) {
-      console.log(
-        "version after",
-        getDocumentVersion(clientContext.view?.state)
-      );
-    }
-    console.log("context.pos after", clientContext.pos);
-    console.log("active", active);
     const from = active?.from ?? clientContext.pos;
     return {
       from,
