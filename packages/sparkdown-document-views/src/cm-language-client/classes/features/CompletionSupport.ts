@@ -1,11 +1,12 @@
 import {
+  autocompletion,
   CompletionContext,
   CompletionResult,
   CompletionSource,
-  autocompletion,
+  completionStatus,
 } from "@codemirror/autocomplete";
-import { EditorState, TransactionSpec } from "@codemirror/state";
-import { Direction, EditorView, Rect } from "@codemirror/view";
+import { EditorState, Prec, TransactionSpec } from "@codemirror/state";
+import { Direction, EditorView, keymap, Rect } from "@codemirror/view";
 import { FeatureSupport } from "../../types/FeatureSupport";
 
 const completionTheme = EditorView.baseTheme({
@@ -166,6 +167,17 @@ export default class CompletionSupport implements FeatureSupport {
   load() {
     return [
       completionTheme,
+      Prec.highest(
+        keymap.of([
+          {
+            key: "Enter",
+            run: (view) => {
+              console.log("completionStatus", completionStatus(view.state));
+              return false;
+            },
+          },
+        ])
+      ),
       autocompletion({
         override: this.sources,
         aboveCursor: true,
