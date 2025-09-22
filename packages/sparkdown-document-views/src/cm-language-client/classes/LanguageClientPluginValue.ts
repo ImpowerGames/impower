@@ -284,7 +284,19 @@ export default class LanguageClientPluginValue implements PluginValue {
     const from = active?.from ?? clientContext.pos;
     return {
       from,
-      validFor,
+      validFor: (text, from, to, state) => {
+        console.log("version validFor", getDocumentVersion(state));
+        let { source } = validFor;
+        let addStart = source[0] != "^",
+          addEnd = source[source.length - 1] != "$";
+        if (!addStart && !addEnd) {
+          return validFor.test(text);
+        }
+        return new RegExp(
+          `${addStart ? "^" : ""}(?:${source})${addEnd ? "$" : ""}`,
+          validFor.flags ?? (validFor.ignoreCase ? "i" : "")
+        ).test(text);
+      },
       options,
       commitCharacters: itemDefaults?.commitCharacters,
     };
