@@ -148,6 +148,7 @@ export default class LanguageClientPluginValue implements PluginValue {
       this._serverCapabilities,
       clientContext
     );
+    console.log("context.pos before", clientContext.pos);
     if (!serverContext) {
       return null;
     }
@@ -266,7 +267,7 @@ export default class LanguageClientPluginValue implements PluginValue {
       this._serverCapabilities.completionProvider?.triggerCharacters;
     const validFor = getClientCompletionValidFor(triggerCharacters);
     const active = clientContext.matchBefore(validFor);
-    console.log("context.pos", clientContext.pos);
+    console.log("context.pos after", clientContext.pos);
     console.log("active", active);
     const from = active?.from ?? clientContext.pos;
     return {
