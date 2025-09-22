@@ -5,6 +5,8 @@ import {
   Compartment,
   EditorSelection,
   EditorState,
+  Range,
+  RangeSet,
   SelectionRange,
   Transaction,
   TransactionSpec,
@@ -12,6 +14,7 @@ import {
 import {
   DecorationSet,
   EditorView,
+  GutterMarker,
   ViewUpdate,
   panels,
 } from "@codemirror/view";
@@ -28,18 +31,22 @@ import {
 import { NotificationMessage } from "@impower/spark-engine/src";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
-  breakpointsChanged,
-  getBreakpointLineNumbers,
+  breakpointMarker,
+  breakpointsField,
 } from "../../../cm-breakpoints/breakpoints";
 import { foldedField } from "../../../cm-folded/foldedField";
 import {
   getHighlightLineNumbers,
+  highlightDeco,
   highlightsChanged,
+  highlightsField,
 } from "../../../cm-highlight-lines/highlightLines";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import {
   getPinpointLineNumbers,
+  pinpointDeco,
   pinpointsChanged,
+  pinpointsField,
 } from "../../../cm-pinpoints/pinpoints";
 import {
   updateVariableWidgets,
@@ -182,230 +189,12 @@ const createEditorView = (
   let prevBreakpointLineNumbers = breakpointLineNumbers;
   let prevPinpointLineNumbers = pinpointLineNumbers;
   let prevHighlightLineNumbers = highlightLineNumbers;
-  const startState = EditorState.create({
-    doc,
-    selection,
-    extensions: [
-      ...restoredExtensions,
-      EditorView.theme(EDITOR_THEME, { dark: true }),
-      EDITOR_EXTENSIONS,
-      panels({ topContainer, bottomContainer }),
-      search({
-        createPanel: (view) => new SearchPanel(view),
-        scrollToMatch: (range: SelectionRange) =>
-          EditorView.scrollIntoView(range, { y: "center" }),
-        top: true,
-      }),
-      statusPanel(),
-      gotoLinePanel(),
-      readOnly.of(EditorState.readOnly.of(false)),
-      editable.of(EditorView.editable.of(true)),
-      // breakpointsField.init((state) => {
-      //   const gutterMarkers: Range<GutterMarker>[] =
-      //     breakpointLineNumbers?.map((lineNumber) => {
-      //       return breakpointMarker.range(state.doc.line(lineNumber).from);
-      //     }) ?? [];
-      //   return RangeSet.of(gutterMarkers, true);
-      // }),
-      // pinpointsField.init((state) => {
-      //   let decorations = RangeSet.empty;
-      //   if (pinpointLineNumbers) {
-      //     decorations = decorations.update({
-      //       add: pinpointLineNumbers
-      //         .filter(
-      //           (lineNumber) =>
-      //             typeof lineNumber === "number" &&
-      //             lineNumber <= state.doc.lines
-      //         )
-      //         .map((lineNumber) =>
-      //           pinpointDeco.range(state.doc.line(lineNumber).from)
-      //         ),
-      //       sort: true,
-      //     });
-      //   }
-      //   return decorations;
-      // }),
-      // highlightsField.init((state) => {
-      //   let decorations = RangeSet.empty;
-      //   if (highlightLineNumbers) {
-      //     decorations = decorations.update({
-      //       add: highlightLineNumbers
-      //         .filter(
-      //           (lineNumber) =>
-      //             typeof lineNumber === "number" &&
-      //             lineNumber <= state.doc.lines
-      //         )
-      //         .map((lineNumber) =>
-      //           highlightDeco.range(state.doc.line(lineNumber).from)
-      //         ),
-      //       sort: true,
-      //     });
-      //   }
-      //   return decorations;
-      // }),
-      EditorView.scrollMargins.of(() => {
-        return scrollMargin ?? null;
-      }),
-      EditorView.theme(
-        {
-          "& .cm-panels.cm-panels-top": {
-            top: `${top}px !important`,
-          },
-          "& .cm-panels.cm-panels-bottom": {
-            bottom: `${bottom}px !important`,
-          },
-        },
-        { dark: true }
-      ),
-      sparkdownLanguageExtension({
-        textDocument,
-        serverConnection,
-        serverCapabilities,
-        fileSystemReader,
-      }),
-      variableWidgets({
-        fileSystemReader,
-        programContext,
-      }),
-      EditorState.changeFilter.of(
-        (tr: Transaction): boolean | readonly number[] => {
-          if (changeFilter) {
-            return changeFilter(tr);
-          }
-          return true;
-        }
-      ),
-      EditorState.transactionFilter.of(
-        (tr: Transaction): TransactionSpec | readonly TransactionSpec[] => {
-          if (transactionFilter) {
-            return transactionFilter(tr);
-          }
-          return tr;
-        }
-      ),
-      EditorState.transactionExtender.of(
-        (
-          tr: Transaction
-        ): Pick<TransactionSpec, "effects" | "annotations"> | null => {
-          if (transactionExtender) {
-            return transactionExtender(tr);
-          }
-          return null;
-        }
-      ),
-      EditorView.updateListener.of((u) => {
-        const parsing = syntaxParserRunning(u.view);
-        if (!parsing) {
-          onReady?.();
-          debouncedIdle();
-        }
-        if (u.heightChanged) {
-          onHeightChanged?.();
-        }
-        if (u.selectionSet) {
-          const cursorRange = u.state.selection.main;
-          const anchor = cursorRange?.anchor;
-          const head = cursorRange?.head;
-          onSelectionChanged?.(u, anchor, head);
-        }
-        if (u.docChanged || breakpointsChanged(u)) {
-          const currentBreakpointLineNumbers = getBreakpointLineNumbers(u.view);
-          if (
-            JSON.stringify(currentBreakpointLineNumbers) !==
-            JSON.stringify(prevBreakpointLineNumbers)
-          ) {
-            prevBreakpointLineNumbers = currentBreakpointLineNumbers;
-            onBreakpointsChanged?.(u, currentBreakpointLineNumbers);
-          }
-        }
-        if (u.docChanged || pinpointsChanged(u)) {
-          const currentPinpointLineNumbers = getPinpointLineNumbers(u.view);
-          if (
-            JSON.stringify(currentPinpointLineNumbers) !==
-            JSON.stringify(prevPinpointLineNumbers)
-          ) {
-            prevPinpointLineNumbers = currentPinpointLineNumbers;
-            onPinpointsChanged?.(u, currentPinpointLineNumbers);
-          }
-        }
-        if (u.docChanged || highlightsChanged(u)) {
-          const currentHighlightLineNumbers = getHighlightLineNumbers(u.view);
-          if (
-            JSON.stringify(currentHighlightLineNumbers) !==
-            JSON.stringify(prevHighlightLineNumbers)
-          ) {
-            prevHighlightLineNumbers = currentHighlightLineNumbers;
-            onHighlightsChanged?.(u, currentHighlightLineNumbers);
-          }
-        }
-        onViewUpdate?.(u);
-        const json: {
-          history: SerializableHistoryState;
-          folded: SerializableFoldedState;
-        } = u.state.toJSON({
-          history: historyField,
-          folded: foldedField,
-        });
-        const selection =
-          u.view.state.selection.toJSON() as SerializableEditorSelection;
-        const history = json?.history;
-        const folded = json?.folded;
-        const transaction = u.transactions?.[0];
-        const userEvent = transaction?.isUserEvent("undo")
-          ? "undo"
-          : transaction?.isUserEvent("redo")
-          ? "redo"
-          : undefined;
-        const focused = u.view.hasFocus;
-        const snippet = Boolean(parent.querySelector(".cm-snippetField"));
-        const lint = Boolean(parent.querySelector(".cm-panel-lint"));
-        const selected =
-          selection?.ranges?.[selection.main]?.head !==
-          selection?.ranges?.[selection.main]?.anchor;
-        const editorState = {
-          doc,
-          selection,
-          history,
-          userEvent,
-          focused,
-          selected,
-          snippet,
-          folded,
-        };
-        if (parent) {
-          if (snippet) {
-            parent.classList.add("cm-snippet");
-          } else {
-            parent.classList.remove("cm-snippet");
-          }
-          if (lint) {
-            parent.classList.add("cm-lint");
-          } else {
-            parent.classList.remove("cm-lint");
-          }
-        }
-        if (
-          JSON.stringify(getEditorState?.() || {}) !==
-          JSON.stringify(editorState)
-        ) {
-          setEditorState?.(editorState);
-        }
-        if (u.focusChanged) {
-          if (u.view.hasFocus) {
-            onFocus?.();
-          } else {
-            onBlur?.();
-          }
-        }
-        setEditorState?.(editorState);
-      }),
-    ],
-  });
+  const initialDocState = EditorState.create({ doc });
   const scrollToLine =
     scrollToLineNumber != null &&
     scrollToLineNumber >= 1 &&
-    scrollToLineNumber <= startState.doc.lines
-      ? startState.doc.line(scrollToLineNumber)
+    scrollToLineNumber <= initialDocState.doc.lines
+      ? initialDocState.doc.line(scrollToLineNumber)
       : undefined;
   const scrollTo = scrollToLine
     ? EditorView.scrollIntoView(
@@ -414,9 +203,238 @@ const createEditorView = (
       )
     : undefined;
   const view: EditorView = new EditorView({
-    state: startState,
     parent,
     scrollTo,
+    state: EditorState.create({
+      doc,
+      selection,
+      extensions: [
+        ...restoredExtensions,
+        EditorView.theme(EDITOR_THEME, { dark: true }),
+        EDITOR_EXTENSIONS,
+        panels({ topContainer, bottomContainer }),
+        search({
+          createPanel: (view) => new SearchPanel(view),
+          scrollToMatch: (range: SelectionRange) =>
+            EditorView.scrollIntoView(range, { y: "center" }),
+          top: true,
+        }),
+        statusPanel(),
+        gotoLinePanel(),
+        readOnly.of(EditorState.readOnly.of(false)),
+        editable.of(EditorView.editable.of(true)),
+        breakpointsField.init(() => {
+          const gutterMarkers: Range<GutterMarker>[] =
+            breakpointLineNumbers?.map((lineNumber) => {
+              // Using state.doc.line() errors on Mac, so must use initialDocState.doc.line() instead
+              return breakpointMarker.range(
+                initialDocState.doc.line(lineNumber).from
+              );
+            }) ?? [];
+          return RangeSet.of(gutterMarkers, true);
+        }),
+        pinpointsField.init(() => {
+          let decorations = RangeSet.empty;
+          if (pinpointLineNumbers) {
+            decorations = decorations.update({
+              add: pinpointLineNumbers
+                .filter(
+                  (lineNumber) =>
+                    typeof lineNumber === "number" &&
+                    lineNumber <= initialDocState.doc.lines
+                )
+                .map((lineNumber) => {
+                  // Using state.doc.line() errors on Mac, so must use initialDocState.doc.line() instead
+                  return pinpointDeco.range(
+                    initialDocState.doc.line(lineNumber).from
+                  );
+                }),
+              sort: true,
+            });
+          }
+          return decorations;
+        }),
+        highlightsField.init(() => {
+          let decorations = RangeSet.empty;
+          if (highlightLineNumbers) {
+            decorations = decorations.update({
+              add: highlightLineNumbers
+                .filter(
+                  (lineNumber) =>
+                    typeof lineNumber === "number" &&
+                    lineNumber <= initialDocState.doc.lines
+                )
+                .map((lineNumber) => {
+                  // Using state.doc.line() errors on Mac, so must use initialDocState.doc.line() instead
+                  return highlightDeco.range(
+                    initialDocState.doc.line(lineNumber).from
+                  );
+                }),
+              sort: true,
+            });
+          }
+          return decorations;
+        }),
+        EditorView.scrollMargins.of(() => {
+          return scrollMargin ?? null;
+        }),
+        EditorView.theme(
+          {
+            "& .cm-panels.cm-panels-top": {
+              top: `${top}px !important`,
+            },
+            "& .cm-panels.cm-panels-bottom": {
+              bottom: `${bottom}px !important`,
+            },
+          },
+          { dark: true }
+        ),
+        sparkdownLanguageExtension({
+          textDocument,
+          serverConnection,
+          serverCapabilities,
+          fileSystemReader,
+        }),
+        variableWidgets({
+          fileSystemReader,
+          programContext,
+        }),
+        EditorState.changeFilter.of(
+          (tr: Transaction): boolean | readonly number[] => {
+            if (changeFilter) {
+              return changeFilter(tr);
+            }
+            return true;
+          }
+        ),
+        EditorState.transactionFilter.of(
+          (tr: Transaction): TransactionSpec | readonly TransactionSpec[] => {
+            if (transactionFilter) {
+              return transactionFilter(tr);
+            }
+            return tr;
+          }
+        ),
+        EditorState.transactionExtender.of(
+          (
+            tr: Transaction
+          ): Pick<TransactionSpec, "effects" | "annotations"> | null => {
+            if (transactionExtender) {
+              return transactionExtender(tr);
+            }
+            return null;
+          }
+        ),
+        EditorView.updateListener.of((u) => {
+          const parsing = syntaxParserRunning(u.view);
+          if (!parsing) {
+            onReady?.();
+            debouncedIdle();
+          }
+          if (u.heightChanged) {
+            onHeightChanged?.();
+          }
+          if (u.selectionSet) {
+            const cursorRange = u.state.selection.main;
+            const anchor = cursorRange?.anchor;
+            const head = cursorRange?.head;
+            onSelectionChanged?.(u, anchor, head);
+          }
+          // if (u.docChanged || breakpointsChanged(u)) {
+          //   const currentBreakpointLineNumbers = getBreakpointLineNumbers(
+          //     u.view
+          //   );
+          //   if (
+          //     JSON.stringify(currentBreakpointLineNumbers) !==
+          //     JSON.stringify(prevBreakpointLineNumbers)
+          //   ) {
+          //     prevBreakpointLineNumbers = currentBreakpointLineNumbers;
+          //     onBreakpointsChanged?.(u, currentBreakpointLineNumbers);
+          //   }
+          // }
+          if (u.docChanged || pinpointsChanged(u)) {
+            const currentPinpointLineNumbers = getPinpointLineNumbers(u.view);
+            if (
+              JSON.stringify(currentPinpointLineNumbers) !==
+              JSON.stringify(prevPinpointLineNumbers)
+            ) {
+              prevPinpointLineNumbers = currentPinpointLineNumbers;
+              onPinpointsChanged?.(u, currentPinpointLineNumbers);
+            }
+          }
+          if (u.docChanged || highlightsChanged(u)) {
+            const currentHighlightLineNumbers = getHighlightLineNumbers(u.view);
+            if (
+              JSON.stringify(currentHighlightLineNumbers) !==
+              JSON.stringify(prevHighlightLineNumbers)
+            ) {
+              prevHighlightLineNumbers = currentHighlightLineNumbers;
+              onHighlightsChanged?.(u, currentHighlightLineNumbers);
+            }
+          }
+          onViewUpdate?.(u);
+          const json: {
+            history: SerializableHistoryState;
+            folded: SerializableFoldedState;
+          } = u.state.toJSON({
+            history: historyField,
+            folded: foldedField,
+          });
+          const selection =
+            u.view.state.selection.toJSON() as SerializableEditorSelection;
+          const history = json?.history;
+          const folded = json?.folded;
+          const transaction = u.transactions?.[0];
+          const userEvent = transaction?.isUserEvent("undo")
+            ? "undo"
+            : transaction?.isUserEvent("redo")
+            ? "redo"
+            : undefined;
+          const focused = u.view.hasFocus;
+          const snippet = Boolean(parent.querySelector(".cm-snippetField"));
+          const lint = Boolean(parent.querySelector(".cm-panel-lint"));
+          const selected =
+            selection?.ranges?.[selection.main]?.head !==
+            selection?.ranges?.[selection.main]?.anchor;
+          const editorState = {
+            doc,
+            selection,
+            history,
+            userEvent,
+            focused,
+            selected,
+            snippet,
+            folded,
+          };
+          if (parent) {
+            if (snippet) {
+              parent.classList.add("cm-snippet");
+            } else {
+              parent.classList.remove("cm-snippet");
+            }
+            if (lint) {
+              parent.classList.add("cm-lint");
+            } else {
+              parent.classList.remove("cm-lint");
+            }
+          }
+          if (
+            JSON.stringify(getEditorState?.() || {}) !==
+            JSON.stringify(editorState)
+          ) {
+            setEditorState?.(editorState);
+          }
+          if (u.focusChanged) {
+            if (u.view.hasFocus) {
+              onFocus?.();
+            } else {
+              onBlur?.();
+            }
+          }
+          setEditorState?.(editorState);
+        }),
+      ],
+    }),
   });
   const handleProtocol = (e: Event) => {
     if (e instanceof CustomEvent) {
