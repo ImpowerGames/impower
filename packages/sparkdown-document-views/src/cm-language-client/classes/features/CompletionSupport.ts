@@ -132,8 +132,12 @@ const debounceSource = (source: CompletionSource, wait: number) => {
     return new Promise<CompletionResult | null>((resolve) => {
       const timeoutId = window.setTimeout(async () => {
         try {
-          const result = await source(context);
-          resolve(context.aborted ? null : result);
+          if (context.aborted) {
+            resolve(null);
+          } else {
+            const result = await source(context);
+            resolve(context.aborted ? null : result);
+          }
         } catch (error) {
           resolve(null);
         }
