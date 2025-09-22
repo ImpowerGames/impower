@@ -176,7 +176,7 @@ export default class CompletionSupport implements FeatureSupport {
         // we use `debounceSource` to debounce completions ourselves.
         // This way we can ensure that the most recent edit takes precedence when calculating document completions.
         activateOnTypingDelay: 0,
-        updateSyncTime: 3000,
+        updateSyncTime: Infinity,
       }),
     ];
   }
