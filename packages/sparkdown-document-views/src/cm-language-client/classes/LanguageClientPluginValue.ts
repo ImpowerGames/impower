@@ -2,6 +2,7 @@ import {
   Completion,
   CompletionContext,
   CompletionResult,
+  completionStatus,
   insertCompletionText,
   pickedCompletion,
   snippet,
@@ -148,6 +149,12 @@ export default class LanguageClientPluginValue implements PluginValue {
       this._serverCapabilities,
       clientContext
     );
+    if (clientContext.view) {
+      console.log(
+        "completion status before",
+        completionStatus(clientContext.view?.state)
+      );
+    }
     console.log("context.pos before", clientContext.pos);
     if (!serverContext) {
       return null;
@@ -267,6 +274,12 @@ export default class LanguageClientPluginValue implements PluginValue {
       this._serverCapabilities.completionProvider?.triggerCharacters;
     const validFor = getClientCompletionValidFor(triggerCharacters);
     const active = clientContext.matchBefore(validFor);
+    if (clientContext.view) {
+      console.log(
+        "completion status after",
+        completionStatus(clientContext.view?.state)
+      );
+    }
     console.log("context.pos after", clientContext.pos);
     console.log("active", active);
     const from = active?.from ?? clientContext.pos;
