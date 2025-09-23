@@ -19,6 +19,7 @@ import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols
 import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameSteppedMessage";
 import { GameToggledFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameToggledFullscreenModeMessage";
+import { GameWillSimulateChoicesMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateChoicesMessage";
 import { GameWillSimulateFromMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateFromMessage";
 import { GetGameEvaluationContextMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameEvaluationContextMessage";
 import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGamePossibleBreakpointLocationsMessage";
@@ -46,7 +47,10 @@ import { AutoAdvancedToContinueMessage } from "@impower/spark-engine/src/game/co
 import { AwaitingInteractionMessage } from "@impower/spark-engine/src/game/core/classes/messages/AwaitingInteractionMessage";
 import { ChosePathToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/ChoosePathToContinueMessage";
 import { ClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/ClickedToContinueMessage";
-import { ExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExecutedMessage";
+import {
+  ExecutedMessage,
+  ExecutedParams,
+} from "@impower/spark-engine/src/game/core/classes/messages/ExecutedMessage";
 import { ExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExitedThreadMessage";
 import { FinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/FinishedMessage";
 import { HitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/HitBreakpointMessage";
@@ -87,6 +91,7 @@ export default class SparkWebPlayer extends Component(spec) {
   _options?: {
     workspace?: string;
     simulateFrom?: { file: string; line: number } | null;
+    simulateChoices?: Record<string, number[]> | null;
     startFrom?: { file: string; line: number } | null;
     previewFrom?: { file: string; line: number };
     breakpoints?: { file: string; line: number }[];
@@ -310,14 +315,11 @@ export default class SparkWebPlayer extends Component(spec) {
     this.refs.launchButton.classList.toggle("pinned", simulation);
     if (!simulation) {
       this.refs.locationItems.classList.toggle("error", false);
-      this.refs.connectionLabel.textContent = `→`;
+      this.refs.connectionLabel.innerHTML = `→`;
     }
   }
 
-  protected updateExecutionLabels(params?: {
-    locations: DocumentLocation[];
-    simulation?: "none" | "simulating" | "success" | "fail";
-  }) {
+  protected updateExecutionLabels(params?: ExecutedParams) {
     this.refs.locationItems.classList.toggle(
       "error",
       params?.simulation === "fail"
@@ -354,7 +356,16 @@ export default class SparkWebPlayer extends Component(spec) {
       if (startFromLocation) {
         const filePath = this.getRelativeFilePath(startFromLocation.uri);
         const lineNumber = startFromLocation.range.end.line + 1;
-        this.refs.connectionLabel.textContent = `→ 🞪 →`;
+        this.refs.connectionLabel.replaceChildren();
+        this.refs.connectionLabel.appendChild(document.createTextNode("→"));
+        if (params.choices.length > 0) {
+          params.choices.forEach((choice, choiceIndex) => {
+            const dropdownEl = this.createChoiceDropdown(choice, choiceIndex);
+            this.refs.connectionLabel.appendChild(dropdownEl);
+            this.refs.connectionLabel.appendChild(document.createTextNode("→"));
+          });
+        }
+        this.refs.connectionLabel.appendChild(document.createTextNode(" 🞪 →"));
         this.refs.executedLabel.textContent = `${filePath} : ${lineNumber}`;
         this.refs.executionInfo.hidden = false;
       } else {
@@ -368,12 +379,74 @@ export default class SparkWebPlayer extends Component(spec) {
     ) {
       const filePath = this.getRelativeFilePath(lastExecutedLocation.uri);
       const lineNumber = lastExecutedLocation.range.end.line + 1;
-      this.refs.connectionLabel.textContent = `→`;
+      this.refs.connectionLabel.replaceChildren();
+      this.refs.connectionLabel.appendChild(document.createTextNode("→"));
+      if (params.choices.length > 0) {
+        params.choices.forEach((choice, choiceIndex) => {
+          const dropdownEl = this.createChoiceDropdown(choice, choiceIndex);
+          this.refs.connectionLabel.appendChild(dropdownEl);
+          this.refs.connectionLabel.appendChild(document.createTextNode("→"));
+        });
+      }
       this.refs.executedLabel.textContent = `${filePath} : ${lineNumber}`;
       this.refs.executionInfo.hidden = false;
     } else {
       this.refs.executionInfo.hidden = true;
     }
+  }
+
+  createChoiceDropdown(
+    choice: {
+      options: string[];
+      selected: number;
+    },
+    choiceIndex: number
+  ) {
+    const divEl = document.createElement("div");
+    divEl.classList.add("choice");
+    divEl.classList.toggle("forced", choice.selected !== 0);
+    const selectEl = document.createElement("select");
+    divEl.appendChild(selectEl);
+    selectEl.onpointerdown = (e) => {
+      e.stopPropagation();
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    };
+    selectEl.onpointerup = (e) => {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    };
+    selectEl.onchange = (e) => {
+      const optionIndex = Number((e.currentTarget as HTMLSelectElement).value);
+      if (this._game) {
+        this._options ??= {};
+        this._options.simulateChoices ??= {};
+        if (this._game.simulatePath) {
+          this._options.simulateChoices[this._game.simulatePath] ??= [];
+          this._options.simulateChoices[this._game.simulatePath]![choiceIndex] =
+            optionIndex;
+          this._options.simulateChoices = this._game.setSimulateChoices(
+            this._options.simulateChoices ?? null
+          );
+        }
+      }
+      this.emit(
+        MessageProtocol.event,
+        GameWillSimulateChoicesMessage.type.notification({
+          simulateChoices: this._options?.simulateChoices,
+        })
+      );
+    };
+    choice.options.forEach((option, optionIndex) => {
+      const optionEl = document.createElement("option");
+      optionEl.value = `${optionIndex}`;
+      optionEl.selected = optionIndex === choice.selected;
+      optionEl.textContent = `${optionIndex + 1}: ${option}`;
+      selectEl.appendChild(optionEl);
+    });
+    const selectedcontentEl = document.createElement("div");
+    selectedcontentEl.classList.add("selectedcontent");
+    selectedcontentEl.textContent = `  [ ${choice.selected + 1} ]  `;
+    divEl.appendChild(selectedcontentEl);
+    return divEl;
   }
 
   getAspectRatio(width: number, height: number) {
@@ -431,7 +504,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
     this.refs.toolbar.classList.toggle("snapping", snapped);
 
-    this.refs.toolbar.setPointerCapture(e.pointerId);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   protected handlePointerMoveToolbar = (e: PointerEvent) => {
@@ -481,7 +554,7 @@ export default class SparkWebPlayer extends Component(spec) {
     this._isResizing = false;
     document.body.style.cursor = "";
     this.refs.toolbar.classList.remove("snapping");
-    this.refs.toolbar.releasePointerCapture(e.pointerId);
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
   protected handleClickPlayButton = async () => {
@@ -497,12 +570,12 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   protected handlePointerDownLaunchButton = (e: PointerEvent) => {
-    this.refs.launchButton.setPointerCapture(e.pointerId);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     e.stopPropagation();
   };
 
   protected handlePointerUpLaunchButton = (e: PointerEvent) => {
-    this.refs.launchButton.releasePointerCapture(e.pointerId);
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
   protected handleClickLaunchButton = async () => {
@@ -528,12 +601,12 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   protected handlePointerDownResetButton = (e: PointerEvent) => {
-    this.refs.resetButton.setPointerCapture(e.pointerId);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     e.stopPropagation();
   };
 
   protected handlePointerUpResetButton = (e: PointerEvent) => {
-    this.refs.resetButton.releasePointerCapture(e.pointerId);
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
   protected handleClickResetButton = async () => {
@@ -554,12 +627,12 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   protected handlePointerDownFullscreenButton = (e: PointerEvent) => {
-    this.refs.fullscreenButton.setPointerCapture(e.pointerId);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     e.stopPropagation();
   };
 
   protected handlePointerUpFullscreenButton = (e: PointerEvent) => {
-    this.refs.fullscreenButton.releasePointerCapture(e.pointerId);
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
   protected handleClickFullscreenButton = async () => {
@@ -800,7 +873,8 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof ConfigureGameMessage.type,
     message: ConfigureGameMessage.Request
   ) => {
-    const { workspace, simulateFrom, startFrom } = message.params;
+    const { workspace, simulateFrom, simulateChoices, startFrom } =
+      message.params;
     this._options ??= {};
     if (workspace !== undefined) {
       this._options.workspace = workspace;
@@ -808,6 +882,10 @@ export default class SparkWebPlayer extends Component(spec) {
     if (simulateFrom !== undefined) {
       this._options.simulateFrom =
         this._game?.setSimulateFrom(simulateFrom) ?? simulateFrom;
+    }
+    if (simulateChoices !== undefined) {
+      this._options.simulateChoices =
+        this._game?.setSimulateChoices(simulateChoices) ?? simulateChoices;
     }
     if (startFrom !== undefined) {
       this._options.startFrom =
@@ -1275,6 +1353,7 @@ export default class SparkWebPlayer extends Component(spec) {
   async buildGame(restarted?: boolean) {
     const options = this._options;
     const simulateFrom = options?.simulateFrom;
+    const simulateChoices = options?.simulateChoices;
     const startFrom = options?.startFrom;
     const previewFrom = options?.previewFrom;
     const breakpoints = options?.breakpoints;
@@ -1289,6 +1368,7 @@ export default class SparkWebPlayer extends Component(spec) {
     this._game = new Game(this._program, {
       restarted,
       simulateFrom,
+      simulateChoices,
       previewFrom,
       startFrom,
       breakpoints,
@@ -1488,6 +1568,13 @@ export default class SparkWebPlayer extends Component(spec) {
       await this._app.initializing;
     }
     const previewPath = this._game?.getClosestPath(file, line);
+    const executedChoices = this._game?.choices.map((c) => c.selected) ?? [];
+    const shouldSimulateChoices = Array.from(
+      { length: this._game?.choices.length ?? 0 },
+      (_, i) =>
+        this._options?.simulateChoices?.[this._game?.simulatePath || ""]?.[i] ??
+        0
+    );
     if (
       force ||
       !this._app ||
@@ -1499,7 +1586,9 @@ export default class SparkWebPlayer extends Component(spec) {
       (this._game.state === "previewing" &&
         this._options?.simulateFrom &&
         previewPath &&
-        this._game.context.system.previewing !== previewPath)
+        (this._game.context.system.previewing !== previewPath ||
+          JSON.stringify(executedChoices) !==
+            JSON.stringify(shouldSimulateChoices)))
     ) {
       // If haven't built game yet, or programs have changed since last build, build game.
       this._options ??= {};

@@ -98,6 +98,14 @@ export class Game<T extends M = {}> {
 
   protected _lastHitBreakpointLocation?: ScriptLocation;
 
+  protected _choices: {
+    options: string[];
+    selected: number;
+  }[] = [];
+  get choices() {
+    return this._choices;
+  }
+
   protected _nextObjectVariableRef = 2000; // Start at 2000 to avoid conflicts with scope handles
 
   protected _objectVariableRefMap = new Map<number, object>();
@@ -108,6 +116,11 @@ export class Game<T extends M = {}> {
   } | null;
   get simulateFrom() {
     return this._simulateFrom;
+  }
+
+  protected _simulateChoices?: Record<string, number[]> | null;
+  get simulateChoices() {
+    return this._simulateChoices;
   }
 
   protected _startFrom?: {
@@ -183,6 +196,7 @@ export class Game<T extends M = {}> {
       restarted?: boolean;
       executionTimeout?: number;
       simulateFrom?: { file: string; line: number } | null;
+      simulateChoices?: Record<string, number[]> | null;
       previewFrom?: { file: string; line: number } | null;
       startFrom?: { file: string; line: number } | null;
       breakpoints?: { file: string; line: number }[];
@@ -223,6 +237,7 @@ export class Game<T extends M = {}> {
     const previewing = options?.previewFrom ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
     this.setSimulateFrom(options?.simulateFrom ?? null);
+    this.setSimulateChoices(options?.simulateChoices ?? null);
     const startFrom = options?.previewFrom ??
       options?.startFrom ?? {
         file: this._scripts[0] || this._program.uri,
@@ -364,6 +379,20 @@ export class Game<T extends M = {}> {
     return null;
   }
 
+  setSimulateChoices(simulateChoices: Record<string, number[]> | null) {
+    if (!simulateChoices) {
+      this._simulateChoices = null;
+      return null;
+    }
+    this._simulateChoices = {};
+    for (const [path, choices] of Object.entries(simulateChoices)) {
+      if (this._program.pathToLocation?.[path]) {
+        this._simulateChoices[path] = choices;
+      }
+    }
+    return this._simulateChoices;
+  }
+
   setStartFrom(startFrom: { file: string; line: number }) {
     this._startFrom = startFrom;
     this._startPath =
@@ -462,17 +491,29 @@ export class Game<T extends M = {}> {
 
   simulate(): void {
     if (this._simulatePath) {
+      this._choices = [];
       this._context.system.simulating = this._simulatePath;
       this._story.ChoosePathString(this._simulatePath);
       this.continue(true);
+      const autoTurns = this._simulateChoices?.[this._simulatePath];
       while (
         this._simulation === "simulating" &&
         !this._story.canContinue &&
         this._story.currentChoices.length > 0
       ) {
-        // TODO: Determine which choice will lead to the destination
-        const choiceIndex = 0;
-        this._story.ChooseChoiceIndex(choiceIndex);
+        const turnIndex = this._choices.length;
+        const forcedTurn = autoTurns?.[turnIndex];
+        const selected =
+          forcedTurn != null &&
+          forcedTurn >= 0 &&
+          forcedTurn < this._story.currentChoices.length
+            ? forcedTurn!
+            : 0; // TODO: Fallback to a choice that will lead to the destination?
+        this._choices.push({
+          options: this._story.currentChoices.map((c) => c.text),
+          selected,
+        });
+        this._story.ChooseChoiceIndex(selected);
         this.continue(true);
       }
     }
@@ -603,11 +644,13 @@ export class Game<T extends M = {}> {
         module.reset();
       }
     }
+    this._choices = [];
   }
 
-  continue(preserveExecutedPaths?: boolean) {
-    if (!preserveExecutedPaths) {
+  continue(preserveExecutionInfo?: boolean) {
+    if (!preserveExecutionInfo) {
       this._executedPathsThisFrame.clear();
+      this._choices = [];
     }
 
     this._executionTimedOut = false;
@@ -785,6 +828,10 @@ export class Game<T extends M = {}> {
 
   chosePathToContinue(index: number) {
     // Tell the story where to go next
+    this._choices.push({
+      options: this._story.currentChoices.map((c) => c.text),
+      selected: index,
+    });
     this._story.ChooseChoiceIndex(index);
     // Save after every choice
     this.checkpoint();
@@ -888,6 +935,7 @@ export class Game<T extends M = {}> {
         simulateFrom: this._simulateFrom,
         startFrom: this._startFrom,
         locations,
+        choices: this._choices,
         path: this._executingPath,
         state: this._state,
         restarted: this._restarted,

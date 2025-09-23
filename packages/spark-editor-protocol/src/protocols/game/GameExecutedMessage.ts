@@ -8,6 +8,7 @@ export interface GameExecutedParams {
   simulateFrom?: { file: string; line: number } | null;
   startFrom?: { file: string; line: number };
   locations: Location[];
+  choices: { options: string[]; selected: number }[];
   path: string;
   state: "initial" | "running" | "previewing" | "paused";
   restarted?: boolean;

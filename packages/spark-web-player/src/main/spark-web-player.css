@@ -187,6 +187,7 @@
   flex-direction: row;
   align-items: center;
   justify-content: center;
+  background-color: inherit;
 }
 
 #launch-button.pinned {
@@ -234,7 +235,14 @@
 }
 
 #execution-info {
+  background-color: inherit;
+  height: 100%;
   flex-direction: row;
+}
+
+#execution-info span {
+  flex-direction: row;
+  align-items: center;
 }
 
 #size-label,
@@ -244,6 +252,12 @@
 
 #executed-label {
   padding: 0 var(--swp-toolbar-button-gap);
+}
+
+#connection-label {
+  background-color: inherit;
+  flex-direction: row;
+  white-space: pre;
 }
 
 #location-items.error {
@@ -266,7 +280,6 @@
   justify-content: center;
   gap: var(--swp-toolbar-button-gap);
 }
-
 @media (hover: hover) and (pointer: fine) {
   .toolbar-button:hover {
     background-color: var(--swp-toolbar-button-hover-color);
@@ -278,4 +291,36 @@
 
 #middle-items {
   flex: 1;
+}
+
+#toolbar .choice {
+  background-color: inherit;
+  position: relative;
+  height: 100%;
+}
+
+#toolbar .choice.forced .selectedcontent {
+  color: var(--swp-accent-color);
+}
+
+#toolbar .selectedcontent {
+  height: 100%;
+  min-width: 16px;
+  pointer-events: none;
+  align-items: center;
+  justify-content: center;
+  background-color: inherit;
+}
+
+#toolbar select {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  cursor: pointer;
+  background-color: inherit;
+  height: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
 }

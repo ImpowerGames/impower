@@ -345,6 +345,16 @@ export default class WorkspaceWindow {
     );
   }
 
+  setSimulateChoices(simulateChoices: Record<string, number[]>) {
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        simulateChoices,
+      },
+    });
+  }
+
   getPaneState(pane: PaneType) {
     const paneState = this.store.panes[pane];
     if (!paneState) {
