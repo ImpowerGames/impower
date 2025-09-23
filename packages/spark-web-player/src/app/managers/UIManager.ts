@@ -50,7 +50,7 @@ export default class UIManager extends Manager {
       if (params.content) {
         el.textContent = getElementContent(params.content, {
           breakpoints: params.breakpoints,
-          scope: ":host",
+          scope: ":host #game",
         });
       }
       if (params.style) {
@@ -132,7 +132,7 @@ export default class UIManager extends Manager {
         if (params.content != undefined) {
           element.textContent = getElementContent(params.content, {
             breakpoints: params.breakpoints,
-            scope: ":host",
+            scope: ":host #game",
           });
         }
         if (params.attributes != undefined) {

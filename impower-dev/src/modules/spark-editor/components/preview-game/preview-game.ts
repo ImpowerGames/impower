@@ -9,6 +9,7 @@ import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocol
 import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
 import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
 import { GameToggledFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameToggledFullscreenModeMessage";
+import { GameWillSimulateChoicesMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateChoicesMessage";
 import { GameWillSimulateFromMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateFromMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
@@ -132,6 +133,9 @@ export default class GamePreview extends Component(spec) {
       if (GameWillSimulateFromMessage.type.is(message)) {
         this.handleGameWillSimulateFrom(message);
       }
+      if (GameWillSimulateChoicesMessage.type.is(message)) {
+        this.handleGameWillSimulateChoices(message);
+      }
       if (GameExecutedMessage.type.is(e.detail)) {
         this.handleGameExecuted(e.detail);
       }
@@ -206,6 +210,17 @@ export default class GamePreview extends Component(spec) {
       ? { [simulateFrom.file]: [simulateFrom.line] }
       : {};
     Workspace.window.setPinpoints(pinpoints);
+    await this.configureGame();
+    await this.loadPreview();
+  };
+
+  handleGameWillSimulateChoices = async (
+    message: GameWillSimulateChoicesMessage.Notification
+  ) => {
+    const { simulateChoices } = message.params;
+    Workspace.window.setSimulateChoices(simulateChoices ?? {});
+    await this.configureGame();
+    await this.loadPreview();
   };
 
   protected handleGameExecuted = (
@@ -342,10 +357,12 @@ export default class GamePreview extends Component(spec) {
         file: uri,
         line: startLine,
       };
+      const simulateChoices = Workspace.window.store.debug.simulateChoices;
       await this.sendRequest(ConfigureGameMessage.type, {
         workspace,
         startFrom,
         simulateFrom,
+        simulateChoices,
       });
     }
   }
