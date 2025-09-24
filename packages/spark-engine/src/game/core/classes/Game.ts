@@ -1343,6 +1343,7 @@ export class Game<T extends M = {}> {
     } else {
       this.clearChoices();
       this._startPath = previewPath;
+      this._story.ResetState();
       this._story.ChoosePathString(previewPath);
       this.continue();
     }
