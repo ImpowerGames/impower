@@ -188,7 +188,6 @@ export const uiBuiltinDefinitions = () => ({
       gap: "8px",
       margin_bottom: "100px",
       "> *": {
-        opacity: "0",
         display: "flex",
         flex_direction: "row",
         width: "90%",
