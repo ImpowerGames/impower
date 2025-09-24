@@ -463,7 +463,7 @@ export class Game<T extends M = {}> {
   simulate(): void {
     if (this._simulatePath) {
       this._context.system.simulating = this._simulatePath;
-      this._story.ChoosePathString(this._simulatePath);
+      this.jumpToPath(this._simulatePath);
       this.continue(true);
       while (
         this._simulation === "simulating" &&
@@ -495,7 +495,7 @@ export class Game<T extends M = {}> {
       if (save) {
         this.load(save);
       } else if (this._startPath) {
-        this._story.ChoosePathString(this._startPath);
+        this.jumpToPath(this._startPath);
       }
       this.continue();
     }
@@ -801,6 +801,14 @@ export class Game<T extends M = {}> {
       this.module.ui.unobserve("click", target);
       this.module.ui.hide(target);
     }
+  }
+
+  jumpToPath(path: string) {
+    if (this._story.canContinue && !this._story.asyncContinueComplete) {
+      this._story.Continue();
+    }
+    this._story.ResetState();
+    this._story.ChoosePathString(path);
   }
 
   protected notifyHitBreakpoint() {
@@ -1290,13 +1298,12 @@ export class Game<T extends M = {}> {
       this.reset();
       this.clearChoices();
       this._startPath = previewPath;
-      this._story.ChoosePathString(previewPath);
+      this.jumpToPath(previewPath);
       this.continue();
     } else {
       this.clearChoices();
       this._startPath = previewPath;
-      this._story.ResetState();
-      this._story.ChoosePathString(previewPath);
+      this.jumpToPath(previewPath);
       this.continue();
     }
     for (const k of this._moduleNames) {
