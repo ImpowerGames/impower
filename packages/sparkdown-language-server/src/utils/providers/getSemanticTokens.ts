@@ -71,12 +71,18 @@ export const getSemanticTokens = (
       const pathPart1 = text.split(".").slice(0, 1).join(".");
       const pathPart2 = text.split(".").slice(0, 2).join(".");
       if (
+        program?.sceneLocations?.[text] ||
+        program?.branchLocations?.[text] ||
         program?.knotLocations?.[text] ||
         program?.stitchLocations?.[text] ||
         program?.labelLocations?.[text] ||
+        program?.sceneLocations?.[pathPart1] ||
+        program?.branchLocations?.[pathPart1] ||
         program?.knotLocations?.[pathPart1] ||
         program?.stitchLocations?.[pathPart1] ||
         program?.labelLocations?.[pathPart1] ||
+        program?.sceneLocations?.[pathPart2] ||
+        program?.branchLocations?.[pathPart2] ||
         program?.knotLocations?.[pathPart2] ||
         program?.stitchLocations?.[pathPart2] ||
         program?.labelLocations?.[pathPart2]

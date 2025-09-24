@@ -11,7 +11,10 @@ export const getSymbolContext = (
   scopePath?: string;
   reference?: Reference;
 } => {
-  let scopePathParts: { kind: "" | "knot" | "stitch"; name: string }[] = [];
+  let scopePathParts: {
+    kind: "" | "function" | "scene" | "branch" | "knot" | "stitch";
+    name: string;
+  }[] = [];
   const cur = references?.iter();
   if (cur) {
     while (cur.value) {
@@ -19,10 +22,27 @@ export const getSymbolContext = (
         const scopePath = scopePathParts.map((p) => p.name).join(".");
         return { scopePath, reference: cur.value.type };
       }
+      if (cur.value.type.declaration === "scene") {
+        scopePathParts = [];
+        scopePathParts.push({
+          kind: "scene",
+          name: document.read(cur.from, cur.to),
+        });
+      }
       if (cur.value.type.declaration === "knot") {
         scopePathParts = [];
         scopePathParts.push({
           kind: "knot",
+          name: document.read(cur.from, cur.to),
+        });
+      }
+      if (cur.value.type.declaration === "branch") {
+        const prevKind = scopePathParts.at(-1)?.kind || "";
+        if (prevKind === "branch") {
+          scopePathParts.pop();
+        }
+        scopePathParts.push({
+          kind: "branch",
           name: document.read(cur.from, cur.to),
         });
       }

@@ -70,14 +70,67 @@ export const getFoldingRanges = (
   const cur = annotations.declarations?.iter();
   if (cur) {
     while (cur.value) {
-      if (cur.value.type === "knot") {
+      if (cur.value.type === "function") {
         const line = document.positionAt(cur.from).line;
-        const lastKnot = headingFolding.findLast((h) => h.kind === "knot");
-        if (lastKnot) {
-          lastKnot.endLine = line - 1;
+        const lastTop = headingFolding.findLast(
+          (h) =>
+            h.kind === "function" || h.kind === "scene" || h.kind === "knot"
+        );
+        if (lastTop) {
+          lastTop.endLine = line - 1;
         }
         const prevHeading = headingFolding.at(-1);
-        if (prevHeading?.kind === "knot" || prevHeading?.kind === "stitch") {
+        if (prevHeading) {
+          prevHeading.endLine = line - 1;
+        }
+        headingFolding.push({
+          startLine: line,
+          endLine: line,
+          kind: "function",
+        });
+      }
+      if (cur.value.type === "scene") {
+        const line = document.positionAt(cur.from).line;
+        const lastTop = headingFolding.findLast(
+          (h) =>
+            h.kind === "function" || h.kind === "scene" || h.kind === "knot"
+        );
+        if (lastTop) {
+          lastTop.endLine = line - 1;
+        }
+        const prevHeading = headingFolding.at(-1);
+        if (prevHeading) {
+          prevHeading.endLine = line - 1;
+        }
+        headingFolding.push({
+          startLine: line,
+          endLine: line,
+          kind: "scene",
+        });
+      }
+      if (cur.value.type === "branch") {
+        const line = document.positionAt(cur.from).line;
+        const prevHeading = headingFolding.at(-1);
+        if (prevHeading?.kind === "branch" || prevHeading?.kind === "stitch") {
+          prevHeading.endLine = line - 1;
+        }
+        headingFolding.push({
+          startLine: line,
+          endLine: line,
+          kind: "branch",
+        });
+      }
+      if (cur.value.type === "knot") {
+        const line = document.positionAt(cur.from).line;
+        const lastTop = headingFolding.findLast(
+          (h) =>
+            h.kind === "function" || h.kind === "scene" || h.kind === "knot"
+        );
+        if (lastTop) {
+          lastTop.endLine = line - 1;
+        }
+        const prevHeading = headingFolding.at(-1);
+        if (prevHeading) {
           prevHeading.endLine = line - 1;
         }
         headingFolding.push({
@@ -89,7 +142,7 @@ export const getFoldingRanges = (
       if (cur.value.type === "stitch") {
         const line = document.positionAt(cur.from).line;
         const prevHeading = headingFolding.at(-1);
-        if (prevHeading?.kind === "stitch") {
+        if (prevHeading?.kind === "branch" || prevHeading?.kind === "stitch") {
           prevHeading.endLine = line - 1;
         }
         headingFolding.push({
@@ -101,13 +154,17 @@ export const getFoldingRanges = (
       cur.next();
     }
   }
-  const lastKnot = headingFolding.findLast((h) => h.kind === "knot");
-  if (lastKnot && lastKnot.endLine === lastKnot.startLine) {
-    lastKnot.endLine = document.lineCount - 1;
+  const lastTop = headingFolding.findLast(
+    (h) => h.kind === "function" || h.kind === "scene" || h.kind === "knot"
+  );
+  if (lastTop && lastTop.endLine === lastTop.startLine) {
+    lastTop.endLine = document.lineCount - 1;
   }
-  const lastStitch = headingFolding.findLast((h) => h.kind === "stitch");
-  if (lastStitch && lastStitch.endLine === lastStitch.startLine) {
-    lastStitch.endLine = document.lineCount - 1;
+  const lastNested = headingFolding.findLast(
+    (h) => h.kind === "branch" || h.kind === "stitch"
+  );
+  if (lastNested && lastNested.endLine === lastNested.startLine) {
+    lastNested.endLine = document.lineCount - 1;
   }
   const result = [...indentFolding, ...headingFolding].sort(
     (a, b) => a.startLine - b.startLine

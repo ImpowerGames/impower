@@ -27,6 +27,8 @@ export const getSymbol = (
     const symbol = stack.find(
       (n) =>
         n.name === "FunctionDeclarationName" ||
+        n.name === "SceneDeclarationName" ||
+        n.name === "BranchDeclarationName" ||
         n.name === "KnotDeclarationName" ||
         n.name === "StitchDeclarationName" ||
         n.name === "LabelDeclarationName" ||

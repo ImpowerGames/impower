@@ -965,7 +965,7 @@ const addDivertPathCompletions = (
   if (!valueTextAfterCursor) {
     const parts = valueText?.split(".") || [];
     if (scopes) {
-      const types = ["knot", "stitch", "label"];
+      const types = ["scene", "branch", "knot", "stitch", "label"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (
           (parts.length <= 1 && scopePath.startsWith(path)) ||

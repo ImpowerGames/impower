@@ -11,6 +11,8 @@ export type DeclarationType =
   | "animation"
   | "theme"
   | "function"
+  | "scene"
+  | "branch"
   | "knot"
   | "stitch"
   | "label"
@@ -59,6 +61,24 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "FunctionDeclarationName") {
       annotations.push(
         SparkdownAnnotation.mark<DeclarationType>("function").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "SceneDeclarationName") {
+      annotations.push(
+        SparkdownAnnotation.mark<DeclarationType>("scene").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "BranchDeclarationName") {
+      annotations.push(
+        SparkdownAnnotation.mark<DeclarationType>("branch").range(
           nodeRef.from,
           nodeRef.to
         )

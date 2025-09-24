@@ -660,17 +660,27 @@
           "sparkdown.screenplay.formatting.printHeadingsBold": {
             "type": "boolean",
             "default": true,
-            "description": "Make scene headings bold in screenplay"
+            "description": "Make headings bold in screenplay"
           },
-          "sparkdown.screenplay.markup.printKnotHeadings": {
+          "sparkdown.screenplay.markup.printFunctionIdentifiers": {
             "type": "boolean",
             "default": false,
-            "description": "Print knot headings in screenplay ( lines that start with == )"
+            "description": "Print function identifiers in screenplay"
           },
-          "sparkdown.screenplay.markup.printStitchHeadings": {
+          "sparkdown.screenplay.markup.printSceneIdentifiers": {
             "type": "boolean",
             "default": false,
-            "description": "Print stitch headings in screenplay ( lines that start with = )"
+            "description": "Print scene identifiers in screenplay"
+          },
+          "sparkdown.screenplay.markup.printKnotIdentifiers": {
+            "type": "boolean",
+            "default": false,
+            "description": "Print knot identifiers in screenplay"
+          },
+          "sparkdown.screenplay.markup.printStitchIdentifiers": {
+            "type": "boolean",
+            "default": false,
+            "description": "Print stitch identifiers in screenplay"
           },
           "sparkdown.screenplay.numbering.printSceneNumbers": {
             "type": "string",

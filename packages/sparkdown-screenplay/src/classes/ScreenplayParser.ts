@@ -45,6 +45,9 @@ export default class ScreenplayParser {
         if (nodeRef.node.parent?.name === "sparkdown") {
           if (
             name !== "FrontMatter" &&
+            name !== "Function" &&
+            name !== "Scene" &&
+            name !== "Branch" &&
             name !== "Knot" &&
             name !== "Stitch" &&
             name !== "Title" &&
@@ -80,6 +83,30 @@ export default class ScreenplayParser {
         if (name === "FrontMatterString") {
           const text = read(from, to);
           frontMatterValue += text;
+        }
+
+        // Function
+        if (name === "Function") {
+          tokens.push({ tag: "page_break" });
+        }
+        if (name === "FunctionDeclarationName") {
+          const text = read(from, to);
+          tokens.push({ tag: "function", text });
+        }
+
+        // Scene
+        if (name === "Scene") {
+          tokens.push({ tag: "page_break" });
+        }
+        if (name === "SceneDeclarationName") {
+          const text = read(from, to);
+          tokens.push({ tag: "scene", text });
+        }
+
+        // Branch
+        if (name === "BranchDeclarationName") {
+          const text = read(from, to);
+          tokens.push({ tag: "branch", text });
         }
 
         // Knot

@@ -18,9 +18,16 @@ export type FormatType =
   | "close_brace"
   | "frontmatter_begin"
   | "frontmatter_end"
+  | "scene_begin"
+  | "scene_end"
+  | "branch_begin"
+  | "branch_end"
+  | "function_begin"
+  | "function_end"
   | "knot_begin"
   | "knot_end"
-  | "stitch"
+  | "stitch_begin"
+  | "stitch_end"
   | "case_mark"
   | "alternative_mark"
   | "choice_mark"
@@ -139,15 +146,6 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "FunctionKeyword") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("keyword").range(
-          nodeRef.from,
-          nodeRef.to
-        )
-      );
-      return annotations;
-    }
     if (nodeRef.name === "SequenceKeyword") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("keyword").range(
@@ -191,6 +189,62 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
+    if (nodeRef.name === "FunctionKeyword") {
+      if (getContextStack(nodeRef.node).find((n) => n.name === "Function")) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("function_begin").range(
+            nodeRef.from,
+            nodeRef.to
+          )
+        );
+        return annotations;
+      }
+    }
+    if (nodeRef.name === "Function_end") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("function_end").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "SceneKeyword") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("scene_begin").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "Scene_end") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("scene_end").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "BranchKeyword") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("branch_begin").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "Branch_end") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("branch_end").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
     if (nodeRef.name === "KnotBeginMark") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("knot_begin").range(
@@ -209,9 +263,18 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "Stitch") {
+    if (nodeRef.name === "StitchBeginMark") {
       annotations.push(
-        SparkdownAnnotation.mark<FormatType>("stitch").range(
+        SparkdownAnnotation.mark<FormatType>("stitch_begin").range(
+          nodeRef.from,
+          nodeRef.to
+        )
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "Stitch_end") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("stitch_end").range(
           nodeRef.from,
           nodeRef.to
         )

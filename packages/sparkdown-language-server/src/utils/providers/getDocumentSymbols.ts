@@ -4,7 +4,7 @@ import { SymbolKind, type DocumentSymbol } from "vscode-languageserver";
 import { Position, Range } from "vscode-languageserver-textdocument";
 
 export interface DocumentSymbolMark {
-  type: "function" | "knot" | "stitch" | "label";
+  type: "function" | "scene" | "branch" | "knot" | "stitch" | "label";
   symbol: DocumentSymbol;
 }
 
@@ -59,10 +59,7 @@ export const getDocumentSymbols = (
             selectionRange: lineRange,
           },
         };
-        const lastHeading = headingMarks.findLast(
-          (m) =>
-            m.type === "function" || m.type === "knot" || m.type === "stitch"
-        );
+        const lastHeading = headingMarks.at(-1);
         if (lastHeading) {
           lastHeading.symbol.range.end.line = line - 1;
           lastHeading.symbol.range.end.character = document.positionAt(
@@ -70,6 +67,74 @@ export const getDocumentSymbols = (
           ).character;
         }
         topMarks.push(mark);
+        headingMarks.push(mark);
+      }
+      // SCENE
+      if (cur.value.type === "scene") {
+        const name = document.getText(nameRange);
+        const line = document.positionAt(cur.from).line;
+        const mark: DocumentSymbolMark = {
+          type: "scene",
+          symbol: {
+            name,
+            kind: SymbolKind.Class,
+            range: structuredClone(lineRange),
+            selectionRange: lineRange,
+          },
+        };
+        const lastTopHeading = topMarks.at(-1);
+        if (lastTopHeading) {
+          lastTopHeading.symbol.range.end.line = line - 1;
+          lastTopHeading.symbol.range.end.character = document.positionAt(
+            line - 1
+          ).character;
+        }
+        const lastNested = headingMarks.findLast(
+          (m) => m.type === "branch" || m.type === "stitch"
+        );
+        if (lastNested) {
+          lastNested.symbol.range.end.line = line - 1;
+          lastNested.symbol.range.end.character = document.positionAt(
+            line - 1
+          ).character;
+        }
+        topMarks.push(mark);
+        headingMarks.push(mark);
+      }
+      // BRANCH
+      if (cur.value.type === "branch") {
+        const name = document.getText(nameRange);
+        const line = document.positionAt(cur.from).line;
+        const mark: DocumentSymbolMark = {
+          type: "branch",
+          symbol: {
+            name,
+            kind: SymbolKind.Interface,
+            range: structuredClone(lineRange),
+            selectionRange: lineRange,
+          },
+        };
+        const lastTopHeading = headingMarks.findLast(
+          (m) =>
+            m.type === "function" || m.type === "scene" || m.type === "knot"
+        );
+        if (lastTopHeading) {
+          if (lastTopHeading.type === "function") {
+            topMarks.push(mark);
+          } else {
+            lastTopHeading.symbol.children ??= [];
+            lastTopHeading.symbol.children.push(mark.symbol);
+          }
+        }
+        const lastNested = headingMarks.findLast(
+          (m) => m.type === "branch" || m.type === "stitch"
+        );
+        if (lastNested) {
+          lastNested.symbol.range.end.line = line - 1;
+          lastNested.symbol.range.end.character = document.positionAt(
+            line - 1
+          ).character;
+        }
         headingMarks.push(mark);
       }
       // KNOT
@@ -92,10 +157,12 @@ export const getDocumentSymbols = (
             line - 1
           ).character;
         }
-        const lastStitch = headingMarks.findLast((m) => m.type === "stitch");
-        if (lastStitch) {
-          lastStitch.symbol.range.end.line = line - 1;
-          lastStitch.symbol.range.end.character = document.positionAt(
+        const lastNested = headingMarks.findLast(
+          (m) => m.type === "branch" || m.type === "stitch"
+        );
+        if (lastNested) {
+          lastNested.symbol.range.end.line = line - 1;
+          lastNested.symbol.range.end.character = document.positionAt(
             line - 1
           ).character;
         }
@@ -116,20 +183,23 @@ export const getDocumentSymbols = (
           },
         };
         const lastTopHeading = headingMarks.findLast(
-          (m) => m.type === "function" || m.type === "knot"
+          (m) =>
+            m.type === "function" || m.type === "scene" || m.type === "knot"
         );
         if (lastTopHeading) {
-          if (lastTopHeading.type === "knot") {
+          if (lastTopHeading.type === "function") {
+            topMarks.push(mark);
+          } else {
             lastTopHeading.symbol.children ??= [];
             lastTopHeading.symbol.children.push(mark.symbol);
-          } else {
-            topMarks.push(mark);
           }
         }
-        const lastStitch = headingMarks.findLast((m) => m.type === "stitch");
-        if (lastStitch) {
-          lastStitch.symbol.range.end.line = line - 1;
-          lastStitch.symbol.range.end.character = document.positionAt(
+        const lastNested = headingMarks.findLast(
+          (m) => m.type === "branch" || m.type === "stitch"
+        );
+        if (lastNested) {
+          lastNested.symbol.range.end.line = line - 1;
+          lastNested.symbol.range.end.character = document.positionAt(
             line - 1
           ).character;
         }
@@ -147,35 +217,37 @@ export const getDocumentSymbols = (
             selectionRange: nameRange,
           },
         };
-        const lastKnotOrStitch = headingMarks.findLast(
-          (m) => m.type === "knot" || m.type === "stitch"
-        );
-        if (lastKnotOrStitch) {
-          lastKnotOrStitch.symbol.children ??= [];
-          lastKnotOrStitch.symbol.children.push(mark.symbol);
+        const lastHeading = headingMarks.findLast((m) => m.type !== "label");
+        if (lastHeading) {
+          lastHeading.symbol.children ??= [];
+          lastHeading.symbol.children.push(mark.symbol);
         }
         headingMarks.push(mark);
       }
       cur.next();
     }
   }
-  const lastKnot = headingMarks.findLast((m) => m.type === "knot");
+  const lastTop = headingMarks.findLast(
+    (m) => m.type === "function" || m.type === "scene" || m.type === "knot"
+  );
   if (
-    lastKnot &&
-    lastKnot.symbol.range.end.line === lastKnot.symbol.range.start.line
+    lastTop &&
+    lastTop.symbol.range.end.line === lastTop.symbol.range.start.line
   ) {
-    lastKnot.symbol.range.end.line = document.lineCount - 1;
-    lastKnot.symbol.range.end.character = document.positionAt(
+    lastTop.symbol.range.end.line = document.lineCount - 1;
+    lastTop.symbol.range.end.character = document.positionAt(
       document.lineCount - 1
     ).character;
   }
-  const lastStitch = headingMarks.findLast((m) => m.type === "stitch");
+  const lastNested = headingMarks.findLast(
+    (m) => m.type === "branch" || m.type === "stitch"
+  );
   if (
-    lastStitch &&
-    lastStitch.symbol.range.end.line === lastStitch.symbol.range.start.line
+    lastNested &&
+    lastNested.symbol.range.end.line === lastNested.symbol.range.start.line
   ) {
-    lastStitch.symbol.range.end.line = document.lineCount - 1;
-    lastStitch.symbol.range.end.character = document.positionAt(
+    lastNested.symbol.range.end.line = document.lineCount - 1;
+    lastNested.symbol.range.end.character = document.positionAt(
       document.lineCount - 1
     ).character;
   }

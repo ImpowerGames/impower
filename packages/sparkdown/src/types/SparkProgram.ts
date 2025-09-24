@@ -34,6 +34,12 @@ export interface SparkProgram {
   functionLocations?: {
     [name: string]: Location;
   };
+  sceneLocations?: {
+    [name: string]: Location;
+  };
+  branchLocations?: {
+    [name: string]: Location;
+  };
   knotLocations?: {
     [name: string]: Location;
   };

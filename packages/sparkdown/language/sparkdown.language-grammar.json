@@ -79,6 +79,15 @@
       "include": "#Declaration"
     },
     {
+      "include": "#Function"
+    },
+    {
+      "include": "#Scene"
+    },
+    {
+      "include": "#Branch"
+    },
+    {
       "include": "#Knot"
     },
     {
@@ -3503,6 +3512,114 @@
       "name": "keyword.other.gather.sd",
       "match": "(.+)"
     },
+    "Scene": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
+      "begin": "^([^\\S\\n\\r]*)(scene)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#SceneKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SceneWithParametersDeclaration"
+        },
+        {
+          "include": "#SceneWithoutParametersDeclaration"
+        }
+      ],
+      "end": "([:])|(?=$)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
+        }
+      }
+    },
+    "SceneWithParametersDeclaration": {
+      "tag": "heading",
+      "name": "keyword.control.divert.path.sd",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SceneDeclarationName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#FunctionDeclarationParameters"
+        }
+      ],
+      "end": "(?=$|[/][/]|[^\\S\\n\\r]*(?![(]))"
+    },
+    "SceneWithoutParametersDeclaration": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SceneDeclarationName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#FunctionDeclarationParameters"
+        }
+      ],
+      "end": "(?=$|[/][/]|[^\\S\\n\\r]*(?![(]))"
+    },
+    "SceneKeyword": {
+      "tag": "keyword",
+      "name": "keyword.flow.scene.sd",
+      "match": "(.+)"
+    },
+    "SceneDeclarationName": {
+      "match": "(.+)"
+    },
     "Knot": {
       "tag": "definition(heading)",
       "name": "keyword.control.section.sd",
@@ -3525,7 +3642,7 @@
       },
       "patterns": [
         {
-          "include": "#FunctionDeclaration"
+          "include": "#KnotFunction"
         },
         {
           "include": "#KnotWithParametersDeclaration"
@@ -3612,6 +3729,115 @@
     "KnotDeclarationName": {
       "match": "(.+)"
     },
+    "Branch": {
+      "begin": "^([^\\S\\n\\r]*)(branch)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#BranchKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#BranchWithParametersDeclaration"
+        },
+        {
+          "include": "#BranchWithoutParametersDeclaration"
+        }
+      ],
+      "end": "([:])|(?=$)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
+        }
+      }
+    },
+    "BranchWithParametersDeclaration": {
+      "tag": "heading",
+      "name": "keyword.control.divert.path.sd",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#BranchDeclarationName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#FunctionDeclarationParameters"
+        }
+      ],
+      "end": "(?=$|[/][/]|[^\\S\\n\\r]*(?![(]))"
+    },
+    "BranchWithoutParametersDeclaration": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#BranchDeclarationName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#FunctionDeclarationParameters"
+        }
+      ],
+      "end": "(?=$|[/][/]|[^\\S\\n\\r]*(?![(]))"
+    },
+    "BranchKeyword": {
+      "tag": "keyword",
+      "name": "keyword.flow.branch.sd",
+      "match": "(.+)"
+    },
+    "BranchDeclarationName": {
+      "match": "(.+)"
+    },
     "Stitch": {
       "begin": "^([^\\S\\n\\r]*)([=])((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
@@ -3625,7 +3851,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#StitchMark"
+              "include": "#StitchBeginMark"
             }
           ]
         },
@@ -3658,11 +3884,6 @@
           ]
         }
       }
-    },
-    "StitchMark": {
-      "tag": "keyword",
-      "name": "keyword.flow.stitch.sd",
-      "match": "(.+)"
     },
     "StitchWithParametersDeclaration": {
       "tag": "heading",
@@ -3718,11 +3939,65 @@
       ],
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
+    "StitchBeginMark": {
+      "tag": "keyword",
+      "name": "keyword.flow.stitch.sd",
+      "match": "(.+)"
+    },
+    "StitchEndMark": {
+      "tag": "keyword",
+      "name": "keyword.flow.stitch.sd",
+      "match": "(.+)"
+    },
     "StitchDeclarationName": {
       "match": "(.+)"
     },
-    "FunctionDeclaration": {
-      "begin": "(function)([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+    "Function": {
+      "begin": "^([^\\S\\n\\r]*)(function)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#FunctionKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#FunctionDeclaration"
+        }
+      ],
+      "end": "([:])|(?=$)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
+        }
+      }
+    },
+    "KnotFunction": {
+      "begin": "(function)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3737,15 +4012,29 @@
               "include": "#Separator"
             }
           ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
         },
-        "3": {
+        {
+          "include": "#FunctionDeclaration"
+        }
+      ],
+      "end": "(?=$|[^\\S\\n\\r]*[=]{2,})"
+    },
+    "FunctionDeclaration": {
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
           "patterns": [
             {
               "include": "#FunctionDeclarationName"
             }
           ]
         },
-        "4": {
+        "2": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
@@ -3761,16 +4050,21 @@
           "include": "#FunctionDeclarationParameters"
         }
       ],
-      "end": "(?=$|[^\\S\\n\\r]*[=]{2,})"
+      "end": "(?=$)"
     },
     "FunctionKeyword": {
-      "tag": "controlKeyword",
-      "name": "keyword.control.definition.function.sd",
+      "tag": "keyword",
+      "name": "keyword.definition.function.sd",
       "match": "(.+)"
     },
     "FunctionDeclarationName": {
       "tag": "heading",
       "name": "keyword.control.divert.path.sd",
+      "match": "(.+)"
+    },
+    "FunctionEndMark": {
+      "tag": "keyword",
+      "name": "keyword.flow.function.sd",
       "match": "(.+)"
     },
     "Divert": {

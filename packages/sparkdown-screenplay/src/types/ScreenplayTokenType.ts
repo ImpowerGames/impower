@@ -17,6 +17,9 @@ export type PageBreakTokenType = "page_break";
 export type SeparatorTokenType = "separator";
 
 export type BlockTokenType =
+  | "function"
+  | "scene"
+  | "branch"
   | "knot"
   | "stitch"
   | "title"

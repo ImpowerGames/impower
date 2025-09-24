@@ -365,10 +365,16 @@ export default class ScreenplayPrinter {
           : 0;
         feed += span.level * levelIndent;
         const invisible =
+          (span.tag === "function" &&
+            !this._config?.screenplay_print_function_identifiers) ||
+          (span.tag === "scene" &&
+            !this._config?.screenplay_print_scene_identifiers) ||
+          (span.tag === "branch" &&
+            !this._config?.screenplay_print_branch_identifiers) ||
           (span.tag === "knot" &&
-            !this._config?.screenplay_print_knot_headings) ||
+            !this._config?.screenplay_print_knot_identifiers) ||
           (span.tag === "stitch" &&
-            !this._config?.screenplay_print_stitch_headings);
+            !this._config?.screenplay_print_stitch_identifiers);
         if (invisible) {
           content = [];
         }

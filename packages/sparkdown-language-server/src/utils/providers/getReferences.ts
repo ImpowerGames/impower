@@ -259,17 +259,36 @@ export const getReferences = (
     const document = documents.get(uri);
     const annotations = documents.annotations(uri);
     if (document && annotations) {
-      let scopePathParts: { kind: "" | "knot" | "stitch"; name: string }[] = [];
-      let scopeKind: "" | "knot" | "stitch" = "";
+      let scopePathParts: {
+        kind: "" | "function" | "scene" | "branch" | "knot" | "stitch";
+        name: string;
+      }[] = [];
+      let scopeKind: "" | "function" | "scene" | "branch" | "knot" | "stitch" =
+        "";
       const r = annotations.references.iter();
       while (r.value) {
+        if (r.value.type.declaration === "function") {
+          scopePathParts = [];
+          scopeKind = "function";
+        }
+        if (r.value.type.declaration === "scene") {
+          scopePathParts = [];
+          scopeKind = "scene";
+        }
+        if (r.value.type.declaration === "branch") {
+          const prevKind = scopePathParts.at(-1)?.kind || "";
+          if (prevKind === "branch" || prevKind === "stitch") {
+            scopePathParts.pop();
+          }
+          scopeKind = "branch";
+        }
         if (r.value.type.declaration === "knot") {
           scopePathParts = [];
           scopeKind = "knot";
         }
         if (r.value.type.declaration === "stitch") {
           const prevKind = scopePathParts.at(-1)?.kind || "";
-          if (prevKind === "stitch") {
+          if (prevKind === "branch" || prevKind === "stitch") {
             scopePathParts.pop();
           }
           scopeKind = "stitch";
@@ -279,6 +298,9 @@ export const getReferences = (
           addMatchingSymbols(uri, r, refScopePath);
         }
         if (
+          r.value.type.declaration === "function" ||
+          r.value.type.declaration === "scene" ||
+          r.value.type.declaration === "branch" ||
           r.value.type.declaration === "knot" ||
           r.value.type.declaration === "stitch"
         ) {

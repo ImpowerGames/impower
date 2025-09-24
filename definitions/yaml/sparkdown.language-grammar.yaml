@@ -40,6 +40,9 @@ patterns:
   - { include: "#Include" }
   - { include: "#Load" }
   - { include: "#Declaration" }
+  - { include: "#Function" }
+  - { include: "#Scene" }
+  - { include: "#Branch" }
   - { include: "#Knot" }
   - { include: "#Stitch" }
   - { include: "#Divert" }
@@ -1914,7 +1917,68 @@ repository:
     name: keyword.other.gather.sd
     match: (.+)
 
-  ########## Knot, Stitch, Function ##########
+  ########## Scene, Knot, Branch, Stitch, Function ##########
+
+  Scene:
+    tag: definition(heading)
+    name: keyword.control.section.sd
+    begin: ^({{WS}}*)(scene)({{EOK}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#SceneKeyword" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+    patterns:
+      - { include: "#SceneWithParametersDeclaration" }
+      - { include: "#SceneWithoutParametersDeclaration" }
+    end: ([:])|(?=$)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ColonOperator" }
+
+  SceneWithParametersDeclaration:
+    tag: heading
+    name: keyword.control.divert.path.sd
+    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SceneDeclarationName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#FunctionDeclarationParameters" }
+    end: (?=$|[/][/]|{{WS}}*(?![(]))
+
+  SceneWithoutParametersDeclaration:
+    tag: definition(heading)
+    name: keyword.control.section.sd
+    begin: ({{IDENTIFIER}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#SceneDeclarationName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#FunctionDeclarationParameters" }
+    end: (?=$|[/][/]|{{WS}}*(?![(]))
+
+  SceneKeyword:
+    tag: keyword
+    name: keyword.flow.scene.sd
+    match: (.+)
+
+  SceneDeclarationName:
+    match: (.+)
 
   Knot:
     tag: definition(heading)
@@ -1928,7 +1992,7 @@ repository:
         patterns:
           - { include: "#KnotBeginMark" }
     patterns:
-      - { include: "#FunctionDeclaration" }
+      - { include: "#KnotFunction" }
       - { include: "#KnotWithParametersDeclaration" }
       - { include: "#KnotWithoutParametersDeclaration" }
     end: ({{WS}}*[=]{2,})|(?=$)
@@ -1980,6 +2044,66 @@ repository:
   KnotDeclarationName:
     match: (.+)
 
+  Branch:
+    begin: ^({{WS}}*)(branch)({{EOK}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#BranchKeyword" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#BranchWithParametersDeclaration" }
+      - { include: "#BranchWithoutParametersDeclaration" }
+    end: ([:])|(?=$)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ColonOperator" }
+
+  BranchWithParametersDeclaration:
+    tag: heading
+    name: keyword.control.divert.path.sd
+    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#BranchDeclarationName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#FunctionDeclarationParameters" }
+    end: (?=$|[/][/]|{{WS}}*(?![(]))
+
+  BranchWithoutParametersDeclaration:
+    tag: definition(heading)
+    name: keyword.control.section.sd
+    begin: ({{IDENTIFIER}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#BranchDeclarationName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#FunctionDeclarationParameters" }
+    end: (?=$|[/][/]|{{WS}}*(?![(]))
+
+  BranchKeyword:
+    tag: keyword
+    name: keyword.flow.branch.sd
+    match: (.+)
+
+  BranchDeclarationName:
+    match: (.+)
+
   Stitch:
     begin: ^({{WS}}*)([=])({{EOK}})
     beginCaptures:
@@ -1988,7 +2112,7 @@ repository:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#StitchMark" }
+          - { include: "#StitchBeginMark" }
       3:
         patterns:
           - { include: "#Separator" }
@@ -2001,11 +2125,6 @@ repository:
       1:
         patterns:
           - { include: "#InvalidValue" }
-
-  StitchMark:
-    tag: keyword
-    name: keyword.flow.stitch.sd
-    match: (.+)
 
   StitchWithParametersDeclaration:
     tag: heading
@@ -2037,11 +2156,42 @@ repository:
       - { include: "#FunctionDeclarationParameters" }
     end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
 
+  StitchBeginMark:
+    tag: keyword
+    name: keyword.flow.stitch.sd
+    match: (.+)
+
+  StitchEndMark:
+    tag: keyword
+    name: keyword.flow.stitch.sd
+    match: (.+)
+
   StitchDeclarationName:
     match: (.+)
 
-  FunctionDeclaration:
-    begin: (function)({{WS}}*)({{IDENTIFIER}})({{WS}}*)
+  Function:
+    begin: ^({{WS}}*)(function)({{EOK}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#FunctionKeyword" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#FunctionDeclaration" }
+    end: ([:])|(?=$)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ColonOperator" }
+
+  KnotFunction:
+    begin: (function)({{EOK}})
     beginCaptures:
       1:
         patterns:
@@ -2049,25 +2199,38 @@ repository:
       2:
         patterns:
           - { include: "#Separator" }
-      3:
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#FunctionDeclaration" }
+    end: (?=$|{{WS}}*[=]{2,})
+
+  FunctionDeclaration:
+    begin: ({{IDENTIFIER}})({{WS}}*)
+    beginCaptures:
+      1:
         patterns:
           - { include: "#FunctionDeclarationName" }
-      4:
+      2:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|{{WS}}*[=]{2,})
+    end: (?=$)
 
   FunctionKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.function.sd
+    tag: keyword
+    name: keyword.definition.function.sd
     match: (.+)
 
   FunctionDeclarationName:
     tag: heading
     name: keyword.control.divert.path.sd
+    match: (.+)
+
+  FunctionEndMark:
+    tag: keyword
+    name: keyword.flow.function.sd
     match: (.+)
 
   ########## Divert & Thread ##########

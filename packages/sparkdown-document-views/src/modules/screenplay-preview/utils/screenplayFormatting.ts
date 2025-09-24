@@ -262,8 +262,11 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
       // This is a top-level node
       return (
         name !== "FrontMatter" &&
-        name !== "Knot" && // TODO: hide knot if config doesn't print knot
-        //name !== "Stitch" && // TODO: Only hide stitch if config doesn't print stitch
+        name !== "Function" && // TODO: Only hide if config doesn't print function
+        name !== "Scene" && // TODO: Only hide if config doesn't print scene
+        // name !== "Branch" && // TODO: Only hide if config doesn't print branch
+        name !== "Knot" && // TODO: Only hide if config doesn't print knot
+        // name !== "Stitch" && // TODO: Only hide if config doesn't print stitch
         name !== "Title" &&
         name !== "Heading" &&
         name !== "Transitional" &&
@@ -439,6 +442,24 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             },
           });
         }
+      } else if (name === "Function") {
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "page_break",
+            from,
+            to,
+          })
+        );
+        return false;
+      } else if (name === "Scene") {
+        decorations.push(
+          ...createDecorations(doc, {
+            type: "page_break",
+            from,
+            to,
+          })
+        );
+        return false;
       } else if (name === "Knot") {
         decorations.push(
           ...createDecorations(doc, {

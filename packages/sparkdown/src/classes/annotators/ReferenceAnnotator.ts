@@ -14,6 +14,8 @@ export interface Reference {
   usage?: "divert";
   declaration?:
     | "function"
+    | "scene"
+    | "branch"
     | "knot"
     | "stitch"
     | "label"
@@ -69,6 +71,26 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         SparkdownAnnotation.mark<Reference>({
           declaration: "function",
           symbolIds: [this.read(nodeRef.from, nodeRef.to)],
+          kind: "write",
+        }).range(nodeRef.from, nodeRef.to)
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "SceneDeclarationName") {
+      annotations.push(
+        SparkdownAnnotation.mark<Reference>({
+          declaration: "scene",
+          symbolIds: [this.read(nodeRef.from, nodeRef.to)],
+          kind: "write",
+        }).range(nodeRef.from, nodeRef.to)
+      );
+      return annotations;
+    }
+    if (nodeRef.name === "BranchDeclarationName") {
+      annotations.push(
+        SparkdownAnnotation.mark<Reference>({
+          declaration: "branch",
+          symbolIds: ["." + this.read(nodeRef.from, nodeRef.to)],
           kind: "write",
         }).range(nodeRef.from, nodeRef.to)
       );

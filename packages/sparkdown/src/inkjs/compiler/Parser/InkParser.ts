@@ -2191,6 +2191,202 @@ export class InkParser extends StringParser {
    */
 
   /**
+   * Begin Function section.
+   */
+
+  public readonly FunctionDefinition = (): Knot | null => {
+    const functionDecl: FlowDecl = this.Parse(
+      this.FunctionDeclaration
+    ) as FlowDecl;
+    if (functionDecl === null) {
+      return null;
+    }
+
+    this.Expect(
+      this.EndOfLine,
+      "end of line after function name definition",
+      this.SkipToNextLine
+    );
+
+    const innerFunctionStatements: ParseRule = (): ParsedObject[] =>
+      this.StatementsAtLevel(StatementLevel.Knot);
+
+    const content = this.Expect(
+      innerFunctionStatements,
+      "",
+      this.KnotStitchNoContentRecoveryRule
+    ) as ParsedObject[];
+
+    return new Knot(
+      functionDecl.name,
+      content,
+      functionDecl.args,
+      functionDecl.isFunction
+    );
+  };
+
+  public readonly FunctionDeclaration = (): FlowDecl | null => {
+    this.Whitespace();
+
+    if (this.ParseKeywordString("function") === null) {
+      return null;
+    }
+
+    this.Whitespace();
+
+    const identifier: Identifier = this.Parse(
+      this.IdentifierWithMetadata
+    ) as Identifier;
+
+    this.Whitespace();
+
+    const parameterNames: Argument[] = this.Parse(
+      this.BracketedKnotDeclArguments
+    ) as Argument[];
+
+    this.Whitespace();
+
+    // Optional colon after name
+    this.ParseString(":");
+
+    return new FlowDecl(identifier, parameterNames, true);
+  };
+
+  /**
+   * End Function section.
+   */
+
+  /**
+   * Begin Scene section.
+   */
+
+  public readonly SceneDefinition = (): Knot | null => {
+    const sceneDecl: FlowDecl = this.Parse(this.SceneDeclaration) as FlowDecl;
+    if (sceneDecl === null) {
+      return null;
+    }
+
+    this.Expect(
+      this.EndOfLine,
+      "end of line after scene name definition",
+      this.SkipToNextLine
+    );
+
+    const innerSceneStatements: ParseRule = (): ParsedObject[] =>
+      this.StatementsAtLevel(StatementLevel.Knot);
+
+    const content = this.Expect(
+      innerSceneStatements,
+      "",
+      this.KnotStitchNoContentRecoveryRule
+    ) as ParsedObject[];
+
+    return new Knot(
+      sceneDecl.name,
+      content,
+      sceneDecl.args,
+      sceneDecl.isFunction
+    );
+  };
+
+  public readonly SceneDeclaration = (): FlowDecl | null => {
+    this.Whitespace();
+
+    if (this.ParseKeywordString("scene") === null) {
+      return null;
+    }
+
+    this.Whitespace();
+
+    const identifier: Identifier = this.Parse(
+      this.IdentifierWithMetadata
+    ) as Identifier;
+
+    this.Whitespace();
+
+    const parameterNames: Argument[] = this.Parse(
+      this.BracketedKnotDeclArguments
+    ) as Argument[];
+
+    this.Whitespace();
+
+    // Optional colon after name
+    this.ParseString(":");
+
+    return new FlowDecl(identifier, parameterNames, false);
+  };
+
+  /**
+   * End Scene section.
+   */
+
+  /**
+   * Begin Branch section.
+   */
+
+  public readonly BranchDefinition = (): ParseRuleReturn => {
+    const decl = this.Parse(this.BranchDeclaration) as FlowDecl;
+    if (decl === null) {
+      return null;
+    }
+
+    this.Expect(
+      this.EndOfLine,
+      "end of line after branch name",
+      this.SkipToNextLine
+    );
+
+    const innerBranchStatements: ParseRule = () =>
+      this.StatementsAtLevel(StatementLevel.Stitch);
+
+    const content = this.Expect(
+      innerBranchStatements,
+      "",
+      this.KnotStitchNoContentRecoveryRule
+    ) as ParsedObject[];
+
+    return new Stitch(decl.name, content, decl.args, decl.isFunction);
+  };
+
+  public readonly BranchDeclaration = (): FlowDecl | null => {
+    this.Whitespace();
+
+    if (this.ParseKeywordString("branch") === null) {
+      return null;
+    }
+
+    // Branches aren't allowed to be functions, but we parse it anyway and report the error later
+    const isFunc: boolean = this.ParseString("function") !== null;
+    if (isFunc) {
+      this.Whitespace();
+    }
+
+    const branchName: Identifier = this.Parse(
+      this.IdentifierWithMetadata
+    ) as Identifier;
+    if (branchName === null) {
+      return null;
+    }
+
+    this.Whitespace();
+
+    const flowArgs: Argument[] = this.Parse(
+      this.BracketedKnotDeclArguments
+    ) as Argument[];
+
+    this.Whitespace();
+
+    // Optional colon after name
+    this.ParseString(":");
+
+    return new FlowDecl(branchName, flowArgs, isFunc);
+  };
+
+  /**
+   * End Branch section.
+   */
+
+  /**
    * Begin Knot section.
    */
 
@@ -2352,8 +2548,14 @@ export class InkParser extends StringParser {
   };
 
   public readonly KnotStitchNoContentRecoveryRule = (): ParseRuleReturn => {
+    const topLevelSection: ParseRule = () =>
+      this.OneOf([
+        this.KnotDeclaration,
+        this.SceneDeclaration,
+        this.FunctionDeclaration,
+      ]);
     // Jump ahead to the next knot or the end of the file
-    this.ParseUntil(this.KnotDeclaration, new CharacterSet("="), null);
+    this.ParseUntil(topLevelSection, new CharacterSet("=sf"), null);
 
     const recoveredFlowContent: ParsedObject[] = [new Text("<ERROR IN FLOW>")];
 
@@ -3715,8 +3917,10 @@ export class InkParser extends StringParser {
       // Diverts can go anywhere
       rulesAtLevel.push(this.Line(this.MultiDivert));
 
-      // Knots can only be parsed at Top/Global scope
+      // Functions, Scenes, and Knots can only be parsed at Top/Global scope
       if (level >= StatementLevel.Top) {
+        rulesAtLevel.push(this.FunctionDefinition);
+        rulesAtLevel.push(this.SceneDefinition);
         rulesAtLevel.push(this.KnotDefinition);
       }
 
@@ -3730,8 +3934,9 @@ export class InkParser extends StringParser {
         rulesAtLevel.push(this.Gather);
       }
 
-      // Stitches (and gathers) can (currently) only go in Knots and top level
+      // Branches, Stitches, and Gathers can (currently) only go in Scenes, Knots, and top level
       if (level >= StatementLevel.Knot) {
+        rulesAtLevel.push(this.BranchDefinition);
         rulesAtLevel.push(this.StitchDefinition);
       }
 
@@ -3754,13 +3959,16 @@ export class InkParser extends StringParser {
       // --------
       // Breaking rules
 
-      // Break current knot with a new knot
+      // Break current knot
       if (level <= StatementLevel.Knot) {
+        breakingRules.push(this.FunctionDeclaration);
+        breakingRules.push(this.SceneDeclaration);
         breakingRules.push(this.KnotDeclaration);
       }
 
-      // Break current stitch with a new stitch
+      // Break current stitch
       if (level <= StatementLevel.Stitch) {
+        breakingRules.push(this.BranchDeclaration);
         breakingRules.push(this.StitchDeclaration);
       }
 

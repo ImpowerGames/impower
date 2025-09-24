@@ -196,7 +196,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     ),
     new CheatsheetItem(
       "!",
-      "Action (aka scene description) is any paragraph that doesn't meet criteria for another element. It can also be explicitly prefixed with a !",
+      "Action text is any paragraph that doesn't meet criteria for another element. It can also be explicitly prefixed with a !",
       `
 The men look at each other.`.trim()
     ),
@@ -266,27 +266,27 @@ The men look at each other.`.trim()
 
   cheatSheet["Diverting Flow"] = [
     new CheatsheetItem(
-      "== Knot ==",
-      "Declare a knot",
-      "<span class='section'>== ActOne ==</span>"
+      "scene",
+      "Declare a scene",
+      "<span class='section'>scene ActOne:</span>"
     ),
     new CheatsheetItem(
-      "= Stitch",
-      "Declare a stitch",
-      "<span class='section'>== ActOne ==\n\n= PartA</span>"
+      "branch",
+      "Declare a branch",
+      "<span class='section'>scene ActOne:\n\n  branch PartA:</span>"
     ),
     new CheatsheetItem(
-      "== function do(x) ==",
+      "function:",
       "Declare a function",
       `
-<span class='section'>== function add(x, y) ==</span>
-<span class='keyword'>return x + y</span>`.trim()
+<span class='section'>function add(x, y):</span>
+<span class='keyword'>  return x + y</span>`.trim()
     ),
     new CheatsheetItem(
-      "-> KnotOrStitch",
-      "Jump to another knot or stitch with -> KnotOrStitchName",
+      "-> SceneOrBranch",
+      "Jump to another scene or branch with -> SceneOrBranchName",
       `
-<span class='section'># TheBatcave</span>
+<span class='section'>scene TheBatcave</span>
 <span>
 </span>
 <span class='dialogue_character'>@ BATMAN</span>
@@ -296,8 +296,8 @@ The men look at each other.`.trim()
 <span class='action'><span class='divert'>-></span> <span class='divert_target'>TheBatmobile</span></span>`.trim()
     ),
     new CheatsheetItem(
-      "+ Choice -> KnotOrStitch",
-      "Display a sticky choice that diverts to a knot or stitch",
+      "+ Choice -> SceneOrBranch",
+      "Display a sticky choice that diverts to a scene or branch",
       `
 <span class='action'>Where do you want to go?</span>
 <span class='action'><mark class='keyword'>+</mark> To the Batcave! <span class='divert'>-></span> <span class='divert_target'>TheBatcave</span></span>
@@ -306,7 +306,7 @@ The men look at each other.`.trim()
 `.trim()
     ),
     new CheatsheetItem(
-      "* Choice -> KnotOrStitch",
+      "* Choice -> SceneOrBranch",
       "Display a transient choice (i.e. a choice that can only be picked once)",
       `
 <span class='dialogue_character'>@ DETECTIVE</span>
@@ -337,9 +337,9 @@ The men look at each other.`.trim()
     ),
     new CheatsheetItem(
       "temp x = 0",
-      "Declare a temp (local to the current function, stitch, or knot)",
+      "Declare a temp (local to the current function, scene, or branch)",
       `
-<span class='section'>== function calculate_total() ==</span>
+<span class='section'>function calculate():</span>
 <span class='keyword'>temp count = 0</span>`.trim()
     ),
     new CheatsheetItem(

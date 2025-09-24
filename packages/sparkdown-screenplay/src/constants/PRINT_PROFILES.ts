@@ -14,6 +14,24 @@ const USLETTER: PrintProfile = {
   page_number_top_margin: 0.5,
   page_footer_bottom_margin: 0.5,
   settings: {
+    function: {
+      left_margin: 1,
+      right_margin: 1,
+      color: "#555555",
+      level_indent: 0.2,
+    },
+    scene: {
+      left_margin: 1,
+      right_margin: 1,
+      color: "#555555",
+      level_indent: 0.2,
+    },
+    branch: {
+      left_margin: 1,
+      right_margin: 1,
+      color: "#555555",
+      level_indent: 0.2,
+    },
     knot: {
       left_margin: 1,
       right_margin: 1,

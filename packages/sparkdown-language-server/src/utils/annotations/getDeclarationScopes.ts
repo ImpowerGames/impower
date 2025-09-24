@@ -4,7 +4,10 @@ export const getDeclarationScopes = (
   read: (from: number, to: number) => string,
   scriptAnnotations: Map<string, SparkdownAnnotations>
 ) => {
-  let scopePathParts: { kind: "" | "knot" | "stitch"; name: string }[] = [];
+  let scopePathParts: {
+    kind: "" | "function" | "scene" | "branch" | "knot" | "stitch";
+    name: string;
+  }[] = [];
   const scopes: {
     [path: string]: Record<string, string[]>;
   } = {};
@@ -13,13 +16,28 @@ export const getDeclarationScopes = (
     if (cur) {
       while (cur.value) {
         const text = read(cur.from, cur.to);
+        if (cur.value.type === "scene") {
+          scopePathParts = [];
+          scopePathParts.push({ kind: "scene", name: text });
+        }
+        if (cur.value.type === "branch") {
+          const prevKind = scopePathParts.at(-1)?.kind || "";
+          if (prevKind !== "scene" && prevKind !== "knot") {
+            scopePathParts.pop();
+          }
+          const scopePath = scopePathParts.map((p) => p.name).join(".");
+          scopes[scopePath] ??= {};
+          scopes[scopePath][cur.value.type] ??= [];
+          scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
+          scopePathParts.push({ kind: "branch", name: text });
+        }
         if (cur.value.type === "knot") {
           scopePathParts = [];
           scopePathParts.push({ kind: "knot", name: text });
         }
         if (cur.value.type === "stitch") {
           const prevKind = scopePathParts.at(-1)?.kind || "";
-          if (prevKind !== "knot") {
+          if (prevKind !== "scene" && prevKind !== "knot") {
             scopePathParts.pop();
           }
           const scopePath = scopePathParts.map((p) => p.name).join(".");
@@ -29,6 +47,8 @@ export const getDeclarationScopes = (
           scopePathParts.push({ kind: "stitch", name: text });
         }
         if (
+          cur.value.type === "function" ||
+          cur.value.type === "scene" ||
           cur.value.type === "knot" ||
           cur.value.type === "const" ||
           cur.value.type === "var" ||

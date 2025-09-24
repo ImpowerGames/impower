@@ -29,10 +29,16 @@ export const getSparkdownPreviewConfig = (
     screenplay_preview_texture: screenplayConfig["previewTexture"],
     screenplay_print_headings_bold:
       screenplayConfig["formatting"].printHeadingsBold,
-    screenplay_print_knot_headings:
-      screenplayConfig["markup"].printKnotHeadings,
-    screenplay_print_stitch_headings:
-      screenplayConfig["markup"].printStitchHeadings,
+    screenplay_print_function_identifiers:
+      screenplayConfig["markup"].printFunctionIdentifiers,
+    screenplay_print_scene_identifiers:
+      screenplayConfig["markup"].printSceneIdentifiers,
+    screenplay_print_branch_identifiers:
+      screenplayConfig["markup"].printBranchIdentifiers,
+    screenplay_print_knot_identifiers:
+      screenplayConfig["markup"].printKnotIdentifiers,
+    screenplay_print_stitch_identifiers:
+      screenplayConfig["markup"].printStitchIdentifiers,
     screenplay_print_scene_numbers:
       screenplayConfig["numbering"].printSceneNumbers,
     screenplay_print_title_page: screenplayConfig["pages"].printTitlePage,

@@ -636,7 +636,14 @@ export class SparkdownCompiler {
         const annotations = this.documents.annotations(uri);
         const cur = annotations.declarations.iter();
         let scopePathParts: {
-          kind: "" | "knot" | "stitch" | "label";
+          kind:
+            | ""
+            | "function"
+            | "scene"
+            | "branch"
+            | "knot"
+            | "stitch"
+            | "label";
           name: string;
         }[] = [];
         if (cur) {
@@ -644,8 +651,47 @@ export class SparkdownCompiler {
             const name = doc.read(cur.from, cur.to);
             const range = doc.range(cur.from, cur.to);
             if (cur.value.type === "function") {
+              scopePathParts = [];
+              scopePathParts.push({
+                kind: "function",
+                name: doc.read(cur.from, cur.to),
+              });
               program.functionLocations ??= {};
               program.functionLocations[name] = [
+                scriptIndex,
+                range.start.line,
+                range.start.character,
+                range.end.line,
+                range.end.character,
+              ];
+            }
+            if (cur.value.type === "scene") {
+              scopePathParts = [];
+              scopePathParts.push({
+                kind: "scene",
+                name: doc.read(cur.from, cur.to),
+              });
+              program.sceneLocations ??= {};
+              program.sceneLocations[name] = [
+                scriptIndex,
+                range.start.line,
+                range.start.character,
+                range.end.line,
+                range.end.character,
+              ];
+            }
+            if (cur.value.type === "branch") {
+              const prevKind = scopePathParts.at(-1)?.kind || "";
+              if (prevKind !== "scene" && prevKind !== "knot") {
+                scopePathParts.pop();
+              }
+              scopePathParts.push({
+                kind: "branch",
+                name: doc.read(cur.from, cur.to),
+              });
+              const name = scopePathParts.map((p) => p.name).join(".");
+              program.branchLocations ??= {};
+              program.branchLocations[name] = [
                 scriptIndex,
                 range.start.line,
                 range.start.character,
@@ -670,7 +716,7 @@ export class SparkdownCompiler {
             }
             if (cur.value.type === "stitch") {
               const prevKind = scopePathParts.at(-1)?.kind || "";
-              if (prevKind !== "knot") {
+              if (prevKind !== "scene" && prevKind !== "knot") {
                 scopePathParts.pop();
               }
               scopePathParts.push({
@@ -689,7 +735,13 @@ export class SparkdownCompiler {
             }
             if (cur.value.type === "label") {
               const prevKind = scopePathParts.at(-1)?.kind || "";
-              if (prevKind !== "knot" && prevKind !== "stitch") {
+              if (
+                prevKind !== "function" &&
+                prevKind !== "scene" &&
+                prevKind !== "branch" &&
+                prevKind !== "knot" &&
+                prevKind !== "stitch"
+              ) {
                 scopePathParts.pop();
               }
               scopePathParts.push({

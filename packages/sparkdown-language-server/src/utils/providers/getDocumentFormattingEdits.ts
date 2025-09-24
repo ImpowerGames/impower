@@ -270,6 +270,10 @@ export const getFormatting = (
         }
       } else if (aheadCur.value.type === "close_brace") {
         outdent();
+      } else if (aheadCur.value.type === "function_begin") {
+        resetIndent();
+      } else if (aheadCur.value.type === "scene_begin") {
+        resetIndent();
       } else if (aheadCur.value.type === "knot_begin") {
         resetIndent();
       } else if (aheadCur.value.type === "block_declaration_end") {
@@ -280,7 +284,10 @@ export const getFormatting = (
         while (indentStack.at(-1)?.type === "frontmatter") {
           indentStack.pop();
         }
-      } else if (aheadCur.value.type === "stitch") {
+      } else if (aheadCur.value.type === "branch_begin") {
+        resetIndent();
+        indent({ type: aheadCur.value.type });
+      } else if (aheadCur.value.type === "stitch_begin") {
         resetIndent();
         indent({ type: aheadCur.value.type });
       } else if (
@@ -439,30 +446,11 @@ export const getFormatting = (
           });
         }
       }
-    } else if (cur.value.type === "knot_begin") {
-      const text = document.getText(range);
-      const expectedText = "== ";
-      if (text !== expectedText) {
-        // Omit first char to avoid overlapping with indent edits
-        const editRange = {
-          start: {
-            line: range.start.line,
-            character: range.start.character + 1,
-          },
-          end: range.end,
-        };
-        pushIfInRange({
-          lineNumber: editRange.start.line + 1,
-          range: editRange,
-          oldText: document.getText(editRange),
-          newText: expectedText.slice(1),
-          type: cur.value.type,
-        });
-      }
+    } else if (cur.value.type === "function_begin") {
       indent({ type: cur.value.type });
-    } else if (cur.value.type === "knot_end") {
+    } else if (cur.value.type === "function_end") {
       const text = document.getText(range);
-      const expectedText = " ==";
+      const expectedText = ":";
       if (text !== expectedText) {
         pushIfInRange({
           lineNumber: range.start.line + 1,
@@ -472,8 +460,104 @@ export const getFormatting = (
           type: cur.value.type,
         });
       }
-    } else if (cur.value.type === "stitch") {
+    } else if (cur.value.type === "scene_begin") {
       indent({ type: cur.value.type });
+    } else if (cur.value.type === "scene_end") {
+      const text = document.getText(range);
+      const expectedText = ":";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
+    } else if (cur.value.type === "knot_begin") {
+      const text = document.getText(range);
+      const restOfLineText = document
+        .getLineText(range.start.line)
+        .slice(text.length);
+      const isFunctionKnot = /function($|[ \t]*)/.test(
+        restOfLineText.trimStart()
+      );
+      const expectedText = settings?.formatter
+        ?.convertInkSyntaxToSparkdownSyntax
+        ? isFunctionKnot
+          ? ""
+          : "scene "
+        : "== ";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
+      indent({ type: cur.value.type });
+    } else if (cur.value.type === "knot_end") {
+      const text = document.getText(range);
+      const expectedText = settings?.formatter
+        ?.convertInkSyntaxToSparkdownSyntax
+        ? ":"
+        : " ==";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
+    } else if (cur.value.type === "branch_begin") {
+      indent({ type: cur.value.type });
+    } else if (cur.value.type === "branch_end") {
+      const text = document.getText(range);
+      const expectedText = ":";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
+    } else if (cur.value.type === "stitch_begin") {
+      const text = document.getText(range);
+      const expectedText = settings?.formatter
+        ?.convertInkSyntaxToSparkdownSyntax
+        ? "branch"
+        : "=";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
+      indent({ type: cur.value.type });
+    } else if (cur.value.type === "stitch_end") {
+      const text = document.getText(range);
+      const expectedText = settings?.formatter
+        ?.convertInkSyntaxToSparkdownSyntax
+        ? ":"
+        : "";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
     } else if (cur.value.type === "newline") {
       const range = document.range(cur.from, cur.to);
       const lineRange = document.getLineRange(range.start.line);

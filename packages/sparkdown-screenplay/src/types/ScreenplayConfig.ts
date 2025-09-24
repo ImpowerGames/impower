@@ -1,7 +1,10 @@
 export interface ScreenplayConfig {
   screenplay_print_headings_bold?: boolean;
-  screenplay_print_knot_headings?: boolean;
-  screenplay_print_stitch_headings?: boolean;
+  screenplay_print_function_identifiers?: boolean;
+  screenplay_print_scene_identifiers?: boolean;
+  screenplay_print_branch_identifiers?: boolean;
+  screenplay_print_knot_identifiers?: boolean;
+  screenplay_print_stitch_identifiers?: boolean;
   screenplay_print_page_numbers?: boolean;
   screenplay_print_scene_numbers?: string;
   screenplay_print_title_page?: boolean;

@@ -6,7 +6,10 @@ export const SPARK_SCREENPLAY_CONFIG: ScreenplayConfig = {
   screenplay_print_page_numbers: true,
   screenplay_print_headings_bold: true,
   screenplay_print_scene_numbers: "left",
-  screenplay_print_knot_headings: false,
-  screenplay_print_stitch_headings: false,
+  screenplay_print_function_identifiers: false,
+  screenplay_print_scene_identifiers: false,
+  screenplay_print_branch_identifiers: false,
+  screenplay_print_knot_identifiers: false,
+  screenplay_print_stitch_identifiers: false,
   screenplay_print_title_page: true,
 };

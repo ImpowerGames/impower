@@ -66,6 +66,51 @@ export default class ScreenplayTypesetter {
         if (prevSpan && prevSpan.tag !== "separator") {
           spans.push({ tag: t.tag });
         }
+      } else if (t.tag === "function") {
+        const level = 0;
+        const lines = this.format(
+          t.tag,
+          t.text || "",
+          profile,
+          { prefix: t.prefix, suffix: t.suffix },
+          undefined,
+          {
+            level,
+          }
+        );
+        if (lines.length > 0) {
+          spans.push({ tag: t.tag, lines });
+        }
+      } else if (t.tag === "scene") {
+        const level = 0;
+        const lines = this.format(
+          t.tag,
+          t.text || "",
+          profile,
+          { prefix: t.prefix, suffix: t.suffix },
+          undefined,
+          {
+            level,
+          }
+        );
+        if (lines.length > 0) {
+          spans.push({ tag: t.tag, lines });
+        }
+      } else if (t.tag === "branch") {
+        const level = 1;
+        const lines = this.format(
+          t.tag,
+          t.text,
+          profile,
+          { prefix: t.prefix, suffix: t.suffix },
+          undefined,
+          {
+            level,
+          }
+        );
+        if (lines.length > 0) {
+          spans.push({ tag: t.tag, lines });
+        }
       } else if (t.tag === "knot") {
         const level = 0;
         const lines = this.format(
