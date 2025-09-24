@@ -3,7 +3,7 @@ export * from "./classes/annotators/ColorAnnotator";
 export * from "./classes/annotators/DeclarationAnnotator";
 export * from "./classes/annotators/HeadingAnnotator";
 export * from "./classes/annotators/ReferenceAnnotator";
-export * from "./classes/annotators/TransitionAnnotator";
+export * from "./classes/annotators/TransitionalAnnotator";
 export * from "./classes/annotators/TranspilationAnnotator";
 export * from "./classes/annotators/ValidationAnnotator";
 export * from "./classes/SparkdownAnnotation";
