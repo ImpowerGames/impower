@@ -16,6 +16,7 @@ import { DocumentDiagnosticMessage } from "@impower/spark-editor-protocol/src/pr
 import { FoldingRangeMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/FoldingRangeMessage";
 import { HoverMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/HoverMessage";
 import { PublishDiagnosticsMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
+import { SemanticTokensFullMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/SemanticTokensFullMessage";
 import {
   Diagnostic,
   Disposable,
@@ -45,6 +46,9 @@ import HoverSupport, {
   HoverResult,
 } from "./features/HoverSupport";
 import LintSupport from "./features/LintSupport";
+import SemanticTokensSupport, {
+  SemanticTokens,
+} from "./features/SemanticTokensSupport";
 
 export default class LanguageClientPluginValue implements PluginValue {
   protected _view: EditorView;
@@ -70,6 +74,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     completion: CompletionSupport;
     hover: HoverSupport;
     lint: LintSupport;
+    semanticTokens: SemanticTokensSupport;
   };
 
   protected _disposables: Disposable[] = [];
@@ -82,6 +87,7 @@ export default class LanguageClientPluginValue implements PluginValue {
       completion: CompletionSupport;
       hover: HoverSupport;
       lint: LintSupport;
+      semanticTokens: SemanticTokensSupport;
     }
   ) {
     this._view = view;
@@ -128,6 +134,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     );
     this._supports.completion.addSource(this.pullCompletions);
     this._supports.hover.addSource(this.pullHovers);
+    this._supports.semanticTokens.addSource(this.pullSemanticTokens);
   }
 
   unbind() {
@@ -135,6 +142,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     this._disposables = [];
     this._supports.completion.removeSource(this.pullCompletions);
     this._supports.hover.removeSource(this.pullHovers);
+    this._supports.semanticTokens.removeSource(this.pullSemanticTokens);
   }
 
   pullCompletions = async (
@@ -316,6 +324,14 @@ export default class LanguageClientPluginValue implements PluginValue {
       to,
       dom,
     };
+  };
+
+  pullSemanticTokens = async (): Promise<SemanticTokens | null> => {
+    const result = await this._serverConnection.sendRequest(
+      SemanticTokensFullMessage.type,
+      { textDocument: this._textDocument }
+    );
+    return result;
   };
 
   async setInitialDiagnostics(view: EditorView) {
