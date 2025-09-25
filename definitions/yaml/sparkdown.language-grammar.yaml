@@ -1920,8 +1920,6 @@ repository:
   ########## Scene, Knot, Branch, Stitch, Function ##########
 
   Scene:
-    tag: definition(heading)
-    name: keyword.control.section.sd
     begin: ^({{WS}}*)(scene)({{EOK}})
     beginCaptures:
       1:
@@ -1943,8 +1941,6 @@ repository:
           - { include: "#ColonOperator" }
 
   SceneWithParametersDeclaration:
-    tag: heading
-    name: keyword.control.divert.path.sd
     begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
@@ -1958,8 +1954,6 @@ repository:
     end: (?=$|[/][/]|{{WS}}*(?![(]))
 
   SceneWithoutParametersDeclaration:
-    tag: definition(heading)
-    name: keyword.control.section.sd
     begin: ({{IDENTIFIER}})({{WS}}*)
     beginCaptures:
       1:
@@ -1978,11 +1972,11 @@ repository:
     match: (.+)
 
   SceneDeclarationName:
+    tag: definition(heading)
+    name: keyword.control.section.sd
     match: (.+)
 
   Knot:
-    tag: definition(heading)
-    name: keyword.control.section.sd
     begin: ^({{WS}}*)([=]{2,}{{EOK}})
     beginCaptures:
       1:
@@ -2002,8 +1996,6 @@ repository:
           - { include: "#KnotEndMark" }
 
   KnotWithParametersDeclaration:
-    tag: heading
-    name: keyword.control.divert.path.sd
     begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
@@ -2017,8 +2009,6 @@ repository:
     end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
 
   KnotWithoutParametersDeclaration:
-    tag: definition(heading)
-    name: keyword.control.section.sd
     begin: ({{IDENTIFIER}})({{WS}}*)
     beginCaptures:
       1:
@@ -2042,6 +2032,8 @@ repository:
     match: (.+)
 
   KnotDeclarationName:
+    tag: definition(heading)
+    name: keyword.control.section.sd
     match: (.+)
 
   Branch:
@@ -2067,8 +2059,6 @@ repository:
           - { include: "#ColonOperator" }
 
   BranchWithParametersDeclaration:
-    tag: heading
-    name: keyword.control.divert.path.sd
     begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
@@ -2082,8 +2072,6 @@ repository:
     end: (?=$|[/][/]|{{WS}}*(?![(]))
 
   BranchWithoutParametersDeclaration:
-    tag: definition(heading)
-    name: keyword.control.section.sd
     begin: ({{IDENTIFIER}})({{WS}}*)
     beginCaptures:
       1:
@@ -2102,6 +2090,8 @@ repository:
     match: (.+)
 
   BranchDeclarationName:
+    tag: definition(heading)
+    name: keyword.control.section.sd
     match: (.+)
 
   Stitch:
@@ -2127,8 +2117,6 @@ repository:
           - { include: "#InvalidValue" }
 
   StitchWithParametersDeclaration:
-    tag: heading
-    name: keyword.control.divert.path.sd
     begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
@@ -2142,8 +2130,6 @@ repository:
     end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
 
   StitchWithoutParametersDeclaration:
-    tag: definition(heading)
-    name: keyword.control.section.sd
     begin: ({{IDENTIFIER}})({{WS}}*)
     beginCaptures:
       1:
@@ -2167,6 +2153,8 @@ repository:
     match: (.+)
 
   StitchDeclarationName:
+    tag: definition(heading)
+    name: keyword.control.section.sd
     match: (.+)
 
   Function:
@@ -2224,8 +2212,8 @@ repository:
     match: (.+)
 
   FunctionDeclarationName:
-    tag: heading
-    name: keyword.control.divert.path.sd
+    tag: definition(heading)
+    name: keyword.control.section.sd
     match: (.+)
 
   FunctionEndMark:

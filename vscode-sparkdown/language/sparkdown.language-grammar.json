@@ -3513,8 +3513,6 @@
       "match": "(.+)"
     },
     "Scene": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
       "begin": "^([^\\S\\n\\r]*)(scene)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
@@ -3559,8 +3557,6 @@
       }
     },
     "SceneWithParametersDeclaration": {
-      "tag": "heading",
-      "name": "keyword.control.divert.path.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
@@ -3586,8 +3582,6 @@
       "end": "(?=$|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "SceneWithoutParametersDeclaration": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
@@ -3618,11 +3612,11 @@
       "match": "(.+)"
     },
     "SceneDeclarationName": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
       "match": "(.+)"
     },
     "Knot": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
       "begin": "^([^\\S\\n\\r]*)([=]{2,}(?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
@@ -3663,8 +3657,6 @@
       }
     },
     "KnotWithParametersDeclaration": {
-      "tag": "heading",
-      "name": "keyword.control.divert.path.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
@@ -3690,8 +3682,6 @@
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "KnotWithoutParametersDeclaration": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
@@ -3727,6 +3717,8 @@
       "match": "(.+)"
     },
     "KnotDeclarationName": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
       "match": "(.+)"
     },
     "Branch": {
@@ -3777,8 +3769,6 @@
       }
     },
     "BranchWithParametersDeclaration": {
-      "tag": "heading",
-      "name": "keyword.control.divert.path.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
@@ -3804,8 +3794,6 @@
       "end": "(?=$|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "BranchWithoutParametersDeclaration": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
@@ -3836,6 +3824,8 @@
       "match": "(.+)"
     },
     "BranchDeclarationName": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
       "match": "(.+)"
     },
     "Stitch": {
@@ -3886,8 +3876,6 @@
       }
     },
     "StitchWithParametersDeclaration": {
-      "tag": "heading",
-      "name": "keyword.control.divert.path.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
@@ -3913,8 +3901,6 @@
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "StitchWithoutParametersDeclaration": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
@@ -3950,6 +3936,8 @@
       "match": "(.+)"
     },
     "StitchDeclarationName": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
       "match": "(.+)"
     },
     "Function": {
@@ -4058,8 +4046,8 @@
       "match": "(.+)"
     },
     "FunctionDeclarationName": {
-      "tag": "heading",
-      "name": "keyword.control.divert.path.sd",
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
       "match": "(.+)"
     },
     "FunctionEndMark": {
