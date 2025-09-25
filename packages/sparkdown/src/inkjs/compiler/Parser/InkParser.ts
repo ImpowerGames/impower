@@ -3330,10 +3330,30 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const logic = this.Expect(
-      this.InnerLogic,
-      "some kind of logic, conditional or sequence within braces: { ... }"
-    ) as ParsedObject;
+    let logic: ParsedObject | null = null;
+    
+    if (this.ParseString("{")) {
+      // Handle {{func}} function call shorthand
+      this.Whitespace();
+      const iden = this.Expect(
+        this.IdentifierWithMetadata,
+        "function name"
+      ) as Identifier | null;
+      if (iden) {
+        const args = this.Parse(
+          this.ExpressionFunctionCallArguments
+        ) as Expression[];
+        logic = new FunctionCall(iden, args || []);
+      }
+      this.Whitespace();
+      this.Expect(this.String("}"), "closing brace '}' for inline function call");
+    } else {
+      logic = this.Expect(
+        this.InnerLogic,
+        "some kind of logic, conditional or sequence within braces: { ... }"
+      ) as ParsedObject;
+    }
+
 
     if (logic === null) {
       this.parsingStringExpression = wasParsingString;
