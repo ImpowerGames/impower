@@ -147,7 +147,7 @@ export const uiBuiltinDefinitions = () => ({
         pointer_events: "none",
       },
     }),
-    background: default_style({
+    camera: default_style({
       $name: "background",
       position: "absolute",
       inset: "0",
