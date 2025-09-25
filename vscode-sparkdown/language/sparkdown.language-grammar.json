@@ -3498,8 +3498,6 @@
       "match": "(.+)"
     },
     "Knot": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
       "begin": "^([^\\S\\n\\r]*)([=]{2,}(?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
@@ -3540,8 +3538,6 @@
       }
     },
     "KnotWithParametersDeclaration": {
-      "tag": "heading",
-      "name": "keyword.control.divert.path.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
@@ -3567,8 +3563,6 @@
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "KnotWithoutParametersDeclaration": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
@@ -3604,6 +3598,8 @@
       "match": "(.+)"
     },
     "KnotDeclarationName": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
       "match": "(.+)"
     },
     "Stitch": {
@@ -3659,8 +3655,6 @@
       "match": "(.+)"
     },
     "StitchWithParametersDeclaration": {
-      "tag": "heading",
-      "name": "keyword.control.divert.path.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
@@ -3686,8 +3680,6 @@
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "StitchWithoutParametersDeclaration": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
@@ -3713,6 +3705,8 @@
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "StitchDeclarationName": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
       "match": "(.+)"
     },
     "FunctionDeclaration": {
@@ -3763,8 +3757,8 @@
       "match": "(.+)"
     },
     "FunctionDeclarationName": {
-      "tag": "heading",
-      "name": "keyword.control.divert.path.sd",
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
       "match": "(.+)"
     },
     "Divert": {

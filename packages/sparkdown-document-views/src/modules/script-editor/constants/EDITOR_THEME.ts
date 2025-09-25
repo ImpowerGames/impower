@@ -4,6 +4,12 @@ import EDITOR_COLORS from "./EDITOR_COLORS";
 const EDITOR_THEME: {
   [selector: string]: StyleSpec;
 } = {
+  ".lsp-semantic-token.lsp-type-keyword *": {
+    color: EDITOR_COLORS.sectionNameAccessor,
+  },
+  ".lsp-semantic-token.lsp-type-operator *": {
+    color: EDITOR_COLORS.operator,
+  },
   "*, *::before, *::after": {
     boxSizing: "border-box",
   },

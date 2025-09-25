@@ -10,6 +10,7 @@ const EDITOR_COLORS = {
   info: "#0da2e7",
 
   bracket: "#FFD700",
+  operator: "#A0A0A0",
 
   panel: "#001933",
   match: "#18A3FF",
@@ -32,8 +33,8 @@ const EDITOR_COLORS = {
 
   comment: "#6A9955",
   chunkNameDefinition: "#7C7CA6",
-  sectionNameDefinition: "#FF80F4",
-  sectionNameAccessor: "#F9B8F9",
+  sectionNameDefinition: "#D88CFF",
+  sectionNameAccessor: "#D88CFF",
   scene: "#FF8080",
   transition: "#BEA3A3",
   escape: "#D7BA7D",

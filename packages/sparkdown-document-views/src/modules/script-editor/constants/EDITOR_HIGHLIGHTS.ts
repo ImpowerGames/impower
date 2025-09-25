@@ -22,6 +22,17 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.number, color: c.number },
   { tag: tags.bool, color: c.bool },
 
+  { tag: tags.operator, color: c.operator },
+  { tag: tags.typeOperator, color: c.operator },
+  { tag: tags.derefOperator, color: c.operator },
+  { tag: tags.logicOperator, color: c.operator },
+  { tag: tags.updateOperator, color: c.operator },
+  { tag: tags.bitwiseOperator, color: c.operator },
+  { tag: tags.compareOperator, color: c.operator },
+  { tag: tags.controlOperator, color: c.operator },
+  { tag: tags.arithmeticOperator, color: c.operator },
+  { tag: tags.definitionOperator, color: c.operator },
+
   { tag: tags.contentSeparator, color: c.break },
   { tag: tags.heading, color: c.sectionNameAccessor },
   { tag: tags.regexp, color: c.scene },

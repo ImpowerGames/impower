@@ -14,6 +14,7 @@ import CompletionSupport from "../classes/features/CompletionSupport";
 import FoldingSupport from "../classes/features/FoldingSupport";
 import HoverSupport from "../classes/features/HoverSupport";
 import LintSupport from "../classes/features/LintSupport";
+import SemanticTokensSupport from "../classes/features/SemanticTokensSupport";
 import { FileSystemReader } from "../types/FileSystemReader";
 
 export interface LanguageClientConfig {
@@ -48,6 +49,7 @@ const languageClient = (config: LanguageClientConfig): Extension[] => {
   const completion = new CompletionSupport();
   const hover = new HoverSupport();
   const lint = new LintSupport();
+  const semanticTokens = new SemanticTokensSupport();
   return [
     versioning(config.textDocument.version),
     languageClientConfig.of(config),
@@ -58,6 +60,7 @@ const languageClient = (config: LanguageClientConfig): Extension[] => {
         completion,
         hover,
         lint,
+        semanticTokens,
       });
       return plugin;
     }),
@@ -66,6 +69,7 @@ const languageClient = (config: LanguageClientConfig): Extension[] => {
     completion.load(),
     hover.load(),
     lint.load(),
+    semanticTokens.load(config.serverCapabilities),
   ];
 };
 
