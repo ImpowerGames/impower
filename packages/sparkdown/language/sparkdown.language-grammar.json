@@ -3607,8 +3607,8 @@
       "end": "(?=$|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "SceneKeyword": {
-      "tag": "keyword",
-      "name": "keyword.flow.scene.sd",
+      "tag": "controlKeyword",
+      "name": "keyword.control.scene.sd",
       "match": "(.+)"
     },
     "SceneDeclarationName": {
@@ -3819,8 +3819,8 @@
       "end": "(?=$|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "BranchKeyword": {
-      "tag": "keyword",
-      "name": "keyword.flow.branch.sd",
+      "tag": "controlKeyword",
+      "name": "keyword.control.branch.sd",
       "match": "(.+)"
     },
     "BranchDeclarationName": {
@@ -4041,8 +4041,8 @@
       "end": "(?=$)"
     },
     "FunctionKeyword": {
-      "tag": "keyword",
-      "name": "keyword.definition.function.sd",
+      "tag": "controlKeyword",
+      "name": "keyword.control.function.sd",
       "match": "(.+)"
     },
     "FunctionDeclarationName": {

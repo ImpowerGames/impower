@@ -1967,8 +1967,8 @@ repository:
     end: (?=$|[/][/]|{{WS}}*(?![(]))
 
   SceneKeyword:
-    tag: keyword
-    name: keyword.flow.scene.sd
+    tag: controlKeyword
+    name: keyword.control.scene.sd
     match: (.+)
 
   SceneDeclarationName:
@@ -2085,8 +2085,8 @@ repository:
     end: (?=$|[/][/]|{{WS}}*(?![(]))
 
   BranchKeyword:
-    tag: keyword
-    name: keyword.flow.branch.sd
+    tag: controlKeyword
+    name: keyword.control.branch.sd
     match: (.+)
 
   BranchDeclarationName:
@@ -2207,8 +2207,8 @@ repository:
     end: (?=$)
 
   FunctionKeyword:
-    tag: keyword
-    name: keyword.definition.function.sd
+    tag: controlKeyword
+    name: keyword.control.function.sd
     match: (.+)
 
   FunctionDeclarationName:
