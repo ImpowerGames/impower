@@ -44,6 +44,11 @@ const USLETTER: PrintProfile = {
       color: "#555555",
       level_indent: 0.2,
     },
+    title: {
+      left_margin: 1.5,
+      right_margin: 1,
+      align: "center",
+    },
     heading: {
       left_margin: 1.5,
       right_margin: 1,

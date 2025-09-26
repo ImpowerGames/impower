@@ -18,6 +18,7 @@ export default class ScreenplayParser {
     const tokens: ScreenplayToken[] = [{ tag: "page_break" }];
     let frontMatterKey = "";
     let frontMatterValue = "";
+    let title = "";
     let heading = "";
     let transitional = "";
     let action = "";
@@ -51,8 +52,11 @@ export default class ScreenplayParser {
             name !== "Knot" &&
             name !== "Stitch" &&
             name !== "BlockTitle" &&
+            name !== "InlineTitle" &&
             name !== "BlockHeading" &&
+            name !== "InlineHeading" &&
             name !== "BlockTransitional" &&
+            name !== "InlineTransitional" &&
             name !== "BlockDialogue" &&
             name !== "InlineDialogue" &&
             name !== "BlockAction" &&
@@ -125,8 +129,23 @@ export default class ScreenplayParser {
           tokens.push({ tag: "stitch", text });
         }
 
+        // Title
+        if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
+          if (name === "TextChunk") {
+            const text = read(from, to);
+            title += text + "\n";
+          }
+          if (name === "ParentheticalLineContent") {
+            const text = read(from, to);
+            title += text + "\n";
+          }
+        }
+
         // Transitional
-        if (stack.includes("BlockTransitional")) {
+        if (
+          stack.includes("BlockTransitional") ||
+          stack.includes("InlineTransitional")
+        ) {
           if (name === "TextChunk") {
             const text = read(from, to);
             transitional += text + "\n";
@@ -138,7 +157,7 @@ export default class ScreenplayParser {
         }
 
         // Heading
-        if (stack.includes("BlockHeading")) {
+        if (stack.includes("BlockHeading") || stack.includes("InlineHeading")) {
           if (name === "TextChunk") {
             const text = read(from, to);
             heading += text + "\n";
@@ -224,8 +243,17 @@ export default class ScreenplayParser {
           });
         }
 
+        // Title
+        if (name === "BlockTitle" || name === "InlineTitle") {
+          tokens.push({
+            tag: "title",
+            text: title,
+          });
+          title = "";
+        }
+
         // Transitional
-        if (name === "BlockTransitional") {
+        if (name === "BlockTransitional" || name === "InlineTransitional") {
           tokens.push({
             tag: "transitional",
             text: transitional,
@@ -234,7 +262,7 @@ export default class ScreenplayParser {
         }
 
         // Heading
-        if (name === "BlockHeading") {
+        if (name === "BlockHeading" || name === "InlineHeading") {
           tokens.push({
             tag: "heading",
             text: heading,

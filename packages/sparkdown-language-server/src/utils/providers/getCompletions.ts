@@ -165,7 +165,9 @@ const rankMostRecentTexts = (
   }
   if (include) {
     for (const name of include) {
-      mostRecentTexts.push(name);
+      if (name && !name.startsWith("$")) {
+        mostRecentTexts.push(name);
+      }
     }
   }
   return mostRecentTexts;
@@ -1687,18 +1689,25 @@ export const getCompletions = (
     return buildCompletions();
   }
   if (leftStack.at(-2)?.name === "InlineAction") {
-    if (isCursorAfterNodeText(leftStack.at(-2))) {
-      addCharacterCompletions(
-        completions,
-        read,
-        scriptAnnotations,
-        document.uri,
-        leftStack.at(-2),
-        "",
-        ": ",
-        true,
-        program
-      );
+    const actionMarkNode = getDescendentInsideParent(
+      "ActionMark",
+      "InlineAction",
+      leftStack
+    );
+    if (!actionMarkNode) {
+      if (isCursorAfterNodeText(leftStack.at(-2))) {
+        addCharacterCompletions(
+          completions,
+          read,
+          scriptAnnotations,
+          document.uri,
+          leftStack.at(-2),
+          "",
+          ": ",
+          true,
+          program
+        );
+      }
     }
     return buildCompletions();
   }

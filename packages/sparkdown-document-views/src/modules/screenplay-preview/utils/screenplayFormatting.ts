@@ -268,8 +268,11 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         name !== "Knot" && // TODO: Only hide if config doesn't print knot
         // name !== "Stitch" && // TODO: Only hide if config doesn't print stitch
         name !== "BlockTitle" &&
+        name !== "InlineTitle" &&
         name !== "BlockHeading" &&
+        name !== "InlineHeading" &&
         name !== "BlockTransitional" &&
+        name !== "InlineTransitional" &&
         name !== "BlockDialogue" &&
         name !== "InlineDialogue" &&
         name !== "BlockAction" &&
@@ -531,7 +534,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             ...frontMatterFieldCaptureBlocks
           );
         }
-      } else if (name === "BlockTitle") {
+      } else if (name === "BlockTitle" || name === "InlineTitle") {
         // Add Title Spec
         decorations.push(
           ...createDecorations(doc, {
@@ -540,7 +543,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             to,
           })
         );
-      } else if (name === "BlockHeading") {
+      } else if (name === "BlockHeading" || name === "InlineHeading") {
         // Add Heading Spec
         decorations.push(
           ...createDecorations(doc, {
@@ -549,7 +552,10 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             to,
           })
         );
-      } else if (name === "BlockTransitional") {
+      } else if (
+        name === "BlockTransitional" ||
+        name === "InlineTransitional"
+      ) {
         // Add Transitional Spec
         decorations.push(
           ...createDecorations(doc, {

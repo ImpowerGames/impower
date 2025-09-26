@@ -57,7 +57,7 @@ export class InterpreterModule extends Module<
     ...this.ASSET_FLAG_ARG_KEYWORDS,
   ];
 
-  KEYWORD_TERMINATOR_CHARS = [undefined, "", " ", "\t", "\r", "\n"];
+  KEYWORD_TERMINATOR_CHARS = [undefined, "", " ", "\t", "\r", "\n", ":"];
 
   CHAR_REGEX =
     /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
@@ -223,7 +223,7 @@ export class InterpreterModule extends Module<
         : undefined;
     if (target && targetPrefix) {
       // Trim away starting prefix symbol.
-      content = content.slice(targetPrefix.length);
+      content = content.slice(targetPrefix.length + 1).trimStart();
     }
     let characterNameInstructions: Instructions | undefined = undefined;
     let characterParentheticalInstructions: Instructions | undefined =

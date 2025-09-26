@@ -141,6 +141,17 @@ export default class ScreenplayTypesetter {
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
         }
+      } else if (t.tag === "title") {
+        const lines = this.format(
+          t.tag,
+          t.text,
+          profile,
+          { prefix: t.prefix, suffix: t.suffix },
+          undefined
+        );
+        if (lines.length > 0) {
+          spans.push({ tag: t.tag, lines });
+        }
       } else if (t.tag === "heading") {
         const style = config?.screenplay_print_headings_bold
           ? { bold: true }
