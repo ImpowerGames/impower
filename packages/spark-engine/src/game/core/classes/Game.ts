@@ -1514,7 +1514,7 @@ export class Game<T extends M = {}> {
         const invalidBreakpoint: Breakpoint = {
           verified: false,
           reason: "failed",
-          message: "No var found at the breakpoint",
+          message: "No variable found at the breakpoint",
         };
         actualBreakpoints.push(invalidBreakpoint);
       }

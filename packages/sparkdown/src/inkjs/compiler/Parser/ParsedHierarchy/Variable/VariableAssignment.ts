@@ -155,7 +155,7 @@ export class VariableAssignment extends ParsedObject {
         !variableReference.isListItemReference
       ) {
         this.Error(
-          "A var must be initialized to a number, string, boolean, constant, list item, or divert target."
+          "A variable must be initialized to a number, string, boolean, constant, list item, or divert target."
         );
       }
     }
@@ -169,7 +169,7 @@ export class VariableAssignment extends ParsedObject {
       if (!resolvedVarAssignment.found) {
         if (this.variableName in this.story.constants) {
           this.Error(
-            `Cannot re-assign a const (do you need to use var when declaring '${this.variableName}'?)`,
+            `Cannot re-assign a const variable`,
             this
           );
         } else {

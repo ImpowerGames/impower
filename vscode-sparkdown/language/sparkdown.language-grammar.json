@@ -406,6 +406,9 @@
     },
     "Declaration": {
       "patterns": [
+{
+          "include": "#StoreDeclaration"
+        },
         {
           "include": "#VarDeclaration"
         },
@@ -438,10 +441,52 @@
         }
       ]
     },
+    "StoreDeclaration": {
+      "tag": "meta",
+      "name": "storage.type.var.sd",
+      "begin": "([^\\S\\n\\r]*)(STORE|store)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]|[:])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#StoreKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#VariableAssignment"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "StoreKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.definition.var.sd",
+      "match": "(.+)"
+    },
     "VarDeclaration": {
       "tag": "meta",
       "name": "storage.type.var.sd",
-      "begin": "^([^\\S\\n\\r]*)(VAR|var)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "([^\\S\\n\\r]*)(VAR|var)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]|[:])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -483,7 +528,7 @@
     "ListDeclaration": {
       "tag": "meta",
       "name": "storage.type.list.sd",
-      "begin": "^([^\\S\\n\\r]*)(LIST|list)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "([^\\S\\n\\r]*)(LIST|list)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]|[:])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -525,7 +570,7 @@
     "ConstDeclaration": {
       "tag": "meta",
       "name": "storage.type.const.sd",
-      "begin": "^([^\\S\\n\\r]*)(CONST|const)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "([^\\S\\n\\r]*)(CONST|const)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]|[:])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -567,7 +612,7 @@
     "ExternalDeclaration": {
       "tag": "meta",
       "name": "storage.type.external.sd",
-      "begin": "^([^\\S\\n\\r]*)(EXTERNAL|external)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "([^\\S\\n\\r]*)(EXTERNAL|external)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]|[:])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -609,7 +654,7 @@
     "DefineDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.define.sd",
-      "begin": "^([^\\S\\n\\r]*)(define)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)$",
+      "begin": "([^\\S\\n\\r]*)(define)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]|[:])))(.*?)$",
       "beginCaptures": {
         "1": {
           "patterns": [

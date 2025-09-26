@@ -244,6 +244,7 @@ repository:
 
   Declaration:
     patterns:
+      - { include: "#StoreDeclaration" }
       - { include: "#VarDeclaration" }
       - { include: "#ListDeclaration" }
       - { include: "#ConstDeclaration" }
@@ -255,10 +256,34 @@ repository:
       - { include: "#AnimationDeclaration" }
       - { include: "#ThemeDeclaration" }
 
+  StoreDeclaration:
+    tag: meta
+    name: storage.type.var.sd
+    begin: ({{WS}}*)(STORE|store)({{EOK}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#StoreKeyword" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#VariableAssignment" }
+    end: (?=$)
+
+  StoreKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.var.sd
+    match: (.+)
+
   VarDeclaration:
     tag: meta
     name: storage.type.var.sd
-    begin: ^({{WS}}*)(VAR|var)({{EOK}})
+    begin: ({{WS}}*)(VAR|var)({{EOK}})
     beginCaptures:
       1:
         patterns:
@@ -282,7 +307,7 @@ repository:
   ListDeclaration:
     tag: meta
     name: storage.type.list.sd
-    begin: ^({{WS}}*)(LIST|list)({{EOK}})
+    begin: ({{WS}}*)(LIST|list)({{EOK}})
     beginCaptures:
       1:
         patterns:
@@ -306,7 +331,7 @@ repository:
   ConstDeclaration:
     tag: meta
     name: storage.type.const.sd
-    begin: ^({{WS}}*)(CONST|const)({{EOK}})
+    begin: ({{WS}}*)(CONST|const)({{EOK}})
     beginCaptures:
       1:
         patterns:
@@ -330,7 +355,7 @@ repository:
   ExternalDeclaration:
     tag: meta
     name: storage.type.external.sd
-    begin: ^({{WS}}*)(EXTERNAL|external)({{EOK}})
+    begin: ({{WS}}*)(EXTERNAL|external)({{EOK}})
     beginCaptures:
       1:
         patterns:
@@ -354,7 +379,7 @@ repository:
   DefineDeclaration:
     tag: meta
     name: meta.definition.type.define.sd
-    begin: ^({{WS}}*)(define)({{EOK}})(.*?)$
+    begin: ({{WS}}*)(define)({{EOK}})(.*?)$
     beginCaptures:
       1:
         patterns:

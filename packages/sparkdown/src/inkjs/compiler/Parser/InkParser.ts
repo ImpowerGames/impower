@@ -2778,7 +2778,9 @@ export class InkParser extends StringParser {
 
     if (
       this.ParseKeywordString("VAR") === null &&
-      this.ParseKeywordString("var") === null
+      this.ParseKeywordString("var") === null &&
+      this.ParseKeywordString("STORE") === null &&
+      this.ParseKeywordString("store") === null
     ) {
       return null;
     }
@@ -2794,14 +2796,14 @@ export class InkParser extends StringParser {
 
     this.Expect(
       this.String("="),
-      "the variable to be initialized (e.g. 'var score = 0')"
+      "the variable to be initialized"
     );
 
     this.Whitespace();
 
     const definition = this.Expect(
       this.Expression,
-      "the variable to be initialized (e.g. 'var score = 0')"
+      "the variable to be initialized"
     );
 
     const expr = definition as Expression;

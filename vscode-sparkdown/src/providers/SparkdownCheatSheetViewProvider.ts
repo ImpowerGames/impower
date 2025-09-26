@@ -323,21 +323,21 @@ The men look at each other.`.trim()
   cheatSheet["Variables"] = [
     new CheatsheetItem(
       "const x = 0",
-      "Declare a constant (cannot be changed)",
+      "Declare a constant variable (cannot be changed, not persisted)",
       `
 <span class='keyword'>const MAX_POINTS = 100</span>`.trim()
     ),
     new CheatsheetItem(
-      "var x = 0",
-      "Declare a variable (can be set later)",
+      "store x = 0",
+      "Declare a stored variable (persisted in save files)",
       `
-<span class='keyword'>var name = "John"</span>
-<span class='keyword'>var score = 100</span>
-<span class='keyword'>var alive = true</span>`.trim()
+<span class='keyword'>store name = "John"</span>
+<span class='keyword'>store score = 100</span>
+<span class='keyword'>store alive = true</span>`.trim()
     ),
     new CheatsheetItem(
       "temp x = 0",
-      "Declare a temp (local to the current function, scene, or branch)",
+      "Declare a temporary variable (local to the current function, scene, or branch, not persisted)",
       `
 <span class='section'>function calculate():</span>
 <span class='keyword'>temp count = 0</span>`.trim()

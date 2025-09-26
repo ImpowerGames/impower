@@ -145,7 +145,7 @@ export class Divert extends ParsedObject {
                   targetPath.dotSeparatedComponents
                 }' is a knot/stitch/label, but '${
                   this.target!.dotSeparatedComponents
-                }' requires the name of a var to be passed.`
+                }' requires the name of a variable to be passed.`
               );
 
               break;
