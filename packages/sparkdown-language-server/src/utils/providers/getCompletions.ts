@@ -74,7 +74,9 @@ const rankMostRecentTexts = (
   read: (from: number, to: number) => string,
   scriptAnnotations: Map<string, SparkdownAnnotations>,
   uri: string,
-  contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined
+  contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
+  strict: boolean,
+  include?: string[]
 ) => {
   // Sort by most recently used
   const before: string[] = [];
@@ -95,14 +97,17 @@ const rankMostRecentTexts = (
     currentScriptIndex + 1
   );
   const currentText = contentNode
-    ? read(contentNode.from, contentNode.to)
-    : null;
+    ? read(contentNode.from, contentNode.to)?.trim()
+    : "";
   for (const [, annotations] of beforeScriptEntries) {
     const cur = annotations[type]?.iter();
     if (cur) {
       while (cur.value) {
         const text = read(cur.from, cur.to);
-        if (text !== currentText) {
+        if (
+          (!strict && text !== currentText) ||
+          (strict && text.startsWith(currentText))
+        ) {
           before.push(text);
         }
         cur.next();
@@ -115,12 +120,18 @@ const rankMostRecentTexts = (
       while (cur.value) {
         if (!contentNode || cur.to < contentNode.from) {
           const text = read(cur.from, cur.to);
-          if (text !== currentText) {
+          if (
+            (!strict && text !== currentText) ||
+            (strict && text.startsWith(currentText))
+          ) {
             before.push(text);
           }
         } else if (cur.from > contentNode.from && cur.to > contentNode.to) {
           const text = read(cur.from, cur.to);
-          if (text !== currentText) {
+          if (
+            (!strict && text !== currentText) ||
+            (strict && text.startsWith(currentText))
+          ) {
             after.push(text);
           }
         }
@@ -133,7 +144,10 @@ const rankMostRecentTexts = (
     if (cur) {
       while (cur.value) {
         const text = read(cur.from, cur.to);
-        if (text !== currentText) {
+        if (
+          (!strict && text !== currentText) ||
+          (strict && text.startsWith(currentText))
+        ) {
           after.push(text);
         }
         cur.next();
@@ -148,6 +162,11 @@ const rankMostRecentTexts = (
   const mostRecentText = mostRecentTexts.shift();
   if (mostRecentText) {
     mostRecentTexts.push(mostRecentText);
+  }
+  if (include) {
+    for (const name of include) {
+      mostRecentTexts.push(name);
+    }
   }
   return mostRecentTexts;
 };
@@ -165,7 +184,8 @@ const addTitleCompletions = (
     read,
     scriptAnnotations,
     uri,
-    contentNode
+    contentNode,
+    false
   );
   // Add completions
   for (const text of mostRecentTexts) {
@@ -196,7 +216,8 @@ const addTransitionalCompletions = (
     read,
     scriptAnnotations,
     uri,
-    contentNode
+    contentNode,
+    false
   );
   // Add completions
   for (const text of mostRecentTexts) {
@@ -227,7 +248,8 @@ const addHeadingCompletions = (
     read,
     scriptAnnotations,
     uri,
-    contentNode
+    contentNode,
+    false
   );
   // Add completions
   for (const text of mostRecentTexts) {
@@ -251,14 +273,19 @@ const addCharacterCompletions = (
   scriptAnnotations: Map<string, SparkdownAnnotations>,
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
-  insertTextPrefix: string = ""
+  insertTextPrefix: string = "",
+  insertTextSuffix: string = "",
+  strict = false,
+  program?: SparkProgram
 ) => {
   const mostRecentTexts = rankMostRecentTexts(
     "characters",
     read,
     scriptAnnotations,
     uri,
-    contentNode
+    contentNode,
+    strict,
+    Object.keys(program?.context?.["character"] || {})
   );
   // Add completions
   for (const text of mostRecentTexts) {
@@ -266,7 +293,7 @@ const addCharacterCompletions = (
     const kind = CompletionItemKind.Constant;
     const completion: CompletionItem = {
       label: text,
-      insertText: insertTextPrefix + text,
+      insertText: insertTextPrefix + text + insertTextSuffix,
       labelDetails,
       kind,
     };
@@ -1129,8 +1156,8 @@ export const getCompletions = (
   // Transitional
   if (leftStack[0]?.name === "TransitionalMark") {
     const contentNode = getDescendentInsideParent(
-      "Transitional_content",
-      "Transitional",
+      "BlockTransitional_content",
+      "BlockTransitional",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
@@ -1149,12 +1176,12 @@ export const getCompletions = (
     (isWhitespaceNode(leftStack[0]?.name) &&
       prevNode?.name === "TransitionalMark") ||
     (isWhitespaceNode(leftStack[0]?.name) &&
-      leftStack.some((n) => n?.name === "Transitional_begin")) ||
-    leftStack.some((n) => n?.name === "Transitional_content")
+      leftStack.some((n) => n?.name === "BlockTransitional_begin")) ||
+    leftStack.some((n) => n?.name === "BlockTransitional_content")
   ) {
     const contentNode = getDescendentInsideParent(
-      "Transitional_content",
-      "Transitional",
+      "BlockTransitional_content",
+      "BlockTransitional",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
@@ -1172,8 +1199,8 @@ export const getCompletions = (
   // Title
   if (leftStack[0]?.name === "TitleMark") {
     const contentNode = getDescendentInsideParent(
-      "Title_content",
-      "Title",
+      "BlockTitle_content",
+      "BlockTitle",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
@@ -1191,12 +1218,12 @@ export const getCompletions = (
   if (
     (isWhitespaceNode(leftStack[0]?.name) && prevNode?.name === "TitleMark") ||
     (isWhitespaceNode(leftStack[0]?.name) &&
-      leftStack.some((n) => n?.name === "Title_begin")) ||
-    leftStack.some((n) => n?.name === "Title_content")
+      leftStack.some((n) => n?.name === "BlockTitle_begin")) ||
+    leftStack.some((n) => n?.name === "BlockTitle_content")
   ) {
     const contentNode = getDescendentInsideParent(
-      "Title_content",
-      "Title",
+      "BlockTitle_content",
+      "BlockTitle",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
@@ -1214,8 +1241,8 @@ export const getCompletions = (
   // Heading
   if (leftStack[0]?.name === "HeadingMark") {
     const contentNode = getDescendentInsideParent(
-      "Heading_content",
-      "Heading",
+      "BlockHeading_content",
+      "BlockHeading",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
@@ -1234,12 +1261,12 @@ export const getCompletions = (
     (isWhitespaceNode(leftStack[0]?.name) &&
       prevNode?.name === "HeadingMark") ||
     (isWhitespaceNode(leftStack[0]?.name) &&
-      leftStack.some((n) => n?.name === "Heading_begin")) ||
-    leftStack.some((n) => n?.name === "Heading_content")
+      leftStack.some((n) => n?.name === "BlockHeading_begin")) ||
+    leftStack.some((n) => n?.name === "BlockHeading_content")
   ) {
     const contentNode = getDescendentInsideParent(
-      "Heading_content",
-      "Heading",
+      "BlockHeading_content",
+      "BlockHeading",
       leftStack
     );
     if (isCursorAfterNodeText(contentNode)) {
@@ -1322,13 +1349,13 @@ export const getCompletions = (
     (isWhitespaceNode(leftStack[0]?.name) && prevNode?.name === "WriteMark") ||
     (isWhitespaceNode(leftStack[0]?.name) &&
       leftStack.some((n) => n?.name === "BlockWrite_begin")) ||
-    (isWhitespaceNode(leftStack[0]?.name) &&
-      leftStack.some((n) => n?.name === "InlineWrite_begin")) ||
     leftStack.some((n) => n?.name === "WriteTarget")
   ) {
-    const writeTargetNode =
-      getDescendentInsideParent("WriteTarget", "BlockWrite_begin", leftStack) ||
-      getDescendentInsideParent("WriteTarget", "InlineWrite_begin", leftStack);
+    const writeTargetNode = getDescendentInsideParent(
+      "WriteTarget",
+      "BlockWrite_begin",
+      leftStack
+    );
     if (isCursorAfterNodeText(writeTargetNode)) {
       addUIElementReferenceCompletions(completions, program, ["text"]);
     }
@@ -1879,6 +1906,22 @@ export const getCompletions = (
         valueText,
         valueCursorOffset,
         getParentSectionPath(leftStack, read).join(".")
+      );
+    }
+    return buildCompletions();
+  }
+  if (leftStack.at(-2)?.name === "InlineAction") {
+    if (isCursorAfterNodeText(leftStack.at(-2))) {
+      addCharacterCompletions(
+        completions,
+        read,
+        scriptAnnotations,
+        document.uri,
+        leftStack.at(-2),
+        "",
+        ": ",
+        true,
+        program
       );
     }
     return buildCompletions();

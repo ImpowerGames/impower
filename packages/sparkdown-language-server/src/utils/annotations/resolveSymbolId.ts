@@ -14,7 +14,7 @@ export const resolveSymbolId = (
 ) => {
   if (refId.startsWith("?.")) {
     // Infer the type from the place it is used
-    if (!program || !reference?.selector) {
+    if (!program || !reference?.selectors) {
       return null;
     }
     const expectedSelectorTypes = getExpectedSelectorTypes(
@@ -22,12 +22,16 @@ export const resolveSymbolId = (
       reference?.assigned,
       config
     );
-    let [_, foundPath] = resolveSelector<any>(
-      program,
-      reference.selector,
-      expectedSelectorTypes
-    );
-    return foundPath;
+    for (const selector of reference.selectors) {
+      let [_, foundPath] = resolveSelector<any>(
+        program,
+        selector,
+        expectedSelectorTypes
+      );
+      if (foundPath) {
+        return foundPath;
+      }
+    }
   }
   if (refId.startsWith(".")) {
     // This reference is local to the scope

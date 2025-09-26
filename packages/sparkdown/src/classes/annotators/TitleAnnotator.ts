@@ -8,7 +8,7 @@ export class TitleAnnotator extends SparkdownAnnotator {
     annotations: Range<SparkdownAnnotation>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation>[] {
-    if (nodeRef.name === "Title_content") {
+    if (nodeRef.name === "BlockTitle_content") {
       annotations.push(
         SparkdownAnnotation.mark().range(nodeRef.from, nodeRef.to)
       );

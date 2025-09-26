@@ -23,7 +23,7 @@ variables:
   # End Of Line
   EOL: "(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$|{{WS}}*[/][/].*$)"
   # End Of Keyword
-  EOK: "(?:$|{{WS}}+|(?={{TAG_START}}|[/][/]|[/][*]))"
+  EOK: "(?:$|{{WS}}+|(?={{TAG_START}}|[/][/]|[/][*]|[:]))"
   IMAGE_CONTROL_KEYWORDS: ["set", "show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait"]
   AUDIO_CONTROL_KEYWORDS:
@@ -3422,44 +3422,6 @@ repository:
   Write:
     patterns:
       - { include: "#BlockWrite" }
-      - { include: "#InlineWrite" }
-
-  InlineWrite:
-    tag: string
-    name: string.write.sd
-    begin: ({{WS}}*)([>])($|{{WS}}+)($|.*?)($|{{WS}}*)($|[:])($|{{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#WriteMark" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#Annotation" }
-          - { include: "#WriteTarget" }
-      5:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      6:
-        patterns:
-          - { include: "#ColonSeparator" }
-      7:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#LineBreak" }
-      - { include: "#LineChain" }
-      - { include: "#AssetLine" }
-      - { include: "#ParentheticalLine" }
-      - { include: "#LineEnd" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
 
   BlockWrite:
     tag: string
@@ -3506,28 +3468,22 @@ repository:
   InlineDialogue:
     tag: string
     name: string.dialogue.sd
-    begin: ({{WS}}*)([@])($|{{WS}}+)($|.*?)($|{{WS}}*)($|[:])($|{{WS}}*)
+    begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*)([:])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#DialogueMark" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
           - { include: "#Annotation" }
           - { include: "#DialogueCharacter" }
-      5:
+      3:
         patterns:
           - { include: "#ExtraWhitespace" }
-      6:
+      4:
         patterns:
           - { include: "#ColonSeparator" }
-      7:
+      5:
         patterns:
           - { include: "#Separator" }
     patterns:
@@ -3661,6 +3617,10 @@ repository:
   ########## Title ##########
 
   Title:
+    patterns:
+      - { include: "#BlockTitle" }
+
+  BlockTitle:
     tag: labelName
     name: keyword.control.title.sd
     begin: ({{WS}}*)(\^)($|{{WS}}+)
@@ -3677,10 +3637,10 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineBreak" }
-      - { include: "#LineChain" }
-      - { include: "#LineEnd" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
+      - { include: "#BlockLineBreak" }
+      - { include: "#BlockLineContinue" }
+    end: (?=^(?!\1))|(?=^\s*$)
+
 
   TitleMark:
     tag: definition(punctuation)
@@ -3690,6 +3650,10 @@ repository:
   ########## Transitional ##########
 
   Transitional:
+    patterns:
+      - { include: "#BlockTransitional" }
+
+  BlockTransitional:
     tag: labelName
     name: keyword.control.transitional.sd
     begin: ({{WS}}*)([%])($|{{WS}}+)
@@ -3706,10 +3670,9 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineBreak" }
-      - { include: "#LineChain" }
-      - { include: "#LineEnd" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
+      - { include: "#BlockLineBreak" }
+      - { include: "#BlockLineContinue" }
+    end: (?=^(?!\1))|(?=^\s*$)
 
   TransitionalMark:
     tag: definition(punctuation)
@@ -3719,6 +3682,10 @@ repository:
   ########## Heading ##########
 
   Heading:
+    patterns:
+      - { include: "#BlockHeading" }
+
+  BlockHeading:
     tag: regexp
     name: string.regexp.heading.sd
     begin: ({{WS}}*)([$])($|{{WS}}+)
@@ -3735,10 +3702,9 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineBreak" }
-      - { include: "#LineChain" }
-      - { include: "#LineEnd" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
+      - { include: "#BlockLineBreak" }
+      - { include: "#BlockLineContinue" }
+    end: (?=^(?!\1))|(?=^\s*$)
 
   HeadingMark:
     tag: definition(punctuation)
@@ -3751,7 +3717,31 @@ repository:
   ########## Action ##########
 
   Action:
-    begin: ({{WS}}*)(?:([<][>])|([!])($|{{WS}}+)|(?=\S))
+    patterns:
+      - { include: "#BlockAction" }
+      - { include: "#InlineAction" }
+
+  BlockAction:
+    begin: ({{WS}}*)([!])($|{{WS}}+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ActionMark" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Newline" }
+      - { include: "#BlockLineBreak" }
+      - { include: "#BlockLineContinue" }
+    end: (?=^(?!\1))|(?=^\s*$)
+
+  InlineAction:
+    begin: ({{WS}}*)(?:([<][>])|(?=\S))
     beginCaptures:
       1:
         patterns:
@@ -3760,9 +3750,6 @@ repository:
         patterns:
           - { include: "#Glue" }
       3:
-        patterns:
-          - { include: "#ActionMark" }
-      4:
         patterns:
           - { include: "#Separator" }
     patterns:

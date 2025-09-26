@@ -50,12 +50,13 @@ export default class ScreenplayParser {
             name !== "Branch" &&
             name !== "Knot" &&
             name !== "Stitch" &&
-            name !== "Title" &&
-            name !== "Heading" &&
-            name !== "Transitional" &&
+            name !== "BlockTitle" &&
+            name !== "BlockHeading" &&
+            name !== "BlockTransitional" &&
             name !== "BlockDialogue" &&
             name !== "InlineDialogue" &&
-            name !== "Action" &&
+            name !== "BlockAction" &&
+            name !== "InlineAction" &&
             name !== "Choice" &&
             name !== "Newline" &&
             name !== "Whitespace"
@@ -125,7 +126,7 @@ export default class ScreenplayParser {
         }
 
         // Transitional
-        if (stack.includes("Transitional")) {
+        if (stack.includes("BlockTransitional")) {
           if (name === "TextChunk") {
             const text = read(from, to);
             transitional += text + "\n";
@@ -137,7 +138,7 @@ export default class ScreenplayParser {
         }
 
         // Heading
-        if (stack.includes("Heading")) {
+        if (stack.includes("BlockHeading")) {
           if (name === "TextChunk") {
             const text = read(from, to);
             heading += text + "\n";
@@ -149,7 +150,7 @@ export default class ScreenplayParser {
         }
 
         // Action
-        if (stack.includes("Action")) {
+        if (stack.includes("BlockAction") || stack.includes("InlineAction")) {
           if (name === "TextChunk") {
             const text = read(from, to);
             action += text + "\n";
@@ -224,7 +225,7 @@ export default class ScreenplayParser {
         }
 
         // Transitional
-        if (name === "Transitional") {
+        if (name === "BlockTransitional") {
           tokens.push({
             tag: "transitional",
             text: transitional,
@@ -233,7 +234,7 @@ export default class ScreenplayParser {
         }
 
         // Heading
-        if (name === "Heading") {
+        if (name === "BlockHeading") {
           tokens.push({
             tag: "heading",
             text: heading,
@@ -242,7 +243,7 @@ export default class ScreenplayParser {
         }
 
         // Action
-        if (name === "Action") {
+        if (name === "BlockAction" || name === "InlineAction") {
           tokens.push({
             tag: "action",
             text: action,

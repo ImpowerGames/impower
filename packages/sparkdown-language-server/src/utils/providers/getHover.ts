@@ -71,12 +71,18 @@ export const getHover = (
       hoveredOffset <= document.offsetAt(range.end)
     ) {
       const reference = value.type;
-      if (reference.selector) {
-        const [resolvedValue] = resolveSelector<any>(
-          program,
-          reference.selector,
-          getExpectedSelectorTypes(program, reference.assigned, config)
-        );
+      if (reference.selectors) {
+        let resolvedValue: any = undefined;
+        for (const selector of reference.selectors) {
+          const [resolved] = resolveSelector<any>(
+            program,
+            selector,
+            getExpectedSelectorTypes(program, reference.assigned, config)
+          );
+          if (resolved) {
+            resolvedValue = resolved;
+          }
+        }
         if (resolvedValue !== undefined) {
           if (
             typeof resolvedValue === "object" &&
@@ -84,18 +90,19 @@ export const getHover = (
             typeof resolvedValue.$type === "string"
           ) {
             const type = resolvedValue.$type;
-            if (
-              reference.selector.name &&
-              (type === "filtered_image" ||
-                reference.selector.name.includes("~")) &&
-              program.context
-            ) {
-              filterImage(
-                program.context,
-                program.context?.["filtered_image"]?.[
-                  sortFilteredName(reference.selector.name)
-                ]
-              );
+            for (const selector of reference.selectors) {
+              if (
+                selector.name &&
+                (type === "filtered_image" || selector.name.includes("~")) &&
+                program.context
+              ) {
+                filterImage(
+                  program.context,
+                  program.context?.["filtered_image"]?.[
+                    sortFilteredName(selector.name)
+                  ]
+                );
+              }
             }
             const stack = new Set<{ $type: string; $name: string }>();
             const rootImage = resolveRootImage(

@@ -49,6 +49,17 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
         }).range(nodeRef.from, nodeRef.to)
       );
     }
+    // Insert implicit chain escape after heading and transitional block begin
+    if (
+      nodeRef.name === "BlockHeading_begin" ||
+      nodeRef.name === "BlockTransitional_begin" ||
+      nodeRef.name === "BlockAction_begin"
+    ) {
+      const splice = "\\";
+      annotations.push(
+        SparkdownAnnotation.mark({ splice }).range(nodeRef.to, nodeRef.to)
+      );
+    }
     // Insert implicit colon and chain escape after dialogue block begin
     if (
       nodeRef.name === "BlockDialogue_begin" ||
@@ -76,6 +87,18 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark({ splice }).range(nodeRef.from, nodeRef.from)
         );
       }
+    }
+    // Insert implicit @ before inline dialogue
+    if (nodeRef.name === "InlineDialogue_begin") {
+      const text = this.read(nodeRef.from, nodeRef.to);
+      const indentLength = text.length - text.trimStart().length;
+      const splice = "@ ";
+      annotations.push(
+        SparkdownAnnotation.mark({ splice }).range(
+          nodeRef.from + indentLength,
+          nodeRef.from + indentLength
+        )
+      );
     }
     if (nodeRef.name !== "Newline") {
       this.prevNodeType = nodeRef.name;

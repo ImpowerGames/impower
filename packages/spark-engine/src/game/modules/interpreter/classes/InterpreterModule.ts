@@ -93,8 +93,9 @@ export class InterpreterModule extends Module<
   setup() {
     this._characterNameMap = {};
     for (const [k, v] of Object.entries(this.context.character || {})) {
-      if (v.name) {
-        this._characterNameMap[v.name] = k;
+      const name = v.name;
+      if (typeof name === "string") {
+        this._characterNameMap[name] = k;
       }
     }
     this._targetPrefixMap = {};
@@ -269,15 +270,14 @@ export class InterpreterModule extends Module<
         const characterParentheticalMatch = match?.[3] || "";
         const characterPositionMatch = match?.[7] || "";
         const characterMap = this.context?.["character"] as any;
-        const normalizedCharacterName =
-          this.getCharacterIdentifier(characterNameMatch);
         const characterId = this._characterNameMap[characterNameMatch] || "";
         const characterObj =
-          characterMap?.[characterNameMatch] ||
-          characterMap?.[characterId] ||
-          characterMap?.[normalizedCharacterName];
-        const character = characterObj?.$name || normalizedCharacterName;
-        const characterName = characterObj?.name || characterNameMatch;
+          characterMap?.[characterNameMatch] || characterMap?.[characterId];
+        const character = characterObj?.$name;
+        const characterName =
+          typeof characterObj?.name === "string"
+            ? characterObj.name
+            : characterNameMatch;
         const characterParenthetical = characterParentheticalMatch;
         const position =
           characterPositionMatch === "<"

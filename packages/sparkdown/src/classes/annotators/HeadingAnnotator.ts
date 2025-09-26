@@ -8,7 +8,7 @@ export class HeadingAnnotator extends SparkdownAnnotator {
     annotations: Range<SparkdownAnnotation>[],
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation>[] {
-    if (nodeRef.name === "Heading_content") {
+    if (nodeRef.name === "BlockHeading_content") {
       annotations.push(
         SparkdownAnnotation.mark().range(nodeRef.from, nodeRef.to)
       );

@@ -137,19 +137,18 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
   const cheatSheet: Record<string, CheatsheetItem[]> = {};
   cheatSheet["Displaying Text"] = [
     new CheatsheetItem(
-      "@",
-      "Character names are prefixed with an @ symbol",
-      `
-<span class='dialogue_character'>@ STEEL</span>
-<span class='dialogue'>The man's a myth!</span>`.trim()
+      "character: dialogue",
+      "Inline dialogue starts with a character name followed by `:`",
+      `<span><span class='dialogue_character'>steel: </span><span class='dialogue'>The man's a myth!</span></span>`
     ),
     new CheatsheetItem(
-      "…",
-      "Dialogue is any text on a line following an @ character name. A character's dialogue block is ended with a blank line.",
+      "@ CHARACTER",
+      "A dialogue block can be prefixed with `@` to more easily write multiline dialogue. A character's dialogue block is ended with a blank line.",
       `
 <span class='dialogue_character'>@ DEALER</span>
 <span class='dialogue'>Ten. Four.</span>
-<span class='dialogue'>Dealer gets a seven. Hit or stand sir?</span>
+<span class='dialogue'>Dealer gets a seven.</span>
+<span class='dialogue'>Hit or stand sir?</span>
 <span>
 </span>
 <span class='dialogue_character'>@ MONKEY</span>
@@ -157,7 +156,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     ),
     new CheatsheetItem(
       ">",
-      "At runtime, all lines of a dialogue block are displayed in the same dialogue box. To move a line of dialogue to a new dialogue box, end the line with &gt",
+      "At runtime, all lines of a dialogue block are displayed in the same dialogue box. To move a line of dialogue to a new dialogue box, end the line with `&gt`",
       `
 <span class='dialogue_character'>@ DAN</span>
 <span class='dialogue'>Then let's retire them. <span class='keyword'>&gt</span></span>
@@ -165,7 +164,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     ),
     new CheatsheetItem(
       "()",
-      "Parentheticals are lines that start with an open parenthesis ( and end with a closed parenthesis )",
+      "Parentheticals are lines that start with an open parenthesis `(` and end with a closed parenthesis `)`",
       `
 <span class='dialogue_character'>@ STEEL</span>
 <span class='parenthetical'>(starting the engine)</span>
@@ -173,7 +172,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     ),
     new CheatsheetItem(
       "[<]",
-      "Dual (aka simultaneous) dialogue is expressed by adding [<] after the name of the character that should appear on the left and [>] after the name of the character that should appear on the right",
+      "Dual (aka simultaneous) dialogue is expressed by adding `[<]` after the name of the character that should appear on the left and `[>]` after the name of the character that should appear on the right",
       `
 <span class='dialogue_character'>@ BRICK <mark class='caret'>[&lt]</mark></span>
 <span class='dialogue'>Screw retirement.</span>
@@ -184,19 +183,19 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     ),
     new CheatsheetItem(
       "$",
-      "Heading text is prefixed with a $",
+      "A heading block is prefixed with `$`",
       `
 <span class='heading'>$ INT. BRICK'S ROOM - DAY</span>`.trim()
     ),
     new CheatsheetItem(
       "%",
-      "Transitional text is prefixed with a %",
+      "A transitional block is prefixed with `%`",
       `
 <span class='transitional'>% CUT TO:</span>`.trim()
     ),
     new CheatsheetItem(
       "!",
-      "Action text is any paragraph that doesn't meet criteria for another element. It can also be explicitly prefixed with a !",
+      "Action text is any paragraph that doesn't meet criteria for another element. An action block can also be explicitly declared with `!`",
       `
 The men look at each other.`.trim()
     ),

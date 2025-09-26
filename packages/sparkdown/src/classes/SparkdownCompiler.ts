@@ -1145,8 +1145,7 @@ export class SparkdownCompiler {
               }
             }
           }
-          if (reference.selector) {
-            const selector = reference.selector;
+          if (reference.selectors) {
             const declaration = reference.assigned;
             const expectedSelectorTypes = getExpectedSelectorTypes(
               program,
@@ -1154,11 +1153,17 @@ export class SparkdownCompiler {
               this._config
             );
             // Validate that reference resolves to existing an struct
-            let [found] = resolveSelector<any>(
-              program,
-              selector,
-              expectedSelectorTypes
-            );
+            let found: any = undefined;
+            for (const s of reference.selectors) {
+              const [resolved] = resolveSelector<any>(
+                program,
+                s,
+                expectedSelectorTypes
+              );
+              if (resolved) {
+                found = resolved;
+              }
+            }
             if (found) {
               // Validate that resolved reference matches expected type
               if (
@@ -1191,17 +1196,19 @@ export class SparkdownCompiler {
               }
             } else {
               // Report missing error
-              const validDescription = selector.name
-                ? selector.displayType
-                  ? `${selector.displayType} named '${selector.name}'`
-                  : selector.types && selector.types.length > 0
-                  ? `${selector.types[0]} named '${selector.name}'`
-                  : expectedSelectorTypes && expectedSelectorTypes.length > 0
-                  ? `${expectedSelectorTypes[0]} named '${selector.name}'`
-                  : `'${selector.name}'`
-                : selector.types
-                ? `type named '${selector.types[0]}'`
-                : `type`;
+              const selector = reference.selectors?.[0];
+              const validDescription =
+                selector && selector.name
+                  ? selector.displayType
+                    ? `${selector.displayType} named '${selector.name}'`
+                    : selector.types && selector.types.length > 0
+                    ? `${selector.types[0]} named '${selector.name}'`
+                    : expectedSelectorTypes && expectedSelectorTypes.length > 0
+                    ? `${expectedSelectorTypes[0]} named '${selector.name}'`
+                    : `'${selector.name}'`
+                  : selector && selector.types
+                  ? `type named '${selector.types[0]}'`
+                  : `type`;
               const message = `Cannot find ${validDescription}`;
               program.diagnostics ??= {};
               program.diagnostics[uri] ??= [];

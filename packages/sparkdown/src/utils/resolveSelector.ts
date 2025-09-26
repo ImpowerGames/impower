@@ -27,6 +27,22 @@ export const resolveSelector = <T>(
         if (obj !== undefined) {
           return [obj as T, foundPath];
         }
+      } else if (selector.property && selector.value) {
+        for (const [name, struct] of Object.entries(
+          program.context?.[selectorType] || {}
+        )) {
+          const selectorPath = `${selectorType}.${sortFilteredName(name)}.${
+            selector.property
+          }`;
+          const [propValue] = selectProperty(
+            program.context,
+            selectorPath,
+            selector.fuzzy
+          );
+          if (propValue !== undefined && propValue === selector.value) {
+            return [struct as T, `${selectorType}.${name}`];
+          }
+        }
       } else {
         const selectorPath = selectorType;
         const [obj, foundPath] = selectProperty(

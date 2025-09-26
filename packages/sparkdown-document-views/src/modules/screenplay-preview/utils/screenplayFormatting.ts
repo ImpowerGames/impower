@@ -267,12 +267,13 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         // name !== "Branch" && // TODO: Only hide if config doesn't print branch
         name !== "Knot" && // TODO: Only hide if config doesn't print knot
         // name !== "Stitch" && // TODO: Only hide if config doesn't print stitch
-        name !== "Title" &&
-        name !== "Heading" &&
-        name !== "Transitional" &&
+        name !== "BlockTitle" &&
+        name !== "BlockHeading" &&
+        name !== "BlockTransitional" &&
         name !== "BlockDialogue" &&
         name !== "InlineDialogue" &&
-        name !== "Action" &&
+        name !== "BlockAction" &&
+        name !== "InlineAction" &&
         name !== "Choice" &&
         name !== "Newline" &&
         name !== "Whitespace"
@@ -530,7 +531,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             ...frontMatterFieldCaptureBlocks
           );
         }
-      } else if (name === "Title") {
+      } else if (name === "BlockTitle") {
         // Add Title Spec
         decorations.push(
           ...createDecorations(doc, {
@@ -539,7 +540,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             to,
           })
         );
-      } else if (name === "Heading") {
+      } else if (name === "BlockHeading") {
         // Add Heading Spec
         decorations.push(
           ...createDecorations(doc, {
@@ -548,7 +549,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             to,
           })
         );
-      } else if (name === "Transitional") {
+      } else if (name === "BlockTransitional") {
         // Add Transitional Spec
         decorations.push(
           ...createDecorations(doc, {
@@ -557,7 +558,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             to,
           })
         );
-      } else if (name === "Action") {
+      } else if (name === "BlockAction" || name === "InlineAction") {
         // Add Action Spec
         decorations.push(
           ...createDecorations(doc, {

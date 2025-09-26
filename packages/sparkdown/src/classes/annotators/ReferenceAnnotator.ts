@@ -6,7 +6,6 @@ import { SyntaxNodeRef } from "@lezer/common";
 import { SparkDeclaration } from "../../types/SparkDeclaration";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkSelector } from "../../types/SparkSelector";
-import { getCharacterIdentifier } from "../../utils/getCharacterIdentifier";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -32,7 +31,7 @@ export interface Reference {
   symbolIds?: string[];
   interdependentIds?: string[];
   firstMatchOnly?: boolean;
-  selector?: SparkSelector;
+  selectors?: SparkSelector[];
   assigned?: SparkDeclaration;
   prop?: boolean;
   linkable?: boolean;
@@ -312,7 +311,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         if (type) {
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
-              selector: { types: [type] },
+              selectors: [{ types: [type] }],
             }).range(nodeRef.from, nodeRef.to)
           );
         }
@@ -384,7 +383,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         if (types.length > 0) {
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
-              selector: { types, name },
+              selectors: [{ types, name }],
               assigned: declaration,
               symbolIds: types.map((type) => `${type}.${name}`),
               kind: "read",
@@ -396,7 +395,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           const name = this.read(nodeRef.from, nodeRef.to);
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
-              selector: { name },
+              selectors: [{ name }],
               assigned: declaration,
               symbolIds: ["?" + "." + name], // will need to infer type later
               kind: "read",
@@ -442,12 +441,14 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         const fuzzy = true;
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
-            selector: {
-              types,
-              name,
-              displayType,
-              fuzzy,
-            },
+            selectors: [
+              {
+                types,
+                name,
+                displayType,
+                fuzzy,
+              },
+            ],
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
@@ -462,7 +463,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         const name = this.read(nodeRef.from, nodeRef.to);
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
-            selector: { types, name },
+            selectors: [{ types, name }],
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
@@ -479,7 +480,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         const name = this.read(nodeRef.from, nodeRef.to);
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
-            selector: { types, name },
+            selectors: [{ types, name }],
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
@@ -497,7 +498,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         const displayType = "image";
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
-            selector: { types, name, displayType },
+            selectors: [{ types, name, displayType }],
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
@@ -515,7 +516,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         const displayType = "image";
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
-            selector: { types, name, displayType },
+            selectors: [{ types, name, displayType }],
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
@@ -530,7 +531,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         const displayType = "audio";
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
-            selector: { types, name, displayType },
+            selectors: [{ types, name, displayType }],
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
@@ -547,7 +548,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         const displayType = `transition or animation`;
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
-            selector: { types, name, displayType },
+            selectors: [{ types, name, displayType }],
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
@@ -560,7 +561,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         const name = this.read(nodeRef.from, nodeRef.to);
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
-            selector: { types, name },
+            selectors: [{ types, name }],
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
@@ -573,10 +574,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const name = this.read(nodeRef.from, nodeRef.to);
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
-          symbolIds: [
-            "character." + name,
-            "character.?.name=" + name,
-            "character." + getCharacterIdentifier(name),
+          symbolIds: ["character." + name, "character.?.name=" + name],
+          selectors: [
+            { types: ["character"], name },
+            { types: ["character"], property: "name", value: name },
           ],
           kind: "read",
           linkable: true,
