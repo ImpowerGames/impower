@@ -5,13 +5,10 @@ import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { ColorAnnotator } from "./annotators/ColorAnnotator";
 import { DeclarationAnnotator } from "./annotators/DeclarationAnnotator";
 import { FormattingAnnotator } from "./annotators/FormattingAnnotator";
-import { HeadingAnnotator } from "./annotators/HeadingAnnotator";
 import { ImplicitAnnotator } from "./annotators/ImplicitAnnotator";
 import { LinkAnnotator } from "./annotators/LinkAnnotator";
 import { ReferenceAnnotator } from "./annotators/ReferenceAnnotator";
 import { SemanticAnnotator } from "./annotators/SemanticAnnotator";
-import { TitleAnnotator } from "./annotators/TitleAnnotator";
-import { TransitionalAnnotator } from "./annotators/TransitionalAnnotator";
 import { TranspilationAnnotator } from "./annotators/TranspilationAnnotator";
 import { ValidationAnnotator } from "./annotators/ValidationAnnotator";
 import { SparkdownAnnotation } from "./SparkdownAnnotation";
@@ -34,9 +31,6 @@ export type SparkdownAnnotations = {
 export interface SparkdownAnnotators {
   colors: ColorAnnotator;
   characters: CharacterAnnotator;
-  titles: TitleAnnotator;
-  headings: HeadingAnnotator;
-  transitionals: TransitionalAnnotator;
   declarations: DeclarationAnnotator;
   transpilations: TranspilationAnnotator;
   references: ReferenceAnnotator;
@@ -51,9 +45,6 @@ export class SparkdownCombinedAnnotator {
   current: SparkdownAnnotators = {
     colors: new ColorAnnotator(),
     characters: new CharacterAnnotator(),
-    titles: new TitleAnnotator(),
-    headings: new HeadingAnnotator(),
-    transitionals: new TransitionalAnnotator(),
     declarations: new DeclarationAnnotator(),
     transpilations: new TranspilationAnnotator(),
     references: new ReferenceAnnotator(),
@@ -73,9 +64,6 @@ export class SparkdownCombinedAnnotator {
     return {
       colors: this.current.colors.current,
       characters: this.current.characters.current,
-      titles: this.current.titles.current,
-      headings: this.current.headings.current,
-      transitionals: this.current.transitionals.current,
       declarations: this.current.declarations.current,
       transpilations: this.current.transpilations.current,
       references: this.current.references.current,
@@ -96,9 +84,6 @@ export class SparkdownCombinedAnnotator {
     const ranges: SparkdownAnnotationRanges = {
       colors: [],
       characters: [],
-      titles: [],
-      headings: [],
-      transitionals: [],
       declarations: [],
       transpilations: [],
       references: [],
