@@ -36,8 +36,8 @@ export const uiBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_filtered_image>>,
   style: {
     $default: default_style(),
-    stage: default_style({
-      $name: "text",
+    main: default_style({
+      $name: "main",
       font_family: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol"`,
@@ -147,8 +147,8 @@ export const uiBuiltinDefinitions = () => ({
         pointer_events: "none",
       },
     }),
-    camera: default_style({
-      $name: "background",
+    stage: default_style({
+      $name: "stage",
       position: "absolute",
       inset: "0",
       display: "flex",
@@ -364,9 +364,9 @@ export const uiBuiltinDefinitions = () => ({
         loading_fill: {},
       },
     }),
-    stage: default_ui({
-      $name: "stage",
-      camera: {
+    main: default_ui({
+      $name: "main",
+      stage: {
         animation: {},
         backdrop: {
           image: "transparent",
