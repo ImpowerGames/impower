@@ -22,14 +22,55 @@ variables:
   WS: '[^\S\n\r]'
   # End Of Line
   EOL: "(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$|{{WS}}*[/][/].*$)"
+  # Keyword Terminator
+  KEYWORD_TERMINATOR: "(?:[:]|{{TAG_START}}|[/][/]|[/][*])"
   # End Of Keyword
-  EOK: "(?:$|{{WS}}+|(?={{TAG_START}}|[/][/]|[/][*]))"
+  EOK: "(?:$|{{WS}}+|(?={{KEYWORD_TERMINATOR}}))"
+  # Start Of Line Mark
+  SOL_MARK: (?:[~!@#$%^&*_+-]|[=]+|[-]{3,}|{{CONDITIONAL_KEYWORDS}}|{{DECLARATION_KEYWORDS}}|{{CONTROL_KEYWORDS}})
+  TEXT_BLOCK_TERMINATOR: ^{{WS}}*(?:[<][-]|{{SOL_MARK}}(?:$|{{WS}}|{{KEYWORD_TERMINATOR}}))
   IMAGE_CONTROL_KEYWORDS: ["set", "show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait"]
   AUDIO_CONTROL_KEYWORDS:
     ["play", "start", "stop", "modulate", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
     ["over", "after", "fadeto", "loop", "once", "mute", "unmute", "now"]
+  CONDITIONAL_KEYWORDS:
+    [
+      "if",
+      "elseif",
+      "else",
+      "match",
+      "case",
+      "stopping",
+      "shuffle",
+      "cycle",
+      "once",
+      "for",
+      "repeat",
+      "slot",
+      "fill",
+    ]
+  DECLARATION_KEYWORDS:
+    [
+      "include",
+      "function",
+      "store",
+      "var",
+      "const",
+      "temp",
+      "list",
+      "define",
+      "load",
+      "scene",
+      "branch",
+      "screen",
+      "component",
+      "animation",
+      "style",
+      "theme",
+    ]
+  CONTROL_KEYWORDS: ["return"]
 
 patterns:
   - { include: "#EndOfLine" }
@@ -52,6 +93,7 @@ patterns:
   - { include: "#Logic" }
   - { include: "#Choice" }
   - { include: "#Gather" }
+  - { include: "#ConditionalIndentedBlock" }
   - { include: "#Write" }
   - { include: "#Dialogue" }
   - { include: "#Title" }
@@ -1006,7 +1048,7 @@ repository:
   ViewControlProperty:
     tag: meta
     name: meta.definition.view.property.scalar.sd
-    match: ^({{WS}}*)(if|elseif|else|match|case|for|repeat|slot|fill)({{WS}}*)(.*?)({{WS}}*)($|[:])($|{{WS}}*$)
+    match: ^({{WS}}*)({{CONDITIONAL_KEYWORDS}})({{WS}}*)(.*?)({{WS}}*)($|[:])($|{{WS}}*$)
     captures:
       1:
         patterns:
@@ -1211,7 +1253,7 @@ repository:
     patterns:
       - { include: "#StringEscape" }
       - { include: "#Annotation" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#StringCharacter" }
     end: (?=\s)
 
@@ -1740,7 +1782,7 @@ repository:
           - { include: "#Label" }
       4:
         patterns:
-          - { include: "#ConditionalBlock" }
+          - { include: "#ConditionalBracedBlock" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#ChoiceWithSuppressedText" }
@@ -1798,7 +1840,7 @@ repository:
       1:
         patterns:
           - { include: "#Annotation" }
-          - { include: "#ConditionalBlock" }
+          - { include: "#ConditionalBracedBlock" }
           - { include: "#DisplayText" }
 
   ########## Logic ##########
@@ -1922,6 +1964,7 @@ repository:
       - { include: "#Todo" }
       - { include: "#Logic" }
       - { include: "#Tag" }
+      - { include: "#ConditionalIndentedBlock" }
       - { include: "#Write" }
       - { include: "#Dialogue" }
       - { include: "#Title" }
@@ -2359,9 +2402,9 @@ repository:
     name: keyword.control.divert.path.sd
     match: ({{IDENTIFIER}})
 
-  ########## ConditionalBlock (anything within {}) ##########
+  ########## ConditionalBracedBlock (anything within {}) ##########
 
-  ConditionalBlock:
+  ConditionalBracedBlock:
     tag: meta
     name: meta.definition.type.conditional-block.sd
     brackets: true
@@ -2383,7 +2426,7 @@ repository:
       - { include: "#Substitution" }
       - { include: "#FirstAlternativeItem" }
       - { include: "#AlternativeItem" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#InlineConditionalText" }
     end: ({{WS}}*)([}])({{WS}}*)?
     endCaptures:
@@ -2438,7 +2481,7 @@ repository:
       - { include: "#Divert" }
       - { include: "#Tag" }
       - { include: "#ConditionalSubstitution" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#InlineConditionalText" }
     end: (?=[|])
 
@@ -2454,7 +2497,7 @@ repository:
       - { include: "#PipeAhead" }
       - { include: "#Literal" }
       - { include: "#Divert" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#InlineConditionalText" }
     end: (?=[}]|[|])
 
@@ -2478,7 +2521,7 @@ repository:
       - { include: "#CloseBraceAhead" }
       - { include: "#Divert" }
       - { include: "#InlineElseClause" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#InlineConditionalText" }
     end: ({{WS}}*)(?=[}])
     endCaptures:
@@ -2496,7 +2539,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#CloseBraceAhead" }
       - { include: "#Divert" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#InlineConditionalText" }
     end: (?=[}])
 
@@ -2525,7 +2568,7 @@ repository:
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#Todo" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#MultilineConditionalText" }
     end: (?=[}])
 
@@ -2548,7 +2591,7 @@ repository:
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#Todo" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#MultilineConditionalText" }
     end: (?=[}])
 
@@ -2590,7 +2633,7 @@ repository:
       - { include: "#TempDeclaration" }
       - { include: "#Logic" }
       - { include: "#Choice" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#MultilineConditionalText" }
     end: (?=^|[}]|[-]{{EOK}})
 
@@ -2622,7 +2665,7 @@ repository:
       - { include: "#TempDeclaration" }
       - { include: "#Logic" }
       - { include: "#Choice" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#MultilineConditionalText" }
     end: (?=^|[}]|[-]{{EOK}})
 
@@ -2641,6 +2684,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#MultilineCloseBraceAhead" }
+      - { include: "#ConditionalIndentedBlock" }
       - { include: "#Dialogue" }
       - { include: "#Title" }
       - { include: "#Heading" }
@@ -2679,11 +2723,35 @@ repository:
         patterns:
           - { include: "#Indent" }
 
+  ########## ConditionalIndentedBlock ##########
+
+  ConditionalIndentedBlock:
+    tag: meta
+    name: meta.definition.type.conditional-block.sd
+    brackets: true
+    begin: ({{WS}}*)({{CONDITIONAL_KEYWORDS}})\b
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ConditionalKeyword" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Expression" }
+    end: ([:])|(?=$)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ColonOperator" }
+
   ########## Expression ##########
 
   Expression:
     patterns:
       - { include: "#Annotation" }
+      - { include: "#ConditionalKeyword" }
       - { include: "#RefModifier" }
       - { include: "#FunctionCall" }
       - { include: "#Divert" }
@@ -2695,6 +2763,11 @@ repository:
       - { include: "#AccessPath" }
       - { include: "#PunctuationComma" }
       - { include: "#IllegalChar" }
+
+  ConditionalKeyword:
+    tag: controlKeyword
+    name: keyword.control.definition.const.sd
+    match: ({{CONDITIONAL_KEYWORDS}})\b
 
   ParentheticalExpression:
     brackets: true
@@ -3062,7 +3135,7 @@ repository:
     patterns:
       - { include: "#StringEscape" }
       - { include: "#Annotation" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#StringCharacter" }
     end: (["])|($)
     endCaptures:
@@ -3446,7 +3519,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!\1))|(?=^\s*$)
+    end: (?=^(?!\1))|(?=^\s*$)|(?={{TEXT_BLOCK_TERMINATOR}})
 
   WriteMark:
     tag: definition(typeName)
@@ -3517,7 +3590,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!\1))|(?=^\s*$)
+    end: (?=^(?!\1))|(?=^\s*$)|(?={{TEXT_BLOCK_TERMINATOR}})
 
   DialogueMark:
     tag: definition(typeName)
@@ -3667,7 +3740,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!\1))|(?=^\s*$)
+    end: (?=^(?!\1))|(?=^\s*$)|(?={{TEXT_BLOCK_TERMINATOR}})
 
   TitleMark:
     tag: definition(punctuation)
@@ -3729,7 +3802,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!\1))|(?=^\s*$)
+    end: (?=^(?!\1))|(?=^\s*$)|(?={{TEXT_BLOCK_TERMINATOR}})
 
   TransitionalMark:
     tag: definition(punctuation)
@@ -3791,7 +3864,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!\1))|(?=^\s*$)
+    end: (?=^(?!\1))|(?=^\s*$)|(?={{TEXT_BLOCK_TERMINATOR}})
 
   HeadingMark:
     tag: definition(punctuation)
@@ -3825,7 +3898,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!\1))|(?=^\s*$)
+    end: (?=^(?!\1))|(?=^\s*$)|(?={{TEXT_BLOCK_TERMINATOR}})
 
   InlineAction:
     begin: ({{WS}}*)(?:([<][>])|([!])([:])($|{{WS}}*)|(?=\S))
@@ -4004,7 +4077,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Escape" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#ParentheticalLine" }
       - { include: "#Chain" }
       - { include: "#Glue" }
@@ -4353,7 +4426,7 @@ repository:
       - { include: "#Escape" }
       - { include: "#Divert" }
       - { include: "#Thread" }
-      - { include: "#ConditionalBlock" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#InlineText" }
 
   InlineText:

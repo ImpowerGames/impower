@@ -284,7 +284,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "ConditionalBlockOpenBrace") {
       const stack = getContextStack<SparkdownNodeName>(nodeRef.node);
       const parentConditionalBlockNode = stack.find(
-        (n) => n.name === "ConditionalBlock"
+        (n) => n.name === "ConditionalBracedBlock"
       );
       if (parentConditionalBlockNode) {
         const multilineNode = getDescendent(
@@ -305,7 +305,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "ConditionalBlockCloseBrace") {
       const stack = getContextStack<SparkdownNodeName>(nodeRef.node);
       const parentConditionalBlockNode = stack.find(
-        (n) => n.name === "ConditionalBlock"
+        (n) => n.name === "ConditionalBracedBlock"
       );
       if (parentConditionalBlockNode) {
         const multilineNode = getDescendent(
@@ -444,7 +444,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       } else {
         const stack = getContextStack<SparkdownNodeName>(nodeRef.node);
         if (
-          !stack.some((n) => n.name === "ConditionalBlock_end") ||
+          !stack.some((n) => n.name === "ConditionalBracedBlock_end") ||
           stack.some((n) => n.name === "Choice_begin")
         ) {
           // Optional separators should be enforced to have at least one space,

@@ -1,9 +1,10 @@
 import { Range } from "@codemirror/state";
-import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
+import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
+import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
+import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
-
-const INDENT_REGEX: RegExp = /^[ \t]*/;
 
 export interface LineAugmentations {
   splice?: string;
@@ -17,11 +18,15 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
 > {
   blockPrefix = "";
 
-  prevNodeType = "";
+  prevBlockLineType = "";
+
+  parentBlockNode?: GrammarSyntaxNode<SparkdownNodeName> = undefined;
+
+  blockLineNodes?: GrammarSyntaxNode<SparkdownNodeName>[] = [];
 
   override begin() {
     this.blockPrefix = "";
-    this.prevNodeType = "";
+    this.prevBlockLineType = "";
   }
 
   override enter(
@@ -49,16 +54,29 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
         }).range(nodeRef.from, nodeRef.to)
       );
     }
+    if (
+      nodeRef.name === "BlockTitle" ||
+      nodeRef.name === "BlockHeading" ||
+      nodeRef.name === "BlockTransitional" ||
+      nodeRef.name === "BlockAction" ||
+      nodeRef.name === "BlockDialogue" ||
+      nodeRef.name === "BlockWrite"
+    ) {
+      this.parentBlockNode = nodeRef.node;
+      this.blockLineNodes = getDescendents(
+        ["BlockLineContinue", "BlockLineBreak"],
+        nodeRef.node
+      );
+    }
     // Insert implicit chain escape after heading and transitional block begin
     if (
+      nodeRef.name === "BlockTitle_begin" ||
       nodeRef.name === "BlockHeading_begin" ||
       nodeRef.name === "BlockTransitional_begin" ||
       nodeRef.name === "BlockAction_begin"
     ) {
-      const splice = "\\";
-      annotations.push(
-        SparkdownAnnotation.mark({ splice }).range(nodeRef.to, nodeRef.to)
-      );
+      const text = this.read(nodeRef.from, nodeRef.to);
+      this.blockPrefix = text.trimEnd();
     }
     // Insert implicit colon and chain escape after dialogue block begin
     if (
@@ -67,10 +85,15 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
     ) {
       const lineFrom = this.getLineAt(nodeRef.from).from;
       const lineTextBefore = this.read(lineFrom, nodeRef.to);
+      this.blockPrefix = lineTextBefore;
       const colonSeparator =
         lineTextBefore.trimStart().length === 1 ? " : " : ": ";
-      const splice = colonSeparator + "\\";
-      this.blockPrefix = lineTextBefore;
+      let splice = colonSeparator;
+      // Check that this line is not the last in the block
+      const lastBlockLineNode = this.blockLineNodes?.at(-1);
+      if (lastBlockLineNode && lastBlockLineNode.to > nodeRef.to) {
+        splice += "\\ ";
+      }
       annotations.push(
         SparkdownAnnotation.mark({ splice }).range(nodeRef.to, nodeRef.to)
       );
@@ -80,7 +103,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
       nodeRef.name === "BlockLineContinue" ||
       nodeRef.name === "BlockLineBreak"
     ) {
-      if (this.prevNodeType.startsWith("BlockLineBreak")) {
+      if (this.prevBlockLineType.startsWith("BlockLineBreak")) {
         const blockPrefix = this.blockPrefix + ": ";
         const splice = blockPrefix;
         annotations.push(
@@ -100,8 +123,11 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
         )
       );
     }
-    if (nodeRef.name !== "Newline") {
-      this.prevNodeType = nodeRef.name;
+    if (
+      nodeRef.name === "BlockLineContinue" ||
+      nodeRef.name === "BlockLineBreak"
+    ) {
+      this.prevBlockLineType = nodeRef.name;
     }
     return annotations;
   }
@@ -112,7 +138,11 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
   ): Range<SparkdownAnnotation<LineAugmentations>>[] {
     if (
       nodeRef.name === "BlockDialogue_end" ||
-      nodeRef.name === "BlockWrite_end"
+      nodeRef.name === "BlockWrite_end" ||
+      nodeRef.name === "BlockTitle_end" ||
+      nodeRef.name === "BlockHeading_end" ||
+      nodeRef.name === "BlockTransitional_end" ||
+      nodeRef.name === "BlockAction_end"
     ) {
       this.blockPrefix = "";
       return annotations;
@@ -127,16 +157,14 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
         !lineTextBefore.trim().endsWith("\\") &&
         !lineTextAfter.trim().startsWith("\\")
       ) {
-        const indentMatch = lineTextBefore.match(INDENT_REGEX);
-        const indent = indentMatch?.[0] || "";
-        const nextLineText = this.readNextLine(nodeRef.to);
-        // Check that this dialogue line is not the last in the block
-        if (nextLineText.trim() && nextLineText.startsWith(indent)) {
+        // Check that this line is not the last in the block
+        const lastBlockLineNode = this.blockLineNodes?.at(-1);
+        if (lastBlockLineNode && lastBlockLineNode.to > nodeRef.to) {
           // All lines (except the last in a block) should end with implicit \
           // (So they are grouped together with following text line)
-          const suffix = " \\";
+          const splice = " \\ ";
           annotations.push(
-            SparkdownAnnotation.mark({ suffix }).range(nodeRef.to, nodeRef.to)
+            SparkdownAnnotation.mark({ splice }).range(nodeRef.to, nodeRef.to)
           );
           return annotations;
         }

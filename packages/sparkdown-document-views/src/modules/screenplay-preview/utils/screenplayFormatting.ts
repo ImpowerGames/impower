@@ -390,7 +390,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         inDialogue = true;
         dialoguePosition = 0;
         dialogueContent = [];
-      } else if (name === "ConditionalBlock") {
+      } else if (name === "ConditionalBracedBlock") {
         inConditionalBlock.push(true);
       } else if (name === "DialogueCharacter") {
         const value = doc.sliceString(from, to).trim();
@@ -637,7 +637,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         }
         inDialogue = false;
         inDualDialogue = false;
-      } else if (name === "ConditionalBlock") {
+      } else if (name === "ConditionalBracedBlock") {
         inConditionalBlock.pop();
       }
     },

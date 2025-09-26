@@ -257,7 +257,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         : "";
       if (text === "after") {
         if (
-          nextValueNodeType !== "ConditionalBlock" &&
+          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "TimeValue" &&
           nextValueNodeType !== "NumberValue"
         ) {
@@ -273,7 +273,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       if (text === "over") {
         if (
-          nextValueNodeType !== "ConditionalBlock" &&
+          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "TimeValue" &&
           nextValueNodeType !== "NumberValue"
         ) {
@@ -291,7 +291,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         const context = getContextNames(nodeRef.node);
         if (
           context.includes("ImageCommand") &&
-          nextValueNodeType !== "ConditionalBlock" &&
+          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "NameValue"
         ) {
           const message = `'${text}' should be followed by the name of a transition or animation (e.g. 'with shake')`;
@@ -305,7 +305,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
         if (
           context.includes("AudioCommand") &&
-          nextValueNodeType !== "ConditionalBlock" &&
+          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "NameValue"
         ) {
           const message =
@@ -321,7 +321,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       if (text === "fadeto") {
         if (
-          (nextValueNodeType !== "ConditionalBlock" &&
+          (nextValueNodeType !== "ConditionalBracedBlock" &&
             nextValueNodeType !== "NumberValue") ||
           (nextValueNodeType === "NumberValue" && Number(nextValueNodeText) < 0)
         ) {
@@ -345,7 +345,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       ) {
         if (
           nextValueNode &&
-          (nextValueNodeType === "ConditionalBlock" ||
+          (nextValueNodeType === "ConditionalBracedBlock" ||
             nextValueNodeType === "TimeValue" ||
             nextValueNodeType === "NumberValue")
         ) {
