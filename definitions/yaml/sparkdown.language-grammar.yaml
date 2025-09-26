@@ -3481,8 +3481,9 @@ repository:
         patterns:
           - { include: "#ColonSeparator" }
       4:
+        emit: true
         patterns:
-          - { include: "#Separator" }
+          - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -3621,7 +3622,7 @@ repository:
   InlineTitle:
     tag: labelName
     name: keyword.control.title.sd
-    begin: ({{WS}}*)(\^)([:])({{EOK}})
+    begin: ({{WS}}*)(\^)([:])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3633,8 +3634,9 @@ repository:
         patterns:
           - { include: "#ColonOperator" }
       4:
+        emit: true
         patterns:
-          - { include: "#Separator" }
+          - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -3682,7 +3684,7 @@ repository:
   InlineTransitional:
     tag: labelName
     name: keyword.control.transitional.sd
-    begin: ({{WS}}*)([%])([:])({{EOK}})
+    begin: ({{WS}}*)([%])([:])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3694,8 +3696,9 @@ repository:
         patterns:
           - { include: "#ColonOperator" }
       4:
+        emit: true
         patterns:
-          - { include: "#Separator" }
+          - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -3743,7 +3746,7 @@ repository:
   InlineHeading:
     tag: regexp
     name: string.regexp.heading.sd
-    begin: ({{WS}}*)([$])([:])({{EOK}})
+    begin: ({{WS}}*)([$])([:])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3755,8 +3758,9 @@ repository:
         patterns:
           - { include: "#ColonOperator" }
       4:
+        emit: true
         patterns:
-          - { include: "#Separator" }
+          - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -3824,7 +3828,7 @@ repository:
     end: (?=^(?!\1))|(?=^\s*$)
 
   InlineAction:
-    begin: ({{WS}}*)(?:([<][>])|([!])([:])({{EOK}})|(?=\S))
+    begin: ({{WS}}*)(?:([<][>])|([!])([:])($|{{WS}}*)|(?=\S))
     beginCaptures:
       1:
         patterns:
@@ -3839,8 +3843,9 @@ repository:
         patterns:
           - { include: "#ColonOperator" }
       5:
+        emit: true
         patterns:
-          - { include: "#Separator" }
+          - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }

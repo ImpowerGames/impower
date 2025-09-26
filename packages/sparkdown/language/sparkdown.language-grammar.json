@@ -6248,9 +6248,10 @@
           ]
         },
         "4": {
+          "emit": true,
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#OptionalSeparator"
             }
           ]
         }
@@ -6515,7 +6516,7 @@
     "InlineTitle": {
       "tag": "labelName",
       "name": "keyword.control.title.sd",
-      "begin": "([^\\S\\n\\r]*)(\\^)([:])((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "([^\\S\\n\\r]*)(\\^)([:])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6539,9 +6540,10 @@
           ]
         },
         "4": {
+          "emit": true,
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#OptionalSeparator"
             }
           ]
         }
@@ -6635,7 +6637,7 @@
     "InlineTransitional": {
       "tag": "labelName",
       "name": "keyword.control.transitional.sd",
-      "begin": "([^\\S\\n\\r]*)([%])([:])((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "([^\\S\\n\\r]*)([%])([:])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6659,9 +6661,10 @@
           ]
         },
         "4": {
+          "emit": true,
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#OptionalSeparator"
             }
           ]
         }
@@ -6755,7 +6758,7 @@
     "InlineHeading": {
       "tag": "regexp",
       "name": "string.regexp.heading.sd",
-      "begin": "([^\\S\\n\\r]*)([$])([:])((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "begin": "([^\\S\\n\\r]*)([$])([:])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6779,9 +6782,10 @@
           ]
         },
         "4": {
+          "emit": true,
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#OptionalSeparator"
             }
           ]
         }
@@ -6917,7 +6921,7 @@
       "end": "(?=^(?!\\1))|(?=^\\s*$)"
     },
     "InlineAction": {
-      "begin": "([^\\S\\n\\r]*)(?:([<][>])|([!])([:])((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))|(?=\\S))",
+      "begin": "([^\\S\\n\\r]*)(?:([<][>])|([!])([:])($|[^\\S\\n\\r]*)|(?=\\S))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6948,9 +6952,10 @@
           ]
         },
         "5": {
+          "emit": true,
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#OptionalSeparator"
             }
           ]
         }
