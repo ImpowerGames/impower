@@ -3808,15 +3808,9 @@
         },
         {
           "include": "#DivertPath"
-        },
-        {
-          "include": "#TunnelMark"
-        },
-        {
-          "include": "#DivertMark"
         }
       ],
-      "end": "(?=$|(?![-][>])[^_\\p{L}])"
+      "end": "(?=$|[^_\\p{L}])"
     },
     "Thread": {
       "begin": "^([^\\S\\n\\r]*)([<][-])([^\\S\\n\\r]*)",

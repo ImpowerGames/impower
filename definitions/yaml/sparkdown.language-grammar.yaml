@@ -2085,9 +2085,7 @@ repository:
       - { include: "#Done" }
       - { include: "#FunctionCall" }
       - { include: "#DivertPath" }
-      - { include: "#TunnelMark" }
-      - { include: "#DivertMark" }
-    end: (?=$|(?![-][>])[^{{IDENTIFIER_START_CHAR}}])
+    end: (?=$|[^{{IDENTIFIER_START_CHAR}}])
 
   Thread:
     begin: ^({{WS}}*)([<][-])({{WS}}*)
