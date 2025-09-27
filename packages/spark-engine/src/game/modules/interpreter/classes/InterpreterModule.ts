@@ -70,7 +70,7 @@ export class InterpreterModule extends Module<
 
   WHITESPACE_REGEX = /[ \t\r\n]+/;
 
-  TARGETED_TEXT_REGEX = /(.*?)((?<!\\)[:])((?:.|\r|\n)*)/;
+  TARGETED_TEXT_REGEX = /(.*?)((?<!\\)[:](?:$|[ ]+))((?:.|\r|\n)*)/;
 
   protected _targetPrefixMap: Record<string, string> = {};
 

@@ -3497,7 +3497,7 @@ repository:
 
   BlockTitle:
     tag: labelName
-    name: keyword.control.title.sd
+    name: keyword.control.title.block.sd
     begin: ({{WS}}*)(\^)([:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
@@ -3521,8 +3521,8 @@ repository:
 
   InlineTitle:
     tag: labelName
-    name: keyword.control.title.sd
-    begin: ({{WS}}*)(\^)([:])($|{{WS}}*)
+    name: keyword.control.title.inline.sd
+    begin: ({{WS}}*)(\^)([:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
@@ -3534,9 +3534,8 @@ repository:
         patterns:
           - { include: "#ColonOperator" }
       4:
-        emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -3562,7 +3561,7 @@ repository:
 
   BlockHeading:
     tag: regexp
-    name: string.regexp.heading.sd
+    name: string.regexp.heading.block.sd
     begin: ({{WS}}*)([$])([:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
@@ -3586,8 +3585,8 @@ repository:
 
   InlineHeading:
     tag: regexp
-    name: string.regexp.heading.sd
-    begin: ({{WS}}*)([$])([:])($|{{WS}}*)
+    name: string.regexp.heading.inline.sd
+    begin: ({{WS}}*)([$])([:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
@@ -3599,9 +3598,8 @@ repository:
         patterns:
           - { include: "#ColonOperator" }
       4:
-        emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -3630,7 +3628,7 @@ repository:
 
   BlockTransitional:
     tag: labelName
-    name: keyword.control.transitional.sd
+    name: keyword.control.transitional.block.sd
     begin: ({{WS}}*)([%])([:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
@@ -3654,8 +3652,8 @@ repository:
 
   InlineTransitional:
     tag: labelName
-    name: keyword.control.transitional.sd
-    begin: ({{WS}}*)([%])([:])($|{{WS}}*)
+    name: keyword.control.transitional.inline.sd
+    begin: ({{WS}}*)([%])([:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
@@ -3667,9 +3665,8 @@ repository:
         patterns:
           - { include: "#ColonOperator" }
       4:
-        emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -3695,8 +3692,8 @@ repository:
 
   BlockWrite:
     tag: string
-    name: string.write.sd
-    begin: ({{WS}}*)([@])({{WS}}*)([^:\r\n]*?)([:])({{WS}}*)(?={{EOL}})
+    name: string.write.block.sd
+    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:])*)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3726,8 +3723,8 @@ repository:
 
   InlineWrite:
     tag: string
-    name: string.write.sd
-    begin: ({{WS}}*)([@])({{WS}}*)([^:\r\n]*?)([:])($|{{WS}}*)
+    name: string.write.inline.sd
+    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:])*)((?<!\\)[:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
@@ -3746,9 +3743,8 @@ repository:
         patterns:
           - { include: "#ColonSeparator" }
       6:
-        emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -3778,8 +3774,8 @@ repository:
 
   BlockDialogue:
     tag: string
-    name: string.dialogue.sd
-    begin: ({{WS}}*)([^:\r\n]+?)([:])({{WS}}*)(?={{EOL}})
+    name: string.dialogue.block.sd
+    begin: ({{WS}}*)((?:\\.|[^:])+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3803,8 +3799,8 @@ repository:
 
   InlineDialogue:
     tag: string
-    name: string.dialogue.sd
-    begin: ({{WS}}*)([^:\r\n]+?)([:])($|{{WS}}*)
+    name: string.dialogue.inline.sd
+    begin: ({{WS}}*)((?:\\.|[^:])+)((?<!\\)[:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
@@ -3817,9 +3813,8 @@ repository:
         patterns:
           - { include: "#ColonSeparator" }
       4:
-        emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -3951,7 +3946,7 @@ repository:
     end: (?=^(?!$|//|\1{{WS}}))
 
   InlineAction:
-    begin: ({{WS}}*)(?:([<][>])|([:])($|{{WS}}*))
+    begin: ({{WS}}*)(?:([<][>])|([:])($|{{WS}}+))
     beginCaptures:
       1:
         patterns:
@@ -3963,9 +3958,8 @@ repository:
         patterns:
           - { include: "#ColonOperator" }
       4:
-        emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#Separator" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
