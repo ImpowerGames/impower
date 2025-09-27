@@ -747,37 +747,44 @@
       "match": "(.+)"
     },
     "DefineAssignment": {
-      "match": "(?:([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]+)(?=[_\\p{L}][0-9_\\p{L}]*))?(.*?)([^\\S\\n\\r]*)($|[:])",
+      "match": "(.*?)(?:(with)((?=$|[:])|[^\\S\\n\\r]+)((?=$|[:])|[_\\p{L}][0-9_\\p{L}]*))?([^\\S\\n\\r]*)($|[:])",
       "captures": {
         "1": {
-          "patterns": [
-            {
-              "include": "#DefineModifierName"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Separator"
-            }
-          ]
-        },
-        "3": {
           "patterns": [
             {
               "include": "#DefineIdentifier"
             }
           ]
         },
+        "2": {
+          "patterns": [
+            {
+              "include": "#WithKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        },
         "4": {
+          "patterns": [
+            {
+              "include": "#DefineModifierName"
+            }
+          ]
+        },
+        "5": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
             }
           ]
         },
-        "5": {
+        "6": {
           "patterns": [
             {
               "include": "#ColonOperator"
@@ -787,7 +794,7 @@
       }
     },
     "DefineIdentifier": {
-      "match": "([_\\p{L}][0-9_\\p{L}]*)(?:([.])($|[_\\p{L}][0-9_\\p{L}]*)?)?(.*?)",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]+)($|[_\\p{L}][0-9_\\p{L}]*)($|.+)",
       "captures": {
         "1": {
           "patterns": [
@@ -813,11 +820,16 @@
         "4": {
           "patterns": [
             {
-              "include": "#AccessPart"
+              "include": "#Other"
             }
           ]
         }
       }
+    },
+    "WithKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.define.with.sd",
+      "match": "(.+)"
     },
     "DefineModifierName": {
       "tag": "keyword",
@@ -826,7 +838,7 @@
     },
     "DefineTypeName": {
       "tag": "typeName",
-      "name": "support.type.sd",
+      "name": "support.type.define.sd",
       "match": "(.+)"
     },
     "DefinePunctuationAccessor": {
@@ -8490,6 +8502,11 @@
     "Punctuation": {
       "tag": "content",
       "name": "markup.raw.punctuation.sd",
+      "match": "(.)"
+    },
+    "Other": {
+      "tag": "content",
+      "name": "markup.raw.text.sd",
       "match": "(.)"
     },
     "IllegalExpression": {

@@ -52,14 +52,22 @@ export const getDeclarationScopes = (
           cur.value.type === "knot" ||
           cur.value.type === "const" ||
           cur.value.type === "var" ||
-          cur.value.type === "list" ||
-          cur.value.type === "define"
+          cur.value.type === "list"
         ) {
           // Global
           const scopePath = "";
           scopes[scopePath] ??= {};
           scopes[scopePath][cur.value.type] ??= [];
           scopes[scopePath][cur.value.type]!.push(read(cur.from, cur.to));
+        }
+        if (cur.value.type === "define") {
+          // Global
+          const scopePath = "";
+          scopes[scopePath] ??= {};
+          scopes[scopePath][cur.value.type] ??= [];
+          scopes[scopePath][cur.value.type]!.push(
+            read(cur.from, cur.to).trim().replaceAll(/[ ]+/, ".")
+          );
         }
         if (
           cur.value.type === "label" ||

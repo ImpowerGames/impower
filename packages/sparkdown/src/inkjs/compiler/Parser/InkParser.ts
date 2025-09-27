@@ -2794,10 +2794,7 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    this.Expect(
-      this.String("="),
-      "the variable to be initialized"
-    );
+    this.Expect(this.String("="), "the variable to be initialized");
 
     this.Whitespace();
 
@@ -3043,31 +3040,27 @@ export class InkParser extends StringParser {
     ) as Identifier | null;
 
     this.Whitespace();
-    const dot = this.ParseString(".");
+    const secondIdentifier = this.IdentifierWithMetadata();
     this.Whitespace();
 
-    if (dot) {
-      name = this.Expect(
+    if (secondIdentifier && secondIdentifier.name === "with") {
+      modifier = this.Expect(
         this.IdentifierWithMetadata,
-        "name"
+        "modifier"
       ) as Identifier | null;
-    } else {
-      const secondIdentifier = this.IdentifierWithMetadata();
-      if (secondIdentifier) {
-        modifier = type;
-        type = secondIdentifier;
-        this.Whitespace();
-        const dot = this.ParseString(".");
-        this.Whitespace();
-        if (dot) {
-          name = this.Expect(
-            this.IdentifierWithMetadata,
-            "name"
-          ) as Identifier | null;
-        }
-      } else {
-        name = new Identifier("$default");
+    } else if (secondIdentifier) {
+      name = secondIdentifier;
+      this.Whitespace();
+      const thirdIdentifier = this.IdentifierWithMetadata();
+      this.Whitespace();
+      if (thirdIdentifier && thirdIdentifier.name === "with") {
+        modifier = this.Expect(
+          this.IdentifierWithMetadata,
+          "modifier"
+        ) as Identifier | null;
       }
+    } else {
+      name = new Identifier("$default");
     }
 
     this.Whitespace();
@@ -3333,7 +3326,7 @@ export class InkParser extends StringParser {
     this.Whitespace();
 
     let logic: ParsedObject | null = null;
-    
+
     if (this.ParseString("{")) {
       // Handle {{func}} function call shorthand
       this.Whitespace();
@@ -3348,14 +3341,16 @@ export class InkParser extends StringParser {
         logic = new FunctionCall(iden, args || []);
       }
       this.Whitespace();
-      this.Expect(this.String("}"), "closing brace '}' for inline function call");
+      this.Expect(
+        this.String("}"),
+        "closing brace '}' for inline function call"
+      );
     } else {
       logic = this.Expect(
         this.InnerLogic,
         "some kind of logic, conditional or sequence within braces: { ... }"
       ) as ParsedObject;
     }
-
 
     if (logic === null) {
       this.parsingStringExpression = wasParsingString;
