@@ -109,7 +109,8 @@ export const getFormatting = (
     rootNodeName: SparkdownNodeName,
     contentNodeName: SparkdownNodeName,
     currentIndentation: string,
-    currentIndentLevel: number
+    currentIndentLevel: number,
+    strict: boolean
   ) => {
     const rootNode = stack.find((n) => n.name === rootNodeName);
     if (rootNode) {
@@ -129,7 +130,7 @@ export const getFormatting = (
       const rootNodeIndentLevel = rootNodeIndentText.includes("\t")
         ? rootNodeIndentText.split("\t").length - 1
         : Math.round(rootNodeIndentText.length / options.tabSize);
-      const indentOffset = indentLevel - rootNodeIndentLevel;
+      const indentOffset = strict ? 0 : indentLevel - rootNodeIndentLevel;
       currentIndentLevel = contentNode
         ? expectedRootIndentLevel + indentOffset + 1
         : expectedRootIndentLevel;
@@ -166,42 +167,96 @@ export const getFormatting = (
         "DefineDeclaration",
         "DefineDeclaration_content",
         currentIndentation,
-        newIndentLevel
+        newIndentLevel,
+        false
       );
       newIndentLevel = processBlockDeclaration(
         stack,
         "ScreenDeclaration",
         "ScreenDeclaration_content",
         currentIndentation,
-        newIndentLevel
+        newIndentLevel,
+        false
       );
       newIndentLevel = processBlockDeclaration(
         stack,
         "ComponentDeclaration",
         "ComponentDeclaration_content",
         currentIndentation,
-        newIndentLevel
+        newIndentLevel,
+        false
       );
       newIndentLevel = processBlockDeclaration(
         stack,
         "StyleDeclaration",
         "StyleDeclaration_content",
         currentIndentation,
-        newIndentLevel
+        newIndentLevel,
+        false
       );
       newIndentLevel = processBlockDeclaration(
         stack,
         "AnimationDeclaration",
         "AnimationDeclaration_content",
         currentIndentation,
-        newIndentLevel
+        newIndentLevel,
+        false
       );
       newIndentLevel = processBlockDeclaration(
         stack,
         "ThemeDeclaration",
         "ThemeDeclaration_content",
         currentIndentation,
-        newIndentLevel
+        newIndentLevel,
+        false
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "BlockTitle",
+        "BlockTitle_content",
+        currentIndentation,
+        newIndentLevel,
+        true
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "BlockHeading",
+        "BlockHeading_content",
+        currentIndentation,
+        newIndentLevel,
+        true
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "BlockTransitional",
+        "BlockTransitional_content",
+        currentIndentation,
+        newIndentLevel,
+        true
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "BlockWrite",
+        "BlockWrite_content",
+        currentIndentation,
+        newIndentLevel,
+        true
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "BlockDialogue",
+        "BlockDialogue_content",
+        currentIndentation,
+        newIndentLevel,
+        true
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "BlockAction",
+        "BlockAction_content",
+        currentIndentation,
+        newIndentLevel,
+        true
       );
       // FrontMatter field content are indented by 1
       const unknownNode = stack.find((n) => n.name === "Unknown");

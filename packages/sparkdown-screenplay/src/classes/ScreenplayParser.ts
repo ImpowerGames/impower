@@ -57,10 +57,13 @@ export default class ScreenplayParser {
             name !== "InlineHeading" &&
             name !== "BlockTransitional" &&
             name !== "InlineTransitional" &&
+            name !== "BlockWrite" &&
+            name !== "InlineWrite" &&
             name !== "BlockDialogue" &&
             name !== "InlineDialogue" &&
             name !== "BlockAction" &&
             name !== "InlineAction" &&
+            name !== "ImplicitAction" &&
             name !== "Choice" &&
             name !== "Newline" &&
             name !== "Whitespace"
@@ -169,7 +172,11 @@ export default class ScreenplayParser {
         }
 
         // Action
-        if (stack.includes("BlockAction") || stack.includes("InlineAction")) {
+        if (
+          stack.includes("BlockAction") ||
+          stack.includes("InlineAction") ||
+          stack.includes("ImplicitAction")
+        ) {
           if (name === "TextChunk") {
             const text = read(from, to);
             action += text + "\n";
@@ -271,7 +278,11 @@ export default class ScreenplayParser {
         }
 
         // Action
-        if (name === "BlockAction" || name === "InlineAction") {
+        if (
+          name === "BlockAction" ||
+          name === "InlineAction" ||
+          name === "ImplicitAction"
+        ) {
           tokens.push({
             tag: "action",
             text: action,

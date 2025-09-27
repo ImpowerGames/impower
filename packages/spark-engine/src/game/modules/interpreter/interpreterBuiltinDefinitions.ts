@@ -8,9 +8,7 @@ export const interpreterBuiltinDefinitions = () => ({
         title: "^",
         heading: "$",
         transitional: "%",
-        dialogue: "@",
-        action: "!",
-        write: ">",
+        action: "",
       },
       fallbacks: {
         layer: "portrait",

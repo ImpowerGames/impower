@@ -47,6 +47,8 @@ const EDITOR_COLORS = {
   tag: "#79ABFF",
 
   keyword: "#569CD6",
+  definitionKeyword: "#FF80BB",
+  operatorKeyword: "#FFA8D1",
   typeName: "#4EC9B0",
   propertyName: "#9CDCFE",
   variableName: "#4FC1FF",

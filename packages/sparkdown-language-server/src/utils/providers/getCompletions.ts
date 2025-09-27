@@ -166,7 +166,9 @@ const rankMostRecentTexts = (
   if (include) {
     for (const name of include) {
       if (name && !name.startsWith("$")) {
-        mostRecentTexts.push(name);
+        if (!strict || name.startsWith(currentText)) {
+          mostRecentTexts.push(name);
+        }
       }
     }
   }
@@ -214,13 +216,14 @@ const addKeywordCompletions = (
   description: string,
   keywords: string[],
   exclude?: string[],
-  insertTextPrefix: string = ""
+  insertTextPrefix: string = "",
+  insertTextSuffix: string = ""
 ) => {
   for (const keyword of keywords) {
     if (!exclude || !exclude.includes(keyword)) {
       const completion: CompletionItem = {
         label: keyword,
-        insertText: insertTextPrefix + keyword,
+        insertText: insertTextPrefix + keyword + insertTextSuffix,
         labelDetails: { description },
         kind: CompletionItemKind.Constant,
       };
@@ -228,6 +231,23 @@ const addKeywordCompletions = (
         completions.set(completion.label, completion);
       }
     }
+  }
+};
+
+const addSnippet = (
+  completions: Map<string, CompletionItem>,
+  description: string,
+  label: string,
+  insertText: string
+) => {
+  const completion: CompletionItem = {
+    label,
+    insertText,
+    labelDetails: { description },
+    kind: CompletionItemKind.Constant,
+  };
+  if (completion.label && !completions.has(completion.label)) {
+    completions.set(completion.label, completion);
   }
 };
 
@@ -330,7 +350,8 @@ const addUIElementReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
   contentTypes: ("image" | "text" | "animation")[],
-  insertTextPrefix = ""
+  insertTextPrefix = "",
+  insertTextSuffix = ""
 ) => {
   for (const contentType of contentTypes) {
     const uiStructs = program?.context?.["ui"];
@@ -342,7 +363,7 @@ const addUIElementReferenceCompletions = (
             if (layer) {
               const completion: CompletionItem = {
                 label: layer,
-                insertText: insertTextPrefix + layer,
+                insertText: insertTextPrefix + layer + insertTextSuffix,
                 labelDetails: { description: "element" },
                 kind: CompletionItemKind.Constructor,
               };
@@ -1060,30 +1081,6 @@ export const getCompletions = (
   }
 
   // Dialogue
-  if (leftStack[0]?.name === "DialogueMark") {
-    const contentNode =
-      getDescendentInsideParent(
-        "DialogueCharacter",
-        "BlockDialogue_begin",
-        leftStack
-      ) ||
-      getDescendentInsideParent(
-        "DialogueCharacter",
-        "InlineDialogue_begin",
-        leftStack
-      );
-    if (isCursorAfterNodeText(contentNode)) {
-      addCharacterCompletions(
-        completions,
-        read,
-        scriptAnnotations,
-        document.uri,
-        contentNode,
-        " "
-      );
-    }
-    return buildCompletions();
-  }
   if (
     (isWhitespaceNode(leftStack[0]?.name) &&
       prevNode?.name === "DialogueMark") ||
@@ -1688,20 +1685,31 @@ export const getCompletions = (
     }
     return buildCompletions();
   }
-  if (leftStack.at(-2)?.name === "InlineAction") {
-    const actionMarkNode = getDescendentInsideParent(
-      "ActionMark",
-      "InlineAction",
-      leftStack
-    );
-    if (!actionMarkNode) {
-      if (isCursorAfterNodeText(leftStack.at(-2))) {
+  if (leftStack.at(-2)?.name === "ImplicitAction") {
+    const contentNode = leftStack.at(-2);
+    const text = getNodeText(contentNode).trimStart();
+    if (isCursorAfterNodeText(contentNode)) {
+      if (text === "@") {
+        addUIElementReferenceCompletions(
+          completions,
+          program,
+          ["text"],
+          " ",
+          ": "
+        );
+      } else if (text === "^") {
+        addSnippet(completions, "title", "^:", ": ");
+      } else if (text === "$") {
+        addSnippet(completions, "heading", "$:", ": ");
+      } else if (text === "%") {
+        addSnippet(completions, "transitional", "%:", ": ");
+      } else {
         addCharacterCompletions(
           completions,
           read,
           scriptAnnotations,
           document.uri,
-          leftStack.at(-2),
+          contentNode,
           "",
           ": ",
           true,

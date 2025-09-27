@@ -58,9 +58,9 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
       nodeRef.name === "BlockTitle" ||
       nodeRef.name === "BlockHeading" ||
       nodeRef.name === "BlockTransitional" ||
-      nodeRef.name === "BlockAction" ||
+      nodeRef.name === "BlockWrite" ||
       nodeRef.name === "BlockDialogue" ||
-      nodeRef.name === "BlockWrite"
+      nodeRef.name === "BlockAction"
     ) {
       this.parentBlockNode = nodeRef.node;
       this.blockLineNodes = getDescendents(
@@ -68,60 +68,40 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
         nodeRef.node
       );
     }
-    // Insert implicit chain escape after heading and transitional block begin
+
+    // Insert implicit chain escape to continue this box on a new line
     if (
       nodeRef.name === "BlockTitle_begin" ||
       nodeRef.name === "BlockHeading_begin" ||
       nodeRef.name === "BlockTransitional_begin" ||
-      nodeRef.name === "BlockAction_begin"
-    ) {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      this.blockPrefix = text.trimEnd();
-    }
-    // Insert implicit colon and chain escape after dialogue block begin
-    if (
+      nodeRef.name === "BlockWrite_begin" ||
       nodeRef.name === "BlockDialogue_begin" ||
-      nodeRef.name === "BlockWrite_begin"
+      nodeRef.name === "BlockAction_begin"
     ) {
       const lineFrom = this.getLineAt(nodeRef.from).from;
       const lineTextBefore = this.read(lineFrom, nodeRef.to);
       this.blockPrefix = lineTextBefore;
-      const colonSeparator =
-        lineTextBefore.trimStart().length === 1 ? " : " : ": ";
-      let splice = colonSeparator;
       // Check that this line is not the last in the block
       const lastBlockLineNode = this.blockLineNodes?.at(-1);
       if (lastBlockLineNode && lastBlockLineNode.to > nodeRef.to) {
-        splice += "\\ ";
+        const splice = "\\ ";
+        annotations.push(
+          SparkdownAnnotation.mark({ splice }).range(nodeRef.to, nodeRef.to)
+        );
       }
-      annotations.push(
-        SparkdownAnnotation.mark({ splice }).range(nodeRef.to, nodeRef.to)
-      );
     }
-    // Insert implicit character name and colon before dialogue line
+    // Insert implicit block prefix before line to break it into a new box
     if (
       nodeRef.name === "BlockLineContinue" ||
       nodeRef.name === "BlockLineBreak"
     ) {
       if (this.prevBlockLineType.startsWith("BlockLineBreak")) {
-        const blockPrefix = this.blockPrefix + ": ";
+        const blockPrefix = this.blockPrefix;
         const splice = blockPrefix;
         annotations.push(
           SparkdownAnnotation.mark({ splice }).range(nodeRef.from, nodeRef.from)
         );
       }
-    }
-    // Insert implicit @ before inline dialogue
-    if (nodeRef.name === "InlineDialogue_begin") {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      const indentLength = text.length - text.trimStart().length;
-      const splice = "@ ";
-      annotations.push(
-        SparkdownAnnotation.mark({ splice }).range(
-          nodeRef.from + indentLength,
-          nodeRef.from + indentLength
-        )
-      );
     }
     if (
       nodeRef.name === "BlockLineContinue" ||
@@ -137,17 +117,17 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
     nodeRef: SparkdownSyntaxNodeRef
   ): Range<SparkdownAnnotation<LineAugmentations>>[] {
     if (
-      nodeRef.name === "BlockDialogue_end" ||
-      nodeRef.name === "BlockWrite_end" ||
       nodeRef.name === "BlockTitle_end" ||
       nodeRef.name === "BlockHeading_end" ||
       nodeRef.name === "BlockTransitional_end" ||
+      nodeRef.name === "BlockWrite_end" ||
+      nodeRef.name === "BlockDialogue_end" ||
       nodeRef.name === "BlockAction_end"
     ) {
       this.blockPrefix = "";
       return annotations;
     }
-    // Insert implicit chain escape after dialogue block line
+    // Insert implicit chain escape to continue this box on a new line
     if (nodeRef.name === "BlockLineContinue") {
       const lineFrom = this.getLineAt(nodeRef.from).from;
       const lineTo = this.getLineAt(nodeRef.from).to;

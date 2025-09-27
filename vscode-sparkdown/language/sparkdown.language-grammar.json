@@ -23,8 +23,6 @@
     "EOL": "(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$|{{WS}}*[/][/].*$)",
     "KEYWORD_TERMINATOR": "(?:[:]|{{TAG_START}}|[/][/]|[/][*])",
     "EOK": "(?:$|{{WS}}+|(?={{KEYWORD_TERMINATOR}}))",
-    "SOL_MARK": "(?:[~!@#$%^&*_+-]|[=]+|[-]{3,}|{{CONDITIONAL_KEYWORDS}}|{{DECLARATION_KEYWORDS}}|{{CONTROL_KEYWORDS}})",
-    "TEXT_BLOCK_TERMINATOR": "^{{WS}}*(?:[<][-]|{{SOL_MARK}}(?:$|{{WS}}|{{KEYWORD_TERMINATOR}}))",
     "IMAGE_CONTROL_KEYWORDS": [
       "set",
       "show",
@@ -157,12 +155,6 @@
       "include": "#ConditionalIndentedBlock"
     },
     {
-      "include": "#Write"
-    },
-    {
-      "include": "#Dialogue"
-    },
-    {
       "include": "#Title"
     },
     {
@@ -170,6 +162,12 @@
     },
     {
       "include": "#Transitional"
+    },
+    {
+      "include": "#Write"
+    },
+    {
+      "include": "#Dialogue"
     },
     {
       "include": "#AssetLine"
@@ -2210,12 +2208,12 @@
       ]
     },
     "BuiltinComponentName": {
-      "tag": "typeName",
+      "tag": "definitionKeyword",
       "name": "keyword.other.component.builtin.name.sd",
       "match": "\\b(Area|Span|Box|Row|Column|Grid|ScrollArea|Text|Link|Label|Field|Button|Image|Input|TextArea|Slider|Checkbox|Dropdown|Option|Space|Divider)\\b"
     },
     "CustomComponentName": {
-      "tag": "typeName",
+      "tag": "operatorKeyword",
       "name": "keyword.other.component.custom.name.sd",
       "match": "([A-Z][\\w]*)"
     },
@@ -3561,12 +3559,6 @@
           "include": "#ConditionalIndentedBlock"
         },
         {
-          "include": "#Write"
-        },
-        {
-          "include": "#Dialogue"
-        },
-        {
           "include": "#Title"
         },
         {
@@ -3574,6 +3566,12 @@
         },
         {
           "include": "#Transitional"
+        },
+        {
+          "include": "#Write"
+        },
+        {
+          "include": "#Dialogue"
         },
         {
           "include": "#Action"
@@ -4946,9 +4944,6 @@
           "include": "#ConditionalIndentedBlock"
         },
         {
-          "include": "#Dialogue"
-        },
-        {
           "include": "#Title"
         },
         {
@@ -4956,6 +4951,12 @@
         },
         {
           "include": "#Transitional"
+        },
+        {
+          "include": "#Write"
+        },
+        {
+          "include": "#Dialogue"
         },
         {
           "include": "#Action"
@@ -6234,17 +6235,20 @@
         }
       }
     },
-    "Write": {
+    "Title": {
       "patterns": [
         {
-          "include": "#BlockWrite"
+          "include": "#BlockTitle"
+        },
+        {
+          "include": "#InlineTitle"
         }
       ]
     },
-    "BlockWrite": {
-      "tag": "string",
-      "name": "string.write.sd",
-      "begin": "([^\\S\\n\\r]*)([>])($|[^\\S\\n\\r]+)($|[^:\\r\\n]+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+    "BlockTitle": {
+      "tag": "labelName",
+      "name": "keyword.control.title.sd",
+      "begin": "([^\\S\\n\\r]*)(\\^)([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6256,24 +6260,21 @@
         "2": {
           "patterns": [
             {
-              "include": "#WriteMark"
+              "include": "#TitleMark"
             }
           ]
         },
         "3": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#ColonSeparator"
             }
           ]
         },
         "4": {
           "patterns": [
             {
-              "include": "#Annotation"
-            },
-            {
-              "include": "#WriteTarget"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -6292,16 +6293,493 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!\\1))|(?=^\\s*$)|(?=^[^\\S\\n\\r]*(?:[<][-]|(?:[~!@#$%^&*_+-]|[=]+|[-]{3,}|\\b(?:if|elseif|else|match|case|stopping|shuffle|cycle|once|for|repeat|slot|fill)\\b|\\b(?:include|function|store|var|const|temp|list|define|load|scene|branch|screen|component|animation|style|theme)\\b|\\b(?:return)\\b)(?:$|[^\\S\\n\\r]|(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+    },
+    "InlineTitle": {
+      "tag": "labelName",
+      "name": "keyword.control.title.sd",
+      "begin": "([^\\S\\n\\r]*)(\\^)([:])($|[^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#TitleMark"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
+        },
+        "4": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#LineBreak"
+        },
+        {
+          "include": "#LineChain"
+        },
+        {
+          "include": "#AssetLine"
+        },
+        {
+          "include": "#ParentheticalLine"
+        },
+        {
+          "include": "#LineEnd"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
+    },
+    "TitleMark": {
+      "tag": "definition(punctuation)",
+      "name": "punctuation.title.mark.sd",
+      "match": "(.+)"
+    },
+    "Heading": {
+      "patterns": [
+        {
+          "include": "#BlockHeading"
+        },
+        {
+          "include": "#InlineHeading"
+        }
+      ]
+    },
+    "BlockHeading": {
+      "tag": "regexp",
+      "name": "string.regexp.heading.sd",
+      "begin": "([^\\S\\n\\r]*)([$])([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#HeadingMark"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ColonSeparator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#BlockLineBreak"
+        },
+        {
+          "include": "#BlockLineContinue"
+        }
+      ],
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+    },
+    "InlineHeading": {
+      "tag": "regexp",
+      "name": "string.regexp.heading.sd",
+      "begin": "([^\\S\\n\\r]*)([$])([:])($|[^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#HeadingMark"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
+        },
+        "4": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#LineBreak"
+        },
+        {
+          "include": "#LineChain"
+        },
+        {
+          "include": "#AssetLine"
+        },
+        {
+          "include": "#ParentheticalLine"
+        },
+        {
+          "include": "#LineEnd"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
+    },
+    "HeadingMark": {
+      "tag": "definition(punctuation)",
+      "name": "punctuation.heading.mark.sd",
+      "match": "(.+)"
+    },
+    "HeadingLocationTime": {
+      "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][^\\S\\n\\r]*(.*?)[^\\S\\n\\r]+[-][^\\S\\n\\r]+(.*?)[^\\S\\n\\r]*$"
+    },
+    "Transitional": {
+      "patterns": [
+        {
+          "include": "#BlockTransitional"
+        },
+        {
+          "include": "#InlineTransitional"
+        }
+      ]
+    },
+    "BlockTransitional": {
+      "tag": "labelName",
+      "name": "keyword.control.transitional.sd",
+      "begin": "([^\\S\\n\\r]*)([%])([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#TransitionalMark"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ColonSeparator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#BlockLineBreak"
+        },
+        {
+          "include": "#BlockLineContinue"
+        }
+      ],
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+    },
+    "InlineTransitional": {
+      "tag": "labelName",
+      "name": "keyword.control.transitional.sd",
+      "begin": "([^\\S\\n\\r]*)([%])([:])($|[^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#TransitionalMark"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ColonOperator"
+            }
+          ]
+        },
+        "4": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#LineBreak"
+        },
+        {
+          "include": "#LineChain"
+        },
+        {
+          "include": "#AssetLine"
+        },
+        {
+          "include": "#ParentheticalLine"
+        },
+        {
+          "include": "#LineEnd"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
+    },
+    "TransitionalMark": {
+      "tag": "definition(punctuation)",
+      "name": "punctuation.transitional.mark.sd",
+      "match": "(.+)"
+    },
+    "Write": {
+      "patterns": [
+        {
+          "include": "#BlockWrite"
+        },
+        {
+          "include": "#InlineWrite"
+        }
+      ]
+    },
+    "BlockWrite": {
+      "tag": "string",
+      "name": "string.write.sd",
+      "begin": "([^\\S\\n\\r]*)([@])([^\\S\\n\\r]*)([^:\\r\\n]*?)([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#WriteMark"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#WriteTarget"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#ColonSeparator"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#BlockLineBreak"
+        },
+        {
+          "include": "#BlockLineContinue"
+        }
+      ],
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+    },
+    "InlineWrite": {
+      "tag": "string",
+      "name": "string.write.sd",
+      "begin": "([^\\S\\n\\r]*)([@])([^\\S\\n\\r]*)([^:\\r\\n]*?)([:])($|[^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#WriteMark"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#WriteTarget"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#ColonSeparator"
+            }
+          ]
+        },
+        "6": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#LineBreak"
+        },
+        {
+          "include": "#LineChain"
+        },
+        {
+          "include": "#AssetLine"
+        },
+        {
+          "include": "#ParentheticalLine"
+        },
+        {
+          "include": "#LineEnd"
+        }
+      ],
+      "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
     },
     "WriteMark": {
-      "tag": "definition(typeName)",
-      "name": "entity.name.type.write.target.name.sd",
+      "tag": "keyword",
+      "name": "keyword.action.mark.sd",
       "match": "(.+)"
     },
     "WriteTarget": {
-      "tag": "typeName",
-      "name": "entity.name.type.write.target.name.sd",
+      "tag": "propertyName",
+      "name": "variable.other.property.write.target.sd",
       "match": "(.+)"
     },
     "Dialogue": {
@@ -6314,10 +6792,63 @@
         }
       ]
     },
+    "BlockDialogue": {
+      "tag": "string",
+      "name": "string.dialogue.sd",
+      "begin": "([^\\S\\n\\r]*)([^:\\r\\n]+?)([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            },
+            {
+              "include": "#DialogueCharacter"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ColonSeparator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#BlockLineBreak"
+        },
+        {
+          "include": "#BlockLineContinue"
+        }
+      ],
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+    },
     "InlineDialogue": {
       "tag": "string",
       "name": "string.dialogue.sd",
-      "begin": "([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([:])($|[^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)([^:\\r\\n]+?)([:])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6376,59 +6907,6 @@
         }
       ],
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
-    },
-    "BlockDialogue": {
-      "tag": "string",
-      "name": "string.dialogue.sd",
-      "begin": "([^\\S\\n\\r]*)([@])($|[^\\S\\n\\r]+)($|[^:\\r\\n]+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#DialogueMark"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Separator"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Annotation"
-            },
-            {
-              "include": "#DialogueCharacter"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#BlockLineBreak"
-        },
-        {
-          "include": "#BlockLineContinue"
-        }
-      ],
-      "end": "(?=^(?!\\1))|(?=^\\s*$)|(?=^[^\\S\\n\\r]*(?:[<][-]|(?:[~!@#$%^&*_+-]|[=]+|[-]{3,}|\\b(?:if|elseif|else|match|case|stopping|shuffle|cycle|once|for|repeat|slot|fill)\\b|\\b(?:include|function|store|var|const|temp|list|define|load|scene|branch|screen|component|animation|style|theme)\\b|\\b(?:return)\\b)(?:$|[^\\S\\n\\r]|(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))"
     },
     "DialogueMark": {
       "tag": "definition(typeName)",
@@ -6599,372 +7077,6 @@
     "DialogueCharacterPositionContent": {
       "match": "(.+$)"
     },
-    "Title": {
-      "patterns": [
-        {
-          "include": "#InlineTitle"
-        },
-        {
-          "include": "#BlockTitle"
-        }
-      ]
-    },
-    "InlineTitle": {
-      "tag": "labelName",
-      "name": "keyword.control.title.sd",
-      "begin": "([^\\S\\n\\r]*)(\\^)([:])($|[^\\S\\n\\r]*)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#TitleMark"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ColonOperator"
-            }
-          ]
-        },
-        "4": {
-          "emit": true,
-          "patterns": [
-            {
-              "include": "#OptionalSeparator"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#LineBreak"
-        },
-        {
-          "include": "#LineChain"
-        },
-        {
-          "include": "#AssetLine"
-        },
-        {
-          "include": "#ParentheticalLine"
-        },
-        {
-          "include": "#LineEnd"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        }
-      ],
-      "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
-    },
-    "BlockTitle": {
-      "tag": "labelName",
-      "name": "keyword.control.title.sd",
-      "begin": "([^\\S\\n\\r]*)(\\^)($|[^\\S\\n\\r]+)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#TitleMark"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Separator"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#BlockLineBreak"
-        },
-        {
-          "include": "#BlockLineContinue"
-        }
-      ],
-      "end": "(?=^(?!\\1))|(?=^\\s*$)|(?=^[^\\S\\n\\r]*(?:[<][-]|(?:[~!@#$%^&*_+-]|[=]+|[-]{3,}|\\b(?:if|elseif|else|match|case|stopping|shuffle|cycle|once|for|repeat|slot|fill)\\b|\\b(?:include|function|store|var|const|temp|list|define|load|scene|branch|screen|component|animation|style|theme)\\b|\\b(?:return)\\b)(?:$|[^\\S\\n\\r]|(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))"
-    },
-    "TitleMark": {
-      "tag": "definition(punctuation)",
-      "name": "punctuation.title.mark.sd",
-      "match": "(.+)"
-    },
-    "Transitional": {
-      "patterns": [
-        {
-          "include": "#InlineTransitional"
-        },
-        {
-          "include": "#BlockTransitional"
-        }
-      ]
-    },
-    "InlineTransitional": {
-      "tag": "labelName",
-      "name": "keyword.control.transitional.sd",
-      "begin": "([^\\S\\n\\r]*)([%])([:])($|[^\\S\\n\\r]*)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#TransitionalMark"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ColonOperator"
-            }
-          ]
-        },
-        "4": {
-          "emit": true,
-          "patterns": [
-            {
-              "include": "#OptionalSeparator"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#LineBreak"
-        },
-        {
-          "include": "#LineChain"
-        },
-        {
-          "include": "#AssetLine"
-        },
-        {
-          "include": "#ParentheticalLine"
-        },
-        {
-          "include": "#LineEnd"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        }
-      ],
-      "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
-    },
-    "BlockTransitional": {
-      "tag": "labelName",
-      "name": "keyword.control.transitional.sd",
-      "begin": "([^\\S\\n\\r]*)([%])($|[^\\S\\n\\r]+)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#TransitionalMark"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Separator"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#BlockLineBreak"
-        },
-        {
-          "include": "#BlockLineContinue"
-        }
-      ],
-      "end": "(?=^(?!\\1))|(?=^\\s*$)|(?=^[^\\S\\n\\r]*(?:[<][-]|(?:[~!@#$%^&*_+-]|[=]+|[-]{3,}|\\b(?:if|elseif|else|match|case|stopping|shuffle|cycle|once|for|repeat|slot|fill)\\b|\\b(?:include|function|store|var|const|temp|list|define|load|scene|branch|screen|component|animation|style|theme)\\b|\\b(?:return)\\b)(?:$|[^\\S\\n\\r]|(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))"
-    },
-    "TransitionalMark": {
-      "tag": "definition(punctuation)",
-      "name": "punctuation.transitional.mark.sd",
-      "match": "(.+)"
-    },
-    "Heading": {
-      "patterns": [
-        {
-          "include": "#InlineHeading"
-        },
-        {
-          "include": "#BlockHeading"
-        }
-      ]
-    },
-    "InlineHeading": {
-      "tag": "regexp",
-      "name": "string.regexp.heading.sd",
-      "begin": "([^\\S\\n\\r]*)([$])([:])($|[^\\S\\n\\r]*)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#HeadingMark"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ColonOperator"
-            }
-          ]
-        },
-        "4": {
-          "emit": true,
-          "patterns": [
-            {
-              "include": "#OptionalSeparator"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#LineBreak"
-        },
-        {
-          "include": "#LineChain"
-        },
-        {
-          "include": "#AssetLine"
-        },
-        {
-          "include": "#ParentheticalLine"
-        },
-        {
-          "include": "#LineEnd"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        }
-      ],
-      "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
-    },
-    "BlockHeading": {
-      "tag": "regexp",
-      "name": "string.regexp.heading.sd",
-      "begin": "([^\\S\\n\\r]*)([$])($|[^\\S\\n\\r]+)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#HeadingMark"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Separator"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#BlockLineBreak"
-        },
-        {
-          "include": "#BlockLineContinue"
-        }
-      ],
-      "end": "(?=^(?!\\1))|(?=^\\s*$)|(?=^[^\\S\\n\\r]*(?:[<][-]|(?:[~!@#$%^&*_+-]|[=]+|[-]{3,}|\\b(?:if|elseif|else|match|case|stopping|shuffle|cycle|once|for|repeat|slot|fill)\\b|\\b(?:include|function|store|var|const|temp|list|define|load|scene|branch|screen|component|animation|style|theme)\\b|\\b(?:return)\\b)(?:$|[^\\S\\n\\r]|(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))"
-    },
-    "HeadingMark": {
-      "tag": "definition(punctuation)",
-      "name": "punctuation.heading.mark.sd",
-      "match": "(.+)"
-    },
-    "HeadingLocationTime": {
-      "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][^\\S\\n\\r]*(.*?)[^\\S\\n\\r]+[-][^\\S\\n\\r]+(.*?)[^\\S\\n\\r]*$"
-    },
     "Action": {
       "patterns": [
         {
@@ -6972,11 +7084,14 @@
         },
         {
           "include": "#InlineAction"
+        },
+        {
+          "include": "#ImplicitAction"
         }
       ]
     },
     "BlockAction": {
-      "begin": "([^\\S\\n\\r]*)([!])($|[^\\S\\n\\r]+)",
+      "begin": "([^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6988,14 +7103,14 @@
         "2": {
           "patterns": [
             {
-              "include": "#ActionMark"
+              "include": "#ColonSeparator"
             }
           ]
         },
         "3": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -7014,10 +7129,10 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!\\1))|(?=^\\s*$)|(?=^[^\\S\\n\\r]*(?:[<][-]|(?:[~!@#$%^&*_+-]|[=]+|[-]{3,}|\\b(?:if|elseif|else|match|case|stopping|shuffle|cycle|once|for|repeat|slot|fill)\\b|\\b(?:include|function|store|var|const|temp|list|define|load|scene|branch|screen|component|animation|style|theme)\\b|\\b(?:return)\\b)(?:$|[^\\S\\n\\r]|(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "InlineAction": {
-      "begin": "([^\\S\\n\\r]*)(?:([<][>])|([!])([:])($|[^\\S\\n\\r]*)|(?=\\S))",
+      "begin": "([^\\S\\n\\r]*)(?:([<][>])|([:])($|[^\\S\\n\\r]*))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -7036,18 +7151,11 @@
         "3": {
           "patterns": [
             {
-              "include": "#ActionMark"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
               "include": "#ColonOperator"
             }
           ]
         },
-        "5": {
+        "4": {
           "emit": true,
           "patterns": [
             {
@@ -7084,10 +7192,44 @@
       ],
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
     },
-    "ActionMark": {
-      "tag": "definition(keyword)",
-      "name": "keyword.action.mark.sd",
-      "match": "(.+)"
+    "ImplicitAction": {
+      "begin": "([^\\S\\n\\r]*)(?=\\S)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#LineBreak"
+        },
+        {
+          "include": "#LineChain"
+        },
+        {
+          "include": "#AssetLine"
+        },
+        {
+          "include": "#ParentheticalLine"
+        },
+        {
+          "include": "#LineEnd"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)|(?=[#])"
     },
     "ParentheticalLine": {
       "match": "([^\\S\\n\\r]*)((?:[=].*?[=]|[<].*?[>]|[^\\S\\n\\r]*)*)([^\\S\\n\\r]*)([(][^()]*?[)])([^\\S\\n\\r]*)((?:[=].*?[=]|[<].*?[>]|[^\\S\\n\\r]*)*)($|(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)|(?=(?:[^\\S\\n\\r]+[>][^\\S\\n\\r]*))|[\\\\](?:[^\\S\\n\\r]))",

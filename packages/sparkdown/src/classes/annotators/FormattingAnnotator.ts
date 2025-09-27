@@ -170,7 +170,13 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       nodeRef.name === "ComponentDeclaration_begin" ||
       nodeRef.name === "StyleDeclaration_begin" ||
       nodeRef.name === "AnimationDeclaration_begin" ||
-      nodeRef.name === "ThemeDeclaration_begin"
+      nodeRef.name === "ThemeDeclaration_begin" ||
+      nodeRef.name === "BlockTitle_begin" ||
+      nodeRef.name === "BlockHeading_begin" ||
+      nodeRef.name === "BlockTransitional_begin" ||
+      nodeRef.name === "BlockWrite_begin" ||
+      nodeRef.name === "BlockDialogue_begin" ||
+      nodeRef.name === "BlockAction_begin"
     ) {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("block_declaration_begin").range(
@@ -508,25 +514,31 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     nodeRef: SyntaxNodeRef
   ): Range<SparkdownAnnotation<FormatType>>[] {
     if (
-      nodeRef.name === "DefineDeclaration_end" ||
-      nodeRef.name === "ScreenDeclaration_end" ||
-      nodeRef.name === "ComponentDeclaration_end" ||
-      nodeRef.name === "StyleDeclaration_end" ||
-      nodeRef.name === "AnimationDeclaration_end" ||
-      nodeRef.name === "ThemeDeclaration_end"
+      nodeRef.name === "DefineDeclaration" ||
+      nodeRef.name === "ScreenDeclaration" ||
+      nodeRef.name === "ComponentDeclaration" ||
+      nodeRef.name === "StyleDeclaration" ||
+      nodeRef.name === "AnimationDeclaration" ||
+      nodeRef.name === "ThemeDeclaration" ||
+      nodeRef.name === "BlockTitle" ||
+      nodeRef.name === "BlockHeading" ||
+      nodeRef.name === "BlockTransitional" ||
+      nodeRef.name === "BlockWrite" ||
+      nodeRef.name === "BlockDialogue" ||
+      nodeRef.name === "BlockAction"
     ) {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("block_declaration_end").range(
-          nodeRef.from,
+          nodeRef.to,
           nodeRef.to
         )
       );
       return annotations;
     }
-    if (nodeRef.name === "FrontMatter_end") {
+    if (nodeRef.name === "FrontMatter") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("frontmatter_end").range(
-          nodeRef.from,
+          nodeRef.to,
           nodeRef.to
         )
       );

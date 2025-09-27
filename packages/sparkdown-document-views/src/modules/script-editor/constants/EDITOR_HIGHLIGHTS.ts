@@ -43,6 +43,8 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.keyword, color: c.keyword },
   { tag: tags.moduleKeyword, color: c.moduleKeyword },
   { tag: tags.controlKeyword, color: c.controlKeyword },
+  { tag: tags.definitionKeyword, color: c.definitionKeyword },
+  { tag: tags.operatorKeyword, color: c.operatorKeyword },
   { tag: tags.propertyName, color: c.propertyName },
   { tag: tags.variableName, color: c.variableName },
   { tag: tags.attributeName, color: c.attributeName },

@@ -273,10 +273,13 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         name !== "InlineHeading" &&
         name !== "BlockTransitional" &&
         name !== "InlineTransitional" &&
+        name !== "BlockWrite" &&
+        name !== "InlineWrite" &&
         name !== "BlockDialogue" &&
         name !== "InlineDialogue" &&
         name !== "BlockAction" &&
         name !== "InlineAction" &&
+        name !== "ImplicitAction" &&
         name !== "Choice" &&
         name !== "Newline" &&
         name !== "Whitespace"
@@ -564,7 +567,11 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             to,
           })
         );
-      } else if (name === "BlockAction" || name === "InlineAction") {
+      } else if (
+        name === "BlockAction" ||
+        name === "InlineAction" ||
+        name === "ImplicitAction"
+      ) {
         // Add Action Spec
         decorations.push(
           ...createDecorations(doc, {

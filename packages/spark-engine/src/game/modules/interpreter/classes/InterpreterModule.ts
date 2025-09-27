@@ -57,8 +57,6 @@ export class InterpreterModule extends Module<
     ...this.ASSET_FLAG_ARG_KEYWORDS,
   ];
 
-  KEYWORD_TERMINATOR_CHARS = [undefined, "", " ", "\t", "\r", "\n", ":"];
-
   CHAR_REGEX =
     /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
 
@@ -71,6 +69,8 @@ export class InterpreterModule extends Module<
     /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)$/;
 
   WHITESPACE_REGEX = /[ \t\r\n]+/;
+
+  TARGETED_TEXT_REGEX = /(.*?)((?<!\\)[:])((?:.|\r|\n)*)/;
 
   protected _targetPrefixMap: Record<string, string> = {};
 
@@ -209,101 +209,66 @@ export class InterpreterModule extends Module<
     }
 
     // Determine the default target (if no prefix matches).
-    const defaultTarget =
-      this._targetPrefixMap?.["!"] || this._targetPrefixMap?.[""] || "";
-    // Check if content starts with a target prefix symbol.
-    const targetPrefix = this._targetPrefixes.find(
-      (p) => p && content.startsWith(p)
-    );
-    let target =
-      targetPrefix &&
-      // (prefix symbol must be followed by space or end-of-line).
-      this.KEYWORD_TERMINATOR_CHARS.includes(content[targetPrefix.length])
-        ? this._targetPrefixMap[targetPrefix]
-        : undefined;
-    if (target && targetPrefix) {
-      // Trim away starting prefix symbol.
-      content = content.slice(targetPrefix.length + 1).trimStart();
-    }
+    const defaultTarget = this._targetPrefixMap?.[""] || "";
+
+    const targetedMatch = content.match(this.TARGETED_TEXT_REGEX);
+    const targetIdentifier = targetedMatch ? targetedMatch[1]! : "";
+    content = targetedMatch ? targetedMatch[3]! : content;
+
+    let target = this._targetPrefixMap[targetIdentifier] || defaultTarget;
+
     let characterNameInstructions: Instructions | undefined = undefined;
     let characterParentheticalInstructions: Instructions | undefined =
       undefined;
-    // Parse write target
-    if (target === "write") {
-      const nextColonIndex = content.indexOf(":");
-      const nextNewlineIndex = content.indexOf("\n");
-      // target is everything after > until the next colon or the end-of-line.
-      // > target: The text to write.
-      const targetTerminatorIndex =
-        nextColonIndex >= 0
-          ? nextColonIndex
-          : nextNewlineIndex >= 0
-          ? nextNewlineIndex
-          : content.length;
-      const writeTarget = content.slice(0, targetTerminatorIndex).trim();
-      if (writeTarget) {
-        target = writeTarget;
-      }
-      // Trim away write target
-      content = content.slice(targetTerminatorIndex + 1).trimStart();
-    }
-    // Parse dialogue character
-    if (target === "dialogue") {
-      const nextColonIndex = content.indexOf(":");
-      const nextNewlineIndex = content.indexOf("\n");
-      // Character is everything after @ until the next colon or the end-of-line.
-      // @ CHARACTER NAME: This is dialogue.
-      const characterTerminatorIndex =
-        nextColonIndex >= 0
-          ? nextColonIndex
-          : nextNewlineIndex >= 0
-          ? nextNewlineIndex
-          : content.length;
-      const characterDeclaration = content
-        .slice(0, characterTerminatorIndex)
-        .trim();
-      if (characterDeclaration) {
-        // Character declaration can include name, parenthetical, and position.
-        // @ CHARACTER NAME (parenthetical) [>]
-        const match = characterDeclaration.match(this.CHARACTER_REGEX);
-        const characterNameMatch = match?.[1] || "";
-        const characterParentheticalMatch = match?.[3] || "";
-        const characterPositionMatch = match?.[7] || "";
-        const characterMap = this.context?.["character"] as any;
-        const characterId = this._characterNameMap[characterNameMatch] || "";
-        const characterObj =
-          characterMap?.[characterNameMatch] || characterMap?.[characterId];
-        const character = characterObj?.$name;
-        const characterName =
-          typeof characterObj?.name === "string"
-            ? characterObj.name
-            : characterNameMatch;
-        const characterParenthetical = characterParentheticalMatch;
-        const position =
-          characterPositionMatch === "<"
-            ? "left"
-            : characterPositionMatch === ">"
-            ? "right"
-            : characterPositionMatch;
-        options.character = character;
-        options.position = position;
-        if (characterName) {
-          characterNameInstructions = this.parse(
-            characterName,
-            "character_name",
-            options
-          );
-        }
-        if (characterParenthetical) {
-          characterParentheticalInstructions = this.parse(
-            characterParenthetical,
-            "character_parenthetical",
-            options
-          );
+    // Parse fallback write target
+    if (targetIdentifier && target === defaultTarget) {
+      if (targetIdentifier.startsWith("@")) {
+        // we are targeting a specific layer
+        target = targetIdentifier.slice(1).trim();
+      } else {
+        // assume targetIdentifier is a character name
+        const characterDeclaration = targetIdentifier;
+        if (characterDeclaration) {
+          // Character declaration can include name, parenthetical, and position.
+          // @ CHARACTER NAME (parenthetical) [>]
+          const match = characterDeclaration.match(this.CHARACTER_REGEX);
+          const characterNameMatch = match?.[1] || "";
+          const characterParentheticalMatch = match?.[3] || "";
+          const characterPositionMatch = match?.[7] || "";
+          const characterMap = this.context?.["character"] as any;
+          const characterId = this._characterNameMap[characterNameMatch] || "";
+          const characterObj =
+            characterMap?.[characterNameMatch] || characterMap?.[characterId];
+          const character = characterObj?.$name;
+          const characterName =
+            typeof characterObj?.name === "string"
+              ? characterObj.name
+              : characterNameMatch;
+          const characterParenthetical = characterParentheticalMatch;
+          const position =
+            characterPositionMatch === "<"
+              ? "left"
+              : characterPositionMatch === ">"
+              ? "right"
+              : characterPositionMatch;
+          options.character = character;
+          options.position = position;
+          if (characterName) {
+            characterNameInstructions = this.parse(
+              characterName,
+              "character_name",
+              options
+            );
+          }
+          if (characterParenthetical) {
+            characterParentheticalInstructions = this.parse(
+              characterParenthetical,
+              "character_parenthetical",
+              options
+            );
+          }
         }
       }
-      // Trim away character declaration
-      content = content.slice(characterTerminatorIndex + 1).trimStart();
     }
     // Queue content
     if (content) {
