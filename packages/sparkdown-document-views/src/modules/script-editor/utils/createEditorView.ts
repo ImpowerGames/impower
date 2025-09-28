@@ -8,10 +8,12 @@ import {
   Range,
   RangeSet,
   SelectionRange,
+  Text,
   Transaction,
   TransactionSpec,
 } from "@codemirror/state";
 import {
+  Decoration,
   DecorationSet,
   EditorView,
   GutterMarker,
@@ -32,7 +34,9 @@ import { NotificationMessage } from "@impower/spark-engine/src";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
   breakpointMarker,
+  breakpointsChanged,
   breakpointsField,
+  getBreakpointLineNumbers,
 } from "../../../cm-breakpoints/breakpoints";
 import { foldedField } from "../../../cm-folded/foldedField";
 import {
@@ -66,6 +70,8 @@ import {
   SerializableHistoryState,
 } from "../types/editor";
 import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
+
+const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
 export const readOnly = new Compartment();
 
@@ -186,15 +192,19 @@ const createEditorView = (
         ),
       ]
     : [];
+
   let prevBreakpointLineNumbers = breakpointLineNumbers;
   let prevPinpointLineNumbers = pinpointLineNumbers;
   let prevHighlightLineNumbers = highlightLineNumbers;
-  const initialDocState = EditorState.create({ doc });
+
+  // Using state.doc.line() errors on Mac
+  const lines = doc.replace(NEWLINE_REGEX, "\n").split("\n");
+  const initialText = Text.of(lines);
   const scrollToLine =
     scrollToLineNumber != null &&
     scrollToLineNumber >= 1 &&
-    scrollToLineNumber <= initialDocState.doc.lines
-      ? initialDocState.doc.line(scrollToLineNumber)
+    scrollToLineNumber <= initialText.lines
+      ? initialText.line(scrollToLineNumber)
       : undefined;
   const scrollTo = scrollToLine
     ? EditorView.scrollIntoView(
@@ -225,12 +235,18 @@ const createEditorView = (
         editable.of(EditorView.editable.of(true)),
         breakpointsField.init(() => {
           const gutterMarkers: Range<GutterMarker>[] =
-            breakpointLineNumbers?.map((lineNumber) => {
-              // Using state.doc.line() errors on Mac, so must use initialDocState.doc.line() instead
-              return breakpointMarker.range(
-                initialDocState.doc.line(lineNumber).from
-              );
-            }) ?? [];
+            breakpointLineNumbers
+              ?.map((lineNumber) => {
+                try {
+                  // Using state.doc.line() errors on Mac, so must use initialText.line() instead
+                  return breakpointMarker.range(
+                    initialText.line(lineNumber).from
+                  ) as Range<GutterMarker>;
+                } catch {
+                  return null;
+                }
+              })
+              .filter((r): r is Range<GutterMarker> => Boolean(r)) ?? [];
           return RangeSet.of(gutterMarkers, true);
         }),
         pinpointsField.init(() => {
@@ -238,17 +254,17 @@ const createEditorView = (
           if (pinpointLineNumbers) {
             decorations = decorations.update({
               add: pinpointLineNumbers
-                .filter(
-                  (lineNumber) =>
-                    typeof lineNumber === "number" &&
-                    lineNumber <= initialDocState.doc.lines
-                )
                 .map((lineNumber) => {
-                  // Using state.doc.line() errors on Mac, so must use initialDocState.doc.line() instead
-                  return pinpointDeco.range(
-                    initialDocState.doc.line(lineNumber).from
-                  );
-                }),
+                  try {
+                    // Using state.doc.line() errors on Mac, so must use initialText.line() instead
+                    return pinpointDeco.range(
+                      initialText.line(lineNumber).from
+                    );
+                  } catch {
+                    return null;
+                  }
+                })
+                .filter((r): r is Range<Decoration> => Boolean(r)),
               sort: true,
             });
           }
@@ -259,17 +275,17 @@ const createEditorView = (
           if (highlightLineNumbers) {
             decorations = decorations.update({
               add: highlightLineNumbers
-                .filter(
-                  (lineNumber) =>
-                    typeof lineNumber === "number" &&
-                    lineNumber <= initialDocState.doc.lines
-                )
                 .map((lineNumber) => {
-                  // Using state.doc.line() errors on Mac, so must use initialDocState.doc.line() instead
-                  return highlightDeco.range(
-                    initialDocState.doc.line(lineNumber).from
-                  );
-                }),
+                  try {
+                    // Using state.doc.line() errors on Mac, so must use initialText.line() instead
+                    return highlightDeco.range(
+                      initialText.line(lineNumber).from
+                    );
+                  } catch {
+                    return null;
+                  }
+                })
+                .filter((r): r is Range<Decoration> => Boolean(r)),
               sort: true,
             });
           }
@@ -340,18 +356,18 @@ const createEditorView = (
             const head = cursorRange?.head;
             onSelectionChanged?.(u, anchor, head);
           }
-          // if (u.docChanged || breakpointsChanged(u)) {
-          //   const currentBreakpointLineNumbers = getBreakpointLineNumbers(
-          //     u.view
-          //   );
-          //   if (
-          //     JSON.stringify(currentBreakpointLineNumbers) !==
-          //     JSON.stringify(prevBreakpointLineNumbers)
-          //   ) {
-          //     prevBreakpointLineNumbers = currentBreakpointLineNumbers;
-          //     onBreakpointsChanged?.(u, currentBreakpointLineNumbers);
-          //   }
-          // }
+          if (u.docChanged || breakpointsChanged(u)) {
+            const currentBreakpointLineNumbers = getBreakpointLineNumbers(
+              u.view
+            );
+            if (
+              JSON.stringify(currentBreakpointLineNumbers) !==
+              JSON.stringify(prevBreakpointLineNumbers)
+            ) {
+              prevBreakpointLineNumbers = currentBreakpointLineNumbers;
+              onBreakpointsChanged?.(u, currentBreakpointLineNumbers);
+            }
+          }
           if (u.docChanged || pinpointsChanged(u)) {
             const currentPinpointLineNumbers = getPinpointLineNumbers(u.view);
             if (
