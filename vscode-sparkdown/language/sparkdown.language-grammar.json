@@ -7852,7 +7852,13 @@
         "7": {
           "patterns": [
             {
-              "include": "#InvalidValue"
+              "include": "#AssetCommandAddOperator"
+            },
+            {
+              "include": "#AssetCommandName"
+            },
+            {
+              "include": "#IllegalChar"
             }
           ]
         }

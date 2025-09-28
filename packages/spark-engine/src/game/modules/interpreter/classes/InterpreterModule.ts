@@ -519,28 +519,27 @@ export class InterpreterModule extends Module<
     defaultControl: string,
     defaultTarget: string
   ): Chunk {
-    const parts = assetTagContent.replaceAll("\t", " ").split(" ");
+    let parts = assetTagContent.replaceAll("\t", " ").split(" ");
     let control = defaultControl;
     let target = defaultTarget;
     const assets: string[] = [];
     const args: string[] = [];
-    if (parts[0]) {
-      if (this.ASSET_CONTROL_KEYWORDS.includes(parts[0])) {
-        control = parts[0];
-        if (parts[1]) {
-          target = parts[1];
-        }
-        if (parts[2]) {
-          if (this.ASSET_ARG_KEYWORDS.includes(parts[2])) {
-            args.push(...parts.slice(2));
-          } else {
-            assets.push(...parts[2].split("+"));
-            args.push(...parts.slice(3));
-          }
-        }
+    if (parts[0] && this.ASSET_CONTROL_KEYWORDS.includes(parts[0])) {
+      control = parts[0];
+      if (parts[1]) {
+        target = parts[1];
+      }
+      parts = parts.slice(2);
+    }
+    let foundClauseKeyword = false;
+    for (const part of parts) {
+      if (this.ASSET_ARG_KEYWORDS.includes(part)) {
+        foundClauseKeyword = true;
+      }
+      if (foundClauseKeyword) {
+        args.push(part);
       } else {
-        assets.push(...parts[0].split("+"));
-        args.push(...parts.slice(1));
+        assets.push(...part.split("+"));
       }
     }
     const clauses: Record<string, unknown> = {};

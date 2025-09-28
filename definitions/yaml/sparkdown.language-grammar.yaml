@@ -4300,7 +4300,9 @@ repository:
           - { include: "#Separator" }
       7:
         patterns:
-          - { include: "#InvalidValue" }
+          - { include: "#AssetCommandAddOperator" }
+          - { include: "#AssetCommandName" }
+          - { include: "#IllegalChar" }
 
   AssetCommandControl:
     tag: controlKeyword
