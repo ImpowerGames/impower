@@ -41,7 +41,7 @@ const resolveRootImage = (
   }
 
   if (referencedValue?.$type === "layered_image") {
-    return resolveRootImage(referencedValue?.layers?.[0], context, stack);
+    return resolveRootImage(referencedValue?.assets?.[0], context, stack);
   }
 
   return undefined;

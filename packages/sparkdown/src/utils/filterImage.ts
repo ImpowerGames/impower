@@ -31,7 +31,7 @@ const getRootImage = (
   | {
       $type: "layered_image";
       $name: string;
-      layers: Record<string, { $type: "image"; $name: string }>;
+      assets: Record<string, { $type: "image"; $name: string }>;
     }
   | "circular"
   | undefined => {
@@ -93,7 +93,7 @@ export const filterImage = (
           !imageToFilter.$name.startsWith("$")
         ) {
           for (const [key, layerImage] of Object.entries(
-            imageToFilter.layers
+            imageToFilter.assets
           )) {
             const filteredLayers: {
               $type: "image";

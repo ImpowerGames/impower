@@ -332,7 +332,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const layeredImage = this.context?.layered_image?.[name];
       if (layeredImage) {
         const images: Image[] = [];
-        for (const image of Object.values(layeredImage.layers)) {
+        for (const image of Object.values(layeredImage.assets)) {
           images.push(...this.getImageAssets(image.$type, image.$name));
         }
         return images;
