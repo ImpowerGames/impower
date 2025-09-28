@@ -40,7 +40,6 @@ export class InterpreterModule extends Module<
     "hide",
     "animate",
     "play",
-    "start",
     "stop",
     "modulate",
     "queue",

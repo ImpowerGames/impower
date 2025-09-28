@@ -425,20 +425,25 @@ export class AudioModule extends Module<
         event.control = "start";
       }
       if (event.control === "play") {
-        // 'play' is equivalent to calling 'stop' on all audio playing on a channel,
-        // and then calling 'start' on the new audio
-        const stopUpdate: AudioPlayerUpdate = {
-          control: "stop",
-          after: event.after,
-          over: event.over,
-          now: event.now,
-        };
-        const playing = this._channelsCurrentlyPlaying.get(channel);
-        if (playing) {
-          for (const d of playing.values()) {
-            this.setCurrentlyPlaying(channel, stopUpdate, d);
-            this.saveChannelState(channel, stopUpdate, d);
-            updates.push(stopUpdate);
+        const playBehavior =
+          this.context?.channel?.[channel]?.play_behavior || "replace";
+        if (playBehavior === "replace") {
+          // When 'play_behavior' is "replace",
+          // 'play' is equivalent to calling 'stop' on all audio playing on a channel,
+          // and then calling 'start' on the new audio
+          const stopUpdate: AudioPlayerUpdate = {
+            control: "stop",
+            after: event.after,
+            over: event.over,
+            now: event.now,
+          };
+          const playing = this._channelsCurrentlyPlaying.get(channel);
+          if (playing) {
+            for (const d of playing.values()) {
+              this.setCurrentlyPlaying(channel, stopUpdate, d);
+              this.saveChannelState(channel, stopUpdate, d);
+              updates.push(stopUpdate);
+            }
           }
         }
         event.control = "start";

@@ -6,5 +6,6 @@ export const default_channel: Create<Channel> = (obj) => ({
   $name: "$default",
   mixer: { $type: "mixer", $name: "none" },
   loop: false,
+  play_behavior: "replace",
   ...obj,
 });
