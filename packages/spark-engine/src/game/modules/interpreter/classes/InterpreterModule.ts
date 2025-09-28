@@ -35,7 +35,6 @@ export class InterpreterModule extends Module<
   MARKERS = ["^", "*", "_", "~~", "::"];
 
   ASSET_CONTROL_KEYWORDS = [
-    "set",
     "show",
     "hide",
     "animate",
@@ -447,7 +446,7 @@ export class InterpreterModule extends Module<
     const imageChunk = this.createAssetChunk(
       imageTagContent,
       "image",
-      "set",
+      "show",
       defaultLayer
     );
     // Calculate how much time this command should take up
@@ -474,7 +473,7 @@ export class InterpreterModule extends Module<
       }
     } else if (animation) {
       animationNames.push(animation.$name);
-    } else if (imageChunk.control === "show" || imageChunk.control === "set") {
+    } else if (imageChunk.control === "show") {
       animationNames.push("show");
     } else if (imageChunk.control === "hide") {
       animationNames.push("hide");
@@ -1263,7 +1262,7 @@ export class InterpreterModule extends Module<
           // Image Event
           if (c.tag === "image") {
             const event: ImageInstruction = {
-              control: (c.control || "set") as ImageInstruction["control"],
+              control: (c.control || "show") as ImageInstruction["control"],
               assets: c.assets,
             };
             if (time) {

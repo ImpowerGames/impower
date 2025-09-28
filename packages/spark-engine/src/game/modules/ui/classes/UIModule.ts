@@ -1044,19 +1044,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           for (const event of sequence) {
             const targetingContent = Boolean(event.assets?.length);
             if (targetingContent) {
-              if (event.control === "show" || event.control === "set") {
+              if (event.control === "show") {
                 // Clear all previous hide target events
                 state = state.filter(
                   (e) => !(e.control === "hide" && !e.assets?.length)
                 );
-              }
-              // TODO: If animate with none, clear all previous animation events
-              if (event.control === "set") {
                 // Clear all previous content events
                 state = state.filter((e) => !e.assets?.length);
                 $._state.image ??= {};
                 $._state.image[target] = state;
               }
+              // TODO: If animate with none, clear all previous animation events
               state.push({
                 control: event.control,
                 with: event.with,
@@ -1109,9 +1107,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         for (const e of sequence) {
           // Reveal target before showing content
           const isFirstContentReveal =
-            (e.control === "show" || e.control === "set") &&
-            e.assets &&
-            e.assets.length > 0;
+            e.control === "show" && e.assets && e.assets.length > 0;
           if (isFirstContentReveal) {
             const showEvent = {
               name: "show",
@@ -1234,9 +1230,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   image: imageNames,
                 },
               });
-              // 'set' is equivalent to calling 'hide' on all previous elements on the layer,
+              // 'show' is equivalent to calling 'hide' on all previous elements on the layer,
               // before calling 'show' on the new element
-              if (e.control === "set") {
+              if (e.control === "show") {
                 // Hide previous elements
                 for (const prevSpanEl of prevSpanEls) {
                   const hideEvent = {
@@ -1281,7 +1277,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   instant,
                   exitContentAnimationMap.get(newSpanEl)!
                 );
-              } else if (e.control === "show" || e.control === "animate") {
+              } else if (e.control === "animate") {
                 const showEvent = {
                   name: showWith,
                   after: showAfter,
@@ -1313,7 +1309,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 instant,
                 targetAnimationMap.get(targetEl)!
               );
-            } else if (e.control === "show" || e.control === "set") {
+            } else if (e.control === "show") {
               const showEvent = {
                 name: showWith,
                 after: showAfter,

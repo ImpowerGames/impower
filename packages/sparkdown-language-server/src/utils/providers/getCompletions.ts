@@ -1260,7 +1260,7 @@ export const getCompletions = (
         const types =
           control === "animate"
             ? ["animation"]
-            : control === "set"
+            : control === "show"
             ? ["transition"]
             : ["transition", "animation"];
         addStructReferenceCompletions(completions, program, types);

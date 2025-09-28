@@ -24,7 +24,6 @@
     "KEYWORD_TERMINATOR": "(?:[:]|{{TAG_START}}|[/][/]|[/][*])",
     "EOK": "(?:$|{{WS}}+|(?={{KEYWORD_TERMINATOR}}))",
     "IMAGE_CONTROL_KEYWORDS": [
-      "set",
       "show",
       "hide",
       "animate"
@@ -7799,7 +7798,7 @@
       }
     },
     "AssetCommandInstruction": {
-      "match": "(?:(\\b(?:set|show|hide|animate)\\b|\\b(?:play|stop|modulate|queue|await)\\b)([^\\S\\n\\r]*)($|\\S+))?([^\\S\\n\\r]*)($|\\S+)?([^\\S\\n\\r]*)(.*)",
+      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|modulate|queue|await)\\b)([^\\S\\n\\r]*)($|\\S+))?([^\\S\\n\\r]*)($|\\S+)?([^\\S\\n\\r]*)(.*)",
       "captures": {
         "1": {
           "patterns": [

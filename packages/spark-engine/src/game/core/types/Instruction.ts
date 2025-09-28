@@ -30,7 +30,7 @@ export interface TextInstruction extends IInstruction {
 }
 
 export interface ImageInstruction extends IInstruction {
-  control: "set" | "show" | "hide" | "animate";
+  control: "show" | "hide" | "animate";
   assets?: string[];
   with?: string;
   style?: {
