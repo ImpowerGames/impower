@@ -68,6 +68,9 @@ export const audioBuiltinDefinitions = () => ({
     sound: default_mixer({
       $name: "sound",
     }),
+    voice: default_mixer({
+      $name: "voice",
+    }),
     typewriter: default_mixer({
       $name: "typewriter",
     }),
@@ -91,6 +94,12 @@ export const audioBuiltinDefinitions = () => ({
       mixer: "sound",
       loop: false,
       play_behavior: "stack",
+    }),
+    voice: default_channel({
+      $name: "voice",
+      mixer: "voice",
+      loop: false,
+      play_behavior: "replace",
     }),
     typewriter: default_channel({
       $name: "typewriter",
