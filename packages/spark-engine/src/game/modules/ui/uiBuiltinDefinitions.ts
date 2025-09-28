@@ -408,10 +408,6 @@ export const uiBuiltinDefinitions = () => ({
               text: {},
             },
           },
-          dialogue: {
-            stroke: {},
-            text: {},
-          },
           title: {
             stroke: {},
             text: {},
@@ -421,6 +417,10 @@ export const uiBuiltinDefinitions = () => ({
             text: {},
           },
           transitional: {
+            stroke: {},
+            text: {},
+          },
+          dialogue: {
             stroke: {},
             text: {},
           },
