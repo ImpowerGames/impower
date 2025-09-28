@@ -346,7 +346,7 @@ const addStructReferenceCompletions = (
   }
 };
 
-const addUIElementReferenceCompletions = (
+const addLayoutElementReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
   contentTypes: ("image" | "text" | "animation")[],
@@ -354,9 +354,9 @@ const addUIElementReferenceCompletions = (
   insertTextSuffix = ""
 ) => {
   for (const contentType of contentTypes) {
-    const uiStructs = program?.context?.["ui"];
-    if (uiStructs) {
-      for (const v of Object.values(uiStructs)) {
+    const structs = program?.context?.["layout"];
+    if (structs) {
+      for (const v of Object.values(structs)) {
         traverse(v, (fieldPath) => {
           if (fieldPath.endsWith(`.${contentType}`)) {
             const layer = fieldPath.split(".").at(-2);
@@ -1116,7 +1116,7 @@ export const getCompletions = (
   // Write
   if (leftStack[0]?.name === "WriteMark") {
     if (isCursorAfterNodeText(leftStack[0])) {
-      addUIElementReferenceCompletions(completions, program, ["text"], " ");
+      addLayoutElementReferenceCompletions(completions, program, ["text"], " ");
     }
     return buildCompletions();
   }
@@ -1132,7 +1132,7 @@ export const getCompletions = (
       leftStack
     );
     if (isCursorAfterNodeText(writeTargetNode)) {
-      addUIElementReferenceCompletions(completions, program, ["text"]);
+      addLayoutElementReferenceCompletions(completions, program, ["text"]);
     }
     return buildCompletions();
   }
@@ -1174,7 +1174,7 @@ export const getCompletions = (
       );
       const control = getNodeText(controlNode);
       if (isCursorAfterNodeText(leftStack[0])) {
-        addUIElementReferenceCompletions(
+        addLayoutElementReferenceCompletions(
           completions,
           program,
           control === "animate" ? ["animation", "image"] : ["image"]
@@ -1690,7 +1690,7 @@ export const getCompletions = (
     const text = getNodeText(contentNode).trimStart();
     if (isCursorAfterNodeText(contentNode)) {
       if (text === "@") {
-        addUIElementReferenceCompletions(
+        addLayoutElementReferenceCompletions(
           completions,
           program,
           ["text"],

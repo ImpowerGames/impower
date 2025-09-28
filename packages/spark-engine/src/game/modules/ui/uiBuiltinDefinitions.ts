@@ -6,16 +6,16 @@ import { default_gradient } from "./constructors/default_gradient";
 import { default_graphic } from "./constructors/default_graphic";
 import { default_image } from "./constructors/default_image";
 import { default_layered_image } from "./constructors/default_layered_image";
+import { default_layout } from "./constructors/default_layout";
 import { default_shadow } from "./constructors/default_shadow";
 import { default_style } from "./constructors/default_style";
 import { default_transition } from "./constructors/default_transition";
-import { default_ui } from "./constructors/default_ui";
 
 export const uiBuiltinDefinitions = () => ({
   config: {
     ui: {
-      style_element_name: "style",
-      ui_element_name: "ui",
+      styles_element_name: "styles",
+      layouts_element_name: "layouts",
       breakpoints: {
         xs: 400,
         sm: 640,
@@ -356,15 +356,15 @@ export const uiBuiltinDefinitions = () => ({
       animation_play_state: "paused",
     }),
   } as Record<string, ReturnType<typeof default_style>>,
-  ui: {
-    $default: default_ui(),
-    loading: default_ui({
+  layout: {
+    $default: default_layout(),
+    loading: default_layout({
       $name: "loading",
       loading_bar: {
         loading_fill: {},
       },
     }),
-    main: default_ui({
+    main: default_layout({
       $name: "main",
       stage: {
         animation: {},
@@ -437,7 +437,7 @@ export const uiBuiltinDefinitions = () => ({
         animation: {},
       },
     }),
-  } as Record<string, ReturnType<typeof default_ui>>,
+  } as Record<string, ReturnType<typeof default_layout>>,
   animation: {
     $default: default_animation(),
     show: default_animation({

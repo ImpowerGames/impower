@@ -215,7 +215,7 @@ export class Coordinator<G extends Game> {
       this._finishedExecution = true;
     };
 
-    game.module.ui.showUI("main");
+    game.module.ui.showLayout("main");
 
     if (instant || game.context.system.simulating) {
       updateUI();

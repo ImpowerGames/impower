@@ -298,8 +298,8 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           symbolIds: [this.defineType + "." + this.defineName + propertyPath],
           interdependentIds:
             this.defineType === "style"
-              ? [`ui..${name}`]
-              : this.defineType === "ui"
+              ? [`layout..${name}`]
+              : this.defineType === "layout"
               ? [`style.${name}`]
               : [],
           kind: "write",
@@ -435,9 +435,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const context = getContextNames(nodeRef.node);
       // Record image target reference
       if (context.includes("ImageCommand")) {
-        const types: string[] = ["ui."]; // end type with dot for recursive prop search
+        const types: string[] = ["layout."]; // end type with dot for recursive prop search
         const name = this.read(nodeRef.from, nodeRef.to);
-        const displayType = `ui element`;
+        const displayType = `layer`;
         const fuzzy = true;
         annotations.push(
           SparkdownAnnotation.mark<Reference>({

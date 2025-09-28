@@ -98,7 +98,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
     this.loadStyles();
-    this.loadUI();
+    this.loadLayouts();
     this.loadTheme();
     const transientTargets = this.getTransientTargets();
     this.text.clearAll(transientTargets);
@@ -234,7 +234,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected conceal() {
-    const target = this.context.config?.ui?.ui_element_name;
+    const target = this.context.config?.ui?.layouts_element_name;
     if (target) {
       const uiRoot = this._root?.findChild(target);
       if (uiRoot) {
@@ -244,7 +244,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected reveal() {
-    const target = this.context.config?.ui.ui_element_name;
+    const target = this.context.config?.ui.layouts_element_name;
     if (target) {
       const uiRoot = this._root?.findChild(target);
       if (uiRoot) {
@@ -431,7 +431,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!this._root) {
       this._root = this.getOrCreateRootElement();
     }
-    const target = this.context.config?.ui.style_element_name;
+    const target = this.context.config?.ui.styles_element_name;
     const existingElement = target ? this._root.findChild(target) : undefined;
     return (
       existingElement ||
@@ -441,7 +441,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected getOrCreateRootUIElement(): Element {
+  protected getOrCreateRootLayoutElement(): Element {
     const style = {
       position: "absolute",
       inset: "0",
@@ -451,7 +451,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!this._root) {
       this._root = this.getOrCreateRootElement();
     }
-    const target = this.context.config?.ui.ui_element_name;
+    const target = this.context.config?.ui.layouts_element_name;
     const existingElement = target ? this._root.findChild(target) : undefined;
     return (
       existingElement ||
@@ -462,9 +462,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected getUIElement(uiName: string): Element | undefined {
-    const rootUIElement = this.getOrCreateRootUIElement();
-    return rootUIElement.findChild(uiName);
+  protected getLayoutElement(uiName: string): Element | undefined {
+    const rootLayoutElement = this.getOrCreateRootLayoutElement();
+    return rootLayoutElement.findChild(uiName);
   }
 
   protected constructStyleElement(
@@ -484,11 +484,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     });
   }
 
-  protected constructUI(
+  protected constructLayout(
     structName: string,
     properties: Record<string, any>
   ): Element {
-    const parent = this.getOrCreateRootUIElement();
+    const parent = this.getOrCreateRootLayoutElement();
     const uiEl = this.createElement(parent, {
       type: "div",
       name: structName,
@@ -584,17 +584,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  loadUI(...structNames: string[]): void {
+  loadLayouts(...structNames: string[]): void {
     const targetAllStructs = !structNames || structNames.length === 0;
     const validStructNames = targetAllStructs
-      ? Object.keys(this.context?.ui || {})
+      ? Object.keys(this.context?.layout || {})
       : structNames;
     for (const structName of validStructNames) {
       if (structName && !structName.startsWith("$")) {
-        const structObj = this.context?.ui?.[structName];
+        const structObj = this.context?.layout?.[structName];
         if (structObj) {
           const properties = getAllProperties(structObj);
-          this.constructUI(structName, properties);
+          this.constructLayout(structName, properties);
         }
       }
     }
@@ -611,10 +611,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  hideUI(...structNames: string[]): void {
+  hideLayout(...structNames: string[]): void {
     for (const structName of structNames) {
       if (structName) {
-        const structEl = this.getUIElement(structName);
+        const structEl = this.getLayoutElement(structName);
         if (structEl) {
           this.updateElement(structEl, { attributes: { hidden: "" } });
         }
@@ -622,10 +622,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  showUI(...structNames: string[]): void {
+  showLayout(...structNames: string[]): void {
     for (const structName of structNames) {
       if (structName) {
-        const structEl = this.getUIElement(structName);
+        const structEl = this.getLayoutElement(structName);
         if (structEl) {
           this.updateElement(structEl, { attributes: { hidden: null } });
         }
