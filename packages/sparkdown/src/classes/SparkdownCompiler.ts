@@ -208,6 +208,7 @@ export class SparkdownCompiler {
           };
         }
         if (cur.value.type.suffix != null) {
+          // TODO: Suffix should come before eol tags or comments
           const lineIndex = doc.lineAt(cur.to);
           lines[lineIndex] = lines[lineIndex] + cur.value.type.suffix;
         }

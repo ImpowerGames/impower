@@ -68,7 +68,7 @@ export class InterpreterModule extends Module<
 
   WHITESPACE_REGEX = /[ \t\r\n]+/;
 
-  TARGETED_TEXT_REGEX = /(.*?)((?<!\\)[:](?:$|[ ]+))((?:.|\r|\n)*)/;
+  TARGETED_TEXT_REGEX = /((?:\\.|[^:])+)((?<!\\)[:](?:$|[ ]+))((?:.|\r|\n)*)/m;
 
   protected _targetPrefixMap: Record<string, string> = {};
 
@@ -224,6 +224,7 @@ export class InterpreterModule extends Module<
         // we are targeting a specific layer
         target = targetIdentifier.slice(1).trim();
       } else {
+        target = "dialogue";
         // assume targetIdentifier is a character name
         const characterDeclaration = targetIdentifier;
         if (characterDeclaration) {
