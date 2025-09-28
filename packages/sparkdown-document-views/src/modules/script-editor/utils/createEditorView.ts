@@ -5,8 +5,6 @@ import {
   Compartment,
   EditorSelection,
   EditorState,
-  Range,
-  RangeSet,
   SelectionRange,
   Transaction,
   TransactionSpec,
@@ -14,7 +12,6 @@ import {
 import {
   DecorationSet,
   EditorView,
-  GutterMarker,
   ViewUpdate,
   panels,
 } from "@codemirror/view";
@@ -30,23 +27,15 @@ import {
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-engine/src";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import {
-  breakpointMarker,
-  breakpointsField,
-} from "../../../cm-breakpoints/breakpoints";
 import { foldedField } from "../../../cm-folded/foldedField";
 import {
   getHighlightLineNumbers,
-  highlightDeco,
   highlightsChanged,
-  highlightsField,
 } from "../../../cm-highlight-lines/highlightLines";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import {
   getPinpointLineNumbers,
-  pinpointDeco,
   pinpointsChanged,
-  pinpointsField,
 } from "../../../cm-pinpoints/pinpoints";
 import {
   updateVariableWidgets,
@@ -223,58 +212,58 @@ const createEditorView = (
         gotoLinePanel(),
         readOnly.of(EditorState.readOnly.of(false)),
         editable.of(EditorView.editable.of(true)),
-        breakpointsField.init(() => {
-          const gutterMarkers: Range<GutterMarker>[] =
-            breakpointLineNumbers?.map((lineNumber) => {
-              // Using state.doc.line() errors on Mac, so must use initialDocState.doc.line() instead
-              return breakpointMarker.range(
-                initialDocState.doc.line(lineNumber).from
-              );
-            }) ?? [];
-          return RangeSet.of(gutterMarkers, true);
-        }),
-        pinpointsField.init(() => {
-          let decorations = RangeSet.empty;
-          if (pinpointLineNumbers) {
-            decorations = decorations.update({
-              add: pinpointLineNumbers
-                .filter(
-                  (lineNumber) =>
-                    typeof lineNumber === "number" &&
-                    lineNumber <= initialDocState.doc.lines
-                )
-                .map((lineNumber) => {
-                  // Using state.doc.line() errors on Mac, so must use initialDocState.doc.line() instead
-                  return pinpointDeco.range(
-                    initialDocState.doc.line(lineNumber).from
-                  );
-                }),
-              sort: true,
-            });
-          }
-          return decorations;
-        }),
-        highlightsField.init(() => {
-          let decorations = RangeSet.empty;
-          if (highlightLineNumbers) {
-            decorations = decorations.update({
-              add: highlightLineNumbers
-                .filter(
-                  (lineNumber) =>
-                    typeof lineNumber === "number" &&
-                    lineNumber <= initialDocState.doc.lines
-                )
-                .map((lineNumber) => {
-                  // Using state.doc.line() errors on Mac, so must use initialDocState.doc.line() instead
-                  return highlightDeco.range(
-                    initialDocState.doc.line(lineNumber).from
-                  );
-                }),
-              sort: true,
-            });
-          }
-          return decorations;
-        }),
+        // breakpointsField.init(() => {
+        //   const gutterMarkers: Range<GutterMarker>[] =
+        //     breakpointLineNumbers?.map((lineNumber) => {
+        //       // Using state.doc.line() errors on Mac, so must use initialDocState.doc.line() instead
+        //       return breakpointMarker.range(
+        //         initialDocState.doc.line(lineNumber).from
+        //       );
+        //     }) ?? [];
+        //   return RangeSet.of(gutterMarkers, true);
+        // }),
+        // pinpointsField.init(() => {
+        //   let decorations = RangeSet.empty;
+        //   if (pinpointLineNumbers) {
+        //     decorations = decorations.update({
+        //       add: pinpointLineNumbers
+        //         .filter(
+        //           (lineNumber) =>
+        //             typeof lineNumber === "number" &&
+        //             lineNumber <= initialDocState.doc.lines
+        //         )
+        //         .map((lineNumber) => {
+        //           // Using state.doc.line() errors on Mac, so must use initialDocState.doc.line() instead
+        //           return pinpointDeco.range(
+        //             initialDocState.doc.line(lineNumber).from
+        //           );
+        //         }),
+        //       sort: true,
+        //     });
+        //   }
+        //   return decorations;
+        // }),
+        // highlightsField.init(() => {
+        //   let decorations = RangeSet.empty;
+        //   if (highlightLineNumbers) {
+        //     decorations = decorations.update({
+        //       add: highlightLineNumbers
+        //         .filter(
+        //           (lineNumber) =>
+        //             typeof lineNumber === "number" &&
+        //             lineNumber <= initialDocState.doc.lines
+        //         )
+        //         .map((lineNumber) => {
+        //           // Using state.doc.line() errors on Mac, so must use initialDocState.doc.line() instead
+        //           return highlightDeco.range(
+        //             initialDocState.doc.line(lineNumber).from
+        //           );
+        //         }),
+        //       sort: true,
+        //     });
+        //   }
+        //   return decorations;
+        // }),
         EditorView.scrollMargins.of(() => {
           return scrollMargin ?? null;
         }),
