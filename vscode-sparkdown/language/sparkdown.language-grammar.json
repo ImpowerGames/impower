@@ -37,14 +37,14 @@
     "AUDIO_CONTROL_KEYWORDS": [
       "play",
       "stop",
-      "modulate",
+      "fade",
       "queue",
       "await"
     ],
     "AUDIO_CLAUSE_KEYWORDS": [
       "over",
       "after",
-      "fadeto",
+      "to",
       "loop",
       "once",
       "mute",
@@ -7754,7 +7754,7 @@
       }
     },
     "AssetCommandContent": {
-      "match": "([^\\S\\n\\r]*)(.*?)($|(?:\\b(?:over|after|with|wait)\\b|\\b(?:over|after|fadeto|loop|once|mute|unmute|now)\\b)(?=$|[^\\S\\n\\r]).*)",
+      "match": "([^\\S\\n\\r]*)(.*?)($|(?:\\b(?:over|after|with|wait)\\b|\\b(?:over|after|to|loop|once|mute|unmute|now)\\b)(?=$|[^\\S\\n\\r]).*)",
       "captures": {
         "1": {
           "patterns": [
@@ -7798,7 +7798,7 @@
       }
     },
     "AssetCommandInstruction": {
-      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|modulate|queue|await)\\b)([^\\S\\n\\r]*)($|\\S+))?([^\\S\\n\\r]*)($|\\S+)?([^\\S\\n\\r]*)(.*)",
+      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|fade|queue|await)\\b)([^\\S\\n\\r]*)($|\\S+))?([^\\S\\n\\r]*)($|\\S+)?([^\\S\\n\\r]*)(.*)",
       "captures": {
         "1": {
           "patterns": [
@@ -7876,7 +7876,7 @@
     "AssetCommandClauseKeyword": {
       "tag": "keyword",
       "name": "keyword.asset.clause.keyword.sd",
-      "match": "(\\b(?:over|after|with|wait)\\b|\\b(?:over|after|fadeto|loop|once|mute|unmute|now)\\b)"
+      "match": "(\\b(?:over|after|with|wait)\\b|\\b(?:over|after|to|loop|once|mute|unmute|now)\\b)"
     },
     "AssetCommandName": {
       "match": "(.+?)(?=$|[+])",

@@ -40,7 +40,7 @@ export interface ImageInstruction extends IInstruction {
 }
 
 export interface AudioInstruction extends IInstruction {
-  control: "play" | "start" | "stop" | "modulate" | "queue" | "await";
+  control: "play" | "start" | "stop" | "fade" | "queue" | "await";
   assets?: string[];
   now?: boolean;
   loop?: boolean;

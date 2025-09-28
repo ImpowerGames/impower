@@ -500,7 +500,7 @@ export class AudioModule extends Module<
     );
   }
 
-  modulateChannel(
+  fadeChannel(
     channel: string,
     fadeto: number,
     after?: number,
@@ -511,7 +511,7 @@ export class AudioModule extends Module<
       channel,
       [
         {
-          control: "modulate",
+          control: "fade",
           fadeto: fadeto,
           after,
           over,

@@ -1274,7 +1274,7 @@ export const getCompletions = (
           (prevText === "after" ||
             prevText === "over" ||
             prevText === "with" ||
-            prevText === "fadeto");
+            prevText === "to");
         if (!prevClauseTakesArgument) {
           const exclude = getOtherMatchesInsideParent(
             "AssetCommandClauseKeyword",
@@ -1391,7 +1391,7 @@ export const getCompletions = (
           (prevText === "after" ||
             prevText === "over" ||
             prevText === "with" ||
-            prevText === "fadeto");
+            prevText === "to");
         if (!prevClauseTakesArgument) {
           const exclude = getOtherMatchesInsideParent(
             "AssetCommandClauseKeyword",

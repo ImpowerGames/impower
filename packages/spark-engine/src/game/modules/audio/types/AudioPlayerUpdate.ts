@@ -1,5 +1,5 @@
 export interface AudioPlayerUpdate {
-  control: "start" | "stop" | "modulate" | "await";
+  control: "start" | "stop" | "fade" | "await";
   key?: string;
   after?: number;
   over?: number;

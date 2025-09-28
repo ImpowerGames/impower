@@ -319,13 +319,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           return annotations;
         }
       }
-      if (text === "fadeto") {
+      if (text === "to") {
         if (
           (nextValueNodeType !== "ConditionalBracedBlock" &&
             nextValueNodeType !== "NumberValue") ||
           (nextValueNodeType === "NumberValue" && Number(nextValueNodeText) < 0)
         ) {
-          const message = `'${text}' should be followed by a number greater than 0 (e.g. 'fadeto 0' or 'fadeto 0.5' or 'fadeto 1')`;
+          const message = `'${text}' should be followed by a number greater than 0 (e.g. 'to 0' or 'to 0.5' or 'to 1')`;
           annotations.push(
             SparkdownAnnotation.mark<Diagnostic>({
               message,

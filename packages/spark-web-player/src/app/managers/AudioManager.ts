@@ -196,7 +196,7 @@ export default class AudioManager extends Manager {
     if (update.control === "stop") {
       audioPlayer.stop(when, over);
     }
-    if (update.control === "modulate") {
+    if (update.control === "fade") {
       audioPlayer.fade(when, over, gain);
     }
   }

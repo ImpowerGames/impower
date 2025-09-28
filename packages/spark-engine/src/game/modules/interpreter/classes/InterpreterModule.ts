@@ -40,13 +40,13 @@ export class InterpreterModule extends Module<
     "animate",
     "play",
     "stop",
-    "modulate",
+    "fade",
     "queue",
     "await",
     "write",
   ];
 
-  ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "fadeto", "with"];
+  ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with"];
 
   ASSET_FLAG_ARG_KEYWORDS = ["wait", "loop", "once", "mute", "unmute", "now"];
 
@@ -554,7 +554,7 @@ export class InterpreterModule extends Module<
           if (arg === "over") {
             clauses[arg] = getTimeValue(value);
           }
-          if (arg === "fadeto") {
+          if (arg === "to") {
             clauses[arg] = getNumberValue(value);
           }
           if (arg === "with") {
