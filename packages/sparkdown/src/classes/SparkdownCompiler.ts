@@ -208,9 +208,18 @@ export class SparkdownCompiler {
           };
         }
         if (cur.value.type.suffix != null) {
-          // TODO: Suffix should come before eol tags or comments
+          // Suffix position in new line is determined by its position from the end in the original line
+          // (This ensures that the suffix can account for prior `splice` transpilations that occur on the same line)
           const lineIndex = doc.lineAt(cur.to);
-          lines[lineIndex] = lines[lineIndex] + cur.value.type.suffix;
+          const originalLineRange = doc.getLineRange(lineIndex);
+          const originalLineTo = doc.offsetAt(originalLineRange.end);
+          const distanceFromEnd = originalLineTo - cur.to;
+          lines[lineIndex] =
+            distanceFromEnd <= 0
+              ? lines[lineIndex] + cur.value.type.suffix
+              : lines[lineIndex]?.slice(0, -distanceFromEnd) +
+                cur.value.type.suffix +
+                lines[lineIndex]?.slice(-distanceFromEnd);
         }
       }
       cur.next();
@@ -367,6 +376,25 @@ export class SparkdownCompiler {
                 endLine = existingEndLine;
                 endColumn = existingEndColumn;
               }
+              if (endColumn === 0) {
+                // If range stretches to only the start of a line,
+                // limit the range to the end of the previous line,
+                // (So that the document blinking cursor doesn't confusingly appear
+                // at the start of the next unrelated line when doing a stack trace)
+                if (uri) {
+                  const document = this.documents.get(uri);
+                  if (document) {
+                    const endPositionWithoutNewline = document.positionAt(
+                      document.offsetAt({
+                        line: endLine,
+                        character: endColumn,
+                      }) - 1
+                    );
+                    endLine = endPositionWithoutNewline.line;
+                    endColumn = endPositionWithoutNewline.character;
+                  }
+                }
+              }
               program.pathToLocation ??= {};
               program.pathToLocation[path] ??= [
                 scriptIndex,
@@ -415,7 +443,6 @@ export class SparkdownCompiler {
       program.scripts[scriptUri] = transpilation.version;
     }
     this.populateUI(program);
-    this.sortPathToLocation(program);
     this.populateDeclarationLocations(program);
     this.populateDiagnostics(state, program, inkCompiler);
     this.buildContext(state, program);
@@ -577,53 +604,6 @@ export class SparkdownCompiler {
       }
     }
     profile("end", "populateUI", uri);
-  }
-
-  sortPathToLocation(program: SparkProgram) {
-    const uri = program.uri;
-    const scripts = Object.keys(program.scripts);
-    profile("start", "sortPathToLocation", uri);
-    if (program.pathToLocation) {
-      const sortedEntries = Object.entries(program.pathToLocation).sort(
-        ([, a], [, b]) => {
-          const [scriptIndexA, startLineA, startColumnA] = a;
-          const [scriptIndexB, startLineB, startColumnB] = b;
-          return (
-            scriptIndexA - scriptIndexB ||
-            startLineA - startLineB ||
-            startColumnA - startColumnB
-          );
-        }
-      );
-      program.pathToLocation = {};
-      for (const [k, v] of sortedEntries) {
-        program.pathToLocation[k] = v;
-        const [scriptIndex, startLine, startColumn, endLine, endColumn] = v;
-        if (startLine < endLine && endColumn === 0) {
-          // If range stretches to only the start of a line,
-          // limit the range to the end of the previous line,
-          // (So that the document blinking cursor doesn't confusingly appear
-          // at the start of the next unrelated line when doing a stack trace)
-          const uri = scripts[scriptIndex];
-          if (uri) {
-            const document = this.documents.get(uri);
-            if (document) {
-              const endPositionWithoutNewline = document.positionAt(
-                document.offsetAt({ line: endLine, character: endColumn }) - 1
-              );
-              program.pathToLocation[k] = [
-                scriptIndex,
-                startLine,
-                startColumn,
-                endPositionWithoutNewline.line,
-                endPositionWithoutNewline.character,
-              ];
-            }
-          }
-        }
-      }
-    }
-    profile("end", "sortPathToLocation", uri);
   }
 
   populateDeclarationLocations(program: SparkProgram) {

@@ -82,15 +82,19 @@ export class SparkdownDocument implements TextDocument {
   };
 
   getLineRange = (line: number): Range => {
+    const lineTo = Math.max(
+      this.text.offsetAt({
+        line: line + 1,
+        character: 0,
+      }) - 1,
+      0
+    );
     return {
       start: {
         line: line,
         character: 0,
       },
-      end: {
-        line: line + 1,
-        character: 0,
-      },
+      end: this.positionAt(lineTo),
     };
   };
 

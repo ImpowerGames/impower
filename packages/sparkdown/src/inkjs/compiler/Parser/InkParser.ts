@@ -1123,8 +1123,7 @@ export class InkParser extends StringParser {
 
   public readonly ContentTextAllowingEscapeChar = (): ParsedObject[] | null => {
     let sb: string | null = null;
-    let tag: ParsedObject | null = null;
-    let tagText: ParsedObject | null = null;
+    let tags: { mark: ParsedObject; text: ParsedObject | null }[] = [];
     do {
       let str = this.Parse(this.ContentTextNoEscape) as string;
 
@@ -1153,12 +1152,14 @@ export class InkParser extends StringParser {
         sb ??= "";
         const escapedSpace = this.ParseWhitespace();
         if (escapedSpace != null) {
-          tag = this.StartTag();
-          if (tag) {
+          const tagStart = this.StartTag();
+          if (tagStart) {
+            const tag: { mark: ParsedObject; text: ParsedObject | null } = {mark: tagStart, text: null}
             const tagContent = this.ParseUntilCharactersFromString("\n\r");
             if (tagContent) {
-              tagText = new Text(tagContent);
+              tag.text = new Text(tagContent);
             }
+            tags.push(tag);
           }
           // Escaped space
           const next = this.Peek(this.ParseSingleCharacter);
@@ -1214,11 +1215,11 @@ export class InkParser extends StringParser {
       result.push(new Text(sb));
     }
 
-    if (tag) {
-      result.push(tag);
-    }
-    if (tagText) {
-      result.push(tagText);
+    for (const tag of tags) {
+      result.push(tag.mark);
+      if (tag.text) {
+        result.push(tag.text);
+      }
     }
 
     if (result.length > 0) {

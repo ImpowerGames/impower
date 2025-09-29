@@ -142,7 +142,7 @@ export class TranspilationAnnotator extends SparkdownAnnotator<
         if (lastBlockLineNode && lastBlockLineNode.to > nodeRef.to) {
           // All lines (except the last in a block) should end with implicit \
           // (So they are grouped together with following text line)
-          const suffix = " \\ ";
+          const suffix = "\\ ";
           annotations.push(
             SparkdownAnnotation.mark({ suffix }).range(nodeRef.to, nodeRef.to)
           );
