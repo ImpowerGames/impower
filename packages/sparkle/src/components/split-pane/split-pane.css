@@ -141,6 +141,7 @@
 }
 
 :host > .root > .panel > .start {
+  pointer-events: auto;
   display: flex;
   position: absolute;
 }

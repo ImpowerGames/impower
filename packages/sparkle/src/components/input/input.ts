@@ -324,6 +324,10 @@ export default class Input
   select() {
     this.refs.input.select();
   }
+
+  unselect() {
+    this.refs.input.blur();
+  }
 }
 
 declare global {

@@ -5,6 +5,9 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-logic-scripts-editor",
   stores: { workspace },
+  selectors: {
+    nameInput: "#nameInput",
+  } as const,
   reducer: ({ stores }) =>
     ({
       filename:
@@ -17,7 +20,17 @@ export default spec({
     return html`
       <se-file-editor-navigation>
         <se-logic-diagnostics-label filename="${filename}">
-          ${displayName}
+          <s-input
+            display="inline-block"
+            id="nameInput"
+            placeholder-color="fab-bg"
+            color="fg"
+            value="${displayName || ""}"
+            label="${displayName || ""}"
+            width="100%"
+            text-align="center"
+            bg-color="transparent"
+          ></s-input>
         </se-logic-diagnostics-label>
       </se-file-editor-navigation>
       <s-box position="relative" grow>

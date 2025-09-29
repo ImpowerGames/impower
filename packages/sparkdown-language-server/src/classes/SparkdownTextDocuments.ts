@@ -544,18 +544,18 @@ export default class SparkdownTextDocuments {
       uri,
     });
     await this.sendCompilerRequest(AddCompilerFileMessage.type, { file });
-    if (this._lastCompiledUri) {
+    if (this._lastCompiledUri && this._documents.get(this._lastCompiledUri)) {
       await this.debouncedCompile(this._lastCompiledUri, true);
     }
   }
 
   async onChangedFile(uri: string) {
-    if (!this._documents.get(uri)) {
+    if (this.getFileType(uri) !== "script") {
       const file = await this.loadFile({
         uri,
       });
       await this.sendCompilerRequest(UpdateCompilerFileMessage.type, { file });
-      if (this._lastCompiledUri) {
+      if (this._lastCompiledUri && this._documents.get(this._lastCompiledUri)) {
         await this.debouncedCompile(this._lastCompiledUri, true);
       }
     }
@@ -568,7 +568,7 @@ export default class SparkdownTextDocuments {
     await this.sendCompilerRequest(RemoveCompilerFileMessage.type, {
       file: { uri },
     });
-    if (this._lastCompiledUri) {
+    if (this._lastCompiledUri && this._documents.get(this._lastCompiledUri)) {
       await this.debouncedCompile(this._lastCompiledUri, true);
     }
   }
@@ -626,21 +626,23 @@ export default class SparkdownTextDocuments {
     );
     disposables.push(
       connection.onDidChangeWatchedFiles(
-        (params: DidChangeWatchedFilesParams) => {
+        async (params: DidChangeWatchedFilesParams) => {
           const changes = params.changes;
-          for (const change of changes) {
-            switch (change.type) {
-              case FileChangeType.Created:
-                this.onCreatedFile(change.uri);
-                break;
-              case FileChangeType.Changed:
-                this.onChangedFile(change.uri);
-                break;
-              case FileChangeType.Deleted:
-                this.onDeletedFile(change.uri);
-                break;
-            }
-          }
+          await Promise.all(
+            changes
+              .filter((change) => change.type === FileChangeType.Deleted)
+              .map((change) => this.onDeletedFile(change.uri))
+          );
+          await Promise.all(
+            changes
+              .filter((change) => change.type === FileChangeType.Created)
+              .map((change) => this.onCreatedFile(change.uri))
+          );
+          await Promise.all(
+            changes
+              .filter((change) => change.type === FileChangeType.Changed)
+              .map((change) => this.onChangedFile(change.uri))
+          );
         }
       )
     );

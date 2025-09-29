@@ -60,6 +60,7 @@
   -webkit-appearance: none;
   pointer-events: auto;
   background-color: transparent;
+  text-align: inherit;
 }
 
 :host > .root > .input::-webkit-search-decoration,
