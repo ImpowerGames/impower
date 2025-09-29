@@ -144,6 +144,18 @@ export default class ScreenplayParser {
           }
         }
 
+        // Heading
+        if (stack.includes("BlockHeading") || stack.includes("InlineHeading")) {
+          if (name === "TextChunk") {
+            const text = read(from, to);
+            heading += text + "\n";
+          }
+          if (name === "ParentheticalLineContent") {
+            const text = read(from, to);
+            heading += text + "\n";
+          }
+        }
+
         // Transitional
         if (
           stack.includes("BlockTransitional") ||
@@ -156,18 +168,6 @@ export default class ScreenplayParser {
           if (name === "ParentheticalLineContent") {
             const text = read(from, to);
             transitional += text + "\n";
-          }
-        }
-
-        // Heading
-        if (stack.includes("BlockHeading") || stack.includes("InlineHeading")) {
-          if (name === "TextChunk") {
-            const text = read(from, to);
-            heading += text + "\n";
-          }
-          if (name === "ParentheticalLineContent") {
-            const text = read(from, to);
-            heading += text + "\n";
           }
         }
 
@@ -259,15 +259,6 @@ export default class ScreenplayParser {
           title = "";
         }
 
-        // Transitional
-        if (name === "BlockTransitional" || name === "InlineTransitional") {
-          tokens.push({
-            tag: "transitional",
-            text: transitional,
-          });
-          transitional = "";
-        }
-
         // Heading
         if (name === "BlockHeading" || name === "InlineHeading") {
           tokens.push({
@@ -275,6 +266,15 @@ export default class ScreenplayParser {
             text: heading,
           });
           heading = "";
+        }
+
+        // Transitional
+        if (name === "BlockTransitional" || name === "InlineTransitional") {
+          tokens.push({
+            tag: "transitional",
+            text: transitional,
+          });
+          transitional = "";
         }
 
         // Action
