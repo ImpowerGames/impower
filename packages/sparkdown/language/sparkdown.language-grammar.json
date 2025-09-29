@@ -7673,8 +7673,11 @@
       "match": "(\\[\\[)([^\\S\\n\\r]*)((?:\\\\.|[^\\]])*?)([^\\S\\n\\r]*)(\\]\\])([^\\S\\n\\r]*)",
       "captures": {
         "1": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.begin.image.sd"
+          "patterns": [
+            {
+              "include": "#ImageBeginMark"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -7698,13 +7701,17 @@
           ]
         },
         "5": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.end.image.sd"
-        },
-        "6": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#ImageEndMark"
+            }
+          ]
+        },
+        "6": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
             }
           ]
         }
@@ -7716,8 +7723,11 @@
       "match": "([(][(])([^\\S\\n\\r]*)((?:\\\\.|[^)])*?)([^\\S\\n\\r]*)([)][)])([^\\S\\n\\r]*)",
       "captures": {
         "1": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.begin.audio.sd"
+          "patterns": [
+            {
+              "include": "#AudioBeginMark"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -7741,13 +7751,17 @@
           ]
         },
         "5": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.end.audio.sd"
-        },
-        "6": {
           "patterns": [
             {
-              "include": "#Separator"
+              "include": "#AudioEndMark"
+            }
+          ]
+        },
+        "6": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
             }
           ]
         }
@@ -7862,6 +7876,26 @@
           ]
         }
       }
+    },
+    "ImageBeginMark": {
+      "tag": "keyword",
+      "name": "keyword.operator.expression.begin.image.sd",
+      "match": "(.+)"
+    },
+    "ImageEndMark": {
+      "tag": "keyword",
+      "name": "keyword.operator.expression.end.image.sd",
+      "match": "(.+)"
+    },
+    "AudioBeginMark": {
+      "tag": "keyword",
+      "name": "keyword.operator.expression.begin.audio.sd",
+      "match": "(.+)"
+    },
+    "AudioEndMark": {
+      "tag": "keyword",
+      "name": "keyword.operator.expression.end.audio.sd",
+      "match": "(.+)"
     },
     "AssetCommandControl": {
       "tag": "controlKeyword",

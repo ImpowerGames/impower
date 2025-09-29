@@ -45,7 +45,9 @@ const FLOW_KEYWORDS = ["DONE", "END"];
 const isPrefilteredName = (name: string) => name.includes("~");
 
 const isWhitespaceNode = (name?: SparkdownNodeName) =>
-  name === "Separator" || name === "ExtraWhitespace";
+  name === "Separator" ||
+  name === "OptionalSeparator" ||
+  name === "ExtraWhitespace";
 
 const traverse = <T>(
   obj: T,
@@ -1013,12 +1015,16 @@ export const getCompletions = (
 
   const side = -1;
   const prevCursor = tree.cursorAt(leftStack[0].from - 1, side);
+  const nextCursor = tree.cursorAt(leftStack[0].to + 1, side);
   const prevNode = prevCursor.node as GrammarSyntaxNode<SparkdownNodeName>;
+  const nextNode = nextCursor.node as GrammarSyntaxNode<SparkdownNodeName>;
   const prevText = getNodeText(prevNode);
 
   // console.log("program", program);
   // console.log(printTree(tree, document.getText()));
   // console.log(leftStack.map((n) => n.type.name));
+  // console.log("prev", prevNode.name);
+  // console.log("next", nextNode.name);
 
   // FrontMatter
   if (
@@ -1267,7 +1273,13 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (isWhitespaceNode(leftStack[0]?.name)) {
+    if (
+      isWhitespaceNode(leftStack[0]?.name) &&
+      nextNode?.name !== "AssetCommandAddOperator" &&
+      nextNode?.name !== "AssetCommandFileName" &&
+      prevNode?.name !== "ImageBeginMark" &&
+      prevNode?.name !== "ImageEndMark"
+    ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
           prevNode?.name === "AssetCommandClauseKeyword" &&
@@ -1384,7 +1396,13 @@ export const getCompletions = (
       }
       return buildCompletions();
     }
-    if (isWhitespaceNode(leftStack[0]?.name)) {
+    if (
+      isWhitespaceNode(leftStack[0]?.name) &&
+      nextNode?.name !== "AssetCommandAddOperator" &&
+      nextNode?.name !== "AssetCommandFileName" &&
+      prevNode?.name !== "AudioBeginMark" &&
+      prevNode?.name !== "AudioEndMark"
+    ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const prevClauseTakesArgument =
           prevNode?.name === "AssetCommandClauseKeyword" &&

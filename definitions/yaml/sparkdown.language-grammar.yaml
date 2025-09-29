@@ -4214,8 +4214,8 @@ repository:
     match: (\[\[)({{WS}}*)((?:\\.|[^\]])*?)({{WS}}*)(\]\])({{WS}}*)
     captures:
       1:
-        tag: keyword
-        name: keyword.operator.expression.begin.image.sd
+        patterns:
+          - { include: "#ImageBeginMark" }
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
@@ -4226,11 +4226,12 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       5:
-        tag: keyword
-        name: keyword.operator.expression.end.image.sd
-      6:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#ImageEndMark" }
+      6:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   AudioCommand:
     tag: macroName
@@ -4238,8 +4239,8 @@ repository:
     match: ([(][(])({{WS}}*)((?:\\.|[^)])*?)({{WS}}*)([)][)])({{WS}}*)
     captures:
       1:
-        tag: keyword
-        name: keyword.operator.expression.begin.audio.sd
+        patterns:
+          - { include: "#AudioBeginMark" }
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
@@ -4250,11 +4251,12 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
       5:
-        tag: keyword
-        name: keyword.operator.expression.end.audio.sd
-      6:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#AudioEndMark" }
+      6:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
 
   AssetCommandContent:
     match: ({{WS}}*)(.*?)($|(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}).*)
@@ -4303,6 +4305,26 @@ repository:
           - { include: "#AssetCommandAddOperator" }
           - { include: "#AssetCommandName" }
           - { include: "#IllegalChar" }
+
+  ImageBeginMark:
+    tag: keyword
+    name: keyword.operator.expression.begin.image.sd
+    match: (.+)
+
+  ImageEndMark:
+    tag: keyword
+    name: keyword.operator.expression.end.image.sd
+    match: (.+)
+
+  AudioBeginMark:
+    tag: keyword
+    name: keyword.operator.expression.begin.audio.sd
+    match: (.+)
+
+  AudioEndMark:
+    tag: keyword
+    name: keyword.operator.expression.end.audio.sd
+    match: (.+)
 
   AssetCommandControl:
     tag: controlKeyword
