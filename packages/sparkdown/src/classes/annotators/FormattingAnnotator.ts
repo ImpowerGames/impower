@@ -401,7 +401,11 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "LineComment" || nodeRef.name === "BlockComment") {
+    if (
+      nodeRef.name === "LineComment" ||
+      nodeRef.name === "BlockComment" ||
+      nodeRef.name === "Tag"
+    ) {
       if (nodeRef.from === this.getLineAt(nodeRef.from).from) {
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("sol_comment").range(
