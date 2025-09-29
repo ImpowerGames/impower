@@ -3436,7 +3436,7 @@ repository:
   FrontMatterField:
     tag: meta
     name: meta.front-matter.field.sd
-    begin: ^(?!{{WS}}+)([^:\r\n]+)({{WS}}*)($|[:])($|.*$(?:\r\n|\r|\n)?)
+    begin: ^(?!{{WS}}+)([^:\r\n\t ]+)({{WS}}*)($|[:])($|.*$(?:\r\n|\r|\n)?)
     beginCaptures:
       1:
         patterns:
@@ -3455,7 +3455,7 @@ repository:
       - { include: "#FrontMatterStringBlock" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
-    end: (?=^(?!{{WS}}+)[^:\r\n]+{{WS}}*(?:$|[:])|[-]{3,})
+    end: (?=^(?!{{WS}}+)[^:\r\n\t ]+{{WS}}*(?:$|[:])|[-]{3,})
 
   FrontMatterFieldKeyword:
     tag: keyword
@@ -3700,7 +3700,7 @@ repository:
   BlockWrite:
     tag: string
     name: string.write.block.sd
-    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])({{WS}}*)(?={{EOL}})
+    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n\t ])*)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3731,7 +3731,7 @@ repository:
   InlineWrite:
     tag: string
     name: string.write.inline.sd
-    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])($|{{WS}}+)
+    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n\t ])*)((?<!\\)[:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
@@ -3782,7 +3782,7 @@ repository:
   BlockDialogue:
     tag: string
     name: string.dialogue.block.sd
-    begin: ({{WS}}*)((?:\\.|[^:\r\n])+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
+    begin: ({{WS}}*)((?:\\.|[^:\r\n\t ])+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3807,7 +3807,7 @@ repository:
   InlineDialogue:
     tag: string
     name: string.dialogue.inline.sd
-    begin: ({{WS}}*)((?:\\.|[^:\r\n])+)((?<!\\)[:])($|{{WS}}+)
+    begin: ({{WS}}*)((?:\\.|[^:\r\n\t ])+)((?<!\\)[:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
