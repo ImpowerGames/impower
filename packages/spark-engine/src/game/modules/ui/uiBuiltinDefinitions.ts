@@ -65,7 +65,7 @@ export const uiBuiltinDefinitions = () => ({
       text_wrap: "wrap",
       position: "absolute",
       inset: "0",
-      text_stroke: "2",
+      text_stroke: "1",
       color: "black",
       white_space: "pre-line",
       "*": {
