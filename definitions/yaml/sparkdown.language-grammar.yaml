@@ -3700,7 +3700,7 @@ repository:
   BlockWrite:
     tag: string
     name: string.write.block.sd
-    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:])*)((?<!\\)[:])({{WS}}*)(?={{EOL}})
+    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3731,7 +3731,7 @@ repository:
   InlineWrite:
     tag: string
     name: string.write.inline.sd
-    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:])*)((?<!\\)[:])($|{{WS}}+)
+    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
@@ -3782,7 +3782,7 @@ repository:
   BlockDialogue:
     tag: string
     name: string.dialogue.block.sd
-    begin: ({{WS}}*)((?:\\.|[^:])+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
+    begin: ({{WS}}*)((?:\\.|[^:\r\n])+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3807,7 +3807,7 @@ repository:
   InlineDialogue:
     tag: string
     name: string.dialogue.inline.sd
-    begin: ({{WS}}*)((?:\\.|[^:])+)((?<!\\)[:])($|{{WS}}+)
+    begin: ({{WS}}*)((?:\\.|[^:\r\n])+)((?<!\\)[:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:
