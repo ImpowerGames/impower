@@ -1,6 +1,6 @@
 import { PagePosition } from "./PagePosition";
 
-export type MetadataTokenType =
+export type FrontMatterKey =
   | "title"
   | "credit"
   | "author"
@@ -9,8 +9,11 @@ export type MetadataTokenType =
   | "date"
   | "contact"
   | "revision"
-  | "copyright"
-  | PagePosition;
+  | "copyright";
+
+export type MetadataTokenType =
+  | `meta:${FrontMatterKey}`
+  | `meta:${PagePosition}`;
 
 export type PageBreakTokenType = "page_break";
 

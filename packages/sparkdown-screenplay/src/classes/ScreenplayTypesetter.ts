@@ -21,12 +21,14 @@ export default class ScreenplayTypesetter {
     const firstToken = spans[0];
     if (firstToken?.tag === "meta" && firstToken.positions) {
       for (const positionLines of Object.values(firstToken.positions)) {
-        const titleLines = positionLines.filter((l) => l.tag === "title");
+        const titleLines = positionLines.filter((l) => l.tag === "meta:title");
         title = titleLines
           .map((l) => l.content.map((c) => c.text).join("") || "")
           .join(" ");
 
-        const authorLines = positionLines.filter((l) => l.tag === "author");
+        const authorLines = positionLines.filter(
+          (l) => l.tag === "meta:author"
+        );
         author = authorLines
           .map((l) => l.content.map((c) => c.text).join("") || "")
           .join(" ");

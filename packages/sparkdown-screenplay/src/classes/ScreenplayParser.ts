@@ -245,7 +245,7 @@ export default class ScreenplayParser {
         // FrontMatter
         if (name === "FrontMatterField") {
           tokens.push({
-            tag: frontMatterKey as MetadataTokenType,
+            tag: ("meta:" + frontMatterKey) as MetadataTokenType,
             text: frontMatterValue,
           });
         }
