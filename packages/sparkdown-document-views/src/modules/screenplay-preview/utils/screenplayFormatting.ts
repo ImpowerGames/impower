@@ -90,6 +90,7 @@ const INLINE_HIDDEN_TAGS = [
   tags.docComment,
   tags.macroName,
   tags.meta,
+  tags.logicOperator,
 ];
 
 const createHighlightStyle = (inlineHiddenStyle: Record<string, string>) =>
@@ -235,7 +236,11 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
 
   const isCentered = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
-    if (name === "Centered") {
+    if (
+      name === "Centered" ||
+      name === "BlockTitle" ||
+      name === "InlineTitle"
+    ) {
       return true;
     }
     return false;
@@ -401,7 +406,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
           type: "character",
           from,
           to,
-          value: "@ " + value,
+          value: value + ": ",
           markdown: true,
           attributes: {
             style: getDialogueLineStyle("character"),
@@ -481,7 +486,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         return false;
       } else if (isCentered(nodeRef)) {
         centerRange(nodeRef);
-        return false;
+        return true;
       } else if (isBlockHidden(nodeRef)) {
         hideBlockRange(nodeRef);
         return false;

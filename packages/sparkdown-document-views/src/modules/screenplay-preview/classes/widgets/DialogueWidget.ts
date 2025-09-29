@@ -1,8 +1,8 @@
 import { EditorView } from "@codemirror/view";
+import { DecorationSpec } from "../../types/DecorationSpec";
 import { MarkupContent } from "../../types/MarkupContent";
 import getFormattedHTML from "../../utils/getFormattedHTML";
 import BlockWidget from "../BlockWidget";
-import { DecorationSpec } from "../../types/DecorationSpec";
 
 const DIALOGUE_CONTAINER_WIDTH = "100%";
 const DUAL_DIALOGUE_CONTAINER_WIDTH = "95%";
@@ -17,10 +17,10 @@ const DEFAULT_LINE_HEIGHT = 22.390625;
 const escapeDialogueLines = (block: MarkupContent[]) => {
   return block.map((c, i) =>
     i === 0
-      ? // Already prefixed with @
+      ? // Already prefixed
         c
-      : // Prefix each dialogue line with `@ :`
-        { ...c, value: "@ :" + c.value }
+      : // Prefix each dialogue line so it is styled like text
+        { ...c, value: "<>" + c.value }
   );
 };
 

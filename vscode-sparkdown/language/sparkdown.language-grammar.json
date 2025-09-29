@@ -6256,8 +6256,8 @@
       ]
     },
     "BlockTitle": {
-      "tag": "labelName",
-      "name": "keyword.control.title.block.sd",
+      "tag": "monospace",
+      "name": "constant.character.escape.title.sd",
       "begin": "([^\\S\\n\\r]*)(\\^)([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
@@ -6306,8 +6306,8 @@
       "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
     },
     "InlineTitle": {
-      "tag": "labelName",
-      "name": "keyword.control.title.inline.sd",
+      "tag": "monospace",
+      "name": "constant.character.escape.title.sd",
       "begin": "([^\\S\\n\\r]*)(\\^)([:])($|[^\\S\\n\\r]+)",
       "beginCaptures": {
         "1": {

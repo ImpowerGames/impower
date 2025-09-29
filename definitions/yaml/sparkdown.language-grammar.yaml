@@ -3503,8 +3503,8 @@ repository:
       - { include: "#InlineTitle" }
 
   BlockTitle:
-    tag: labelName
-    name: keyword.control.title.block.sd
+    tag: monospace
+    name: constant.character.escape.title.sd
     begin: ({{WS}}*)(\^)([:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
@@ -3527,8 +3527,8 @@ repository:
     end: (?=^(?!$|//|\1{{WS}}))
 
   InlineTitle:
-    tag: labelName
-    name: keyword.control.title.inline.sd
+    tag: monospace
+    name: constant.character.escape.title.sd
     begin: ({{WS}}*)(\^)([:])($|{{WS}}+)
     beginCaptures:
       1:
