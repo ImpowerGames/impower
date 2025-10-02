@@ -41,7 +41,12 @@ const EDITOR_EXTENSIONS = [
   highlightActiveLine(),
   highlightActiveLineGutter(),
   highlightExtraWhitespace(),
-  highlightLines(),
+  highlightLines({
+    isGap: (text: string) => {
+      const trimmedText = text.trim();
+      return !trimmedText || trimmedText.startsWith("//");
+    },
+  }),
   keymap.of([
     indentWithTab,
     ...defaultKeymap,

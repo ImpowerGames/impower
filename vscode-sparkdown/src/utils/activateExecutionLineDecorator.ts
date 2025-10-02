@@ -3,6 +3,7 @@ import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { GamePreviewedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GamePreviewedMessage";
 import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import * as vscode from "vscode";
+import { Location } from "vscode-languageclient";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { getActiveOrVisibleEditor } from "./getActiveOrVisibleEditor";
 
@@ -12,13 +13,13 @@ const currentlyExecutedLineDecoration: vscode.TextEditorDecorationType =
       overviewRulerColor: new vscode.ThemeColor(
         "editorOverviewRuler.infoForeground"
       ),
-      backgroundColor: "rgba(255,255,255,0.04)",
+      backgroundColor: "rgba(0,0,0,0.18)",
     },
     light: {
       overviewRulerColor: new vscode.ThemeColor(
         "editorOverviewRuler.infoForeground"
       ),
-      backgroundColor: "rgba(0,0,0,0.04)",
+      backgroundColor: "rgba(255,255,255,0.04)",
     },
     isWholeLine: true,
     overviewRulerLane: vscode.OverviewRulerLane.Full,
@@ -30,13 +31,13 @@ const previewingLineDecoration: vscode.TextEditorDecorationType =
       overviewRulerColor: new vscode.ThemeColor(
         "editorOverviewRuler.infoForeground"
       ),
-      backgroundColor: "rgba(255,255,255,0.04)",
+      backgroundColor: "rgba(0,0,0,0.18)",
     },
     light: {
       overviewRulerColor: new vscode.ThemeColor(
         "editorOverviewRuler.infoForeground"
       ),
-      backgroundColor: "rgba(0,0,0,0.04)",
+      backgroundColor: "rgba(255,255,255,0.04)",
     },
     isWholeLine: true,
     overviewRulerLane: vscode.OverviewRulerLane.Full,
@@ -55,44 +56,15 @@ export const activateExecutionLineDecorator = (
   };
   const handleGameExecuted = (message: Message) => {
     const editor = getActiveOrVisibleEditor();
-    if (GameExecutedMessage.type.isNotification(message)) {
-      const { locations, state } = message.params;
-      if (state === "running") {
-        previewingLines.clear();
-        const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
-        for (const [uri, locations] of Object.entries(documentLocations)) {
-          if (editor?.document.uri.toString() === uri) {
-            currentlyExecutedLines.clear();
-            if (locations) {
-              for (const location of locations) {
-                for (
-                  let i = location.range.start.line;
-                  i <= location.range.end.line;
-                  i++
-                ) {
-                  currentlyExecutedLines.add(i);
-                }
-              }
-            }
-          }
-        }
-      } else {
-        currentlyExecutedLines.clear();
-        const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
-        for (const [uri, locations] of Object.entries(documentLocations)) {
-          if (editor?.document.uri.toString() === uri) {
-            if (locations) {
-              for (const location of locations) {
-                for (
-                  let i = location.range.start.line;
-                  i <= location.range.end.line;
-                  i++
-                ) {
-                  previewingLines.add(i);
-                }
-              }
-            }
-          }
+    if (editor) {
+      if (GameExecutedMessage.type.isNotification(message)) {
+        const { locations, state } = message.params;
+        if (state === "running") {
+          previewingLines.clear();
+          highlightLines(currentlyExecutedLines, editor, locations);
+        } else {
+          currentlyExecutedLines.clear();
+          highlightLines(previewingLines, editor, locations);
         }
       }
     }
@@ -167,6 +139,52 @@ export const activateExecutionLineDecorator = (
       }
     },
   });
+};
+
+const highlightLines = (
+  lineSet: Set<number>,
+  editor: vscode.TextEditor,
+  locations: Location[]
+) => {
+  const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
+  for (const [uri, locations] of Object.entries(documentLocations)) {
+    if (editor?.document.uri.toString() === uri) {
+      if (locations) {
+        const sortedLocations = Array.from(
+          locations.sort((a, b) => a.range.start.line - b.range.start.line)
+        );
+        let prevEndLine: number | undefined = undefined;
+        for (const location of sortedLocations) {
+          if (prevEndLine != null) {
+            const consecutiveBlankLines: Set<number> = new Set();
+            for (let i = prevEndLine + 1; i < location.range.start.line; i++) {
+              const trimmedLineText = editor.document.lineAt(i).text.trim();
+              if (!trimmedLineText || trimmedLineText.startsWith("//")) {
+                // also highlight empty lines between executed lines
+                consecutiveBlankLines.add(i);
+              } else {
+                // non-blank line, so this is not a connective gap between executed lines
+                consecutiveBlankLines.clear();
+                break;
+              }
+            }
+            for (const i of consecutiveBlankLines) {
+              lineSet.add(i);
+            }
+          }
+          for (
+            let i = location.range.start.line;
+            i <= location.range.end.line;
+            i++
+          ) {
+            // highlight executed lines
+            lineSet.add(i);
+          }
+          prevEndLine = location.range.end.line;
+        }
+      }
+    }
+  }
 };
 
 const updateDecorations = (editor: vscode.TextEditor) => {

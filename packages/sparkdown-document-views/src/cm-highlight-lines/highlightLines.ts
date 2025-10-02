@@ -1,5 +1,8 @@
 import {
+  combineConfig,
   Extension,
+  Facet,
+  Range,
   RangeSet,
   StateEffect,
   StateField,
@@ -10,6 +13,24 @@ import {
   EditorView,
   ViewUpdate,
 } from "@codemirror/view";
+
+export interface HighlightsConfiguration {
+  /**
+   * Highlight gaps between highlights
+   */
+  isGap?: (text: string) => boolean;
+}
+
+export const highlightsConfig = Facet.define<
+  HighlightsConfiguration,
+  Required<HighlightsConfiguration>
+>({
+  combine(configs) {
+    return combineConfig(configs, {
+      isGap: (text: string) => !text.trim(),
+    });
+  },
+});
 
 /**
  * A StateEffect used to dispatch updates to the line highlights.
@@ -58,10 +79,10 @@ export const highlightDeco = Decoration.line({ class: highlightedLineClass });
  */
 const highlightsTheme = EditorView.baseTheme({
   [`&light .cm-line.${highlightedLineClass}`]: {
-    backgroundColor: "rgba(0, 0, 0, 0.04)",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
   },
   [`&dark .cm-line.${highlightedLineClass}`]: {
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
 });
 
@@ -74,6 +95,8 @@ export const highlightsField = StateField.define<DecorationSet>({
     return Decoration.none;
   },
   update(decorations, tr) {
+    const config = tr.state.facet(highlightsConfig);
+
     // Automatically adjust decoration positions when the document changes.
     decorations = decorations.map(tr.changes);
 
@@ -81,16 +104,42 @@ export const highlightsField = StateField.define<DecorationSet>({
       if (effect.is(setHighlightsEffect)) {
         const lineNumbers = effect.value;
         decorations = RangeSet.empty;
+        const sortedHighlightedLineNumbers = lineNumbers.sort();
+        const add: Range<Decoration>[] = [];
+        let prevHighlightedLineNumber: number | undefined = undefined;
+        for (const highlightedLineNumber of sortedHighlightedLineNumbers) {
+          if (
+            typeof highlightedLineNumber === "number" &&
+            highlightedLineNumber <= tr.state.doc.lines
+          ) {
+            const consecutiveGapLines: Set<number> = new Set();
+            if (prevHighlightedLineNumber != null) {
+              for (
+                let i = prevHighlightedLineNumber + 1;
+                i < highlightedLineNumber;
+                i++
+              ) {
+                if (config.isGap(tr.state.doc.line(i).text)) {
+                  // also highlight empty lines between highlighted lines
+                  consecutiveGapLines.add(i);
+                } else {
+                  // non-blank line, so this is not a connective gap between highlighted lines
+                  consecutiveGapLines.clear();
+                  break;
+                }
+              }
+            }
+            for (const i of consecutiveGapLines) {
+              add.push(highlightDeco.range(tr.state.doc.line(i).from));
+            }
+            add.push(
+              highlightDeco.range(tr.state.doc.line(highlightedLineNumber).from)
+            );
+            prevHighlightedLineNumber = highlightedLineNumber;
+          }
+        }
         decorations = decorations.update({
-          add: lineNumbers
-            .filter(
-              (lineNumber) =>
-                typeof lineNumber === "number" &&
-                lineNumber <= tr.state.doc.lines
-            )
-            .map((lineNumber) =>
-              highlightDeco.range(tr.state.doc.line(lineNumber).from)
-            ),
+          add,
           sort: true,
         });
       }
@@ -107,6 +156,8 @@ export const highlightsField = StateField.define<DecorationSet>({
  * Add this to your CodeMirror editor's configuration to enable the functionality.
  * @returns {Extension} A CodeMirror extension array.
  */
-export function highlightLines(): Extension {
-  return [highlightsField, highlightsTheme];
+export function highlightLines(
+  config: HighlightsConfiguration = {}
+): Extension {
+  return [highlightsConfig.of(config), highlightsField, highlightsTheme];
 }
