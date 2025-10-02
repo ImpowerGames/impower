@@ -175,6 +175,8 @@ export class Application implements IApplication {
     overlay: HTMLElement,
     audioContext?: AudioContext
   ) {
+    this._game = game;
+
     this._view = view;
     this._overlay = overlay;
     this._canvas = document.createElement("canvas");
@@ -196,11 +198,13 @@ export class Application implements IApplication {
       resolution: window.devicePixelRatio,
     };
 
-    this._audioContext = audioContext || new AudioContext();
-    if (this._audioContext.state !== "running") {
-      this._audioContext = undefined;
-    } else {
-      this._clock.syncToClock(this._audioContext);
+    if (!this._game.context.system.previewing) {
+      this._audioContext = audioContext || new AudioContext();
+      if (this._audioContext.state !== "running") {
+        this._audioContext = undefined;
+      } else {
+        this._clock.syncToClock(this._audioContext);
+      }
     }
 
     this._resizeObserver = new ResizeObserver(([entry]) => {
@@ -224,8 +228,6 @@ export class Application implements IApplication {
       }
     });
     this._resizeObserver.observe(this._view);
-
-    this._game = game;
 
     this.bind();
   }
