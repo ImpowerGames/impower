@@ -1,3 +1,7 @@
+import { Message } from "@impower/spark-engine/src/protocol/types/Message";
+import { NotificationMessage } from "@impower/spark-engine/src/protocol/types/NotificationMessage";
+import { RequestMessage } from "@impower/spark-engine/src/protocol/types/RequestMessage";
+import { ResponseError } from "@impower/spark-engine/src/protocol/types/ResponseError";
 import {
   Container,
   DOMAdapter,
@@ -11,12 +15,6 @@ import {
   WebGLRenderer,
 } from "pixi.js";
 import "pixi.js/unsafe-eval";
-import {
-  type Message,
-  type NotificationMessage,
-  type RequestMessage,
-  type ResponseError,
-} from "../../../spark-engine/src/game/core";
 import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { Game } from "../../../spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "../../../spark-engine/src/game/core/classes/messages/EventMessage";
