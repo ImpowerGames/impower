@@ -143,6 +143,12 @@ export class Story extends InkObject {
 
   public onExecute: ((arg1: string | undefined) => void) | null = null;
 
+  public onSaveStateSnapshot: (() => void) | null = null;
+
+  public onRestoreStateSnapshot: (() => void) | null = null;
+
+  public onDiscardStateSnapshot: (() => void) | null = null;
+
   public onWriteRuntimeObject?: (
     writer: SimpleJson.Writer,
     obj: InkObject
@@ -727,6 +733,7 @@ export class Story extends InkObject {
   public StateSnapshot() {
     this._stateSnapshotAtLastNewline = this._state;
     this._state = this._state.CopyAndStartPatching(false);
+    if (this.onSaveStateSnapshot !== null) this.onSaveStateSnapshot();
   }
 
   public RestoreStateSnapshot() {
@@ -741,12 +748,14 @@ export class Story extends InkObject {
     if (!this._asyncSaving) {
       this._state.ApplyAnyPatch();
     }
+    if (this.onRestoreStateSnapshot !== null) this.onRestoreStateSnapshot();
   }
 
   public DiscardSnapshot() {
     if (!this._asyncSaving) this._state.ApplyAnyPatch();
 
     this._stateSnapshotAtLastNewline = null;
+    if (this.onDiscardStateSnapshot !== null) this.onDiscardStateSnapshot();
   }
 
   public CopyStateForBackgroundThreadSave() {

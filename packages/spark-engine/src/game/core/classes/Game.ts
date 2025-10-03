@@ -97,6 +97,8 @@ export class Game<T extends M = {}> {
   protected _executingLocation: ScriptLocation;
   protected _executedPathsThisFrame: Set<string> = new Set();
 
+  protected _executedPathsThisFrameSnapshot: Set<string> | null = null;
+
   protected _lastHitBreakpointLocation?: ScriptLocation;
 
   protected _choices: {
@@ -258,6 +260,19 @@ export class Game<T extends M = {}> {
         this._executedPathsThisFrame.delete(path);
         this._executedPathsThisFrame.add(path);
       }
+    };
+    this._story.onSaveStateSnapshot = () => {
+      this._executedPathsThisFrameSnapshot = new Set(
+        this._executedPathsThisFrame
+      );
+    };
+    this._story.onRestoreStateSnapshot = () => {
+      if (this._executedPathsThisFrameSnapshot) {
+        this._executedPathsThisFrame = this._executedPathsThisFrameSnapshot;
+      }
+    };
+    this._story.onDiscardStateSnapshot = () => {
+      this._executedPathsThisFrameSnapshot = null;
     };
 
     // Create context
@@ -610,10 +625,16 @@ export class Game<T extends M = {}> {
   }
 
   save(): string {
+    let story = "";
+    try {
+      story = this._story.state.toJson();
+    } catch (e: any) {
+      this.Error(e.message, ErrorType.Error);
+    }
     const saveData: SaveData = {
       modules: {},
       context: {},
-      story: this._story.state.toJson(),
+      story,
       executed: Array.from(this._executedPathsThisFrame),
     };
     for (const k of this._moduleNames) {
