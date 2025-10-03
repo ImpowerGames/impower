@@ -1458,10 +1458,8 @@ export default class SparkWebPlayer extends Component(spec) {
     }
     const executedChoices = this._game?.choices.map((c) => c.selected) ?? [];
     const shouldSimulateChoices = Array.from(
-      { length: this._game?.choices.length ?? 0 },
-      (_, i) =>
-        this._options?.simulateChoices?.[this._game?.simulatePath || ""]?.[i] ??
-        0
+      { length: executedChoices.length },
+      (_, i) => this._options?.simulateChoices?.[simulatePath || ""]?.[i] ?? 0
     );
     if (
       force ||
