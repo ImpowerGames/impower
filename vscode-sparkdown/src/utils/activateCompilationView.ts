@@ -1,6 +1,6 @@
-import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
 import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
-import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
+import { findClosestPathLocation } from "@impower/spark-engine/src/game/core/utils/findClosestPathLocation";
 import { SparkProgram } from "@impower/sparkdown/src";
 import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
@@ -70,7 +70,7 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
             const range = change.selections[0];
             if (range) {
               const [path] =
-                Game.findClosestPathLocation(
+                findClosestPathLocation(
                   { file: document.uri.toString(), line: range.active.line },
                   Object.entries(program.pathToLocation || {}),
                   Object.keys(program.scripts)
@@ -97,17 +97,22 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
 
   const handleGameExecuted = (message: Message) => {
     if (GameExecutedMessage.type.isNotification(message)) {
-      const { path, state } = message.params;
+      const { executedPaths, state } = message.params;
       if (state === "running") {
         if (treeView.visible) {
-          const instructionNode =
-            SparkdownCompilationTreeDataProvider.instance.getNodeById(path);
-          if (instructionNode) {
-            treeView.reveal(instructionNode, {
-              select: true,
-              expand: true,
-              focus: false,
-            });
+          const lastExecutedPath = executedPaths.at(-1);
+          if (lastExecutedPath) {
+            const instructionNode =
+              SparkdownCompilationTreeDataProvider.instance.getNodeById(
+                lastExecutedPath
+              );
+            if (instructionNode) {
+              treeView.reveal(instructionNode, {
+                select: true,
+                expand: true,
+                focus: false,
+              });
+            }
           }
         }
       }

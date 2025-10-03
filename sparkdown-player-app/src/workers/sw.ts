@@ -1,5 +1,5 @@
-import { FetchGameAssetMessage } from "../../../packages/spark-editor-protocol/src/protocols/game/FetchGameAssetMessage";
-import type { MessageProtocolRequestType } from "../../../packages/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
+import { FetchGameAssetMessage } from "../../../packages/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage";
+import { MessageProtocolRequestType } from "../../../packages/spark-engine/src/protocol/classes/MessageProtocolRequestType";
 
 export {};
 declare const self: ServiceWorkerGlobalScope;

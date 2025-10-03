@@ -47,10 +47,6 @@ export default spec({
               <span id="executed-label"></span>
             </div>
           </div>
-          <div id="reset-button" class="toolbar-button">
-            <div id="reset-icon"></div>
-            Reset
-          </div>
         </div>
         <div id="middle-items"></div>
         <div id="right-items">

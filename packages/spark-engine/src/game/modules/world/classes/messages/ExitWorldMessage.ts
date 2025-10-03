@@ -1,4 +1,4 @@
-import { MessageProtocolNotificationType } from "../../../../core/classes/MessageProtocolNotificationType";
+import { MessageProtocolNotificationType } from "../../../../../protocol/classes/MessageProtocolNotificationType";
 import { ExitWorldParams } from "../../types/ExitWorldParams";
 
 export type ExitWorldMethod = typeof ExitWorldMessage.method;

@@ -1,4 +1,4 @@
-import { MessageProtocolRequestType } from "../../../../core/classes/MessageProtocolRequestType";
+import { MessageProtocolRequestType } from "../../../../../protocol/classes/MessageProtocolRequestType";
 import { Animation } from "../../types/Animation";
 
 export type AnimateElementsMethod = typeof AnimateElementsMessage.method;

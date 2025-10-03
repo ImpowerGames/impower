@@ -10,39 +10,39 @@
  * The most important class of the Debug Adapter is the MockDebugSession which implements many DAP requests by talking to the MockRuntime.
  */
 
-import { ContinueGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ContinueGameMessage";
-import { GameAutoAdvancedToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameAutoAdvancedToContinueMessage";
-import { GameAwaitingInteractionMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameAwaitingInteractionMessage";
-import { GameChosePathToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameChosePathToContinueMessage";
-import { GameClickedToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameClickedToContinueMessage";
-import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
-import { GameExitedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedThreadMessage";
-import { GameHitBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameHitBreakpointMessage";
-import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
-import { GameSteppedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameSteppedMessage";
-import { GetGameEvaluationContextMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameEvaluationContextMessage";
-import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGamePossibleBreakpointLocationsMessage";
-import { GetGameScriptsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameScriptsMessage";
-import { GetGameStackTraceMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameStackTraceMessage";
-import { GetGameThreadsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameThreadsMessage";
-import { GetGameVariablesMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameVariablesMessage";
-import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
-import {
-  RestartGameMessage,
-  RestartGameParams,
-} from "@impower/spark-editor-protocol/src/protocols/game/RestartGameMessage";
-import { SetGameBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/game/SetGameBreakpointsMessage";
-import { SetGameDataBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/game/SetGameDataBreakpointsMessage";
-import { SetGameFunctionBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/game/SetGameFunctionBreakpointsMessage";
-import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
-import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
-import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import {
   NotificationMessage,
   RequestMessage,
   ResponseError,
 } from "@impower/spark-engine/src/game/core";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
+import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
+import { GameAutoAdvancedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameAutoAdvancedToContinueMessage";
+import { GameAwaitingInteractionMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameAwaitingInteractionMessage";
+import { GameChosePathToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameChosePathToContinueMessage";
+import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameClickedToContinueMessage";
+import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
+import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedThreadMessage";
+import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
+import { GameStartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedThreadMessage";
+import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
+import { GetGameEvaluationContextMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameEvaluationContextMessage";
+import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGamePossibleBreakpointLocationsMessage";
+import { GetGameScriptsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameScriptsMessage";
+import { GetGameStackTraceMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameStackTraceMessage";
+import { GetGameThreadsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameThreadsMessage";
+import { GetGameVariablesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameVariablesMessage";
+import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
+import {
+  RestartGameMessage,
+  RestartGameParams,
+} from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
+import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
+import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameDataBreakpointsMessage";
+import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
+import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
+import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
+import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { SparkdownCompiler } from "@impower/sparkdown/src/classes/SparkdownCompiler";
 import {
   ContinuedEvent,

@@ -1,4 +1,4 @@
-import { MessageProtocolRequestType } from "../../../../core/classes/MessageProtocolRequestType";
+import { MessageProtocolRequestType } from "../../../../../protocol/classes/MessageProtocolRequestType";
 import { UpdateAudioPlayersParams } from "../../types/UpdateAudioPlayersParams";
 
 export type UpdateAudioPlayersMethod = typeof UpdateAudioPlayersMessage.method;

@@ -1,4 +1,4 @@
-import { MessageCallback } from "../types/MessageCallback";
+import { MessageCallback } from "../../../protocol/types/MessageCallback";
 
 export class Socket {
   protected _listeners: Record<string, MessageCallback[]> = {};

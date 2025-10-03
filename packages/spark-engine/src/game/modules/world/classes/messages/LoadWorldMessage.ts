@@ -1,4 +1,4 @@
-import { MessageProtocolRequestType } from "../../../../core/classes/MessageProtocolRequestType";
+import { MessageProtocolRequestType } from "../../../../../protocol/classes/MessageProtocolRequestType";
 import { LoadWorldParams } from "../../types/LoadWorldParams";
 
 export type LoadWorldMethod = typeof LoadWorldMessage.method;

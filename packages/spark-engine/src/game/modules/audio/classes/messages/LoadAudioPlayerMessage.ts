@@ -1,4 +1,4 @@
-import { MessageProtocolRequestType } from "../../../../core/classes/MessageProtocolRequestType";
+import { MessageProtocolRequestType } from "../../../../../protocol/classes/MessageProtocolRequestType";
 import { LoadAudioPlayerParams } from "../../types/LoadAudioPlayerParams";
 import { LoadAudioPlayerResult } from "../../types/LoadAudioPlayerResult";
 

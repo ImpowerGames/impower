@@ -1,8 +1,8 @@
 import { ColorSource, Container } from "pixi.js";
 import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
-import { NotificationMessage } from "../../../spark-engine/src/game/core/types/NotificationMessage";
-import { RequestMessage } from "../../../spark-engine/src/game/core/types/RequestMessage";
-import { ResponseError } from "../../../spark-engine/src/game/core/types/ResponseError";
+import { NotificationMessage } from "../../../spark-engine/src/protocol/types/NotificationMessage";
+import { RequestMessage } from "../../../spark-engine/src/protocol/types/RequestMessage";
+import { ResponseError } from "../../../spark-engine/src/protocol/types/ResponseError";
 
 import {
   attachInputEvents,

@@ -3,35 +3,42 @@ import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { uuid } from "@impower/sparkdown/src/utils/uuid";
+import { ErrorType } from "../../../protocol/enums/ErrorType";
+import { Message } from "../../../protocol/types/Message";
+import { NotificationMessage } from "../../../protocol/types/NotificationMessage";
+import { RequestMessage } from "../../../protocol/types/RequestMessage";
+import { ResponseError } from "../../../protocol/types/ResponseError";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { Breakpoint } from "../types/Breakpoint";
 import { DocumentLocation } from "../types/DocumentLocation";
-import { ErrorType } from "../types/ErrorType";
+import { GameConfiguration } from "../types/GameConfiguration";
 import { GameContext } from "../types/GameContext";
+import { GameState } from "../types/GameState";
 import { InstanceMap } from "../types/InstanceMap";
-import { Message } from "../types/Message";
-import { NotificationMessage } from "../types/NotificationMessage";
-import { RequestMessage } from "../types/RequestMessage";
-import { ResponseError } from "../types/ResponseError";
+import { SaveData } from "../types/SaveData";
+import { ScriptLocation } from "../types/ScriptLocation";
 import { StackFrame } from "../types/StackFrame";
+import { SystemConfiguration } from "../types/SystemConfiguration";
 import { Thread } from "../types/Thread";
 import { Variable, VariablePresentationHint } from "../types/Variable";
+import { findClosestPath } from "../utils/findClosestPath";
+import { findClosestPathLocation } from "../utils/findClosestPathLocation";
 import { Clock } from "./Clock";
 import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
-import { AutoAdvancedToContinueMessage } from "./messages/AutoAdvancedToContinueMessage";
-import { AwaitingInteractionMessage } from "./messages/AwaitingInteractionMessage";
-import { ChosePathToContinueMessage } from "./messages/ChoosePathToContinueMessage";
-import { ClickedToContinueMessage } from "./messages/ClickedToContinueMessage";
-import { ExecutedMessage } from "./messages/ExecutedMessage";
-import { ExitedThreadMessage } from "./messages/ExitedThreadMessage";
-import { FinishedMessage } from "./messages/FinishedMessage";
-import { HitBreakpointMessage } from "./messages/HitBreakpointMessage";
-import { PreviewedMessage } from "./messages/PreviewedMessage";
-import { RuntimeErrorMessage } from "./messages/RuntimeErrorMessage";
-import { StartedMessage } from "./messages/StartedMessage";
-import { StartedThreadMessage } from "./messages/StartedThreadMessage";
-import { SteppedMessage } from "./messages/SteppedMessage";
+import { GameAutoAdvancedToContinueMessage } from "./messages/GameAutoAdvancedToContinueMessage";
+import { GameAwaitingInteractionMessage } from "./messages/GameAwaitingInteractionMessage";
+import { GameChosePathToContinueMessage } from "./messages/GameChosePathToContinueMessage";
+import { GameClickedToContinueMessage } from "./messages/GameClickedToContinueMessage";
+import { GameEncounteredRuntimeErrorMessage } from "./messages/GameEncounteredRuntimeError";
+import { GameExecutedMessage } from "./messages/GameExecutedMessage";
+import { GameExitedThreadMessage } from "./messages/GameExitedThreadMessage";
+import { GameFinishedMessage } from "./messages/GameFinishedMessage";
+import { GameHitBreakpointMessage } from "./messages/GameHitBreakpointMessage";
+import { GamePreviewedMessage } from "./messages/GamePreviewedMessage";
+import { GameStartedMessage } from "./messages/GameStartedMessage";
+import { GameStartedThreadMessage } from "./messages/GameStartedThreadMessage";
+import { GameSteppedMessage } from "./messages/GameSteppedMessage";
 import { Module } from "./Module";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
@@ -40,21 +47,12 @@ export type GameModules = InstanceMap<DefaultModuleConstructors>;
 
 export type M = { [name: string]: Module };
 
-export type ScriptLocation = [
-  scriptIndex: number,
-  startLine: number,
-  startColumn: number,
-  endLine: number,
-  endColumn: number
-];
-
-export interface SaveData {
-  modules: Record<string, any>;
-  context: any;
-  story: string;
-}
-
 export class Game<T extends M = {}> {
+  protected _clock?: Clock;
+  get clock() {
+    return this._clock;
+  }
+
   protected _context: GameContext = {} as GameContext;
   get context() {
     return this._context;
@@ -80,6 +78,9 @@ export class Game<T extends M = {}> {
   protected _story: Story;
 
   protected _scripts: string[];
+  get scripts() {
+    return this._scripts;
+  }
 
   protected _pathLocations: [string, ScriptLocation][];
 
@@ -144,7 +145,7 @@ export class Game<T extends M = {}> {
     return this._simulatePath;
   }
 
-  protected _startPath?: string;
+  protected _startPath?: string | null;
   get startPath() {
     return this._startPath;
   }
@@ -170,7 +171,7 @@ export class Game<T extends M = {}> {
     return this._restarted;
   }
 
-  protected _state: "initial" | "previewing" | "running" = "initial";
+  protected _state: GameState = "initial";
   get state() {
     return this._state;
   }
@@ -190,31 +191,19 @@ export class Game<T extends M = {}> {
     return this._destroyed;
   }
 
+  protected _paused = false;
+  get paused() {
+    return this._paused;
+  }
+
   constructor(
     program: SparkProgram,
-    options?: {
-      restarted?: boolean;
-      executionTimeout?: number;
-      simulateFrom?: { file: string; line: number } | null;
-      simulateChoices?: Record<string, number[]> | null;
-      previewFrom?: { file: string; line: number } | null;
-      startFrom?: { file: string; line: number } | null;
-      breakpoints?: { file: string; line: number }[];
-      functionBreakpoints?: { name: string }[];
-      dataBreakpoints?: { dataId: string }[];
-      now?: () => number;
-      resolve?: (path: string) => string;
-      fetch?: (url: string) => Promise<string | ArrayBuffer>;
-      log?: (message: unknown, severity: "info" | "warning" | "error") => void;
-      setTimeout?: (
-        handler: Function,
-        timeout?: number,
-        ...args: any[]
-      ) => number;
-      modules?: {
-        [name in keyof T]: abstract new (...args: any) => T[name];
-      };
-    }
+    options?: GameConfiguration &
+      SystemConfiguration & {
+        modules?: {
+          [name in keyof T]: abstract new (...args: any) => T[name];
+        };
+      }
   ) {
     this._program = program;
 
@@ -292,6 +281,7 @@ export class Game<T extends M = {}> {
         log: options?.log,
         fetch: options?.fetch,
         resolve: options?.resolve,
+        requestFrame: options?.requestFrame,
       },
       ...(this._program.context || {}),
     };
@@ -332,6 +322,19 @@ export class Game<T extends M = {}> {
       // Simulate module state
       this.simulate();
     }
+
+    const system = this._context.system;
+
+    if (system.requestFrame) {
+      this._clock = new Clock(
+        {
+          get currentTime() {
+            return system.now();
+          },
+        },
+        (callback: () => void) => system.requestFrame?.(callback) ?? 0
+      );
+    }
   }
 
   supports(name: string): boolean {
@@ -360,9 +363,10 @@ export class Game<T extends M = {}> {
     this._simulateFrom = simulateFrom;
     this._simulatePath = undefined;
     if (simulateFrom) {
-      this._simulatePath = this.getClosestPath(
-        simulateFrom.file,
-        simulateFrom.line
+      this._simulatePath = findClosestPath(
+        simulateFrom,
+        this._pathLocations,
+        this._scripts
       );
       if (this._simulatePath) {
         const trueLocation = this._program.pathToLocation?.[this._simulatePath];
@@ -396,7 +400,8 @@ export class Game<T extends M = {}> {
   setStartFrom(startFrom: { file: string; line: number }) {
     this._startFrom = startFrom;
     this._startPath =
-      this.getClosestPath(this._startFrom.file, this._startFrom.line) || "0";
+      findClosestPath(this._startFrom, this._pathLocations, this._scripts) ||
+      "0";
     if (this._startPath) {
       const trueLocation = this._program.pathToLocation?.[this._startPath];
       if (trueLocation) {
@@ -423,7 +428,9 @@ export class Game<T extends M = {}> {
     return this.updateDataBreakpointsMap(dataBreakpoints);
   }
 
-  updateBreakpointsMap(breakpoints: { file: string; line: number }[]) {
+  protected updateBreakpointsMap(
+    breakpoints: { file: string; line: number }[]
+  ) {
     const actualBreakpoints = Game.getActualBreakpoints(
       this._pathLocations,
       breakpoints,
@@ -445,7 +452,9 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
-  updateFunctionBreakpointsMap(functionBreakpoints: { name: string }[]) {
+  protected updateFunctionBreakpointsMap(
+    functionBreakpoints: { name: string }[]
+  ) {
     const actualBreakpoints = Game.getActualFunctionBreakpoints(
       this._program.functionLocations,
       functionBreakpoints,
@@ -467,7 +476,7 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
-  updateDataBreakpointsMap(dataBreakpoints: { dataId: string }[]) {
+  protected updateDataBreakpointsMap(dataBreakpoints: { dataId: string }[]) {
     const actualBreakpoints = Game.getActualDataBreakpoints(
       this._program.dataLocations,
       dataBreakpoints,
@@ -489,7 +498,7 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
-  simulate(): void {
+  protected simulate(): void {
     if (this._simulatePath) {
       this._choices = [];
       this._context.system.simulating = this._simulatePath;
@@ -540,11 +549,36 @@ export class Game<T extends M = {}> {
       }
       this.continue();
     }
+    if (this._clock) {
+      this._clock.add((time) => this.update(time));
+      this._clock.start();
+    }
     return !this._error;
   }
 
+  pause(): void {
+    this._paused = true;
+    if (this._clock) {
+      this._clock.speed = 0;
+    }
+  }
+
+  unpause(): void {
+    this._paused = false;
+    if (this._clock) {
+      this._clock.speed = 1;
+    }
+  }
+
+  skip(seconds: number): void {
+    if (this._clock) {
+      this._clock.adjustTime(seconds);
+      this.update(this._clock);
+    }
+  }
+
   update(time: Clock) {
-    if (!this._destroyed) {
+    if (!this._destroyed && !this.paused) {
       for (const k of this._moduleNames) {
         this._modules[k]?.onUpdate(time);
       }
@@ -580,6 +614,7 @@ export class Game<T extends M = {}> {
       modules: {},
       context: {},
       story: this._story.state.toJson(),
+      executed: Array.from(this._executedPathsThisFrame),
     };
     for (const k of this._moduleNames) {
       const module = this._modules[k];
@@ -604,6 +639,11 @@ export class Game<T extends M = {}> {
       if (saveData.story) {
         this._story.state.LoadJson(saveData.story);
         return true;
+      }
+      if (saveData.executed) {
+        for (const path of saveData.executed) {
+          this._executedPathsThisFrame.add(path);
+        }
       }
     } catch (e) {
       this.log(e, "error");
@@ -666,6 +706,8 @@ export class Game<T extends M = {}> {
     if (this._simulation !== "simulating") {
       this.notifyExecuted();
     }
+
+    return done;
   }
 
   step(traversal: "in" | "out" | "over" | "continue" = "continue"): boolean {
@@ -860,7 +902,7 @@ export class Game<T extends M = {}> {
 
   protected notifyHitBreakpoint() {
     this.connection.emit(
-      HitBreakpointMessage.type.notification({
+      GameHitBreakpointMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       })
     );
@@ -868,7 +910,7 @@ export class Game<T extends M = {}> {
 
   protected notifyAwaitingInteraction() {
     this.connection.emit(
-      AwaitingInteractionMessage.type.notification({
+      GameAwaitingInteractionMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       })
     );
@@ -876,7 +918,7 @@ export class Game<T extends M = {}> {
 
   protected notifyAutoAdvancedToContinue() {
     this.connection.emit(
-      AutoAdvancedToContinueMessage.type.notification({
+      GameAutoAdvancedToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       })
     );
@@ -884,7 +926,7 @@ export class Game<T extends M = {}> {
 
   protected notifyClickedToContinue() {
     this.connection.emit(
-      ClickedToContinueMessage.type.notification({
+      GameClickedToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       })
     );
@@ -892,29 +934,29 @@ export class Game<T extends M = {}> {
 
   protected notifyChosePathToContinue() {
     this.connection.emit(
-      ChosePathToContinueMessage.type.notification({
+      GameChosePathToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       })
     );
   }
 
   protected notifyStarted() {
-    this.connection.emit(StartedMessage.type.notification({}));
+    this.connection.emit(GameStartedMessage.type.notification({}));
   }
 
   protected notifyFinished() {
-    this.connection.emit(FinishedMessage.type.notification({}));
+    this.connection.emit(GameFinishedMessage.type.notification({}));
   }
 
   protected notifyStartedThread(threadIndex: number) {
     this.connection.emit(
-      StartedThreadMessage.type.notification({ threadId: threadIndex })
+      GameStartedThreadMessage.type.notification({ threadId: threadIndex })
     );
   }
 
   protected notifyExitedThread(threadIndex: number) {
     this.connection.emit(
-      ExitedThreadMessage.type.notification({ threadId: threadIndex })
+      GameExitedThreadMessage.type.notification({ threadId: threadIndex })
     );
   }
 
@@ -923,7 +965,7 @@ export class Game<T extends M = {}> {
       this._program.pathToLocation?.[path]
     );
     this.connection.emit(
-      PreviewedMessage.type.notification({
+      GamePreviewedMessage.type.notification({
         location,
         path,
       })
@@ -939,12 +981,12 @@ export class Game<T extends M = {}> {
       }
     });
     this.connection.emit(
-      ExecutedMessage.type.notification({
-        simulateFrom: this._simulateFrom,
-        startFrom: this._startFrom,
+      GameExecutedMessage.type.notification({
+        simulatePath: this._simulatePath,
+        startPath: this._startPath,
+        executedPaths: Array.from(this._executedPathsThisFrame),
         locations,
         choices: this._choices,
-        path: this._executingPath,
         state: this._state,
         restarted: this._restarted,
         simulation: this._simulation,
@@ -954,7 +996,7 @@ export class Game<T extends M = {}> {
 
   protected notifyStepped() {
     this.connection.emit(
-      SteppedMessage.type.notification({
+      GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
       })
     );
@@ -1302,10 +1344,11 @@ export class Game<T extends M = {}> {
   protected Error(message: string, type: ErrorType) {
     this._error = true;
     this.connection.emit(
-      RuntimeErrorMessage.type.notification({
+      GameEncounteredRuntimeErrorMessage.type.notification({
         message,
         type,
         location: this.getDocumentLocation(this._executingLocation),
+        state: this._state,
       })
     );
   }
@@ -1322,15 +1365,21 @@ export class Game<T extends M = {}> {
     this._context.system.debugging = true;
   }
 
-  preview(file: string, line: number): boolean {
+  preview(file: string, line: number): string | null {
     if (this._state === "running") {
       // Don't preview while running
-      return false;
+      return null;
     }
-
-    const previewPath = this.getClosestPath(file, line);
-    if (!previewPath || this._context.system.previewing === previewPath) {
-      return true;
+    const previewPath = findClosestPath(
+      { file, line },
+      this._pathLocations,
+      this._scripts
+    );
+    if (!previewPath) {
+      return null;
+    }
+    if (this._context.system.previewing === previewPath) {
+      return previewPath;
     }
     this._previewFrom = { file, line };
     this._executingPath = "";
@@ -1361,7 +1410,7 @@ export class Game<T extends M = {}> {
     if (previewPath) {
       this.notifyPreviewed(previewPath);
     }
-    return !this._executionTimedOut;
+    return previewPath;
   }
 
   getPathDocumentLocation(path: string) {
@@ -1406,11 +1455,7 @@ export class Game<T extends M = {}> {
     const actualBreakpoints: Breakpoint[] = [];
     for (const breakpoint of breakpoints) {
       const [, closestInstruction] =
-        this.findClosestPathLocation(
-          breakpoint,
-          pathLocationEntries,
-          scripts
-        ) || [];
+        findClosestPathLocation(breakpoint, pathLocationEntries, scripts) || [];
       if (closestInstruction) {
         const [_, closestStartLine] = closestInstruction;
         const validBreakpoint = {
@@ -1522,53 +1567,7 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
-  getClosestPath(file: string | undefined, line: number | undefined) {
-    if (file == null || line == null) {
-      return null;
-    }
-    const [path] =
-      Game.findClosestPathLocation(
-        { file, line },
-        this._pathLocations,
-        this._scripts
-      ) || [];
-    const parentPath = path?.split(".").slice(0, -1).join(".");
-    if (parentPath?.endsWith(".$s")) {
-      // If we are inside choice start content, begin from start of choice
-      const grandParentPath = parentPath?.split(".").slice(0, -1).join(".");
-      return grandParentPath;
-    }
-    return path ?? null;
-  }
-
-  static findClosestPathLocation(
-    breakpoint: { file: string; line: number },
-    pathLocationEntries: [string, ScriptLocation][],
-    scripts: string[]
-  ): [string, ScriptLocation] | null {
-    const breakpointScriptIndex = scripts.indexOf(breakpoint.file);
-    const breakpointLine = breakpoint.line;
-
-    // Step 1: Filter only relevant instructions with the same scriptIndex
-    const relevantLocations = pathLocationEntries.filter(
-      ([, location]) => location[0] === breakpointScriptIndex
-    );
-
-    // Step 2: Check for an exact match within startLine and endLine
-    for (let i = 0; i < relevantLocations.length; i++) {
-      const [, location] = relevantLocations[i]!;
-      const [, startLine, , endLine] = location;
-
-      if (breakpointLine >= startLine && breakpointLine <= endLine) {
-        return relevantLocations[i]!; // Exact match found
-      }
-
-      if (startLine > breakpointLine && endLine > breakpointLine) {
-        // We've passed the breakpoint line, so return
-        return relevantLocations[i]!;
-      }
-    }
-
-    return null; // No valid instructions for this script
+  getClosestPath(file: string, line: number) {
+    return findClosestPath({ file, line }, this._pathLocations, this._scripts);
   }
 }

@@ -1,4 +1,4 @@
-import { MessageProtocolRequestType } from "../../../../core/classes/MessageProtocolRequestType";
+import { MessageProtocolRequestType } from "../../../../../protocol/classes/MessageProtocolRequestType";
 
 export type UnobserveElementMethod = typeof UnobserveElementMessage.method;
 

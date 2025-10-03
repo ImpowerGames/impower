@@ -30,7 +30,7 @@ import {
   MessageConnection,
   ServerCapabilities,
 } from "@impower/spark-editor-protocol/src/types";
-import { NotificationMessage } from "@impower/spark-engine/src";
+import { NotificationMessage } from "@impower/spark-engine/src/protocol/types/NotificationMessage";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
   breakpointMarker,

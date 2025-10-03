@@ -6,14 +6,14 @@ type TickerCallback = (time: Clock) => void;
 /**
  * A function that requests a new frame.
  */
-interface FrameRequestCallback {
+export interface FrameRequestCallback {
   (): void;
 }
 
 /**
  * Reports a current time in seconds.
  */
-interface ClockSource {
+export interface ClockSource {
   currentTime: number;
 }
 
@@ -128,7 +128,7 @@ export class Clock {
   /**
    * The function that will be called to request a new frame.
    */
-  protected _requestFrame: (callback: FrameRequestCallback) => void;
+  protected _requestFrame: (callback: FrameRequestCallback) => number;
 
   /**
    * Used to offset the current time when synchronizing to a new clock.
@@ -143,7 +143,7 @@ export class Clock {
 
   constructor(
     clock: ClockSource,
-    requestFrame: (callback: FrameRequestCallback) => void
+    requestFrame: (callback: FrameRequestCallback) => number
   ) {
     this._clock = clock;
     this._requestFrame = requestFrame;

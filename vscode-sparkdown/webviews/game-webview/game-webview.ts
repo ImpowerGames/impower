@@ -2,10 +2,10 @@ import { AddCompilerFileMessage } from "@impower/spark-editor-protocol/src/proto
 import { ConfigureCompilerMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/ConfigureCompilerMessage";
 import { RemoveCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/RemoveCompilerFileMessage";
 import { UpdateCompilerFileMessage } from "@impower/spark-editor-protocol/src/protocols/compiler/UpdateCompilerFileMessage";
-import { GameResizedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameResizedMessage";
-import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
+import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
+import { LoadGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/LoadGameMessage";
 import SparkWebPlayer from "@impower/spark-web-player/src/index.js";
 import { SparkdownFileRegistry } from "@impower/sparkdown/src/classes/SparkdownFileRegistry";
 

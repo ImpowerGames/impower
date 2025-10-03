@@ -1,9 +1,9 @@
+import { IMessage } from "../../../protocol/types/IMessage";
+import { NotificationMessage } from "../../../protocol/types/NotificationMessage";
+import { RequestMessage } from "../../../protocol/types/RequestMessage";
+import { ResponseError } from "../../../protocol/types/ResponseError";
 import { GameContext } from "../types/GameContext";
-import { IMessage } from "../types/IMessage";
-import { NotificationMessage } from "../types/NotificationMessage";
 import { RecursiveReadonly } from "../types/RecursiveReadonly";
-import { RequestMessage } from "../types/RequestMessage";
-import { ResponseError } from "../types/ResponseError";
 import { Clock } from "./Clock";
 import type { Game } from "./Game";
 

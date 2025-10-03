@@ -1,22 +1,21 @@
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
-import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
-import { EnterGameFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnterGameFullscreenModeMessage";
-import { ExitGameFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/ExitGameFullscreenModeMessage";
-import { FetchGameAssetMessage } from "@impower/spark-editor-protocol/src/protocols/game/FetchGameAssetMessage";
-import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
-import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
-import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
-import { GameToggledFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameToggledFullscreenModeMessage";
-import { GameWillSimulateChoicesMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateChoicesMessage";
-import { GameWillSimulateFromMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateFromMessage";
-import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
+import { ConfigureGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ConfigureGameMessage";
+import { EnterGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage";
+import { ExitGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage";
+import { FetchGameAssetMessage } from "@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage";
+import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
+import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
+import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
+import { GameToggledFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage";
+import { GameWillSimulateChoicesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWillSimulateChoicesMessage";
+import { LoadGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/LoadGameMessage";
+import { MessageProtocolRequestType } from "@impower/spark-engine/src/protocol/classes/MessageProtocolRequestType";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
@@ -130,9 +129,6 @@ export default class GamePreview extends Component(spec) {
       if (GameToggledFullscreenModeMessage.type.is(message)) {
         this.handleGameToggledFullscreenMode(message);
       }
-      if (GameWillSimulateFromMessage.type.is(message)) {
-        this.handleGameWillSimulateFrom(message);
-      }
       if (GameWillSimulateChoicesMessage.type.is(message)) {
         this.handleGameWillSimulateChoices(message);
       }
@@ -202,18 +198,6 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
-  handleGameWillSimulateFrom = async (
-    message: GameWillSimulateFromMessage.Notification
-  ) => {
-    const { simulateFrom } = message.params;
-    const pinpoints = simulateFrom
-      ? { [simulateFrom.file]: [simulateFrom.line] }
-      : {};
-    Workspace.window.setPinpoints(pinpoints);
-    await this.configureGame();
-    await this.loadPreview();
-  };
-
   handleGameWillSimulateChoices = async (
     message: GameWillSimulateChoicesMessage.Notification
   ) => {
@@ -226,8 +210,7 @@ export default class GamePreview extends Component(spec) {
   protected handleGameExecuted = (
     message: GameExecutedMessage.Notification
   ): void => {
-    const { locations, state, restarted, simulation, simulateFrom } =
-      message.params;
+    const { locations, state, restarted } = message.params;
 
     const executedSets: Record<string, Set<number>> = {};
     for (const location of locations) {
@@ -330,10 +313,16 @@ export default class GamePreview extends Component(spec) {
 
   async reload(program: SparkProgram) {
     this._loadingProgram = program;
-    await this.loadGame(program);
+    await this.loadProgram(program);
     await this.configureGame();
     await this.loadPreview();
     this._loadedProgram = program;
+  }
+
+  async loadProgram(program: SparkProgram) {
+    await this.sendRequest(LoadGameMessage.type, {
+      program,
+    });
   }
 
   async configureGame() {
@@ -344,15 +333,6 @@ export default class GamePreview extends Component(spec) {
       this._startFromFile = uri;
       this._startFromLine = startLine;
       const workspace = Workspace.window.store.project.directory;
-      const [file, lines] =
-        Object.entries(Workspace.window.store.debug.pinpoints || {})[0] || [];
-      const simulateFrom =
-        file && lines && lines.length > 0
-          ? {
-              file,
-              line: lines[0]!,
-            }
-          : null;
       const startFrom = {
         file: uri,
         line: startLine,
@@ -361,16 +341,9 @@ export default class GamePreview extends Component(spec) {
       await this.sendRequest(ConfigureGameMessage.type, {
         workspace,
         startFrom,
-        simulateFrom,
         simulateChoices,
       });
     }
-  }
-
-  async loadGame(program: SparkProgram) {
-    await this.sendRequest(LoadGameMessage.type, {
-      program,
-    });
   }
 
   async loadPreview() {

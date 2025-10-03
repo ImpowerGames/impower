@@ -1,65 +1,56 @@
-import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
-import { ContinueGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ContinueGameMessage";
-import { DisableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
-import { EnableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
-import { EnterGameFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnterGameFullscreenModeMessage";
-import { ExitGameFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/ExitGameFullscreenModeMessage";
-import { GameAutoAdvancedToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameAutoAdvancedToContinueMessage";
-import { GameAwaitingInteractionMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameAwaitingInteractionMessage";
-import { GameChosePathToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameChosePathToContinueMessage";
-import { GameClickedToContinueMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameClickedToContinueMessage";
-import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
-import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
-import { GameExitedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedThreadMessage";
-import { GameHitBreakpointMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameHitBreakpointMessage";
-import { GamePreviewedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GamePreviewedMessage";
-import { GameReloadedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameReloadedMessage";
-import { GameResizedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameResizedMessage";
-import { GameStartedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedMessage";
-import { GameStartedThreadMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameStartedThreadMessage";
-import { GameSteppedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameSteppedMessage";
-import { GameToggledFullscreenModeMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameToggledFullscreenModeMessage";
-import { GameWillSimulateChoicesMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateChoicesMessage";
-import { GameWillSimulateFromMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameWillSimulateFromMessage";
-import { GetGameEvaluationContextMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameEvaluationContextMessage";
-import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGamePossibleBreakpointLocationsMessage";
-import { GetGameScriptsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameScriptsMessage";
-import { GetGameStackTraceMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameStackTraceMessage";
-import { GetGameThreadsMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameThreadsMessage";
-import { GetGameVariablesMessage } from "@impower/spark-editor-protocol/src/protocols/game/GetGameVariablesMessage";
-import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
-import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
-import { ResizeGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ResizeGameMessage";
-import { RestartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/RestartGameMessage";
-import { SetGameBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/game/SetGameBreakpointsMessage";
-import { SetGameDataBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/game/SetGameDataBreakpointsMessage";
-import { SetGameFunctionBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/game/SetGameFunctionBreakpointsMessage";
-import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
-import { StepGameClockMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameClockMessage";
-import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
-import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
-import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
-import { AutoAdvancedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/AutoAdvancedToContinueMessage";
-import { AwaitingInteractionMessage } from "@impower/spark-engine/src/game/core/classes/messages/AwaitingInteractionMessage";
-import { ChosePathToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/ChoosePathToContinueMessage";
-import { ClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/ClickedToContinueMessage";
+import { ConfigureGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ConfigureGameMessage";
+import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
+import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
+import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
+import { EnterGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage";
+import { ExitGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage";
+import { GameAutoAdvancedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameAutoAdvancedToContinueMessage";
+import { GameAwaitingInteractionMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameAwaitingInteractionMessage";
+import { GameChosePathToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameChosePathToContinueMessage";
+import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameClickedToContinueMessage";
+import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import {
-  ExecutedMessage,
-  ExecutedParams,
-} from "@impower/spark-engine/src/game/core/classes/messages/ExecutedMessage";
-import { ExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExitedThreadMessage";
-import { FinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/FinishedMessage";
-import { HitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/HitBreakpointMessage";
-import { PreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/PreviewedMessage";
-import { RuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/RuntimeErrorMessage";
-import { StartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartedThreadMessage";
-import { SteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/SteppedMessage";
+  GameExecutedMessage,
+  GameExecutedParams,
+} from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
+import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
+import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedThreadMessage";
+import { GameFinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameFinishedMessage";
+import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
+import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
+import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
+import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
+import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
+import { GameStartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedThreadMessage";
+import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
+import { GameToggledFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage";
+import { GameWillSimulateChoicesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWillSimulateChoicesMessage";
+import { GetGameEvaluationContextMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameEvaluationContextMessage";
+import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGamePossibleBreakpointLocationsMessage";
+import { GetGameScriptsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameScriptsMessage";
+import { GetGameStackTraceMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameStackTraceMessage";
+import { GetGameThreadsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameThreadsMessage";
+import { GetGameVariablesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameVariablesMessage";
+import { LoadGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/LoadGameMessage";
+import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
+import { ResizeGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
+import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
+import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
+import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameDataBreakpointsMessage";
+import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
+import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
+import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
+import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
+import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
+import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
-import { ErrorType } from "@impower/spark-engine/src/game/core/types/ErrorType";
+import { ScriptLocation } from "@impower/spark-engine/src/game/core/types/ScriptLocation";
+import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
+import { ErrorType } from "@impower/spark-engine/src/protocol/enums/ErrorType";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../spec-component/src/component";
 import { Application } from "../app/Application";
@@ -87,6 +78,10 @@ export default class SparkWebPlayer extends Component(spec) {
   _debugging = false;
 
   _program?: SparkProgram;
+
+  _scripts: string[] = [];
+
+  _pathLocations: [string, ScriptLocation][] = [];
 
   _options?: {
     workspace?: string;
@@ -129,30 +124,6 @@ export default class SparkWebPlayer extends Component(spec) {
       "pointerup",
       this.handlePointerUpToolbar
     );
-    this.refs.launchButton?.addEventListener(
-      "pointerdown",
-      this.handlePointerDownLaunchButton
-    );
-    this.refs.launchButton?.addEventListener(
-      "pointerup",
-      this.handlePointerUpLaunchButton
-    );
-    this.refs.launchButton?.addEventListener(
-      "click",
-      this.handleClickLaunchButton
-    );
-    this.refs.resetButton?.addEventListener(
-      "pointerdown",
-      this.handlePointerDownResetButton
-    );
-    this.refs.resetButton?.addEventListener(
-      "pointerup",
-      this.handlePointerUpResetButton
-    );
-    this.refs.resetButton?.addEventListener(
-      "click",
-      this.handleClickResetButton
-    );
     this.refs.fullscreenButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownFullscreenButton
@@ -194,30 +165,6 @@ export default class SparkWebPlayer extends Component(spec) {
     this.refs.toolbar?.removeEventListener(
       "pointerup",
       this.handlePointerUpToolbar
-    );
-    this.refs.launchButton?.removeEventListener(
-      "pointerdown",
-      this.handlePointerDownLaunchButton
-    );
-    this.refs.launchButton?.removeEventListener(
-      "pointerup",
-      this.handlePointerUpLaunchButton
-    );
-    this.refs.launchButton?.removeEventListener(
-      "click",
-      this.handleClickLaunchButton
-    );
-    this.refs.resetButton?.removeEventListener(
-      "pointerdown",
-      this.handlePointerDownResetButton
-    );
-    this.refs.resetButton?.removeEventListener(
-      "pointerup",
-      this.handlePointerUpResetButton
-    );
-    this.refs.resetButton?.removeEventListener(
-      "click",
-      this.handleClickResetButton
     );
     this.refs.fullscreenButton?.removeEventListener(
       "pointerdown",
@@ -301,25 +248,7 @@ export default class SparkWebPlayer extends Component(spec) {
     return location;
   }
 
-  protected updateResetButton() {
-    const simulation = Boolean(this._options?.simulateFrom);
-    if (simulation || this._game?.state === "running") {
-      this.refs.resetButton.hidden = true;
-    } else {
-      this.refs.resetButton.hidden = false;
-    }
-  }
-
-  protected updateLaunchButton() {
-    const simulation = Boolean(this._options?.simulateFrom);
-    this.refs.launchButton.classList.toggle("pinned", simulation);
-    if (!simulation) {
-      this.refs.locationItems.classList.toggle("error", false);
-      this.refs.connectionLabel.innerHTML = `→`;
-    }
-  }
-
-  protected updateExecutionLabels(params?: ExecutedParams) {
+  protected updateExecutionLabels(params?: GameExecutedParams) {
     this.refs.locationItems.classList.toggle(
       "error",
       params?.simulation === "fail"
@@ -567,63 +496,6 @@ export default class SparkWebPlayer extends Component(spec) {
     await this.startGameAndApp();
     this.hidePlayButton();
     this.emit(MessageProtocol.event, GameStartedMessage.type.notification({}));
-  };
-
-  protected handlePointerDownLaunchButton = (e: PointerEvent) => {
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    e.stopPropagation();
-  };
-
-  protected handlePointerUpLaunchButton = (e: PointerEvent) => {
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-  };
-
-  protected handleClickLaunchButton = async () => {
-    if (!this._game) {
-      return;
-    }
-    if (this._options?.simulateFrom) {
-      this._options ??= {};
-      this._options.simulateFrom = this._game.setSimulateFrom(null);
-    } else {
-      const startFrom = this._game.startFrom ?? null;
-      this._options ??= {};
-      this._options.simulateFrom = this._game.setSimulateFrom(startFrom);
-    }
-    this.updateLaunchButton();
-    this.updateResetButton();
-    this.emit(
-      MessageProtocol.event,
-      GameWillSimulateFromMessage.type.notification({
-        simulateFrom: this._options.simulateFrom,
-      })
-    );
-  };
-
-  protected handlePointerDownResetButton = (e: PointerEvent) => {
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    e.stopPropagation();
-  };
-
-  protected handlePointerUpResetButton = (e: PointerEvent) => {
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-  };
-
-  protected handleClickResetButton = async () => {
-    if (!this._game) {
-      return;
-    }
-    if (this._game.state === "running") {
-      await this.restartGame();
-    } else {
-      if (this._game.previewFrom) {
-        await this.updatePreview(
-          this._game.previewFrom.file,
-          this._game.previewFrom.line,
-          true
-        );
-      }
-    }
   };
 
   protected handlePointerDownFullscreenButton = (e: PointerEvent) => {
@@ -891,9 +763,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._options.startFrom =
         this._game?.setStartFrom(startFrom) ?? startFrom;
     }
-    this.updateLaunchButton();
     this.updateLaunchStateIcon();
-    this.updateResetButton();
     return messageType.response(message.id, {});
   };
 
@@ -950,7 +820,6 @@ export default class SparkWebPlayer extends Component(spec) {
       this._game.startDebugging();
     }
     this.updateLaunchStateIcon();
-    this.updateResetButton();
     return this._game
       ? messageType.response(message.id, {})
       : messageType.error(message.id, {
@@ -967,7 +836,6 @@ export default class SparkWebPlayer extends Component(spec) {
       this._game.stopDebugging();
     }
     this.updateLaunchStateIcon();
-    this.updateResetButton();
     return this._game
       ? messageType.response(message.id, {})
       : messageType.error(message.id, {
@@ -985,7 +853,6 @@ export default class SparkWebPlayer extends Component(spec) {
       const line = selectedRange?.start.line ?? 0;
       await this.updatePreview(textDocument.uri, line);
       this.updateLaunchStateIcon();
-      this.updateResetButton();
       return messageType.response(message.id, {});
     }
     return undefined;
@@ -995,8 +862,10 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof LoadGameMessage.type,
     message: LoadGameMessage.Request
   ) => {
-    const params = message.params;
-    this._program = params.program;
+    const { program } = message.params;
+    this._program = program;
+    this._pathLocations = Object.entries(this._program?.pathToLocation ?? {});
+    this._scripts = Object.keys(this._program?.scripts ?? {});
     // Preload all images
     // TODO: Only preload images that are going to be shown before the next interaction
     this._preloadedImages.clear();
@@ -1019,9 +888,7 @@ export default class SparkWebPlayer extends Component(spec) {
         GameReloadedMessage.type.notification({})
       );
     }
-    this.updateLaunchButton();
     this.updateLaunchStateIcon();
-    this.updateResetButton();
     return messageType.response(message.id, {});
   };
 
@@ -1032,9 +899,8 @@ export default class SparkWebPlayer extends Component(spec) {
     this.hidePlayButton();
     const success = await this.startGameAndApp();
     this.updateLaunchStateIcon();
-    this.updateResetButton();
     return success
-      ? messageType.response(message.id, {})
+      ? messageType.response(message.id, { success })
       : messageType.error(message.id, {
           code: 1,
           message: !this._program?.compiled
@@ -1066,8 +932,10 @@ export default class SparkWebPlayer extends Component(spec) {
     if (this._app) {
       this._app.pause();
     }
+    if (this._game) {
+      this._game.pause();
+    }
     this.updateLaunchStateIcon();
-    this.updateResetButton();
     return this._app
       ? messageType.response(message.id, {})
       : messageType.error(message.id, {
@@ -1083,8 +951,10 @@ export default class SparkWebPlayer extends Component(spec) {
     if (this._app) {
       this._app.unpause();
     }
+    if (this._game) {
+      this._game.unpause();
+    }
     this.updateLaunchStateIcon();
-    this.updateResetButton();
     return this._app
       ? messageType.response(message.id, {})
       : messageType.error(message.id, {
@@ -1101,8 +971,10 @@ export default class SparkWebPlayer extends Component(spec) {
     if (this._app) {
       this._app.skip(seconds);
     }
+    if (this._game) {
+      this._game.skip(seconds);
+    }
     this.updateLaunchStateIcon();
-    this.updateResetButton();
     return this._app
       ? messageType.response(message.id, {})
       : messageType.error(message.id, {
@@ -1116,11 +988,8 @@ export default class SparkWebPlayer extends Component(spec) {
     message: StepGameMessage.Request
   ) => {
     const { traversal } = message.params;
-    if (this._game) {
-      this._game.step(traversal);
-    }
     return this._game
-      ? messageType.response(message.id, {})
+      ? messageType.response(message.id, { done: this._game.step(traversal) })
       : messageType.error(message.id, {
           code: 1,
           message: "no game loaded",
@@ -1131,11 +1000,8 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof ContinueGameMessage.type,
     message: ContinueGameMessage.Request
   ) => {
-    if (this._game) {
-      this._game.continue();
-    }
     return this._game
-      ? messageType.response(message.id, {})
+      ? messageType.response(message.id, { done: this._game.continue() })
       : messageType.error(message.id, {
           code: 1,
           message: "no game loaded",
@@ -1302,7 +1168,6 @@ export default class SparkWebPlayer extends Component(spec) {
       this._app?.start();
     }
     this.updateLaunchStateIcon();
-    this.updateResetButton();
     return success;
   }
 
@@ -1316,7 +1181,6 @@ export default class SparkWebPlayer extends Component(spec) {
       this._app = undefined;
     }
     this.updateLaunchStateIcon();
-    this.updateResetButton();
   }
 
   async stopGame(
@@ -1406,9 +1270,9 @@ export default class SparkWebPlayer extends Component(spec) {
     });
     this.updateExecutionLabels();
     this._game.connection.outgoing.addListener(
-      RuntimeErrorMessage.method,
+      GameEncounteredRuntimeErrorMessage.method,
       async (msg) => {
-        if (RuntimeErrorMessage.type.isNotification(msg)) {
+        if (GameEncounteredRuntimeErrorMessage.type.isNotification(msg)) {
           const type = msg.params.type;
           const message = msg.params.message;
           const location = msg.params.location;
@@ -1431,17 +1295,17 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     );
     this._game.connection.outgoing.addListener(
-      FinishedMessage.method,
+      GameFinishedMessage.method,
       async (msg) => {
-        if (FinishedMessage.type.isNotification(msg)) {
+        if (GameFinishedMessage.type.isNotification(msg)) {
           await this.stopGame("finished");
         }
       }
     );
     this._game.connection.outgoing.addListener(
-      StartedThreadMessage.method,
+      GameStartedThreadMessage.method,
       (msg) => {
-        if (StartedThreadMessage.type.isNotification(msg)) {
+        if (GameStartedThreadMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
             GameStartedThreadMessage.type.notification(msg.params)
@@ -1450,9 +1314,9 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     );
     this._game.connection.outgoing.addListener(
-      ExitedThreadMessage.method,
+      GameExitedThreadMessage.method,
       (msg) => {
-        if (ExitedThreadMessage.type.isNotification(msg)) {
+        if (GameExitedThreadMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
             GameExitedThreadMessage.type.notification(msg.params)
@@ -1461,9 +1325,9 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     );
     this._game.connection.outgoing.addListener(
-      ExecutedMessage.method,
+      GameExecutedMessage.method,
       (msg) => {
-        if (ExecutedMessage.type.isNotification(msg)) {
+        if (GameExecutedMessage.type.isNotification(msg)) {
           this.updateExecutionLabels(msg.params);
           this.emit(
             MessageProtocol.event,
@@ -1473,9 +1337,9 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     );
     this._game.connection.outgoing.addListener(
-      PreviewedMessage.method,
+      GamePreviewedMessage.method,
       (msg) => {
-        if (PreviewedMessage.type.isNotification(msg)) {
+        if (GamePreviewedMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
             GamePreviewedMessage.type.notification(msg.params)
@@ -1483,18 +1347,21 @@ export default class SparkWebPlayer extends Component(spec) {
         }
       }
     );
-    this._game.connection.outgoing.addListener(SteppedMessage.method, (msg) => {
-      if (SteppedMessage.type.isNotification(msg)) {
-        this.emit(
-          MessageProtocol.event,
-          GameSteppedMessage.type.notification(msg.params)
-        );
-      }
-    });
     this._game.connection.outgoing.addListener(
-      HitBreakpointMessage.method,
+      GameSteppedMessage.method,
       (msg) => {
-        if (HitBreakpointMessage.type.isNotification(msg)) {
+        if (GameSteppedMessage.type.isNotification(msg)) {
+          this.emit(
+            MessageProtocol.event,
+            GameSteppedMessage.type.notification(msg.params)
+          );
+        }
+      }
+    );
+    this._game.connection.outgoing.addListener(
+      GameHitBreakpointMessage.method,
+      (msg) => {
+        if (GameHitBreakpointMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
             GameHitBreakpointMessage.type.notification(msg.params)
@@ -1503,9 +1370,9 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     );
     this._game.connection.outgoing.addListener(
-      AwaitingInteractionMessage.method,
+      GameAwaitingInteractionMessage.method,
       (msg) => {
-        if (AwaitingInteractionMessage.type.isNotification(msg)) {
+        if (GameAwaitingInteractionMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
             GameAwaitingInteractionMessage.type.notification(msg.params)
@@ -1514,9 +1381,9 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     );
     this._game.connection.outgoing.addListener(
-      AutoAdvancedToContinueMessage.method,
+      GameAutoAdvancedToContinueMessage.method,
       (msg) => {
-        if (AutoAdvancedToContinueMessage.type.isNotification(msg)) {
+        if (GameAutoAdvancedToContinueMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
             GameAutoAdvancedToContinueMessage.type.notification(msg.params)
@@ -1525,9 +1392,9 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     );
     this._game.connection.outgoing.addListener(
-      ClickedToContinueMessage.method,
+      GameClickedToContinueMessage.method,
       (msg) => {
-        if (ClickedToContinueMessage.type.isNotification(msg)) {
+        if (GameClickedToContinueMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
             GameClickedToContinueMessage.type.notification(msg.params)
@@ -1536,9 +1403,9 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     );
     this._game.connection.outgoing.addListener(
-      ChosePathToContinueMessage.method,
+      GameChosePathToContinueMessage.method,
       (msg) => {
-        if (ChosePathToContinueMessage.type.isNotification(msg)) {
+        if (GameChosePathToContinueMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
             GameChosePathToContinueMessage.type.notification(msg.params)
@@ -1558,8 +1425,6 @@ export default class SparkWebPlayer extends Component(spec) {
     );
     await this._app.init();
 
-    this.updateResetButton();
-
     return this._game;
   }
 
@@ -1567,7 +1432,30 @@ export default class SparkWebPlayer extends Component(spec) {
     if (this._app && !this._app.initialized && this._app.initializing) {
       await this._app.initializing;
     }
-    const previewPath = this._game?.getClosestPath(file, line);
+    const previewFrom = { file, line };
+    const previewPath = findClosestPath(
+      previewFrom,
+      this._pathLocations,
+      this._scripts
+    );
+    const scenePath = previewPath?.split(".")[0] || "0";
+    const sceneLocation = this._program?.sceneLocations?.[scenePath];
+    let simulatePath: string | undefined | null = undefined;
+    if (sceneLocation) {
+      // Simulate from the start of the closest scene
+      const [sceneIndex, sceneStartLine] = sceneLocation;
+      const simulateFrom = {
+        file: this._scripts[sceneIndex]!,
+        line: sceneStartLine,
+      };
+      this._options ??= {};
+      this._options.simulateFrom = simulateFrom;
+      simulatePath = findClosestPath(
+        simulateFrom,
+        this._pathLocations,
+        this._scripts
+      );
+    }
     const executedChoices = this._game?.choices.map((c) => c.selected) ?? [];
     const shouldSimulateChoices = Array.from(
       { length: this._game?.choices.length ?? 0 },

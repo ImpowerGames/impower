@@ -1,5 +1,5 @@
+import { MessageProtocolNotificationType } from "../../../../protocol/classes/MessageProtocolNotificationType";
 import { Event } from "../../types/Event";
-import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type EventMethod = typeof EventMessage.method;
 

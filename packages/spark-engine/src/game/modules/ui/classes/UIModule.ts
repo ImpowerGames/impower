@@ -1,5 +1,6 @@
 import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/utils/sortFilteredName";
+import { NotificationMessage } from "../../../../protocol/types/NotificationMessage";
 import { Clock } from "../../../core/classes/Clock";
 import type { Game } from "../../../core/classes/Game";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
@@ -10,7 +11,6 @@ import {
   ImageInstruction,
   TextInstruction,
 } from "../../../core/types/Instruction";
-import { NotificationMessage } from "../../../core/types/NotificationMessage";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import { Animation } from "../types/Animation";

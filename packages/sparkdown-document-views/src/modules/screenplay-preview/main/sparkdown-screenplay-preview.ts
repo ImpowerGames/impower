@@ -48,8 +48,8 @@ import {
   TextDocumentIdentifier,
   TextDocumentItem,
 } from "@impower/spark-editor-protocol/src/types";
-import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/RequestMessage";
-import { NotificationMessage } from "@impower/spark-engine/src";
+import { NotificationMessage } from "@impower/spark-engine/src/protocol/types/NotificationMessage";
+import { RequestMessage } from "@impower/spark-engine/src/protocol/types/RequestMessage";
 import { Component } from "../../../../../spec-component/src/component";
 import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
 import { getClientChanges } from "../../../cm-language-client";

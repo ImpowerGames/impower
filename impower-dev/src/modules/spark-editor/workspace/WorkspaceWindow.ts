@@ -19,13 +19,6 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
-import { DisableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
-import { EnableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
-import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
-import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
-import { StepGameClockMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameClockMessage";
-import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
-import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import {
   DidCompileTextDocumentMessage,
   DidCompileTextDocumentMethod,
@@ -50,6 +43,13 @@ import {
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
+import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
+import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
+import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
+import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
+import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
+import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
+import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { debounce } from "../utils/debounce";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";

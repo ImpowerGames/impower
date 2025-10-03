@@ -1,6 +1,5 @@
 import AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
 import AudioPlayer from "../../../../spark-dom/src/classes/AudioPlayer";
-import { RequestMessage } from "../../../../spark-engine/src/game/core/types/RequestMessage";
 import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
 import { ConfigureAudioMixerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/ConfigureAudioMixerMessage";
 import { LoadAudioPlayerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioPlayerMessage";
@@ -13,6 +12,7 @@ import { ToneSequence } from "../../../../spark-engine/src/game/modules/audio/ty
 import { UpdateAudioPlayersParams } from "../../../../spark-engine/src/game/modules/audio/types/UpdateAudioPlayersParams";
 import { convertMidiToToneSequences } from "../../../../spark-engine/src/game/modules/audio/utils/convertMidiToToneSequences";
 import { parseMidi } from "../../../../spark-engine/src/game/modules/audio/utils/parseMidi";
+import { RequestMessage } from "../../../../spark-engine/src/protocol/types/RequestMessage";
 import { Manager } from "../Manager";
 
 export default class AudioManager extends Manager {

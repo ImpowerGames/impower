@@ -1,6 +1,6 @@
+import { NotificationMessage } from "../../../protocol/types/NotificationMessage";
+import { RequestMessage } from "../../../protocol/types/RequestMessage";
 import { Instructions } from "../types/Instructions";
-import { NotificationMessage } from "../types/NotificationMessage";
-import { RequestMessage } from "../types/RequestMessage";
 import { Clock } from "./Clock";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";

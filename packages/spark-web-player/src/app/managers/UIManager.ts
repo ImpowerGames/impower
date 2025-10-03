@@ -1,8 +1,7 @@
+import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { getCSSPropertyKeyValue } from "../../../../spark-dom/src/utils/getCSSPropertyKeyValue";
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
-import { EventMessage } from "../../../../spark-engine/src/game/core/classes/messages/EventMessage";
-import { RequestMessage } from "../../../../spark-engine/src/game/core/types/RequestMessage";
 import { AnimateElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
 import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/CreateElementMessage";
 import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
@@ -10,6 +9,7 @@ import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
 import { UnobserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
 import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
+import { RequestMessage } from "../../../../spark-engine/src/protocol/types/RequestMessage";
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 

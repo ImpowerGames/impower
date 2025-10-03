@@ -1,10 +1,10 @@
-import { IMessage } from "../types/IMessage";
-import { Message } from "../types/Message";
-import { MessageCallback } from "../types/MessageCallback";
-import { NotificationMessage } from "../types/NotificationMessage";
-import { RequestMessage } from "../types/RequestMessage";
-import { ResponseError } from "../types/ResponseError";
-import { ResponseMessage } from "../types/ResponseMessage";
+import { IMessage } from "../../../protocol/types/IMessage";
+import { Message } from "../../../protocol/types/Message";
+import { MessageCallback } from "../../../protocol/types/MessageCallback";
+import { NotificationMessage } from "../../../protocol/types/NotificationMessage";
+import { RequestMessage } from "../../../protocol/types/RequestMessage";
+import { ResponseError } from "../../../protocol/types/ResponseError";
+import { ResponseMessage } from "../../../protocol/types/ResponseMessage";
 import { Socket } from "./Socket";
 
 export interface ConnectionConfig {
@@ -155,10 +155,17 @@ export class Connection {
     listenerMap: Record<string, MessageCallback[]>
   ) {
     if (message.method) {
-      const listeners = listenerMap[message.method];
-      if (listeners) {
-        // broadcast message to all registered listeners
-        listeners.forEach((callback) => {
+      const generalListeners = listenerMap["*"];
+      if (generalListeners) {
+        // broadcast message to all registered general listeners
+        generalListeners.forEach((callback) => {
+          callback?.(message as IMessage);
+        });
+      }
+      const methodListeners = listenerMap[message.method];
+      if (methodListeners) {
+        // broadcast message to all registered method listeners
+        methodListeners.forEach((callback) => {
           callback?.(message as IMessage);
         });
       }

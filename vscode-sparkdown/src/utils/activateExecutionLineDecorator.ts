@@ -1,7 +1,7 @@
-import { GameExecutedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExecutedMessage";
-import { GameExitedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GameExitedMessage";
-import { GamePreviewedMessage } from "@impower/spark-editor-protocol/src/protocols/game/GamePreviewedMessage";
 import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
+import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
+import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
+import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
 import * as vscode from "vscode";
 import { Location } from "vscode-languageclient";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";

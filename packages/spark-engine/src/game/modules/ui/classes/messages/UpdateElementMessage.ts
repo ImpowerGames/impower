@@ -1,4 +1,4 @@
-import { MessageProtocolRequestType } from "../../../../core/classes/MessageProtocolRequestType";
+import { MessageProtocolRequestType } from "../../../../../protocol/classes/MessageProtocolRequestType";
 import { ElementContent } from "../../types/ElementContent";
 
 export type UpdateElementMethod = typeof UpdateElementMessage.method;
