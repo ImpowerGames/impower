@@ -89,6 +89,7 @@ patterns:
   - { include: "#Logic" }
   - { include: "#Choice" }
   - { include: "#Gather" }
+  - { include: "#ConditionalBracedBlock" }
   - { include: "#ConditionalIndentedBlock" }
   - { include: "#Title" }
   - { include: "#Heading" }

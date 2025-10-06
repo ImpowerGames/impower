@@ -150,6 +150,9 @@
       "include": "#Gather"
     },
     {
+      "include": "#ConditionalBracedBlock"
+    },
+    {
       "include": "#ConditionalIndentedBlock"
     },
     {
