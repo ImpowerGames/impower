@@ -8,6 +8,7 @@ export default spec({
     playLabel: "PLAY",
     playButton: false,
     toolbar: false,
+    fullscreenButton: false,
   },
   selectors: {
     viewport: "#viewport",
@@ -32,7 +33,12 @@ export default spec({
   } as const,
   css: [resetCSS, css],
   html: ({ props }) => {
-    const { toolbar, playButton, playLabel } = props;
+    const { toolbar, playButton, fullscreenButton, playLabel } = props;
+    const fullscreenButtonComponent = () => html`
+      <div id="fullscreen-button" class="toolbar-button">
+        <div id="fullscreen-icon"></div>
+      </div>
+    `;
     const toolbarComponent = () => html`
       <div id="toolbar">
         <div id="resize-handle"></div>
@@ -52,9 +58,7 @@ export default spec({
         <div id="right-items">
           <div id="aspect-ratio-label"></div>
           <div id="size-label"></div>
-          <div id="fullscreen-button" class="toolbar-button">
-            <div id="fullscreen-icon"></div>
-          </div>
+          ${fullscreenButton ? fullscreenButtonComponent : ""}
         </div>
       </div>
     `;

@@ -237,9 +237,12 @@
   align-items: center;
 }
 
-#size-label,
 #aspect-ratio-label {
   padding: var(--swp-toolbar-label-padding);
+}
+#size-label {
+  padding: var(--swp-toolbar-label-padding);
+  margin-right: var(--swp-toolbar-button-gap);
 }
 
 #executed-label {
