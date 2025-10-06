@@ -3477,6 +3477,9 @@ export class InkParser extends StringParser {
       this.IdentifierWithMetadata,
       this.Exclude(this.String("."))
     );
+    if (!path) {
+      return null;
+    }
     const identifier = new Identifier(path.map((p) => p.name).join("."));
     const first = path[0];
     const last = path.at(-1);
