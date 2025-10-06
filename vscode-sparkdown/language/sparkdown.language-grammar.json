@@ -5171,7 +5171,7 @@
     },
     "ExtraWhitespace": {
       "tag": "content",
-      "name": "markup.raw.whitespace.sd",
+      "name": "markup.raw.whitespace.extra.sd",
       "match": "([^\\S\\n\\r]+)"
     },
     "Whitespace": {
@@ -5181,12 +5181,12 @@
     },
     "Separator": {
       "tag": "definition(content)",
-      "name": "markup.raw.whitespace.sd",
+      "name": "markup.raw.whitespace.separator.sd",
       "match": "([^\\S\\n\\r]+)"
     },
     "OptionalSeparator": {
       "tag": "definition(content)",
-      "name": "markup.raw.whitespace.sd",
+      "name": "markup.raw.whitespace.separator.optional.sd",
       "match": "([^\\S\\n\\r]*)"
     },
     "EndOfLine": {

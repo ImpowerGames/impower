@@ -2813,7 +2813,7 @@ repository:
 
   ExtraWhitespace:
     tag: content
-    name: markup.raw.whitespace.sd
+    name: markup.raw.whitespace.extra.sd
     match: ({{WS}}+)
 
   Whitespace:
@@ -2823,12 +2823,12 @@ repository:
 
   Separator:
     tag: definition(content)
-    name: markup.raw.whitespace.sd
+    name: markup.raw.whitespace.separator.sd
     match: ({{WS}}+)
 
   OptionalSeparator:
     tag: definition(content)
-    name: markup.raw.whitespace.sd
+    name: markup.raw.whitespace.separator.optional.sd
     match: ({{WS}}*)
 
   EndOfLine:
