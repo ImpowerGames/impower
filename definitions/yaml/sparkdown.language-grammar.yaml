@@ -4349,7 +4349,7 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#Separator" }
           - { include: "#StringLiteral" }
           - { include: "#AssetCommandKeywordNone" }
           - { include: "#AssetCommandFilteredFileName" }
