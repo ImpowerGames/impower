@@ -1969,6 +1969,7 @@ repository:
       - { include: "#Todo" }
       - { include: "#Logic" }
       - { include: "#Tag" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#ConditionalIndentedBlock" }
       - { include: "#Title" }
       - { include: "#Heading" }
@@ -2689,6 +2690,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#MultilineCloseBraceAhead" }
+      - { include: "#ConditionalBracedBlock" }
       - { include: "#ConditionalIndentedBlock" }
       - { include: "#Title" }
       - { include: "#Heading" }
@@ -3437,7 +3439,7 @@ repository:
   FrontMatterField:
     tag: meta
     name: meta.front-matter.field.sd
-    begin: ^(?!{{WS}}+)([^:\r\n]+)({{WS}}*)($|[:])($|.*$(?:\r\n|\r|\n)?)
+    begin: ^(?!{{WS}}+)([^{}:\r\n]+)({{WS}}*)($|[:])($|.*$(?:\r\n|\r|\n)?)
     beginCaptures:
       1:
         patterns:
@@ -3456,7 +3458,7 @@ repository:
       - { include: "#FrontMatterStringBlock" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
-    end: (?=^(?!{{WS}}+)[^:\r\n]+{{WS}}*(?:$|[:])|[-]{3,})
+    end: (?=^(?!{{WS}}+)[^{}:\r\n]+{{WS}}*(?:$|[:])|[-]{3,})
 
   FrontMatterFieldKeyword:
     tag: keyword
@@ -3783,7 +3785,7 @@ repository:
   BlockDialogue:
     tag: string
     name: string.dialogue.block.sd
-    begin: ({{WS}}*)((?=\S)(?:\\.|[^:\r\n])+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
+    begin: ({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3808,7 +3810,7 @@ repository:
   InlineDialogue:
     tag: string
     name: string.dialogue.inline.sd
-    begin: ({{WS}}*)((?=\S)(?:\\.|[^:\r\n])+)((?<!\\)[:])($|{{WS}}+)
+    begin: ({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])($|{{WS}}+)
     beginCaptures:
       1:
         patterns:

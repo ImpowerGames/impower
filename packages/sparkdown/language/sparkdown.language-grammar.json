@@ -3569,6 +3569,9 @@
           "include": "#Tag"
         },
         {
+          "include": "#ConditionalBracedBlock"
+        },
+        {
           "include": "#ConditionalIndentedBlock"
         },
         {
@@ -4954,6 +4957,9 @@
           "include": "#MultilineCloseBraceAhead"
         },
         {
+          "include": "#ConditionalBracedBlock"
+        },
+        {
           "include": "#ConditionalIndentedBlock"
         },
         {
@@ -6135,7 +6141,7 @@
     "FrontMatterField": {
       "tag": "meta",
       "name": "meta.front-matter.field.sd",
-      "begin": "^(?![^\\S\\n\\r]+)([^:\\r\\n]+)([^\\S\\n\\r]*)($|[:])($|.*$(?:\\r\\n|\\r|\\n)?)",
+      "begin": "^(?![^\\S\\n\\r]+)([^{}:\\r\\n]+)([^\\S\\n\\r]*)($|[:])($|.*$(?:\\r\\n|\\r|\\n)?)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6180,7 +6186,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?![^\\S\\n\\r]+)[^:\\r\\n]+[^\\S\\n\\r]*(?:$|[:])|[-]{3,})"
+      "end": "(?=^(?![^\\S\\n\\r]+)[^{}:\\r\\n]+[^\\S\\n\\r]*(?:$|[:])|[-]{3,})"
     },
     "FrontMatterFieldKeyword": {
       "tag": "keyword",
@@ -6804,7 +6810,7 @@
     "BlockDialogue": {
       "tag": "string",
       "name": "string.dialogue.block.sd",
-      "begin": "([^\\S\\n\\r]*)((?=\\S)(?:\\\\.|[^:\\r\\n])+)((?<!\\\\)[:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "([^\\S\\n\\r]*)((?=\\S)(?:\\\\.|[^{}:\\r\\n])+)((?<!\\\\)[:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6857,7 +6863,7 @@
     "InlineDialogue": {
       "tag": "string",
       "name": "string.dialogue.inline.sd",
-      "begin": "([^\\S\\n\\r]*)((?=\\S)(?:\\\\.|[^:\\r\\n])+)((?<!\\\\)[:])($|[^\\S\\n\\r]+)",
+      "begin": "([^\\S\\n\\r]*)((?=\\S)(?:\\\\.|[^{}:\\r\\n])+)((?<!\\\\)[:])($|[^\\S\\n\\r]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
