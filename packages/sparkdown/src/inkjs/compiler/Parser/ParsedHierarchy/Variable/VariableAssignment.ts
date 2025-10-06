@@ -11,7 +11,7 @@ import { VariableAssignment as RuntimeVariableAssignment } from "../../../../eng
 import { VariableReference } from "./VariableReference";
 import { Identifier } from "../Identifier";
 import { asOrNull } from "../../../../engine/TypeAssertion";
-import { StructDefinition } from "../Struct/StructDefinition";
+import { StructDefinition } from "../Struct/StructDefinition"
 
 export class VariableAssignment extends ParsedObject {
   private _runtimeAssignment: RuntimeVariableAssignment | null = null;
@@ -168,12 +168,12 @@ export class VariableAssignment extends ParsedObject {
 
       if (!resolvedVarAssignment.found) {
         if (this.variableName in this.story.constants) {
-          this.Error(
-            `Cannot re-assign a const variable`,
-            this
-          );
+          this.Error(`Cannot re-assign a const variable`, this);
         } else {
-          this.Error(`Cannot find variable named '${this.variableName}'`, this);
+          this.Error(
+            `Cannot find variable named '${this.variableName}'`,
+            this.variableIdentifier
+          );
         }
       }
 
@@ -190,7 +190,7 @@ export class VariableAssignment extends ParsedObject {
       this.isGlobalDeclaration
         ? "var"
         : this.isNewTemporaryDeclaration
-          ? "~ temp"
-          : ""
+        ? "~ temp"
+        : ""
     } ${this.variableName}`;
 }

@@ -3474,7 +3474,7 @@ export class InkParser extends StringParser {
 
   public readonly AccessIdentifier = (): Identifier | null => {
     const path = this.Interleave<Identifier>(
-      this.Spaced(this.IdentifierWithMetadata),
+      this.IdentifierWithMetadata,
       this.Exclude(this.String("."))
     );
     const identifier = new Identifier(path.map((p) => p.name).join("."));
