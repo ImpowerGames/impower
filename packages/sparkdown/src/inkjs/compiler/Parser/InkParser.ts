@@ -1566,6 +1566,8 @@ export class InkParser extends StringParser {
       return null;
     }
 
+    this.Whitespace();
+
     const assignedExpression: Expression = this.Expect(
       this.Expression,
       "value expression to be assigned"
@@ -1612,6 +1614,8 @@ export class InkParser extends StringParser {
       // Definitely in an assignment expression?
       return null;
     }
+
+    this.Whitespace();
 
     const assignedExpression: Expression = this.Expect(
       this.Expression,

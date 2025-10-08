@@ -6,6 +6,9 @@ import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { SparkdownCompilationTreeDataProvider } from "../providers/SparkdownCompilationTreeDataProvider";
+import { getEditor } from "./getEditor";
+
+let mouseInitiatedSelection = true;
 
 export function activateCompilationView(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -16,6 +19,44 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
   );
   const treeView = vscode.window.createTreeView("sparkdown-compilation", {
     treeDataProvider: SparkdownCompilationTreeDataProvider.instance,
+  });
+  treeView.onDidChangeSelection((e) => {
+    if (mouseInitiatedSelection) {
+      if (SparkdownCompilationTreeDataProvider.instance.uri) {
+        const program = SparkProgramManager.instance.get(
+          SparkdownCompilationTreeDataProvider.instance.uri
+        );
+        if (program) {
+          if (e.selection.length > 0) {
+            for (const s of e.selection) {
+              const path = s.id;
+              const location = program.pathToLocation?.[path];
+              if (location) {
+                const [scriptIndex, startLine, startCol, endLine, endCol] =
+                  location;
+                const scripts = Object.keys(program.scripts);
+                const fileUri = scripts[scriptIndex];
+                const editor = getEditor(fileUri);
+                if (editor) {
+                  const range = new vscode.Range(
+                    new vscode.Position(startLine, startCol),
+                    new vscode.Position(endLine, endCol)
+                  );
+                  editor.selection = new vscode.Selection(
+                    range.start,
+                    range.end
+                  );
+                  editor.revealRange(
+                    range,
+                    vscode.TextEditorRevealType.InCenterIfOutsideViewport
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   });
   context.subscriptions.push(treeView);
 
@@ -64,7 +105,10 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
       const editor = change.textEditor;
       const document = editor.document;
       if (document.languageId === "sparkdown") {
-        if (treeView.visible) {
+        if (
+          treeView.visible &&
+          change.kind === vscode.TextEditorSelectionChangeKind.Mouse
+        ) {
           const program = SparkProgramManager.instance.get(editor.document.uri);
           if (program) {
             const range = change.selections[0];
@@ -107,11 +151,13 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
                 lastExecutedPath
               );
             if (instructionNode) {
+              mouseInitiatedSelection = false;
               treeView.reveal(instructionNode, {
                 select: true,
                 expand: true,
                 focus: false,
               });
+              mouseInitiatedSelection = true;
             }
           }
         }

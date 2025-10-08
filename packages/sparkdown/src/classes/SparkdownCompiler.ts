@@ -344,8 +344,7 @@ export class SparkdownCompiler {
               !(
                 obj instanceof ControlCommand &&
                 obj.commandType === ControlCommand.CommandType.NoOp
-              ) &&
-              !(obj instanceof StringValue && obj.isNewline)
+              )
             ) {
               const [
                 _,
@@ -384,16 +383,21 @@ export class SparkdownCompiler {
                 if (uri) {
                   const document = this.documents.get(uri);
                   if (document) {
-                    const endPositionWithoutNewline = document.positionAt(
+                    const endPositionWithoutLastNewline = document.positionAt(
                       document.offsetAt({
                         line: endLine,
                         character: endColumn,
                       }) - 1
                     );
-                    endLine = endPositionWithoutNewline.line;
-                    endColumn = endPositionWithoutNewline.character;
+                    endLine = endPositionWithoutLastNewline.line;
+                    endColumn = endPositionWithoutLastNewline.character;
                   }
                 }
+              }
+              if (obj instanceof StringValue && obj.isNewline) {
+                // Constrain newline strings to end of line
+                startLine = endLine;
+                startColumn = endColumn;
               }
               program.pathToLocation ??= {};
               program.pathToLocation[path] ??= [
@@ -443,6 +447,7 @@ export class SparkdownCompiler {
       program.scripts[scriptUri] = transpilation.version;
     }
     this.populateUI(program);
+    this.sortPathToLocation(program);
     this.populateDeclarationLocations(program);
     this.populateDiagnostics(state, program, inkCompiler);
     this.buildContext(state, program);
@@ -604,6 +609,29 @@ export class SparkdownCompiler {
       }
     }
     profile("end", "populateUI", uri);
+  }
+
+  sortPathToLocation(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", "sortPathToLocation", uri);
+    if (program.pathToLocation) {
+      const sortedEntries = Object.entries(program.pathToLocation).sort(
+        ([, a], [, b]) => {
+          const [scriptIndexA, startLineA, startColumnA] = a;
+          const [scriptIndexB, startLineB, startColumnB] = b;
+          return (
+            scriptIndexA - scriptIndexB ||
+            startLineA - startLineB ||
+            startColumnA - startColumnB
+          );
+        }
+      );
+      program.pathToLocation = {};
+      for (const [k, v] of sortedEntries) {
+        program.pathToLocation[k] = v;
+      }
+    }
+    profile("end", "sortPathToLocation", uri);
   }
 
   populateDeclarationLocations(program: SparkProgram) {
