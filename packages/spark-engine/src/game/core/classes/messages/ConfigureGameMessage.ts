@@ -7,7 +7,7 @@ export type ConfigureGameMethod = typeof ConfigureGameMessage.method;
 export interface ConfigureGameParams {
   workspace?: string;
   simulateFrom?: { file: string; line: number } | null;
-  simulateChoices?: Record<string, number[]> | null;
+  simulateChoices?: Record<string, (number | undefined)[]> | null;
   startFrom?: { file: string; line: number };
 }
 
