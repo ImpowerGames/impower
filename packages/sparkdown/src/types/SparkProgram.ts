@@ -28,7 +28,7 @@ export interface SparkProgram {
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];
   };
-  pathToLocation?: {
+  pathLocations?: {
     [path: string]: Location;
   };
   functionLocations?: {

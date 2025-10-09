@@ -344,7 +344,7 @@ onmessage = async (e) => {
       const { search } = message.params;
       const program = _game.program;
       const lines: number[] = [];
-      const possibleLocations = Object.values(program.pathToLocation || {});
+      const possibleLocations = Object.values(program.pathLocations || {});
       const scripts = Object.keys(program.scripts);
       const searchScriptIndex = scripts.indexOf(search.uri);
       for (const possibleLocation of possibleLocations) {

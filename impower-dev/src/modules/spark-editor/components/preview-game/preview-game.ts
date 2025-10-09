@@ -481,19 +481,17 @@ export default class GamePreview extends Component(spec) {
   ) {
     if (program) {
       const files = Object.keys(program.scripts);
-      const pathToLocationEntries = Object.entries(
-        program.pathToLocation || {}
-      );
+      const pathLocationEntries = Object.entries(program.pathLocations || {});
       const index = this.getClosestSourceIndex(
         files,
-        pathToLocationEntries,
+        pathLocationEntries,
         currentFile,
         currentLine
       );
       if (index == null) {
         return null;
       }
-      const uuidToSourceEntry = pathToLocationEntries[index + offset];
+      const uuidToSourceEntry = pathLocationEntries[index + offset];
       if (uuidToSourceEntry == null) {
         return null;
       }

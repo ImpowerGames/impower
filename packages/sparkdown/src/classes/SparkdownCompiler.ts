@@ -237,7 +237,7 @@ export class SparkdownCompiler {
       uri,
       scripts: { [uri]: this.documents.get(uri)?.version ?? -1 },
       files: {},
-      pathToLocation: {},
+      pathLocations: {},
       functionLocations: {},
       dataLocations: {},
       version: this.documents.get(uri)?.version ?? -1,
@@ -352,7 +352,7 @@ export class SparkdownCompiler {
                 existingStartColumn,
                 existingEndLine,
                 existingEndColumn,
-              ] = program.pathToLocation?.[path] || [];
+              ] = program.pathLocations?.[path] || [];
               if (
                 existingStartLine != null &&
                 existingStartColumn != null &&
@@ -399,8 +399,8 @@ export class SparkdownCompiler {
                 startLine = endLine;
                 startColumn = endColumn;
               }
-              program.pathToLocation ??= {};
-              program.pathToLocation[path] ??= [
+              program.pathLocations ??= {};
+              program.pathLocations[path] ??= [
                 scriptIndex,
                 startLine,
                 startColumn,
@@ -448,7 +448,7 @@ export class SparkdownCompiler {
     }
     this.populateUI(program);
     this.populateDeclarationLocations(program);
-    this.sortPathToLocation(program);
+    this.sortPathLocations(program);
     this.populateDiagnostics(state, program, inkCompiler);
     this.buildContext(state, program);
     this.validateSyntax(program);
@@ -611,11 +611,11 @@ export class SparkdownCompiler {
     profile("end", "populateUI", uri);
   }
 
-  sortPathToLocation(program: SparkProgram) {
+  sortPathLocations(program: SparkProgram) {
     const uri = program.uri;
     profile("start", "sortPathToLocation", uri);
-    if (program.pathToLocation) {
-      const sortedEntries = Object.entries(program.pathToLocation).sort(
+    if (program.pathLocations) {
+      const sortedEntries = Object.entries(program.pathLocations).sort(
         ([, a], [, b]) => {
           const [scriptIndexA, startLineA, startColumnA] = a;
           const [scriptIndexB, startLineB, startColumnB] = b;
@@ -626,9 +626,9 @@ export class SparkdownCompiler {
           );
         }
       );
-      program.pathToLocation = {};
+      program.pathLocations = {};
       for (const [k, v] of sortedEntries) {
-        program.pathToLocation[k] = v;
+        program.pathLocations[k] = v;
       }
     }
     profile("end", "sortPathToLocation", uri);
@@ -673,8 +673,8 @@ export class SparkdownCompiler {
                 range.end.line,
                 range.end.character,
               ];
-              program.pathToLocation ??= {};
-              program.pathToLocation[name] ??= [
+              program.pathLocations ??= {};
+              program.pathLocations[name] ??= [
                 scriptIndex,
                 range.start.line,
                 range.start.character,
@@ -696,8 +696,8 @@ export class SparkdownCompiler {
                 range.end.line,
                 range.end.character,
               ];
-              program.pathToLocation ??= {};
-              program.pathToLocation[name] ??= [
+              program.pathLocations ??= {};
+              program.pathLocations[name] ??= [
                 scriptIndex,
                 range.start.line,
                 range.start.character,
@@ -719,8 +719,8 @@ export class SparkdownCompiler {
                 range.end.line,
                 range.end.character,
               ];
-              program.pathToLocation ??= {};
-              program.pathToLocation[name] ??= [
+              program.pathLocations ??= {};
+              program.pathLocations[name] ??= [
                 scriptIndex,
                 range.start.line,
                 range.start.character,

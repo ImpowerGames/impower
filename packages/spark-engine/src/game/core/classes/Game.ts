@@ -94,7 +94,7 @@ export class Game<T extends M = {}> {
     return this._scripts;
   }
 
-  protected _pathLocations: [string, ScriptLocation][];
+  protected _pathLocationEntries: [string, ScriptLocation][];
 
   protected _coordinator: Coordinator<typeof this> | null = null;
 
@@ -228,7 +228,9 @@ export class Game<T extends M = {}> {
       );
     }
 
-    this._pathLocations = Object.entries(this._program.pathToLocation || {});
+    this._pathLocationEntries = Object.entries(
+      this._program.pathLocations || {}
+    );
 
     // Create connection for sending and receiving messages
     this._connection = new Connection({
@@ -414,11 +416,11 @@ export class Game<T extends M = {}> {
     if (simulateFrom) {
       this._simulatePath = findClosestPath(
         simulateFrom,
-        this._pathLocations,
+        this._pathLocationEntries,
         this._scripts
       );
       if (this._simulatePath) {
-        const trueLocation = this._program.pathToLocation?.[this._simulatePath];
+        const trueLocation = this._program.pathLocations?.[this._simulatePath];
         if (trueLocation) {
           const [scriptIndex, line] = trueLocation;
           const file = this._scripts[scriptIndex];
@@ -441,7 +443,7 @@ export class Game<T extends M = {}> {
     }
     this._simulateChoices = {};
     for (const [path, choices] of Object.entries(simulateChoices)) {
-      if (this._program.pathToLocation?.[path]) {
+      if (this._program.pathLocations?.[path]) {
         this._simulateChoices[path] = choices;
       }
     }
@@ -451,10 +453,13 @@ export class Game<T extends M = {}> {
   setStartFrom(startFrom: { file: string; line: number }) {
     this._startFrom = startFrom;
     this._startPath =
-      findClosestPath(this._startFrom, this._pathLocations, this._scripts) ||
-      "0";
+      findClosestPath(
+        this._startFrom,
+        this._pathLocationEntries,
+        this._scripts
+      ) || "0";
     if (this._startPath) {
-      const trueLocation = this._program.pathToLocation?.[this._startPath];
+      const trueLocation = this._program.pathLocations?.[this._startPath];
       if (trueLocation) {
         const [scriptIndex, line] = trueLocation;
         const file = this._scripts[scriptIndex];
@@ -483,7 +488,7 @@ export class Game<T extends M = {}> {
     breakpoints: { file: string; line: number }[]
   ) {
     const actualBreakpoints = Game.getActualBreakpoints(
-      this._pathLocations,
+      this._pathLocationEntries,
       breakpoints,
       this._scripts
     );
@@ -833,7 +838,7 @@ export class Game<T extends M = {}> {
         if (pointerPath) {
           if (pointerPath !== this._executingPath) {
             this._executingPath = pointerPath;
-            const location = this._program.pathToLocation?.[pointerPath];
+            const location = this._program.pathLocations?.[pointerPath];
             if (location) {
               this._executingLocation = location;
             }
@@ -1031,7 +1036,7 @@ export class Game<T extends M = {}> {
 
   protected notifyPreviewed(path: string) {
     const location = this.getDocumentLocation(
-      this._program.pathToLocation?.[path]
+      this._program.pathLocations?.[path]
     );
     this.connection.emit(
       GamePreviewedMessage.type.notification({
@@ -1044,7 +1049,7 @@ export class Game<T extends M = {}> {
   protected notifyExecuted() {
     const locations: DocumentLocation[] = [];
     this._runtimeState.pathsExecutedThisFrame.forEach((p) => {
-      const l = this._program.pathToLocation?.[p];
+      const l = this._program.pathLocations?.[p];
       if (l) {
         locations.push(this.getDocumentLocation(l));
       }
@@ -1382,7 +1387,7 @@ export class Game<T extends M = {}> {
             f.previousPointer.container?.path?.toString();
           if (pointerPath) {
             const location =
-              this._program.pathToLocation?.[pointerPath] ??
+              this._program.pathLocations?.[pointerPath] ??
               this._executingLocation;
             const documentLocation = this.getDocumentLocation(location);
             if (f.type == PushPopType.Function) {
@@ -1441,7 +1446,7 @@ export class Game<T extends M = {}> {
     }
     const previewPath = findClosestPath(
       { file, line },
-      this._pathLocations,
+      this._pathLocationEntries,
       this._scripts
     );
     if (!previewPath) {
@@ -1483,7 +1488,7 @@ export class Game<T extends M = {}> {
   }
 
   getPathDocumentLocation(path: string) {
-    const location = this._program.pathToLocation?.[path];
+    const location = this._program.pathLocations?.[path];
     if (location) {
       return this.getDocumentLocation(location);
     }
@@ -1637,6 +1642,10 @@ export class Game<T extends M = {}> {
   }
 
   getClosestPath(file: string, line: number) {
-    return findClosestPath({ file, line }, this._pathLocations, this._scripts);
+    return findClosestPath(
+      { file, line },
+      this._pathLocationEntries,
+      this._scripts
+    );
   }
 }

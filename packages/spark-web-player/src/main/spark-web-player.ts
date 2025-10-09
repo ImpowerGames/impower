@@ -878,7 +878,7 @@ export default class SparkWebPlayer extends Component(spec) {
   ) => {
     const { program } = message.params;
     this._program = program;
-    this._pathLocations = Object.entries(this._program?.pathToLocation ?? {});
+    this._pathLocations = Object.entries(this._program?.pathLocations ?? {});
     this._scripts = Object.keys(this._program?.scripts ?? {});
     // Preload all images
     // TODO: Only preload images that are going to be shown before the next interaction
@@ -1058,7 +1058,7 @@ export default class SparkWebPlayer extends Component(spec) {
     const program = this._game?.program || this._program;
     if (program) {
       const lines: number[] = [];
-      const possibleLocations = Object.values(program.pathToLocation || {});
+      const possibleLocations = Object.values(program.pathLocations || {});
       const scripts = Object.keys(program.scripts);
       const searchScriptIndex = scripts.indexOf(search.uri);
       for (const possibleLocation of possibleLocations) {
@@ -1453,7 +1453,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._scripts
     );
     const scenePath = previewPath?.split(".")[0] || "0";
-    const sceneLocation = this._program?.pathToLocation?.[scenePath];
+    const sceneLocation = this._program?.pathLocations?.[scenePath];
     const [sceneIndex, sceneStartLine] = sceneLocation || [0, 0];
     // Simulate from the start of the closest scene
     const simulateFrom = {
