@@ -104,7 +104,7 @@ export const highlightsField = StateField.define<DecorationSet>({
       if (effect.is(setHighlightsEffect)) {
         const lineNumbers = effect.value;
         decorations = RangeSet.empty;
-        const sortedHighlightedLineNumbers = lineNumbers.sort();
+        const sortedHighlightedLineNumbers = lineNumbers.sort((a, b) => a - b);
         const add: Range<Decoration>[] = [];
         let prevHighlightedLineNumber: number | undefined = undefined;
         for (const highlightedLineNumber of sortedHighlightedLineNumbers) {
