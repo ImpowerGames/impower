@@ -125,11 +125,15 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
                     path
                   );
                 if (instructionNode) {
+                  mouseInitiatedSelection = false;
                   treeView.reveal(instructionNode, {
                     select: true,
                     expand: true,
                     focus: false,
                   });
+                  setTimeout(() => {
+                    mouseInitiatedSelection = true;
+                  }, 100);
                 }
               }
             }
@@ -157,7 +161,9 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
                 expand: true,
                 focus: false,
               });
-              mouseInitiatedSelection = true;
+              setTimeout(() => {
+                mouseInitiatedSelection = true;
+              }, 100);
             }
           }
         }
