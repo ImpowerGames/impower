@@ -3850,7 +3850,6 @@ export class InkParser extends StringParser {
       StatementLevel.InnerBlock
     );
 
-    console.log(content)
     if (content === null) {
       this.MultilineWhitespace();
     } else {
