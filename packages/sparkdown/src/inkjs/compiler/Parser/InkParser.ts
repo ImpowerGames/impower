@@ -3840,15 +3840,22 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
+    const stateAtStart = new StringParserElement();
+    stateAtStart.CopyFrom(this.state.currentElement);
+
+    const startingNewlineText = new Text("\n");
+    startingNewlineText.debugMetadata = this.CreateDebugMetadata(stateAtStart, stateAtStart);
+
     const content: ParsedObject[] = this.StatementsAtLevel(
       StatementLevel.InnerBlock
     );
 
+    console.log(content)
     if (content === null) {
       this.MultilineWhitespace();
     } else {
       // Add newline at the start of each branch
-      content.unshift(new Text("\n"));
+      content.unshift(startingNewlineText);
     }
 
     return new ContentList(content);
