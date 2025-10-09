@@ -16,7 +16,7 @@ export const findClosestPath = (
   if (parentPath?.endsWith(".$s")) {
     // If we are inside choice start content, begin from start of choice
     const grandParentPath = parentPath?.split(".").slice(0, -1).join(".");
-    return grandParentPath;
+    return grandParentPath + ".0";
   }
   return path ?? null;
 };
