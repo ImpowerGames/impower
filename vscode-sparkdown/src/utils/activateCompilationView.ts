@@ -8,8 +8,26 @@ import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { SparkdownCompilationTreeDataProvider } from "../providers/SparkdownCompilationTreeDataProvider";
 import { getEditor } from "./getEditor";
 
-let mouseInitiatedSelection = true;
+let programmaticSelectionDepth = 0;
 
+const revealSilently = async <T>(
+  treeView: vscode.TreeView<T>,
+  item: T,
+  opts?: {
+    readonly select?: boolean;
+    readonly focus?: boolean;
+    readonly expand?: boolean | number;
+  }
+) => {
+  programmaticSelectionDepth++;
+  try {
+    await treeView.reveal(item, { select: true, focus: true, ...(opts ?? {}) });
+    // Ensure the selection event has a chance to fire before we drop the guard.
+    await Promise.resolve();
+  } finally {
+    programmaticSelectionDepth--;
+  }
+};
 export function activateCompilationView(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider(
@@ -21,36 +39,37 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
     treeDataProvider: SparkdownCompilationTreeDataProvider.instance,
   });
   treeView.onDidChangeSelection((e) => {
-    if (mouseInitiatedSelection) {
-      if (SparkdownCompilationTreeDataProvider.instance.uri) {
-        const program = SparkProgramManager.instance.get(
-          SparkdownCompilationTreeDataProvider.instance.uri
-        );
-        if (program) {
-          if (e.selection.length > 0) {
-            for (const s of e.selection) {
-              const path = s.id;
-              const location = program.pathLocations?.[path];
-              if (location) {
-                const [scriptIndex, startLine, startCol, endLine, endCol] =
-                  location;
-                const scripts = Object.keys(program.scripts);
-                const fileUri = scripts[scriptIndex];
-                const editor = getEditor(fileUri);
-                if (editor) {
-                  const range = new vscode.Range(
-                    new vscode.Position(startLine, startCol),
-                    new vscode.Position(endLine, endCol)
-                  );
-                  editor.selection = new vscode.Selection(
-                    range.start,
-                    range.end
-                  );
-                  editor.revealRange(
-                    range,
-                    vscode.TextEditorRevealType.InCenterIfOutsideViewport
-                  );
-                }
+    const initiatedByReveal = programmaticSelectionDepth > 0;
+    if (initiatedByReveal) {
+      // Ignore programmatically selected tree items
+      return;
+    }
+    // If user selected tree item, then select the corresponding document location
+    if (SparkdownCompilationTreeDataProvider.instance.uri) {
+      const program = SparkProgramManager.instance.get(
+        SparkdownCompilationTreeDataProvider.instance.uri
+      );
+      if (program) {
+        if (e.selection.length > 0) {
+          for (const s of e.selection) {
+            const path = s.id;
+            const location = program.pathLocations?.[path];
+            if (location) {
+              const [scriptIndex, startLine, startCol, endLine, endCol] =
+                location;
+              const scripts = Object.keys(program.scripts);
+              const fileUri = scripts[scriptIndex];
+              const editor = getEditor(fileUri);
+              if (editor) {
+                const range = new vscode.Range(
+                  new vscode.Position(startLine, startCol),
+                  new vscode.Position(endLine, endCol)
+                );
+                editor.selection = new vscode.Selection(range.start, range.end);
+                editor.revealRange(
+                  range,
+                  vscode.TextEditorRevealType.InCenterIfOutsideViewport
+                );
               }
             }
           }
@@ -125,15 +144,11 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
                     path
                   );
                 if (instructionNode) {
-                  mouseInitiatedSelection = false;
-                  treeView.reveal(instructionNode, {
+                  revealSilently(treeView, instructionNode, {
                     select: true,
                     expand: true,
                     focus: false,
                   });
-                  setTimeout(() => {
-                    mouseInitiatedSelection = true;
-                  }, 100);
                 }
               }
             }
@@ -155,15 +170,11 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
                 lastExecutedPath
               );
             if (instructionNode) {
-              mouseInitiatedSelection = false;
-              treeView.reveal(instructionNode, {
+              revealSilently(treeView, instructionNode, {
                 select: true,
                 expand: true,
                 focus: false,
               });
-              setTimeout(() => {
-                mouseInitiatedSelection = true;
-              }, 100);
             }
           }
         }
