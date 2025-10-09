@@ -344,7 +344,8 @@ export class SparkdownCompiler {
               !(
                 obj instanceof ControlCommand &&
                 obj.commandType === ControlCommand.CommandType.NoOp
-              )
+              ) &&
+              !(obj instanceof StringValue && obj.isNewline)
             ) {
               const [
                 _,
@@ -393,11 +394,6 @@ export class SparkdownCompiler {
                     endColumn = endPositionWithoutLastNewline.character;
                   }
                 }
-              }
-              if (obj instanceof StringValue && obj.isNewline) {
-                // Constrain newline strings to end of line
-                startLine = endLine;
-                startColumn = endColumn;
               }
               program.pathLocations ??= {};
               program.pathLocations[path] ??= [
