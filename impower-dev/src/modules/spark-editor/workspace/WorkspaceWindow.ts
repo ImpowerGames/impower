@@ -345,7 +345,7 @@ export default class WorkspaceWindow {
     );
   }
 
-  setSimulateChoices(simulateChoices: Record<string, number[]>) {
+  setSimulateChoices(simulateChoices: Record<string, (number | undefined)[]>) {
     this.update({
       ...this.store,
       debug: {
