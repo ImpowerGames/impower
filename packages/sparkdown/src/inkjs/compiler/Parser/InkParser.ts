@@ -3840,11 +3840,11 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const stateAtStart = new StringParserElement();
-    stateAtStart.CopyFrom(this.state.currentElement);
-
     const startingNewlineText = new Text("\n");
-    startingNewlineText.debugMetadata = this.CreateDebugMetadata(stateAtStart, stateAtStart);
+    startingNewlineText.debugMetadata = this.CreateDebugMetadata(
+      this.state.currentElement,
+      this.state.currentElement
+    );
 
     const content: ParsedObject[] = this.StatementsAtLevel(
       StatementLevel.InnerBlock
