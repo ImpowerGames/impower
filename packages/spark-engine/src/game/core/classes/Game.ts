@@ -559,24 +559,26 @@ export class Game<T extends M = {}> {
     if (toPath) {
       // Plan a route from the top of the knot containing the target path, to the target path itself
       const containerName = toPath.split(".")[0] || "0";
-      const fromPath = this.getFirstPathInContainer(containerName);
-      if (fromPath) {
-        const route = planRoute(this._story, fromPath, toPath, {
-          functions: Object.keys(this._program.functionLocations || {}),
-          searchTimeout: this._routeSearchTimeout,
-          stayWithinKnot: true,
-          favoredChoiceIndices: this._simulateChoices?.[fromPath],
-        });
-        if (route) {
-          // If route exists, force the story to follow this route
-          this._story.simulator = buildRouteSimulator(route.steps);
-          this._simulatePath = fromPath;
-        }
+      const fromPath =
+        this.getFirstPathInContainer(containerName) || containerName;
+      const route = planRoute(this._story, fromPath, toPath, {
+        functions: Object.keys(this._program.functionLocations || {}),
+        searchTimeout: this._routeSearchTimeout,
+        stayWithinKnot: true,
+        favoredChoiceIndices: this._simulateChoices?.[fromPath],
+      });
+      if (route) {
+        // If route exists, force the story to follow this route
+        this._story.simulator = buildRouteSimulator(route.steps);
+        this._simulatePath = fromPath;
       }
     }
   }
 
   getFirstPathInContainer(name: string) {
+    if (name === "0") {
+      return "0.0";
+    }
     const containerLocation =
       this._program.knotLocations?.[name] ||
       this._program.functionLocations?.[name] ||
