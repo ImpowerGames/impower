@@ -673,14 +673,6 @@ export class SparkdownCompiler {
                 range.end.line,
                 range.end.character,
               ];
-              program.pathLocations ??= {};
-              program.pathLocations[name] ??= [
-                scriptIndex,
-                range.start.line,
-                range.start.character,
-                range.end.line,
-                range.end.character,
-              ];
             }
             if (cur.value.type === "scene") {
               scopePathParts = [];
@@ -696,14 +688,6 @@ export class SparkdownCompiler {
                 range.end.line,
                 range.end.character,
               ];
-              program.pathLocations ??= {};
-              program.pathLocations[name] ??= [
-                scriptIndex,
-                range.start.line,
-                range.start.character,
-                range.end.line,
-                range.end.character,
-              ];
             }
             if (cur.value.type === "knot") {
               scopePathParts = [];
@@ -713,14 +697,6 @@ export class SparkdownCompiler {
               });
               program.knotLocations ??= {};
               program.knotLocations[name] = [
-                scriptIndex,
-                range.start.line,
-                range.start.character,
-                range.end.line,
-                range.end.character,
-              ];
-              program.pathLocations ??= {};
-              program.pathLocations[name] ??= [
                 scriptIndex,
                 range.start.line,
                 range.start.character,

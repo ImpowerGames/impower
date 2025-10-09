@@ -558,19 +558,40 @@ export class Game<T extends M = {}> {
     const toPath = this._startPath;
     if (toPath) {
       // Plan a route from the top of the knot containing the target path, to the target path itself
-      const fromPath = toPath.split(".")[0] || "0";
-      const route = planRoute(this._story, fromPath, toPath, {
-        functions: Object.keys(this._program.functionLocations || {}),
-        searchTimeout: this._routeSearchTimeout,
-        stayWithinKnot: true,
-        favoredChoiceIndices: this._simulateChoices?.[fromPath],
-      });
-      if (route) {
-        // If route exists, force the story to follow this route
-        this._story.simulator = buildRouteSimulator(route.steps);
-        this._simulatePath = fromPath;
+      const containerName = toPath.split(".")[0] || "0";
+      const fromPath = this.getFirstPathInContainer(containerName);
+      if (fromPath) {
+        const route = planRoute(this._story, fromPath, toPath, {
+          functions: Object.keys(this._program.functionLocations || {}),
+          searchTimeout: this._routeSearchTimeout,
+          stayWithinKnot: true,
+          favoredChoiceIndices: this._simulateChoices?.[fromPath],
+        });
+        if (route) {
+          // If route exists, force the story to follow this route
+          this._story.simulator = buildRouteSimulator(route.steps);
+          this._simulatePath = fromPath;
+        }
       }
     }
+  }
+
+  getFirstPathInContainer(name: string) {
+    const containerLocation =
+      this._program.knotLocations?.[name] ||
+      this._program.functionLocations?.[name] ||
+      this._program.sceneLocations?.[name] ||
+      this._program.stitchLocations?.[name] ||
+      this._program.branchLocations?.[name] ||
+      this._program.labelLocations?.[name];
+    if (containerLocation) {
+      const [scriptIndex, startLine] = containerLocation;
+      const file = this._scripts[scriptIndex];
+      if (file) {
+        return this.getClosestPath(file, startLine);
+      }
+    }
+    return null;
   }
 
   protected simulate(): void {

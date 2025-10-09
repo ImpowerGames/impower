@@ -1452,13 +1452,15 @@ export default class SparkWebPlayer extends Component(spec) {
       this._pathLocations,
       this._scripts
     );
-    const scenePath = previewPath?.split(".")[0] || "0";
-    const sceneLocation = this._program?.pathLocations?.[scenePath];
-    const [sceneIndex, sceneStartLine] = sceneLocation || [0, 0];
-    // Simulate from the start of the closest scene
+    // Simulate from the start of the current container
+    const previewContainerName = previewPath?.split(".")[0] || "0";
+    const simulatePath =
+      this._game?.getFirstPathInContainer(previewContainerName) || "";
+    const simulateLocation = this._program?.pathLocations?.[simulatePath];
+    const [simulateScriptIndex, simulateStartLine] = simulateLocation || [0, 0];
     const simulateFrom = {
-      file: this._scripts[sceneIndex]!,
-      line: sceneStartLine,
+      file: this._scripts[simulateScriptIndex]!,
+      line: simulateStartLine,
     };
     this._options ??= {};
     this._options.simulateFrom = simulateFrom;
@@ -1466,7 +1468,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._game?.runtimeState.choicesEncountered.map((c) => c.selected) ?? [];
     const shouldSimulateChoices = Array.from(
       { length: executedChoices.length },
-      (_, i) => this._options?.simulateChoices?.[scenePath]?.[i] ?? 0
+      (_, i) => this._options?.simulateChoices?.[simulatePath]?.[i] ?? 0
     );
     if (
       force ||
