@@ -5,7 +5,7 @@ export type GameWillSimulateChoicesMethod =
   typeof GameWillSimulateChoicesMessage.method;
 
 export interface GameWillSimulateChoicesParams {
-  simulateChoices?: Record<string, number[]> | null;
+  simulateChoices?: Record<string, (number | undefined)[]> | null;
 }
 
 export class GameWillSimulateChoicesMessage {

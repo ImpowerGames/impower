@@ -21,7 +21,7 @@ export default spec({
     leftItems: "#left-items",
     locationItems: "#location-items",
     launchStateIcon: "#launch-state-icon",
-    launchButton: "#launch-button",
+    launchInfo: "#launch-info",
     launchLabel: "#launch-label",
     executionInfo: "#execution-info",
     connectionLabel: "#connection-label",
@@ -44,7 +44,7 @@ export default spec({
         <div id="resize-handle"></div>
         <div id="left-items" hidden>
           <div id="location-items">
-            <div id="launch-button" class="toolbar-button">
+            <div id="launch-info">
               <span id="launch-state-icon"></span>
               <span id="launch-label"></span>
             </div>

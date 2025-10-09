@@ -447,8 +447,8 @@ export class SparkdownCompiler {
       program.scripts[scriptUri] = transpilation.version;
     }
     this.populateUI(program);
-    this.sortPathToLocation(program);
     this.populateDeclarationLocations(program);
+    this.sortPathToLocation(program);
     this.populateDiagnostics(state, program, inkCompiler);
     this.buildContext(state, program);
     this.validateSyntax(program);
@@ -673,6 +673,14 @@ export class SparkdownCompiler {
                 range.end.line,
                 range.end.character,
               ];
+              program.pathToLocation ??= {};
+              program.pathToLocation[name] ??= [
+                scriptIndex,
+                range.start.line,
+                range.start.character,
+                range.end.line,
+                range.end.character,
+              ];
             }
             if (cur.value.type === "scene") {
               scopePathParts = [];
@@ -682,6 +690,37 @@ export class SparkdownCompiler {
               });
               program.sceneLocations ??= {};
               program.sceneLocations[name] = [
+                scriptIndex,
+                range.start.line,
+                range.start.character,
+                range.end.line,
+                range.end.character,
+              ];
+              program.pathToLocation ??= {};
+              program.pathToLocation[name] ??= [
+                scriptIndex,
+                range.start.line,
+                range.start.character,
+                range.end.line,
+                range.end.character,
+              ];
+            }
+            if (cur.value.type === "knot") {
+              scopePathParts = [];
+              scopePathParts.push({
+                kind: "knot",
+                name: doc.read(cur.from, cur.to),
+              });
+              program.knotLocations ??= {};
+              program.knotLocations[name] = [
+                scriptIndex,
+                range.start.line,
+                range.start.character,
+                range.end.line,
+                range.end.character,
+              ];
+              program.pathToLocation ??= {};
+              program.pathToLocation[name] ??= [
                 scriptIndex,
                 range.start.line,
                 range.start.character,
@@ -701,21 +740,6 @@ export class SparkdownCompiler {
               const name = scopePathParts.map((p) => p.name).join(".");
               program.branchLocations ??= {};
               program.branchLocations[name] = [
-                scriptIndex,
-                range.start.line,
-                range.start.character,
-                range.end.line,
-                range.end.character,
-              ];
-            }
-            if (cur.value.type === "knot") {
-              scopePathParts = [];
-              scopePathParts.push({
-                kind: "knot",
-                name: doc.read(cur.from, cur.to),
-              });
-              program.knotLocations ??= {};
-              program.knotLocations[name] = [
                 scriptIndex,
                 range.start.line,
                 range.start.character,

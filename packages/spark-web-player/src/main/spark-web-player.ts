@@ -86,7 +86,7 @@ export default class SparkWebPlayer extends Component(spec) {
   _options?: {
     workspace?: string;
     simulateFrom?: { file: string; line: number } | null;
-    simulateChoices?: Record<string, number[]> | null;
+    simulateChoices?: Record<string, (number | undefined)[]> | null;
     startFrom?: { file: string; line: number } | null;
     previewFrom?: { file: string; line: number };
     breakpoints?: { file: string; line: number }[];
@@ -333,7 +333,10 @@ export default class SparkWebPlayer extends Component(spec) {
   ) {
     const divEl = document.createElement("div");
     divEl.classList.add("choice");
-    divEl.classList.toggle("forced", choice.selected !== 0);
+    const forceChoiceIndex = this._game?.simulatePath
+      ? this._options?.simulateChoices?.[this._game.simulatePath]?.[choiceIndex]
+      : null;
+    divEl.classList.toggle("forced", forceChoiceIndex != null);
     const selectEl = document.createElement("select");
     divEl.appendChild(selectEl);
     selectEl.onpointerdown = (e) => {
@@ -344,7 +347,8 @@ export default class SparkWebPlayer extends Component(spec) {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     };
     selectEl.onchange = (e) => {
-      const optionIndex = Number((e.currentTarget as HTMLSelectElement).value);
+      const value = (e.currentTarget as HTMLSelectElement).value;
+      const optionIndex = value === "" ? undefined : Number(value);
       if (this._game) {
         this._options ??= {};
         this._options.simulateChoices ??= {};
@@ -352,10 +356,16 @@ export default class SparkWebPlayer extends Component(spec) {
           this._options.simulateChoices[this._game.simulatePath] ??= [];
           this._options.simulateChoices[this._game.simulatePath]![choiceIndex] =
             optionIndex;
-          this._options.simulateChoices = this._game.setSimulateChoices(
-            this._options.simulateChoices ?? null
-          );
+          const simulateChoices = this._options.simulateChoices ?? null;
+          this._options.simulateChoices =
+            this._game.setSimulateChoices(simulateChoices);
         }
+        const forceChoiceIndex = this._game?.simulatePath
+          ? this._options?.simulateChoices?.[this._game.simulatePath]?.[
+              choiceIndex
+            ]
+          : null;
+        divEl.classList.toggle("forced", forceChoiceIndex != null);
       }
       this.emit(
         MessageProtocol.event,
@@ -364,13 +374,17 @@ export default class SparkWebPlayer extends Component(spec) {
         })
       );
     };
+    const optionEl = document.createElement("option");
+    optionEl.value = "";
+    optionEl.textContent = `(AUTO)`;
+    selectEl.appendChild(optionEl);
     choice.options.forEach((option, optionIndex) => {
       const optionEl = document.createElement("option");
       optionEl.value = `${optionIndex}`;
-      optionEl.selected = optionIndex === choice.selected;
       optionEl.textContent = `${optionIndex + 1}: ${option}`;
       selectEl.appendChild(optionEl);
     });
+    selectEl.value = forceChoiceIndex == null ? "" : `${choice.selected}`;
     const selectedcontentEl = document.createElement("div");
     selectedcontentEl.classList.add("selectedcontent");
     selectedcontentEl.textContent = `  [ ${choice.selected + 1} ]  `;
@@ -1439,7 +1453,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._scripts
     );
     const scenePath = previewPath?.split(".")[0] || "0";
-    const sceneLocation = this._program?.sceneLocations?.[scenePath];
+    const sceneLocation = this._program?.pathToLocation?.[scenePath];
     const [sceneIndex, sceneStartLine] = sceneLocation || [0, 0];
     // Simulate from the start of the closest scene
     const simulateFrom = {
@@ -1448,15 +1462,11 @@ export default class SparkWebPlayer extends Component(spec) {
     };
     this._options ??= {};
     this._options.simulateFrom = simulateFrom;
-    const simulatePath = findClosestPath(
-      simulateFrom,
-      this._pathLocations,
-      this._scripts
-    );
-    const executedChoices = this._game?.choices.map((c) => c.selected) ?? [];
+    const executedChoices =
+      this._game?.runtimeState.choicesEncountered.map((c) => c.selected) ?? [];
     const shouldSimulateChoices = Array.from(
       { length: executedChoices.length },
-      (_, i) => this._options?.simulateChoices?.[simulatePath || ""]?.[i] ?? 0
+      (_, i) => this._options?.simulateChoices?.[scenePath]?.[i] ?? 0
     );
     if (
       force ||

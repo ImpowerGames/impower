@@ -2,6 +2,10 @@ import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import {
+  buildRouteSimulator,
+  planRoute,
+} from "@impower/sparkdown/src/utils/planRoute";
 import { uuid } from "@impower/sparkdown/src/utils/uuid";
 import { ErrorType } from "../../../protocol/enums/ErrorType";
 import { Message } from "../../../protocol/types/Message";
@@ -47,6 +51,14 @@ export type GameModules = InstanceMap<DefaultModuleConstructors>;
 
 export type M = { [name: string]: Module };
 
+export interface RuntimeState {
+  pathsExecutedThisFrame: Set<string>;
+  choicesEncountered: {
+    options: string[];
+    selected: number;
+  }[];
+}
+
 export class Game<T extends M = {}> {
   protected _clock?: Clock;
   get clock() {
@@ -88,6 +100,8 @@ export class Game<T extends M = {}> {
 
   protected _executionStartTime = 0;
 
+  protected _routeSearchTimeout = 1000;
+
   protected _executionTimeout = 1000;
 
   protected _executionTimedOut = false;
@@ -95,19 +109,18 @@ export class Game<T extends M = {}> {
   protected _executingPath: string;
 
   protected _executingLocation: ScriptLocation;
-  protected _executedPathsThisFrame: Set<string> = new Set();
 
-  protected _executedPathsThisFrameSnapshot: Set<string> | null = null;
+  protected _runtimeState: RuntimeState = {
+    pathsExecutedThisFrame: new Set(),
+    choicesEncountered: [],
+  };
+  get runtimeState() {
+    return this._runtimeState;
+  }
+
+  protected _runtimeSnapshot: RuntimeState | null = null;
 
   protected _lastHitBreakpointLocation?: ScriptLocation;
-
-  protected _choices: {
-    options: string[];
-    selected: number;
-  }[] = [];
-  get choices() {
-    return this._choices;
-  }
 
   protected _nextObjectVariableRef = 2000; // Start at 2000 to avoid conflicts with scope handles
 
@@ -121,7 +134,7 @@ export class Game<T extends M = {}> {
     return this._simulateFrom;
   }
 
-  protected _simulateChoices?: Record<string, number[]> | null;
+  protected _simulateChoices?: Record<string, (number | undefined)[]> | null;
   get simulateChoices() {
     return this._simulateChoices;
   }
@@ -247,33 +260,14 @@ export class Game<T extends M = {}> {
       this._executionTimeout = options.executionTimeout;
     }
 
+    if (options?.routeSearchTimeout) {
+      this._routeSearchTimeout = options.routeSearchTimeout;
+    }
+
     // Create story to control flow and state
     this._story = new Story(this._program.compiled);
     this._story.collapseWhitespace = false;
     this._story.processEscapes = false;
-    this._story.onError = (message: string, type: ErrorType) => {
-      this.Error(message, type);
-    };
-    this._story.onExecute = (path: string | undefined) => {
-      if (path) {
-        // Delete before adding so that last item in set is always the most recently executed
-        this._executedPathsThisFrame.delete(path);
-        this._executedPathsThisFrame.add(path);
-      }
-    };
-    this._story.onSaveStateSnapshot = () => {
-      this._executedPathsThisFrameSnapshot = new Set(
-        this._executedPathsThisFrame
-      );
-    };
-    this._story.onRestoreStateSnapshot = () => {
-      if (this._executedPathsThisFrameSnapshot) {
-        this._executedPathsThisFrame = this._executedPathsThisFrameSnapshot;
-      }
-    };
-    this._story.onDiscardStateSnapshot = () => {
-      this._executedPathsThisFrameSnapshot = null;
-    };
 
     // Create context
     this._context = {
@@ -332,6 +326,46 @@ export class Game<T extends M = {}> {
     for (const moduleName of this._moduleNames) {
       this._modules[moduleName]?.onInit();
     }
+
+    if (this._simulation === "simulating") {
+      // Plan route and setup story simulator to follow route
+      this.planRoute();
+    }
+
+    this._story.onError = (message: string, type: ErrorType) => {
+      this.Error(message, type);
+    };
+    this._story.onExecute = (path: string | undefined) => {
+      if (path) {
+        // Delete before adding so that last item in set is always the most recently executed
+        this._runtimeState.pathsExecutedThisFrame.delete(path);
+        this._runtimeState.pathsExecutedThisFrame.add(path);
+      }
+    };
+    this._story.onMakeChoice = (choice) => {
+      this._runtimeState?.choicesEncountered.push({
+        options: this._story.currentChoices.map((c) => c.text),
+        selected: this._story.currentChoices.indexOf(choice),
+      });
+    };
+    this._story.onSaveStateSnapshot = () => {
+      this._runtimeSnapshot = {
+        pathsExecutedThisFrame: new Set(
+          this._runtimeState.pathsExecutedThisFrame
+        ),
+        choicesEncountered: JSON.parse(
+          JSON.stringify(this._runtimeState.choicesEncountered)
+        ),
+      };
+    };
+    this._story.onRestoreStateSnapshot = () => {
+      if (this._runtimeSnapshot) {
+        this._runtimeState = this._runtimeSnapshot;
+      }
+    };
+    this._story.onDiscardStateSnapshot = () => {
+      this._runtimeSnapshot = null;
+    };
 
     if (this._simulation === "simulating") {
       // Simulate module state
@@ -398,7 +432,9 @@ export class Game<T extends M = {}> {
     return null;
   }
 
-  setSimulateChoices(simulateChoices: Record<string, number[]> | null) {
+  setSimulateChoices(
+    simulateChoices: Record<string, (number | undefined)[]> | null
+  ) {
     if (!simulateChoices) {
       this._simulateChoices = null;
       return null;
@@ -513,9 +549,27 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
+  protected planRoute(): void {
+    const toPath = this._startPath;
+    if (toPath) {
+      // Plan a route from the top of the knot containing the target path, to the target path itself
+      const fromPath = toPath.split(".")[0] || "0";
+      const route = planRoute(this._story, fromPath, toPath, {
+        functions: Object.keys(this._program.functionLocations || {}),
+        searchTimeout: this._routeSearchTimeout,
+        stayWithinKnot: true,
+        favoredChoiceIndices: this._simulateChoices?.[fromPath],
+      });
+      if (route) {
+        // If route exists, force the story to follow this route
+        this._story.simulator = buildRouteSimulator(route.steps);
+        this._simulatePath = fromPath;
+      }
+    }
+  }
+
   protected simulate(): void {
     if (this._simulatePath) {
-      this._choices = [];
       this._context.system.simulating = this._simulatePath;
       this.jumpToPath(this._simulatePath);
       this.continue(true);
@@ -525,22 +579,19 @@ export class Game<T extends M = {}> {
         !this._story.canContinue &&
         this._story.currentChoices.length > 0
       ) {
-        const turnIndex = this._choices.length;
-        const forcedTurn = autoTurns?.[turnIndex];
-        const selected =
-          forcedTurn != null &&
-          forcedTurn >= 0 &&
-          forcedTurn < this._story.currentChoices.length
-            ? forcedTurn!
-            : 0; // TODO: Fallback to a choice that will lead to the destination?
-        this._choices.push({
-          options: this._story.currentChoices.map((c) => c.text),
-          selected,
-        });
-        this._story.ChooseChoiceIndex(selected);
+        const turnIndex = this._runtimeState.choicesEncountered.length;
+        const autoTurn = autoTurns?.[turnIndex];
+        const autoSelected =
+          autoTurn != null &&
+          autoTurn >= 0 &&
+          autoTurn < this._story.currentChoices.length
+            ? autoTurn!
+            : 0;
+        this._story.ChooseChoiceIndex(autoSelected);
         this.continue(true);
       }
     }
+    this._story.simulator = null;
   }
 
   start(save: string = ""): boolean {
@@ -635,7 +686,7 @@ export class Game<T extends M = {}> {
       modules: {},
       context: {},
       story,
-      executed: Array.from(this._executedPathsThisFrame),
+      executed: Array.from(this._runtimeState?.pathsExecutedThisFrame ?? []),
     };
     for (const k of this._moduleNames) {
       const module = this._modules[k];
@@ -663,7 +714,7 @@ export class Game<T extends M = {}> {
       }
       if (saveData.executed) {
         for (const path of saveData.executed) {
-          this._executedPathsThisFrame.add(path);
+          this._runtimeState?.pathsExecutedThisFrame.add(path);
         }
       }
     } catch (e) {
@@ -705,13 +756,14 @@ export class Game<T extends M = {}> {
         module.reset();
       }
     }
-    this._choices = [];
   }
 
   continue(preserveExecutionInfo?: boolean) {
     if (!preserveExecutionInfo) {
-      this._executedPathsThisFrame.clear();
-      this._choices = [];
+      this._runtimeState = {
+        pathsExecutedThisFrame: new Set(),
+        choicesEncountered: [],
+      };
     }
 
     this._executionTimedOut = false;
@@ -796,7 +848,7 @@ export class Game<T extends M = {}> {
           if (
             this._simulation === "simulating" &&
             this._startPath &&
-            this._executedPathsThisFrame.has(this._startPath)
+            this._runtimeState.pathsExecutedThisFrame.has(this._startPath)
           ) {
             // End simulation
             this._simulation = "success";
@@ -891,10 +943,6 @@ export class Game<T extends M = {}> {
 
   chosePathToContinue(index: number) {
     // Tell the story where to go next
-    this._choices.push({
-      options: this._story.currentChoices.map((c) => c.text),
-      selected: index,
-    });
     this._story.ChooseChoiceIndex(index);
     // Save after every choice
     this.checkpoint();
@@ -995,7 +1043,7 @@ export class Game<T extends M = {}> {
 
   protected notifyExecuted() {
     const locations: DocumentLocation[] = [];
-    this._executedPathsThisFrame.forEach((p) => {
+    this._runtimeState.pathsExecutedThisFrame.forEach((p) => {
       const l = this._program.pathToLocation?.[p];
       if (l) {
         locations.push(this.getDocumentLocation(l));
@@ -1005,9 +1053,9 @@ export class Game<T extends M = {}> {
       GameExecutedMessage.type.notification({
         simulatePath: this._simulatePath,
         startPath: this._startPath,
-        executedPaths: Array.from(this._executedPathsThisFrame),
+        executedPaths: Array.from(this._runtimeState.pathsExecutedThisFrame),
         locations,
-        choices: this._choices,
+        choices: this._runtimeState.choicesEncountered,
         state: this._state,
         restarted: this._restarted,
         simulation: this._simulation,

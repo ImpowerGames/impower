@@ -191,15 +191,15 @@
   background-color: inherit;
 }
 
-#launch-button.pinned {
-  color: var(--swp-accent-color);
-}
-
 #launch-state-icon,
 #fullscreen-icon {
   background-color: currentColor;
   width: var(--swp-toolbar-icon-size);
   height: var(--swp-toolbar-icon-size);
+}
+
+#launch-state-icon {
+  margin-right: var(--swp-toolbar-button-gap);
 }
 
 #launch-state-icon:not([icon]) {
@@ -226,15 +226,22 @@
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M5 2H6V5.5L5.5 6H2V5H5V2ZM2 10V11H5V14H6V10.5L5.5 10H2ZM10 10.5V14H11V11H14V10H10.5L10 10.5ZM11 5V2H10V5.5L10.5 6H14V5H11Z"/></svg>');
 }
 
+#launch-info,
 #execution-info {
   background-color: inherit;
   height: 100%;
   flex-direction: row;
+  align-items: center;
 }
 
+#launch-info span,
 #execution-info span {
   flex-direction: row;
   align-items: center;
+}
+
+#launch-info {
+  padding: var(--swp-toolbar-button-gap);
 }
 
 #aspect-ratio-label {

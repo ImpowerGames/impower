@@ -35,6 +35,7 @@ import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
 import { ErrorHandler, ErrorType } from "./Error";
 import { StructDefinition } from "./StructDefinition";
+import { Simulator } from "./Simulator";
 
 export { InkList } from "./InkList";
 
@@ -54,6 +55,12 @@ export class Story extends InkObject {
   public static inkVersionCurrent = 21;
 
   public inkVersionMinimumCompatible = 18;
+
+  public pauseBeforeEvaluatingConditions: boolean = false;
+
+  public pausedBeforeCondition: string | null = null;
+
+  public simulator?: Simulator | null = null;
 
   get currentChoices() {
     let choices: Choice[] = [];
@@ -575,6 +582,23 @@ export class Story extends InkObject {
       this.TryFollowDefaultInvisibleChoice();
     }
 
+    // Automatically force a choice (used when simulating routes)
+    if (this.simulator) {
+      const currentChoices = this._state.currentChoices;
+      if (!this.canContinue && currentChoices.length > 0) {
+        const sitePath = this.state.previousPointer.path?.toString();
+        if (sitePath) {
+          const forcedSourcePath = this.simulator.forceChoice(sitePath);
+          const forced = currentChoices.find(
+            (choice) => choice.sourcePath === forcedSourcePath
+          );
+          if (forced != null) {
+            this.ChooseChoice(forced);
+          }
+        }
+      }
+    }
+
     if (this._profiler != null) this._profiler.PreSnapshot();
 
     if (!this.state.inStringEvaluation) {
@@ -733,6 +757,9 @@ export class Story extends InkObject {
   public StateSnapshot() {
     this._stateSnapshotAtLastNewline = this._state;
     this._state = this._state.CopyAndStartPatching(false);
+    if (this.simulator) {
+      this._simulatorSnapshotAtLastNewline = this.simulator.saveSnapshot();
+    }
     if (this.onSaveStateSnapshot !== null) this.onSaveStateSnapshot();
   }
 
@@ -748,6 +775,12 @@ export class Story extends InkObject {
     if (!this._asyncSaving) {
       this._state.ApplyAnyPatch();
     }
+
+    if (this.simulator && this._simulatorSnapshotAtLastNewline) {
+      this.simulator.restoreSnapshot(this._simulatorSnapshotAtLastNewline);
+      this._simulatorSnapshotAtLastNewline = null;
+    }
+
     if (this.onRestoreStateSnapshot !== null) this.onRestoreStateSnapshot();
   }
 
@@ -755,6 +788,9 @@ export class Story extends InkObject {
     if (!this._asyncSaving) this._state.ApplyAnyPatch();
 
     this._stateSnapshotAtLastNewline = null;
+
+    this._simulatorSnapshotAtLastNewline = null;
+
     if (this.onDiscardStateSnapshot !== null) this.onDiscardStateSnapshot();
   }
 
@@ -781,6 +817,8 @@ export class Story extends InkObject {
   }
 
   public Step() {
+    this.pausedBeforeCondition = null; // clear any previous pause
+
     let shouldAddToStream = true;
 
     let pointer = this.state.currentPointer.copy();
@@ -814,6 +852,30 @@ export class Story extends InkObject {
     // Stop flow if we hit a stack pop when we're unable to pop (e.g. return/done statement in knot
     // that was diverted to rather than called as a function)
     let currentContentObj = pointer.Resolve();
+
+    // When simulating routes, we pause before evaluating conditions so we can force their result
+    if (this.pauseBeforeEvaluatingConditions) {
+      // Conditional divert?
+      const divert = asOrNull(currentContentObj, Divert);
+      if (divert && divert.isConditional) {
+        const sitePath = this.state.currentPointer.path?.toString();
+        if (sitePath) {
+          this.pausedBeforeCondition = sitePath;
+          return; // do NOT consume; do NOT advance
+        }
+      }
+
+      // Conditional choice?
+      const choicePoint = asOrNull(currentContentObj, ChoicePoint);
+      if (choicePoint && choicePoint.hasCondition) {
+        const sitePath = this.state.currentPointer.path?.toString();
+        if (sitePath) {
+          this.pausedBeforeCondition = sitePath;
+          return; // do NOT consume; do NOT advance
+        }
+      }
+    }
+
     let isLogicOrFlowControl =
       this.PerformLogicAndFlowControl(currentContentObj);
 
@@ -976,6 +1038,18 @@ export class Story extends InkObject {
 
     // Don't create choice if choice point doesn't pass conditional
     if (choicePoint.hasCondition) {
+
+      // If a simulator is installed, let it force the boolean (true=visible, false=hidden)
+      if (this.simulator) {
+        const sitePath = this.state.currentPointer.path?.toString();
+        if (sitePath) {
+          const forced = this.simulator.forceCondition(sitePath);
+          // inject forced verdict as an int (ink booleans are ints)
+          this.state.PopEvaluationStack();
+          this.state.PushEvaluationStack(new IntValue(forced ? 1 : 0));
+        }
+      }
+
       let conditionValue = this.state.PopEvaluationStack();
       if (!this.IsTruthy(conditionValue)) {
         showChoice = false;
@@ -1052,6 +1126,18 @@ export class Story extends InkObject {
       let currentDivert = contentObj;
 
       if (currentDivert.isConditional) {
+
+        // If simulator provides a forced value, inject it onto the eval stack.
+        if (this.simulator) {
+          const sitePath = this.state.currentPointer.path?.toString();
+          if (sitePath) {
+            const forced = this.simulator.forceCondition(sitePath);
+            // Inject as int (ink booleans are ints)
+            this.state.PopEvaluationStack();
+            this.state.PushEvaluationStack(new IntValue(forced ? 1 : 0));
+          }
+        }
+
         let conditionValue = this.state.PopEvaluationStack();
 
         // False conditional? Cancel divert
@@ -1790,7 +1876,11 @@ export class Story extends InkObject {
       "choice out of range"
     );
 
-    let choiceToChoose = choices[choiceIdx];
+    let choiceToChoose = choices[choiceIdx]!;
+    this.ChooseChoice(choiceToChoose);
+  }
+
+  public ChooseChoice(choiceToChoose: Choice) {
     if (this.onMakeChoice !== null) this.onMakeChoice(choiceToChoose);
 
     if (choiceToChoose.threadAtGeneration === null) {
@@ -2309,7 +2399,10 @@ export class Story extends InkObject {
     this.state.previousPointer = this.state.currentPointer.copy();
 
     if (!this.state.divertedPointer.isNull) {
-      if (this.onExecute !== null) this.onExecute(this.state.callStack.currentElement?.currentPointer.path?.toString());
+      if (this.onExecute !== null)
+        this.onExecute(
+          this.state.callStack.currentElement?.currentPointer.path?.toString()
+        );
 
       this.state.currentPointer = this.state.divertedPointer.copy();
       this.state.divertedPointer = Pointer.Null;
@@ -2321,7 +2414,10 @@ export class Story extends InkObject {
       }
     }
 
-    if (this.onExecute !== null) this.onExecute(this.state.callStack.currentElement?.previousPointer.path?.toString());
+    if (this.onExecute !== null)
+      this.onExecute(
+        this.state.callStack.currentElement?.previousPointer.path?.toString()
+      );
 
     let successfulPointerIncrement = this.IncrementContentPointer();
 
@@ -2388,7 +2484,7 @@ export class Story extends InkObject {
     this.state.callStack.currentElement.previousPointer =
       this.state.callStack.currentElement.currentPointer.copy();
     this.state.callStack.currentElement.currentPointer = pointer.copy();
-    
+
     return successfulIncrement;
   }
 
@@ -2605,6 +2701,7 @@ export class Story extends InkObject {
 
   private _asyncContinueActive: boolean = false;
   private _stateSnapshotAtLastNewline: StoryState | null = null;
+  private _simulatorSnapshotAtLastNewline: SimulatorSnapshot | null = null;
   private _sawLookaheadUnsafeFunctionAfterNewline: boolean = false;
 
   private _recursiveContinueCount: number = 0;
