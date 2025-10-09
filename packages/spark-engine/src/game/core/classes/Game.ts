@@ -126,14 +126,6 @@ export class Game<T extends M = {}> {
 
   protected _objectVariableRefMap = new Map<number, object>();
 
-  protected _simulateFrom?: {
-    file: string;
-    line: number;
-  } | null;
-  get simulateFrom() {
-    return this._simulateFrom;
-  }
-
   protected _simulateChoices?: Record<string, (number | undefined)[]> | null;
   get simulateChoices() {
     return this._simulateChoices;
@@ -242,7 +234,7 @@ export class Game<T extends M = {}> {
     const modules = options?.modules;
     const previewing = options?.previewFrom ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
-    this.setSimulateFrom(options?.simulateFrom ?? null);
+    this._simulation = options?.simulateState ? "simulating" : "none";
     this.setSimulateChoices(options?.simulateChoices ?? null);
     const startFrom = options?.previewFrom ??
       options?.startFrom ?? {
@@ -403,35 +395,15 @@ export class Game<T extends M = {}> {
     }
   }
 
-  setSimulateFrom(simulateFrom: { file: string; line: number } | null) {
-    if (simulateFrom) {
-      if (!this._simulation || this._simulation === "none") {
-        this._simulation = "simulating";
-      }
-    } else {
-      this._simulation = "none";
-    }
-    this._simulateFrom = simulateFrom;
-    this._simulatePath = undefined;
-    if (simulateFrom) {
-      this._simulatePath = findClosestPath(
-        simulateFrom,
-        this._pathLocationEntries,
-        this._scripts
-      );
-      if (this._simulatePath) {
-        const trueLocation = this._program.pathLocations?.[this._simulatePath];
-        if (trueLocation) {
-          const [scriptIndex, line] = trueLocation;
-          const file = this._scripts[scriptIndex];
-          if (file) {
-            this._simulateFrom = { file, line };
-            return this._simulateFrom;
-          }
-        }
-      }
-    }
-    return null;
+  isContainerPath(path: string) {
+    return Boolean(
+      path === "0" ||
+        this._program.knotLocations?.[path] ||
+        this._program.stitchLocations?.[path] ||
+        this._program.functionLocations?.[path] ||
+        this._program.sceneLocations?.[path] ||
+        this._program.branchLocations?.[path]
+    );
   }
 
   setSimulateChoices(
@@ -443,7 +415,7 @@ export class Game<T extends M = {}> {
     }
     this._simulateChoices = {};
     for (const [path, choices] of Object.entries(simulateChoices)) {
-      if (this._program.pathLocations?.[path]) {
+      if (this._program.pathLocations?.[path] || this.isContainerPath(path)) {
         this._simulateChoices[path] = choices;
       }
     }
@@ -559,8 +531,7 @@ export class Game<T extends M = {}> {
     if (toPath) {
       // Plan a route from the top of the knot containing the target path, to the target path itself
       const containerName = toPath.split(".")[0] || "0";
-      const fromPath =
-        this.getFirstPathInContainer(containerName) || containerName;
+      const fromPath = containerName;
       const route = planRoute(this._story, fromPath, toPath, {
         functions: Object.keys(this._program.functionLocations || {}),
         searchTimeout: this._routeSearchTimeout,
@@ -573,27 +544,6 @@ export class Game<T extends M = {}> {
         this._simulatePath = fromPath;
       }
     }
-  }
-
-  getFirstPathInContainer(name: string) {
-    if (name === "0") {
-      return "0.0";
-    }
-    const containerLocation =
-      this._program.knotLocations?.[name] ||
-      this._program.functionLocations?.[name] ||
-      this._program.sceneLocations?.[name] ||
-      this._program.stitchLocations?.[name] ||
-      this._program.branchLocations?.[name] ||
-      this._program.labelLocations?.[name];
-    if (containerLocation) {
-      const [scriptIndex, startLine] = containerLocation;
-      const file = this._scripts[scriptIndex];
-      if (file) {
-        return this.getClosestPath(file, startLine);
-      }
-    }
-    return null;
   }
 
   protected simulate(): void {

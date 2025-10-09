@@ -19,7 +19,6 @@ import { SetGameBreakpointsMessage } from "../game/core/classes/messages/SetGame
 import { SetGameDataBreakpointsMessage } from "../game/core/classes/messages/SetGameDataBreakpointsMessage";
 import { SetGameFunctionBreakpointsMessage } from "../game/core/classes/messages/SetGameFunctionBreakpointsMessage";
 import { SetGameSimulateChoicesMessage } from "../game/core/classes/messages/SetGameSimulateChoicesMessage";
-import { SetGameSimulateFromMessage } from "../game/core/classes/messages/SetGameSimulateFromMessage";
 import { SetGameStartFromMessage } from "../game/core/classes/messages/SetGameStartFromMessage";
 import { StartGameMessage } from "../game/core/classes/messages/StartGameMessage";
 import { StepGameClockMessage } from "../game/core/classes/messages/StepGameClockMessage";
@@ -292,17 +291,6 @@ onmessage = async (e) => {
       }
       return {
         functionBreakpoints: _game.setFunctionBreakpoints(functionBreakpoints),
-      };
-    });
-  }
-  if (SetGameSimulateFromMessage.type.isRequest(message)) {
-    const { simulateFrom } = message.params;
-    respond(message, () => {
-      if (!_game) {
-        throw new NoGameError();
-      }
-      return {
-        simulateFrom: _game.setSimulateFrom(simulateFrom),
       };
     });
   }

@@ -2,7 +2,7 @@ export interface GameConfiguration {
   restarted?: boolean;
   routeSearchTimeout?: number;
   executionTimeout?: number;
-  simulateFrom?: { file: string; line: number } | null;
+  simulateState?: boolean;
   simulateChoices?: Record<string, (number | undefined)[]> | null;
   previewFrom?: { file: string; line: number } | null;
   startFrom?: { file: string; line: number } | null;

@@ -85,7 +85,6 @@ export default class SparkWebPlayer extends Component(spec) {
 
   _options?: {
     workspace?: string;
-    simulateFrom?: { file: string; line: number } | null;
     simulateChoices?: Record<string, (number | undefined)[]> | null;
     startFrom?: { file: string; line: number } | null;
     previewFrom?: { file: string; line: number };
@@ -759,15 +758,10 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof ConfigureGameMessage.type,
     message: ConfigureGameMessage.Request
   ) => {
-    const { workspace, simulateFrom, simulateChoices, startFrom } =
-      message.params;
+    const { workspace, simulateChoices, startFrom } = message.params;
     this._options ??= {};
     if (workspace !== undefined) {
       this._options.workspace = workspace;
-    }
-    if (simulateFrom !== undefined) {
-      this._options.simulateFrom =
-        this._game?.setSimulateFrom(simulateFrom) ?? simulateFrom;
     }
     if (simulateChoices !== undefined) {
       this._options.simulateChoices =
@@ -1230,7 +1224,6 @@ export default class SparkWebPlayer extends Component(spec) {
 
   async buildGame(restarted?: boolean) {
     const options = this._options;
-    const simulateFrom = options?.simulateFrom;
     const simulateChoices = options?.simulateChoices;
     const startFrom = options?.startFrom;
     const previewFrom = options?.previewFrom;
@@ -1245,7 +1238,7 @@ export default class SparkWebPlayer extends Component(spec) {
     }
     this._game = new Game(this._program, {
       restarted,
-      simulateFrom,
+      simulateState: true,
       simulateChoices,
       previewFrom,
       startFrom,
@@ -1454,16 +1447,7 @@ export default class SparkWebPlayer extends Component(spec) {
     );
     // Simulate from the start of the current container
     const previewContainerName = previewPath?.split(".")[0] || "0";
-    const simulatePath =
-      this._game?.getFirstPathInContainer(previewContainerName) || "";
-    const simulateLocation = this._program?.pathLocations?.[simulatePath];
-    const [simulateScriptIndex, simulateStartLine] = simulateLocation || [0, 0];
-    const simulateFrom = {
-      file: this._scripts[simulateScriptIndex]!,
-      line: simulateStartLine,
-    };
-    this._options ??= {};
-    this._options.simulateFrom = simulateFrom;
+    const simulatePath = previewContainerName;
     const executedChoices =
       this._game?.runtimeState.choicesEncountered.map((c) => c.selected) ?? [];
     const shouldSimulateChoices = Array.from(
@@ -1479,7 +1463,6 @@ export default class SparkWebPlayer extends Component(spec) {
         (this._game.program.uri !== this._program?.uri ||
           this._game.program.version !== this._program?.version)) ||
       (this._game.state === "previewing" &&
-        this._options?.simulateFrom &&
         previewPath &&
         (this._game.context.system.previewing !== previewPath ||
           JSON.stringify(executedChoices) !==
