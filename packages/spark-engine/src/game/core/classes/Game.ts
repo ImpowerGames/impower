@@ -5,7 +5,7 @@ import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
   buildRouteSimulator,
   planRoute,
-} from "@impower/sparkdown/src/utils/planRoute";
+} from "@impower/sparkdown/src/utils/exploreRoutes";
 import { uuid } from "@impower/sparkdown/src/utils/uuid";
 import { ErrorType } from "../../../protocol/enums/ErrorType";
 import { Message } from "../../../protocol/types/Message";
