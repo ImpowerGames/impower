@@ -775,6 +775,9 @@ export class Game<T extends M = {}> {
   }
 
   reset() {
+    if (this._story.canContinue && !this._story.asyncContinueComplete) {
+      this._story.Continue();
+    }
     // Reset story to its initial state
     this._story.ResetState();
     // Reset modules to their initial state
