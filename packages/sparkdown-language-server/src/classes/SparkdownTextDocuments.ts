@@ -48,7 +48,7 @@ const COMPILER_WORKER_URL = URL.createObjectURL(
   })
 );
 
-const THROTTLE_DELAY = 400;
+const THROTTLE_DELAY = 10;
 const DEBOUNCE_DELAY = 600;
 
 const globToRegex = (glob: string) => {
@@ -154,15 +154,18 @@ export default class SparkdownTextDocuments {
           if (message.method === `${message.method}/progress`) {
             onProgress?.(message.value);
           } else if (message.error !== undefined) {
+            profile("end", request.method);
             reject(message.error);
             this._compilerWorker.removeEventListener("message", onResponse);
           } else if (message.result !== undefined) {
+            profile("end", request.method);
             resolve(message.result);
             this._compilerWorker.removeEventListener("message", onResponse);
           }
         }
       };
       this._compilerWorker.addEventListener("message", onResponse);
+      profile("start", request.method);
       profile("start", "send " + request.method);
       this._compilerWorker.postMessage(request, transfer);
       profile("end", "send " + request.method);
