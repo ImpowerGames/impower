@@ -2,7 +2,10 @@ import { DiagnosticTag } from "@impower/spark-editor-protocol/src/enums/Diagnost
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { InitializedMessage } from "@impower/spark-editor-protocol/src/protocols/InitializedMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
+import {
+  DidCompileTextDocumentMessage,
+  DidCompileTextDocumentParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import {
   ClientCapabilities,
@@ -123,6 +126,10 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
   },
 };
 
+export type LanguageServerEvents = {
+  "textDocument/didCompile": (params: DidCompileTextDocumentParams) => void;
+};
+
 export default class WorkspaceLanguageServer {
   protected _worker: Worker;
 
@@ -140,6 +147,12 @@ export default class WorkspaceLanguageServer {
   get connection() {
     return this._connection;
   }
+
+  protected _events: {
+    [K in keyof LanguageServerEvents]: Set<LanguageServerEvents[K]>;
+  } = {
+    "textDocument/didCompile": new Set(),
+  };
 
   protected _serverCapabilities?: ServerCapabilities;
 
@@ -173,10 +186,20 @@ export default class WorkspaceLanguageServer {
     this._connection.onNotification(
       DidCompileTextDocumentMessage.type,
       (params) => {
+        performance.mark(`DidCompileTextDocumentMessage start`);
         this.updateProgram(params.program);
+        this._events[DidCompileTextDocumentMessage.method].forEach((l) => {
+          l?.(params);
+        });
         this.emit(
           MessageProtocol.event,
           DidCompileTextDocumentMessage.type.notification(params)
+        );
+        performance.mark(`DidCompileTextDocumentMessage end`);
+        performance.measure(
+          `DidCompileTextDocumentMessage`,
+          `DidCompileTextDocumentMessage start`,
+          `DidCompileTextDocumentMessage end`
         );
       }
     );
@@ -258,6 +281,20 @@ export default class WorkspaceLanguageServer {
 
   updateProgram(program: SparkProgram) {
     this._program = program;
+  }
+
+  addEventListener<K extends keyof LanguageServerEvents>(
+    event: K,
+    listener: LanguageServerEvents[K]
+  ) {
+    this._events[event].add(listener);
+  }
+
+  removeEventListener<K extends keyof LanguageServerEvents>(
+    event: K,
+    listener: LanguageServerEvents[K]
+  ) {
+    this._events[event].delete(listener);
   }
 
   protected emit<T>(eventName: string, detail?: T): boolean {
