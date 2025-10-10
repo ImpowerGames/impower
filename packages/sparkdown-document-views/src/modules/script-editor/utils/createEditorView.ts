@@ -52,11 +52,7 @@ import {
   pinpointsChanged,
   pinpointsField,
 } from "../../../cm-pinpoints/pinpoints";
-import {
-  updateVariableWidgets,
-  variableWidgets,
-} from "../../../cm-variable-widgets/variableWidgets";
-import { getDocumentVersion } from "../../../cm-versioning/versioning";
+import { variableWidgets } from "../../../cm-variable-widgets/variableWidgets";
 import debounce from "../../../utils/debounce";
 import EDITOR_EXTENSIONS from "../constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../constants/EDITOR_THEME";
@@ -466,17 +462,18 @@ const createEditorView = (
       DidCompileTextDocumentParams
     >
   ) => {
-    const params = message.params;
-    const program = params.program;
-    const version = params.textDocument.version;
-    programContext.program = program;
-    if (version === getDocumentVersion(view.state)) {
-      view.dispatch(
-        updateVariableWidgets({
-          variables: {}, // TODO
-        })
-      );
-    }
+    // TODO
+    // const params = message.params;
+    // const program = params.program;
+    // const version = params.textDocument.version;
+    // programContext.program = program;
+    // if (version === getDocumentVersion(view.state)) {
+    //   view.dispatch(
+    //     updateVariableWidgets({
+    //       variables: {},
+    //     })
+    //   );
+    // }
   };
   window.addEventListener(MessageProtocol.event, handleProtocol);
   const disposable = {
