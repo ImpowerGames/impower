@@ -876,12 +876,21 @@ export default class SparkWebPlayer extends Component(spec) {
     this._scripts = Object.keys(this._program?.scripts ?? {});
     // Preload all images
     // TODO: Only preload images that are going to be shown before the next interaction
-    this._preloadedImages.clear();
     const images = this._program.context?.["image"];
+    const currentSrcs = new Set<string>();
     if (images) {
       await Promise.all(
-        Object.values(images).map((image) => this.preloadImage(image.src))
+        Object.values(images).map((image) => {
+          currentSrcs.add(image.src);
+          return this.preloadImage(image.src);
+        })
       );
+    }
+    for (const src of this._preloadedImages.keys()) {
+      if (!currentSrcs.has(src)) {
+        // Unload old unused images
+        this._preloadedImages.delete(src);
+      }
     }
     // Notify program is loaded
     this._loadListeners.forEach((callback) => {
@@ -1141,8 +1150,11 @@ export default class SparkWebPlayer extends Component(spec) {
 
   async preloadImage(src: string) {
     if (src) {
+      if (this._preloadedImages.has(src)) {
+        return this._preloadedImages.get(src);
+      }
       try {
-        await new Promise((resolve, reject) => {
+        return await new Promise((resolve, reject) => {
           const img = new Image();
           img.src = src;
           img.onload = () => {
@@ -1157,6 +1169,7 @@ export default class SparkWebPlayer extends Component(spec) {
         console.warn("Could not preload: ", src);
       }
     }
+    return null;
   }
 
   async startGameAndApp(restarted?: boolean) {
