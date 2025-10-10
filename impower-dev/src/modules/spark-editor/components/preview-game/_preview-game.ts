@@ -9,11 +9,11 @@ const SPARKDOWN_PLAYER_ORIGIN =
 export default spec({
   tag: "se-preview-game",
   stores: { workspace },
-  selectors: { iframe: "" },
+  selectors: { iframe: "", preview: "#preview" },
   html: () => {
     return html`
       <se-preview-game-toolbar></se-preview-game-toolbar>
-      <s-box position="relative" grow>
+      <div id="preview">
         <iframe
           id="iframe"
           src="${SPARKDOWN_PLAYER_ORIGIN}/"

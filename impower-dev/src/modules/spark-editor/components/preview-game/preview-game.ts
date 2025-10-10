@@ -5,6 +5,7 @@ import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/Me
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
+import { isResponse } from "@impower/spark-editor-protocol/src/utils/isResponse";
 import { ConfigureGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ConfigureGameMessage";
 import { EnterGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage";
 import { ExitGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage";
@@ -42,7 +43,7 @@ export default class GamePreview extends Component(spec) {
   _reloadDebounceTimer: any;
 
   override onConnected() {
-    window.addEventListener("message", this.handleMessage);
+    window.addEventListener("message", this.handleWindowMessage);
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     window.addEventListener("keydown", this.handleKeyDown);
     window.addEventListener("resizing", this.handleResizingSplitPane);
@@ -51,7 +52,7 @@ export default class GamePreview extends Component(spec) {
   }
 
   override onDisconnected() {
-    window.removeEventListener("message", this.handleMessage);
+    window.removeEventListener("message", this.handleWindowMessage);
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     window.removeEventListener("keydown", this.handleKeyDown);
     window.removeEventListener("resizing", this.handleResizingSplitPane);
@@ -62,27 +63,16 @@ export default class GamePreview extends Component(spec) {
     );
   }
 
-  handleMessage = async (e: MessageEvent) => {
+  handleWindowMessage = async (e: MessageEvent) => {
     if (e.origin !== SPARKDOWN_PLAYER_ORIGIN) {
       return;
     }
 
     const message = (e as MessageEvent).data;
 
-    // Resolve request promises
-    for (const listener of this._listeners) {
-      listener(message);
-    }
-
     // Forward messages from player to editor
     this.emit(MessageProtocol.event, message);
 
-    // Once player is ready, send assets and load the game
-    if (ConnectedPreviewMessage.type.is(message)) {
-      this._previewIsConnected = true;
-      const program = await Workspace.ls.getProgram();
-      await this.debouncedReload(program);
-    }
     // Fetch assets from workspace and respond to player
     if (FetchGameAssetMessage.type.is(message)) {
       const { path } = message.params;
@@ -102,9 +92,22 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
-  protected handleProtocol = (e: Event) => {
+  protected handleProtocol = async (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
+
+      // Resolve request promises
+      for (const listener of this._listeners) {
+        listener(message);
+      }
+
+      // Once player is ready, send assets and load the game
+      if (ConnectedPreviewMessage.type.is(message)) {
+        this._previewIsConnected = true;
+        const program = await Workspace.ls.getProgram();
+        await this.debouncedReload(program);
+      }
+
       if (
         typeof message.method === "string" &&
         (message.method.startsWith("game/") ||
@@ -194,7 +197,7 @@ export default class GamePreview extends Component(spec) {
     if (document.fullscreenElement) {
       document.exitFullscreen();
     } else {
-      this.refs.iframe.requestFullscreen();
+      this.refs.preview.requestFullscreen();
     }
   };
 
@@ -281,11 +284,15 @@ export default class GamePreview extends Component(spec) {
   };
 
   handleResizingSplitPane = async (e: Event) => {
-    this.refs.iframe.style.pointerEvents = "none";
+    if (this.refs.iframe) {
+      this.refs.iframe.style.pointerEvents = "none";
+    }
   };
 
   handleResizedSplitPane = async (e: Event) => {
-    this.refs.iframe.style.pointerEvents = "auto";
+    if (this.refs.iframe) {
+      this.refs.iframe.style.pointerEvents = "auto";
+    }
   };
 
   override onStoreUpdate() {
@@ -379,15 +386,45 @@ export default class GamePreview extends Component(spec) {
     transfer?: Transferable[]
   ): Promise<R> {
     const iframe = this.refs.iframe as HTMLIFrameElement;
-    const contentWindow = iframe.contentWindow;
-    if (contentWindow) {
+    if (iframe) {
+      // Post message to iframe
+      const contentWindow = iframe.contentWindow;
+      if (contentWindow) {
+        const request = type.request(params);
+        return new Promise<R>((resolve, reject) => {
+          const onResponse = (message: any) => {
+            if (message) {
+              if (
+                message.method === request.method &&
+                message.id === request.id &&
+                isResponse<string, R>(message, request.method)
+              ) {
+                if (message.error !== undefined) {
+                  reject({ data: message.method, ...message.error });
+                  this._listeners.delete(onResponse);
+                } else if (message.result !== undefined) {
+                  resolve(message.result);
+                  this._listeners.delete(onResponse);
+                }
+              }
+            }
+          };
+          this._listeners.add(onResponse);
+          contentWindow.postMessage(request, SPARKDOWN_PLAYER_ORIGIN, transfer);
+        });
+      } else {
+        throw new Error("content window not loaded");
+      }
+    } else {
+      // Send event
       const request = type.request(params);
       return new Promise<R>((resolve, reject) => {
         const onResponse = (message: any) => {
           if (message) {
             if (
               message.method === request.method &&
-              message.id === request.id
+              message.id === request.id &&
+              isResponse<string, R>(message, request.method)
             ) {
               if (message.error !== undefined) {
                 reject({ data: message.method, ...message.error });
@@ -400,10 +437,8 @@ export default class GamePreview extends Component(spec) {
           }
         };
         this._listeners.add(onResponse);
-        contentWindow.postMessage(request, SPARKDOWN_PLAYER_ORIGIN, transfer);
+        this.emit(MessageProtocol.event, request);
       });
-    } else {
-      throw new Error("content window not loaded");
     }
   }
 
