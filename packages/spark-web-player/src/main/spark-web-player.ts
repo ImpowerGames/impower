@@ -55,6 +55,7 @@ import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../spec-component/src/component";
 import { Application } from "../app/Application";
 import { debounce } from "../utils/debounce";
+import { profile } from "../utils/profile";
 import spec from "./_spark-web-player";
 
 const COMMON_ASPECT_RATIOS = [
@@ -530,6 +531,7 @@ export default class SparkWebPlayer extends Component(spec) {
   protected handleProtocol = async (e: Event) => {
     if (e instanceof CustomEvent) {
       if (ResizeGameMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleResizeGame(
           ResizeGameMessage.type,
           e.detail
@@ -537,8 +539,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (ConfigureGameMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleConfigureGame(
           ConfigureGameMessage.type,
           e.detail
@@ -546,8 +550,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (SetGameBreakpointsMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleSetGameBreakpoints(
           SetGameBreakpointsMessage.type,
           e.detail
@@ -555,8 +561,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (SetGameFunctionBreakpointsMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleSetGameFunctionBreakpoints(
           SetGameFunctionBreakpointsMessage.type,
           e.detail
@@ -564,8 +572,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (SetGameDataBreakpointsMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleSetGameDataBreakpoints(
           SetGameDataBreakpointsMessage.type,
           e.detail
@@ -573,8 +583,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (EnableGameDebugMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleEnableGameDebug(
           EnableGameDebugMessage.type,
           e.detail
@@ -582,8 +594,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (DisableGameDebugMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleDisableGameDebug(
           DisableGameDebugMessage.type,
           e.detail
@@ -591,8 +605,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (LoadPreviewMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleLoadPreview(
           LoadPreviewMessage.type,
           e.detail
@@ -600,8 +616,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (LoadGameMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleLoadGame(
           LoadGameMessage.type,
           e.detail
@@ -609,8 +627,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (StartGameMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleStartGame(
           StartGameMessage.type,
           e.detail
@@ -618,8 +638,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (StopGameMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleStopGame(
           StopGameMessage.type,
           e.detail
@@ -627,8 +649,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (RestartGameMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleRestartGame(
           RestartGameMessage.type,
           e.detail
@@ -636,8 +660,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (PauseGameMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handlePauseGame(
           PauseGameMessage.type,
           e.detail
@@ -645,8 +671,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (UnpauseGameMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleUnpauseGame(
           UnpauseGameMessage.type,
           e.detail
@@ -654,8 +682,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (StepGameClockMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleStepGameClock(
           StepGameClockMessage.type,
           e.detail
@@ -663,8 +693,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (StepGameMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleStepGame(
           StepGameMessage.type,
           e.detail
@@ -672,8 +704,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (ContinueGameMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleContinueGame(
           ContinueGameMessage.type,
           e.detail
@@ -681,8 +715,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (GetGameScriptsMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleGetGameScripts(
           GetGameScriptsMessage.type,
           e.detail
@@ -690,8 +726,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (GetGamePossibleBreakpointLocationsMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleGetGamePossibleBreakpointLocations(
           GetGamePossibleBreakpointLocationsMessage.type,
           e.detail
@@ -699,8 +737,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (GetGameStackTraceMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleGetGameStackTrace(
           GetGameStackTraceMessage.type,
           e.detail
@@ -708,8 +748,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (GetGameEvaluationContextMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleGetGameEvaluationContext(
           GetGameEvaluationContextMessage.type,
           e.detail
@@ -717,8 +759,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (GetGameVariablesMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleGetGameVariables(
           GetGameVariablesMessage.type,
           e.detail
@@ -726,8 +770,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (GetGameThreadsMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         const response = await this.handleGetGameThreads(
           GetGameThreadsMessage.type,
           e.detail
@@ -735,12 +781,25 @@ export default class SparkWebPlayer extends Component(spec) {
         if (response) {
           this.emit(MessageProtocol.event, response);
         }
+        profile("end", e.detail.method);
       }
       if (EnterGameFullscreenModeMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         this.refs.viewport.classList.add("fullscreen");
+        this.emit(
+          MessageProtocol.event,
+          EnterGameFullscreenModeMessage.type.response(e.detail.id, {})
+        );
+        profile("end", e.detail.method);
       }
       if (ExitGameFullscreenModeMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
         this.refs.viewport.classList.remove("fullscreen");
+        this.emit(
+          MessageProtocol.event,
+          ExitGameFullscreenModeMessage.type.response(e.detail.id, {})
+        );
+        profile("end", e.detail.method);
       }
     }
   };
@@ -1247,8 +1306,11 @@ export default class SparkWebPlayer extends Component(spec) {
       return;
     }
     if (this._game) {
+      profile("start", "game/destroy");
       this._game.destroy();
+      profile("end", "game/destroy");
     }
+    profile("start", "game/create");
     this._game = new Game(this._program, {
       restarted,
       simulateState: true,
@@ -1288,6 +1350,7 @@ export default class SparkWebPlayer extends Component(spec) {
         return setTimeout(handler, timeout, ...args);
       },
     });
+    profile("end", "game/create");
     this.updateExecutionLabels();
     this._game.connection.outgoing.addListener(
       GameEncounteredRuntimeErrorMessage.method,
@@ -1433,17 +1496,24 @@ export default class SparkWebPlayer extends Component(spec) {
         }
       }
     );
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
     if (this._app) {
+      profile("start", "app/destroy");
       this._app.destroy(true);
       this._app = undefined;
+      profile("end", "app/destroy");
     }
+    profile("start", "app/create");
     this._app = new Application(
       this._game,
       this.refs.gameView,
       this.refs.gameOverlay,
       this._audioContext
     );
+    profile("end", "app/create");
+    profile("start", "app/init");
     await this._app.init();
+    profile("end", "app/init");
 
     return this._game;
   }
