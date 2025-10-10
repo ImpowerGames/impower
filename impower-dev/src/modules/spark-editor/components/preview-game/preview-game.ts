@@ -3,7 +3,6 @@ import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/sr
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
-import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { isResponse } from "@impower/spark-editor-protocol/src/utils/isResponse";
 import { ConfigureGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ConfigureGameMessage";
@@ -182,7 +181,6 @@ export default class GamePreview extends Component(spec) {
       const newEntryLine = selectedRange?.start?.line ?? 0;
       if (newEntryLine !== this._startFromLine) {
         await this.configureGame();
-        await this.loadPreview();
       }
     }
   };
@@ -207,7 +205,6 @@ export default class GamePreview extends Component(spec) {
     const { simulateChoices } = message.params;
     Workspace.window.setSimulateChoices(simulateChoices ?? {});
     await this.configureGame();
-    await this.loadPreview();
   };
 
   protected handleGameExecuted = (
@@ -321,18 +318,10 @@ export default class GamePreview extends Component(spec) {
   async reload(program: SparkProgram) {
     this._loadingProgram = program;
     await this.loadProgram(program);
-    await this.configureGame();
-    await this.loadPreview();
     this._loadedProgram = program;
   }
 
-  async loadProgram(program: SparkProgram) {
-    await this.sendRequest(LoadGameMessage.type, {
-      program,
-    });
-  }
-
-  async configureGame() {
+  getGameConfiguration() {
     const editor = Workspace.window.getActiveEditorForPane("logic");
     if (editor) {
       const { uri, selectedRange } = editor;
@@ -345,39 +334,27 @@ export default class GamePreview extends Component(spec) {
         line: startLine,
       };
       const simulateChoices = Workspace.window.store.debug.simulateChoices;
-      await this.sendRequest(ConfigureGameMessage.type, {
+      return {
         workspace,
         startFrom,
         simulateChoices,
-      });
+      };
     }
+    return {};
   }
 
-  async loadPreview() {
-    const store = this.stores.workspace.current;
-    const projectId = store.project.id;
-    const running = store.preview.modes.game.running;
-    if (projectId && !running) {
-      const editor = Workspace.window.getActiveEditorForPane("logic");
-      if (editor) {
-        const { uri, visibleRange, selectedRange } = editor;
-        const files = await Workspace.fs.getFiles(projectId);
-        const file = files[uri];
-        if (file && file.text != null) {
-          await this.sendRequest(LoadPreviewMessage.type, {
-            type: "game",
-            textDocument: {
-              uri,
-              languageId: "sparkdown",
-              version: file.version,
-              text: file.text,
-            },
-            visibleRange,
-            selectedRange,
-          });
-        }
-      }
-    }
+  async loadProgram(program: SparkProgram) {
+    await this.sendRequest(LoadGameMessage.type, {
+      program,
+      ...this.getGameConfiguration(),
+    });
+  }
+
+  async configureGame() {
+    await this.sendRequest(
+      ConfigureGameMessage.type,
+      this.getGameConfiguration()
+    );
   }
 
   async sendRequest<M extends string, P, R>(

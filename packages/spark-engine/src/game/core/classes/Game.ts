@@ -395,31 +395,45 @@ export class Game<T extends M = {}> {
     }
   }
 
-  isContainerPath(path: string) {
+  static isContainerPath(program: SparkProgram, path: string) {
     return Boolean(
       path === "0" ||
-        this._program.knotLocations?.[path] ||
-        this._program.stitchLocations?.[path] ||
-        this._program.functionLocations?.[path] ||
-        this._program.sceneLocations?.[path] ||
-        this._program.branchLocations?.[path]
+        program.knotLocations?.[path] ||
+        program.stitchLocations?.[path] ||
+        program.functionLocations?.[path] ||
+        program.sceneLocations?.[path] ||
+        program.branchLocations?.[path]
     );
   }
 
   setSimulateChoices(
     simulateChoices: Record<string, (number | undefined)[]> | null
   ) {
+    this._simulateChoices = Game.getValidSimulateChoices(
+      this._program,
+      simulateChoices
+    );
+    return this._simulateChoices;
+  }
+
+  static getValidSimulateChoices(
+    program: SparkProgram,
+    simulateChoices: Record<string, (number | undefined)[]> | null
+  ) {
     if (!simulateChoices) {
-      this._simulateChoices = null;
       return null;
     }
-    this._simulateChoices = {};
+    const validSimulateChoices: Record<string, (number | undefined)[]> | null =
+      {};
     for (const [path, choices] of Object.entries(simulateChoices)) {
-      if (this._program.pathLocations?.[path] || this.isContainerPath(path)) {
-        this._simulateChoices[path] = choices;
+      if (
+        program.pathLocations?.[path] ||
+        Game.isContainerPath(program, path)
+      ) {
+        validSimulateChoices[path] = choices;
       }
     }
-    return this._simulateChoices;
+    return validSimulateChoices;
   }
 
   setStartFrom(startFrom: { file: string; line: number }) {
@@ -438,6 +452,29 @@ export class Game<T extends M = {}> {
         if (file) {
           this._startFrom = { file, line };
           return this._startFrom;
+        }
+      }
+    }
+    return null;
+  }
+
+  static getValidStartFrom(
+    program: SparkProgram,
+    startFrom: { file: string; line: number }
+  ) {
+    const scripts = Object.keys(program.scripts);
+    const path = findClosestPath(
+      startFrom,
+      Object.entries(program.pathLocations || {}),
+      scripts
+    );
+    if (path) {
+      const trueLocation = program.pathLocations?.[path];
+      if (trueLocation) {
+        const [scriptIndex, line] = trueLocation;
+        const file = scripts[scriptIndex];
+        if (file) {
+          return { file, line };
         }
       }
     }

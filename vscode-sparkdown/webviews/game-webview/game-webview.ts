@@ -70,10 +70,6 @@ window.addEventListener("message", (e: MessageEvent) => {
       }
     }
   }
-  if (LoadPreviewMessage.type.isRequest(message)) {
-    state.textDocument.uri = message.params.textDocument.uri;
-    vscode.setState(state);
-  }
   // Forward protocol messages from vscode extension to window
   window.dispatchEvent(
     new CustomEvent(MessageProtocol.event, {

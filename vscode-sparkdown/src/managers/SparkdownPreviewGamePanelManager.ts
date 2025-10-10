@@ -8,7 +8,6 @@ import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protoc
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
-import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
@@ -322,28 +321,13 @@ export class SparkdownPreviewGamePanelManager {
       }
       await this.sendRequest(LoadGameMessage.type, {
         program,
-      });
-      await this.sendRequest(ConfigureGameMessage.type, {
+        workspace: vscode.workspace
+          .getWorkspaceFolder(document.uri)
+          ?.uri.toString(),
         startFrom: {
           file: document.uri.toString(),
           line: selectedRange?.start.line ?? 0,
         },
-        workspace: vscode.workspace
-          .getWorkspaceFolder(document.uri)
-          ?.uri.toString(),
-      });
-      await this.sendRequest(LoadPreviewMessage.type, {
-        type: "game",
-        textDocument: {
-          uri: document.uri.toString(),
-          languageId: document.languageId,
-          version: document.version,
-          text: "",
-        },
-        visibleRange: visibleRange ? getServerRange(visibleRange) : undefined,
-        selectedRange: selectedRange
-          ? getServerRange(selectedRange)
-          : undefined,
       });
     }
   }
@@ -406,16 +390,6 @@ export class SparkdownPreviewGamePanelManager {
           file: document.uri.toString(),
           line: selectedRange?.start.line ?? 0,
         },
-      });
-      await this.sendRequest(LoadPreviewMessage.type, {
-        type: "game",
-        textDocument: {
-          uri: document.uri.toString(),
-          languageId: document.languageId,
-          version: document.version,
-          text: document.getText(),
-        },
-        selectedRange: getServerRange(selectedRange),
       });
       this._selectedVersion = document.version;
     }

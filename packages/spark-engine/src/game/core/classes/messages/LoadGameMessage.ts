@@ -2,10 +2,11 @@ import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { MessageProtocolRequestType } from "../../../../protocol/classes/MessageProtocolRequestType";
 import { RequestMessage } from "../../../../protocol/types/RequestMessage";
 import { ResponseMessage } from "../../../../protocol/types/ResponseMessage";
+import { ConfigureGameParams } from "./ConfigureGameMessage";
 
 export type LoadGameMethod = typeof LoadGameMessage.method;
 
-export interface LoadGameParams {
+export interface LoadGameParams extends ConfigureGameParams {
   program: SparkProgram;
 }
 

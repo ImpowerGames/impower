@@ -1,6 +1,5 @@
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
-import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { ConfigureGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ConfigureGameMessage";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
@@ -607,17 +606,6 @@ export default class SparkWebPlayer extends Component(spec) {
         }
         profile("end", e.detail.method);
       }
-      if (LoadPreviewMessage.type.is(e.detail)) {
-        profile("start", e.detail.method);
-        const response = await this.handleLoadPreview(
-          LoadPreviewMessage.type,
-          e.detail
-        );
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-        profile("end", e.detail.method);
-      }
       if (LoadGameMessage.type.is(e.detail)) {
         profile("start", e.detail.method);
         const response = await this.handleLoadGame(
@@ -823,12 +811,17 @@ export default class SparkWebPlayer extends Component(spec) {
       this._options.workspace = workspace;
     }
     if (simulateChoices !== undefined) {
-      this._options.simulateChoices =
-        this._game?.setSimulateChoices(simulateChoices) ?? simulateChoices;
+      this._options.simulateChoices = this._program
+        ? Game.getValidSimulateChoices(this._program, simulateChoices)
+        : simulateChoices;
     }
     if (startFrom !== undefined) {
-      this._options.startFrom =
-        this._game?.setStartFrom(startFrom) ?? startFrom;
+      this._options.startFrom = this._program
+        ? Game.getValidStartFrom(this._program, startFrom)
+        : startFrom;
+      if (this._game?.state === "previewing") {
+        this.updatePreview(startFrom.file, startFrom.line);
+      }
     }
     this.updateLaunchStateIcon();
     return messageType.response(message.id, {});
@@ -911,28 +904,27 @@ export default class SparkWebPlayer extends Component(spec) {
         });
   };
 
-  protected handleLoadPreview = async (
-    messageType: typeof LoadPreviewMessage.type,
-    message: LoadPreviewMessage.Request
-  ) => {
-    const { type, textDocument, selectedRange } = message.params;
-    if (type === "game") {
-      const line = selectedRange?.start.line ?? 0;
-      await this.updatePreview(textDocument.uri, line);
-      this.updateLaunchStateIcon();
-      return messageType.response(message.id, {});
-    }
-    return undefined;
-  };
-
   protected handleLoadGame = async (
     messageType: typeof LoadGameMessage.type,
     message: LoadGameMessage.Request
   ) => {
-    const { program } = message.params;
+    const { program, workspace, simulateChoices, startFrom } = message.params;
     this._program = program;
     this._pathLocations = Object.entries(this._program?.pathLocations ?? {});
     this._scripts = Object.keys(this._program?.scripts ?? {});
+    this._options ??= {};
+    if (workspace !== undefined) {
+      this._options.workspace = workspace;
+    }
+    if (simulateChoices !== undefined) {
+      this._options.simulateChoices =
+        Game.getValidSimulateChoices(program, simulateChoices) ??
+        simulateChoices;
+    }
+    if (startFrom !== undefined) {
+      this._options.startFrom =
+        Game.getValidStartFrom(program, startFrom) ?? startFrom;
+    }
     // Preload all images
     // TODO: Only preload images that are going to be shown before the next interaction
     const images = this._program.context?.["image"];
@@ -956,13 +948,17 @@ export default class SparkWebPlayer extends Component(spec) {
       callback();
     });
     this._loadListeners.clear();
-    // Stop and restart game if we loaded a new game while the old game was running
-    if (this._game && this._game.state === "running") {
+    if (this._game?.state === "running") {
+      // Stop and restart game if we loaded a new game while the old game was running
       this.debouncedRestartGame();
       this.emit(
         MessageProtocol.event,
         GameReloadedMessage.type.notification({})
       );
+    } else {
+      if (startFrom) {
+        this.updatePreview(startFrom.file, startFrom.line);
+      }
     }
     this.updateLaunchStateIcon();
     return messageType.response(message.id, {});
