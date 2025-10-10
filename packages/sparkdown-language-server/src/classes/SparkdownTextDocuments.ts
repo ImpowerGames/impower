@@ -40,7 +40,6 @@ import { SparkdownConfiguration } from "../types/SparkdownConfiguration";
 import { profile } from "../utils/logging/profile";
 import { getDocumentDiagnostics } from "../utils/providers/getDocumentDiagnostics";
 import { debounce } from "../utils/timing/debounce";
-import { throttle } from "../utils/timing/throttle";
 
 const COMPILER_WORKER_URL = URL.createObjectURL(
   new Blob([COMPILER_INLINE_WORKER_STRING], {
@@ -48,7 +47,6 @@ const COMPILER_WORKER_URL = URL.createObjectURL(
   })
 );
 
-const THROTTLE_DELAY = 10;
 const DEBOUNCE_DELAY = 600;
 
 const globToRegex = (glob: string) => {
@@ -391,10 +389,6 @@ export default class SparkdownTextDocuments {
     return newState;
   }
 
-  throttledCompile = throttle(async (uri: string, force: boolean) => {
-    return this.compile(uri, force);
-  }, THROTTLE_DELAY);
-
   debouncedCompile = debounce(async (uri: string, force: boolean) => {
     return this.compile(uri, force);
   }, DEBOUNCE_DELAY);
@@ -668,10 +662,8 @@ export default class SparkdownTextDocuments {
           const textDocument = event.textDocument;
           const contentChanges = event.contentChanges;
           await this.updateCompilerDocument(textDocument, contentChanges);
-          // update periodically while user types.
-          this.throttledCompile(textDocument.uri, false);
-          // ensure final call once user is completely done typing.
-          this.debouncedCompile(textDocument.uri, false);
+          // compile while user types.
+          await this.compile(textDocument.uri, false);
         }
       )
     );
