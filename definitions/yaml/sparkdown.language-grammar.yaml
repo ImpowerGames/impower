@@ -298,7 +298,7 @@ repository:
   StoreDeclaration:
     tag: meta
     name: storage.type.var.sd
-    begin: ({{WS}}*)(STORE|store)({{EOK}})
+    begin: ({{WS}}*)(store)({{EOK}})
     beginCaptures:
       1:
         patterns:

@@ -485,7 +485,7 @@
     "StoreDeclaration": {
       "tag": "meta",
       "name": "storage.type.var.sd",
-      "begin": "([^\\S\\n\\r]*)(STORE|store)((?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))",
+      "begin": "([^\\S\\n\\r]*)(store)((?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))",
       "beginCaptures": {
         "1": {
           "patterns": [

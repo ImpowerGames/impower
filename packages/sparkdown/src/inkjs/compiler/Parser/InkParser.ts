@@ -2784,7 +2784,6 @@ export class InkParser extends StringParser {
     if (
       this.ParseKeywordString("VAR") === null &&
       this.ParseKeywordString("var") === null &&
-      this.ParseKeywordString("STORE") === null &&
       this.ParseKeywordString("store") === null
     ) {
       return null;

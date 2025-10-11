@@ -45,6 +45,7 @@ export class Story extends FlowBase {
       case "external":
       case "VAR":
       case "var":
+      case "store":
       case "CONST":
       case "const":
       case "LIST":
