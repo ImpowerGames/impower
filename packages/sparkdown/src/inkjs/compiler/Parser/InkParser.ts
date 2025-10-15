@@ -1,7 +1,6 @@
 import { Argument } from "./ParsedHierarchy/Argument";
 import { AuthorWarning } from "./ParsedHierarchy/AuthorWarning";
 import { BinaryExpression } from "./ParsedHierarchy/Expression/BinaryExpression";
-import { CharacterRange } from "./CharacterRange";
 import { CharacterSet } from "./CharacterSet";
 import { Choice } from "./ParsedHierarchy/Choice";
 import { CommentEliminator } from "./CommentEliminator";
@@ -61,6 +60,7 @@ import { ObjectExpression } from "./ParsedHierarchy/Expression/ObjectExpression"
 import { ErrorType } from "./ErrorType";
 import { DefaultFileHandler } from "../FileHandler/DefaultFileHandler";
 import { StructPropertyDefinition } from "./ParsedHierarchy/Struct/StructPropertyDefinition";
+import { InkCharacterRanges } from "./InkCharacterRanges";
 
 export class InkParser extends StringParser {
   /**
@@ -301,113 +301,6 @@ export class InkParser extends StringParser {
 
   /**
    * End base InkParser section.
-   */
-
-  /**
-   * Begin CharacterRanges section.
-   */
-
-  public static readonly LatinBasic: CharacterRange = CharacterRange.Define(
-    "\u0041",
-    "\u007A",
-    new CharacterSet().AddRange("\u005B", "\u0060")
-  );
-
-  public static readonly LatinExtendedA: CharacterRange = CharacterRange.Define(
-    "\u0100",
-    "\u017F"
-    // no excludes here
-  );
-
-  public static readonly LatinExtendedB: CharacterRange = CharacterRange.Define(
-    "\u0180",
-    "\u024F"
-    // no excludes here
-  );
-
-  public static readonly Greek: CharacterRange = CharacterRange.Define(
-    "\u0370",
-    "\u03FF",
-    new CharacterSet()
-      .AddRange("\u0378", "\u0385")
-      .AddCharacters("\u0374\u0375\u0378\u0387\u038B\u038D\u03A2")
-  );
-
-  public static readonly Cyrillic: CharacterRange = CharacterRange.Define(
-    "\u0400",
-    "\u04FF",
-    new CharacterSet().AddRange("\u0482", "\u0489")
-  );
-
-  public static readonly Armenian: CharacterRange = CharacterRange.Define(
-    "\u0530",
-    "\u058F",
-    new CharacterSet()
-      .AddCharacters("\u0530")
-      .AddRange("\u0557", "\u0560")
-      .AddRange("\u0588", "\u058E")
-  );
-
-  public static readonly Hebrew: CharacterRange = CharacterRange.Define(
-    "\u0590",
-    "\u05FF",
-    new CharacterSet()
-  );
-
-  public static readonly Arabic: CharacterRange = CharacterRange.Define(
-    "\u0600",
-    "\u06FF",
-    new CharacterSet()
-  );
-
-  public static readonly Korean: CharacterRange = CharacterRange.Define(
-    "\uAC00",
-    "\uD7AF",
-    new CharacterSet()
-  );
-
-  public static readonly Latin1Supplement: CharacterRange =
-    CharacterRange.Define("\u0080", "\u00FF", new CharacterSet());
-
-  public static readonly Chinese: CharacterRange = CharacterRange.Define(
-    "\u4E00",
-    "\u9FFF",
-    new CharacterSet()
-  );
-
-  private readonly ExtendIdentifierCharacterRanges = (
-    identifierCharSet: CharacterSet
-  ): void => {
-    const characterRanges = InkParser.ListAllCharacterRanges();
-    for (const charRange of characterRanges) {
-      identifierCharSet.AddCharacters(charRange.ToCharacterSet());
-    }
-  };
-
-  /// <summary>
-  /// Gets an array of <see cref="CharacterRange" /> representing all of the currently supported
-  /// non-ASCII character ranges that can be used in identifier names.
-  /// </summary>
-  /// <returns>
-  /// An array of <see cref="CharacterRange" /> representing all of the currently supported
-  /// non-ASCII character ranges that can be used in identifier names.
-  /// </returns>
-  public static readonly ListAllCharacterRanges = (): CharacterRange[] => [
-    InkParser.LatinBasic,
-    InkParser.LatinExtendedA,
-    InkParser.LatinExtendedB,
-    InkParser.Arabic,
-    InkParser.Armenian,
-    InkParser.Cyrillic,
-    InkParser.Greek,
-    InkParser.Hebrew,
-    InkParser.Korean,
-    InkParser.Latin1Supplement,
-    InkParser.Chinese,
-  ];
-
-  /**
-   * End CharacterRanges section.
    */
 
   /**
@@ -2770,23 +2663,6 @@ export class InkParser extends StringParser {
    * Start Logic section.
    */
 
-  private _identifierCharSet: CharacterSet | null = null;
-
-  get identifierCharSet(): CharacterSet {
-    if (this._identifierCharSet === null) {
-      (this._identifierCharSet = new CharacterSet())
-        .AddRange("A", "Z")
-        .AddRange("a", "z")
-        .AddRange("0", "9")
-        .Add("_");
-
-      // Enable non-ASCII characters for story identifiers.
-      this.ExtendIdentifierCharacterRanges(this._identifierCharSet);
-    }
-
-    return this._identifierCharSet;
-  }
-
   private _currentTextBlock: { indent: string; prefix: string } | null = null;
 
   public readonly LogicLine = (): ParsedObject | null => {
@@ -3595,7 +3471,7 @@ export class InkParser extends StringParser {
   // but not if they *only* comprise numbers
   public readonly Identifier = (): string | null => {
     // Parse remaining characters (if any)
-    const name = this.ParseCharactersFromCharSet(this.identifierCharSet);
+    const name = this.ParseCharactersFromCharSet(InkCharacterRanges.identifierCharSet);
     if (name === null) {
       return null;
     }
