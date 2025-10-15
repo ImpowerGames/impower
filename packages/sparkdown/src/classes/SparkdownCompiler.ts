@@ -717,7 +717,7 @@ export class SparkdownCompiler {
 
   sortPathLocations(program: SparkProgram) {
     const uri = program.uri;
-    profile("start", "sortPathToLocation", uri);
+    profile("start", "sortPathLocations", uri);
     if (program.pathLocations) {
       const sortedEntries = Object.entries(program.pathLocations).sort(
         ([, a], [, b]) => {
@@ -735,7 +735,7 @@ export class SparkdownCompiler {
         program.pathLocations[k] = v;
       }
     }
-    profile("end", "sortPathToLocation", uri);
+    profile("end", "sortPathLocations", uri);
   }
 
   populateDeclarationLocations(program: SparkProgram) {
