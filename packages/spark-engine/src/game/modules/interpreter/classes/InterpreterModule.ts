@@ -212,7 +212,7 @@ export class InterpreterModule extends Module<
 
     const targetedMatch = content.match(this.TARGETED_TEXT_REGEX);
     const targetIdentifier = targetedMatch ? targetedMatch[1]! : "";
-    content = targetedMatch ? targetedMatch[3]! : content;
+    content = targetIdentifier && targetedMatch ? targetedMatch[3]! : content;
 
     let target = this._targetPrefixMap[targetIdentifier] || defaultTarget;
 
