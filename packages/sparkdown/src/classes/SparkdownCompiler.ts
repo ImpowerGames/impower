@@ -53,7 +53,6 @@ export class SparkdownCompiler {
   protected _config: SparkdownCompilerConfig = {};
 
   protected _documents = new SparkdownDocumentRegistry("compiler", [
-    "colors",
     "implicits",
     "references",
     "compilations",
