@@ -173,4 +173,10 @@ export class ConditionalSingleBranch extends ParsedObject {
     this._conditionalDivert.targetPath = this._contentContainer.path;
     super.ResolveReferences(context);
   }
+
+  public override OnResetRuntime(): void {
+    this._contentContainer = null;
+    this._conditionalDivert = null;
+    this.returnDivert = null;
+  }
 }

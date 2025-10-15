@@ -36,6 +36,15 @@ export class Weave extends ParsedObject {
     return this._rootContainer;
   }
 
+  private _structuredContent: ParsedObject[] | null = null
+
+  public get structuredContent() {
+    if (!this._structuredContent) {
+      this._structuredContent = this.ConstructWeaveHierarchyFromIndentation();
+    }
+    return this._structuredContent;
+  }
+
   // Keep track of previous weave point (Choice or Gather)
   // at the current indentation level:
   //  - to add ordinary content to be nested under it
@@ -68,15 +77,15 @@ export class Weave extends ParsedObject {
   public gatherPointsToResolve: GatherPointToResolve[] = [];
 
   get lastParsedSignificantObject(): ParsedObject | null {
-    if (this.content.length === 0) {
+    if (this.structuredContent.length === 0) {
       return null;
     }
 
     // Don't count extraneous newlines or var/const declarations,
     // since they're "empty" statements outside of the main flow.
     let lastObject: ParsedObject | null = null;
-    for (let ii = this.content.length - 1; ii >= 0; --ii) {
-      lastObject = this.content[ii];
+    for (let ii = this.structuredContent.length - 1; ii >= 0; --ii) {
+      lastObject = this.structuredContent[ii];
 
       let lastText = asOrNull(lastObject, Text);
       if (lastText && lastText.text === "\n") {
@@ -108,8 +117,6 @@ export class Weave extends ParsedObject {
     }
 
     this.AddContent(cont);
-
-    this.ConstructWeaveHierarchyFromIndentation();
   }
 
   get typeName(): string {
@@ -154,13 +161,14 @@ export class Weave extends ParsedObject {
     }
   };
 
-  public readonly ConstructWeaveHierarchyFromIndentation = (): void => {
+  public readonly ConstructWeaveHierarchyFromIndentation = (): ParsedObject[] => {
     // Find nested indentation and convert to a proper object hierarchy
     // (i.e. indented content is replaced with a Weave object that contains
     // that nested content)
+    const structuredContent = [...this.content];
     let contentIdx = 0;
-    while (contentIdx < this.content.length) {
-      const obj: ParsedObject = this.content[contentIdx];
+    while (contentIdx < structuredContent.length) {
+      const obj: ParsedObject = structuredContent[contentIdx];
 
       // Choice or Gather
       if (obj instanceof Choice || obj instanceof Gather) {
@@ -171,10 +179,10 @@ export class Weave extends ParsedObject {
         if (weaveIndentIdx > this.baseIndentIndex) {
           // Step through content until indent jumps out again
           let innerWeaveStartIdx = contentIdx;
-          while (contentIdx < this.content.length) {
+          while (contentIdx < structuredContent.length) {
             const innerWeaveObj =
-              asOrNull(this.content[contentIdx], Choice) ||
-              asOrNull(this.content[contentIdx], Gather);
+              asOrNull(structuredContent[contentIdx], Choice) ||
+              asOrNull(structuredContent[contentIdx], Gather);
             if (innerWeaveObj !== null) {
               const innerIndentIdx = innerWeaveObj.indentationDepth - 1;
               if (innerIndentIdx <= this.baseIndentIndex) {
@@ -186,15 +194,16 @@ export class Weave extends ParsedObject {
           }
 
           const weaveContentCount = contentIdx - innerWeaveStartIdx;
-          const weaveContent = this.content.slice(
+          const weaveContent = structuredContent.slice(
             innerWeaveStartIdx,
             innerWeaveStartIdx + weaveContentCount
           );
 
-          this.content.splice(innerWeaveStartIdx, weaveContentCount);
+          structuredContent.splice(innerWeaveStartIdx, weaveContentCount);
 
           const weave = new Weave(weaveContent, weaveIndentIdx);
-          this.InsertContent(innerWeaveStartIdx, weave);
+          weave.parent = this;
+          structuredContent.splice(innerWeaveStartIdx, 0, weave);
 
           // Continue iteration from this point
           contentIdx = innerWeaveStartIdx;
@@ -203,6 +212,7 @@ export class Weave extends ParsedObject {
 
       contentIdx += 1;
     }
+    return structuredContent;
   };
 
   // When the indentation wasn't told to us at construction time using
@@ -231,7 +241,7 @@ export class Weave extends ParsedObject {
     //  - Normal content is nested under Choices and Gathers
     //  - Blocks that are further indented cause recursion
     //  - Keep track of loose ends so that they can be diverted to Gathers
-    for (const obj of this.content) {
+    for (const obj of this.structuredContent) {
       // Choice or Gather
       if (obj instanceof Choice || obj instanceof Gather) {
         this.AddRuntimeForWeavePoint(obj as IWeavePoint);
@@ -678,7 +688,7 @@ export class Weave extends ParsedObject {
       //
       // If there's any actual weaving, assume that content is
       // terminated correctly since we would've had a loose end otherwise
-      for (const obj of this.content) {
+      for (const obj of this.structuredContent) {
         if (obj instanceof Choice || obj instanceof Divert) {
           return;
         }
@@ -686,7 +696,7 @@ export class Weave extends ParsedObject {
 
       // Straight linear flow? Check it terminates
       this.ValidateFlowOfObjectsTerminates(
-        this.content,
+        this.structuredContent,
         this,
         badTerminationHandler
       );
@@ -826,4 +836,14 @@ export class Weave extends ParsedObject {
       }
     }
   };
+
+  override OnResetRuntime(): void {
+    this.previousWeavePoint = null;
+    this.addContentToPreviousWeavePoint = false;
+    this.hasSeenChoiceInSection = false;
+    this.currentContainer = null;
+    this._unnamedGatherCount = 0;
+    this._choiceCount = 0;
+    this._rootContainer = null;
+  }
 }

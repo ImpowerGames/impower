@@ -1,19 +1,19 @@
 import { ChoicePoint } from "../../../engine/ChoicePoint";
 import { Container as RuntimeContainer } from "../../../engine/Container";
-import { ContentList } from "./ContentList";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
-import { DivertTargetValue } from "../../../engine/Value";
 import { INamedContent } from "../../../engine/INamedContent";
-import { IWeavePoint } from "./IWeavePoint";
-import { ParsedObject } from "./Object";
 import { InkObject as RuntimeObject } from "../../../engine/Object";
 import { Path as RuntimePath } from "../../../engine/Path";
-import { Story } from "./Story";
-import { SymbolType } from "./SymbolType";
+import { DivertTargetValue } from "../../../engine/Value";
 import { VariableAssignment as RuntimeVariableAssignment } from "../../../engine/VariableAssignment";
+import { ContentList } from "./ContentList";
 import { Expression } from "./Expression/Expression";
 import { Identifier } from "./Identifier";
+import { IWeavePoint } from "./IWeavePoint";
+import { ParsedObject } from "./Object";
+import { Story } from "./Story";
+import { SymbolType } from "./SymbolType";
 
 export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
   private _condition: Expression | null = null;
@@ -340,4 +340,10 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
 
     return `* ${this.startContent}...`;
   };
+
+  public override OnResetRuntime() {
+    this._innerContentContainer = null;
+    this._outerContainer = null;
+    this._runtimeChoice = null;
+  }
 }

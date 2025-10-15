@@ -75,4 +75,8 @@ export class Conditional extends ParsedObject {
 
     super.ResolveReferences(context);
   }
+
+  override OnResetRuntime(): void {
+    this._reJoinTarget = null;
+  }
 }

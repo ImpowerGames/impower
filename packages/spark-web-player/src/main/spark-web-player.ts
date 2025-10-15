@@ -909,6 +909,9 @@ export default class SparkWebPlayer extends Component(spec) {
     message: LoadGameMessage.Request
   ) => {
     const { program, workspace, simulateChoices, startFrom } = message.params;
+    if (!program.compiled) {
+      return;
+    }
     this._program = program;
     this._pathLocations = Object.entries(this._program?.pathLocations ?? {});
     this._scripts = Object.keys(this._program?.scripts ?? {});

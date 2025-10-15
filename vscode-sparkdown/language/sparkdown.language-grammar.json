@@ -9,9 +9,9 @@
   "uuid": "E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F",
   "flags": "mu",
   "variables": {
-    "IDENTIFIER_START_CHAR": "_\\p{L}",
+    "IDENTIFIER_START": "[0-9]*[_\\p{L}]",
     "IDENTIFIER_END_CHAR": "0-9_\\p{L}",
-    "IDENTIFIER": "[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*",
+    "IDENTIFIER": "{{IDENTIFIER_START}}[{{IDENTIFIER_END_CHAR}}]*",
     "CSS_IDENTIFIER": "[{{IDENTIFIER_END_CHAR}}-]+",
     "DECLARATION_PROPERTY_IDENTIFIER": "(?:[\"].*?[\"]|\\[.*?\\]|\\(.*?\\)|[^.:=\\r\\n])+?",
     "BEFORE_KEYWORD": "(?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\\.\\.\\.)|(?<!\\.))",
@@ -150,12 +150,6 @@
       "include": "#Gather"
     },
     {
-      "include": "#ConditionalBracedBlock"
-    },
-    {
-      "include": "#ConditionalIndentedBlock"
-    },
-    {
       "include": "#Title"
     },
     {
@@ -177,6 +171,12 @@
       "include": "#Action"
     },
     {
+      "include": "#ConditionalBracedBlock"
+    },
+    {
+      "include": "#ConditionalIndentedBlock"
+    },
+    {
       "include": "#Whitespace"
     }
   ],
@@ -193,7 +193,7 @@
           "include": "#Comment"
         },
         {
-          "include": "#Tag"
+          "include": "#Tags"
         }
       ]
     },
@@ -278,6 +278,26 @@
       "tag": "definition(lineComment)",
       "name": "punctuation.definition.comment.content.sd",
       "match": "(.+?)(?=$|[*][/])"
+    },
+    "Tags": {
+      "tag": "docComment",
+      "name": "comment.line.sd entity.tag.sd",
+      "begin": "([^\\S\\n\\r]*)(?=(?:[#]+(?:$|[^\\S\\n\\r]+)))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Separator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Tag"
+        }
+      ],
+      "end": "(?=$)"
     },
     "Tag": {
       "tag": "docComment",
@@ -748,7 +768,7 @@
       "match": "(.+)"
     },
     "DefineAssignment": {
-      "match": "(.*?)(?:(with)((?=$|[:])|[^\\S\\n\\r]+)((?=$|[:])|[_\\p{L}][0-9_\\p{L}]*))?([^\\S\\n\\r]*)($|[:])",
+      "match": "(.*?)(?:(with)((?=$|[:])|[^\\S\\n\\r]+)((?=$|[:])|[0-9]*[_\\p{L}][0-9_\\p{L}]*))?([^\\S\\n\\r]*)($|[:])",
       "captures": {
         "1": {
           "patterns": [
@@ -795,7 +815,7 @@
       }
     },
     "DefineIdentifier": {
-      "match": "([_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]+)($|[_\\p{L}][0-9_\\p{L}]*)($|.+)",
+      "match": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]+)($|[0-9]*[_\\p{L}][0-9_\\p{L}]*)($|.+)",
       "captures": {
         "1": {
           "patterns": [
@@ -853,7 +873,7 @@
       "match": "(.+)"
     },
     "ListTypeAssignment": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]*[=][^\\S\\n\\r]*|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]*[=][^\\S\\n\\r]*|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -881,7 +901,7 @@
       "end": "(?=$)"
     },
     "VariableAssignment": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]*[=][^\\S\\n\\r]*|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]*[=][^\\S\\n\\r]*|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -912,7 +932,7 @@
       "end": "(?=$)"
     },
     "ExternalFunctionDeclaration": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1434,12 +1454,19 @@
       "end": "(?=$)"
     },
     "FunctionCall": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)(?=[(])",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
             {
               "include": "#FunctionName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -1455,7 +1482,7 @@
       "end": "(?=$|[^(])"
     },
     "FunctionAccessor": {
-      "begin": "([.])?([_\\p{L}][0-9_\\p{L}]*)(?=[(])",
+      "begin": "([.])?([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1468,6 +1495,13 @@
           "patterns": [
             {
               "include": "#FunctionName"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -1521,7 +1555,7 @@
       ]
     },
     "AccessPath": {
-      "begin": "(?=[_\\p{L}])",
+      "begin": "(?=[0-9]*[_\\p{L}][0-9_\\p{L}]*)",
       "patterns": [
         {
           "include": "#Annotation"
@@ -1530,7 +1564,7 @@
           "include": "#AccessPart"
         }
       ],
-      "end": "(?=$|[^_\\p{L}?!.\\[])"
+      "end": "(?=$)|(?![0-9]*[_\\p{L}][0-9_\\p{L}]*|[.]|\\[)"
     },
     "AccessPart": {
       "emit": true,
@@ -3069,7 +3103,7 @@
       "match": "(.+)"
     },
     "Label": {
-      "match": "([(])([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([)])([^\\S\\n\\r]*)",
+      "match": "([(])([^\\S\\n\\r]*)([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([)])([^\\S\\n\\r]*)",
       "captures": {
         "1": {
           "patterns": [
@@ -3194,7 +3228,7 @@
     },
     "Choice": {
       "name": "entity.choice.sd",
-      "begin": "^([^\\S\\n\\r]*)((?:[*](?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))+|(?:[+](?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))+)([(][^()]*[)][^\\S\\n\\r]*)?((?:[{][^{}]*[}][^\\S\\n\\r]*)+)?",
+      "begin": "([^\\S\\n\\r]*)((?:[*](?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))+|(?:[+](?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))+)([(][^()]*[)][^\\S\\n\\r]*)?(?:((?:[{][^{}]*[}][^\\S\\n\\r]*)+))?(\\r\\n|\\r|\\n)?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3223,11 +3257,24 @@
               "include": "#ConditionalBracedBlock"
             }
           ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
         }
       },
       "patterns": [
         {
           "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#ChoiceConditional"
         },
         {
           "include": "#ChoiceWithSuppressedText"
@@ -3236,7 +3283,34 @@
           "include": "#ChoiceWithNoSuppressedText"
         }
       ],
-      "end": "(?=$|[-][>])"
+      "end": "(?=$)"
+    },
+    "ChoiceConditional": {
+      "name": "entity.choice.sd",
+      "match": "^([^\\S\\n\\r]*)((?:[{][^{}]*[}][^\\S\\n\\r]*)+)(\\r\\n|\\r|\\n)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ConditionalBracedBlock"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
     },
     "ChoiceMark": {
       "tag": "keyword",
@@ -3244,7 +3318,7 @@
       "match": "(.+)"
     },
     "ChoiceWithSuppressedText": {
-      "match": "(.*?)(\\[)(.*?)(\\])(.*?)(?:([^\\S\\n\\r]*)$|([^\\S\\n\\r]*)(?=[-][>]))",
+      "match": "(.*?)(\\[)(.*?)(\\])(.*?)(?:([^\\S\\n\\r]*)$|([^\\S\\n\\r]*)([-][>].*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -3288,11 +3362,18 @@
               "include": "#Separator"
             }
           ]
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#Divert"
+            }
+          ]
         }
       }
     },
     "ChoiceWithNoSuppressedText": {
-      "match": "(.*?)(?:([^\\S\\n\\r]*)$|([^\\S\\n\\r]*)(?=[-][>]))",
+      "match": "(.+?)(?:([^\\S\\n\\r]*)$|([^\\S\\n\\r]*)([-][>].*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -3312,6 +3393,13 @@
           "patterns": [
             {
               "include": "#Separator"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Divert"
             }
           ]
         }
@@ -3566,9 +3654,6 @@
           "include": "#Logic"
         },
         {
-          "include": "#Tag"
-        },
-        {
           "include": "#ConditionalBracedBlock"
         },
         {
@@ -3593,23 +3678,7 @@
           "include": "#Action"
         }
       ],
-      "end": "((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))(\\r\\n|\\r|\\n)?",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#EndOfLine"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
+      "end": "(?=$|^)"
     },
     "GatherMark": {
       "tag": "keyword",
@@ -3661,7 +3730,7 @@
       }
     },
     "SceneWithParametersDeclaration": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3686,7 +3755,7 @@
       "end": "(?=$|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "SceneWithoutParametersDeclaration": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3761,7 +3830,7 @@
       }
     },
     "KnotWithParametersDeclaration": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3786,7 +3855,7 @@
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "KnotWithoutParametersDeclaration": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3873,7 +3942,7 @@
       }
     },
     "BranchWithParametersDeclaration": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3898,7 +3967,7 @@
       "end": "(?=$|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "BranchWithoutParametersDeclaration": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3980,7 +4049,7 @@
       }
     },
     "StitchWithParametersDeclaration": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4005,7 +4074,7 @@
       "end": "(?=$|[=]|[/][/]|[^\\S\\n\\r]*(?![(]))"
     },
     "StitchWithoutParametersDeclaration": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4117,7 +4186,7 @@
       "end": "(?=$|[^\\S\\n\\r]*[=]{2,})"
     },
     "FunctionDeclaration": {
-      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "begin": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4160,7 +4229,7 @@
       "match": "(.+)"
     },
     "Divert": {
-      "begin": "([^\\S\\n\\r]*)([-][>][-][>]|[-][>])([^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)([-][>][-][>]|[-][>])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4178,12 +4247,39 @@
               "include": "#DivertMark"
             }
           ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
         },
-        "3": {
+        {
+          "include": "#Tunnel"
+        },
+        {
+          "include": "#DivertTarget"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "Tunnel": {
+      "begin": "([^\\S\\n\\r]*)([-][>])",
+      "beginCaptures": {
+        "1": {
           "emit": true,
           "patterns": [
             {
               "include": "#OptionalSeparator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#DivertMark"
             }
           ]
         }
@@ -4193,25 +4289,19 @@
           "include": "#Annotation"
         },
         {
+          "include": "#Tunnel"
+        },
+        {
+          "include": "#DivertTarget"
+        },
+        {
           "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#End"
-        },
-        {
-          "include": "#Done"
-        },
-        {
-          "include": "#FunctionCall"
-        },
-        {
-          "include": "#DivertPath"
         }
       ],
-      "end": "(?=$|[^_\\p{L}])"
+      "end": "(?=$)"
     },
     "Thread": {
-      "begin": "^([^\\S\\n\\r]*)([<][-])([^\\S\\n\\r]*)",
+      "begin": "^([^\\S\\n\\r]*)([<][-])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4226,14 +4316,6 @@
               "include": "#ThreadMark"
             }
           ]
-        },
-        "3": {
-          "emit": true,
-          "patterns": [
-            {
-              "include": "#OptionalSeparator"
-            }
-          ]
         }
       },
       "patterns": [
@@ -4241,22 +4323,13 @@
           "include": "#Annotation"
         },
         {
+          "include": "#DivertTarget"
+        },
+        {
           "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#End"
-        },
-        {
-          "include": "#Done"
-        },
-        {
-          "include": "#FunctionCall"
-        },
-        {
-          "include": "#DivertPath"
         }
       ],
-      "end": "(?=$|[^_\\p{L}\\s])"
+      "end": "(?=$|[^0-9_\\p{L}\\s])"
     },
     "DivertMark": {
       "tag": "controlKeyword",
@@ -4283,10 +4356,43 @@
       "name": "constant.language.done.sd",
       "match": "\\b(DONE)\\b"
     },
+    "DivertTarget": {
+      "tag": "heading",
+      "name": "keyword.control.divert.path.sd",
+      "begin": "([^\\S\\n\\r]*)(?=[0-9]*[_\\p{L}][0-9_\\p{L}]*|[.^])",
+      "beginCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#End"
+        },
+        {
+          "include": "#Done"
+        },
+        {
+          "include": "#FunctionCall"
+        },
+        {
+          "include": "#DivertPath"
+        }
+      ],
+      "end": "(?=$)|(?![0-9]*[_\\p{L}][0-9_\\p{L}]*|[.^])"
+    },
     "DivertPath": {
       "tag": "heading",
       "name": "keyword.control.divert.path.sd",
-      "begin": "(?=[_\\p{L}0-9.^])",
+      "begin": "(?=[0-9]*[_\\p{L}][0-9_\\p{L}]*|[.^])",
       "patterns": [
         {
           "include": "#Annotation"
@@ -4295,21 +4401,7 @@
           "include": "#DivertPart"
         }
       ],
-      "end": "([^\\S\\n\\r]*(?=[-][>]))?(?=$|[^_\\p{L}0-9.^])",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#OptionalDivertSeparator"
-            }
-          ]
-        }
-      }
-    },
-    "OptionalDivertSeparator": {
-      "tag": "definition(content)",
-      "name": "markup.raw.whitespace.sd",
-      "match": "([^\\S\\n\\r]*(?=[-][>]))"
+      "end": "(?=$)|(?![0-9]*[_\\p{L}][0-9_\\p{L}]*|[.^])"
     },
     "DivertPart": {
       "emit": true,
@@ -4341,7 +4433,7 @@
     "DivertPartName": {
       "tag": "heading",
       "name": "keyword.control.divert.path.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)"
+      "match": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)"
     },
     "ConditionalBracedBlock": {
       "tag": "meta",
@@ -4489,9 +4581,6 @@
         },
         {
           "include": "#Divert"
-        },
-        {
-          "include": "#Tag"
         },
         {
           "include": "#ConditionalSubstitution"
@@ -5964,7 +6053,7 @@
       }
     },
     "NamespaceAccessor": {
-      "match": "([_\\p{L}][0-9_\\p{L}]*)([.])($|[_\\p{L}][0-9_\\p{L}]*)(?![(])",
+      "match": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([.])($|[0-9]*[_\\p{L}][0-9_\\p{L}]*)(?![(])",
       "captures": {
         "1": {
           "patterns": [
@@ -5990,7 +6079,7 @@
       }
     },
     "VariableAccessor": {
-      "match": "([.])([_\\p{L}][0-9_\\p{L}]*)(?![(])",
+      "match": "([.])([0-9]*[_\\p{L}][0-9_\\p{L}]*)(?![(])",
       "captures": {
         "1": {
           "patterns": [
@@ -6009,7 +6098,7 @@
       }
     },
     "PropertyAccessor": {
-      "match": "([.])([_\\p{L}][0-9_\\p{L}]*)(?![(])",
+      "match": "([.])([0-9]*[_\\p{L}][0-9_\\p{L}]*)(?![(])",
       "captures": {
         "1": {
           "patterns": [
@@ -6030,30 +6119,30 @@
     "IllegalPropertyDeclaration": {
       "tag": "invalid",
       "name": "invalid.illegal.property-declaration.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([:])(.*?)($|(?=[;}]))"
+      "match": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([:])(.*?)($|(?=[;}]))"
     },
     "TypeName": {
       "tag": "typeName",
       "name": "support.type.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)"
+      "match": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)"
     },
     "VariableName": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
+      "match": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)(?![(])"
     },
     "PropertyName": {
       "tag": "propertyName",
       "name": "variable.other.property.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
+      "match": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)(?![(])"
     },
     "FunctionName": {
       "tag": "heading",
       "name": "keyword.control.divert.path.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)"
+      "match": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)"
     },
     "Identifier": {
-      "match": "([_\\p{L}][0-9_\\p{L}]*)"
+      "match": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)"
     },
     "PunctuationAccessor": {
       "match": "([.])",
@@ -6267,7 +6356,7 @@
     "BlockTitle": {
       "tag": "monospace",
       "name": "constant.character.escape.title.sd",
-      "begin": "([^\\S\\n\\r]*)(\\^)([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "^([^\\S\\n\\r]*)(\\^)([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6304,6 +6393,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#BlockLineBlank"
         },
         {
           "include": "#BlockLineBreak"
@@ -6394,7 +6486,7 @@
     "BlockHeading": {
       "tag": "regexp",
       "name": "string.regexp.heading.block.sd",
-      "begin": "([^\\S\\n\\r]*)([$])([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "^([^\\S\\n\\r]*)([$])([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6431,6 +6523,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#BlockLineBlank"
         },
         {
           "include": "#BlockLineBreak"
@@ -6524,7 +6619,7 @@
     "BlockTransitional": {
       "tag": "labelName",
       "name": "keyword.control.transitional.block.sd",
-      "begin": "([^\\S\\n\\r]*)([%])([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "^([^\\S\\n\\r]*)([%])([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6561,6 +6656,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#BlockLineBlank"
         },
         {
           "include": "#BlockLineBreak"
@@ -6651,7 +6749,7 @@
     "BlockWrite": {
       "tag": "string",
       "name": "string.write.block.sd",
-      "begin": "([^\\S\\n\\r]*)([@])([^\\S\\n\\r]*)((?:\\\\.|[^:\\r\\n])*)((?<!\\\\)[:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "^([^\\S\\n\\r]*)([@])([^\\S\\n\\r]*)((?:\\\\.|[^:\\r\\n])*)((?<!\\\\)[:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6703,6 +6801,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#BlockLineBlank"
         },
         {
           "include": "#BlockLineBreak"
@@ -6810,7 +6911,7 @@
     "BlockDialogue": {
       "tag": "string",
       "name": "string.dialogue.block.sd",
-      "begin": "([^\\S\\n\\r]*)((?=\\S)(?:\\\\.|[^{}:\\r\\n])+)((?<!\\\\)[:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "^([^\\S\\n\\r]*)((?=\\S)(?:\\\\.|[^{}:\\r\\n])+)((?<!\\\\)[:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6850,6 +6951,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#BlockLineBlank"
         },
         {
           "include": "#BlockLineBreak"
@@ -7105,7 +7209,7 @@
       ]
     },
     "BlockAction": {
-      "begin": "([^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "begin": "^([^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -7135,6 +7239,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#BlockLineBlank"
         },
         {
           "include": "#BlockLineBreak"
@@ -7424,6 +7531,18 @@
           "patterns": [
             {
               "include": "#Whitespace"
+            }
+          ]
+        }
+      }
+    },
+    "BlockLineBlank": {
+      "match": "^([^\\S\\n\\r]+$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
             }
           ]
         }
@@ -7959,7 +8078,7 @@
     "AssetCommandFilteredFileName": {
       "tag": "variableName",
       "name": "variable.other.constant.asset.file.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)((?:[~][^~\\s]+)+)",
+      "match": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)((?:[~][^~\\s]+)+)",
       "captures": {
         "1": {
           "patterns": [
@@ -7980,7 +8099,7 @@
     "AssetCommandFileName": {
       "tag": "variableName",
       "name": "variable.other.constant.asset.file.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)"
+      "match": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)"
     },
     "AssetCommandAddOperator": {
       "tag": "propertyName",
@@ -8044,7 +8163,7 @@
     "NameValue": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)(?=$|[^\\S\\n\\r])"
+      "match": "([0-9]*[_\\p{L}][0-9_\\p{L}]*)(?=$|[^\\S\\n\\r])"
     },
     "InvalidValue": {
       "tag": "content",

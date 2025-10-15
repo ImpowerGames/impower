@@ -3,13 +3,13 @@ import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/prop
 import { Tree } from "@lezer/common";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { ColorAnnotator } from "./annotators/ColorAnnotator";
+import { CompilationAnnotator } from "./annotators/CompilationAnnotator";
 import { DeclarationAnnotator } from "./annotators/DeclarationAnnotator";
 import { FormattingAnnotator } from "./annotators/FormattingAnnotator";
 import { ImplicitAnnotator } from "./annotators/ImplicitAnnotator";
 import { LinkAnnotator } from "./annotators/LinkAnnotator";
 import { ReferenceAnnotator } from "./annotators/ReferenceAnnotator";
 import { SemanticAnnotator } from "./annotators/SemanticAnnotator";
-import { TranspilationAnnotator } from "./annotators/TranspilationAnnotator";
 import { ValidationAnnotator } from "./annotators/ValidationAnnotator";
 import { SparkdownAnnotation } from "./SparkdownAnnotation";
 import { SparkdownAnnotator } from "./SparkdownAnnotator";
@@ -32,7 +32,7 @@ export interface SparkdownAnnotators {
   colors: ColorAnnotator;
   characters: CharacterAnnotator;
   declarations: DeclarationAnnotator;
-  transpilations: TranspilationAnnotator;
+  compilations: CompilationAnnotator;
   references: ReferenceAnnotator;
   validations: ValidationAnnotator;
   implicits: ImplicitAnnotator;
@@ -46,7 +46,7 @@ export class SparkdownCombinedAnnotator {
     colors: new ColorAnnotator(),
     characters: new CharacterAnnotator(),
     declarations: new DeclarationAnnotator(),
-    transpilations: new TranspilationAnnotator(),
+    compilations: new CompilationAnnotator(),
     references: new ReferenceAnnotator(),
     validations: new ValidationAnnotator(),
     implicits: new ImplicitAnnotator(),
@@ -65,7 +65,7 @@ export class SparkdownCombinedAnnotator {
       colors: this.current.colors.current,
       characters: this.current.characters.current,
       declarations: this.current.declarations.current,
-      transpilations: this.current.transpilations.current,
+      compilations: this.current.compilations.current,
       references: this.current.references.current,
       validations: this.current.validations.current,
       implicits: this.current.implicits.current,
@@ -85,7 +85,7 @@ export class SparkdownCombinedAnnotator {
       colors: [],
       characters: [],
       declarations: [],
-      transpilations: [],
+      compilations: [],
       references: [],
       validations: [],
       implicits: [],

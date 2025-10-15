@@ -1,20 +1,20 @@
-import { Argument } from "../Argument";
 import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { Divert as RuntimeDivert } from "../../../../engine/Divert";
-import { DivertTarget } from "./DivertTarget";
+import { Path as RuntimePath } from "../../../../engine/Path";
+import { PushPopType } from "../../../../engine/PushPop";
+import { asOrNull } from "../../../../engine/TypeAssertion";
+import { VariablePointerValue } from "../../../../engine/Value";
+import { Argument } from "../Argument";
 import { Expression } from "../Expression/Expression";
+import { ClosestFlowBase } from "../Flow/ClosestFlowBase";
 import { FlowBase } from "../Flow/FlowBase";
 import { FunctionCall } from "../FunctionCall";
 import { ParsedObject } from "../Object";
 import { Path } from "../Path";
-import { Path as RuntimePath } from "../../../../engine/Path";
-import { PushPopType } from "../../../../engine/PushPop";
 import { Story } from "../Story";
-import { VariablePointerValue } from "../../../../engine/Value";
 import { VariableReference } from "../Variable/VariableReference";
-import { ClosestFlowBase } from "../Flow/ClosestFlowBase";
-import { asOrNull } from "../../../../engine/TypeAssertion";
+import { DivertTarget } from "./DivertTarget";
 
 export class Divert extends ParsedObject {
   public readonly args: Expression[] = [];
@@ -502,4 +502,9 @@ export class Divert extends ParsedObject {
 
     return returnString;
   };
+
+  public override OnResetRuntime(): void {
+    this._runtimeDivert = null;
+    this.targetContent = null;
+  }
 }

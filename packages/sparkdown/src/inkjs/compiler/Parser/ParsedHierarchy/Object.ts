@@ -1,11 +1,11 @@
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { DebugMetadata } from "../../../engine/DebugMetadata";
-import { FindQueryFunc } from "./FindQueryFunc";
 import { InkObject as RuntimeObject } from "../../../engine/Object";
 import { Path as RuntimePath } from "../../../engine/Path";
-import { Story } from "./Story";
 import { asOrNull } from "../../../engine/TypeAssertion";
+import { FindQueryFunc } from "./FindQueryFunc";
 import { Identifier } from "./Identifier";
+import { Story } from "./Story";
 
 export abstract class ParsedObject {
   public abstract readonly GenerateRuntimeObject: () => RuntimeObject | null;
@@ -17,6 +17,8 @@ export abstract class ParsedObject {
 
   public content: ParsedObject[] = [];
   public parent: ParsedObject | null = null;
+
+  public sourceDebugMetadata: DebugMetadata | null = null;
 
   get debugMetadata() {
     if (this._debugMetadata === null && this.parent) {
@@ -60,7 +62,7 @@ export abstract class ParsedObject {
     return this._runtimeObject as RuntimeObject;
   }
 
-  set runtimeObject(value: RuntimeObject) {
+  set runtimeObject(value: RuntimeObject | null) {
     this._runtimeObject = value;
   }
 
@@ -271,4 +273,13 @@ export abstract class ParsedObject {
   ): void => {
     this.Error(message, source, true);
   };
+
+  public ResetRuntime() {
+    this._runtimeObject = null;
+    this._alreadyHadError = false;
+    this._alreadyHadWarning = false;
+    this.OnResetRuntime();
+  }
+
+  public OnResetRuntime() {}
 }

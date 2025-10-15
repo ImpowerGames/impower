@@ -531,39 +531,45 @@ export class StringParser {
 
   public readonly ParseUntilCharactersFromString = (
     str: string,
-    maxCount: number = -1
-  ): string | null => this.ParseCharactersFromString(str, false, maxCount);
+    maxCount: number = -1,
+    allowEscaped = false
+  ): string | null => this.ParseCharactersFromString(str, false, maxCount, allowEscaped);
 
   public readonly ParseUntilCharactersFromCharSet = (
     charSet: CharacterSet,
-    maxCount: number = -1
-  ): string | null => this.ParseCharactersFromCharSet(charSet, false, maxCount);
+    maxCount: number = -1,
+    allowEscaped = false
+  ): string | null => this.ParseCharactersFromCharSet(charSet, false, maxCount, allowEscaped);
 
   public readonly ParseCharactersFromString = (
     str: string,
     maxCountOrShouldIncludeStrChars: boolean | number = -1,
-    maxCount: number = -1
+    maxCount: number = -1,
+    allowEscaped = false
   ): string | null => {
     const charSet = new CharacterSet(str);
     if (typeof maxCountOrShouldIncludeStrChars === "number") {
       return this.ParseCharactersFromCharSet(
         charSet,
         true,
-        maxCountOrShouldIncludeStrChars
+        maxCountOrShouldIncludeStrChars,
+        allowEscaped
       );
     }
 
     return this.ParseCharactersFromCharSet(
       charSet,
       maxCountOrShouldIncludeStrChars,
-      maxCount
+      maxCount,
+      allowEscaped
     );
   };
 
   public readonly ParseCharactersFromCharSet = (
     charSet: CharacterSet,
     shouldIncludeChars: boolean = true,
-    maxCount: number = -1
+    maxCount: number = -1,
+    allowEscaped = false
   ): string | null => {
     if (maxCount === -1) {
       maxCount = Number.MAX_SAFE_INTEGER;
@@ -579,11 +585,22 @@ export class StringParser {
     let cli: number = this.characterInLineIndex;
     let li: number = this.lineIndex;
     let count: number = 0;
+    let escaped = false;
     while (
       ii < this._chars.length &&
-      charSet.set.has(this._chars[ii]!) === shouldIncludeChars &&
       count < maxCount
     ) {
+      if (allowEscaped && this._chars[ii] === "\\") {
+        ii += 1;
+        cli += 1;
+        escaped = true;
+        continue;
+      }
+      
+      if (charSet.set.has(this._chars[ii]!) !== shouldIncludeChars && !escaped) {
+        break;
+      }
+
       if (this._chars[ii] === "\n") {
         li += 1;
         cli = -1;
@@ -592,6 +609,8 @@ export class StringParser {
       ii += 1;
       cli += 1;
       count += 1;
+      
+      escaped = false;
     }
 
     this.index = ii;

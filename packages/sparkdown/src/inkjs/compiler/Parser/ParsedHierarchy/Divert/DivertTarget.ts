@@ -223,4 +223,9 @@ export class DivertTarget extends Expression {
 
     return targetStr === otherTargetStr;
   };
+
+  override OnResetRuntime(): void {
+    this._runtimeDivert = null;
+    this._runtimeDivertTargetValue = null;
+  }
 }

@@ -1035,6 +1035,45 @@ export class InkParser extends StringParser {
     }
   };
 
+  public readonly BlockOfMixedTextAndLogic = (): ParsedObject[] | null => {
+    const blockIndent = this.ParseWhitespace();
+
+    if (!this.Peek(this.StartBlock)) {
+      return null;
+    }
+
+    const blockPrefix = this.Parse(this.StartBlock) as string;
+
+    this._currentTextBlock = { indent: blockIndent ?? "", prefix: blockPrefix };
+
+    return this.LineOfMixedTextAndLogicNoWarnings();
+  };
+
+  public readonly StartBlock = (): string | null => {
+    // Consume any whitespace at the start of the line
+    // (Except for escaped whitespace)
+    const blockPrefix = this.ParseUntilCharactersFromString(
+      ":{}\n\r",
+      undefined,
+      true
+    ) as string | null;
+
+    if (!blockPrefix) {
+      return null;
+    }
+
+    const colon = this.ParseSingleCharacter();
+    if (colon !== ":") {
+      return null;
+    }
+
+    if (this.Peek(this.ParseSingleCharacter) !== "\n") {
+      return null;
+    }
+
+    return blockPrefix + colon;
+  };
+
   public readonly LineOfMixedTextAndLogic = (): ParsedObject[] | null => {
     // Consume any whitespace at the start of the line
     // (Except for escaped whitespace)
@@ -1124,7 +1163,21 @@ export class InkParser extends StringParser {
   public readonly ContentTextAllowingEscapeChar = (): ParsedObject[] | null => {
     let sb: string | null = null;
     let tags: { mark: ParsedObject; text: ParsedObject | null }[] = [];
+    let terminateWithNewline = false;
+    let newlineTerminatorDebugMetadata: DebugMetadata | null = null;
+    if (this._currentTextBlock) {
+      sb = this._currentTextBlock.prefix;
+    }
+
     do {
+      if (
+        this._currentTextBlock &&
+        this.Peek(this.UnindentedLine(this._currentTextBlock.indent))
+      ) {
+        this._currentTextBlock = null;
+        break;
+      }
+
       let str = this.Parse(this.ContentTextNoEscape) as string;
 
       if (str !== null) {
@@ -1154,7 +1207,10 @@ export class InkParser extends StringParser {
         if (escapedSpace != null) {
           const tagStart = this.StartTag();
           if (tagStart) {
-            const tag: { mark: ParsedObject; text: ParsedObject | null } = {mark: tagStart, text: null}
+            const tag: { mark: ParsedObject; text: ParsedObject | null } = {
+              mark: tagStart,
+              text: null,
+            };
             const tagContent = this.ParseUntilCharactersFromString("\n\r");
             if (tagContent) {
               tag.text = new Text(tagContent);
@@ -1203,7 +1259,33 @@ export class InkParser extends StringParser {
         }
         continue;
       }
-
+      
+      if (
+        this._currentTextBlock &&
+        this.Peek(this.ParseSingleCharacter) === "\n"
+      ) {
+        const trimmedSb = sb?.trimEnd();
+        if (trimmedSb && trimmedSb.at(-1) === ">") {
+          sb = trimmedSb.slice(0, -1);
+          terminateWithNewline = true;
+          newlineTerminatorDebugMetadata = this.CreateDebugMetadata(
+            this.state.currentElement,
+            this.state.currentElement
+          );
+          this.ParseSingleCharacter();
+          break;
+        }
+        // There is no more content in this line.
+        // So consume newline as part of this text
+        const c = this.ParseSingleCharacter();
+        if (c !== null) {
+          sb += c;
+          // Ensure any logic directly following the newline is not escaped
+          sb += " ";
+        }
+        continue;
+      }
+      
       if (str === null) {
         break;
       }
@@ -1212,7 +1294,7 @@ export class InkParser extends StringParser {
     const result: ParsedObject[] = [];
 
     if (sb !== null) {
-      result.push(new Text(sb));
+      result.push(new Text(sb.trimEnd()));
     }
 
     for (const tag of tags) {
@@ -1220,6 +1302,12 @@ export class InkParser extends StringParser {
       if (tag.text) {
         result.push(tag.text);
       }
+    }
+
+    if (terminateWithNewline) {
+      const newline = new Text("\n");
+      newline.debugMetadata = newlineTerminatorDebugMetadata;
+      result.push(newline);
     }
 
     if (result.length > 0) {
@@ -2699,6 +2787,8 @@ export class InkParser extends StringParser {
     return this._identifierCharSet;
   }
 
+  private _currentTextBlock: { indent: string; prefix: string } | null = null;
+
   public readonly LogicLine = (): ParsedObject | null => {
     this.Whitespace();
 
@@ -3984,6 +4074,7 @@ export class InkParser extends StringParser {
       rulesAtLevel.push(this.ReturnStatement);
       rulesAtLevel.push(this.TempDeclaration);
       rulesAtLevel.push(this.LogicLine);
+      rulesAtLevel.push(this.BlockOfMixedTextAndLogic);
       rulesAtLevel.push(this.LineOfMixedTextAndLogic);
 
       // --------

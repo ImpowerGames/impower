@@ -117,9 +117,10 @@ export class Container extends InkObject implements INamedContent {
 
       this._content.push(contentObj);
 
-      if (contentObj.parent) {
-        throw new Error("content is already in " + contentObj.parent);
-      }
+      // REMOVED THIS CHECK TO SUPPORT INCREMENTAL PARSING
+      // if (contentObj.parent) {
+      //   throw new Error("content is already in " + contentObj.parent);
+      // }
 
       contentObj.parent = this;
 
@@ -195,9 +196,10 @@ export class Container extends InkObject implements INamedContent {
   public InsertContent(contentObj: InkObject, index: number) {
     this.content.splice(index, 0, contentObj);
 
-    if (contentObj.parent) {
-      throw new Error("content is already in " + contentObj.parent);
-    }
+    // REMOVED THIS CHECK TO SUPPORT INCREMENTAL PARSING
+    // if (contentObj.parent) {
+    //   throw new Error("content is already in " + contentObj.parent);
+    // }
 
     contentObj.parent = this;
 

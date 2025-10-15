@@ -262,6 +262,7 @@ export class Game<T extends M = {}> {
     this._story = new Story(this._program.compiled);
     this._story.collapseWhitespace = false;
     this._story.processEscapes = false;
+    this._story.onError = () => {};
 
     // Create context
     this._context = {

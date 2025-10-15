@@ -437,10 +437,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (
-      nodeRef.name === "OptionalSeparator" ||
-      nodeRef.name === "OptionalDivertSeparator"
-    ) {
+    if (nodeRef.name === "OptionalSeparator") {
       const nextChar = this.read(nodeRef.to, nodeRef.to + 1);
       if (nextChar === "\n" || nextChar === "\r") {
         // An optional separator that is followed by the end of the line,

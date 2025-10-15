@@ -6,17 +6,28 @@ import {
   CompilerOptions as InkCompilerOptions,
   InkList,
 } from "../inkjs/compiler/Compiler";
+import { IFileHandler } from "../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
+import { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
+import { Identifier } from "../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
+import { IncludedFile } from "../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
+import { Knot } from "../inkjs/compiler/Parser/ParsedHierarchy/Knot";
+import { ParsedObject } from "../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { Stitch } from "../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
+import { Story } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
+import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { ControlCommand } from "../inkjs/engine/ControlCommand";
+import { DebugMetadata } from "../inkjs/engine/DebugMetadata";
 import { SourceMetadata } from "../inkjs/engine/Error";
 import { InkListItem } from "../inkjs/engine/InkList";
+import { InkObject } from "../inkjs/engine/Object";
 import { SimpleJson } from "../inkjs/engine/SimpleJson";
 import { asOrNull } from "../inkjs/engine/TypeAssertion";
 import { StringValue } from "../inkjs/engine/Value";
 import { VariableAssignment } from "../inkjs/engine/VariableAssignment";
 import { File } from "../types/File";
 import { SparkDeclaration } from "../types/SparkDeclaration";
-import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
+import { DiagnosticSeverity } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
@@ -36,7 +47,6 @@ import {
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
-const NEWLINE_REGEX: RegExp = /\r\n|\r|\n/;
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
 export class SparkdownCompiler {
@@ -46,7 +56,7 @@ export class SparkdownCompiler {
     "colors",
     "implicits",
     "references",
-    "transpilations",
+    "compilations",
     "validations",
     "declarations",
   ]);
@@ -140,99 +150,11 @@ export class SparkdownCompiler {
     throw new Error(`Cannot find file '${relativePath}'.`);
   }
 
-  transpile(uri: string, state: SparkdownCompilerState) {
-    profile("start", "transpile", uri);
-    state.transpiledScripts ??= {};
-    if (state.transpiledScripts[uri]) {
-      return state.transpiledScripts[uri].content;
-    }
-    const doc = this.documents.get(uri);
-    if (!doc) {
-      console.error("Could not find document: ", uri);
-      return "";
-    }
-    profile("start", "splitIntoLines", uri);
-    const script = doc.getText() || "";
-    const lines = script.split(NEWLINE_REGEX);
-    profile("end", "splitIntoLines", uri);
-    state.transpiledScripts[uri] ??= { content: script, version: doc.version };
-    const annotations = this.documents.annotations(uri);
-    const cur = annotations.transpilations.iter();
-    while (cur.value) {
-      if (cur.value.type.whiteout) {
-        const lineFromIndex = doc.lineAt(cur.from);
-        const lineToIndex = doc.lineAt(cur.to);
-        for (
-          let lineIndex = lineFromIndex;
-          lineIndex <= lineToIndex;
-          lineIndex++
-        ) {
-          lines[lineIndex] = " ".repeat(lines[lineIndex]?.length ?? 0);
-        }
-      } else {
-        if (cur.value.type.remove != null) {
-          const lineIndex = doc.lineAt(cur.to);
-          const lineTo = doc.offsetAt({
-            line: lineIndex,
-            character: Number.MAX_VALUE,
-          });
-          const lineText = lines[lineIndex] ?? "";
-          const removeLength = cur.to - cur.from;
-          const distanceFromLineEnd = lineTo - cur.from;
-          const lineTextBefore = lineText.slice(0, -distanceFromLineEnd);
-          const lineTextAfter = lineText.slice(
-            lineTextBefore.length + removeLength
-          );
-          lines[lineIndex] = lineTextBefore + lineTextAfter;
-        }
-        if (cur.value.type.splice != null) {
-          const lineIndex = doc.lineAt(cur.from);
-          const lineFrom = doc.offsetAt({
-            line: lineIndex,
-            character: 0,
-          });
-          const lineTo = doc.offsetAt({
-            line: lineIndex,
-            character: Number.MAX_VALUE,
-          });
-          const after = cur.to - lineFrom;
-          const lineTextBefore = doc.read(lineFrom, cur.from);
-          const lineTextAfter = doc.read(cur.to, lineTo);
-          lines[lineIndex] =
-            lineTextBefore + cur.value.type.splice + lineTextAfter;
-          state.sourceMap ??= {};
-          state.sourceMap[uri] ??= {};
-          state.sourceMap[uri][lineIndex] = {
-            after,
-            shift: cur.value.type.splice.length,
-          };
-        }
-        if (cur.value.type.suffix != null) {
-          // Suffix position in new line is determined by its position from the end in the original line
-          // (This ensures that the suffix can account for prior `splice` transpilations that occur on the same line)
-          const lineIndex = doc.lineAt(cur.to);
-          const originalLineRange = doc.getLineRange(lineIndex);
-          const originalLineTo = doc.offsetAt(originalLineRange.end);
-          const distanceFromEnd = originalLineTo - cur.to;
-          lines[lineIndex] =
-            distanceFromEnd <= 0
-              ? lines[lineIndex] + cur.value.type.suffix
-              : lines[lineIndex]?.slice(0, -distanceFromEnd) +
-                cur.value.type.suffix +
-                lines[lineIndex]?.slice(-distanceFromEnd);
-        }
-      }
-      cur.next();
-    }
-    const result = lines.join("\n");
-    state.transpiledScripts[uri] = { content: result, version: doc.version };
-    profile("end", "transpile", uri);
-    return result;
-  }
-
   compile(params: { uri: string }) {
     const uri = params.uri;
+
     // console.clear();
+
     const program: SparkProgram = {
       uri,
       scripts: { [uri]: this.documents.get(uri)?.version ?? -1 },
@@ -242,214 +164,275 @@ export class SparkdownCompiler {
       dataLocations: {},
       version: this.documents.get(uri)?.version ?? -1,
     };
+
     const state: SparkdownCompilerState = {};
 
-    const file = this.files.get(uri);
-    const rootFilename =
-      (uri.includes("/") ? uri.split("/").at(-1) : uri) || "main.sd";
-
-    const load = (uri: string): string => {
-      return this.transpile(uri, state);
-    };
-
-    const options = new InkCompilerOptions(
-      rootFilename,
-      [],
-      false,
-      (message: string, type, source) => {
-        // console.error(message, type, source);
-        // if (source) {
-        //   let [uri, startLine, startColumn, endLine, endColumn] =
-        //     this.getPreTranspilationLocation(source, state);
-        //   const doc = this.documents.get(uri);
-        //   if (doc) {
-        //     const from = doc.offsetAt({
-        //       line: startLine,
-        //       character: startColumn,
-        //     });
-        //     const to = doc.offsetAt({ line: endLine, character: endColumn });
-        //     const margin = 1000;
-        //     const text = doc.read(from - margin, to + margin);
-        //     console.error(text, "SOURCE");
-        //     const transpiledScript = state.transpiledScripts?.[uri];
-        //     if (transpiledScript) {
-        //       console.error(
-        //         transpiledScript?.content.slice(
-        //           from - margin * 2,
-        //           to + margin * 2
-        //         ),
-        //         "TRANSPILED"
-        //       );
-        //     }
-        //   }
-        // }
-      },
-      {
-        ResolveInkFilename: (filename: string): string => {
-          return this.resolveFile(uri, filename);
-        },
-        LoadInkFileContents: (uri: string): string => {
-          return load(uri);
-        },
-      },
-      {
-        WriteRuntimeObject: (_, obj) => {
-          const metadata = obj?.ownDebugMetadata;
-          if (metadata) {
-            let path = obj.path.toString();
-            let [uri, startLine, startColumn, endLine, endColumn] =
-              this.getPreTranspilationLocation(metadata, state);
-            const scriptIndex = Object.keys(program.scripts).indexOf(uri || "");
-            let varAss = asOrNull(obj, VariableAssignment);
-            if (varAss) {
-              if (varAss.variableName && !varAss.isNewDeclaration) {
-                if (varAss.isGlobal) {
-                  program.dataLocations ??= {};
-                  program.dataLocations[varAss.variableName] ??= [
-                    scriptIndex,
-                    startLine,
-                    startColumn,
-                    endLine,
-                    endColumn,
-                  ];
-                } else {
-                  const containerPath = varAss.path
-                    .toString()
-                    .split(".")
-                    .filter(
-                      (p) =>
-                        Number.isNaN(Number(p)) &&
-                        !p.includes("-") &&
-                        !p.includes("$")
-                    )
-                    .join(".");
-                  program.dataLocations ??= {};
-                  program.dataLocations[
-                    containerPath + "." + varAss.variableName
-                  ] ??= [
-                    scriptIndex,
-                    startLine,
-                    startColumn,
-                    endLine,
-                    endColumn,
-                  ];
-                }
+    const onDiagnostic = (
+      message: string,
+      type: ErrorType,
+      source: SourceMetadata | null
+    ) => {
+      if (source && source.filePath) {
+        const severity =
+          type === ErrorType.Error
+            ? DiagnosticSeverity.Error
+            : type === ErrorType.Warning
+            ? DiagnosticSeverity.Warning
+            : DiagnosticSeverity.Information;
+        const uri = source.filePath;
+        const startLine = source.startLineNumber - 1;
+        const startCharacter = source.startCharacterNumber - 1;
+        const endLine = source.endLineNumber - 1;
+        const endCharacter = source.endCharacterNumber - 1;
+        const docDiagnostic = this.getDiagnostic(
+          message,
+          severity,
+          uri,
+          startLine,
+          startCharacter,
+          endLine,
+          endCharacter
+        );
+        if (docDiagnostic) {
+          if (docDiagnostic.relatedInformation) {
+            for (const info of docDiagnostic.relatedInformation) {
+              const uri = info.location.uri;
+              if (uri) {
+                program.diagnostics ??= {};
+                program.diagnostics[uri] ??= [];
+                program.diagnostics[uri].push(docDiagnostic);
               }
-            }
-            if (path.startsWith("global ")) {
-              path = "0";
-            }
-            if (
-              scriptIndex >= 0 &&
-              !(
-                obj instanceof ControlCommand &&
-                obj.commandType === ControlCommand.CommandType.NoOp
-              ) &&
-              !(obj instanceof StringValue && obj.isNewline)
-            ) {
-              const [
-                _,
-                existingStartLine,
-                existingStartColumn,
-                existingEndLine,
-                existingEndColumn,
-              ] = program.pathLocations?.[path] || [];
-              if (
-                existingStartLine != null &&
-                existingStartColumn != null &&
-                (existingStartLine < startLine ||
-                  (existingStartLine === startLine &&
-                    existingStartColumn < startColumn))
-              ) {
-                // expand range backward
-                startLine = existingStartLine;
-                startColumn = existingStartColumn;
-              }
-              if (
-                existingEndLine != null &&
-                existingEndColumn != null &&
-                (existingEndLine > endLine ||
-                  (existingEndLine === endLine &&
-                    existingEndColumn > endColumn))
-              ) {
-                // expand range forward
-                endLine = existingEndLine;
-                endColumn = existingEndColumn;
-              }
-              if (endColumn === 0) {
-                // If range stretches to only the start of a line,
-                // limit the range to the end of the previous line,
-                // (So that the document blinking cursor doesn't confusingly appear
-                // at the start of the next unrelated line when doing a stack trace)
-                if (uri) {
-                  const document = this.documents.get(uri);
-                  if (document) {
-                    const endPositionWithoutLastNewline = document.positionAt(
-                      document.offsetAt({
-                        line: endLine,
-                        character: endColumn,
-                      }) - 1
-                    );
-                    endLine = endPositionWithoutLastNewline.line;
-                    endColumn = endPositionWithoutLastNewline.character;
-                  }
-                }
-              }
-              program.pathLocations ??= {};
-              program.pathLocations[path] ??= [
-                scriptIndex,
-                startLine,
-                startColumn,
-                endLine,
-                endColumn,
-              ];
             }
           }
-          return false;
-        },
-      }
-    );
-    const inkCompiler = new InkCompiler(load(uri), options);
-    if (file) {
-      try {
-        profile("start", "ink/compile", uri);
-        const story = inkCompiler.Compile();
-        profile("end", "ink/compile", uri);
-        const writer = new SimpleJson.Writer();
-        if (story) {
-          profile("start", "ink/json", uri);
-          story.ToJson(writer);
-          program.compiled = writer.toString();
-          state.story = story;
-          profile("end", "ink/json", uri);
         }
-      } catch (e) {
-        // console.error(e);
       }
-    }
-    program.scripts = { [uri]: this.documents.get(uri)?.version ?? -1 };
-    for (const file of this.files.all()) {
-      if (file.src) {
-        const f = { ...file };
-        delete f.src;
-        delete f.text;
-        delete f.data;
-        program.files[file.src] = f;
+    };
+
+    const fileHandler: IFileHandler = {
+      ResolveInkFilename: (filename: string): string => {
+        const filePath = this.resolveFile(uri, filename);
+        const doc = this.documents.get(filePath);
+        if (doc) {
+          program.scripts[filePath] = doc.version;
+        }
+        return filePath;
+      },
+      LoadInkFileContents: (uri: string): string => {
+        const doc = this.documents.get(uri);
+        if (doc) {
+          return doc.getText();
+        }
+        return "";
+      },
+    };
+
+    try {
+      profile("start", "ink/parse", uri);
+      const parsedStory = this.parseIncrementally(
+        uri,
+        fileHandler,
+        false,
+        onDiagnostic
+      );
+      profile("end", "ink/parse", uri);
+      profile("start", "ink/compile", uri);
+      const story = parsedStory.ExportRuntime(onDiagnostic);
+      profile("end", "ink/compile", uri);
+      if (story) {
+        profile("start", "ink/json", uri);
+        story.onWriteRuntimeObject = (_, obj) =>
+          this.populateLocations(program, obj);
+        const writer = new SimpleJson.Writer();
+        story.ToJson(writer);
+        program.compiled = writer.toString();
+        state.story = story;
+        profile("end", "ink/json", uri);
       }
+    } catch (e) {
+      console.error(e);
     }
-    for (const [scriptUri, transpilation] of Object.entries(
-      state.transpiledScripts || {}
-    )) {
-      program.scripts[scriptUri] = transpilation.version;
-    }
+
+    this.populateFiles(program);
     this.populateUI(program);
     this.populateDeclarationLocations(program);
     this.sortPathLocations(program);
-    this.populateDiagnostics(state, program, inkCompiler);
     this.buildContext(state, program);
     this.validateSyntax(program);
     this.validateReferences(program);
     return program;
+  }
+
+  parseIncrementally(
+    uri: string,
+    fileHandler: IFileHandler,
+    isInclude: boolean,
+    onDiagnostic: (
+      message: string,
+      type: ErrorType,
+      source: SourceMetadata | null
+    ) => void
+  ) {
+    const getClosestWeave = (content: ParsedObject[]) => {
+      const last = content.at(-1);
+      if (last instanceof Weave) {
+        if (last.content.at(-1) instanceof Weave) {
+          return getClosestWeave(last.content);
+        }
+        return last;
+      }
+      if (last instanceof Stitch) {
+        return getClosestWeave(last.content);
+      }
+      if (last instanceof Knot) {
+        return getClosestWeave(last.content);
+      }
+      return undefined;
+    };
+
+    const remapContent = (
+      content: ParsedObject[],
+      lineNumberOffset: number
+    ) => {
+      for (const c of content) {
+        c.ResetRuntime();
+        if (c.debugMetadata) {
+          this.offsetDebugMetadata(c, lineNumberOffset);
+          c.debugMetadata.filePath = uri;
+        }
+        if (
+          "identifier" in c &&
+          c.identifier instanceof Identifier &&
+          c.identifier?.debugMetadata
+        ) {
+          this.offsetDebugMetadata(c.identifier, lineNumberOffset);
+          c.identifier.debugMetadata.filePath = uri;
+        }
+        if (c.content) {
+          remapContent(c.content, lineNumberOffset);
+        }
+      }
+    };
+
+    const document = this.documents.get(uri);
+    const annotations = this.documents.annotations(uri);
+    const cur = annotations.compilations.iter();
+    const topLevelIncludedFileObjs: IncludedFile[] = [];
+    const topLevelFlowBaseObjs: FlowBase[] = [];
+    const topLevelWeaveObjs: ParsedObject[] = [];
+    const topLevelContent: (FlowBase | Weave)[] = [];
+
+    while (cur.value) {
+      const { include, diagnostics, content } = cur.value.type;
+      const lineNumberOffset = document?.lineAt(cur.from) ?? 0;
+      if (include) {
+        if (include) {
+          let resolvedFilePath: string | null = null;
+          try {
+            resolvedFilePath = fileHandler.ResolveInkFilename(include);
+          } catch {}
+          const includedStory = resolvedFilePath
+            ? this.parseIncrementally(
+                resolvedFilePath,
+                fileHandler,
+                true,
+                onDiagnostic
+              )
+            : null;
+          topLevelIncludedFileObjs.push(new IncludedFile(includedStory));
+        }
+      }
+      if (diagnostics) {
+        for (const diagnostic of diagnostics) {
+          if (diagnostic.source) {
+            const offsetSource: SourceMetadata = { ...diagnostic.source };
+            offsetSource.startLineNumber += lineNumberOffset;
+            offsetSource.endLineNumber += lineNumberOffset;
+            onDiagnostic(diagnostic.message, diagnostic.severity, offsetSource);
+          }
+        }
+      }
+      if (content) {
+        remapContent(content, lineNumberOffset);
+        const flow = content[0];
+        if (flow) {
+          if (flow instanceof Knot) {
+            const rootWeave = new Weave([]);
+            rootWeave.debugMetadata = flow.debugMetadata;
+            const knot = new Knot(
+              flow.identifier!,
+              [],
+              flow.args ?? [],
+              flow.isFunction
+            );
+            knot.debugMetadata = flow.debugMetadata;
+            knot._rootWeave = rootWeave;
+            knot.AddContent(rootWeave);
+            topLevelFlowBaseObjs.push(knot);
+            topLevelContent.push(knot);
+          } else if (flow instanceof Stitch) {
+            const rootWeave = new Weave([]);
+            const stitch = new Stitch(
+              flow.identifier!,
+              [],
+              flow.args ?? [],
+              flow.isFunction
+            );
+            stitch.debugMetadata = flow.debugMetadata;
+            stitch._rootWeave = rootWeave;
+            stitch.AddContent(rootWeave);
+            rootWeave.debugMetadata = flow.debugMetadata;
+            const last = topLevelContent.at(-1);
+            if (last instanceof Knot) {
+              if (stitch.identifier?.name) {
+                last.subFlowsByName.set(stitch.identifier?.name, stitch);
+              }
+              if (
+                last.content.length === 1 &&
+                last.content[0] instanceof Weave &&
+                last.content[0].content.length === 0
+              ) {
+                // Remove empty internal weave, since we are not using it
+                last.content.pop();
+              }
+              last.AddContent(stitch);
+            } else {
+              topLevelFlowBaseObjs.push(stitch);
+              topLevelContent.push(stitch);
+            }
+          } else if (flow instanceof Weave) {
+            const flowContent = flow.content;
+            const closestWeave = getClosestWeave(topLevelContent);
+            if (closestWeave) {
+              const lastContent = closestWeave.content.at(-1);
+              if (
+                lastContent instanceof Weave &&
+                lastContent.content.length === 0
+              ) {
+                // Remove empty internal weave, since we are not using it
+                closestWeave.content.pop();
+              }
+              closestWeave.AddContent(flowContent);
+            } else {
+              const weave = new Weave(flowContent);
+              topLevelWeaveObjs.push(weave);
+              topLevelContent.push(weave);
+            }
+          }
+        }
+      }
+      cur.next();
+    }
+
+    const combinedParsedStory = new Story(
+      [
+        ...topLevelIncludedFileObjs,
+        ...topLevelWeaveObjs.flatMap((w) => w.content),
+        ...topLevelFlowBaseObjs,
+      ],
+      isInclude
+    );
+
+    return combinedParsedStory;
   }
 
   evaluate(expression: string, evaluationContext: any) {
@@ -552,6 +535,131 @@ export class SparkdownCompiler {
 
   clone<T>(value: T) {
     return structuredClone(value);
+  }
+
+  populateLocations(program: SparkProgram, obj: InkObject) {
+    const metadata = obj?.ownDebugMetadata;
+    if (metadata) {
+      let path = obj.path.toString();
+      const uri = metadata.filePath ?? program.uri;
+      const scriptIndex = Object.keys(program.scripts).indexOf(uri || "");
+      let startLine = metadata.startLineNumber - 1;
+      let startColumn = metadata.startCharacterNumber - 1;
+      let endLine = metadata.endLineNumber - 1;
+      let endColumn = metadata.endCharacterNumber - 1;
+      let varAss = asOrNull(obj, VariableAssignment);
+      if (varAss) {
+        if (varAss.variableName && !varAss.isNewDeclaration) {
+          if (varAss.isGlobal) {
+            program.dataLocations ??= {};
+            program.dataLocations[varAss.variableName] ??= [
+              scriptIndex,
+              startLine,
+              startColumn,
+              endLine,
+              endColumn,
+            ];
+          } else {
+            const containerPath = varAss.path
+              .toString()
+              .split(".")
+              .filter(
+                (p) =>
+                  Number.isNaN(Number(p)) &&
+                  !p.includes("-") &&
+                  !p.includes("$")
+              )
+              .join(".");
+            program.dataLocations ??= {};
+            program.dataLocations[containerPath + "." + varAss.variableName] ??=
+              [scriptIndex, startLine, startColumn, endLine, endColumn];
+          }
+        }
+      }
+      if (path.startsWith("global ")) {
+        path = "0";
+      }
+      if (
+        scriptIndex >= 0 &&
+        !(
+          obj instanceof ControlCommand &&
+          obj.commandType === ControlCommand.CommandType.NoOp
+        ) &&
+        !(obj instanceof StringValue && obj.isNewline)
+      ) {
+        const [
+          _,
+          existingStartLine,
+          existingStartColumn,
+          existingEndLine,
+          existingEndColumn,
+        ] = program.pathLocations?.[path] || [];
+        if (
+          existingStartLine != null &&
+          existingStartColumn != null &&
+          (existingStartLine < startLine ||
+            (existingStartLine === startLine &&
+              existingStartColumn < startColumn))
+        ) {
+          // expand range backward
+          startLine = existingStartLine;
+          startColumn = existingStartColumn;
+        }
+        if (
+          existingEndLine != null &&
+          existingEndColumn != null &&
+          (existingEndLine > endLine ||
+            (existingEndLine === endLine && existingEndColumn > endColumn))
+        ) {
+          // expand range forward
+          endLine = existingEndLine;
+          endColumn = existingEndColumn;
+        }
+        if (endColumn === 0) {
+          // If range stretches to only the start of a line,
+          // limit the range to the end of the previous line,
+          // (So that the document blinking cursor doesn't confusingly appear
+          // at the start of the next unrelated line when doing a stack trace)
+          if (uri) {
+            const document = this.documents.get(uri);
+            if (document) {
+              const endPositionWithoutLastNewline = document.positionAt(
+                document.offsetAt({
+                  line: endLine,
+                  character: endColumn,
+                }) - 1
+              );
+              endLine = endPositionWithoutLastNewline.line;
+              endColumn = endPositionWithoutLastNewline.character;
+            }
+          }
+        }
+        program.pathLocations ??= {};
+        program.pathLocations[path] ??= [
+          scriptIndex,
+          startLine,
+          startColumn,
+          endLine,
+          endColumn,
+        ];
+      }
+    }
+    return false;
+  }
+
+  populateFiles(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", "populateFiles", uri);
+    for (const file of this.files.all()) {
+      if (file.src) {
+        const f = { ...file };
+        delete f.src;
+        delete f.text;
+        delete f.data;
+        program.files[file.src] = f;
+      }
+    }
+    profile("end", "populateFiles", uri);
   }
 
   populateUI(program: SparkProgram) {
@@ -1293,159 +1401,91 @@ export class SparkdownCompiler {
     profile("end", "validateReferences", uri);
   }
 
-  populateDiagnostics(
-    state: SparkdownCompilerState,
-    program: SparkProgram,
-    compiler: InkCompiler
+  offsetDebugMetadata(
+    obj: {
+      debugMetadata: DebugMetadata | null;
+      sourceDebugMetadata: DebugMetadata | null;
+    },
+    lineNumberOffset: number
   ) {
-    const uri = program.uri;
-    profile("start", "populateDiagnostics", uri);
-    for (const error of compiler.errors) {
-      program.diagnostics ??= {};
-      const diagnostic = this.convertInkCompilerDiagnostic(
-        error.message,
-        ErrorType.Error,
-        error.source,
-        state
-      );
-      if (diagnostic) {
-        if (diagnostic.relatedInformation) {
-          for (const info of diagnostic.relatedInformation) {
-            const uri = info.location.uri;
-            if (uri) {
-              program.diagnostics[uri] ??= [];
-              program.diagnostics[uri].push(diagnostic);
-            }
-          }
-        }
-      }
+    if (!obj.sourceDebugMetadata) {
+      obj.sourceDebugMetadata = obj.debugMetadata;
     }
-    for (const warning of compiler.warnings) {
-      program.diagnostics ??= {};
-      const diagnostic = this.convertInkCompilerDiagnostic(
-        warning.message,
-        ErrorType.Warning,
-        warning.source,
-        state
-      );
-      if (diagnostic) {
-        if (diagnostic.relatedInformation) {
-          for (const info of diagnostic.relatedInformation) {
-            const uri = info.location.uri;
-            if (uri) {
-              program.diagnostics[uri] ??= [];
-              program.diagnostics[uri].push(diagnostic);
-            }
-          }
-        }
-      }
+    if (obj.sourceDebugMetadata) {
+      const offsetDebugMetadata = new DebugMetadata(obj.sourceDebugMetadata);
+      offsetDebugMetadata.startLineNumber += lineNumberOffset;
+      offsetDebugMetadata.endLineNumber += lineNumberOffset;
+      obj.debugMetadata = offsetDebugMetadata;
     }
-    for (const info of compiler.infos) {
-      program.diagnostics ??= {};
-      const diagnostic = this.convertInkCompilerDiagnostic(
-        info.message,
-        ErrorType.Information,
-        info.source,
-        state
-      );
-      if (diagnostic) {
-        if (diagnostic.relatedInformation) {
-          for (const info of diagnostic.relatedInformation) {
-            const uri = info.location.uri;
-            if (uri) {
-              program.diagnostics[uri] ??= [];
-              program.diagnostics[uri].push(diagnostic);
-            }
-          }
-        }
-      }
-    }
-    profile("end", "populateDiagnostics", uri);
   }
 
-  convertInkCompilerDiagnostic(
+  getDiagnostic(
     message: string,
-    type: ErrorType,
-    metadata?: SourceMetadata | null,
-    state?: SparkdownCompilerState
-  ): SparkDiagnostic | null {
-    if (metadata && metadata.fileName) {
-      const [uri, startLine, startCharacter, endLine, endCharacter] =
-        this.getPreTranspilationLocation(metadata, state);
-      if (startCharacter < 0) {
-        // This error is occurring in a part of the script that was automatically added during transpilation
-        // Assume it will be properly reported elsewhere and do not report it here.
-        console.warn("HIDDEN", message, type, metadata);
-        return null;
-      }
-      if (
-        startLine > endLine ||
-        (startLine === endLine && startCharacter > endCharacter)
-      ) {
-        // This error range is invalid.
-        console.warn("HIDDEN", message, type, metadata);
-        return null;
-      }
-      const range = {
-        start: {
-          line: startLine,
-          character: startCharacter,
-        },
-        end: {
-          line: endLine,
-          character: endCharacter,
-        },
-      };
-      const relatedInformation = uri
-        ? [
-            {
-              location: { uri, range },
-              message: "",
-            },
-          ]
-        : [];
-      const severity =
-        type === ErrorType.Error
-          ? DiagnosticSeverity.Error
-          : type === ErrorType.Warning
-          ? DiagnosticSeverity.Warning
-          : DiagnosticSeverity.Information;
-      const source = LANGUAGE_NAME;
-      const diagnostic = {
-        range,
-        severity,
+    severity: DiagnosticSeverity,
+    uri: string,
+    startLine: number,
+    startCharacter: number,
+    endLine: number,
+    endCharacter: number
+  ) {
+    if (startCharacter < 0) {
+      // This error is occurring in a part of the script that was automatically added during transpilation
+      // Assume it will be properly reported elsewhere and do not report it here.
+      console.warn(
+        "HIDDEN",
         message,
-        relatedInformation,
-        source,
-      };
-      return diagnostic;
+        severity,
+        uri,
+        startLine,
+        startCharacter,
+        endLine,
+        endCharacter
+      );
+      return null;
     }
-    console.warn("HIDDEN", message, type, metadata);
-    return null;
-  }
-
-  getPreTranspilationLocation(
-    metadata: SourceMetadata,
-    state?: SparkdownCompilerState
-  ): [string, number, number, number, number] {
-    const filePath = metadata?.filePath || "";
-    const startLine = metadata.startLineNumber - 1;
-    const endLine = metadata.endLineNumber - 1;
-    const startOffset = state?.sourceMap?.[filePath]?.[startLine];
-    const startOffsetAfter = startOffset?.after ?? 0;
-    const startOffsetShift = startOffset?.shift ?? 0;
-    const endOffset = state?.sourceMap?.[filePath]?.[endLine];
-    const endOffsetAfter = endOffset?.after ?? 0;
-    const endOffsetShift = endOffset?.shift ?? 0;
-    const startCharacterOffset =
-      metadata.startCharacterNumber - 1 > startOffsetAfter
-        ? startOffsetShift
-        : 0;
-    const startCharacter =
-      metadata.startCharacterNumber - 1 - startCharacterOffset;
-    const endCharacterOffset =
-      metadata.endCharacterNumber - 1 > endOffsetAfter ? endOffsetShift : 0;
-    const endCharacter = metadata.endCharacterNumber - 1 - endCharacterOffset;
-    return [filePath, startLine, startCharacter, endLine, endCharacter];
+    if (
+      startLine > endLine ||
+      (startLine === endLine && startCharacter > endCharacter)
+    ) {
+      // This error range is invalid.
+      console.warn(
+        "HIDDEN",
+        message,
+        severity,
+        uri,
+        startLine,
+        startCharacter,
+        endLine,
+        endCharacter
+      );
+      return null;
+    }
+    const range = {
+      start: {
+        line: startLine,
+        character: startCharacter,
+      },
+      end: {
+        line: endLine,
+        character: endCharacter,
+      },
+    };
+    const relatedInformation = uri
+      ? [
+          {
+            location: { uri, range },
+            message: "",
+          },
+        ]
+      : [];
+    const source = LANGUAGE_NAME;
+    const diagnostic = {
+      range,
+      severity,
+      message,
+      relatedInformation,
+      source,
+    };
+    return diagnostic;
   }
 }

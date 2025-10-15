@@ -170,4 +170,8 @@ export class VariableReference extends Expression {
   }
 
   public readonly toString = (): string => `{${this.path.join(".")}}`;
+
+  override OnResetRuntime(): void {
+    this._runtimeVarRef = null;
+  }
 }

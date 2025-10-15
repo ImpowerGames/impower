@@ -7,9 +7,9 @@ uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 flags: mu
 
 variables:
-  IDENTIFIER_START_CHAR: '_\p{L}'
+  IDENTIFIER_START: '[0-9]*[_\p{L}]'
   IDENTIFIER_END_CHAR: '0-9_\p{L}'
-  IDENTIFIER: "[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*"
+  IDENTIFIER: "{{IDENTIFIER_START}}[{{IDENTIFIER_END_CHAR}}]*"
   CSS_IDENTIFIER: "[{{IDENTIFIER_END_CHAR}}-]+"
   DECLARATION_PROPERTY_IDENTIFIER: '(?:["].*?["]|\[.*?\]|\(.*?\)|[^.:=\r\n])+?'
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
@@ -89,8 +89,6 @@ patterns:
   - { include: "#Logic" }
   - { include: "#Choice" }
   - { include: "#Gather" }
-  - { include: "#ConditionalBracedBlock" }
-  - { include: "#ConditionalIndentedBlock" }
   - { include: "#Title" }
   - { include: "#Heading" }
   - { include: "#Transitional" }
@@ -98,6 +96,8 @@ patterns:
   - { include: "#Dialogue" }
   - { include: "#AssetLine" }
   - { include: "#Action" }
+  - { include: "#ConditionalBracedBlock" }
+  - { include: "#ConditionalIndentedBlock" }
   - { include: "#Whitespace" }
 
 repository:
@@ -114,7 +114,7 @@ repository:
   Annotation:
     patterns:
       - { include: "#Comment" }
-      - { include: "#Tag" }
+      - { include: "#Tags" }
 
   ########## Comment ##########
 
@@ -169,6 +169,18 @@ repository:
     match: (.+?)(?=$|[*][/])
 
   ########## Tag ##########
+
+  Tags:
+    tag: docComment
+    name: comment.line.sd entity.tag.sd
+    begin: ({{WS}}*)(?={{TAG_START}})
+    captures:
+      1:
+        patterns:
+          - { include: "#Separator" }
+    patterns:
+      - { include: "#Tag" }
+    end: (?=$)
 
   Tag:
     tag: docComment
@@ -802,18 +814,21 @@ repository:
     end: (?=$)
 
   FunctionCall:
-    begin: ({{IDENTIFIER}})(?=[(])
+    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
           - { include: "#FunctionName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionCallParameters" }
     end: (?=$|[^(])
 
   FunctionAccessor:
-    begin: ([.])?({{IDENTIFIER}})(?=[(])
+    begin: ([.])?({{IDENTIFIER}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -821,6 +836,9 @@ repository:
       2:
         patterns:
           - { include: "#FunctionName" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionCallParameters" }
@@ -852,11 +870,11 @@ repository:
       - { include: "#IllegalExpression" }
 
   AccessPath:
-    begin: (?=[{{IDENTIFIER_START_CHAR}}])
+    begin: (?={{IDENTIFIER}})
     patterns:
       - { include: "#Annotation" }
       - { include: "#AccessPart" }
-    end: (?=$|[^{{IDENTIFIER_START_CHAR}}?!.\[])
+    end: (?=$)|(?!{{IDENTIFIER}}|[.]|\[)
 
   AccessPart:
     emit: true
@@ -1774,7 +1792,7 @@ repository:
 
   Choice:
     name: entity.choice.sd
-    begin: ^({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)([(][^()]*[)]{{WS}}*)?((?:[{][^{}]*[}]{{WS}}*)+)?
+    begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)([(][^()]*[)]{{WS}}*)?(?:((?:[{][^{}]*[}]{{WS}}*)+))?(\r\n|\r|\n)?
     beginCaptures:
       1:
         patterns:
@@ -1788,11 +1806,30 @@ repository:
       4:
         patterns:
           - { include: "#ConditionalBracedBlock" }
+      5:
+        patterns:
+          - { include: "#Newline" }
     patterns:
       - { include: "#Annotation" }
+      - { include: "#Newline" }
+      - { include: "#ChoiceConditional" }
       - { include: "#ChoiceWithSuppressedText" }
       - { include: "#ChoiceWithNoSuppressedText" }
-    end: (?=$|[-][>])
+    end: (?=$)
+
+  ChoiceConditional:
+    name: entity.choice.sd
+    match: ^({{WS}}*)((?:[{][^{}]*[}]{{WS}}*)+)(\r\n|\r|\n)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ConditionalBracedBlock" }
+      3:
+        patterns:
+          - { include: "#Newline" }
 
   ChoiceMark:
     tag: keyword
@@ -1800,7 +1837,7 @@ repository:
     match: (.+)
 
   ChoiceWithSuppressedText:
-    match: (.*?)(\[)(.*?)(\])(.*?)(?:({{WS}}*)$|({{WS}}*)(?=[-][>]))
+    match: (.*?)(\[)(.*?)(\])(.*?)(?:({{WS}}*)$|({{WS}}*)([-][>].*$))
     captures:
       1:
         patterns:
@@ -1823,9 +1860,12 @@ repository:
       7:
         patterns:
           - { include: "#Separator" }
+      8:
+        patterns:
+          - { include: "#Divert" }
 
   ChoiceWithNoSuppressedText:
-    match: (.*?)(?:({{WS}}*)$|({{WS}}*)(?=[-][>]))
+    match: (.+?)(?:({{WS}}*)$|({{WS}}*)([-][>].*$))
     captures:
       1:
         patterns:
@@ -1836,6 +1876,9 @@ repository:
       3:
         patterns:
           - { include: "#Separator" }
+      4:
+        patterns:
+          - { include: "#Divert" }
 
   ChoiceTextContent:
     tag: string
@@ -1968,7 +2011,6 @@ repository:
       - { include: "#Thread" }
       - { include: "#Todo" }
       - { include: "#Logic" }
-      - { include: "#Tag" }
       - { include: "#ConditionalBracedBlock" }
       - { include: "#ConditionalIndentedBlock" }
       - { include: "#Title" }
@@ -1977,14 +2019,7 @@ repository:
       - { include: "#Write" }
       - { include: "#Dialogue" }
       - { include: "#Action" }
-    end: ({{EOL}})(\r\n|\r|\n)?
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#EndOfLine" }
-      2:
-        patterns:
-          - { include: "#Newline" }
+    end: (?=$|^)
 
   GatherMark:
     tag: keyword
@@ -2298,7 +2333,7 @@ repository:
   ########## Divert & Thread ##########
 
   Divert:
-    begin: ({{WS}}*)([-][>][-][>]|[-][>])({{WS}}*)
+    begin: ({{WS}}*)([-][>][-][>]|[-][>])
     beginCaptures:
       1:
         patterns:
@@ -2307,21 +2342,32 @@ repository:
         patterns:
           - { include: "#TunnelMark" }
           - { include: "#DivertMark" }
-      3:
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Tunnel" }
+      - { include: "#DivertTarget" }
+      - { include: "#ExtraWhitespace" }
+    end: (?=$)
+
+  Tunnel:
+    begin: ({{WS}}*)([-][>])
+    beginCaptures:
+      1:
         emit: true
         patterns:
           - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#DivertMark" }
     patterns:
       - { include: "#Annotation" }
+      - { include: "#Tunnel" }
+      - { include: "#DivertTarget" }
       - { include: "#ExtraWhitespace" }
-      - { include: "#End" }
-      - { include: "#Done" }
-      - { include: "#FunctionCall" }
-      - { include: "#DivertPath" }
-    end: (?=$|[^{{IDENTIFIER_START_CHAR}}])
+    end: (?=$)
 
   Thread:
-    begin: ^({{WS}}*)([<][-])({{WS}}*)
+    begin: ^({{WS}}*)([<][-])
     beginCaptures:
       1:
         patterns:
@@ -2329,18 +2375,11 @@ repository:
       2:
         patterns:
           - { include: "#ThreadMark" }
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#Annotation" }
+      - { include: "#DivertTarget" }
       - { include: "#ExtraWhitespace" }
-      - { include: "#End" }
-      - { include: "#Done" }
-      - { include: "#FunctionCall" }
-      - { include: "#DivertPath" }
-    end: (?=$|[^{{IDENTIFIER_START_CHAR}}\s])
+    end: (?=$|[^{{IDENTIFIER_END_CHAR}}\s])
 
   DivertMark:
     tag: controlKeyword
@@ -2367,23 +2406,31 @@ repository:
     name: constant.language.done.sd
     match: \b(DONE)\b
 
+  DivertTarget:
+    tag: heading
+    name: keyword.control.divert.path.sd
+    begin: ({{WS}}*)(?={{IDENTIFIER}}|[.^])
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#End" }
+      - { include: "#Done" }
+      - { include: "#FunctionCall" }
+      - { include: "#DivertPath" }
+    end: (?=$)|(?!{{IDENTIFIER}}|[.^])
+
   DivertPath:
     tag: heading
     name: keyword.control.divert.path.sd
-    begin: (?=[{{IDENTIFIER_START_CHAR}}0-9.^])
+    begin: (?={{IDENTIFIER}}|[.^])
     patterns:
       - { include: "#Annotation" }
       - { include: "#DivertPart" }
-    end: ({{WS}}*(?=[-][>]))?(?=$|[^{{IDENTIFIER_START_CHAR}}0-9.^])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#OptionalDivertSeparator" }
-
-  OptionalDivertSeparator:
-    tag: definition(content)
-    name: markup.raw.whitespace.sd
-    match: ({{WS}}*(?=[-][>]))
+    end: (?=$)|(?!{{IDENTIFIER}}|[.^])
 
   DivertPart:
     emit: true
@@ -2485,7 +2532,6 @@ repository:
       - { include: "#PipeAhead" }
       - { include: "#Literal" }
       - { include: "#Divert" }
-      - { include: "#Tag" }
       - { include: "#ConditionalSubstitution" }
       - { include: "#ConditionalBracedBlock" }
       - { include: "#InlineConditionalText" }
@@ -3508,7 +3554,7 @@ repository:
   BlockTitle:
     tag: monospace
     name: constant.character.escape.title.sd
-    begin: ({{WS}}*)(\^)([:])({{WS}}*)(?={{EOL}})
+    begin: ^({{WS}}*)(\^)([:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3525,6 +3571,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#BlockLineBlank" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
@@ -3572,7 +3619,7 @@ repository:
   BlockHeading:
     tag: regexp
     name: string.regexp.heading.block.sd
-    begin: ({{WS}}*)([$])([:])({{WS}}*)(?={{EOL}})
+    begin: ^({{WS}}*)([$])([:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3589,6 +3636,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#BlockLineBlank" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
@@ -3639,7 +3687,7 @@ repository:
   BlockTransitional:
     tag: labelName
     name: keyword.control.transitional.block.sd
-    begin: ({{WS}}*)([%])([:])({{WS}}*)(?={{EOL}})
+    begin: ^({{WS}}*)([%])([:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3656,6 +3704,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#BlockLineBlank" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
@@ -3703,7 +3752,7 @@ repository:
   BlockWrite:
     tag: string
     name: string.write.block.sd
-    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])({{WS}}*)(?={{EOL}})
+    begin: ^({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3727,6 +3776,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#BlockLineBlank" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
@@ -3785,7 +3835,7 @@ repository:
   BlockDialogue:
     tag: string
     name: string.dialogue.block.sd
-    begin: ({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
+    begin: ^({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3803,6 +3853,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#BlockLineBlank" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
@@ -3937,7 +3988,7 @@ repository:
       - { include: "#ImplicitAction" }
 
   BlockAction:
-    begin: ({{WS}}*)([:])({{WS}}*)(?={{EOL}})
+    begin: ^({{WS}}*)([:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
         patterns:
@@ -3951,6 +4002,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#BlockLineBlank" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
@@ -4090,6 +4142,13 @@ repository:
       1:
         patterns:
           - { include: "#Whitespace" }
+
+  BlockLineBlank:
+    match: ^({{WS}}+$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
 
   LineChain:
     match: ({{WS}}*)(.*?)([\\](?:$|{{WS}}+))({{EOL}})(\r\n|\r|\n)?
