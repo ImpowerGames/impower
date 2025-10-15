@@ -28,7 +28,7 @@ export class Compiler {
   declare grammar: Grammar;
   declare stack: CompileStack;
   declare buffer: ChunkBuffer;
-  declare compiled: Uint16Array;
+  declare compiled: Int32Array;
   declare size: number;
   declare reused: ITreeBuffer[];
   declare index: number;
@@ -39,13 +39,13 @@ export class Compiler {
   constructor(
     grammar: Grammar,
     buffer?: ChunkBuffer,
-    compiled?: Uint16Array,
+    compiled?: Int32Array,
     reused?: ITreeBuffer[]
   ) {
     this.grammar = grammar;
     this.stack = new CompileStack();
     this.buffer = buffer || new ChunkBuffer([]);
-    this.compiled = compiled || new Uint16Array(COMPILER_ARRAY_INTERVAL);
+    this.compiled = compiled || new Int32Array(COMPILER_ARRAY_INTERVAL);
     this.reused = buffer && reused ? reused.slice(0, buffer.reusedLength) : [];
     this.size = buffer && compiled ? buffer.emittedSize ?? 0 : 0;
     this.index = buffer && compiled ? buffer.chunks.length : 0;
@@ -60,7 +60,7 @@ export class Compiler {
   }
 
   reset() {
-    this.compiled = new Uint16Array(COMPILER_ARRAY_INTERVAL);
+    this.compiled = new Int32Array(COMPILER_ARRAY_INTERVAL);
     this.stack = new CompileStack();
     this.buffer = new ChunkBuffer([]);
     this.index = 0;
@@ -110,7 +110,7 @@ export class Compiler {
     // we may need to resize the array
     if (idx + 4 > this.compiled.length) {
       const old = this.compiled;
-      this.compiled = new Uint16Array(old.length + COMPILER_ARRAY_INTERVAL);
+      this.compiled = new Int32Array(old.length + COMPILER_ARRAY_INTERVAL);
       this.compiled.set(old);
     }
 
