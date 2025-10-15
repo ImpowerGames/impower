@@ -35,9 +35,9 @@ export class TextmateGrammarParse implements PartialParse {
    * An object storing details about the region of the document to be
    * parsed, where it was edited, the length, etc.
    */
-  private declare region: TextmateParseRegion;
+  protected declare region: TextmateParseRegion;
 
-  private declare compiler: Compiler;
+  protected declare compiler: Compiler;
 
   /** The current position of the parser. */
   declare parsedPos: number;
@@ -51,7 +51,7 @@ export class TextmateGrammarParse implements PartialParse {
   /** The current performance value, in milliseconds. */
   declare performance?: number;
 
-  private consecutiveEmptyMatchCount = 0;
+  protected consecutiveEmptyMatchCount = 0;
 
   /**
    * @param language - The language containing the grammar to use.
@@ -148,7 +148,7 @@ export class TextmateGrammarParse implements PartialParse {
     return null;
   }
 
-  private finish(): Tree {
+  protected finish(): Tree {
     const nodeSet = this.nodeSet;
     const topID = NodeID.top;
 
@@ -198,7 +198,7 @@ export class TextmateGrammarParse implements PartialParse {
   }
 
   /** Advances the parser to the next chunk. */
-  private nextChunk() {
+  protected nextChunk() {
     // this condition is a little misleading,
     // as we're actually going to break out when any chunk is emitted.
     // however, if we're at the "last chunk", this condition catches that
@@ -296,7 +296,7 @@ export class TextmateGrammarParse implements PartialParse {
    *
    * @param aheadBuffer - The buffer to try and reuse.
    */
-  private tryToReuseAhead() {
+  protected tryToReuseAhead() {
     if (this.compiler.ahead) {
       // console.log("REUSABLE?", this.parsedPos, ">=", reusableFrom, pos >= reusableFrom);
       if (this.compiler.ahead.first) {
