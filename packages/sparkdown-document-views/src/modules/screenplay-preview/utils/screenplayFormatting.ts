@@ -2,13 +2,13 @@ import { HighlightStyle, syntaxTree } from "@codemirror/language";
 import type { EditorState, Text } from "@codemirror/state";
 import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
+import { VSCodeLanguageSupport } from "@impower/codemirror-vscode-language/src";
 import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { SyntaxNodeRef } from "@lezer/common";
 import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
-import { TextmateLanguageSupport } from "../../../cm-textmate/classes/TextmateLanguageSupport";
 import CollapseWidget from "../classes/widgets/CollapseWidget";
 import DialogueWidget, {
   DialogueSpec,
@@ -71,7 +71,7 @@ const getDualDialogueLineStyle = (type: string) => {
 
 const LANGUAGE_NAME = "sparkdown";
 
-const LANGUAGE_SUPPORT = new TextmateLanguageSupport(LANGUAGE_NAME, GRAMMAR);
+const LANGUAGE_SUPPORT = new VSCodeLanguageSupport(LANGUAGE_NAME, GRAMMAR);
 
 const INLINE_HIDDEN_TAGS = [
   tags.definition(tags.escape),

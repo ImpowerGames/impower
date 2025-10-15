@@ -7,18 +7,18 @@ import {
 import { Extension } from "@codemirror/state";
 import { NodeType } from "@lezer/common";
 
-import { type GrammarDefinition } from "@impower/textmate-grammar-tree/src/grammar/types/GrammarDefinition";
 import { NodeID } from "@impower/textmate-grammar-tree/src/core/enums/NodeID";
+import { type GrammarDefinition } from "@impower/textmate-grammar-tree/src/grammar/types/GrammarDefinition";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
 
-import { LanguageData } from "../types/LanguageData";
+import { CodeMirrorLanguageData } from "../types/CodeMirrorLanguageData";
 import { defineNodeTypeWithLanguageNodeProps } from "../utils/defineNodeTypeWithLanguageNodeProps";
 
-export class TextmateLanguageSupport extends LanguageSupport {
+export class VSCodeLanguageSupport extends LanguageSupport {
   constructor(
     name: string,
     grammarDefinition: GrammarDefinition,
-    languageData?: LanguageData,
+    languageData?: CodeMirrorLanguageData,
     support?: Extension[]
   ) {
     const facet = defineLanguageFacet(languageData);

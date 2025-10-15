@@ -1,0 +1,14 @@
+{
+  "name": "@impower/codemirror-vscode-language",
+  "displayName": "Codemirror VSCode Language",
+  "description": "Use vscode .language-grammar.json and .language-config.json files to power codemirror 6 syntax highlighting, indentation, bracket matching, on-enter rules, and more.",
+  "version": "1.0.0",
+  "peerDependencies": {
+    "@codemirror/autocomplete": "^6.19.0",
+    "@codemirror/language": "^6.11.3",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.38.6",
+    "@impower/textmate-grammar-tree": "file:../textmate-grammar-tree",
+    "@lezer/common": "^1.2.3"
+  }
+}

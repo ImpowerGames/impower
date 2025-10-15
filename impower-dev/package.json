@@ -12,6 +12,7 @@
     "postinstall:sparkdown-screenplay": "cd ../packages/sparkdown-screenplay && npm ci && cd ../../impower-dev",
     "postinstall:sparkdown-screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm ci && cd ../../impower-dev",
     "postinstall:opfs-workspace": "cd ../packages/opfs-workspace && npm ci && cd ../../impower-dev",
+    "postinstall:codemirror-vscode-language": "cd ../packages/codemirror-vscode-language && npm ci && cd ../../impower-dev",
     "postinstall:sparkdown-document-views": "cd ../packages/sparkdown-document-views && npm ci && cd ../../impower-dev",
     "postinstall:spark-web-player": "cd ../packages/spark-web-player && npm ci && cd ../../impower-dev",
     "postinstall": "npm-run-all -p postinstall:*",
@@ -74,7 +75,11 @@
     "typescript": "^5.6.2"
   },
   "peerDependencies": {
+    "@codemirror/autocomplete": "^6.19.0",
+    "@codemirror/language": "^6.11.3",
     "@codemirror/state": "^6.5.2",
-    "@lezer/common": "^1.2.3"
+    "@codemirror/view": "^6.38.6",
+    "@lezer/common": "^1.2.3",
+    "@lezer/highlight": "^1.2.1"
   }
 }

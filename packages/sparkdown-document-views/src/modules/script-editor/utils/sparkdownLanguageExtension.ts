@@ -1,16 +1,15 @@
 import { syntaxHighlighting } from "@codemirror/language";
 import { Extension, Prec } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
+import { vscodeLanguage } from "@impower/codemirror-vscode-language/src";
 import {
   MessageConnection,
   ServerCapabilities,
 } from "@impower/spark-editor-protocol/src/types";
 import CONFIG_DEFINITION from "../../../../../sparkdown/language/sparkdown.language-config.json";
 import GRAMMAR_DEFINITION from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
-import SNIPPETS_DEFINITION from "../../../../../sparkdown/language/sparkdown.language-snippets.json";
 import { languageClient } from "../../../cm-language-client";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
-import { TextmateLanguage } from "../../../cm-textmate";
 import EDITOR_HIGHLIGHTS from "../constants/EDITOR_HIGHLIGHTS";
 import { sparkdownKeymap } from "./sparkdownKeymap";
 
@@ -20,12 +19,11 @@ export const sparkdownLanguageExtension = (config: {
   serverCapabilities: ServerCapabilities;
   fileSystemReader?: FileSystemReader;
 }): Extension => {
-  const languageSupport = new TextmateLanguage({
+  const languageSupport = vscodeLanguage({
     name: "sparkdown",
-    configDefinition: CONFIG_DEFINITION,
-    grammarDefinition: GRAMMAR_DEFINITION,
-    snippetsDefinition: SNIPPETS_DEFINITION,
-  }).load();
+    grammar: GRAMMAR_DEFINITION,
+    config: CONFIG_DEFINITION,
+  });
   const textDocument = config.textDocument;
   const serverConnection = config.serverConnection;
   const serverCapabilities = config.serverCapabilities;

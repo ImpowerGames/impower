@@ -1,16 +1,15 @@
-import { ConfigDefinition } from "../types/ConfigDefinition";
-import { LanguageData } from "../types/LanguageData";
+import { CodeMirrorLanguageData } from "../types/CodeMirrorLanguageData";
+import { VSCodeConfigDefinition } from "../types/VSCodeConfigDefinition";
 
 export const convertConfigToLanguageData = (
-  config: ConfigDefinition
-): LanguageData => {
-  // process language data
+  config: VSCodeConfigDefinition
+): CodeMirrorLanguageData => {
   const comments = config?.comments;
   const autoClosingPairs = config?.autoClosingPairs ?? [];
   const surroundingPairs = config?.surroundingPairs ?? [];
   const wordChars = config?.wordChars;
 
-  const data: LanguageData = {};
+  const data: CodeMirrorLanguageData = {};
 
   if (comments) {
     data.commentTokens = {

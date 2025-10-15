@@ -1,4 +1,10 @@
-export interface LanguageData {
+export interface CodeMirrorLanguageData extends Record<string, any> {
+  name?: string;
+
+  alias?: string[];
+
+  extensions?: string[];
+
   commentTokens?: {
     block?: { open?: string; close?: string };
     line?: string;

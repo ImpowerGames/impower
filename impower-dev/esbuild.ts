@@ -63,6 +63,11 @@ for (const depPath of Object.values(pkg.peerDependencies)) {
   }
 }
 
+const alias: Record<string, string> = {};
+for (const depName of Object.keys(pkg.peerDependencies)) {
+  alias[depName] = depName;
+}
+
 const watchDirs = [
   `${indir}/modules`,
   `${indir}/workers`,
@@ -246,10 +251,7 @@ const buildPages = async () => {
       ".ttf": "binary",
       ".woff2": "binary",
     },
-    alias: {
-      "@codemirror/state": "@codemirror/state",
-      "@lezer/common": "@lezer/common",
-    },
+    alias: alias,
     plugins: [esbuildInlineWorkerPlugin(), envPlugin()],
   });
 };

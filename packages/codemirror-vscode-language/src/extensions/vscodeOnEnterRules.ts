@@ -1,11 +1,10 @@
-import { closeBracketsKeymap } from "@codemirror/autocomplete";
 import { getIndentUnit, indentString } from "@codemirror/language";
 import { EditorSelection, Facet, Prec, combineConfig } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 
 const INDENT_REGEX = /([ \t]*)/;
 
-export interface TextmateOnEnterRulesConfig {
+export interface VSCodeOnEnterRulesConfig {
   onEnterRules?: {
     beforeText: string;
     afterText?: string;
@@ -19,9 +18,9 @@ export interface TextmateOnEnterRulesConfig {
   }[];
 }
 
-export const textmateOnEnterRulesConfig = Facet.define<
-  TextmateOnEnterRulesConfig,
-  Required<TextmateOnEnterRulesConfig>
+export const vscodeOnEnterRulesConfig = Facet.define<
+  VSCodeOnEnterRulesConfig,
+  Required<VSCodeOnEnterRulesConfig>
 >({
   combine(configs) {
     return combineConfig(configs, {});
@@ -31,7 +30,7 @@ export const textmateOnEnterRulesConfig = Facet.define<
 export const onEnterRulesCommand =
   () =>
   (view: EditorView): boolean => {
-    const config = view.state.facet(textmateOnEnterRulesConfig);
+    const config = view.state.facet(vscodeOnEnterRulesConfig);
     const onEnterRules = config.onEnterRules;
 
     const { state, dispatch } = view;
@@ -178,17 +177,14 @@ export const onEnterRulesCommand =
     return true;
   };
 
-export const textmateOnEnterRules = (
-  config: TextmateOnEnterRulesConfig = {}
-) => [
-  textmateOnEnterRulesConfig.of(config),
+export const vscodeOnEnterRules = (config: VSCodeOnEnterRulesConfig = {}) => [
+  vscodeOnEnterRulesConfig.of(config),
   Prec.high(
     keymap.of([
       {
         key: "Enter",
         run: onEnterRulesCommand(),
       },
-      ...closeBracketsKeymap,
     ])
   ),
 ];

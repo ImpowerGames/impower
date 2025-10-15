@@ -1,4 +1,4 @@
-export interface ConfigDefinition {
+export interface VSCodeConfigDefinition {
   comments?: {
     lineComment?: string;
     blockComment?: string[];

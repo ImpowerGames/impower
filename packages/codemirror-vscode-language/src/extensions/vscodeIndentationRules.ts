@@ -1,26 +1,26 @@
-import { Facet, combineConfig } from "@codemirror/state";
 import { getIndentUnit, indentService } from "@codemirror/language";
+import { Facet, combineConfig } from "@codemirror/state";
 
 const INDENT_REGEX = /([ \t]*)/;
 
-export interface TextmateIndentationRulesConfig {
+export interface VSCodeIndentationRulesConfig {
   indentationRules?: {
     increaseIndentPattern?: string;
     decreaseIndentPattern?: string;
   };
 }
 
-export const textmateIndentationRulesConfig = Facet.define<
-  TextmateIndentationRulesConfig,
-  Required<TextmateIndentationRulesConfig>
+export const vscodeIndentationRulesConfig = Facet.define<
+  VSCodeIndentationRulesConfig,
+  Required<VSCodeIndentationRulesConfig>
 >({
   combine(configs) {
     return combineConfig(configs, {});
   },
 });
 
-const textmateIndentService = indentService.of((context, pos) => {
-  const config = context.state.facet(textmateIndentationRulesConfig);
+const vscodeIndentService = indentService.of((context, pos) => {
+  const config = context.state.facet(vscodeIndentationRulesConfig);
   const indentationRules = config?.indentationRules;
 
   const beforeLine = pos > 0 ? context.state.doc.lineAt(pos - 1) : undefined;
@@ -39,6 +39,6 @@ const textmateIndentService = indentService.of((context, pos) => {
   return null;
 });
 
-export const textmateIndentationRules = (
-  config: TextmateIndentationRulesConfig = {}
-) => [textmateIndentationRulesConfig.of(config), textmateIndentService];
+export const vscodeIndentationRules = (
+  config: VSCodeIndentationRulesConfig = {}
+) => [vscodeIndentationRulesConfig.of(config), vscodeIndentService];

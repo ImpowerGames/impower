@@ -11,6 +11,7 @@
     "@codemirror/search": "^6.5.11",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.6",
+    "@impower/codemirror-vscode-language": "file:../codemirror-vscode-language",
     "@impower/spark-dom": "file:../spark-dom",
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
     "@impower/spark-engine": "file:../spark-engine",

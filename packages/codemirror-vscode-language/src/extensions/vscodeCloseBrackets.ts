@@ -3,33 +3,33 @@ import { syntaxTree } from "@codemirror/language";
 import {
   codePointAt,
   codePointSize,
+  combineConfig,
   type Extension,
   Facet,
 } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { combineConfig } from "@codemirror/state";
 
 const android =
   typeof navigator == "object" && /Android\b/.test(navigator.userAgent);
 
 const closeBracketsState = (closeBrackets() as Extension[])[1]!;
 
-export interface TextmateCloseBracketsConfig {
+export interface VSCodeCloseBracketsConfig {
   autoClosingPairs?: { open: string; close: string; notIn?: string[] }[];
 }
 
-export const textmateCloseBracketsConfig = Facet.define<
-  TextmateCloseBracketsConfig,
-  Required<TextmateCloseBracketsConfig>
+export const vscodeCloseBracketsConfig = Facet.define<
+  VSCodeCloseBracketsConfig,
+  Required<VSCodeCloseBracketsConfig>
 >({
   combine(configs) {
     return combineConfig(configs, {});
   },
 });
 
-const textmateCloseBracketsInputHandler = EditorView.inputHandler.of(
+const vscodeCloseBracketsInputHandler = EditorView.inputHandler.of(
   (view, from, to, insert) => {
-    const config = view.state.facet(textmateCloseBracketsConfig);
+    const config = view.state.facet(vscodeCloseBracketsConfig);
     if (
       (android ? view.composing : view.compositionStarted) ||
       view.state.readOnly
@@ -67,12 +67,12 @@ const textmateCloseBracketsInputHandler = EditorView.inputHandler.of(
   }
 );
 
-export function textmateCloseBrackets(
-  config: TextmateCloseBracketsConfig = {}
+export function vscodeCloseBrackets(
+  config: VSCodeCloseBracketsConfig = {}
 ): Extension {
   return [
     closeBracketsState,
-    textmateCloseBracketsConfig.of(config),
-    textmateCloseBracketsInputHandler,
+    vscodeCloseBracketsConfig.of(config),
+    vscodeCloseBracketsInputHandler,
   ];
 }
