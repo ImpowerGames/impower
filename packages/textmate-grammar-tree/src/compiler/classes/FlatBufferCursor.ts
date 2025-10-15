@@ -1,10 +1,7 @@
 import { IBufferCursor } from "../types/IBufferCursor";
 
 export class FlatBufferCursor implements IBufferCursor {
-  constructor(
-    readonly buffer: Int32Array | readonly number[],
-    public index: number
-  ) {}
+  constructor(readonly buffer: Uint16Array, public index: number) {}
 
   get id() {
     return this.buffer[this.index - 4]!;
