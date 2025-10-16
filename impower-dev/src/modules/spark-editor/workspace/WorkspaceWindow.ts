@@ -114,6 +114,8 @@ export default class WorkspaceWindow {
     copy.sync = {};
     // Reset diagnostics state
     copy.debug.diagnostics = {};
+    // Reset pinpoints state
+    copy.debug.pinpoints = {};
     // Reset highlights state
     copy.debug.highlights = {};
     // Reset game preview state
