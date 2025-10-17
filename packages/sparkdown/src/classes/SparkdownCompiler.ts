@@ -539,7 +539,6 @@ export class SparkdownCompiler {
   populateLocations(program: SparkProgram, obj: InkObject) {
     const metadata = obj?.ownDebugMetadata;
     if (metadata) {
-      let path = obj.path.toString();
       const uri = metadata.filePath ?? program.uri;
       const scriptIndex = Object.keys(program.scripts).indexOf(uri || "");
       let startLine = metadata.startLineNumber - 1;
@@ -575,9 +574,6 @@ export class SparkdownCompiler {
           }
         }
       }
-      if (path.startsWith("global ")) {
-        path = "0";
-      }
       if (
         scriptIndex >= 0 &&
         !(
@@ -586,6 +582,10 @@ export class SparkdownCompiler {
         ) &&
         !(obj instanceof StringValue && obj.isNewline)
       ) {
+        let path = obj.path.toString();
+        if (path.startsWith("global ")) {
+          path = "0";
+        }
         const [
           _,
           existingStartLine,
