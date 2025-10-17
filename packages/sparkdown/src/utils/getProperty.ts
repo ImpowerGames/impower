@@ -10,10 +10,10 @@ export const getProperty = <T>(
   }
   let cur = obj;
   const parts = propertyPath.split(".");
-  parts.forEach((part) => {
+  for (const part of parts) {
     if (typeof cur === "object" && part) {
       cur = cur[part];
     }
-  });
+  }
   return cur;
 };
