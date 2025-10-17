@@ -1108,7 +1108,7 @@ export class InterpreterModule extends Module<
       }
     }
 
-    allPhrases.forEach((phrase) => {
+    for (const phrase of allPhrases) {
       const target = phrase.target || "";
       const typewriter = this.lookupContextValue("typewriter", target);
       const letterPause = typewriter?.letter_pause ?? 0;
@@ -1149,7 +1149,7 @@ export class InterpreterModule extends Module<
           }
         }
       }
-    });
+    }
 
     if (character && !this.context?.system?.simulating) {
       stressPhrases(
@@ -1174,14 +1174,14 @@ export class InterpreterModule extends Module<
       string,
       { time?: number; speed?: number; bend?: number }[]
     > = {};
-    allPhrases.forEach((phrase) => {
+    for (const phrase of allPhrases) {
       const target = phrase.target || "";
       const typewriter = this.lookupContextValue("typewriter", target);
       const fadeDuration = typewriter?.fade_duration ?? 0;
       const letterPause = typewriter?.letter_pause ?? 0;
       const animationOffset = typewriter?.animation_offset ?? 0;
       if (phrase.chunks) {
-        phrase.chunks.forEach((c) => {
+        for (const c of phrase.chunks) {
           // Text Event
           if (c.text != null) {
             const event: TextInstruction = { control: "show", text: c.text };
@@ -1369,11 +1369,11 @@ export class InterpreterModule extends Module<
           }
 
           time += c.duration;
-        });
+        }
       }
-    });
+    }
 
-    Object.entries(synthEvents).forEach(([synthName, tones]) => {
+    for (const [synthName, tones] of Object.entries(synthEvents)) {
       result.audio ??= {};
       result.audio["typewriter"] ??= [];
       result.audio["typewriter"]!.push({
@@ -1386,7 +1386,7 @@ export class InterpreterModule extends Module<
               .join("~"),
         ],
       });
-    });
+    }
 
     result.end = time;
 
