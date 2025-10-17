@@ -937,7 +937,11 @@ export class InkParser extends StringParser {
 
     const blockPrefix = this.Parse(this.StartBlock) as string;
 
-    this._currentTextBlock = { indent: blockIndent ?? "", prefix: blockPrefix };
+    this._currentTextBlock = {
+      indent: blockIndent ?? "",
+      prefix: blockPrefix,
+      prependOnLine: this.state.lineIndex,
+    };
 
     return this.LineOfMixedTextAndLogicNoWarnings();
   };
@@ -1058,13 +1062,22 @@ export class InkParser extends StringParser {
     let tags: { mark: ParsedObject; text: ParsedObject | null }[] = [];
     let terminateWithNewline = false;
     let newlineTerminatorDebugMetadata: DebugMetadata | null = null;
-    if (this._currentTextBlock) {
+    if (
+      this._currentTextBlock &&
+      this._currentTextBlock.prependOnLine === this.state.lineIndex &&
+      this._currentTextBlock.prependedOnLine !== this.state.lineIndex
+    ) {
       sb = this._currentTextBlock.prefix;
+      this._currentTextBlock.prependedOnLine = this.state.lineIndex;
     }
 
+    let lastIsContinueLine = false;
+
     do {
+      const next = this.Peek(this.ParseSingleCharacter);
       if (
         this._currentTextBlock &&
+        next === "\n" &&
         this.Peek(this.UnindentedLine(this._currentTextBlock.indent))
       ) {
         this._currentTextBlock = null;
@@ -1073,10 +1086,44 @@ export class InkParser extends StringParser {
 
       let str = this.Parse(this.ContentTextNoEscape) as string;
 
-      if (str !== null) {
+      if (str != null) {
         sb ??= "";
         sb += String(str);
       }
+
+      if (
+        this._currentTextBlock &&
+        this.Peek(this.ParseSingleCharacter) === "\n"
+      ) {
+        const trimmedSb = sb?.trimEnd();
+        if (trimmedSb && trimmedSb.endsWith(" >")) {
+          sb = trimmedSb.slice(0, -1);
+          terminateWithNewline = true;
+          newlineTerminatorDebugMetadata = this.CreateDebugMetadata(
+            this.state.currentElement,
+            this.state.currentElement
+          );
+          this.ParseSingleCharacter();
+          this._currentTextBlock.prependOnLine = this.lineIndex;
+          break;
+        }
+        // There is no more content in this line.
+        // So consume newline as part of this text
+        const c = this.ParseSingleCharacter();
+        if (c !== null) {
+          sb += c;
+          // Ensure any logic directly following the newline is not escaped
+          sb += " ";
+        }
+        lastIsContinueLine = true;
+        continue;
+      }
+
+      if (str === null) {
+        break;
+      }
+
+      lastIsContinueLine = false;
 
       const gotLiteralChar: boolean = this.ParseString("`") !== null;
       if (gotLiteralChar) {
@@ -1152,42 +1199,12 @@ export class InkParser extends StringParser {
         }
         continue;
       }
-      
-      if (
-        this._currentTextBlock &&
-        this.Peek(this.ParseSingleCharacter) === "\n"
-      ) {
-        const trimmedSb = sb?.trimEnd();
-        if (trimmedSb && trimmedSb.at(-1) === ">") {
-          sb = trimmedSb.slice(0, -1);
-          terminateWithNewline = true;
-          newlineTerminatorDebugMetadata = this.CreateDebugMetadata(
-            this.state.currentElement,
-            this.state.currentElement
-          );
-          this.ParseSingleCharacter();
-          break;
-        }
-        // There is no more content in this line.
-        // So consume newline as part of this text
-        const c = this.ParseSingleCharacter();
-        if (c !== null) {
-          sb += c;
-          // Ensure any logic directly following the newline is not escaped
-          sb += " ";
-        }
-        continue;
-      }
-      
-      if (str === null) {
-        break;
-      }
     } while (true);
 
     const result: ParsedObject[] = [];
 
     if (sb !== null) {
-      const trimmedSb = sb.endsWith("\n") ? sb.slice(0, -1) : sb;
+      const trimmedSb = lastIsContinueLine ? sb.trimEnd() : sb;
       result.push(new Text(trimmedSb));
     }
 
@@ -2664,7 +2681,12 @@ export class InkParser extends StringParser {
    * Start Logic section.
    */
 
-  private _currentTextBlock: { indent: string; prefix: string } | null = null;
+  private _currentTextBlock: {
+    indent: string;
+    prefix: string;
+    prependOnLine: number;
+    prependedOnLine?: number;
+  } | null = null;
 
   public readonly LogicLine = (): ParsedObject | null => {
     this.Whitespace();
@@ -3472,7 +3494,9 @@ export class InkParser extends StringParser {
   // but not if they *only* comprise numbers
   public readonly Identifier = (): string | null => {
     // Parse remaining characters (if any)
-    const name = this.ParseCharactersFromCharSet(InkCharacterRanges.identifierCharSet);
+    const name = this.ParseCharactersFromCharSet(
+      InkCharacterRanges.identifierCharSet
+    );
     if (name === null) {
       return null;
     }
