@@ -174,6 +174,7 @@ export class TextmateGrammarParse implements PartialParse {
       const reused = result.reused.map(
         (b) => new TreeBuffer(b.buffer, b.length, nodeSet)
       ) as unknown as readonly Tree[];
+      const maxBufferLength = result.maxBufferLength;
       // build tree from buffer
       const tree = Tree.build({
         topID,
@@ -182,8 +183,10 @@ export class TextmateGrammarParse implements PartialParse {
         reused,
         start,
         length,
+        maxBufferLength,
       });
       // console.log(printTree(tree, this.region.input));
+      // console.warn("result", result, this.compiler, { from: start, to });
       // bit of a hack (private properties)
       // this is so that we don't need to build another tree
       const props = Object.create(null);
@@ -276,7 +279,7 @@ export class TextmateGrammarParse implements PartialParse {
           //   t[4]!,
           //   this.compiler.buffer.scopes
           // );
-          if (this.compiler.buffer.add(t)) {
+          if (this.compiler.add(t)) {
             addedChunk = true;
           }
         }
@@ -302,9 +305,9 @@ export class TextmateGrammarParse implements PartialParse {
       if (this.compiler.ahead.first) {
         if (this.parsedPos === this.compiler.ahead.first.from) {
           this.compiler.append(this.compiler.ahead);
-          this.parsedPos = this.compiler.buffer.last!.to;
+          this.parsedPos = this.compiler.packet.last!.to;
           // console.log(
-          //   "REUSE AHEAD",
+          //   "REUSE AHEAD EXACTLY",
           //   JSON.stringify(
           //     this.region.input.read(
           //       this.compiler.ahead.first!.from,
@@ -324,9 +327,9 @@ export class TextmateGrammarParse implements PartialParse {
             this.compiler.ahead = aheadSplitBuffer.right;
             if (this.parsedPos === this.compiler.ahead.first?.from) {
               this.compiler.append(this.compiler.ahead);
-              this.parsedPos = this.compiler.buffer.last!.to;
+              this.parsedPos = this.compiler.packet.last!.to;
               // console.log(
-              //   "REUSE AHEAD",
+              //   "REUSE AHEAD OVERSHOOT",
               //   JSON.stringify(
               //     this.region.input.read(
               //       this.compiler.ahead.first!.from,

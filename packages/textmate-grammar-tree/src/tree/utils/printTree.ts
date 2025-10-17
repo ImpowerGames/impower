@@ -6,12 +6,14 @@
  */
 
 import {
+  type Input,
+  type NodeType,
   type SyntaxNode,
   type Tree,
   type TreeCursor,
-  type NodeType,
-  type Input,
 } from "@lezer/common";
+
+const MAX_ERRORS = 50;
 
 class StringInput implements Input {
   constructor(private readonly input: string) {}
@@ -223,12 +225,19 @@ type PrintTreeOptions = {
   to?: number;
   start?: number;
   includeParents?: boolean;
+  maxErrors?: number;
 };
 
 export function printTree(
   cursor: TreeCursor | Tree | SyntaxNode,
   input: Input | string,
-  { from, to, start = 0, includeParents }: PrintTreeOptions = {}
+  {
+    from,
+    to,
+    start = 0,
+    includeParents,
+    maxErrors = MAX_ERRORS,
+  }: PrintTreeOptions = {}
 ): string {
   const inp = typeof input === "string" ? new StringInput(input) : input;
   const state = {
@@ -237,6 +246,7 @@ export function printTree(
     hasNextSibling: false,
   };
   const validator = validatorTraversal(inp);
+  let errors = 0;
   traverseTree(cursor, {
     from,
     to,
@@ -278,6 +288,14 @@ export function printTree(
           ": " +
           colorize(JSON.stringify(inp.read(node.from, node.to)), Color.Green);
       }
+      if (!validator.state.valid) {
+        errors++;
+        if (errors > maxErrors) {
+          state.output += "\n" + colorize("<TRUNCATED>", Color.Red);
+          return false;
+        }
+      }
+      return;
     },
     onLeave(node) {
       validator.traversal.onLeave!(node);

@@ -3,7 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 /** Sets the size of the compiler stack. */
-export const COMPILER_STACK_SIZE = 64;
+export const STACK_ARRAY_INTERVAL = 64;
 
 /**
  * A `CompileStack` keeps track of opened nodes destined to be eventually
@@ -13,14 +13,24 @@ export const COMPILER_STACK_SIZE = 64;
 export class CompileStack {
   declare ids: Uint16Array;
   declare positions: Uint32Array;
-  declare children: Uint16Array;
+  declare children: Uint32Array;
   declare length: number;
 
-  constructor() {
-    this.ids = new Uint16Array(COMPILER_STACK_SIZE);
-    this.positions = new Uint32Array(COMPILER_STACK_SIZE);
-    this.children = new Uint16Array(COMPILER_STACK_SIZE);
-    this.length = 0;
+  constructor(stack?: CompileStack) {
+    if (stack) {
+      this.ids = new Uint16Array(stack.ids.length);
+      this.ids.set(stack.ids);
+      this.positions = new Uint32Array(stack.positions.length);
+      this.positions.set(stack.positions);
+      this.children = new Uint32Array(stack.children.length);
+      this.children.set(stack.children);
+      this.length = stack.length;
+    } else {
+      this.ids = new Uint16Array(STACK_ARRAY_INTERVAL);
+      this.positions = new Uint32Array(STACK_ARRAY_INTERVAL);
+      this.children = new Uint32Array(STACK_ARRAY_INTERVAL);
+      this.length = 0;
+    }
   }
 
   /** Add a child to every element. */
@@ -38,6 +48,23 @@ export class CompileStack {
    * @param children - The number of children the token will start with.
    */
   push(id: number, start: number, children: number) {
+    // we may need to resize the arrays
+    if (this.length + 1 > this.ids.length) {
+      const old = this.ids;
+      this.ids = new Uint16Array(old.length + STACK_ARRAY_INTERVAL);
+      this.ids.set(old);
+    }
+    if (this.length + 1 > this.positions.length) {
+      const old = this.positions;
+      this.positions = new Uint32Array(old.length + STACK_ARRAY_INTERVAL);
+      this.positions.set(old);
+    }
+    if (this.length + 1 > this.children.length) {
+      const old = this.children;
+      this.children = new Uint32Array(old.length + STACK_ARRAY_INTERVAL);
+      this.children.set(old);
+    }
+
     this.ids[this.length] = id;
     this.positions[this.length] = start;
     this.children[this.length] = children;

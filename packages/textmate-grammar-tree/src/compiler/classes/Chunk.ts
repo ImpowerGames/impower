@@ -2,15 +2,22 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { type ParserAction } from "../../core";
+import { GrammarToken, type ParserAction } from "../../core";
 
 import { type ITreeBuffer } from "../types/ITreeBuffer";
+import { CompileStack } from "./CompileStack";
+import { FlatBufferCursor } from "./FlatBufferCursor";
 
 /**
  * Sets the initial array size for chunks, and how much to grow a chunk's
  * array if it's full.
  */
-export const CHUNK_ARRAY_INTERVAL = 16;
+export const CHUNK_ARRAY_INTERVAL = 1024;
+
+/**
+ * Tree buffers must be under this limit so children indexes can fit inside 16-bit typed array slots
+ */
+export const TREE_BUFFER_LENGTH_LIMIT = 2 ** 16; // (65536)
 
 /**
  * A syntactic chunk of a parsed document. The full syntax tree can be
@@ -18,58 +25,58 @@ export const CHUNK_ARRAY_INTERVAL = 16;
  * be used to restart a parse from the chunk's starting position.
  */
 export class Chunk {
-  /** The starting position of the chunk. */
+  /** The starting document position of the chunk. */
   declare from: number;
 
-  /** The ending position of the chunk. */
+  /** The ending document position of the chunk. */
   declare to: number;
 
-  /** The length of the chunk, in characters. */
-  declare length: number;
+  /** The document length of the chunk. */
+  length = 0;
 
-  /**
-   * The list of tokens this chunk is made up of. Note that each token is
-   * made up of three elements in the array.
-   */
-  declare tokens: Int16Array;
+  compiled = new Int32Array(CHUNK_ARRAY_INTERVAL);
 
-  /** The number of tokens in the chunk. */
-  declare size: number;
+  stack: CompileStack = new CompileStack();
 
-  /** The node(s) to open when this chunk starts. `null` if the chunk opens nothing. */
-  declare opens: ParserAction | null;
+  /** The node(s) that are currently open. */
+  scopes?: ParserAction;
 
-  /** The node(s) to close when this chunk ends. `null` if the chunk closes nothing. */
-  declare closes: ParserAction | null;
-
-  /** The node(s) active in this chunk (scopes the chunk opens or inherits (i.e. were already open when the chunk was created)). */
-  declare scopes: ParserAction | null;
+  /** The number of nodes in this chunk */
+  nodeCount: number = 0;
 
   /**
    * {@link ITreeBuffer} version of this chunk.
    * If `null`, the tree will not be available, ever, due to the shape of the chunk.
    */
-  declare tree?: ITreeBuffer | null;
+  treeBuffer?: ITreeBuffer | null;
 
-  /** The last emitted size */
-  emittedSize: number = 0;
+  /** The number of nodes emitted by the compiler so far */
+  compilerNodeCount: number = 0;
 
-  /** The last reused length */
-  reusedLength: number = 0;
+  /** The number of reused tree buffers emitted by the compiler so far */
+  compilerReusedCount: number = 0;
+
+  /** The max tree buffer length emitted by the compiler so far */
+  compilerMaxTreeBufferLength: number = 0;
+
+  isSplitPoint: boolean;
+
+  get endsPure() {
+    return !this.scopes || this.scopes.length === 0;
+  }
+
+  get treeBufferLength() {
+    return this.nodeCount * 4;
+  }
 
   /**
    * @param from - The starting position.
    * @param inherits - The scopes at the starting position.
    */
-  constructor(from: number, inherits?: ParserAction) {
+  constructor(from: number, isSplitPoint: boolean = false) {
     this.from = from;
     this.to = from;
-    this.length = 0;
-    this.scopes = inherits ? [...inherits] : null;
-    this.tokens = new Int16Array(CHUNK_ARRAY_INTERVAL);
-    this.size = 0;
-    this.opens = null;
-    this.closes = null;
+    this.isSplitPoint = isSplitPoint;
   }
 
   /**
@@ -89,8 +96,10 @@ export class Chunk {
    * @param from - The starting position of the token.
    * @param to - The ending position of the token.
    */
-  add(id: number | null, from: number, to: number) {
-    this.tree = undefined;
+  add(token: GrammarToken) {
+    let [id, from, to, open, close] = token;
+
+    this.treeBuffer = undefined;
 
     if (to > this.to) {
       this.to = to;
@@ -101,71 +110,51 @@ export class Chunk {
     from -= this.from;
     to -= this.from;
 
-    if (id !== null) {
-      // resize token array if needed
-      if (this.size * 3 + 3 > this.tokens.length) {
-        const old = this.tokens;
-        this.tokens = new Int16Array(this.tokens.length + CHUNK_ARRAY_INTERVAL);
-        this.tokens.set(old);
+    if (open) {
+      for (const o of open) {
+        this.scopes ??= [];
+        this.scopes.push(o);
+        this.stack.push(o, from, 0);
       }
-
-      const idx = this.size * 3;
-      this.tokens[idx] = id;
-      this.tokens[idx + 1] = from;
-      this.tokens[idx + 2] = to;
-      this.size++;
-    }
-  }
-
-  /**
-   * Adds a node to open when the chunk starts.
-   *
-   * @param ids - The node ID(s).
-   */
-  pushOpen(id: number) {
-    this.tree = undefined;
-    this.opens ??= [];
-    this.opens.push(id);
-  }
-
-  /**
-   * Adds a node to close when the chunk ends.
-   *
-   * @param ids - The node ID(s).
-   */
-  pushClose(id: number) {
-    this.tree = undefined;
-    this.closes ??= [];
-    this.closes.push(id);
-  }
-
-  /** Checks if the chunk can be converted into a {@link Tree}. */
-  private canConvertToTree() {
-    if (this.tree === null) {
-      return false;
     }
 
-    if (this.size <= 1) {
-      return false;
+    if (id != null) {
+      // Full node that doesn't contain any children
+      this.emitNode(id, from, to, 4);
     }
 
-    if (this.opens || this.closes) {
-      if (!(this.opens && this.closes)) {
-        return false;
-      }
-      if (this.opens.length !== this.closes.length) {
-        return false;
-      }
-      const open = this.opens.slice().reverse();
-      const close = this.closes;
-      for (let i = 0; i < open.length; i++) {
-        if (open[i] !== close[i]) {
-          return false;
+    if (close) {
+      for (const c of close) {
+        if (this.scopes) {
+          const removeIndex = this.scopes.findLastIndex((n) => n === c);
+          if (removeIndex >= 0) {
+            this.scopes.splice(removeIndex, 1);
+          }
+        }
+        const idx = this.stack.last(c);
+        if (idx !== null) {
+          // cut off anything past the closing element
+          // i.e. inside nodes won't persist outside their parent if they
+          // never closed before their parent did
+          this.stack.close(idx);
+          // finally pop the node
+          const s = this.stack.pop()!;
+          const node = s[0]!;
+          const pos = s[1]!;
+          const children = s[2]!;
+          this.emitNode(node, pos, to, children * 4 + 4);
         }
       }
     }
+  }
 
-    return true;
+  canConvertToTreeBuffer() {
+    return (
+      !this.isSplitPoint &&
+      this.endsPure &&
+      this.nodeCount > 0 &&
+      this.treeBufferLength < TREE_BUFFER_LENGTH_LIMIT
+    );
   }
 
   /**
@@ -175,51 +164,71 @@ export class Chunk {
    *
    * @param nodes - The language node set to use when creating the tree.
    */
-  tryForTree() {
-    if (this.tree === null) {
-      return null;
-    }
-    if (this.tree) {
-      return this.tree;
-    }
-
-    if (!this.canConvertToTree()) {
-      this.tree = null;
+  tryForTreeBuffer() {
+    if (!this.canConvertToTreeBuffer()) {
+      this.treeBuffer = null;
       return null;
     }
 
-    const buffer: number[] = [];
-
-    const total = this.size * 4 + (this.opens?.length ?? 0) * 4;
-
-    if (this.opens) {
-      for (let i = this.opens.length - 1; i >= 0; i--) {
-        buffer.push(this.opens[i]!, 0, this.length, total);
-      }
+    if (this.treeBuffer) {
+      return this.treeBuffer;
     }
 
-    for (let i = 0; i < this.size; i++) {
-      const idx = i * 3;
-      buffer.push(
-        this.tokens[idx]!,
-        this.tokens[idx + 1]!,
-        this.tokens[idx + 2]!,
-        buffer.length + 4
-      );
-    }
+    const treeBufferLength = this.nodeCount * 4;
+    const cursor = new FlatBufferCursor(this.compiled, treeBufferLength);
+    const treeBuffer = new Uint16Array(treeBufferLength);
+    // Unlike compiled buffers (which are stored in suffix order, children before parents),
+    // TreeBuffers must be stored in prefix order (parents before children)
+    // So we must traverse the compiled buffer and copy the nodes to a new buffer in prefix order
+    this.copyToTreeBuffer(cursor, 0, treeBuffer, treeBufferLength);
 
-    this.tree = { buffer: new Uint16Array(buffer), length: this.length };
+    this.treeBuffer = {
+      buffer: treeBuffer,
+      length: this.length,
+    };
 
-    return this.tree;
+    return this.treeBuffer;
   }
 
-  isPure() {
-    // Chunk is completely pure (it does not inherit any scope, open any scope, or close any scope).
-    return (
-      (!this.scopes || this.scopes.length === 0) &&
-      (!this.opens || this.opens.length === 0) &&
-      (!this.closes || this.closes.length === 0) &&
-      this.from === this.to
-    );
+  private emitNode(type: number, from: number, to: number, children: number) {
+    const idx = this.nodeCount * 4;
+
+    // we may need to resize the array
+    if (idx + 4 > this.compiled.length) {
+      const old = this.compiled;
+      this.compiled = new Int32Array(old.length + CHUNK_ARRAY_INTERVAL);
+      this.compiled.set(old);
+    }
+
+    this.compiled[idx] = type;
+    this.compiled[idx + 1] = from;
+    this.compiled[idx + 2] = to;
+    this.compiled[idx + 3] = children;
+    this.nodeCount++;
+    this.stack.increment();
+  }
+
+  copyToTreeBuffer(
+    cursor: FlatBufferCursor,
+    bufferStart: number,
+    buffer: Uint16Array,
+    index: number
+  ): number {
+    let { id, start, end, size } = cursor;
+    cursor.next();
+    if (size >= 0) {
+      let startIndex = index;
+      if (size > 4) {
+        let endPos = cursor.pos - (size - 4);
+        while (cursor.pos > endPos) {
+          index = this.copyToTreeBuffer(cursor, bufferStart, buffer, index);
+        }
+      }
+      buffer[--index] = startIndex;
+      buffer[--index] = end - bufferStart;
+      buffer[--index] = start - bufferStart;
+      buffer[--index] = id;
+    }
+    return index;
   }
 }

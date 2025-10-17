@@ -8,30 +8,30 @@ import { search } from "../utils/search";
 import { Chunk } from "./Chunk";
 
 /**
- * A `ChunkBuffer` stores `Chunk` objects that then store the actual tokens
+ * A `Packet` stores `Chunk` objects that then store the actual tokens
  * emitted by tokenizing. The creation of `Chunk` objects is fully
- * automatic, all the parser needs to do is push the tokens to the buffer.
+ * automatic, all the parser needs to do is push the tokens to the packet.
  *
- * Storing chunks instead of tokens allows the buffer to more easily manage
+ * Storing chunks instead of tokens allows the packet to more easily manage
  * a large number of tokens, and more importantly, allows the parser to use
  * chunks as checkpoints, enabling it to only tokenize what it needs to and
  * reuse everything else.
  */
-export class ChunkBuffer {
-  /** The actual array of chunks that the buffer manages. */
+export class Packet {
+  /** The actual array of chunks that the packet manages. */
   chunks: Chunk[] = [];
 
-  /** The node(s) that are open at the end of this buffer. */
+  /** The node(s) that are open at the end of this packet. */
   scopes?: ParserAction;
 
-  /** @param chunks - The chunks to populate the buffer with. */
+  /** @param chunks - The chunks to populate the packet with. */
   constructor(chunks?: Chunk[]) {
     if (chunks) {
       this.chunks = chunks;
     }
   }
 
-  /** The first chunk in the buffer. */
+  /** The first chunk in the packet. */
   get first() {
     if (!this.chunks.length) {
       return null;
@@ -39,7 +39,7 @@ export class ChunkBuffer {
     return this.chunks[0] ?? null;
   }
 
-  /** The last chunk in the buffer. */
+  /** The last chunk in the packet. */
   get last() {
     if (!this.chunks.length) {
       return null;
@@ -48,82 +48,51 @@ export class ChunkBuffer {
   }
 
   /** The last emitted size */
-  get emittedSize() {
-    return this.last?.emittedSize;
+  get compilerNodeCount() {
+    return this.last?.compilerNodeCount;
   }
 
   /** The last reused length */
-  get reusedLength() {
-    return this.last?.reusedLength;
+  get compilerReusedCount() {
+    return this.last?.compilerReusedCount;
   }
 
-  /** Retrieves a `Chunk` from the buffer. */
+  /** The last max tree buffer length */
+  get compilerMaxTreeBufferLength() {
+    return this.last?.compilerMaxTreeBufferLength;
+  }
+
+  /** Retrieves a `Chunk` from the packet. */
   get(index: number): Chunk | null {
     return this.chunks[index] ?? null;
   }
 
   /**
-   * Adds tokens to the buffer, splitting them automatically into chunks.
-   * Returns true if a new chunk was created.
+   * Adds tokens to the packet, splitting them automatically into chunks.
+   * Returns true if the current chunk can be converted to a tree.
    *
    * @param state - The state to be cached.
-   * @param token - The token to add to the buffer.
+   * @param token - The token to add to the packet.
    */
   add(token: GrammarToken) {
-    const [id, from, to, open, close] = token;
-    let newChunk = false;
+    const [, from] = token;
 
     let current = this.chunks[this.chunks.length - 1];
 
-    if (open) {
-      this.scopes ??= [];
-      for (const o of open) {
-        this.scopes.push(o);
-      }
-    }
+    let newChunk = false;
 
-    if (!current || open) {
-      current = new Chunk(from, this.scopes);
+    if (!current || current.endsPure) {
+      current = new Chunk(from);
       this.chunks.push(current);
       newChunk = true;
     }
 
-    if (open) {
-      for (const o of open) {
-        current.pushOpen(o);
-      }
-    }
+    current.add(token);
 
-    current.add(id, from, to);
-
-    if (close) {
-      for (const c of close) {
-        current.pushClose(c);
-      }
-      current = new Chunk(current.to, this.scopes);
+    if (current.endsPure) {
+      // Create an empty chunk to act as a clean split point
+      current = new Chunk(from, true);
       this.chunks.push(current);
-      newChunk = true;
-    }
-
-    if (close) {
-      close.forEach((c) => {
-        if (this.scopes) {
-          const removeIndex = this.scopes.findLastIndex((n) => n === c);
-          if (removeIndex >= 0) {
-            this.scopes.splice(removeIndex, 1);
-            if (this.scopes.length === 0) {
-              this.scopes = undefined;
-            }
-          }
-        }
-      });
-    }
-
-    if (!this.scopes) {
-      // Add a chunk that we can safely restart parsing from
-      current = new Chunk(current.to, this.scopes);
-      this.chunks.push(current);
-      newChunk = true;
     }
 
     return newChunk;
@@ -153,7 +122,9 @@ export class ChunkBuffer {
     while (chunk) {
       index = index - 1;
       chunk = this.chunks[index];
-      if (chunk && chunk.isPure() && chunk.from < editedFrom) {
+      if (chunk && chunk.isSplitPoint && chunk.from < editedFrom) {
+        // This is the first pure chunk before the edit.
+        // We can safely reuse everything before this point
         return { chunk, index };
       }
     }
@@ -174,7 +145,7 @@ export class ChunkBuffer {
     let chunk = this.chunks[index];
 
     while (chunk) {
-      if (chunk && chunk.isPure() && chunk.from > editedTo) {
+      if (chunk && chunk.isSplitPoint && chunk.from > editedTo) {
         // This is the first pure chunk after the edit.
         // We can safely reuse everything after this point
         return { chunk, index };
@@ -186,40 +157,26 @@ export class ChunkBuffer {
     return { chunk: null, index: null };
   }
 
-  findNextUnpureChunk(index: number) {
-    let chunk = this.chunks[index];
-
-    while (chunk) {
-      if (chunk && !chunk.isPure()) {
-        return { chunk, index };
-      }
-      index = index + 1;
-      chunk = this.chunks[index];
-    }
-
-    return { chunk: null, index: null };
-  }
-
   /**
-   * Splits the buffer into a left and right section. The left section
+   * Splits the packet into a left and right section. The left section
    * takes the indexed chunk, which will have its tokens cleared.
    *
    * @param index - The chunk index to split on.
    */
   split(index: number) {
     if (!this.get(index)) {
-      throw new Error("Tried to split buffer on invalid index!");
+      throw new Error(`Tried to split packet on invalid index: ${index}`);
     }
 
-    let left: ChunkBuffer;
-    let right: ChunkBuffer;
+    let left: Packet;
+    let right: Packet;
 
     if (this.chunks.length <= 1) {
-      left = new ChunkBuffer(this.chunks.slice(0));
-      right = new ChunkBuffer([]); // empty
+      left = new Packet(this.chunks.slice(0));
+      right = new Packet([]); // empty
     } else {
-      left = new ChunkBuffer(this.chunks.slice(0, index));
-      right = new ChunkBuffer(this.chunks.slice(index));
+      left = new Packet(this.chunks.slice(0, index));
+      right = new Packet(this.chunks.slice(index));
     }
 
     return { left, right };
@@ -231,25 +188,30 @@ export class ChunkBuffer {
    * @param index - The index the slide will start at.
    * @param offset - The positional offset that is applied to the chunks.
    * @param cutLeft - If true, every chunk previous to `index` will be
-   *   removed from the buffer.
+   *   removed from the packet.
    */
   slide(index: number, offset: number, cutLeft = false) {
     if (!offset) {
       return this;
     }
-    if (!this.get(index))
-      throw new Error("Tried to slide buffer on invalid index!");
-
-    if (this.chunks.length === 0) return this;
+    if (this.chunks.length === 0) {
+      return this;
+    }
     if (this.chunks.length === 1) {
       this.last!.offset(offset);
       return this;
     }
 
-    if (cutLeft) this.chunks = this.chunks.slice(index);
+    if (!this.get(index)) {
+      throw new Error(`Tried to slide packet on invalid index: ${index}`);
+    }
 
-    for (let idx = cutLeft ? 0 : index; idx < this.chunks.length; idx++) {
-      const chunk = this.chunks[idx]!;
+    if (cutLeft) {
+      this.chunks = this.chunks.slice(index);
+    }
+
+    for (let i = cutLeft ? 0 : index; i < this.chunks.length; i++) {
+      const chunk = this.chunks[i]!;
       chunk.offset(offset);
     }
 
@@ -257,11 +219,11 @@ export class ChunkBuffer {
   }
 
   /**
-   * Appends another `ChunkBuffer` to the end of this buffer.
+   * Appends another `Packet` to the end of this packet.
    *
-   * @param right - The buffer to link.
+   * @param right - The packet to link.
    */
-  append(right: ChunkBuffer) {
+  append(right: Packet) {
     for (const c of right.chunks) {
       this.chunks.push(c);
     }
