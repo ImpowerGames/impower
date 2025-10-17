@@ -1187,7 +1187,8 @@ export class InkParser extends StringParser {
     const result: ParsedObject[] = [];
 
     if (sb !== null) {
-      result.push(new Text(sb.trimEnd()));
+      const trimmedSb = sb.endsWith("\n") ? sb.slice(0, -1) : sb;
+      result.push(new Text(trimmedSb));
     }
 
     for (const tag of tags) {
