@@ -28,6 +28,10 @@ export type SparkdownAnnotations = {
   [K in keyof SparkdownAnnotators]: SparkdownAnnotators[K]["current"];
 };
 
+export type SparkdownAnnotatorConfigs = {
+  [K in keyof SparkdownAnnotators]?: SparkdownAnnotators[K]["config"];
+};
+
 export interface SparkdownAnnotators {
   colors: ColorAnnotator;
   characters: CharacterAnnotator;
@@ -42,23 +46,31 @@ export interface SparkdownAnnotators {
 }
 
 export class SparkdownCombinedAnnotator {
-  current: SparkdownAnnotators = {
-    colors: new ColorAnnotator(),
-    characters: new CharacterAnnotator(),
-    declarations: new DeclarationAnnotator(),
-    compilations: new CompilationAnnotator(),
-    references: new ReferenceAnnotator(),
-    validations: new ValidationAnnotator(),
-    implicits: new ImplicitAnnotator(),
-    formatting: new FormattingAnnotator(),
-    links: new LinkAnnotator(),
-    semantics: new SemanticAnnotator(),
-  };
+  current: SparkdownAnnotators;
 
-  protected _currentEntries = Object.entries(this.current) as [
-    string,
-    SparkdownAnnotator
-  ][];
+  protected _config?: SparkdownAnnotatorConfigs;
+
+  protected _currentEntries: [string, SparkdownAnnotator][];
+
+  constructor(config?: SparkdownAnnotatorConfigs) {
+    this._config = config;
+    this.current = {
+      colors: new ColorAnnotator(),
+      characters: new CharacterAnnotator(),
+      declarations: new DeclarationAnnotator(),
+      compilations: new CompilationAnnotator(config?.compilations),
+      references: new ReferenceAnnotator(),
+      validations: new ValidationAnnotator(),
+      implicits: new ImplicitAnnotator(),
+      formatting: new FormattingAnnotator(),
+      links: new LinkAnnotator(),
+      semantics: new SemanticAnnotator(),
+    };
+    this._currentEntries = Object.entries(this.current) as [
+      string,
+      SparkdownAnnotator
+    ][];
+  }
 
   get(): SparkdownAnnotations {
     return {

@@ -32,14 +32,15 @@ import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
 import { SparkProgram } from "../types/SparkProgram";
+import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
+import { fetchProperty } from "../utils/fetchProperty";
 import { formatList } from "../utils/formatList";
 import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
-import { getProperty } from "../utils/getProperty";
+import { indexStructs } from "../utils/indexStructs";
 import { profile } from "../utils/profile";
+import { readProperty } from "../utils/readProperty";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { resolveSelector } from "../utils/resolveSelector";
-import { setProperty } from "../utils/setProperty";
-import { traverse } from "../utils/traverse";
 import {
   SparkdownDocumentContentChangeEvent,
   SparkdownDocumentRegistry,
@@ -52,14 +53,11 @@ const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 export class SparkdownCompiler {
   protected _config: SparkdownCompilerConfig = {};
 
-  protected _documents = new SparkdownDocumentRegistry("compiler", [
-    "implicits",
-    "references",
-    "compilations",
-    "validations",
-    "declarations",
-  ]);
+  protected _documents?: SparkdownDocumentRegistry;
   get documents() {
+    if (!this._documents) {
+      throw new Error("Compiler has not been configured!");
+    }
     return this._documents;
   }
 
@@ -67,6 +65,20 @@ export class SparkdownCompiler {
   get files() {
     return this._files;
   }
+
+  protected _builtinStructs: {
+    [type: string]: {
+      [name: string]: any;
+    };
+  } = {};
+
+  protected _configStructsPropertyRegistry: {
+    [type: string]: {
+      [name: string]: {
+        [propertyPath: string]: any;
+      };
+    };
+  } = {};
 
   constructor(config: SparkdownCompilerConfig = {}) {
     this._config = config || this._config;
@@ -78,24 +90,59 @@ export class SparkdownCompiler {
       config.builtinDefinitions !== this._config.builtinDefinitions
     ) {
       this._config.builtinDefinitions = config.builtinDefinitions;
+      this._builtinStructs = {};
+      cloneBuiltinStructs(
+        this._builtinStructs,
+        this._config.builtinDefinitions
+      );
+      indexStructs(this._configStructsPropertyRegistry, this._builtinStructs);
     }
     if (
       config.optionalDefinitions &&
       config.optionalDefinitions !== this._config.optionalDefinitions
     ) {
       this._config.optionalDefinitions = config.optionalDefinitions;
+      indexStructs(
+        this._configStructsPropertyRegistry,
+        config.optionalDefinitions
+      );
     }
     if (
       config.schemaDefinitions &&
       config.schemaDefinitions !== this._config.schemaDefinitions
     ) {
       this._config.schemaDefinitions = config.schemaDefinitions;
+      indexStructs(
+        this._configStructsPropertyRegistry,
+        config.schemaDefinitions
+      );
     }
     if (
       config.descriptionDefinitions &&
       config.descriptionDefinitions !== this._config.descriptionDefinitions
     ) {
       this._config.descriptionDefinitions = config.descriptionDefinitions;
+      indexStructs(
+        this._configStructsPropertyRegistry,
+        config.descriptionDefinitions
+      );
+    }
+    if (!this._documents) {
+      this._documents = new SparkdownDocumentRegistry(
+        "compiler",
+        [
+          "implicits",
+          "references",
+          "compilations",
+          "validations",
+          "declarations",
+        ],
+        {
+          compilations: {
+            builtinDefinitions: this._config.builtinDefinitions,
+          },
+        }
+      );
     }
     if (config.files && config.files !== this._config.files) {
       this._config.files = config.files;
@@ -142,7 +189,7 @@ export class SparkdownCompiler {
   resolveFile(rootUri: string, relativePath: string) {
     for (const ext of FILE_TYPES) {
       const uri = resolveFileUsingImpliedExtension(rootUri, relativePath, ext);
-      if (this._documents.has(uri)) {
+      if (this.documents.has(uri)) {
         return uri;
       }
     }
@@ -225,12 +272,16 @@ export class SparkdownCompiler {
       },
     };
 
+    this.populateBuiltins(state, program);
+
     try {
       profile("start", "ink/parse", uri);
       const parsedStory = this.parseIncrementally(
         uri,
         fileHandler,
         false,
+        state,
+        program,
         onDiagnostic
       );
       profile("end", "ink/parse", uri);
@@ -257,7 +308,7 @@ export class SparkdownCompiler {
     this.sortPathLocations(program);
     this.buildContext(state, program);
     this.validateSyntax(program);
-    this.validateReferences(program);
+    this.validateReferences(state, program);
     return program;
   }
 
@@ -265,6 +316,8 @@ export class SparkdownCompiler {
     uri: string,
     fileHandler: IFileHandler,
     isInclude: boolean,
+    state: SparkdownCompilerState,
+    program: SparkProgram,
     onDiagnostic: (
       message: string,
       type: ErrorType,
@@ -321,7 +374,13 @@ export class SparkdownCompiler {
     const topLevelContent: (FlowBase | Weave)[] = [];
 
     while (cur.value) {
-      const { include, diagnostics, content } = cur.value.type;
+      const {
+        include,
+        diagnostics,
+        content,
+        context,
+        contextPropertyRegistry,
+      } = cur.value.type;
       const lineNumberOffset = document?.lineAt(cur.from) ?? 0;
       if (include) {
         if (include) {
@@ -334,6 +393,8 @@ export class SparkdownCompiler {
                 resolvedFilePath,
                 fileHandler,
                 true,
+                state,
+                program,
                 onDiagnostic
               )
             : null;
@@ -415,6 +476,39 @@ export class SparkdownCompiler {
               const weave = new Weave(flowContent);
               topLevelWeaveObjs.push(weave);
               topLevelContent.push(weave);
+            }
+          }
+        }
+      }
+      if (context) {
+        // Copy pre-built structs to program context
+        for (const [type, structs] of Object.entries(context)) {
+          for (const [name, struct] of Object.entries(structs)) {
+            program.context ??= {};
+            program.context[type] ??= {};
+            program.context[type][name] = struct;
+          }
+        }
+      }
+      if (contextPropertyRegistry) {
+        for (const [type, structs] of Object.entries(contextPropertyRegistry)) {
+          for (const [name, struct] of Object.entries(structs)) {
+            if (state.contextPropertyRegistry?.[type]?.[name]) {
+              // Defined structs don't inherit the properties of builtins
+              // So clear out the property registry for this defined struct
+              state.contextPropertyRegistry[type][name] = {};
+            }
+            state.contextPropertyRegistry ??= {};
+            state.contextPropertyRegistry[type] ??= {};
+            state.contextPropertyRegistry[type][name] ??= {};
+            for (const [propertyPath, propertyValue] of Object.entries(
+              struct
+            )) {
+              state.contextPropertyRegistry ??= {};
+              state.contextPropertyRegistry[type] ??= {};
+              state.contextPropertyRegistry[type][name] ??= {};
+              state.contextPropertyRegistry[type][name][propertyPath] =
+                propertyValue;
             }
           }
         }
@@ -530,10 +624,6 @@ export class SparkdownCompiler {
     } catch {
       return "<invalid expression>";
     }
-  }
-
-  clone<T>(value: T) {
-    return structuredClone(value);
   }
 
   populateLocations(program: SparkProgram, obj: InkObject) {
@@ -881,69 +971,31 @@ export class SparkdownCompiler {
   buildContext(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "buildContext", uri);
-    this.populateBuiltins(state, program);
     this.populateAssets(state, program);
-    this.populateImplicitDefs(program);
+    this.populateImplicitDefs(state, program);
     profile("end", "buildContext", uri);
   }
 
   populateBuiltins(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "populateBuiltins", uri);
-    program.context ??= {};
-    const builtins = this._config.builtinDefinitions;
-    if (builtins) {
-      for (const [type, builtinStructs] of Object.entries(builtins)) {
-        for (const [name, builtinStruct] of Object.entries(builtinStructs)) {
-          program.context[type] ??= {};
-          program.context[type][name] ??= this.clone(builtinStruct);
-        }
+    for (const [type, structs] of Object.entries(this._builtinStructs)) {
+      for (const [name, struct] of Object.entries(structs)) {
+        program.context ??= {};
+        program.context[type] ??= {};
+        program.context[type][name] = struct;
       }
-      if (state?.story?.structDefinitions) {
-        for (const [type, structs] of Object.entries(
-          state?.story?.structDefinitions
-        )) {
-          program.context[type] ??= {};
-          for (const [name, definedStruct] of Object.entries(structs)) {
-            if (Array.isArray(definedStruct)) {
-              program.context[type][name] = this.clone(definedStruct);
-            } else {
-              const isSpecialDefinition =
-                name.startsWith("$") && name !== "$default";
-              let constructed = {} as any;
-              if (type === "config" || isSpecialDefinition) {
-                constructed = program.context[type][name] ?? {};
-              }
-              if (!isSpecialDefinition) {
-                const builtinDefaultStruct = builtins[type]?.["$default"];
-                if (builtinDefaultStruct) {
-                  traverse(builtinDefaultStruct, (propPath, propValue) => {
-                    setProperty(constructed, propPath, this.clone(propValue));
-                  });
-                }
-                const definedDefaultStruct = structs?.["$default"];
-                if (definedDefaultStruct) {
-                  traverse(definedDefaultStruct, (propPath, propValue) => {
-                    let redirectedPropPath =
-                      propPath === ".link" || propPath.startsWith(".link.")
-                        ? propPath.replace(/^.link/, ".$link")
-                        : propPath;
-                    setProperty(
-                      constructed,
-                      redirectedPropPath,
-                      this.clone(propValue)
-                    );
-                  });
-                }
-              }
-              traverse(definedStruct, (propPath, propValue) => {
-                setProperty(constructed, propPath, this.clone(propValue));
-              });
-              constructed["$type"] = type;
-              constructed["$name"] = name;
-              program.context[type][name] = constructed;
-            }
-          }
+    }
+    for (const [type, structs] of Object.entries(
+      this._configStructsPropertyRegistry
+    )) {
+      for (const [name, struct] of Object.entries(structs)) {
+        for (const [propertyPath, propertyValue] of Object.entries(struct)) {
+          state.contextPropertyRegistry ??= {};
+          state.contextPropertyRegistry[type] ??= {};
+          state.contextPropertyRegistry[type][name] ??= {};
+          state.contextPropertyRegistry[type][name][propertyPath] =
+            propertyValue;
         }
       }
     }
@@ -1018,12 +1070,16 @@ export class SparkdownCompiler {
         }
         program.context[type][name] = { ...file, ...contextFile };
         delete program.context[type][name].text;
+
+        state.contextPropertyRegistry ??= {};
+        state.contextPropertyRegistry[type] ??= {};
+        state.contextPropertyRegistry[type][name] ??= {};
       }
     }
     profile("end", "populateAssets", uri);
   }
 
-  populateImplicitDefs(program: SparkProgram) {
+  populateImplicitDefs(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "populateImplicitDefs", uri);
     const images = program.context?.["image"];
@@ -1045,6 +1101,9 @@ export class SparkdownCompiler {
               filters: [],
             };
           }
+          state.contextPropertyRegistry ??= {};
+          state.contextPropertyRegistry[implicitType] ??= {};
+          state.contextPropertyRegistry[implicitType][name] ??= {};
         }
       }
     }
@@ -1076,6 +1135,9 @@ export class SparkdownCompiler {
                 })),
               };
             }
+            state.contextPropertyRegistry ??= {};
+            state.contextPropertyRegistry[type] ??= {};
+            state.contextPropertyRegistry[type][name] ??= {};
           }
           cur.next();
         }
@@ -1106,6 +1168,7 @@ export class SparkdownCompiler {
   }
 
   getExpectedPropertyValue(
+    state: SparkdownCompilerState,
     program: SparkProgram,
     declaration: SparkDeclaration | undefined
   ) {
@@ -1118,29 +1181,29 @@ export class SparkdownCompiler {
         structType,
         structProperty
       );
-      const expectedPropertyValue =
-        getProperty(
-          program.context?.[structType]?.["$default"],
-          expectedPropertyPath
-        ) ??
-        getProperty(
-          program.context?.[structType]?.[`$optional:${structName}`],
-          expectedPropertyPath
-        ) ??
-        getProperty(
-          program.context?.[structType]?.["$optional"],
-          expectedPropertyPath
-        ) ??
-        getProperty(
-          this._config?.optionalDefinitions?.[structType]?.["$optional"],
-          expectedPropertyPath
-        );
+      const expectedPropertyValue = state.contextPropertyRegistry
+        ? fetchProperty(
+            expectedPropertyPath,
+            state.contextPropertyRegistry?.[structType]?.["$default"],
+            state.contextPropertyRegistry?.[structType]?.[
+              `$optional:${structName}`
+            ],
+            state.contextPropertyRegistry?.[structType]?.["$optional"]
+          )
+        : readProperty(
+            expectedPropertyPath,
+            program.context?.[structType]?.["$default"],
+            program.context?.[structType]?.[`$optional:${structName}`],
+            program.context?.[structType]?.["$optional"],
+            this._config?.optionalDefinitions?.[structType]?.["$optional"]
+          );
       return expectedPropertyValue;
     }
     return undefined;
   }
 
   getSchemaPropertyValues(
+    state: SparkdownCompilerState,
     program: SparkProgram,
     declaration: SparkDeclaration | undefined
   ) {
@@ -1153,19 +1216,20 @@ export class SparkdownCompiler {
         structType,
         structProperty
       );
-      const schemaPropertyValues =
-        getProperty(
-          program.context?.[structType]?.[`$schema:${structName}`],
-          expectedPropertyPath
-        ) ??
-        getProperty(
-          program.context?.[structType]?.["$schema"],
-          expectedPropertyPath
-        ) ??
-        getProperty(
-          this._config?.schemaDefinitions?.[structType]?.["$schema"],
-          expectedPropertyPath
-        );
+      const schemaPropertyValues = state.contextPropertyRegistry
+        ? fetchProperty(
+            expectedPropertyPath,
+            state.contextPropertyRegistry?.[structType]?.[
+              `$schema:${structName}`
+            ],
+            state.contextPropertyRegistry?.[structType]?.["$schema"]
+          )
+        : readProperty(
+            expectedPropertyPath,
+            program.context?.[structType]?.[`$schema:${structName}`],
+            program.context?.[structType]?.["$schema"],
+            this._config?.schemaDefinitions?.[structType]?.["$schema"]
+          );
       return schemaPropertyValues;
     }
     return undefined;
@@ -1181,9 +1245,9 @@ export class SparkdownCompiler {
         const cur = annotations.validations.iter();
         while (cur.value) {
           const diagnostic = cur.value.type;
-          const range = doc.range(cur.from, cur.to);
-          if (range) {
-            if (diagnostic.message) {
+          if (diagnostic.message) {
+            const range = doc.range(cur.from, cur.to);
+            if (range) {
               const severity =
                 diagnostic.severity === "error"
                   ? DiagnosticSeverity.Error
@@ -1215,7 +1279,7 @@ export class SparkdownCompiler {
     profile("end", "validateSyntax", uri);
   }
 
-  validateReferences(program: SparkProgram) {
+  validateReferences(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", "validateReferences", uri);
     for (const uri of Object.keys(program.scripts)) {
@@ -1225,10 +1289,9 @@ export class SparkdownCompiler {
         const cur = annotations.references.iter();
         while (cur.value) {
           const reference = cur.value.type;
-          const range = doc.range(cur.from, cur.to);
           if (reference.symbolIds) {
             for (const symbolId of reference.symbolIds) {
-              if (getProperty(this._config.builtinDefinitions, symbolId)) {
+              if (this._config.builtinDefinitions?.[symbolId]) {
                 if (
                   reference.declaration === "const" ||
                   reference.declaration === "var" ||
@@ -1239,6 +1302,7 @@ export class SparkdownCompiler {
                   reference.declaration === "stitch"
                 ) {
                   const message = `Cannot declare ${reference.declaration} named '${symbolId}':\nConflicts with builtin type '${symbolId}'`;
+                  const range = doc.range(cur.from, cur.to);
                   program.diagnostics ??= {};
                   program.diagnostics[uri] ??= [];
                   program.diagnostics[uri].push({
@@ -1262,7 +1326,8 @@ export class SparkdownCompiler {
             const expectedSelectorTypes = getExpectedSelectorTypes(
               program,
               declaration,
-              this._config
+              this._config,
+              state
             );
             // Validate that reference resolves to existing an struct
             let found: any = undefined;
@@ -1270,7 +1335,8 @@ export class SparkdownCompiler {
               const [resolved] = resolveSelector<any>(
                 program,
                 s,
-                expectedSelectorTypes
+                expectedSelectorTypes,
+                state
               );
               if (resolved) {
                 found = resolved;
@@ -1291,6 +1357,7 @@ export class SparkdownCompiler {
                 }' is not assignable to type ${formatList(
                   expectedSelectorTypes
                 )}`;
+                const range = doc.range(cur.from, cur.to);
                 program.diagnostics ??= {};
                 program.diagnostics[uri] ??= [];
                 program.diagnostics[uri].push({
@@ -1322,6 +1389,7 @@ export class SparkdownCompiler {
                   ? `type named '${selector.types[0]}'`
                   : `type`;
               const message = `Cannot find ${validDescription}`;
+              const range = doc.range(cur.from, cur.to);
               program.diagnostics ??= {};
               program.diagnostics[uri] ??= [];
               program.diagnostics[uri].push({
@@ -1345,12 +1413,13 @@ export class SparkdownCompiler {
             if (structType && structProperty) {
               // Validate struct property types
               if (program.context?.[structType]?.[structName]) {
-                const definedPropertyValue = getProperty(
-                  program.context?.[structType]?.[structName],
-                  structProperty
+                const definedPropertyValue = fetchProperty(
+                  structProperty,
+                  state.contextPropertyRegistry?.[structType]?.[structName]
                 );
                 if (definedPropertyValue !== undefined) {
                   const expectedPropertyValue = this.getExpectedPropertyValue(
+                    state,
                     program,
                     declaration
                   );
@@ -1360,6 +1429,7 @@ export class SparkdownCompiler {
                       typeof expectedPropertyValue
                     ) {
                       const schemaPropertyValues = this.getSchemaPropertyValues(
+                        state,
                         program,
                         declaration
                       );
@@ -1372,6 +1442,7 @@ export class SparkdownCompiler {
                         );
                       if (!isSchemaSupportedScalarType) {
                         const message = `Cannot assign '${typeof definedPropertyValue}' to '${typeof expectedPropertyValue}' property`;
+                        const range = doc.range(cur.from, cur.to);
                         program.diagnostics ??= {};
                         program.diagnostics[uri] ??= [];
                         program.diagnostics[uri].push({

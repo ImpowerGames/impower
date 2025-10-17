@@ -6,6 +6,7 @@ import { SyntaxNodeRef } from "@lezer/common";
 import { SparkDeclaration } from "../../types/SparkDeclaration";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkSelector } from "../../types/SparkSelector";
+import { sortFilteredName } from "../../utils/sortFilteredName";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -290,12 +291,15 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         key: name,
       });
       const propertyPath = this.definePropertyPathParts
+        .filter((p) => p.key)
         .map(({ key }) => key)
         .join(".");
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           declaration: "property",
-          symbolIds: [this.defineType + "." + this.defineName + propertyPath],
+          symbolIds: [
+            this.defineType + "." + this.defineName + "." + propertyPath,
+          ],
           interdependentIds:
             this.defineType === "style"
               ? [`layout..${name}`]
@@ -321,6 +325,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "StructFieldValue") {
       // For type checking
       const defineProperty = this.definePropertyPathParts
+        .filter((p) => p.key)
         .map((p) => p.key)
         .join(".");
       const declaration = {
@@ -372,6 +377,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       // Record reference in field value
       if (context.some((n) => n.name === "StructFieldValue")) {
         const defineProperty = this.definePropertyPathParts
+          .filter((p) => p.key)
           .map((p) => p.key)
           .join(".");
         const declaration = {
@@ -494,7 +500,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       // Record image name (and filter) reference
       if (context.includes("ImageCommand")) {
         const types = ["filtered_image", "layered_image", "image", "graphic"];
-        const name = this.read(nodeRef.from, nodeRef.to);
+        const name = sortFilteredName(this.read(nodeRef.from, nodeRef.to));
         const displayType = "image";
         annotations.push(
           SparkdownAnnotation.mark<Reference>({

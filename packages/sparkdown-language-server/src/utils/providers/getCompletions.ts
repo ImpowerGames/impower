@@ -363,14 +363,19 @@ const addLayoutElementReferenceCompletions = (
           if (fieldPath.endsWith(`.${contentType}`)) {
             const layer = fieldPath.split(".").at(-2);
             if (layer) {
-              const completion: CompletionItem = {
-                label: layer,
-                insertText: insertTextPrefix + layer + insertTextSuffix,
-                labelDetails: { description: "element" },
-                kind: CompletionItemKind.Constructor,
-              };
-              if (completion.label && !completions.has(completion.label)) {
-                completions.set(completion.label, completion);
+              const classNames = layer.split(" ");
+              const firstClassName = classNames[0];
+              if (firstClassName) {
+                const completion: CompletionItem = {
+                  label: firstClassName,
+                  insertText:
+                    insertTextPrefix + firstClassName + insertTextSuffix,
+                  labelDetails: { description: "element" },
+                  kind: CompletionItemKind.Constructor,
+                };
+                if (completion.label && !completions.has(completion.label)) {
+                  completions.set(completion.label, completion);
+                }
               }
             }
           }

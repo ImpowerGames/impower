@@ -3,13 +3,20 @@ import { SyntaxNodeRef, Tree } from "@lezer/common";
 import { SparkdownAnnotation } from "./SparkdownAnnotation";
 
 export abstract class SparkdownAnnotator<
-  T extends SparkdownAnnotation = SparkdownAnnotation
+  AnnotationType extends SparkdownAnnotation = SparkdownAnnotation,
+  ConfigType extends Record<string, any> = {}
 > {
-  current: RangeSet<T> = RangeSet.empty;
+  current: RangeSet<AnnotationType> = RangeSet.empty;
+
+  config?: ConfigType;
 
   text?: Text;
 
   tree?: Tree;
+
+  constructor(config?: ConfigType) {
+    this.config = config;
+  }
 
   update(tree: Tree, text: Text) {
     this.tree = tree;
@@ -20,23 +27,23 @@ export abstract class SparkdownAnnotator<
 
   end(iterateFrom: number, iterateTo: number) {}
 
-  remove(from: number, to: number, value: T) {}
+  remove(from: number, to: number, value: AnnotationType) {}
 
   enter(
-    annotations: Range<T>[],
+    annotations: Range<AnnotationType>[],
     nodeRef: SyntaxNodeRef,
     iteratingFrom: number,
     iteratingTo: number
-  ): Range<T>[] {
+  ): Range<AnnotationType>[] {
     return annotations;
   }
 
   leave(
-    annotations: Range<T>[],
+    annotations: Range<AnnotationType>[],
     nodeRef: SyntaxNodeRef,
     iteratingFrom: number,
     iteratingTo: number
-  ): Range<T>[] {
+  ): Range<AnnotationType>[] {
     return annotations;
   }
 

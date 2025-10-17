@@ -11,6 +11,7 @@ import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTr
 import { ChangedRange, Tree, TreeFragment } from "@lezer/common";
 import { profile } from "../utils/profile";
 import {
+  SparkdownAnnotatorConfigs,
   SparkdownAnnotators,
   SparkdownCombinedAnnotator,
 } from "./SparkdownCombinedAnnotator";
@@ -46,12 +47,16 @@ export class SparkdownDocumentRegistry {
 
   protected _annotate?: Set<keyof SparkdownAnnotators>;
 
+  protected _config?: SparkdownAnnotatorConfigs;
+
   constructor(
     profilingIdentifier: string,
-    annotate?: (keyof SparkdownAnnotators)[]
+    annotate?: (keyof SparkdownAnnotators)[],
+    config?: SparkdownAnnotatorConfigs
   ) {
     this._profilingIdentifier = profilingIdentifier;
     this._annotate = new Set(annotate);
+    this._config = config;
   }
 
   protected getDocumentState(uri: string): TextDocumentState {
@@ -60,7 +65,7 @@ export class SparkdownDocumentRegistry {
       return state;
     }
     const newState = {
-      annotators: new SparkdownCombinedAnnotator(),
+      annotators: new SparkdownCombinedAnnotator(this._config),
     };
     this._documentStates.set(uri, newState);
     return newState;

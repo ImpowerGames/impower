@@ -5,6 +5,7 @@ import { InkParser } from "../../inkjs/compiler/Parser/InkParser";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { SourceMetadata } from "../../inkjs/engine/Error";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import { populateDefinedStructs } from "../../utils/populateDefinedStructs";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -24,10 +25,25 @@ export interface CompiledBlock {
   diagnostics?: InkDiagnostic[];
   content?: ParsedObject[];
   include?: string;
+  context?: {
+    [type: string]: { [name: string]: any };
+  };
+  contextPropertyRegistry?: {
+    [type: string]: { [name: string]: { [propertyPath: string]: any } };
+  };
+}
+
+export interface CompilationConfig {
+  builtinDefinitions?: {
+    [type: string]: {
+      [name: string]: any;
+    };
+  };
 }
 
 export class CompilationAnnotator extends SparkdownAnnotator<
-  SparkdownAnnotation<CompiledBlock>
+  SparkdownAnnotation<CompiledBlock>,
+  CompilationConfig
 > {
   override enter(
     annotations: Range<SparkdownAnnotation<CompiledBlock>>[],
@@ -60,17 +76,47 @@ export class CompilationAnnotator extends SparkdownAnnotator<
             }).range(nodeRef.from, nodeRef.to)
           );
         }
+      } else if (nodeRef.name === "DefineDeclaration") {
+        const text = this.read(nodeRef.from, nodeRef.to);
+        const diagnostics: InkDiagnostic[] = [];
+        const parser = new InkParser(
+          text,
+          null,
+          (message, severity, source) => {
+            diagnostics.push({ message, severity, source });
+          },
+          ROOT_PARSER,
+          FILE_HANDLER
+        );
+        const story = parser.ParseStory();
+        const context = {};
+        const contextPropertyRegistry = {};
+        try {
+          const runtimeStory = story.ExportRuntime();
+          if (runtimeStory?.structDefinitions) {
+            populateDefinedStructs(
+              context,
+              contextPropertyRegistry,
+              runtimeStory?.structDefinitions,
+              this.config?.builtinDefinitions
+            );
+          }
+        } catch {}
+        annotations.push(
+          SparkdownAnnotation.mark({
+            diagnostics,
+            content: story.content,
+            context,
+            contextPropertyRegistry,
+          }).range(nodeRef.from, nodeRef.to)
+        );
       } else {
         const text = this.read(nodeRef.from, nodeRef.to);
         const diagnostics: InkDiagnostic[] = [];
         const parser = new InkParser(
           text,
           null,
-          (
-            message: string,
-            severity: ErrorType,
-            source: SourceMetadata | null
-          ) => {
+          (message, severity, source) => {
             diagnostics.push({ message, severity, source });
           },
           ROOT_PARSER,

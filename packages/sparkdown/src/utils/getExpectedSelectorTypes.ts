@@ -1,12 +1,15 @@
 import { SparkDeclaration } from "../types/SparkDeclaration";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
-import { getProperty } from "./getProperty";
+import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
+import { fetchProperty } from "./fetchProperty";
+import { readProperty } from "./readProperty";
 
 export const getExpectedSelectorTypes = (
   program: SparkProgram,
   declaration: SparkDeclaration | undefined,
-  config?: SparkdownCompilerConfig
+  config?: SparkdownCompilerConfig,
+  state?: SparkdownCompilerState
 ) => {
   const structType = declaration?.type;
   const structName = declaration?.name;
@@ -26,23 +29,22 @@ export const getExpectedSelectorTypes = (
       .split(".")
       .map((x) => (!Number.isNaN(Number(x)) ? 0 : x))
       .join(".");
-    const expectedPropertyValue =
-      getProperty(
-        program.context?.[structType]?.["$default"],
-        expectedPropertyPath
-      ) ??
-      getProperty(
-        program.context?.[structType]?.[`$optional:${structName}`],
-        expectedPropertyPath
-      ) ??
-      getProperty(
-        program.context?.[structType]?.["$optional"],
-        expectedPropertyPath
-      ) ??
-      getProperty(
-        config?.optionalDefinitions?.[structType]?.["$optional"],
-        expectedPropertyPath
-      );
+    const expectedPropertyValue = state?.contextPropertyRegistry
+      ? fetchProperty(
+          expectedPropertyPath,
+          state?.contextPropertyRegistry?.[structType]?.["$default"],
+          state?.contextPropertyRegistry?.[structType]?.[
+            `$optional:${structName}`
+          ],
+          state?.contextPropertyRegistry?.[structType]?.["$optional"]
+        )
+      : readProperty(
+          expectedPropertyPath,
+          program.context?.[structType]?.["$default"],
+          program.context?.[structType]?.[`$optional:${structName}`],
+          program.context?.[structType]?.["$optional"],
+          config?.optionalDefinitions?.[structType]?.["$optional"]
+        );
     if (
       expectedPropertyValue &&
       typeof expectedPropertyValue === "object" &&
@@ -53,18 +55,35 @@ export const getExpectedSelectorTypes = (
     }
     // Use the property value array specified in $schema to infer additional possible types
     const schemaPropertyValueArrays = [
-      getProperty(
-        program.context?.[structType]?.[`$schema:${structName}`],
-        expectedPropertyPath
-      ),
-      getProperty(
-        program.context?.[structType]?.["$schema"],
-        expectedPropertyPath
-      ),
-      getProperty(
-        config?.schemaDefinitions?.[structType]?.["$schema"],
-        expectedPropertyPath
-      ),
+      state?.contextPropertyRegistry
+        ? fetchProperty(
+            expectedPropertyPath,
+            state?.contextPropertyRegistry?.[structType]?.[
+              `$schema:${structName}`
+            ]
+          )
+        : readProperty(
+            expectedPropertyPath,
+            program.context?.[structType]?.[`$schema:${structName}`]
+          ),
+      state?.contextPropertyRegistry
+        ? fetchProperty(
+            expectedPropertyPath,
+            state?.contextPropertyRegistry?.[structType]?.["$schema"]
+          )
+        : readProperty(
+            expectedPropertyPath,
+            program.context?.[structType]?.["$schema"]
+          ),
+      state?.contextPropertyRegistry
+        ? fetchProperty(
+            expectedPropertyPath,
+            state?.contextPropertyRegistry?.[structType]?.["$schema"]
+          )
+        : readProperty(
+            expectedPropertyPath,
+            config?.schemaDefinitions?.[structType]?.["$schema"]
+          ),
     ];
     for (const schemaPropertyValueArray of schemaPropertyValueArrays) {
       if (Array.isArray(schemaPropertyValueArray)) {

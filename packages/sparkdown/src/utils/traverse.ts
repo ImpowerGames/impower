@@ -5,11 +5,12 @@ export const traverse = <T>(
   fieldPath: string = ""
 ) => {
   if (obj) {
-    Object.entries(obj).forEach(([k, v]) => {
-      const path = `${fieldPath}.${k}`;
+    for (const [k, v] of Object.entries(obj)) {
+      const path = fieldPath ? `${fieldPath}.${k}` : k;
       if (typeof v === "object" && v && !("$name" in v)) {
         if (Array.isArray(v)) {
           process(path, v);
+          traverse(v, process, shouldProcess, path);
         } else if (v && Object.keys(v).length === 0) {
           process(path, v);
         } else if (shouldProcess?.(path, v)) {
@@ -20,6 +21,6 @@ export const traverse = <T>(
       } else {
         process(path, v);
       }
-    });
+    }
   }
 };
