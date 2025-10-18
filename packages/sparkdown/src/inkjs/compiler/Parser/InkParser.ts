@@ -1071,7 +1071,7 @@ export class InkParser extends StringParser {
       this._currentTextBlock.prependedOnLine = this.state.lineIndex;
     }
 
-    let lastIsContinueLine = false;
+    let willChainLine = false;
 
     do {
       const next = this.Peek(this.ParseSingleCharacter);
@@ -1087,7 +1087,7 @@ export class InkParser extends StringParser {
       let str = this.Parse(this.ContentTextNoEscape) as string;
 
       if (str != null) {
-        if (str && lastIsContinueLine) {
+        if (str && willChainLine) {
           str = str?.trimStart();
         }
         sb ??= "";
@@ -1119,7 +1119,7 @@ export class InkParser extends StringParser {
           // Ensure any logic directly following the newline is not escaped
           sb += " ";
         }
-        lastIsContinueLine = true;
+        willChainLine = true;
         continue;
       }
 
@@ -1127,7 +1127,7 @@ export class InkParser extends StringParser {
         break;
       }
 
-      lastIsContinueLine = false;
+      willChainLine = false;
 
       const gotLiteralChar: boolean = this.ParseString("`") !== null;
       if (gotLiteralChar) {
@@ -1198,7 +1198,7 @@ export class InkParser extends StringParser {
             if (c === "\n") {
               // Ensure any logic directly following the newline is not escaped
               sb += " ";
-              lastIsContinueLine = true;
+              willChainLine = true;
             }
           }
         }
@@ -1209,7 +1209,7 @@ export class InkParser extends StringParser {
     const result: ParsedObject[] = [];
 
     if (sb !== null) {
-      const trimmedSb = lastIsContinueLine ? sb.trimEnd() : sb;
+      const trimmedSb = willChainLine ? sb.trimEnd() : sb;
       result.push(new Text(trimmedSb));
     }
 
