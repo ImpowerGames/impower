@@ -1087,10 +1087,14 @@ export class InkParser extends StringParser {
       let str = this.Parse(this.ContentTextNoEscape) as string;
 
       if (str != null) {
+        if (str && lastIsContinueLine) {
+          str = str?.trimStart();
+        }
         sb ??= "";
         sb += String(str);
       }
 
+      
       if (
         this._currentTextBlock &&
         this.Peek(this.ParseSingleCharacter) === "\n"
@@ -1194,6 +1198,7 @@ export class InkParser extends StringParser {
             if (c === "\n") {
               // Ensure any logic directly following the newline is not escaped
               sb += " ";
+              lastIsContinueLine = true;
             }
           }
         }
