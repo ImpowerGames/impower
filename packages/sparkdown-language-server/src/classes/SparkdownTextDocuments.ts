@@ -11,10 +11,10 @@ import { UpdateCompilerFileMessage } from "@impower/spark-editor-protocol/src/pr
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { type ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
-import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/classes/SparkdownDocumentRegistry";
-import { type SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
-import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/utils/resolveFileUsingImpliedExtension";
+import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { type SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
+import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/compiler/utils/resolveFileUsingImpliedExtension";
 import {
   CancellationToken,
   Connection,

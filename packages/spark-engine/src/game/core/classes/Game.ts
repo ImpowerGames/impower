@@ -1,18 +1,18 @@
-import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
-import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
-import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
-import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
   buildRouteSimulator,
   planRoute,
-} from "@impower/sparkdown/src/utils/exploreRoutes";
-import { uuid } from "@impower/sparkdown/src/utils/uuid";
-import { ErrorType } from "../../../protocol/enums/ErrorType";
+} from "@impower/sparkdown/src/compiler/utils/exploreRoutes";
+import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
+import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
+import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
+import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { Message } from "../../../protocol/types/Message";
 import { NotificationMessage } from "../../../protocol/types/NotificationMessage";
 import { RequestMessage } from "../../../protocol/types/RequestMessage";
 import { ResponseError } from "../../../protocol/types/ResponseError";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
+import { ErrorType } from "../enums/ErrorType";
 import { Breakpoint } from "../types/Breakpoint";
 import { DocumentLocation } from "../types/DocumentLocation";
 import { GameConfiguration } from "../types/GameConfiguration";

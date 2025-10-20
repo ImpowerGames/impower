@@ -1,4 +1,4 @@
-import { File } from "../../../../sparkdown/src/types/File";
+import { File } from "../../../../sparkdown/src/compiler/types/File";
 import { RequestMessage } from "../../types/base/RequestMessage";
 import { ResponseMessage } from "../../types/base/ResponseMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";

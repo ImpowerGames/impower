@@ -1,9 +1,9 @@
-import { Reference } from "@impower/sparkdown/src/classes/annotators/ReferenceAnnotator";
-import { SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
-import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import { getExpectedSelectorTypes } from "@impower/sparkdown/src/utils/getExpectedSelectorTypes";
-import { resolveSelector } from "@impower/sparkdown/src/utils/resolveSelector";
-import { selectProperty } from "@impower/sparkdown/src/utils/selectProperty";
+import { Reference } from "@impower/sparkdown/src/compiler/classes/annotators/ReferenceAnnotator";
+import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
+import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { getExpectedSelectorTypes } from "@impower/sparkdown/src/compiler/utils/getExpectedSelectorTypes";
+import { resolveSelector } from "@impower/sparkdown/src/compiler/utils/resolveSelector";
+import { selectProperty } from "@impower/sparkdown/src/compiler/utils/selectProperty";
 
 export const resolveSymbolId = (
   refId: string,

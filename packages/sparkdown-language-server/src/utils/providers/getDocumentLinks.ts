@@ -1,5 +1,5 @@
-import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
-import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
+import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { type Tree } from "@lezer/common";
 import { DocumentLink } from "vscode-languageserver";
 import SparkdownTextDocuments from "../../classes/SparkdownTextDocuments";

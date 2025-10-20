@@ -19,8 +19,8 @@ import type { Audio, LayeredAudio, Synth } from "@impower/spark-engine/src";
 import { clone } from "@impower/spark-engine/src/game/core/utils/clone";
 import { randomizeProperties } from "@impower/spark-engine/src/game/core/utils/randomizeProperties";
 import { SynthBuffer } from "@impower/spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
+import { structStringify } from "@impower/sparkdown/src/compiler/utils/structStringify";
 import { SparkProgram, SparkVariable } from "@impower/sparkdown/src/index";
-import { structStringify } from "@impower/sparkdown/src/utils/structStringify";
 import { FileSystemReader } from "../cm-language-client/types/FileSystemReader";
 import StructKeyboardWidgetType from "./classes/StructKeyboardWidgetType";
 import StructPlayWidgetType, {

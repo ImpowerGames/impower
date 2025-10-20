@@ -1,4 +1,4 @@
-import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
+import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { Tree } from "@lezer/common";
 import { Position } from "vscode-languageserver";
 import { type Range } from "vscode-languageserver-textdocument";

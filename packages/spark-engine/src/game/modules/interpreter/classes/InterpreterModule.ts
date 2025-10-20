@@ -1,4 +1,4 @@
-import { getCharacterIdentifier } from "@impower/sparkdown/src/utils/getCharacterIdentifier";
+import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/getCharacterIdentifier";
 import { Module } from "../../../core/classes/Module";
 import {
   AudioInstruction,

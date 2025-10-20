@@ -46,11 +46,11 @@ import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classe
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
+import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import { ScriptLocation } from "@impower/spark-engine/src/game/core/types/ScriptLocation";
 import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
-import { ErrorType } from "@impower/spark-engine/src/protocol/enums/ErrorType";
-import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { Component } from "../../../spec-component/src/component";
 import { Application } from "../app/Application";
 import { debounce } from "../utils/debounce";

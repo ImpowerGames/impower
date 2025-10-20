@@ -7,7 +7,7 @@ import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols
 import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
 import { LoadGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/LoadGameMessage";
 import SparkWebPlayer from "@impower/spark-web-player/src/index.js";
-import { SparkdownFileRegistry } from "@impower/sparkdown/src/classes/SparkdownFileRegistry";
+import { SparkdownFileRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownFileRegistry";
 
 console.log("running game-webview");
 

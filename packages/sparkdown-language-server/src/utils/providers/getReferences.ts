@@ -1,8 +1,8 @@
 import { RangeCursor } from "@codemirror/state";
-import { SparkdownAnnotation } from "@impower/sparkdown/src/classes/SparkdownAnnotation";
-import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
-import { Reference } from "@impower/sparkdown/src/classes/annotators/ReferenceAnnotator";
-import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { SparkdownAnnotation } from "@impower/sparkdown/src/compiler/classes/SparkdownAnnotation";
+import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
+import { Reference } from "@impower/sparkdown/src/compiler/classes/annotators/ReferenceAnnotator";
+import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { type Tree } from "@lezer/common";
 import {
   DocumentHighlight,

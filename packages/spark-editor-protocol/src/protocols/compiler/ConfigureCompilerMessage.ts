@@ -1,4 +1,4 @@
-import { SparkdownCompilerConfig } from "../../../../sparkdown/src/types/SparkdownCompilerConfig";
+import { SparkdownCompilerConfig } from "../../../../sparkdown/src/compiler/types/SparkdownCompilerConfig";
 import { RequestMessage } from "../../types/base/RequestMessage";
 import { ResponseMessage } from "../../types/base/ResponseMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";

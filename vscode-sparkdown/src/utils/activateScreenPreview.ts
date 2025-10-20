@@ -1,4 +1,4 @@
-import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
+import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import * as vscode from "vscode";
 import * as yaml from "yaml";
 import { getStack } from "../../../packages/textmate-grammar-tree/src/tree/utils/getStack";

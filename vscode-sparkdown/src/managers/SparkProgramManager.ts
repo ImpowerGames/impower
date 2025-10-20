@@ -2,7 +2,7 @@ import {
   CompileProgramMessage,
   CompileProgramParams,
 } from "@impower/spark-editor-protocol/src/protocols/compiler/CompileProgramMessage";
-import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import * as vscode from "vscode";
 import {
   CancellationToken,

@@ -1,5 +1,5 @@
-import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
-import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
+import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { type Tree } from "@lezer/common";
 import {
   AnnotatedTextEdit,

@@ -1,30 +1,30 @@
 import { parseSparkle } from "@impower/sparkle-screen-renderer/src/parser/parser";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
-import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
+import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import {
   Compiler as InkCompiler,
   CompilerOptions as InkCompilerOptions,
   InkList,
-} from "../inkjs/compiler/Compiler";
-import { IFileHandler } from "../inkjs/compiler/IFileHandler";
-import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
-import { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
-import { Identifier } from "../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
-import { IncludedFile } from "../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
-import { Knot } from "../inkjs/compiler/Parser/ParsedHierarchy/Knot";
-import { ParsedObject } from "../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { Stitch } from "../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
-import { Story } from "../inkjs/compiler/Parser/ParsedHierarchy/Story";
-import { Weave } from "../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { ControlCommand } from "../inkjs/engine/ControlCommand";
-import { DebugMetadata } from "../inkjs/engine/DebugMetadata";
-import { SourceMetadata } from "../inkjs/engine/Error";
-import { InkListItem } from "../inkjs/engine/InkList";
-import { InkObject } from "../inkjs/engine/Object";
-import { SimpleJson } from "../inkjs/engine/SimpleJson";
-import { asOrNull } from "../inkjs/engine/TypeAssertion";
-import { StringValue } from "../inkjs/engine/Value";
-import { VariableAssignment } from "../inkjs/engine/VariableAssignment";
+} from "../../inkjs/compiler/Compiler";
+import { IFileHandler } from "../../inkjs/compiler/IFileHandler";
+import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
+import { FlowBase } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
+import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
+import { IncludedFile } from "../../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
+import { Knot } from "../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
+import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { Stitch } from "../../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
+import { Story } from "../../inkjs/compiler/Parser/ParsedHierarchy/Story";
+import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
+import { ControlCommand } from "../../inkjs/engine/ControlCommand";
+import { DebugMetadata } from "../../inkjs/engine/DebugMetadata";
+import { SourceMetadata } from "../../inkjs/engine/Error";
+import { InkListItem } from "../../inkjs/engine/InkList";
+import { InkObject } from "../../inkjs/engine/Object";
+import { SimpleJson } from "../../inkjs/engine/SimpleJson";
+import { asOrNull } from "../../inkjs/engine/TypeAssertion";
+import { StringValue } from "../../inkjs/engine/Value";
+import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
 import { File } from "../types/File";
 import { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity } from "../types/SparkDiagnostic";
@@ -205,9 +205,6 @@ export class SparkdownCompiler {
       uri,
       scripts: { [uri]: this.documents.get(uri)?.version ?? -1 },
       files: {},
-      pathLocations: {},
-      functionLocations: {},
-      dataLocations: {},
       version: this.documents.get(uri)?.version ?? -1,
     };
 

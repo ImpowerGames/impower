@@ -1,7 +1,7 @@
 import { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/index";
+import { calculateSpeechDuration } from "@impower/sparkdown/src/compiler/utils/calculateSpeechDuration";
+import { isMonologue } from "@impower/sparkdown/src/compiler/utils/isMonologue";
 import { SparkProgram, StructureItem } from "@impower/sparkdown/src/index";
-import { calculateSpeechDuration } from "@impower/sparkdown/src/utils/calculateSpeechDuration";
-import { isMonologue } from "@impower/sparkdown/src/utils/isMonologue";
 import * as vscode from "vscode";
 import { getCharacterName } from "./getCharacterName";
 import { rgbToHex } from "./rgbToHex";

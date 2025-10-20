@@ -1,5 +1,5 @@
-import { Simulator, SimulatorSnapshot } from "../inkjs/engine/Simulator";
-import { Story } from "../inkjs/engine/Story";
+import { Simulator, SimulatorSnapshot } from "../../inkjs/engine/Simulator";
+import { Story } from "../../inkjs/engine/Story";
 
 export interface RouteMap {
   /** All possible routes */

@@ -1,9 +1,9 @@
 import { Range } from "@codemirror/state";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
-import { InkParser } from "../../inkjs/compiler/Parser/InkParser";
-import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { SourceMetadata } from "../../inkjs/engine/Error";
+import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
+import { InkParser } from "../../../inkjs/compiler/Parser/InkParser";
+import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { SourceMetadata } from "../../../inkjs/engine/Error";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { populateDefinedStructs } from "../../utils/populateDefinedStructs";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";

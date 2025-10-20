@@ -1,7 +1,7 @@
 import { RangeSet } from "@codemirror/state";
-import { Reference } from "@impower/sparkdown/src/classes/annotators/ReferenceAnnotator";
-import { SparkdownAnnotation } from "@impower/sparkdown/src/classes/SparkdownAnnotation";
-import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
+import { Reference } from "@impower/sparkdown/src/compiler/classes/annotators/ReferenceAnnotator";
+import { SparkdownAnnotation } from "@impower/sparkdown/src/compiler/classes/SparkdownAnnotation";
+import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 
 export const getSymbolContext = (
   document: SparkdownDocument,

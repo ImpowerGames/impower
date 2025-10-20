@@ -16,7 +16,7 @@ import { GameToggledFullscreenModeMessage } from "@impower/spark-engine/src/game
 import { GameWillSimulateChoicesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWillSimulateChoicesMessage";
 import { LoadGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/LoadGameMessage";
 import { MessageProtocolRequestType } from "@impower/spark-engine/src/protocol/classes/MessageProtocolRequestType";
-import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
+import { SparkProgram } from "../../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-game";

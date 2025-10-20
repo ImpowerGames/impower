@@ -1,11 +1,11 @@
 import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
-import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
-import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
-import { SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
-import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
-import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
-import { getProperty } from "@impower/sparkdown/src/utils/getProperty";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
+import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
+import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
+import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
+import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
+import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";

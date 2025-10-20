@@ -1,11 +1,11 @@
-import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
-import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
-import { SparkdownCompilerConfig } from "@impower/sparkdown/src/types/SparkdownCompilerConfig";
-import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import { filterImage } from "@impower/sparkdown/src/utils/filterImage";
-import { getExpectedSelectorTypes } from "@impower/sparkdown/src/utils/getExpectedSelectorTypes";
-import { resolveSelector } from "@impower/sparkdown/src/utils/resolveSelector";
-import { sortFilteredName } from "@impower/sparkdown/src/utils/sortFilteredName";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
+import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
+import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
+import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
+import { getExpectedSelectorTypes } from "@impower/sparkdown/src/compiler/utils/getExpectedSelectorTypes";
+import { resolveSelector } from "@impower/sparkdown/src/compiler/utils/resolveSelector";
+import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 
 const resolveRootImage = (

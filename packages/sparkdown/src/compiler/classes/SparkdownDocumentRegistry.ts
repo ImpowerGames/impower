@@ -3,7 +3,7 @@ import {
   TextDocumentContentChangeEvent,
 } from "vscode-languageserver-textdocument";
 
-import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
+import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 
 import { ChangeSpec, Text } from "@codemirror/state";
 import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";

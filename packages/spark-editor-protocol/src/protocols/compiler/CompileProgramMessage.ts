@@ -1,4 +1,4 @@
-import { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
+import { SparkProgram } from "../../../../sparkdown/src/compiler/types/SparkProgram";
 import { RequestMessage } from "../../types/base/RequestMessage";
 import { ResponseMessage } from "../../types/base/ResponseMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";

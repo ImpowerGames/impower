@@ -1,4 +1,4 @@
-import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { MessageProtocolRequestType } from "../../../../protocol/classes/MessageProtocolRequestType";
 import { RequestMessage } from "../../../../protocol/types/RequestMessage";
 import { ResponseMessage } from "../../../../protocol/types/ResponseMessage";

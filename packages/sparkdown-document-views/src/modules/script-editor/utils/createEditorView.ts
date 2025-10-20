@@ -31,7 +31,7 @@ import {
   ServerCapabilities,
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-engine/src/protocol/types/NotificationMessage";
-import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
   breakpointMarker,
   breakpointsChanged,

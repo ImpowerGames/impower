@@ -41,7 +41,7 @@ import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/
 import { NotificationMessage } from "@impower/spark-engine/src/protocol/types/NotificationMessage";
 import { RequestMessage } from "@impower/spark-engine/src/protocol/types/RequestMessage";
 import { ResponseError } from "@impower/spark-engine/src/protocol/types/ResponseError";
-import { SparkdownCompiler } from "@impower/sparkdown/src/classes/SparkdownCompiler";
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
   ContinuedEvent,
   ExitedEvent,

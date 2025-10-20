@@ -1,4 +1,4 @@
-import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 
 export const getDeclarationScopes = (
   read: (from: number, to: number) => string,

@@ -1,5 +1,5 @@
-import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
-import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
+import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
+import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";

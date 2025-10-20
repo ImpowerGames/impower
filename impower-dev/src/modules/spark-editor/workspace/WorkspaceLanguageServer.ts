@@ -19,7 +19,7 @@ import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modu
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
 import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
-import type { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
+import type { SparkProgram } from "../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
 import ConsoleLogger from "./ConsoleLogger";
 import { Workspace } from "./Workspace";
 

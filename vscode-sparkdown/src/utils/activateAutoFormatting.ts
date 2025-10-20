@@ -5,7 +5,7 @@
  * Released under the MIT license.
  */
 
-import { SparkdownNodeName } from "@impower/sparkdown/src/types/SparkdownNodeName";
+import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import {
   commands,
   ExtensionContext,

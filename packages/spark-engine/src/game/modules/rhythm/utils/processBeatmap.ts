@@ -1,4 +1,4 @@
-import type { SparkParserContext } from "@impower/sparkdown/src/types/SparkParserContext";
+import type { SparkParserContext } from "@impower/sparkdown/src/compiler/types/SparkParserContext";
 import { parseBeatmap } from "./parseBeatmap";
 
 const NAME_REGEX = /[_\p{L}][_\p{L}0-9]*/u;

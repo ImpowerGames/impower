@@ -1,5 +1,5 @@
-import { SparkdownCompiler } from "./classes/SparkdownCompiler";
-import { profile } from "./utils/profile";
+import { SparkdownCompiler } from "./compiler/classes/SparkdownCompiler";
+import { profile } from "./compiler/utils/profile";
 
 console.log("running sparkdown-compiler");
 
@@ -62,13 +62,13 @@ onmessage = async (e) => {
         const uri = params.file.uri;
         respond(method, id, uri, () => compiler.updateFile(params));
       }
-      if (method === "compiler/updateDocument") {
-        const uri = params.textDocument.uri;
-        respond(method, id, uri, () => compiler.updateDocument(params));
-      }
       if (method === "compiler/removeFile") {
         const uri = params.file.uri;
         respond(method, id, uri, () => compiler.removeFile(params));
+      }
+      if (method === "compiler/updateDocument") {
+        const uri = params.textDocument.uri;
+        respond(method, id, uri, () => compiler.updateDocument(params));
       }
       if (method === "compiler/compile") {
         const uri = params.uri;

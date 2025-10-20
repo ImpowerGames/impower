@@ -1,5 +1,5 @@
-import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
-import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
+import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SymbolKind, type DocumentSymbol } from "vscode-languageserver";
 import { Position, Range } from "vscode-languageserver-textdocument";
 

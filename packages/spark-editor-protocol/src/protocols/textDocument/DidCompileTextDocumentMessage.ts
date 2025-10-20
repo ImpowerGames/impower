@@ -1,4 +1,4 @@
-import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
+import type { SparkProgram } from "../../../../sparkdown/src/compiler/types/SparkProgram";
 import { VersionedTextDocumentIdentifier } from "../../types";
 import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";

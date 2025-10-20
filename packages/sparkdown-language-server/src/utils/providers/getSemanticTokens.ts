@@ -1,9 +1,9 @@
 import { RangeCursor } from "@codemirror/state";
-import { SemanticInfo } from "@impower/sparkdown/src/classes/annotators/SemanticAnnotator";
-import { SparkdownAnnotation } from "@impower/sparkdown/src/classes/SparkdownAnnotation";
-import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
-import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
-import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { SemanticInfo } from "@impower/sparkdown/src/compiler/classes/annotators/SemanticAnnotator";
+import { SparkdownAnnotation } from "@impower/sparkdown/src/compiler/classes/SparkdownAnnotation";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
+import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
+import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
   SemanticTokenModifiers,
   SemanticTokens,

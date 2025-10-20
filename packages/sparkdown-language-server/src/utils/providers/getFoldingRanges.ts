@@ -1,6 +1,6 @@
-import { SparkdownAnnotations } from "@impower/sparkdown/src/classes/SparkdownCombinedAnnotator";
-import { SparkdownDocument } from "@impower/sparkdown/src/classes/SparkdownDocument";
-import { type SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
+import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
+import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { Range, type FoldingRange } from "vscode-languageserver";
 
 const INDENT_REGEX = /^([ \t]+)/;

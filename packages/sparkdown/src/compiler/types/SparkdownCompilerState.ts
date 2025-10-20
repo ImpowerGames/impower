@@ -1,4 +1,4 @@
-import { Story } from "../inkjs/engine/Story";
+import { Story } from "../../inkjs/engine/Story";
 
 export interface SparkdownCompilerState {
   contextPropertyRegistry?: {

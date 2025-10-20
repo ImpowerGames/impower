@@ -1,6 +1,6 @@
 import { MessageProtocolNotificationType } from "../../../../protocol/classes/MessageProtocolNotificationType";
-import { ErrorType } from "../../../../protocol/enums/ErrorType";
 import { NotificationMessage } from "../../../../protocol/types/NotificationMessage";
+import { ErrorType } from "../../enums/ErrorType";
 import { DocumentLocation } from "../../types/DocumentLocation";
 import { GameState } from "../../types/GameState";
 
