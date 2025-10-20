@@ -5,6 +5,7 @@
   "scripts": {
     "kill": "kill-port 8080",
     "postinstall:textmate-grammar-tree": "cd ../packages/textmate-grammar-tree && npm ci && cd ../../impower-dev",
+    "postinstall:jsonrpc": "cd ../packages/jsonrpc && npm ci && cd ../../impower-dev",
     "postinstall:sparkdown": "cd ../packages/sparkdown && npm ci && cd ../../impower-dev",
     "postinstall:spark-engine": "cd ../packages/spark-engine && npm ci && cd ../../impower-dev",
     "postinstall:spark-editor-protocol": "cd ../packages/spark-editor-protocol && npm ci && cd ../../impower-dev",
@@ -79,6 +80,7 @@
     "@codemirror/language": "^6.11.3",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.6",
+    "@impower/jsonrpc": "file:../packages/jsonrpc",
     "@lezer/common": "^1.2.3",
     "@lezer/highlight": "^1.2.1"
   }

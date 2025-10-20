@@ -1,5 +1,5 @@
-import { NotificationMessage } from "../../../protocol/types/NotificationMessage";
-import { RequestMessage } from "../../../protocol/types/RequestMessage";
+import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
 import { Instructions } from "../types/Instructions";
 import { Clock } from "./Clock";
 import type { Game } from "./Game";

@@ -1,7 +1,7 @@
-import { Message } from "@impower/spark-engine/src/protocol/types/Message";
-import { NotificationMessage } from "@impower/spark-engine/src/protocol/types/NotificationMessage";
-import { RequestMessage } from "@impower/spark-engine/src/protocol/types/RequestMessage";
-import { ResponseError } from "@impower/spark-engine/src/protocol/types/ResponseError";
+import { Message } from "@impower/jsonrpc/src/types/Message";
+import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
+import { ResponseError } from "@impower/jsonrpc/src/types/ResponseError";
 import {
   Container,
   DOMAdapter,

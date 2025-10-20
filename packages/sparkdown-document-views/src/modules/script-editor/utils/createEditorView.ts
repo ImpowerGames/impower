@@ -20,6 +20,7 @@ import {
   ViewUpdate,
   panels,
 } from "@codemirror/view";
+import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
   DidCompileTextDocumentMessage,
@@ -30,7 +31,6 @@ import {
   MessageConnection,
   ServerCapabilities,
 } from "@impower/spark-editor-protocol/src/types";
-import { NotificationMessage } from "@impower/spark-engine/src/protocol/types/NotificationMessage";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
   breakpointMarker,

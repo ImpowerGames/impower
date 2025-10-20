@@ -1,3 +1,7 @@
+import { Message } from "@impower/jsonrpc/src/types/Message";
+import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
+import { ResponseError } from "@impower/jsonrpc/src/types/ResponseError";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
   buildRouteSimulator,
@@ -7,10 +11,6 @@ import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
-import { Message } from "../../../protocol/types/Message";
-import { NotificationMessage } from "../../../protocol/types/NotificationMessage";
-import { RequestMessage } from "../../../protocol/types/RequestMessage";
-import { ResponseError } from "../../../protocol/types/ResponseError";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { ErrorType } from "../enums/ErrorType";
 import { Breakpoint } from "../types/Breakpoint";

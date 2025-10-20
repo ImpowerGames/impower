@@ -1,0 +1,6 @@
+{
+  "name": "@impower/jsonrpc",
+  "displayName": "JSON-RPC",
+  "description": "A light-weight library used to create json-rpc 2.0 messages.",
+  "version": "0.0.1"
+}

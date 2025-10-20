@@ -1,3 +1,4 @@
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { getCSSPropertyKeyValue } from "../../../../spark-dom/src/utils/getCSSPropertyKeyValue";
@@ -9,7 +10,6 @@ import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
 import { UnobserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
 import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
-import { RequestMessage } from "../../../../spark-engine/src/protocol/types/RequestMessage";
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 

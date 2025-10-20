@@ -1,6 +1,6 @@
+import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
-import { NotificationMessage } from "../../../../protocol/types/NotificationMessage";
 import { Clock } from "../../../core/classes/Clock";
 import type { Game } from "../../../core/classes/Game";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";

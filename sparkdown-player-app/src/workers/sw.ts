@@ -1,5 +1,5 @@
+import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
 import { FetchGameAssetMessage } from "../../../packages/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage";
-import { MessageProtocolRequestType } from "../../../packages/spark-engine/src/protocol/classes/MessageProtocolRequestType";
 
 export {};
 declare const self: ServiceWorkerGlobalScope;

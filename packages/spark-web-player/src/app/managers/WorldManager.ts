@@ -1,7 +1,7 @@
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
 import { Clock } from "../../../../spark-engine/src/game/core/classes/Clock";
 import { ExitWorldMessage } from "../../../../spark-engine/src/game/modules/world/classes/messages/ExitWorldMessage";
 import { LoadWorldMessage } from "../../../../spark-engine/src/game/modules/world/classes/messages/LoadWorldMessage";
-import { RequestMessage } from "../../../../spark-engine/src/protocol/types/RequestMessage";
 import * as globals from "../../globals";
 import { IApplication } from "../IApplication";
 import { Manager } from "../Manager";

@@ -1,7 +1,7 @@
-import { IMessage } from "../../../protocol/types/IMessage";
-import { NotificationMessage } from "../../../protocol/types/NotificationMessage";
-import { RequestMessage } from "../../../protocol/types/RequestMessage";
-import { ResponseError } from "../../../protocol/types/ResponseError";
+import { IMessage } from "@impower/jsonrpc/src/types/IMessage";
+import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
+import { ResponseError } from "@impower/jsonrpc/src/types/ResponseError";
 import { GameContext } from "../types/GameContext";
 import { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { Clock } from "./Clock";

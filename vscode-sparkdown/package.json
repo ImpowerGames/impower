@@ -876,6 +876,7 @@
   },
   "scripts": {
     "postinstall:textmate-grammar-tree": "cd ../packages/textmate-grammar-tree && npm ci && cd ../../vscode-sparkdown",
+    "postinstall:jsonrpc": "cd ../packages/jsonrpc && npm ci && cd ../../vscode-sparkdown",
     "postinstall:sparkdown": "cd ../packages/sparkdown && npm ci && cd ../../vscode-sparkdown",
     "postinstall:spark-engine": "cd ../packages/spark-engine && npm ci && cd ../../vscode-sparkdown",
     "postinstall:spark-dom": "cd ../packages/spark-dom && npm ci && cd ../../vscode-sparkdown",
@@ -963,6 +964,7 @@
   },
   "peerDependencies": {
     "@codemirror/state": "^6.5.2",
+    "@impower/jsonrpc": "file:../packages/jsonrpc",
     "@lezer/common": "^1.2.3"
   },
   "files": [

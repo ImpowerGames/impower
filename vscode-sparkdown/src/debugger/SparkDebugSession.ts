@@ -10,6 +10,9 @@
  * The most important class of the Debug Adapter is the MockDebugSession which implements many DAP requests by talking to the MockRuntime.
  */
 
+import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
+import { ResponseError } from "@impower/jsonrpc/src/types/ResponseError";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { GameAutoAdvancedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameAutoAdvancedToContinueMessage";
@@ -38,9 +41,6 @@ import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/gam
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
-import { NotificationMessage } from "@impower/spark-engine/src/protocol/types/NotificationMessage";
-import { RequestMessage } from "@impower/spark-engine/src/protocol/types/RequestMessage";
-import { ResponseError } from "@impower/spark-engine/src/protocol/types/ResponseError";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
   ContinuedEvent,

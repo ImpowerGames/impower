@@ -1,7 +1,7 @@
+import { type NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
+import { type RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
+import { type ResponseError } from "@impower/jsonrpc/src/types/ResponseError";
 import { type Clock } from "../../../spark-engine/src/game/core/classes/Clock";
-import { type NotificationMessage } from "../../../spark-engine/src/protocol/types/NotificationMessage";
-import { type RequestMessage } from "../../../spark-engine/src/protocol/types/RequestMessage";
-import { type ResponseError } from "../../../spark-engine/src/protocol/types/ResponseError";
 import { type IApplication } from "./IApplication";
 
 export class Manager {

@@ -1,6 +1,8 @@
 import { syntaxParserRunning } from "@codemirror/language";
 import { EditorSelection, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
 import { HoveredOnEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
 import {
   ScrolledEditorMessage,
@@ -48,8 +50,6 @@ import {
   TextDocumentIdentifier,
   TextDocumentItem,
 } from "@impower/spark-editor-protocol/src/types";
-import { NotificationMessage } from "@impower/spark-engine/src/protocol/types/NotificationMessage";
-import { RequestMessage } from "@impower/spark-engine/src/protocol/types/RequestMessage";
 import { Component } from "../../../../../spec-component/src/component";
 import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
 import { getClientChanges } from "../../../cm-language-client";

@@ -1,7 +1,7 @@
+import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
+import { ResponseMessage } from "@impower/jsonrpc/src/types/ResponseMessage";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { MessageProtocolRequestType } from "../../../../protocol/classes/MessageProtocolRequestType";
-import { RequestMessage } from "../../../../protocol/types/RequestMessage";
-import { ResponseMessage } from "../../../../protocol/types/ResponseMessage";
 import { GameConfiguration } from "../../types/GameConfiguration";
 import { SaveData } from "../../types/SaveData";
 

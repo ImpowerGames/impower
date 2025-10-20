@@ -4,6 +4,7 @@
   "description": "A light-weight library used to run spark games.",
   "version": "0.0.1",
   "dependencies": {
-    "@impower/sparkdown": "file:../sparkdown"
+    "@impower/sparkdown": "file:../sparkdown",
+    "@impower/jsonrpc": "file:../jsonrpc"
   }
 }

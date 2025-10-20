@@ -1,4 +1,4 @@
-import { MessageProtocolRequestType } from "../../../../../protocol/classes/MessageProtocolRequestType";
+import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
 import { LoadWorldParams } from "../../types/LoadWorldParams";
 
 export type LoadWorldMethod = typeof LoadWorldMessage.method;

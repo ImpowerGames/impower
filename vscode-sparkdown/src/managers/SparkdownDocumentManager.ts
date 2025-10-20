@@ -1,4 +1,4 @@
-import { SparkdownDocumentRegistry } from "@impower/sparkdown/src";
+import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import * as vscode from "vscode";
 
 export class SparkdownDocumentManager {

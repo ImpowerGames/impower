@@ -1,5 +1,5 @@
-import { Message } from "@impower/spark-engine/src/protocol/types/Message";
 import { type Container, type Renderer } from "pixi.js";
+import { type Message } from "../../../jsonrpc/src/types/Message";
 import { type Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import type AudioManager from "./managers/AudioManager";
 import type UIManager from "./managers/UIManager";

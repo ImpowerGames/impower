@@ -1,10 +1,10 @@
-import { IMessage } from "../../../protocol/types/IMessage";
-import { Message } from "../../../protocol/types/Message";
-import { MessageCallback } from "../../../protocol/types/MessageCallback";
-import { NotificationMessage } from "../../../protocol/types/NotificationMessage";
-import { RequestMessage } from "../../../protocol/types/RequestMessage";
-import { ResponseError } from "../../../protocol/types/ResponseError";
-import { ResponseMessage } from "../../../protocol/types/ResponseMessage";
+import { IMessage } from "@impower/jsonrpc/src/types/IMessage";
+import { Message } from "@impower/jsonrpc/src/types/Message";
+import { MessageCallback } from "@impower/jsonrpc/src/types/MessageCallback";
+import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
+import { ResponseError } from "@impower/jsonrpc/src/types/ResponseError";
+import { ResponseMessage } from "@impower/jsonrpc/src/types/ResponseMessage";
 import { Socket } from "./Socket";
 
 export interface ConnectionConfig {

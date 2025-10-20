@@ -1,3 +1,12 @@
+import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/classes/MessageProtocolNotificationType";
+import { IMessage } from "@impower/jsonrpc/src/types/IMessage";
+import { Message } from "@impower/jsonrpc/src/types/Message";
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
+import { ResponseError } from "@impower/jsonrpc/src/types/ResponseError";
+import { ResponseMessage } from "@impower/jsonrpc/src/types/ResponseMessage";
+import { isNotification } from "@impower/jsonrpc/src/utils/isNotification";
+import { isRequest } from "@impower/jsonrpc/src/utils/isRequest";
+import { isResponse } from "@impower/jsonrpc/src/utils/isResponse";
 import { Game } from "../game/core/classes/Game";
 import { ConnectGameMessage } from "../game/core/classes/messages/ConnectGameMessage";
 import { ContinueGameMessage } from "../game/core/classes/messages/ContinueGameMessage";
@@ -25,15 +34,6 @@ import { StepGameClockMessage } from "../game/core/classes/messages/StepGameCloc
 import { StepGameMessage } from "../game/core/classes/messages/StepGameMessage";
 import { UnpauseGameMessage } from "../game/core/classes/messages/UnpauseGameMessage";
 import { SystemConfiguration } from "../game/core/types/SystemConfiguration";
-import { MessageProtocolNotificationType } from "../protocol/classes/MessageProtocolNotificationType";
-import { IMessage } from "../protocol/types/IMessage";
-import { Message } from "../protocol/types/Message";
-import { RequestMessage } from "../protocol/types/RequestMessage";
-import { ResponseError } from "../protocol/types/ResponseError";
-import { ResponseMessage } from "../protocol/types/ResponseMessage";
-import { isNotification } from "../protocol/utils/isNotification";
-import { isRequest } from "../protocol/utils/isRequest";
-import { isResponse } from "../protocol/utils/isResponse";
 
 console.log("running spark-engine");
 
