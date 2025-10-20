@@ -1,6 +1,6 @@
-import { RequestMessage } from "../../types/base/RequestMessage";
-import { ResponseMessage } from "../../types/base/ResponseMessage";
-import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
+import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
+import { ResponseMessage } from "@impower/jsonrpc/src/types/ResponseMessage";
 
 export type RemoveCompilerFileMethod = typeof RemoveCompilerFileMessage.method;
 

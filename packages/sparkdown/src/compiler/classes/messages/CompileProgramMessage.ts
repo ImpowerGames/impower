@@ -1,7 +1,7 @@
-import { SparkProgram } from "../../../../sparkdown/src/compiler/types/SparkProgram";
-import { RequestMessage } from "../../types/base/RequestMessage";
-import { ResponseMessage } from "../../types/base/ResponseMessage";
-import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
+import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
+import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
+import { ResponseMessage } from "@impower/jsonrpc/src/types/ResponseMessage";
+import { SparkProgram } from "../../types/SparkProgram";
 
 export type CompileProgramMethod = typeof CompileProgramMessage.method;
 

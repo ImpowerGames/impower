@@ -130,8 +130,7 @@ export default class WorkspaceFileSystem {
           if (uri && typeof uri === "string") {
             const buffer = await this.readFile({ file: { uri } });
             const text = new TextDecoder("utf-8").decode(buffer);
-            const result = { uri, text };
-            return result;
+            return text;
           }
         }
         if (params.command === "sparkdown.getSrc") {

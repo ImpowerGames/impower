@@ -2,10 +2,6 @@ import { DiagnosticTag } from "@impower/spark-editor-protocol/src/enums/Diagnost
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { InitializedMessage } from "@impower/spark-editor-protocol/src/protocols/InitializedMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import {
-  DidCompileTextDocumentMessage,
-  DidCompileTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import {
   ClientCapabilities,
@@ -19,6 +15,10 @@ import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modu
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
 import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
+import {
+  CompiledProgramMessage,
+  CompiledProgramParams,
+} from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import type { SparkProgram } from "../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
 import ConsoleLogger from "./ConsoleLogger";
 import { Workspace } from "./Workspace";
@@ -127,7 +127,7 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
 };
 
 export type LanguageServerEvents = {
-  "textDocument/didCompile": (params: DidCompileTextDocumentParams) => void;
+  "compiler/didCompile": (params: CompiledProgramParams) => void;
 };
 
 export default class WorkspaceLanguageServer {
@@ -151,7 +151,7 @@ export default class WorkspaceLanguageServer {
   protected _events: {
     [K in keyof LanguageServerEvents]: Set<LanguageServerEvents[K]>;
   } = {
-    "textDocument/didCompile": new Set(),
+    "compiler/didCompile": new Set(),
   };
 
   protected _serverCapabilities?: ServerCapabilities;
@@ -184,22 +184,22 @@ export default class WorkspaceLanguageServer {
       }
     );
     this._connection.onNotification(
-      DidCompileTextDocumentMessage.type,
-      (params) => {
-        performance.mark(`DidCompileTextDocumentMessage start`);
+      CompiledProgramMessage.method,
+      (params: CompiledProgramParams) => {
+        performance.mark(`CompiledProgramMessage start`);
         this.updateProgram(params.program);
-        this._events[DidCompileTextDocumentMessage.method].forEach((l) => {
+        this._events[CompiledProgramMessage.method].forEach((l) => {
           l?.(params);
         });
         this.emit(
           MessageProtocol.event,
-          DidCompileTextDocumentMessage.type.notification(params)
+          CompiledProgramMessage.type.notification(params)
         );
-        performance.mark(`DidCompileTextDocumentMessage end`);
+        performance.mark(`CompiledProgramMessage end`);
         performance.measure(
-          `DidCompileTextDocumentMessage`,
-          `DidCompileTextDocumentMessage start`,
-          `DidCompileTextDocumentMessage end`
+          `CompiledProgramMessage`,
+          `CompiledProgramMessage start`,
+          `CompiledProgramMessage end`
         );
       }
     );

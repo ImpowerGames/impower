@@ -4,7 +4,6 @@ import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/sr
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
-import { DidCompileTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { isResponse } from "@impower/spark-editor-protocol/src/utils/isResponse";
 import { ConfigureGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ConfigureGameMessage";
 import { EnterGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage";
@@ -16,6 +15,7 @@ import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/
 import { GameToggledFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage";
 import { GameWillSimulateChoicesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWillSimulateChoicesMessage";
 import { LoadGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/LoadGameMessage";
+import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
@@ -140,8 +140,8 @@ export default class GamePreview extends Component(spec) {
       if (GameExitedMessage.type.is(e.detail)) {
         this.handleGameExited(e.detail);
       }
-      if (DidCompileTextDocumentMessage.type.is(message)) {
-        this.handleDidCompileTextDocument(message);
+      if (CompiledProgramMessage.type.is(message)) {
+        this.handleCompiledProgram(message);
       }
       if (ChangedEditorBreakpointsMessage.type.is(message)) {
         this.handleChangedEditorBreakpoints(message);
@@ -152,8 +152,8 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
-  handleDidCompileTextDocument = async (
-    message: DidCompileTextDocumentMessage.Notification
+  handleCompiledProgram = async (
+    message: CompiledProgramMessage.Notification
   ) => {
     if (this._previewIsConnected) {
       const { program } = message.params;

@@ -1,11 +1,11 @@
-import {
-  DidCompileTextDocumentMessage,
-  DidCompileTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
 import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
+import {
+  CompiledProgramMessage,
+  CompiledProgramParams,
+} from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import * as vscode from "vscode";
 import {
   ExecuteCommandParams,
@@ -43,8 +43,7 @@ export const activateLanguageClient = async (
           vscode.Uri.parse(uri)
         );
         const text = new TextDecoder("utf-8").decode(buffer);
-        const result = { uri, text };
-        return result;
+        return text;
       }
     }
     if (params.command === "sparkdown.getSrc") {
@@ -105,8 +104,8 @@ export const activateLanguageClient = async (
     },
   });
   client.onNotification(
-    DidCompileTextDocumentMessage.method,
-    (params: DidCompileTextDocumentParams) => {
+    CompiledProgramMessage.method,
+    (params: CompiledProgramParams) => {
       onCompile(context, params);
     }
   );
@@ -123,7 +122,7 @@ export const activateLanguageClient = async (
 
 const onCompile = async (
   _context: vscode.ExtensionContext,
-  params: DidCompileTextDocumentParams
+  params: CompiledProgramParams
 ) => {
   const program = params.program;
   const textDocument = params.textDocument;

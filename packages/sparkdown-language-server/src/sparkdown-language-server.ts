@@ -9,7 +9,7 @@ import {
   createConnection,
   TextDocumentSyncKind,
 } from "vscode-languageserver/browser";
-import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
+import { SparkdownLanguageServerWorkspace } from "./classes/SparkdownLanguageServerWorkspace";
 import { canRename } from "./utils/providers/canRename";
 import { getColorPresentations } from "./utils/providers/getColorPresentations";
 import { getCompletions } from "./utils/providers/getCompletions";
@@ -34,7 +34,7 @@ try {
   const messageWriter = new BrowserMessageWriter(self);
   const connection = createConnection(messageReader, messageWriter);
 
-  const documents = new SparkdownTextDocuments();
+  const workspace = new SparkdownLanguageServerWorkspace(connection);
 
   connection.onInitialize(async (params): Promise<InitializeResult> => {
     const capabilities: ServerCapabilities = {
@@ -99,14 +99,14 @@ try {
         full: true,
       },
     };
-    documents.omitImageData = params?.initializationOptions?.["omitImageData"];
+    workspace.omitImageData = params?.initializationOptions?.["omitImageData"];
     const workspaceFolders = params?.workspaceFolders;
     if (workspaceFolders) {
-      documents.loadWorkspace(workspaceFolders);
+      workspace.loadWorkspaceFolders(workspaceFolders);
     }
     const settings = params?.initializationOptions?.["settings"];
     if (settings) {
-      documents.loadConfiguration(settings);
+      workspace.loadConfiguration(settings);
     }
     const builtinDefinitions =
       params?.initializationOptions?.["builtinDefinitions"];
@@ -117,7 +117,8 @@ try {
     const descriptionDefinitions =
       params?.initializationOptions?.["descriptionDefinitions"];
     const files = params?.initializationOptions?.["files"];
-    await documents.loadCompiler({
+    workspace.loadDocuments({ files });
+    await workspace.loadCompiler({
       builtinDefinitions,
       optionalDefinitions,
       schemaDefinitions,
@@ -126,7 +127,7 @@ try {
     });
     const uri = params?.initializationOptions?.["uri"];
     if (uri) {
-      const program = await documents.compile(uri, true);
+      const program = await workspace.compile(uri, true);
       return { capabilities, program };
     }
     return { capabilities };
@@ -134,15 +135,15 @@ try {
 
   connection.onInitialized(async () => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
-    documents.loadConfiguration(settings);
+    workspace.loadConfiguration(settings);
   });
 
   // foldingRangeProvider
   connection.onFoldingRanges((params) => {
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const annotations = documents.annotations(uri);
-    const program = documents.program(uri);
+    const document = workspace.document(uri);
+    const annotations = workspace.annotations(uri);
+    const program = workspace.program(uri);
     performance.mark(`lsp: onFoldingRanges ${uri} start`);
     const result = getFoldingRanges(document, annotations, program);
     performance.mark(`lsp: onFoldingRanges ${uri} end`);
@@ -157,8 +158,8 @@ try {
   // colorProvider
   connection.onDocumentColor((params) => {
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const annotations = documents.annotations(uri);
+    const document = workspace.document(uri);
+    const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onDocumentColor ${uri} start`);
     const result = getDocumentColors(document, annotations);
     performance.mark(`lsp: onDocumentColor ${uri} end`);
@@ -184,8 +185,8 @@ try {
   // documentSymbolProvider
   connection.onDocumentSymbol((params) => {
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const annotations = documents.annotations(uri);
+    const document = workspace.document(uri);
+    const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onDocumentSymbol ${uri} start`);
     const result = getDocumentSymbols(document, annotations);
     performance.mark(`lsp: onDocumentSymbol ${uri} end`);
@@ -200,10 +201,10 @@ try {
   // hoverProvider
   connection.onHover((params) => {
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const annotations = documents.annotations(uri);
-    const program = documents.program(uri);
-    const config = documents.compilerConfig;
+    const document = workspace.document(uri);
+    const annotations = workspace.annotations(uri);
+    const program = workspace.program(uri);
+    const config = workspace.compilerConfig;
     performance.mark(`lsp: onHover ${uri} start`);
     const result = getHover(
       document,
@@ -224,14 +225,14 @@ try {
   // completionProvider
   connection.onCompletion((params) => {
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const tree = documents.tree(uri);
-    const program = documents.program(uri);
-    const config = documents.compilerConfig;
+    const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
+    const program = workspace.program(uri);
+    const config = workspace.compilerConfig;
     const scripts = program?.scripts || [uri];
     const scriptAnnotations = new Map<string, SparkdownAnnotations>();
     for (const uri of Object.keys(scripts)) {
-      scriptAnnotations.set(uri, documents.annotations(uri));
+      scriptAnnotations.set(uri, workspace.annotations(uri));
     }
     performance.mark(`lsp: onCompletion ${uri} start`);
     const result = getCompletions(
@@ -255,11 +256,11 @@ try {
   // documentFormattingProvider
   connection.onDocumentFormatting(async (params) => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
-    documents.loadConfiguration(settings);
+    workspace.loadConfiguration(settings);
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const tree = documents.tree(uri);
-    const annotations = documents.annotations(uri);
+    const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
+    const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onDocumentFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
       settings,
@@ -280,11 +281,11 @@ try {
   // documentRangeFormattingProvider
   connection.onDocumentRangeFormatting(async (params) => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
-    documents.loadConfiguration(settings);
+    workspace.loadConfiguration(settings);
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const tree = documents.tree(uri);
-    const annotations = documents.annotations(uri);
+    const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
+    const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onDocumentRangeFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
       settings,
@@ -306,11 +307,11 @@ try {
   // documentOnTypeFormattingProvider
   connection.onDocumentOnTypeFormatting(async (params) => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
-    documents.loadConfiguration(settings);
+    workspace.loadConfiguration(settings);
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const tree = documents.tree(uri);
-    const annotations = documents.annotations(uri);
+    const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
+    const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
       settings,
@@ -332,8 +333,8 @@ try {
   // prepareRenameProvider
   connection.onPrepareRename((params) => {
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const tree = documents.tree(uri);
+    const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
     performance.mark(`lsp: onPrepareRename ${uri} start`);
     const result = canRename(document, tree, params.position);
     performance.mark(`lsp: onPrepareRename ${uri} end`);
@@ -348,18 +349,18 @@ try {
   // renameProvider
   connection.onRenameRequest(async (params) => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
-    documents.loadConfiguration(settings);
+    workspace.loadConfiguration(settings);
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const tree = documents.tree(uri);
-    const program = documents.program(uri);
+    const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
+    const program = workspace.program(uri);
     performance.mark(`lsp: onRenameRequest ${uri} start`);
     const result = getRenameEdits(
       settings,
       document,
       tree,
       program,
-      documents,
+      workspace,
       params.newName,
       params.position
     );
@@ -375,15 +376,15 @@ try {
   // referencesProvider
   connection.onReferences((params) => {
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const tree = documents.tree(uri);
-    const program = documents.program(uri);
+    const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
+    const program = workspace.program(uri);
     performance.mark(`lsp: onReferences ${uri} start`);
     const { references } = getReferences(
       document,
       tree,
       program,
-      documents,
+      workspace,
       params.position,
       {
         ...params.context,
@@ -404,15 +405,15 @@ try {
   // declarationProvider
   connection.onDeclaration((params) => {
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const tree = documents.tree(uri);
-    const program = documents.program(uri);
+    const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
+    const program = workspace.program(uri);
     performance.mark(`lsp: onDeclaration ${uri} start`);
     const { references } = getReferences(
       document,
       tree,
       program,
-      documents,
+      workspace,
       params.position,
       {
         searchOtherFiles: true,
@@ -434,11 +435,11 @@ try {
   // documentLinkProvider
   connection.onDocumentLinks((params) => {
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const tree = documents.tree(uri);
-    const annotations = documents.annotations(uri);
+    const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
+    const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onDocumentLinks ${uri} start`);
-    const result = getDocumentLinks(document, tree, annotations, documents);
+    const result = getDocumentLinks(document, tree, annotations, workspace);
     performance.mark(`lsp: onDocumentLinks ${uri} end`);
     performance.measure(
       `lsp: onDocumentLinks ${uri}`,
@@ -451,15 +452,15 @@ try {
   // documentHighlightProvider
   connection.onDocumentHighlight((params) => {
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const tree = documents.tree(uri);
-    const program = documents.program(uri);
+    const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
+    const program = workspace.program(uri);
     performance.mark(`lsp: onDocumentHighlight ${uri} start`);
     const { references } = getReferences(
       document,
       tree,
       program,
-      documents,
+      workspace,
       params.position,
       {
         searchOtherFiles: false,
@@ -480,10 +481,10 @@ try {
   // semanticTokensProvider
   connection.languages.semanticTokens.on(async (params) => {
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const annotations = documents.annotations(uri);
+    const document = workspace.document(uri);
+    const annotations = workspace.annotations(uri);
     const program =
-      documents.program(uri) || (await documents.compile(uri, true));
+      workspace.program(uri) || (await workspace.compile(uri, true));
     performance.mark(`lsp: semanticTokens.on ${uri} start`);
     const result = getSemanticTokens(document, annotations, program);
     performance.mark(`lsp: semanticTokens.on ${uri} end`);
@@ -496,10 +497,10 @@ try {
   });
   connection.languages.semanticTokens.onRange(async (params) => {
     const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const annotations = documents.annotations(uri);
+    const document = workspace.document(uri);
+    const annotations = workspace.annotations(uri);
     const program =
-      documents.program(uri) || (await documents.compile(uri, true));
+      workspace.program(uri) || (await workspace.compile(uri, true));
     performance.mark(`lsp: semanticTokens.onRange ${uri} start`);
     const result = getSemanticTokens(
       document,
@@ -516,7 +517,7 @@ try {
     return result;
   });
 
-  documents.listen(connection);
+  workspace.listen();
 
   connection.listen();
 } catch (e) {

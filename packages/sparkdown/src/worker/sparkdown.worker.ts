@@ -1,5 +1,13 @@
-import { SparkdownCompiler } from "./compiler/classes/SparkdownCompiler";
-import { profile } from "./compiler/utils/profile";
+import { AddCompilerFileMessage } from "../compiler/classes/messages/AddCompilerFileMessage";
+import { CompileProgramMessage } from "../compiler/classes/messages/CompileProgramMessage";
+import { CompilerInitializedMessage } from "../compiler/classes/messages/CompilerInitializedMessage";
+import { CompilerInitializeMessage } from "../compiler/classes/messages/CompilerInitializeMessage";
+import { ConfigureCompilerMessage } from "../compiler/classes/messages/ConfigureCompilerMessage";
+import { RemoveCompilerFileMessage } from "../compiler/classes/messages/RemoveCompilerFileMessage";
+import { UpdateCompilerDocumentMessage } from "../compiler/classes/messages/UpdateCompilerDocumentMessage";
+import { UpdateCompilerFileMessage } from "../compiler/classes/messages/UpdateCompilerFileMessage";
+import { SparkdownCompiler } from "../compiler/classes/SparkdownCompiler";
+import { profile } from "../compiler/utils/profile";
 
 console.log("running sparkdown-compiler");
 
@@ -45,32 +53,32 @@ onmessage = async (e) => {
     const params = message.params;
     const id = message.id;
     if (params) {
-      if (method === "compiler/initialize") {
+      if (method === CompilerInitializeMessage.method) {
         const uri = "";
         respond(method, id, uri, () => ({}));
-        respond("compiler/initialized");
+        respond(CompilerInitializedMessage.method);
       }
-      if (method === "compiler/configure") {
+      if (method === ConfigureCompilerMessage.method) {
         const uri = "";
         respond(method, id, uri, () => compiler.configure(params));
       }
-      if (method === "compiler/addFile") {
+      if (method === AddCompilerFileMessage.method) {
         const uri = params.file.uri;
         respond(method, id, uri, () => compiler.addFile(params));
       }
-      if (method === "compiler/updateFile") {
+      if (method === UpdateCompilerFileMessage.method) {
         const uri = params.file.uri;
         respond(method, id, uri, () => compiler.updateFile(params));
       }
-      if (method === "compiler/removeFile") {
+      if (method === RemoveCompilerFileMessage.method) {
         const uri = params.file.uri;
         respond(method, id, uri, () => compiler.removeFile(params));
       }
-      if (method === "compiler/updateDocument") {
+      if (method === UpdateCompilerDocumentMessage.method) {
         const uri = params.textDocument.uri;
         respond(method, id, uri, () => compiler.updateDocument(params));
       }
-      if (method === "compiler/compile") {
+      if (method === CompileProgramMessage.method) {
         const uri = params.uri;
         respond(method, id, uri, () => compiler.compile(params));
       }

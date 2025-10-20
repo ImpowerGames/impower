@@ -23,6 +23,10 @@
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true
   },
-  "include": ["src"],
+  "include": [
+    "src",
+    "../sparkdown/src/workspace/classes/SparkdownWorkspace.ts",
+    "../sparkdown/src/workspace/utils/timing"
+  ],
   "exclude": ["node_modules"]
 }

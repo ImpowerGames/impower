@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
+    "@impower/jsonrpc": "file:../jsonrpc",
     "@impower/sparkdown": "file:../sparkdown",
     "@impower/sparkdown-document-views": "file:../sparkdown-document-views",
     "@impower/textmate-grammar-tree": "file:../textmate-grammar-tree",

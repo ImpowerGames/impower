@@ -19,11 +19,6 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
-import {
-  DidCompileTextDocumentMessage,
-  DidCompileTextDocumentMethod,
-  DidCompileTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import { DidCloseFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCloseFileEditorMessage";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
@@ -50,6 +45,7 @@ import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/me
 import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
+import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { debounce } from "../utils/debounce";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
@@ -94,8 +90,8 @@ export default class WorkspaceWindow {
       if (ChangedEditorHighlightsMessage.type.is(e.detail)) {
         this.handleChangedEditorHighlights(e.detail);
       }
-      if (DidCompileTextDocumentMessage.type.is(e.detail)) {
-        this.handleDidParseDocument(e.detail);
+      if (CompiledProgramMessage.type.is(e.detail)) {
+        this.handleCompiledProgram(e.detail);
       }
     }
   };
@@ -281,11 +277,8 @@ export default class WorkspaceWindow {
     });
   };
 
-  protected handleDidParseDocument = (
-    message: NotificationMessage<
-      DidCompileTextDocumentMethod,
-      DidCompileTextDocumentParams
-    >
+  protected handleCompiledProgram = (
+    message: CompiledProgramMessage.Notification
   ) => {
     const { program } = message.params;
     this.update({

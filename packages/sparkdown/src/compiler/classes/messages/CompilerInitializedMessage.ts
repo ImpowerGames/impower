@@ -1,5 +1,5 @@
-import { NotificationMessage } from "../../types/base/NotificationMessage";
-import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
+import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/classes/MessageProtocolNotificationType";
+import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
 
 export type CompilerInitializedMethod =
   typeof CompilerInitializedMessage.method;

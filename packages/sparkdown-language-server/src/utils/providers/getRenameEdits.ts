@@ -15,7 +15,7 @@ import {
   type DocumentUri,
   type TextEdit,
 } from "vscode-languageserver-textdocument";
-import SparkdownTextDocuments from "../../classes/SparkdownTextDocuments";
+import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { SparkdownConfiguration } from "../../types/SparkdownConfiguration";
 import { getReferences } from "./getReferences";
 import { getSymbol } from "./getSymbol";
@@ -25,7 +25,7 @@ export const getRenameEdits = (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   program: SparkProgram | undefined,
-  documents: SparkdownTextDocuments,
+  workspace: SparkdownLanguageServerWorkspace,
   newName: string,
   position: Position
 ): WorkspaceEdit | null | undefined => {
@@ -47,7 +47,7 @@ export const getRenameEdits = (
     document,
     tree,
     program,
-    documents,
+    workspace,
     position,
     {
       searchOtherFiles: true,
@@ -89,8 +89,8 @@ export const getRenameEdits = (
         ? ["", "__bolditalic", "__bold_italic", "__bold", "__italic"]
         : [""];
     for (const suffix of possibleNameSuffixes) {
-      for (const oldUri of documents.findFiles(currentName + suffix, type)) {
-        const newUri = documents.getRenamedUri(oldUri, newName + suffix);
+      for (const oldUri of workspace.findFiles(currentName + suffix, type)) {
+        const newUri = workspace.getRenamedUri(oldUri, newName + suffix);
         renameFile(oldUri, newUri);
       }
     }
@@ -119,16 +119,16 @@ export const getRenameEdits = (
 
   if (symbol.name === "IncludeContent") {
     const path = document.read(symbol.from, symbol.to);
-    const oldUri = documents.resolve(document.uri, path);
+    const oldUri = workspace.resolve(document.uri, path);
     if (oldUri) {
-      const newUri = documents.getRenamedUri(oldUri, newName);
+      const newUri = workspace.getRenamedUri(oldUri, newName);
       renameSymbol(document.uri, nameRange);
       renameFile(oldUri, newUri);
     }
   }
 
   for (const [uri, edits] of Object.entries(changes)) {
-    const document = documents.get(uri);
+    const document = workspace.document(uri);
     if (document) {
       documentChanges.push({
         textDocument: {

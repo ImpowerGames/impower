@@ -20,13 +20,7 @@ import {
   ViewUpdate,
   panels,
 } from "@codemirror/view";
-import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import {
-  DidCompileTextDocumentMessage,
-  DidCompileTextDocumentMethod,
-  DidCompileTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCompileTextDocumentMessage";
 import {
   MessageConnection,
   ServerCapabilities,
@@ -451,29 +445,11 @@ const createEditorView = (
   const handleProtocol = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      if (DidCompileTextDocumentMessage.type.isNotification(message)) {
-        onParse(message);
-      }
+      // TODO:
+      // if (CompiledProgramMessage.type.isNotification(message)) {
+      //   onParse(message);
+      // }
     }
-  };
-  const onParse = (
-    message: NotificationMessage<
-      DidCompileTextDocumentMethod,
-      DidCompileTextDocumentParams
-    >
-  ) => {
-    // TODO
-    // const params = message.params;
-    // const program = params.program;
-    // const version = params.textDocument.version;
-    // programContext.program = program;
-    // if (version === getDocumentVersion(view.state)) {
-    //   view.dispatch(
-    //     updateVariableWidgets({
-    //       variables: {},
-    //     })
-    //   );
-    // }
   };
   window.addEventListener(MessageProtocol.event, handleProtocol);
   const disposable = {

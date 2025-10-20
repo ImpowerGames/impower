@@ -11,7 +11,7 @@ import {
   ReferenceContext,
   type Position,
 } from "vscode-languageserver";
-import SparkdownTextDocuments from "../../classes/SparkdownTextDocuments";
+import { SparkdownLanguageServerWorkspace } from "../../classes/SparkdownLanguageServerWorkspace";
 import { getSymbolContext } from "../annotations/getSymbolContext";
 import { resolveDivertPath } from "../annotations/resolveDivertPath";
 import { resolveSymbolId } from "../annotations/resolveSymbolId";
@@ -35,7 +35,7 @@ export const getReferences = (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   program: SparkProgram | undefined,
-  documents: SparkdownTextDocuments,
+  workspace: SparkdownLanguageServerWorkspace,
   position: Position,
   context: ReferenceContext & {
     searchOtherFiles: boolean;
@@ -63,7 +63,7 @@ export const getReferences = (
   const symbolName = document?.getText(nameRange);
 
   const { symbolIds, interdependentIds } = getSymbolIds(
-    documents.annotations(document.uri),
+    workspace.annotations(document.uri),
     symbol
   );
   if (!symbolIds && !interdependentIds) {
@@ -81,7 +81,7 @@ export const getReferences = (
   const { scopePath: symbolScopePath, reference: symbolReference } =
     getSymbolContext(
       document,
-      documents.annotations(document.uri).references,
+      workspace.annotations(document.uri).references,
       symbol.from
     );
 
@@ -96,7 +96,7 @@ export const getReferences = (
         ? ["", "__bolditalic", "__bold_italic", "__bold", "__italic"]
         : [""];
     for (const suffix of possibleNameSuffixes) {
-      for (const uri of documents.findFiles(symbolName + suffix, type)) {
+      for (const uri of workspace.findFiles(symbolName + suffix, type)) {
         references.push({
           uri,
           range: {
@@ -121,7 +121,7 @@ export const getReferences = (
     const from = r.from;
     const to = r.to;
     const kind = getDocumentHighlightKind(r);
-    const document = documents.get(uri);
+    const document = workspace.document(uri);
     if (document) {
       const foundReferencesInDocument = foundReferences[uri];
       if (!foundReferencesInDocument || !foundReferencesInDocument.has(from)) {
@@ -160,7 +160,7 @@ export const getReferences = (
             r.value.type,
             refScopePath,
             program,
-            documents.compilerConfig
+            workspace.compilerConfig
           );
           const fullyResolvedRefId =
             resolvedRefId && r.value.type.usage === "divert"
@@ -174,7 +174,7 @@ export const getReferences = (
                   symbolReference,
                   symbolScopePath,
                   program,
-                  documents.compilerConfig
+                  workspace.compilerConfig
                 );
                 if (resolvedSymbolId) {
                   resolvedSymbolIds.push(resolvedSymbolId);
@@ -234,7 +234,7 @@ export const getReferences = (
                     symbolReference,
                     symbolScopePath,
                     program,
-                    documents.compilerConfig
+                    workspace.compilerConfig
                   );
                   if (resolvedSymbolId) {
                     resolvedSymbolIds.push(resolvedSymbolId);
@@ -252,12 +252,12 @@ export const getReferences = (
   };
 
   const searchUris = context.searchOtherFiles
-    ? documents.uris()
+    ? workspace.uris()
     : [document.uri];
 
   for (const uri of searchUris) {
-    const document = documents.get(uri);
-    const annotations = documents.annotations(uri);
+    const document = workspace.document(uri);
+    const annotations = workspace.annotations(uri);
     if (document && annotations) {
       let scopePathParts: {
         kind: "" | "function" | "scene" | "branch" | "knot" | "stitch";
