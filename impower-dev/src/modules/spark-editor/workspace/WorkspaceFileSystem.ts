@@ -6,7 +6,10 @@ import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protoc
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
 import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage";
 import { DidWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage";
-import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
+import {
+  ExecuteCommandMessage,
+  ExecuteCommandParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import {
   ReadDirectoryFilesMessage,
   ReadDirectoryFilesParams,
@@ -124,29 +127,37 @@ export default class WorkspaceFileSystem {
     Workspace.ls.connection.onRequest(
       ExecuteCommandMessage.type,
       async (params) => {
-        // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
-        if (params.command === "sparkdown.readTextDocument") {
-          const [uri] = params.arguments || [];
-          if (uri && typeof uri === "string") {
-            const buffer = await this.readFile({ file: { uri } });
-            const text = new TextDecoder("utf-8").decode(buffer);
-            return text;
-          }
-        }
-        if (params.command === "sparkdown.getSrc") {
-          const [uri] = params.arguments || [];
-          if (uri && typeof uri === "string") {
-            return this._files?.[uri]?.src;
-          }
-        }
-        return undefined;
+        return this.executeCommand(params);
       }
     );
-    await Workspace.ls.start(
+    Workspace.ls.start(
       this.getDirectoryUri(projectId),
       Object.values(this._files)
     );
     return result;
+  }
+
+  async executeCommand(params: ExecuteCommandParams) {
+    // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
+    if (params.command === "sparkdown.getFileText") {
+      const [uri] = params.arguments || [];
+      return Workspace.fs.getFileText(uri);
+    }
+    if (params.command === "sparkdown.getFileSrc") {
+      const [uri] = params.arguments || [];
+      return Workspace.fs.getFileSrc(uri);
+    }
+    return undefined;
+  }
+
+  async getFileText(uri: string) {
+    const buffer = await this.readFile({ file: { uri } });
+    const text = new TextDecoder("utf-8").decode(buffer);
+    return text;
+  }
+
+  async getFileSrc(uri: string) {
+    return this._files?.[uri]?.src;
   }
 
   protected emit<T>(eventName: string, detail?: T): boolean {

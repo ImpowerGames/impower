@@ -99,35 +99,14 @@ try {
         full: true,
       },
     };
-    workspace.omitImageData = params?.initializationOptions?.["omitImageData"];
     const workspaceFolders = params?.workspaceFolders;
     if (workspaceFolders) {
       workspace.loadWorkspaceFolders(workspaceFolders);
     }
-    const settings = params?.initializationOptions?.["settings"];
-    if (settings) {
-      workspace.loadConfiguration(settings);
-    }
-    const builtinDefinitions =
-      params?.initializationOptions?.["builtinDefinitions"];
-    const optionalDefinitions =
-      params?.initializationOptions?.["optionalDefinitions"];
-    const schemaDefinitions =
-      params?.initializationOptions?.["schemaDefinitions"];
-    const descriptionDefinitions =
-      params?.initializationOptions?.["descriptionDefinitions"];
-    const files = params?.initializationOptions?.["files"];
-    workspace.loadDocuments({ files });
-    await workspace.loadCompiler({
-      builtinDefinitions,
-      optionalDefinitions,
-      schemaDefinitions,
-      descriptionDefinitions,
-      files,
-    });
-    const uri = params?.initializationOptions?.["uri"];
-    if (uri) {
-      const program = await workspace.compile(uri, true);
+    const { program } = await workspace.initialize(
+      params?.initializationOptions
+    );
+    if (program) {
       return { capabilities, program };
     }
     return { capabilities };

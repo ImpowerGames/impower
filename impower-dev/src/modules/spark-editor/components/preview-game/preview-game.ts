@@ -2,8 +2,10 @@ import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/Message
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
+import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import { isResponse } from "@impower/spark-editor-protocol/src/utils/isResponse";
 import { ConfigureGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ConfigureGameMessage";
 import { EnterGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage";
@@ -14,8 +16,10 @@ import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/m
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
 import { GameToggledFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage";
 import { GameWillSimulateChoicesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWillSimulateChoicesMessage";
-import { LoadGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/LoadGameMessage";
-import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
+import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
+import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
+import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
@@ -25,10 +29,6 @@ const SPARKDOWN_PLAYER_ORIGIN =
   process?.env?.["VITE_SPARKDOWN_PLAYER_ORIGIN"] || "";
 
 export default class GamePreview extends Component(spec) {
-  _loadingProgram?: SparkProgram;
-
-  _loadedProgram?: SparkProgram;
-
   _startFromFile = "";
 
   _startFromLine = 0;
@@ -69,25 +69,29 @@ export default class GamePreview extends Component(spec) {
 
     const message = (e as MessageEvent).data;
 
-    // Forward messages from player to editor
+    // Forward messages from iframe player to editor
     this.emit(MessageProtocol.event, message);
 
-    // Fetch assets from workspace and respond to player
+    // Fetch assets from workspace and respond to iframe player
     if (FetchGameAssetMessage.type.is(message)) {
       const { path } = message.params;
       const uri = Workspace.fs.getUriFromPath(path);
       const buffer = await Workspace.fs.readFile({ file: { uri } });
-      const response = FetchGameAssetMessage.type.response(message.id, {
-        transfer: [buffer],
-      });
-      const iframe = this.refs.iframe as HTMLIFrameElement;
-      if (iframe?.contentWindow) {
-        iframe.contentWindow.postMessage(
-          response,
-          SPARKDOWN_PLAYER_ORIGIN,
-          response.result?.transfer
-        );
-      }
+      this.sendResponse(
+        FetchGameAssetMessage.type,
+        message.id,
+        {
+          transfer: [buffer],
+        },
+        [buffer]
+      );
+    }
+
+    // Execute command and respond to iframe player
+    if (ExecuteCommandMessage.type.is(message)) {
+      const params = message.params;
+      const result = await Workspace.fs.executeCommand(params);
+      this.sendResponse(ExecuteCommandMessage.type, message.id, result);
     }
   };
 
@@ -103,16 +107,38 @@ export default class GamePreview extends Component(spec) {
       // Once player is ready, send assets and load the game
       if (ConnectedPreviewMessage.type.is(message)) {
         this._previewIsConnected = true;
-        const program = await Workspace.ls.getProgram();
-        await this.debouncedReload(program);
+        const projectId = Workspace.window.store.project.id;
+        if (projectId) {
+          const files = await Workspace.fs.getFiles(projectId);
+          const uri = Workspace.window.getOpenedDocumentUri();
+          await this.configureGame();
+          await this.sendRequest(InitializeMessage.type, {
+            initializationOptions: {
+              settings: Workspace.configuration.settings,
+              files: Object.values(files),
+              definitions: {
+                builtins: DEFAULT_BUILTIN_DEFINITIONS,
+                optionals: DEFAULT_OPTIONAL_DEFINITIONS,
+                schemas: DEFAULT_SCHEMA_DEFINITIONS,
+                descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
+              },
+              uri,
+            },
+            capabilities: {},
+            rootUri: null,
+            processId: 0,
+          });
+        }
       }
 
       if (
         typeof message.method === "string" &&
         (message.method.startsWith("game/") ||
-          message.method.startsWith("preview/"))
+          message.method.startsWith("preview/") ||
+          message.method.startsWith("workspace/") ||
+          message.method.startsWith("textDocument/"))
       ) {
-        // Forward messages from editor to player
+        // Forward messages from editor to iframe player
         const iframe = this.refs.iframe as HTMLIFrameElement;
         if (iframe?.contentWindow) {
           iframe.contentWindow.postMessage(
@@ -140,9 +166,6 @@ export default class GamePreview extends Component(spec) {
       if (GameExitedMessage.type.is(e.detail)) {
         this.handleGameExited(e.detail);
       }
-      if (CompiledProgramMessage.type.is(message)) {
-        this.handleCompiledProgram(message);
-      }
       if (ChangedEditorBreakpointsMessage.type.is(message)) {
         this.handleChangedEditorBreakpoints(message);
       }
@@ -152,25 +175,16 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
-  handleCompiledProgram = async (
-    message: CompiledProgramMessage.Notification
-  ) => {
-    if (this._previewIsConnected) {
-      const { program } = message.params;
-      await this.debouncedReload(program);
-    }
-  };
-
   handleChangedEditorBreakpoints = async (
     message: ChangedEditorBreakpointsMessage.Notification
   ) => {
-    await this.configureGame();
+    // TODO
   };
 
   handleChangedEditorPinpoints = async (
     message: ChangedEditorPinpointsMessage.Notification
   ) => {
-    await this.configureGame();
+    // TODO
   };
 
   handleSelectedEditor = async (
@@ -306,21 +320,6 @@ export default class GamePreview extends Component(spec) {
     }
   }
 
-  async debouncedReload(program: SparkProgram) {
-    if (
-      this._loadedProgram?.uri === this._loadingProgram?.uri &&
-      this._loadedProgram?.version === this._loadingProgram?.version
-    ) {
-      await this.reload(program);
-    }
-  }
-
-  async reload(program: SparkProgram) {
-    this._loadingProgram = program;
-    await this.loadProgram(program);
-    this._loadedProgram = program;
-  }
-
   getGameConfiguration() {
     const editor = Workspace.window.getActiveEditorForPane("logic");
     if (editor) {
@@ -343,13 +342,6 @@ export default class GamePreview extends Component(spec) {
     return {};
   }
 
-  async loadProgram(program: SparkProgram) {
-    await this.sendRequest(LoadGameMessage.type, {
-      program,
-      ...this.getGameConfiguration(),
-    });
-  }
-
   async configureGame() {
     await this.sendRequest(
       ConfigureGameMessage.type,
@@ -362,12 +354,12 @@ export default class GamePreview extends Component(spec) {
     params: P,
     transfer?: Transferable[]
   ): Promise<R> {
+    const request = type.request(params);
     const iframe = this.refs.iframe as HTMLIFrameElement;
     if (iframe) {
       // Post message to iframe
       const contentWindow = iframe.contentWindow;
       if (contentWindow) {
-        const request = type.request(params);
         return new Promise<R>((resolve, reject) => {
           const onResponse = (message: any) => {
             if (message) {
@@ -394,7 +386,6 @@ export default class GamePreview extends Component(spec) {
       }
     } else {
       // Send event
-      const request = type.request(params);
       return new Promise<R>((resolve, reject) => {
         const onResponse = (message: any) => {
           if (message) {
@@ -419,11 +410,33 @@ export default class GamePreview extends Component(spec) {
     }
   }
 
+  sendResponse<M extends string, P, R>(
+    type: MessageProtocolRequestType<M, P, R>,
+    id: number | string,
+    result: R,
+    transfer?: Transferable[]
+  ): void {
+    const response = type.response(id, result);
+    const iframe = this.refs.iframe as HTMLIFrameElement;
+    if (iframe) {
+      // Post message to iframe
+      const contentWindow = iframe.contentWindow;
+      if (contentWindow) {
+        contentWindow.postMessage(response, SPARKDOWN_PLAYER_ORIGIN, transfer);
+      } else {
+        throw new Error("content window not loaded");
+      }
+    } else {
+      // Send event
+      this.emit(MessageProtocol.event, response);
+    }
+  }
+
   async pageUp() {
     const editor = Workspace.window.getActiveEditorForPane("logic");
+    const program = await Workspace.ls.getProgram();
     if (editor) {
       const { uri, selectedRange } = editor;
-      const program = this._loadedProgram;
       const currLine = selectedRange?.start.line ?? 0;
       if (program) {
         const prevSource = this.getPreviousSource(program, uri, currLine);
@@ -446,9 +459,9 @@ export default class GamePreview extends Component(spec) {
 
   async pageDown() {
     const editor = Workspace.window.getActiveEditorForPane("logic");
+    const program = await Workspace.ls.getProgram();
     if (editor) {
       const { uri, selectedRange } = editor;
-      const program = this._loadedProgram;
       const currLine = selectedRange?.start.line ?? 0;
       if (program) {
         const nextSource = this.getNextSource(program, uri, currLine);

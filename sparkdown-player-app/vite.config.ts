@@ -2,6 +2,37 @@ import * as esbuild from "esbuild";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
 
+const PRODUCTION = process.env.NODE_ENV === "production";
+
+function viteInlineWorkerPlugin(extraConfig?: esbuild.BuildOptions): Plugin {
+  return {
+    name: "vite-inline-worker",
+    async transform(_, id) {
+      if (/\.worker\.(?:ts|js)$/.test(id)) {
+        const result = await esbuild.build({
+          entryPoints: [id],
+          write: false,
+          bundle: true,
+          minify: PRODUCTION,
+          format: "esm",
+          target: "esnext",
+          ...(extraConfig || {}),
+        });
+
+        let code = result.outputFiles?.[0]?.text || "";
+        const exportIndex = code.lastIndexOf("export");
+        if (exportIndex >= 0) code = code.slice(0, exportIndex);
+
+        return {
+          code: `export default ${JSON.stringify(code)};`,
+          map: null,
+        };
+      }
+      return null;
+    },
+  };
+}
+
 function devServiceWorkerPlugin(options: {
   entry: string;
   outfile: string;
@@ -67,6 +98,7 @@ export default defineConfig({
     host: true,
   },
   plugins: [
+    viteInlineWorkerPlugin(),
     devServiceWorkerPlugin({
       entry: "src/workers/sw.ts",
       outfile: "sw.js",

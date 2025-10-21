@@ -3,7 +3,9 @@ import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
 
 export type CompilerInitializeMethod = typeof CompilerInitializeMessage.method;
 
-export interface CompilerInitializeParams {}
+export interface CompilerInitializeParams {
+  profilerId: string;
+}
 
 export interface CompilerInitializeResult {}
 

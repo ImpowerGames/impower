@@ -20,9 +20,9 @@ const respond = <T>(
   work?: () => T,
   transfer?: (result: T) => ArrayBuffer | undefined
 ) => {
-  profile("start", method, uri);
+  profile("start", compiler.profilerId, method, uri);
   const result = work?.();
-  profile("start", "send " + method, uri);
+  profile("start", compiler.profilerId, "send " + method, uri);
   const transferable = result != null ? transfer?.(result) : undefined;
   const options = transferable ? [transferable] : {};
   const message: {
@@ -36,8 +36,8 @@ const respond = <T>(
     message.result = result;
   }
   postMessage(message, options);
-  profile("end", "send " + method, uri);
-  profile("end", method, uri);
+  profile("end", compiler.profilerId, "send " + method, uri);
+  profile("end", compiler.profilerId, method, uri);
   return result;
 };
 
@@ -49,39 +49,48 @@ onmessage = async (e) => {
     params: any;
   } = e.data;
   if (message) {
-    const method = message.method;
-    const params = message.params;
-    const id = message.id;
-    if (params) {
-      if (method === CompilerInitializeMessage.method) {
-        const uri = "";
-        respond(method, id, uri, () => ({}));
-        respond(CompilerInitializedMessage.method);
-      }
-      if (method === ConfigureCompilerMessage.method) {
-        const uri = "";
-        respond(method, id, uri, () => compiler.configure(params));
-      }
-      if (method === AddCompilerFileMessage.method) {
-        const uri = params.file.uri;
-        respond(method, id, uri, () => compiler.addFile(params));
-      }
-      if (method === UpdateCompilerFileMessage.method) {
-        const uri = params.file.uri;
-        respond(method, id, uri, () => compiler.updateFile(params));
-      }
-      if (method === RemoveCompilerFileMessage.method) {
-        const uri = params.file.uri;
-        respond(method, id, uri, () => compiler.removeFile(params));
-      }
-      if (method === UpdateCompilerDocumentMessage.method) {
-        const uri = params.textDocument.uri;
-        respond(method, id, uri, () => compiler.updateDocument(params));
-      }
-      if (method === CompileProgramMessage.method) {
-        const uri = params.uri;
-        respond(method, id, uri, () => compiler.compile(params));
-      }
+    if (CompilerInitializeMessage.type.is(message)) {
+      const { profilerId } = message.params;
+      compiler.profilerId = profilerId;
+      const uri = "";
+      respond(message.method, message.id, uri, () => ({}));
+      respond(CompilerInitializedMessage.method);
+    }
+    if (ConfigureCompilerMessage.type.is(message)) {
+      const uri = "";
+      respond(message.method, message.id, uri, () =>
+        compiler.configure(message.params)
+      );
+    }
+    if (AddCompilerFileMessage.type.is(message)) {
+      const uri = message.params.file.uri;
+      respond(message.method, message.id, uri, () =>
+        compiler.addFile(message.params)
+      );
+    }
+    if (UpdateCompilerFileMessage.type.is(message)) {
+      const uri = message.params.file.uri;
+      respond(message.method, message.id, uri, () =>
+        compiler.updateFile(message.params)
+      );
+    }
+    if (RemoveCompilerFileMessage.type.is(message)) {
+      const uri = message.params.file.uri;
+      respond(message.method, message.id, uri, () =>
+        compiler.removeFile(message.params)
+      );
+    }
+    if (UpdateCompilerDocumentMessage.type.is(message)) {
+      const uri = message.params.textDocument.uri;
+      respond(message.method, message.id, uri, () =>
+        compiler.updateDocument(message.params)
+      );
+    }
+    if (CompileProgramMessage.type.is(message)) {
+      const uri = message.params.uri;
+      respond(message.method, message.id, uri, () =>
+        compiler.compile(message.params)
+      );
     }
   }
 };

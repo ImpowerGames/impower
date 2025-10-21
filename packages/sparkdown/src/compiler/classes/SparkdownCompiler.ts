@@ -51,6 +51,14 @@ const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
 export class SparkdownCompiler {
+  protected _profilerId?: string;
+  get profilerId() {
+    return this._profilerId;
+  }
+  set profilerId(value: string | undefined) {
+    this._profilerId = value;
+  }
+
   protected _config: SparkdownCompilerConfig = {};
 
   protected _documents?: SparkdownDocumentRegistry;
@@ -80,56 +88,68 @@ export class SparkdownCompiler {
     };
   } = {};
 
-  constructor(config: SparkdownCompilerConfig = {}) {
-    this._config = config || this._config;
-  }
+  constructor() {}
 
   configure(config: SparkdownCompilerConfig) {
     if (
-      config.builtinDefinitions &&
-      config.builtinDefinitions !== this._config.builtinDefinitions
+      config.definitions?.builtins &&
+      config.definitions?.builtins !== this._config.definitions?.builtins
     ) {
-      this._config.builtinDefinitions = config.builtinDefinitions;
+      this._config.definitions ??= {};
+      this._config.definitions.builtins = config.definitions.builtins;
       this._builtinStructs = {};
+      profile("start", this._profilerId, "cloneBuiltinStructs");
       cloneBuiltinStructs(
         this._builtinStructs,
-        this._config.builtinDefinitions
+        this._config.definitions.builtins
       );
+      profile("end", this._profilerId, "cloneBuiltinStructs");
+      profile("start", this._profilerId, "indexStructs");
       indexStructs(this._configStructsPropertyRegistry, this._builtinStructs);
+      profile("end", this._profilerId, "indexStructs");
     }
     if (
-      config.optionalDefinitions &&
-      config.optionalDefinitions !== this._config.optionalDefinitions
+      config.definitions?.optionals &&
+      config.definitions?.optionals !== this._config.definitions?.optionals
     ) {
-      this._config.optionalDefinitions = config.optionalDefinitions;
+      this._config.definitions ??= {};
+      this._config.definitions.optionals = config.definitions.optionals;
+      profile("start", this._profilerId, "indexStructs");
       indexStructs(
         this._configStructsPropertyRegistry,
-        config.optionalDefinitions
+        this._config.definitions.optionals
       );
+      profile("end", this._profilerId, "indexStructs");
     }
     if (
-      config.schemaDefinitions &&
-      config.schemaDefinitions !== this._config.schemaDefinitions
+      config.definitions?.schemas &&
+      config.definitions?.schemas !== this._config.definitions?.schemas
     ) {
-      this._config.schemaDefinitions = config.schemaDefinitions;
+      this._config.definitions ??= {};
+      this._config.definitions.schemas = config.definitions.schemas;
+      profile("start", this._profilerId, "indexStructs");
       indexStructs(
         this._configStructsPropertyRegistry,
-        config.schemaDefinitions
+        this._config.definitions.schemas
       );
+      profile("end", this._profilerId, "indexStructs");
     }
     if (
-      config.descriptionDefinitions &&
-      config.descriptionDefinitions !== this._config.descriptionDefinitions
+      config.definitions?.descriptions &&
+      config.definitions?.descriptions !==
+        this._config.definitions?.descriptions
     ) {
-      this._config.descriptionDefinitions = config.descriptionDefinitions;
+      this._config.definitions ??= {};
+      this._config.definitions.descriptions = config.definitions.descriptions;
+      profile("start", this._profilerId, "indexStructs");
       indexStructs(
         this._configStructsPropertyRegistry,
-        config.descriptionDefinitions
+        this._config.definitions.descriptions
       );
+      profile("end", this._profilerId, "indexStructs");
     }
     if (!this._documents) {
       this._documents = new SparkdownDocumentRegistry(
-        "compiler",
         [
           "implicits",
           "references",
@@ -139,10 +159,11 @@ export class SparkdownCompiler {
         ],
         {
           compilations: {
-            builtinDefinitions: this._config.builtinDefinitions,
+            definitions: this._config.definitions,
           },
         }
       );
+      this._documents.profilerId = this._profilerId;
     }
     if (config.files && config.files !== this._config.files) {
       this._config.files = config.files;
@@ -272,7 +293,7 @@ export class SparkdownCompiler {
     this.populateBuiltins(state, program);
 
     try {
-      profile("start", "ink/parse", uri);
+      profile("start", this._profilerId, "ink/parse", uri);
       const parsedStory = this.parseIncrementally(
         uri,
         fileHandler,
@@ -281,19 +302,19 @@ export class SparkdownCompiler {
         program,
         onDiagnostic
       );
-      profile("end", "ink/parse", uri);
-      profile("start", "ink/compile", uri);
+      profile("end", this._profilerId, "ink/parse", uri);
+      profile("start", this._profilerId, "ink/compile", uri);
       const story = parsedStory.ExportRuntime(onDiagnostic);
-      profile("end", "ink/compile", uri);
+      profile("end", this._profilerId, "ink/compile", uri);
       if (story) {
-        profile("start", "ink/json", uri);
+        profile("start", this._profilerId, "ink/json", uri);
         story.onWriteRuntimeObject = (_, obj) =>
           this.populateLocations(program, obj);
         const writer = new SimpleJson.Writer();
         story.ToJson(writer);
         program.compiled = writer.toString();
         state.story = story;
-        profile("end", "ink/json", uri);
+        profile("end", this._profilerId, "ink/json", uri);
       }
     } catch (e) {
       console.error(e);
@@ -735,7 +756,7 @@ export class SparkdownCompiler {
 
   populateFiles(program: SparkProgram) {
     const uri = program.uri;
-    profile("start", "populateFiles", uri);
+    profile("start", this._profilerId, "populateFiles", uri);
     for (const file of this.files.all()) {
       if (file.src) {
         const f = { ...file };
@@ -745,12 +766,12 @@ export class SparkdownCompiler {
         program.files[file.src] = f;
       }
     }
-    profile("end", "populateFiles", uri);
+    profile("end", this._profilerId, "populateFiles", uri);
   }
 
   populateUI(program: SparkProgram) {
     const uri = program.uri;
-    profile("start", "populateUI", uri);
+    profile("start", this._profilerId, "populateUI", uri);
     const scripts = Object.keys(program.scripts);
     for (const uri of scripts) {
       const doc = this.documents.get(uri);
@@ -798,12 +819,12 @@ export class SparkdownCompiler {
         }
       }
     }
-    profile("end", "populateUI", uri);
+    profile("end", this._profilerId, "populateUI", uri);
   }
 
   sortPathLocations(program: SparkProgram) {
     const uri = program.uri;
-    profile("start", "sortPathLocations", uri);
+    profile("start", this._profilerId, "sortPathLocations", uri);
     if (program.pathLocations) {
       const sortedEntries = Object.entries(program.pathLocations).sort(
         ([, a], [, b]) => {
@@ -821,12 +842,12 @@ export class SparkdownCompiler {
         program.pathLocations[k] = v;
       }
     }
-    profile("end", "sortPathLocations", uri);
+    profile("end", this._profilerId, "sortPathLocations", uri);
   }
 
   populateDeclarationLocations(program: SparkProgram) {
     const uri = program.uri;
-    profile("start", "populateDeclarationLocations", uri);
+    profile("start", this._profilerId, "populateDeclarationLocations", uri);
     const scripts = Object.keys(program.scripts);
     for (const uri of scripts) {
       const doc = this.documents.get(uri);
@@ -962,20 +983,20 @@ export class SparkdownCompiler {
         }
       }
     }
-    profile("end", "populateDeclarationLocations", uri);
+    profile("end", this._profilerId, "populateDeclarationLocations", uri);
   }
 
   buildContext(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
-    profile("start", "buildContext", uri);
+    profile("start", this._profilerId, "buildContext", uri);
     this.populateAssets(state, program);
     this.populateImplicitDefs(state, program);
-    profile("end", "buildContext", uri);
+    profile("end", this._profilerId, "buildContext", uri);
   }
 
   populateBuiltins(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
-    profile("start", "populateBuiltins", uri);
+    profile("start", this._profilerId, "populateBuiltins", uri);
     for (const [type, structs] of Object.entries(this._builtinStructs)) {
       for (const [name, struct] of Object.entries(structs)) {
         program.context ??= {};
@@ -996,12 +1017,12 @@ export class SparkdownCompiler {
         }
       }
     }
-    profile("end", "populateBuiltins", uri);
+    profile("end", this._profilerId, "populateBuiltins", uri);
   }
 
   populateAssets(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
-    profile("start", "populateAssets", uri);
+    profile("start", this._profilerId, "populateAssets", uri);
     program.context ??= {};
     const files = this.files.all();
     if (files) {
@@ -1073,12 +1094,12 @@ export class SparkdownCompiler {
         state.contextPropertyRegistry[type][name] ??= {};
       }
     }
-    profile("end", "populateAssets", uri);
+    profile("end", this._profilerId, "populateAssets", uri);
   }
 
   populateImplicitDefs(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
-    profile("start", "populateImplicitDefs", uri);
+    profile("start", this._profilerId, "populateImplicitDefs", uri);
     const images = program.context?.["image"];
     if (images) {
       for (const image of Object.values(images)) {
@@ -1140,7 +1161,7 @@ export class SparkdownCompiler {
         }
       }
     }
-    profile("end", "populateImplicitDefs", uri);
+    profile("end", this._profilerId, "populateImplicitDefs", uri);
   }
 
   getPropertyPath(
@@ -1192,7 +1213,7 @@ export class SparkdownCompiler {
             program.context?.[structType]?.["$default"],
             program.context?.[structType]?.[`$optional:${structName}`],
             program.context?.[structType]?.["$optional"],
-            this._config?.optionalDefinitions?.[structType]?.["$optional"]
+            this._config?.definitions?.optionals?.[structType]?.["$optional"]
           );
       return expectedPropertyValue;
     }
@@ -1225,7 +1246,7 @@ export class SparkdownCompiler {
             expectedPropertyPath,
             program.context?.[structType]?.[`$schema:${structName}`],
             program.context?.[structType]?.["$schema"],
-            this._config?.schemaDefinitions?.[structType]?.["$schema"]
+            this._config?.definitions?.schemas?.[structType]?.["$schema"]
           );
       return schemaPropertyValues;
     }
@@ -1234,7 +1255,7 @@ export class SparkdownCompiler {
 
   validateSyntax(program: SparkProgram) {
     const uri = program.uri;
-    profile("start", "validateSyntax", uri);
+    profile("start", this._profilerId, "validateSyntax", uri);
     for (const uri of Object.keys(program.scripts)) {
       const doc = this.documents.get(uri);
       if (doc) {
@@ -1273,12 +1294,12 @@ export class SparkdownCompiler {
         }
       }
     }
-    profile("end", "validateSyntax", uri);
+    profile("end", this._profilerId, "validateSyntax", uri);
   }
 
   validateReferences(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
-    profile("start", "validateReferences", uri);
+    profile("start", this._profilerId, "validateReferences", uri);
     for (const uri of Object.keys(program.scripts)) {
       const doc = this.documents.get(uri);
       if (doc) {
@@ -1288,7 +1309,7 @@ export class SparkdownCompiler {
           const reference = cur.value.type;
           if (reference.symbolIds) {
             for (const symbolId of reference.symbolIds) {
-              if (this._config.builtinDefinitions?.[symbolId]) {
+              if (this._config.definitions?.builtins?.[symbolId]) {
                 if (
                   reference.declaration === "const" ||
                   reference.declaration === "var" ||
@@ -1465,7 +1486,7 @@ export class SparkdownCompiler {
         }
       }
     }
-    profile("end", "validateReferences", uri);
+    profile("end", this._profilerId, "validateReferences", uri);
   }
 
   offsetDebugMetadata(

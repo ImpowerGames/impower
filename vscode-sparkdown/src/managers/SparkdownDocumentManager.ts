@@ -10,10 +10,15 @@ export class SparkdownDocumentManager {
     return this._instance;
   }
 
-  protected _documents = new SparkdownDocumentRegistry("editor", [
-    "formatting",
-    "declarations",
-  ]);
+  protected _documents: SparkdownDocumentRegistry;
+
+  constructor() {
+    this._documents = new SparkdownDocumentRegistry([
+      "formatting",
+      "declarations",
+    ]);
+    this._documents.profilerId = "editor";
+  }
 
   add(document: vscode.TextDocument) {
     this._documents.add({

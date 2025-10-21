@@ -1,4 +1,5 @@
 import type * as LSP from "../../types";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidChangeWatchedFilesMethod =
@@ -12,4 +13,12 @@ export class DidChangeWatchedFilesMessage {
     DidChangeWatchedFilesMethod,
     DidChangeWatchedFilesParams
   >(DidChangeWatchedFilesMessage.method);
+}
+
+export namespace DidChangeWatchedFilesMessage {
+  export interface Notification
+    extends NotificationMessage<
+      DidChangeWatchedFilesMethod,
+      DidChangeWatchedFilesParams
+    > {}
 }

@@ -3,7 +3,7 @@ import { SparkdownPreviewConfig } from "../types/SparkdownPreviewConfig";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 
 export const getSparkdownPreviewConfig = (
-  uri: vscode.Uri
+  uri?: vscode.Uri
 ): SparkdownPreviewConfig => {
   if (!uri) {
     const activeUri = getActiveSparkdownDocument();

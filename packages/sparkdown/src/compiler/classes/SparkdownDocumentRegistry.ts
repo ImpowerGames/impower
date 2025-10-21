@@ -39,22 +39,26 @@ export class SparkdownDocumentRegistry {
     return this._parser;
   }
 
+  protected _profilerId?: string;
+  get profilerId() {
+    return this._profilerId;
+  }
+  set profilerId(value: string | undefined) {
+    this._profilerId = value;
+  }
+
   protected _syncedDocuments = new Map<string, SparkdownDocument>();
 
   protected _documentStates = new Map<string, TextDocumentState>();
-
-  protected _profilingIdentifier = "";
 
   protected _annotate?: Set<keyof SparkdownAnnotators>;
 
   protected _config?: SparkdownAnnotatorConfigs;
 
   constructor(
-    profilingIdentifier: string,
     annotate?: (keyof SparkdownAnnotators)[],
     config?: SparkdownAnnotatorConfigs
   ) {
-    this._profilingIdentifier = profilingIdentifier;
     this._annotate = new Set(annotate);
     this._config = config;
   }
@@ -84,7 +88,8 @@ export class SparkdownDocumentRegistry {
     if (changes && state.treeFragments) {
       profile(
         "start",
-        this._profilingIdentifier + "/incrementalParse",
+        this._profilerId,
+        "incrementalParse",
         beforeDocument.uri
       );
       // Incremental parse
@@ -156,32 +161,20 @@ export class SparkdownDocumentRegistry {
         );
       }
       state.treeVersion = afterDocument.version;
-      profile(
-        "end",
-        this._profilingIdentifier + "/incrementalParse",
-        beforeDocument.uri
-      );
+      profile("end", this._profilerId, "incrementalParse", beforeDocument.uri);
       if (DEBUG) {
         this.print(afterDocument.uri);
       }
       return state.tree!;
     } else {
       // First full parse
-      profile(
-        "start",
-        this._profilingIdentifier + "/fullParse",
-        beforeDocument.uri
-      );
+      profile("start", this._profilerId, "fullParse", beforeDocument.uri);
       const text = Text.of(afterDocument.getText().split("\n"));
       state.tree = this._parser.parse(afterDocument);
       state.treeFragments = TreeFragment.addTree(state.tree);
       state.annotators.create(state.tree, text, this._annotate);
       state.treeVersion = afterDocument.version;
-      profile(
-        "end",
-        this._profilingIdentifier + "/fullParse",
-        beforeDocument.uri
-      );
+      profile("end", this._profilerId, "fullParse", beforeDocument.uri);
       if (DEBUG) {
         this.print(beforeDocument.uri);
       }

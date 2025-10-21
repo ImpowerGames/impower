@@ -1,4 +1,5 @@
 import type * as LSP from "../../types";
+import { NotificationMessage } from "../../types/base/NotificationMessage";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidChangeTextDocumentMethod =
@@ -12,4 +13,12 @@ export class DidChangeTextDocumentMessage {
     DidChangeTextDocumentMethod,
     DidChangeTextDocumentParams
   >(DidChangeTextDocumentMessage.method);
+}
+
+export namespace DidChangeTextDocumentMessage {
+  export interface Notification
+    extends NotificationMessage<
+      DidChangeTextDocumentMethod,
+      DidChangeTextDocumentParams
+    > {}
 }

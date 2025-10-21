@@ -12,16 +12,10 @@ export const activatePreviewGamePanel = async (
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.previewGame", () => {
       const uri = getActiveSparkdownDocument();
-      if (!uri) {
-        return;
-      }
-      const editor = getEditor(uri);
-      if (!editor) {
-        return;
-      }
+      const editor = uri ? getEditor(uri) : undefined;
       SparkdownPreviewGamePanelManager.instance.showPanel(
         context,
-        editor.document
+        editor?.document
       );
     })
   );

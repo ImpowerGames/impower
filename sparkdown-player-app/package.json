@@ -22,8 +22,9 @@
     "vite": "^7.1.5"
   },
   "dependencies": {
+    "@impower/jsonrpc": "file:../packages/jsonrpc",
     "@impower/spark-editor-protocol": "file:../packages/spark-editor-protocol",
     "@impower/spark-web-player": "file:../packages/spark-web-player",
-    "@impower/jsonrpc": "file:../packages/jsonrpc"
+    "@impower/sparkdown": "file:../packages/sparkdown"
   }
 }

@@ -1,13 +1,16 @@
+import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
+import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
+import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
+import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
+import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
+import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
+import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
-import { LoadGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/LoadGameMessage";
 import SparkWebPlayer from "@impower/spark-web-player/src/index.js";
-import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
-import { ConfigureCompilerMessage } from "@impower/sparkdown/src/compiler/classes/messages/ConfigureCompilerMessage";
-import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
-import { UpdateCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerFileMessage";
-import { SparkdownFileRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownFileRegistry";
+import { File } from "@impower/sparkdown/src/compiler";
+import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 
 console.log("running game-webview");
 
@@ -23,52 +26,144 @@ const state: {
 
 const vscode = acquireVsCodeApi();
 
-// The language server omits image data when sending down the compiled program
-// (This is so vscode doesn't hang while trying to deserialize and serialize the program)
-// Instead we use a SparkdownFileRegistry to track and populate the image data inside this worker.
-const fileRegistry = new SparkdownFileRegistry();
+const sendRequest = async <M extends string, P, R>(
+  type: MessageProtocolRequestType<M, P, R>,
+  params: P
+): Promise<R> => {
+  const request = type.request(params);
+  return new Promise<R>((resolve, reject) => {
+    const onResponse = (e: MessageEvent) => {
+      const message = e.data;
+      if (message.id === request.id) {
+        if (message.error !== undefined) {
+          reject(message.error);
+          window.removeEventListener("message", onResponse);
+        } else if (message.result !== undefined) {
+          resolve(message.result);
+          window.removeEventListener("message", onResponse);
+        }
+      }
+    };
+    window.addEventListener("message", onResponse);
+    vscode.postMessage(request);
+  });
+};
 
-window.addEventListener("message", (e: MessageEvent) => {
+const preloadedImages = new Map<string, HTMLElement>();
+
+const preloadImage = async (uri: string, src: string) => {
+  if (uri && src) {
+    if (preloadedImages.has(uri)) {
+      return preloadedImages.get(uri);
+    }
+    try {
+      await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = src;
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(img);
+        preloadedImages.set(uri, img);
+      });
+    } catch (e) {
+      console.warn("Could not preload: ", src);
+    }
+  }
+  return null;
+};
+
+const unloadImage = async (uri: string) => {
+  return preloadedImages.delete(uri);
+};
+
+class SparkdownGameWorkspace extends SparkdownWorkspace {
+  override async sendNotification<P>(method: string, params: P): Promise<void> {
+    const message = {
+      jsonrpc: "2.0",
+      method,
+      params,
+    };
+    window.dispatchEvent(
+      new CustomEvent(MessageProtocol.event, {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        detail: message,
+      })
+    );
+    vscode.postMessage(message);
+  }
+
+  override async getFileSrc(uri: string): Promise<string> {
+    return sendRequest(ExecuteCommandMessage.type, {
+      command: "sparkdown.getFileSrc",
+      arguments: [uri],
+    });
+  }
+
+  override async getFileText(uri: string): Promise<string> {
+    return sendRequest(ExecuteCommandMessage.type, {
+      command: "sparkdown.getFileText",
+      arguments: [uri],
+    });
+  }
+
+  override onDeletedFile(file: File) {
+    if (file?.type === "image") {
+      unloadImage(file.uri);
+    }
+  }
+
+  override onCreatedFile(file: File) {
+    if (file?.type === "image" && file?.src) {
+      preloadImage(file.uri, file.src);
+    }
+  }
+
+  override onChangedFile(file: File) {
+    if (file?.type === "image" && file?.src) {
+      unloadImage(file.uri);
+      preloadImage(file.uri, file.src);
+    }
+  }
+}
+
+const workspace = new SparkdownGameWorkspace("player");
+
+window.addEventListener("message", async (e: MessageEvent) => {
   const message = e.data;
-  if (ConfigureCompilerMessage.type.isRequest(message)) {
-    const { files } = message.params;
-    if (files) {
-      for (const file of files) {
-        fileRegistry.add({ file });
-      }
-    }
+  if (InitializeMessage.type.isRequest(message)) {
+    const params = message.params;
+    const { program } = await workspace.initialize(
+      params.initializationOptions
+    );
     vscode.postMessage(
-      ConfigureCompilerMessage.type.response(message.id, "sparkdown")
+      InitializeMessage.type.response(message.id, { capabilities: {}, program })
     );
   }
-  if (AddCompilerFileMessage.type.isRequest(message)) {
-    const { file } = message.params;
-    fileRegistry.add({ file });
-    vscode.postMessage(AddCompilerFileMessage.type.response(message.id, true));
+  if (DidChangeConfigurationMessage.type.isNotification(message)) {
+    const { settings } = message.params;
+    workspace.loadConfiguration(settings);
   }
-  if (UpdateCompilerFileMessage.type.isRequest(message)) {
-    const { file } = message.params;
-    fileRegistry.update({ file });
-    vscode.postMessage(
-      UpdateCompilerFileMessage.type.response(message.id, true)
+  if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
+    const { changes } = message.params;
+    await Promise.all(
+      changes
+        .filter((change) => change.type == FileChangeType.Deleted)
+        .map((change) => workspace.deleteFile(change.uri))
+    );
+    await Promise.all(
+      changes
+        .filter((change) => change.type == FileChangeType.Created)
+        .map((change) => workspace.createFile(change.uri))
+    );
+    await Promise.all(
+      changes
+        .filter((change) => change.type == FileChangeType.Changed)
+        .map((change) => workspace.changeFile(change.uri))
     );
   }
-  if (RemoveCompilerFileMessage.type.isRequest(message)) {
-    const { file } = message.params;
-    fileRegistry.remove({ file });
-    vscode.postMessage(
-      RemoveCompilerFileMessage.type.response(message.id, true)
-    );
-  }
-  if (LoadGameMessage.type.isRequest(message)) {
-    const { program } = message.params;
-    // On LoadGame, we augment the program with data from the fileRegistry
-    // (since the language server stripped out this data earlier)
-    for (const [, image] of Object.entries(program.context?.["image"] || {})) {
-      if (image.ext === "svg" && !image.data) {
-        image.data = fileRegistry.get(image.uri)?.data;
-      }
-    }
+  if (DidChangeTextDocumentMessage.type.isNotification(message)) {
+    await workspace.changeTextDocument(message.params);
   }
   // Forward protocol messages from vscode extension to window
   window.dispatchEvent(

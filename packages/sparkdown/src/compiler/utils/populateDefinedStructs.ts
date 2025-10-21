@@ -1,5 +1,4 @@
 import { clone } from "./clone";
-import { profile } from "./profile";
 import { setProperty } from "./setProperty";
 import { traverse } from "./traverse";
 
@@ -13,7 +12,6 @@ export function populateDefinedStructs(
   structDefinitions: Record<string, any>,
   builtinDefinitions: { [type: string]: { [name: string]: any } } | undefined
 ) {
-  profile("start", "populateDefinedStructs");
   if (structDefinitions) {
     for (const [type, structs] of Object.entries(structDefinitions)) {
       context[type] ??= {};
@@ -81,5 +79,4 @@ export function populateDefinedStructs(
       }
     }
   }
-  profile("end", "populateDefinedStructs");
 }

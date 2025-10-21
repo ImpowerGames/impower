@@ -1,4 +1,3 @@
-import { profile } from "./profile";
 import { traverse } from "./traverse";
 
 export function indexStructs(
@@ -7,7 +6,6 @@ export function indexStructs(
   },
   context: { [type: string]: { [name: string]: any } } | undefined
 ) {
-  profile("start", "indexStructs");
   if (context) {
     for (const [type, structs] of Object.entries(context)) {
       for (const [name, struct] of Object.entries(structs)) {
@@ -31,5 +29,4 @@ export function indexStructs(
       }
     }
   }
-  profile("end", "indexStructs");
 }

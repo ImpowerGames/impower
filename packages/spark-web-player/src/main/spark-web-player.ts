@@ -34,7 +34,6 @@ import { GetGameScriptsMessage } from "@impower/spark-engine/src/game/core/class
 import { GetGameStackTraceMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameStackTraceMessage";
 import { GetGameThreadsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameThreadsMessage";
 import { GetGameVariablesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameVariablesMessage";
-import { LoadGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/LoadGameMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import { ResizeGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
 import { RestartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/RestartGameMessage";
@@ -50,6 +49,7 @@ import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import { ScriptLocation } from "@impower/spark-engine/src/game/core/types/ScriptLocation";
 import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
+import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { Component } from "../../../spec-component/src/component";
 import { Application } from "../app/Application";
@@ -102,8 +102,6 @@ export default class SparkWebPlayer extends Component(spec) {
   _resizeStartHeight = 0;
 
   _gameResizeObserver?: ResizeObserver;
-
-  _preloadedImages: Map<string, HTMLElement> = new Map();
 
   override onConnected() {
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
@@ -529,10 +527,10 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleProtocol = async (e: Event) => {
     if (e instanceof CustomEvent) {
-      if (ResizeGameMessage.type.is(e.detail)) {
+      if (ConfigureGameMessage.type.is(e.detail)) {
         profile("start", e.detail.method);
-        const response = await this.handleResizeGame(
-          ResizeGameMessage.type,
+        const response = await this.handleConfigureGame(
+          ConfigureGameMessage.type,
           e.detail
         );
         if (response) {
@@ -540,10 +538,15 @@ export default class SparkWebPlayer extends Component(spec) {
         }
         profile("end", e.detail.method);
       }
-      if (ConfigureGameMessage.type.is(e.detail)) {
+      if (CompiledProgramMessage.type.is(e.detail)) {
         profile("start", e.detail.method);
-        const response = await this.handleConfigureGame(
-          ConfigureGameMessage.type,
+        await this.handleCompiledProgram(CompiledProgramMessage.type, e.detail);
+        profile("end", e.detail.method);
+      }
+      if (ResizeGameMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
+        const response = await this.handleResizeGame(
+          ResizeGameMessage.type,
           e.detail
         );
         if (response) {
@@ -599,17 +602,6 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleDisableGameDebug(
           DisableGameDebugMessage.type,
-          e.detail
-        );
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-        profile("end", e.detail.method);
-      }
-      if (LoadGameMessage.type.is(e.detail)) {
-        profile("start", e.detail.method);
-        const response = await this.handleLoadGame(
-          LoadGameMessage.type,
           e.detail
         );
         if (response) {
@@ -792,15 +784,6 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   };
 
-  protected handleResizeGame = async (
-    messageType: typeof ResizeGameMessage.type,
-    message: ResizeGameMessage.Request
-  ) => {
-    const { height } = message.params;
-    this.refs.game.style.height = `${height}px`;
-    return messageType.response(message.id, {});
-  };
-
   protected handleConfigureGame = async (
     messageType: typeof ConfigureGameMessage.type,
     message: ConfigureGameMessage.Request
@@ -824,6 +807,23 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     }
     this.updateLaunchStateIcon();
+    return messageType.response(message.id, {});
+  };
+
+  protected handleCompiledProgram = async (
+    messageType: typeof CompiledProgramMessage.type,
+    message: CompiledProgramMessage.Notification
+  ) => {
+    const { program } = message.params;
+    await this.loadProgram(program);
+  };
+
+  protected handleResizeGame = async (
+    messageType: typeof ResizeGameMessage.type,
+    message: ResizeGameMessage.Request
+  ) => {
+    const { height } = message.params;
+    this.refs.game.style.height = `${height}px`;
     return messageType.response(message.id, {});
   };
 
@@ -902,69 +902,6 @@ export default class SparkWebPlayer extends Component(spec) {
           code: 1,
           message: "no game loaded",
         });
-  };
-
-  protected handleLoadGame = async (
-    messageType: typeof LoadGameMessage.type,
-    message: LoadGameMessage.Request
-  ) => {
-    const { program, workspace, simulateChoices, startFrom } = message.params;
-    if (!program.compiled) {
-      return;
-    }
-    this._program = program;
-    this._pathLocations = Object.entries(this._program?.pathLocations ?? {});
-    this._scripts = Object.keys(this._program?.scripts ?? {});
-    this._options ??= {};
-    if (workspace !== undefined) {
-      this._options.workspace = workspace;
-    }
-    if (simulateChoices !== undefined) {
-      this._options.simulateChoices =
-        Game.getValidSimulateChoices(program, simulateChoices) ??
-        simulateChoices;
-    }
-    if (startFrom !== undefined) {
-      this._options.startFrom =
-        Game.getValidStartFrom(program, startFrom) ?? startFrom;
-    }
-    // Preload all images
-    // TODO: Only preload images that are going to be shown before the next interaction
-    const images = this._program.context?.["image"];
-    const currentSrcs = new Set<string>();
-    if (images) {
-      await Promise.all(
-        Object.values(images).map((image) => {
-          currentSrcs.add(image.src);
-          return this.preloadImage(image.src);
-        })
-      );
-    }
-    for (const src of this._preloadedImages.keys()) {
-      if (!currentSrcs.has(src)) {
-        // Unload old unused images
-        this._preloadedImages.delete(src);
-      }
-    }
-    // Notify program is loaded
-    this._loadListeners.forEach((callback) => {
-      callback();
-    });
-    this._loadListeners.clear();
-    if (this._game?.state === "running") {
-      // Stop and restart game if we loaded a new game while the old game was running
-      this.debouncedRestartGame();
-      this.emit(
-        MessageProtocol.event,
-        GameReloadedMessage.type.notification({})
-      );
-    } else {
-      if (startFrom) {
-        this.updatePreview(startFrom.file, startFrom.line);
-      }
-    }
-    this.updateLaunchStateIcon();
-    return messageType.response(message.id, {});
   };
 
   protected handleStartGame = async (
@@ -1206,28 +1143,32 @@ export default class SparkWebPlayer extends Component(spec) {
     });
   };
 
-  async preloadImage(src: string) {
-    if (src) {
-      if (this._preloadedImages.has(src)) {
-        return this._preloadedImages.get(src);
-      }
-      try {
-        return await new Promise((resolve, reject) => {
-          const img = new Image();
-          img.src = src;
-          img.onload = () => {
-            resolve(img);
-          };
-          img.onerror = () => {
-            reject(img);
-          };
-          this._preloadedImages.set(src, img);
-        });
-      } catch (e) {
-        console.warn("Could not preload: ", src);
+  async loadProgram(program: SparkProgram) {
+    if (!program.compiled) {
+      return;
+    }
+    this._program = program;
+    this._pathLocations = Object.entries(this._program?.pathLocations ?? {});
+    this._scripts = Object.keys(this._program?.scripts ?? {});
+    // Notify program is loaded
+    this._loadListeners.forEach((callback) => {
+      callback();
+    });
+    this._loadListeners.clear();
+    if (this._game?.state === "running") {
+      // Stop and restart game if we loaded a new game while the old game was running
+      this.debouncedRestartGame();
+      this.emit(
+        MessageProtocol.event,
+        GameReloadedMessage.type.notification({})
+      );
+    } else {
+      const startFrom = this._options?.startFrom;
+      if (startFrom) {
+        this.updatePreview(startFrom.file, startFrom.line);
       }
     }
-    return null;
+    this.updateLaunchStateIcon();
   }
 
   async startGameAndApp(restarted?: boolean) {
@@ -1250,12 +1191,13 @@ export default class SparkWebPlayer extends Component(spec) {
     return success;
   }
 
-  destroyGameAndApp() {
+  async destroyGameAndApp() {
     if (this._game) {
       this._game.destroy();
       this._game = undefined;
     }
     if (this._app) {
+      await this._app.initializing;
       this._app.destroy(true);
       this._app = undefined;
     }
@@ -1270,7 +1212,7 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   ) {
     const previewFrom = this._game?.getLastExecutedDocumentLocation();
-    this.destroyGameAndApp();
+    await this.destroyGameAndApp();
     this.showPlayButton();
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
     this.emit(
@@ -1287,7 +1229,7 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   async restartGame() {
-    this.destroyGameAndApp();
+    await this.destroyGameAndApp();
     await this.startGameAndApp(true);
   }
 

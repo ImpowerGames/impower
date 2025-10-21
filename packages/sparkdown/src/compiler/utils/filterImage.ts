@@ -1,6 +1,5 @@
 import { filterMatchesName } from "./filterMatchesName";
 import { filterSVG } from "./filterSVG";
-import { profile } from "./profile";
 
 const getNestedFilters = (
   name: string,
@@ -58,7 +57,6 @@ export const filterImage = (
   context: { [type: string]: { [name: string]: any } },
   filteredImage: any
 ): string | undefined => {
-  profile("start", "filterImage", filteredImage?.name);
   if (filteredImage && !filteredImage.filtered_src) {
     const filters = getNestedFilters(filteredImage.$name, context);
     const includes = filters.flatMap((filter) => filter?.includes || []);
@@ -115,6 +113,5 @@ export const filterImage = (
       }
     }
   }
-  profile("end", "filterImage", filteredImage?.name);
   return undefined;
 };

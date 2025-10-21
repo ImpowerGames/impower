@@ -36,7 +36,7 @@ export const activateLanguageClient = async (
     arguments?: LSPAny[];
   }) => {
     // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
-    if (params.command === "sparkdown.readTextDocument") {
+    if (params.command === "sparkdown.getFileText") {
       const [uri] = params.arguments || [];
       if (uri && typeof uri === "string") {
         const buffer = await vscode.workspace.fs.readFile(
@@ -46,7 +46,7 @@ export const activateLanguageClient = async (
         return text;
       }
     }
-    if (params.command === "sparkdown.getSrc") {
+    if (params.command === "sparkdown.getFileSrc") {
       const [uri] = params.arguments || [];
       if (uri && typeof uri === "string") {
         return SparkdownPreviewGamePanelManager.instance.panel?.webview
@@ -69,11 +69,13 @@ export const activateLanguageClient = async (
       // We have to pre-stringify and parse settings, for some reason, or else the worker errors out
       settings: JSON.parse(JSON.stringify(sparkdownConfig)),
       files,
+      definitions: {
+        builtins: DEFAULT_BUILTIN_DEFINITIONS,
+        optionals: DEFAULT_OPTIONAL_DEFINITIONS,
+        schemas: DEFAULT_SCHEMA_DEFINITIONS,
+        descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
+      },
       uri: editor?.document?.uri.toString(),
-      builtinDefinitions: DEFAULT_BUILTIN_DEFINITIONS,
-      optionalDefinitions: DEFAULT_OPTIONAL_DEFINITIONS,
-      schemaDefinitions: DEFAULT_SCHEMA_DEFINITIONS,
-      descriptionDefinitions: DEFAULT_DESCRIPTION_DEFINITIONS,
       omitImageData: true,
     },
     middleware: {
@@ -131,7 +133,6 @@ const onCompile = async (
   );
   if (document) {
     SparkProgramManager.instance.update(document.uri, program);
-    SparkdownPreviewGamePanelManager.instance.loadDocument(document);
     updateCommands(document.uri);
     // TODO:
     // SparkdownStatusBarManager.instance.updateStatusBarItem(

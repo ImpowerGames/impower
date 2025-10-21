@@ -1,5 +1,7 @@
+import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/classes/MessageProtocolNotificationType";
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
-import { MessageProtocolNotificationType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolNotificationType";
+import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
+import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
@@ -9,17 +11,18 @@ import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/proto
 import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
+import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
+import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { ConfigureGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ConfigureGameMessage";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
-import { LoadGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/LoadGameMessage";
 import { ResizeGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
-import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
-import { ConfigureCompilerMessage } from "@impower/sparkdown/src/compiler/classes/messages/ConfigureCompilerMessage";
-import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
-import { UpdateCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerFileMessage";
+import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
+import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
+import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
+import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
 import * as vscode from "vscode";
 import { ViewColumn, WebviewPanel, window } from "vscode";
 import { getClientRange } from "../utils/getClientRange";
@@ -29,13 +32,8 @@ import { getServerRange } from "../utils/getServerRange";
 import { getSparkdownPreviewConfig } from "../utils/getSparkdownPreviewConfig";
 import { getUri } from "../utils/getUri";
 import { getWebviewUri } from "../utils/getWebviewUri";
-import { getWorkspaceAudioFile } from "../utils/getWorkspaceAudioFile";
 import { getWorkspaceFileWatchers } from "../utils/getWorkspaceFileWatchers";
 import { getWorkspaceFiles } from "../utils/getWorkspaceFiles";
-import { getWorkspaceFontFile } from "../utils/getWorkspaceFontFile";
-import { getWorkspaceImageFile } from "../utils/getWorkspaceImageFile";
-import { getWorkspaceScriptFile } from "../utils/getWorkspaceScriptFile";
-import { SparkProgramManager } from "./SparkProgramManager";
 
 export class SparkdownPreviewGamePanelManager {
   private static _instance: SparkdownPreviewGamePanelManager;
@@ -49,11 +47,6 @@ export class SparkdownPreviewGamePanelManager {
   protected _panel?: WebviewPanel;
   get panel() {
     return this._panel;
-  }
-
-  protected _document?: vscode.TextDocument;
-  get document() {
-    return this._document;
   }
 
   _hovering = false;
@@ -82,22 +75,24 @@ export class SparkdownPreviewGamePanelManager {
 
   protected _viewColumn = ViewColumn.Two;
 
-  protected _selectedVersion?: number;
+  protected _selected?: {
+    uri: string;
+    version: number;
+  };
 
   protected _listeners = new Set<(message: any) => void>();
 
   protected _gameRunning = false;
 
+  protected _startFrom?: {
+    file: string;
+    line: number;
+  };
+
   async showPanel(
     context: vscode.ExtensionContext,
-    document: vscode.TextDocument
+    document: vscode.TextDocument | undefined
   ) {
-    if (document.languageId !== "sparkdown") {
-      vscode.window.showErrorMessage(
-        `You can only preview Sparkdown documents as a Game!`
-      );
-      return undefined;
-    }
     if (this._panel) {
       const viewColumn = this._viewColumn;
       this._panel.reveal(viewColumn);
@@ -116,7 +111,7 @@ export class SparkdownPreviewGamePanelManager {
 
   protected async createPanel(
     context: vscode.ExtensionContext,
-    document: vscode.TextDocument
+    document: vscode.TextDocument | undefined
   ) {
     const viewType = this._viewType;
     const panelTitle = this._panelTitle;
@@ -132,67 +127,29 @@ export class SparkdownPreviewGamePanelManager {
   async initializePanel(
     panel: WebviewPanel,
     context: vscode.ExtensionContext,
-    document: vscode.TextDocument,
+    document: vscode.TextDocument | undefined,
     canvasHeight?: number
   ) {
     const fileWatchers = getWorkspaceFileWatchers();
     const files = await getWorkspaceFiles();
-    const [scriptWatcher, imageWatcher, audioWatcher, fontWatcher] =
-      fileWatchers;
-    // Watch script files
-    scriptWatcher.onDidCreate(async (fileUri) => {
-      const file = await getWorkspaceScriptFile(fileUri);
-      await this.sendRequest(AddCompilerFileMessage.type, { file });
-    });
-    scriptWatcher.onDidChange(async (fileUri) => {
-      const file = await getWorkspaceScriptFile(fileUri);
-      await this.sendRequest(UpdateCompilerFileMessage.type, { file });
-    });
-    scriptWatcher.onDidDelete(async (fileUri) => {
-      const file = await getWorkspaceScriptFile(fileUri);
-      await this.sendRequest(RemoveCompilerFileMessage.type, { file });
-    });
-    // Watch image files
-    imageWatcher.onDidCreate(async (fileUri) => {
-      const file = await getWorkspaceImageFile(fileUri);
-      await this.sendRequest(AddCompilerFileMessage.type, { file });
-    });
-    imageWatcher.onDidChange(async (fileUri) => {
-      const file = await getWorkspaceImageFile(fileUri);
-      await this.sendRequest(UpdateCompilerFileMessage.type, { file });
-    });
-    imageWatcher.onDidDelete(async (fileUri) => {
-      const file = await getWorkspaceImageFile(fileUri);
-      await this.sendRequest(RemoveCompilerFileMessage.type, { file });
-    });
-    // Watch audio files
-    audioWatcher.onDidCreate(async (fileUri) => {
-      const file = await getWorkspaceAudioFile(fileUri);
-      await this.sendRequest(AddCompilerFileMessage.type, { file });
-    });
-    audioWatcher.onDidChange(async (fileUri) => {
-      const file = await getWorkspaceAudioFile(fileUri);
-      await this.sendRequest(UpdateCompilerFileMessage.type, { file });
-    });
-    audioWatcher.onDidDelete(async (fileUri) => {
-      const file = await getWorkspaceAudioFile(fileUri);
-      await this.sendRequest(RemoveCompilerFileMessage.type, { file });
-    });
-    // Watch font files
-    fontWatcher.onDidCreate(async (fileUri) => {
-      const file = await getWorkspaceFontFile(fileUri);
-      await this.sendRequest(AddCompilerFileMessage.type, { file });
-    });
-    fontWatcher.onDidChange(async (fileUri) => {
-      const file = await getWorkspaceFontFile(fileUri);
-      await this.sendRequest(UpdateCompilerFileMessage.type, { file });
-    });
-    fontWatcher.onDidDelete(async (fileUri) => {
-      const file = await getWorkspaceFontFile(fileUri);
-      await this.sendRequest(RemoveCompilerFileMessage.type, { file });
-    });
+    for (const fileWatcher of fileWatchers) {
+      fileWatcher.onDidCreate(async (fileUri) => {
+        this.sendNotification(DidChangeWatchedFilesMessage.type, {
+          changes: [{ type: FileChangeType.Created, uri: fileUri.toString() }],
+        });
+      });
+      fileWatcher.onDidChange(async (fileUri) => {
+        this.sendNotification(DidChangeWatchedFilesMessage.type, {
+          changes: [{ type: FileChangeType.Changed, uri: fileUri.toString() }],
+        });
+      });
+      fileWatcher.onDidDelete(async (fileUri) => {
+        this.sendNotification(DidChangeWatchedFilesMessage.type, {
+          changes: [{ type: FileChangeType.Deleted, uri: fileUri.toString() }],
+        });
+      });
+    }
     // Setup document and panel
-    this._document = document;
     this._panel = panel;
     panel.iconPath = {
       light: vscode.Uri.joinPath(context.extensionUri, "icon-lang.png"),
@@ -209,13 +166,65 @@ export class SparkdownPreviewGamePanelManager {
     });
     panel.webview.html = this.getWebviewContent(panel.webview, context);
     panel.webview.onDidReceiveMessage(async (message) => {
+      if (ExecuteCommandMessage.type.isRequest(message)) {
+        const params = message.params;
+        if (params.command === "sparkdown.getFileText") {
+          const [uri] = params.arguments || [];
+          if (uri && typeof uri === "string") {
+            const buffer = await vscode.workspace.fs.readFile(
+              vscode.Uri.parse(uri)
+            );
+            const text = new TextDecoder("utf-8").decode(buffer);
+            this.sendResponse(ExecuteCommandMessage.type, message.id, text);
+          }
+        }
+        if (params.command === "sparkdown.getFileSrc") {
+          const [uri] = params.arguments || [];
+          if (uri && typeof uri === "string") {
+            const src = this._panel?.webview
+              .asWebviewUri(vscode.Uri.parse(uri))
+              .toString();
+            this.sendResponse(ExecuteCommandMessage.type, message.id, src);
+          }
+        }
+      }
       if (ConnectedPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "game") {
           this._connected = true;
-          await this.sendRequest(ConfigureCompilerMessage.type, {
-            files,
+          const startFrom = document
+            ? {
+                file: document.uri.toString(),
+                line: getEditor(document.uri)?.selection.active.line ?? 0,
+              }
+            : undefined;
+          await this.sendRequest(ConfigureGameMessage.type, {
+            workspace: this.getWorkspace(document?.uri),
+            startFrom,
           });
-          this.loadDocument(document, canvasHeight);
+          const sparkdownConfig =
+            vscode.workspace.getConfiguration("sparkdown");
+          const settings = JSON.parse(JSON.stringify(sparkdownConfig));
+          await this.sendRequest(InitializeMessage.type, {
+            initializationOptions: {
+              settings,
+              files: Object.values(files),
+              definitions: {
+                builtins: DEFAULT_BUILTIN_DEFINITIONS,
+                optionals: DEFAULT_OPTIONAL_DEFINITIONS,
+                schemas: DEFAULT_SCHEMA_DEFINITIONS,
+                descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
+              },
+              uri: document?.uri.toString(),
+            },
+            capabilities: {},
+            rootUri: null,
+            processId: 0,
+          });
+          if (canvasHeight != null) {
+            await this.sendRequest(ResizeGameMessage.type, {
+              height: canvasHeight,
+            });
+          }
         }
       }
       if (HoveredOnPreviewMessage.type.isNotification(message)) {
@@ -289,56 +298,26 @@ export class SparkdownPreviewGamePanelManager {
     });
   }
 
-  async loadDocument(document: vscode.TextDocument, canvasHeight?: number) {
-    if (this._panel) {
-      this._document = document;
-      const editor = getEditor(document.uri);
-      const visibleRange = editor?.visibleRanges[0];
-      const selectedRange = editor?.selection;
-      let program = await SparkProgramManager.instance.getOrCompile(
-        document.uri
-      );
-
-      if (!program) {
-        console.warn("no program loaded for: ", document.uri.toString());
-        return;
-      }
-
-      if (program.context) {
-        for (const [, structs] of Object.entries(program.context)) {
-          for (const [, struct] of Object.entries(structs)) {
-            if (struct.uri) {
-              const uri = vscode.Uri.parse(struct.uri);
-              struct.src = this._panel?.webview.asWebviewUri(uri).toString();
-            }
-          }
-        }
-      }
-      if (canvasHeight != null) {
-        await this.sendRequest(ResizeGameMessage.type, {
-          height: canvasHeight,
-        });
-      }
-      await this.sendRequest(LoadGameMessage.type, {
-        program,
-        workspace: vscode.workspace
-          .getWorkspaceFolder(document.uri)
-          ?.uri.toString(),
-        startFrom: {
-          file: document.uri.toString(),
-          line: selectedRange?.start.line ?? 0,
-        },
-      });
-    }
-  }
-
   async notifyChangedActiveEditor(editor: vscode.TextEditor) {
     if (this._connected) {
       const document = editor.document;
-      if (editor.document.uri.toString() !== this._document?.uri.toString()) {
+      if (document.languageId === "sparkdown") {
         if (!vscode.debug.activeDebugSession && !this._gameRunning) {
           // In preview-mode, we load whatever document is in the active editor
-          await this.loadDocument(document);
+          const startFrom = {
+            file: document.uri.toString(),
+            line: editor.selection.active.line ?? 0,
+          };
+          if (
+            this._startFrom?.file !== startFrom.file ||
+            this._startFrom.line !== startFrom.line
+          ) {
+            this._startFrom = startFrom;
+            await this.sendRequest(ConfigureGameMessage.type, {
+              workspace: this.getWorkspace(document.uri),
+              startFrom,
+            });
+          }
         }
       }
     }
@@ -346,31 +325,28 @@ export class SparkdownPreviewGamePanelManager {
 
   notifyChangedTextDocument(
     document: vscode.TextDocument,
-    contentChanges: readonly vscode.TextDocumentContentChangeEvent[]
+    changes: readonly vscode.TextDocumentContentChangeEvent[]
   ) {
-    if (document.uri.toString() === this._document?.uri.toString()) {
-      this.sendNotification(DidChangeTextDocumentMessage.type, {
-        textDocument: {
-          uri: document.uri.toString(),
-          version: document.version,
-        },
-        contentChanges: contentChanges.map((c) => ({
-          range: getServerRange(c.range),
-          text: c.text,
-        })),
-      });
-    }
+    const textDocument = {
+      uri: document.uri.toString(),
+      version: document.version,
+    };
+    const contentChanges = changes.map((c) => ({
+      range: getServerRange(c.range),
+      text: c.text,
+    }));
+    this.sendNotification(DidChangeTextDocumentMessage.type, {
+      textDocument,
+      contentChanges,
+    });
   }
 
   notifyConfiguredWorkspace() {
-    if (this._document) {
-      const configuration = getSparkdownPreviewConfig(
-        getUri(this._document.uri.toString())
-      );
-      this.sendNotification(DidChangeConfigurationMessage.type, {
-        settings: { ...configuration },
-      });
-    }
+    const sparkdownConfig = vscode.workspace.getConfiguration("sparkdown");
+    const settings = JSON.parse(JSON.stringify(sparkdownConfig));
+    this.sendNotification(DidChangeConfigurationMessage.type, {
+      settings,
+    });
   }
 
   async notifySelectedEditor(
@@ -378,31 +354,51 @@ export class SparkdownPreviewGamePanelManager {
     selectedRange: vscode.Range,
     userEvent: boolean
   ) {
-    if (document.uri.toString() === this._document?.uri.toString()) {
-      this.sendNotification(SelectedEditorMessage.type, {
-        textDocument: { uri: document.uri.toString() },
-        selectedRange: getServerRange(selectedRange),
-        userEvent,
-        docChanged: this._selectedVersion !== document.version,
-      });
+    this.sendNotification(SelectedEditorMessage.type, {
+      textDocument: { uri: document.uri.toString() },
+      selectedRange: getServerRange(selectedRange),
+      userEvent,
+      docChanged:
+        this._selected?.uri === document.uri.toString() &&
+        this._selected.version != document.version,
+    });
+    this._selected = {
+      uri: document.uri.toString(),
+      version: document.version,
+    };
+    const startFrom = {
+      file: document.uri.toString(),
+      line: selectedRange?.start.line ?? 0,
+    };
+    if (
+      this._startFrom?.file !== startFrom.file ||
+      this._startFrom.line !== startFrom.line
+    ) {
+      this._startFrom = startFrom;
       await this.sendRequest(ConfigureGameMessage.type, {
-        startFrom: {
-          file: document.uri.toString(),
-          line: selectedRange?.start.line ?? 0,
-        },
+        workspace: this.getWorkspace(document.uri),
+        startFrom,
       });
-      this._selectedVersion = document.version;
     }
   }
 
   notifyScrolledEditor(document: vscode.TextDocument, range: vscode.Range) {
-    if (document.uri.toString() === this._document?.uri.toString()) {
-      this.sendNotification(ScrolledEditorMessage.type, {
-        textDocument: { uri: document.uri.toString() },
-        visibleRange: getServerRange(range),
-        target: "element",
-      });
+    this.sendNotification(ScrolledEditorMessage.type, {
+      textDocument: { uri: document.uri.toString() },
+      visibleRange: getServerRange(range),
+      target: "element",
+    });
+  }
+
+  getWorkspace(uri: vscode.Uri | undefined) {
+    if (!uri) {
+      return undefined;
     }
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+    if (!workspaceFolder) {
+      return undefined;
+    }
+    return workspaceFolder.uri.path;
   }
 
   protected sendNotification<M extends string, P>(
@@ -435,6 +431,15 @@ export class SparkdownPreviewGamePanelManager {
       this._listeners.add(onResponse);
       this._panel?.webview.postMessage(request);
     });
+  }
+
+  protected sendResponse<M extends string, P, R>(
+    type: MessageProtocolRequestType<M, P, R>,
+    id: string | number,
+    result: R
+  ): void {
+    const response = type.response(id, result);
+    this._panel?.webview.postMessage(response);
   }
 
   protected getWebviewContent(

@@ -25,15 +25,7 @@ import {
 } from "vscode-languageserver";
 
 export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
-  protected _documents = new SparkdownDocumentRegistry("language", [
-    "characters",
-    "colors",
-    "declarations",
-    "formatting",
-    "links",
-    "references",
-    "semantics",
-  ]);
+  protected _documents: SparkdownDocumentRegistry;
 
   protected _workspaceFolders?: { uri: string; name: string }[];
   get workspaceFolders() {
@@ -42,8 +34,18 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
 
   _connection: Connection;
 
-  constructor(connection: Connection) {
-    super();
+  constructor(connection: Connection, profilerId?: string) {
+    super(profilerId);
+    this._documents = new SparkdownDocumentRegistry([
+      "characters",
+      "colors",
+      "declarations",
+      "formatting",
+      "links",
+      "references",
+      "semantics",
+    ]);
+    this._documents.profilerId = profilerId;
     this._connection = connection;
   }
 
@@ -124,22 +126,22 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   }
 
-  override async readTextDocument(uri: string): Promise<string> {
+  override async getFileText(uri: string): Promise<string> {
     // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
     return this._connection.sendRequest(ExecuteCommandRequest.type, {
-      command: "sparkdown.readTextDocument",
+      command: "sparkdown.getFileText",
       arguments: [uri],
     });
   }
 
   override async getFileSrc(uri: string): Promise<string> {
     return this._connection?.sendRequest(ExecuteCommandRequest.type, {
-      command: "sparkdown.getSrc",
+      command: "sparkdown.getFileSrc",
       arguments: [uri],
     });
   }
 
-  override async onDidOpenTextDocument(params: {
+  override async onOpenTextDocument(params: {
     textDocument: {
       uri: string;
       languageId: string;
@@ -147,33 +149,48 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       text: string;
     };
   }) {
-    super.onDidOpenTextDocument(params);
     this._documents.add(params);
   }
 
-  override async onDidChangeTextDocument(params: {
+  override async onChangeTextDocument(params: {
     textDocument: {
       uri: string;
       version: number;
     };
     contentChanges: SparkdownDocumentContentChangeEvent[];
   }) {
-    super.onDidChangeTextDocument(params);
     this._documents.update(params);
   }
 
-  override async onCreatedFile(uri: string) {
-    if (this.getFileType(uri) === "script") {
+  override onCreatedFile(file: {
+    uri: string;
+    name: string;
+    ext: string;
+    type: string;
+    src: string;
+    text: string | undefined;
+  }) {
+    if (file.type === "script") {
       this._documents.add({
-        textDocument: { uri, languageId: "sparkdown", version: 0, text: "" },
+        textDocument: {
+          uri: file.uri,
+          languageId: "sparkdown",
+          version: 0,
+          text: file.text ?? "",
+        },
       });
     }
-    await super.onCreatedFile(uri);
   }
 
-  override async onDeletedFile(uri: string) {
-    this._documents.remove({ textDocument: { uri } });
-    await super.onDeletedFile(uri);
+  override onDeletedFile(file: {
+    uri: string;
+    name: string;
+    ext: string;
+    type: string;
+    src: string;
+    text: string | undefined;
+  }) {
+    this._documents.remove({ textDocument: { uri: file.uri } });
   }
 
   public listen(): Disposable {
@@ -212,12 +229,12 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     );
     disposables.push(
       this._connection.onDidOpenTextDocument((event) => {
-        return this.onDidOpenTextDocument(event);
+        return this.openTextDocument(event);
       })
     );
     disposables.push(
       this._connection.onDidChangeTextDocument((event) => {
-        return this.onDidChangeTextDocument(event);
+        return this.changeTextDocument(event);
       })
     );
     disposables.push(
@@ -226,17 +243,17 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         await Promise.all(
           changes
             .filter((change) => change.type == FileChangeType.Deleted)
-            .map((change) => this.onDeletedFile(change.uri))
+            .map((change) => this.deleteFile(change.uri))
         );
         await Promise.all(
           changes
             .filter((change) => change.type == FileChangeType.Created)
-            .map((change) => this.onCreatedFile(change.uri))
+            .map((change) => this.createFile(change.uri))
         );
         await Promise.all(
           changes
             .filter((change) => change.type == FileChangeType.Changed)
-            .map((change) => this.onChangedFile(change.uri))
+            .map((change) => this.changeFile(change.uri))
         );
       })
     );

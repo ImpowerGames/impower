@@ -34,9 +34,11 @@ export interface CompiledBlock {
 }
 
 export interface CompilationConfig {
-  builtinDefinitions?: {
-    [type: string]: {
-      [name: string]: any;
+  definitions?: {
+    builtins?: {
+      [type: string]: {
+        [name: string]: any;
+      };
     };
   };
 }
@@ -98,7 +100,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
               context,
               contextPropertyRegistry,
               runtimeStory?.structDefinitions,
-              this.config?.builtinDefinitions
+              this.config?.definitions?.builtins
             );
           }
         } catch {}

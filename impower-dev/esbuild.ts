@@ -108,7 +108,9 @@ console.log(STEP_COLOR, "Populating banner...");
 console.log(SRC_COLOR, `  ${PROCESS_ENV_BANNER_JS}`);
 console.log("");
 
-const esbuildInlineWorkerPlugin = (extraConfig?: esbuild.BuildOptions) => ({
+const esbuildInlineWorkerPlugin = (
+  extraConfig?: esbuild.BuildOptions
+): esbuild.Plugin => ({
   name: "esbuild-inline-worker",
   setup(build) {
     build.onLoad({ filter: /\.worker\.(?:ts|js)$/ }, async (args) => {

@@ -49,8 +49,13 @@ export class SparkProgramManager {
 
   update(uri: vscode.Uri, program: SparkProgram) {
     this._lastCompiledUri = uri.toString();
-    this._compiledUris.add(uri);
-    this._compiledPrograms.set(uri.toString(), program);
+    for (const scriptUri of Object.keys(program.scripts)) {
+      this._compiledPrograms.set(scriptUri, program);
+      this._compiledUris.add(vscode.Uri.parse(scriptUri));
+      this._listeners.forEach((listener) =>
+        listener(vscode.Uri.parse(scriptUri), program)
+      );
+    }
     const resources = Array.from(
       this._compiledUris.keys().map((uri) => uri.toString())
     );
@@ -64,7 +69,6 @@ export class SparkProgramManager {
       `sparkdown.json`,
       resources.map((uri) => uri.replace(/.sd$/, ".json"))
     );
-    this._listeners.forEach((listener) => listener(uri, program));
   }
 
   all() {
