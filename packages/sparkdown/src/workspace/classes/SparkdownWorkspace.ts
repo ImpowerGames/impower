@@ -56,8 +56,6 @@ export abstract class SparkdownWorkspace {
 
   protected _profilerId?: string;
 
-  protected _settings?: SparkdownCompilerConfig;
-
   protected _scriptFilePattern?: RegExp;
 
   protected _imageFilePattern?: RegExp;
@@ -178,10 +176,11 @@ export abstract class SparkdownWorkspace {
       descriptions?: any;
     };
     files?: { uri: string; src?: string; text?: string }[];
+    skipValidation?: boolean;
     uri?: string;
     omitImageData?: boolean;
   }) {
-    const { omitImageData, settings, definitions, files, uri } =
+    const { omitImageData, settings, definitions, files, skipValidation, uri } =
       initializationOptions;
     if (omitImageData != null) {
       this.omitImageData = omitImageData;
@@ -192,6 +191,7 @@ export abstract class SparkdownWorkspace {
     await this.loadCompiler({
       definitions,
       files,
+      skipValidation,
     });
     const program = uri ? await this.compile(uri, true) : undefined;
     return { program };
@@ -218,12 +218,12 @@ export abstract class SparkdownWorkspace {
     if (worldFiles) {
       this._worldFilePattern = globToRegex(worldFiles);
     }
-    this._settings = settings;
   }
 
   async loadCompiler(config: {
     definitions?: SparkdownCompilerDefinitions;
     files?: { uri: string; src?: string; text?: string }[];
+    skipValidation?: boolean;
   }) {
     const definitions = config.definitions;
     const files = config.files
@@ -248,9 +248,11 @@ export abstract class SparkdownWorkspace {
           })
         )
       : undefined;
+    const skipValidation = config.skipValidation;
     this._compilerConfig = {
       definitions,
       files,
+      skipValidation,
     };
     await this._initializingCompiler;
     await this.sendCompilerRequest(

@@ -18,6 +18,7 @@ export interface InitializationOptions {
     descriptions?: any;
   };
   files?: { uri: string; src?: string; text?: string }[];
+  skipValidation?: boolean;
   uri?: string;
   omitImageData?: boolean;
 }

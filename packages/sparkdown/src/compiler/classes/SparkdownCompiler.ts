@@ -171,6 +171,12 @@ export class SparkdownCompiler {
         this.addFile({ file });
       }
     }
+    if (
+      config.skipValidation &&
+      config.skipValidation !== this._config.skipValidation
+    ) {
+      this._config.skipValidation = config.skipValidation;
+    }
     return LANGUAGE_NAME;
   }
 
@@ -325,8 +331,10 @@ export class SparkdownCompiler {
     this.populateDeclarationLocations(program);
     this.sortPathLocations(program);
     this.buildContext(state, program);
-    this.validateSyntax(program);
-    this.validateReferences(state, program);
+    if (!this._config.skipValidation) {
+      this.validateSyntax(program);
+      this.validateReferences(state, program);
+    }
     return program;
   }
 

@@ -122,6 +122,7 @@ export default class GamePreview extends Component(spec) {
                 schemas: DEFAULT_SCHEMA_DEFINITIONS,
                 descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
               },
+              skipValidation: true,
               uri,
             },
             capabilities: {},

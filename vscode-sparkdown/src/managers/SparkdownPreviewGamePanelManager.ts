@@ -214,6 +214,7 @@ export class SparkdownPreviewGamePanelManager {
                 schemas: DEFAULT_SCHEMA_DEFINITIONS,
                 descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
               },
+              skipValidation: true,
               uri: document?.uri.toString(),
             },
             capabilities: {},
