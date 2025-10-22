@@ -677,7 +677,7 @@ export class Story extends FlowBase {
     const path = new Path(identifier);
     const targetContent = path.ResolveFromContext(obj);
     if (targetContent && targetContent !== obj) {
-      this.NameConflictError(obj, identifier, targetContent);
+      this.NameConflictError(obj, identifier, targetContent?.identifier || targetContent);
       return;
     }
 

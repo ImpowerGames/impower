@@ -36,7 +36,7 @@ export class Weave extends ParsedObject {
     return this._rootContainer;
   }
 
-  private _structuredContent: ParsedObject[] | null = null
+  private _structuredContent: ParsedObject[] | null = null;
 
   public get structuredContent() {
     if (!this._structuredContent) {
@@ -145,14 +145,8 @@ export class Weave extends ParsedObject {
         const existingObj: ParsedObject = existingWeavePoint;
 
         this.Error(
-          `A ${typeName} with the same label name '${
-            weavePoint.name
-          }' already exists in this context on line ${
-            existingObj.debugMetadata
-              ? existingObj.debugMetadata.startLineNumber
-              : "NO DEBUG METADATA AVAILABLE"
-          }`,
-          weavePoint as ParsedObject
+          `A ${typeName} with the same label name '${weavePoint.name}' already exists on ${existingObj.debugMetadata}`,
+          weavePoint.identifier
         );
       }
       if (weavePoint.identifier?.name) {
@@ -161,59 +155,60 @@ export class Weave extends ParsedObject {
     }
   };
 
-  public readonly ConstructWeaveHierarchyFromIndentation = (): ParsedObject[] => {
-    // Find nested indentation and convert to a proper object hierarchy
-    // (i.e. indented content is replaced with a Weave object that contains
-    // that nested content)
-    const structuredContent = [...this.content];
-    let contentIdx = 0;
-    while (contentIdx < structuredContent.length) {
-      const obj: ParsedObject = structuredContent[contentIdx];
+  public readonly ConstructWeaveHierarchyFromIndentation =
+    (): ParsedObject[] => {
+      // Find nested indentation and convert to a proper object hierarchy
+      // (i.e. indented content is replaced with a Weave object that contains
+      // that nested content)
+      const structuredContent = [...this.content];
+      let contentIdx = 0;
+      while (contentIdx < structuredContent.length) {
+        const obj: ParsedObject = structuredContent[contentIdx];
 
-      // Choice or Gather
-      if (obj instanceof Choice || obj instanceof Gather) {
-        const weavePoint: IWeavePoint = obj;
-        const weaveIndentIdx = weavePoint.indentationDepth - 1;
+        // Choice or Gather
+        if (obj instanceof Choice || obj instanceof Gather) {
+          const weavePoint: IWeavePoint = obj;
+          const weaveIndentIdx = weavePoint.indentationDepth - 1;
 
-        // Inner level indentation - recurse
-        if (weaveIndentIdx > this.baseIndentIndex) {
-          // Step through content until indent jumps out again
-          let innerWeaveStartIdx = contentIdx;
-          while (contentIdx < structuredContent.length) {
-            const innerWeaveObj =
-              asOrNull(structuredContent[contentIdx], Choice) ||
-              asOrNull(structuredContent[contentIdx], Gather);
-            if (innerWeaveObj !== null) {
-              const innerIndentIdx = innerWeaveObj.indentationDepth - 1;
-              if (innerIndentIdx <= this.baseIndentIndex) {
-                break;
+          // Inner level indentation - recurse
+          if (weaveIndentIdx > this.baseIndentIndex) {
+            // Step through content until indent jumps out again
+            let innerWeaveStartIdx = contentIdx;
+            while (contentIdx < structuredContent.length) {
+              const innerWeaveObj =
+                asOrNull(structuredContent[contentIdx], Choice) ||
+                asOrNull(structuredContent[contentIdx], Gather);
+              if (innerWeaveObj !== null) {
+                const innerIndentIdx = innerWeaveObj.indentationDepth - 1;
+                if (innerIndentIdx <= this.baseIndentIndex) {
+                  break;
+                }
               }
+
+              contentIdx += 1;
             }
 
-            contentIdx += 1;
+            const weaveContentCount = contentIdx - innerWeaveStartIdx;
+            const weaveContent = structuredContent.slice(
+              innerWeaveStartIdx,
+              innerWeaveStartIdx + weaveContentCount
+            );
+
+            structuredContent.splice(innerWeaveStartIdx, weaveContentCount);
+
+            const weave = new Weave(weaveContent, weaveIndentIdx);
+            weave.parent = this;
+            structuredContent.splice(innerWeaveStartIdx, 0, weave);
+
+            // Continue iteration from this point
+            contentIdx = innerWeaveStartIdx;
           }
-
-          const weaveContentCount = contentIdx - innerWeaveStartIdx;
-          const weaveContent = structuredContent.slice(
-            innerWeaveStartIdx,
-            innerWeaveStartIdx + weaveContentCount
-          );
-
-          structuredContent.splice(innerWeaveStartIdx, weaveContentCount);
-
-          const weave = new Weave(weaveContent, weaveIndentIdx);
-          weave.parent = this;
-          structuredContent.splice(innerWeaveStartIdx, 0, weave);
-
-          // Continue iteration from this point
-          contentIdx = innerWeaveStartIdx;
         }
-      }
 
-      contentIdx += 1;
-    }
-    return structuredContent;
-  };
+        contentIdx += 1;
+      }
+      return structuredContent;
+    };
 
   // When the indentation wasn't told to us at construction time using
   // a choice point with a known indentation level, we may be told to

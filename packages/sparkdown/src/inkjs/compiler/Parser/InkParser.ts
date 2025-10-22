@@ -1442,9 +1442,7 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const targetPath = new Path(targetComponents);
-
-    return new Divert(targetPath, optionalArguments);
+    return new Divert(targetComponents, optionalArguments);
   };
 
   public readonly SingleDivert = (): Divert | null => {
@@ -1484,7 +1482,7 @@ export class InkParser extends StringParser {
 
   public readonly DotSeparatedDivertPathComponents = (): Identifier[] =>
     this.Interleave<Identifier>(
-      this.Spaced(this.IdentifierWithMetadata),
+      this.IdentifierWithMetadata,
       this.Exclude(this.String("."))
     );
 

@@ -1,5 +1,6 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { DebugMetadata } from "../../../../engine/DebugMetadata";
 import { Divert as RuntimeDivert } from "../../../../engine/Divert";
 import { Path as RuntimePath } from "../../../../engine/Path";
 import { PushPopType } from "../../../../engine/PushPop";
@@ -10,6 +11,7 @@ import { Expression } from "../Expression/Expression";
 import { ClosestFlowBase } from "../Flow/ClosestFlowBase";
 import { FlowBase } from "../Flow/FlowBase";
 import { FunctionCall } from "../FunctionCall";
+import { Identifier } from "../Identifier";
 import { ParsedObject } from "../Object";
 import { Path } from "../Path";
 import { Story } from "../Story";
@@ -19,6 +21,7 @@ import { DivertTarget } from "./DivertTarget";
 export class Divert extends ParsedObject {
   public readonly args: Expression[] = [];
 
+  public readonly pathIdentifiers: Identifier[] | null = null;
   public readonly target: Path | null = null;
   public targetContent: ParsedObject | null = null;
   private _runtimeDivert: RuntimeDivert | null = null;
@@ -49,10 +52,13 @@ export class Divert extends ParsedObject {
     );
   }
 
-  constructor(target?: Path | null | undefined, args?: Expression[]) {
+  constructor(pathIdentifiers?: Identifier[] | null | undefined, args?: Expression[]) {
     super();
 
-    if (target) {
+
+    if (pathIdentifiers) {
+      this.pathIdentifiers = pathIdentifiers;
+      const target = new Path(pathIdentifiers);
       this.target = target;
     }
 
@@ -331,7 +337,8 @@ export class Divert extends ParsedObject {
     }
 
     if (!targetWasFound && !isBuiltIn && !isExternal) {
-      this.Error(`target not found: '${this.target}'`);
+      console.log(this.pathIdentifiers, this.pathIdentifiers ? new Identifier(...this.pathIdentifiers) : this)
+      this.Error(`target not found: '${this.target}'`, this.pathIdentifiers ? new Identifier(...this.pathIdentifiers) : this);
     }
   }
 
@@ -469,7 +476,7 @@ export class Divert extends ParsedObject {
 
   public Error(
     message: string,
-    source: ParsedObject | null = null,
+    source: ParsedObject |  Identifier | ParsedObject | DebugMetadata | null = null,
     isWarning: boolean = false
   ): void {
     // Could be getting an error from a nested Divert

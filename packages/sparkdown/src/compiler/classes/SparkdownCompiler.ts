@@ -367,6 +367,8 @@ export class SparkdownCompiler {
       return undefined;
     };
 
+    const fileName = uri.split("/").at(-1)?.split(".")[0] ?? null;
+
     const remapContent = (
       content: ParsedObject[],
       lineNumberOffset: number
@@ -375,6 +377,7 @@ export class SparkdownCompiler {
         c.ResetRuntime();
         if (c.debugMetadata) {
           this.offsetDebugMetadata(c, lineNumberOffset);
+          c.debugMetadata.fileName = fileName;
           c.debugMetadata.filePath = uri;
         }
         if (
@@ -383,7 +386,19 @@ export class SparkdownCompiler {
           c.identifier?.debugMetadata
         ) {
           this.offsetDebugMetadata(c.identifier, lineNumberOffset);
+          c.identifier.ResetRuntime();
+          c.identifier.debugMetadata.fileName = fileName;
           c.identifier.debugMetadata.filePath = uri;
+        }
+        if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
+          for (const p of c.pathIdentifiers) {
+            if (p instanceof Identifier && p.debugMetadata) {
+              this.offsetDebugMetadata(p, lineNumberOffset);
+              p.ResetRuntime();
+              p.debugMetadata.fileName = fileName;
+              p.debugMetadata.filePath = uri;
+            }
+          }
         }
         if (c.content) {
           remapContent(c.content, lineNumberOffset);
