@@ -17,9 +17,8 @@ export class VariableAssignment extends ParsedObject {
   private _runtimeAssignment: RuntimeVariableAssignment | null = null;
 
   get variableName(): string {
-    return this.variableIdentifier.name!;
+    return this.identifier?.name!;
   }
-  public readonly variableIdentifier: Identifier;
   public readonly expression: Expression | null = null;
   public readonly listDefinition: ListDefinition | null = null;
   public readonly structDefinition: StructDefinition | null = null;
@@ -70,7 +69,7 @@ export class VariableAssignment extends ParsedObject {
   }) {
     super();
 
-    this.variableIdentifier = variableIdentifier;
+    this.identifier = variableIdentifier;
     this.isGlobalDeclaration = Boolean(isGlobalDeclaration);
     this.isPropertyDeclaration = Boolean(isPropertyDeclaration);
     this.isNewTemporaryDeclaration = Boolean(isTemporaryNewDeclaration);
@@ -141,7 +140,7 @@ export class VariableAssignment extends ParsedObject {
     ) {
       context.CheckForNamingCollisions(
         this,
-        this.variableIdentifier,
+        this.identifier,
         this.isGlobalDeclaration ? SymbolType.Var : SymbolType.Temp
       );
     }
@@ -172,7 +171,7 @@ export class VariableAssignment extends ParsedObject {
         } else {
           this.Error(
             `Cannot find variable named '${this.variableName}'`,
-            this.variableIdentifier
+            this.identifier
           );
         }
       }

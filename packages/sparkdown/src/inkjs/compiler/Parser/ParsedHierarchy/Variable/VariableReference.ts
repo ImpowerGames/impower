@@ -25,16 +25,6 @@ export class VariableReference extends Expression {
     return this.pathIdentifiers.map((id) => id.name!).filter(filterUndef);
   }
 
-  get identifier(): Identifier | null {
-    if (!this.pathIdentifiers || this.pathIdentifiers.length == 0) {
-      return null;
-    }
-    const name = this.path.join(".");
-    const id = new Identifier(name);
-
-    return id;
-  }
-
   // Only known after GenerateIntoContainer has run
   public isConstantReference: boolean = false;
   public isListItemReference: boolean = false;
@@ -45,6 +35,7 @@ export class VariableReference extends Expression {
 
   constructor(public readonly pathIdentifiers: Identifier[]) {
     super();
+    this.identifier = new Identifier(...this.pathIdentifiers);
   }
 
   get typeName(): string {

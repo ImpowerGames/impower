@@ -1094,7 +1094,6 @@ export class InkParser extends StringParser {
         sb += String(str);
       }
 
-      
       if (
         this._currentTextBlock &&
         this.Peek(this.ParseSingleCharacter) === "\n"
@@ -3094,7 +3093,7 @@ export class InkParser extends StringParser {
             variableIdentifier.debugMetadata.Merge(name.debugMetadata);
         }
       }
-      definition.scopedIdentifier = variableIdentifier;
+      definition.identifier = variableIdentifier;
       definition.modifier = modifier;
       definition.type = type;
       definition.name = name;

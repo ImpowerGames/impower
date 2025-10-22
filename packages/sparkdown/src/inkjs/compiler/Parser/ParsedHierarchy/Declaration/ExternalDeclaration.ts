@@ -9,10 +9,11 @@ export class ExternalDeclaration extends ParsedObject implements INamedContent {
   }
 
   constructor(
-    public readonly identifier: Identifier,
+    identifier: Identifier,
     public readonly argumentNames: string[]
   ) {
     super();
+    this.identifier = identifier;
   }
 
   get typeName(): string {

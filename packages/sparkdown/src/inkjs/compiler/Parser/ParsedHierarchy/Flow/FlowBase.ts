@@ -61,7 +61,6 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     return this.identifier?.name || null;
   }
 
-  public identifier: Identifier | null = null;
   public args: Argument[] | null = null;
 
   constructor(
@@ -205,7 +204,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
           `Duplicate identifier '${varName}'. A ${varab.typeName.toLowerCase()} named '${varName}' already exists on ${
             varab.debugMetadata
           }`,
-          varDecl.variableIdentifier.debugMetadata
+          varDecl.identifier.debugMetadata
         );
       }
 

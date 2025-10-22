@@ -11,7 +11,6 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
   get name(): string | null {
     return this.identifier?.name || null;
   }
-  public identifier?: Identifier;
 
   get runtimeContainer(): RuntimeContainer {
     return this.runtimeObject as RuntimeContainer;

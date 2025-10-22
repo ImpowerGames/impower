@@ -7,9 +7,8 @@ import { Identifier } from "../Identifier";
 
 export class ConstantDeclaration extends ParsedObject {
   get constantName(): string | undefined {
-    return this.constantIdentifier?.name;
+    return this.identifier?.name;
   }
-  public constantIdentifier: Identifier;
 
   private _expression: Expression | null = null;
 
@@ -24,7 +23,7 @@ export class ConstantDeclaration extends ParsedObject {
   constructor(name: Identifier, assignedExpression: Expression) {
     super();
 
-    this.constantIdentifier = name;
+    this.identifier = name;
 
     // Defensive programming in case parsing of assignedExpression failed
     if (assignedExpression) {
@@ -45,10 +44,6 @@ export class ConstantDeclaration extends ParsedObject {
 
   public ResolveReferences(context: Story) {
     super.ResolveReferences(context);
-    context.CheckForNamingCollisions(
-      this,
-      this.constantIdentifier,
-      SymbolType.Var
-    );
+    context.CheckForNamingCollisions(this, this.identifier, SymbolType.Var);
   }
 }

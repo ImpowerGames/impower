@@ -10,7 +10,7 @@ import { Story } from "./Story";
 export abstract class ParsedObject {
   public abstract readonly GenerateRuntimeObject: () => RuntimeObject | null;
 
-  public identifier?: Identifier;
+  public identifier: Identifier | null = null;
 
   private _alreadyHadError: boolean = false;
   private _alreadyHadWarning: boolean = false;

@@ -206,8 +206,8 @@ export class Story extends FlowBase {
     this._structDefs = new Map();
     const runtimeStructs: RuntimeStructDefinition[] = [];
     for (const structDef of this.FindAll(StructDefinition)()) {
-      if (structDef.scopedIdentifier?.name) {
-        this._structDefs.set(structDef.scopedIdentifier?.name, structDef);
+      if (structDef.identifier?.name) {
+        this._structDefs.set(structDef.identifier?.name, structDef);
         runtimeStructs.push(structDef.runtimeStructDefinition);
         if (!structDef.modifier?.name && structDef.name?.name !== "$default") {
           // Each struct property should be saved as its own dot-accessible variable
@@ -630,11 +630,7 @@ export class Story extends FlowBase {
         obj !== value &&
         value.variableAssignment !== obj
       ) {
-        this.NameConflictError(
-          obj,
-          identifier,
-          value.scopedIdentifier || value
-        );
+        this.NameConflictError(obj, identifier, value.identifier || value);
       }
     }
 
@@ -642,11 +638,7 @@ export class Story extends FlowBase {
     const constDecl =
       (identifier?.name && this.constants.get(identifier.name)) || null;
     if (constDecl && constDecl !== obj) {
-      this.NameConflictError(
-        constDecl,
-        constDecl.constantIdentifier,
-        identifier
-      );
+      this.NameConflictError(constDecl, constDecl.identifier, identifier);
     }
 
     // Don't check for var->var conflicts because that's handled separately
@@ -666,7 +658,7 @@ export class Story extends FlowBase {
       varDecl.listDefinition == null &&
       varDecl.structDefinition == null
     ) {
-      this.NameConflictError(obj, identifier, varDecl.variableIdentifier);
+      this.NameConflictError(obj, identifier, varDecl.identifier);
     }
 
     if (symbolType < SymbolType.SubFlowAndWeave) {
@@ -677,7 +669,11 @@ export class Story extends FlowBase {
     const path = new Path(identifier);
     const targetContent = path.ResolveFromContext(obj);
     if (targetContent && targetContent !== obj) {
-      this.NameConflictError(obj, identifier, targetContent?.identifier || targetContent);
+      this.NameConflictError(
+        obj,
+        identifier,
+        targetContent?.identifier || targetContent
+      );
       return;
     }
 
@@ -697,7 +693,7 @@ export class Story extends FlowBase {
           if (arg.identifier?.name === identifier?.name) {
             obj.Error(
               `Duplicate identifier '${identifier}'. A parameter named '${identifier}' already exists for ${flow.identifier} on ${flow.debugMetadata}`,
-              varDecl?.variableIdentifier.debugMetadata
+              varDecl?.identifier.debugMetadata
             );
 
             return;

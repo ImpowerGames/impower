@@ -12,8 +12,6 @@ export class StructDefinition extends ParsedObject {
     return "Define";
   }
 
-  public scopedIdentifier: Identifier | null = null;
-
   public modifier: Identifier | null = null;
 
   public type: Identifier | null = null;
@@ -64,11 +62,7 @@ export class StructDefinition extends ParsedObject {
 
   public override ResolveReferences(context: Story): void {
     super.ResolveReferences(context);
-    context.CheckForNamingCollisions(
-      this,
-      this.scopedIdentifier!,
-      SymbolType.Struct
-    );
+    context.CheckForNamingCollisions(this, this.identifier!, SymbolType.Struct);
   }
 
   BuildValue(propertyDefinitions: StructPropertyDefinition[]) {

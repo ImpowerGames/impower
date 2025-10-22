@@ -17,11 +17,13 @@ export class IncDecExpression extends Expression {
   public expression: Expression | null = null;
 
   constructor(
-    public readonly varIdentifier: Identifier | null,
+    identifier: Identifier | null,
     isIncOrExpression: boolean | Expression,
     isInc?: boolean
   ) {
     super();
+
+    this.identifier = identifier;
 
     if (isIncOrExpression instanceof Expression) {
       this.expression = isIncOrExpression;
@@ -46,7 +48,7 @@ export class IncDecExpression extends Expression {
 
     // 1.
     container.AddContent(
-      new RuntimeVariableReference(this.varIdentifier?.name || null)
+      new RuntimeVariableReference(this.identifier?.name || null)
     );
 
     // 2.
@@ -65,7 +67,7 @@ export class IncDecExpression extends Expression {
 
     // 4.
     this._runtimeAssignment = new RuntimeVariableAssignment(
-      this.varIdentifier?.name || null,
+      this.identifier?.name || null,
       false
     );
     container.AddContent(this._runtimeAssignment);
@@ -75,13 +77,13 @@ export class IncDecExpression extends Expression {
     super.ResolveReferences(context);
 
     const varResolveResult = context.ResolveVariableWithName(
-      this.varIdentifier?.name || "",
+      this.identifier?.name || "",
       this
     );
 
     if (!varResolveResult.found) {
       this.Error(
-        `variable for ${this.incrementDecrementWord} could not be found: '${this.varIdentifier}' after searching: {this.descriptionOfScope}`
+        `variable for ${this.incrementDecrementWord} could not be found: '${this.identifier}' after searching: {this.descriptionOfScope}`
       );
     }
 
@@ -110,11 +112,11 @@ export class IncDecExpression extends Expression {
 
   public readonly toString = (): string => {
     if (this.expression) {
-      return `${this.varIdentifier?.name}${this.isInc ? " += " : " -= "}${
+      return `${this.identifier?.name}${this.isInc ? " += " : " -= "}${
         this.expression
       }`;
     }
 
-    return `${this.varIdentifier?.name}` + (this.isInc ? "++" : "--");
+    return `${this.identifier?.name}` + (this.isInc ? "++" : "--");
   };
 }

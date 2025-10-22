@@ -39,7 +39,6 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
   public startContent: ContentList;
   public choiceOnlyContent: ContentList;
   public innerContent: ContentList;
-  public identifier?: Identifier;
   get name() {
     return this.identifier?.name || null;
   }

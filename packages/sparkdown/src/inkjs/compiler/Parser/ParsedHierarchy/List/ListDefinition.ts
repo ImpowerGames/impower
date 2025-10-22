@@ -7,10 +7,8 @@ import { ParsedObject } from "../Object";
 import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
 import { VariableAssignment } from "../Variable/VariableAssignment";
-import { Identifier } from "../Identifier";
 
 export class ListDefinition extends ParsedObject {
-  public identifier: Identifier | null = null;
   public variableAssignment: VariableAssignment | null = null;
 
   get typeName() {

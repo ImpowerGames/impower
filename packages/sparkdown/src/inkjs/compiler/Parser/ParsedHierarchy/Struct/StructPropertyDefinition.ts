@@ -15,10 +15,11 @@ export class StructPropertyDefinition extends ParsedObject {
 
   constructor(
     public readonly level: number,
-    public readonly identifier: Identifier,
+    identifier: Identifier,
     public readonly expression: Expression | null = null
   ) {
     super();
+    this.identifier = identifier;
   }
 
   public readonly GetValue = (): unknown => {
@@ -68,5 +69,5 @@ export class StructPropertyDefinition extends ParsedObject {
     throw new Error("Not implemented.");
   };
 
-  public override readonly toString = (): string => this.identifier.name;
+  public override readonly toString = (): string => this.identifier?.name!;
 }
