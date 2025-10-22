@@ -1990,8 +1990,8 @@ repository:
   ########## Gather ##########
 
   Gather:
-    begin: ^({{WS}}*)((?:[-]{{EOK}})+)({{WS}}*)([(][^()]*[)]{{WS}}*)?
-    beginCaptures:
+    match: ^({{WS}}*)((?:[-]{{EOK}})+)({{WS}}*)([(][^()]*[)]{{WS}}*)?
+    captures:
       1:
         patterns:
           - { include: "#Indent" }
@@ -2004,22 +2004,6 @@ repository:
       4:
         patterns:
           - { include: "#Label" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Choice" }
-      - { include: "#Divert" }
-      - { include: "#Thread" }
-      - { include: "#Todo" }
-      - { include: "#Logic" }
-      - { include: "#ConditionalBracedBlock" }
-      - { include: "#ConditionalIndentedBlock" }
-      - { include: "#Title" }
-      - { include: "#Heading" }
-      - { include: "#Transitional" }
-      - { include: "#Write" }
-      - { include: "#Dialogue" }
-      - { include: "#Action" }
-    end: (?=$|^)
 
   GatherMark:
     tag: keyword

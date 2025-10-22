@@ -3603,8 +3603,8 @@
       "match": "(.+)"
     },
     "Gather": {
-      "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))+)([^\\S\\n\\r]*)([(][^()]*[)][^\\S\\n\\r]*)?",
-      "beginCaptures": {
+      "match": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*]))))+)([^\\S\\n\\r]*)([(][^()]*[)][^\\S\\n\\r]*)?",
+      "captures": {
         "1": {
           "patterns": [
             {
@@ -3633,52 +3633,7 @@
             }
           ]
         }
-      },
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#Choice"
-        },
-        {
-          "include": "#Divert"
-        },
-        {
-          "include": "#Thread"
-        },
-        {
-          "include": "#Todo"
-        },
-        {
-          "include": "#Logic"
-        },
-        {
-          "include": "#ConditionalBracedBlock"
-        },
-        {
-          "include": "#ConditionalIndentedBlock"
-        },
-        {
-          "include": "#Title"
-        },
-        {
-          "include": "#Heading"
-        },
-        {
-          "include": "#Transitional"
-        },
-        {
-          "include": "#Write"
-        },
-        {
-          "include": "#Dialogue"
-        },
-        {
-          "include": "#Action"
-        }
-      ],
-      "end": "(?=$|^)"
+      }
     },
     "GatherMark": {
       "tag": "keyword",
