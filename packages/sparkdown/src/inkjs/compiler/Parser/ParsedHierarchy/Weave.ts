@@ -537,9 +537,7 @@ export class Weave extends ParsedObject {
     this.looseEnds.push(childWeaveLooseEnd);
   };
 
-  public ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
-
+  public override ResolveReferences(context: Story): void {
     // Check that choices nested within conditionals and sequences are terminated
     if (this.looseEnds !== null && this.looseEnds.length > 0) {
       let isNestedWeave = false;
@@ -564,6 +562,8 @@ export class Weave extends ParsedObject {
     }
 
     this.CheckForWeavePointNamingCollisions();
+    
+    super.ResolveReferences(context);
   }
 
   public readonly WeavePointNamed = (name: string): IWeavePoint | null => {
