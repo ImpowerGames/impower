@@ -52,9 +52,11 @@ export class Divert extends ParsedObject {
     );
   }
 
-  constructor(pathIdentifiers?: Identifier[] | null | undefined, args?: Expression[]) {
+  constructor(
+    pathIdentifiers?: Identifier[] | null | undefined,
+    args?: Expression[]
+  ) {
     super();
-
 
     if (pathIdentifiers) {
       this.pathIdentifiers = pathIdentifiers;
@@ -337,8 +339,10 @@ export class Divert extends ParsedObject {
     }
 
     if (!targetWasFound && !isBuiltIn && !isExternal) {
-      console.log(this.pathIdentifiers, this.pathIdentifiers ? new Identifier(...this.pathIdentifiers) : this)
-      this.Error(`target not found: '${this.target}'`, this.pathIdentifiers ? new Identifier(...this.pathIdentifiers) : this);
+      this.Error(
+        `target not found: '${this.target}'`,
+        this.pathIdentifiers ? new Identifier(...this.pathIdentifiers) : this
+      );
     }
   }
 
@@ -476,7 +480,12 @@ export class Divert extends ParsedObject {
 
   public Error(
     message: string,
-    source: ParsedObject |  Identifier | ParsedObject | DebugMetadata | null = null,
+    source:
+      | ParsedObject
+      | Identifier
+      | ParsedObject
+      | DebugMetadata
+      | null = null,
     isWarning: boolean = false
   ): void {
     // Could be getting an error from a nested Divert
