@@ -468,6 +468,11 @@ const exitedKnot = (
     return false;
   }
 
+  if (!Number.isNaN(curKnot)) {
+    // Is root level
+    return false;
+  }
+
   const inside = curKnot === knotName;
 
   return !inside;
