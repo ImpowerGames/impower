@@ -112,7 +112,7 @@ export class Container extends InkObject implements INamedContent {
       for (let c of contentList) {
         this.AddContent(c);
       }
-    } else {
+    } else if (contentObjOrList) {
       let contentObj = contentObjOrList as InkObject;
 
       this._content.push(contentObj);

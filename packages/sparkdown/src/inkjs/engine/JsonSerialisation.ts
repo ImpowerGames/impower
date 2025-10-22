@@ -503,10 +503,11 @@ export class JsonSerialisation {
 
     if (token === null || token === undefined) return null;
 
-    throw new Error(
-      "Failed to convert token to runtime object: " +
-        this.toJson(token, ["parent"])
-    );
+    // MADE JSON SERIALIZATION MORE ERROR TOLERANT
+    // throw new Error(
+    //   "Failed to convert token to runtime object: " +
+    //     this.toJson(token, ["parent"])
+    // );
   }
 
   public static toJson<T>(
