@@ -121,7 +121,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     if (isRootStory) {
       weaveObjs.push(
         new Gather(null, 1),
-        new Divert(new Path(Identifier.Done()))
+        new Divert([Identifier.Done()])
       );
     }
 

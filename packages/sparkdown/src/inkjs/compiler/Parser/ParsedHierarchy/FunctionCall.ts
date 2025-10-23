@@ -89,7 +89,7 @@ export class FunctionCall extends Expression {
   constructor(functionName: Identifier, args: Expression[]) {
     super();
 
-    this._proxyDivert = new Divert(new Path(functionName), args);
+    this._proxyDivert = new Divert([functionName], args);
     this._proxyDivert.isFunctionCall = true;
     this.AddContent(this._proxyDivert);
   }
