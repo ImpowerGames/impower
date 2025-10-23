@@ -305,13 +305,7 @@ const runUntilDecisionOrBranch = (
         break;
       }
 
-      // B) Stay within starting knot?
-      if (stayWithinKnot && exitedKnot(story, fromKnotName, functions)) {
-        terminal = true;
-        break;
-      }
-
-      // C) Story requires choice to advance
+      // B) Story requires choice to advance
       if (!story.canContinue && story.currentChoices.length > 0) {
         if (simulator.willForceChoice(previousPath)) {
           const forcedSourcePath = simulator?.forceChoice(previousPath);
@@ -374,8 +368,14 @@ const runUntilDecisionOrBranch = (
         }
       }
 
-      // D) If we can't continue and there are no choices, this is a dead end
+      // C) If we can't continue and there are no choices, this is a dead end
       if (!story.canContinue) {
+        terminal = true;
+        break;
+      }
+
+      // D) Stay within starting knot?
+      if (stayWithinKnot && exitedKnot(story, fromKnotName, functions)) {
         terminal = true;
         break;
       }
