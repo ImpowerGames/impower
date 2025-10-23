@@ -76,6 +76,5 @@ export const getParentSectionPath = <T extends string>(
     }
     topLevelNode = topLevelNode.prevSibling;
   }
-  parentPathParts.unshift({ kind: "", name: "" });
   return parentPathParts.map((p) => p.name as T);
 };

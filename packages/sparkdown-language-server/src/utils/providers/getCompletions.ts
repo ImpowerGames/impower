@@ -498,7 +498,7 @@ const addStructPropertyNameContextCompletions = (
                   p
                 )?.[""] ||
                 getProperty<Record<string, string>>(
-                  config?.descriptionDefinitions?.[typeStruct.$type]?.[
+                  config?.definitions?.descriptions?.[typeStruct.$type]?.[
                     "$description"
                   ],
                   p
@@ -578,7 +578,7 @@ const addStructPropertyNameCompletions = (
       completions,
       program,
       config,
-      config?.optionalDefinitions?.[type]?.["$optional"],
+      config?.definitions?.optionals?.[type]?.["$optional"],
       modifier,
       path,
       valueAssignmentSeparator,
@@ -709,7 +709,7 @@ const addStructPropertyValueCompletions = (
     addStructPropertyValueSchemaCompletions(
       completions,
       program,
-      config?.schemaDefinitions?.[type]?.["$schema"],
+      config?.definitions?.schemas?.[type]?.["$schema"],
       modifier,
       path,
       valueText,
@@ -740,7 +740,7 @@ const addStructPropertyValueCompletions = (
     addStructPropertyValueContextCompletions(
       completions,
       program,
-      config?.optionalDefinitions?.[type]?.["$optional"],
+      config?.definitions?.optionals?.[type]?.["$optional"],
       modifier,
       path
     );
@@ -1677,7 +1677,7 @@ export const getCompletions = (
     prevNode.name === "DivertMark" &&
     !getNodeText(
       getDescendentInsideParent("Divert_content", "Divert", leftStack)
-    )
+    ).trim()
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
       const scopes = getDeclarationScopes(read, scriptAnnotations);
@@ -1708,6 +1708,28 @@ export const getCompletions = (
     }
     return buildCompletions();
   }
+  const divertPathNode = leftStack.find((n) => n.type.name === "DivertPath");
+  if (
+    divertPathNode &&
+    (leftStack[0]?.name === "PunctuationAccessor" ||
+      leftStack[0]?.name === "DivertPartName")
+  ) {
+    if (isCursorAfterNodeText(divertPathNode)) {
+      const valueText = getNodeText(divertPathNode);
+      const valueCursorOffset = getCursorOffset(divertPathNode);
+      const scopes = getDeclarationScopes(read, scriptAnnotations);
+      addDivertPathKeywords(completions, "", 0);
+      addDivertPathCompletions(
+        completions,
+        scopes,
+        valueText,
+        valueCursorOffset,
+        getParentSectionPath(leftStack, read).join(".")
+      );
+    }
+    return buildCompletions();
+  }
+
   if (leftStack.at(-2)?.name === "ImplicitAction") {
     const contentNode = leftStack.at(-2);
     const text = getNodeText(contentNode).trimStart();
