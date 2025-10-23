@@ -14,6 +14,8 @@ export abstract class SparkdownAnnotator<
 
   tree?: Tree;
 
+  _annotationType!: AnnotationType;
+
   constructor(config?: ConfigType) {
     this.config = config;
   }
@@ -25,7 +27,12 @@ export abstract class SparkdownAnnotator<
 
   begin(iterateFrom: number, iterateTo: number) {}
 
-  end(iterateFrom: number, iterateTo: number) {}
+  end(
+    iterateFrom: number,
+    iterateTo: number,
+    added: Range<AnnotationType>[],
+    removed: Range<AnnotationType>[]
+  ) {}
 
   remove(from: number, to: number, value: AnnotationType) {}
 

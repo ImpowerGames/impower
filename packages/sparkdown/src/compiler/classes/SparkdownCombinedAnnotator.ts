@@ -1,4 +1,10 @@
-import { ChangeSet, ChangeSpec, RangeSet, Text } from "@codemirror/state";
+import {
+  ChangeSet,
+  ChangeSpec,
+  Range,
+  RangeSet,
+  Text,
+} from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { Tree } from "@lezer/common";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
@@ -181,20 +187,16 @@ export class SparkdownCombinedAnnotator {
     }
     if (!changes || reparsedFrom == null) {
       // Rebuild all annotations from scratch
-      for (const [key, ranges] of Object.entries(
+      for (const [key, add] of Object.entries(
         this.annotate(tree, undefined, undefined, annotate)
       )) {
         if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
           const annotator = this.current[key as keyof SparkdownAnnotators];
           if (annotator) {
             annotator.current =
-              ranges.length > 0 ? RangeSet.of(ranges, true) : RangeSet.empty;
+              add.length > 0 ? RangeSet.of(add, true) : RangeSet.empty;
+            annotator.end(iteratingFrom, iteratingTo, add as any, []);
           }
-        }
-      }
-      for (const [key, annotator] of this._currentEntries) {
-        if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
-          annotator.end(iteratingFrom, iteratingTo);
         }
       }
       return this.current;
@@ -211,24 +213,27 @@ export class SparkdownCombinedAnnotator {
         if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
           const annotator = this.current[key as keyof SparkdownAnnotators];
           if (annotator) {
+            const removed: Range<typeof annotator._annotationType>[] = [];
             annotator.current = annotator.current.map(changeDesc);
             annotator.current = annotator.current.update({
               filter: (from, to, value) => {
                 if (to < reparsedFrom) {
                   return true;
                 }
+                removed.push(value.range(from, to));
                 this.remove(from, to, value, annotate);
                 return false;
               },
               add,
               sort: true,
             });
+            annotator.end(
+              iteratingFrom,
+              iteratingTo,
+              add as any,
+              removed as any
+            );
           }
-        }
-      }
-      for (const [key, annotator] of this._currentEntries) {
-        if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
-          annotator.end(iteratingFrom, iteratingTo);
         }
       }
       return this.current;
@@ -240,24 +245,22 @@ export class SparkdownCombinedAnnotator {
       if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         const annotator = this.current[key as keyof SparkdownAnnotators];
         if (annotator) {
+          const removed: Range<typeof annotator._annotationType>[] = [];
           annotator.current = annotator.current.map(changeDesc);
           annotator.current = annotator.current.update({
             filter: (from, to, value) => {
               if (to < reparsedFrom || from > reparsedTo) {
                 return true;
               }
+              removed.push(value.range(from, to));
               this.remove(from, to, value, annotate);
               return false;
             },
             add,
             sort: true,
           });
+          annotator.end(iteratingFrom, iteratingTo, add as any, removed as any);
         }
-      }
-    }
-    for (const [key, annotator] of this._currentEntries) {
-      if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
-        annotator.end(iteratingFrom, iteratingTo);
       }
     }
     return this.current;
