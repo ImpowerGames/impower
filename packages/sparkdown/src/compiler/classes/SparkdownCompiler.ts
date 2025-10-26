@@ -717,9 +717,7 @@ export class SparkdownCompiler {
         !(obj instanceof StringValue && obj.isNewline)
       ) {
         let path = obj.path.toString();
-        if (path.startsWith("global ")) {
-          path = "0";
-        }
+        if (!path.startsWith("global ")) {
         const [
           _,
           existingStartLine,
@@ -775,6 +773,7 @@ export class SparkdownCompiler {
           endLine,
           endColumn,
         ];
+        }
       }
     }
     return false;
