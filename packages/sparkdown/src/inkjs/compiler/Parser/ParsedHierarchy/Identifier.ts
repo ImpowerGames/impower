@@ -3,7 +3,6 @@ import { DebugMetadata } from "../../../engine/DebugMetadata";
 export class Identifier {
   public name: string;
   public debugMetadata: DebugMetadata | null = null;
-  public sourceDebugMetadata: DebugMetadata | null = null;
   public alreadyHadError: boolean = false;
   public alreadyHadWarning: boolean = false;
 
@@ -61,6 +60,10 @@ export class Identifier {
 
   get typeName(): string {
     return "Identifier";
+  }
+
+  get hasOwnDebugMetadata() {
+    return true;
   }
 
   public static Done(): Identifier {

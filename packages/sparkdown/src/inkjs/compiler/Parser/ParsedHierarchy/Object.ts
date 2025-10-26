@@ -20,8 +20,6 @@ export abstract class ParsedObject {
   public content: ParsedObject[] = [];
   public parent: ParsedObject | null = null;
 
-  public sourceDebugMetadata: DebugMetadata | null = null;
-
   get debugMetadata() {
     if (this._debugMetadata === null && this.parent) {
       return this.parent.debugMetadata;

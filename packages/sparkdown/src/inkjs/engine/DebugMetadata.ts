@@ -5,6 +5,7 @@ export class DebugMetadata {
   public endCharacterNumber: number = 0;
   public fileName: string | null = null;
   public filePath: string | null = null;
+  public adjusted?: boolean;
 
   constructor(dm?: DebugMetadata) {
     if (dm) {

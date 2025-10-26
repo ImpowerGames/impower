@@ -376,7 +376,7 @@ export class SparkdownCompiler {
       for (const c of content) {
         c.ResetRuntime();
         if (c.debugMetadata) {
-          this.offsetDebugMetadata(c, lineNumberOffset);
+          this.offsetDebugMetadata(c.debugMetadata, lineNumberOffset);
           c.debugMetadata.fileName = fileName;
           c.debugMetadata.filePath = uri;
         }
@@ -385,7 +385,10 @@ export class SparkdownCompiler {
           c.identifier instanceof Identifier &&
           c.identifier?.debugMetadata
         ) {
-          this.offsetDebugMetadata(c.identifier, lineNumberOffset);
+          this.offsetDebugMetadata(
+            c.identifier.debugMetadata,
+            lineNumberOffset
+          );
           c.identifier.ResetRuntime();
           c.identifier.debugMetadata.fileName = fileName;
           c.identifier.debugMetadata.filePath = uri;
@@ -393,7 +396,7 @@ export class SparkdownCompiler {
         if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
           for (const p of c.pathIdentifiers) {
             if (p instanceof Identifier && p.debugMetadata) {
-              this.offsetDebugMetadata(p, lineNumberOffset);
+              this.offsetDebugMetadata(p.debugMetadata, lineNumberOffset);
               p.ResetRuntime();
               p.debugMetadata.fileName = fileName;
               p.debugMetadata.filePath = uri;
@@ -1512,21 +1515,11 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "validateReferences", uri);
   }
 
-  offsetDebugMetadata(
-    obj: {
-      debugMetadata: DebugMetadata | null;
-      sourceDebugMetadata: DebugMetadata | null;
-    },
-    lineNumberOffset: number
-  ) {
-    if (!obj.sourceDebugMetadata) {
-      obj.sourceDebugMetadata = obj.debugMetadata;
-    }
-    if (obj.sourceDebugMetadata) {
-      const offsetDebugMetadata = new DebugMetadata(obj.sourceDebugMetadata);
-      offsetDebugMetadata.startLineNumber += lineNumberOffset;
-      offsetDebugMetadata.endLineNumber += lineNumberOffset;
-      obj.debugMetadata = offsetDebugMetadata;
+  offsetDebugMetadata(debugMetadata: DebugMetadata, lineNumberOffset: number) {
+    if (!debugMetadata.adjusted) {
+      debugMetadata.startLineNumber += lineNumberOffset;
+      debugMetadata.endLineNumber += lineNumberOffset;
+      debugMetadata.adjusted = true;
     }
   }
 
