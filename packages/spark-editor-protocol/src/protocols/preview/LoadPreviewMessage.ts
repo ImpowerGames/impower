@@ -6,7 +6,7 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 export type LoadPreviewMethod = typeof LoadPreviewMessage.method;
 
 export interface LoadPreviewParams {
-  type: "game" | "screenplay";
+  type: "screenplay";
   textDocument: TextDocumentItem;
   focused?: boolean;
   visibleRange?: Range;

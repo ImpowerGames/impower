@@ -1,13 +1,14 @@
 import { Path } from "./Path";
 import { Container } from "./Container";
 import { InkObject } from "./Object";
+import { asINamedContentOrNull } from "./TypeAssertion";
 
 export class Pointer {
   public container: Container | null = null;
-  public index: number = -1;
+  public index: number | null = null;
 
   constructor();
-  constructor(container: Container | null, index: number);
+  constructor(container: Container | null, index: number | null);
   constructor() {
     if (arguments.length === 2) {
       this.container = arguments[0];
@@ -16,12 +17,12 @@ export class Pointer {
   }
 
   public Resolve(): InkObject | null {
-    if (this.index < 0) return this.container;
+    if (this.index == null) return this.container;
     if (this.container == null) return null;
     if (this.container.content.length == 0) return this.container;
     if (this.index >= this.container.content.length) return null;
 
-    return this.container.content[this.index];
+    return this.container.content.at(this.index) ?? null;
   }
 
   get isNull(): boolean {
@@ -31,11 +32,41 @@ export class Pointer {
   get path(): Path | null {
     if (this.isNull) return null;
 
-    if (this.index >= 0)
+    if (this.index != null) {
+      let namedChild = asINamedContentOrNull(
+        this.container!.content[this.index]
+      );
+      if (namedChild && namedChild.hasValidName && namedChild.name) {
+        return this.container!.path.PathByAppendingComponent(
+          new Path.Component(namedChild.name)
+        );
+      }
       return this.container!.path.PathByAppendingComponent(
         new Path.Component(this.index)
       );
-    else return this.container!.path;
+    } else {
+      return this.container!.path;
+    }
+  }
+
+  get pathFromEnd(): Path | null {
+    if (this.isNull) return null;
+
+    if (this.index != null) {
+      let namedChild = asINamedContentOrNull(
+        this.container!.content[this.index]
+      );
+      if (namedChild && namedChild.hasValidName && namedChild.name) {
+        return this.container!.path.PathByAppendingComponent(
+          new Path.Component(namedChild.name)
+        );
+      }
+      return this.container!.path.PathByAppendingComponent(
+        new Path.Component(this.index - this.container!.content.length)
+      );
+    } else {
+      return this.container!.path;
+    }
   }
 
   public toString(): string {
@@ -60,6 +91,6 @@ export class Pointer {
   }
 
   public static get Null(): Pointer {
-    return new Pointer(null, -1);
+    return new Pointer(null, null);
   }
 }

@@ -73,7 +73,7 @@ export class IncDecExpression extends Expression {
     container.AddContent(this._runtimeAssignment);
   };
 
-  public ResolveReferences(context: Story): void {
+  public override ResolveReferences(context: Story): void {
     super.ResolveReferences(context);
 
     const varResolveResult = context.ResolveVariableWithName(

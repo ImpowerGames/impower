@@ -14,6 +14,7 @@ import { StringValue } from "../../../engine/Value";
 import { VariableReference } from "./Variable/VariableReference";
 import { Identifier } from "./Identifier";
 import { asOrNull } from "../../../engine/TypeAssertion";
+import { DebugMetadata } from "../../../engine/DebugMetadata";
 
 export class FunctionCall extends Expression {
   public static readonly IsBuiltIn = (name: string): boolean => {
@@ -89,6 +90,7 @@ export class FunctionCall extends Expression {
   constructor(functionName: Identifier, args: Expression[]) {
     super();
 
+    this.identifier = functionName;
     this._proxyDivert = new Divert([functionName], args);
     this._proxyDivert.isFunctionCall = true;
     this.AddContent(this._proxyDivert);
@@ -254,7 +256,7 @@ export class FunctionCall extends Expression {
     }
   };
 
-  public ResolveReferences(context: Story): void {
+  public override ResolveReferences(context: Story): void {
     super.ResolveReferences(context);
 
     // If we aren't using the proxy divert after all (e.g. if
@@ -312,4 +314,9 @@ export class FunctionCall extends Expression {
     const strArgs = this.args.join(", ");
     return `${this.name}(${strArgs})`;
   };
+
+  override OnResetRuntime(): void {
+    this._divertTargetToCount = null;
+    this._variableReferenceToCount = null;
+  }
 }

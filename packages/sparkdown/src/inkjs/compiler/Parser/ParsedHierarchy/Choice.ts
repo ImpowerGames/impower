@@ -9,7 +9,6 @@ import { DivertTargetValue } from "../../../engine/Value";
 import { VariableAssignment as RuntimeVariableAssignment } from "../../../engine/VariableAssignment";
 import { ContentList } from "./ContentList";
 import { Expression } from "./Expression/Expression";
-import { Identifier } from "./Identifier";
 import { IWeavePoint } from "./IWeavePoint";
 import { ParsedObject } from "./Object";
 import { Story } from "./Story";
@@ -36,6 +35,7 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
   private _divertToStartContentInner: RuntimeDivert | null = null;
   private _startContentRuntimeContainer: RuntimeContainer | null = null;
 
+  public uuid?: string;
   public startContent: ContentList;
   public choiceOnlyContent: ContentList;
   public innerContent: ContentList;
@@ -117,6 +117,10 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {
     this._outerContainer = new RuntimeContainer();
+
+    if (this.uuid) {
+      this._outerContainer.name = "id-" + this.uuid;
+    }
 
     // Content names for different types of choice:
     //  * start content [choice only content] inner content
@@ -277,7 +281,7 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
     return this._outerContainer;
   };
 
-  public ResolveReferences(context: Story): void {
+  public override ResolveReferences(context: Story): void {
     // Weave style choice - target own content container
     if (this._innerContentContainer) {
       this.runtimeChoice.pathOnChoice = this._innerContentContainer.path;

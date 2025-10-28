@@ -1,7 +1,7 @@
 import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { findClosestPathLocation } from "@impower/spark-engine/src/game/core/utils/findClosestPathLocation";
-import { SparkProgram } from "@impower/sparkdown/src";
+import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import * as vscode from "vscode";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { SparkProgramManager } from "../managers/SparkProgramManager";

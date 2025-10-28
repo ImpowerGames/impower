@@ -61,4 +61,8 @@ export abstract class Expression extends ParsedObject {
   }
 
   public readonly toString = () => "No string value in JavaScript.";
+
+  override OnResetRuntime(): void {
+    this._prototypeRuntimeConstantExpression = null;
+  }
 }

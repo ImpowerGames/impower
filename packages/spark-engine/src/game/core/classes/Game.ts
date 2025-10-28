@@ -6,7 +6,8 @@ import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkPr
 import {
   buildRouteSimulator,
   planRoute,
-} from "@impower/sparkdown/src/compiler/utils/exploreRoutes";
+  RoutePlan,
+} from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
@@ -44,20 +45,13 @@ import { GameStartedMessage } from "./messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "./messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "./messages/GameSteppedMessage";
 import { Module } from "./Module";
+import { RuntimeState } from "./RuntimeState";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
 
 export type GameModules = InstanceMap<DefaultModuleConstructors>;
 
 export type M = { [name: string]: Module };
-
-export interface RuntimeState {
-  pathsExecutedThisFrame: Set<string>;
-  choicesEncountered: {
-    options: string[];
-    selected: number;
-  }[];
-}
 
 export class Game<T extends M = {}> {
   protected _clock?: Clock;
@@ -87,49 +81,44 @@ export class Game<T extends M = {}> {
     return this._connection;
   }
 
-  protected _story: Story;
+  protected _story!: Story;
+  get story() {
+    return this._story;
+  }
 
-  protected _scripts: string[];
+  protected _scripts: string[] = [];
   get scripts() {
     return this._scripts;
   }
 
-  protected _pathLocationEntries: [string, ScriptLocation][];
+  protected _pathLocationEntries: [string, ScriptLocation][] = [];
 
   protected _coordinator: Coordinator<typeof this> | null = null;
 
+  protected _executionTimeout = 10000;
+
   protected _executionStartTime = 0;
-
-  protected _routeSearchTimeout = 1000;
-
-  protected _executionTimeout = 1000;
 
   protected _executionTimedOut = false;
 
-  protected _executingPath: string;
+  protected _executingPath: string | null = null;
 
-  protected _executingLocation: ScriptLocation;
+  protected _executingLocation: ScriptLocation | null = null;
 
-  protected _runtimeState: RuntimeState = {
-    pathsExecutedThisFrame: new Set(),
-    choicesEncountered: [],
-  };
+  protected _error = false;
+
+  protected _runtimeState: RuntimeState = new RuntimeState();
   get runtimeState() {
     return this._runtimeState;
   }
 
   protected _runtimeSnapshot: RuntimeState | null = null;
 
-  protected _lastHitBreakpointLocation?: ScriptLocation;
+  protected _lastHitBreakpointLocation: ScriptLocation | null = null;
 
   protected _nextObjectVariableRef = 2000; // Start at 2000 to avoid conflicts with scope handles
 
   protected _objectVariableRefMap = new Map<number, object>();
-
-  protected _simulateChoices?: Record<string, (number | undefined)[]> | null;
-  get simulateChoices() {
-    return this._simulateChoices;
-  }
 
   protected _startFrom?: {
     file: string;
@@ -163,10 +152,6 @@ export class Game<T extends M = {}> {
     {};
 
   protected _dataBreakpointMap: Record<number, Map<number, Breakpoint>> = {};
-
-  protected _checkpoint?: string;
-
-  protected _error = false;
 
   protected _simulation?: "none" | "simulating" | "success" | "fail";
   get simulation() {
@@ -203,48 +188,44 @@ export class Game<T extends M = {}> {
     return this._paused;
   }
 
+  protected _plannedRoute: RoutePlan | null = null;
+
+  protected _plannedRouteStepCursor: number = 0;
+
+  protected _plannedRouteStepMap: { [seq: string]: number } = {};
+
+  protected _checkpoints: string[] = [];
+
   constructor(
-    program: SparkProgram,
-    options?: GameConfiguration &
+    options: { program: SparkProgram; story?: Story } & GameConfiguration &
       SystemConfiguration & {
         modules?: {
           [name in keyof T]: abstract new (...args: any) => T[name];
         };
       }
   ) {
-    this._program = program;
-
-    if (!this._program.compiled) {
-      throw new Error(
-        "Program must be successfully compiled before it can be run"
-      );
-    }
-
-    this._pathLocationEntries = Object.entries(
-      this._program.pathLocations || {}
-    );
+    this._program = this.updateProgram(options.program, options.story);
 
     // Create connection for sending and receiving messages
     this._connection = new Connection({
       onReceive: (msg) => this.onReceive(msg),
     });
 
-    this._scripts = Object.keys(this._program.scripts);
     this._restarted = options?.restarted ?? false;
     const modules = options?.modules;
     const previewing = options?.previewFrom ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
-    this._simulation = options?.simulateState ? "simulating" : "none";
-    this.setSimulateChoices(options?.simulateChoices ?? null);
     const startFrom = options?.previewFrom ??
       options?.startFrom ?? {
-        file: this._scripts[0] || this._program.uri,
+        file: options.program.uri,
         line: 0,
       };
     this.setStartFrom(startFrom);
 
-    this._executingPath = "";
-    this._executingLocation = [-1, -1, -1, -1, -1];
+    this._executingPath = null;
+    this._executingLocation = null;
+    this._error = false;
+    this._runtimeSnapshot = null;
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
@@ -253,16 +234,6 @@ export class Game<T extends M = {}> {
     if (options?.executionTimeout) {
       this._executionTimeout = options.executionTimeout;
     }
-
-    if (options?.routeSearchTimeout) {
-      this._routeSearchTimeout = options.routeSearchTimeout;
-    }
-
-    // Create story to control flow and state
-    this._story = new Story(this._program.compiled);
-    this._story.collapseWhitespace = false;
-    this._story.processEscapes = false;
-    this._story.onError = () => {};
 
     // Create context
     this._context = {
@@ -322,51 +293,6 @@ export class Game<T extends M = {}> {
       this._modules[moduleName]?.onInit();
     }
 
-    if (this._simulation === "simulating") {
-      // Plan route and setup story simulator to follow route
-      this.planRoute();
-    }
-
-    this._story.onError = (message: string, type: ErrorType) => {
-      this.Error(message, type);
-    };
-    this._story.onExecute = (path: string | undefined) => {
-      if (path) {
-        // Delete before adding so that last item in set is always the most recently executed
-        this._runtimeState.pathsExecutedThisFrame.delete(path);
-        this._runtimeState.pathsExecutedThisFrame.add(path);
-      }
-    };
-    this._story.onMakeChoice = (choice) => {
-      this._runtimeState?.choicesEncountered.push({
-        options: this._story.currentChoices.map((c) => c.text),
-        selected: this._story.currentChoices.indexOf(choice),
-      });
-    };
-    this._story.onSaveStateSnapshot = () => {
-      this._runtimeSnapshot = {
-        pathsExecutedThisFrame: new Set(
-          this._runtimeState.pathsExecutedThisFrame
-        ),
-        choicesEncountered: JSON.parse(
-          JSON.stringify(this._runtimeState.choicesEncountered)
-        ),
-      };
-    };
-    this._story.onRestoreStateSnapshot = () => {
-      if (this._runtimeSnapshot) {
-        this._runtimeState = this._runtimeSnapshot;
-      }
-    };
-    this._story.onDiscardStateSnapshot = () => {
-      this._runtimeSnapshot = null;
-    };
-
-    if (this._simulation === "simulating") {
-      // Simulate module state
-      this.simulate();
-    }
-
     const system = this._context.system;
 
     if (system.requestFrame) {
@@ -381,6 +307,73 @@ export class Game<T extends M = {}> {
     }
   }
 
+  updateProgram(program: SparkProgram, story?: Story) {
+    this._program = program;
+    if (!story && !this._program.compiled) {
+      throw new Error(
+        "Program must be successfully compiled before it can be run"
+      );
+    }
+    this._pathLocationEntries = Object.entries(
+      this._program.pathLocations || {}
+    );
+    this._scripts = Object.keys(this._program.scripts);
+
+    if (story) {
+      this._story = story;
+    } else if (program.compiled) {
+      this._story = new Story(program.compiled);
+    }
+    this.setupStory(this._story);
+    return this._program;
+  }
+
+  setupStory(story: Story) {
+    story.collapseWhitespace = false;
+    story.processEscapes = false;
+    story.onError = (message: string, type: ErrorType) => {
+      this.Error(message, type);
+    };
+    story.onExecute = (path: string | undefined) => {
+      if (path) {
+        this._runtimeState.recordExecution(path);
+      }
+    };
+    story.onMakeChoice = (choice) => {
+      this._runtimeState.recordChoice(story, choice);
+    };
+    story.onSaveStateSnapshot = () => {
+      this._runtimeSnapshot = RuntimeState.clone(this._runtimeState);
+    };
+    story.onRestoreStateSnapshot = () => {
+      if (this._runtimeSnapshot) {
+        this._runtimeState = this._runtimeSnapshot;
+      }
+    };
+    story.onDiscardStateSnapshot = () => {
+      this._runtimeSnapshot = null;
+    };
+  }
+
+  simulate(simulateChoices?: Record<string, (number | undefined)[]> | null) {
+    this._simulation = "simulating";
+    if (this._startPath) {
+      // Plan a route from the top of the startPath container
+      const toPath = this._startPath;
+      const fromPath = Game.getSimulateFromPath(toPath);
+      const route = Game.planRoute(
+        this._story,
+        this._program,
+        fromPath,
+        toPath,
+        simulateChoices
+      );
+      if (route) {
+        this.simulateRoute(route, 0);
+      }
+    }
+  }
+
   supports(name: string): boolean {
     return Boolean(this._modules[name]);
   }
@@ -390,10 +383,7 @@ export class Game<T extends M = {}> {
     for (const moduleName of this._moduleNames) {
       this._modules[moduleName]?.onConnected();
     }
-    if (this._simulation === "success") {
-      // Restore module state
-      await this.restore();
-    }
+    await this.restore();
   }
 
   static isContainerPath(program: SparkProgram, path: string) {
@@ -405,16 +395,6 @@ export class Game<T extends M = {}> {
         program.sceneLocations?.[path] ||
         program.branchLocations?.[path]
     );
-  }
-
-  setSimulateChoices(
-    simulateChoices: Record<string, (number | undefined)[]> | null
-  ) {
-    this._simulateChoices = Game.getValidSimulateChoices(
-      this._program,
-      simulateChoices
-    );
-    return this._simulateChoices;
   }
 
   static getValidSimulateChoices(
@@ -564,50 +544,138 @@ export class Game<T extends M = {}> {
     return actualBreakpoints;
   }
 
-  protected planRoute(): void {
-    const toPath = this._startPath;
-    if (toPath) {
-      // Plan a route from the top of the knot containing the target path, to the target path itself
-      const containerName = toPath.split(".")[0] || "0";
-      const fromPath = containerName;
-      const route = planRoute(this._story, fromPath, toPath, {
-        functions: Object.keys(this._program.functionLocations || {}),
-        searchTimeout: this._routeSearchTimeout,
-        stayWithinKnot: true,
-        favoredChoiceIndices: this._simulateChoices?.[fromPath],
-      });
-      if (route) {
-        // If route exists, force the story to follow this route
-        this._story.simulator = buildRouteSimulator(route.steps);
-        this._simulatePath = fromPath;
-      }
-    }
+  static getSimulateFromPath(toPath: string) {
+    const containerName = toPath.split(".")[0] || "0";
+    const fromPath = containerName;
+    return fromPath;
   }
 
-  protected simulate(): void {
-    if (this._simulatePath) {
-      this._context.system.simulating = this._simulatePath;
-      this.jumpToPath(this._simulatePath);
-      this.continue(true);
-      const autoTurns = this._simulateChoices?.[this._simulatePath];
-      while (
-        this._simulation === "simulating" &&
-        !this._story.canContinue &&
-        this._story.currentChoices.length > 0
-      ) {
-        const turnIndex = this._runtimeState.choicesEncountered.length;
-        const autoTurn = autoTurns?.[turnIndex];
-        const autoSelected =
-          autoTurn != null &&
-          autoTurn >= 0 &&
-          autoTurn < this._story.currentChoices.length
-            ? autoTurn!
-            : 0;
-        this._story.ChooseChoiceIndex(autoSelected);
-        this.continue(true);
+  static planRoute(
+    story: Story,
+    program: SparkProgram,
+    fromPath: string,
+    toPath: string,
+    simulateChoices?: Record<string, (number | undefined)[]> | null
+  ) {
+    // Plan a route from the top of the knot containing the target path, to the target path itself
+    return planRoute(story, fromPath, toPath, {
+      functions: Object.keys(program.functionLocations || {}),
+      stayWithinKnot: true,
+      favoredChoiceIndices: simulateChoices?.[fromPath],
+    });
+  }
+
+  getCheckpoint(seq: string) {
+    if (this._plannedRoute) {
+      const stepIndex = this._plannedRouteStepMap[seq];
+      if (stepIndex != null) {
+        const step = this._plannedRoute.steps[stepIndex];
+        if (step) {
+          if (step.checkpoint != null) {
+            return this._checkpoints[step.checkpoint] ?? null;
+          }
+        }
       }
     }
+    return null;
+  }
+
+  protected simulateRoute(route: RoutePlan, fromStep = 0): void {
+    const startStep = route.steps[fromStep];
+    const fromDecision = startStep?.decision ?? 0;
+    const fromCheckpoint = startStep?.checkpoint ?? -1;
+    const startCheckpoint = this._checkpoints[fromCheckpoint];
+    this._checkpoints = this._checkpoints.slice(0, fromCheckpoint + 1);
+    this._plannedRoute = route;
+    this._simulatePath = route.fromPath;
+    this._startPath = route.toPath;
+    // Force the story to follow this route
+    this._story.simulator = buildRouteSimulator(route.decisions, fromDecision);
+    // Record valid seqs for each step of the route
+    this._plannedRouteStepMap = {};
+    for (let i = 0; i < route.steps.length; i++) {
+      const step = route.steps[i]!;
+      this._plannedRouteStepMap[step.seq] = i;
+    }
+    this._plannedRouteStepCursor = fromStep;
+
+    if (startCheckpoint) {
+      this.load(startCheckpoint);
+    } else {
+      this.jumpToPath(route.fromPath);
+    }
+
+    this._simulation = "simulating";
+    this._context.system.simulating = route.fromPath;
+
+    this._executingPath = null;
+    this._executingLocation = null;
+    this._error = false;
+    this._runtimeSnapshot = null;
+
+    this.continue(true);
+
+    if (this._simulation === "simulating") {
+      this._simulation = "fail";
+    }
+
     this._story.simulator = null;
+  }
+
+  patchAndSimulateRoute(newRoute: RoutePlan): string | null {
+    if (
+      !this._plannedRoute ||
+      this._plannedRoute.fromPath !== newRoute.fromPath
+    ) {
+      // simulate from the beginning
+      this._runtimeState = new RuntimeState();
+      this.simulateRoute(newRoute);
+      return this._checkpoints.at(-1) ?? null;
+    }
+
+    // Search for a valid checkpoint we can start simulation from
+    const validSteps = [...newRoute.steps];
+    const newSteps = [];
+    let lastValidNewRouteStep = validSteps.at(-1);
+    let lastValidOldRouteCheckpoint = this.getCheckpoint(
+      lastValidNewRouteStep?.seq || ""
+    );
+    while (lastValidNewRouteStep && !lastValidOldRouteCheckpoint) {
+      const invalidStep = validSteps.pop();
+      if (invalidStep) {
+        newSteps.unshift(invalidStep);
+      }
+      lastValidNewRouteStep = validSteps.at(-1);
+      lastValidOldRouteCheckpoint = this.getCheckpoint(
+        lastValidNewRouteStep?.seq || ""
+      );
+    }
+
+    if (!lastValidOldRouteCheckpoint) {
+      // Could not start from an earlier checkpoint, so simulate from the beginning
+      this._runtimeState = new RuntimeState();
+      this.simulateRoute(newRoute);
+      return this._checkpoints.at(-1) ?? null;
+    }
+
+    // Keep valid steps, trim away invalid steps
+    const patchedSteps = this._plannedRoute.steps.slice(0, validSteps.length);
+    // Add on new steps
+    for (const newStep of newSteps) {
+      patchedSteps.push(newStep);
+    }
+    const patchedRoute = {
+      fromPath: newRoute.fromPath,
+      toPath: newRoute.toPath,
+      steps: patchedSteps,
+      decisions: newRoute.decisions,
+      choices: newRoute.choices,
+    };
+
+    // Add new checkpoints onto the previous simulation
+    const fromStep = validSteps.length - 1;
+    this.simulateRoute(patchedRoute, fromStep);
+    return this._checkpoints.at(-1) ?? null;
   }
 
   start(save: string = ""): boolean {
@@ -688,7 +756,7 @@ export class Game<T extends M = {}> {
   }
 
   checkpoint(): void {
-    this._checkpoint = this.save();
+    this._checkpoints.push(this.save());
   }
 
   save(): string {
@@ -698,16 +766,17 @@ export class Game<T extends M = {}> {
     } catch (e: any) {
       this.Error(e.message, ErrorType.Error);
     }
+    const runtime = this._runtimeState.toJSON();
     const saveData: SaveData = {
       modules: {},
       context: {},
       story,
-      executed: Array.from(this._runtimeState?.pathsExecutedThisFrame ?? []),
+      runtime,
+      simulated: this._simulation !== "none",
     };
     for (const k of this._moduleNames) {
       const module = this._modules[k];
       if (module) {
-        module.onSerialize();
         saveData.modules[k] = module.state;
       }
     }
@@ -716,8 +785,12 @@ export class Game<T extends M = {}> {
   }
 
   load(saveJSON: string) {
+    if (this._story.canContinue && !this._story.asyncContinueComplete) {
+      this._story.Continue();
+    }
     try {
-      const saveData: SaveData = JSON.parse(saveJSON);
+      const saveData: SaveData =
+        typeof saveJSON === "string" ? JSON.parse(saveJSON) : saveJSON;
       for (const k of this._moduleNames) {
         const module = this._modules[k];
         if (module) {
@@ -726,13 +799,14 @@ export class Game<T extends M = {}> {
       }
       if (saveData.story) {
         this._story.state.LoadJson(saveData.story);
-        return true;
       }
-      if (saveData.executed) {
-        for (const path of saveData.executed) {
-          this._runtimeState?.pathsExecutedThisFrame.add(path);
-        }
+      if (saveData.runtime) {
+        this._runtimeState = RuntimeState.fromJSON(saveData.runtime);
       }
+      if (saveData.simulated) {
+        this._simulation = "success";
+      }
+      return true;
     } catch (e) {
       this.log(e, "error");
     }
@@ -779,10 +853,7 @@ export class Game<T extends M = {}> {
 
   continue(preserveExecutionInfo?: boolean) {
     if (!preserveExecutionInfo) {
-      this._runtimeState = {
-        pathsExecutedThisFrame: new Set(),
-        choicesEncountered: [],
-      };
+      this._runtimeState = new RuntimeState();
     }
 
     this._executionTimedOut = false;
@@ -820,10 +891,39 @@ export class Game<T extends M = {}> {
         return true;
       }
 
-      if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
-        if (this._simulation !== "simulating") {
-          this.checkpoint();
+      const pointerPath = this._story.state.previousPointer.path?.toString();
+      if (pointerPath) {
+        if (pointerPath !== this._executingPath) {
+          this._executingPath = pointerPath;
+          if (
+            this._plannedRoute &&
+            this._plannedRouteStepCursor < this._plannedRoute?.steps.length
+          ) {
+            const step = this._plannedRoute.steps[this._plannedRouteStepCursor];
+            if (step) {
+              if (step.path === pointerPath) {
+                step.checkpoint = this._checkpoints.length - 1;
+                this._plannedRouteStepCursor++;
+              }
+            }
+          }
         }
+      }
+
+      if (this._story.asyncContinueComplete) {
+        if (
+          this._simulation === "simulating" &&
+          this._startPath &&
+          this._runtimeState.pathsExecutedThisFrame.has(this._startPath)
+        ) {
+          // End simulation
+          this.checkpoint();
+          this._simulation = "success";
+          return true;
+        }
+      }
+
+      if (this.module.interpreter.shouldFlush() || !this._story.canContinue) {
         const instructions = this.module.interpreter.flush();
         if (instructions) {
           this._coordinator = new Coordinator(this, instructions);
@@ -834,6 +934,7 @@ export class Game<T extends M = {}> {
             this.notifyAwaitingInteraction();
           }
         }
+        this.checkpoint();
         if (this._simulation === "simulating") {
           if (!this._story.canContinue) {
             return true;
@@ -847,15 +948,11 @@ export class Game<T extends M = {}> {
         this._story.ContinueAsync(Infinity);
 
         const prevExecutedLocation = this._executingLocation;
-        const pointerPath =
-          this._story.state.callStack.currentElement?.previousPointer.path?.toString();
+        const pointerPath = this._story.state.previousPointer.path?.toString();
         if (pointerPath) {
-          if (pointerPath !== this._executingPath) {
-            this._executingPath = pointerPath;
-            const location = this._program.pathLocations?.[pointerPath];
-            if (location) {
-              this._executingLocation = location;
-            }
+          const location = this._program.pathLocations?.[pointerPath];
+          if (location) {
+            this._executingLocation = location;
           }
         }
 
@@ -863,16 +960,6 @@ export class Game<T extends M = {}> {
           const currentText = this._story.currentText || "";
           const currentChoices = this._story.currentChoices.map((c) => c.text);
           this.module.interpreter.queue(currentText, currentChoices);
-
-          if (
-            this._simulation === "simulating" &&
-            this._startPath &&
-            this._runtimeState.pathsExecutedThisFrame.has(this._startPath)
-          ) {
-            // End simulation
-            this._simulation = "success";
-            return true;
-          }
         }
 
         if (this._simulation !== "simulating") {
@@ -916,7 +1003,9 @@ export class Game<T extends M = {}> {
           }
 
           // Script index or line is different than last breakpoint
-          const [currScriptIndex, currLine] = this._executingLocation;
+          const [currScriptIndex, currLine] = this._executingLocation || [
+            -1, -1, -1, -1,
+          ];
           const [breakpointScriptIndex, breakpointLine] =
             this._lastHitBreakpointLocation || [];
           if (
@@ -937,9 +1026,7 @@ export class Game<T extends M = {}> {
           }
         }
 
-        if (this._story.asyncContinueComplete) {
-          return false;
-        }
+        return false;
       } else {
         if (this._state === "running") {
           this.notifyFinished();
@@ -1065,7 +1152,8 @@ export class Game<T extends M = {}> {
     this._runtimeState.pathsExecutedThisFrame.forEach((p) => {
       const l = this._program.pathLocations?.[p];
       if (l) {
-        locations.push(this.getDocumentLocation(l));
+        const docLocation = this.getDocumentLocation(l);
+        locations.push(docLocation);
       }
     });
     this.connection.emit(
@@ -1195,12 +1283,16 @@ export class Game<T extends M = {}> {
         if (!name.startsWith("$")) {
           const value = this.getRuntimeValue(name, valueObj);
           const scopePath = this._executingPath
-            .split(".")
-            .filter(
-              (p) =>
-                Number.isNaN(Number(p)) && !p.includes("-") && !p.includes("$")
-            )
-            .join(".");
+            ? this._executingPath
+                .split(".")
+                .filter(
+                  (p) =>
+                    Number.isNaN(Number(p)) &&
+                    !p.includes("-") &&
+                    !p.includes("$")
+                )
+                .join(".")
+            : undefined;
           if (value !== undefined) {
             variables.push(
               this.getVariableInfo(
@@ -1501,25 +1593,40 @@ export class Game<T extends M = {}> {
     return previewPath;
   }
 
-  getPathDocumentLocation(path: string) {
-    const location = this._program.pathLocations?.[path];
-    if (location) {
-      return this.getDocumentLocation(location);
-    }
-    return null;
-  }
-
   getLastExecutedDocumentLocation() {
     return this.getDocumentLocation(this._executingLocation);
   }
 
-  getDocumentLocation(location: ScriptLocation | undefined): DocumentLocation {
+  getPathDocumentLocation(path: string) {
+    const location = this._program.pathLocations?.[path];
+    if (location) {
+      return Game.documentLocation(this._program, this._scripts, location);
+    }
+    return null;
+  }
+
+  getDocumentLocation(location: ScriptLocation | null | undefined) {
+    return Game.documentLocation(this._program, this._scripts, location);
+  }
+
+  static pathToDocumentLocation(program: SparkProgram, path: string) {
+    const scripts = Object.keys(program?.scripts ?? {});
+    const location = program.pathLocations?.[path];
+    if (location) {
+      return Game.documentLocation(program, scripts, location);
+    }
+    return null;
+  }
+
+  static documentLocation(
+    program: SparkProgram,
+    scripts: string[],
+    location: ScriptLocation | null | undefined
+  ): DocumentLocation {
     const [scriptIndex, startLine, startColumn, endLine, endColumn] =
       location || [];
     const uri =
-      scriptIndex != null
-        ? this._scripts[scriptIndex] ?? this._program.uri
-        : this._program.uri;
+      scriptIndex != null ? scripts[scriptIndex] ?? program.uri : program.uri;
     return {
       uri,
       range: {

@@ -1,27 +1,25 @@
+import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/classes/MessageProtocolNotificationType";
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
 import { type ProgressValue } from "@impower/jsonrpc/src/types/ProgressValue";
-import { File } from "../../compiler";
+import { File, Range } from "../../compiler";
 import { AddCompilerFileMessage } from "../../compiler/classes/messages/AddCompilerFileMessage";
 import { CompiledProgramMessage } from "../../compiler/classes/messages/CompiledProgramMessage";
-import { CompileProgramMessage } from "../../compiler/classes/messages/CompileProgramMessage";
+import {
+  CompileProgramMessage,
+  CompileProgramResult,
+} from "../../compiler/classes/messages/CompileProgramMessage";
 import { CompilerInitializeMessage } from "../../compiler/classes/messages/CompilerInitializeMessage";
 import { ConfigureCompilerMessage } from "../../compiler/classes/messages/ConfigureCompilerMessage";
 import { RemoveCompilerFileMessage } from "../../compiler/classes/messages/RemoveCompilerFileMessage";
+import { SelectCompilerDocumentMessage } from "../../compiler/classes/messages/SelectCompilerDocumentMessage";
+import { SelectedCompilerDocumentMessage } from "../../compiler/classes/messages/SelectedCompilerDocumentMessage";
 import { UpdateCompilerDocumentMessage } from "../../compiler/classes/messages/UpdateCompilerDocumentMessage";
 import { UpdateCompilerFileMessage } from "../../compiler/classes/messages/UpdateCompilerFileMessage";
 import { SparkdownDocumentContentChangeEvent } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { type SparkdownCompilerConfig } from "../../compiler/types/SparkdownCompilerConfig";
-import { type SparkdownCompilerDefinitions } from "../../compiler/types/SparkdownCompilerDefinitions";
 import { type SparkProgram } from "../../compiler/types/SparkProgram";
-import COMPILER_INLINE_WORKER_STRING from "../../worker/sparkdown.worker";
 import { profile } from "../utils/logging/profile";
 import { debounce } from "../utils/timing/debounce";
-
-const COMPILER_WORKER_URL = URL.createObjectURL(
-  new Blob([COMPILER_INLINE_WORKER_STRING], {
-    type: "text/javascript",
-  })
-);
 
 const DEBOUNCE_DELAY = 600;
 
@@ -45,17 +43,22 @@ interface ProgramState {
 export abstract class SparkdownWorkspace {
   protected _compilerWorker: Worker;
 
-  protected _compilerConfig?: SparkdownCompilerConfig;
-  get compilerConfig() {
-    return this._compilerConfig;
-  }
-
   get mainScriptFilename() {
     return "main.sd";
   }
 
   protected _profilerId?: string;
+  get profilerId() {
+    return this._profilerId;
+  }
+  set profilerId(value) {
+    this._profilerId = value;
+  }
 
+  protected _compilerConfig?: SparkdownCompilerConfig;
+  get compilerConfig() {
+    return this._compilerConfig;
+  }
   protected _scriptFilePattern?: RegExp;
 
   protected _imageFilePattern?: RegExp;
@@ -73,6 +76,11 @@ export abstract class SparkdownWorkspace {
   protected _programStates = new Map<string, ProgramState>();
 
   protected _documentVersions = new Map<string, number>();
+
+  protected _documentSelected: {
+    file: string;
+    line: number;
+  } | null = null;
 
   protected _onNextCompiled = new Map<
     string,
@@ -96,9 +104,15 @@ export abstract class SparkdownWorkspace {
     return this._initializedCompiler;
   }
 
-  constructor(profilerId?: string) {
+  constructor(compilerInlineWorkerContent: string, profilerId?: string) {
     this._profilerId = profilerId;
-    this._compilerWorker = new Worker(COMPILER_WORKER_URL);
+    this._compilerWorker = new Worker(
+      URL.createObjectURL(
+        new Blob([compilerInlineWorkerContent], {
+          type: "text/javascript",
+        })
+      )
+    );
     this._compilerWorker.onerror = (e) => {
       console.error(e);
     };
@@ -106,14 +120,14 @@ export abstract class SparkdownWorkspace {
       this._resolveInitializingCompiler = resolve;
     });
     this.sendCompilerRequest(CompilerInitializeMessage.type, {
-      profilerId,
+      profilerId: this._profilerId,
     }).then(() => {
       this._initializedCompiler = true;
       this._resolveInitializingCompiler();
     });
   }
 
-  protected async sendCompilerRequest<M extends string, P, R>(
+  async sendCompilerRequest<M extends string, P, R>(
     type: MessageProtocolRequestType<M, P, R>,
     params: P,
     transfer: Transferable[] = [],
@@ -161,26 +175,39 @@ export abstract class SparkdownWorkspace {
     });
   }
 
-  async initialize(initializationOptions: {
-    settings: {
-      scriptFiles?: string;
-      imageFiles?: string;
-      audioFiles?: string;
-      fontFiles?: string;
-      worldFiles?: string;
-    };
-    definitions?: {
-      builtins?: any;
-      optionals?: any;
-      schemas?: any;
-      descriptions?: any;
-    };
-    files?: { uri: string; src?: string; text?: string }[];
-    skipValidation?: boolean;
-    uri?: string;
-    omitImageData?: boolean;
-  }) {
-    const { omitImageData, settings, definitions, files, skipValidation, uri } =
+  sendCompilerNotification<M extends string, P>(
+    type: MessageProtocolNotificationType<M, P>,
+    params: P
+  ) {
+    const notification = type.notification(params);
+    profile(
+      "start",
+      this._profilerId,
+      "workspace" + " " + "send " + notification.method
+    );
+    this._compilerWorker.postMessage(notification);
+    profile(
+      "end",
+      this._profilerId,
+      "workspace" + " " + "send " + notification.method
+    );
+  }
+
+  async initialize(
+    initializationOptions: {
+      settings: {
+        scriptFiles?: string;
+        imageFiles?: string;
+        audioFiles?: string;
+        fontFiles?: string;
+        worldFiles?: string;
+      };
+      uri?: string;
+      omitImageData?: boolean;
+      files?: { uri: string; src?: string; text?: string }[];
+    } & Omit<SparkdownCompilerConfig, "files">
+  ) {
+    const { omitImageData, settings, uri, ...compilerConfig } =
       initializationOptions;
     if (omitImageData != null) {
       this.omitImageData = omitImageData;
@@ -188,10 +215,34 @@ export abstract class SparkdownWorkspace {
     if (settings) {
       this.loadConfiguration(settings);
     }
+    if (compilerConfig.startFrom) {
+      this._documentSelected = compilerConfig.startFrom;
+    }
+    const files = compilerConfig.files
+      ? await Promise.all(
+          compilerConfig.files.map(async (file) => {
+            const uri = file.uri;
+            const name = this.getFileName(file.uri);
+            const ext = this.getFileExtension(file.uri);
+            const type = this.getFileType(file.uri);
+            const [src, text] = await Promise.all([
+              file.src ? file.src : this.getFileSrc(file.uri),
+              type === "script" || type === "text" || ext === "svg"
+                ? file.text
+                  ? file.text
+                  : this.getFileText(file.uri)
+                : undefined,
+            ]);
+            const watchedFile = { uri, name, ext, type, src, text };
+            this._watchedFiles.set(watchedFile.uri, watchedFile);
+            this.onCreatedFile(watchedFile);
+            return watchedFile;
+          })
+        )
+      : undefined;
     await this.loadCompiler({
-      definitions,
+      ...compilerConfig,
       files,
-      skipValidation,
     });
     const program = uri ? await this.compile(uri, true) : undefined;
     return { program };
@@ -220,45 +271,12 @@ export abstract class SparkdownWorkspace {
     }
   }
 
-  async loadCompiler(config: {
-    definitions?: SparkdownCompilerDefinitions;
-    files?: { uri: string; src?: string; text?: string }[];
-    skipValidation?: boolean;
-  }) {
-    const definitions = config.definitions;
-    const files = config.files
-      ? await Promise.all(
-          config.files.map(async (file) => {
-            const uri = file.uri;
-            const name = this.getFileName(file.uri);
-            const ext = this.getFileExtension(file.uri);
-            const type = this.getFileType(file.uri);
-            const [src, text] = await Promise.all([
-              file.src ? file.src : this.getFileSrc(file.uri),
-              type === "script" || type === "text" || ext === "svg"
-                ? file.text
-                  ? file.text
-                  : this.getFileText(file.uri)
-                : undefined,
-            ]);
-            const watchedFile = { uri, name, ext, type, src, text };
-            this._watchedFiles.set(watchedFile.uri, watchedFile);
-            this.onCreatedFile(watchedFile);
-            return watchedFile;
-          })
-        )
-      : undefined;
-    const skipValidation = config.skipValidation;
-    this._compilerConfig = {
-      definitions,
-      files,
-      skipValidation,
-    };
-    await this._initializingCompiler;
-    await this.sendCompilerRequest(
-      ConfigureCompilerMessage.type,
-      this._compilerConfig
-    );
+  async loadCompiler(config: SparkdownCompilerConfig) {
+    this._compilerConfig = config;
+    if (!this._initializedCompiler) {
+      await this._initializingCompiler;
+    }
+    return this.sendCompilerRequest(ConfigureCompilerMessage.type, config);
   }
 
   async loadFile(file: { uri: string }) {
@@ -366,7 +384,7 @@ export abstract class SparkdownWorkspace {
     textDocument: { uri: string },
     contentChanges: SparkdownDocumentContentChangeEvent[]
   ) {
-    await this.sendCompilerRequest(UpdateCompilerDocumentMessage.type, {
+    return this.sendCompilerRequest(UpdateCompilerDocumentMessage.type, {
       textDocument,
       contentChanges,
     });
@@ -407,81 +425,50 @@ export abstract class SparkdownWorkspace {
       });
     }
     state.compilingDocumentVersion = this._documentVersions.get(uri);
-    let program: SparkProgram | undefined = undefined;
+    let result: CompileProgramResult | undefined = undefined;
     const mainScriptUri = this.getMainScriptUri(uri);
     if (mainScriptUri) {
-      program = await this.compileDocument(mainScriptUri);
-      this.getProgramState(mainScriptUri).program = program;
-      if (program.scripts) {
-        for (const [uri, version] of Object.entries(program.scripts)) {
+      result = await this.compileDocument(mainScriptUri);
+      this.getProgramState(mainScriptUri).program = result.program;
+      if (result.program.scripts) {
+        for (const [uri, version] of Object.entries(result.program.scripts)) {
           const state = this.getProgramState(uri);
-          state.program = program;
+          state.program = result.program;
           state.compilingDocumentVersion = undefined;
           state.compiledDocumentVersion = version;
           state.version++;
-          this._onNextCompiled.get(uri)?.forEach((c) => c?.(program));
+          this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
           this._onNextCompiled.delete(uri);
         }
       }
     }
-    if (uri !== mainScriptUri && program?.scripts[uri] == null) {
+    if (uri !== mainScriptUri && result?.program?.scripts[uri] == null) {
       // Target script is not included by main,
       // So it must be parsed on its own to report diagnostics
-      program = await this.compileDocument(uri);
+      result = await this.compileDocument(uri);
       const state = this.getProgramState(uri);
-      state.program = program;
+      state.program = result.program;
       state.compilingDocumentVersion = undefined;
-      state.compiledDocumentVersion = program?.scripts[uri];
+      state.compiledDocumentVersion = result.program?.scripts[uri];
       state.version++;
-      this._onNextCompiled.get(uri)?.forEach((c) => c?.(program));
+      this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
       this._onNextCompiled.delete(uri);
     }
-    if (program) {
-      program.version = state.version;
-      await this.sendProgram(uri, program, state.compiledDocumentVersion);
+    if (result?.program) {
+      result.program.version = state.version;
+      this.sendNotification(CompiledProgramMessage.method, result);
     }
     profile("end", this._profilerId, "workspace" + " " + "compile", uri);
-    return program;
+    return result?.program;
   }
 
-  protected async compileDocument(uri: string): Promise<SparkProgram> {
+  protected async compileDocument(uri: string) {
     this._lastCompiledUri = uri;
-    const program = await this.sendCompilerRequest(CompileProgramMessage.type, {
-      uri,
+    const result = await this.sendCompilerRequest(CompileProgramMessage.type, {
+      textDocument: { uri },
+      startFrom: this._documentSelected,
     });
-    return program;
-  }
-
-  protected async sendProgram(
-    uri: string,
-    program: SparkProgram,
-    documentVersion: number | undefined
-  ) {
-    let programToSend = program;
-    if (this.omitImageData) {
-      const imageWithoutData: Record<string, object> = {};
-      for (const [name, image] of Object.entries(
-        program.context?.["image"] || {}
-      )) {
-        if (image.uri) {
-          imageWithoutData[name] = { ...image, data: undefined };
-        }
-      }
-      programToSend = {
-        ...program,
-        context: {
-          ...(program.context || {}),
-          image: imageWithoutData,
-        },
-      };
-    }
-    this.sendNotification(CompiledProgramMessage.method, {
-      textDocument: {
-        uri,
-        version: documentVersion,
-      },
-      program: programToSend,
-    });
+    return result;
   }
 
   program(uri: string) {
@@ -520,6 +507,26 @@ export abstract class SparkdownWorkspace {
       this.compile(textDocument.uri, false);
     });
     this.onChangeTextDocument(params);
+  }
+
+  async selectTextDocument(params: {
+    textDocument: { uri: string };
+    selectedRange: Range;
+    docChanged: boolean;
+    userEvent?: boolean;
+  }) {
+    const { textDocument, selectedRange } = params;
+    this._documentSelected = {
+      file: textDocument.uri,
+      line: selectedRange.start.line,
+    };
+    this.onSelectTextDocument(params);
+    const result = await this.sendCompilerRequest(
+      SelectCompilerDocumentMessage.type,
+      params
+    );
+    this.sendNotification(SelectedCompilerDocumentMessage.method, result);
+    return result;
   }
 
   async createFile(uri: string) {
@@ -590,6 +597,13 @@ export abstract class SparkdownWorkspace {
       version: number;
     };
     contentChanges: SparkdownDocumentContentChangeEvent[];
+  }) {}
+
+  onSelectTextDocument(params: {
+    textDocument: { uri: string };
+    selectedRange: Range;
+    docChanged: boolean;
+    userEvent?: boolean;
   }) {}
 
   onDeletedFile(file: File) {}

@@ -49,6 +49,7 @@ import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src
 import { DidCloseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCloseTextDocumentMessage";
 import { DidOpenTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
 import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage";
+import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage";
 import { WillSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/WillSaveTextDocumentMessage";
 import {
   DidCollapsePreviewPaneMessage,
@@ -628,6 +629,20 @@ export default class SparkdownScriptEditor extends Component(spec) {
         onSelectionChanged: (update, anchor, head) => {
           const uri = this._textDocument?.uri;
           if (uri) {
+            this.emit(
+              MessageProtocol.event,
+              DidSelectTextDocumentMessage.type.notification({
+                textDocument: { uri },
+                selectedRange: {
+                  start: offsetToPosition(update.state.doc, anchor),
+                  end: offsetToPosition(update.state.doc, head),
+                },
+                docChanged: update.docChanged,
+                userEvent: update.transactions.some((tr) =>
+                  tr.annotation(Transaction.userEvent)
+                ),
+              })
+            );
             this.emit(
               MessageProtocol.event,
               SelectedEditorMessage.type.notification({

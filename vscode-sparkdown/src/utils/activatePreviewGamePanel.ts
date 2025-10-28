@@ -52,7 +52,8 @@ export const activatePreviewGamePanel = async (
   // Notify game preview whenever text editor selection (i.e. cursor position) changed
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorSelection((change) => {
-      const document = change.textEditor.document;
+      const editor = change.textEditor;
+      const document = editor.document;
       if (document.languageId === "sparkdown") {
         const config = getSparkdownPreviewConfig(document.uri);
         if (config.game_preview_synchronized_with_cursor) {

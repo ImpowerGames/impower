@@ -169,7 +169,7 @@ export class Sequence extends ParsedObject {
         contentContainerForSequenceBranch = new RuntimeContainer();
       }
 
-      contentContainerForSequenceBranch.name = `s${elIndex}`;
+      contentContainerForSequenceBranch.name = `s-${elIndex}`;
       contentContainerForSequenceBranch.InsertContent(
         RuntimeControlCommand.PopEvaluatedValue(),
         0
@@ -202,7 +202,7 @@ export class Sequence extends ParsedObject {
     );
   };
 
-  public ResolveReferences(context: Story): void {
+  public override ResolveReferences(context: Story): void {
     super.ResolveReferences(context);
 
     for (const toResolve of this._sequenceDivertsToResolve) {

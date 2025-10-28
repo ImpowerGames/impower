@@ -79,6 +79,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   constructor(game: Game) {
     super(game);
+    this.initLayouts();
   }
 
   override getBuiltins() {
@@ -97,8 +98,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override onConnected() {
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
-    this.loadStyles();
-    this.loadLayouts();
+    this.constructStyles();
+    this.constructLayouts();
     this.loadTheme();
     const transientTargets = this.getTransientTargets();
     this.text.clearAll(transientTargets);
@@ -467,7 +468,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return rootLayoutElement.findChild(uiName);
   }
 
-  protected constructStyleElement(
+  constructStyles(): void {
+    // Process Fonts
+    const fonts = this.context?.font;
+    if (fonts) {
+      this.constructStyle("fonts", { fonts });
+    }
+    // Process Animations
+    const animations = this.context?.animation;
+    if (animations) {
+      this.constructStyle("animations", { animations });
+    }
+    const styles = this.context?.style;
+    if (styles) {
+      this.constructStyle("styles", { styles });
+    }
+  }
+
+  protected constructStyle(
     structName: string,
     content: ElementContent
   ): Element | undefined {
@@ -484,10 +502,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     });
   }
 
-  protected constructLayout(
-    structName: string,
-    properties: Record<string, any>
-  ): Element {
+  constructLayouts(...structNames: string[]): void {
+    const targetAllStructs = !structNames || structNames.length === 0;
+    const validStructNames = targetAllStructs
+      ? Object.keys(this.context?.layout || {})
+      : structNames;
+    for (const structName of validStructNames) {
+      if (structName && !structName.startsWith("$")) {
+        const layout = this.context.layout?.[structName];
+        if (layout) {
+          this.constructLayout(layout);
+        }
+      }
+    }
+  }
+
+  protected constructLayout(layout: Record<string, any>): Element {
+    const structName = layout["$name"];
+    const properties = getAllProperties(layout);
     const parent = this.getOrCreateRootLayoutElement();
     const uiEl = this.createElement(parent, {
       type: "div",
@@ -521,14 +553,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             const isStroke = parentClasses.includes("stroke");
             const isImage = parentClasses.includes("image");
             const isMask = parentClasses.includes("mask");
-            if (isText || isStroke || isImage || isMask) {
-              if (typeof v === "object" && Object.keys(v).length === 0) {
-                const grandParent = path.at(-2);
-                if (grandParent) {
-                  this._clearOnContinue.add(grandParent);
-                }
-              }
-            }
             const text =
               isLast && (isText || isStroke) && typeof v === "string"
                 ? v
@@ -567,34 +591,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return uiEl;
   }
 
-  loadStyles(): void {
-    // Process Fonts
-    const fonts = this.context?.font;
-    if (fonts) {
-      this.constructStyleElement("fonts", { fonts });
-    }
-    // Process Animations
-    const animations = this.context?.animation;
-    if (animations) {
-      this.constructStyleElement("animations", { animations });
-    }
-    const styles = this.context?.style;
-    if (styles) {
-      this.constructStyleElement("styles", { styles });
+  initLayouts(): void {
+    for (const structName of Object.keys(this.context?.layout || {})) {
+      if (structName && !structName.startsWith("$")) {
+        const layout = this.context.layout?.[structName];
+        if (layout) {
+          this.initLayout(layout);
+        }
+      }
     }
   }
 
-  loadLayouts(...structNames: string[]): void {
-    const targetAllStructs = !structNames || structNames.length === 0;
-    const validStructNames = targetAllStructs
-      ? Object.keys(this.context?.layout || {})
-      : structNames;
-    for (const structName of validStructNames) {
-      if (structName && !structName.startsWith("$")) {
-        const structObj = this.context?.layout?.[structName];
-        if (structObj) {
-          const properties = getAllProperties(structObj);
-          this.constructLayout(structName, properties);
+  initLayout(layout: Record<string, any>) {
+    const properties = getAllProperties(layout);
+    for (const [k, v] of Object.entries(properties)) {
+      const path = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
+      const isValidNode = !path.at(-1)?.startsWith("$");
+      if (isValidNode) {
+        for (let i = 0; i < path.length; i += 1) {
+          const parent = path.at(-1);
+          const parentClasses = parent?.split(" ") || [];
+          const isText = parentClasses.includes("text");
+          const isStroke = parentClasses.includes("stroke");
+          const isImage = parentClasses.includes("image");
+          const isMask = parentClasses.includes("mask");
+          if (isText || isStroke || isImage || isMask) {
+            if (v && typeof v === "object" && Object.keys(v).length === 0) {
+              const grandParent = path.at(-2);
+              if (grandParent) {
+                this._clearOnContinue.add(grandParent);
+              }
+            }
+          }
         }
       }
     }
@@ -1023,9 +1051,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: TextInstruction[],
         instant = false
       ) {
-        if (!$._clearOnContinue.has(target)) {
-          this.saveState(target, sequence);
-        }
+        this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, sequence, instant);
         }
@@ -1430,9 +1456,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: ImageInstruction[],
         instant = false
       ) {
-        if (!$._clearOnContinue.has(target)) {
-          this.saveState(target, sequence);
-        }
+        this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
           await this.applyChanges(target, sequence, instant);
         }

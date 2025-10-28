@@ -369,7 +369,7 @@ export class Weave extends ParsedObject {
       } //guaranteed not to happen
 
       // Add choice's inner content to self
-      choice.innerContentContainer.name = `c-${this._choiceCount}`;
+      choice.innerContentContainer.name = choice.name || `c-${this._choiceCount}`;
       this.currentContainer.AddToNamedContentOnly(choice.innerContentContainer);
       this._choiceCount += 1;
 
@@ -552,9 +552,9 @@ export class Weave extends ParsedObject {
         }
       }
 
-      if (isNestedWeave) {
-        this.ValidateTermination(this.BadNestedTerminationHandler);
-      }
+      // if (isNestedWeave) {
+      //   this.ValidateTermination(this.BadNestedTerminationHandler);
+      // }
     }
 
     for (const gatherPoint of this.gatherPointsToResolve) {
@@ -562,7 +562,7 @@ export class Weave extends ParsedObject {
     }
 
     this.CheckForWeavePointNamingCollisions();
-    
+
     super.ResolveReferences(context);
   }
 
@@ -840,5 +840,6 @@ export class Weave extends ParsedObject {
     this._unnamedGatherCount = 0;
     this._choiceCount = 0;
     this._rootContainer = null;
+    this.gatherPointsToResolve = [];
   }
 }

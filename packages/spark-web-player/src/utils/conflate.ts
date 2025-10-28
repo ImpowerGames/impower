@@ -1,6 +1,5 @@
 export function conflate<R, F extends (...args: any[]) => R>(fn: F) {
   let running = false;
-  let inFlight: Promise<R> | null = null;
   let pendingArgs: Parameters<F>;
   let hasPending = false;
 
@@ -33,7 +32,7 @@ export function conflate<R, F extends (...args: any[]) => R>(fn: F) {
         throw err;
       });
 
-    inFlight = p.finally(() => {
+    p.finally(() => {
       if (hasPending) {
         const nextArgs = pendingArgs;
         hasPending = false;
@@ -42,7 +41,6 @@ export function conflate<R, F extends (...args: any[]) => R>(fn: F) {
         return startRun(wg, ...nextArgs);
       } else {
         running = false;
-        inFlight = null;
         return;
       }
     });

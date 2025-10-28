@@ -40,7 +40,7 @@ export class ListElementDefinition extends ParsedObject {
     throw new Error("Not implemented.");
   };
 
-  public ResolveReferences(context: Story): void {
+  public override ResolveReferences(context: Story): void {
     super.ResolveReferences(context);
     context.CheckForNamingCollisions(
       this,

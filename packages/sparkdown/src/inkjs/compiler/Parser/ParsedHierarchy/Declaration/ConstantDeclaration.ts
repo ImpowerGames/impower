@@ -42,7 +42,7 @@ export class ConstantDeclaration extends ParsedObject {
     return null;
   };
 
-  public ResolveReferences(context: Story) {
+  public override ResolveReferences(context: Story) {
     super.ResolveReferences(context);
     context.CheckForNamingCollisions(this, this.identifier, SymbolType.Var);
   }

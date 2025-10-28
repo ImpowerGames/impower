@@ -128,7 +128,7 @@ export class VariableAssignment extends ParsedObject {
     return container;
   };
 
-  public ResolveReferences(context: Story): void {
+  public override ResolveReferences(context: Story): void {
     super.ResolveReferences(context);
 
     // List and struct definitions are checked for conflicts separately

@@ -8,11 +8,14 @@ import {
 } from "../../inkjs/compiler/Compiler";
 import { IFileHandler } from "../../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
+import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { FlowBase } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
+import { Gather } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { IncludedFile } from "../../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
 import { Knot } from "../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { Statement } from "../../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { Stitch } from "../../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
 import { Story } from "../../inkjs/compiler/Parser/ParsedHierarchy/Story";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
@@ -22,10 +25,10 @@ import { SourceMetadata } from "../../inkjs/engine/Error";
 import { InkListItem } from "../../inkjs/engine/InkList";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
+import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { asOrNull } from "../../inkjs/engine/TypeAssertion";
 import { StringValue } from "../../inkjs/engine/Value";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
-import { File } from "../types/File";
 import { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
@@ -41,14 +44,32 @@ import { profile } from "../utils/profile";
 import { readProperty } from "../utils/readProperty";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
 import { resolveSelector } from "../utils/resolveSelector";
+import { AddCompilerFileParams } from "./messages/AddCompilerFileMessage";
 import {
-  SparkdownDocumentContentChangeEvent,
-  SparkdownDocumentRegistry,
-} from "./SparkdownDocumentRegistry";
+  CompiledProgramMessage,
+  CompiledProgramParams,
+} from "./messages/CompiledProgramMessage";
+import { CompileProgramParams } from "./messages/CompileProgramMessage";
+import { RemoveCompilerFileParams } from "./messages/RemoveCompilerFileMessage";
+import { SelectCompilerDocumentParams } from "./messages/SelectCompilerDocumentMessage";
+import {
+  SelectedCompilerDocumentMessage,
+  SelectedCompilerDocumentParams,
+} from "./messages/SelectedCompilerDocumentMessage";
+import { UpdateCompilerDocumentParams } from "./messages/UpdateCompilerDocumentMessage";
+import { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMessage";
+import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
+
+export type SparkdownCompilerEvents = {
+  "compiler/didCompile": (
+    params: CompiledProgramParams & { story?: RuntimeStory }
+  ) => void;
+  "compiler/didSelect": (params: SelectedCompilerDocumentParams) => void;
+};
 
 export class SparkdownCompiler {
   protected _profilerId?: string;
@@ -88,11 +109,30 @@ export class SparkdownCompiler {
     };
   } = {};
 
-  constructor() {}
+  protected _events: {
+    [K in keyof SparkdownCompilerEvents]: Set<SparkdownCompilerEvents[K]>;
+  } = {
+    "compiler/didCompile": new Set(),
+    "compiler/didSelect": new Set(),
+  };
+
+  addEventListener<K extends keyof SparkdownCompilerEvents>(
+    event: K,
+    listener: SparkdownCompilerEvents[K]
+  ) {
+    this._events[event].add(listener);
+  }
+
+  removeEventListener<K extends keyof SparkdownCompilerEvents>(
+    event: K,
+    listener: SparkdownCompilerEvents[K]
+  ) {
+    this._events[event].delete(listener);
+  }
 
   configure(config: SparkdownCompilerConfig) {
     if (
-      config.definitions?.builtins &&
+      config.definitions?.builtins !== undefined &&
       config.definitions?.builtins !== this._config.definitions?.builtins
     ) {
       this._config.definitions ??= {};
@@ -109,7 +149,7 @@ export class SparkdownCompiler {
       profile("end", this._profilerId, "indexStructs");
     }
     if (
-      config.definitions?.optionals &&
+      config.definitions?.optionals !== undefined &&
       config.definitions?.optionals !== this._config.definitions?.optionals
     ) {
       this._config.definitions ??= {};
@@ -122,7 +162,7 @@ export class SparkdownCompiler {
       profile("end", this._profilerId, "indexStructs");
     }
     if (
-      config.definitions?.schemas &&
+      config.definitions?.schemas !== undefined &&
       config.definitions?.schemas !== this._config.definitions?.schemas
     ) {
       this._config.definitions ??= {};
@@ -135,7 +175,7 @@ export class SparkdownCompiler {
       profile("end", this._profilerId, "indexStructs");
     }
     if (
-      config.definitions?.descriptions &&
+      config.definitions?.descriptions !== undefined &&
       config.definitions?.descriptions !==
         this._config.definitions?.descriptions
     ) {
@@ -147,6 +187,30 @@ export class SparkdownCompiler {
         this._config.definitions.descriptions
       );
       profile("end", this._profilerId, "indexStructs");
+    }
+    if (
+      config.skipValidation !== undefined &&
+      config.skipValidation !== this._config.skipValidation
+    ) {
+      this._config.skipValidation = config.skipValidation;
+    }
+    if (
+      config.workspace !== undefined &&
+      config.workspace !== this._config.workspace
+    ) {
+      this._config.workspace = config.workspace;
+    }
+    if (
+      config.startFrom !== undefined &&
+      config.startFrom !== this._config.startFrom
+    ) {
+      this._config.startFrom = config.startFrom;
+    }
+    if (
+      config.simulateChoices !== undefined &&
+      config.simulateChoices !== this._config.simulateChoices
+    ) {
+      this._config.simulateChoices = config.simulateChoices;
     }
     if (!this._documents) {
       this._documents = new SparkdownDocumentRegistry(
@@ -165,22 +229,16 @@ export class SparkdownCompiler {
       );
       this._documents.profilerId = this._profilerId;
     }
-    if (config.files && config.files !== this._config.files) {
+    if (config.files !== undefined && config.files !== this._config.files) {
       this._config.files = config.files;
       for (const file of config.files) {
         this.addFile({ file });
       }
     }
-    if (
-      config.skipValidation &&
-      config.skipValidation !== this._config.skipValidation
-    ) {
-      this._config.skipValidation = config.skipValidation;
-    }
     return LANGUAGE_NAME;
   }
 
-  addFile(params: { file: File }) {
+  addFile(params: AddCompilerFileParams) {
     const result = this.files.add(params);
     const file = params.file;
     if (file.type === "script") {
@@ -196,18 +254,15 @@ export class SparkdownCompiler {
     return result;
   }
 
-  updateFile(params: { file: File }) {
+  updateFile(params: UpdateCompilerFileParams) {
     return this.files.update(params);
   }
 
-  updateDocument(params: {
-    textDocument: { uri: string; version: number };
-    contentChanges: SparkdownDocumentContentChangeEvent[];
-  }) {
+  updateDocument(params: UpdateCompilerDocumentParams) {
     return this.documents.update(params);
   }
 
-  removeFile(params: { file: { uri: string } }) {
+  removeFile(params: RemoveCompilerFileParams) {
     this.files.remove(params);
     const file = params.file;
     return this.documents.remove({ textDocument: { uri: file.uri } });
@@ -223,8 +278,16 @@ export class SparkdownCompiler {
     throw new Error(`Cannot find file '${relativePath}'.`);
   }
 
-  compile(params: { uri: string }) {
-    const uri = params.uri;
+  selectDocument(params: SelectCompilerDocumentParams) {
+    this._events[SelectedCompilerDocumentMessage.method].forEach((l) => {
+      l?.(params);
+    });
+    return params;
+  }
+
+  compile(params: CompileProgramParams) {
+    const uri = params.textDocument.uri;
+    const startFrom = params.startFrom;
 
     // console.clear();
 
@@ -318,7 +381,10 @@ export class SparkdownCompiler {
           this.populateLocations(program, obj);
         const writer = new SimpleJson.Writer();
         story.ToJson(writer);
-        program.compiled = writer.toString();
+        const json = writer.toObject();
+        if (json) {
+          program.compiled = json;
+        }
         state.story = story;
         profile("end", this._profilerId, "ink/json", uri);
       }
@@ -335,7 +401,31 @@ export class SparkdownCompiler {
       this.validateSyntax(program);
       this.validateReferences(state, program);
     }
-    return program;
+    if (this._config.workspace !== undefined) {
+      program.workspace = this._config.workspace;
+    }
+    if (this._config.simulateChoices !== undefined) {
+      program.simulateChoices = this._config.simulateChoices;
+    }
+    program.startFrom = startFrom ?? this._config.startFrom;
+    // if (program.compiled) {
+    //   console.log(program.compiled);
+    //   console.log("pathLocations", program.pathLocations);
+    // }
+    const result = {
+      textDocument: {
+        uri,
+        version: this.documents.get(uri)!.version,
+      },
+      program,
+      story: state.story,
+    };
+    this._events[CompiledProgramMessage.method].forEach((l) => {
+      l?.(result);
+    });
+    // Story is not serializable so must be deleted before sending result
+    delete result.story;
+    return result;
   }
 
   parseIncrementally(
@@ -424,6 +514,7 @@ export class SparkdownCompiler {
         content,
         context,
         contextPropertyRegistry,
+        uuid,
       } = cur.value.type;
       const lineNumberOffset = document?.lineAt(cur.from) ?? 0;
       if (include) {
@@ -504,7 +595,19 @@ export class SparkdownCompiler {
               topLevelContent.push(stitch);
             }
           } else if (flow instanceof Weave) {
-            const flowContent = flow.content;
+            // Statements with uuids are wrapped in a Statement container so they can be given a stable runtime path
+            const firstStatement = flow?.content[0];
+            const isWeavePoint =
+              firstStatement instanceof Choice ||
+              firstStatement instanceof Gather;
+            if (uuid && isWeavePoint) {
+              // Ensure choices and gathers use a stable name for their inner container
+              firstStatement.uuid = uuid;
+            }
+            const flowContent =
+              uuid && !isWeavePoint
+                ? [new Statement(uuid, flow.content)] // Wrap non-choice/gather statements in a stably named container
+                : flow.content;
             const closestWeave = getClosestWeave(topLevelContent);
             if (closestWeave) {
               const lastContent = closestWeave.content.at(-1);
@@ -718,61 +821,61 @@ export class SparkdownCompiler {
       ) {
         let path = obj.path.toString();
         if (!path.startsWith("global ")) {
-        const [
-          _,
-          existingStartLine,
-          existingStartColumn,
-          existingEndLine,
-          existingEndColumn,
-        ] = program.pathLocations?.[path] || [];
-        if (
-          existingStartLine != null &&
-          existingStartColumn != null &&
-          (existingStartLine < startLine ||
-            (existingStartLine === startLine &&
-              existingStartColumn < startColumn))
-        ) {
-          // expand range backward
-          startLine = existingStartLine;
-          startColumn = existingStartColumn;
-        }
-        if (
-          existingEndLine != null &&
-          existingEndColumn != null &&
-          (existingEndLine > endLine ||
-            (existingEndLine === endLine && existingEndColumn > endColumn))
-        ) {
-          // expand range forward
-          endLine = existingEndLine;
-          endColumn = existingEndColumn;
-        }
-        if (endColumn === 0) {
-          // If range stretches to only the start of a line,
-          // limit the range to the end of the previous line,
-          // (So that the document blinking cursor doesn't confusingly appear
-          // at the start of the next unrelated line when doing a stack trace)
-          if (uri) {
-            const document = this.documents.get(uri);
-            if (document) {
-              const endPositionWithoutLastNewline = document.positionAt(
-                document.offsetAt({
-                  line: endLine,
-                  character: endColumn,
-                }) - 1
-              );
-              endLine = endPositionWithoutLastNewline.line;
-              endColumn = endPositionWithoutLastNewline.character;
+          const [
+            _,
+            existingStartLine,
+            existingStartColumn,
+            existingEndLine,
+            existingEndColumn,
+          ] = program.pathLocations?.[path] || [];
+          if (
+            existingStartLine != null &&
+            existingStartColumn != null &&
+            (existingStartLine < startLine ||
+              (existingStartLine === startLine &&
+                existingStartColumn < startColumn))
+          ) {
+            // expand range backward
+            startLine = existingStartLine;
+            startColumn = existingStartColumn;
+          }
+          if (
+            existingEndLine != null &&
+            existingEndColumn != null &&
+            (existingEndLine > endLine ||
+              (existingEndLine === endLine && existingEndColumn > endColumn))
+          ) {
+            // expand range forward
+            endLine = existingEndLine;
+            endColumn = existingEndColumn;
+          }
+          if (endColumn === 0) {
+            // If range stretches to only the start of a line,
+            // limit the range to the end of the previous line,
+            // (So that the document blinking cursor doesn't confusingly appear
+            // at the start of the next unrelated line when doing a stack trace)
+            if (uri) {
+              const document = this.documents.get(uri);
+              if (document) {
+                const endPositionWithoutLastNewline = document.positionAt(
+                  document.offsetAt({
+                    line: endLine,
+                    character: endColumn,
+                  }) - 1
+                );
+                endLine = endPositionWithoutLastNewline.line;
+                endColumn = endPositionWithoutLastNewline.character;
+              }
             }
           }
-        }
-        program.pathLocations ??= {};
-        program.pathLocations[path] ??= [
-          scriptIndex,
-          startLine,
-          startColumn,
-          endLine,
-          endColumn,
-        ];
+          program.pathLocations ??= {};
+          program.pathLocations[path] ??= [
+            scriptIndex,
+            startLine,
+            startColumn,
+            endLine,
+            endColumn,
+          ];
         }
       }
     }

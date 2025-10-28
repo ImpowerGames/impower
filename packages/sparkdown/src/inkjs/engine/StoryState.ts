@@ -28,8 +28,8 @@ export class StoryState {
   // Backward compatible changes since v8:
   // v10: dynamic tags
   // v9:  multi-flows
-  public readonly kInkSaveStateVersion = 10;
-  public readonly kMinCompatibleLoadVersion = 8;
+  public readonly kInkSaveStateVersion = 11;
+  public readonly kMinCompatibleLoadVersion = 11;
 
   public onDidLoadState: (() => void) | null = null;
 
@@ -1142,8 +1142,9 @@ export class StoryState {
     this._currentFlow.currentChoices.length = 0;
 
     let newPointer = this.story.PointerAtPath(path);
-    if (!newPointer.isNull && newPointer.index == -1) newPointer.index = 0;
+    if (!newPointer.isNull && newPointer.index == null) newPointer.index = 0;
 
+    this.previousPointer = this.previousPointer.copy();
     this.currentPointer = newPointer;
 
     if (incrementingTurnIndex) {

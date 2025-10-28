@@ -134,6 +134,7 @@
   cursor: ns-resize;
   transition: border-color var(--swp-transition-med);
   background-color: var(--swp-background-color);
+  min-height: 28px;
 }
 
 .fullscreen #toolbar {

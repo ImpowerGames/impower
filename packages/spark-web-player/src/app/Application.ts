@@ -340,8 +340,9 @@ export class Application implements IApplication {
     }
   }
 
-  destroy(removeCanvas?: boolean): void {
+  async destroy(removeCanvas?: boolean) {
     try {
+      await this._initializing;
       this._destroyed = true;
       this._overlay?.classList.remove("pause-game");
       this._clock.dispose();
@@ -349,9 +350,6 @@ export class Application implements IApplication {
       this._resizeObserver.disconnect();
       for (const manager of this._managers) {
         manager.onDispose();
-      }
-      if (this._game) {
-        this._game.destroy();
       }
       if (removeCanvas && this._canvas) {
         this._canvas.remove();

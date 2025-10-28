@@ -327,8 +327,8 @@ export namespace CallStack {
       this.callstack = [];
 
       if (arguments[0] && arguments[1]) {
-        let jThreadObj = arguments[0];
-        let storyContext = arguments[1];
+        let jThreadObj: any = arguments[0];
+        let storyContext: Story = arguments[1];
 
         // TODO: (int) jThreadObj['threadIndex'] can raise;
         this.threadIndex = parseInt(jThreadObj["threadIndex"]);
@@ -345,8 +345,11 @@ export namespace CallStack {
 
           let currentContainerPathStr: string;
           // TODO: jElementObj.TryGetValue ("cPath", out currentContainerPathStrToken);
+          let currentPathStrToken = jElementObj["path"];
           let currentContainerPathStrToken = jElementObj["cPath"];
-          if (typeof currentContainerPathStrToken !== "undefined") {
+          if (currentPathStrToken) {
+            pointer = storyContext.PointerAtPath(new Path(currentPathStrToken));
+          } else if (typeof currentContainerPathStrToken !== "undefined") {
             currentContainerPathStr = currentContainerPathStrToken.toString();
 
             let threadPointerResult = storyContext.ContentAtPath(
@@ -424,11 +427,17 @@ export namespace CallStack {
           if (el.currentPointer.container === null) {
             return throwNullException("el.currentPointer.container");
           }
-          writer.WriteProperty(
-            "cPath",
-            el.currentPointer.container.path.componentsString
-          );
-          writer.WriteIntProperty("idx", el.currentPointer.index);
+          if (el.currentPointer.pathFromEnd) {
+            writer.WriteProperty("path", el.currentPointer.pathFromEnd.componentsString);
+          } else {
+            writer.WriteProperty(
+              "cPath",
+              el.currentPointer.container.path.componentsString
+            );
+            if (el.currentPointer.index != null) {
+              writer.WriteIntProperty("idx", el.currentPointer.index);
+            }
+          }
         }
 
         writer.WriteProperty("exp", el.inExpressionEvaluation);
@@ -457,7 +466,7 @@ export namespace CallStack {
         }
         writer.WriteProperty(
           "previousContentObject",
-          resolvedPointer.path.toString()
+          resolvedPointer.pathFromEnd.toString()
         );
       }
 

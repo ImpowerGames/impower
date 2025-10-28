@@ -23,7 +23,7 @@ export class Knot extends FlowBase {
     return this.isFunction ? "Function" : "Knot";
   }
 
-  public ResolveReferences(context: Story): void {
+  public override ResolveReferences(context: Story): void {
     super.ResolveReferences(context);
 
     let parentStory = this.story;

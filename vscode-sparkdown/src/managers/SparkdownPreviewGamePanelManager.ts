@@ -10,11 +10,11 @@ import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/prot
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
+import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
-import { ConfigureGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ConfigureGameMessage";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
@@ -191,16 +191,7 @@ export class SparkdownPreviewGamePanelManager {
       if (ConnectedPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "game") {
           this._connected = true;
-          const startFrom = document
-            ? {
-                file: document.uri.toString(),
-                line: getEditor(document.uri)?.selection.active.line ?? 0,
-              }
-            : undefined;
-          await this.sendRequest(ConfigureGameMessage.type, {
-            workspace: this.getWorkspace(document?.uri),
-            startFrom,
-          });
+          const editor = document ? getEditor(document.uri) : undefined;
           const sparkdownConfig =
             vscode.workspace.getConfiguration("sparkdown");
           const settings = JSON.parse(JSON.stringify(sparkdownConfig));
@@ -216,6 +207,7 @@ export class SparkdownPreviewGamePanelManager {
               },
               skipValidation: true,
               uri: document?.uri.toString(),
+              ...(editor ? this.getGameConfiguration(editor) : {}),
             },
             capabilities: {},
             rootUri: null,
@@ -299,26 +291,23 @@ export class SparkdownPreviewGamePanelManager {
     });
   }
 
+  getGameConfiguration(editor: vscode.TextEditor) {
+    const startFrom = {
+      file: editor.document.uri.toString(),
+      line: editor.selection.active.line ?? 0,
+    };
+    return {
+      workspace: this.getWorkspace(editor.document.uri),
+      startFrom,
+    };
+  }
+
   async notifyChangedActiveEditor(editor: vscode.TextEditor) {
     if (this._connected) {
       const document = editor.document;
       if (document.languageId === "sparkdown") {
         if (!vscode.debug.activeDebugSession && !this._gameRunning) {
-          // In preview-mode, we load whatever document is in the active editor
-          const startFrom = {
-            file: document.uri.toString(),
-            line: editor.selection.active.line ?? 0,
-          };
-          if (
-            this._startFrom?.file !== startFrom.file ||
-            this._startFrom.line !== startFrom.line
-          ) {
-            this._startFrom = startFrom;
-            await this.sendRequest(ConfigureGameMessage.type, {
-              workspace: this.getWorkspace(document.uri),
-              startFrom,
-            });
-          }
+          // TODO: Preview new file?
         }
       }
     }
@@ -355,6 +344,14 @@ export class SparkdownPreviewGamePanelManager {
     selectedRange: vscode.Range,
     userEvent: boolean
   ) {
+    this.sendNotification(DidSelectTextDocumentMessage.type, {
+      textDocument: { uri: document.uri.toString() },
+      selectedRange: getServerRange(selectedRange),
+      userEvent,
+      docChanged:
+        this._selected?.uri === document.uri.toString() &&
+        this._selected.version != document.version,
+    });
     this.sendNotification(SelectedEditorMessage.type, {
       textDocument: { uri: document.uri.toString() },
       selectedRange: getServerRange(selectedRange),
@@ -367,20 +364,6 @@ export class SparkdownPreviewGamePanelManager {
       uri: document.uri.toString(),
       version: document.version,
     };
-    const startFrom = {
-      file: document.uri.toString(),
-      line: selectedRange?.start.line ?? 0,
-    };
-    if (
-      this._startFrom?.file !== startFrom.file ||
-      this._startFrom.line !== startFrom.line
-    ) {
-      this._startFrom = startFrom;
-      await this.sendRequest(ConfigureGameMessage.type, {
-        workspace: this.getWorkspace(document.uri),
-        startFrom,
-      });
-    }
   }
 
   notifyScrolledEditor(document: vscode.TextDocument, range: vscode.Range) {

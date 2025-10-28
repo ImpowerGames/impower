@@ -1,25 +1,28 @@
 import { Simulator, SimulatorSnapshot } from "../../inkjs/engine/Simulator";
 import { Story } from "../../inkjs/engine/Story";
 
-export interface RouteMap {
-  /** All possible routes */
-  routes: RoutePlan[];
-  /** A map of paths and then routes required to reach them */
-  pathRoutes: Record<string, number>;
-}
-
 export interface RoutePlan {
-  /** The steps in the order you'll encounter them when walking from the start of the knot */
-  steps: RouteOverride[];
-  /** The choices in the order you'll encounter them when walking from the start of the knot */
+  /** The path to start from */
+  fromPath: string;
+  /** The path to end at */
+  toPath: string;
+  /** The sequence of steps that led here */
+  steps: RouteStep[];
+  /** The decisions in the order you'll make them when walking from the start of the knot */
+  decisions: RouteOverride[];
+  /** The choices in the order you'll make them when walking from the start of the knot */
   choices: { options: string[]; selected: number }[];
 }
 
 export interface SearchNode {
   /** StoryState serialized via story.state.toJson() */
   stateJson: string;
+  /** A string that represents the sequence of paths taken to reach this step */
+  seq: string;
+  /** The sequence of steps that led here */
+  steps: RouteStep[];
   /** The sequence of forced decisions that led here */
-  steps: RouteOverride[];
+  decisions: RouteOverride[];
   /** The sequence of forced choices that led here */
   choices: { options: string[]; selected: number }[];
   /** The overrides to enforce when running this node */
@@ -27,6 +30,17 @@ export interface SearchNode {
 }
 
 export type RouteOverride = ConditionOverride | ChoiceOverride;
+
+export interface RouteStep {
+  /** A string that represents the sequence of paths taken to reach this step */
+  seq: string;
+  /** The path encountered this step */
+  path: string;
+  /** The index of the latest decision made so far */
+  decision: number;
+  /** The index of the latest checkpoint made so far */
+  checkpoint?: number;
+}
 
 export interface ConditionOverride {
   kind: "condition";
@@ -38,13 +52,6 @@ export interface ChoiceOverride {
   kind: "choice";
   path: string;
   value: string;
-}
-
-export interface ExploreOptions extends SearchOptions {
-  /** Stop after this many routes (optional, for safety) */
-  maxRoutes?: number;
-  /** Stop after exploring this many nodes (optional, for safety) */
-  maxNodes?: number;
 }
 
 export interface SearchOptions {
@@ -78,117 +85,12 @@ export interface SearchOptions {
 // Also returns all runtime paths we stepped through in this segment.
 export interface RunResult {
   hitTarget: boolean;
+  steps: RouteStep[];
   branches: SearchNode[];
-  steps: RouteOverride[];
+  decisions: RouteOverride[];
   choices: { options: string[]; selected: number }[];
-  encounteredPaths: string[]; // coverage for this run segment
   terminal: boolean; //  true if branch ended this run
 }
-
-export const exploreRoutes = (
-  story: Story,
-  fromPath: string,
-  options?: ExploreOptions
-): RouteMap => {
-  const start = makeStartNode(story, fromPath);
-  const isBfs = (options?.searchStrategy ?? "bfs") === "bfs";
-  const startTime = now();
-  const searchTimeout = options?.searchTimeout ?? 1000;
-  const deadlineTime = startTime + searchTimeout;
-  const favoredChoiceIndices = options?.favoredChoiceIndices ?? [];
-  const fromKnotName = fromPath.split(".")[0] || "0";
-  const stayWithinKnot = options?.stayWithinKnot !== false;
-  const functions = options?.functions || [];
-
-  const queue: SearchNode[] = [start];
-  const routes: RoutePlan[] = [];
-  const pathRoutes: Record<string, number> = Object.create(null);
-
-  // To dedupe identical routes
-  const seenRoutes = new Map<string, number>(); // key -> canonical route index
-
-  // For cycle breaking across “run forward” segments
-  const visitedState = new Set<string>();
-
-  // Optional safety caps
-  const maxRoutes = options?.maxRoutes ?? Infinity;
-  const maxNodes = options?.maxNodes ?? Infinity;
-  let nodesSeen = 0;
-
-  try {
-    while (queue.length) {
-      if (deadlineTime != null && now() >= deadlineTime) {
-        break;
-      }
-      if (nodesSeen >= maxNodes) {
-        break;
-      }
-
-      const node = isBfs ? queue.shift()! : queue.pop()!;
-      nodesSeen++;
-
-      // Skip if we've already seen this exact engine state (prevents loops)
-      if (visitedState.has(node.stateJson)) {
-        continue;
-      }
-      visitedState.add(node.stateJson);
-
-      const result = runUntilDecisionOrBranch(
-        story,
-        node,
-        fromKnotName,
-        null, // enumerate all: no target
-        favoredChoiceIndices,
-        stayWithinKnot,
-        functions,
-        deadlineTime
-      );
-
-      // Assign path coverage to the first route that reaches each path.
-      // If this branch terminates, it becomes a concrete route and its
-      // steps/choices snapshot is stable to attach to.
-      if (result.terminal) {
-        // Construct the candidate route
-        const candidate: RoutePlan = {
-          steps: result.steps,
-          choices: result.choices,
-        };
-
-        // Canonicalize and check for duplicates
-        const key = getRouteKey(candidate);
-        let routeIndex = seenRoutes.get(key);
-
-        if (routeIndex == null) {
-          routeIndex = routes.length;
-          routes.push(candidate);
-          seenRoutes.set(key, routeIndex);
-        }
-
-        // Attach coverage for any not-yet-claimed paths to the representative route
-        for (const p of result.encounteredPaths) {
-          if (p && pathRoutes[p] == null) {
-            pathRoutes[p] = routeIndex;
-          }
-        }
-
-        if (routes.length >= maxRoutes) {
-          break;
-        }
-        continue;
-      }
-
-      // Not terminal: fork at decision site
-      for (const b of result.branches) {
-        // Note: we don't mark coverage yet; it will be attributed to the terminal route
-        queue.push(b);
-      }
-    }
-  } finally {
-    resetStory(story);
-  }
-
-  return { routes, pathRoutes };
-};
 
 export const planRoute = (
   story: Story,
@@ -204,10 +106,28 @@ export const planRoute = (
   const favoredChoiceIndices = options?.favoredChoiceIndices ?? [];
   const fromKnotName = fromPath.split(".")[0] || "0";
 
+  let routePlan = null;
+
   const queue: SearchNode[] = [start];
 
+  const prevOnError = story.onError;
+  const prevOnExecute = story.onExecute;
+  const prevOnMakeChoice = story.onMakeChoice;
+  const prevOnSaveStateSnapshot = story.onSaveStateSnapshot;
+  const prevOnRestoreStateSnapshot = story.onRestoreStateSnapshot;
+  const prevOnDiscardStateSnapshot = story.onDiscardStateSnapshot;
+
+  story.onError = NOOP;
+  story.onExecute = NOOP;
+  story.onMakeChoice = NOOP;
+  story.onSaveStateSnapshot = NOOP;
+  story.onRestoreStateSnapshot = NOOP;
+  story.onDiscardStateSnapshot = NOOP;
+
   while (queue.length) {
-    if (deadlineTime != null && now() >= deadlineTime) return null;
+    if (deadlineTime != null && now() >= deadlineTime) {
+      break;
+    }
 
     const node = isBfs ? queue.shift()! : queue.pop()!;
     try {
@@ -223,16 +143,32 @@ export const planRoute = (
       );
 
       if (result.hitTarget) {
-        resetStory(story);
-        return { steps: result.steps, choices: result.choices };
+        routePlan = {
+          fromPath,
+          toPath,
+          steps: result.steps,
+          decisions: result.decisions,
+          choices: result.choices,
+        };
+        break;
       }
 
-      for (const b of result.branches) queue.push(b);
+      for (const b of result.branches) {
+        queue.push(b);
+      }
     } catch {}
   }
 
   resetStory(story);
-  return null;
+
+  story.onError = prevOnError;
+  story.onExecute = prevOnExecute;
+  story.onMakeChoice = prevOnMakeChoice;
+  story.onSaveStateSnapshot = prevOnSaveStateSnapshot;
+  story.onRestoreStateSnapshot = prevOnRestoreStateSnapshot;
+  story.onDiscardStateSnapshot = prevOnDiscardStateSnapshot;
+
+  return routePlan;
 };
 
 const runUntilDecisionOrBranch = (
@@ -280,7 +216,8 @@ const runUntilDecisionOrBranch = (
   let hitTarget = false;
   let terminal = false;
 
-  const encounteredPaths: string[] = [];
+  let seq = node.seq;
+  const stepsEncountered: RouteStep[] = [];
 
   try {
     // Tight loop: advance until target or branch site
@@ -292,10 +229,23 @@ const runUntilDecisionOrBranch = (
       }
 
       const previousPath = story.state.previousPointer.path?.toString()!;
-      const currentPath = story.state.currentPointer.path?.toString()!;
 
       if (previousPath) {
-        encounteredPaths.push(previousPath);
+        if (
+          stepsEncountered.length === 0 ||
+          previousPath !== stepsEncountered.at(-1)?.path
+        ) {
+          if (seq) {
+            seq += "|";
+          }
+          seq += previousPath;
+          stepsEncountered.push({
+            checkpoint: undefined,
+            decision: node.decisions.length - 1,
+            path: previousPath,
+            seq,
+          });
+        }
       }
 
       // A) Target reached?
@@ -317,6 +267,9 @@ const runUntilDecisionOrBranch = (
             story.ChooseChoice(forced);
           }
         } else {
+          // Pop the last encountered step,
+          // because we're going to encounter it again on the next run
+          stepsEncountered.pop();
           const options = story.currentChoices.map((c) => c.text);
           const favoredChoiceIndex = favoredChoiceIndices[node.choices.length];
           if (favoredChoiceIndex != null) {
@@ -327,6 +280,7 @@ const runUntilDecisionOrBranch = (
                 forkChoice(
                   story,
                   node,
+                  stepsEncountered,
                   {
                     kind: "choice",
                     path: previousPath,
@@ -352,6 +306,7 @@ const runUntilDecisionOrBranch = (
               forkChoice(
                 story,
                 node,
+                stepsEncountered,
                 {
                   kind: "choice",
                   path: previousPath,
@@ -382,14 +337,17 @@ const runUntilDecisionOrBranch = (
 
       // Ask the engine to pause before evaluating conditions
       story.pauseBeforeEvaluatingConditions =
-        !simulator.willForceCondition(currentPath);
+        !simulator.willForceCondition(previousPath);
 
       story.ContinueAsync(Infinity); // this may hit a conditional divert
 
       if (story.pausedBeforeCondition) {
+        // Pop the last encountered step,
+        // because we're going to encounter it again on the next run
+        stepsEncountered.pop();
         // Fork true branch
         branches.push(
-          forkCondition(story, node, {
+          forkCondition(story, node, stepsEncountered, {
             kind: "condition",
             path: story.pausedBeforeCondition,
             value: true,
@@ -397,7 +355,7 @@ const runUntilDecisionOrBranch = (
         );
         // Fork false branch
         branches.push(
-          forkCondition(story, node, {
+          forkCondition(story, node, stepsEncountered, {
             kind: "condition",
             path: story.pausedBeforeCondition,
             value: false,
@@ -420,9 +378,9 @@ const runUntilDecisionOrBranch = (
   return {
     hitTarget,
     branches,
-    steps: node.steps,
+    steps: [...node.steps, ...stepsEncountered],
+    decisions: node.decisions,
     choices: node.choices,
-    encounteredPaths,
     terminal,
   };
 };
@@ -440,7 +398,9 @@ const makeStartNode = (story: Story, fromPath: string): SearchNode => {
   story.ChoosePathString(fromPath);
   return {
     stateJson: story.state.toJson(),
+    seq: "",
     steps: [],
+    decisions: [],
     choices: [],
     overrides: [],
   };
@@ -481,11 +441,14 @@ const exitedKnot = (
 const forkCondition = (
   story: Story,
   parent: SearchNode,
+  stepsEncountered: RouteStep[],
   ov: ConditionOverride
 ): SearchNode => {
   return {
     stateJson: story.state.toJson(),
-    steps: [...parent.steps, ov],
+    seq: stepsEncountered.at(-1)?.seq || "",
+    steps: [...parent.steps, ...stepsEncountered],
+    decisions: [...parent.decisions, ov],
     choices: [...parent.choices],
     overrides: [...parent.overrides, ov],
   };
@@ -494,28 +457,34 @@ const forkCondition = (
 const forkChoice = (
   story: Story,
   parent: SearchNode,
+  stepsEncountered: RouteStep[],
   ov: ChoiceOverride,
   choice: { options: string[]; selected: number }
 ): SearchNode => {
   return {
     stateJson: story.state.toJson(),
-    steps: [...parent.steps, ov],
+    seq: stepsEncountered.at(-1)?.seq || "",
+    steps: [...parent.steps, ...stepsEncountered],
+    decisions: [...parent.decisions, ov],
     choices: [...parent.choices, choice],
     overrides: [...parent.overrides, ov],
   };
 };
 
-// Helper: stable key for a route (steps + choices)
-const getRouteKey = (r: RoutePlan) => JSON.stringify(r);
-
-export const buildRouteSimulator = (steps: RouteOverride[]): Simulator => {
+export const buildRouteSimulator = (
+  decisions: RouteOverride[],
+  fromDecision = 0
+): Simulator => {
   const condQueues = new Map<string, boolean[]>();
   const conditionPointers = new Map<string, number>();
   const choiceQueues = new Map<string, string[]>();
   const choicePointers = new Map<string, number>();
 
+  // Only enqueue overrides starting at `fromDecision`
+  const pending = fromDecision > 0 ? decisions.slice(fromDecision) : decisions;
+
   // group into queues in-order
-  for (const s of steps) {
+  for (const s of pending) {
     if (s.kind === "condition") {
       const q = condQueues.get(s.path) ?? [];
       q.push(s.value);
@@ -595,3 +564,5 @@ const now = () =>
   typeof performance !== "undefined" && performance.now
     ? performance.now()
     : Date.now();
+
+const NOOP = () => {};

@@ -214,11 +214,11 @@ export class Container extends InkObject implements INamedContent {
     }
   }
   public ContentWithPathComponent(component: Path.Component): InkObject | null {
-    if (component.isIndex) {
+    if (component.isIndex && component.index != null) {
       if (component.index >= 0 && component.index < this.content.length) {
-        return this.content[component.index];
-      } else {
-        return null;
+        return this.content[component.index] ?? null;
+      } else if (component.index < 0) {
+        return this.content.at(component.index) ?? null;
       }
     } else if (component.isParent) {
       return this.parent;
@@ -237,6 +237,7 @@ export class Container extends InkObject implements INamedContent {
         return null;
       }
     }
+    return null;
   }
   public BuildStringOfHierarchy(): string;
   public BuildStringOfHierarchy(

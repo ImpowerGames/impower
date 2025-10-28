@@ -14,6 +14,10 @@ export interface CompiledProgramParams {
    * The parsed program.
    */
   program: SparkProgram;
+  /**
+   * The simulated checkpoint for the new program.
+   */
+  checkpoint?: string;
 }
 
 export class CompiledProgramMessage {

@@ -254,7 +254,7 @@ export class Divert extends ParsedObject {
     }
   };
 
-  public ResolveReferences(context: Story): void {
+  public override ResolveReferences(context: Story): void {
     if (this.isEmpty || this.isEnd || this.isDone) {
       return;
     } else if (!this.runtimeDivert) {

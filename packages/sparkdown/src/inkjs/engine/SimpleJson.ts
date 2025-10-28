@@ -464,7 +464,7 @@ export namespace SimpleJson {
     private _propertyNameStack: string[] = [];
 
     // Object containing the entire hiearchy.
-    private _jsonObject: Record<string, any> | any[] | null = null;
+    private _jsonObject: Record<string, any> | null = null;
   }
 
   export namespace Writer {

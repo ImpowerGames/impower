@@ -1,13 +1,11 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
-import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import { isResponse } from "@impower/spark-editor-protocol/src/utils/isResponse";
-import { ConfigureGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ConfigureGameMessage";
 import { EnterGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage";
 import { ExitGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage";
 import { FetchGameAssetMessage } from "@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage";
@@ -15,7 +13,6 @@ import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
 import { GameToggledFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage";
-import { GameWillSimulateChoicesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWillSimulateChoicesMessage";
 import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
@@ -29,11 +26,22 @@ const SPARKDOWN_PLAYER_ORIGIN =
   process?.env?.["VITE_SPARKDOWN_PLAYER_ORIGIN"] || "";
 
 export default class GamePreview extends Component(spec) {
-  _startFromFile = "";
+  private _resolveConnecting!: () => void;
 
-  _startFromLine = 0;
+  private _connecting? = new Promise<void>((resolve) => {
+    this._resolveConnecting = resolve;
+  });
+  get connecting() {
+    if (this._connected) {
+      return Promise.resolve();
+    }
+    return this._connecting;
+  }
 
-  _previewIsConnected = false;
+  protected _connected = false;
+  get connected() {
+    return this._connected;
+  }
 
   _listeners: Set<(message: any) => void> = new Set();
 
@@ -48,6 +56,10 @@ export default class GamePreview extends Component(spec) {
     window.addEventListener("resizing", this.handleResizingSplitPane);
     window.addEventListener("resized", this.handleResizedSplitPane);
     document.addEventListener("fullscreenchange", this.handleFullscreenChange);
+
+    if (!this.refs.iframe) {
+      this._connected = true;
+    }
   }
 
   override onDisconnected() {
@@ -106,12 +118,10 @@ export default class GamePreview extends Component(spec) {
 
       // Once player is ready, send assets and load the game
       if (ConnectedPreviewMessage.type.is(message)) {
-        this._previewIsConnected = true;
         const projectId = Workspace.window.store.project.id;
         if (projectId) {
           const files = await Workspace.fs.getFiles(projectId);
           const uri = Workspace.window.getOpenedDocumentUri();
-          await this.configureGame();
           await this.sendRequest(InitializeMessage.type, {
             initializationOptions: {
               settings: Workspace.configuration.settings,
@@ -124,12 +134,16 @@ export default class GamePreview extends Component(spec) {
               },
               skipValidation: true,
               uri,
+              ...this.getGameConfiguration(),
             },
             capabilities: {},
             rootUri: null,
             processId: 0,
           });
         }
+
+        this._connected = true;
+        this._resolveConnecting();
       }
 
       if (
@@ -140,26 +154,17 @@ export default class GamePreview extends Component(spec) {
           message.method.startsWith("textDocument/"))
       ) {
         // Forward messages from editor to iframe player
-        const iframe = this.refs.iframe as HTMLIFrameElement;
-        if (iframe?.contentWindow) {
-          iframe.contentWindow.postMessage(
-            message,
-            SPARKDOWN_PLAYER_ORIGIN,
-            message.result?.transfer || message.params?.transfer
-          );
+        if (!this._connected) {
+          await this.connecting;
         }
+        this.forwardMessage(message);
       }
-      if (SelectedEditorMessage.type.is(message)) {
-        this.handleSelectedEditor(message);
-      }
+
       if (GameStartedMessage.type.is(message)) {
         this.handleGameStarted(message);
       }
       if (GameToggledFullscreenModeMessage.type.is(message)) {
         this.handleGameToggledFullscreenMode(message);
-      }
-      if (GameWillSimulateChoicesMessage.type.is(message)) {
-        this.handleGameWillSimulateChoices(message);
       }
       if (GameExecutedMessage.type.is(e.detail)) {
         this.handleGameExecuted(e.detail);
@@ -176,6 +181,24 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
+  forwardMessage(message: any) {
+    const iframe = this.refs.iframe as HTMLIFrameElement;
+    if (iframe?.contentWindow) {
+      performance.mark(`start forward ${message.method}`);
+      iframe.contentWindow.postMessage(
+        message,
+        SPARKDOWN_PLAYER_ORIGIN,
+        message.result?.transfer || message.params?.transfer
+      );
+      performance.mark(`end forward ${message.method}`);
+      performance.measure(
+        `forward ${message.method}`,
+        `start forward ${message.method}`,
+        `end forward ${message.method}`
+      );
+    }
+  }
+
   handleChangedEditorBreakpoints = async (
     message: ChangedEditorBreakpointsMessage.Notification
   ) => {
@@ -186,18 +209,6 @@ export default class GamePreview extends Component(spec) {
     message: ChangedEditorPinpointsMessage.Notification
   ) => {
     // TODO
-  };
-
-  handleSelectedEditor = async (
-    message: SelectedEditorMessage.Notification
-  ) => {
-    const { textDocument, selectedRange, docChanged } = message.params;
-    if (textDocument.uri === this._startFromFile && !docChanged) {
-      const newEntryLine = selectedRange?.start?.line ?? 0;
-      if (newEntryLine !== this._startFromLine) {
-        await this.configureGame();
-      }
-    }
   };
 
   handleGameStarted = async (message: GameStartedMessage.Notification) => {
@@ -212,14 +223,6 @@ export default class GamePreview extends Component(spec) {
     } else {
       this.refs.preview.requestFullscreen();
     }
-  };
-
-  handleGameWillSimulateChoices = async (
-    message: GameWillSimulateChoicesMessage.Notification
-  ) => {
-    const { simulateChoices } = message.params;
-    Workspace.window.setSimulateChoices(simulateChoices ?? {});
-    await this.configureGame();
   };
 
   protected handleGameExecuted = (
@@ -279,10 +282,12 @@ export default class GamePreview extends Component(spec) {
   };
 
   handleFullscreenChange = async (e: Event) => {
-    if (document.fullscreenElement) {
-      await this.sendRequest(EnterGameFullscreenModeMessage.type, {});
-    } else {
-      await this.sendRequest(ExitGameFullscreenModeMessage.type, {});
+    if (this._connected) {
+      if (document.fullscreenElement) {
+        await this.sendRequest(EnterGameFullscreenModeMessage.type, {});
+      } else {
+        await this.sendRequest(ExitGameFullscreenModeMessage.type, {});
+      }
     }
   };
 
@@ -308,15 +313,13 @@ export default class GamePreview extends Component(spec) {
   };
 
   override onStoreUpdate() {
-    if (this._previewIsConnected) {
-      const store = this.stores.workspace.current;
-      const running = store?.preview?.modes?.game?.running;
-      const editor = Workspace.window.getActiveEditorForPane("logic");
-      if (!running && editor) {
-        const { uri } = editor;
-        if (uri && uri !== this._startFromFile) {
-          this.configureGame();
-        }
+    const store = this.stores.workspace.current;
+    const running = store?.preview?.modes?.game?.running;
+    const editor = Workspace.window.getActiveEditorForPane("logic");
+    if (!running && editor) {
+      const { uri } = editor;
+      if (uri) {
+        // TODO: Preview new file?
       }
     }
   }
@@ -326,8 +329,6 @@ export default class GamePreview extends Component(spec) {
     if (editor) {
       const { uri, selectedRange } = editor;
       const startLine = selectedRange?.start?.line ?? 0;
-      this._startFromFile = uri;
-      this._startFromLine = startLine;
       const workspace = Workspace.window.store.project.directory;
       const startFrom = {
         file: uri,
@@ -341,13 +342,6 @@ export default class GamePreview extends Component(spec) {
       };
     }
     return {};
-  }
-
-  async configureGame() {
-    await this.sendRequest(
-      ConfigureGameMessage.type,
-      this.getGameConfiguration()
-    );
   }
 
   async sendRequest<M extends string, P, R>(

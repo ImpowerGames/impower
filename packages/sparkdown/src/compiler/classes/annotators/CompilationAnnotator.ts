@@ -14,6 +14,12 @@ const FILE_HANDLER = {
   LoadInkFileContents: () => "",
 };
 const ROOT_PARSER = new InkParser("", null, null, null, FILE_HANDLER);
+const NOOP = () => {};
+
+let id = 1;
+const generateUUID = () => {
+  return `${id++}`;
+};
 
 export interface InkDiagnostic {
   message: string;
@@ -31,6 +37,8 @@ export interface CompiledBlock {
   contextPropertyRegistry?: {
     [type: string]: { [name: string]: { [propertyPath: string]: any } };
   };
+  json?: string;
+  uuid?: string;
 }
 
 export interface CompilationConfig {
@@ -94,7 +102,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         const context = {};
         const contextPropertyRegistry = {};
         try {
-          const runtimeStory = story.ExportRuntime();
+          const runtimeStory = story.ExportRuntime(NOOP);
           if (runtimeStory?.structDefinitions) {
             populateDefinedStructs(
               context,
@@ -103,7 +111,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
               this.config?.definitions?.builtins
             );
           }
-        } catch {}
+        } catch (e) {
+          console.error(e);
+        }
         annotations.push(
           SparkdownAnnotation.mark({
             diagnostics,
@@ -125,14 +135,43 @@ export class CompilationAnnotator extends SparkdownAnnotator<
           FILE_HANDLER
         );
         const story = parser.ParseStory();
+        let json: string | undefined = undefined;
+        try {
+          json = story.ExportRuntime(NOOP)?.ToJson() as string;
+        } catch (e) {
+          console.error(e);
+        }
         annotations.push(
           SparkdownAnnotation.mark({
             diagnostics,
             content: story.content,
+            json,
+            uuid: generateUUID(),
           }).range(nodeRef.from, nodeRef.to)
         );
       }
     }
     return annotations;
+  }
+
+  override end(
+    iterateFrom: number,
+    iterateTo: number,
+    added: Range<SparkdownAnnotation<CompiledBlock>>[],
+    removed: Range<SparkdownAnnotation<CompiledBlock>>[]
+  ): void {
+    for (let i = 0; i < added.length; i++) {
+      const add = added[i]!;
+      const remove = removed[i];
+      if (add.value.type.uuid != null) {
+        if (add?.value.type.json === remove?.value.type.json) {
+          // No change, carry forward uuid
+          add.value.type.uuid = remove?.value.type.uuid ?? generateUUID();
+        } else {
+          // The compiled json has changed, generate a new uuid
+          add.value.type.uuid = generateUUID();
+        }
+      }
+    }
   }
 }

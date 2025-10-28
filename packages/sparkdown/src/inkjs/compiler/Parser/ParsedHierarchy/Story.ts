@@ -314,7 +314,9 @@ export class Story extends FlowBase {
     // we want the paths to be absolute)
     try {
       this.ResolveReferences(this);
-    } catch {}
+    } catch (e) {
+      console.error(e)
+    }
 
     runtimeStory.ResetState();
 

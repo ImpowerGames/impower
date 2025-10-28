@@ -167,11 +167,11 @@ export class Path {
 
 export namespace Path {
   export class Component {
-    public readonly index: number;
+    public readonly index: number | null;
     public readonly name: string | null;
 
     constructor(indexOrName: string | number) {
-      this.index = -1;
+      this.index = null;
       this.name = null;
       if (typeof indexOrName == "string") {
         this.name = indexOrName;
@@ -180,7 +180,7 @@ export namespace Path {
       }
     }
     get isIndex(): boolean {
-      return this.index >= 0;
+      return this.index != null;
     }
     get isParent(): boolean {
       return this.name == Path.parentId;
@@ -190,7 +190,7 @@ export namespace Path {
       return new Component(Path.parentId);
     }
     public toString(): string | null {
-      if (this.isIndex) {
+      if (this.index != null) {
         return this.index.toString();
       } else {
         return this.name;

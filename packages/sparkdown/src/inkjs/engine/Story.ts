@@ -35,7 +35,7 @@ import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
 import { ErrorHandler, ErrorType } from "./Error";
 import { StructDefinition } from "./StructDefinition";
-import { Simulator } from "./Simulator";
+import { Simulator, SimulatorSnapshot } from "./Simulator";
 
 export { InkList } from "./InkList";
 
@@ -52,7 +52,7 @@ if (!Number.isInteger) {
 }
 
 export class Story extends InkObject {
-  public static inkVersionCurrent = 21;
+  public static inkVersionCurrent = 22;
 
   public inkVersionMinimumCompatible = 18;
 
@@ -569,18 +569,6 @@ export class Story extends InkObject {
     ) {
       this._state.variablesState.NotifyObservers(changedVariablesToObserve);
     }
-  }
-
-  public ContinueSingleStep() {
-    if (this._profiler != null) this._profiler.PreStep();
-
-    this.Step();
-
-    if (this._profiler != null) this._profiler.PostStep();
-
-    if (!this.canContinue && !this.state.callStack.elementIsEvaluateFromGame) {
-      this.TryFollowDefaultInvisibleChoice();
-    }
 
     // Automatically force a choice (used when simulating routes)
     if (this.simulator) {
@@ -597,6 +585,19 @@ export class Story extends InkObject {
           }
         }
       }
+    }
+
+  }
+
+  public ContinueSingleStep() {
+    if (this._profiler != null) this._profiler.PreStep();
+
+    this.Step();
+
+    if (this._profiler != null) this._profiler.PostStep();
+
+    if (!this.canContinue && !this.state.callStack.elementIsEvaluateFromGame) {
+      this.TryFollowDefaultInvisibleChoice();
     }
 
     if (this._profiler != null) this._profiler.PreSnapshot();
@@ -727,10 +728,19 @@ export class Story extends InkObject {
       );
       p.container = result.container;
       p.index = path.lastComponent.index;
+      if (p.index != null && p.index < 0 && result.container) {
+        // Negative indexes represent the distance from the end of the container
+        const index = result.container.content.length + p.index;
+        if (index >= 0) {
+          p.index = index;
+        } else {
+          p.index = 0;
+        }
+      }
     } else {
       result = this.mainContentContainer.ContentAtPath(path);
       p.container = result.container;
-      p.index = -1;
+      p.index = null;
     }
 
     if (
@@ -858,7 +868,7 @@ export class Story extends InkObject {
       // Conditional divert?
       const divert = asOrNull(currentContentObj, Divert);
       if (divert && divert.isConditional) {
-        const sitePath = this.state.currentPointer.path?.toString();
+        const sitePath = this.state.previousPointer.path?.toString();
         if (sitePath) {
           this.pausedBeforeCondition = sitePath;
           return; // do NOT consume; do NOT advance
@@ -868,7 +878,7 @@ export class Story extends InkObject {
       // Conditional choice?
       const choicePoint = asOrNull(currentContentObj, ChoicePoint);
       if (choicePoint && choicePoint.hasCondition) {
-        const sitePath = this.state.currentPointer.path?.toString();
+        const sitePath = this.state.previousPointer.path?.toString();
         if (sitePath) {
           this.pausedBeforeCondition = sitePath;
           return; // do NOT consume; do NOT advance
@@ -965,7 +975,7 @@ export class Story extends InkObject {
     let previousPointer = this.state.previousPointer.copy();
     let pointer = this.state.currentPointer.copy();
 
-    if (pointer.isNull || pointer.index == -1) return;
+    if (pointer.isNull || pointer.index == null) return;
 
     this._prevContainers.length = 0;
     if (!previousPointer.isNull) {
@@ -1041,7 +1051,7 @@ export class Story extends InkObject {
 
       // If a simulator is installed, let it force the boolean (true=visible, false=hidden)
       if (this.simulator) {
-        const sitePath = this.state.currentPointer.path?.toString();
+        const sitePath = this.state.previousPointer.path?.toString();
         if (sitePath) {
           const forced = this.simulator.forceCondition(sitePath);
           // inject forced verdict as an int (ink booleans are ints)
@@ -1086,6 +1096,7 @@ export class Story extends InkObject {
     }
 
     let choice = new Choice();
+    choice.point = choicePoint;
     choice.targetPath = choicePoint.pathOnChoice;
     choice.sourcePath = choicePoint.path.toString();
     choice.isInvisibleDefault = choicePoint.isInvisibleDefault;
@@ -1129,7 +1140,7 @@ export class Story extends InkObject {
 
         // If simulator provides a forced value, inject it onto the eval stack.
         if (this.simulator) {
-          const sitePath = this.state.currentPointer.path?.toString();
+          const sitePath = this.state.previousPointer.path?.toString();
           if (sitePath) {
             const forced = this.simulator.forceCondition(sitePath);
             // Inject as int (ink booleans are ints)
@@ -1890,7 +1901,13 @@ export class Story extends InkObject {
       return throwNullException("choiceToChoose.targetPath");
     }
 
+    const previousPointer = this.state.previousPointer.copy();
+    const currentPointer = this.state.currentPointer.copy();
+
     this.state.callStack.currentThread = choiceToChoose.threadAtGeneration;
+
+    this.state.previousPointer = previousPointer;
+    this.state.currentPointer = currentPointer;
 
     this.ChoosePath(choiceToChoose.targetPath);
   }
@@ -2400,9 +2417,7 @@ export class Story extends InkObject {
 
     if (!this.state.divertedPointer.isNull) {
       if (this.onExecute !== null)
-        this.onExecute(
-          this.state.callStack.currentElement?.currentPointer.path?.toString()
-        );
+        this.onExecute(this.state.currentPointer.path?.toString());
 
       this.state.currentPointer = this.state.divertedPointer.copy();
       this.state.divertedPointer = Pointer.Null;
@@ -2415,9 +2430,7 @@ export class Story extends InkObject {
     }
 
     if (this.onExecute !== null)
-      this.onExecute(
-        this.state.callStack.currentElement?.previousPointer.path?.toString()
-      );
+      this.onExecute(this.state.previousPointer.path?.toString());
 
     let successfulPointerIncrement = this.IncrementContentPointer();
 
@@ -2449,13 +2462,14 @@ export class Story extends InkObject {
   public IncrementContentPointer() {
     let successfulIncrement = true;
 
-    let pointer = this.state.callStack.currentElement.currentPointer.copy();
+    let pointer = this.state.currentPointer.copy();
+    pointer.index ??= 0;
     pointer.index++;
 
     if (pointer.container === null) {
       return throwNullException("pointer.container");
     }
-    while (pointer.index >= pointer.container.content.length) {
+    while (pointer.index != null && pointer.index >= pointer.container.content.length) {
       successfulIncrement = false;
 
       // Container nextAncestor = pointer.container.parent as Container;
@@ -2471,6 +2485,7 @@ export class Story extends InkObject {
 
       pointer = new Pointer(nextAncestor, indexInAncestor);
 
+      pointer.index ??= 0;
       pointer.index++;
 
       successfulIncrement = true;
@@ -2709,6 +2724,12 @@ export class Story extends InkObject {
   private _asyncSaving: boolean = false;
 
   private _profiler: any | null = null; // TODO: Profiler
+
+  
+  get stateSnapshotAtLastNewline() {
+    return this._stateSnapshotAtLastNewline;
+  }
+
 }
 
 export namespace Story {

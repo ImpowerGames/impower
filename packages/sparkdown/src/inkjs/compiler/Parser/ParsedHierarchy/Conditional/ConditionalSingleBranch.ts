@@ -132,7 +132,7 @@ export class ConditionalSingleBranch extends ParsedObject {
     container.AddContent(this._conditionalDivert);
 
     this._contentContainer = this.GenerateRuntimeForContent();
-    this._contentContainer.name = "b";
+    this._contentContainer.name = "$b";
 
     // Multi-line conditionals get a newline at the start of each branch
     // (as opposed to the start of the multi-line conditional since the condition
@@ -165,7 +165,7 @@ export class ConditionalSingleBranch extends ParsedObject {
     return this._innerWeave.rootContainer;
   };
 
-  public ResolveReferences(context: Story): void {
+  public override ResolveReferences(context: Story): void {
     if (!this._conditionalDivert || !this._contentContainer) {
       throw new Error();
     }

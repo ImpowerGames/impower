@@ -2,21 +2,36 @@ import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/Message
 import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
 import { ResponseMessage } from "@impower/jsonrpc/src/types/ResponseMessage";
 import { SparkProgram } from "../../types/SparkProgram";
+import { VersionedTextDocumentIdentifier } from "../../types/VersionedTextDocumentIdentifier";
 
 export type CompileProgramMethod = typeof CompileProgramMessage.method;
 
 export interface CompileProgramParams {
-  uri: string;
+  textDocument: { uri: string };
+  startFrom: { file: string; line: number };
 }
 
-export type CompileProgramResult = SparkProgram;
+export interface CompileProgramResult {
+  /**
+   * The document that was parsed.
+   */
+  textDocument: VersionedTextDocumentIdentifier;
+  /**
+   * The parsed program.
+   */
+  program: SparkProgram;
+  /**
+   * The simulated checkpoint for the new program.
+   */
+  checkpoint?: string;
+}
 
 export class CompileProgramMessage {
   static readonly method = "compiler/compile";
   static readonly type = new MessageProtocolRequestType<
     CompileProgramMethod,
     CompileProgramParams,
-    SparkProgram
+    CompileProgramResult
   >(CompileProgramMessage.method);
 }
 

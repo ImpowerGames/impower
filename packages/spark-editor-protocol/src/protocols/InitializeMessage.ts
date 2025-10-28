@@ -19,6 +19,9 @@ export interface InitializationOptions {
   };
   files?: { uri: string; src?: string; text?: string }[];
   skipValidation?: boolean;
+  workspace?: string;
+  startFrom?: { file: string; line: number };
+  simulateChoices?: Record<string, (number | undefined)[]> | null;
   uri?: string;
   omitImageData?: boolean;
 }

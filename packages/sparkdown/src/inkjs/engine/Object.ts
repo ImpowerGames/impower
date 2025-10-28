@@ -79,6 +79,48 @@ export class InkObject {
   }
   private _path: Path | null = null;
 
+  get pathFromEnd() {
+    if (this._pathFromEnd == null) {
+      if (this.parent == null) {
+        this._pathFromEnd = new Path();
+      } else {
+        let comps: Path.Component[] = [];
+
+        let child: InkObject = this;
+        let container = asOrNull(child.parent, Container);
+
+        while (container !== null) {
+          let namedChild = asINamedContentOrNull(child);
+          if (namedChild != null && namedChild.hasValidName) {
+            if (namedChild.name === null)
+              return throwNullException("namedChild.name");
+            comps.unshift(new Path.Component(namedChild.name!));
+          } else {
+            comps.unshift(new Path.Component(container.content.indexOf(child)));
+          }
+
+          child = container;
+          container = asOrNull(container.parent, Container);
+        }
+
+        const parentContainer = asOrNull(this.parent, Container);
+
+        if (parentContainer && comps.at(-1)?.isIndex) {
+          const index = parentContainer.content.indexOf(this);
+          if (index >= 0) {
+            comps.pop();
+            comps.push(new Path.Component(index - parentContainer.content.length))
+          }
+        }
+        
+        this._pathFromEnd = new Path(comps);
+      }
+    }
+
+    return this._pathFromEnd;
+  }
+  private _pathFromEnd: Path | null = null;
+
   public ResolvePath(path: Path | null): SearchResult {
     if (path === null) return throwNullException("path");
     if (path.isRelative) {

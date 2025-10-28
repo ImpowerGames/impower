@@ -16,6 +16,8 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
     return this.runtimeObject as RuntimeContainer;
   }
 
+  public uuid?: string;
+
   constructor(
     identifier: Identifier | null,
     public readonly indentationDepth: number
@@ -49,7 +51,7 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
     return container;
   };
 
-  public ResolveReferences(context: Story): void {
+  public override ResolveReferences(context: Story): void {
     super.ResolveReferences(context);
 
     if (this.identifier && (this.identifier.name || "").length > 0) {

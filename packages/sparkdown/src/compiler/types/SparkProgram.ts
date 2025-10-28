@@ -14,7 +14,10 @@ export interface SparkProgram {
   uri: string;
   scripts: Record<string, number>;
   files: Record<string, Omit<File, "src" | "text" | "data">>;
-  compiled?: string;
+  compiled?: Record<string, any>;
+  workspace?: string;
+  startFrom?: { file: string; line: number };
+  simulateChoices?: Record<string, (number | undefined)[]> | null;
   ui?: {
     screen?: Record<string, SparkleNode>;
     component?: Record<string, SparkleNode>;

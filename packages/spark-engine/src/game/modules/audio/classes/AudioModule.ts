@@ -62,12 +62,14 @@ export class AudioModule extends Module<
         this.configure(k, v.gain);
       }
     }
-    if (this._state.channels) {
-      await Promise.all(
-        Object.keys(this._state.channels).map((channel) =>
-          this.restoreChannel(channel)
-        )
-      );
+    if (!this.context.system.previewing) {
+      if (this._state.channels) {
+        await Promise.all(
+          Object.keys(this._state.channels).map((channel) =>
+            this.restoreChannel(channel)
+          )
+        );
+      }
     }
   }
 

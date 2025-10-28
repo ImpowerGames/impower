@@ -318,14 +318,14 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     // since it's likely that a return statement has been used instead of a ->-> or something,
     // or the writer failed to mark the knot as a function.
     //  - _rootWeave may be null if it's a knot that only has stitches
-    if (
-      this.flowLevel !== FlowLevel.Story &&
-      !this.isFunction &&
-      this._rootWeave !== null &&
-      foundReturn === null
-    ) {
-      this._rootWeave.ValidateTermination(this.WarningInTermination);
-    }
+    // if (
+    //   this.flowLevel !== FlowLevel.Story &&
+    //   !this.isFunction &&
+    //   this._rootWeave !== null &&
+    //   foundReturn === null
+    // ) {
+    //   this._rootWeave.ValidateTermination(this.WarningInTermination);
+    // }
 
     return container;
   };
@@ -414,7 +414,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     return null;
   };
 
-  public ResolveReferences(context: any): void {
+  public override ResolveReferences(context: any): void {
     if (this._startingSubFlowDivert) {
       if (!this._startingSubFlowRuntime) {
         throw new Error();

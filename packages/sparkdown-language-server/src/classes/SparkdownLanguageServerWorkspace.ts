@@ -12,6 +12,7 @@ import {
 } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/compiler/utils/resolveFileUsingImpliedExtension";
+import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdown.worker";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import {
   type Connection,
@@ -35,7 +36,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   _connection: Connection;
 
   constructor(connection: Connection, profilerId?: string) {
-    super(profilerId);
+    super(COMPILER_INLINE_WORKER_STRING, profilerId);
     this._documents = new SparkdownDocumentRegistry([
       "characters",
       "colors",
