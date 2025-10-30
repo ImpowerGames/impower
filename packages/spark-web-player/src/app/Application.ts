@@ -327,23 +327,25 @@ export class Application implements IApplication {
   }
 
   protected update(time: Clock): void {
-    if (!this._paused) {
-      if (this._game) {
-        this._game.update(time);
+    if (!this._destroyed) {
+      if (!this._paused) {
+        if (this._game) {
+          this._game.update(time);
+        }
+        for (const manager of this._managers) {
+          manager.onUpdate(time);
+        }
       }
-      for (const manager of this._managers) {
-        manager.onUpdate(time);
+      if (this._renderer) {
+        this._renderer.render(this._stage);
       }
-    }
-    if (this._renderer) {
-      this._renderer.render(this._stage);
     }
   }
 
   async destroy(removeCanvas?: boolean) {
     try {
-      await this._initializing;
       this._destroyed = true;
+      await this.initializing;
       this._overlay?.classList.remove("pause-game");
       this._clock.dispose();
       this.unbind();
@@ -351,11 +353,13 @@ export class Application implements IApplication {
       for (const manager of this._managers) {
         manager.onDispose();
       }
+      if (this._renderer) {
+        try {
+          this._renderer.destroy();
+        } catch {}
+      }
       if (removeCanvas && this._canvas) {
         this._canvas.remove();
-      }
-      if (this._renderer) {
-        this._renderer.destroy();
       }
     } catch (e) {
       console.error(e);

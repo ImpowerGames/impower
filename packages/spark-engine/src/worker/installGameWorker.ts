@@ -165,7 +165,8 @@ export function installGameWorker(connection: MessageConnection) {
         if (!state.game) {
           throw new NoGameError();
         }
-        return { success: state.game.start() };
+        state.game.start();
+        return { success: Boolean(state.game.program.compiled) };
       });
       return;
     }

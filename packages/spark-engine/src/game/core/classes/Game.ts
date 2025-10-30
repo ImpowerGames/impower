@@ -105,8 +105,6 @@ export class Game<T extends M = {}> {
 
   protected _executingLocation: ScriptLocation | null = null;
 
-  protected _error = false;
-
   protected _runtimeState: RuntimeState = new RuntimeState();
   get runtimeState() {
     return this._runtimeState;
@@ -140,6 +138,9 @@ export class Game<T extends M = {}> {
   get simulatePath() {
     return this._simulatePath;
   }
+  set simulatePath(value) {
+    this._simulatePath = value;
+  }
 
   protected _startPath?: string | null;
   get startPath() {
@@ -156,6 +157,9 @@ export class Game<T extends M = {}> {
   protected _simulation?: "none" | "simulating" | "success" | "fail";
   get simulation() {
     return this._simulation;
+  }
+  set simulation(value) {
+    this._simulation = value;
   }
 
   protected _restarted = false;
@@ -227,7 +231,6 @@ export class Game<T extends M = {}> {
 
     this._executingPath = null;
     this._executingLocation = null;
-    this._error = false;
     this._runtimeSnapshot = null;
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
@@ -383,9 +386,11 @@ export class Game<T extends M = {}> {
 
   async connect(send: (message: Message, transfer?: ArrayBuffer[]) => void) {
     this._connection.connectOutput(send);
-    for (const moduleName of this._moduleNames) {
-      this._modules[moduleName]?.onConnected();
-    }
+    await Promise.all(
+      this._moduleNames.map((moduleName) =>
+        this._modules[moduleName]?.onConnected()
+      )
+    );
     await this.restore();
   }
 
@@ -613,7 +618,6 @@ export class Game<T extends M = {}> {
 
     this._executingPath = null;
     this._executingLocation = null;
-    this._error = false;
     this._runtimeSnapshot = null;
 
     this.continue(true);
@@ -681,7 +685,7 @@ export class Game<T extends M = {}> {
     return this._checkpoints.at(-1) ?? null;
   }
 
-  start(save: string = ""): boolean {
+  start(save: string = ""): void {
     this._state = "running";
     if (this._simulation === "simulating") {
       this._simulation = "fail";
@@ -706,7 +710,6 @@ export class Game<T extends M = {}> {
       this._clock.add((time) => this.update(time));
       this._clock.start();
     }
-    return !this._error;
   }
 
   pause(): void {
@@ -867,7 +870,7 @@ export class Game<T extends M = {}> {
     let done = false;
     do {
       done = this.step();
-    } while (!this._error && !done);
+    } while (!done);
 
     if (this._simulation !== "simulating") {
       this.notifyExecuted();
@@ -1525,9 +1528,6 @@ export class Game<T extends M = {}> {
   }
 
   protected Error(message: string, type: ErrorType) {
-    if (type === ErrorType.Error) {
-      this._error = true;
-    }
     this.connection.emit(
       GameEncounteredRuntimeErrorMessage.type.notification({
         message,
@@ -1623,7 +1623,13 @@ export class Game<T extends M = {}> {
 
   static pathToDocumentLocation(program: SparkProgram, path: string) {
     const scripts = Object.keys(program?.scripts ?? {});
-    const location = program.pathLocations?.[path];
+    const location =
+      program.pathLocations?.[path] ||
+      program.knotLocations?.[path] ||
+      program.stitchLocations?.[path] ||
+      program.functionLocations?.[path] ||
+      program.sceneLocations?.[path] ||
+      program.branchLocations?.[path];
     if (location) {
       return Game.documentLocation(program, scripts, location);
     }

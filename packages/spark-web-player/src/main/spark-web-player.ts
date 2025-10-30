@@ -46,7 +46,6 @@ import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/mes
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
-import { ScriptLocation } from "@impower/spark-engine/src/game/core/types/ScriptLocation";
 import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
@@ -84,10 +83,6 @@ export default class SparkWebPlayer extends Component(spec) {
   _program?: SparkProgram;
 
   _checkpoint?: string;
-
-  _scripts: string[] = [];
-
-  _pathLocations: [string, ScriptLocation][] = [];
 
   _options?: {
     workspace?: string;
@@ -810,10 +805,13 @@ export default class SparkWebPlayer extends Component(spec) {
   ) => {
     const { textDocument, selectedRange, checkpoint, userEvent, docChanged } =
       message.params;
-    if (checkpoint) {
-      this._checkpoint = checkpoint;
-    }
     if (userEvent && !docChanged) {
+      this._options ??= {};
+      this._options.startFrom = {
+        file: textDocument.uri,
+        line: selectedRange.start.line,
+      };
+      this._checkpoint = checkpoint;
       if (this._program && this._game?.state !== "running") {
         await this.updatePreview(
           this._program,
@@ -1167,8 +1165,6 @@ export default class SparkWebPlayer extends Component(spec) {
       const isInitialProgram = !this._program;
       this._program = program;
       this._checkpoint = checkpoint;
-      this._pathLocations = Object.entries(program.pathLocations ?? {});
-      this._scripts = Object.keys(program.scripts);
       if (this._game?.state === "running") {
         // Stop and restart game if we loaded a new game while the old game was running
         await this.debouncedRestartGame();
@@ -1205,24 +1201,21 @@ export default class SparkWebPlayer extends Component(spec) {
       await this.loadingInitialProgram;
     }
     if (!this._program) {
-      return;
+      return false;
     }
     this._options ??= {};
     this._options.previewFrom = undefined;
     this._game = await this.buildGame(this._program, restarted);
-    if (this._checkpoint) {
-      this._game.load(this._checkpoint);
-    }
+    this._game.simulate();
     this.listen(this._game);
     this._app = await this.buildApp(this._game);
-    const programCompiled = this._program?.compiled;
-    const gameStarted = this._game?.start();
-    const success = Boolean(programCompiled && gameStarted);
-    if (success) {
+    const programCompiled = Boolean(this._program?.compiled);
+    this._game?.start();
+    if (programCompiled) {
       this._app?.start();
     }
     this.updateLaunchStateIcon();
-    return success;
+    return programCompiled;
   }
 
   async destroyGameAndApp() {
@@ -1519,8 +1512,8 @@ export default class SparkWebPlayer extends Component(spec) {
       const previewFrom = { file, line };
       const previewPath = findClosestPath(
         previewFrom,
-        this._pathLocations,
-        this._scripts
+        Object.entries(program.pathLocations ?? {}),
+        Object.keys(program.scripts)
       );
 
       if (!previewPath) {
@@ -1562,6 +1555,9 @@ export default class SparkWebPlayer extends Component(spec) {
 
       if (checkpoint) {
         this._game.load(checkpoint);
+      } else {
+        this._game.simulatePath = simulateFromPath;
+        this._game.simulation = "fail";
       }
 
       if (shouldBuildNewGame) {

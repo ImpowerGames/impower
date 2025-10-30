@@ -154,6 +154,8 @@ export class Coordinator<G extends Game> {
         transientLayers.filter((layer) => !instructions.image?.[layer])
       );
 
+      game.module.ui.showLayout("main");
+
       // Display click indicator
       const indicatorStyle: Record<string, string | null> = {};
       if (autoAdvance) {
@@ -214,8 +216,6 @@ export class Coordinator<G extends Game> {
       game.module.ui.style.update("continue_indicator", indicatorStyle);
       this._finishedExecution = true;
     };
-
-    game.module.ui.showLayout("main");
 
     if (instant || game.context.system.simulating) {
       updateUI();

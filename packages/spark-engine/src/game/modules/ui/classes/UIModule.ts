@@ -1,7 +1,6 @@
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
-import { Clock } from "../../../core/classes/Clock";
 import type { Game } from "../../../core/classes/Game";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { Module } from "../../../core/classes/Module";
@@ -67,8 +66,6 @@ export type UIMessageMap = AnimateElementsMessageMap &
   UpdateElementMessageMap;
 
 export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
-  protected _firstUpdate = true;
-
   protected _root?: Element;
 
   protected _events: Partial<
@@ -91,19 +88,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   override onReset() {
-    this._firstUpdate = true;
     this._events = {};
   }
 
-  override onConnected() {
+  override async onConnected() {
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
     this.constructStyles();
     this.constructLayouts();
     this.loadTheme();
     const transientTargets = this.getTransientTargets();
-    this.text.clearAll(transientTargets);
-    this.image.clearAll(transientTargets);
+    await Promise.all([
+      this.text.clearAll(transientTargets),
+      this.image.clearAll(transientTargets),
+    ]);
+    this.reveal();
   }
 
   override async onRestore() {
@@ -129,19 +128,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     await Promise.all(tasks);
-  }
-
-  override onUpdate(time: Clock) {
-    if (this._firstUpdate) {
-      this._firstUpdate = false;
-      this.reveal();
-    }
-    return super.onUpdate(time);
-  }
-
-  override onPreview() {
-    this.reveal();
-    return super.onPreview();
   }
 
   protected generateId() {

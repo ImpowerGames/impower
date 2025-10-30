@@ -42,7 +42,7 @@ export abstract class Module<
   onInit() {}
 
   /** Executed when the game is ready to send messages */
-  onConnected() {}
+  async onConnected() {}
 
   /** Executed when the game starts */
   onStart(): void {}
