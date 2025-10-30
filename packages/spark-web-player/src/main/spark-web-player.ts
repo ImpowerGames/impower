@@ -810,10 +810,17 @@ export default class SparkWebPlayer extends Component(spec) {
   ) => {
     const { textDocument, selectedRange, checkpoint, userEvent, docChanged } =
       message.params;
+    if (checkpoint) {
+      this._checkpoint = checkpoint;
+    }
     if (userEvent && !docChanged) {
-      if (checkpoint) {
-        this._checkpoint = checkpoint;
-        await this.updatePreview(textDocument.uri, selectedRange.start.line);
+      if (this._program && this._game?.state !== "running") {
+        await this.updatePreview(
+          this._program,
+          textDocument.uri,
+          selectedRange.start.line,
+          checkpoint
+        );
       }
     }
   };
@@ -1160,8 +1167,8 @@ export default class SparkWebPlayer extends Component(spec) {
       const isInitialProgram = !this._program;
       this._program = program;
       this._checkpoint = checkpoint;
-      this._pathLocations = Object.entries(this._program?.pathLocations ?? {});
-      this._scripts = Object.keys(this._program?.scripts ?? {});
+      this._pathLocations = Object.entries(program.pathLocations ?? {});
+      this._scripts = Object.keys(program.scripts);
       if (this._game?.state === "running") {
         // Stop and restart game if we loaded a new game while the old game was running
         await this.debouncedRestartGame();
@@ -1176,8 +1183,10 @@ export default class SparkWebPlayer extends Component(spec) {
         this._options.simulateChoices ??= program.simulateChoices;
         if (this._options.startFrom) {
           await this.updatePreview(
+            program,
             this._options.startFrom.file,
-            this._options.startFrom.line
+            this._options.startFrom.line,
+            checkpoint
           );
         }
       }
@@ -1186,7 +1195,8 @@ export default class SparkWebPlayer extends Component(spec) {
         // Notify that initial program is loaded
         this._resolveLoadingInitialProgram();
       }
-    }
+    },
+    true
   );
 
   async startGameAndApp(restarted?: boolean) {
@@ -1489,73 +1499,81 @@ export default class SparkWebPlayer extends Component(spec) {
     );
   }
 
-  updatePreview = conflate(async (file: string, line: number) => {
-    if (this._game?.state === "running") {
-      // Should not preview while game is running
-      return;
-    }
+  updatePreview = conflate(
+    async (
+      program: SparkProgram,
+      file: string,
+      line: number,
+      checkpoint: string | undefined
+    ) => {
+      if (this._game?.state === "running") {
+        // Should not preview while game is running
+        return;
+      }
 
-    if (!this._program) {
-      // No program to preview
-      return;
-    }
+      if (!program) {
+        // No program to preview
+        return;
+      }
 
-    const previewFrom = { file, line };
-    const previewPath = findClosestPath(
-      previewFrom,
-      this._pathLocations,
-      this._scripts
-    );
+      const previewFrom = { file, line };
+      const previewPath = findClosestPath(
+        previewFrom,
+        this._pathLocations,
+        this._scripts
+      );
 
-    if (!previewPath) {
-      // Not a valid preview path
-      return;
-    }
+      if (!previewPath) {
+        // Not a valid preview path
+        return;
+      }
 
-    const simulateFromPath = Game.getSimulateFromPath(previewPath);
+      const simulateFromPath = Game.getSimulateFromPath(previewPath);
 
-    if (
-      this.isAlreadyPreviewingPathAndChoices(
-        simulateFromPath,
-        previewPath,
-        this._options?.simulateChoices
-      )
-    ) {
-      // Already previewing this path and choices, so no need to do anything
-      return;
-    }
+      if (
+        this.isAlreadyPreviewingPathAndChoices(
+          simulateFromPath,
+          previewPath,
+          this._options?.simulateChoices
+        )
+      ) {
+        // Already previewing this path and choices, so no need to do anything
+        return;
+      }
 
-    this._options ??= {};
-    this._options.previewFrom = { file, line };
+      this._options ??= {};
+      this._options.previewFrom = { file, line };
 
-    // Build game if one doesn't exist or program has changed
-    const shouldBuildNewGame =
-      !this._game ||
-      (this._game.state === "previewing" &&
-        (this._game.program.uri !== this._program?.uri ||
-          this._game.program.version !== this._program?.version));
+      // Build game if one doesn't exist or program has changed
+      const shouldBuildNewGame =
+        !this._game ||
+        (this._game.state === "previewing" &&
+          (this._game.program.uri !== program?.uri ||
+            this._game.program.version !== program?.version));
 
-    if (shouldBuildNewGame) {
-      this._game = await this.buildGame(this._program);
-    }
+      if (shouldBuildNewGame) {
+        this._game = await this.buildGame(program);
+      }
 
-    if (!this._game || this._game.state !== "previewing") {
-      console.error("No game to preview");
-      return;
-    }
+      if (!this._game || this._game.state !== "previewing") {
+        console.error("No game to preview");
+        return;
+      }
 
-    if (this._checkpoint) {
-      this._game.load(this._checkpoint);
-    }
+      if (checkpoint) {
+        this._game.load(checkpoint);
+      }
 
-    if (shouldBuildNewGame) {
-      this.listen(this._game);
-    }
+      if (shouldBuildNewGame) {
+        this.listen(this._game);
+      }
 
-    this._app = await this.buildApp(this._game);
+      this._app = await this.buildApp(this._game);
 
-    this._game.preview(file, line);
-  });
+      this._game.preview(file, line);
+    },
+    true
+  );
 
   isAlreadyPreviewingPathAndChoices(
     simulateFromPath: string,
