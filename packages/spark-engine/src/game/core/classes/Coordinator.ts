@@ -155,6 +155,7 @@ export class Coordinator<G extends Game> {
       );
 
       game.module.ui.showLayout("main");
+      game.module.ui.reveal();
 
       // Display click indicator
       const indicatorStyle: Record<string, string | null> = {};

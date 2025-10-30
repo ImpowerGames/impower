@@ -102,7 +102,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.text.clearAll(transientTargets),
       this.image.clearAll(transientTargets),
     ]);
-    this.reveal();
   }
 
   override async onRestore() {
@@ -230,7 +229,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  protected reveal() {
+  reveal() {
     const target = this.context.config?.ui.layouts_element_name;
     if (target) {
       const uiRoot = this._root?.findChild(target);
