@@ -808,10 +808,13 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof SelectedCompilerDocumentMessage.type,
     message: SelectedCompilerDocumentMessage.Notification
   ) => {
-    const { textDocument, selectedRange, checkpoint } = message.params;
-    if (checkpoint) {
-      this._checkpoint = checkpoint;
-      await this.updatePreview(textDocument.uri, selectedRange.start.line);
+    const { textDocument, selectedRange, checkpoint, userEvent, docChanged } =
+      message.params;
+    if (userEvent && !docChanged) {
+      if (checkpoint) {
+        this._checkpoint = checkpoint;
+        await this.updatePreview(textDocument.uri, selectedRange.start.line);
+      }
     }
   };
 
