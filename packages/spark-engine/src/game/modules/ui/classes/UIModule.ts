@@ -521,54 +521,55 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const path = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
       const isValidNode = !path.at(-1)?.startsWith("$");
       if (isValidNode) {
-        let cursor: Element = uiEl;
+        let stack: Element[] = [uiEl];
         for (let i = 0; i < path.length; i += 1) {
           const name = path[i]!;
-          const child = cursor.children.find((c) => c.name === name);
+          const child = stack.at(-1)!.children.find((c) => c.name === name);
           if (child) {
-            cursor = child;
+            stack.push(child);
           } else {
-            cursor = this.createElement(cursor, {
-              type: "div",
-              name,
-            });
+            stack.push(
+              this.createElement(stack.at(-1)!, {
+                type: "div",
+                name,
+              })
+            );
+            const parent = stack.at(-1)!;
             const isLast = i === path.length - 1;
-            const parent = path.at(-1);
-            const parentClasses = parent?.split(" ") || [];
-            const isText = parentClasses.includes("text");
-            const isStroke = parentClasses.includes("stroke");
-            const isImage = parentClasses.includes("image");
-            const isMask = parentClasses.includes("mask");
-            const text =
-              isLast && (isText || isStroke) && typeof v === "string"
-                ? v
-                : undefined;
-            const background_image =
-              isLast && isImage
+            if (isLast) {
+              const parentName = path.at(-1);
+              const parentClasses = parentName?.split(" ") || [];
+              const isText = parentClasses.includes("text");
+              const isStroke = parentClasses.includes("stroke");
+              const isImage = parentClasses.includes("image");
+              const isMask = parentClasses.includes("mask");
+              const text =
+                (isText || isStroke) && typeof v === "string" ? v : undefined;
+              const background_image = isImage
                 ? this.getBackgroundImageFromValue(v)
                 : undefined;
-            const mask_image =
-              isLast && isMask
+              const mask_image = isMask
                 ? this.getBackgroundImageFromValue(v)
                 : undefined;
-            if (text) {
-              cursor = this.createElement(cursor, {
-                type: "span",
-                content: { text },
-                style: { display: "inline" },
-              });
-            }
-            if (background_image) {
-              cursor = this.createElement(cursor, {
-                type: "span",
-                style: { background_image },
-              });
-            }
-            if (mask_image) {
-              cursor = this.createElement(cursor, {
-                type: "span",
-                style: { mask_image },
-              });
+              if (text) {
+                this.createElement(parent, {
+                  type: "span",
+                  content: { text },
+                  style: { display: "inline" },
+                });
+              }
+              if (background_image) {
+                this.createElement(parent, {
+                  type: "span",
+                  style: { background_image },
+                });
+              }
+              if (mask_image) {
+                this.createElement(parent, {
+                  type: "span",
+                  style: { mask_image },
+                });
+              }
             }
           }
         }
