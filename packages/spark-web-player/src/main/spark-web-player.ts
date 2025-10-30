@@ -1252,10 +1252,6 @@ export default class SparkWebPlayer extends Component(spec) {
         userEvent: true,
         docChanged: false,
       });
-      await this.updatePreview(
-        lastExecutedLocation.uri,
-        lastExecutedLocation.range.start.line
-      );
     }
   }
 
@@ -1491,6 +1487,11 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   updatePreview = conflate(async (file: string, line: number) => {
+    if (this._game?.state === "running") {
+      // Should not preview while game is running
+      return;
+    }
+
     if (!this._program) {
       // No program to preview
       return;

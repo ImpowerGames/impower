@@ -195,6 +195,9 @@ export class Game<T extends M = {}> {
   protected _plannedRouteStepMap: { [seq: string]: number } = {};
 
   protected _checkpoints: string[] = [];
+  get checkpoints() {
+    return this._checkpoints;
+  }
 
   constructor(
     options: { program: SparkProgram; story?: Story } & GameConfiguration &
@@ -1596,7 +1599,14 @@ export class Game<T extends M = {}> {
   }
 
   getLastExecutedDocumentLocation() {
-    return this.getDocumentLocation(this._executingLocation);
+    const lastExecutedPath = this._runtimeState.pathsExecutedThisFrame
+      .values()
+      .toArray()
+      .findLast((path) => this._program.pathLocations?.[path]);
+    if (lastExecutedPath) {
+      return this.getPathDocumentLocation(lastExecutedPath);
+    }
+    return null;
   }
 
   getPathDocumentLocation(path: string) {

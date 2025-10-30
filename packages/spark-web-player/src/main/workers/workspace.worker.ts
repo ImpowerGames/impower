@@ -133,6 +133,12 @@ compilerState.compiler.addEventListener("compiler/didSelect", (params) => {
             }
           }
         }
+      } else {
+        // Augment with last simulated checkpoint
+        const lastCheckpoint = gameState.game.checkpoints.at(-1);
+        if (lastCheckpoint) {
+          params.checkpoint = lastCheckpoint;
+        }
       }
     }
   }
