@@ -1,3 +1,5 @@
+import { Port2MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port2MessageConnection";
+import { isMessage } from "@impower/jsonrpc/src/common/utils/isMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { DragFilesEnterMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesEnterMessage";
 import { DragFilesLeaveMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesLeaveMessage";
@@ -9,38 +11,42 @@ import "./style.css";
 
 const SPARKDOWN_EDITOR_ORIGIN = import.meta.env.VITE_SPARKDOWN_EDITOR_ORIGIN;
 
-const workspaceState = installWorkspaceWorker((message, transfer) =>
-  window.parent.postMessage(message, SPARKDOWN_EDITOR_ORIGIN, transfer)
+const connection = new Port2MessageConnection(
+  (message: any, transfer?: Transferable[]) =>
+    window.parent.postMessage(message, SPARKDOWN_EDITOR_ORIGIN, transfer),
+  SPARKDOWN_EDITOR_ORIGIN
 );
+connection.listen();
 
-window.addEventListener("message", async (e) => {
-  if (e.origin !== SPARKDOWN_EDITOR_ORIGIN) {
-    return;
-  }
+connection.addEventListener("message", async (e) => {
   const message = e.data;
-  // Forward protocol messages from editor to player
-  window.dispatchEvent(
-    new CustomEvent(MessageProtocol.event, {
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-      detail: message,
-    })
-  );
-  // Forward protocol responses and notifications from editor to service worker
-  navigator.serviceWorker.controller?.postMessage(
-    message,
-    message.result?.transfer || message.params?.transfer
-  );
+  if (isMessage(message)) {
+    // Forward protocol messages from editor to player
+    window.dispatchEvent(
+      new CustomEvent(MessageProtocol.event, {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        detail: message,
+      })
+    );
+    // Forward protocol responses and notifications from editor to service worker
+    navigator.serviceWorker.controller?.postMessage(
+      message,
+      (message as any).result?.transfer || (message as any).params?.transfer
+    );
+  }
 });
+
+const workspaceState = installWorkspaceWorker(connection);
+
 window.addEventListener(MessageProtocol.event, (e) => {
   if (e instanceof CustomEvent) {
     const message = e.detail;
     if (e.target !== window) {
       // Forward responses and notifications from player to editor
-      window.parent.postMessage(
+      connection.postMessage(
         message,
-        SPARKDOWN_EDITOR_ORIGIN,
         message.result?.transfer || message.params?.transfer
       );
     }
@@ -49,26 +55,17 @@ window.addEventListener(MessageProtocol.event, (e) => {
 window.addEventListener("dragenter", (e) => {
   e.preventDefault();
   e.stopPropagation();
-  window.parent.postMessage(
-    DragFilesEnterMessage.type.request({}),
-    SPARKDOWN_EDITOR_ORIGIN
-  );
+  connection.postMessage(DragFilesEnterMessage.type.request({}));
 });
 window.addEventListener("dragleave", (e) => {
   e.preventDefault();
   e.stopPropagation();
-  window.parent.postMessage(
-    DragFilesLeaveMessage.type.request({}),
-    SPARKDOWN_EDITOR_ORIGIN
-  );
+  connection.postMessage(DragFilesLeaveMessage.type.request({}));
 });
 window.addEventListener("dragover", (e) => {
   e.preventDefault();
   e.stopPropagation();
-  window.parent.postMessage(
-    DragFilesOverMessage.type.request({}),
-    SPARKDOWN_EDITOR_ORIGIN
-  );
+  connection.postMessage(DragFilesOverMessage.type.request({}));
 });
 window.addEventListener("drop", async (e) => {
   e.preventDefault();
@@ -83,9 +80,8 @@ window.addEventListener("drop", async (e) => {
       };
     })
   );
-  window.parent.postMessage(
+  connection.postMessage(
     DropFilesMessage.type.request({ files }),
-    SPARKDOWN_EDITOR_ORIGIN,
     files.map((f) => f.buffer)
   );
 });
@@ -94,16 +90,16 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker
     .register("/sw.js", { type: "module" })
     .catch((err) => console.error("SW register failed:", err));
+
+  navigator.serviceWorker.addEventListener("message", (e) => {
+    const message = e.data;
+    // Forward protocol messages from service worker to editor
+    connection.postMessage(
+      message,
+      message.result?.transfer || message.params?.transfer
+    );
+  });
 }
-navigator.serviceWorker.addEventListener("message", (e) => {
-  const message = e.data;
-  // Forward protocol messages from service worker to editor
-  window.parent.postMessage(
-    message,
-    SPARKDOWN_EDITOR_ORIGIN,
-    message.result?.transfer || message.params?.transfer
-  );
-});
 
 const load = async () => {
   await Promise.allSettled([

@@ -10,9 +10,9 @@
  * The most important class of the Debug Adapter is the MockDebugSession which implements many DAP requests by talking to the MockRuntime.
  */
 
-import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
-import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
-import { ResponseError } from "@impower/jsonrpc/src/types/ResponseError";
+import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { GameAutoAdvancedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameAutoAdvancedToContinueMessage";

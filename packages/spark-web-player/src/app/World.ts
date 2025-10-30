@@ -1,7 +1,7 @@
 import { ColorSource, Container } from "pixi.js";
-import { NotificationMessage } from "../../../jsonrpc/src/types/NotificationMessage";
-import { RequestMessage } from "../../../jsonrpc/src/types/RequestMessage";
-import { ResponseError } from "../../../jsonrpc/src/types/ResponseError";
+import { NotificationMessage } from "../../../jsonrpc/src/common/types/NotificationMessage";
+import { RequestMessage } from "../../../jsonrpc/src/common/types/RequestMessage";
+import { ResponseError } from "../../../jsonrpc/src/common/types/ResponseError";
 import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 
 import {

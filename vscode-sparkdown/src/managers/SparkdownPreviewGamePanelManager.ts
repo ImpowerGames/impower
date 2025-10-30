@@ -1,10 +1,10 @@
-import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/classes/MessageProtocolNotificationType";
-import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
+import { ConnectMessage } from "@impower/jsonrpc/src/common/classes/ConnectMessage";
+import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
+import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
-import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
@@ -58,6 +58,8 @@ export class SparkdownPreviewGamePanelManager {
   get connected() {
     return this._connected;
   }
+
+  _initialized = false;
 
   _connection = new Connection({
     onSend: (msg) => {
@@ -130,25 +132,6 @@ export class SparkdownPreviewGamePanelManager {
     document: vscode.TextDocument | undefined,
     canvasHeight?: number
   ) {
-    const fileWatchers = getWorkspaceFileWatchers();
-    const files = await getWorkspaceFiles();
-    for (const fileWatcher of fileWatchers) {
-      fileWatcher.onDidCreate(async (fileUri) => {
-        this.sendNotification(DidChangeWatchedFilesMessage.type, {
-          changes: [{ type: FileChangeType.Created, uri: fileUri.toString() }],
-        });
-      });
-      fileWatcher.onDidChange(async (fileUri) => {
-        this.sendNotification(DidChangeWatchedFilesMessage.type, {
-          changes: [{ type: FileChangeType.Changed, uri: fileUri.toString() }],
-        });
-      });
-      fileWatcher.onDidDelete(async (fileUri) => {
-        this.sendNotification(DidChangeWatchedFilesMessage.type, {
-          changes: [{ type: FileChangeType.Deleted, uri: fileUri.toString() }],
-        });
-      });
-    }
     // Setup document and panel
     this._panel = panel;
     panel.iconPath = {
@@ -159,13 +142,15 @@ export class SparkdownPreviewGamePanelManager {
       this._connection.receive(
         GameExitedMessage.type.notification({ reason: "quit" })
       );
-      for (const fileWatcher of fileWatchers) {
-        fileWatcher.dispose();
-      }
       this._panel = undefined;
     });
     panel.webview.html = this.getWebviewContent(panel.webview, context);
+    this._initialized = false;
     panel.webview.onDidReceiveMessage(async (message) => {
+      if (!this._initialized) {
+        this._initialized = true;
+        await this.connectAndInitializeWebview(document, canvasHeight);
+      }
       if (ExecuteCommandMessage.type.isRequest(message)) {
         const params = message.params;
         if (params.command === "sparkdown.getFileText") {
@@ -185,38 +170,6 @@ export class SparkdownPreviewGamePanelManager {
               .asWebviewUri(vscode.Uri.parse(uri))
               .toString();
             this.sendResponse(ExecuteCommandMessage.type, message.id, src);
-          }
-        }
-      }
-      if (ConnectedPreviewMessage.type.isNotification(message)) {
-        if (message.params.type === "game") {
-          this._connected = true;
-          const editor = document ? getEditor(document.uri) : undefined;
-          const sparkdownConfig =
-            vscode.workspace.getConfiguration("sparkdown");
-          const settings = JSON.parse(JSON.stringify(sparkdownConfig));
-          await this.sendRequest(InitializeMessage.type, {
-            initializationOptions: {
-              settings,
-              files: Object.values(files),
-              definitions: {
-                builtins: DEFAULT_BUILTIN_DEFINITIONS,
-                optionals: DEFAULT_OPTIONAL_DEFINITIONS,
-                schemas: DEFAULT_SCHEMA_DEFINITIONS,
-                descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
-              },
-              skipValidation: true,
-              uri: document?.uri.toString(),
-              ...(editor ? this.getGameConfiguration(editor) : {}),
-            },
-            capabilities: {},
-            rootUri: null,
-            processId: 0,
-          });
-          if (canvasHeight != null) {
-            await this.sendRequest(ResizeGameMessage.type, {
-              height: canvasHeight,
-            });
           }
         }
       }
@@ -289,6 +242,60 @@ export class SparkdownPreviewGamePanelManager {
       // Post an empty message so panel activates after deserialization
       panel.webview.postMessage({});
     });
+  }
+
+  async connectAndInitializeWebview(
+    document: vscode.TextDocument | undefined,
+    canvasHeight?: number
+  ) {
+    const editor = document ? getEditor(document.uri) : undefined;
+    const sparkdownConfig = vscode.workspace.getConfiguration("sparkdown");
+    const settings = JSON.parse(JSON.stringify(sparkdownConfig));
+
+    const files = await getWorkspaceFiles();
+    const fileWatchers = getWorkspaceFileWatchers();
+    for (const fileWatcher of fileWatchers) {
+      fileWatcher.onDidCreate(async (fileUri) => {
+        this.sendNotification(DidChangeWatchedFilesMessage.type, {
+          changes: [{ type: FileChangeType.Created, uri: fileUri.toString() }],
+        });
+      });
+      fileWatcher.onDidChange(async (fileUri) => {
+        this.sendNotification(DidChangeWatchedFilesMessage.type, {
+          changes: [{ type: FileChangeType.Changed, uri: fileUri.toString() }],
+        });
+      });
+      fileWatcher.onDidDelete(async (fileUri) => {
+        this.sendNotification(DidChangeWatchedFilesMessage.type, {
+          changes: [{ type: FileChangeType.Deleted, uri: fileUri.toString() }],
+        });
+      });
+    }
+    await this.sendRequest(ConnectMessage.type, {});
+    await this.sendRequest(InitializeMessage.type, {
+      initializationOptions: {
+        settings,
+        files: Object.values(files),
+        definitions: {
+          builtins: DEFAULT_BUILTIN_DEFINITIONS,
+          optionals: DEFAULT_OPTIONAL_DEFINITIONS,
+          schemas: DEFAULT_SCHEMA_DEFINITIONS,
+          descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
+        },
+        skipValidation: true,
+        uri: document?.uri.toString(),
+        ...(editor ? this.getGameConfiguration(editor) : {}),
+      },
+      capabilities: {},
+      rootUri: null,
+      processId: 0,
+    });
+    if (canvasHeight != null) {
+      await this.sendRequest(ResizeGameMessage.type, {
+        height: canvasHeight,
+      });
+    }
+    this._connected = true;
   }
 
   getGameConfiguration(editor: vscode.TextEditor) {

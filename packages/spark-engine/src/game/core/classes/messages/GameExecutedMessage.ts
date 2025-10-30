@@ -1,5 +1,5 @@
-import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/classes/MessageProtocolNotificationType";
-import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
+import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
+import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { DocumentLocation } from "../../types/DocumentLocation";
 
 export type GameExecutedMethod = typeof GameExecutedMessage.method;

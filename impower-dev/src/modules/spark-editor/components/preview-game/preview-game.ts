@@ -1,11 +1,10 @@
-import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
+import { IFrameMessageConnection } from "@impower/jsonrpc/src/browser/classes/IFrameMessageConnection";
+import { Port1MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port1MessageConnection";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
-import { isResponse } from "@impower/spark-editor-protocol/src/utils/isResponse";
 import { EnterGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage";
 import { ExitGameFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage";
 import { FetchGameAssetMessage } from "@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage";
@@ -26,44 +25,39 @@ const SPARKDOWN_PLAYER_ORIGIN =
   process?.env?.["VITE_SPARKDOWN_PLAYER_ORIGIN"] || "";
 
 export default class GamePreview extends Component(spec) {
-  private _resolveConnecting!: () => void;
+  private _resolveInitializing!: () => void;
 
-  private _connecting? = new Promise<void>((resolve) => {
-    this._resolveConnecting = resolve;
+  private _initializing? = new Promise<void>((resolve) => {
+    this._resolveInitializing = resolve;
   });
-  get connecting() {
-    if (this._connected) {
+  get initializing() {
+    if (this._initialized) {
       return Promise.resolve();
     }
-    return this._connecting;
+    return this._initializing;
   }
 
-  protected _connected = false;
-  get connected() {
-    return this._connected;
+  protected _initialized = false;
+  get initialized() {
+    return this._initialized;
   }
 
-  _listeners: Set<(message: any) => void> = new Set();
+  _iframeChannelConnection?: Port1MessageConnection;
 
   _reloadAbortController: AbortController | null = null;
 
   _reloadDebounceTimer: any;
 
   override onConnected() {
-    window.addEventListener("message", this.handleWindowMessage);
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     window.addEventListener("keydown", this.handleKeyDown);
     window.addEventListener("resizing", this.handleResizingSplitPane);
     window.addEventListener("resized", this.handleResizedSplitPane);
     document.addEventListener("fullscreenchange", this.handleFullscreenChange);
-
-    if (!this.refs.iframe) {
-      this._connected = true;
-    }
+    this.refs.iframe?.addEventListener("load", this.handleLoad);
   }
 
   override onDisconnected() {
-    window.removeEventListener("message", this.handleWindowMessage);
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     window.removeEventListener("keydown", this.handleKeyDown);
     window.removeEventListener("resizing", this.handleResizingSplitPane);
@@ -72,26 +66,77 @@ export default class GamePreview extends Component(spec) {
       "fullscreenchange",
       this.handleFullscreenChange
     );
+    this.refs.iframe?.removeEventListener("load", this.handleLoad);
   }
 
-  handleWindowMessage = async (e: MessageEvent) => {
-    if (e.origin !== SPARKDOWN_PLAYER_ORIGIN) {
+  protected handleLoad = async () => {
+    if (this._iframeChannelConnection) {
+      this._iframeChannelConnection.removeEventListener(
+        "message",
+        this.handleChannelMessage
+      );
+    }
+    const iframe = this.refs.iframe as HTMLIFrameElement;
+    const channel = new MessageChannel();
+    const iframeWindowConnection = new IFrameMessageConnection(
+      iframe,
+      SPARKDOWN_PLAYER_ORIGIN
+    );
+    this._iframeChannelConnection = new Port1MessageConnection(channel.port1);
+    await this._iframeChannelConnection.connect(
+      iframeWindowConnection,
+      channel.port2
+    );
+    this._iframeChannelConnection.addEventListener(
+      "message",
+      this.handleChannelMessage
+    );
+    const projectId = Workspace.window.store.project.id;
+    if (!projectId) {
+      console.error("No project loaded");
       return;
     }
+    const files = await Workspace.fs.getFiles(projectId);
+    const uri = Workspace.window.getOpenedDocumentUri();
+    await this._iframeChannelConnection.sendRequest(InitializeMessage.type, {
+      initializationOptions: {
+        settings: Workspace.configuration.settings,
+        files: Object.values(files),
+        definitions: {
+          builtins: DEFAULT_BUILTIN_DEFINITIONS,
+          optionals: DEFAULT_OPTIONAL_DEFINITIONS,
+          schemas: DEFAULT_SCHEMA_DEFINITIONS,
+          descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
+        },
+        skipValidation: true,
+        uri,
+        ...this.getGameConfiguration(),
+      },
+      capabilities: {},
+      rootUri: null,
+      processId: 0,
+    });
+    this._initialized = true;
+    this._resolveInitializing();
+  };
 
-    const message = (e as MessageEvent).data;
+  handleChannelMessage = async (e: MessageEvent) => {
+    const message = e.data;
 
-    // Forward messages from iframe player to editor
-    this.emit(MessageProtocol.event, message);
+    // Execute command and respond to iframe player
+    if (ExecuteCommandMessage.type.is(message)) {
+      const params = message.params;
+      const result = await Workspace.fs.executeCommand(params);
+      this._iframeChannelConnection?.sendResponse(message, result);
+    }
 
     // Fetch assets from workspace and respond to iframe player
     if (FetchGameAssetMessage.type.is(message)) {
       const { path } = message.params;
       const uri = Workspace.fs.getUriFromPath(path);
       const buffer = await Workspace.fs.readFile({ file: { uri } });
-      this.sendResponse(
-        FetchGameAssetMessage.type,
-        message.id,
+      this._iframeChannelConnection?.sendResponse(
+        message,
         {
           transfer: [buffer],
         },
@@ -99,52 +144,13 @@ export default class GamePreview extends Component(spec) {
       );
     }
 
-    // Execute command and respond to iframe player
-    if (ExecuteCommandMessage.type.is(message)) {
-      const params = message.params;
-      const result = await Workspace.fs.executeCommand(params);
-      this.sendResponse(ExecuteCommandMessage.type, message.id, result);
-    }
+    // Forward messages from iframe player to editor
+    this.emit(MessageProtocol.event, message);
   };
 
   protected handleProtocol = async (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-
-      // Resolve request promises
-      for (const listener of this._listeners) {
-        listener(message);
-      }
-
-      // Once player is ready, send assets and load the game
-      if (ConnectedPreviewMessage.type.is(message)) {
-        const projectId = Workspace.window.store.project.id;
-        if (projectId) {
-          const files = await Workspace.fs.getFiles(projectId);
-          const uri = Workspace.window.getOpenedDocumentUri();
-          await this.sendRequest(InitializeMessage.type, {
-            initializationOptions: {
-              settings: Workspace.configuration.settings,
-              files: Object.values(files),
-              definitions: {
-                builtins: DEFAULT_BUILTIN_DEFINITIONS,
-                optionals: DEFAULT_OPTIONAL_DEFINITIONS,
-                schemas: DEFAULT_SCHEMA_DEFINITIONS,
-                descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
-              },
-              skipValidation: true,
-              uri,
-              ...this.getGameConfiguration(),
-            },
-            capabilities: {},
-            rootUri: null,
-            processId: 0,
-          });
-        }
-
-        this._connected = true;
-        this._resolveConnecting();
-      }
 
       if (
         typeof message.method === "string" &&
@@ -154,10 +160,10 @@ export default class GamePreview extends Component(spec) {
           message.method.startsWith("textDocument/"))
       ) {
         // Forward messages from editor to iframe player
-        if (!this._connected) {
-          await this.connecting;
+        if (!this._initialized) {
+          await this.initializing;
         }
-        this.forwardMessage(message);
+        this._iframeChannelConnection?.postMessage(message);
       }
 
       if (GameStartedMessage.type.is(message)) {
@@ -180,24 +186,6 @@ export default class GamePreview extends Component(spec) {
       }
     }
   };
-
-  forwardMessage(message: any) {
-    const iframe = this.refs.iframe as HTMLIFrameElement;
-    if (iframe?.contentWindow) {
-      performance.mark(`start forward ${message.method}`);
-      iframe.contentWindow.postMessage(
-        message,
-        SPARKDOWN_PLAYER_ORIGIN,
-        message.result?.transfer || message.params?.transfer
-      );
-      performance.mark(`end forward ${message.method}`);
-      performance.measure(
-        `forward ${message.method}`,
-        `start forward ${message.method}`,
-        `end forward ${message.method}`
-      );
-    }
-  }
 
   handleChangedEditorBreakpoints = async (
     message: ChangedEditorBreakpointsMessage.Notification
@@ -282,11 +270,17 @@ export default class GamePreview extends Component(spec) {
   };
 
   handleFullscreenChange = async (e: Event) => {
-    if (this._connected) {
+    if (this._initialized) {
       if (document.fullscreenElement) {
-        await this.sendRequest(EnterGameFullscreenModeMessage.type, {});
+        await this._iframeChannelConnection?.sendRequest(
+          EnterGameFullscreenModeMessage.type,
+          {}
+        );
       } else {
-        await this.sendRequest(ExitGameFullscreenModeMessage.type, {});
+        await this._iframeChannelConnection?.sendRequest(
+          ExitGameFullscreenModeMessage.type,
+          {}
+        );
       }
     }
   };
@@ -342,89 +336,6 @@ export default class GamePreview extends Component(spec) {
       };
     }
     return {};
-  }
-
-  async sendRequest<M extends string, P, R>(
-    type: MessageProtocolRequestType<M, P, R>,
-    params: P,
-    transfer?: Transferable[]
-  ): Promise<R> {
-    const request = type.request(params);
-    const iframe = this.refs.iframe as HTMLIFrameElement;
-    if (iframe) {
-      // Post message to iframe
-      const contentWindow = iframe.contentWindow;
-      if (contentWindow) {
-        return new Promise<R>((resolve, reject) => {
-          const onResponse = (message: any) => {
-            if (message) {
-              if (
-                message.method === request.method &&
-                message.id === request.id &&
-                isResponse<string, R>(message, request.method)
-              ) {
-                if (message.error !== undefined) {
-                  reject({ data: message.method, ...message.error });
-                  this._listeners.delete(onResponse);
-                } else if (message.result !== undefined) {
-                  resolve(message.result);
-                  this._listeners.delete(onResponse);
-                }
-              }
-            }
-          };
-          this._listeners.add(onResponse);
-          contentWindow.postMessage(request, SPARKDOWN_PLAYER_ORIGIN, transfer);
-        });
-      } else {
-        throw new Error("content window not loaded");
-      }
-    } else {
-      // Send event
-      return new Promise<R>((resolve, reject) => {
-        const onResponse = (message: any) => {
-          if (message) {
-            if (
-              message.method === request.method &&
-              message.id === request.id &&
-              isResponse<string, R>(message, request.method)
-            ) {
-              if (message.error !== undefined) {
-                reject({ data: message.method, ...message.error });
-                this._listeners.delete(onResponse);
-              } else if (message.result !== undefined) {
-                resolve(message.result);
-                this._listeners.delete(onResponse);
-              }
-            }
-          }
-        };
-        this._listeners.add(onResponse);
-        this.emit(MessageProtocol.event, request);
-      });
-    }
-  }
-
-  sendResponse<M extends string, P, R>(
-    type: MessageProtocolRequestType<M, P, R>,
-    id: number | string,
-    result: R,
-    transfer?: Transferable[]
-  ): void {
-    const response = type.response(id, result);
-    const iframe = this.refs.iframe as HTMLIFrameElement;
-    if (iframe) {
-      // Post message to iframe
-      const contentWindow = iframe.contentWindow;
-      if (contentWindow) {
-        contentWindow.postMessage(response, SPARKDOWN_PLAYER_ORIGIN, transfer);
-      } else {
-        throw new Error("content window not loaded");
-      }
-    } else {
-      // Send event
-      this.emit(MessageProtocol.event, response);
-    }
   }
 
   async pageUp() {

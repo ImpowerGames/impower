@@ -1,7 +1,7 @@
-import { Message } from "@impower/jsonrpc/src/types/Message";
-import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
-import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
-import { ResponseError } from "@impower/jsonrpc/src/types/ResponseError";
+import { Message } from "@impower/jsonrpc/src/common/types/Message";
+import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import {
   Container,
   DOMAdapter,

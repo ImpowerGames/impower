@@ -1,4 +1,4 @@
-import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
+import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
@@ -11,32 +11,7 @@ import { File } from "@impower/sparkdown/src/compiler";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import WORKSPACE_INLINE_WORKER_STRING from "./workspace.worker";
 
-export function installWorkspaceWorker(
-  postMessage: (message: any, transfer?: Transferable[] | undefined) => void
-) {
-  const sendRequest = async <M extends string, P, R>(
-    type: MessageProtocolRequestType<M, P, R>,
-    params: P
-  ): Promise<R> => {
-    const request = type.request(params);
-    return new Promise<R>((resolve, reject) => {
-      const onResponse = (e: MessageEvent) => {
-        const message = e.data;
-        if (message.id === request.id) {
-          if (message.error !== undefined) {
-            reject(message.error);
-            window.removeEventListener("message", onResponse);
-          } else if (message.result !== undefined) {
-            resolve(message.result);
-            window.removeEventListener("message", onResponse);
-          }
-        }
-      };
-      window.addEventListener("message", onResponse);
-      postMessage(request);
-    });
-  };
-
+export function installWorkspaceWorker(connection: MessageConnection) {
   const preloadedImages = new Map<string, HTMLElement>();
 
   const preloadImage = async (uri: string, src: string) => {
@@ -88,14 +63,14 @@ export function installWorkspaceWorker(
     }
 
     override async getFileSrc(uri: string): Promise<string> {
-      return sendRequest(ExecuteCommandMessage.type, {
+      return connection.sendRequest(ExecuteCommandMessage.type, {
         command: "sparkdown.getFileSrc",
         arguments: [uri],
       });
     }
 
     override async getFileText(uri: string): Promise<string> {
-      return sendRequest(ExecuteCommandMessage.type, {
+      return connection.sendRequest(ExecuteCommandMessage.type, {
         command: "sparkdown.getFileText",
         arguments: [uri],
       });
@@ -126,24 +101,28 @@ export function installWorkspaceWorker(
 
   const state = { workspace: new SparkdownGameWorkspace("player") };
 
-  window.addEventListener("message", async (e) => {
+  connection.addEventListener("message", async (e) => {
     const message = e.data;
     // Handle Workspace Events
-    if (InitializeMessage.type.isRequest(message)) {
-      const params = message.params;
-      const { program } = await state.workspace.initialize(
-        params.initializationOptions
-      );
-      postMessage(
-        InitializeMessage.type.response(message.id, {
+    if (InitializeMessage.type.is(message)) {
+      const { initializationOptions } = message.params;
+      connection.sendResponse(message, async () => {
+        const { program } = await state.workspace.initialize(
+          initializationOptions
+        );
+        return {
           capabilities: {},
           program,
-        })
-      );
-    } else if (DidChangeConfigurationMessage.type.isNotification(message)) {
+        };
+      });
+      return;
+    }
+    if (DidChangeConfigurationMessage.type.is(message)) {
       const { settings } = message.params;
       state.workspace.loadConfiguration(settings);
-    } else if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
+      return;
+    }
+    if (DidChangeWatchedFilesMessage.type.is(message)) {
       const { changes } = message.params;
       await Promise.all(
         changes
@@ -160,10 +139,15 @@ export function installWorkspaceWorker(
           .filter((change) => change.type == FileChangeType.Changed)
           .map((change) => state.workspace.changeFile(change.uri))
       );
-    } else if (DidChangeTextDocumentMessage.type.isNotification(message)) {
+      return;
+    }
+    if (DidChangeTextDocumentMessage.type.is(message)) {
       await state.workspace.changeTextDocument(message.params);
-    } else if (DidSelectTextDocumentMessage.type.isNotification(message)) {
+      return;
+    }
+    if (DidSelectTextDocumentMessage.type.is(message)) {
       await state.workspace.selectTextDocument(message.params);
+      return;
     }
   });
 

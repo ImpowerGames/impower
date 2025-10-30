@@ -1,6 +1,6 @@
-import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
-import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
-import { ResponseMessage } from "@impower/jsonrpc/src/types/ResponseMessage";
+import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
+import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
 import { SparkProgram } from "../../types/SparkProgram";
 import { VersionedTextDocumentIdentifier } from "../../types/VersionedTextDocumentIdentifier";
 

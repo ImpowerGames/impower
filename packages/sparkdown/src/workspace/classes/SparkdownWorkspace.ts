@@ -1,6 +1,5 @@
-import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/classes/MessageProtocolNotificationType";
-import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
-import { type ProgressValue } from "@impower/jsonrpc/src/types/ProgressValue";
+import { Port1MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port1MessageConnection";
+import { WorkerMessageConnection } from "@impower/jsonrpc/src/browser/classes/WorkerMessageConnection";
 import { File, Range } from "../../compiler";
 import { AddCompilerFileMessage } from "../../compiler/classes/messages/AddCompilerFileMessage";
 import { CompiledProgramMessage } from "../../compiler/classes/messages/CompiledProgramMessage";
@@ -41,7 +40,7 @@ interface ProgramState {
 }
 
 export abstract class SparkdownWorkspace {
-  protected _compilerWorker: Worker;
+  protected _compilerChannelConnection: Port1MessageConnection;
 
   get mainScriptFilename() {
     return "main.sd";
@@ -106,91 +105,43 @@ export abstract class SparkdownWorkspace {
 
   constructor(compilerInlineWorkerContent: string, profilerId?: string) {
     this._profilerId = profilerId;
-    this._compilerWorker = new Worker(
+    const compilerWorker = new Worker(
       URL.createObjectURL(
         new Blob([compilerInlineWorkerContent], {
           type: "text/javascript",
         })
       )
     );
-    this._compilerWorker.onerror = (e) => {
+    compilerWorker.onerror = (e) => {
       console.error(e);
     };
+    const channel = new MessageChannel();
+    const workerConnection = new WorkerMessageConnection(compilerWorker);
+    this._compilerChannelConnection = new Port1MessageConnection(channel.port1);
+    if (this._profilerId) {
+      this._compilerChannelConnection.profile(
+        this._profilerId + " " + "workspace"
+      );
+    }
+    this.connectToWorker(workerConnection, channel.port2);
+  }
+
+  protected async connectToWorker(
+    workerConnection: WorkerMessageConnection,
+    port2: MessagePort
+  ) {
     this._initializingCompiler = new Promise<void>((resolve) => {
       this._resolveInitializingCompiler = resolve;
     });
-    this.sendCompilerRequest(CompilerInitializeMessage.type, {
-      profilerId: this._profilerId,
-    }).then(() => {
-      this._initializedCompiler = true;
-      this._resolveInitializingCompiler();
-    });
-  }
-
-  async sendCompilerRequest<M extends string, P, R>(
-    type: MessageProtocolRequestType<M, P, R>,
-    params: P,
-    transfer: Transferable[] = [],
-    onProgress?: (value: ProgressValue) => void
-  ): Promise<R> {
-    const request = type.request(params);
-    return new Promise<R>((resolve, reject) => {
-      const onResponse = (e: MessageEvent) => {
-        const message = e.data;
-        if (message.id === request.id) {
-          if (message.method === `${message.method}/progress`) {
-            onProgress?.(message.value);
-          } else if (message.error !== undefined) {
-            profile(
-              "end",
-              this._profilerId,
-              "workspace" + " " + request.method
-            );
-            reject(message.error);
-            this._compilerWorker.removeEventListener("message", onResponse);
-          } else if (message.result !== undefined) {
-            profile(
-              "end",
-              this._profilerId,
-              "workspace" + " " + request.method
-            );
-            resolve(message.result);
-            this._compilerWorker.removeEventListener("message", onResponse);
-          }
-        }
-      };
-      this._compilerWorker.addEventListener("message", onResponse);
-      profile("start", this._profilerId, "workspace" + " " + request.method);
-      profile(
-        "start",
-        this._profilerId,
-        "workspace" + " " + "send " + request.method
-      );
-      this._compilerWorker.postMessage(request, transfer);
-      profile(
-        "end",
-        this._profilerId,
-        "workspace" + " " + "send " + request.method
-      );
-    });
-  }
-
-  sendCompilerNotification<M extends string, P>(
-    type: MessageProtocolNotificationType<M, P>,
-    params: P
-  ) {
-    const notification = type.notification(params);
-    profile(
-      "start",
-      this._profilerId,
-      "workspace" + " " + "send " + notification.method
+    await this._compilerChannelConnection.connect(workerConnection, port2);
+    await this._compilerChannelConnection.sendRequest(
+      CompilerInitializeMessage.type,
+      {
+        profilerId: this._profilerId,
+      }
     );
-    this._compilerWorker.postMessage(notification);
-    profile(
-      "end",
-      this._profilerId,
-      "workspace" + " " + "send " + notification.method
-    );
+    this._initializedCompiler = true;
+    this._resolveInitializingCompiler();
   }
 
   async initialize(
@@ -276,7 +227,10 @@ export abstract class SparkdownWorkspace {
     if (!this._initializedCompiler) {
       await this._initializingCompiler;
     }
-    return this.sendCompilerRequest(ConfigureCompilerMessage.type, config);
+    return this._compilerChannelConnection.sendRequest(
+      ConfigureCompilerMessage.type,
+      config
+    );
   }
 
   async loadFile(file: { uri: string }) {
@@ -384,10 +338,13 @@ export abstract class SparkdownWorkspace {
     textDocument: { uri: string },
     contentChanges: SparkdownDocumentContentChangeEvent[]
   ) {
-    return this.sendCompilerRequest(UpdateCompilerDocumentMessage.type, {
-      textDocument,
-      contentChanges,
-    });
+    return this._compilerChannelConnection.sendRequest(
+      UpdateCompilerDocumentMessage.type,
+      {
+        textDocument,
+        contentChanges,
+      }
+    );
   }
 
   debouncedCompile = debounce(async (uri: string, force: boolean) => {
@@ -464,10 +421,13 @@ export abstract class SparkdownWorkspace {
 
   protected async compileDocument(uri: string) {
     this._lastCompiledUri = uri;
-    const result = await this.sendCompilerRequest(CompileProgramMessage.type, {
-      textDocument: { uri },
-      startFrom: this._documentSelected,
-    });
+    const result = await this._compilerChannelConnection.sendRequest(
+      CompileProgramMessage.type,
+      {
+        textDocument: { uri },
+        startFrom: this._documentSelected,
+      }
+    );
     return result;
   }
 
@@ -521,7 +481,7 @@ export abstract class SparkdownWorkspace {
       line: selectedRange.start.line,
     };
     this.onSelectTextDocument(params);
-    const result = await this.sendCompilerRequest(
+    const result = await this._compilerChannelConnection.sendRequest(
       SelectCompilerDocumentMessage.type,
       params
     );
@@ -536,7 +496,10 @@ export abstract class SparkdownWorkspace {
     const file = await this.loadFile({ uri });
     this._watchedFiles.set(uri, file);
     this.onCreatedFile(file);
-    await this.sendCompilerRequest(AddCompilerFileMessage.type, { file });
+    await this._compilerChannelConnection.sendRequest(
+      AddCompilerFileMessage.type,
+      { file }
+    );
     if (
       this._lastCompiledUri &&
       this.textDocumentExists(this._lastCompiledUri)
@@ -552,7 +515,10 @@ export abstract class SparkdownWorkspace {
       const file = await this.loadFile({ uri });
       this._watchedFiles.set(uri, file);
       this.onChangedFile(file);
-      await this.sendCompilerRequest(UpdateCompilerFileMessage.type, { file });
+      await this._compilerChannelConnection.sendRequest(
+        UpdateCompilerFileMessage.type,
+        { file }
+      );
       if (
         this._lastCompiledUri &&
         this.textDocumentExists(this._lastCompiledUri)
@@ -570,9 +536,12 @@ export abstract class SparkdownWorkspace {
     this._programStates.delete(uri);
     this._documentVersions.delete(uri);
     this.onDeletedFile(deletedFile!);
-    await this.sendCompilerRequest(RemoveCompilerFileMessage.type, {
-      file: { uri },
-    });
+    await this._compilerChannelConnection.sendRequest(
+      RemoveCompilerFileMessage.type,
+      {
+        file: { uri },
+      }
+    );
     if (
       this._lastCompiledUri &&
       this.textDocumentExists(this._lastCompiledUri)

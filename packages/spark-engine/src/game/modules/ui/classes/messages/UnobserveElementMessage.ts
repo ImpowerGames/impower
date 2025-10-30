@@ -1,4 +1,4 @@
-import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
+import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 
 export type UnobserveElementMethod = typeof UnobserveElementMessage.method;
 

@@ -1,12 +1,9 @@
-import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/classes/MessageProtocolNotificationType";
-import { IMessage } from "@impower/jsonrpc/src/types/IMessage";
-import { Message } from "@impower/jsonrpc/src/types/Message";
-import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
-import { ResponseError } from "@impower/jsonrpc/src/types/ResponseError";
-import { ResponseMessage } from "@impower/jsonrpc/src/types/ResponseMessage";
-import { isNotification } from "@impower/jsonrpc/src/utils/isNotification";
-import { isRequest } from "@impower/jsonrpc/src/utils/isRequest";
-import { isResponse } from "@impower/jsonrpc/src/utils/isResponse";
+import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
+import { Message } from "@impower/jsonrpc/src/common/types/Message";
+import { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
+import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification";
+import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
+import { isResponse } from "@impower/jsonrpc/src/common/utils/isResponse";
 import { Game } from "../game/core/classes/Game";
 import { ConnectGameMessage } from "../game/core/classes/messages/ConnectGameMessage";
 import { ContinueGameMessage } from "../game/core/classes/messages/ContinueGameMessage";
@@ -36,7 +33,12 @@ import { UnpauseGameMessage } from "../game/core/classes/messages/UnpauseGameMes
 import { UpdateGameMessage } from "../game/core/classes/messages/UpdateGameMessage";
 import { SystemConfiguration } from "../game/core/types/SystemConfiguration";
 
-export function installGameWorker() {
+export class NoGameError extends Error implements ResponseError {
+  override message = "no game loaded";
+  code = -32900;
+}
+
+export function installGameWorker(connection: MessageConnection) {
   console.log("running spark-engine");
 
   const systemConfiguration: SystemConfiguration = {
@@ -70,98 +72,32 @@ export function installGameWorker() {
     systemConfiguration,
   };
 
-  class NoGameError extends Error {
-    override message = "no game loaded";
-    code = -32900;
-  }
-
-  const profile = (mark: "start" | "end", method: string, uri: string = "") => {
-    if (mark === "end") {
-      performance.mark(`${method} ${uri} end`);
-      performance.measure(
-        `${method} ${uri}`.trim(),
-        `${method} ${uri} start`,
-        `${method} ${uri} end`
-      );
-    } else {
-      performance.mark(`${method} ${uri} start`);
-    }
-  };
-
-  const respond = <MessageMethod extends string, MessageParams, MessageResult>(
-    message: RequestMessage<MessageMethod, MessageParams, MessageResult>,
-    work: () => MessageResult,
-    transfer?: (result: MessageResult) => ArrayBuffer | undefined
-  ): void => {
-    const method = message.method;
-    const id = message.id;
-    const uri = state.game?.program?.uri || "";
-    profile("start", method, uri);
-    let result: MessageResult | undefined = undefined;
-    let error: ResponseError | undefined = undefined;
-    try {
-      result = work?.();
-    } catch (e) {
-      if (typeof e === "object" && e) {
-        if ("message" in e) {
-          error = e as ResponseError;
-        }
-      }
-    }
-    profile("start", "respond " + method, uri);
-    const transferable = result != null ? transfer?.(result) : undefined;
-    const options = transferable ? [transferable] : {};
-    const response: ResponseMessage<MessageMethod, MessageResult> = {
-      jsonrpc: "2.0",
-      method,
-      id,
-    };
-    if (result !== undefined) {
-      response.result = result;
-    }
-    if (error !== undefined) {
-      response.error = error;
-    }
-    postMessage(response, options);
-    profile("end", "respond " + method, uri);
-    profile("end", method, uri);
-  };
-
-  const notify = <MessageMethod extends string, MessageParams>(
-    messageType: MessageProtocolNotificationType<MessageMethod, MessageParams>,
-    params: MessageParams
-  ): void => {
-    const notification = messageType.notification(params);
-    postMessage(notification);
-  };
-
-  const forward = (message: IMessage, transfer?: ArrayBuffer[]): void => {
-    postMessage(message, transfer ?? []);
-  };
-
-  self.addEventListener("message", (e: MessageEvent) => {
+  connection.addEventListener("message", (e: MessageEvent) => {
     const message = e.data;
     if (isResponse(message) || isNotification(message)) {
+      // Receive responses and notifications
       if (state.game) {
         state.game.connection.receive(message);
       }
     }
     if (InitializeMessage.type.isRequest(message)) {
-      respond(message, () => ({}));
-      notify(InitializedMessage.type, {});
+      connection.sendResponse(message, () => ({}));
+      connection.sendNotification(InitializedMessage.type, {});
+      return;
     }
     if (DestroyGameMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (state.game) {
           state.game.destroy();
           state.game = undefined;
         }
         return {};
       });
+      return;
     }
     if (CreateGameMessage.type.isRequest(message)) {
       const { program, ...options } = message.params;
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (state.game) {
           state.game.destroy();
         }
@@ -171,20 +107,22 @@ export function installGameWorker() {
           startPath: state.game.startPath,
         };
       });
+      return;
     }
     if (UpdateGameMessage.type.isRequest(message)) {
       const { program } = message.params;
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
         state.game.updateProgram(program);
         return {};
       });
+      return;
     }
     if (SimulateGameRouteMessage.type.isRequest(message)) {
       const { route } = message.params;
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
@@ -193,23 +131,26 @@ export function installGameWorker() {
           checkpoint,
         };
       });
+      return;
     }
     if (ConnectGameMessage.type.isRequest(message)) {
-      respond(message, async () => {
+      connection.sendResponse(message, async () => {
         if (!state.game) {
           throw new NoGameError();
         }
         await state.game.connect((msg: Message, transfer?: ArrayBuffer[]) => {
           if (isRequest(msg) || isNotification(msg)) {
-            forward(msg, transfer);
+            // Forward requests and notifications
+            connection.postMessage(msg, transfer);
           }
         });
         return {};
       });
+      return;
     }
     if (PreviewGameMessage.type.isRequest(message)) {
       const { previewFrom } = message.params;
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
@@ -217,35 +158,39 @@ export function installGameWorker() {
           previewPath: state.game.preview(previewFrom.file, previewFrom.line),
         };
       });
+      return;
     }
     if (StartGameMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
         return { success: state.game.start() };
       });
+      return;
     }
     if (PauseGameMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
         state.game.pause();
         return {};
       });
+      return;
     }
     if (UnpauseGameMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
         state.game.pause();
         return {};
       });
+      return;
     }
     if (StepGameClockMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
@@ -253,54 +198,60 @@ export function installGameWorker() {
         state.game.skip(seconds);
         return {};
       });
+      return;
     }
     if (StepGameMessage.type.isRequest(message)) {
       const { traversal } = message.params;
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
         return { done: state.game.step(traversal) };
       });
+      return;
     }
     if (ContinueGameMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
         return { done: state.game.continue() };
       });
+      return;
     }
     if (EnableGameDebugMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
         state.game.startDebugging();
         return {};
       });
+      return;
     }
     if (DisableGameDebugMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
         state.game.stopDebugging();
         return {};
       });
+      return;
     }
     if (SetGameBreakpointsMessage.type.isRequest(message)) {
       const { breakpoints } = message.params;
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
         return { breakpoints: state.game.setBreakpoints(breakpoints) };
       });
+      return;
     }
     if (SetGameDataBreakpointsMessage.type.isRequest(message)) {
       const { dataBreakpoints } = message.params;
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
@@ -308,10 +259,11 @@ export function installGameWorker() {
           dataBreakpoints: state.game.setDataBreakpoints(dataBreakpoints),
         };
       });
+      return;
     }
     if (SetGameFunctionBreakpointsMessage.type.isRequest(message)) {
       const { functionBreakpoints } = message.params;
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
@@ -320,10 +272,11 @@ export function installGameWorker() {
             state.game.setFunctionBreakpoints(functionBreakpoints),
         };
       });
+      return;
     }
     if (SetGameStartFromMessage.type.isRequest(message)) {
       const { startFrom } = message.params;
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
@@ -331,17 +284,19 @@ export function installGameWorker() {
           startFrom: state.game.setStartFrom(startFrom),
         };
       });
+      return;
     }
     if (GetGameEvaluationContextMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
         return { context: state.game.getEvaluationContext() };
       });
+      return;
     }
     if (GetGamePossibleBreakpointLocationsMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
@@ -367,9 +322,10 @@ export function installGameWorker() {
         }
         return { lines };
       });
+      return;
     }
     if (GetGameScriptsMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
@@ -377,27 +333,30 @@ export function installGameWorker() {
         const uris = Object.keys(program?.scripts || {});
         return { uris };
       });
+      return;
     }
     if (GetGameStackTraceMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
         const { threadId, startFrame, levels } = message.params;
         return state.game.getStackTrace(threadId, startFrame, levels);
       });
+      return;
     }
     if (GetGameThreadsMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
         const threads = state.game.getThreads();
         return { threads };
       });
+      return;
     }
     if (GetGameVariablesMessage.type.isRequest(message)) {
-      respond(message, () => {
+      connection.sendResponse(message, () => {
         if (!state.game) {
           throw new NoGameError();
         }
@@ -430,6 +389,7 @@ export function installGameWorker() {
         }
         return { variables: [] };
       });
+      return;
     }
   });
 

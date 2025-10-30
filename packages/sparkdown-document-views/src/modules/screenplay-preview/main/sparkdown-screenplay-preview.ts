@@ -1,8 +1,8 @@
 import { syntaxParserRunning } from "@codemirror/language";
 import { EditorSelection, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
-import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
+import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { HoveredOnEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
 import {
   ScrolledEditorMessage,

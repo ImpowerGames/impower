@@ -224,7 +224,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         async (
           params: CompileProgramParams
         ): Promise<SparkProgram | undefined> => {
-          return this.compile(params.uri, true);
+          return this.compile(params.textDocument.uri, true);
         }
       )
     );

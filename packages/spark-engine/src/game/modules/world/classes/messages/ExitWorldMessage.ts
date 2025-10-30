@@ -1,4 +1,4 @@
-import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/classes/MessageProtocolNotificationType";
+import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
 import { ExitWorldParams } from "../../types/ExitWorldParams";
 
 export type ExitWorldMethod = typeof ExitWorldMessage.method;

@@ -1,10 +1,17 @@
+import { Port2MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port2MessageConnection";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { installGameWorker } from "@impower/spark-engine/src/worker/installGameWorker";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";
 
-const compilerState = installSparkdownWorker();
-const gameState = installGameWorker();
+const connection = new Port2MessageConnection((message: any, transfer) =>
+  self.postMessage(message, { transfer })
+);
+connection.profile("player");
+connection.listen();
+
+const compilerState = installSparkdownWorker(connection);
+const gameState = installGameWorker(connection);
 
 compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
   // Create or update game

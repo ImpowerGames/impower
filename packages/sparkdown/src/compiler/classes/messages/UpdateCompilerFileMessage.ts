@@ -1,6 +1,6 @@
-import { MessageProtocolRequestType } from "@impower/jsonrpc/src/classes/MessageProtocolRequestType";
-import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
-import { ResponseMessage } from "@impower/jsonrpc/src/types/ResponseMessage";
+import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
+import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import { ResponseMessage } from "@impower/jsonrpc/src/common/types/ResponseMessage";
 import { File } from "../../types/File";
 
 export type UpdateCompilerFileMethod = typeof UpdateCompilerFileMessage.method;

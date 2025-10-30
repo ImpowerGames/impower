@@ -1,3 +1,5 @@
+import { WindowMessageConnection } from "@impower/jsonrpc/src/browser/classes/WindowMessageConnection";
+import { isMessage } from "@impower/jsonrpc/src/common/utils/isMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
 import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
@@ -18,29 +20,36 @@ const state: {
 
 const vscode = acquireVsCodeApi();
 
-const workspaceState = installWorkspaceWorker((message, transfer) =>
+const connection = new WindowMessageConnection((message: any) =>
   vscode.postMessage(message)
 );
+connection.listen();
 
-window.addEventListener("message", async (e: MessageEvent) => {
+const workspaceState = installWorkspaceWorker(connection);
+
+connection.addEventListener("message", async (e: MessageEvent) => {
   const message = e.data;
-  // Forward protocol messages from vscode extension to window
-  window.dispatchEvent(
-    new CustomEvent(MessageProtocol.event, {
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-      detail: message,
-    })
-  );
+  if (isMessage(message)) {
+    // Forward protocol messages from vscode extension to window
+    window.dispatchEvent(
+      new CustomEvent(MessageProtocol.event, {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        detail: message,
+      })
+    );
+  }
 });
 
 window.addEventListener(MessageProtocol.event, (e) => {
   if (e instanceof CustomEvent) {
     const message = e.detail;
     if (e.target !== window) {
-      // Forward responses and notifications from player to vscode extension
-      vscode.postMessage(message);
+      if (isMessage(message)) {
+        // Forward responses and notifications from player to vscode extension
+        connection.postMessage(message);
+      }
       if (GamePreviewedMessage.type.isNotification(message)) {
         document.body.classList.add("ready");
       }
@@ -58,6 +67,8 @@ const load = async () => {
   await Promise.allSettled([
     SparkWebPlayer.init({ workspace: workspaceState.workspace }),
   ]);
+  // Post an empty message to let vscode know the webview is ready
+  vscode.postMessage({});
 };
 
 load();

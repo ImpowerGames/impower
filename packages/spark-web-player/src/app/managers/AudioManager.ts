@@ -1,4 +1,4 @@
-import { RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
+import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
 import AudioPlayer from "../../../../spark-dom/src/classes/AudioPlayer";
 import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";

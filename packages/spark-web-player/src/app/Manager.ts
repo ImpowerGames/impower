@@ -1,6 +1,6 @@
-import { type NotificationMessage } from "@impower/jsonrpc/src/types/NotificationMessage";
-import { type RequestMessage } from "@impower/jsonrpc/src/types/RequestMessage";
-import { type ResponseError } from "@impower/jsonrpc/src/types/ResponseError";
+import { type NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import { type RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import { type ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
 import { type Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { type IApplication } from "./IApplication";
 
