@@ -698,6 +698,13 @@ export class Game<T extends M = {}> {
     }
     if (this._simulation === "success") {
       this.continue(true);
+    } else if (this._simulation === "fail") {
+      this.reset();
+      this.clearChoices();
+      if (this._startPath) {
+        this.jumpToPath(this._startPath);
+      }
+      this.continue();
     } else {
       if (save) {
         this.load(save);
