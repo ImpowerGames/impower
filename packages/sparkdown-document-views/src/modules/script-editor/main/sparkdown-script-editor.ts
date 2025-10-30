@@ -588,16 +588,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
                 tr.startState.doc,
                 tr.changes
               );
-              SparkdownScriptEditor.languageServerConnection.sendNotification(
-                DidChangeTextDocumentMessage.type,
-                {
-                  textDocument: {
-                    uri,
-                    version: afterVersion,
-                  },
-                  contentChanges,
-                }
-              );
               this.emit(
                 MessageProtocol.event,
                 DidChangeTextDocumentMessage.type.notification({
@@ -621,6 +611,16 @@ export default class SparkdownScriptEditor extends Component(spec) {
                   textDocument: { uri },
                   text: after,
                 })
+              );
+              SparkdownScriptEditor.languageServerConnection.sendNotification(
+                DidChangeTextDocumentMessage.type,
+                {
+                  textDocument: {
+                    uri,
+                    version: afterVersion,
+                  },
+                  contentChanges,
+                }
               );
             }
           }
