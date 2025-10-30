@@ -1522,7 +1522,9 @@ export class Game<T extends M = {}> {
   }
 
   protected Error(message: string, type: ErrorType) {
-    this._error = true;
+    if (type === ErrorType.Error) {
+      this._error = true;
+    }
     this.connection.emit(
       GameEncounteredRuntimeErrorMessage.type.notification({
         message,
