@@ -81,6 +81,9 @@ export class SparkdownCompiler {
   }
 
   protected _config: SparkdownCompilerConfig = {};
+  get config() {
+    return this._config;
+  }
 
   protected _documents?: SparkdownDocumentRegistry;
   get documents() {
@@ -207,10 +210,10 @@ export class SparkdownCompiler {
       this._config.startFrom = config.startFrom;
     }
     if (
-      config.simulateChoices !== undefined &&
-      config.simulateChoices !== this._config.simulateChoices
+      config.simulationOptions !== undefined &&
+      config.simulationOptions !== this._config.simulationOptions
     ) {
-      this._config.simulateChoices = config.simulateChoices;
+      this._config.simulationOptions = config.simulationOptions;
     }
     if (!this._documents) {
       this._documents = new SparkdownDocumentRegistry(
@@ -404,14 +407,14 @@ export class SparkdownCompiler {
     if (this._config.workspace !== undefined) {
       program.workspace = this._config.workspace;
     }
-    if (this._config.simulateChoices !== undefined) {
-      program.simulateChoices = this._config.simulateChoices;
+    if (this._config.simulationOptions !== undefined) {
+      program.simulationOptions = this._config.simulationOptions;
     }
     program.startFrom = startFrom ?? this._config.startFrom;
-    // if (program.compiled) {
-    //   console.log(program.compiled);
-    //   console.log("pathLocations", program.pathLocations);
-    // }
+    if (program.compiled) {
+      // console.log(program.compiled);
+      console.log("pathLocations", program.pathLocations);
+    }
     const result = {
       textDocument: {
         uri,

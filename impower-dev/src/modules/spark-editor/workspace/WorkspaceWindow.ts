@@ -340,12 +340,21 @@ export default class WorkspaceWindow {
     );
   }
 
-  setSimulateChoices(simulateChoices: Record<string, (number | undefined)[]>) {
+  setSimulationOptions(
+    simulatePath: string,
+    options: {
+      favoredChoices?: (number | undefined)[];
+      favoredConditions?: (boolean | undefined)[];
+    }
+  ) {
     this.update({
       ...this.store,
       debug: {
         ...this.store.debug,
-        simulateChoices,
+        simulationOptions: {
+          ...this.store.debug.simulationOptions,
+          [simulatePath]: options,
+        },
       },
     });
   }

@@ -13,7 +13,13 @@ export interface CreateGameParams extends GameConfiguration {
 
 export interface CreateGameResult {
   simulatePath: string | null;
-  simulateChoices: Record<string, number[]> | null;
+  simulationOptions?: Record<
+    string,
+    {
+      favoredChoices?: (number | undefined)[];
+      favoredConditions?: (boolean | undefined)[];
+    }
+  >;
   startPath: string | null;
   saveData: SaveData;
 }

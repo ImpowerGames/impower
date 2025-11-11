@@ -8,9 +8,11 @@ export interface RoutePlan {
   toPath: string;
   /** The sequence of steps that led here */
   steps: RouteStep[];
-  /** The decisions in the order you'll make them when walking from the start of the knot */
+  /** The decisions in the order you'll make them along the route. */
   decisions: RouteOverride[];
-  /** The choices in the order you'll make them when walking from the start of the knot */
+  /** The conditions in the order you'll encounter them along the route */
+  conditions: { selected: boolean }[];
+  /** The choices in the order you'll encounter them along the route */
   choices: { options: string[]; selected: number }[];
 }
 
@@ -23,6 +25,8 @@ export interface SearchNode {
   steps: RouteStep[];
   /** The sequence of forced decisions that led here */
   decisions: RouteOverride[];
+  /** The sequence of forced conditions that led here */
+  conditions: { selected: boolean }[];
   /** The sequence of forced choices that led here */
   choices: { options: string[]; selected: number }[];
   /** The overrides to enforce when running this node */
@@ -75,7 +79,12 @@ export interface SearchOptions {
   /**
    * If provided, these choices will be given higher priority when searching for a route
    */
-  favoredChoiceIndices?: (number | undefined)[];
+  favoredChoices?: (number | undefined)[];
+
+  /**
+   * If provided, these condition values will be given higher priority when searching for a route
+   */
+  favoredConditions?: (boolean | undefined)[];
 }
 
 // Drives the story forward until we either:
@@ -88,6 +97,7 @@ export interface RunResult {
   steps: RouteStep[];
   branches: SearchNode[];
   decisions: RouteOverride[];
+  conditions: { selected: boolean }[];
   choices: { options: string[]; selected: number }[];
   terminal: boolean; //  true if branch ended this run
 }
@@ -103,7 +113,8 @@ export const planRoute = (
   const startTime = now();
   const searchTimeout = options?.searchTimeout ?? 1000;
   const deadlineTime = startTime + searchTimeout;
-  const favoredChoiceIndices = options?.favoredChoiceIndices ?? [];
+  const favoredConditionalValues = options?.favoredConditions ?? [];
+  const favoredChoiceIndices = options?.favoredChoices ?? [];
   const fromKnotName = fromPath.split(".")[0] || "0";
 
   let routePlan = null;
@@ -113,6 +124,7 @@ export const planRoute = (
   const prevOnError = story.onError;
   const prevOnExecute = story.onExecute;
   const prevOnMakeChoice = story.onMakeChoice;
+  const prevOnEvaluateCondition = story.onEvaluateCondition;
   const prevOnSaveStateSnapshot = story.onSaveStateSnapshot;
   const prevOnRestoreStateSnapshot = story.onRestoreStateSnapshot;
   const prevOnDiscardStateSnapshot = story.onDiscardStateSnapshot;
@@ -120,6 +132,7 @@ export const planRoute = (
   story.onError = NOOP;
   story.onExecute = NOOP;
   story.onMakeChoice = NOOP;
+  story.onEvaluateCondition = NOOP;
   story.onSaveStateSnapshot = NOOP;
   story.onRestoreStateSnapshot = NOOP;
   story.onDiscardStateSnapshot = NOOP;
@@ -137,6 +150,7 @@ export const planRoute = (
         fromKnotName,
         toPath,
         favoredChoiceIndices,
+        favoredConditionalValues,
         options?.stayWithinKnot !== false,
         options?.functions || [],
         deadlineTime
@@ -148,6 +162,7 @@ export const planRoute = (
           toPath,
           steps: result.steps,
           decisions: result.decisions,
+          conditions: result.conditions,
           choices: result.choices,
         };
         break;
@@ -164,6 +179,7 @@ export const planRoute = (
   story.onError = prevOnError;
   story.onExecute = prevOnExecute;
   story.onMakeChoice = prevOnMakeChoice;
+  story.onEvaluateCondition = prevOnEvaluateCondition;
   story.onSaveStateSnapshot = prevOnSaveStateSnapshot;
   story.onRestoreStateSnapshot = prevOnRestoreStateSnapshot;
   story.onDiscardStateSnapshot = prevOnDiscardStateSnapshot;
@@ -177,6 +193,7 @@ const runUntilDecisionOrBranch = (
   fromKnotName: string,
   targetPath: string | null, // set null for "enumerate all"
   favoredChoiceIndices: (number | undefined)[],
+  favoredConditionalValues: (boolean | undefined)[],
   stayWithinKnot: boolean,
   functions: string[],
   deadlineTime: number
@@ -339,28 +356,50 @@ const runUntilDecisionOrBranch = (
       story.pauseBeforeEvaluatingConditions =
         !simulator.willForceCondition(previousPath);
 
-      story.ContinueAsync(Infinity); // this may hit a conditional divert
+      story.ContinueAsync(Infinity); // this may hit a condition divert
 
       if (story.pausedBeforeCondition) {
         // Pop the last encountered step,
         // because we're going to encounter it again on the next run
         stepsEncountered.pop();
-        // Fork true branch
-        branches.push(
-          forkCondition(story, node, stepsEncountered, {
-            kind: "condition",
-            path: story.pausedBeforeCondition,
-            value: true,
-          })
-        );
-        // Fork false branch
-        branches.push(
-          forkCondition(story, node, stepsEncountered, {
-            kind: "condition",
-            path: story.pausedBeforeCondition,
-            value: false,
-          })
-        );
+
+        const favoredConditionalValue =
+          favoredConditionalValues[node.conditions.length];
+        if (favoredConditionalValue != null) {
+          // Fork favored branch
+          branches.push(
+            forkCondition(story, node, stepsEncountered, {
+              kind: "condition",
+              path: story.pausedBeforeCondition,
+              value: favoredConditionalValue,
+            })
+          );
+          // Fork opposite of favored branch
+          branches.push(
+            forkCondition(story, node, stepsEncountered, {
+              kind: "condition",
+              path: story.pausedBeforeCondition,
+              value: !favoredConditionalValue,
+            })
+          );
+        } else {
+          // Fork true branch
+          branches.push(
+            forkCondition(story, node, stepsEncountered, {
+              kind: "condition",
+              path: story.pausedBeforeCondition,
+              value: true,
+            })
+          );
+          // Fork false branch
+          branches.push(
+            forkCondition(story, node, stepsEncountered, {
+              kind: "condition",
+              path: story.pausedBeforeCondition,
+              value: false,
+            })
+          );
+        }
         break;
       }
 
@@ -380,6 +419,7 @@ const runUntilDecisionOrBranch = (
     branches,
     steps: [...node.steps, ...stepsEncountered],
     decisions: node.decisions,
+    conditions: node.conditions,
     choices: node.choices,
     terminal,
   };
@@ -401,6 +441,7 @@ const makeStartNode = (story: Story, fromPath: string): SearchNode => {
     seq: "",
     steps: [],
     decisions: [],
+    conditions: [],
     choices: [],
     overrides: [],
   };
@@ -449,6 +490,7 @@ const forkCondition = (
     seq: stepsEncountered.at(-1)?.seq || "",
     steps: [...parent.steps, ...stepsEncountered],
     decisions: [...parent.decisions, ov],
+    conditions: [...parent.conditions, { selected: ov.value }],
     choices: [...parent.choices],
     overrides: [...parent.overrides, ov],
   };
@@ -466,6 +508,7 @@ const forkChoice = (
     seq: stepsEncountered.at(-1)?.seq || "",
     steps: [...parent.steps, ...stepsEncountered],
     decisions: [...parent.decisions, ov],
+    conditions: [...parent.conditions],
     choices: [...parent.choices, choice],
     overrides: [...parent.overrides, ov],
   };

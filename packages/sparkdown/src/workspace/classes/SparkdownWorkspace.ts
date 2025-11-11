@@ -76,10 +76,10 @@ export abstract class SparkdownWorkspace {
 
   protected _documentVersions = new Map<string, number>();
 
-  protected _documentSelected: {
+  protected _documentSelected?: {
     file: string;
     line: number;
-  } | null = null;
+  };
 
   protected _onNextCompiled = new Map<
     string,
@@ -227,6 +227,10 @@ export abstract class SparkdownWorkspace {
     if (!this._initializedCompiler) {
       await this._initializingCompiler;
     }
+    return this.configureCompiler(config);
+  }
+
+  async configureCompiler(config: SparkdownCompilerConfig) {
     return this._compilerChannelConnection.sendRequest(
       ConfigureCompilerMessage.type,
       config

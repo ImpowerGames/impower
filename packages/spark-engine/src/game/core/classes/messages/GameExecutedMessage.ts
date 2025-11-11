@@ -9,6 +9,7 @@ export interface GameExecutedParams {
   startPath?: string | null;
   executedPaths: string[];
   locations: DocumentLocation[];
+  conditions: { selected: boolean }[];
   choices: { options: string[]; selected: number }[];
   state: "initial" | "running" | "previewing" | "paused";
   restarted?: boolean;

@@ -348,6 +348,9 @@ export class Game<T extends M = {}> {
     story.onMakeChoice = (choice) => {
       this._runtimeState.recordChoice(story, choice);
     };
+    story.onEvaluateCondition = (value) => {
+      this._runtimeState.recordCondition(value);
+    };
     story.onSaveStateSnapshot = () => {
       this._runtimeSnapshot = RuntimeState.clone(this._runtimeState);
     };
@@ -361,7 +364,15 @@ export class Game<T extends M = {}> {
     };
   }
 
-  simulate(simulateChoices?: Record<string, (number | undefined)[]> | null) {
+  simulate(
+    simulationOptions?: Record<
+      string,
+      {
+        favoredConditions?: (boolean | undefined)[];
+        favoredChoices?: (number | undefined)[];
+      }
+    >
+  ) {
     this._simulation = "simulating";
     if (this._startPath) {
       // Plan a route from the top of the startPath container
@@ -372,7 +383,7 @@ export class Game<T extends M = {}> {
         this._program,
         fromPath,
         toPath,
-        simulateChoices
+        simulationOptions
       );
       if (route) {
         this.simulateRoute(route, 0);
@@ -405,24 +416,35 @@ export class Game<T extends M = {}> {
     );
   }
 
-  static getValidSimulateChoices(
+  static getValidSimulationOptions(
     program: SparkProgram,
-    simulateChoices: Record<string, (number | undefined)[]> | null
+    simulationOptions: Record<
+      string,
+      {
+        favoredConditions?: (boolean | undefined)[];
+        favoredChoices?: (number | undefined)[];
+      }
+    >
   ) {
-    if (!simulateChoices) {
-      return null;
+    if (!simulationOptions) {
+      return {};
     }
-    const validSimulateChoices: Record<string, (number | undefined)[]> | null =
-      {};
-    for (const [path, choices] of Object.entries(simulateChoices)) {
+    const valid: Record<
+      string,
+      {
+        favoredConditions?: (boolean | undefined)[];
+        favoredChoices?: (number | undefined)[];
+      }
+    > = {};
+    for (const [path, options] of Object.entries(simulationOptions)) {
       if (
         program.pathLocations?.[path] ||
         Game.isContainerPath(program, path)
       ) {
-        validSimulateChoices[path] = choices;
+        valid[path] = options;
       }
     }
-    return validSimulateChoices;
+    return valid;
   }
 
   setStartFrom(startFrom: { file: string; line: number }) {
@@ -563,13 +585,20 @@ export class Game<T extends M = {}> {
     program: SparkProgram,
     fromPath: string,
     toPath: string,
-    simulateChoices?: Record<string, (number | undefined)[]> | null
+    simulationOptions?: Record<
+      string,
+      {
+        favoredConditions?: (boolean | undefined)[];
+        favoredChoices?: (number | undefined)[];
+      }
+    >
   ) {
     // Plan a route from the top of the knot containing the target path, to the target path itself
     return planRoute(story, fromPath, toPath, {
       functions: Object.keys(program.functionLocations || {}),
       stayWithinKnot: true,
-      favoredChoiceIndices: simulateChoices?.[fromPath],
+      favoredConditions: simulationOptions?.[fromPath]?.favoredConditions,
+      favoredChoices: simulationOptions?.[fromPath]?.favoredChoices,
     });
   }
 
@@ -676,6 +705,7 @@ export class Game<T extends M = {}> {
       toPath: newRoute.toPath,
       steps: patchedSteps,
       decisions: newRoute.decisions,
+      conditions: newRoute.conditions,
       choices: newRoute.choices,
     };
 
@@ -785,7 +815,8 @@ export class Game<T extends M = {}> {
       context: {},
       story,
       runtime,
-      simulated: this._simulation !== "none",
+      simulatedFrom:
+        this._simulation !== "none" ? this._simulatePath : undefined,
     };
     for (const k of this._moduleNames) {
       const module = this._modules[k];
@@ -816,8 +847,9 @@ export class Game<T extends M = {}> {
       if (saveData.runtime) {
         this._runtimeState = RuntimeState.fromJSON(saveData.runtime);
       }
-      if (saveData.simulated) {
+      if (saveData.simulatedFrom) {
         this._simulation = "success";
+        this._simulatePath = saveData.simulatedFrom;
       }
       return true;
     } catch (e) {
@@ -1175,6 +1207,7 @@ export class Game<T extends M = {}> {
         startPath: this._startPath,
         executedPaths: Array.from(this._runtimeState.pathsExecutedThisFrame),
         locations,
+        conditions: this._runtimeState.conditionsEncountered,
         choices: this._runtimeState.choicesEncountered,
         state: this._state,
         restarted: this._restarted,

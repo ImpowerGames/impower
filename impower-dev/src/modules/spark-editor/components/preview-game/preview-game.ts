@@ -216,7 +216,17 @@ export default class GamePreview extends Component(spec) {
   protected handleGameExecuted = (
     message: GameExecutedMessage.Notification
   ): void => {
-    const { locations, state, restarted } = message.params;
+    const { locations, state, restarted, simulatePath, conditions, choices } =
+      message.params;
+
+    if (simulatePath) {
+      const favoredConditions = conditions.map((c) => c.selected);
+      const favoredChoices = choices.map((c) => c.selected);
+      Workspace.window.setSimulationOptions(simulatePath, {
+        favoredConditions,
+        favoredChoices,
+      });
+    }
 
     const executedSets: Record<string, Set<number>> = {};
     for (const location of locations) {
@@ -328,11 +338,11 @@ export default class GamePreview extends Component(spec) {
         file: uri,
         line: startLine,
       };
-      const simulateChoices = Workspace.window.store.debug.simulateChoices;
+      const simulationOptions = Workspace.window.store.debug.simulationOptions;
       return {
         workspace,
         startFrom,
-        simulateChoices,
+        simulationOptions,
       };
     }
     return {};

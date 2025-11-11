@@ -26,7 +26,6 @@ import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/
 import { GameStartedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage";
 import { GameToggledFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage";
-import { GameWillSimulateChoicesMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWillSimulateChoicesMessage";
 import { GetGameEvaluationContextMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameEvaluationContextMessage";
 import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGamePossibleBreakpointLocationsMessage";
 import { GetGameScriptsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGameScriptsMessage";
@@ -86,8 +85,14 @@ export default class SparkWebPlayer extends Component(spec) {
 
   _options?: {
     workspace?: string;
-    simulateChoices?: Record<string, (number | undefined)[]> | null;
     startFrom?: { file: string; line: number } | null;
+    simulationOptions?: Record<
+      string,
+      {
+        favoredConditions?: (boolean | undefined)[];
+        favoredChoices?: (number | undefined)[];
+      }
+    >;
     previewFrom?: { file: string; line: number };
     breakpoints?: { file: string; line: number }[];
     functionBreakpoints?: { name: string }[];
@@ -278,9 +283,10 @@ export default class SparkWebPlayer extends Component(spec) {
         this.refs.connectionLabel.replaceChildren();
         this.refs.connectionLabel.appendChild(document.createTextNode("→"));
         if (params.choices.length > 0) {
-          params.choices.forEach((choice, choiceIndex) => {
-            const dropdownEl = this.createChoiceDropdown(choice, choiceIndex);
-            this.refs.connectionLabel.appendChild(dropdownEl);
+          params.choices.forEach((choice) => {
+            const choiceEl = document.createElement("div");
+            choiceEl.textContent = `  [ ${choice.selected + 1} ]  `;
+            this.refs.connectionLabel.appendChild(choiceEl);
             this.refs.connectionLabel.appendChild(document.createTextNode("→"));
           });
         }
@@ -301,9 +307,10 @@ export default class SparkWebPlayer extends Component(spec) {
       this.refs.connectionLabel.replaceChildren();
       this.refs.connectionLabel.appendChild(document.createTextNode("→"));
       if (params.choices.length > 0) {
-        params.choices.forEach((choice, choiceIndex) => {
-          const dropdownEl = this.createChoiceDropdown(choice, choiceIndex);
-          this.refs.connectionLabel.appendChild(dropdownEl);
+        params.choices.forEach((choice) => {
+          const choiceEl = document.createElement("div");
+          choiceEl.textContent = `  [ ${choice.selected + 1} ]  `;
+          this.refs.connectionLabel.appendChild(choiceEl);
           this.refs.connectionLabel.appendChild(document.createTextNode("→"));
         });
       }
@@ -312,76 +319,6 @@ export default class SparkWebPlayer extends Component(spec) {
     } else {
       this.refs.executionInfo.hidden = true;
     }
-  }
-
-  createChoiceDropdown(
-    choice: {
-      options: string[];
-      selected: number;
-    },
-    choiceIndex: number
-  ) {
-    const divEl = document.createElement("div");
-    divEl.classList.add("choice");
-    const forceChoiceIndex = this._game?.simulatePath
-      ? this._options?.simulateChoices?.[this._game.simulatePath]?.[choiceIndex]
-      : null;
-    divEl.classList.toggle("forced", forceChoiceIndex != null);
-    const selectEl = document.createElement("select");
-    divEl.appendChild(selectEl);
-    selectEl.onpointerdown = (e) => {
-      e.stopPropagation();
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    };
-    selectEl.onpointerup = (e) => {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    };
-    selectEl.onchange = (e) => {
-      const value = (e.currentTarget as HTMLSelectElement).value;
-      const optionIndex = value === "" ? undefined : Number(value);
-      if (this._game) {
-        this._options ??= {};
-        this._options.simulateChoices ??= {};
-        if (this._game.simulatePath) {
-          this._options.simulateChoices[this._game.simulatePath] ??= [];
-          this._options.simulateChoices[this._game.simulatePath]![choiceIndex] =
-            optionIndex;
-          const simulateChoices = this._options.simulateChoices ?? null;
-          this._options.simulateChoices = Game.getValidSimulateChoices(
-            this._program || this._game.program,
-            simulateChoices
-          );
-        }
-        const forceChoiceIndex = this._game?.simulatePath
-          ? this._options?.simulateChoices?.[this._game.simulatePath]?.[
-              choiceIndex
-            ]
-          : null;
-        divEl.classList.toggle("forced", forceChoiceIndex != null);
-      }
-      this.emit(
-        MessageProtocol.event,
-        GameWillSimulateChoicesMessage.type.notification({
-          simulateChoices: this._options?.simulateChoices,
-        })
-      );
-    };
-    const optionEl = document.createElement("option");
-    optionEl.value = "";
-    optionEl.textContent = `(AUTO)`;
-    selectEl.appendChild(optionEl);
-    choice.options.forEach((option, optionIndex) => {
-      const optionEl = document.createElement("option");
-      optionEl.value = `${optionIndex}`;
-      optionEl.textContent = `${optionIndex + 1}: ${option}`;
-      selectEl.appendChild(optionEl);
-    });
-    selectEl.value = forceChoiceIndex == null ? "" : `${choice.selected}`;
-    const selectedcontentEl = document.createElement("div");
-    selectedcontentEl.classList.add("selectedcontent");
-    selectedcontentEl.textContent = `  [ ${choice.selected + 1} ]  `;
-    divEl.appendChild(selectedcontentEl);
-    return divEl;
   }
 
   getAspectRatio(width: number, height: number) {
@@ -805,18 +742,19 @@ export default class SparkWebPlayer extends Component(spec) {
   ) => {
     const { textDocument, selectedRange, checkpoint, userEvent, docChanged } =
       message.params;
-    if (userEvent && !docChanged) {
-      this._options ??= {};
-      this._options.startFrom = {
+    if (userEvent) {
+      const startFrom = {
         file: textDocument.uri,
         line: selectedRange.start.line,
       };
+      this._options ??= {};
+      this._options.startFrom = startFrom;
       this._checkpoint = checkpoint;
       if (this._program && this._game?.state !== "running") {
         await this.updatePreview(
           this._program,
-          textDocument.uri,
-          selectedRange.start.line,
+          startFrom.file,
+          startFrom.line,
           checkpoint
         );
       }
@@ -1176,7 +1114,7 @@ export default class SparkWebPlayer extends Component(spec) {
         this._options ??= {};
         this._options.startFrom ??= program.startFrom;
         this._options.workspace ??= program.workspace;
-        this._options.simulateChoices ??= program.simulateChoices;
+        this._options.simulationOptions ??= program.simulationOptions;
         if (this._options.startFrom) {
           await this.updatePreview(
             program,
@@ -1206,7 +1144,7 @@ export default class SparkWebPlayer extends Component(spec) {
     this._options ??= {};
     this._options.previewFrom = undefined;
     this._game = await this.buildGame(this._program, restarted);
-    this._game.simulate();
+    this.simulate(this._game, this._options?.simulationOptions);
     this.listen(this._game);
     this._app = await this.buildApp(this._game);
     const programCompiled = Boolean(this._program?.compiled);
@@ -1347,10 +1285,18 @@ export default class SparkWebPlayer extends Component(spec) {
 
   simulate(
     game: Game,
-    simulateChoices: Record<string, (number | undefined)[]> | null | undefined
+    simulationOptions:
+      | Record<
+          string,
+          {
+            favoredChoices?: (number | undefined)[];
+            favoredConditions?: (boolean | undefined)[];
+          }
+        >
+      | undefined
   ) {
     profile("start", "game/simulate");
-    game.simulate(simulateChoices);
+    game.simulate(simulationOptions);
     profile("end", "game/simulate");
   }
 
@@ -1492,103 +1438,79 @@ export default class SparkWebPlayer extends Component(spec) {
     );
   }
 
-  updatePreview = conflate(
-    async (
-      program: SparkProgram,
-      file: string,
-      line: number,
-      checkpoint: string | undefined
-    ) => {
-      if (this._game?.state === "running") {
-        // Should not preview while game is running
-        return;
-      }
+  updatePreview = async (
+    program: SparkProgram,
+    file: string,
+    line: number,
+    checkpoint: string | undefined
+  ) => {
+    if (this._game?.state === "running") {
+      // Should not preview while game is running
+      return;
+    }
 
-      if (!program) {
-        // No program to preview
-        return;
-      }
+    if (!program) {
+      // No program to preview
+      return;
+    }
 
-      const previewFrom = { file, line };
-      const previewPath = findClosestPath(
-        previewFrom,
-        Object.entries(program.pathLocations ?? {}),
-        Object.keys(program.scripts)
-      );
-
-      if (!previewPath) {
-        // Not a valid preview path
-        return;
-      }
-
-      const simulateFromPath = Game.getSimulateFromPath(previewPath);
-
-      if (
-        this.isAlreadyPreviewingPathAndChoices(
-          simulateFromPath,
-          previewPath,
-          this._options?.simulateChoices
-        )
-      ) {
-        // Already previewing this path and choices, so no need to do anything
-        return;
-      }
-
-      this._options ??= {};
-      this._options.previewFrom = { file, line };
-
-      // Build game if one doesn't exist or program has changed
-      const shouldBuildNewGame =
-        !this._game ||
-        (this._game.state === "previewing" &&
-          (this._game.program.uri !== program?.uri ||
-            this._game.program.version !== program?.version));
-
-      if (shouldBuildNewGame) {
-        this._game = await this.buildGame(program);
-      }
-
-      if (!this._game || this._game.state !== "previewing") {
-        console.error("No game to preview");
-        return;
-      }
-
-      if (checkpoint) {
-        this._game.load(checkpoint);
-      } else {
-        this._game.simulatePath = simulateFromPath;
-        this._game.simulation = "fail";
-      }
-
-      if (shouldBuildNewGame) {
-        this.listen(this._game);
-      }
-
-      this._app = await this.buildApp(this._game);
-
-      this._game.preview(file, line);
-    },
-    true
-  );
-
-  isAlreadyPreviewingPathAndChoices(
-    simulateFromPath: string,
-    previewPath: string,
-    simulateChoices: Record<string, (number | undefined)[]> | null | undefined
-  ) {
-    const executedChoices =
-      this._game?.runtimeState.choicesEncountered.map((c) => c.selected) ?? [];
-    const shouldSimulateChoices = Array.from(
-      { length: executedChoices.length },
-      (_, i) => simulateChoices?.[simulateFromPath]?.[i] ?? 0
+    const previewFrom = { file, line };
+    const previewPath = findClosestPath(
+      previewFrom,
+      Object.entries(program.pathLocations ?? {}),
+      Object.keys(program.scripts)
     );
-    return (
+
+    if (!previewPath) {
+      // Not a valid preview path
+      return;
+    }
+
+    const simulateFromPath = Game.getSimulateFromPath(previewPath);
+
+    if (
       this._game &&
       this._game.state === "previewing" &&
-      this._game.context.system.previewing === previewPath &&
-      JSON.stringify(executedChoices) === JSON.stringify(shouldSimulateChoices)
-    );
-  }
+      this._game.context.system.previewing === previewPath
+    ) {
+      // Already previewing this path, so no need to do anything
+      return;
+    }
+
+    this._options ??= {};
+    this._options.previewFrom = { file, line };
+
+    // Build game if one doesn't exist or program has changed
+    const shouldBuildNewGame =
+      !this._game ||
+      (this._game.state === "previewing" &&
+        (this._game.program.uri !== program?.uri ||
+          this._game.program.version !== program?.version));
+
+    if (shouldBuildNewGame) {
+      this._game = await this.buildGame(program);
+    }
+
+    if (!this._game || this._game.state !== "previewing") {
+      console.error("No game to preview");
+      return;
+    }
+
+    if (checkpoint) {
+      this._game.load(checkpoint);
+    } else {
+      this._game.simulatePath = simulateFromPath;
+      this._game.simulation = "fail";
+    }
+
+    if (shouldBuildNewGame) {
+      this.listen(this._game);
+    }
+
+    this._app = await this.buildApp(this._game);
+
+    this._game.preview(file, line);
+  };
 }
 
 declare global {

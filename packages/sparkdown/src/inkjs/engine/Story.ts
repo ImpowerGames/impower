@@ -138,6 +138,8 @@ export class Story extends InkObject {
 
   public onMakeChoice: ((arg1: Choice) => void) | null = null;
 
+  public onEvaluateCondition: ((arg1: boolean) => void) | null = null;
+
   public onEvaluateFunction: ((arg1: string, arg2: any[]) => void) | null =
     null;
 
@@ -1061,6 +1063,9 @@ export class Story extends InkObject {
       }
 
       let conditionValue = this.state.PopEvaluationStack();
+
+      if (this.onEvaluateCondition) this.onEvaluateCondition(this.IsTruthy(conditionValue));
+
       if (!this.IsTruthy(conditionValue)) {
         showChoice = false;
       }
@@ -1150,6 +1155,8 @@ export class Story extends InkObject {
         }
 
         let conditionValue = this.state.PopEvaluationStack();
+
+        if (this.onEvaluateCondition) this.onEvaluateCondition(this.IsTruthy(conditionValue));
 
         // False conditional? Cancel divert
         if (!this.IsTruthy(conditionValue)) return true;

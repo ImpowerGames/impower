@@ -8,7 +8,15 @@ export type CompileProgramMethod = typeof CompileProgramMessage.method;
 
 export interface CompileProgramParams {
   textDocument: { uri: string };
-  startFrom: { file: string; line: number };
+  workspace?: string;
+  startFrom?: { file: string; line: number };
+  simulationOptions?: Record<
+    string,
+    {
+      favoredConditions?: (boolean | undefined)[];
+      favoredChoices?: (number | undefined)[];
+    }
+  >;
 }
 
 export interface CompileProgramResult {

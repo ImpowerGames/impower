@@ -129,7 +129,13 @@ export interface ScreenState {
 }
 
 export interface DebugState {
-  simulateChoices?: Record<string, (number | undefined)[]>;
+  simulationOptions?: Record<
+    string,
+    {
+      favoredChoices?: (number | undefined)[];
+      favoredConditions?: (boolean | undefined)[];
+    }
+  >;
   breakpoints?: Record<string, number[]>;
   pinpoints?: Record<string, number[]>;
   highlights?: Record<string, number[]>;

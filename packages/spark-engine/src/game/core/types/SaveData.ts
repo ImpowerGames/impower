@@ -3,5 +3,5 @@ export interface SaveData {
   context: any;
   story: string;
   runtime: string;
-  simulated?: boolean;
+  simulatedFrom?: string | null;
 }

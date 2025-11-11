@@ -7,6 +7,9 @@ export interface SerializableRuntimeState {
     options: string[];
     selected: number;
   }[];
+  conditionsEncountered: {
+    selected: boolean;
+  }[];
 }
 
 export class RuntimeState {
@@ -15,6 +18,10 @@ export class RuntimeState {
   choicesEncountered: {
     options: string[];
     selected: number;
+  }[] = [];
+
+  conditionsEncountered: {
+    selected: boolean;
   }[] = [];
 
   recordExecution(path: string) {
@@ -32,6 +39,12 @@ export class RuntimeState {
     });
   }
 
+  recordCondition(value: boolean) {
+    this.conditionsEncountered.push({
+      selected: value,
+    });
+  }
+
   toJSON() {
     return JSON.stringify(this.toSerializable());
   }
@@ -40,12 +53,14 @@ export class RuntimeState {
     return {
       pathsExecutedThisFrame: Array.from(this.pathsExecutedThisFrame),
       choicesEncountered: this.choicesEncountered,
+      conditionsEncountered: this.conditionsEncountered,
     };
   }
 
   protected fromSerializable(serializable: SerializableRuntimeState) {
     this.pathsExecutedThisFrame = new Set(serializable.pathsExecutedThisFrame);
     this.choicesEncountered = serializable.choicesEncountered;
+    this.conditionsEncountered = serializable.conditionsEncountered;
     return;
   }
 
@@ -57,6 +72,9 @@ export class RuntimeState {
       );
       cloned.choicesEncountered = JSON.parse(
         JSON.stringify(state.choicesEncountered)
+      );
+      cloned.conditionsEncountered = JSON.parse(
+        JSON.stringify(state.conditionsEncountered)
       );
     }
     return cloned;

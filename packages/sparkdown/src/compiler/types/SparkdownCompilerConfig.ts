@@ -7,5 +7,11 @@ export interface SparkdownCompilerConfig {
   skipValidation?: boolean;
   workspace?: string;
   startFrom?: { file: string; line: number };
-  simulateChoices?: Record<string, (number | undefined)[]> | null;
+  simulationOptions?: Record<
+    string,
+    {
+      favoredConditions?: (boolean | undefined)[];
+      favoredChoices?: (number | undefined)[];
+    }
+  >;
 }
