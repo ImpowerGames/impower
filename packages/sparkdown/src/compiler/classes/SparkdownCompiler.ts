@@ -411,10 +411,6 @@ export class SparkdownCompiler {
       program.simulationOptions = this._config.simulationOptions;
     }
     program.startFrom = startFrom ?? this._config.startFrom;
-    if (program.compiled) {
-      // console.log(program.compiled);
-      console.log("pathLocations", program.pathLocations);
-    }
     const result = {
       textDocument: {
         uri,
@@ -443,6 +439,7 @@ export class SparkdownCompiler {
       source: SourceMetadata | null
     ) => void
   ) {
+    const version = this.documents.get(uri)?.version ?? 0;
     const getClosestWeave = (content: ParsedObject[]) => {
       const last = content.at(-1);
       if (last instanceof Weave) {
@@ -469,7 +466,7 @@ export class SparkdownCompiler {
       for (const c of content) {
         c.ResetRuntime();
         if (c.debugMetadata) {
-          this.offsetDebugMetadata(c.debugMetadata, lineNumberOffset);
+          this.offsetDebugMetadata(c.debugMetadata, lineNumberOffset, version);
           c.debugMetadata.fileName = fileName;
           c.debugMetadata.filePath = uri;
         }
@@ -480,7 +477,8 @@ export class SparkdownCompiler {
         ) {
           this.offsetDebugMetadata(
             c.identifier.debugMetadata,
-            lineNumberOffset
+            lineNumberOffset,
+            version
           );
           c.identifier.ResetRuntime();
           c.identifier.debugMetadata.fileName = fileName;
@@ -489,7 +487,11 @@ export class SparkdownCompiler {
         if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
           for (const p of c.pathIdentifiers) {
             if (p instanceof Identifier && p.debugMetadata) {
-              this.offsetDebugMetadata(p.debugMetadata, lineNumberOffset);
+              this.offsetDebugMetadata(
+                p.debugMetadata,
+                lineNumberOffset,
+                version
+              );
               p.ResetRuntime();
               p.debugMetadata.fileName = fileName;
               p.debugMetadata.filePath = uri;
@@ -1620,11 +1622,23 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "validateReferences", uri);
   }
 
-  offsetDebugMetadata(debugMetadata: DebugMetadata, lineNumberOffset: number) {
-    if (!debugMetadata.adjusted) {
-      debugMetadata.startLineNumber += lineNumberOffset;
-      debugMetadata.endLineNumber += lineNumberOffset;
-      debugMetadata.adjusted = true;
+  offsetDebugMetadata(
+    debugMetadata: DebugMetadata,
+    lineNumberOffset: number,
+    version: number
+  ) {
+    if (debugMetadata.sourceStartLineNumber == null) {
+      debugMetadata.sourceStartLineNumber = debugMetadata.startLineNumber;
+    }
+    if (debugMetadata.sourceEndLineNumber == null) {
+      debugMetadata.sourceEndLineNumber = debugMetadata.endLineNumber;
+    }
+    if (debugMetadata.version !== version) {
+      debugMetadata.startLineNumber =
+        debugMetadata.sourceStartLineNumber + lineNumberOffset;
+      debugMetadata.endLineNumber =
+        debugMetadata.sourceEndLineNumber + lineNumberOffset;
+      debugMetadata.version = version;
     }
   }
 
