@@ -1461,13 +1461,6 @@ export default class SparkWebPlayer extends Component(spec) {
       Object.keys(program.scripts)
     );
 
-    if (!previewPath) {
-      // Not a valid preview path
-      return;
-    }
-
-    const simulateFromPath = Game.getSimulateFromPath(previewPath);
-
     if (
       this._game &&
       this._game.state === "previewing" &&
@@ -1499,7 +1492,10 @@ export default class SparkWebPlayer extends Component(spec) {
     if (checkpoint) {
       this._game.load(checkpoint);
     } else {
-      this._game.simulatePath = simulateFromPath;
+      if (previewPath) {
+        const simulateFromPath = Game.getSimulateFromPath(previewPath);
+        this._game.simulatePath = simulateFromPath;
+      }
       this._game.simulation = "fail";
     }
 
