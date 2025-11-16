@@ -39,7 +39,7 @@ export class NoGameError extends Error implements ResponseError {
 }
 
 export function installGameWorker(connection: MessageConnection) {
-  console.log("running spark-engine");
+  console.log("running spark-engine v1.0");
 
   const systemConfiguration: SystemConfiguration = {
     now: () => performance.now(),

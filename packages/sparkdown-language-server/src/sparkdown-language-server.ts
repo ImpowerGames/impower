@@ -27,7 +27,7 @@ import {
   TOKEN_TYPES,
 } from "./utils/providers/getSemanticTokens";
 
-console.log("running sparkdown-language-server");
+console.log("running sparkdown-language-server v1.0");
 
 try {
   const messageReader = new BrowserMessageReader(self);

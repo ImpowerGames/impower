@@ -2,7 +2,7 @@ import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/Me
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import SparkdownScreenplayPreview from "@impower/sparkdown-document-views/src/modules/screenplay-preview/index.js";
 
-console.log("running screenplay-webview");
+console.log("running screenplay-webview v1.0");
 
 declare var acquireVsCodeApi: any;
 

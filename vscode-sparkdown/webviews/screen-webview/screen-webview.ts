@@ -1,6 +1,6 @@
 import SparkdownScreenPreview from "@impower/sparkle-screen-preview/src/index.js";
 
-console.log("running screen-webview");
+console.log("running screen-webview v1.0");
 
 declare var acquireVsCodeApi: any;
 
