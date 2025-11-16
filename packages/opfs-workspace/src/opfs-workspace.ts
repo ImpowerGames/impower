@@ -31,7 +31,7 @@ import { getPathFromUri } from "./utils/getPathFromUri";
 import { getSrcFromUri } from "./utils/getSrcFromUri";
 import { getUriFromPath } from "./utils/getUriFromPath";
 
-console.log("running opfs-workspace");
+console.log("running opfs-workspace v1.0");
 
 const MAGENTA = "\x1b[35m%s\x1b[0m";
 
