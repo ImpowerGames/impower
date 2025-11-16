@@ -1311,15 +1311,15 @@ export class InterpreterModule extends Module<
               }
               const unmuteValue = c.clauses?.unmute;
               if (unmuteValue) {
-                event.fadeto = 1;
+                event.to = 1;
               }
-              const toValue = c.clauses?.fadeto;
+              const toValue = c.clauses?.to;
               if (toValue != null) {
-                event.fadeto = toValue;
+                event.to = toValue;
               }
               const muteValue = c.clauses?.mute;
               if (muteValue) {
-                event.fadeto = 0;
+                event.to = 0;
               }
               const loopValue = c.clauses?.loop;
               if (loopValue) {

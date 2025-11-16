@@ -94,7 +94,7 @@ export class AudioModule extends Module<
         const update: AudioPlayerUpdate = {
           control: "start",
           key: state.key,
-          fadeto: state.fadeto,
+          to: state.to,
           loop: true,
           now: true,
         };
@@ -302,7 +302,7 @@ export class AudioModule extends Module<
       control: event.control as AudioPlayerUpdate["control"],
       after: event.after,
       over: event.over,
-      fadeto: event.fadeto,
+      to: event.to,
       loop: event.loop,
       now: event.now,
     };
@@ -369,8 +369,8 @@ export class AudioModule extends Module<
           if (data.syncedTo != null) {
             existingUpdate.syncedTo ??= data.syncedTo;
           }
-          if (update.fadeto != null) {
-            existingUpdate.fadeto = update.fadeto;
+          if (update.to != null) {
+            existingUpdate.to = update.to;
           }
         } else if (update.control === "start") {
           this._state.channels ??= {};
@@ -379,7 +379,7 @@ export class AudioModule extends Module<
           this._state.channels[channel].looping.push({
             key: data.key,
             syncedTo: data.syncedTo,
-            fadeto: update.fadeto,
+            to: update.to,
           });
         }
       } else {
@@ -504,7 +504,7 @@ export class AudioModule extends Module<
 
   fadeChannel(
     channel: string,
-    fadeto: number,
+    to: number,
     after?: number,
     over?: number,
     now?: boolean
@@ -514,7 +514,7 @@ export class AudioModule extends Module<
       [
         {
           control: "fade",
-          fadeto: fadeto,
+          to: to,
           after,
           over,
           now,

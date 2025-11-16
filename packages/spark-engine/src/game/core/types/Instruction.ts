@@ -44,7 +44,7 @@ export interface AudioInstruction extends IInstruction {
   assets?: string[];
   now?: boolean;
   loop?: boolean;
-  fadeto?: number;
+  to?: number;
 }
 
 export type Instruction = TextInstruction | ImageInstruction | AudioInstruction;

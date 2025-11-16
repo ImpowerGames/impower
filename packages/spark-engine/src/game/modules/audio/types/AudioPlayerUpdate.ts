@@ -3,7 +3,7 @@ export interface AudioPlayerUpdate {
   key?: string;
   after?: number;
   over?: number;
-  fadeto?: number;
+  to?: number;
   at?: number;
   now?: boolean;
   loop?: boolean;

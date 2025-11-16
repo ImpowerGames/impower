@@ -7,7 +7,7 @@ export interface Chunk {
   clauses?: {
     after?: number;
     over?: number;
-    fadeto?: number;
+    to?: number;
     with?: string;
     wait?: boolean;
     loop?: boolean;
