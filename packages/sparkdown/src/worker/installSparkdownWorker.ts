@@ -11,7 +11,7 @@ import { UpdateCompilerFileMessage } from "../compiler/classes/messages/UpdateCo
 import { SparkdownCompiler } from "../compiler/classes/SparkdownCompiler";
 
 export function installSparkdownWorker(connection: MessageConnection) {
-  console.log("running sparkdown-compiler");
+  console.log("running sparkdown-compiler v1.0");
 
   const state = { compiler: new SparkdownCompiler() };
 
