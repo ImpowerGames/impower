@@ -1122,12 +1122,6 @@ export class InkParser extends StringParser {
         continue;
       }
 
-      if (str === null) {
-        break;
-      }
-
-      willChainLine = false;
-
       const gotLiteralChar: boolean = this.ParseString("`") !== null;
       if (gotLiteralChar) {
         sb ??= "";
@@ -1203,9 +1197,17 @@ export class InkParser extends StringParser {
         }
         continue;
       }
+
+      if (str === null) {
+        break;
+      }
+
+      willChainLine = false;
     } while (true);
 
     const result: ParsedObject[] = [];
+
+    console.log("sb", JSON.stringify(sb));
 
     if (sb !== null) {
       const trimmedSb = willChainLine ? sb.trimEnd() : sb;
