@@ -277,11 +277,12 @@ const addStructTypeNameCompletions = (
 const addStructVariableNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  type: string
+  type: string,
+  currentText: string
 ) => {
   if (program?.context?.[type]) {
     for (const name of Object.keys(program?.context?.[type]).sort()) {
-      if (!name.startsWith("$")) {
+      if (!name.startsWith("$") && currentText != name) {
         const completion: CompletionItem = {
           label: name,
           labelDetails: { description: "name" },
@@ -1465,18 +1466,18 @@ export const getCompletions = (
         n.type.name === "DefineVariableName"
     )
   ) {
-    if (
-      isCursorAfterNodeText(
-        leftStack.find((n) => n.type.name === "DefineVariableName")
-      )
-    ) {
+    const variableNameNode = leftStack.find(
+      (n) => n.type.name === "DefineVariableName"
+    );
+    const currentText = getNodeText(variableNameNode);
+    if (isCursorAfterNodeText(variableNameNode)) {
       const defineTypeNameNode = getDescendentInsideParent(
         "DefineTypeName",
         "DefineDeclaration",
         leftStack
       );
       const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
-      addStructVariableNameCompletions(completions, program, type);
+      addStructVariableNameCompletions(completions, program, type, currentText);
     }
     return buildCompletions();
   }
