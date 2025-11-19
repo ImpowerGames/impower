@@ -63,6 +63,9 @@ const traverse = <T>(
         !("$name" in v) &&
         Object.keys(v).length > 0
       ) {
+        if (Array.isArray(v)) {
+          process(path, v);
+        }
         traverse(v, process, path);
       } else {
         process(path, v);
