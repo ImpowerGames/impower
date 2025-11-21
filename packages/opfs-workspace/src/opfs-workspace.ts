@@ -279,6 +279,12 @@ onmessage = async (e) => {
         renamedFiles.map((f) => f.file)
       );
       respond(response);
+      broadcast(
+        DidWriteFilesMessage.type.notification({
+          files: files.map((r) => State.files[r.newUri]!),
+          remote: false,
+        })
+      );
       broadcast(DidRenameFilesMessage.type.notification({ files }));
       broadcast(
         DidChangeWatchedFilesMessage.type.notification({

@@ -101,7 +101,7 @@ export default class WorkspaceFileSystem {
     const result: Record<string, FileData> = {};
     files.forEach((file) => {
       this._files ??= {};
-      this._files[file.uri] = file;
+      this._files[file.uri] = { ...file };
       result[file.uri] = file;
       this.preloadFile(file);
     });
@@ -141,11 +141,13 @@ export default class WorkspaceFileSystem {
     // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
     if (params.command === "sparkdown.getFileText") {
       const [uri] = params.arguments || [];
-      return Workspace.fs.getFileText(uri);
+      const result = await Workspace.fs.getFileText(uri);
+      return result;
     }
     if (params.command === "sparkdown.getFileSrc") {
       const [uri] = params.arguments || [];
-      return Workspace.fs.getFileSrc(uri);
+      const result = await Workspace.fs.getFileSrc(uri);
+      return result;
     }
     return undefined;
   }
@@ -192,7 +194,7 @@ export default class WorkspaceFileSystem {
     } else if (DidWriteFilesMessage.type.isNotification(message)) {
       message.params.files.forEach((file) => {
         this._files ??= {};
-        this._files[file.uri] = file;
+        this._files[file.uri] = { ...file };
         this.preloadFile(file);
       });
       this.emit(MessageProtocol.event, message);
@@ -211,9 +213,6 @@ export default class WorkspaceFileSystem {
         this._files ??= {};
         const oldFile = this._files[file.oldUri];
         if (oldFile) {
-          const newFile = { ...oldFile, uri: file.newUri };
-          this._files[file.newUri] = newFile;
-          this.preloadFile(newFile);
           delete this._files[file.oldUri];
           delete this._preloaded[file.oldUri];
         }
@@ -543,9 +542,5 @@ export default class WorkspaceFileSystem {
     } catch (e) {
       console.warn("Could not load: ", file.name, file.src);
     }
-  }
-
-  getUrl(uri: string) {
-    return this._files?.[uri]?.src;
   }
 }

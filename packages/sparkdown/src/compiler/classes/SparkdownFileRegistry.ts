@@ -44,7 +44,8 @@ export class SparkdownFileRegistry {
       this._syncedFiles.set(file.uri, file);
       return true;
     }
-    return false;
+    this._syncedFiles.set(file.uri, file);
+    return true;
   }
 
   remove(params: { file: { uri: string } }) {
