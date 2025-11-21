@@ -1206,9 +1206,7 @@ export class InkParser extends StringParser {
     } while (true);
 
     const result: ParsedObject[] = [];
-
-    console.log("sb", JSON.stringify(sb));
-
+    
     if (sb !== null) {
       const trimmedSb = willChainLine ? sb.trimEnd() : sb;
       result.push(new Text(trimmedSb));
