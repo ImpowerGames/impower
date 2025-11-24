@@ -362,38 +362,61 @@ export default class AudioPlayer {
   }
 
   getStartTime() {
-    return this._instances[0]?.startedAt ?? this._audioContext.currentTime;
+    return this._instances[0]?.startedAt ?? null;
   }
 
-  getCurrentOffset(from: number) {
+  getLoopCount(time: number) {
     const startedAt = this.getStartTime();
-    const totalOffset = from - startedAt;
-    if (this.loop) {
-      return totalOffset % this.duration;
+    if (startedAt == null) {
+      return null;
     }
-    return totalOffset;
+    const elapsedTime = time - startedAt;
+    if (this.loop) {
+      return Math.floor(elapsedTime / this.duration);
+    }
+    return 0;
   }
 
-  getNextCueOffset(from: number) {
-    const currentOffset = this.getCurrentOffset(from);
-    const next = this._cues?.find((t) => t >= currentOffset);
+  getPlaybackPosition(time: number) {
+    const startedAt = this.getStartTime();
+    if (startedAt == null) {
+      return null;
+    }
+    const elapsedTime = time - startedAt;
+    if (this.loop) {
+      return elapsedTime % this.duration;
+    }
+    return Math.min(this.duration, elapsedTime);
+  }
+
+  getNextCuePosition(time: number) {
+    const playbackPosition = this.getPlaybackPosition(time);
+    if (playbackPosition == null) {
+      return null;
+    }
+    const next = this._cues?.find((t) => t >= playbackPosition);
     if (next != null) {
       return next;
     }
-    if (this._loop) {
-      return this._cues?.[0] ?? 0;
-    }
-    return this.duration;
+    return null;
   }
 
   getNextCueTime(from: number) {
     if (!this._loop || !this._cues || this._cues.length === 0) {
       return from;
     }
-    if (!this._instances[0]?.startedAt) {
+    const startedAt = this._instances[0]?.startedAt;
+    if (startedAt == null) {
       return from;
     }
-    const startedAt = this.getStartTime();
-    return startedAt + this.getNextCueOffset(from);
+    const cueOffset = this.getNextCuePosition(from);
+    if (cueOffset == null) {
+      return from;
+    }
+    const loopCount = this.getLoopCount(from);
+    if (loopCount == null) {
+      return from;
+    }
+    return startedAt + loopCount * this.duration + cueOffset;
   }
 }
