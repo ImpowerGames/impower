@@ -5,7 +5,6 @@ import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkPr
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { getExpectedSelectorTypes } from "@impower/sparkdown/src/compiler/utils/getExpectedSelectorTypes";
 import { resolveSelector } from "@impower/sparkdown/src/compiler/utils/resolveSelector";
-import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 
 const resolveRootImage = (
@@ -98,9 +97,7 @@ export const getHover = (
               ) {
                 filterImage(
                   program.context,
-                  program.context?.["filtered_image"]?.[
-                    sortFilteredName(selector.name)
-                  ]
+                  program.context?.["filtered_image"]?.[selector.name]
                 );
               }
             }
