@@ -5,7 +5,6 @@ export function readProperty(
   obj: any,
   ...fallbacks: any[]
 ) {
-  console.warn(propertyPath);
   const propertyValue = getProperty(obj, propertyPath);
   if (propertyValue !== undefined) {
     return propertyValue;
