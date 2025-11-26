@@ -54,6 +54,7 @@ const EDITOR_COLORS = {
   variableName: "#4FC1FF",
   attributeName: "#D7BA7D",
   functionName: "#DCDCAA",
+  className: "#FFB380",
   string: "#CE9178",
   number: "#B5CEA8",
   bool: "#569CD6",
