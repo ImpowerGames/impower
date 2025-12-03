@@ -1137,14 +1137,14 @@ export class SparkdownCompiler {
         program.context[type][name] = struct;
       }
     }
+    state.contextPropertyRegistry ??= {};
     for (const [type, structs] of Object.entries(
       this._configStructsPropertyRegistry
     )) {
+      state.contextPropertyRegistry[type] ??= {};
       for (const [name, struct] of Object.entries(structs)) {
+        state.contextPropertyRegistry[type][name] ??= {};
         for (const [propertyPath, propertyValue] of Object.entries(struct)) {
-          state.contextPropertyRegistry ??= {};
-          state.contextPropertyRegistry[type] ??= {};
-          state.contextPropertyRegistry[type][name] ??= {};
           state.contextPropertyRegistry[type][name][propertyPath] =
             propertyValue;
         }
