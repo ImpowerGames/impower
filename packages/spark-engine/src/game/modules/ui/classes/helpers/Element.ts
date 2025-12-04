@@ -40,6 +40,14 @@ export class Element {
     return this._children.find((child) => child.id === id);
   }
 
+  isMatch(selector: string): boolean {
+    if (this.name === selector) {
+      return true;
+    }
+    const classes = selector.split(" ");
+    return classes.every((c) => this.name.split(" ").includes(c));
+  }
+
   findChild(selector: string): Element | undefined {
     const exactMatch = this._children.find((child) => child.name === selector);
     if (exactMatch) {

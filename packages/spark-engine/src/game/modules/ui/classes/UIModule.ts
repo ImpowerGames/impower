@@ -13,13 +13,14 @@ import {
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { getTimeValue } from "../../../core/utils/getTimeValue";
 import { Animation } from "../types/Animation";
+import { Ease } from "../types/Ease";
 import { ElementContent } from "../types/ElementContent";
 import { ElementState } from "../types/ElementState";
 import { Image } from "../types/Image";
 import { ImageState } from "../types/ImageState";
 import { TextState } from "../types/TextState";
 import { UIBuiltins, uiBuiltinDefinitions } from "../uiBuiltinDefinitions";
-import { getImageVarName } from "../utils/getImageVarName";
+import { getVarName } from "../utils/getVarName";
 import { Element } from "./helpers/Element";
 import {
   AnimateElementsMessage,
@@ -165,6 +166,33 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
+  protected createImage(
+    parent: Element | null,
+    imageAssets: unknown[],
+    property: string,
+    state?: ElementState
+  ): Element {
+    const background = imageAssets
+      .map((a) => this.getBackgroundImageFromValue(a))
+      .reverse()
+      .join(", ");
+    const el = this.createElement(parent, {
+      name: "instance",
+      type: "span",
+      style: { [property]: background },
+      ...state,
+    });
+    const src = imageAssets.flatMap((a) => this.getImageSrcsFromValue(a))[0];
+    if (src) {
+      this.createElement(el, {
+        name: "object",
+        type: "img",
+        attributes: { src },
+      });
+    }
+    return el;
+  }
+
   protected destroyElement(element: Element) {
     const isRootElement = !element.parent;
     if (isRootElement) {
@@ -267,37 +295,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  getImageVarName(name: string) {
-    return getImageVarName(name);
-  }
-
   getUrl(src: string) {
     return `url("${src}")`;
   }
 
-  getImageValue(name: string) {
-    if (name === "none") {
-      return name;
-    }
-    const imageName = name.includes("~") ? sortFilteredName(name) : name;
-    if (this.context?.filtered_image?.[imageName]) {
-      filterImage(this.context, this.context?.filtered_image?.[imageName]);
-      if (this.context?.filtered_image?.[imageName].filtered_src) {
-        return this.getUrl(
-          this.context?.filtered_image?.[imageName].filtered_src
-        );
-      }
-    }
-    if (this.context?.layered_image?.[imageName]) {
-      return this.getImageAssets("layered_image", imageName)
-        .map((asset) => this.getUrl(asset.src))
-        .reverse()
-        .join(", ");
-    }
-    if (this.context?.image?.[imageName]) {
-      return this.getUrl(this.context?.image?.[imageName].src);
-    }
-    return `var(${this.getImageVarName(imageName)})`;
+  getTimingFunction(ease: Ease) {
+    return `${ease.function}(${ease.parameters.join(",")})`;
   }
 
   getImageAssets(type: string, name: string) {
@@ -349,12 +352,56 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return [];
   }
 
+  getImageSrcsByName(name: string) {
+    const imageName = name.includes("~") ? sortFilteredName(name) : name;
+    if (this.context?.filtered_image?.[imageName]) {
+      filterImage(this.context, this.context?.filtered_image?.[imageName]);
+      if (this.context?.filtered_image?.[imageName].filtered_src) {
+        return [this.context?.filtered_image?.[imageName].filtered_src];
+      }
+    }
+    if (this.context?.layered_image?.[imageName]) {
+      return this.getImageAssets("layered_image", imageName).map(
+        (asset) => asset.src
+      );
+    }
+    if (this.context?.image?.[imageName]) {
+      return [this.context?.image?.[imageName].src];
+    }
+    return null;
+  }
+
+  getImageSrcsFromValue(value: unknown) {
+    if (value != null && typeof value === "string") {
+      return this.getImageSrcsByName(value);
+    }
+    if (
+      value != null &&
+      typeof value === "object" &&
+      "$name" in value &&
+      typeof value.$name === "string"
+    ) {
+      return this.getImageSrcsByName(value.$name);
+    }
+    return undefined;
+  }
+
   getBackgroundImageFromString(value: string) {
-    return !value || value === "none"
-      ? "none"
-      : value.includes("gradient(") || value.includes("url(")
-      ? value
-      : `linear-gradient(${value},${value})`;
+    if (value === "none") {
+      return value;
+    }
+    if (value.at(0) === '"' && value.at(-1) === '"') {
+      const literalStringValue = value.slice(1, -1);
+      return literalStringValue;
+    }
+    const srcs = this.getImageSrcsByName(value);
+    if (srcs) {
+      return srcs
+        .map((src) => this.getUrl(src))
+        .reverse()
+        .join(", ");
+    }
+    return value;
   }
 
   getBackgroundImageFromValue(value: unknown) {
@@ -367,22 +414,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       "$name" in value &&
       typeof value.$name === "string"
     ) {
-      return this.getImageValue(value.$name);
+      return this.getBackgroundImageFromString(value.$name);
     }
     return undefined;
-  }
-
-  getBackgroundImagesFromArgument(asset: string) {
-    if (asset.at(0) === '"' && asset.at(-1) === '"') {
-      const literalStringValue = asset.slice(1, -1);
-      return this.getBackgroundImageFromString(literalStringValue);
-    } else {
-      return this.getImageValue(asset);
-    }
-  }
-
-  getBackgroundImagesFromArguments(assets: string[]) {
-    return assets.map((asset) => this.getBackgroundImagesFromArgument(asset));
   }
 
   createRootStyle() {
@@ -394,8 +428,32 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (images) {
       for (const [name, image] of Object.entries(images)) {
         if (!name.startsWith("$")) {
-          const varName = this.getImageVarName(name);
+          const varName = getVarName("image", name);
           const varValue = this.getUrl(image.src);
+          if (varValue) {
+            style[varName] = varValue;
+          }
+        }
+      }
+    }
+    const eases = this.context?.ease;
+    if (eases) {
+      for (const [name, ease] of Object.entries(eases)) {
+        if (!name.startsWith("$")) {
+          const varName = getVarName("ease", name);
+          const varValue = this.getTimingFunction(ease);
+          if (varValue) {
+            style[varName] = varValue;
+          }
+        }
+      }
+    }
+    const fonts = this.context?.font;
+    if (fonts) {
+      for (const [name] of Object.entries(fonts)) {
+        if (!name.startsWith("$")) {
+          const varName = getVarName("font", name);
+          const varValue = name;
           if (varValue) {
             style[varName] = varValue;
           }
@@ -544,12 +602,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               const isMask = parentClasses.includes("mask");
               const text =
                 (isText || isStroke) && typeof v === "string" ? v : undefined;
-              const background_image = isImage
-                ? this.getBackgroundImageFromValue(v)
-                : undefined;
-              const mask_image = isMask
-                ? this.getBackgroundImageFromValue(v)
-                : undefined;
               if (text) {
                 this.createElement(parent, {
                   type: "span",
@@ -557,17 +609,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   style: { display: "inline" },
                 });
               }
-              if (background_image) {
-                this.createElement(parent, {
-                  type: "span",
-                  style: { background_image },
-                });
+              if (isImage) {
+                this.createImage(parent, [v], "background_image");
               }
-              if (mask_image) {
-                this.createElement(parent, {
-                  type: "span",
-                  style: { mask_image },
-                });
+              if (isMask) {
+                this.createImage(parent, [v], "mask_image");
               }
             }
           }
@@ -670,7 +716,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected searchForAll(
     parent: Element,
     target: string,
-    found: Element[]
+    found: Element[] = []
   ): Element[] {
     if (parent) {
       const matchingChildren = parent.findChildren(target);
@@ -700,33 +746,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return Array.from(this._clearOnContinue.values());
   }
 
-  queueAnimationEvent(
-    event: { name: string; after?: number; over?: number },
-    instant: boolean,
-    animations: Animation[]
-  ): void {
-    if (animations) {
-      const eventInstance = { ...event };
-      const definition = this.getAnimationDefinition(eventInstance);
-      if (definition) {
-        if (instant) {
-          definition.timing.delay = "0s";
-          definition.timing.duration = "0s";
-        }
-        animations.push(definition);
-      }
-    }
-  }
-
-  getAnimationDefinition(event: {
-    name: string;
-    after?: number;
-    over?: number;
-    loop?: boolean;
-  }): Animation | undefined {
-    const { name, after, over, loop } = event;
+  getAnimationDefinition(
+    event: {
+      name: string;
+      after?: number;
+      over?: number;
+      ease?: string;
+      loop?: boolean;
+    },
+    instant: boolean
+  ): Animation | undefined {
+    const { name, after, over, ease, loop } = event;
     const delayOverride = `${after ?? 0}s`;
     const durationOverride = over != null ? `${over}s` : null;
+    const easeDefinition = ease ? this.context?.ease?.[ease] : null;
+    const easingOverride =
+      easeDefinition != null ? this.getTimingFunction(easeDefinition) : null;
     const loopOverride =
       loop === true ? "infinite" : loop === false ? 1 : undefined;
     const animation = this.context?.animation?.[name] as Animation;
@@ -734,7 +769,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const delay = delayOverride ?? animation?.timing?.delay ?? "0s";
       const duration = durationOverride ?? animation?.timing?.duration ?? "0s";
       const iterations = loopOverride ?? animation?.timing?.iterations ?? 1;
-      const easing = animation?.timing?.easing ?? "ease";
+      const easing = easingOverride ?? animation?.timing?.easing ?? "ease";
       const fill = animation?.timing?.fill ?? "none";
       const direction = animation?.timing?.direction ?? "normal";
       const keyframes = animation?.keyframes;
@@ -746,14 +781,37 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         fill,
         direction,
       };
+      if (instant) {
+        timing.delay = "0s";
+        timing.duration = "0s";
+      }
       return {
         $type: animation.$type,
         $name: animation.$name,
+        target: animation.target,
         keyframes,
         timing,
       };
     }
     return undefined;
+  }
+
+  enqueueAnimation(
+    element: Element,
+    animation: Animation,
+    animationMap: Map<Element, Animation[]>
+  ) {
+    const selector = animation.target.$name;
+    const animateEls =
+      selector === "self" || element.isMatch(selector)
+        ? [element]
+        : this.searchForAll(element, selector);
+    for (const animateEl of animateEls) {
+      if (!animationMap.has(animateEl)) {
+        animationMap.set(animateEl, []);
+      }
+      animationMap.get(animateEl)!.push(animation);
+    }
   }
 
   protected setEventListener<T extends keyof EventMap>(
@@ -937,15 +995,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   content: { text },
                   style,
                 });
-          if (!enterElements.has(newSpanEl)) {
-            enterElements.set(newSpanEl, []);
-          }
-          const newSpanAnimations = enterElements.get(newSpanEl)!;
-          $.queueAnimationEvent(
-            { name: "show", after: e.after, over: e.over },
-            instant,
-            newSpanAnimations
+          const animation = $.getAnimationDefinition(
+            { name: "show", after: e.after, over: e.over, ease: e.ease },
+            instant
           );
+          if (animation) {
+            $.enqueueAnimation(newSpanEl, animation, enterElements);
+          }
         }
       }
 
@@ -1125,15 +1181,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               name: "show",
               after: e.after,
               over: 0,
+              ease: e.ease,
             };
-            if (!targetAnimationMap.has(targetEl)) {
-              targetAnimationMap.set(targetEl, []);
+            const animation = $.getAnimationDefinition(showEvent, instant);
+            if (animation) {
+              $.enqueueAnimation(targetEl, animation, targetAnimationMap);
             }
-            $.queueAnimationEvent(
-              showEvent,
-              instant,
-              targetAnimationMap.get(targetEl)!
-            );
           }
           const transitionWith = e.with || "";
           const transition = $.context?.transition?.[transitionWith];
@@ -1180,6 +1233,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const showOver = transition
             ? showAnimationDuration / transitionSpeed
             : over;
+          const showEase = e.ease;
           // Calculate hide settings
           const hideWith =
             (transition
@@ -1194,6 +1248,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const hideOver = transition
             ? hideAnimationDuration / transitionSpeed
             : over;
+          const hideEase = e.ease;
           // Animate any other elements affected by the transition
           if (transition) {
             for (const [k, v] of Object.entries(transition)) {
@@ -1205,15 +1260,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                       name: animateWith,
                       after: e.after,
                       over: e.over,
+                      ease: e.ease,
                     };
-                    if (!enterContentAnimationMap.has(el)) {
-                      enterContentAnimationMap.set(el, []);
-                    }
-                    $.queueAnimationEvent(
+                    const animation = $.getAnimationDefinition(
                       animateEvent,
-                      instant,
-                      enterContentAnimationMap.get(el)!
+                      instant
                     );
+                    if (animation) {
+                      $.enqueueAnimation(
+                        el,
+                        animation,
+                        enterContentAnimationMap
+                      );
+                    }
                   }
                 }
               }
@@ -1230,18 +1289,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 opacity: "0",
               };
               const imageNames = e.assets.join(" ");
-              const images = $.getBackgroundImagesFromArguments(e.assets)
+              const images = e.assets
+                .map((a) => $.getBackgroundImageFromString(a))
                 .reverse()
                 .join(", ");
               style[contentProperty] = images;
               const prevSpanEls = [...contentElement.children];
-              const newSpanEl = $.createElement(contentElement, {
-                type: "span",
-                style,
-                attributes: {
-                  image: imageNames,
-                },
-              });
+              const newSpanEl = $.createImage(
+                contentElement,
+                e.assets,
+                contentProperty,
+                { attributes: { image: imageNames } }
+              );
               // 'show' is equivalent to calling 'hide' on all previous elements on the layer,
               // before calling 'show' on the new element
               if (e.control === "show") {
@@ -1251,58 +1310,65 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                     name: hideWith,
                     after: hideAfter,
                     over: hideOver,
+                    ease: hideEase,
                   };
-                  if (!exitContentAnimationMap.has(prevSpanEl)) {
-                    exitContentAnimationMap.set(prevSpanEl, []);
-                  }
-                  $.queueAnimationEvent(
+                  const animation = $.getAnimationDefinition(
                     hideEvent,
-                    instant,
-                    exitContentAnimationMap.get(prevSpanEl)!
+                    instant
                   );
+                  if (animation) {
+                    $.enqueueAnimation(
+                      prevSpanEl,
+                      animation,
+                      exitContentAnimationMap
+                    );
+                  }
                 }
                 // Show new elements
                 const showEvent = {
                   name: showWith,
                   after: showAfter,
                   over: showOver,
+                  ease: showEase,
                 };
-                if (!enterContentAnimationMap.has(newSpanEl)) {
-                  enterContentAnimationMap.set(newSpanEl, []);
+                const animation = $.getAnimationDefinition(showEvent, instant);
+                if (animation) {
+                  $.enqueueAnimation(
+                    newSpanEl,
+                    animation,
+                    enterContentAnimationMap
+                  );
                 }
-                $.queueAnimationEvent(
-                  showEvent,
-                  instant,
-                  enterContentAnimationMap.get(newSpanEl)!
-                );
               } else if (e.control === "hide") {
                 const hideEvent = {
                   name: hideWith,
                   after: hideAfter,
                   over: hideOver,
+                  ease: hideEase,
                 };
-                if (!exitContentAnimationMap.has(newSpanEl)) {
-                  exitContentAnimationMap.set(newSpanEl, []);
+                const animation = $.getAnimationDefinition(hideEvent, instant);
+                if (animation) {
+                  $.enqueueAnimation(
+                    newSpanEl,
+                    animation,
+                    exitContentAnimationMap
+                  );
                 }
-                $.queueAnimationEvent(
-                  hideEvent,
-                  instant,
-                  exitContentAnimationMap.get(newSpanEl)!
-                );
               } else if (e.control === "animate") {
                 const showEvent = {
                   name: showWith,
                   after: showAfter,
                   over: showOver,
+                  ease: showEase,
                 };
-                if (!enterContentAnimationMap.has(newSpanEl)) {
-                  enterContentAnimationMap.set(newSpanEl, []);
+                const animation = $.getAnimationDefinition(showEvent, instant);
+                if (animation) {
+                  $.enqueueAnimation(
+                    newSpanEl,
+                    animation,
+                    enterContentAnimationMap
+                  );
                 }
-                $.queueAnimationEvent(
-                  showEvent,
-                  instant,
-                  enterContentAnimationMap.get(newSpanEl)!
-                );
               }
             }
           } else {
@@ -1312,44 +1378,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 name: hideWith,
                 after: hideAfter,
                 over: hideOver,
+                ease: hideEase,
               };
-              if (!targetAnimationMap.has(targetEl)) {
-                targetAnimationMap.set(targetEl, []);
+              const animation = $.getAnimationDefinition(hideEvent, instant);
+              if (animation) {
+                $.enqueueAnimation(targetEl, animation, targetAnimationMap);
               }
-              $.queueAnimationEvent(
-                hideEvent,
-                instant,
-                targetAnimationMap.get(targetEl)!
-              );
             } else if (e.control === "show") {
               const showEvent = {
                 name: showWith,
                 after: showAfter,
                 over: showOver,
+                ease: showEase,
               };
-              if (!targetAnimationMap.has(targetEl)) {
-                targetAnimationMap.set(targetEl, []);
+              const animation = $.getAnimationDefinition(showEvent, instant);
+              if (animation) {
+                $.enqueueAnimation(targetEl, animation, targetAnimationMap);
               }
-              $.queueAnimationEvent(
-                showEvent,
-                instant,
-                targetAnimationMap.get(targetEl)!
-              );
             } else if (e.control === "animate") {
               if (e.with) {
                 const animateEvent = {
                   name: e.with,
                   after: e.after,
                   over: e.over,
+                  ease: e.ease,
                 };
-                if (!targetAnimationMap.has(targetEl)) {
-                  targetAnimationMap.set(targetEl, []);
-                }
-                $.queueAnimationEvent(
+                const animation = $.getAnimationDefinition(
                   animateEvent,
-                  instant,
-                  targetAnimationMap.get(targetEl)!
+                  instant
                 );
+                if (animation) {
+                  $.enqueueAnimation(targetEl, animation, targetAnimationMap);
+                }
               }
             }
           }

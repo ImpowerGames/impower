@@ -9,6 +9,7 @@ export interface Chunk {
     over?: number;
     to?: number;
     with?: string;
+    ease?: string;
     wait?: boolean;
     loop?: boolean;
     once?: boolean;

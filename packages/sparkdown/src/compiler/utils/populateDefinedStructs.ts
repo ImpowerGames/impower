@@ -60,14 +60,14 @@ export function populateDefinedStructs(
             contextPropertyRegistry[type][name] ??= {};
             contextPropertyRegistry[type][name][propPath] = clonedValue;
             if (type === "layout") {
-              // Support fuzzy matches for layout
-              const fuzzyType = type + ".";
               const layers = propPath.split(".");
               for (const layer of layers) {
                 const classNames = layer.split(" ");
                 for (const className of classNames) {
-                  contextPropertyRegistry[fuzzyType] ??= {};
-                  contextPropertyRegistry[fuzzyType][className] ??= {};
+                  context["layer"] ??= {};
+                  context["layer"][className] ??= {};
+                  contextPropertyRegistry["layer"] ??= {};
+                  contextPropertyRegistry["layer"][className] ??= {};
                 }
               }
             }

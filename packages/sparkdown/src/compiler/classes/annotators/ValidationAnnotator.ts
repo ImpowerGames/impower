@@ -319,6 +319,23 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           return annotations;
         }
       }
+      if (text === "ease") {
+        const context = getContextNames(nodeRef.node);
+        if (
+          context.includes("ImageCommand") &&
+          nextValueNodeType !== "ConditionalBracedBlock" &&
+          nextValueNodeType !== "NameValue"
+        ) {
+          const message = `'${text}' should be followed by the name of an ease (e.g. 'ease linear')`;
+          annotations.push(
+            SparkdownAnnotation.mark<Diagnostic>({
+              message,
+              severity: "error",
+            }).range(nodeRef.to, nodeRef.to)
+          );
+          return annotations;
+        }
+      }
       if (text === "to") {
         if (
           (nextValueNodeType !== "ConditionalBracedBlock" &&

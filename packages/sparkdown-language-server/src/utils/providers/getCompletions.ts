@@ -309,7 +309,7 @@ const addStructReferenceCompletions = (
     for (const type of types) {
       const structs = program?.context?.[type];
       if (structs) {
-        for (const name of Object.keys(structs).sort()) {
+        for (const name of Object.keys(structs)) {
           if (
             !name.startsWith("$") &&
             (!exclude ||
@@ -374,7 +374,7 @@ const addLayoutElementReferenceCompletions = (
                   label: firstClassName,
                   insertText:
                     insertTextPrefix + firstClassName + insertTextSuffix,
-                  labelDetails: { description: "element" },
+                  labelDetails: { description: "layer" },
                   kind: CompletionItemKind.Constructor,
                 };
                 if (completion.label && !completions.has(completion.label)) {
@@ -993,7 +993,7 @@ export const getCompletions = (
 
   const read = (from: number, to: number) => document.read(from, to);
 
-  const getNodeText = (node: SyntaxNode | undefined) =>
+  const getNodeText = (node: SyntaxNode | undefined | null) =>
     node ? read(node.from, node.to) : "";
 
   const getCursorOffset = (node: SyntaxNode | undefined) =>
@@ -1263,7 +1263,8 @@ export const getCompletions = (
       (isWhitespaceNode(leftStack[0]?.name) &&
         prevNode?.name === "AssetCommandClauseKeyword" &&
         prevText === "with") ||
-      leftStack[0]?.name === "NameValue"
+      (leftStack[0]?.name === "NameValue" &&
+        getNodeText(leftStack[0].node.prevSibling?.prevSibling) === "with")
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const controlNode = getDescendentInsideParent(
@@ -1279,6 +1280,18 @@ export const getCompletions = (
             ? ["transition"]
             : ["transition", "animation"];
         addStructReferenceCompletions(completions, program, types);
+      }
+      return buildCompletions();
+    }
+    if (
+      (isWhitespaceNode(leftStack[0]?.name) &&
+        prevNode?.name === "AssetCommandClauseKeyword" &&
+        prevText === "ease") ||
+      (leftStack[0]?.name === "NameValue" &&
+        getNodeText(leftStack[0].node.prevSibling?.prevSibling) === "ease")
+    ) {
+      if (isCursorAfterNodeText(leftStack[0])) {
+        addStructReferenceCompletions(completions, program, ["ease"]);
       }
       return buildCompletions();
     }

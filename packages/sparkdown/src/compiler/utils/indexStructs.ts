@@ -14,14 +14,12 @@ export function indexStructs(
           propertyRegistry[type][name] ??= {};
           propertyRegistry[type][name][propPath] = propValue;
           if (type === "layout") {
-            // Support fuzzy matches for layout
-            const fuzzyType = type + ".";
             const layers = propPath.split(".");
             for (const layer of layers) {
               const classNames = layer.split(" ");
               for (const className of classNames) {
-                propertyRegistry[fuzzyType] ??= {};
-                propertyRegistry[fuzzyType][className] ??= {};
+                propertyRegistry["layer"] ??= {};
+                propertyRegistry["layer"][className] ??= {};
               }
             }
           }

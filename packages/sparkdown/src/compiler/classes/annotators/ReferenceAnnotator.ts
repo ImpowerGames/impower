@@ -299,12 +299,15 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           declaration: "property",
           symbolIds: [
             this.defineType + "." + this.defineName + "." + propertyPath,
+            ...(this.defineType === "layout"
+              ? name.split(" ").map((n) => `layer.${n}`)
+              : []),
           ],
           interdependentIds:
             this.defineType === "style"
-              ? [`layout..${name}`]
+              ? name.split(" ").map((n) => `layer.${n}`)
               : this.defineType === "layout"
-              ? [`style.${name}`]
+              ? name.split(" ").map((n) => `style.${n}`)
               : [],
           kind: "write",
         }).range(nodeRef.from, nodeRef.to)
@@ -441,10 +444,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const context = getContextNames(nodeRef.node);
       // Record image target reference
       if (context.includes("ImageCommand")) {
-        const types: string[] = ["layout."]; // end type with dot for recursive prop search
+        const types: string[] = ["layer"];
         const name = this.read(nodeRef.from, nodeRef.to);
         const displayType = `layer`;
-        const fuzzy = true;
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
             selectors: [
@@ -452,7 +454,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
                 types,
                 name,
                 displayType,
-                fuzzy,
               },
             ],
             symbolIds: types.map((type) => `${type}.${name}`),
@@ -549,18 +550,37 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "NameValue") {
       const context = getContextNames(nodeRef.node);
       if (context.includes("ImageCommand")) {
-        const types = ["transition", "animation"];
+        const clauseKeywordNode = nodeRef.node.prevSibling?.prevSibling;
+        const clauseKeyword = clauseKeywordNode
+          ? this.read(clauseKeywordNode.from, clauseKeywordNode.to)
+          : undefined;
         const name = this.read(nodeRef.from, nodeRef.to);
-        const displayType = `transition or animation`;
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            selectors: [{ types, name, displayType }],
-            symbolIds: types.map((type) => `${type}.${name}`),
-            kind: "read",
-            linkable: true,
-          }).range(nodeRef.from, nodeRef.to)
-        );
-        return annotations;
+        if (clauseKeyword === "with") {
+          const types = ["transition", "animation"];
+          const displayType = `transition or animation`;
+          annotations.push(
+            SparkdownAnnotation.mark<Reference>({
+              selectors: [{ types, name, displayType }],
+              symbolIds: types.map((type) => `${type}.${name}`),
+              kind: "read",
+              linkable: true,
+            }).range(nodeRef.from, nodeRef.to)
+          );
+          return annotations;
+        }
+        if (clauseKeyword === "ease") {
+          const types = ["ease"];
+          const displayType = `ease`;
+          annotations.push(
+            SparkdownAnnotation.mark<Reference>({
+              selectors: [{ types, name, displayType }],
+              symbolIds: types.map((type) => `${type}.${name}`),
+              kind: "read",
+              linkable: true,
+            }).range(nodeRef.from, nodeRef.to)
+          );
+          return annotations;
+        }
       }
       if (context.includes("AudioCommand")) {
         const types = ["modulation"];

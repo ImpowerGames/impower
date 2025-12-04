@@ -2,6 +2,7 @@ export interface IInstruction {
   control?: string;
   after?: number;
   over?: number;
+  ease?: string;
   wait?: boolean;
 }
 

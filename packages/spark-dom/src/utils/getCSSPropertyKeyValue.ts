@@ -1,4 +1,4 @@
-import { getImageVarName } from "../../../spark-engine/src/game/modules/ui/utils/getImageVarName";
+import { getVarName } from "../../../spark-engine/src/game/modules/ui/utils/getVarName";
 import { getCSSPropertyName } from "./getCSSPropertyName";
 
 const createTextShadow = (r: number, color = "black", unit = "px"): string => {
@@ -35,7 +35,15 @@ export const getCSSPropertyKeyValue = (
     return [name, String(value)];
   }
   const cssProp = getCSSPropertyName(name);
-  const cssValue = value;
+  const cssValue =
+    typeof value === "object" &&
+    value &&
+    "$type" in value &&
+    typeof value.$type === "string" &&
+    "$name" in value &&
+    typeof value.$name === "string"
+      ? `var(${getVarName(value.$type, value.$name)})`
+      : value;
   if (cssValue == null || cssValue === "") {
     return [cssProp, ""];
   }
@@ -71,32 +79,6 @@ export const getCSSPropertyKeyValue = (
     const src = cssValue.trim();
     const urlValue = src.includes("(") ? src : `url('${encodeURI(src)}')`;
     return [cssProp, urlValue];
-  }
-  if (
-    cssProp === "background-image" &&
-    typeof cssValue === "object" &&
-    "$name" in cssValue &&
-    typeof cssValue.$name === "string"
-  ) {
-    const varValue = `var(${getImageVarName(cssValue.$name)})`;
-    return [cssProp, varValue];
-  }
-  if (
-    cssProp === "font-family" &&
-    typeof cssValue === "object" &&
-    "$name" in cssValue &&
-    typeof cssValue.$name === "string"
-  ) {
-    return [cssProp, cssValue.$name];
-  }
-  if (
-    cssProp === "font-family" &&
-    typeof cssValue === "object" &&
-    "$name" in cssValue &&
-    typeof cssValue.$name === "string"
-  ) {
-    const name = cssValue.$name;
-    return [cssProp, name];
   }
   if (cssProp === "text-stroke") {
     if (cssValue === "none" || cssValue === "0" || cssValue === 0) {

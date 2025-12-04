@@ -46,7 +46,7 @@ export class InterpreterModule extends Module<
     "write",
   ];
 
-  ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with"];
+  ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease"];
 
   ASSET_FLAG_ARG_KEYWORDS = ["wait", "loop", "once", "mute", "unmute", "now"];
 
@@ -560,6 +560,9 @@ export class InterpreterModule extends Module<
             clauses[arg] = getNumberValue(value);
           }
           if (arg === "with") {
+            clauses[arg] = value;
+          }
+          if (arg === "ease") {
             clauses[arg] = value;
           }
         } else {
@@ -1275,16 +1278,20 @@ export class InterpreterModule extends Module<
             }
             if (c.clauses) {
               const withValue = c.clauses?.with;
-              if (withValue) {
+              if (withValue != null) {
                 event.with = withValue;
               }
               const afterValue = c.clauses?.after;
-              if (afterValue) {
+              if (afterValue != null) {
                 event.after = (event.after ?? 0) + afterValue;
               }
               const overValue = c.clauses?.over;
-              if (overValue) {
+              if (overValue != null) {
                 event.over = overValue;
+              }
+              const easeValue = c.clauses?.ease;
+              if (easeValue != null) {
+                event.ease = easeValue;
               }
             }
             result.image ??= {};

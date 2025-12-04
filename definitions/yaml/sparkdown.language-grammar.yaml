@@ -27,7 +27,7 @@ variables:
   # End Of Keyword
   EOK: "(?:$|{{WS}}+|(?={{KEYWORD_TERMINATOR}}))"
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
-  IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait"]
+  IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease"]
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
     ["over", "after", "to", "loop", "once", "mute", "unmute", "now"]
