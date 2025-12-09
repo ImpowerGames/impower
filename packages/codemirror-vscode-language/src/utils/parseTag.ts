@@ -28,7 +28,12 @@ const PARSE_TAG_REGEX =
  * (grandparent/parent) func(tag)
  * ```
  */
-export const parseTag = (node: string, str: string) => {
+export const parseTag = (
+  node: string,
+  str: string
+): {
+  [selector: string]: Tag | readonly Tag[];
+} => {
   const [, modifier, func, arg, last] = PARSE_TAG_REGEX.exec(str)!;
 
   if (last && !(last in tags)) {
@@ -78,6 +83,10 @@ export const parseTag = (node: string, str: string) => {
 
   // e.g. foo/... or foo/bar/... etc.
   const style = `${prefix}${node}${suffix}`;
+
+  if (!tag.set) {
+    throw new Error(`Invalid tag: ${str}`);
+  }
 
   return { [style]: tag };
 };

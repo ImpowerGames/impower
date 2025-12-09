@@ -2218,7 +2218,7 @@
       }
     },
     "AttributeFunctionName": {
-      "tag": "function",
+      "tag": "function(variableName)",
       "name": "entity.name.function.attribute.name.view.sd",
       "match": "(@[\\w-]+)"
     },
