@@ -46,6 +46,28 @@ export const uiBuiltinDefinitions = () => ({
       color: "white",
       "@screen(sm)": { font_size: "1.125rem" },
     }),
+    row: default_style({
+      $name: "row",
+      display: "flex",
+      flex_direction: "row",
+    }),
+    column: default_style({
+      $name: "column",
+      display: "flex",
+      flex_direction: "column",
+    }),
+    stack: default_style({
+      $name: "stack",
+      "> *": {
+        position: "absolute",
+        inset: "0",
+      },
+    }),
+    overlay: default_style({
+      $name: "overlay",
+      position: "absolute",
+      inset: "0",
+    }),
     text: default_style({
       $name: "text",
       display: "block",

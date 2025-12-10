@@ -35,87 +35,71 @@ const SRC: Record<string, BuiltinDefinition> = {
     begin: `<div class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</div>`,
   },
-  Area: {
+  box: {
     begin: `<div class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</div>`,
   },
-  Span: {
+  span: {
     begin: `<span class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</span>`,
   },
-  Box: {
+  scroller: {
     begin: `<div class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</div>`,
   },
-  Row: {
+  text: {
     begin: `<div class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</div>`,
   },
-  Column: {
+  stroke: {
     begin: `<div class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</div>`,
   },
-  Grid: {
-    begin: `<div class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div>`,
-  },
-  ScrollArea: {
-    begin: `<div class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div>`,
-  },
-  Text: {
-    begin: `<div class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div>`,
-  },
-  Link: {
+  link: {
     begin: `<a class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</a>`,
   },
-  Button: {
+  button: {
     begin: `<button class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</button>`,
   },
-  Image: {
+  image: {
     begin: `<img class="style ${CLASSES_PLACEHOLDER}" src="${CONTENT_ATTR_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}/>`,
     end: "",
   },
-  Label: {
+  mask: {
+    begin: `<img class="style ${CLASSES_PLACEHOLDER}" src="${CONTENT_ATTR_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}/>`,
+    end: "",
+  },
+  label: {
     begin: `<label class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</label>`,
   },
-  Field: {
+  field: {
     begin: `<input class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</input>`,
   },
-  Input: {
-    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style InputLabel">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div><input class="style InputField" type="text" ${ATTRS_PLACEHOLDER}/></label>`,
+  input: {
+    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style input_label">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</div><input class="style input_field" type="text" ${ATTRS_PLACEHOLDER}/></label>`,
   },
-  InputArea: {
-    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style InputAreaLabel">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div><textarea class="style InputAreaField" ${ATTRS_PLACEHOLDER}/></label>`,
+  slider: {
+    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style slider_label">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</div><input class="style slider_field" type="range" ${ATTRS_PLACEHOLDER} oninput="this.style.setProperty('---fill-percentage', (this.value-this.min)/(this.max-this.min)*100 + '%')"/></label>`,
   },
-  Slider: {
-    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style SliderLabel">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div><input class="style SliderField" type="range" ${ATTRS_PLACEHOLDER} oninput="this.style.setProperty('---fill-percentage', (this.value-this.min)/(this.max-this.min)*100 + '%')"/></label>`,
+  checkbox: {
+    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style checkbox_label">${CONTENT_CHILDREN_PLACEHOLDER}`,
+    end: `</div><input class="style checkbox_field" type="checkbox" ${ATTRS_PLACEHOLDER}/></label>`,
   },
-  Checkbox: {
-    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style CheckboxLabel">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div><input class="style CheckboxField" type="checkbox" ${ATTRS_PLACEHOLDER}/></label>`,
-  },
-  Dropdown: {
-    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style DropdownLabel">${CONTENT_CHILDREN_PLACEHOLDER}</div><div class="style DropdownArrow"><select class="style DropdownField" ${ATTRS_PLACEHOLDER}>`,
+  dropdown: {
+    begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style dropdown_label">${CONTENT_CHILDREN_PLACEHOLDER}</div><div class="style dropdown_arrow"><select class="style dropdown_field" ${ATTRS_PLACEHOLDER}>`,
     end: `</select></div></label>`,
   },
-  Option: {
+  option: {
     begin: `<option class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
     end: `</option>`,
   },
-  Space: {
-    begin: `<div class="style ${CLASSES_PLACEHOLDER}" ${ATTRS_PLACEHOLDER}>${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div>`,
-  },
-  Divider: { begin: `<hr>`, end: "" },
+  divider: { begin: `<hr>`, end: "" },
 };
 
 /* ---------- one-time compilation -------------------------------- */

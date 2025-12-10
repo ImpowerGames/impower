@@ -57,17 +57,17 @@
   transition-duration: var(---theme-transition-fast);
 }
 
-.Button:hover,
-.DropdownField:hover,
-.CheckboxField:hover,
-.SliderField:hover {
+.button:hover,
+.dropdown_field:hover,
+.checkbox_field:hover,
+.slider_field:hover {
   background-color: var(---theme-color-background-hover);
 }
 
-.Button:active,
-.DropdownField:active,
-.CheckboxField:active,
-.SliderField:active {
+.button:active,
+.dropdown_field:active,
+.checkbox_field:active,
+.slider_field:active {
   background-color: var(---theme-color-background-active);
 }
 
@@ -85,35 +85,48 @@ style {
   display: none;
 }
 
-.Box {
+.box {
   background: var(---theme-color-surface);
   padding: var(---theme-spacing-md);
   border-radius: var(---theme-radius-lg);
   gap: var(---theme-spacing-md);
 }
 
-.Row {
+.background {
+  background: var(---theme-color-bg-50);
+  position: absolute;
+  inset: 0;
+}
+
+.stack {
+  > * {
+    position: absolute;
+    inset: 0;
+  }
+}
+
+.row {
   flex-direction: row;
   gap: var(---theme-spacing-sm);
 }
 
-.Column {
+.column {
   flex-direction: column;
   gap: var(---theme-spacing-sm);
 }
 
-.Grid {
+.grid {
   display: grid;
   grid-template-columns: var(---columns, 1fr 1fr 1fr);
   gap: var(---theme-spacing-sm);
 }
-.Grid * {
+.grid * {
   min-width: 0;
   max-width: 100%;
   flex-shrink: 1;
 }
 
-.ScrollArea {
+.scroller {
   flex-direction: column;
   gap: var(---theme-spacing-sm);
   max-width: 100%;
@@ -125,39 +138,39 @@ style {
     var(---theme-color-scrollbar-track);
   scrollbar-width: var(---theme-scrollbar-thickness);
 }
-.ScrollArea * {
+.scroller * {
   min-width: 0;
   flex-shrink: 0;
 }
-.ScrollArea[scroll="vertical"] {
+.scroller[scroll="vertical"] {
   overflow-x: hidden;
   overflow-y: scroll;
 }
-.ScrollArea[scroll="horizontal"] {
+.scroller[scroll="horizontal"] {
   overflow-x: scroll;
   overflow-y: hidden;
 }
-.ScrollArea[scroll="both"] {
+.scroller[scroll="both"] {
   overflow-x: scroll;
   overflow-y: scroll;
 }
 
-.Divider {
+.divider {
   background-color: var(---theme-divider-background-color);
   border-radius: var(---theme-radius-lg);
 }
 
-.Text {
+.text {
   color: inherit;
   text-align: left;
 }
 
-.Span {
+.span {
   text-align: left;
   white-space: pre-wrap;
 }
 
-.Image {
+.image {
   display: block;
   max-width: 100%;
   height: auto;
@@ -165,7 +178,7 @@ style {
   border-radius: var(---theme-radius-sm);
 }
 
-.Button {
+.button {
   padding: 8px 20px;
   border-radius: var(---theme-radius-lg);
   color: var(---theme-button-text-color);
@@ -178,7 +191,7 @@ style {
   background-color: var(---theme-button-background-color);
 }
 
-.Label {
+.label {
   display: flex;
   flex-direction: column;
   gap: var(---theme-spacing-2xs);
@@ -186,7 +199,7 @@ style {
   position: relative;
 }
 
-.InputField {
+.input_field {
   padding: var(---theme-padding-input);
   border-radius: var(---theme-radius-md);
   color: var(---theme-input-text-color);
@@ -195,28 +208,11 @@ style {
   border-color: var(---theme-input-border-color);
   background-color: var(---theme-input-background-color);
 }
-.InputField::placeholder {
+.input_field::placeholder {
   color: var(---theme-input-text-placeholder-color);
 }
 
-.InputAreaField {
-  width: 100%;
-  min-height: 100px;
-  padding: var(---theme-padding-input);
-  font-family: inherit;
-  border-radius: var(---theme-radius-lg);
-  resize: vertical;
-  outline: none;
-  resize: none; /* don't allow resizing */
-  overflow: auto;
-  transition: border-color 0.2s, background-color 0.2s;
-  border-width: 1px;
-  border-style: solid;
-  border-color: var(---theme-input-border-color);
-  background-color: var(---theme-input-background-color);
-}
-
-.SliderField {
+.slider_field {
   appearance: none;
   height: 6px;
   border-radius: 3px;
@@ -228,7 +224,7 @@ style {
     var(---track-color) var(---fill-percentage)
   );
 }
-.SliderField::-webkit-slider-thumb {
+.slider_field::-webkit-slider-thumb {
   appearance: none;
   border-radius: 50%;
   cursor: pointer;
@@ -240,7 +236,7 @@ style {
   border-style: solid;
   border-color: var(---thumb-border-color);
 }
-.SliderField::-moz-range-thumb {
+.slider_field::-moz-range-thumb {
   border-radius: 50%;
   cursor: pointer;
   width: var(---thumb-size);
@@ -250,17 +246,17 @@ style {
   border-style: solid;
   border: var(---thumb-border-color);
 }
-.SliderField::-moz-range-progress {
+.slider_field::-moz-range-progress {
   background: var(---fill-color);
 }
 
-.Checkbox {
+.checkbox {
   flex-direction: row;
   gap: var(---theme-spacing-xs);
   align-items: center;
   justify-content: space-between;
 }
-.CheckboxField {
+.checkbox_field {
   width: var(---theme-size-checkbox);
   height: var(---theme-size-checkbox);
   min-width: var(---theme-size-checkbox);
@@ -275,11 +271,11 @@ style {
   border-color: var(---theme-checkbox-border-color);
   background-color: var(---theme-checkbox-background-color);
 }
-.CheckboxField:checked {
+.checkbox_field:checked {
   border-color: var(---theme-color-border-checked);
   background: var(---theme-color-background-checked);
 }
-.CheckboxField:checked::after {
+.checkbox_field:checked::after {
   content: "";
   position: absolute;
   top: var(---theme-spacing-3xs);
@@ -291,7 +287,7 @@ style {
   transform: rotate(45deg);
 }
 
-.DropdownField {
+.dropdown_field {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -307,7 +303,7 @@ style {
   border-color: var(---theme-dropdown-border-color);
   background-color: var(---theme-dropdown-background-color);
 }
-.DropdownArrow::after {
+.dropdown_arrow::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -327,60 +323,57 @@ style {
   pointer-events: none;
 }
 
-.Option {
+.option {
   background: var(---theme-option-background-color);
   color: var(---theme-option-text-color);
   padding: 4px 10px;
 }
-.Option[selected] {
+.option[selected] {
   background: var(---theme-color-background-selected);
   font-weight: bold;
 }
 
-.InputField:hover,
-.InputAreaField:hover,
-.Button:hover,
-.DropdownField:hover,
-.CheckboxField:hover,
-.SliderField:hover {
+.input_field:hover,
+.button:hover,
+.dropdown_field:hover,
+.checkbox_field:hover,
+.slider_field:hover {
   border-color: var(---theme-color-border-hover);
 }
-.SliderField:hover::-webkit-slider-thumb {
+.slider_field:hover::-webkit-slider-thumb {
   border-color: var(---theme-color-border-hover);
 }
-.SliderField:hover::-moz-range-thumb {
+.slider_field:hover::-moz-range-thumb {
   border-color: var(---theme-color-border-hover);
 }
 
-.InputField:active,
-.InputAreaField:active,
-.Button:active,
-.DropdownField:active,
-.CheckboxField:active,
-.SliderField:active {
+.input_field:active,
+.button:active,
+.dropdown_field:active,
+.checkbox_field:active,
+.slider_field:active {
   border-color: var(---theme-color-border-active);
 }
-.SliderField:active::-webkit-slider-thumb {
+.slider_field:active::-webkit-slider-thumb {
   border-color: var(---theme-color-border-active);
 }
-.SliderField:active::-moz-range-thumb {
+.slider_field:active::-moz-range-thumb {
   border-color: var(---theme-color-border-active);
 }
 
-.InputField:focus-visible,
-.InputAreaField:focus-visible,
-.Button:focus-visible,
-.DropdownField:focus-visible,
-.CheckboxField:focus-visible,
-.SliderField:focus-visible {
+.input_field:focus-visible,
+.button:focus-visible,
+.dropdown_field:focus-visible,
+.checkbox_field:focus-visible,
+.slider_field:focus-visible {
   outline: none;
   box-shadow: 0 0 0 var(---theme-focus-ring-width)
     var(---theme-focus-ring-color);
   border-color: var(---theme-color-border-focus);
 }
-.SliderField:focus-visible::-webkit-slider-thumb {
+.slider_field:focus-visible::-webkit-slider-thumb {
   border-color: var(---theme-color-border-focus);
 }
-.SliderField:focus-visible::-moz-range-thumb {
+.slider_field:focus-visible::-moz-range-thumb {
   border-color: var(---theme-color-border-focus);
 }

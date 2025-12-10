@@ -263,6 +263,8 @@ export function renderVNode(
       );
     } else if (builtin) {
       return renderBuiltinVNode(el, ctx, builtin.vnode);
+    } else {
+      return renderBuiltinVNode(el, ctx, builtins.get("")!.vnode);
     }
   }
 

@@ -1096,9 +1096,14 @@ repository:
           - { include: "#ExtraWhitespace" }
 
   ViewComponentProperty:
+    patterns:
+      - { include: "#ViewComponentPropertyWithIdentifier" }
+      - { include: "#ViewComponentPropertyWithoutIdentifier" }
+
+  ViewComponentPropertyWithIdentifier:
     tag: meta
     name: meta.definition.view.property.scalar.sd
-    match: ^({{WS}}*)({{CSS_IDENTIFIER}})((?:[.]{{CSS_IDENTIFIER}})*)([(].*[)])?($|{{WS}}*)(.*?)($|{{WS}}*)($|[:])($|{{WS}}*$)
+    match: ^({{WS}}*)({{CSS_IDENTIFIER}}(?:[.]{{CSS_IDENTIFIER}})*(?![=]|{{CSS_IDENTIFIER}}))([(].*[)])?($|{{WS}}*)(.*?)($|{{WS}}*)($|[:])($|{{WS}}*$)
     captures:
       1:
         patterns:
@@ -1106,25 +1111,44 @@ repository:
       2:
         patterns:
           - { include: "#ComponentName" }
+          - { include: "#PunctuationAccessor" }
       3:
         patterns:
-          - { include: "#ClassAccessor" }
+          - { include: "#FunctionCallParameters" }
       4:
         patterns:
-          - { include: "#FunctionCallParameters" }
+          - { include: "#Separator" }
       5:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#ViewDeclarationAttribute" }
       6:
         patterns:
-          - { include: "#ViewDeclarationAttribute" }
+          - { include: "#ExtraWhitespace" }
       7:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#ColonOperator" }
       8:
         patterns:
+          - { include: "#ExtraWhitespace" }
+
+  ViewComponentPropertyWithoutIdentifier:
+    tag: meta
+    name: meta.definition.view.property.scalar.sd
+    match: ^({{WS}}*)(?=\S)(.+?)($|{{WS}}*)($|[:])($|{{WS}}*$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ViewDeclarationAttribute" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
           - { include: "#ColonOperator" }
-      9:
+      5:
         patterns:
           - { include: "#ExtraWhitespace" }
 
@@ -1221,23 +1245,29 @@ repository:
   ClassName:
     tag: className
     name: entity.name.type.class.view.sd
-    match: "{{CSS_IDENTIFIER}}"
+    match: ({{CSS_IDENTIFIER}})
 
   ComponentName:
     emit: true
     patterns:
-      - { include: "#BuiltinComponentName" }
+      - { include: "#BuiltinLayoutComponentName" }
+      - { include: "#BuiltinDisplayComponentName" }
       - { include: "#CustomComponentName" }
 
-  BuiltinComponentName:
+  BuiltinLayoutComponentName:
     tag: definitionKeyword
     name: keyword.other.component.builtin.name.sd
-    match: \b(Area|Span|Box|Row|Column|Grid|ScrollArea|Text|Link|Label|Field|Button|Image|Input|TextArea|Slider|Checkbox|Dropdown|Option|Space|Divider)\b
+    match: \b(row|column|stack)\b
+
+  BuiltinDisplayComponentName:
+    tag: definitionKeyword
+    name: keyword.other.component.builtin.name.sd
+    match: \b(box|span|scroller|text|stroke|link|label|field|button|image|mask|input|slider|checkbox|dropdown|option|divider)\b
 
   CustomComponentName:
-    tag: operatorKeyword
-    name: keyword.other.component.custom.name.sd
-    match: ([A-Z][\w]*)
+    tag: className
+    name: entity.name.type.class.view.sd
+    match: ({{CSS_IDENTIFIER}})
 
   ViewDeclarationControlKeyword:
     patterns:
