@@ -179,8 +179,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const el = this.createElement(parent, {
       name: "instance",
       type: "span",
-      style: { [property]: background },
       ...state,
+      style: { ...(state?.style || {}), [property]: background },
     });
     const src = imageAssets.flatMap((a) => this.getImageSrcsFromValue(a))[0];
     if (src) {
@@ -386,13 +386,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return undefined;
   }
 
-  getBackgroundImageFromString(value: string) {
-    if (value === "none") {
+  getBackgroundImageFromLiteral(value: string) {
+    if (value === "none" || value.includes("(")) {
       return value;
     }
+    return `linear-gradient(${value})`;
+  }
+
+  getBackgroundImageFromString(value: string) {
     if (value.at(0) === '"' && value.at(-1) === '"') {
       const literalStringValue = value.slice(1, -1);
-      return literalStringValue;
+      return this.getBackgroundImageFromLiteral(literalStringValue);
     }
     const srcs = this.getImageSrcsByName(value);
     if (srcs) {
@@ -401,7 +405,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         .reverse()
         .join(", ");
     }
-    return value;
+    return this.getBackgroundImageFromLiteral(value);
   }
 
   getBackgroundImageFromValue(value: unknown) {

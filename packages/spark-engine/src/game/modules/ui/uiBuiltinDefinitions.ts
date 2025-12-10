@@ -105,6 +105,7 @@ export const uiBuiltinDefinitions = () => ({
         background_repeat: "no-repeat",
         background_size: "auto 100%",
         will_change: "transform",
+        min_width: "100%",
         width: "fit-content",
         translate: "calc(0.5 * (100cqw - 100%)) 0",
       },
