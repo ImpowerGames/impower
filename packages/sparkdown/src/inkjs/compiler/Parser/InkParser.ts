@@ -3485,11 +3485,22 @@ export class InkParser extends StringParser {
   };
 
   public readonly IdentifierWithMetadata = (): Identifier | null => {
+    const stateAtStart = new StringParserElement();
+    stateAtStart.CopyFrom(this.state.currentElement);
+
     const id = this.Identifier();
+
+    const stateAtEnd = new StringParserElement();
+    stateAtEnd.CopyFrom(this.state.currentElement);
+
     if (id === null) {
       return null;
     }
-    return new Identifier(id);
+
+    const identifier = new Identifier(id);
+    identifier.debugMetadata = this.CreateDebugMetadata(stateAtStart, stateAtEnd);
+
+    return identifier;
   };
 
   // Note: we allow identifiers that start with a number,
@@ -3584,13 +3595,26 @@ export class InkParser extends StringParser {
     return name;
   };
 
+ 
   public readonly PropertyIdentifierWithMetadata = (): Identifier | null => {
-    const name = this.PropertyIdentifier();
-    if (name === null) {
+    const stateAtStart = new StringParserElement();
+    stateAtStart.CopyFrom(this.state.currentElement);
+
+    const id = this.PropertyIdentifier();
+
+    const stateAtEnd = new StringParserElement();
+    stateAtEnd.CopyFrom(this.state.currentElement);
+
+    if (id === null) {
       return null;
     }
-    return new Identifier(name);
+
+    const identifier = new Identifier(id);
+    identifier.debugMetadata = this.CreateDebugMetadata(stateAtStart, stateAtEnd);
+
+    return identifier;
   };
+
 
   /**
    * End Logic section.
