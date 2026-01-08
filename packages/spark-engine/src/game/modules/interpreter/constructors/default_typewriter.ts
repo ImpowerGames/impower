@@ -5,7 +5,12 @@ export const default_typewriter: Create<Typewriter> = (obj) => ({
   $type: "typewriter",
   $name: "$default",
   $link: {
+    image: {},
+    audio: {},
     synth: {},
+    character: {},
+    inflection: {},
+    prosody: {},
   },
   fade_duration: 0,
   animation_offset: 0.06,

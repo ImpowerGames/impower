@@ -1,4 +1,6 @@
 import { default_character } from "./constructors/default_character";
+import { default_inflection } from "./constructors/default_inflection";
+import { default_prosody } from "./constructors/default_prosody";
 import { default_typewriter } from "./constructors/default_typewriter";
 
 export const interpreterBuiltinDefinitions = () => ({
@@ -51,6 +53,12 @@ export const interpreterBuiltinDefinitions = () => ({
   character: {
     $default: default_character(),
   } as Record<string, ReturnType<typeof default_character>>,
+  prosody: {
+    $default: default_prosody(),
+  } as Record<string, ReturnType<typeof default_prosody>>,
+  inflection: {
+    $default: default_inflection(),
+  } as Record<string, ReturnType<typeof default_inflection>>,
 });
 
 export interface InterpreterBuiltins

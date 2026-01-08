@@ -1,1 +1,1 @@
-export interface Inflection extends Record<string, number[]> {}
+export interface Inflection extends Record<string, number[] | object> {}

@@ -1,6 +1,14 @@
 import { Prosody } from "../types/Prosody";
 
 export const default_prosody = (obj?: Partial<Prosody>): Prosody => ({
+  $link: {
+    image: {},
+    audio: {},
+    synth: {},
+    character: {},
+    typewriter: {},
+    inflection: {},
+  },
   /** Yes(~?) */
   lilt_question: /(?:^|\b)[~]+([!?]*[?][!?]*)[ "']*$/.toString(),
   /** Yes(~!) */

@@ -9,10 +9,12 @@ export const getStressMatch = (
     const entries = Object.entries(prosody);
     for (let i = 0; i < entries.length; i += 1) {
       const [k, v] = entries[i]!;
-      const matcher = new Matcher(v);
-      const match = matcher.match(phrase.trim().toLowerCase());
-      if (match) {
-        return [k, match[1]!];
+      if (!k.startsWith("$") && typeof v === "string") {
+        const matcher = new Matcher(v);
+        const match = matcher.match(phrase.trim().toLowerCase());
+        if (match) {
+          return [k, match[1]!];
+        }
       }
     }
   }

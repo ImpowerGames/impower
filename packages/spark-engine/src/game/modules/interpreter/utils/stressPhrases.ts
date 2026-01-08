@@ -1,6 +1,7 @@
-import { Character } from "../types/Character";
 import { Chunk } from "../types/Chunk";
+import { Inflection } from "../types/Inflection";
 import { Phrase } from "../types/Phrase";
+import { Prosody } from "../types/Prosody";
 import { getStressMatch } from "./getStressMatch";
 
 const getFormattingStress = (
@@ -30,7 +31,8 @@ const getFormattingStress = (
 
 export const stressPhrases = (
   phrases: Phrase[],
-  character: Character | undefined
+  characterProsody: Prosody | undefined,
+  characterInflection: Inflection | undefined
 ): void => {
   const stressLevelMultiplier = 0.5;
   const lineIncrement = 1;
@@ -42,11 +44,16 @@ export const stressPhrases = (
       if (chunks) {
         const [finalStressType, punctuation] = getStressMatch(
           phrase.text,
-          character?.prosody
+          characterProsody
         );
-        const inflection = character?.inflection?.[
-          finalStressType || "statement"
-        ] || [0];
+        const inflectionByStress =
+          characterInflection?.[finalStressType || "statement"];
+        const inflection =
+          inflectionByStress &&
+          typeof inflectionByStress === "object" &&
+          Array.isArray(inflectionByStress)
+            ? (inflectionByStress as number[])
+            : [0];
         const startLevel = inflection[0]!;
         const endLevel = inflection[inflection.length - 1]!;
         const inflectionSlope = endLevel - startLevel;

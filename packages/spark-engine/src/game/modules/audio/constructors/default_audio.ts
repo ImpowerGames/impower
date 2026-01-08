@@ -5,7 +5,12 @@ export const default_audio: Create<Audio> = (obj) => ({
   $type: "audio",
   $name: "$default",
   $link: {
+    image: {},
+    synth: {},
     character: {},
+    typewriter: {},
+    inflection: {},
+    prosody: {},
   },
   src: "",
   volume: 1,

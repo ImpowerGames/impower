@@ -1155,10 +1155,9 @@ export class InterpreterModule extends Module<
     }
 
     if (character && !this.context?.system?.simulating) {
-      stressPhrases(
-        allPhrases,
-        this.lookupContextValue("character", character)
-      );
+      const prosody = this.lookupContextValue("prosody", character);
+      const inflection = this.lookupContextValue("inflection", character);
+      stressPhrases(allPhrases, prosody, inflection);
     }
 
     let time = delay;

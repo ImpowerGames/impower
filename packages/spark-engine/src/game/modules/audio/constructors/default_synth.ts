@@ -6,8 +6,12 @@ export const default_synth: Create<Synth> = (obj) => ({
   $type: "synth",
   $name: "$default",
   $link: {
+    image: {},
+    audio: {},
     character: {},
     typewriter: {},
+    inflection: {},
+    prosody: {},
   },
   shape: "triangle",
   volume: 0.5,

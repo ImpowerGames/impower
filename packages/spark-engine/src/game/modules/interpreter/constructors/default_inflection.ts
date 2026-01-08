@@ -1,6 +1,14 @@
 import { Inflection } from "../types/Inflection";
 
 export const default_inflection = (obj?: Partial<Inflection>): Inflection => ({
+  $link: {
+    image: {},
+    audio: {},
+    synth: {},
+    character: {},
+    typewriter: {},
+    prosody: {},
+  },
   /**
    *  5         ┌──
    *  4       ┌─┘
