@@ -252,6 +252,14 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           symbolIds: [this.defineType],
           declaration: "define_type_name",
           kind: "write",
+          selectors: [
+            {
+              types: [this.defineType],
+              name: "$default",
+              displayType: "type",
+              displayName: this.defineType,
+            },
+          ],
         }).range(nodeRef.from, nodeRef.to)
       );
       return annotations;

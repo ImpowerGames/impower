@@ -519,6 +519,7 @@ export class SparkdownCompiler {
         content,
         context,
         contextPropertyRegistry,
+        defaultDefinitions,
         uuid,
       } = cur.value.type;
       const lineNumberOffset = document?.lineAt(cur.from) ?? 0;
@@ -663,6 +664,13 @@ export class SparkdownCompiler {
                 propertyValue;
             }
           }
+        }
+      }
+      if (defaultDefinitions) {
+        // Copy default definitions to state
+        for (const [type, struct] of Object.entries(defaultDefinitions)) {
+          state.defaultDefinitions ??= {};
+          state.defaultDefinitions[type] ??= struct;
         }
       }
       cur.next();
@@ -1124,6 +1132,7 @@ export class SparkdownCompiler {
     profile("start", this._profilerId, "buildContext", uri);
     this.populateAssets(state, program);
     this.populateImplicitDefs(state, program);
+    this.populateDefinedDefaultProperties(state, program);
     profile("end", this._profilerId, "buildContext", uri);
   }
 
@@ -1295,6 +1304,27 @@ export class SparkdownCompiler {
       }
     }
     profile("end", this._profilerId, "populateImplicitDefs", uri);
+  }
+
+  populateDefinedDefaultProperties(
+    state: SparkdownCompilerState,
+    program: SparkProgram
+  ) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "populateDefinedDefaultProperties", uri);
+    if (state.defaultDefinitions) {
+      for (const [defaultType, defaultStruct] of Object.entries(
+        state.defaultDefinitions
+      )) {
+        const structs = program.context?.[defaultType];
+        if (structs) {
+          for (const [name, struct] of Object.entries(structs)) {
+            structs[name] = { ...defaultStruct, ...struct };
+          }
+        }
+      }
+    }
+    profile("end", this._profilerId, "populateDefinedDefaultProperties", uri);
   }
 
   getPropertyPath(
@@ -1528,14 +1558,20 @@ export class SparkdownCompiler {
               // Report missing error
               const selector = reference.selectors?.[0];
               const validDescription =
-                selector && selector.name
+                selector && (selector.displayName || selector.name)
                   ? selector.displayType
-                    ? `${selector.displayType} named '${selector.name}'`
+                    ? `${selector.displayType} named '${
+                        selector.displayName || selector.name
+                      }'`
                     : selector.types && selector.types.length > 0
-                    ? `${selector.types[0]} named '${selector.name}'`
+                    ? `${selector.types[0]} named '${
+                        selector.displayName || selector.name
+                      }'`
                     : expectedSelectorTypes && expectedSelectorTypes.length > 0
-                    ? `${expectedSelectorTypes[0]} named '${selector.name}'`
-                    : `'${selector.name}'`
+                    ? `${expectedSelectorTypes[0]} named '${
+                        selector.displayName || selector.name
+                      }'`
+                    : `'${selector.displayName || selector.name}'`
                   : selector && selector.types
                   ? `type named '${selector.types[0]}'`
                   : `type`;

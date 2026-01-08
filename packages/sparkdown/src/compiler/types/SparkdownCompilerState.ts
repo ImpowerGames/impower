@@ -8,5 +8,6 @@ export interface SparkdownCompilerState {
       };
     };
   };
+  defaultDefinitions?: { [type: string]: any };
   story?: Story;
 }

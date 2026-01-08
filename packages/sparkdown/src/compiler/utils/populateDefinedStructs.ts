@@ -9,7 +9,7 @@ export function populateDefinedStructs(
   contextPropertyRegistry: {
     [type: string]: { [name: string]: { [propertyPath: string]: any } };
   },
-  structDefinitions: Record<string, any>,
+  structDefinitions: { [type: string]: { [name: string]: any } },
   builtinDefinitions: { [type: string]: { [name: string]: any } } | undefined
 ) {
   if (structDefinitions) {

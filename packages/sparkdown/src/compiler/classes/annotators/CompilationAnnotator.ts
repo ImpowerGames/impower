@@ -37,6 +37,7 @@ export interface CompiledBlock {
   contextPropertyRegistry?: {
     [type: string]: { [name: string]: { [propertyPath: string]: any } };
   };
+  defaultDefinitions?: { [type: string]: any };
   json?: string;
   uuid?: string;
 }
@@ -101,6 +102,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         const story = parser.ParseStory();
         const context = {};
         const contextPropertyRegistry = {};
+        let defaultDefinitions: { [type: string]: any } | undefined = undefined;
         try {
           const runtimeStory = story.ExportRuntime(NOOP);
           if (runtimeStory?.structDefinitions) {
@@ -110,6 +112,16 @@ export class CompilationAnnotator extends SparkdownAnnotator<
               runtimeStory?.structDefinitions,
               this.config?.definitions?.builtins
             );
+            for (const [type, structs] of Object.entries(
+              runtimeStory.structDefinitions
+            )) {
+              for (const [name, struct] of Object.entries(structs)) {
+                if (name === "$default") {
+                  defaultDefinitions ??= {};
+                  defaultDefinitions[type] ??= struct;
+                }
+              }
+            }
           }
         } catch (e) {
           console.error(e);
@@ -120,6 +132,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
             content: story.content,
             context,
             contextPropertyRegistry,
+            defaultDefinitions,
           }).range(nodeRef.from, nodeRef.to)
         );
       } else {
