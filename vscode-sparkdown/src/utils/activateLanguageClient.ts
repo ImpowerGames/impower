@@ -24,6 +24,22 @@ import { getWorkspaceFiles } from "./getWorkspaceFiles";
 import { getWorkspaceFileWatchers } from "./getWorkspaceFileWatchers";
 import { updateCommands } from "./updateCommands";
 
+const getFileText = async (uri: string) => {
+  const buffer = await vscode.workspace.fs.readFile(vscode.Uri.parse(uri));
+  const text = new TextDecoder("utf-8").decode(buffer);
+  return text;
+};
+
+const getFileSrc = (uri: string) => {
+  if (SparkdownPreviewGamePanelManager.instance.panel?.webview) {
+    return SparkdownPreviewGamePanelManager.instance.panel.webview
+      .asWebviewUri(vscode.Uri.parse(uri))
+      .toString();
+  } else {
+    return uri;
+  }
+};
+
 export const activateLanguageClient = async (
   context: vscode.ExtensionContext
 ): Promise<void> => {
@@ -31,6 +47,9 @@ export const activateLanguageClient = async (
   const editor = getEditor();
   const fileWatchers = getWorkspaceFileWatchers();
   const files = await getWorkspaceFiles();
+  for (const file of files) {
+    file.src = getFileSrc(file.uri);
+  }
   const executeCommandMiddleware = async (params: {
     command: string;
     arguments?: LSPAny[];
@@ -39,19 +58,13 @@ export const activateLanguageClient = async (
     if (params.command === "sparkdown.getFileText") {
       const [uri] = params.arguments || [];
       if (uri && typeof uri === "string") {
-        const buffer = await vscode.workspace.fs.readFile(
-          vscode.Uri.parse(uri)
-        );
-        const text = new TextDecoder("utf-8").decode(buffer);
-        return text;
+        return getFileText(uri);
       }
     }
     if (params.command === "sparkdown.getFileSrc") {
       const [uri] = params.arguments || [];
       if (uri && typeof uri === "string") {
-        return SparkdownPreviewGamePanelManager.instance.panel?.webview
-          .asWebviewUri(vscode.Uri.parse(uri))
-          .toString();
+        return getFileSrc(uri);
       }
     }
     return undefined;
@@ -93,7 +106,6 @@ export const activateLanguageClient = async (
         args: any[],
         next: ExecuteCommandSignature
       ) => {
-        const value = await next(command, args);
         const result = await executeCommandMiddleware({
           command,
           arguments: args,
@@ -101,6 +113,7 @@ export const activateLanguageClient = async (
         if (result !== undefined) {
           return result;
         }
+        const value = await next(command, args);
         return value;
       },
     },

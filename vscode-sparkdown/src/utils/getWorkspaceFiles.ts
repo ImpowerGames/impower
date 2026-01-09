@@ -13,6 +13,7 @@ export const getWorkspaceFiles = async (): Promise<
     name: string;
     ext: string;
     text?: string;
+    src?: string;
   }[]
 > => {
   const workspaceFilePatterns = getWorkspaceFilePatterns();
