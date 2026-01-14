@@ -37,6 +37,8 @@ export class ScopedRule implements Rule {
 
   contentRule: SwitchRule;
 
+  applyEndPatternLast: boolean;
+
   constructor(repo: GrammarRepository, def: ScopedRuleDefinition) {
     this.repo = repo;
 
@@ -80,6 +82,8 @@ export class ScopedRule implements Rule {
       patterns: def.patterns ?? [],
     };
     this.contentRule = repo.add(contentRuleItem, contentId);
+
+    this.applyEndPatternLast = def.applyEndPatternLast ?? false;
   }
 
   /**
@@ -114,7 +118,7 @@ export class ScopedRule implements Rule {
 
     const contentChildren: Matched[] = [];
     // check end
-    let endMatched = this.end(state, pos);
+    let endMatched = this.applyEndPatternLast ? false : this.end(state, pos);
 
     let emptyMatchCount = 0;
 
@@ -145,11 +149,16 @@ export class ScopedRule implements Rule {
         if (pos >= state.str.length) {
           state.advance();
         }
+        if (!this.applyEndPatternLast) {
+          // When applyEndPatternLast is false, we should check the end pattern before every iteration
+          endMatched = this.end(state, pos);
+        }
       } else {
-        // None of the patterns matched, so forcibly exit scope
+        // None of the patterns matched,
+        // so check for end match and forcibly exit scope no matter what
+        endMatched = this.end(state, pos);
         break;
       }
-      endMatched = this.end(state, pos);
     }
     if (contentChildren.length === 1) {
       const wrapped = contentChildren[0]!.wrap(

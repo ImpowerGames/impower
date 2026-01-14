@@ -47,6 +47,7 @@ export interface ScopedRuleDefinition extends RuleDefinition {
   beginCaptures?: Record<string, RuleDefinition | SwitchRuleDefinition>;
   endCaptures?: Record<string, RuleDefinition | SwitchRuleDefinition>;
   patterns?: IncludeDefinition[];
+  applyEndPatternLast?: boolean;
 }
 
 export type IncludeDefinition = { include: string };
