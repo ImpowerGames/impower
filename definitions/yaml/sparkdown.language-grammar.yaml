@@ -4587,6 +4587,8 @@ repository:
       - { include: "#Divert" }
       - { include: "#Thread" }
       - { include: "#ConditionalBracedBlock" }
+      - { include: "#AudioCommand" }
+      - { include: "#ImageCommand" }
       - { include: "#InlineText" }
 
   InlineText:

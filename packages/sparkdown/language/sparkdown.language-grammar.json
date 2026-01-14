@@ -8318,6 +8318,12 @@
           "include": "#ConditionalBracedBlock"
         },
         {
+          "include": "#AudioCommand"
+        },
+        {
+          "include": "#ImageCommand"
+        },
+        {
           "include": "#InlineText"
         }
       ]
