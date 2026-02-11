@@ -12,7 +12,7 @@ function getPrecisionFromOptions(precisionOrOptions: number | Config = 1) {
     typeof precisionOrOptions === "number"
       ? undefined
       : ((precisionOrOptions.plugins ?? []).find(
-          (p) => typeof p === "object" && p.name === "preset-default"
+          (p) => typeof p === "object" && p.name === "preset-default",
         ) as {
           name: string;
           params?: {
@@ -25,7 +25,7 @@ function getPrecisionFromOptions(precisionOrOptions: number | Config = 1) {
   const precision =
     typeof precisionOrOptions === "number"
       ? precisionOrOptions
-      : userPresetDefault?.params?.floatPrecision ?? 1;
+      : (userPresetDefault?.params?.floatPrecision ?? 1);
   return precision;
 }
 
@@ -35,12 +35,12 @@ function normalizeTransformString(transform: string): string {
 }
 
 function parseTransformToMatrix(
-  transform: string
+  transform: string,
 ): [number, number, number, number, number, number] | null {
   const normalizedTransform = normalizeTransformString(transform);
   try {
     const { a, b, c, d, e, f } = compose(
-      fromDefinition(fromTransformAttribute(normalizedTransform))
+      fromDefinition(fromTransformAttribute(normalizedTransform)),
     );
     return [a, b, c, d, e, f];
   } catch (err) {
@@ -53,14 +53,14 @@ const roundPathDNumbers = (d: string, decimals = 1): string => {
   return d.replace(/-?\d*\.?\d+(e[-+]?\d+)?/gi, (num) =>
     parseFloat(num)
       .toFixed(decimals)
-      .replace(/\.?0+$/, "")
+      .replace(/\.?0+$/, ""),
   );
 };
 
 function applyTransformMatrixToPath(
   d: string,
   matrix: [number, number, number, number, number, number],
-  decimals = 1
+  decimals = 1,
 ): string {
   const [a, b, c, d_, e, f] = matrix;
   const transformed = new SVGPathData(d)
@@ -74,7 +74,7 @@ function applyTransformMatrixToPath(
 }
 
 function getStrokeScale(
-  matrix: [number, number, number, number, number, number]
+  matrix: [number, number, number, number, number, number],
 ): number {
   const [a, b, c, d] = matrix;
   // Approximate using geometric mean of the X and Y scaling factors
@@ -86,7 +86,7 @@ function getStrokeScale(
 function transformStrokeWidth(
   strokeWidth: string,
   matrix: [number, number, number, number, number, number],
-  precision: number
+  precision: number,
 ) {
   const scale = getStrokeScale(matrix);
   if (strokeWidth) {
@@ -99,14 +99,14 @@ function transformStrokeWidth(
 function transformStrokeDashArray(
   dashArray: string,
   matrix: [number, number, number, number, number, number],
-  precision: number
+  precision: number,
 ) {
   const scale = getStrokeScale(matrix);
   if (dashArray) {
     const scaled = dashArray
       .split(/[ ,]+/)
       .map((n) =>
-        (parseFloat(n) * scale).toFixed(precision).replace(/\.?0+$/, "")
+        (parseFloat(n) * scale).toFixed(precision).replace(/\.?0+$/, ""),
       )
       .join(" ");
     return scaled;
@@ -117,7 +117,7 @@ function transformStrokeDashArray(
 function transformStrokeDashOffset(
   dashOffset: string,
   matrix: [number, number, number, number, number, number],
-  precision: number
+  precision: number,
 ) {
   const scale = getStrokeScale(matrix);
   if (dashOffset) {
@@ -176,13 +176,13 @@ export const flattenSVG = (inputSVG: string) => {
 
 export const optimizeSVG = (
   inputSVG: string,
-  precisionOrOptions: number | Config = 1
+  precisionOrOptions: number | Config = 1,
 ) => {
   const userPresetDefault =
     typeof precisionOrOptions === "number"
       ? undefined
       : ((precisionOrOptions.plugins ?? []).find(
-          (p) => typeof p === "object" && p.name === "preset-default"
+          (p) => typeof p === "object" && p.name === "preset-default",
         ) as {
           name: string;
           params?: {
@@ -195,7 +195,7 @@ export const optimizeSVG = (
   const precision =
     typeof precisionOrOptions === "number"
       ? precisionOrOptions
-      : userPresetDefault?.params?.floatPrecision ?? 1;
+      : (userPresetDefault?.params?.floatPrecision ?? 1);
   const options =
     typeof precisionOrOptions === "number" ? undefined : ({} as Config);
 
@@ -208,22 +208,27 @@ export const optimizeSVG = (
         params: {
           ...(typeof userPresetDefault === "string"
             ? {}
-            : userPresetDefault?.params ?? {}),
+            : (userPresetDefault?.params ?? {})),
           floatPrecision: precision,
           overrides: {
             ...(typeof userPresetDefault === "string"
               ? {}
-              : userPresetDefault?.params?.overrides ?? {}),
+              : (userPresetDefault?.params?.overrides ?? {})),
             mergePaths: false,
             convertShapeToPath: false,
-            convertPathData: false,
+            cleanupNumericValues: {
+              floatPrecision: precision,
+            },
+            convertPathData: {
+              floatPrecision: precision,
+            },
           },
         },
       },
       ...(options?.plugins ?? []).filter(
         (p) =>
           typeof p === "string" ||
-          (typeof p === "object" && p.name !== "preset-default")
+          (typeof p === "object" && p.name !== "preset-default"),
       ),
     ],
   };
@@ -232,9 +237,57 @@ export const optimizeSVG = (
   return optimizedSVG;
 };
 
+export const stripClipPathsFromSVG = (inputSVG: string) => {
+  const parser = new DOMParser();
+  const serializer = new XMLSerializer();
+
+  const outputSVGEl = parser.parseFromString(inputSVG, "image/svg+xml");
+  const clipPaths = Array.from(outputSVGEl.getElementsByTagName("clipPath"));
+
+  for (const clipPath of clipPaths) {
+    clipPath.parentElement?.removeChild(clipPath);
+  }
+
+  const svgEl = outputSVGEl.getElementsByTagName("svg")?.[0];
+  if (svgEl) {
+    const groups = svgEl?.childNodes.filter((n) => n.nodeName === "g");
+    for (const group of groups) {
+      if (group instanceof Element) {
+        const clipPathAttr = group.getAttribute("clip-path");
+        if (clipPathAttr) {
+          for (const child of Array.from(group.childNodes)) {
+            group.parentElement?.appendChild(child);
+          }
+        }
+      }
+    }
+  }
+
+  const outputSVG = serializer.serializeToString(outputSVGEl);
+  return outputSVG;
+};
+
+export const stripInvisibleRectsFromSVG = (inputSVG: string) => {
+  const parser = new DOMParser();
+  const serializer = new XMLSerializer();
+
+  const outputSVGEl = parser.parseFromString(inputSVG, "image/svg+xml");
+  const outputRects = Array.from(outputSVGEl.getElementsByTagName("rect"));
+
+  for (const rect of outputRects) {
+    const style = rect.getAttribute("style");
+    if (style === "fill:none;" || style === "fill:none") {
+      rect.parentElement?.removeChild(rect);
+    }
+  }
+
+  const outputSVG = serializer.serializeToString(outputSVGEl);
+  return outputSVG;
+};
+
 export const transformSVG = (
   inputSVG: string,
-  precisionOrOptions: number | Config = 1
+  precisionOrOptions: number | Config = 1,
 ) => {
   const precision = getPrecisionFromOptions(precisionOrOptions);
 
@@ -322,7 +375,7 @@ export const transformSVG = (
           if (transformedStrokeDashOffset != null) {
             pathEl.setAttribute(
               "stroke-dashoffset",
-              transformedStrokeDashOffset
+              transformedStrokeDashOffset,
             );
           }
         }
@@ -346,7 +399,7 @@ export const transformSVG = (
 
 export const optimizeFlattenedSVG = (
   inputSVG: string,
-  precisionOrOptions: number | Config = 1
+  precisionOrOptions: number | Config = 1,
 ) => {
   const flattenedSVG = flattenSVG(inputSVG);
   const optimizedSVG = optimizeSVG(flattenedSVG, precisionOrOptions);
@@ -357,7 +410,7 @@ export const optimizeFlattenedSVG = (
 export const optimizeAnimatedSVG = (
   inputSVG: string,
   precisionOrOptions: number | Config = 1,
-  removePathAttributes: string[] = []
+  removePathAttributes: string[] = [],
 ) => {
   const flattenedSVG = flattenSVG(inputSVG);
   const optimizedSVG = optimizeSVG(flattenedSVG, precisionOrOptions);
@@ -371,7 +424,7 @@ export const optimizeAnimatedSVG = (
   const inputSVGEl = parser.parseFromString(inputSVG, "image/svg+xml");
 
   const animateEls: Element[] = Array.from(
-    inputSVGEl.getElementsByTagName("animate")
+    inputSVGEl.getElementsByTagName("animate"),
   );
 
   const groupEls = Array.from(outputSVGEl.getElementsByTagName("g"));
