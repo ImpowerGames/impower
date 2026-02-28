@@ -115,15 +115,16 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     if (method === CompiledProgramMessage.method) {
       // When sending 'compiler/didCompile' notification, also send 'textDocument/publishDiagnostics' notification
       const compiledProgramParams = params as CompiledProgramParams;
-      const uri = compiledProgramParams.textDocument.uri;
       const program = compiledProgramParams.program;
-      const diagnostics = program.diagnostics?.[uri] || [];
-      const version = this.getProgramState(uri).version;
-      this._connection.sendDiagnostics({
-        uri,
-        diagnostics,
-        version,
-      });
+      for (const uri of this.uris()) {
+        const diagnostics = program.diagnostics?.[uri] || [];
+        const version = this.getProgramState(uri).version;
+        this._connection.sendDiagnostics({
+          uri,
+          diagnostics,
+          version,
+        });
+      }
     }
   }
 
