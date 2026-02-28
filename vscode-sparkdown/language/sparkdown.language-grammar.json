@@ -8427,11 +8427,11 @@
             }
           ]
         }
-        },
-          "patterns": [
-            {
-              "include": "#PlainText"
-            }
+      },
+      "patterns": [
+        {
+          "include": "#PlainText"
+        }
       ],
       "end": "(\\1)|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "endCaptures": {
@@ -8456,11 +8456,11 @@
             }
           ]
         }
-        },
-          "patterns": [
-            {
-              "include": "#Italic"
-            }
+      },
+      "patterns": [
+        {
+          "include": "#Italic"
+        }
       ],
       "end": "(\\1)|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "endCaptures": {
@@ -8485,11 +8485,11 @@
             }
           ]
         }
-        },
-          "patterns": [
-            {
-              "include": "#InlineTextAndLogic"
-            }
+      },
+      "patterns": [
+        {
+          "include": "#InlineTextAndLogic"
+        }
       ],
       "end": "(\\1)|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "endCaptures": {
@@ -8514,11 +8514,11 @@
             }
           ]
         }
-        },
-          "patterns": [
-            {
-              "include": "#InlineTextAndLogic"
-            }
+      },
+      "patterns": [
+        {
+          "include": "#InlineTextAndLogic"
+        }
       ],
       "end": "(\\1)|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "endCaptures": {
@@ -8543,11 +8543,11 @@
             }
           ]
         }
-        },
-          "patterns": [
-            {
-              "include": "#InlineTextAndLogic"
-            }
+      },
+      "patterns": [
+        {
+          "include": "#InlineTextAndLogic"
+        }
       ],
       "end": "(\\1)|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "endCaptures": {
@@ -8572,11 +8572,11 @@
             }
           ]
         }
-        },
-          "patterns": [
-            {
-              "include": "#InlineTextAndLogic"
-            }
+      },
+      "patterns": [
+        {
+          "include": "#InlineTextAndLogic"
+        }
       ],
       "end": "(\\1)|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "endCaptures": {
@@ -8611,11 +8611,11 @@
             }
           ]
         }
-        },
-          "patterns": [
-            {
-              "include": "#InlineTextAndLogic"
-            }
+      },
+      "patterns": [
+        {
+          "include": "#InlineTextAndLogic"
+        }
       ],
       "end": "(\\1)|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "endCaptures": {
@@ -8640,11 +8640,11 @@
             }
           ]
         }
-        },
-          "patterns": [
-            {
-              "include": "#InlineTextAndLogic"
-            }
+      },
+      "patterns": [
+        {
+          "include": "#InlineTextAndLogic"
+        }
       ],
       "end": "(\\1)|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "endCaptures": {
