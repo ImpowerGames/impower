@@ -4646,90 +4646,96 @@ repository:
   Raw:
     tag: content
     name: markup.raw.text.sd
-    match: ([`]+)(.*?)(\1|(?={{EOL}}))
-    captures:
+    begin: ([`]+)
+    beginCaptures:
       1:
         patterns:
           - { include: "#StylingMark" }
-      2:
-        patterns:
-          - { include: "#PlainText" }
-      3:
+    patterns:
+      - { include: "#PlainText" }
+    end: (\1)|(?={{EOL}})
+    endCaptures:
+      1:
         patterns:
           - { include: "#StylingMark" }
 
   BoldItalic:
     tag: strong
     name: markup.other.bold.sd
-    match: ([*][*]+)([*].*?(?:[*]|$))(\1|(?={{EOL}}))
-    captures:
+    begin: ([*][*])(?=[*])
+    beginCaptures:
       1:
         patterns:
           - { include: "#StylingMark" }
-      2:
-        patterns:
-          - { include: "#Italic" }
-      3:
+    patterns:
+      - { include: "#Italic" }
+    end: (\1)|(?={{EOL}})
+    endCaptures:
+      1:
         patterns:
           - { include: "#StylingMark" }
 
   Bold:
     tag: strong
     name: markup.other.bold.sd
-    match: ([*][*](?![*]))(.*?)(\1|(?={{EOL}}))
-    captures:
+    begin: ([*][*])(?![*])
+    beginCaptures:
       1:
         patterns:
           - { include: "#StylingMark" }
-      2:
-        patterns:
-          - { include: "#InlineTextAndLogic" }
-      3:
+    patterns:
+      - { include: "#InlineTextAndLogic" }
+    end: (\1)|(?={{EOL}})
+    endCaptures:
+      1:
         patterns:
           - { include: "#StylingMark" }
 
   Italic:
     tag: emphasis
     name: markup.other.italic.sd
-    match: ([*](?![*]))(.*?)(\1|(?={{EOL}}))
-    captures:
+    begin: ([*])(?![*])
+    beginCaptures:
       1:
         patterns:
           - { include: "#StylingMark" }
-      2:
-        patterns:
-          - { include: "#InlineTextAndLogic" }
-      3:
+    patterns:
+      - { include: "#InlineTextAndLogic" }
+    end: (\1)|(?={{EOL}})
+    endCaptures:
+      1:
         patterns:
           - { include: "#StylingMark" }
 
   Underline:
     tag: link
     name: markup.other.underline.sd
-    match: ([_]+)(.*?)(\1|(?={{EOL}}))
-    captures:
+    begin: ([_]+)
+    beginCaptures:
       1:
         patterns:
           - { include: "#StylingMark" }
-      2:
-        patterns:
-          - { include: "#InlineTextAndLogic" }
-      3:
+    patterns:
+      - { include: "#InlineTextAndLogic" }
+    end: (\1)|(?={{EOL}})
+    endCaptures:
+      1:
         patterns:
           - { include: "#StylingMark" }
 
   Centered:
     tag: monospace
     name: constant.character.escape.centered.sd
-    match: ([\^]+)(.*?)(\1|(?={{EOL}}))
-    captures:
+    begin: ([\^]+)
+    beginCaptures:
       1:
         patterns:
           - { include: "#StylingMark" }
-      2:
-        patterns:
-          - { include: "#InlineTextAndLogic" }
-      3:
+    patterns:
+      - { include: "#InlineTextAndLogic" }
+    end: (\1)|(?={{EOL}})
+    endCaptures:
+      1:
         patterns:
           - { include: "#StylingMark" }
 
@@ -4741,30 +4747,32 @@ repository:
   EmphasisTilde:
     tag: quote
     name: markup.emphasis.tilde.sd
-    match: ([~][~]+)((?:(?!\1).*?)+)(\1|(?={{EOL}}))
-    captures:
+    begin: ([~][~]+)
+    beginCaptures:
       1:
         patterns:
           - { include: "#StylingMark" }
-      2:
-        patterns:
-          - { include: "#InlineTextAndLogic" }
-      3:
+    patterns:
+      - { include: "#InlineTextAndLogic" }
+    end: (\1)|(?={{EOL}})
+    endCaptures:
+      1:
         patterns:
           - { include: "#StylingMark" }
 
   EmphasisColon:
     tag: quote
     name: markup.emphasis.colon.sd
-    match: ([:][:]+)((?:(?!\1).*?)+)(\1|(?={{EOL}}))
-    captures:
+    begin: ([:][:]+)
+    beginCaptures:
       1:
         patterns:
           - { include: "#StylingMark" }
-      2:
-        patterns:
-          - { include: "#InlineTextAndLogic" }
-      3:
+    patterns:
+      - { include: "#InlineTextAndLogic" }
+    end: (\1)|(?={{EOL}})
+    endCaptures:
+      1:
         patterns:
           - { include: "#StylingMark" }
 
