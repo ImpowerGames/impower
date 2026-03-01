@@ -462,7 +462,7 @@ const addStructPropertyNameContextCompletions = (
     traverse(typeStruct, (p: string) => {
       if (p.startsWith(pathPrefix)) {
         const [propName] = p.slice(pathPrefix.length).split(".");
-        const optionValue = getProperty(typeStruct, p);
+        const optionValue = getProperty(typeStruct, pathPrefix + propName);
         const description = getTypeDescription(optionValue);
         if (propName && Number.isNaN(Number(propName))) {
           if (!propName.startsWith("$") && !exclude?.includes(propName)) {
