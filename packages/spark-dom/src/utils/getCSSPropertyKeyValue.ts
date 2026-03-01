@@ -15,7 +15,7 @@ const createShadows = (r: number, color = "black", unit = "px"): string[] => {
   for (let i = 0; i < n; i += 1) {
     const theta = (2 * Math.PI * i) / n;
     shadows.push(
-      `${r * Math.cos(theta)}${unit} ${r * Math.sin(theta)}${unit} 1px ${color}`
+      `${r * Math.cos(theta)}${unit} ${r * Math.sin(theta)}${unit} 1px ${color}`,
     );
   }
   return shadows;
@@ -29,7 +29,7 @@ const VALUE_AND_UNIT_REGEX = /((?:\d*[.])?\d+)([a-z]+)/;
 
 export const getCSSPropertyKeyValue = (
   name: string,
-  value: unknown
+  value: unknown,
 ): [string, string] => {
   if (name.startsWith("--")) {
     return [name, String(value)];
@@ -40,10 +40,18 @@ export const getCSSPropertyKeyValue = (
     value &&
     "$type" in value &&
     typeof value.$type === "string" &&
+    value.$type &&
     "$name" in value &&
-    typeof value.$name === "string"
+    typeof value.$name === "string" &&
+    value.$name
       ? `var(${getVarName(value.$type, value.$name)})`
-      : value;
+      : typeof value === "object" &&
+          value &&
+          "$name" in value &&
+          typeof value.$name === "string" &&
+          value.$name
+        ? value.$name
+        : value;
   if (cssValue == null || cssValue === "") {
     return [cssProp, ""];
   }
@@ -63,16 +71,16 @@ export const getCSSPropertyKeyValue = (
     const timeValue = isNumber(cssValue)
       ? `${cssValue}s`
       : typeof cssValue === "string"
-      ? cssValue
-      : "0s";
+        ? cssValue
+        : "0s";
     return ["animation-duration", timeValue];
   }
   if (cssProp === "delay") {
     const timeValue = isNumber(cssValue)
       ? `${cssValue}s`
       : typeof cssValue === "string"
-      ? cssValue
-      : "0s";
+        ? cssValue
+        : "0s";
     return ["animation-delay", timeValue];
   }
   if (cssProp === "src" && typeof cssValue === "string") {

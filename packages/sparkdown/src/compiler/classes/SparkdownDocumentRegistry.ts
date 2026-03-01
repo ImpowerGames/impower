@@ -33,7 +33,7 @@ interface TextDocumentState {
 
 export class SparkdownDocumentRegistry {
   protected _parser: TextmateGrammarParser = new TextmateGrammarParser(
-    GRAMMAR_DEFINITION
+    GRAMMAR_DEFINITION,
   );
   get parser() {
     return this._parser;
@@ -57,7 +57,7 @@ export class SparkdownDocumentRegistry {
 
   constructor(
     annotate?: (keyof SparkdownAnnotators)[],
-    config?: SparkdownAnnotatorConfigs
+    config?: SparkdownAnnotatorConfigs,
   ) {
     this._annotate = new Set(annotate);
     this._config = config;
@@ -78,7 +78,7 @@ export class SparkdownDocumentRegistry {
   protected updateSyntaxTree(
     beforeDocument: SparkdownDocument,
     afterDocument: SparkdownDocument,
-    changes?: readonly TextDocumentContentChangeEvent[]
+    changes?: readonly TextDocumentContentChangeEvent[],
   ): Tree {
     const state = this.getDocumentState(afterDocument.uri);
     if (state.tree && state.treeVersion === afterDocument.version) {
@@ -90,14 +90,14 @@ export class SparkdownDocumentRegistry {
         "start",
         this._profilerId,
         "incrementalParse",
-        beforeDocument.uri
+        beforeDocument.uri,
       );
       // Incremental parse
       let changeDocument = new SparkdownDocument(
         beforeDocument.uri,
         beforeDocument.languageId,
         beforeDocument.version,
-        beforeDocument.getText()
+        beforeDocument.getText(),
       );
       for (const c of changes) {
         const change: {
@@ -145,7 +145,7 @@ export class SparkdownDocumentRegistry {
         state.tree = this._parser.parse(changeDocument, state.treeFragments);
         state.treeFragments = TreeFragment.addTree(
           state.tree,
-          state.treeFragments
+          state.treeFragments,
         );
         state.annotators.update(
           state.tree,
@@ -155,9 +155,9 @@ export class SparkdownDocumentRegistry {
             toA + change.text.length,
             state.tree.length,
             documentLengthBeforeChange,
-            documentLengthAfterChange
+            documentLengthAfterChange,
           ),
-          this._annotate
+          this._annotate,
         );
       }
       state.treeVersion = afterDocument.version;
@@ -229,7 +229,7 @@ export class SparkdownDocumentRegistry {
       td.uri,
       td.languageId,
       td.version,
-      td.text.replace(NEWLINE_REGEX, "\n")
+      td.text.replace(NEWLINE_REGEX, "\n"),
     );
     this._syncedDocuments.set(td.uri, syncedDocument);
     const beforeDocument = new SparkdownDocument(td.uri, td.languageId, -1, "");
@@ -251,7 +251,7 @@ export class SparkdownDocumentRegistry {
     }
     if (td.version == null) {
       throw new Error(
-        `Received document change event for ${td.uri} without valid version identifier`
+        `Received document change event for ${td.uri} without valid version identifier`,
       );
     }
     const existingDocument = this._syncedDocuments.get(td.uri);
@@ -266,7 +266,7 @@ export class SparkdownDocumentRegistry {
         syncedDocument.uri,
         syncedDocument.languageId,
         syncedDocument.version,
-        syncedDocument.getText()
+        syncedDocument.getText(),
       );
       const normalizedChanges: TextDocumentContentChangeEvent[] = [];
       for (const c of changes) {
@@ -288,7 +288,7 @@ export class SparkdownDocumentRegistry {
         this.updateSyntaxTree(
           beforeDocument,
           syncedDocument,
-          normalizedChanges
+          normalizedChanges,
         );
       }
     }

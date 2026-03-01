@@ -52,7 +52,7 @@ const isWhitespaceNode = (name?: SparkdownNodeName) =>
 const traverse = <T>(
   obj: T,
   process: (fieldPath: string, fieldValue: any) => void,
-  fieldPath: string = ""
+  fieldPath: string = "",
 ) => {
   if (obj) {
     for (let [k, v] of Object.entries(obj)) {
@@ -81,25 +81,25 @@ const rankMostRecentTexts = (
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
   strict: boolean,
-  include?: string[]
+  include?: string[],
 ) => {
   // Sort by most recently used
   const before: string[] = [];
   const after: string[] = [];
   const scriptAnnotationEntries = Array.from(scriptAnnotations.entries());
   const currentScriptIndex = scriptAnnotationEntries.findIndex(
-    ([k]) => k === uri
+    ([k]) => k === uri,
   );
   if (currentScriptIndex < 0) {
     return [];
   }
   const beforeScriptEntries = scriptAnnotationEntries.slice(
     0,
-    currentScriptIndex
+    currentScriptIndex,
   );
   const currentScriptEntries = [scriptAnnotationEntries[currentScriptIndex]!];
   const afterScriptEntries = scriptAnnotationEntries.slice(
-    currentScriptIndex + 1
+    currentScriptIndex + 1,
   );
   const currentText = contentNode
     ? read(contentNode.from, contentNode.to)?.trim()
@@ -160,7 +160,7 @@ const rankMostRecentTexts = (
     }
   }
   const mostRecentTexts = Array.from(
-    new Set([...before.toReversed(), ...after])
+    new Set([...before.toReversed(), ...after]),
   );
   // Most recent is the least likely to be used again,
   // So move it to the end of the list
@@ -189,7 +189,7 @@ const addCharacterCompletions = (
   insertTextPrefix: string = "",
   insertTextSuffix: string = "",
   strict = false,
-  program?: SparkProgram
+  program?: SparkProgram,
 ) => {
   const mostRecentTexts = rankMostRecentTexts(
     "characters",
@@ -198,7 +198,7 @@ const addCharacterCompletions = (
     uri,
     contentNode,
     strict,
-    Object.keys(program?.context?.["character"] || {})
+    Object.keys(program?.context?.["character"] || {}),
   );
   // Add completions
   for (const text of mostRecentTexts) {
@@ -222,7 +222,7 @@ const addKeywordCompletions = (
   keywords: string[],
   exclude?: string[],
   insertTextPrefix: string = "",
-  insertTextSuffix: string = ""
+  insertTextSuffix: string = "",
 ) => {
   for (const keyword of keywords) {
     if (!exclude || !exclude.includes(keyword)) {
@@ -243,7 +243,7 @@ const addSnippet = (
   completions: Map<string, CompletionItem>,
   description: string,
   label: string,
-  insertText: string
+  insertText: string,
 ) => {
   const completion: CompletionItem = {
     label,
@@ -259,7 +259,7 @@ const addSnippet = (
 const addStructTypeNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
-  typeText: string
+  typeText: string,
 ) => {
   if (program?.context) {
     for (const type of Object.keys(program?.context).sort()) {
@@ -281,7 +281,7 @@ const addStructVariableNameCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
   type: string,
-  currentText: string
+  currentText: string,
 ) => {
   if (program?.context?.[type]) {
     for (const name of Object.keys(program?.context?.[type]).sort()) {
@@ -303,7 +303,7 @@ const addStructReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
   types: string[],
-  exclude?: string[] | ((name: string) => boolean)
+  exclude?: string[] | ((name: string) => boolean),
 ) => {
   if (program) {
     for (const type of types) {
@@ -319,7 +319,7 @@ const addStructReferenceCompletions = (
             if (type === "filtered_image" && program.context) {
               filterImage(
                 program.context,
-                program.context?.["filtered_image"]?.[name]
+                program.context?.["filtered_image"]?.[name],
               );
             }
             const completion: CompletionItem = {
@@ -332,10 +332,10 @@ const addStructReferenceCompletions = (
               type === "filtered_image"
                 ? struct?.filtered_src
                 : type === "layered_image"
-                ? struct?.assets?.[0]?.src || struct?.assets?.[0]?.uri
-                : type === "image"
-                ? struct?.src || struct?.uri
-                : undefined;
+                  ? struct?.assets?.[0]?.src || struct?.assets?.[0]?.uri
+                  : type === "image"
+                    ? struct?.src || struct?.uri
+                    : undefined;
             if (src) {
               completion.documentation = {
                 kind: MarkupKind.Markdown,
@@ -352,15 +352,15 @@ const addStructReferenceCompletions = (
   }
 };
 
-const addLayoutElementReferenceCompletions = (
+const addScreenElementReferenceCompletions = (
   completions: Map<string, CompletionItem>,
   program: SparkProgram | undefined,
   contentTypes: ("image" | "text" | "animation")[],
   insertTextPrefix = "",
-  insertTextSuffix = ""
+  insertTextSuffix = "",
 ) => {
   for (const contentType of contentTypes) {
-    const structs = program?.context?.["layout"];
+    const structs = program?.context?.["screen"];
     if (structs) {
       for (const v of Object.values(structs)) {
         traverse(v, (fieldPath) => {
@@ -444,7 +444,7 @@ const addStructPropertyNameContextCompletions = (
   includeTypeAsDetail: boolean,
   lineText: string,
   cursorPosition: Position,
-  exclude?: string[]
+  exclude?: string[],
 ) => {
   const textAfterCursor = lineText.slice(cursorPosition.character);
   if (typeStruct) {
@@ -477,10 +477,10 @@ const addStructPropertyNameContextCompletions = (
               const insertSuffix = textAfterCursor
                 ? ""
                 : isArray || modifier === "schema" || modifier === "random"
-                ? `:\n${indent}${arrayItemDash}`
-                : isMap || modifier === "description"
-                ? `:\n${indent}`
-                : valueAssignmentSeparator;
+                  ? `:\n${indent}${arrayItemDash}`
+                  : isMap || modifier === "description"
+                    ? `:\n${indent}`
+                    : valueAssignmentSeparator;
               const completion: CompletionItem = {
                 label: propName,
                 insertText: propName + insertSuffix,
@@ -488,7 +488,7 @@ const addStructPropertyNameContextCompletions = (
                 insertTextMode: InsertTextMode.asIs,
                 command: Command.create(
                   "suggest",
-                  "editor.action.triggerSuggest"
+                  "editor.action.triggerSuggest",
                 ),
               };
               if (includeTypeAsDetail) {
@@ -499,13 +499,13 @@ const addStructPropertyNameContextCompletions = (
                   program?.context?.[typeStruct.$type]?.[
                     `$description:${name}`
                   ],
-                  p
+                  p,
                 )?.[""] ||
                 getProperty<Record<string, string>>(
                   config?.definitions?.descriptions?.[typeStruct.$type]?.[
                     "$description"
                   ],
-                  p
+                  p,
                 )?.[""];
               if (documentationValue) {
                 completion.documentation = {
@@ -536,7 +536,7 @@ const addStructPropertyNameCompletions = (
   includeTypeAsDetail: boolean,
   lineText: string,
   cursorPosition: Position,
-  exclude: string[]
+  exclude: string[],
 ) => {
   if (type) {
     addStructPropertyNameContextCompletions(
@@ -550,7 +550,7 @@ const addStructPropertyNameCompletions = (
       includeTypeAsDetail,
       lineText,
       cursorPosition,
-      exclude
+      exclude,
     );
     addStructPropertyNameContextCompletions(
       completions,
@@ -563,7 +563,7 @@ const addStructPropertyNameCompletions = (
       includeTypeAsDetail,
       lineText,
       cursorPosition,
-      exclude
+      exclude,
     );
     addStructPropertyNameContextCompletions(
       completions,
@@ -576,7 +576,7 @@ const addStructPropertyNameCompletions = (
       includeTypeAsDetail,
       lineText,
       cursorPosition,
-      exclude
+      exclude,
     );
     addStructPropertyNameContextCompletions(
       completions,
@@ -589,7 +589,7 @@ const addStructPropertyNameCompletions = (
       includeTypeAsDetail,
       lineText,
       cursorPosition,
-      exclude
+      exclude,
     );
   }
 };
@@ -602,7 +602,7 @@ const addStructPropertyValueSchemaCompletions = (
   path: string,
   valueText: string,
   valueCursorOffset: number,
-  context: CompletionContext | undefined
+  context: CompletionContext | undefined,
 ) => {
   if (!modifier) {
     if (schemaStruct) {
@@ -659,7 +659,7 @@ const addStructPropertyValueContextCompletions = (
   program: SparkProgram | undefined,
   typeStruct: any,
   modifier: string,
-  path: string
+  path: string,
 ) => {
   if (!modifier) {
     if (typeStruct) {
@@ -687,7 +687,7 @@ const addStructPropertyValueCompletions = (
   path: string,
   valueText: string,
   valueCursorOffset: number,
-  context: CompletionContext | undefined
+  context: CompletionContext | undefined,
 ) => {
   if (type) {
     addStructPropertyValueSchemaCompletions(
@@ -698,7 +698,7 @@ const addStructPropertyValueCompletions = (
       path,
       valueText,
       valueCursorOffset,
-      context
+      context,
     );
     addStructPropertyValueSchemaCompletions(
       completions,
@@ -708,7 +708,7 @@ const addStructPropertyValueCompletions = (
       path,
       valueText,
       valueCursorOffset,
-      context
+      context,
     );
     addStructPropertyValueSchemaCompletions(
       completions,
@@ -718,35 +718,35 @@ const addStructPropertyValueCompletions = (
       path,
       valueText,
       valueCursorOffset,
-      context
+      context,
     );
     addStructPropertyValueContextCompletions(
       completions,
       program,
       program?.context?.[type]?.["$default"],
       modifier,
-      path
+      path,
     );
     addStructPropertyValueContextCompletions(
       completions,
       program,
       program?.context?.[type]?.[`$optional:${name}`],
       modifier,
-      path
+      path,
     );
     addStructPropertyValueContextCompletions(
       completions,
       program,
       program?.context?.[type]?.["$optional"],
       modifier,
-      path
+      path,
     );
     addStructPropertyValueContextCompletions(
       completions,
       program,
       config?.definitions?.optionals?.[type]?.["$optional"],
       modifier,
-      path
+      path,
     );
   }
 };
@@ -759,7 +759,7 @@ const addMutableAccessPathCompletions = (
   valueText: string,
   valueCursorOffset: number,
   scopePath: string,
-  insertTextPrefix: string = ""
+  insertTextPrefix: string = "",
 ) => {
   const valueTextAfterCursor = valueText.slice(valueCursorOffset);
   if (!valueTextAfterCursor) {
@@ -804,7 +804,7 @@ const addImmutableAccessPathCompletions = (
   valueText: string,
   valueCursorOffset: number,
   scopePath: string,
-  insertTextPrefix: string = ""
+  insertTextPrefix: string = "",
 ) => {
   const valueTextAfterCursor = valueText.slice(valueCursorOffset);
   if (!valueTextAfterCursor) {
@@ -846,7 +846,7 @@ const addStructAccessPathCompletions = (
   program: SparkProgram | undefined,
   valueText: string,
   valueCursorOffset: number,
-  insertTextPrefix: string = ""
+  insertTextPrefix: string = "",
 ) => {
   const valueTextAfterCursor = valueText.slice(valueCursorOffset);
   if (!valueTextAfterCursor) {
@@ -860,8 +860,8 @@ const addStructAccessPathCompletions = (
           parts.length === 1
             ? ""
             : valueText.endsWith(".")
-            ? valueText.slice(0, -1)
-            : valueText;
+              ? valueText.slice(0, -1)
+              : valueText;
         const props = getProperty(program.context, parentPath);
         if (props) {
           for (const [propName, v] of Object.entries(props)) {
@@ -874,8 +874,8 @@ const addStructAccessPathCompletions = (
                   parts.length <= 1
                     ? CompletionItemKind.TypeParameter
                     : parts.length === 2
-                    ? CompletionItemKind.Variable
-                    : CompletionItemKind.Property;
+                      ? CompletionItemKind.Variable
+                      : CompletionItemKind.Property;
                 const completion: CompletionItem = {
                   label: propName,
                   insertText: insertTextPrefix + propName,
@@ -899,7 +899,7 @@ const addDivertPathKeywords = (
   completions: Map<string, CompletionItem>,
   valueText: string,
   valueCursorOffset: number,
-  insertTextPrefix: string = ""
+  insertTextPrefix: string = "",
 ) => {
   const valueTextAfterCursor = valueText.slice(valueCursorOffset);
   if (!valueTextAfterCursor) {
@@ -910,7 +910,7 @@ const addDivertPathKeywords = (
         "terminator",
         FLOW_KEYWORDS,
         undefined,
-        insertTextPrefix
+        insertTextPrefix,
       );
     }
   }
@@ -924,7 +924,7 @@ const addDivertPathCompletions = (
   valueText: string,
   valueCursorOffset: number,
   scopePath: string,
-  insertTextPrefix: string = ""
+  insertTextPrefix: string = "",
 ) => {
   const valueTextAfterCursor = valueText.slice(valueCursorOffset);
   if (!valueTextAfterCursor) {
@@ -968,7 +968,7 @@ export const getCompletions = (
   program: SparkProgram | undefined,
   config: SparkdownCompilerConfig | undefined,
   position: Position,
-  context: CompletionContext | undefined
+  context: CompletionContext | undefined,
 ): CompletionItem[] | null | undefined => {
   if (!document) {
     return undefined;
@@ -984,7 +984,7 @@ export const getCompletions = (
   const leftStack = getStack<SparkdownNodeName>(
     tree,
     document.offsetAt(position),
-    -1
+    -1,
   );
 
   if (!leftStack[0]) {
@@ -1001,8 +1001,8 @@ export const getCompletions = (
       ? documentCursorOffset < node.from
         ? 0
         : documentCursorOffset > node.to
-        ? node.to - node.from
-        : documentCursorOffset - node.from
+          ? node.to - node.from
+          : documentCursorOffset - node.from
       : 0;
 
   const isCursorAfterNodeText = (node: SyntaxNode | undefined) => {
@@ -1043,7 +1043,7 @@ export const getCompletions = (
     const rightStack = getStack<SparkdownNodeName>(
       tree,
       document.offsetAt(position),
-      1
+      1,
     );
     if (rightStack[0]?.name === "Newline") {
       // left and right side of the cursor has a Newline,
@@ -1052,7 +1052,7 @@ export const getCompletions = (
       const exclude = getDescendentsInsideParent(
         "FrontMatterFieldKeyword",
         "FrontMatter",
-        leftStack
+        leftStack,
       ).map((n) => getNodeText(n));
       addStructPropertyNameCompletions(
         completions,
@@ -1066,7 +1066,7 @@ export const getCompletions = (
         false,
         lineText,
         position,
-        exclude
+        exclude,
       );
       return buildCompletions();
     }
@@ -1076,7 +1076,7 @@ export const getCompletions = (
     const exclude = getOtherNodesInsideParent(
       "FrontMatterField",
       "FrontMatter",
-      leftStack
+      leftStack,
     ).map((n) => getNodeText(getDescendent("FrontMatterFieldKeyword", n)));
     addStructPropertyNameCompletions(
       completions,
@@ -1090,7 +1090,7 @@ export const getCompletions = (
       false,
       lineText,
       position,
-      exclude
+      exclude,
     );
     return buildCompletions();
   }
@@ -1109,12 +1109,12 @@ export const getCompletions = (
       getDescendentInsideParent(
         "DialogueCharacter",
         "BlockDialogue_begin",
-        leftStack
+        leftStack,
       ) ||
       getDescendentInsideParent(
         "DialogueCharacter",
         "InlineDialogue_begin",
-        leftStack
+        leftStack,
       );
     if (isCursorAfterNodeText(dialogueCharacterNode)) {
       addCharacterCompletions(
@@ -1122,7 +1122,7 @@ export const getCompletions = (
         read,
         scriptAnnotations,
         document.uri,
-        dialogueCharacterNode
+        dialogueCharacterNode,
       );
     }
     return buildCompletions();
@@ -1131,7 +1131,7 @@ export const getCompletions = (
   // Write
   if (leftStack[0]?.name === "WriteMark") {
     if (isCursorAfterNodeText(leftStack[0])) {
-      addLayoutElementReferenceCompletions(completions, program, ["text"], " ");
+      addScreenElementReferenceCompletions(completions, program, ["text"], " ");
     }
     return buildCompletions();
   }
@@ -1144,10 +1144,10 @@ export const getCompletions = (
     const writeTargetNode = getDescendentInsideParent(
       "WriteTarget",
       "BlockWrite_begin",
-      leftStack
+      leftStack,
     );
     if (isCursorAfterNodeText(writeTargetNode)) {
-      addLayoutElementReferenceCompletions(completions, program, ["text"]);
+      addScreenElementReferenceCompletions(completions, program, ["text"]);
     }
     return buildCompletions();
   }
@@ -1156,8 +1156,7 @@ export const getCompletions = (
   if (leftStack.some((n) => n.type.name === "ImageCommand")) {
     const beforeImageNode = leftStack.find(
       (n) =>
-        n.type.name === "ImageCommand_c1" ||
-        n.type.name === "AssetCommandContent_c1"
+        n.type.name === "ImageCommand_c1" || n.type.name === "ImageCommand_c2",
     );
     if (beforeImageNode) {
       if (isCursorAfterNodeText(beforeImageNode)) {
@@ -1166,7 +1165,7 @@ export const getCompletions = (
           completions,
           program,
           IMAGE_TYPES,
-          isPrefilteredName
+          isPrefilteredName,
         );
       }
       return buildCompletions();
@@ -1185,14 +1184,14 @@ export const getCompletions = (
       const controlNode = getDescendentInsideParent(
         "AssetCommandControl",
         "ImageCommand",
-        leftStack
+        leftStack,
       );
       const control = getNodeText(controlNode);
       if (isCursorAfterNodeText(leftStack[0])) {
-        addLayoutElementReferenceCompletions(
+        addScreenElementReferenceCompletions(
           completions,
           program,
-          control === "animate" ? ["animation", "image"] : ["image"]
+          control === "animate" ? ["animation", "image"] : ["image"],
         );
       }
       return buildCompletions();
@@ -1205,7 +1204,7 @@ export const getCompletions = (
         const controlNode = getDescendentInsideParent(
           "AssetCommandControl",
           "ImageCommand",
-          leftStack
+          leftStack,
         );
         const control = getNodeText(controlNode);
         if (control !== "hide" && control !== "animate") {
@@ -1213,7 +1212,7 @@ export const getCompletions = (
             completions,
             program,
             IMAGE_TYPES,
-            isPrefilteredName
+            isPrefilteredName,
           );
         }
         const clauses =
@@ -1233,7 +1232,7 @@ export const getCompletions = (
           completions,
           program,
           IMAGE_TYPES,
-          isPrefilteredName
+          isPrefilteredName,
         );
       }
       return buildCompletions();
@@ -1248,13 +1247,13 @@ export const getCompletions = (
           "AssetCommandContent",
           leftStack,
           tree,
-          read
+          read,
         );
         addStructReferenceCompletions(
           completions,
           program,
           ["filter"],
-          exclude
+          exclude,
         );
       }
       return buildCompletions();
@@ -1270,15 +1269,15 @@ export const getCompletions = (
         const controlNode = getDescendentInsideParent(
           "AssetCommandControl",
           "ImageCommand",
-          leftStack
+          leftStack,
         );
         const control = getNodeText(controlNode);
         const types =
           control === "animate"
             ? ["animation"]
             : control === "show"
-            ? ["transition"]
-            : ["transition", "animation"];
+              ? ["transition"]
+              : ["transition", "animation"];
         addStructReferenceCompletions(completions, program, types);
       }
       return buildCompletions();
@@ -1315,13 +1314,13 @@ export const getCompletions = (
             "ImageCommand",
             leftStack,
             tree,
-            read
+            read,
           );
           addKeywordCompletions(
             completions,
             "clause",
             IMAGE_CLAUSE_KEYWORDS,
-            exclude
+            exclude,
           );
         }
       }
@@ -1333,8 +1332,7 @@ export const getCompletions = (
   if (leftStack.some((n) => n.type.name === "AudioCommand")) {
     const beforeAudioNode = leftStack.find(
       (n) =>
-        n.type.name === "AudioCommand_c1" ||
-        n.type.name === "AssetCommandContent_c1"
+        n.type.name === "AudioCommand_c1" || n.type.name === "AudioCommand_c2",
     );
     if (beforeAudioNode) {
       if (isCursorAfterNodeText(beforeAudioNode)) {
@@ -1367,7 +1365,7 @@ export const getCompletions = (
         const controlNode = getDescendentInsideParent(
           "AssetCommandControl",
           "AudioCommand",
-          leftStack
+          leftStack,
         );
         const control = getNodeText(controlNode);
         if (control !== "stop") {
@@ -1396,13 +1394,13 @@ export const getCompletions = (
           "AssetCommandContent",
           leftStack,
           tree,
-          read
+          read,
         );
         addStructReferenceCompletions(
           completions,
           program,
           ["filter"],
-          exclude
+          exclude,
         );
       }
       return buildCompletions();
@@ -1438,13 +1436,13 @@ export const getCompletions = (
             "AudioCommand",
             leftStack,
             tree,
-            read
+            read,
           );
           addKeywordCompletions(
             completions,
             "clause",
             AUDIO_CLAUSE_KEYWORDS,
-            exclude
+            exclude,
           );
         }
         return buildCompletions();
@@ -1459,16 +1457,16 @@ export const getCompletions = (
         (isWhitespaceNode(n.name) &&
           (prevNode.name === "DefineKeyword" ||
             prevNode.name === "DefineModifierName")) ||
-        n.name === "DefineTypeName"
+        n.name === "DefineTypeName",
     )
   ) {
     if (
       isCursorAfterNodeText(
-        leftStack.find((n) => n.type.name === "DefineTypeName")
+        leftStack.find((n) => n.type.name === "DefineTypeName"),
       )
     ) {
       const defineTypeNameNode = leftStack.find(
-        (n) => n.type.name === "DefineTypeName"
+        (n) => n.type.name === "DefineTypeName",
       );
       const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
       addStructTypeNameCompletions(completions, program, type);
@@ -1479,18 +1477,22 @@ export const getCompletions = (
     leftStack.some(
       (n) =>
         n.type.name === "DefinePunctuationAccessor" ||
-        n.type.name === "DefineVariableName"
+        n.type.name === "DefineVariableName",
     )
   ) {
     const variableNameNode = leftStack.find(
-      (n) => n.type.name === "DefineVariableName"
+      (n) => n.type.name === "DefineVariableName",
     );
     const currentText = getNodeText(variableNameNode);
     if (isCursorAfterNodeText(variableNameNode)) {
       const defineTypeNameNode = getDescendentInsideParent(
         "DefineTypeName",
-        "DefineDeclaration",
-        leftStack
+        [
+          "DefineViewDeclaration",
+          "DefineStylingDeclaration",
+          "DefinePlainDeclaration",
+        ],
+        leftStack,
       );
       const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
       addStructVariableNameCompletions(completions, program, type, currentText);
@@ -1500,9 +1502,15 @@ export const getCompletions = (
   const propertyNameNode = leftStack.find(
     (n) =>
       n.type.name === "BlankProperty" ||
-      n.type.name === "DeclarationObjectPropertyName" ||
-      n.type.name === "DeclarationScalarPropertyName" ||
-      n.type.name === "StructObjectItemBlock"
+      n.type.name === "ViewDeclarationObjectPropertyName" ||
+      n.type.name === "StylingDeclarationObjectPropertyName" ||
+      n.type.name === "PlainDeclarationObjectPropertyName" ||
+      n.type.name === "ViewStructObjectItemBlock" ||
+      n.type.name === "StylingStructObjectItemBlock" ||
+      n.type.name === "PlainStructObjectItemBlock" ||
+      n.type.name === "ViewDeclarationScalarPropertyName" ||
+      n.type.name === "StylingDeclarationScalarPropertyName" ||
+      n.type.name === "PlainDeclarationScalarPropertyName",
   );
   if (
     propertyNameNode &&
@@ -1511,18 +1519,30 @@ export const getCompletions = (
     if (isCursorAfterNodeText(propertyNameNode)) {
       const defineModifierNameNode = getDescendentInsideParent(
         "DefineModifierName",
-        "DefineDeclaration",
-        leftStack
+        [
+          "DefineViewDeclaration",
+          "DefineStylingDeclaration",
+          "DefinePlainDeclaration",
+        ],
+        leftStack,
       );
       const defineTypeNameNode = getDescendentInsideParent(
         "DefineTypeName",
-        "DefineDeclaration",
-        leftStack
+        [
+          "DefineViewDeclaration",
+          "DefineStylingDeclaration",
+          "DefinePlainDeclaration",
+        ],
+        leftStack,
       );
       const defineVariableNameNode = getDescendentInsideParent(
         "DefineVariableName",
-        "DefineDeclaration",
-        leftStack
+        [
+          "DefineViewDeclaration",
+          "DefineStylingDeclaration",
+          "DefinePlainDeclaration",
+        ],
+        leftStack,
       );
       const modifier = defineModifierNameNode
         ? getNodeText(defineModifierNameNode)
@@ -1534,16 +1554,30 @@ export const getCompletions = (
       const path = getParentPropertyPath(propertyNameNode, read);
       const lineText = document.getLineText(position.line);
       const exclude = getOtherNodesInsideParent(
-        "StructField",
-        ["DefineDeclaration_content", "StructObjectProperty_content"],
-        leftStack
+        ["ViewStructField", "StylingStructField", "PlainStructField"],
+        [
+          "DefineViewDeclaration_content",
+          "DefineStylingDeclaration_content",
+          "DefinePlainDeclaration_content",
+          "ViewStructObjectProperty_content",
+          "StylingStructObjectProperty_content",
+          "PlainStructObjectProperty_content",
+        ],
+        leftStack,
       ).map((n) =>
         getNodeText(
           getDescendent(
-            ["DeclarationScalarPropertyName", "DeclarationObjectPropertyName"],
-            n
-          )
-        )
+            [
+              "ViewDeclarationScalarPropertyName",
+              "StylingDeclarationScalarPropertyName",
+              "PlainDeclarationScalarPropertyName",
+              "ViewDeclarationObjectPropertyName",
+              "StylingDeclarationObjectPropertyName",
+              "PlainDeclarationObjectPropertyName",
+            ],
+            n,
+          ),
+        ),
       );
       addStructPropertyNameCompletions(
         completions,
@@ -1557,7 +1591,7 @@ export const getCompletions = (
         true,
         lineText,
         position,
-        exclude
+        exclude,
       );
     }
     return buildCompletions();
@@ -1566,27 +1600,46 @@ export const getCompletions = (
     leftStack.some(
       (n) =>
         (isWhitespaceNode(n.name) &&
-          (prevNode.name === "SetEqualOperator" ||
+          (prevNode.name === "AssignEqualOperator" ||
             prevNode.name === "ArrayItemMark") &&
-          leftStack.some((x) => x.name === "DefineDeclaration")) ||
-        n.name === "StructFieldValue"
+          leftStack.some(
+            (x) =>
+              x.name === "DefineViewDeclaration" ||
+              x.name === "DefineStylingDeclaration" ||
+              x.name === "DefinePlainDeclaration",
+          )) ||
+        n.name === "ViewStructFieldValue" ||
+        n.name === "StylingStructFieldValue" ||
+        n.name === "PlainStructFieldValue",
     ) &&
     !leftStack.some((n) => n.type.name === "AccessPath")
   ) {
     const defineModifierNameNode = getDescendentInsideParent(
       "DefineModifierName",
-      "DefineDeclaration",
-      leftStack
+      [
+        "DefineViewDeclaration",
+        "DefineStylingDeclaration",
+        "DefinePlainDeclaration",
+      ],
+      leftStack,
     );
     const defineTypeNameNode = getDescendentInsideParent(
       "DefineTypeName",
-      "DefineDeclaration",
-      leftStack
+      [
+        "DefineViewDeclaration",
+        "DefineStylingDeclaration",
+        "DefinePlainDeclaration",
+      ],
+      leftStack,
     );
     const defineVariableNameNode = getDescendentInsideParent(
       "DefineVariableName",
-      "DefineDeclaration",
-      leftStack
+      [
+        "DefineViewDeclaration",
+        "DefineStylingDeclaration",
+        "DefinePlainDeclaration",
+      ],
+      leftStack,
     );
     const modifier = defineModifierNameNode
       ? getNodeText(defineModifierNameNode)
@@ -1596,14 +1649,22 @@ export const getCompletions = (
       ? getNodeText(defineVariableNameNode)
       : "";
     const propertyNameNode = getDescendentInsideParent(
-      "DeclarationScalarPropertyName",
-      "StructField",
-      leftStack
+      [
+        "ViewDeclarationScalarPropertyName",
+        "StylingDeclarationScalarPropertyName",
+        "PlainDeclarationScalarPropertyName",
+      ],
+      ["ViewStructField", "StylingStructField", "PlainStructField"],
+      leftStack,
     );
     const propertyValueNode = getDescendentInsideParent(
-      "StructFieldValue",
-      "StructField",
-      leftStack
+      [
+        "ViewStructFieldValue",
+        "StylingStructFieldValue",
+        "PlainStructFieldValue",
+      ],
+      ["ViewStructField", "StylingStructField", "PlainStructField"],
+      leftStack,
     );
     const valueText = propertyValueNode ? getNodeText(propertyValueNode) : "";
     const valueCursorOffset = getCursorOffset(propertyValueNode);
@@ -1622,7 +1683,7 @@ export const getCompletions = (
         path,
         valueText,
         valueCursorOffset,
-        context
+        context,
       );
       return buildCompletions();
     }
@@ -1633,12 +1694,19 @@ export const getCompletions = (
   if (accessPathNode || leftStack[0]?.name === "ConditionalBlockOpenBrace") {
     const valueText = getNodeText(accessPathNode);
     const valueCursorOffset = getCursorOffset(accessPathNode);
-    if (leftStack.find((n) => n.type.name === "StructField")) {
+    if (
+      leftStack.find(
+        (n) =>
+          n.type.name === "ViewStructField" ||
+          n.type.name === "StylingStructField" ||
+          n.type.name === "PlainStructField",
+      )
+    ) {
       addStructAccessPathCompletions(
         completions,
         program,
         valueText,
-        valueCursorOffset
+        valueCursorOffset,
       );
     } else {
       const scopes = getDeclarationScopes(read, scriptAnnotations);
@@ -1648,21 +1716,21 @@ export const getCompletions = (
         scopes,
         valueText,
         valueCursorOffset,
-        scopePath
+        scopePath,
       );
       addImmutableAccessPathCompletions(
         completions,
         scopes,
         valueText,
         valueCursorOffset,
-        scopePath
+        scopePath,
       );
       addDivertPathCompletions(
         completions,
         scopes,
         valueText,
         valueCursorOffset,
-        scopePath
+        scopePath,
       );
     }
     return buildCompletions();
@@ -1672,7 +1740,7 @@ export const getCompletions = (
   if (
     leftStack[0]?.name === "DivertMark" &&
     !getNodeText(
-      getDescendentInsideParent("Divert_content", "Divert", leftStack)
+      getDescendentInsideParent("Divert_content", "Divert", leftStack),
     )
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
@@ -1684,7 +1752,7 @@ export const getCompletions = (
         "",
         0,
         getParentSectionPath(leftStack, read).join("."),
-        " "
+        " ",
       );
     }
     return buildCompletions();
@@ -1693,7 +1761,7 @@ export const getCompletions = (
     isWhitespaceNode(leftStack[0]?.name) &&
     prevNode.name === "DivertMark" &&
     !getNodeText(
-      getDescendentInsideParent("Divert_content", "Divert", leftStack)
+      getDescendentInsideParent("Divert_content", "Divert", leftStack),
     ).trim()
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
@@ -1704,7 +1772,7 @@ export const getCompletions = (
         scopes,
         "",
         0,
-        getParentSectionPath(leftStack, read).join(".")
+        getParentSectionPath(leftStack, read).join("."),
       );
     }
     return buildCompletions();
@@ -1720,7 +1788,7 @@ export const getCompletions = (
         scopes,
         valueText,
         valueCursorOffset,
-        getParentSectionPath(leftStack, read).join(".")
+        getParentSectionPath(leftStack, read).join("."),
       );
     }
     return buildCompletions();
@@ -1741,7 +1809,7 @@ export const getCompletions = (
         scopes,
         valueText,
         valueCursorOffset,
-        getParentSectionPath(leftStack, read).join(".")
+        getParentSectionPath(leftStack, read).join("."),
       );
     }
     return buildCompletions();
@@ -1752,12 +1820,12 @@ export const getCompletions = (
     const text = getNodeText(contentNode).trimStart();
     if (isCursorAfterNodeText(contentNode)) {
       if (text === "@") {
-        addLayoutElementReferenceCompletions(
+        addScreenElementReferenceCompletions(
           completions,
           program,
           ["text"],
           " ",
-          ": "
+          ": ",
         );
       } else if (text === "^") {
         addSnippet(completions, "title", "^:", ": ");
@@ -1775,7 +1843,7 @@ export const getCompletions = (
           "",
           ": ",
           true,
-          program
+          program,
         );
       }
     }

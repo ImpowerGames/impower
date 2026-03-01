@@ -64,7 +64,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
 
   override enter(
     annotations: Range<SparkdownAnnotation<Reference>>[],
-    nodeRef: SparkdownSyntaxNodeRef
+    nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Reference>>[] {
     if (nodeRef.name === "FunctionDeclarationName") {
       annotations.push(
@@ -72,7 +72,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           declaration: "function",
           symbolIds: [this.read(nodeRef.from, nodeRef.to)],
           kind: "write",
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }
@@ -82,7 +82,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           declaration: "scene",
           symbolIds: [this.read(nodeRef.from, nodeRef.to)],
           kind: "write",
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }
@@ -92,7 +92,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           declaration: "branch",
           symbolIds: ["." + this.read(nodeRef.from, nodeRef.to)],
           kind: "write",
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }
@@ -102,7 +102,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           declaration: "knot",
           symbolIds: [this.read(nodeRef.from, nodeRef.to)],
           kind: "write",
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }
@@ -112,7 +112,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           declaration: "stitch",
           symbolIds: ["." + this.read(nodeRef.from, nodeRef.to)],
           kind: "write",
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }
@@ -122,7 +122,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           declaration: "label",
           symbolIds: ["." + this.read(nodeRef.from, nodeRef.to)],
           kind: "write",
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }
@@ -134,7 +134,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             declaration: "const",
             symbolIds: [this.read(nodeRef.from, nodeRef.to)],
             kind: "write",
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -144,7 +144,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             declaration: "var",
             symbolIds: [this.read(nodeRef.from, nodeRef.to)],
             kind: "write",
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -154,7 +154,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             declaration: "temp",
             symbolIds: ["." + this.read(nodeRef.from, nodeRef.to)],
             kind: "write",
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -167,19 +167,23 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             declaration: "list",
             symbolIds: [this.read(nodeRef.from, nodeRef.to)],
             kind: "write",
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
     }
     if (nodeRef.name === "DefineIdentifier") {
       const context = getContextNames(nodeRef.node);
-      if (context.includes("DefineDeclaration")) {
+      if (
+        context.includes("DefineViewDeclaration") ||
+        context.includes("DefineStylingDeclaration") ||
+        context.includes("DefinePlainDeclaration")
+      ) {
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
             declaration: "define",
             kind: "write",
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -190,7 +194,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         const functionNameNode = getDescendentInsideParent(
           "FunctionDeclarationName",
           "FunctionDeclaration",
-          getContextStack(nodeRef.node)
+          getContextStack(nodeRef.node),
         );
         if (functionNameNode) {
           annotations.push(
@@ -202,7 +206,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
                   this.read(nodeRef.from, nodeRef.to),
               ],
               kind: "write",
-            }).range(nodeRef.from, nodeRef.to)
+            }).range(nodeRef.from, nodeRef.to),
           );
           return annotations;
         }
@@ -213,7 +217,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         SparkdownAnnotation.mark<Reference>({
           symbolIds: [this.read(nodeRef.from, nodeRef.to)],
           kind: "read",
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }
@@ -230,11 +234,15 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           symbolIds: ["." + divertPath, divertPath],
           firstMatchOnly: true,
           kind: "read",
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }
-    if (nodeRef.name === "DefineDeclaration") {
+    if (
+      nodeRef.name === "DefineViewDeclaration" ||
+      nodeRef.name === "DefineStylingDeclaration" ||
+      nodeRef.name === "DefinePlainDeclaration"
+    ) {
       this.defineModifier = "";
       this.defineType = "";
       this.defineName = "";
@@ -260,7 +268,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               displayName: this.defineType,
             },
           ],
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }
@@ -272,15 +280,23 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           linkable: true,
           declaration: "define_variable_name",
           kind: "write",
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }
     if (
-      nodeRef.name === "StructScalarItem" ||
-      nodeRef.name === "StructObjectItemBlock" ||
-      nodeRef.name === "StructObjectItemWithInlineScalarProperty" ||
-      nodeRef.name === "StructObjectItemWithInlineObjectProperty"
+      nodeRef.name === "ViewStructScalarItem" ||
+      nodeRef.name === "StylingStructScalarItem" ||
+      nodeRef.name === "PlainStructScalarItem" ||
+      nodeRef.name === "ViewStructObjectItemBlock" ||
+      nodeRef.name === "StylingStructObjectItemBlock" ||
+      nodeRef.name === "PlainStructObjectItemBlock" ||
+      nodeRef.name === "ViewStructObjectItemWithInlineScalarProperty" ||
+      nodeRef.name === "StylingStructObjectItemWithInlineScalarProperty" ||
+      nodeRef.name === "PlainStructObjectItemWithInlineScalarProperty" ||
+      nodeRef.name === "ViewStructObjectItemWithInlineObjectProperty" ||
+      nodeRef.name === "StylingStructObjectItemWithInlineObjectProperty" ||
+      nodeRef.name === "PlainStructObjectItemWithInlineObjectProperty"
     ) {
       const parent = this.definePropertyPathParts.at(-1);
       if (parent) {
@@ -291,8 +307,12 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (
-      nodeRef.name === "DeclarationScalarPropertyName" ||
-      nodeRef.name === "DeclarationObjectPropertyName"
+      nodeRef.name === "ViewDeclarationScalarPropertyName" ||
+      nodeRef.name === "StylingDeclarationScalarPropertyName" ||
+      nodeRef.name === "PlainDeclarationScalarPropertyName" ||
+      nodeRef.name === "ViewDeclarationObjectPropertyName" ||
+      nodeRef.name === "StylingDeclarationObjectPropertyName" ||
+      nodeRef.name === "PlainDeclarationObjectPropertyName"
     ) {
       const name = this.read(nodeRef.from, nodeRef.to);
       this.definePropertyPathParts.push({
@@ -307,18 +327,18 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           declaration: "property",
           symbolIds: [
             this.defineType + "." + this.defineName + "." + propertyPath,
-            ...(this.defineType === "layout"
+            ...(this.defineType === "screen"
               ? name.split(" ").map((n) => `layer.${n}`)
               : []),
           ],
           interdependentIds:
             this.defineType === "style"
               ? name.split(" ").map((n) => `layer.${n}`)
-              : this.defineType === "layout"
-              ? name.split(" ").map((n) => `style.${n}`)
-              : [],
+              : this.defineType === "screen"
+                ? name.split(" ").map((n) => `style.${n}`)
+                : [],
           kind: "write",
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       // For verifying linked types actually exist
       if (propertyPath.startsWith(".link.")) {
@@ -327,13 +347,17 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
               selectors: [{ types: [type] }],
-            }).range(nodeRef.from, nodeRef.to)
+            }).range(nodeRef.from, nodeRef.to),
           );
         }
       }
       return annotations;
     }
-    if (nodeRef.name === "StructFieldValue") {
+    if (
+      nodeRef.name === "ViewStructFieldValue" ||
+      nodeRef.name === "StylingStructFieldValue" ||
+      nodeRef.name === "PlainStructFieldValue"
+    ) {
       // For type checking
       const defineProperty = this.definePropertyPathParts
         .filter((p) => p.key)
@@ -349,7 +373,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         SparkdownAnnotation.mark<Reference>({
           assigned: declaration,
           prop: true,
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       // For finding references
       const value = this.read(nodeRef.from, nodeRef.to);
@@ -360,7 +384,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           symbolIds,
-        }).range(nodeRef.from + 1, nodeRef.to - 1) // don't include surrounding string quotes in symbol range
+        }).range(nodeRef.from + 1, nodeRef.to - 1), // don't include surrounding string quotes in symbol range
       );
       return annotations;
     }
@@ -371,7 +395,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         SparkdownAnnotation.mark<Reference>({
           symbolIds: types,
           kind: "read",
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
     }
     if (nodeRef.name === "VariableName") {
@@ -380,13 +404,20 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const typeNameNode = getDescendentInsideParent(
         ["TypeName"],
         ["AccessPath", "ListTypeAssignment"],
-        context
+        context,
       );
       const types = typeNameNode
         ? [this.read(typeNameNode.from, typeNameNode.to)]
         : [];
       // Record reference in field value
-      if (context.some((n) => n.name === "StructFieldValue")) {
+      if (
+        context.some(
+          (n) =>
+            n.name === "ViewStructFieldValue" ||
+            n.name === "StylingStructFieldValue" ||
+            n.name === "PlainStructFieldValue",
+        )
+      ) {
         const defineProperty = this.definePropertyPathParts
           .filter((p) => p.key)
           .map((p) => p.key)
@@ -405,7 +436,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               symbolIds: types.map((type) => `${type}.${name}`),
               kind: "read",
               linkable: true,
-            }).range(nodeRef.from, nodeRef.to)
+            }).range(nodeRef.from, nodeRef.to),
           );
           return annotations;
         } else {
@@ -417,7 +448,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               symbolIds: ["?" + "." + name], // will need to infer type later
               kind: "read",
               linkable: true,
-            }).range(nodeRef.from, nodeRef.to)
+            }).range(nodeRef.from, nodeRef.to),
           );
           return annotations;
         }
@@ -428,7 +459,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               symbolIds: types.map((type) => `${type}.${name}`),
               kind: "read",
               linkable: true,
-            }).range(nodeRef.from, nodeRef.to)
+            }).range(nodeRef.from, nodeRef.to),
           );
           return annotations;
         } else {
@@ -442,7 +473,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               kind: "read",
               linkable: true,
               firstMatchOnly: true,
-            }).range(nodeRef.from, nodeRef.to)
+            }).range(nodeRef.from, nodeRef.to),
           );
           return annotations;
         }
@@ -468,7 +499,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             kind: "read",
             linkable: true,
             interdependentIds: [`style.${name}`],
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -482,7 +513,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -499,7 +530,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -517,7 +548,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -535,7 +566,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -550,7 +581,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -572,7 +603,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               symbolIds: types.map((type) => `${type}.${name}`),
               kind: "read",
               linkable: true,
-            }).range(nodeRef.from, nodeRef.to)
+            }).range(nodeRef.from, nodeRef.to),
           );
           return annotations;
         }
@@ -585,7 +616,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
               symbolIds: types.map((type) => `${type}.${name}`),
               kind: "read",
               linkable: true,
-            }).range(nodeRef.from, nodeRef.to)
+            }).range(nodeRef.from, nodeRef.to),
           );
           return annotations;
         }
@@ -599,7 +630,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             symbolIds: types.map((type) => `${type}.${name}`),
             kind: "read",
             linkable: true,
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -616,7 +647,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           kind: "read",
           linkable: true,
           firstMatchOnly: true,
-        }).range(nodeRef.from, nodeRef.to)
+        }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }
@@ -625,9 +656,13 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
 
   override leave(
     annotations: Range<SparkdownAnnotation<Reference>>[],
-    nodeRef: SyntaxNodeRef
+    nodeRef: SyntaxNodeRef,
   ): Range<SparkdownAnnotation<Reference>>[] {
-    if (nodeRef.name === "DefineDeclaration") {
+    if (
+      nodeRef.name === "DefineViewDeclaration" ||
+      nodeRef.name === "DefineStylingDeclaration" ||
+      nodeRef.name === "DefinePlainDeclaration"
+    ) {
       this.defineModifier = "";
       this.defineType = "";
       this.defineName = "";
@@ -635,19 +670,29 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (
-      nodeRef.name === "StructScalarItem" ||
-      nodeRef.name === "StructObjectItemBlock" ||
-      nodeRef.name === "StructObjectItemWithInlineScalarProperty" ||
-      nodeRef.name === "StructObjectItemWithInlineObjectProperty" ||
-      nodeRef.name === "StructObjectItemWithInlineScalarProperty_begin" ||
-      nodeRef.name === "StructObjectItemWithInlineObjectProperty_end"
+      nodeRef.name === "ViewStructScalarItem" ||
+      nodeRef.name === "StylingStructScalarItem" ||
+      nodeRef.name === "PlainStructScalarItem" ||
+      nodeRef.name === "ViewStructObjectItemBlock" ||
+      nodeRef.name === "PlainStructObjectItemBlock" ||
+      nodeRef.name === "ViewStructObjectItemWithInlineScalarProperty" ||
+      nodeRef.name === "PlainStructObjectItemWithInlineScalarProperty" ||
+      nodeRef.name === "ViewStructObjectItemWithInlineObjectProperty" ||
+      nodeRef.name === "PlainStructObjectItemWithInlineObjectProperty" ||
+      nodeRef.name === "ViewStructObjectItemWithInlineScalarProperty_begin" ||
+      nodeRef.name === "PlainStructObjectItemWithInlineScalarProperty_begin" ||
+      nodeRef.name === "ViewStructObjectItemWithInlineObjectProperty_end" ||
+      nodeRef.name === "PlainStructObjectItemWithInlineObjectProperty_end"
     ) {
       this.definePropertyPathParts.pop();
       return annotations;
     }
     if (
-      nodeRef.name === "StructScalarProperty" ||
-      nodeRef.name === "StructObjectProperty"
+      nodeRef.name === "ViewStructScalarProperty" ||
+      nodeRef.name === "StylingStructScalarProperty" ||
+      nodeRef.name === "PlainStructScalarProperty" ||
+      nodeRef.name === "ViewStructObjectProperty" ||
+      nodeRef.name === "PlainStructObjectProperty"
     ) {
       this.definePropertyPathParts.pop();
       return annotations;

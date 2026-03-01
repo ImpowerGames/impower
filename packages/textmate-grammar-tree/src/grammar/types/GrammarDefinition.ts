@@ -7,9 +7,11 @@ export interface RuleDefinition {
 
   // VSCode properties
   name?: string;
+  contentName?: string;
 
   // CodeMirror properties
   tag?: string;
+  contentTag?: string;
   brackets?: boolean;
   openedBy?: string | string[];
   closedBy?: string | string[];

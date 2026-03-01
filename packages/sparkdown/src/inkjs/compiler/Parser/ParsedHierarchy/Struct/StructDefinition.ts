@@ -82,7 +82,7 @@ export class StructDefinition extends ParsedObject {
       currentPath: string;
     }[] = [{ property: null, value: {}, currentPath: "" }];
     const firstProp = propertyDefinitions[0];
-    if (firstProp && firstProp.identifier.name === "-") {
+    if (firstProp && firstProp.identifier?.name === "-") {
       // Is defining array struct
       parentStack[0]!.value = [];
     }
@@ -95,9 +95,9 @@ export class StructDefinition extends ParsedObject {
           (parentStack[parentStack.length - 1]?.property?.level ?? 0) &&
         // Don't pop if this is an array item is at same indent level as non-array item parent
         !(
-          parentStack[parentStack.length - 1]?.property?.identifier.name !==
+          parentStack[parentStack.length - 1]?.property?.identifier?.name !==
             "-" &&
-          prop.identifier.name === "-" &&
+          prop.identifier?.name === "-" &&
           prop.level === parentStack[parentStack.length - 1]?.property?.level
         )
       ) {
@@ -108,7 +108,7 @@ export class StructDefinition extends ParsedObject {
       const parentPath = parent?.currentPath || "";
       let currentPropKey: string = "";
       // Construct the dot-access key for the current property
-      if (prop.identifier.name === "-") {
+      if (prop.identifier?.name === "-") {
         // Property is an array item
         if (parent && Array.isArray(parent.value)) {
           const index = parent.value.length;
@@ -116,7 +116,7 @@ export class StructDefinition extends ParsedObject {
         }
       } else {
         // Property is an object key
-        const propName = prop.identifier.name;
+        const propName = prop.identifier?.name;
         currentPropKey = `${parentPath}.${propName}`;
       }
       // Save the constructed dot-access key back to the property itself.
@@ -129,10 +129,10 @@ export class StructDefinition extends ParsedObject {
         const isArray =
           nextProp &&
           nextProp.level >= prop.level &&
-          nextProp.identifier.name === "-";
+          nextProp.identifier?.name === "-";
         const value = isArray ? [] : {};
         if (parent) {
-          if (prop.identifier.name === "-") {
+          if (prop.identifier?.name === "-") {
             if (Array.isArray(parent.value)) {
               const index = parent.value.length;
               parent.value[index] = value;
@@ -140,14 +140,14 @@ export class StructDefinition extends ParsedObject {
               this.Error(`Array item must indented inside of parent`, prop);
             }
           } else if (
-            prop.identifier.name &&
+            prop.identifier?.name &&
             parent.value[prop.identifier.name] !== undefined
           ) {
             this.Error(
               `Duplicate identifier '${prop.identifier.name}'`,
               prop.identifier.debugMetadata
             );
-          } else if (prop.identifier.name) {
+          } else if (prop.identifier?.name) {
             parent.value[prop.identifier.name] = value;
           }
         }
@@ -159,7 +159,7 @@ export class StructDefinition extends ParsedObject {
       } else {
         const value = prop.GetValue();
         if (parent) {
-          if (prop.identifier.name === "-") {
+          if (prop.identifier?.name === "-") {
             if (Array.isArray(parent.value)) {
               const index = parent.value.length;
               parent.value[index] = value;
@@ -167,14 +167,14 @@ export class StructDefinition extends ParsedObject {
               this.Error(`Array item must indented inside of parent`, prop);
             }
           } else if (
-            prop.identifier.name &&
+            prop.identifier?.name &&
             parent.value[prop.identifier.name] !== undefined
           ) {
             this.Error(
               `Duplicate identifier '${prop.identifier.name}'`,
               prop.identifier.debugMetadata
             );
-          } else if (prop.identifier.name) {
+          } else if (prop.identifier?.name) {
             parent.value[prop.identifier.name] = value;
           }
         }

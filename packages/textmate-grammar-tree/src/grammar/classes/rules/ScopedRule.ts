@@ -80,6 +80,7 @@ export class ScopedRule implements Rule {
     const contentRuleItem: SwitchRuleDefinition = {
       id: contentId,
       patterns: def.patterns ?? [],
+      tag: def.contentTag
     };
     this.contentRule = repo.add(contentRuleItem, contentId);
 

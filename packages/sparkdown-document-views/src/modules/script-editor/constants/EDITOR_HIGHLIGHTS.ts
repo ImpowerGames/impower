@@ -57,7 +57,6 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.special(tags.heading), color: c.sectionNameDefinition },
 
   { tag: tags.separator, color: c.foreground },
-  { tag: tags.operator, color: c.foreground },
 
   { tag: tags.invalid, color: c.invalid },
 

@@ -548,6 +548,8 @@ export class SparkdownCompiler {
             const offsetSource: SourceMetadata = { ...diagnostic.source };
             offsetSource.startLineNumber += lineNumberOffset;
             offsetSource.endLineNumber += lineNumberOffset;
+            offsetSource.fileName ??= fileName;
+            offsetSource.filePath ??= uri;
             onDiagnostic(diagnostic.message, diagnostic.severity, offsetSource);
           }
         }
@@ -1628,7 +1630,7 @@ export class SparkdownCompiler {
                             typeof v === typeof definedPropertyValue
                         );
                       if (!isSchemaSupportedScalarType) {
-                        const message = `Cannot assign '${typeof definedPropertyValue}' to '${typeof expectedPropertyValue}' property`;
+                        const message = `Cannot assign '${typeof definedPropertyValue}' to '${typeof expectedPropertyValue === "object" && "$type" in expectedPropertyValue ? expectedPropertyValue.$type : typeof expectedPropertyValue}' property`;
                         const range = doc.range(cur.from, cur.to);
                         program.diagnostics ??= {};
                         program.diagnostics[uri] ??= [];

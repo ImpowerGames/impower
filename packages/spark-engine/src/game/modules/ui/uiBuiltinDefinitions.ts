@@ -1,4 +1,5 @@
 import { default_animation } from "./constructors/default_animation";
+import { default_component } from "./constructors/default_component";
 import { default_ease } from "./constructors/default_ease";
 import { default_filtered_image } from "./constructors/default_filtered_image";
 import { default_font } from "./constructors/default_font";
@@ -6,16 +7,17 @@ import { default_gradient } from "./constructors/default_gradient";
 import { default_graphic } from "./constructors/default_graphic";
 import { default_image } from "./constructors/default_image";
 import { default_layered_image } from "./constructors/default_layered_image";
-import { default_layout } from "./constructors/default_layout";
+import { default_screen } from "./constructors/default_screen";
 import { default_shadow } from "./constructors/default_shadow";
 import { default_style } from "./constructors/default_style";
+import { default_theme } from "./constructors/default_theme";
 import { default_transition } from "./constructors/default_transition";
 
 export const uiBuiltinDefinitions = () => ({
   config: {
     ui: {
       styles_element_name: "styles",
-      layouts_element_name: "layouts",
+      screens_element_name: "screens",
       breakpoints: {
         xs: 400,
         sm: 640,
@@ -34,6 +36,12 @@ export const uiBuiltinDefinitions = () => ({
   filtered_image: {
     $default: default_filtered_image(),
   } as Record<string, ReturnType<typeof default_filtered_image>>,
+  component: {
+    $default: default_component(),
+  } as Record<string, ReturnType<typeof default_component>>,
+  theme: {
+    $default: default_theme(),
+  } as Record<string, ReturnType<typeof default_theme>>,
   style: {
     $default: default_style(),
     main: default_style({
@@ -44,7 +52,7 @@ export const uiBuiltinDefinitions = () => ({
       font_size: "1.25rem",
       line_height: "1.5",
       color: "white",
-      "@screen(sm)": { font_size: "1.125rem" },
+      "@screen_size(sm)": { font_size: "1.125rem" },
     }),
     row: default_style({
       $name: "row",
@@ -75,7 +83,7 @@ export const uiBuiltinDefinitions = () => ({
       user_select: "none",
       text_wrap: "wrap",
       white_space: "pre-line",
-      "*": {
+      ">> *": {
         display: "inline",
       },
     }),
@@ -90,7 +98,7 @@ export const uiBuiltinDefinitions = () => ({
       text_stroke: "1",
       color: "black",
       white_space: "pre-line",
-      "*": {
+      ">> *": {
         display: "inline",
       },
     }),
@@ -176,7 +184,7 @@ export const uiBuiltinDefinitions = () => ({
       position: "absolute",
       inset: "0",
       pointer_events: "none",
-      "*": {
+      ">> *": {
         pointer_events: "none",
       },
     }),
@@ -205,7 +213,7 @@ export const uiBuiltinDefinitions = () => ({
       flex_direction: "column",
       background_size: "auto 100%",
       background_position: "center",
-      "image *": {
+      "> image >> *": {
         mix_blend_mode: "plus-lighter",
       },
     }),
@@ -220,43 +228,26 @@ export const uiBuiltinDefinitions = () => ({
       width: "100%",
       gap: "8px",
       margin_bottom: "100px",
-      "> *": {
-        display: "flex",
-        flex_direction: "row",
-        width: "90%",
-        max_width: "800px",
-        background_color: "rgb(0 0 0 / 65%)",
-        padding: "8px",
-        border_radius: "8px",
-        border: "1px solid",
-        text_align: "center",
-        align_items: "center",
-        justify_content: "center",
-        cursor: "pointer",
-      },
-      "> *:hover": {
+      "@screen_size(sm)": { margin_bottom: "120px" },
+    }),
+    choice: default_style({
+      $name: "choice",
+      display: "flex",
+      flex_direction: "row",
+      width: "90%",
+      max_width: "800px",
+      background_color: "rgb(0 0 0 / 65%)",
+      padding: "8px",
+      border_radius: "8px",
+      border: "1px solid",
+      text_align: "center",
+      align_items: "center",
+      justify_content: "center",
+      cursor: "pointer",
+      "@hovered": {
         background_color: "black",
         transition: "all 0.15s linear",
       },
-      "@screen(sm)": { margin_bottom: "120px" },
-    }),
-    choice_0: default_style({
-      $name: "choice_0",
-    }),
-    choice_1: default_style({
-      $name: "choice_1",
-    }),
-    choice_2: default_style({
-      $name: "choice_2",
-    }),
-    choice_3: default_style({
-      $name: "choice_3",
-    }),
-    choice_4: default_style({
-      $name: "choice_4",
-    }),
-    choice_5: default_style({
-      $name: "choice_5",
     }),
     textbox: default_style({
       $name: "textbox",
@@ -288,7 +279,7 @@ export const uiBuiltinDefinitions = () => ({
       margin: "0 auto",
       min_height: "200px",
       padding: "16px 32px",
-      "@screen(sm)": {
+      "@screen_size(sm)": {
         min_height: "240px",
         padding: "16px",
       },
@@ -302,7 +293,7 @@ export const uiBuiltinDefinitions = () => ({
       gap: "8px",
       line_height: "1",
       font_size: "1.875rem",
-      "@screen(sm)": { font_size: "1.5rem" },
+      "@screen_size(sm)": { font_size: "1.5rem" },
     }),
     character_name: default_style({
       $name: "character_name",
@@ -314,7 +305,7 @@ export const uiBuiltinDefinitions = () => ({
       padding_bottom: "8px",
       font_weight: "400px",
       font_size: "1rem",
-      "@screen(sm)": { font_size: "0.875rem" },
+      "@screen_size(sm)": { font_size: "0.875rem" },
     }),
     title: default_style({
       $name: "title",
@@ -360,7 +351,7 @@ export const uiBuiltinDefinitions = () => ({
       $name: "dialogue",
       margin: "0 auto",
       width: "68%",
-      "@screen(sm)": { width: "80%" },
+      "@screen_size(sm)": { width: "80%" },
     }),
     action: default_style({
       $name: "action",
@@ -389,15 +380,15 @@ export const uiBuiltinDefinitions = () => ({
       animation_play_state: "paused",
     }),
   } as Record<string, ReturnType<typeof default_style>>,
-  layout: {
-    $default: default_layout(),
-    loading: default_layout({
+  screen: {
+    $default: default_screen(),
+    loading: default_screen({
       $name: "loading",
       loading_bar: {
         loading_fill: {},
       },
     }),
-    main: default_layout({
+    main: default_screen({
       $name: "main",
       stage: {
         animation: {},
@@ -409,22 +400,22 @@ export const uiBuiltinDefinitions = () => ({
         },
       },
       choices: {
-        choice_0: {
+        "choice 0": {
           text: {},
         },
-        choice_1: {
+        "choice 1": {
           text: {},
         },
-        choice_2: {
+        "choice 2": {
           text: {},
         },
-        choice_3: {
+        "choice 3": {
           text: {},
         },
-        choice_4: {
+        "choice 4": {
           text: {},
         },
-        choice_5: {
+        "choice 5": {
           text: {},
         },
       },
@@ -470,7 +461,7 @@ export const uiBuiltinDefinitions = () => ({
         animation: {},
       },
     }),
-  } as Record<string, ReturnType<typeof default_layout>>,
+  } as Record<string, ReturnType<typeof default_screen>>,
   layer: {
     $default: {},
     self: {},

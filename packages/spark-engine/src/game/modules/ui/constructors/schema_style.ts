@@ -13,7 +13,7 @@ const TIMING_FUNCTIONS = [
   "steps()",
   "cubic-bezier()",
 ];
-const COLORS = [{ $type: "color" }];
+const COLORS = ["transparent", "black", "white", { $type: "color" }];
 
 export const schema_style: Create<Schema<any>> = () => ({
   $type: "style",

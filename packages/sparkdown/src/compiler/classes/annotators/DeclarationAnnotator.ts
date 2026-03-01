@@ -5,11 +5,6 @@ import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
 export type DeclarationType =
-  | "screen"
-  | "component"
-  | "style"
-  | "animation"
-  | "theme"
   | "function"
   | "scene"
   | "branch"
@@ -30,40 +25,14 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
 
   override enter(
     annotations: Range<SparkdownAnnotation<DeclarationType>>[],
-    nodeRef: SparkdownSyntaxNodeRef
+    nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<DeclarationType>>[] {
-    if (
-      nodeRef.name === "ScreenDeclarationKeyword" ||
-      nodeRef.name === "ComponentDeclarationKeyword" ||
-      nodeRef.name === "StyleDeclarationKeyword" ||
-      nodeRef.name === "AnimationDeclarationKeyword" ||
-      nodeRef.name === "ThemeDeclarationKeyword"
-    ) {
-      this.type = this.read(nodeRef.from, nodeRef.to) as DeclarationType;
-    }
-    if (
-      nodeRef.name === "ScreenDeclarationName" ||
-      nodeRef.name === "ComponentDeclarationName" ||
-      nodeRef.name === "StyleDeclarationName" ||
-      nodeRef.name === "AnimationDeclarationName" ||
-      nodeRef.name === "ThemeDeclarationName"
-    ) {
-      if (this.type) {
-        annotations.push(
-          SparkdownAnnotation.mark<DeclarationType>(this.type).range(
-            nodeRef.from,
-            nodeRef.to
-          )
-        );
-        return annotations;
-      }
-    }
     if (nodeRef.name === "FunctionDeclarationName") {
       annotations.push(
         SparkdownAnnotation.mark<DeclarationType>("function").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -71,8 +40,8 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<DeclarationType>("scene").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -80,8 +49,8 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<DeclarationType>("branch").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -89,8 +58,8 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<DeclarationType>("knot").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -98,8 +67,8 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<DeclarationType>("stitch").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -107,8 +76,8 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<DeclarationType>("label").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -118,8 +87,8 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>("const").range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -127,8 +96,8 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>("var").range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -136,8 +105,8 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>("temp").range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -148,20 +117,24 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>("list").range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
     }
     if (nodeRef.name === "DefineIdentifier") {
       const context = getContextNames(nodeRef.node);
-      if (context.includes("DefineDeclaration")) {
+      if (
+        context.includes("DefineViewDeclaration") ||
+        context.includes("DefineStylingDeclaration") ||
+        context.includes("DefinePlainDeclaration")
+      ) {
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>("define").range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -172,8 +145,8 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<DeclarationType>("param").range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }

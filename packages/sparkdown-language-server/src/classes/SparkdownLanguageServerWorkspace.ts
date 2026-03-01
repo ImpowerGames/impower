@@ -203,7 +203,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       this._connection.onRequest(
         DocumentDiagnosticRequest.method,
         async (
-          params: DocumentDiagnosticParams
+          params: DocumentDiagnosticParams,
         ): Promise<DocumentDiagnosticReport> => {
           const uri = params.textDocument.uri;
           const document = this._documents.get(uri);
@@ -216,28 +216,28 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
             };
           }
           return { kind: "unchanged", resultId: uri };
-        }
-      )
+        },
+      ),
     );
     disposables.push(
       this._connection.onRequest(
         CompileProgramMessage.method,
         async (
-          params: CompileProgramParams
+          params: CompileProgramParams,
         ): Promise<SparkProgram | undefined> => {
           return this.compile(params.textDocument.uri, true);
-        }
-      )
+        },
+      ),
     );
     disposables.push(
       this._connection.onDidOpenTextDocument((event) => {
         return this.openTextDocument(event);
-      })
+      }),
     );
     disposables.push(
       this._connection.onDidChangeTextDocument((event) => {
         return this.changeTextDocument(event);
-      })
+      }),
     );
     disposables.push(
       this._connection.onDidChangeWatchedFiles(async (params) => {
@@ -245,19 +245,19 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         await Promise.all(
           changes
             .filter((change) => change.type == FileChangeType.Deleted)
-            .map((change) => this.deleteFile(change.uri))
+            .map((change) => this.deleteFile(change.uri)),
         );
         await Promise.all(
           changes
             .filter((change) => change.type == FileChangeType.Created)
-            .map((change) => this.createFile(change.uri))
+            .map((change) => this.createFile(change.uri)),
         );
         await Promise.all(
           changes
             .filter((change) => change.type == FileChangeType.Changed)
-            .map((change) => this.changeFile(change.uri))
+            .map((change) => this.changeFile(change.uri)),
         );
-      })
+      }),
     );
     return Disposable.create(() => {
       for (const disposable of disposables) {

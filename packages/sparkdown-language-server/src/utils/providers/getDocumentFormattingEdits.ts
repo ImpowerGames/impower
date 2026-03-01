@@ -20,7 +20,7 @@ const INDENT_REGEX: RegExp = /^[ \t]*/;
 const isInRange = (
   document: SparkdownDocument,
   innerRange: Range,
-  outerRange: Range | Position
+  outerRange: Range | Position,
 ) => {
   if ("start" in outerRange) {
     return (
@@ -39,7 +39,7 @@ export const getFormatting = (
   annotations: SparkdownAnnotations,
   options: FormattingOptions,
   formattingRange?: Range | Position,
-  formattingOnType?: Position
+  formattingOnType?: Position,
 ) => {
   const edits: (TextEdit & {
     lineNumber: number;
@@ -65,7 +65,7 @@ export const getFormatting = (
   let indentsToProcessLater: { from: number; to: number }[] = [];
 
   const pushIfInRange = (
-    edit: TextEdit & { lineNumber: number; oldText: string; type: string }
+    edit: TextEdit & { lineNumber: number; oldText: string; type: string },
   ) => {
     if (
       formattingOnType ||
@@ -110,7 +110,7 @@ export const getFormatting = (
     contentNodeName: SparkdownNodeName,
     currentIndentation: string,
     currentIndentLevel: number,
-    strict: boolean
+    strict: boolean,
   ) => {
     const rootNode = stack.find((n) => n.name === rootNodeName);
     if (rootNode) {
@@ -164,51 +164,27 @@ export const getFormatting = (
       // Block Declaration properties are indented relative to root node
       newIndentLevel = processBlockDeclaration(
         stack,
-        "DefineDeclaration",
-        "DefineDeclaration_content",
+        "DefineViewDeclaration",
+        "DefineViewDeclaration_content",
         currentIndentation,
         newIndentLevel,
-        false
+        false,
       );
       newIndentLevel = processBlockDeclaration(
         stack,
-        "ScreenDeclaration",
-        "ScreenDeclaration_content",
+        "DefineStylingDeclaration",
+        "DefineStylingDeclaration_content",
         currentIndentation,
         newIndentLevel,
-        false
+        false,
       );
       newIndentLevel = processBlockDeclaration(
         stack,
-        "ComponentDeclaration",
-        "ComponentDeclaration_content",
+        "DefinePlainDeclaration",
+        "DefinePlainDeclaration_content",
         currentIndentation,
         newIndentLevel,
-        false
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "StyleDeclaration",
-        "StyleDeclaration_content",
-        currentIndentation,
-        newIndentLevel,
-        false
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "AnimationDeclaration",
-        "AnimationDeclaration_content",
-        currentIndentation,
-        newIndentLevel,
-        false
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "ThemeDeclaration",
-        "ThemeDeclaration_content",
-        currentIndentation,
-        newIndentLevel,
-        false
+        false,
       );
       newIndentLevel = processBlockDeclaration(
         stack,
@@ -216,7 +192,7 @@ export const getFormatting = (
         "BlockTitle_content",
         currentIndentation,
         newIndentLevel,
-        true
+        true,
       );
       newIndentLevel = processBlockDeclaration(
         stack,
@@ -224,7 +200,7 @@ export const getFormatting = (
         "BlockHeading_content",
         currentIndentation,
         newIndentLevel,
-        true
+        true,
       );
       newIndentLevel = processBlockDeclaration(
         stack,
@@ -232,7 +208,7 @@ export const getFormatting = (
         "BlockTransitional_content",
         currentIndentation,
         newIndentLevel,
-        true
+        true,
       );
       newIndentLevel = processBlockDeclaration(
         stack,
@@ -240,7 +216,7 @@ export const getFormatting = (
         "BlockWrite_content",
         currentIndentation,
         newIndentLevel,
-        true
+        true,
       );
       newIndentLevel = processBlockDeclaration(
         stack,
@@ -248,7 +224,7 @@ export const getFormatting = (
         "BlockDialogue_content",
         currentIndentation,
         newIndentLevel,
-        true
+        true,
       );
       newIndentLevel = processBlockDeclaration(
         stack,
@@ -256,7 +232,7 @@ export const getFormatting = (
         "BlockAction_content",
         currentIndentation,
         newIndentLevel,
-        true
+        true,
       );
       // FrontMatter field content are indented by 1
       const unknownNode = stack.find((n) => n.name === "Unknown");
@@ -266,13 +242,13 @@ export const getFormatting = (
           ? currentIndentation.split("\t").length - 1
           : Math.round(currentIndentation.length / options.tabSize);
         const frontMatterFieldContentNode = stack.find(
-          (n) => n.name === "FrontMatterField_content"
+          (n) => n.name === "FrontMatterField_content",
         );
         newIndentLevel = unknownNode
           ? indentLevel
           : frontMatterFieldContentNode
-          ? 1
-          : 0;
+            ? 1
+            : 0;
         setIndent({ type: "frontmatter", level: newIndentLevel });
       }
     }
@@ -320,7 +296,7 @@ export const getFormatting = (
             line += 1;
           }
           matchNextIndentLevel.to = document.offsetAt(
-            document.getLineRange(line - 1).end
+            document.getLineRange(line - 1).end,
           );
         }
       } else if (aheadCur.value.type === "close_brace") {
@@ -535,7 +511,7 @@ export const getFormatting = (
         .getLineText(range.start.line)
         .slice(text.length);
       const isFunctionKnot = /function($|[ \t]*)/.test(
-        restOfLineText.trimStart()
+        restOfLineText.trimStart(),
       );
       const expectedText = settings?.formatter
         ?.convertInkSyntaxToSparkdownSyntax
@@ -682,7 +658,7 @@ export const getFormatting = (
 
   edits.sort(
     (a, b) =>
-      document.offsetAt(a.range.start) - document.offsetAt(b.range.start)
+      document.offsetAt(a.range.start) - document.offsetAt(b.range.start),
   );
 
   return {
@@ -696,7 +672,7 @@ export const getFormatting = (
 export const resolveFormattingConflicts = (
   edits: (TextEdit & { type: string })[] | undefined,
   document: SparkdownDocument,
-  formattingOnType?: Position
+  formattingOnType?: Position,
 ): TextEdit[] => {
   const result: (TextEdit & { type: string })[] = [];
   if (!edits) {
@@ -794,7 +770,7 @@ export const resolveFormattingConflicts = (
               oldText: currOldText,
               newText: curr.newText,
               type: curr.type,
-            })
+            }),
           );
           continue;
         }
@@ -813,7 +789,7 @@ export const getDocumentFormattingEdits = (
   annotations: SparkdownAnnotations | undefined,
   options: FormattingOptions,
   formattingRange?: Range | Position,
-  formattingOnType?: Position
+  formattingOnType?: Position,
 ): TextEdit[] | undefined => {
   if (!document || !annotations) {
     return undefined;
@@ -826,7 +802,7 @@ export const getDocumentFormattingEdits = (
     annotations,
     options,
     formattingRange,
-    formattingOnType
+    formattingOnType,
   );
 
   // console.log("LINES", [...lines]);

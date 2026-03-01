@@ -24,7 +24,7 @@ export class StringParser {
   public static readonly ParseSuccess: typeof ParseSuccess = ParseSuccess;
   public static readonly numbersCharacterSet = new CharacterSet("0123456789");
 
-  private _chars: string[];
+  protected _chars: string[];
 
   public errorHandler:
     | null
@@ -99,7 +99,7 @@ export class StringParser {
 
     // Allow subclass to receive callback
     if (this.RuleDidSucceed) {
-      this.RuleDidSucceed(result, stateAtBeginRule, stateAtSucceedRule);
+      this.RuleDidSucceed(result, stateAtBeginRule, stateAtSucceedRule!);
     }
 
     // Flatten state stack so that we maintain the same values,
@@ -318,11 +318,11 @@ export class StringParser {
     return result;
   };
 
-  public readonly OneOf = (array: ParseRule[]): ParseRuleReturn => {
+  public readonly OneOf = <R extends ParseRuleReturn>(array: (() => R | null)[]): R | null => {
     for (const rule of array) {
       const result = this.ParseObject(rule);
       if (result !== null) {
-        return result;
+        return result as R;
       }
     }
 

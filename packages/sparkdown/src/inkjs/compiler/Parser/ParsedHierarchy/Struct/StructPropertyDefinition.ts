@@ -1,9 +1,9 @@
-import { ParsedObject } from "../Object";
 import { InkObject as RuntimeObject } from "../../../../engine/Object";
-import { Identifier } from "../Identifier";
 import { Expression } from "../Expression/Expression";
 import { NumberExpression } from "../Expression/NumberExpression";
 import { StringExpression } from "../Expression/StringExpression";
+import { Identifier } from "../Identifier";
+import { ParsedObject } from "../Object";
 import { VariableReference } from "../Variable/VariableReference";
 
 export class StructPropertyDefinition extends ParsedObject {
@@ -43,6 +43,15 @@ export class StructPropertyDefinition extends ParsedObject {
         this.Error("Property reference is invalid.", this.expression);
         return undefined;
       }
+      if (this.expression.path.length === 1) {
+        return { $type: "", $name: this.expression.path[0] || "" };
+      }
+      if (this.expression.path.length === 2) {
+        return {
+          $type: this.expression.path[0] || "",
+          $name: this.expression.path[1] || "",
+        };
+      }
       if (this.expression.path.length > 2) {
         this.Error(
           "Property cannot reference another property.",
@@ -50,13 +59,6 @@ export class StructPropertyDefinition extends ParsedObject {
         );
         return undefined;
       }
-      if (this.expression.path.length === 1) {
-        return { $type: "", $name: this.expression.path[0] || "" };
-      }
-      return {
-        $type: this.expression.path[0] || "",
-        $name: this.expression.path[1] || "",
-      };
     }
     this.Error(
       "Initial value must be a number, string, boolean, or reference",

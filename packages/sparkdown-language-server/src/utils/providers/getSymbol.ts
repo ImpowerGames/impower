@@ -10,7 +10,7 @@ import { type Range } from "vscode-languageserver-textdocument";
 export const getSymbol = (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
-  position: Position
+  position: Position,
 ): {
   symbol?: GrammarSyntaxNode<SparkdownNodeName>;
   nameRange?: Range;
@@ -34,8 +34,12 @@ export const getSymbol = (
         n.name === "LabelDeclarationName" ||
         n.name === "DefineTypeName" ||
         n.name === "DefineVariableName" ||
-        n.name === "DeclarationScalarPropertyName" ||
-        n.name === "DeclarationObjectPropertyName" ||
+        n.name === "ViewDeclarationScalarPropertyName" ||
+        n.name === "StylingDeclarationScalarPropertyName" ||
+        n.name === "PlainDeclarationScalarPropertyName" ||
+        n.name === "ViewDeclarationObjectPropertyName" ||
+        n.name === "StylingDeclarationObjectPropertyName" ||
+        n.name === "PlainDeclarationObjectPropertyName" ||
         n.name === "TypeName" ||
         n.name === "VariableName" ||
         n.name === "PropertyName" ||
@@ -47,48 +51,64 @@ export const getSymbol = (
         n.name === "AssetCommandTarget" ||
         n.name === "NameValue" ||
         n.name === "IncludeContent" ||
-        n.name === "StructFieldValue"
+        n.name === "ViewStructFieldValue" ||
+        n.name === "StylingStructFieldValue" ||
+        n.name === "PlainStructFieldValue",
     );
     if (symbol) {
       const symbolRange = document.range(symbol.from, symbol.to);
-      if (symbol.name === "StructFieldValue") {
+      if (
+        symbol.name === "ViewStructFieldValue" ||
+        symbol.name === "StylingStructFieldValue" ||
+        symbol.name === "PlainStructFieldValue"
+      ) {
         const defineDeclarationNode = stack.find(
-          (n) => n.name === "DefineDeclaration"
+          (n) =>
+            n.name === "DefineViewDeclaration" ||
+            n.name === "DefineStylingDeclaration" ||
+            n.name === "DefinePlainDeclaration",
         );
         if (defineDeclarationNode) {
           const defineTypeNode = getDescendent(
             "DefineTypeName",
-            defineDeclarationNode
+            defineDeclarationNode,
           );
           if (defineTypeNode) {
             const defineType = document.read(
               defineTypeNode.from,
-              defineTypeNode.to
+              defineTypeNode.to,
             );
             if (defineType === "character") {
               const structFieldNodes = stack.filter(
-                (n) => n.name === "StructField"
+                (n) =>
+                  n.name === "ViewStructField" ||
+                  n.name === "StylingStructField" ||
+                  n.name === "PlainStructField",
               );
               if (structFieldNodes.length === 1) {
                 const propertyNameNode = getDescendent(
-                  "DeclarationScalarPropertyName",
-                  structFieldNodes[0]!
+                  [
+                    "ViewDeclarationScalarPropertyName",
+                    "StylingDeclarationScalarPropertyName",
+                    "PlainDeclarationScalarPropertyName",
+                  ],
+                  structFieldNodes[0]!,
                 );
                 if (propertyNameNode) {
                   const propertyName = document.read(
                     propertyNameNode.from,
-                    propertyNameNode.to
+                    propertyNameNode.to,
                   );
                   if (propertyName === "name") {
                     const stringContentNode = stack.find(
-                      (n) => n.name === "StringLiteral_content"
+                      (n) => n.name === "StringLiteral_content",
                     );
                     if (stringContentNode) {
                       return {
                         symbol: stringContentNode,
                         nameRange: document.range(
                           stringContentNode.from,
-                          stringContentNode.to
+                          stringContentNode.to,
                         ),
                       };
                     }
@@ -127,12 +147,12 @@ export const getSymbol = (
   const leftStack = getStack<SparkdownNodeName>(
     tree,
     document.offsetAt(position),
-    1
+    1,
   );
   const rightStack = getStack<SparkdownNodeName>(
     tree,
     document.offsetAt(position),
-    -1
+    -1,
   );
 
   const textSymbol = leftStack[0] || rightStack[0];

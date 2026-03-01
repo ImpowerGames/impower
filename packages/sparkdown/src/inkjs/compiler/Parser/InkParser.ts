@@ -556,7 +556,7 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const name = this.Parse(this.IdentifierWithMetadata) as Identifier | null;
+    const name = this.Parse(this.KeyIdentifier) as Identifier | null;
     if (name === null) {
       return null;
     }
@@ -1206,7 +1206,7 @@ export class InkParser extends StringParser {
     } while (true);
 
     const result: ParsedObject[] = [];
-    
+
     if (sb !== null) {
       const trimmedSb = willChainLine ? sb.trimEnd() : sb;
       result.push(new Text(trimmedSb));
@@ -1261,7 +1261,7 @@ export class InkParser extends StringParser {
 
     // When the ParseUntil pauses, check these rules in case they evaluate successfully
     const nonTextRule: ParseRule = () =>
-      this.OneOf([
+      this.OneOf<ParseRuleReturn>([
         this.ParseDivertArrow,
         this.ParseThreadArrow,
         this.EndOfLine,
@@ -1481,7 +1481,7 @@ export class InkParser extends StringParser {
 
   public readonly DotSeparatedDivertPathComponents = (): Identifier[] =>
     this.Interleave<Identifier>(
-      this.IdentifierWithMetadata,
+      this.KeyIdentifier,
       this.Exclude(this.String("."))
     );
 
@@ -1540,7 +1540,7 @@ export class InkParser extends StringParser {
     this.Whitespace();
 
     let varIdentifier = this.Expect(
-      this.IdentifierWithMetadata,
+      this.KeyIdentifier,
       "variable name"
     ) as Identifier;
 
@@ -1652,7 +1652,7 @@ export class InkParser extends StringParser {
   public readonly ParseTempKeyword = () => {
     const ruleId = this.BeginRule();
 
-    if (this.Parse(this.Identifier) === "temp") {
+    if (this.KeyString() === "temp") {
       this.SucceedRule(ruleId);
       return true;
     }
@@ -1664,7 +1664,7 @@ export class InkParser extends StringParser {
   public readonly ReturnStatement = (): ReturnType | null => {
     this.Whitespace();
 
-    const returnOrDone = this.Parse(this.Identifier);
+    const returnOrDone = this.KeyString();
     if (returnOrDone !== "return") {
       return null;
     }
@@ -1677,7 +1677,7 @@ export class InkParser extends StringParser {
 
     return returnObj;
   };
-
+  
   // Pratt Parser
   // aka "Top down operator precedence parser"
   // http://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/
@@ -1805,7 +1805,7 @@ export class InkParser extends StringParser {
   };
 
   public readonly ExpressionNot = (): string | null => {
-    const id = this.Identifier();
+    const id = this.KeyString();
     if (id === "not") {
       return id;
     }
@@ -1813,8 +1813,8 @@ export class InkParser extends StringParser {
     return null;
   };
 
-  public readonly ExpressionLiteral = (): Expression =>
-    this.OneOf([
+  public readonly ExpressionLiteral = () =>
+    this.OneOf<Expression>([
       this.ExpressionFloat,
       this.ExpressionInt,
       this.ExpressionBool,
@@ -1879,8 +1879,37 @@ export class InkParser extends StringParser {
     return new StringExpression(textAndLogic);
   };
 
+ public readonly PropertyInitialization = (): Expression | null => {
+    const str = (this.Peek(() => this.ParseUntilCharactersFromString("\n\r")) as string) || "";
+    const expr = this.OneOf<Expression>([
+      this.ExpressionFloat,
+      this.ExpressionInt,
+      this.ExpressionBool,
+      this.ExpressionString,
+      this.ExpressionVariableName,
+    ]) as Expression;
+
+    this.Whitespace();
+
+    if (expr && this.Peek(this.EndOfLine)) {
+      return expr;
+    }
+
+    const unquotedStringExpr = new StringExpression([new Text(str.trimEnd())]);
+
+    if (expr) {
+      if (expr?.debugMetadata) {
+        unquotedStringExpr.debugMetadata = new DebugMetadata(expr?.debugMetadata);
+      }
+    } 
+
+    this.SkipToNewline();
+
+    return unquotedStringExpr;
+  }
+
   public readonly ExpressionBool = (): NumberExpression | null => {
-    const id = this.Parse(this.Identifier);
+    const id = this.KeyString();
     if (id === "true") {
       return new NumberExpression(true, "bool");
     } else if (id === "false") {
@@ -1891,7 +1920,7 @@ export class InkParser extends StringParser {
   };
 
   public readonly ExpressionFunctionCall = (): Expression | null => {
-    const iden = this.Parse(this.IdentifierWithMetadata);
+    const iden = this.Parse(this.KeyIdentifier);
     if (iden === null) {
       return null;
     }
@@ -1928,10 +1957,7 @@ export class InkParser extends StringParser {
   };
 
   public readonly ExpressionVariableName = (): Expression | null => {
-    const path = this.Interleave<Identifier>(
-      this.IdentifierWithMetadata,
-      this.Exclude(this.String("."))
-    );
+    const path = this.Path();
 
     if (path === null || Story.IsReservedKeyword(path[0]?.name)) {
       return null;
@@ -2035,9 +2061,7 @@ export class InkParser extends StringParser {
   public readonly ListMember = (): Identifier | null => {
     this.Whitespace();
 
-    let identifier: Identifier = this.Parse(
-      this.IdentifierWithMetadata
-    ) as Identifier;
+    let identifier: Identifier = this.Parse(this.KeyIdentifier) as Identifier;
     if (identifier === null) {
       return null;
     }
@@ -2045,7 +2069,7 @@ export class InkParser extends StringParser {
     const dot = this.ParseString(".");
     if (dot !== null) {
       const identifier2: Identifier = this.Expect(
-        this.IdentifierWithMetadata,
+        this.KeyIdentifier,
         `element name within the set ${identifier}`
       ) as Identifier;
 
@@ -2240,9 +2264,7 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const identifier: Identifier = this.Parse(
-      this.IdentifierWithMetadata
-    ) as Identifier;
+    const identifier: Identifier = this.Parse(this.KeyIdentifier) as Identifier;
 
     this.Whitespace();
 
@@ -2304,9 +2326,7 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const identifier: Identifier = this.Parse(
-      this.IdentifierWithMetadata
-    ) as Identifier;
+    const identifier: Identifier = this.Parse(this.KeyIdentifier) as Identifier;
 
     this.Whitespace();
 
@@ -2367,9 +2387,7 @@ export class InkParser extends StringParser {
       this.Whitespace();
     }
 
-    const branchName: Identifier = this.Parse(
-      this.IdentifierWithMetadata
-    ) as Identifier;
+    const branchName: Identifier = this.Parse(this.KeyIdentifier) as Identifier;
     if (branchName === null) {
       return null;
     }
@@ -2429,16 +2447,14 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const identifier: Identifier = this.Parse(
-      this.IdentifierWithMetadata
-    ) as Identifier;
+    const identifier: Identifier = this.Parse(this.KeyIdentifier) as Identifier;
     let knotName: Identifier;
 
     const isFunc: boolean = identifier?.name === "function";
     if (isFunc) {
       this.Expect(this.Whitespace, "whitespace after the 'function' keyword");
 
-      knotName = this.Parse(this.IdentifierWithMetadata) as Identifier;
+      knotName = this.Parse(this.KeyIdentifier) as Identifier;
     } else {
       knotName = identifier;
     }
@@ -2535,9 +2551,7 @@ export class InkParser extends StringParser {
       this.Whitespace();
     }
 
-    const stitchName: Identifier = this.Parse(
-      this.IdentifierWithMetadata
-    ) as Identifier;
+    const stitchName: Identifier = this.Parse(this.KeyIdentifier) as Identifier;
     if (stitchName === null) {
       return null;
     }
@@ -2595,14 +2609,14 @@ export class InkParser extends StringParser {
     //  -> name      (variable divert target argument
     //  ref name
     //  ref -> name  (variable divert target by reference)
-    const firstIden = this.Parse(this.IdentifierWithMetadata) as Identifier;
+    const firstIden = this.Parse(this.KeyIdentifier) as Identifier;
     this.Whitespace();
 
     const divertArrow = this.ParseDivertArrow();
 
     this.Whitespace();
 
-    const secondIden = this.Parse(this.IdentifierWithMetadata) as Identifier;
+    const secondIden = this.Parse(this.KeyIdentifier) as Identifier;
 
     if (firstIden == null && secondIden === null) {
       return null;
@@ -2653,7 +2667,7 @@ export class InkParser extends StringParser {
 
     const funcIdentifier: Identifier =
       (this.Expect(
-        this.IdentifierWithMetadata,
+        this.KeyIdentifier,
         "name of external function"
       ) as Identifier | null) || new Identifier("");
 
@@ -2783,7 +2797,7 @@ export class InkParser extends StringParser {
     this.Whitespace();
 
     const varName = this.Expect(
-      this.IdentifierWithMetadata,
+      this.KeyIdentifier,
       "variable name"
     ) as Identifier;
 
@@ -2851,10 +2865,7 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const varName = this.Expect(
-      this.IdentifierWithMetadata,
-      "list name"
-    ) as Identifier;
+    const varName = this.Expect(this.KeyIdentifier, "list name") as Identifier;
 
     this.Whitespace();
 
@@ -2914,7 +2925,7 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const name = this.Parse(this.IdentifierWithMetadata) as Identifier | null;
+    const name = this.Parse(this.KeyIdentifier) as Identifier | null;
     if (name === null) {
       return null;
     }
@@ -2970,7 +2981,7 @@ export class InkParser extends StringParser {
     this.Whitespace();
 
     const varName = this.Expect(
-      this.IdentifierWithMetadata,
+      this.KeyIdentifier,
       "constant name"
     ) as Identifier;
 
@@ -3029,28 +3040,25 @@ export class InkParser extends StringParser {
     let modifier: Identifier | null = null;
     let name: Identifier | null = null;
 
-    let type = this.Expect(
-      this.IdentifierWithMetadata,
-      "type"
-    ) as Identifier | null;
+    let type = this.Expect(this.KeyIdentifier, "type") as Identifier | null;
 
     this.Whitespace();
-    const secondIdentifier = this.IdentifierWithMetadata();
+    const secondIdentifier = this.KeyIdentifier();
     this.Whitespace();
 
     if (secondIdentifier && secondIdentifier.name === "with") {
       modifier = this.Expect(
-        this.IdentifierWithMetadata,
+        this.KeyIdentifier,
         "modifier"
       ) as Identifier | null;
     } else if (secondIdentifier) {
       name = secondIdentifier;
       this.Whitespace();
-      const thirdIdentifier = this.IdentifierWithMetadata();
+      const thirdIdentifier = this.KeyIdentifier();
       this.Whitespace();
       if (thirdIdentifier && thirdIdentifier.name === "with") {
         modifier = this.Expect(
-          this.IdentifierWithMetadata,
+          this.KeyIdentifier,
           "modifier"
         ) as Identifier | null;
       }
@@ -3177,11 +3185,11 @@ export class InkParser extends StringParser {
     const itemDash = this.ParseString("-");
     if (itemDash !== null) {
       this.Whitespace();
-      if (this.Peek(this.ScalarPropertyIdentifier)) {
-        const assignedIdentifier = this.ScalarPropertyIdentifier();
+      if (this.Peek(this.ScalarPropertyAssignment)) {
+        const assignedIdentifier = this.ScalarPropertyAssignment();
         if (assignedIdentifier) {
           this.Whitespace();
-          const expr = this.Expression();
+          const expr = this.PropertyInitialization();
           return [
             new StructPropertyDefinition(
               level,
@@ -3192,8 +3200,12 @@ export class InkParser extends StringParser {
           ];
         }
       }
-      if (this.Peek(this.ObjectPropertyIdentifier)) {
-        const assignedIdentifier = this.ObjectPropertyIdentifier();
+      if (this.Peek(this.StrictObjectPropertyAssignment)) {
+        const assignedIdentifier = this.StrictObjectPropertyAssignment();
+        this.Whitespace();
+        if (!this.Peek(this.EndOfLine)) {
+          this.Expect(this.EndOfLine, "end of line", this.SkipToNewline);
+        }
         if (assignedIdentifier) {
           return [
             new StructPropertyDefinition(
@@ -3209,9 +3221,9 @@ export class InkParser extends StringParser {
           ];
         }
       }
+      this.Whitespace();
       if (!this.Peek(this.EndOfLine)) {
-        this.Whitespace();
-        const expr = this.Expression();
+        const expr = this.PropertyInitialization();
         return [new StructPropertyDefinition(level, new Identifier("-"), expr)];
       }
       return [
@@ -3223,34 +3235,41 @@ export class InkParser extends StringParser {
       ];
     }
 
-    if (this.Peek(this.EndOfLine)) {
-      return [new StructPropertyDefinition(level, new Identifier(""))];
-    }
-
-    const identifier = this.Parse(
-      this.PropertyIdentifierWithMetadata
-    ) as Identifier | null;
-    if (identifier === null) {
-      return null;
-    }
-
     this.Whitespace();
 
-    let expr: Expression | null = new ObjectExpression();
-    if (this.ParseString("=") !== null) {
-      this.Whitespace();
-      expr = this.Expression();
-    } else if (this.ParseString(":") !== null) {
-      expr = new ObjectExpression();
+    if (this.Peek(this.EndOfLine)) {
+      return [];
     }
 
-    return [new StructPropertyDefinition(level, identifier, expr)];
+    if (this.Peek(this.ScalarPropertyAssignment)) {
+      const assignedIdentifier = this.ScalarPropertyAssignment();
+      if (assignedIdentifier) {
+        this.Whitespace();
+        const expr = this.PropertyInitialization();
+        return [new StructPropertyDefinition(level, assignedIdentifier, expr)];
+      }
+    }
+
+    const objectPropertyIdentifier = this.LenientPropertyIdentifier();
+    this.ParseString(":");
+    this.Whitespace();
+    if (!this.Peek(this.EndOfLine)) {
+      this.Expect(this.EndOfLine, "end of line", this.SkipToNewline);
+    }
+    if (objectPropertyIdentifier === null) {
+      return [];
+    }
+    return [
+      new StructPropertyDefinition(
+        level,
+        objectPropertyIdentifier,
+        new ObjectExpression()
+      ),
+    ];
   };
 
-  public readonly ScalarPropertyIdentifier = (): Identifier | null => {
-    const identifier = this.Parse(
-      this.PropertyIdentifierWithMetadata
-    ) as Identifier | null;
+  public readonly ScalarPropertyAssignment = (): Identifier | null => {
+    const identifier = this.StrictPropertyIdentifier();
     if (!identifier) {
       return null;
     }
@@ -3262,10 +3281,21 @@ export class InkParser extends StringParser {
     return identifier;
   };
 
-  public readonly ObjectPropertyIdentifier = (): Identifier | null => {
-    const identifier = this.Parse(
-      this.PropertyIdentifierWithMetadata
-    ) as Identifier | null;
+  public readonly StrictObjectPropertyAssignment = (): Identifier | null => {
+    const identifier = this.StrictPropertyIdentifier();
+    if (!identifier) {
+      return null;
+    }
+    this.Whitespace();
+    const assignmentOperator = this.ParseString(":");
+    if (!assignmentOperator) {
+      return null;
+    }
+    return identifier;
+  };
+
+  public readonly LenientObjectPropertyAssignment = (): Identifier | null => {
+    const identifier = this.LenientPropertyIdentifier();
     if (!identifier) {
       return null;
     }
@@ -3326,7 +3356,7 @@ export class InkParser extends StringParser {
       // Handle {{func}} function call shorthand
       this.Whitespace();
       const iden = this.Expect(
-        this.IdentifierWithMetadata,
+        this.KeyIdentifier,
         "function name"
       ) as Identifier | null;
       if (iden) {
@@ -3466,16 +3496,31 @@ export class InkParser extends StringParser {
     return expr;
   };
 
-  public readonly AccessIdentifier = (): Identifier | null => {
+  public readonly Path = (): Identifier[] | null => {
+    const firstIdentifier = this.KeyIdentifier();
+    if (!firstIdentifier) {
+      return null;
+    }
+    if (!this.ParseString(".")) {
+      return [firstIdentifier];
+    }
     const path = this.Interleave<Identifier>(
-      this.IdentifierWithMetadata,
+      () => this.OneOf([this.KeyIdentifier, this.IndexIdentifier]),
       this.Exclude(this.String("."))
     );
+    if (!path) {
+      return [firstIdentifier];
+    }
+    return [firstIdentifier, ...path];
+  };
+
+  public readonly AccessIdentifier = (): Identifier | null => {
+    const path = this.Path();
     if (!path) {
       return null;
     }
     const identifier = new Identifier(path.map((p) => p.name).join("."));
-    const first = path[0];
+    const first = path.at(0);
     const last = path.at(-1);
     identifier.debugMetadata =
       (last?.debugMetadata
@@ -3484,11 +3529,11 @@ export class InkParser extends StringParser {
     return identifier;
   };
 
-  public readonly IdentifierWithMetadata = (): Identifier | null => {
+  public readonly KeyIdentifier = (): Identifier | null => {
     const stateAtStart = new StringParserElement();
     stateAtStart.CopyFrom(this.state.currentElement);
 
-    const id = this.Identifier();
+    const id = this.KeyString();
 
     const stateAtEnd = new StringParserElement();
     stateAtEnd.CopyFrom(this.state.currentElement);
@@ -3498,84 +3543,187 @@ export class InkParser extends StringParser {
     }
 
     const identifier = new Identifier(id);
-    identifier.debugMetadata = this.CreateDebugMetadata(stateAtStart, stateAtEnd);
+    identifier.debugMetadata = this.CreateDebugMetadata(
+      stateAtStart,
+      stateAtEnd
+    );
 
     return identifier;
   };
 
-  // Note: we allow identifiers that start with a number,
-  // but not if they *only* comprise numbers
-  public readonly Identifier = (): string | null => {
-    // Parse remaining characters (if any)
-    const name = this.ParseCharactersFromCharSet(
-      InkCharacterRanges.identifierCharSet
+  public readonly KeyString = (): string | null => {
+    // Parse start char
+    const start = this.ParseCharactersFromCharSet(
+      InkCharacterRanges.identifierStartCharSet
     );
-    if (name === null) {
+    if (start === null) {
       return null;
     }
 
-    // Reject if it's just a number
-    let isNumberCharsOnly: boolean = true;
-    for (let c of name) {
-      if (!(c >= "0" && c <= "9")) {
-        isNumberCharsOnly = false;
-        break;
-      }
-    }
+    // Parse remaining characters (if any)
+    const end =
+      this.ParseCharactersFromCharSet(
+        InkCharacterRanges.identifierEndCharSet
+      ) || "";
 
-    if (isNumberCharsOnly) {
-      return null;
-    }
-
-    return name;
+    return start + end;
   };
 
-  public readonly PropertyIdentifierPart = () =>
-    this.OneOf([
-      this.ParseWhitespace,
-      this.QuotedPropertyIdentifierString,
-      this.BracketedPropertyIdentifierString,
-      this.ParenPropertyIdentifierString,
-      this.OtherPropertyIdentifierCharacter,
-    ]);
+  public readonly QuotedIdentifier = (): Identifier | null => {
+    const stateAtStart = new StringParserElement();
+    stateAtStart.CopyFrom(this.state.currentElement);
+
+    if (this.ParseString('"') === null) {
+      return null;
+    }
+    
+    this.ParseUntilCharactersFromString('\n\r"', undefined, true);
+
+    const id = this._chars.slice(stateAtStart.characterIndex + 1, this.index).join("");
+
+    this.Expect(this.String('"'), "closing quote");
+
+    const stateAtEnd = new StringParserElement();
+    stateAtEnd.CopyFrom(this.state.currentElement);
+
+    if (id === null) {
+      return null;
+    }
+
+    const identifier = new Identifier(id);
+    identifier.debugMetadata = this.CreateDebugMetadata(
+      stateAtStart,
+      stateAtEnd
+    );
+
+    return identifier;
+  };
+
+  public readonly IndexIdentifier = (): Identifier | null => {
+    const stateAtStart = new StringParserElement();
+    stateAtStart.CopyFrom(this.state.currentElement);
+
+    const id = this.IndexString();
+
+    const stateAtEnd = new StringParserElement();
+    stateAtEnd.CopyFrom(this.state.currentElement);
+
+    if (id === null) {
+      return null;
+    }
+
+    const identifier = new Identifier(id);
+    identifier.debugMetadata = this.CreateDebugMetadata(
+      stateAtStart,
+      stateAtEnd
+    );
+
+    return identifier;
+  };
+
+  public readonly IndexString = (): string | null => {
+    return this.ParseCharactersFromCharSet(InkCharacterRanges.integerCharSet);
+  };
 
   public readonly QuotedPropertyIdentifierString = (): string | null => {
-    const open = this.ParseString('"');
-    if (open === null) {
-      return null;
-    }
-    const terminator: ParseRule = () =>
-      this.OneOf([this.String('"'), this.EndOfLine]);
-    const text = this.ParseUntil(terminator, new CharacterSet('"\n\r'), null);
-    const close =
-      (this.Expect(this.String('"'), "close quote") as string) ?? "";
-    return open + text + close;
-  };
+    const stateAtStart = new StringParserElement();
+    stateAtStart.CopyFrom(this.state.currentElement);
 
-  public readonly BracketedPropertyIdentifierString = (): string | null => {
-    const open = this.ParseString("[");
-    if (open === null) {
+    if (this.ParseString('"') === null) {
       return null;
     }
-    const terminator: ParseRule = () =>
-      this.OneOf([this.String("]"), this.EndOfLine]);
-    const text = this.ParseUntil(terminator, new CharacterSet("]\n\r"), null);
-    const close =
-      (this.Expect(this.String("]"), "close bracket") as string) ?? "";
-    return open + text + close;
+    
+    this.ParseUntilCharactersFromString('\n\r"', undefined, true);
+
+    this.Expect(this.String('"'), "closing quote");
+
+    return this._chars.slice(stateAtStart.characterIndex, this.index).join("");
   };
 
   public readonly ParenPropertyIdentifierString = (): string | null => {
-    const open = this.ParseString("(");
-    if (open === null) {
+    const stateAtStart = new StringParserElement();
+    stateAtStart.CopyFrom(this.state.currentElement);
+
+    if (this.ParseString("(") === null) {
       return null;
     }
-    const terminator: ParseRule = () =>
-      this.OneOf([this.String(")"), this.EndOfLine]);
-    const text = this.ParseUntil(terminator, new CharacterSet(")\n\r"), null);
-    const close =
-      (this.Expect(this.String(")"), "close parenthesis") as string) ?? "";
-    return open + text + close;
+    
+    this.ParseRuleUntil(this.LenientPropertyIdentifierPart, this.String(")"));
+
+    this.Expect(this.String(")"), "closing parenthesis");
+
+    return this._chars.slice(stateAtStart.characterIndex, this.index).join("");
+  };
+
+  public readonly ComparisonPropertyOperatorString = (): string | null => {
+    return this.ParseCharactersFromCharSet(this._comparisonOperatorChars);
+  };
+
+  public readonly BracketedPropertyIdentifierString = (): string | null => {
+    const stateAtStart = new StringParserElement();
+    stateAtStart.CopyFrom(this.state.currentElement);
+
+    if (this.ParseString("[") === null) {
+      return null;
+    }
+    
+    this.ParseRuleUntil(this.LenientPropertyIdentifierPart, this.String("]"));
+
+    this.Expect(this.String("]"), "closing bracket");
+
+    return this._chars.slice(stateAtStart.characterIndex, this.index).join("");
+  };
+
+  public readonly BracedPropertyIdentifierString = (): string | null => {
+    const stateAtStart = new StringParserElement();
+    stateAtStart.CopyFrom(this.state.currentElement);
+
+    if (this.ParseString("{") === null) {
+      return null;
+    }
+    
+    this.ParseRuleUntil(this.LenientPropertyIdentifierPart, this.String("}"));
+
+    this.Expect(this.String("}"), "closing brace");
+
+    return this._chars.slice(stateAtStart.characterIndex, this.index).join("");
+  };
+
+  public readonly LiteralPropertyIdentifierString = (): string | null => {
+    const stateAtStart = new StringParserElement();
+    stateAtStart.CopyFrom(this.state.currentElement);
+
+    if (this.ExpressionLiteral() === null) {
+      return null;
+    }
+    
+    return this._chars.slice(stateAtStart.characterIndex, this.index).join("");
+  };
+
+  public readonly EventAttributePropertyIdentifierString = ():
+    | string
+    | null => {
+    const mark = this.ParseString("@");
+    if (mark === null) {
+      return null;
+    }
+    const identifier = this.KeyString() || "";
+    const comparator = this.ComparisonPropertyOperatorString() || "";
+    const equal = this.ParseString("=") || "";
+    return mark + identifier + comparator + equal;
+  };
+
+  public readonly StyleAttributePropertyIdentifierString = ():
+    | string
+    | null => {
+    const mark = this.ParseString("#");
+    if (mark === null) {
+      return null;
+    }
+    const identifier = this.KeyString() || "";
+    const comparator = this.ComparisonPropertyOperatorString() || "";
+    const equal = this.ParseString("=") || "";
+    return mark + identifier + comparator + equal;
   };
 
   public readonly OtherPropertyIdentifierCharacter = (): string | null => {
@@ -3586,8 +3734,22 @@ export class InkParser extends StringParser {
     return this.ParseSingleCharacter();
   };
 
-  public readonly PropertyIdentifier = (): string | null => {
-    const result = this.OneOrMore(this.PropertyIdentifierPart);
+  public readonly LenientPropertyIdentifierPart = () =>
+    this.OneOf([
+      this.ParseWhitespace,
+      this.QuotedPropertyIdentifierString,
+      this.ParenPropertyIdentifierString,
+      this.BracketedPropertyIdentifierString,
+      this.BracedPropertyIdentifierString,
+      this.LiteralPropertyIdentifierString,
+      this.EventAttributePropertyIdentifierString,
+      this.StyleAttributePropertyIdentifierString,
+      this.KeyString,
+      this.OtherPropertyIdentifierCharacter,
+    ]);
+
+  public readonly LenientPropertyName = (): string | null => {
+    const result = this.OneOrMore(this.LenientPropertyIdentifierPart);
     if (result === null) {
       return null;
     }
@@ -3595,12 +3757,11 @@ export class InkParser extends StringParser {
     return name;
   };
 
- 
-  public readonly PropertyIdentifierWithMetadata = (): Identifier | null => {
+  public readonly LenientPropertyIdentifier = (): Identifier | null => {
     const stateAtStart = new StringParserElement();
     stateAtStart.CopyFrom(this.state.currentElement);
 
-    const id = this.PropertyIdentifier();
+    const id = this.LenientPropertyName();
 
     const stateAtEnd = new StringParserElement();
     stateAtEnd.CopyFrom(this.state.currentElement);
@@ -3610,11 +3771,21 @@ export class InkParser extends StringParser {
     }
 
     const identifier = new Identifier(id);
-    identifier.debugMetadata = this.CreateDebugMetadata(stateAtStart, stateAtEnd);
+    identifier.debugMetadata = this.CreateDebugMetadata(
+      stateAtStart,
+      stateAtEnd
+    );
 
     return identifier;
   };
 
+  public readonly StrictPropertyIdentifier = (): Identifier | null => {
+    return this.OneOf([
+      this.IndexIdentifier,
+      this.QuotedIdentifier,
+      this.KeyIdentifier,
+    ]) as Identifier | null;
+  };
 
   /**
    * End Logic section.
@@ -3743,7 +3914,7 @@ export class InkParser extends StringParser {
   public readonly SequenceTypeSingleWord = () => {
     let seqType: SequenceType | null = null;
 
-    const word = this.Parse(this.IdentifierWithMetadata) as Identifier | null;
+    const word = this.Parse(this.KeyIdentifier) as Identifier | null;
 
     if (word !== null) {
       switch (word.name) {
@@ -4038,6 +4209,12 @@ export class InkParser extends StringParser {
     return ParseSuccess;
   };
 
+  public readonly SkipToNewline = (): typeof ParseSuccess => {
+    this.ParseUntilCharactersFromString("\n\r");
+
+    return ParseSuccess;
+  };
+
   // Modifier to turn a rule into one that expects a newline on the end.
   // e.g. anywhere you can use "MixedTextAndLogic" as a rule, you can use
   // "Line(MixedTextAndLogic)" to specify that it expects a newline afterwards.
@@ -4123,6 +4300,8 @@ export class InkParser extends StringParser {
    */
 
   private _inlineWhitespaceChars: CharacterSet = new CharacterSet(" \t");
+
+  private _comparisonOperatorChars: CharacterSet = new CharacterSet("~|^$*");
 
   // Handles both newline and endOfFile
   public readonly EndOfLine = () => this.OneOf([this.Newline, this.EndOfFile]);

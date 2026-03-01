@@ -58,7 +58,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
 
   override enter(
     annotations: Range<SparkdownAnnotation<FormatType>>[],
-    nodeRef: SparkdownSyntaxNodeRef
+    nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<FormatType>>[] {
     if (nodeRef.name === "Indent" || nodeRef.name === "Whitespace") {
       const currentLine = this.getLineAt(nodeRef.from);
@@ -70,16 +70,16 @@ export class FormattingAnnotator extends SparkdownAnnotator<
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("indent").range(
               currentLine.from,
-              currentLine.from + currentIndentation.length
-            )
+              currentLine.from + currentIndentation.length,
+            ),
           );
         }
       } else if (nodeRef.name === "Indent") {
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("separator").range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
       }
     }
@@ -87,8 +87,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("keyword").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -96,8 +96,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("keyword").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -105,8 +105,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("keyword").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -114,8 +114,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("keyword").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -123,8 +123,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("keyword").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -132,8 +132,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("keyword").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -141,8 +141,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("keyword").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -150,8 +150,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("keyword").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -159,18 +159,15 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("keyword").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
     if (
-      nodeRef.name === "DefineDeclaration_begin" ||
-      nodeRef.name === "ScreenDeclaration_begin" ||
-      nodeRef.name === "ComponentDeclaration_begin" ||
-      nodeRef.name === "StyleDeclaration_begin" ||
-      nodeRef.name === "AnimationDeclaration_begin" ||
-      nodeRef.name === "ThemeDeclaration_begin" ||
+      nodeRef.name === "DefineViewDeclaration_begin" ||
+      nodeRef.name === "DefineStylingDeclaration_begin" ||
+      nodeRef.name === "DefinePlainDeclaration_begin" ||
       nodeRef.name === "BlockTitle_begin" ||
       nodeRef.name === "BlockHeading_begin" ||
       nodeRef.name === "BlockTransitional_begin" ||
@@ -181,8 +178,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("block_declaration_begin").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -190,8 +187,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("frontmatter_begin").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -200,8 +197,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("function_begin").range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -210,8 +207,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("function_end").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -219,8 +216,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("scene_begin").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -228,8 +225,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("scene_end").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -237,8 +234,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("branch_begin").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -246,8 +243,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("branch_end").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -255,8 +252,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("knot_begin").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -264,8 +261,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("knot_end").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -273,8 +270,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("stitch_begin").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -282,27 +279,27 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("stitch_end").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
     if (nodeRef.name === "ConditionalBlockOpenBrace") {
       const stack = getContextStack<SparkdownNodeName>(nodeRef.node);
       const parentConditionalBlockNode = stack.find(
-        (n) => n.name === "ConditionalBracedBlock"
+        (n) => n.name === "ConditionalBracedBlock",
       );
       if (parentConditionalBlockNode) {
         const multilineNode = getDescendent(
           ["MultilineBlock", "MultilineAlternative"],
-          parentConditionalBlockNode
+          parentConditionalBlockNode,
         );
         if (multilineNode) {
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("open_brace").range(
               nodeRef.from,
-              nodeRef.to
-            )
+              nodeRef.to,
+            ),
           );
           return annotations;
         }
@@ -311,19 +308,19 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "ConditionalBlockCloseBrace") {
       const stack = getContextStack<SparkdownNodeName>(nodeRef.node);
       const parentConditionalBlockNode = stack.find(
-        (n) => n.name === "ConditionalBracedBlock"
+        (n) => n.name === "ConditionalBracedBlock",
       );
       if (parentConditionalBlockNode) {
         const multilineNode = getDescendent(
           ["MultilineBlock", "MultilineAlternative"],
-          parentConditionalBlockNode
+          parentConditionalBlockNode,
         );
         if (multilineNode) {
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("close_brace").range(
               nodeRef.from,
-              nodeRef.to
-            )
+              nodeRef.to,
+            ),
           );
           return annotations;
         }
@@ -333,8 +330,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("case_mark").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -342,8 +339,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("alternative_mark").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -351,8 +348,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("choice_mark").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -360,8 +357,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("gather_mark").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -369,8 +366,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("divert_mark").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -378,8 +375,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("tunnel_mark").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -387,8 +384,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("thread_mark").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -396,8 +393,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("optional_mark").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -410,8 +407,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("sol_comment").range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -422,8 +419,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("eol_divert").range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
       }
       return annotations;
@@ -432,8 +429,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("separator").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -445,8 +442,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("extra").range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
       } else {
         const stack = getContextStack<SparkdownNodeName>(nodeRef.node);
@@ -461,8 +458,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("separator").range(
               nodeRef.from,
-              nodeRef.to
-            )
+              nodeRef.to,
+            ),
           );
         }
       }
@@ -472,8 +469,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("extra").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -481,8 +478,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("trailing").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -490,8 +487,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("newline").range(
           nodeRef.from,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       const nextLine = this.getLineAt(nodeRef.to);
       const indentMatch = nextLine.text.match(INDENT_REGEX);
@@ -501,8 +498,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("indent").range(
             nodeRef.to,
-            nodeRef.to + currentIndentation.length
-          )
+            nodeRef.to + currentIndentation.length,
+          ),
         );
       }
       return annotations;
@@ -512,15 +509,12 @@ export class FormattingAnnotator extends SparkdownAnnotator<
 
   override leave(
     annotations: Range<SparkdownAnnotation<FormatType>>[],
-    nodeRef: SyntaxNodeRef
+    nodeRef: SyntaxNodeRef,
   ): Range<SparkdownAnnotation<FormatType>>[] {
     if (
-      nodeRef.name === "DefineDeclaration" ||
-      nodeRef.name === "ScreenDeclaration" ||
-      nodeRef.name === "ComponentDeclaration" ||
-      nodeRef.name === "StyleDeclaration" ||
-      nodeRef.name === "AnimationDeclaration" ||
-      nodeRef.name === "ThemeDeclaration" ||
+      nodeRef.name === "DefineViewDeclaration" ||
+      nodeRef.name === "DefineStylingDeclaration" ||
+      nodeRef.name === "DefinePlainDeclaration" ||
       nodeRef.name === "BlockTitle" ||
       nodeRef.name === "BlockHeading" ||
       nodeRef.name === "BlockTransitional" ||
@@ -531,8 +525,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("block_declaration_end").range(
           nodeRef.to,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }
@@ -540,8 +534,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("frontmatter_end").range(
           nodeRef.to,
-          nodeRef.to
-        )
+          nodeRef.to,
+        ),
       );
       return annotations;
     }

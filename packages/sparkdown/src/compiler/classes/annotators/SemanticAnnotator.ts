@@ -78,12 +78,12 @@ export class SemanticAnnotator extends SparkdownAnnotator<
 
   override enter(
     annotations: Range<SparkdownAnnotation<SemanticInfo>>[],
-    nodeRef: SparkdownSyntaxNodeRef
+    nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<SemanticInfo>>[] {
     if (nodeRef.name === "FunctionDeclarationParameters") {
       this.inFunctionDeclarationParameters = true;
     }
-    if (nodeRef.name === "ViewField") {
+    if (nodeRef.name === "ViewStructField") {
       this.inViewField = true;
     }
     if (nodeRef.name === "Indent") {
@@ -129,7 +129,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<SemanticInfo>({
             tokenType: "keyword",
             possibleDivertPath: true,
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
       }
     }
@@ -146,19 +146,19 @@ export class SemanticAnnotator extends SparkdownAnnotator<
               SparkdownAnnotation.mark<SemanticInfo>({
                 tokenType: "variable",
                 tokenModifiers: ["readonly"],
-              }).range(nodeRef.from, nodeRef.to)
+              }).range(nodeRef.from, nodeRef.to),
             );
             const stack = getContextStack(nodeRef.node);
             const variableNameNodes = getNodesInsideParent(
               "VariableName",
               "NamespaceAccessor",
-              stack
+              stack,
             );
             for (const variableNameNode of variableNameNodes) {
               annotations.push(
                 SparkdownAnnotation.mark<SemanticInfo>({
                   tokenType: "variable",
-                }).range(variableNameNode.from, variableNameNode.to)
+                }).range(variableNameNode.from, variableNameNode.to),
               );
             }
           }
@@ -171,10 +171,18 @@ export class SemanticAnnotator extends SparkdownAnnotator<
         this.defineName = text;
       }
     }
-    if (nodeRef.name === "StructField") {
+    if (
+      nodeRef.name === "ViewStructField" ||
+      nodeRef.name === "StylingStructField" ||
+      nodeRef.name === "PlainStructField"
+    ) {
       this.nesting++;
     }
-    if (nodeRef.name === "DeclarationObjectPropertyName") {
+    if (
+      nodeRef.name === "ViewDeclarationObjectPropertyName" ||
+      nodeRef.name === "StylingDeclarationObjectPropertyName" ||
+      nodeRef.name === "PlainDeclarationObjectPropertyName"
+    ) {
       if (this.nesting <= 1) {
         this.inLinkMap = false;
       }
@@ -182,7 +190,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<SemanticInfo>({
             tokenType: "struct",
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
       }
     }
@@ -191,12 +199,12 @@ export class SemanticAnnotator extends SparkdownAnnotator<
 
   override leave(
     annotations: Range<SparkdownAnnotation<SemanticInfo>>[],
-    nodeRef: SyntaxNodeRef
+    nodeRef: SyntaxNodeRef,
   ): Range<SparkdownAnnotation<SemanticInfo>>[] {
     if (nodeRef.name === "FunctionDeclarationParameters") {
       this.inFunctionDeclarationParameters = false;
     }
-    if (nodeRef.name === "ViewField") {
+    if (nodeRef.name === "ViewStructField") {
       this.inViewField = false;
     }
     if (nodeRef.name === "ViewDeclarationAsExpression") {
@@ -206,24 +214,28 @@ export class SemanticAnnotator extends SparkdownAnnotator<
       this.inViewDeclarationControlExpression = false;
     }
     if (
-      nodeRef.name === "ScreenDeclaration" ||
-      nodeRef.name === "ComponentDeclaration" ||
-      nodeRef.name === "StyleDeclaration" ||
-      nodeRef.name === "AnimationDeclaration" ||
-      nodeRef.name === "ThemeDeclaration"
+      nodeRef.name === "DefineViewDeclaration" ||
+      nodeRef.name === "DefineStylingDeclaration" ||
+      nodeRef.name === "DefinePlainDeclaration"
     ) {
+      this.defineName = "";
       this.inViewDeclarationAsExpression = false;
       this.inViewDeclarationControlExpression = false;
       this.inViewField = false;
       this.indentStack.length = 0;
     }
-    if (nodeRef.name === "DefineDeclaration") {
-      this.defineName = "";
-    }
-    if (nodeRef.name === "StructField") {
+    if (
+      nodeRef.name === "ViewStructField" ||
+      nodeRef.name === "StylingStructField" ||
+      nodeRef.name === "PlainStructField"
+    ) {
       this.nesting--;
     }
-    if (nodeRef.name === "DeclarationObjectPropertyName") {
+    if (
+      nodeRef.name === "ViewDeclarationObjectPropertyName" ||
+      nodeRef.name === "StylingDeclarationObjectPropertyName" ||
+      nodeRef.name === "PlainDeclarationObjectPropertyName"
+    ) {
       if (this.nesting === 1) {
         if (
           !this.defineName &&
@@ -233,7 +245,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
           annotations.push(
             SparkdownAnnotation.mark<SemanticInfo>({
               tokenType: "macro",
-            }).range(nodeRef.from, nodeRef.to)
+            }).range(nodeRef.from, nodeRef.to),
           );
         } else {
           this.inLinkMap = false;

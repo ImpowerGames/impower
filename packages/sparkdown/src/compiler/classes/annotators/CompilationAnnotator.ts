@@ -58,36 +58,35 @@ export class CompilationAnnotator extends SparkdownAnnotator<
 > {
   override enter(
     annotations: Range<SparkdownAnnotation<CompiledBlock>>[],
-    nodeRef: SparkdownSyntaxNodeRef
+    nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<CompiledBlock>>[] {
     if (
       nodeRef.node.parent?.type.isTop &&
       nodeRef.name !== "Newline" &&
       nodeRef.name !== "Whitespace" &&
-      nodeRef.name !== "FrontMatter" &&
-      nodeRef.name !== "ScreenDeclaration" &&
-      nodeRef.name !== "ComponentDeclaration" &&
-      nodeRef.name !== "StyleDeclaration" &&
-      nodeRef.name !== "AnimationDeclaration" &&
-      nodeRef.name !== "ThemeDeclaration"
+      nodeRef.name !== "FrontMatter"
     ) {
       if (nodeRef.name === "Include") {
         const includeContentNode = getDescendent(
           "IncludeContent",
-          nodeRef.node
+          nodeRef.node,
         );
         if (includeContentNode) {
           const includeFilePath = this.read(
             includeContentNode.from,
-            includeContentNode.to
+            includeContentNode.to,
           );
           annotations.push(
             SparkdownAnnotation.mark({
               include: includeFilePath,
-            }).range(nodeRef.from, nodeRef.to)
+            }).range(nodeRef.from, nodeRef.to),
           );
         }
-      } else if (nodeRef.name === "DefineDeclaration") {
+      } else if (
+        nodeRef.name === "DefineViewDeclaration" ||
+        nodeRef.name === "DefineStylingDeclaration" ||
+        nodeRef.name === "DefinePlainDeclaration"
+      ) {
         const text = this.read(nodeRef.from, nodeRef.to);
         const diagnostics: InkDiagnostic[] = [];
         const parser = new InkParser(
@@ -97,23 +96,27 @@ export class CompilationAnnotator extends SparkdownAnnotator<
             diagnostics.push({ message, severity, source });
           },
           ROOT_PARSER,
-          FILE_HANDLER
+          FILE_HANDLER,
         );
         const story = parser.ParseStory();
         const context = {};
         const contextPropertyRegistry = {};
         let defaultDefinitions: { [type: string]: any } | undefined = undefined;
         try {
-          const runtimeStory = story.ExportRuntime(NOOP);
+          const runtimeStory = story.ExportRuntime(
+            (message, severity, source) => {
+              diagnostics.push({ message, severity, source });
+            },
+          );
           if (runtimeStory?.structDefinitions) {
             populateDefinedStructs(
               context,
               contextPropertyRegistry,
               runtimeStory?.structDefinitions,
-              this.config?.definitions?.builtins
+              this.config?.definitions?.builtins,
             );
             for (const [type, structs] of Object.entries(
-              runtimeStory.structDefinitions
+              runtimeStory.structDefinitions,
             )) {
               for (const [name, struct] of Object.entries(structs)) {
                 if (name === "$default") {
@@ -133,7 +136,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
             context,
             contextPropertyRegistry,
             defaultDefinitions,
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
       } else {
         const text = this.read(nodeRef.from, nodeRef.to);
@@ -145,7 +148,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
             diagnostics.push({ message, severity, source });
           },
           ROOT_PARSER,
-          FILE_HANDLER
+          FILE_HANDLER,
         );
         const story = parser.ParseStory();
         let json: string | undefined = undefined;
@@ -160,7 +163,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
             content: story.content,
             json,
             uuid: generateUUID(),
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
       }
     }
@@ -171,7 +174,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     iterateFrom: number,
     iterateTo: number,
     added: Range<SparkdownAnnotation<CompiledBlock>>[],
-    removed: Range<SparkdownAnnotation<CompiledBlock>>[]
+    removed: Range<SparkdownAnnotation<CompiledBlock>>[],
   ): void {
     for (let i = 0; i < added.length; i++) {
       const add = added[i]!;

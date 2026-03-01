@@ -160,7 +160,7 @@ export class Compiler {
         break;
     }
 
-    if (this.options.errorHandler !== null) {
+    if (this.options.errorHandler != null) {
       this.options.errorHandler(message, severity, source);
     }
   };

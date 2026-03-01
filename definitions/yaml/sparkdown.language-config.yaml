@@ -78,25 +78,15 @@ onEnterRules:
     action:
       indent: "indentOutdent"
 
-  - beforeText: ^\s*([+]\s+)+.*?([-][>]).*?$
+  - beforeText: ^\s*([+]\s+)+.*?$
     action:
       indent: "none"
-  - beforeText: ^\s*([*]\s+)+.*?([-][>]).*?$
+  - beforeText: ^\s*([*]\s+)+.*?$
     action:
       indent: "none"
-  - beforeText: ^\s*([-]\s+)+.*?([-][>]).*?$
+  - beforeText: ^\s*([-]\s+)+.*?$
     action:
       indent: "none"
-
-  - beforeText: \s*([+]\s+)+.*?(?![-][>]).*?$
-    action:
-      indent: "indent"
-  - beforeText: \s*([*]\s+)+.*?(?![-][>]).*?$
-    action:
-      indent: "indent"
-  - beforeText: ^\s*([-]\s+)+.*?(?![-][>]).*?$
-    action:
-      indent: "indent"
 
   - beforeText: ^(.*?)([-][>])(.*?)([-][>])(.*?)$
     action:

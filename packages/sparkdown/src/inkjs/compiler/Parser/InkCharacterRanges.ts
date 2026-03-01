@@ -2,21 +2,48 @@ import { CharacterRange } from "./CharacterRange";
 import { CharacterSet } from "./CharacterSet";
 
 export abstract class InkCharacterRanges {
-  private static _identifierCharSet: CharacterSet | null = null;
+  private static _identifierStartCharSet: CharacterSet | null = null;
 
-  static get identifierCharSet(): CharacterSet {
-    if (this._identifierCharSet === null) {
-      (this._identifierCharSet = new CharacterSet())
+  static get identifierStartCharSet(): CharacterSet {
+    if (this._identifierStartCharSet === null) {
+      (this._identifierStartCharSet = new CharacterSet())
         .AddRange("A", "Z")
         .AddRange("a", "z")
-        .AddRange("0", "9")
         .Add("_");
 
       // Enable non-ASCII characters for story identifiers.
-      this.ExtendIdentifierCharacterRanges(this._identifierCharSet);
+      this.ExtendIdentifierCharacterRanges(this._identifierStartCharSet);
     }
 
-    return this._identifierCharSet;
+    return this._identifierStartCharSet;
+  }
+
+  private static _identifierEndCharSet: CharacterSet | null = null;
+
+  static get identifierEndCharSet(): CharacterSet {
+    if (this._identifierEndCharSet === null) {
+      (this._identifierEndCharSet = new CharacterSet())
+        .AddRange("0", "9")
+        .AddRange("A", "Z")
+        .AddRange("a", "z")
+        .Add("_")
+        .Add("-");
+
+      // Enable non-ASCII characters for story identifiers.
+      this.ExtendIdentifierCharacterRanges(this._identifierEndCharSet);
+    }
+
+    return this._identifierEndCharSet;
+  }
+
+  private static _integerCharSet: CharacterSet | null = null;
+
+  static get integerCharSet(): CharacterSet {
+    if (this._integerCharSet === null) {
+      (this._integerCharSet = new CharacterSet()).AddRange("0", "9");
+    }
+
+    return this._integerCharSet;
   }
 
   /**

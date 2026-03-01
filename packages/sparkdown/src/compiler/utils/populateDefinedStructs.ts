@@ -10,7 +10,7 @@ export function populateDefinedStructs(
     [type: string]: { [name: string]: { [propertyPath: string]: any } };
   },
   structDefinitions: { [type: string]: { [name: string]: any } },
-  builtinDefinitions: { [type: string]: { [name: string]: any } } | undefined
+  builtinDefinitions: { [type: string]: { [name: string]: any } } | undefined,
 ) {
   if (structDefinitions) {
     for (const [type, structs] of Object.entries(structDefinitions)) {
@@ -59,7 +59,7 @@ export function populateDefinedStructs(
             contextPropertyRegistry[type] ??= {};
             contextPropertyRegistry[type][name] ??= {};
             contextPropertyRegistry[type][name][propPath] = clonedValue;
-            if (type === "layout") {
+            if (type === "screen") {
               const layers = propPath.split(".");
               for (const layer of layers) {
                 const classNames = layer.split(" ");

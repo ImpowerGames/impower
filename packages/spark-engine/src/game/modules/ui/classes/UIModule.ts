@@ -77,7 +77,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   constructor(game: Game) {
     super(game);
-    this.initLayouts();
+    this.initScreens();
   }
 
   override getBuiltins() {
@@ -96,7 +96,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
     this.constructStyles();
-    this.constructLayouts();
+    this.constructScreens();
     this.loadTheme();
     const transientTargets = this.getTransientTargets();
     await Promise.all([
@@ -137,7 +137,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected createElement(
     parent: Element | null,
-    state?: ElementState
+    state?: ElementState,
   ): Element {
     const id = this.generateId();
     const name = state?.name || "";
@@ -161,7 +161,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         style,
         attributes,
         breakpoints,
-      })
+      }),
     );
     return el;
   }
@@ -170,7 +170,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     parent: Element | null,
     imageAssets: unknown[],
     property: string,
-    state?: ElementState
+    state?: ElementState,
   ): Element {
     const background = imageAssets
       .map((a) => this.getBackgroundImageFromValue(a))
@@ -202,7 +202,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.emit(
       DestroyElementMessage.type.request({
         element: element.id,
-      })
+      }),
     );
   }
 
@@ -227,12 +227,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         style,
         attributes,
         breakpoints,
-      })
+      }),
     );
   }
 
   protected async animateElements(
-    effects: { element: Element; animations: Animation[] }[]
+    effects: { element: Element; animations: Animation[] }[],
   ) {
     if (effects.length === 0) {
       return [];
@@ -243,12 +243,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           element: e.element.id,
           animations: e.animations,
         })),
-      })
+      }),
     );
   }
 
   protected conceal() {
-    const target = this.context.config?.ui?.layouts_element_name;
+    const target = this.context.config?.ui?.screens_element_name;
     if (target) {
       const uiRoot = this._root?.findChild(target);
       if (uiRoot) {
@@ -258,7 +258,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   reveal() {
-    const target = this.context.config?.ui.layouts_element_name;
+    const target = this.context.config?.ui.screens_element_name;
     if (target) {
       const uiRoot = this._root?.findChild(target);
       if (uiRoot) {
@@ -362,7 +362,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
     if (this.context?.layered_image?.[imageName]) {
       return this.getImageAssets("layered_image", imageName).map(
-        (asset) => asset.src
+        (asset) => asset.src,
       );
     }
     if (this.context?.image?.[imageName]) {
@@ -489,7 +489,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected getOrCreateRootLayoutElement(): Element {
+  protected getOrCreateRootScreenElement(): Element {
     const style = {
       position: "absolute",
       inset: "0",
@@ -499,7 +499,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!this._root) {
       this._root = this.getOrCreateRootElement();
     }
-    const target = this.context.config?.ui.layouts_element_name;
+    const target = this.context.config?.ui.screens_element_name;
     const existingElement = target ? this._root.findChild(target) : undefined;
     return (
       existingElement ||
@@ -510,9 +510,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected getLayoutElement(uiName: string): Element | undefined {
-    const rootLayoutElement = this.getOrCreateRootLayoutElement();
-    return rootLayoutElement.findChild(uiName);
+  protected getScreenElement(uiName: string): Element | undefined {
+    const rootScreenElement = this.getOrCreateRootScreenElement();
+    return rootScreenElement.findChild(uiName);
   }
 
   constructStyles(): void {
@@ -534,7 +534,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected constructStyle(
     structName: string,
-    content: ElementContent
+    content: ElementContent,
   ): Element | undefined {
     const style = {
       // Required to prevent style content from rendering on screen on mobile
@@ -549,25 +549,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     });
   }
 
-  constructLayouts(...structNames: string[]): void {
+  constructScreens(...structNames: string[]): void {
     const targetAllStructs = !structNames || structNames.length === 0;
     const validStructNames = targetAllStructs
-      ? Object.keys(this.context?.layout || {})
+      ? Object.keys(this.context?.screen || {})
       : structNames;
     for (const structName of validStructNames) {
       if (structName && !structName.startsWith("$")) {
-        const layout = this.context.layout?.[structName];
-        if (layout) {
-          this.constructLayout(layout);
+        const screen = this.context.screen?.[structName];
+        if (screen) {
+          this.constructScreen(screen);
         }
       }
     }
   }
 
-  protected constructLayout(layout: Record<string, any>): Element {
-    const structName = layout["$name"];
-    const properties = getAllProperties(layout);
-    const parent = this.getOrCreateRootLayoutElement();
+  protected constructScreen(screen: Record<string, any>): Element {
+    const structName = screen["$name"];
+    const properties = getAllProperties(screen);
+    const parent = this.getOrCreateRootScreenElement();
     const uiEl = this.createElement(parent, {
       type: "div",
       name: structName,
@@ -593,7 +593,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               this.createElement(stack.at(-1)!, {
                 type: "div",
                 name,
-              })
+              }),
             );
             const parent = stack.at(-1)!;
             const isLast = i === path.length - 1;
@@ -627,19 +627,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return uiEl;
   }
 
-  initLayouts(): void {
-    for (const structName of Object.keys(this.context?.layout || {})) {
+  initScreens(): void {
+    for (const structName of Object.keys(this.context?.screen || {})) {
       if (structName && !structName.startsWith("$")) {
-        const layout = this.context.layout?.[structName];
-        if (layout) {
-          this.initLayout(layout);
+        const screen = this.context.screen?.[structName];
+        if (screen) {
+          this.initScreen(screen);
         }
       }
     }
   }
 
-  initLayout(layout: Record<string, any>) {
-    const properties = getAllProperties(layout);
+  initScreen(screen: Record<string, any>) {
+    const properties = getAllProperties(screen);
     for (const [k, v] of Object.entries(properties)) {
       const path = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
       const isValidNode = !path.at(-1)?.startsWith("$");
@@ -670,15 +670,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.emit(
         SetThemeMessage.type.request({
           breakpoints,
-        })
+        }),
       );
     }
   }
 
-  hideLayout(...structNames: string[]): void {
+  hideScreen(...structNames: string[]): void {
     for (const structName of structNames) {
       if (structName) {
-        const structEl = this.getLayoutElement(structName);
+        const structEl = this.getScreenElement(structName);
         if (structEl) {
           this.updateElement(structEl, { attributes: { hidden: "" } });
         }
@@ -686,10 +686,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  showLayout(...structNames: string[]): void {
+  showScreen(...structNames: string[]): void {
     for (const structName of structNames) {
       if (structName) {
-        const structEl = this.getLayoutElement(structName);
+        const structEl = this.getScreenElement(structName);
         if (structEl) {
           this.updateElement(structEl, { attributes: { hidden: null } });
         }
@@ -720,7 +720,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected searchForAll(
     parent: Element,
     target: string,
-    found: Element[] = []
+    found: Element[] = [],
   ): Element[] {
     if (parent) {
       const matchingChildren = parent.findChildren(target);
@@ -737,7 +737,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected getContentElements(
     element: Element,
-    tag: "image" | "text" | "mask" | "stroke"
+    tag: "image" | "text" | "mask" | "stroke",
   ): Element[] {
     return element.findChildren(tag);
   }
@@ -758,7 +758,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ease?: string;
       loop?: boolean;
     },
-    instant: boolean
+    instant: boolean,
   ): Animation | undefined {
     const { name, after, over, ease, loop } = event;
     const delayOverride = `${after ?? 0}s`;
@@ -803,7 +803,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   enqueueAnimation(
     element: Element,
     animation: Animation,
-    animationMap: Map<Element, Animation[]>
+    animationMap: Map<Element, Animation[]>,
   ) {
     const selector = animation.target.$name;
     const animateEls =
@@ -823,7 +823,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     target: string,
     callback: ((event: EventMap[T]) => any) | null,
     stopPropagation = true,
-    once = false
+    once = false,
   ): boolean {
     const targetEls = this.findElements(target);
     for (const targetEl of targetEls) {
@@ -833,7 +833,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         UpdateElementMessage.type.request({
           element: targetEl.id,
           style,
-        })
+        }),
       );
       if (callback) {
         this.emit(
@@ -842,7 +842,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             event,
             stopPropagation,
             once,
-          })
+          }),
         );
         this._events[event] ??= {};
         this._events[event]![targetEl.id] = callback as (event: Event) => any;
@@ -852,7 +852,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           UnobserveElementMessage.type.request({
             element: targetEl.id,
             event,
-          })
+          }),
         );
       }
     }
@@ -864,14 +864,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     target: string,
     callback: (event: EventMap[T]) => any,
     stopPropagation = true,
-    once = false
+    once = false,
   ): boolean {
     return this.setEventListener(
       event,
       target,
       callback,
       stopPropagation,
-      once
+      once,
     );
   }
 
@@ -918,7 +918,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: TextInstruction[],
         instant: boolean,
         enterElements: Map<Element, Animation[]>,
-        _exitElements: Map<Element, Animation[]>
+        _exitElements: Map<Element, Animation[]>,
       ) {
         let lineWrapperEl: Element | undefined = undefined;
         let wordWrapperEl: Element | undefined = undefined;
@@ -1001,7 +1001,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 });
           const animation = $.getAnimationDefinition(
             { name: "show", after: e.after, over: e.over, ease: e.ease },
-            instant
+            instant,
           );
           if (animation) {
             $.enqueueAnimation(newSpanEl, animation, enterElements);
@@ -1012,7 +1012,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected async applyChanges(
         target: string,
         sequence: TextInstruction[] | null,
-        instant: boolean
+        instant: boolean,
       ) {
         const enterContentAnimationMap = new Map<Element, Animation[]>();
         const exitContentAnimationMap = new Map<Element, Animation[]>();
@@ -1034,7 +1034,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   sequence,
                   instant,
                   enterContentAnimationMap,
-                  exitContentAnimationMap
+                  exitContentAnimationMap,
                 );
               }
               // Create and set stroke
@@ -1044,7 +1044,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   sequence,
                   instant,
                   enterContentAnimationMap,
-                  exitContentAnimationMap
+                  exitContentAnimationMap,
                 );
               }
             } else {
@@ -1065,10 +1065,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
         }
         const enterContentEffects = Array.from(enterContentAnimationMap).map(
-          ([element, animations]) => ({ element, animations })
+          ([element, animations]) => ({ element, animations }),
         );
         const exitContentEffects = Array.from(exitContentAnimationMap).map(
-          ([element, animations]) => ({ element, animations })
+          ([element, animations]) => ({ element, animations }),
         );
         // Animate in and out content
         await Promise.all([
@@ -1095,7 +1095,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       async write(
         target: string,
         sequence: TextInstruction[],
-        instant = false
+        instant = false,
       ) {
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
@@ -1119,7 +1119,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               if (event.control === "show") {
                 // Clear all previous hide target events
                 state = state.filter(
-                  (e) => !(e.control === "hide" && !e.assets?.length)
+                  (e) => !(e.control === "hide" && !e.assets?.length),
                 );
                 // Clear all previous content events
                 state = state.filter((e) => !e.assets?.length);
@@ -1137,7 +1137,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               // TODO: If animate with none, clear all previous animation events
               const changingVisibility = event.control !== "animate";
               const latestLayerVisibilityEvent = state.findLast(
-                (e) => !e.assets?.length && e.control !== "animate"
+                (e) => !e.assets?.length && e.control !== "animate",
               );
               if (changingVisibility && latestLayerVisibilityEvent) {
                 // If we are just changing visibility, no need to create a new event
@@ -1174,7 +1174,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         instant: boolean,
         enterContentAnimationMap: Map<Element, Animation[]>,
         exitContentAnimationMap: Map<Element, Animation[]>,
-        targetAnimationMap: Map<Element, Animation[]>
+        targetAnimationMap: Map<Element, Animation[]>,
       ) {
         for (const e of sequence) {
           // Reveal target before showing content
@@ -1215,8 +1215,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
           const transitionDuration = Math.max(
             ...transitionAnimations.map(
-              (a) => getTimeValue(a.timing.duration) ?? 0
-            )
+              (a) => getTimeValue(a.timing.duration) ?? 0,
+            ),
           );
           const over = e.over;
           const transitionSpeed =
@@ -1268,13 +1268,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                     };
                     const animation = $.getAnimationDefinition(
                       animateEvent,
-                      instant
+                      instant,
                     );
                     if (animation) {
                       $.enqueueAnimation(
                         el,
                         animation,
-                        enterContentAnimationMap
+                        enterContentAnimationMap,
                       );
                     }
                   }
@@ -1303,7 +1303,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 contentElement,
                 e.assets,
                 contentProperty,
-                { attributes: { image: imageNames } }
+                { attributes: { image: imageNames } },
               );
               // 'show' is equivalent to calling 'hide' on all previous elements on the layer,
               // before calling 'show' on the new element
@@ -1318,13 +1318,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   };
                   const animation = $.getAnimationDefinition(
                     hideEvent,
-                    instant
+                    instant,
                   );
                   if (animation) {
                     $.enqueueAnimation(
                       prevSpanEl,
                       animation,
-                      exitContentAnimationMap
+                      exitContentAnimationMap,
                     );
                   }
                 }
@@ -1340,7 +1340,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   $.enqueueAnimation(
                     newSpanEl,
                     animation,
-                    enterContentAnimationMap
+                    enterContentAnimationMap,
                   );
                 }
               } else if (e.control === "hide") {
@@ -1355,7 +1355,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   $.enqueueAnimation(
                     newSpanEl,
                     animation,
-                    exitContentAnimationMap
+                    exitContentAnimationMap,
                   );
                 }
               } else if (e.control === "animate") {
@@ -1370,7 +1370,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   $.enqueueAnimation(
                     newSpanEl,
                     animation,
-                    enterContentAnimationMap
+                    enterContentAnimationMap,
                   );
                 }
               }
@@ -1409,7 +1409,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 };
                 const animation = $.getAnimationDefinition(
                   animateEvent,
-                  instant
+                  instant,
                 );
                 if (animation) {
                   $.enqueueAnimation(targetEl, animation, targetAnimationMap);
@@ -1423,7 +1423,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       protected async applyChanges(
         target: string,
         sequence: ImageInstruction[] | null,
-        instant: boolean
+        instant: boolean,
       ) {
         const enterContentAnimationMap = new Map<Element, Animation[]>();
         const exitContentAnimationMap = new Map<Element, Animation[]>();
@@ -1453,7 +1453,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 instant,
                 enterContentAnimationMap,
                 exitContentAnimationMap,
-                targetAnimationMap
+                targetAnimationMap,
               );
             } else {
               for (const imageEl of imageEls) {
@@ -1469,13 +1469,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
         }
         const targetEffects = Array.from(targetAnimationMap).map(
-          ([element, animations]) => ({ element, animations })
+          ([element, animations]) => ({ element, animations }),
         );
         const enterContentEffects = Array.from(enterContentAnimationMap).map(
-          ([element, animations]) => ({ element, animations })
+          ([element, animations]) => ({ element, animations }),
         );
         const exitContentEffects = Array.from(exitContentAnimationMap).map(
-          ([element, animations]) => ({ element, animations })
+          ([element, animations]) => ({ element, animations }),
         );
         // Animate target
         await $.animateElements(targetEffects);
@@ -1504,7 +1504,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       async write(
         target: string,
         sequence: ImageInstruction[],
-        instant = false
+        instant = false,
       ) {
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
@@ -1519,7 +1519,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     class Style {
       protected saveState(
         target: string,
-        style: Record<string, string | null> | null
+        style: Record<string, string | null> | null,
       ) {
         $._state.style ??= {};
         $._state.style[target] ??= {};
@@ -1546,7 +1546,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected async applyChanges(
         target: string,
-        style: Record<string, string | null> | null
+        style: Record<string, string | null> | null,
       ) {
         for (const targetEl of $.findElements(target)) {
           if (targetEl) {
@@ -1557,7 +1557,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       async update(
         target: string,
-        style: Record<string, string | null> | null
+        style: Record<string, string | null> | null,
       ) {
         this.saveState(target, style);
         if (!$.context?.system?.simulating) {
@@ -1572,7 +1572,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     class Attributes {
       protected saveState(
         target: string,
-        attributes: Record<string, string | null> | null
+        attributes: Record<string, string | null> | null,
       ) {
         $._state.attributes ??= {};
         $._state.attributes[target] ??= {};
@@ -1599,7 +1599,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected async applyChanges(
         target: string,
-        attributes: Record<string, string | null> | null
+        attributes: Record<string, string | null> | null,
       ) {
         for (const targetEl of $.findElements(target)) {
           if (targetEl) {
@@ -1610,7 +1610,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       async update(
         target: string,
-        attributes: Record<string, string | null> | null
+        attributes: Record<string, string | null> | null,
       ) {
         this.saveState(target, attributes);
         if (!$.context?.system?.simulating) {

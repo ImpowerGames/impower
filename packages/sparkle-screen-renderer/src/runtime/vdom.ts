@@ -34,7 +34,7 @@ export interface RenderContext {
 
 export function renderCssVDOM(
   parsed: SparkleNode[],
-  ctx: RenderContext
+  ctx: RenderContext,
 ): VNode {
   const children: VNode[] = [];
   for (const root of parsed) {
@@ -51,7 +51,7 @@ export function renderCssVDOM(
 
 export function renderHtmlVDOM(
   parsed: SparkleNode[],
-  ctx: RenderContext
+  ctx: RenderContext,
 ): VNode {
   const children: VNode[] = [];
   for (const root of parsed) {
@@ -66,7 +66,7 @@ export function renderVNode(
   el: SparkleNode,
   ctx: RenderContext,
   parent?: SparkleNode,
-  index: number = 0
+  index: number = 0,
 ): VNode {
   const { type, args, children } = el;
   const components = ctx.components;
@@ -103,7 +103,7 @@ export function renderVNode(
         }
       }
       return wrapChildren(
-        selectedChildren.map((c, i) => renderVNode(c, ctx, el, i))
+        selectedChildren.map((c, i) => renderVNode(c, ctx, el, i)),
       );
     }
 
@@ -119,8 +119,8 @@ export function renderVNode(
       if (entries.length === 0 && nextSibling?.type === "else") {
         return wrapChildren(
           nextSibling.children?.map((c, i) =>
-            renderVNode(c, ctx, nextSibling, i)
-          ) ?? []
+            renderVNode(c, ctx, nextSibling, i),
+          ) ?? [],
         );
       }
       const asKeys: string[] = args?.as;
@@ -156,8 +156,8 @@ export function renderVNode(
       if (times === 0 && nextSibling?.type === "else") {
         return wrapChildren(
           nextSibling.children?.map((c, i) =>
-            renderVNode(c, ctx, nextSibling, i)
-          ) ?? []
+            renderVNode(c, ctx, nextSibling, i),
+          ) ?? [],
         );
       }
       const repeats = Array.from({ length: times }).flatMap((_, i) => {
@@ -189,11 +189,13 @@ export function renderVNode(
             evaluate(child.args?.value, getContext(ctx)) === value
           ) {
             return wrapChildren(
-              child.children?.map((c, i) => renderVNode(c, ctx, child, i)) ?? []
+              child.children?.map((c, i) => renderVNode(c, ctx, child, i)) ??
+                [],
             );
           } else if (child.type === "else") {
             return wrapChildren(
-              child.children?.map((c, i) => renderVNode(c, ctx, child, i)) ?? []
+              child.children?.map((c, i) => renderVNode(c, ctx, child, i)) ??
+                [],
             );
           }
         }
@@ -222,7 +224,7 @@ export function renderVNode(
           if (value.startsWith('"') && value.endsWith('"')) {
             componentScope[param] = interpolate(
               value.slice(1, -1),
-              getContext(ctx)
+              getContext(ctx),
             );
           } else {
             componentScope[param] = evaluate(value, getContext(ctx));
@@ -243,7 +245,7 @@ export function renderVNode(
       const processedChildren = instantiateSlots(
         componentDef.children || [],
         fills,
-        slotsFound
+        slotsFound,
       );
 
       if (slotsFound.length === 0 && implicitFills.length > 0) {
@@ -259,7 +261,7 @@ export function renderVNode(
         },
         componentCtx,
         el,
-        index
+        index,
       );
     } else if (builtin) {
       return renderBuiltinVNode(el, ctx, builtin.vnode);
@@ -285,12 +287,16 @@ export function renderVNode(
       return sparklePropertyToCssProperty(args?.key, args?.value, cssAliases);
     }
     const selector = sparkleSelectorToCssSelector(type, breakpoints);
+    const selfTargetedSelector =
+      selector.startsWith("[") || selector.startsWith(":")
+        ? "&" + selector
+        : selector;
     const blockContent = (children ?? [])
       .map((c, i) => {
         return renderVNode(c, ctx, el, i) as string;
       })
       .join(" ");
-    return `${selector} { ${blockContent} }`;
+    return `${selfTargetedSelector} { ${blockContent} }`;
   }
 
   if (el.root === "animation") {
@@ -315,7 +321,7 @@ export function renderVNode(
           const offset = max === 0 ? "to" : `${(i / max) * 100}%`;
           const keyframeContent = (
             keyframe.children?.map((c, j) =>
-              renderVNode(c, ctx, keyframe, j)
+              renderVNode(c, ctx, keyframe, j),
             ) ?? []
           ).join(" ");
           return `${offset} { ${keyframeContent} }`;
@@ -413,7 +419,7 @@ function wrapChildren(children: VNode[]): VNode {
 function renderBuiltinVNode(
   el: SparkleNode,
   ctx: RenderContext,
-  builtin: VNode
+  builtin: VNode,
 ): VNode {
   const { type, args = {}, children } = el;
 
@@ -545,7 +551,7 @@ function injectSlots(
   content: unknown,
   childNodes: SparkleNode[] | undefined,
   ctx: RenderContext,
-  owner: SparkleNode
+  owner: SparkleNode,
 ): VNode {
   const evalCtx = getContext(ctx);
   const interpolate = ctx.options?.interpolate ?? defaultInterpolate;
@@ -613,7 +619,7 @@ function organizeFills(children: SparkleNode[]): Record<string, SparkleNode[]> {
 function instantiateSlots(
   componentChildren: SparkleNode[],
   fills: Record<string, SparkleNode[]>,
-  slotsFound: SparkleNode[]
+  slotsFound: SparkleNode[],
 ): SparkleNode[] {
   const output: SparkleNode[] = [];
 
@@ -657,7 +663,7 @@ function defaultEvaluate<T>(expr: string, context: Record<string, any>): T {
 
 function defaultInterpolate(
   template: string,
-  context: Record<string, any>
+  context: Record<string, any>,
 ): string {
   try {
     return template.replace(/\\(.|\r\n|\r|\n)|\{(.*?)\}/g, (_, $1, $2) => {
@@ -675,7 +681,7 @@ function defaultInterpolate(
 function sparklePropertyToCssProperty(
   key: string,
   value: unknown,
-  cssAliases?: Record<string, string>
+  cssAliases?: Record<string, string>,
 ) {
   let aliasedKey = cssAliases?.[key] ?? key;
   const cssEntries = getCssEquivalent(aliasedKey, value);
@@ -684,7 +690,7 @@ function sparklePropertyToCssProperty(
 
 function getInheritanceChain(
   type: string,
-  components?: Record<string, SparkleNode>
+  components?: Record<string, SparkleNode>,
 ) {
   const out: string[] = [];
   addToInheritanceChain(type, components, out);
@@ -694,7 +700,7 @@ function getInheritanceChain(
 function addToInheritanceChain(
   type: string,
   components: Record<string, SparkleNode> | undefined,
-  out: string[]
+  out: string[],
 ) {
   out.push(type);
   if (components) {

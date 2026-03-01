@@ -7,14 +7,18 @@ uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 flags: mu
 
 variables:
-  IDENTIFIER_START: '[0-9]*[_\p{L}]'
-  IDENTIFIER_END_CHAR: '0-9_\p{L}'
-  IDENTIFIER: "{{IDENTIFIER_START}}[{{IDENTIFIER_END_CHAR}}]*"
-  CSS_IDENTIFIER: "[{{IDENTIFIER_END_CHAR}}-]+"
-  DECLARATION_PROPERTY_IDENTIFIER: '(?:["].*?["]|\[.*?\]|\(.*?\)|[^.:=\r\n])+?'
+  INTEGER: "[0-9]+"
+  NUMBER: (?:[-]?(?:\d*[.])?\d+)
+  IDENTIFIER_START_CHAR: '_\p{L}'
+  IDENTIFIER_END_CHAR: '0-9_\p{L}-'
+  IDENTIFIER_START: "[{{IDENTIFIER_START_CHAR}}]"
+  IDENTIFIER_END: "[{{IDENTIFIER_END_CHAR}}]*"
+  IDENTIFIER: "{{IDENTIFIER_START}}{{IDENTIFIER_END}}"
+  STRICT_PROPERTY_IDENTIFIER: (?:{{INTEGER}}|{{IDENTIFIER}}|{{QUOTED_STRING}})
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
   TAG_START: (?:[#]+(?:$|{{WS}}+))
+  COMMENT_START: (?:[/][/]|[/][*])
   BREAK: (?:{{WS}}+[>]{{WS}}*)
   # Word
   WORD: (?:[\p{L}\p{N}\p{Mn}']+)
@@ -22,16 +26,25 @@ variables:
   WS: '[^\S\n\r]'
   # End Of Line
   EOL: "(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$|{{WS}}*[/][/].*$)"
+  # Strict End Of Property Line (# tags are not allowed in property declarations, so no need to check for it)
+  EOPL: "(?:$|{{WS}}*$|{{WS}}*[/][/].*$)"
   # Keyword Terminator
-  KEYWORD_TERMINATOR: "(?:[:]|{{TAG_START}}|[/][/]|[/][*])"
+  KEYWORD_TERMINATOR: "(?:[:]|{{TAG_START}}|{{COMMENT_START}})"
   # End Of Keyword
   EOK: "(?:$|{{WS}}+|(?={{KEYWORD_TERMINATOR}}))"
+  COMPARISON_OPERATOR: (?:[~]|[|]|[\^]|[$]|[*])
+  QUOTED_STRING: (?:["](?:\\.|[^"\r\n])*["])
+  UNQUOTED_STRING_TERMINATOR: (?:$|[\s"'`<>=:(){}\[\]]|{{COMMENT_START}})
+  UNQUOTED_STRING_VALUE: (?:.*?)(?={{UNQUOTED_STRING_TERMINATOR}})
+  PROPERTY_NAME_TERMINATOR: (?:[:]|[=]|[\r\n])
+  ASSIGN_EQUAL_OPERATOR: (?:{{WS}}*[=]{{WS}}*)
+  ARRAY_ITEM_OPERATOR: (?:[-](?:$|{{WS}}+))
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease"]
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
     ["over", "after", "to", "loop", "once", "mute", "unmute", "now"]
-  CONDITIONAL_KEYWORDS:
+  CONDITIONAL_BLOCK_KEYWORDS:
     [
       "if",
       "elseif",
@@ -42,11 +55,12 @@ variables:
       "shuffle",
       "cycle",
       "once",
-      "for",
       "repeat",
-      "slot",
+      "for",
       "fill",
     ]
+  OUTER_CONTROL_STATEMENT_KEYWORDS: ["if", "elseif", "match", "repeat", "in"]
+  INNER_CONTROL_STATEMENT_KEYWORDS: ["case", "fill", "slot"]
   DECLARATION_KEYWORDS:
     [
       "include",
@@ -66,7 +80,6 @@ variables:
       "style",
       "theme",
     ]
-  CONTROL_KEYWORDS: ["return"]
 
 patterns:
   - { include: "#EndOfLine" }
@@ -189,7 +202,7 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#Whitespace" }
       2:
         tag: definition(docComment)
         name: punctuation.definition.comment.sd comment.line.sd entity.tag.begin.sd
@@ -301,11 +314,6 @@ repository:
       - { include: "#ConstDeclaration" }
       - { include: "#ExternalDeclaration" }
       - { include: "#DefineDeclaration" }
-      - { include: "#ScreenDeclaration" }
-      - { include: "#ComponentDeclaration" }
-      - { include: "#StyleDeclaration" }
-      - { include: "#AnimationDeclaration" }
-      - { include: "#ThemeDeclaration" }
 
   StoreDeclaration:
     tag: meta
@@ -427,7 +435,172 @@ repository:
     name: keyword.control.definition.external.sd
     match: (.+)
 
+  ListTypeAssignment:
+    begin: ({{IDENTIFIER}})($|{{ASSIGN_EQUAL_OPERATOR}}|(?={{EOL}}))
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ListTypeDeclarationName" }
+      2:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Expression" }
+    end: (?=$)
+
+  VariableAssignment:
+    begin: ({{IDENTIFIER}})($|{{ASSIGN_EQUAL_OPERATOR}}|(?={{EOL}}))
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#VariableDeclarationName" }
+      2:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Divert" }
+      - { include: "#Expression" }
+    end: (?=$)
+
+  ExternalFunctionDeclaration:
+    begin: ({{IDENTIFIER}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#FunctionName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#FunctionDeclarationParameters" }
+    end: (?=$)
+
+  RefModifier:
+    match: (ref)({{WS}}*)
+    captures:
+      1:
+        tag: modifier
+        name: storage.modifier.ref.sd
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  FunctionDeclarationParameters:
+    brackets: true
+    begin: ([(])({{WS}}*)
+    beginCaptures:
+      1:
+        tag: keyword
+        name: punctuation.definition.template-expression.begin.sd
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Separator" }
+      - { include: "#PunctuationComma" }
+      - { include: "#Parameter" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: keyword
+        name: punctuation.definition.template-expression.end.sd
+
+  FunctionCallParameters:
+    brackets: true
+    begin: ([(])({{WS}}*)
+    beginCaptures:
+      1:
+        tag: keyword
+        name: punctuation.definition.template-expression.begin.sd
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Separator" }
+      - { include: "#PunctuationComma" }
+      - { include: "#Parameter" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: keyword
+        name: punctuation.definition.template-expression.end.sd
+
+  Parameter:
+    tag: meta
+    name: meta.parameter.sd
+    begin: (?=.+$)
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Expression" }
+    end: $|(?={{WS}}*(?:[)]|[,]))
+
   DefineDeclaration:
+    patterns:
+      - { include: "#DefineViewDeclaration" }
+      - { include: "#DefineStylingDeclaration" }
+      - { include: "#DefinePlainDeclaration" }
+
+  DefineViewDeclaration:
+    tag: meta
+    name: meta.definition.type.define.sd
+    begin: ({{WS}}*)(define)({{EOK}})(?=(?:screen|component){{EOK}})(.*?)$
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#DefineKeyword" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+      4:
+        patterns:
+          - { include: "#DefineAssignment" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Newline" }
+      - { include: "#ViewStructField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!$|//|\1{{WS}}))
+
+  DefineStylingDeclaration:
+    tag: meta
+    name: meta.definition.type.define.sd
+    begin: ({{WS}}*)(define)({{EOK}})(?=(?:style|animation|theme){{EOK}})(.*?)$
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#DefineKeyword" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+      4:
+        patterns:
+          - { include: "#DefineAssignment" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Newline" }
+      - { include: "#StylingStructField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!$|//|\1{{WS}}))
+
+  DefinePlainDeclaration:
     tag: meta
     name: meta.definition.type.define.sd
     begin: ({{WS}}*)(define)({{EOK}})(.*?)$
@@ -445,9 +618,9 @@ repository:
         patterns:
           - { include: "#DefineAssignment" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#Newline" }
-      - { include: "#StructField" }
+      - { include: "#PlainStructField" }
       - { include: "#Unknown" }
     end: (?=^(?!$|//|\1{{WS}}))
 
@@ -457,24 +630,27 @@ repository:
     match: (.+)
 
   DefineAssignment:
-    match: (.*?)(?:(with)((?=$|[:])|{{WS}}+)((?=$|[:])|{{IDENTIFIER}}))?({{WS}}*)($|[:])
+    match: (.*?)([(].*[)])?(?:(with)((?=$|[:])|{{WS}}+)((?=$|[:])|{{IDENTIFIER}}))?({{WS}}*)($|[:])
     captures:
       1:
         patterns:
           - { include: "#DefineIdentifier" }
       2:
         patterns:
-          - { include: "#WithKeyword" }
+          - { include: "#FunctionDeclarationParameters" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#WithKeyword" }
       4:
         patterns:
-          - { include: "#DefineModifierName" }
+          - { include: "#Separator" }
       5:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#DefineModifierName" }
       6:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      7:
         patterns:
           - { include: "#ColonOperator" }
 
@@ -510,7 +686,7 @@ repository:
     match: (.+)
 
   DefinePunctuationAccessor:
-    match: ([.])
+    match: ({{WS}})
     tag: separator
     name: meta.template.expression.accessor.sd
 
@@ -519,126 +695,6 @@ repository:
     name: variable.other.constant.sd
     match: (.+)
 
-  ListTypeAssignment:
-    begin: ({{IDENTIFIER}})($|{{WS}}*[=]{{WS}}*|(?={{EOL}}))
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#ListTypeDeclarationName" }
-      2:
-        patterns:
-          - { include: "#AssignEqualOperator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Expression" }
-    end: (?=$)
-
-  VariableAssignment:
-    begin: ({{IDENTIFIER}})($|{{WS}}*[=]{{WS}}*|(?={{EOL}}))
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#VariableDeclarationName" }
-      2:
-        patterns:
-          - { include: "#AssignEqualOperator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Divert" }
-      - { include: "#Expression" }
-    end: (?=$)
-
-  ExternalFunctionDeclaration:
-    begin: ({{IDENTIFIER}})({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#FunctionName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#FunctionDeclarationParameters" }
-    end: (?=$)
-
-  RefModifier:
-    match: (ref)({{WS}}*)
-    captures:
-      1:
-        tag: modifier
-        name: storage.modifier.ref.sd
-      2:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  FunctionDeclarationParameters:
-    brackets: true
-    begin: ([(])({{WS}}*)
-    beginCaptures:
-      1:
-        tag: keyword
-        name: punctuation.definition.template-expression.begin.sd
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Separator" }
-      - { include: "#PunctuationComma" }
-      - { include: "#Parameter" }
-    end: ({{WS}}*)([)])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        tag: keyword
-        name: punctuation.definition.template-expression.end.sd
-
-  FunctionCallParameters:
-    brackets: true
-    begin: ([(])({{WS}}*)
-    beginCaptures:
-      1:
-        tag: keyword
-        name: punctuation.definition.template-expression.begin.sd
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Separator" }
-      - { include: "#PunctuationComma" }
-      - { include: "#Parameter" }
-    end: ({{WS}}*)([)])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        tag: keyword
-        name: punctuation.definition.template-expression.end.sd
-
-  Parameter:
-    tag: meta
-    name: meta.parameter.sd
-    begin: (?=.+$)
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Expression" }
-    end: (?=(?:{{WS}}*)(?:[)]|[,]))
-
-  StructField:
-    emit: true
-    patterns:
-      - { include: "#BlankProperty" }
-      - { include: "#StructObjectItem" }
-      - { include: "#StructScalarItem" }
-      - { include: "#StructObjectProperty" }
-      - { include: "#StructScalarProperty" }
-
   BlankProperty:
     match: ^({{WS}}+$)
     captures:
@@ -646,172 +702,910 @@ repository:
         patterns:
           - { include: "#Indent" }
 
-  StructObjectItem:
+  ViewStructField:
+    emit: true
     patterns:
-      - { include: "#StructObjectItemBlock" }
-      - { include: "#StructObjectItemWithInlineScalarProperty" }
-      - { include: "#StructObjectItemWithInlineObjectProperty" }
+      - { include: "#BlankProperty" }
+      - { include: "#ViewStructObjectItem" }
+      - { include: "#ViewStructScalarItem" }
+      - { include: "#ViewStructScalarProperty" }
+      - { include: "#ViewStructObjectProperty" }
+      - { include: "#Newline" }
 
-  StructObjectItemBlock:
-    tag: meta
-    name: meta.definition.struct.item.object.sd
-    begin: ^({{WS}}*)([-])($|{{WS}}+)$
+  StylingStructField:
+    emit: true
+    patterns:
+      - { include: "#BlankProperty" }
+      - { include: "#StylingStructObjectItem" }
+      - { include: "#StylingStructScalarItem" }
+      - { include: "#StylingStructScalarProperty" }
+      - { include: "#StylingStructObjectProperty" }
+      - { include: "#Newline" }
+
+  PlainStructField:
+    emit: true
+    patterns:
+      - { include: "#BlankProperty" }
+      - { include: "#PlainStructObjectItem" }
+      - { include: "#PlainStructScalarItem" }
+      - { include: "#PlainStructScalarProperty" }
+      - { include: "#PlainStructObjectProperty" }
+      - { include: "#Newline" }
+
+  ViewStructObjectItem:
+    patterns:
+      - { include: "#ViewStructObjectItemBlock" }
+      - { include: "#ViewStructObjectItemWithInlineScalarProperty" }
+      - { include: "#ViewStructObjectItemWithInlineObjectProperty" }
+
+  StylingStructObjectItem:
+    patterns:
+      - { include: "#StylingStructObjectItemBlock" }
+      - { include: "#StylingStructObjectItemWithInlineScalarProperty" }
+      - { include: "#StylingStructObjectItemWithInlineObjectProperty" }
+
+  PlainStructObjectItem:
+    patterns:
+      - { include: "#PlainStructObjectItemBlock" }
+      - { include: "#PlainStructObjectItemWithInlineScalarProperty" }
+      - { include: "#PlainStructObjectItemWithInlineObjectProperty" }
+
+  ViewStructObjectItemBlock:
+    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{EOPL}})
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: keyword
-        name: keyword.operator.expression.array.sd
+        patterns:
+          - { include: "#ArrayItemOperator" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#EndOfLine" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#Newline" }
-      - { include: "#StructField" }
+      - { include: "#ViewStructField" }
       - { include: "#Unknown" }
     end: (?=^(?!$|//|\1{{WS}}))
 
-  StructObjectItemWithInlineScalarProperty:
-    tag: meta
-    name: meta.definition.struct.item.object.sd
-    begin: ^({{WS}}*)([-])({{WS}}+)({{DECLARATION_PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)($|.*)$
+  StylingStructObjectItemBlock:
+    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{EOPL}})
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: keyword
-        name: keyword.operator.expression.array.sd
+        patterns:
+          - { include: "#ArrayItemOperator" }
       3:
         patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#DeclarationScalarPropertyName" }
-      5:
-        patterns:
-          - { include: "#Separator" }
-      6:
-        patterns:
-          - { include: "#SetEqualOperator" }
-      7:
-        patterns:
-          - { include: "#Separator" }
-      8:
-        patterns:
-          - { include: "#StructFieldValue" }
+          - { include: "#EndOfLine" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#Newline" }
-      - { include: "#StructField" }
+      - { include: "#StylingStructField" }
       - { include: "#Unknown" }
     end: (?=^(?!$|//|\1{{WS}}))
 
-  StructObjectItemWithInlineObjectProperty:
-    tag: meta
-    name: meta.definition.struct.item.object.sd
-    begin: ^({{WS}}*)([-])({{WS}}+)({{DECLARATION_PROPERTY_IDENTIFIER}})({{WS}}*)([:])($|{{WS}}*$)
+  PlainStructObjectItemBlock:
+    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{EOPL}})
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: keyword
-        name: keyword.operator.expression.array.sd
+        patterns:
+          - { include: "#ArrayItemOperator" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#EndOfLine" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Newline" }
+      - { include: "#PlainStructField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!$|//|\1{{WS}}))
+
+  ViewStructObjectItemWithInlineScalarProperty:
+    tag: meta
+    name: meta.definition.struct.item.object.sd
+    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ArrayItemOperator" }
+      3:
+        patterns:
+          - { include: "#ViewDeclarationScalarPropertyName" }
       4:
         patterns:
-          - { include: "#DeclarationObjectPropertyName" }
+          - { include: "#AssignEqualOperator" }
       5:
+        patterns:
+          - { include: "#StylingStructFieldValue" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Newline" }
+      - { include: "#ViewStructField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!$|//|\1{{WS}}))
+
+  StylingStructObjectItemWithInlineScalarProperty:
+    tag: meta
+    name: meta.definition.struct.item.object.sd
+    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ArrayItemOperator" }
+      3:
+        patterns:
+          - { include: "#StylingDeclarationScalarPropertyName" }
+      4:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+      5:
+        patterns:
+          - { include: "#StylingStructFieldValue" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Newline" }
+      - { include: "#StylingStructField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!$|//|\1{{WS}}))
+
+  PlainStructObjectItemWithInlineScalarProperty:
+    tag: meta
+    name: meta.definition.struct.item.object.sd
+    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ArrayItemOperator" }
+      3:
+        patterns:
+          - { include: "#PlainDeclarationScalarPropertyName" }
+      4:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+      5:
+        patterns:
+          - { include: "#PlainStructFieldValue" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Newline" }
+      - { include: "#PlainStructField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!$|//|\1{{WS}}))
+
+  ViewStructObjectItemWithInlineObjectProperty:
+    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{WS}}*)([:])({{WS}}*)(.*$)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ArrayItemOperator" }
+      3:
+        patterns:
+          - { include: "#ViewDeclarationObjectPropertyName" }
+      4:
         patterns:
           - { include: "#ExtraWhitespace" }
-      6:
+      5:
         patterns:
           - { include: "#ColonOperator" }
+      6:
+        patterns:
+          - { include: "#ExtraWhitespace" }
       7:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#Comment" }
+          - { include: "#IllegalChar" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#Newline" }
-      - { include: "#StructField" }
+      - { include: "#ViewStructField" }
       - { include: "#Unknown" }
     end: (?=^(?!$|//|\1{{WS}}))
 
-  StructScalarItem:
-    tag: meta
-    name: meta.definition.struct.item.scalar.sd
-    begin: ^({{WS}}*)([-])($|{{WS}}+)(?=.*\S.*$)
+  StylingStructObjectItemWithInlineObjectProperty:
+    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{WS}}*)([:])({{WS}}*)(.*$)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#ArrayItemMark" }
+          - { include: "#ArrayItemOperator" }
       3:
         patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#StructFieldValue" }
-    end: (?=$)
-
-  StructObjectProperty:
-    tag: meta
-    name: meta.definition.struct.property.object.sd
-    begin: ^({{WS}}*)({{DECLARATION_PROPERTY_IDENTIFIER}})($|{{WS}}*)($|[:])($|{{WS}}*$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#DeclarationObjectPropertyName" }
-      3:
+          - { include: "#StylingDeclarationObjectPropertyName" }
+      4:
         patterns:
           - { include: "#ExtraWhitespace" }
-      4:
+      5:
         patterns:
           - { include: "#ColonOperator" }
-      5:
+      6:
         patterns:
           - { include: "#ExtraWhitespace" }
+      7:
+        patterns:
+          - { include: "#Comment" }
+          - { include: "#IllegalChar" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#Newline" }
-      - { include: "#StructField" }
+      - { include: "#StylingStructField" }
       - { include: "#Unknown" }
     end: (?=^(?!$|//|\1{{WS}}))
 
-  StructScalarProperty:
-    tag: meta
-    name: meta.definition.struct.property.scalar.sd
-    begin: ^({{WS}}*)({{DECLARATION_PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)
+  PlainStructObjectItemWithInlineObjectProperty:
+    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{WS}}*)([:])({{WS}}*)(.*$)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#DeclarationScalarPropertyName" }
+          - { include: "#ArrayItemOperator" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#PlainDeclarationObjectPropertyName" }
       4:
         patterns:
-          - { include: "#SetEqualOperator" }
+          - { include: "#ExtraWhitespace" }
       5:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#ColonOperator" }
+      6:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      7:
+        patterns:
+          - { include: "#Comment" }
+          - { include: "#IllegalChar" }
     patterns:
-      - { include: "#Annotation" }
-      - { include: "#StructFieldValue" }
-    end: (?=$)
+      - { include: "#Comment" }
+      - { include: "#Newline" }
+      - { include: "#PlainStructField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!$|//|\1{{WS}}))
+
+  ViewStructScalarItem:
+    match: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})(.*$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ArrayItemOperator" }
+      3:
+        patterns:
+          - { include: "#ViewStructFieldValue" }
+
+  StylingStructScalarItem:
+    match: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})(.*$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ArrayItemOperator" }
+      3:
+        patterns:
+          - { include: "#StylingStructFieldValue" }
+
+  PlainStructScalarItem:
+    match: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})(.*$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ArrayItemOperator" }
+      3:
+        patterns:
+          - { include: "#PlainStructFieldValue" }
+
+  ViewStructScalarProperty:
+    match: ^({{WS}}*)({{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ViewDeclarationScalarPropertyName" }
+      3:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+      4:
+        patterns:
+          - { include: "#ViewStructFieldValue" }
+
+  StylingStructScalarProperty:
+    match: ^({{WS}}*)({{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#StylingDeclarationScalarPropertyName" }
+      3:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+      4:
+        patterns:
+          - { include: "#StylingStructFieldValue" }
+
+  PlainStructScalarProperty:
+    match: ^({{WS}}*)({{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#PlainDeclarationScalarPropertyName" }
+      3:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+      4:
+        patterns:
+          - { include: "#PlainStructFieldValue" }
+
+  ViewStructObjectProperty:
+    begin: ^({{WS}}*)(.+$)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ViewDeclarationObjectPropertyAssignment" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Newline" }
+      - { include: "#ViewStructField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!$|//|\1{{WS}}))
+
+  StylingStructObjectProperty:
+    begin: ^({{WS}}*)(.+$)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#PlainDeclarationObjectPropertyAssignment" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Newline" }
+      - { include: "#StylingStructField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!$|//|\1{{WS}}))
+
+  PlainStructObjectProperty:
+    begin: ^({{WS}}*)(.+$)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#PlainDeclarationObjectPropertyAssignment" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Newline" }
+      - { include: "#PlainStructField" }
+      - { include: "#Unknown" }
+    end: (?=^(?!$|//|\1{{WS}}))
+
+  ViewDeclarationObjectPropertyAssignment:
+    begin: (?=\S)
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#ViewForControlProperty" }
+      - { include: "#ViewControlProperty" }
+      - { include: "#ViewDeclarationObjectPropertyName" }
+    applyEndPatternLast: true
+    end: $|({{WS}}*)([:])({{WS}}*)(.*$)|(.+$)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#ColonOperator" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
+          - { include: "#Comment" }
+          - { include: "#IllegalChar" }
+      5:
+        patterns:
+          - { include: "#Comment" }
+          - { include: "#IllegalChar" }
+
+  PlainDeclarationObjectPropertyAssignment:
+    begin: (?=\S)
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#PlainDeclarationObjectPropertyName" }
+    applyEndPatternLast: true
+    end: $|({{WS}}*)([:])({{WS}}*)(.*$)|(.+$)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#ColonOperator" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
+          - { include: "#Comment" }
+          - { include: "#IllegalChar" }
+      5:
+        patterns:
+          - { include: "#Comment" }
+          - { include: "#IllegalChar" }
+
+  ViewDeclarationObjectPropertyName:
+    begin: (?=\S)(?!{{PROPERTY_NAME_TERMINATOR}})
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#ComponentName" }
+      - { include: "#IllegalChar" }
+    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
+
+  StylingDeclarationObjectPropertyName:
+    begin: (?=\S)(?!{{PROPERTY_NAME_TERMINATOR}})
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#OperatorPrefixedPropertyName" }
+      - { include: "#PropertyName" }
+      - { include: "#InvalidSelectorPropertyName" }
+    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
+
+  PlainDeclarationObjectPropertyName:
+    begin: (?=\S)(?!{{PROPERTY_NAME_TERMINATOR}})
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#OperatorPrefixedPropertyName" }
+      - { include: "#PropertyName" }
+      - { include: "#InvalidSelectorPropertyName" }
+    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
+
+  OperatorPrefixedPropertyName:
+    begin: (?=\S)(?!{{IDENTIFIER}})(?!{{PROPERTY_NAME_TERMINATOR}})
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#ComponentName" }
+      - { include: "#IllegalChar" }
+    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
+
+  InvalidSelectorPropertyName:
+    tag: invalid
+    name: invalid.illegal.unknown-statement.sd
+    begin: (?=\S)(?!{{PROPERTY_NAME_TERMINATOR}})
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#ComponentName" }
+      - { include: "#IllegalChar" }
+    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
+
+  SelectorPropertyNamePart:
+    patterns:
+      - { include: "#ParenPropertyIdentifierString" }
+      - { include: "#BracketPropertyIdentifierString" }
+      - { include: "#BracePropertyIdentifierString" }
+      - { include: "#UnitValue" }
+      - { include: "#Literal" }
+      - { include: "#SelectorOperator" }
+      - { include: "#RecursiveSelectorFunction" }
+      - { include: "#SimpleSelectorFunction" }
+      - { include: "#StyleAttribute" }
+      - { include: "#EventAttribute" }
+      - { include: "#LabelAttribute" }
+      - { include: "#Separator" }
+
+  ParenPropertyIdentifierString:
+    brackets: true
+    begin: ([(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#SelectorPropertyNamePart" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  BracketPropertyIdentifierString:
+    brackets: true
+    begin: (\[)({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBracketOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#SelectorPropertyNamePart" }
+    end: $|({{WS}}*)(\])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationBracketClose" }
+
+  BracePropertyIdentifierString:
+    brackets: true
+    begin: (\{)({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#SelectorPropertyNamePart" }
+    end: $|({{WS}}*)(\})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  UnitValue:
+    match: ([-]?(?:\d*[.])?\d+)([%]|[a-zA-Z]+)
+    captures:
+      1:
+        tag: number
+        name: constant.numeric.amount.sd
+      2:
+        tag: number
+        name: constant.numeric.unit.sd
+
+  SelectorOperator:
+    tag: keyword
+    name: keyword.other.selector.operator.sd
+    match: ([>]|[+]|[~]|[*]|[&]|[\^])
+
+  RecursiveSelectorFunction:
+    begin: ([@])(has|not|is|where)(?=[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#RecursiveSelectorFunctionParameters" }
+    applyEndPatternLast: true
+    end: (?=$|.)
+
+  RecursiveSelectorFunctionParameters:
+    brackets: true
+    begin: ([(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#ComponentName" }
+      - { include: "#IllegalChar" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  SimpleSelectorFunction:
+    begin: ([@])({{IDENTIFIER}})?(?=[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#SimpleSelectorFunctionParameters" }
+    applyEndPatternLast: true
+    end: (?=$|.)
+
+  SimpleSelectorFunctionParameters:
+    brackets: true
+    begin: ([(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#SelectorPropertyNamePart" }
+      - { include: "#StringIdentifier" }
+      - { include: "#IllegalChar" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  StyleAttribute:
+    emit: true
+    patterns:
+      - { include: "#AssignedBracedStyleAttribute" }
+      - { include: "#AssignedQuotedStyleAttribute" }
+      - { include: "#AssignedUnquotedStyleAttribute" }
+      - { include: "#UnassignedStyleAttribute" }
+
+  EventAttribute:
+    emit: true
+    patterns:
+      - { include: "#AssignedBracedEventAttribute" }
+      - { include: "#AssignedQuotedEventAttribute" }
+      - { include: "#AssignedUnquotedEventAttribute" }
+      - { include: "#UnassignedEventAttribute" }
+
+  AssignedBracedStyleAttribute:
+    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}}?[=])([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StyleAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#StyleAttributeName" }
+      3:
+        patterns:
+          - { include: "#AttributeEqualOperator" }
+      4:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Expression" }
+    end: ([}])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  AssignedQuotedStyleAttribute:
+    tag: string
+    name: string.quoted.double.view.sd
+    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}}?[=])(["])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StyleAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#StyleAttributeName" }
+      3:
+        patterns:
+          - { include: "#AttributeEqualOperator" }
+      4:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#StringContent" }
+    end: $|(["])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+
+  AssignedUnquotedStyleAttribute:
+    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}}?[=])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StyleAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#StyleAttributeName" }
+      3:
+        patterns:
+          - { include: "#AttributeEqualOperator" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#UnquotedStyleAttributeValue" }
+    end: (?={{UNQUOTED_STRING_TERMINATOR}})
+
+  UnassignedStyleAttribute:
+    match: ([#])({{IDENTIFIER}})?
+    captures:
+      1:
+        patterns:
+          - { include: "#StyleAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#StyleAttributeName" }
+
+  AssignedBracedEventAttribute:
+    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}}?[=])([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+      3:
+        patterns:
+          - { include: "#AttributeEqualOperator" }
+      4:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Expression" }
+    end: ([}])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  AssignedQuotedEventAttribute:
+    tag: string
+    name: string.quoted.double.view.sd
+    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}}?[=])(["])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+      3:
+        patterns:
+          - { include: "#AttributeEqualOperator" }
+      4:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#StringContent" }
+    end: $|(["])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+
+  AssignedUnquotedEventAttribute:
+    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}}?[=])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#Comment" }
+          - { include: "#EventAttributeName" }
+      3:
+        patterns:
+          - { include: "#AttributeEqualOperator" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#UnquotedEventAttributeValue" }
+    end: (?={{UNQUOTED_STRING_TERMINATOR}})
+
+  UnassignedEventAttribute:
+    match: ([@])({{IDENTIFIER}})?
+    captures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+
+  StyleAttributeOperator:
+    tag: variableName
+    name: variable.other.constant.attribute.style.sd
+    match: ([#])
+
+  StyleAttributeName:
+    tag: variableName
+    name: variable.other.constant.attribute.style.sd
+    match: (.+)
+
+  UnquotedStyleAttributeValue:
+    tag: string
+    name: string.unquoted.attribute.value.sd
+    match: ({{UNQUOTED_STRING_VALUE}})
+
+  EventAttributeOperator:
+    tag: function(variableName)
+    name: entity.name.function.attribute.name.view.sd
+    match: ([@])
+
+  EventAttributeName:
+    tag: function(variableName)
+    name: entity.name.function.attribute.name.view.sd
+    match: (.+)
+
+  UnquotedEventAttributeValue:
+    match: ({{UNQUOTED_STRING_VALUE}})
+    captures:
+      1:
+        patterns:
+          - { include: "#DivertTarget" }
+
+  UnquotedStringValue:
+    tag: string
+    name: string.unquoted.attribute.value.sd
+    match: ({{UNQUOTED_STRING_VALUE}})
+
+  LabelAttribute:
+    emit: true
+    patterns:
+      - { include: "#StringLiteral" }
 
   FunctionCall:
     begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
@@ -823,9 +1617,10 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#FunctionCallParameters" }
-    end: (?=$|[^(])
+    applyEndPatternLast: true
+    end: (?=$|.)
 
   FunctionAccessor:
     begin: ([.])?({{IDENTIFIER}})({{WS}}*)(?=[(])
@@ -840,28 +1635,224 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#FunctionCallParameters" }
-    end: ([;])|(?=$|[^(])
-    endCaptures:
+    applyEndPatternLast: true
+    end: (?=$|.)
+
+  ArrayItemOperator:
+    match: ([-])($|{{WS}}+)
+    captures:
       1:
         patterns:
-          - { include: "#PunctuationSemicolon" }
+          - { include: "#ArrayItemMark" }
+      2:
+        patterns:
+          - { include: "#Separator" }
 
   ArrayItemMark:
     tag: keyword
     name: keyword.operator.expression.array.sd
     match: (.+)
 
-  SetEqualOperator:
-    tag: updateOperator
-    name: keyword.operator.assignment.sd
+  AttributeEqualOperator:
+    tag: operator
+    name: keyword.operator.sd
     match: (.+)
 
-  StructFieldValue:
-    emit: true
+  ViewStructFieldValue:
+    match: (.+$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Comment" }
+          - { include: "#NumericFieldValue" }
+          - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValue" }
+          - { include: "#AccessPath" }
+          - { include: "#UnquotedStringFieldValue" }
+
+  StylingStructFieldValue:
+    match: (.+$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Comment" }
+          - { include: "#NumericFieldValue" }
+          - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValue" }
+          - { include: "#StylingValue" }
+
+  PlainStructFieldValue:
+    match: (.+$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Comment" }
+          - { include: "#NumericFieldValue" }
+          - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValue" }
+          - { include: "#AccessPath" }
+          - { include: "#UnquotedStringFieldValue" }
+
+  NumericFieldValue:
+    tag: number
+    name: constant.numeric.sd
+    match: ([-]?(?:\d*[.])?\d+|Infinity|NaN)({{EOPL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#NumericLiteral" }
+      2:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  BooleanFieldValue:
+    tag: bool
+    name: constant.language.boolean.true.sd
+    match: (true|false)({{EOPL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#BooleanLiteral" }
+      2:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  StringFieldValue:
+    tag: string
+    name: string.quoted.double.sd
+    match: (["])((?:\\.|[^"])*)(["])({{EOPL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+      2:
+        patterns:
+          - { include: "#StringEscape" }
+          - { include: "#StringCharacter" }
+      3:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+      4:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  UnquotedStringFieldValue:
+    match: (.+)({{EOPL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#UnquotedString" }
+      2:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  UnquotedString:
+    tag: string
+    name: string.unquoted.sd
+    match: (.+)
+
+  StylingValue:
+    match: (.+)({{EOPL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#Comment" }
+          - { include: "#StylingValuePart" }
+      2:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  StylingValuePart:
     patterns:
-      - { include: "#Expression" }
+      - { include: "#Separator" }
+      - { include: "#Color" }
+      - { include: "#Ratio" }
+      - { include: "#UnitValue" }
+      - { include: "#NumericLiteral" }
+      - { include: "#PunctuationComma" }
+      - { include: "#StylingFunction" }
+      - { include: "#QualifiedAccessPath" }
+      - { include: "#StringIdentifier" }
+      - { include: "#UnquotedChar" }
+
+  StylingFunction:
+    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "StylingFunctionName" }
+      2:
+        patterns:
+          - { include: "ExtraWhitespace" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#StylingFunctionParameters" }
+    applyEndPatternLast: true
+    end: (?=$|.)
+
+  StylingFunctionParameters:
+    brackets: true
+    begin: ([(])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "PunctuationParenOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#CalcOperator" }
+      - { include: "#StylingValuePart" }
+    end: $|({{WS}}*)([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "PunctuationParenClose" }
+
+  StylingFunctionName:
+    tag: function(variableName)
+    name: entity.name.function.sd
+    match: ({{IDENTIFIER}})
+
+  StringIdentifier:
+    tag: string
+    name: string.unquoted.identifier.sd
+    match: ({{IDENTIFIER}})
+
+  UnquotedChar:
+    tag: string
+    name: string.unquoted.char.sd
+    match: (.)
+
+  CalcOperator:
+    tag: keyword
+    name: keyword.other.calc.operator.sd
+    match: ([+]|[-]|[*]|[/])
+
+  Ratio:
+    match: ({{NUMBER}})({{WS}}*)([/])({{WS}}*)({{NUMBER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#NumericLiteral" }
+      2:
+        patterns:
+          - { include: "ExtraWhitespace" }
+      3:
+        patterns:
+          - { include: "CalcOperator" }
+      4:
+        patterns:
+          - { include: "ExtraWhitespace" }
+      5:
+        patterns:
+          - { include: "NumericLiteral" }
 
   TargetAccessPath:
     emit: true
@@ -869,10 +1860,17 @@ repository:
       - { include: "#AccessPath" }
       - { include: "#IllegalExpression" }
 
+  QualifiedAccessPath:
+    begin: (?={{IDENTIFIER}}[.])
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#AccessPath" }
+    end: (?=$)|(?!{{IDENTIFIER}}|[.]|\[)
+
   AccessPath:
     begin: (?={{IDENTIFIER}})
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#AccessPart" }
     end: (?=$)|(?!{{IDENTIFIER}}|[.]|\[)
 
@@ -898,140 +1896,49 @@ repository:
       - { include: "#VariableName" }
       - { include: "#Unknown" }
 
-  DeclarationObjectPropertyName:
-    tag: propertyName
-    name: variable.other.property.define.sd
-    match: (.+)
-
-  DeclarationScalarPropertyName:
-    tag: propertyName
-    name: variable.other.property.define.sd
-    match: (.+)
-
-  ScreenDeclaration:
-    tag: meta
-    name: meta.definition.type.screen.sd
-    begin: ^({{WS}}*)(screen)({{EOK}})(.*?)$
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ScreenDeclarationKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#ScreenDeclarationAssignment" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#ViewField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
-
-  ScreenDeclarationKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.object.sd
-    match: (.+)
-
-  ScreenDeclarationAssignment:
-    match: ({{CSS_IDENTIFIER}})({{WS}}*)([(].*[)])?($|{{WS}}*)($|[:])($|{{WS}}*$)
+  ViewDeclarationScalarPropertyName:
+    match: ({{STRICT_PROPERTY_IDENTIFIER}})
     captures:
       1:
         patterns:
-          - { include: "#ScreenDeclarationName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "#FunctionDeclarationParameters" }
-      4:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      5:
-        patterns:
-          - { include: "#ColonOperator" }
-      6:
-        patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#DeclarationScalarPropertyIndex" }
+          - { include: "#DeclarationScalarPropertyQuotedKey" }
+          - { include: "#ComponentName" }
 
-  ScreenDeclarationName:
-    tag: variableName
-    name: variable.other.constant.declaration.screen.sd
-    match: (.+)
-
-  ComponentDeclaration:
-    tag: meta
-    name: meta.definition.type.component.sd
-    begin: ^({{WS}}*)(component)({{EOK}})(.*?)$
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ComponentDeclarationKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#ComponentDeclarationAssignment" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#ViewField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
-
-  ComponentDeclarationKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.object.sd
-    match: (.+)
-
-  ComponentDeclarationAssignment:
-    match: ({{CSS_IDENTIFIER}})({{WS}}*)([(].*[)])?($|{{WS}}*)($|[:])($|{{WS}}*$)
+  StylingDeclarationScalarPropertyName:
+    match: ({{STRICT_PROPERTY_IDENTIFIER}})
     captures:
       1:
         patterns:
-          - { include: "#ComponentDeclarationName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "#FunctionDeclarationParameters" }
-      4:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      5:
-        patterns:
-          - { include: "#ColonOperator" }
-      6:
-        patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#DeclarationScalarPropertyIndex" }
+          - { include: "#DeclarationScalarPropertyQuotedKey" }
+          - { include: "#DeclarationScalarPropertyKey" }
 
-  ComponentDeclarationName:
-    tag: variableName
-    name: keyword.other.component.custom.sd
-    match: (.+)
+  PlainDeclarationScalarPropertyName:
+    match: ({{STRICT_PROPERTY_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#DeclarationScalarPropertyIndex" }
+          - { include: "#DeclarationScalarPropertyQuotedKey" }
+          - { include: "#DeclarationScalarPropertyKey" }
 
-  ViewField:
-    emit: true
-    patterns:
-      - { include: "#BlankProperty" }
-      - { include: "#ViewForControlProperty" }
-      - { include: "#ViewControlProperty" }
-      - { include: "#ViewComponentProperty" }
-      - { include: "#Whitespace" }
+  DeclarationScalarPropertyIndex:
+    tag: number
+    name: constant.numeric.integer.sd
+    match: ({{INTEGER}})
+
+  DeclarationScalarPropertyKey:
+    tag: propertyName
+    name: variable.other.property.define.sd
+    match: ({{IDENTIFIER}})
+
+  DeclarationScalarPropertyQuotedKey:
+    tag: string
+    name: string.quoted.key.sd
+    match: ({{QUOTED_STRING}})
 
   ViewForControlProperty:
-    tag: meta
-    name: meta.definition.view.property.scalar.sd
     match: ^({{WS}}*)(for)({{WS}}*)(.*?)($|{{WS}}+)($|in)($|{{WS}}+)(.*?)($|{{WS}}*)($|[:])($|{{WS}}*$)
     captures:
       1:
@@ -1069,9 +1976,7 @@ repository:
           - { include: "#ExtraWhitespace" }
 
   ViewControlProperty:
-    tag: meta
-    name: meta.definition.view.property.scalar.sd
-    match: ^({{WS}}*)({{CONDITIONAL_KEYWORDS}})({{WS}}*)(.*?)({{WS}}*)($|[:])($|{{WS}}*$)
+    match: ^({{WS}}*)({{CONDITIONAL_BLOCK_KEYWORDS}})({{WS}}*)(.*?)({{WS}}*)($|[:])($|{{WS}}*$)
     captures:
       1:
         patterns:
@@ -1095,179 +2000,21 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
 
-  ViewComponentProperty:
-    patterns:
-      - { include: "#ViewComponentPropertyWithIdentifier" }
-      - { include: "#ViewComponentPropertyWithoutIdentifier" }
-
-  ViewComponentPropertyWithIdentifier:
-    tag: meta
-    name: meta.definition.view.property.scalar.sd
-    match: ^({{WS}}*)({{CSS_IDENTIFIER}}(?:[.]{{CSS_IDENTIFIER}})*(?![=]|{{CSS_IDENTIFIER}}))([(].*[)])?($|{{WS}}*)(.*?)($|{{WS}}*)($|[:])($|{{WS}}*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ComponentName" }
-          - { include: "#PunctuationAccessor" }
-      3:
-        patterns:
-          - { include: "#FunctionCallParameters" }
-      4:
-        patterns:
-          - { include: "#Separator" }
-      5:
-        patterns:
-          - { include: "#ViewDeclarationAttribute" }
-      6:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      7:
-        patterns:
-          - { include: "#ColonOperator" }
-      8:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-
-  ViewComponentPropertyWithoutIdentifier:
-    tag: meta
-    name: meta.definition.view.property.scalar.sd
-    match: ^({{WS}}*)(?=\S)(.+?)($|{{WS}}*)($|[:])($|{{WS}}*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ViewDeclarationAttribute" }
-      3:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      4:
-        patterns:
-          - { include: "#ColonOperator" }
-      5:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-
-  ViewDeclarationAttribute:
-    emit: true
-    patterns:
-      - { include: "#QuotedEventAttribute" }
-      - { include: "#UnquotedEventAttribute" }
-      - { include: "#QuotedConfigurationAttribute" }
-      - { include: "#UnquotedConfigurationAttribute" }
-      - { include: "#LabelAttribute" }
-      - { include: "#AttributeFunctionName" }
-      - { include: "#AttributePropertyName" }
-      - { include: "#Whitespace" }
-
-  QuotedEventAttribute:
-    match: (@[\w-]+)([=])("(?:[^"\\]|\\.)*")
-    captures:
-      1:
-        patterns:
-          - { include: "#AttributeFunctionName" }
-      2:
-        patterns:
-          - { include: "#SetEqualOperator" }
-      3:
-        patterns:
-          - { include: "#FunctionCall" }
-          - { include: "#DivertPath" }
-
-  UnquotedEventAttribute:
-    match: (@[\w-]+)([=])(\S+)
-    captures:
-      1:
-        patterns:
-          - { include: "#AttributeFunctionName" }
-      2:
-        patterns:
-          - { include: "#SetEqualOperator" }
-      3:
-        patterns:
-          - { include: "#FunctionCall" }
-          - { include: "#DivertPath" }
-
-  QuotedConfigurationAttribute:
-    match: ([\w-]+)([=])("(?:[^"\\]|\\.)*")
-    captures:
-      1:
-        patterns:
-          - { include: "#AttributePropertyName" }
-      2:
-        patterns:
-          - { include: "#SetEqualOperator" }
-      3:
-        patterns:
-          - { include: "#StringLiteral" }
-
-  UnquotedConfigurationAttribute:
-    match: ([\w-]+)([=])(\S+)
-    captures:
-      1:
-        patterns:
-          - { include: "#AttributePropertyName" }
-      2:
-        patterns:
-          - { include: "#SetEqualOperator" }
-      3:
-        patterns:
-          - { include: "#ViewString" }
-
-  LabelAttribute:
-    match: ("(?:[^"\\]|\\.)*")
-    captures:
-      1:
-        patterns:
-          - { include: "#StringLiteral" }
-
-  AttributeFunctionName:
-    tag: function(variableName)
-    name: entity.name.function.attribute.name.view.sd
-    match: (@[\w-]+)
-
-  AttributePropertyName:
-    tag: propertyName
-    name: variable.other.readwrite.attribute.name.view.sd
-    match: ([\w-]+)
-
-  ClassAccessor:
-    begin: "(?=.*)"
-    patterns:
-      - { include: "#ClassName" }
-      - { include: "#PunctuationAccessor" }
-    end: "(?=$|{{WS}})"
-
-  ClassName:
-    tag: className
-    name: entity.name.type.class.view.sd
-    match: ({{CSS_IDENTIFIER}})
-
   ComponentName:
-    emit: true
     patterns:
-      - { include: "#BuiltinLayoutComponentName" }
-      - { include: "#BuiltinDisplayComponentName" }
+      - { include: "#BuiltinComponentName" }
       - { include: "#CustomComponentName" }
+      - { include: "#FunctionCallParameters" }
 
-  BuiltinLayoutComponentName:
+  BuiltinComponentName:
     tag: definitionKeyword
     name: keyword.other.component.builtin.name.sd
-    match: \b(row|column|stack)\b
-
-  BuiltinDisplayComponentName:
-    tag: definitionKeyword
-    name: keyword.other.component.builtin.name.sd
-    match: \b(box|span|scroller|text|stroke|link|label|field|button|image|mask|input|slider|checkbox|dropdown|option|divider)\b
+    match: \b(box|span|scroller|text|stroke|link|label|field|button|image|mask|input|slider|checkbox|dropdown|option|divider)(?!{{IDENTIFIER}})
 
   CustomComponentName:
     tag: className
     name: entity.name.type.class.view.sd
-    match: ({{CSS_IDENTIFIER}})
+    match: ({{IDENTIFIER}})
 
   ViewDeclarationControlKeyword:
     patterns:
@@ -1277,12 +2024,12 @@ repository:
   ViewDeclarationControlInnerKeyword:
     tag: controlKeyword
     name: keyword.control.inner.view.sd
-    match: (case|fill|slot)
+    match: (case|fill|slot)(?=$|{{WS}})
 
   ViewDeclarationControlTopKeyword:
     tag: controlKeyword
     name: keyword.control.view.sd
-    match: (.+)
+    match: ({{CONDITIONAL_BLOCK_KEYWORDS}})(?=$|{{WS}})
 
   InKeyword:
     tag: controlKeyword
@@ -1305,7 +2052,7 @@ repository:
     begin: (?=\S)
     patterns:
       - { include: "#StringEscape" }
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#ConditionalBracedBlock" }
       - { include: "#StringCharacter" }
     end: (?=\s)
@@ -1320,418 +2067,13 @@ repository:
         name: string.interpolated.view.sd
     patterns:
       - { include: "#StringEscape" }
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#StringCharacter" }
     end: ([}])|($)
     endCaptures:
       1:
         tag: special(string)
         name: string.interpolated.view.sd
-
-  StyleDeclaration:
-    tag: meta
-    name: meta.definition.type.css.sd
-    begin: ^({{WS}}*)(style)({{EOK}})(.*?)$
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#StyleDeclarationKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#StyleDeclarationAssignment" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#CssField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
-
-  StyleDeclarationKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.object.sd
-    match: (.+)
-
-  StyleDeclarationAssignment:
-    match: (.*?)({{WS}}*)($|[:])
-    captures:
-      1:
-        patterns:
-          - { include: "#StyleDeclarationName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "#ColonOperator" }
-
-  StyleDeclarationName:
-    tag: className
-    name: entity.name.type.class.view.sd
-    match: (.+)
-
-  AnimationDeclaration:
-    tag: meta
-    name: meta.definition.type.css.sd
-    begin: ^({{WS}}*)(animation)({{EOK}})(.*?)$
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#AnimationDeclarationKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#AnimationDeclarationAssignment" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#CssField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
-
-  AnimationDeclarationKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.object.sd
-    match: (.+)
-
-  AnimationDeclarationAssignment:
-    match: (.*?)({{WS}}*)($|[:])
-    captures:
-      1:
-        patterns:
-          - { include: "#AnimationDeclarationName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "#ColonOperator" }
-
-  AnimationDeclarationName:
-    tag: variableName
-    name: variable.other.constant.sd
-    match: (.+)
-
-  ThemeDeclaration:
-    tag: meta
-    name: meta.definition.type.css.sd
-    begin: ^({{WS}}*)(theme)({{EOK}})(.*?)$
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ThemeDeclarationKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#ThemeDeclarationAssignment" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#CssField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
-
-  ThemeDeclarationKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.object.sd
-    match: (.+)
-
-  ThemeDeclarationAssignment:
-    match: (.*?)({{WS}}*)($|[:])
-    captures:
-      1:
-        patterns:
-          - { include: "#ThemeDeclarationName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "#ColonOperator" }
-
-  ThemeDeclarationName:
-    tag: variableName
-    name: variable.other.constant.sd
-    match: (.+)
-
-  CssField:
-    emit: true
-    patterns:
-      - { include: "#BlankProperty" }
-      - { include: "#CssObjectItem" }
-      - { include: "#CssScalarItem" }
-      - { include: "#CssObjectProperty" }
-      - { include: "#CssScalarProperty" }
-
-  CssObjectItem:
-    patterns:
-      - { include: "#CssObjectItemBlock" }
-      - { include: "#CssObjectItemWithInlineScalarProperty" }
-      - { include: "#CssObjectItemWithInlineObjectProperty" }
-
-  CssObjectItemBlock:
-    tag: meta
-    name: meta.definition.css.item.object.sd
-    begin: ^({{WS}}*)([-])($|{{WS}}+)$
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: keyword
-        name: keyword.operator.expression.array.sd
-      3:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#CssField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
-
-  CssObjectItemWithInlineScalarProperty:
-    tag: meta
-    name: meta.definition.css.item.object.sd
-    begin: ^({{WS}}*)([-])({{WS}}+)({{DECLARATION_PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)($|.*)$
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: keyword
-        name: keyword.operator.expression.array.sd
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#DeclarationScalarPropertyName" }
-      5:
-        patterns:
-          - { include: "#Separator" }
-      6:
-        patterns:
-          - { include: "#SetEqualOperator" }
-      7:
-        patterns:
-          - { include: "#Separator" }
-      8:
-        patterns:
-          - { include: "#CssPropertyValue" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#CssField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
-
-  CssObjectItemWithInlineObjectProperty:
-    tag: meta
-    name: meta.definition.css.item.object.sd
-    begin: ^({{WS}}*)([-])({{WS}}+)({{DECLARATION_PROPERTY_IDENTIFIER}})({{WS}}*)([:])($|{{WS}}*$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: keyword
-        name: keyword.operator.expression.array.sd
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#CssSelector" }
-      5:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      6:
-        patterns:
-          - { include: "#ColonOperator" }
-      7:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#CssField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
-
-  CssScalarItem:
-    tag: meta
-    name: meta.definition.css.item.scalar.sd
-    begin: ^({{WS}}*)([-])($|{{WS}}+)(?=.*\S.*$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemMark" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#CssSelector" }
-    end: (?=$)
-
-  CssObjectProperty:
-    tag: meta
-    name: meta.definition.css.property.object.sd
-    begin: ^({{WS}}*)({{DECLARATION_PROPERTY_IDENTIFIER}})($|{{WS}}*)($|[:])($|{{WS}}*$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#CssSelector" }
-      3:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      4:
-        patterns:
-          - { include: "#ColonOperator" }
-      5:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#CssField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
-
-  CssScalarProperty:
-    tag: meta
-    name: meta.definition.css.property.scalar.sd
-    begin: ^({{WS}}*)({{DECLARATION_PROPERTY_IDENTIFIER}})({{WS}}*)([=])($|{{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#DeclarationScalarPropertyName" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#SetEqualOperator" }
-      5:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#CssPropertyValue" }
-    end: (?=$)
-
-  CssSelector:
-    patterns:
-      - { include: "#CssSelectorFunctionCondition" }
-      - { include: "#CssSelectorSimpleCondition" }
-      - { include: "#CssSelectorUniversalCondition" }
-      - { include: "#CssSelectorKeyword" }
-      - { include: "#CssSelectorOperator" }
-      - { include: "#CssSelectorAttribute" }
-      - { include: "#CssPropertyName" }
-      - { include: "#Separator" }
-      - { include: "#Unknown" }
-
-  CssSelectorFunctionCondition:
-    name: source.css
-    begin: ([@])({{CSS_IDENTIFIER}})?([(])
-    beginCaptures:
-      1:
-        tag: attributeName
-        name: entity.other.attribute-name.pseudo-class.prefix.sd
-      2:
-        patterns:
-          - { include: "#CssSelectorFunctionConditionName" }
-      3:
-        tag: paren
-        name: meta.brace.round.open.sd
-    patterns:
-      - { include: "#CssSelector" }
-      - { include: "#Unknown" }
-    end: ([)])
-    endCaptures:
-      1:
-        tag: paren
-        name: meta.brace.round.close.sd
-
-  CssSelectorSimpleCondition:
-    name: source.css
-    match: ([@])({{CSS_IDENTIFIER}})
-    captures:
-      1:
-        tag: attributeName
-        name: entity.other.attribute-name.pseudo-class.prefix.sd
-      2:
-        patterns:
-          - { include: "#CssSelectorSimpleConditionName" }
-
-  CssSelectorUniversalCondition:
-    name: source.css
-    match: ([@])
-    captures:
-      1:
-        tag: attributeName
-        name: entity.other.attribute-name.pseudo-class.prefix.sd
-
-  CssSelectorOperator:
-    tag: keyword
-    name: keyword.other.selector.operator.sd
-    match: ([>]|[+]|[~]|[*]|[&]|[#]|[.])
-
-  CssSelectorKeyword:
-    tag: keyword
-    name: keyword.other.selector.keyword.sd
-    match: (keyframes|timing)
-
-  CssSelectorAttribute:
-    tag: propertyName
-    name: variable.other.property.define.sd
-    match: (\[)(.*?)(\])
-
-  CssSelectorFunctionConditionName:
-    tag: attributeName
-    name: entity.other.attribute-name.pseudo-class.name.sd
-    match: ({{CSS_IDENTIFIER}})
-
-  CssSelectorSimpleConditionName:
-    tag: attributeName
-    name: entity.other.attribute-name.pseudo-class.name.sd
-    match: ({{CSS_IDENTIFIER}})
-
-  CssPropertyName:
-    tag: propertyName
-    name: variable.other.property.define.sd
-    match: ({{CSS_IDENTIFIER}})
-
-  CssPropertyValue:
-    tag: string
-    name: string.css.value.sd
-    match: (.+)
 
   ########## Label ##########
 
@@ -2074,7 +2416,7 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|[/][/]|{{WS}}*(?![(]))
+    end: (?=$|{{COMMENT_START}}|{{WS}}*(?![(]))
 
   SceneWithoutParametersDeclaration:
     begin: ({{IDENTIFIER}})({{WS}}*)
@@ -2087,7 +2429,7 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|[/][/]|{{WS}}*(?![(]))
+    end: (?=$|{{COMMENT_START}}|{{WS}}*(?![(]))
 
   SceneKeyword:
     tag: controlKeyword
@@ -2129,7 +2471,7 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
+    end: (?=$|[=]|{{COMMENT_START}}|{{WS}}*(?![(]))
 
   KnotWithoutParametersDeclaration:
     begin: ({{IDENTIFIER}})({{WS}}*)
@@ -2142,7 +2484,7 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
+    end: (?=$|[=]|{{COMMENT_START}}|{{WS}}*(?![(]))
 
   KnotBeginMark:
     tag: keyword
@@ -2192,7 +2534,7 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|[/][/]|{{WS}}*(?![(]))
+    end: (?=$|{{COMMENT_START}}|{{WS}}*(?![(]))
 
   BranchWithoutParametersDeclaration:
     begin: ({{IDENTIFIER}})({{WS}}*)
@@ -2205,7 +2547,7 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|[/][/]|{{WS}}*(?![(]))
+    end: (?=$|{{COMMENT_START}}|{{WS}}*(?![(]))
 
   BranchKeyword:
     tag: controlKeyword
@@ -2250,7 +2592,7 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
+    end: (?=$|[=]|{{COMMENT_START}}|{{WS}}*(?![(]))
 
   StitchWithoutParametersDeclaration:
     begin: ({{IDENTIFIER}})({{WS}}*)
@@ -2263,7 +2605,7 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|[=]|[/][/]|{{WS}}*(?![(]))
+    end: (?=$|[=]|{{COMMENT_START}}|{{WS}}*(?![(]))
 
   StitchBeginMark:
     tag: keyword
@@ -2393,7 +2735,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#DivertTarget" }
       - { include: "#ExtraWhitespace" }
-    end: (?=$|[^{{IDENTIFIER_END_CHAR}}\s])
+    end: (?=$|[^\s{{IDENTIFIER_END_CHAR}}])
 
   DivertMark:
     tag: controlKeyword
@@ -2797,7 +3139,7 @@ repository:
     tag: meta
     name: meta.definition.type.conditional-block.sd
     brackets: true
-    begin: ({{WS}}*)({{CONDITIONAL_KEYWORDS}})\b
+    begin: ({{WS}}*)({{CONDITIONAL_BLOCK_KEYWORDS}})\b
     beginCaptures:
       1:
         patterns:
@@ -2818,7 +3160,7 @@ repository:
 
   Expression:
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#ConditionalKeyword" }
       - { include: "#RefModifier" }
       - { include: "#FunctionCall" }
@@ -2828,6 +3170,8 @@ repository:
       - { include: "#Separator" }
       - { include: "#Newline" }
       - { include: "#ParenExpression" }
+      - { include: "#BracketExpression" }
+      - { include: "#BraceExpression" }
       - { include: "#AccessPath" }
       - { include: "#PunctuationComma" }
       - { include: "#IllegalChar" }
@@ -2835,7 +3179,7 @@ repository:
   ConditionalKeyword:
     tag: controlKeyword
     name: keyword.control.definition.const.sd
-    match: ({{CONDITIONAL_KEYWORDS}})\b
+    match: ({{CONDITIONAL_BLOCK_KEYWORDS}})\b
 
   ParentheticalExpression:
     brackets: true
@@ -2848,11 +3192,11 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#Separator" }
       - { include: "#InKeyword" }
       - { include: "#Expression" }
-    end: ({{WS}}*)([)])
+    end: $|({{WS}}*)([)])
     endCaptures:
       1:
         patterns:
@@ -3121,14 +3465,14 @@ repository:
           - { include: "#OptionalSeparator" }
 
   AssignMultiplyOperator:
-    begin: (?<=[{{IDENTIFIER_END_CHAR}})\]])({{WS}}*)(?=(\/[*]([^*]|([*][^\/]))*[*]\/\s*)+(?:(/=)|(?:(/)(?![/*]))))
+    begin: (?<=[)\]{{IDENTIFIER_END_CHAR}}])({{WS}}*)(?=(\/[*]([^*]|([*][^\/]))*[*]\/\s*)+(?:(/=)|(?:(/)(?![/*]))))
     beginCaptures:
       1:
         emit: true
         patterns:
           - { include: "#OptionalSeparator" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
     end: (?:(/=)|(?:(/)(?![*]([^*]|([*][^\/]))*[*][/])))({{WS}}*)
     endCaptures:
       1:
@@ -3143,7 +3487,7 @@ repository:
           - { include: "#OptionalSeparator" }
 
   AssignDivideOperator:
-    match: (?<=[{{IDENTIFIER_END_CHAR}})\]])({{WS}}*)([/][=]|([/])(?![/*]))({{WS}}*)
+    match: (?<=[)\]{{IDENTIFIER_END_CHAR}}])({{WS}}*)([/][=]|([/])(?![/*]))({{WS}}*)
     captures:
       1:
         emit: true
@@ -3190,26 +3534,39 @@ repository:
       - { include: "#BooleanLiteral" }
       - { include: "#NullLiteral" }
       - { include: "#UndefinedLiteral" }
-      - { include: "#NumericConstantLiteral" }
 
   StringLiteral:
     tag: string
-    name: string.quoted.double.view.sd
+    name: string.quoted.double.sd
     begin: (["])
     beginCaptures:
       1:
-        tag: string
-        name: punctuation.definition.string.begin.sd
+        patterns:
+          - { include: "#PunctuationStringOpen" }
     patterns:
-      - { include: "#StringEscape" }
-      - { include: "#Annotation" }
-      - { include: "#ConditionalBracedBlock" }
-      - { include: "#StringCharacter" }
+      - { include: "#Comment" }
+      - { include: "#StringContent" }
     end: (["])|($)
     endCaptures:
       1:
-        tag: string
-        name: punctuation.definition.string.end.sd
+        patterns:
+          - { include: "#PunctuationStringClose" }
+
+  StringContent:
+    patterns:
+      - { include: "#StringEscape" }
+      - { include: "#ConditionalBracedBlock" }
+      - { include: "#StringCharacter" }
+
+  PunctuationStringOpen:
+    match: (["])
+    tag: string
+    name: punctuation.definition.string.begin.sd
+
+  PunctuationStringClose:
+    match: (["])
+    tag: string
+    name: punctuation.definition.string.end.sd
 
   StringEscape:
     match: (\\)(.)
@@ -3226,50 +3583,30 @@ repository:
     name: markup.raw.whitespace.sd
     match: (.)
 
-  StringContent:
-    tag: content
-    name: markup.raw.whitespace.sd
-    match: (.+)
-
   NumericLiteral:
     patterns:
-      - { include: "#HexNumber" }
-      - { include: "#BinaryNumber" }
-      - { include: "#OctalNumber" }
-      - { include: "#DecimalNumber" }
+      - { include: "#NumberLiteral" }
+      - { include: "#NumericConstantLiteral" }
 
-  HexNumber:
+  NumberLiteral:
     tag: number
-    name: constant.numeric.hex.sd
-    match: (\b(?<![$])0(?:x|X)[0-9a-fA-F][0-9a-fA-F_]*(?:n)?\b(?![$]))
-    captures:
-      1:
-        tag: number
-        name: storage.type.numeric.bigint.sd
+    name: constant.numeric.sd
+    match: ([-]?(?:\d*[.])?\d+)
 
-  BinaryNumber:
-    tag: number
-    name: constant.numeric.binary.sd
-    match: (\b(?<![$])0(?:b|B)[01][01_]*(?:n)?\b(?![$]))
-    captures:
-      1:
-        tag: number
-        name: storage.type.numeric.bigint.sd
+  NumericConstantLiteral:
+    patterns:
+      - { include: "#Infinity" }
+      - { include: "#NaN" }
 
-  OctalNumber:
-    tag: number
-    name: constant.numeric.octal.sd
-    match: (\b(?<![$])0(?:o|O)?[0-7][0-7_]*(?:n)?\b(?![$]))
-    captures:
-      1:
-        tag: number
-        name: storage.type.numeric.bigint.sd
+  NaN:
+    tag: atom
+    name: constant.language.nan.sd
+    match: "{{BEFORE_KEYWORD}}NaN{{AFTER_KEYWORD}}"
 
-  DecimalNumber:
-    tag: number
-    name: constant.numeric.decimal.sd
-    # match: 1.1E+3|1.E+3|.1E+3|1E+3|1.1|1.|.1|1
-    match: ((?<![$])(?:(?:\b[0-9][0-9_]*[.][0-9][0-9_]*[eE][+-]?[0-9][0-9_]*[n]?\b)|(?:\b[0-9][0-9_]*[.][eE][+-]?[0-9][0-9_]*[n]?\b)|(?:\B[.][0-9][0-9_]*[eE][+-]?[0-9][0-9_]*[n]?\b)|(?:\b[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*[n]?\b)|(?:\b[0-9][0-9_]*[.][0-9][0-9_]*[n]?\b)|(?:\b[0-9][0-9_]*[.][n]?\B)|(?:\B[.][0-9][0-9_]*[n]?\b)|(?:\b[0-9][0-9_]*[n]?\b(?![.])))(?![$]))
+  Infinity:
+    tag: atom
+    name: constant.language.infinity.sd
+    match: "{{BEFORE_KEYWORD}}Infinity{{AFTER_KEYWORD}}"
 
   BooleanLiteral:
     patterns:
@@ -3296,21 +3633,6 @@ repository:
     name: constant.language.undefined.sd
     match: "{{BEFORE_KEYWORD}}undefined{{AFTER_KEYWORD}}"
 
-  NumericConstantLiteral:
-    patterns:
-      - { include: "#NaN" }
-      - { include: "#Infinity" }
-
-  NaN:
-    tag: atom
-    name: constant.language.nan.sd
-    match: "{{BEFORE_KEYWORD}}NaN{{AFTER_KEYWORD}}"
-
-  Infinity:
-    tag: atom
-    name: constant.language.infinity.sd
-    match: "{{BEFORE_KEYWORD}}Infinity{{AFTER_KEYWORD}}"
-
   ArrayLiteral:
     name: meta.array.literal.sd
     brackets: true
@@ -3320,7 +3642,7 @@ repository:
         tag: brace
         name: meta.brace.square.open.sd
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#ArrayItem" }
       - { include: "#Newline" }
     end: (\])
@@ -3334,7 +3656,7 @@ repository:
     name: meta.item.sd
     begin: (?=.+$)
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#Expression" }
     end: (?=\])|([,])
     endCaptures:
@@ -3354,29 +3676,99 @@ repository:
 
   PunctuationParenOpen:
     match: ([(])
-    tag: paren
-    name: meta.brace.round.open.sd
+    tag: keyword
+    name: punctuation.definition.template-expression.begin.sd
 
   PunctuationParenClose:
     match: ([)])
-    tag: paren
-    name: meta.brace.round.close.sd
+    tag: keyword
+    name: punctuation.definition.template-expression.end.sd
+
+  PunctuationBracketOpen:
+    match: (\[)
+    tag: keyword
+    name: punctuation.definition.template-expression.begin.sd
+
+  PunctuationBracketClose:
+    match: (\])
+    tag: keyword
+    name: punctuation.definition.template-expression.end.sd
+
+  PunctuationBraceOpen:
+    match: (\{)
+    tag: keyword
+    name: punctuation.definition.template-expression.begin.sd
+
+  PunctuationBraceClose:
+    match: (\})
+    tag: keyword
+    name: punctuation.definition.template-expression.end.sd
 
   ParenExpression:
     brackets: true
-    begin: ([(])
+    begin: ([(])({{WS}}*)
     beginCaptures:
       1:
         patterns:
           - { include: "#PunctuationParenOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#Expression" }
-    end: ([)])
+    end: $|({{WS}}*)([)])
     endCaptures:
       1:
         patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
           - { include: "#PunctuationParenClose" }
+
+  BracketExpression:
+    brackets: true
+    begin: (\[)({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBracketOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Expression" }
+    end: $|({{WS}}*)(\])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationBracketClose" }
+
+  BraceExpression:
+    brackets: true
+    begin: (\{)({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#Expression" }
+    end: $|({{WS}}*)(\})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
 
   NamespaceAccessor:
     match: ({{IDENTIFIER}})([.])($|{{IDENTIFIER}})(?![(])
@@ -3454,7 +3846,7 @@ repository:
   HEXColor:
     tag: string
     name: string.color.hex.sd
-    match: (#)((?:[0-9a-fA-F]{2}){2,4})
+    match: (#)([0-9a-fA-F]{3,})
     color: true
 
   RGBColor:
@@ -4335,16 +4727,13 @@ repository:
           - { include: "#OptionalSeparator" }
 
   AssetCommandContent:
-    match: ({{WS}}*)(.*?)($|(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}).*)
+    match: (.*?)($|(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}).*)
     captures:
       1:
         patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
           - { include: "#Separator" }
           - { include: "#AssetCommandInstruction" }
-      3:
+      2:
         patterns:
           - { include: "#Annotation" }
           - { include: "#Separator" }
@@ -4485,7 +4874,7 @@ repository:
   TimeValue:
     tag: number
     name: constant.numeric.time.sd
-    match: ((?:\d*[.])?\d+)(ms|s)(?=$|{{WS}})
+    match: ([-]?(?:\d*[.])?\d+)(ms|s)(?=$|{{WS}})
     captures:
       1:
         tag: number
@@ -4497,7 +4886,7 @@ repository:
   NumberValue:
     tag: number
     name: constant.numeric.number.sd
-    match: ((?:\d*[.])?\d+)(?=$|{{WS}})
+    match: ([-]?(?:\d*[.])?\d+)(?=$|{{WS}})
 
   NameValue:
     tag: variableName
@@ -4578,6 +4967,11 @@ repository:
       1:
         tag: separator
         name: meta.template.expression.comma.sd
+
+  ControlKeyword:
+    tag: controlKeyword
+    name: keyword.control.sd
+    match: (.+)
 
   ########## Text ##########
 

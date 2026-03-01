@@ -1,7 +1,7 @@
 export class CharacterSet {
   public static readonly FromRange = (
     start: string,
-    end: string
+    end: string,
   ): CharacterSet => new CharacterSet().AddRange(start, end);
 
   public set: Set<string> = new Set<string>();
@@ -12,7 +12,11 @@ export class CharacterSet {
     }
   }
 
-  public readonly Add = (arg: string) => this.set.add(arg);
+  public readonly Add = (arg: string) => {
+    this.set.add(arg);
+    
+    return this;
+  };
 
   public readonly AddRange = (start: string, end: string): CharacterSet => {
     for (let c = start.charCodeAt(0); c <= end.charCodeAt(0); ++c) {
@@ -23,7 +27,7 @@ export class CharacterSet {
   };
 
   public readonly AddCharacters = (
-    chars: string | string[] | CharacterSet
+    chars: string | string[] | CharacterSet,
   ): CharacterSet => {
     if (typeof chars === "string" || Array.isArray(chars)) {
       for (const c of chars) {

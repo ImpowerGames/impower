@@ -99,7 +99,7 @@ export class InterpreterModule extends Module<
     }
     this._targetPrefixMap = {};
     for (const [k, v] of Object.entries(
-      this.context.config?.interpreter.directives || {}
+      this.context.config?.interpreter.directives || {},
     )) {
       this._targetPrefixMap[v] = k;
     }
@@ -249,22 +249,22 @@ export class InterpreterModule extends Module<
             characterPositionMatch === "<"
               ? "left"
               : characterPositionMatch === ">"
-              ? "right"
-              : characterPositionMatch;
+                ? "right"
+                : characterPositionMatch;
           options.character = character;
           options.position = position;
           if (characterName) {
             characterNameInstructions = this.parse(
               characterName,
               "character_name",
-              options
+              options,
             );
           }
           if (characterParenthetical) {
             characterParentheticalInstructions = this.parse(
               characterParenthetical,
               "character_parenthetical",
-              options
+              options,
             );
           }
         }
@@ -277,7 +277,7 @@ export class InterpreterModule extends Module<
         const contentInstructions = this.parse(
           contentBox,
           target || defaultTarget,
-          options
+          options,
         );
         if (contentInstructions.text) {
           if (characterParentheticalInstructions) {
@@ -285,7 +285,7 @@ export class InterpreterModule extends Module<
             this.merge(
               contentInstructions,
               characterParentheticalInstructions,
-              true
+              true,
             );
           }
           if (characterNameInstructions) {
@@ -313,7 +313,7 @@ export class InterpreterModule extends Module<
       if (choices) {
         for (let i = 0; i < choices.length; i += 1) {
           const choice = choices[i]!;
-          const choiceInstructions = this.parse(choice, `choice_${i}`, {
+          const choiceInstructions = this.parse(choice, `choice ${i}`, {
             ...options,
             delay: lastTextbox.end,
             choice: true,
@@ -335,8 +335,8 @@ export class InterpreterModule extends Module<
     // Or an event takes up time.
     return Boolean(
       this._state.buffer?.[0]?.load ||
-        this._state.buffer?.[0]?.text ||
-        Number(this._state.buffer?.[0]?.end) > 0
+      this._state.buffer?.[0]?.text ||
+      Number(this._state.buffer?.[0]?.end) > 0,
     );
   }
 
@@ -449,7 +449,7 @@ export class InterpreterModule extends Module<
       imageTagContent,
       "image",
       "show",
-      defaultLayer
+      defaultLayer,
     );
     // Calculate how much time this command should take up
     const withEffectName =
@@ -481,10 +481,10 @@ export class InterpreterModule extends Module<
       animationNames.push("hide");
     }
     const allAnimations = animationNames.map(
-      (name) => (this.context as any)?.["animation"]?.[name]
+      (name) => (this.context as any)?.["animation"]?.[name],
     );
     const maxAnimationDuration = Math.max(
-      ...allAnimations.map((a) => getTimeValue(a?.timing?.duration) ?? 0)
+      ...allAnimations.map((a) => getTimeValue(a?.timing?.duration) ?? 0),
     );
     // Add to duration
     if (imageChunk.clauses?.wait) {
@@ -501,7 +501,7 @@ export class InterpreterModule extends Module<
       audioTagContent,
       "audio",
       "play",
-      defaultChannel
+      defaultChannel,
     );
     // Calculate how much time this command should take up
     const afterDuration = audioChunk.clauses?.["after"];
@@ -518,7 +518,7 @@ export class InterpreterModule extends Module<
     assetTagContent: string,
     tag: string,
     defaultControl: string,
-    defaultTarget: string
+    defaultTarget: string,
   ): Chunk {
     let parts = assetTagContent.replaceAll("\t", " ").split(" ");
     let control = defaultControl;
@@ -584,7 +584,7 @@ export class InterpreterModule extends Module<
   parse(
     content: string,
     target: string,
-    options?: InstructionOptions
+    options?: InstructionOptions,
   ): Instructions {
     const allPhrases: Phrase[] = [];
 
@@ -632,7 +632,7 @@ export class InterpreterModule extends Module<
       const typewriterSynth = this.lookupContextValue(
         "synth",
         textTarget,
-        "typewriter"
+        "typewriter",
       );
       const characterSynth = character
         ? this.lookupContextValue("synth", character, "character")
@@ -645,7 +645,7 @@ export class InterpreterModule extends Module<
       const stressPause = typewriter?.stressed_pause_scale ?? 1;
       const syllableLength = Math.max(
         typewriter?.min_syllable_length || 0,
-        Math.round(minSynthDuration / letterPause)
+        Math.round(minSynthDuration / letterPause),
       );
       const voicedMatcher = typewriter?.voiced
         ? new Matcher(typewriter?.voiced)
@@ -816,7 +816,7 @@ export class InterpreterModule extends Module<
               // Style Tag
               const styleMarker = this.MARKERS.find(
                 (marker) =>
-                  marker === chars.slice(i, i + marker.length).join("")
+                  marker === chars.slice(i, i + marker.length).join(""),
               );
               if (styleMarker) {
                 let currentMarker = "";
@@ -827,12 +827,12 @@ export class InterpreterModule extends Module<
                 }
                 const lastMatchingMark =
                   activeMarks.findLast(
-                    ([activeMarker]) => activeMarker === currentMarker
+                    ([activeMarker]) => activeMarker === currentMarker,
                   ) ||
                   activeMarks.findLast(
                     ([activeMarker]) =>
                       activeMarker.slice(0, styleMarker.length) ===
-                      currentMarker.slice(0, styleMarker.length)
+                      currentMarker.slice(0, styleMarker.length),
                   );
                 if (lastMatchingMark) {
                   while (activeMarks.at(-1) !== lastMatchingMark) {
@@ -859,21 +859,21 @@ export class InterpreterModule extends Module<
           }
 
           const activeCenteredMark = activeMarks.findLast(([m]) =>
-            m.startsWith("^")
+            m.startsWith("^"),
           );
           const activeUnderlineMark = activeMarks.findLast(([m]) =>
-            m.startsWith("_")
+            m.startsWith("_"),
           );
           const activeBoldItalicMark = activeMarks.findLast(([m]) =>
-            m.startsWith("***")
+            m.startsWith("***"),
           );
           const activeBoldMark = activeMarks.findLast(([m]) => m === "**");
           const activeItalicMark = activeMarks.findLast(([m]) => m === "*");
           const activeWavyMark = activeMarks.findLast(([m]) =>
-            m.startsWith("~~")
+            m.startsWith("~~"),
           );
           const activeShakyMark = activeMarks.findLast(([m]) =>
-            m.startsWith("::")
+            m.startsWith("::"),
           );
           const isCentered = Boolean(activeCenteredMark);
           const isUnderlined = Boolean(activeUnderlineMark);
@@ -953,10 +953,10 @@ export class InterpreterModule extends Module<
             alignModifier === "center"
               ? 1
               : isCentered && activeCenteredMark
-              ? activeCenteredMark.length
-              : isCentered
-              ? 1
-              : 0;
+                ? activeCenteredMark.length
+                : isCentered
+                  ? 1
+                  : 0;
           // italicized level = number of `*`
           const italicized = isItalicized ? 1 : 0;
           // bolded level = number of `*`
@@ -964,15 +964,15 @@ export class InterpreterModule extends Module<
             isBolded && activeBoldItalicMark
               ? activeBoldItalicMark.length
               : isBolded
-              ? 2
-              : 0;
+                ? 2
+                : 0;
           // underlined level = number of `_`
           const underlined =
             isUnderlined && activeUnderlineMark
               ? activeUnderlineMark.length
               : isUnderlined
-              ? 1
-              : 0;
+                ? 1
+                : 0;
           const pitch = pitchModifier;
 
           // Determine beep timing
@@ -987,12 +987,12 @@ export class InterpreterModule extends Module<
           const isPhrasePause = isPhraseBoundary;
           const isStressPause = Boolean(
             character &&
-              spaceLength === 1 &&
-              currChunk &&
-              ((currChunk.bolded && !isBolded) ||
-                (currChunk.italicized && !isItalicized) ||
-                (currChunk.underlined && !isUnderlined) ||
-                (currChunk.tilde && !tilde))
+            spaceLength === 1 &&
+            currChunk &&
+            ((currChunk.bolded && !isBolded) ||
+              (currChunk.italicized && !isItalicized) ||
+              (currChunk.underlined && !isUnderlined) ||
+              (currChunk.tilde && !tilde)),
           );
           const duration: number =
             speed === 0
@@ -1000,10 +1000,10 @@ export class InterpreterModule extends Module<
               : (isEmDashPause
                   ? letterPause * emDashPause
                   : isPhrasePause
-                  ? letterPause * phrasePause
-                  : isStressPause
-                  ? letterPause * stressPause
-                  : letterPause) / speed;
+                    ? letterPause * phrasePause
+                    : isStressPause
+                      ? letterPause * stressPause
+                      : letterPause) / speed;
 
           if (phraseUnpauseLength === 1) {
             // start voiced phrase
@@ -1136,7 +1136,7 @@ export class InterpreterModule extends Module<
             const typewriterSynth = this.lookupContextValue(
               "synth",
               target,
-              "typewriter"
+              "typewriter",
             );
             const minSynthDuration = this.getMinSynthDuration(typewriterSynth);
             for (let c = 0; c < phrase.chunks.length; c += 1) {
@@ -1145,7 +1145,7 @@ export class InterpreterModule extends Module<
                 chunk.punctuatedSyllable = true;
                 chunk.duration = Math.max(
                   minSynthDuration,
-                  letterPause * interjectionPause
+                  letterPause * interjectionPause,
                 );
               }
             }
@@ -1349,7 +1349,7 @@ export class InterpreterModule extends Module<
             if (c.punctuatedSyllable) {
               const synthName = this.lookupContextValueName(
                 "synth",
-                "typewriter"
+                "typewriter",
               );
               synthEvents[synthName] ??= [];
               synthEvents[synthName]!.push({
@@ -1363,7 +1363,7 @@ export class InterpreterModule extends Module<
                 : this.lookupContextValueName(
                     "synth",
                     target || "",
-                    "typewriter"
+                    "typewriter",
                   );
               synthEvents[synthName] ??= [];
               synthEvents[synthName]!.push({

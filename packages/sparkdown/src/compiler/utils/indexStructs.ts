@@ -4,7 +4,7 @@ export function indexStructs(
   propertyRegistry: {
     [type: string]: { [name: string]: { [propertyPath: string]: any } };
   },
-  context: { [type: string]: { [name: string]: any } } | undefined
+  context: { [type: string]: { [name: string]: any } } | undefined,
 ) {
   if (context) {
     for (const [type, structs] of Object.entries(context)) {
@@ -13,7 +13,7 @@ export function indexStructs(
           propertyRegistry[type] ??= {};
           propertyRegistry[type][name] ??= {};
           propertyRegistry[type][name][propPath] = propValue;
-          if (type === "layout") {
+          if (type === "screen") {
             const layers = propPath.split(".");
             for (const layer of layers) {
               const classNames = layer.split(" ");

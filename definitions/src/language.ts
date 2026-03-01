@@ -16,19 +16,19 @@ const WATCH_PATH = `./yaml`;
 const CONFIG_NAME = "sparkdown.language-config";
 const IN_CONFIG_PATH = `./yaml/${CONFIG_NAME}.yaml`;
 const OUT_CONFIG_PATHS = outPaths.map(
-  (outPath) => `${outPath}/${CONFIG_NAME}.json`
+  (outPath) => `${outPath}/${CONFIG_NAME}.json`,
 );
 
 const GRAMMAR_NAME = "sparkdown.language-grammar";
 const IN_GRAMMAR_PATH = `./yaml/${GRAMMAR_NAME}.yaml`;
 const OUT_GRAMMAR_PATHS = outPaths.map(
-  (outPath) => `${outPath}/${GRAMMAR_NAME}.json`
+  (outPath) => `${outPath}/${GRAMMAR_NAME}.json`,
 );
 
 const SNIPPETS_NAME = "sparkdown.language-snippets";
 const IN_SNIPPETS_PATH = `./yaml/${SNIPPETS_NAME}.yaml`;
 const OUT_SNIPPETS_PATHS = outPaths.map(
-  (outPath) => `${outPath}/${SNIPPETS_NAME}.json`
+  (outPath) => `${outPath}/${SNIPPETS_NAME}.json`,
 );
 
 // Parts of file were originally extracted from the
@@ -112,7 +112,7 @@ declare interface TmTheme {
  */
 export const updateGrammarVariables = (
   grammar: TmGrammar,
-  scopeReplacementRules?: VariableReplacer[]
+  scopeReplacementRules?: VariableReplacer[],
 ) => {
   // Keep a copy of the variable for later use and delete them from the grammar.
   const variables = grammar.variables;
@@ -127,7 +127,7 @@ export const updateGrammarVariables = (
         : variable;
       const pattern = replacePatternVariables(
         variablePattern,
-        variableReplacers
+        variableReplacers,
       );
 
       // When a variable is resolved, it's added to replacers. Then it can be used
@@ -140,12 +140,12 @@ export const updateGrammarVariables = (
   }
 
   transformGrammarRepository(grammar, ["begin", "end", "match"], (pattern) =>
-    replacePatternVariables(pattern, variableReplacers)
+    replacePatternVariables(pattern, variableReplacers),
   );
 
   if (scopeReplacementRules) {
     transformGrammarRepository(grammar, ["name"], (pattern) =>
-      replaceScopes(pattern, scopeReplacementRules)
+      replaceScopes(pattern, scopeReplacementRules),
     );
   }
 
@@ -163,7 +163,7 @@ export const updateGrammarVariables = (
  */
 const replacePatternVariables = (
   pattern: string,
-  variableReplacers: VariableReplacer[]
+  variableReplacers: VariableReplacer[],
 ) => {
   let result = pattern;
   for (const [variableName, value] of variableReplacers) {
@@ -174,7 +174,7 @@ const replacePatternVariables = (
 
 const replaceScopes = (
   pattern: string,
-  scopeReplacementRules: VariableReplacer[]
+  scopeReplacementRules: VariableReplacer[],
 ) => {
   let result = pattern;
   for (const [variableName, value] of scopeReplacementRules) {
@@ -195,7 +195,7 @@ const transformGrammarRepository = (
   grammar: TmGrammar,
   propertyNames: string[],
   transformProperty: (ruleProperty: string) => string,
-  replaceScopes?: (ruleProperty: string) => string
+  replaceScopes?: (ruleProperty: string) => string,
 ) => {
   const repository = grammar.repository;
   for (const key in repository) {
@@ -226,7 +226,7 @@ const transformGrammarRepository = (
 const transformGrammarRule = (
   rule: Record<string, any>,
   propertyNames: string[],
-  transformProperty: (ruleProperty: string) => string
+  transformProperty: (ruleProperty: string) => string,
 ) => {
   for (const propertyName of propertyNames) {
     const value = rule?.[propertyName];
@@ -254,13 +254,13 @@ const buildJson = async (inYamlPath: string, outJsonPath: string) => {
 const build = async () => {
   console.log(LOG_PREFIX + `build started`);
   await Promise.all(
-    OUT_CONFIG_PATHS.map((outPath) => buildJson(IN_CONFIG_PATH, outPath))
+    OUT_CONFIG_PATHS.map((outPath) => buildJson(IN_CONFIG_PATH, outPath)),
   );
   await Promise.all(
-    OUT_GRAMMAR_PATHS.map((outPath) => buildJson(IN_GRAMMAR_PATH, outPath))
+    OUT_GRAMMAR_PATHS.map((outPath) => buildJson(IN_GRAMMAR_PATH, outPath)),
   );
   await Promise.all(
-    OUT_SNIPPETS_PATHS.map((outPath) => buildJson(IN_SNIPPETS_PATH, outPath))
+    OUT_SNIPPETS_PATHS.map((outPath) => buildJson(IN_SNIPPETS_PATH, outPath)),
   );
   console.log(LOG_PREFIX + `build finished`);
 };
@@ -278,7 +278,7 @@ if (WATCH) {
     })
     .on("all", async (event, filePath) => {
       console.log(
-        LOG_PREFIX + `detected ${event} in ${filePath}, rebuilding...`
+        LOG_PREFIX + `detected ${event} in ${filePath}, rebuilding...`,
       );
       await build().catch((err) => {
         console.error(err);

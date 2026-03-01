@@ -151,10 +151,10 @@ export class Coordinator<G extends Game> {
     const updateUI = () => {
       game.module.ui.text.clearAll(transientLayers);
       game.module.ui.image.clearAll(
-        transientLayers.filter((layer) => !instructions.image?.[layer])
+        transientLayers.filter((layer) => !instructions.image?.[layer]),
       );
 
-      game.module.ui.showLayout("main");
+      game.module.ui.showScreen("main");
       game.module.ui.reveal();
 
       // Display click indicator
@@ -187,14 +187,14 @@ export class Coordinator<G extends Game> {
       // Process text events
       if (instructions.text) {
         Object.entries(instructions.text).forEach(([target, events]) =>
-          game.module.ui.text.write(target, events, instant)
+          game.module.ui.text.write(target, events, instant),
         );
       }
 
       // Process images events
       if (instructions.image) {
         Object.entries(instructions.image).forEach(([target, events]) =>
-          game.module.ui.image.write(target, events, instant)
+          game.module.ui.image.write(target, events, instant),
         );
       }
     };
@@ -204,7 +204,7 @@ export class Coordinator<G extends Game> {
       instant || !instructions.audio
         ? []
         : Object.entries(instructions.audio).map(([target, events]) =>
-            game.module.audio.schedule(target, events)
+            game.module.audio.schedule(target, events),
           );
 
     const handleFinished = (): void => {
