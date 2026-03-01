@@ -1,4 +1,8 @@
-import { closeBrackets, insertBracket } from "@codemirror/autocomplete";
+import {
+  closeBrackets,
+  closeBracketsKeymap,
+  insertBracket,
+} from "@codemirror/autocomplete";
 import { syntaxTree } from "@codemirror/language";
 import {
   codePointAt,
@@ -6,8 +10,9 @@ import {
   combineConfig,
   type Extension,
   Facet,
+  Prec,
 } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorView, keymap } from "@codemirror/view";
 
 const android =
   typeof navigator == "object" && /Android\b/.test(navigator.userAgent);
@@ -47,7 +52,7 @@ const vscodeCloseBracketsInputHandler = EditorView.inputHandler.of(
     }
     const pos = view.state.selection.main.head;
     const autoClosingPairRule = config?.autoClosingPairs?.find(
-      (v) => v.open === insert
+      (v) => v.open === insert,
     );
     if (autoClosingPairRule) {
       let nodes = syntaxTree(view.state).resolveStack(pos);
@@ -64,15 +69,16 @@ const vscodeCloseBracketsInputHandler = EditorView.inputHandler.of(
     }
     view.dispatch(tr);
     return true;
-  }
+  },
 );
 
 export function vscodeCloseBrackets(
-  config: VSCodeCloseBracketsConfig = {}
+  config: VSCodeCloseBracketsConfig = {},
 ): Extension {
   return [
     closeBracketsState,
     vscodeCloseBracketsConfig.of(config),
     vscodeCloseBracketsInputHandler,
+    Prec.high(keymap.of([...closeBracketsKeymap])),
   ];
 }
