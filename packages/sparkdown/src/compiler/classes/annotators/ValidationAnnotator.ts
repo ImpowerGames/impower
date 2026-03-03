@@ -78,7 +78,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
 
   override enter(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
-    nodeRef: SparkdownSyntaxNodeRef
+    nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
     if (nodeRef.name === "DefineVariableName") {
       const text = this.read(nodeRef.from, nodeRef.to);
@@ -91,7 +91,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Diagnostic>({
             message,
             severity: "error",
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -101,15 +101,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const text = this.read(nodeRef.from, nodeRef.to);
       if (!PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(text)) {
         const message = PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(
-          text
+          text,
         )
           ? "Conditional selector should be a function"
           : "Unrecognized conditional selector";
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({ message }).range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -124,8 +124,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({ message }).range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -137,13 +137,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         !PROPERTY_SELECTOR_DIRECTION_ARGUMENTS.includes(text)
       ) {
         const message = `Unrecognized direction argument: Supported values are ${formatList(
-          PROPERTY_SELECTOR_DIRECTION_ARGUMENTS
+          PROPERTY_SELECTOR_DIRECTION_ARGUMENTS,
         )}`;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({ message }).range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -152,13 +152,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         !PROPERTY_SELECTOR_THEME_ARGUMENTS.includes(text)
       ) {
         const message = `Unrecognized theme argument: Supported values are ${formatList(
-          PROPERTY_SELECTOR_THEME_ARGUMENTS
+          PROPERTY_SELECTOR_THEME_ARGUMENTS,
         )}`;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({ message }).range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -167,13 +167,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         !PROPERTY_SELECTOR_SCREEN_ARGUMENTS.includes(text)
       ) {
         const message = `Unrecognized screen argument: Supported values are ${formatList(
-          PROPERTY_SELECTOR_SCREEN_ARGUMENTS
+          PROPERTY_SELECTOR_SCREEN_ARGUMENTS,
         )}`;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({ message }).range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -194,13 +194,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         !IMAGE_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
       ) {
         const message = `Unrecognized visual control: Visual commands only support ${formatList(
-          IMAGE_CONTROL_KEYWORDS
+          IMAGE_CONTROL_KEYWORDS,
         )}`;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({ message }).range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -210,13 +210,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         !AUDIO_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
       ) {
         const message = `Unrecognized audio control: Audio commands only support ${formatList(
-          AUDIO_CONTROL_KEYWORDS
+          AUDIO_CONTROL_KEYWORDS,
         )}`;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({ message }).range(
             nodeRef.from,
-            nodeRef.to
-          )
+            nodeRef.to,
+          ),
         );
         return annotations;
       }
@@ -230,7 +230,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Diagnostic>({
             message,
             severity: "error",
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
@@ -241,10 +241,20 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Diagnostic>({
             message,
             severity: "error",
-          }).range(nodeRef.from, nodeRef.to)
+          }).range(nodeRef.from, nodeRef.to),
         );
         return annotations;
       }
+    }
+    if (nodeRef.name === "InvalidFieldValue") {
+      const message = `Invalid property value`;
+      annotations.push(
+        SparkdownAnnotation.mark<Diagnostic>({
+          message,
+          severity: "error",
+        }).range(nodeRef.from, nodeRef.to),
+      );
+      return annotations;
     }
     if (nodeRef.name === "AssetCommandClauseKeyword") {
       const text = this.read(nodeRef.from, nodeRef.to);
@@ -266,7 +276,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             SparkdownAnnotation.mark<Diagnostic>({
               message,
               severity: "error",
-            }).range(nodeRef.to, nodeRef.to)
+            }).range(nodeRef.to, nodeRef.to),
           );
           return annotations;
         }
@@ -282,7 +292,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             SparkdownAnnotation.mark<Diagnostic>({
               message,
               severity: "error",
-            }).range(nodeRef.to, nodeRef.to)
+            }).range(nodeRef.to, nodeRef.to),
           );
           return annotations;
         }
@@ -299,7 +309,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             SparkdownAnnotation.mark<Diagnostic>({
               message,
               severity: "error",
-            }).range(nodeRef.to, nodeRef.to)
+            }).range(nodeRef.to, nodeRef.to),
           );
           return annotations;
         }
@@ -313,8 +323,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           annotations.push(
             SparkdownAnnotation.mark<Diagnostic>({ message }).range(
               nodeRef.from,
-              nodeRef.to
-            )
+              nodeRef.to,
+            ),
           );
           return annotations;
         }
@@ -331,7 +341,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             SparkdownAnnotation.mark<Diagnostic>({
               message,
               severity: "error",
-            }).range(nodeRef.to, nodeRef.to)
+            }).range(nodeRef.to, nodeRef.to),
           );
           return annotations;
         }
@@ -347,7 +357,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             SparkdownAnnotation.mark<Diagnostic>({
               message,
               severity: "error",
-            }).range(nodeRef.to, nodeRef.to)
+            }).range(nodeRef.to, nodeRef.to),
           );
           return annotations;
         }
@@ -372,7 +382,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             SparkdownAnnotation.mark<Diagnostic>({
               message,
               severity: "error",
-            }).range(nodeRef.from, nodeRef.to + nodeCharacterOffset)
+            }).range(nodeRef.from, nodeRef.to + nodeCharacterOffset),
           );
           return annotations;
         }

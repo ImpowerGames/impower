@@ -41,6 +41,7 @@ export const CSS_ALIASES = {
   "flex-wrap": "child-overflow",
 
   "align-self": "self-align",
+  align: "self-align",
 
   "flex-grow": "grow",
   "flex-shrink": "shrink",
@@ -78,5 +79,5 @@ export const CSS_ALIASES = {
 };
 
 export const SPARKLE_TO_CSS_NAME_MAP = Object.fromEntries(
-  Object.entries(CSS_ALIASES).map(([key, value]) => [value, key])
+  Object.entries(CSS_ALIASES).map(([key, value]) => [value, key]),
 );

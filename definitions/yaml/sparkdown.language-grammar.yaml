@@ -80,6 +80,8 @@ variables:
       "style",
       "theme",
     ]
+  VIEW_DEFINE_TYPES: ["screen", "component"]
+  STYLING_DEFINE_TYPES: ["style", "animation", "color"]
 
 patterns:
   - { include: "#EndOfLine" }
@@ -555,7 +557,7 @@ repository:
   DefineViewDeclaration:
     tag: meta
     name: meta.definition.type.define.sd
-    begin: ({{WS}}*)(define)({{EOK}})(?=(?:screen|component){{EOK}})(.*?)$
+    begin: ({{WS}}*)(define)({{EOK}})(?={{VIEW_DEFINE_TYPES}}{{EOK}})(.*?)$
     beginCaptures:
       1:
         patterns:
@@ -579,7 +581,7 @@ repository:
   DefineStylingDeclaration:
     tag: meta
     name: meta.definition.type.define.sd
-    begin: ({{WS}}*)(define)({{EOK}})(?=(?:style|animation|theme){{EOK}})(.*?)$
+    begin: ({{WS}}*)(define)({{EOK}})(?={{STYLING_DEFINE_TYPES}}{{EOK}})(.*?)$
     beginCaptures:
       1:
         patterns:
@@ -1421,7 +1423,7 @@ repository:
           - { include: "#StyleAttributeName" }
       3:
         patterns:
-          - { include: "#AttributeEqualOperator" }
+          - { include: "#EqualOperator" }
       4:
         patterns:
           - { include: "#PunctuationBraceOpen" }
@@ -1447,7 +1449,7 @@ repository:
           - { include: "#StyleAttributeName" }
       3:
         patterns:
-          - { include: "#AttributeEqualOperator" }
+          - { include: "#EqualOperator" }
       4:
         patterns:
           - { include: "#PunctuationStringOpen" }
@@ -1471,7 +1473,7 @@ repository:
           - { include: "#StyleAttributeName" }
       3:
         patterns:
-          - { include: "#AttributeEqualOperator" }
+          - { include: "#EqualOperator" }
     patterns:
       - { include: "#Comment" }
       - { include: "#UnquotedStyleAttributeValue" }
@@ -1498,7 +1500,7 @@ repository:
           - { include: "#EventAttributeName" }
       3:
         patterns:
-          - { include: "#AttributeEqualOperator" }
+          - { include: "#EqualOperator" }
       4:
         patterns:
           - { include: "#PunctuationBraceOpen" }
@@ -1524,7 +1526,7 @@ repository:
           - { include: "#EventAttributeName" }
       3:
         patterns:
-          - { include: "#AttributeEqualOperator" }
+          - { include: "#EqualOperator" }
       4:
         patterns:
           - { include: "#PunctuationStringOpen" }
@@ -1549,7 +1551,7 @@ repository:
           - { include: "#EventAttributeName" }
       3:
         patterns:
-          - { include: "#AttributeEqualOperator" }
+          - { include: "#EqualOperator" }
     patterns:
       - { include: "#Comment" }
       - { include: "#UnquotedEventAttributeValue" }
@@ -1655,11 +1657,6 @@ repository:
     name: keyword.operator.expression.array.sd
     match: (.+)
 
-  AttributeEqualOperator:
-    tag: operator
-    name: keyword.operator.sd
-    match: (.+)
-
   ViewStructFieldValue:
     match: (.+$)
     captures:
@@ -1693,7 +1690,12 @@ repository:
           - { include: "#BooleanFieldValue" }
           - { include: "#StringFieldValue" }
           - { include: "#AccessPath" }
-          - { include: "#UnquotedStringFieldValue" }
+          - { include: "#InvalidFieldValue" }
+
+  InvalidFieldValue:
+    tag: invalid
+    name: invalid.illegal.invalid-field-value.sd
+    match: (.+$)
 
   NumericFieldValue:
     tag: number
@@ -1774,7 +1776,7 @@ repository:
       - { include: "#PunctuationComma" }
       - { include: "#StylingFunction" }
       - { include: "#QualifiedAccessPath" }
-      - { include: "#StringIdentifier" }
+      - { include: "#StylingStringIdentifier" }
       - { include: "#UnquotedChar" }
 
   StylingFunction:
@@ -1818,6 +1820,11 @@ repository:
   StylingFunctionName:
     tag: function(variableName)
     name: entity.name.function.sd
+    match: ({{IDENTIFIER}})
+
+  StylingStringIdentifier:
+    tag: string
+    name: string.unquoted.identifier.sd
     match: ({{IDENTIFIER}})
 
   StringIdentifier:
@@ -3420,12 +3427,17 @@ repository:
         patterns:
           - { include: "#OptionalSeparator" }
       2:
-        tag: updateOperator
-        name: keyword.operator.assignment.sd
+        patterns:
+          - { include: "#EqualOperator" }
       3:
         emit: true
         patterns:
           - { include: "#OptionalSeparator" }
+
+  EqualOperator:
+    tag: updateOperator
+    name: keyword.operator.assignment.sd
+    match: ([=])
 
   DecrementOperator:
     match: ([-][-])({{WS}}*)

@@ -2,7 +2,6 @@ import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
 import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
-import { SyntaxNodeRef } from "@lezer/common";
 import { SparkDeclaration } from "../../types/SparkDeclaration";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkSelector } from "../../types/SparkSelector";
@@ -36,6 +35,7 @@ export interface Reference {
   assigned?: SparkDeclaration;
   prop?: boolean;
   linkable?: boolean;
+  stylingStringIdentifier?: boolean;
 }
 
 export class ReferenceAnnotator extends SparkdownAnnotator<
@@ -479,6 +479,34 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         }
       }
     }
+    if (nodeRef.name === "StylingStringIdentifier") {
+      const context = getContextStack(nodeRef.node);
+      // Record reference in field value
+      if (context.some((n) => n.name === "StylingStructFieldValue")) {
+        const defineProperty = this.definePropertyPathParts
+          .filter((p) => p.key)
+          .map((p) => p.key)
+          .join(".");
+        const declaration = {
+          modifier: this.defineModifier,
+          type: this.defineType,
+          name: this.defineName,
+          property: defineProperty,
+        };
+        const name = this.read(nodeRef.from, nodeRef.to);
+        annotations.push(
+          SparkdownAnnotation.mark<Reference>({
+            selectors: [{ name }],
+            assigned: declaration,
+            symbolIds: ["?" + "." + name], // will need to infer type later
+            kind: "read",
+            linkable: true,
+            stylingStringIdentifier: true,
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+    }
     if (nodeRef.name === "AssetCommandTarget") {
       const context = getContextNames(nodeRef.node);
       // Record image target reference
@@ -656,7 +684,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
 
   override leave(
     annotations: Range<SparkdownAnnotation<Reference>>[],
-    nodeRef: SyntaxNodeRef,
+    nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Reference>>[] {
     if (
       nodeRef.name === "DefineViewDeclaration" ||

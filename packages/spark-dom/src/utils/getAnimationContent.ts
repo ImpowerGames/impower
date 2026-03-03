@@ -1,8 +1,9 @@
 import type { Animation } from "../../../spark-engine/src/game/modules/ui/types/Animation";
+import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
 
 export const getAnimationContent = (
-  animations: Record<string, Animation>
+  animations: Record<string, Animation>,
 ): string => {
   let textContent = "";
   Object.entries(animations).forEach(([name, animation]) => {
@@ -16,7 +17,10 @@ export const getAnimationContent = (
         if (engineKeyframe) {
           for (const [k, v] of Object.entries(engineKeyframe)) {
             const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v);
-            domKeyframe[cssProp] = cssValue;
+            const cssEntries = getCssEquivalent(cssProp, cssValue);
+            for (const [k, v] of cssEntries) {
+              domKeyframe[k] = v;
+            }
           }
         }
         const properties = Object.entries(domKeyframe)

@@ -1,4 +1,5 @@
 import { RangeCursor } from "@codemirror/state";
+import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 import { SemanticInfo } from "@impower/sparkdown/src/compiler/classes/annotators/SemanticAnnotator";
 import { SparkdownAnnotation } from "@impower/sparkdown/src/compiler/classes/SparkdownAnnotation";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
@@ -14,11 +15,13 @@ import { type Range } from "vscode-languageserver-textdocument";
 export const TOKEN_TYPES = [...Object.values(SemanticTokenTypes)];
 export const TOKEN_MODIFIERS = [...Object.values(SemanticTokenModifiers)];
 
+const STYLING_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES;
+
 export const getSemanticTokens = (
   document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations | undefined,
   program: SparkProgram | undefined,
-  range?: Range
+  range?: Range,
 ): SemanticTokens => {
   if (!document || !annotations) {
     return { data: [] };
@@ -29,7 +32,7 @@ export const getSemanticTokens = (
     startChar: number,
     length: number,
     tokenType: string,
-    tokenModifiers: string[] = []
+    tokenModifiers: string[] = [],
   ): [number, number, number, number, number] => {
     const semanticTokenTypes: string[] = TOKEN_TYPES;
     const semanticTokenModifiers: string[] = TOKEN_MODIFIERS;
@@ -54,7 +57,7 @@ export const getSemanticTokens = (
         start.character,
         length,
         cur.value.type.tokenType,
-        cur.value.type.tokenModifiers
+        cur.value.type.tokenModifiers,
       );
       tokens.push(encoded);
     }
@@ -91,6 +94,17 @@ export const getSemanticTokens = (
         program?.labelLocations?.[pathPart2]
       ) {
         add(cur);
+      }
+    } else if (cur.value.type.possibleStructReference) {
+      const name = text;
+      if (name) {
+        const declarationStructType = cur.value.type.declaration?.type || "";
+        if (STYLING_DEFINE_TYPES.includes(declarationStructType)) {
+          const colorStruct = program?.context?.["color"]?.[name];
+          if (colorStruct) {
+            add(cur);
+          }
+        }
       }
     } else {
       add(cur);

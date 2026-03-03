@@ -1,3 +1,4 @@
+import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
 
 const DESCENDANT_REGEX = /[ ]*[>][>][ ]*/g;
@@ -164,7 +165,10 @@ export const getStyleContent = (
         } else {
           const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v);
           if (cssValue) {
-            styleContent += `\n${indent}${cssProp}: ${cssValue};`;
+            const cssEntries = getCssEquivalent(cssProp, cssValue);
+            styleContent += cssEntries
+              .map(([k, v]) => `\n${indent}${k}: ${v};`)
+              .join("");
           }
         }
       }

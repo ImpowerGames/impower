@@ -104,7 +104,7 @@ try {
       workspace.loadWorkspaceFolders(workspaceFolders);
     }
     const { program } = await workspace.initialize(
-      params?.initializationOptions
+      params?.initializationOptions,
     );
     if (program) {
       return { capabilities, program };
@@ -129,7 +129,7 @@ try {
     performance.measure(
       `lsp: onFoldingRanges ${uri}`,
       `lsp: onFoldingRanges ${uri} start`,
-      `lsp: onFoldingRanges ${uri} end`
+      `lsp: onFoldingRanges ${uri} end`,
     );
     return result;
   });
@@ -139,13 +139,14 @@ try {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
+    const program = workspace.program(uri);
     performance.mark(`lsp: onDocumentColor ${uri} start`);
-    const result = getDocumentColors(document, annotations);
+    const result = getDocumentColors(document, annotations, program);
     performance.mark(`lsp: onDocumentColor ${uri} end`);
     performance.measure(
       `lsp: onDocumentColor ${uri}`,
       `lsp: onDocumentColor ${uri} start`,
-      `lsp: onDocumentColor ${uri} end`
+      `lsp: onDocumentColor ${uri} end`,
     );
     return result;
   });
@@ -156,7 +157,7 @@ try {
     performance.measure(
       `lsp: onDocumentColor`,
       `lsp: onDocumentColor start`,
-      `lsp: onDocumentColor end`
+      `lsp: onDocumentColor end`,
     );
     return result;
   });
@@ -172,7 +173,7 @@ try {
     performance.measure(
       `lsp: onDocumentSymbol ${uri}`,
       `lsp: onDocumentSymbol ${uri} start`,
-      `lsp: onDocumentSymbol ${uri} end`
+      `lsp: onDocumentSymbol ${uri} end`,
     );
     return result;
   });
@@ -190,13 +191,13 @@ try {
       annotations,
       program,
       config,
-      params.position
+      params.position,
     );
     performance.mark(`lsp: onHover ${uri} end`);
     performance.measure(
       `lsp: onHover ${uri}`,
       `lsp: onHover ${uri} start`,
-      `lsp: onHover ${uri} end`
+      `lsp: onHover ${uri} end`,
     );
     return result;
   });
@@ -221,13 +222,13 @@ try {
       program,
       config,
       params.position,
-      params.context
+      params.context,
     );
     performance.mark(`lsp: onCompletion ${uri} end`);
     performance.measure(
       `lsp: onCompletion ${uri}`,
       `lsp: onCompletion ${uri} start`,
-      `lsp: onCompletion ${uri} end`
+      `lsp: onCompletion ${uri} end`,
     );
     return result;
   });
@@ -246,13 +247,13 @@ try {
       document,
       tree,
       annotations,
-      params.options
+      params.options,
     );
     performance.mark(`lsp: onDocumentFormatting ${uri} end`);
     performance.measure(
       `lsp: onDocumentFormatting ${uri}`,
       `lsp: onDocumentFormatting ${uri} start`,
-      `lsp: onDocumentFormatting ${uri} end`
+      `lsp: onDocumentFormatting ${uri} end`,
     );
     return result;
   });
@@ -272,13 +273,13 @@ try {
       tree,
       annotations,
       params.options,
-      params.range
+      params.range,
     );
     performance.mark(`lsp: onDocumentRangeFormatting ${uri} end`);
     performance.measure(
       `lsp: onDocumentRangeFormatting ${uri}`,
       `lsp: onDocumentRangeFormatting ${uri} start`,
-      `lsp: onDocumentRangeFormatting ${uri} end`
+      `lsp: onDocumentRangeFormatting ${uri} end`,
     );
     return result;
   });
@@ -298,13 +299,13 @@ try {
       tree,
       annotations,
       params.options,
-      params.position
+      params.position,
     );
     performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} end`);
     performance.measure(
       `lsp: onDocumentOnTypeFormatting ${uri}`,
       `lsp: onDocumentOnTypeFormatting ${uri} start`,
-      `lsp: onDocumentOnTypeFormatting ${uri} end`
+      `lsp: onDocumentOnTypeFormatting ${uri} end`,
     );
     return result;
   });
@@ -320,7 +321,7 @@ try {
     performance.measure(
       `lsp: onPrepareRename ${uri}`,
       `lsp: onPrepareRename ${uri} start`,
-      `lsp: onPrepareRename ${uri} end`
+      `lsp: onPrepareRename ${uri} end`,
     );
     return result;
   });
@@ -341,13 +342,13 @@ try {
       program,
       workspace,
       params.newName,
-      params.position
+      params.position,
     );
     performance.mark(`lsp: onRenameRequest ${uri} end`);
     performance.measure(
       `lsp: onRenameRequest ${uri}`,
       `lsp: onRenameRequest ${uri} start`,
-      `lsp: onRenameRequest ${uri} end`
+      `lsp: onRenameRequest ${uri} end`,
     );
     return result;
   });
@@ -370,13 +371,13 @@ try {
         searchOtherFiles: true,
         includeInterdependent: true,
         includeLinks: true,
-      }
+      },
     );
     performance.mark(`lsp: onReferences ${uri} end`);
     performance.measure(
       `lsp: onReferences ${uri}`,
       `lsp: onReferences ${uri} start`,
-      `lsp: onReferences ${uri} end`
+      `lsp: onReferences ${uri} end`,
     );
     return references;
   });
@@ -400,13 +401,13 @@ try {
         excludeUses: true,
         includeInterdependent: false,
         includeLinks: false,
-      }
+      },
     );
     performance.mark(`lsp: onDeclaration ${uri} end`);
     performance.measure(
       `lsp: onDeclaration ${uri}`,
       `lsp: onDeclaration ${uri} start`,
-      `lsp: onDeclaration ${uri} end`
+      `lsp: onDeclaration ${uri} end`,
     );
     return references;
   });
@@ -423,7 +424,7 @@ try {
     performance.measure(
       `lsp: onDocumentLinks ${uri}`,
       `lsp: onDocumentLinks ${uri} start`,
-      `lsp: onDocumentLinks ${uri} end`
+      `lsp: onDocumentLinks ${uri} end`,
     );
     return result;
   });
@@ -446,13 +447,13 @@ try {
         includeDeclaration: true,
         includeInterdependent: true,
         includeLinks: true,
-      }
+      },
     );
     performance.mark(`lsp: onDocumentHighlight ${uri} end`);
     performance.measure(
       `lsp: onDocumentHighlight ${uri}`,
       `lsp: onDocumentHighlight ${uri} start`,
-      `lsp: onDocumentHighlight ${uri} end`
+      `lsp: onDocumentHighlight ${uri} end`,
     );
     return references;
   });
@@ -470,7 +471,7 @@ try {
     performance.measure(
       `lsp: semanticTokens.on ${uri}`,
       `lsp: semanticTokens.on ${uri} start`,
-      `lsp: semanticTokens.on ${uri} end`
+      `lsp: semanticTokens.on ${uri} end`,
     );
     return result;
   });
@@ -485,13 +486,13 @@ try {
       document,
       annotations,
       program,
-      params.range
+      params.range,
     );
     performance.mark(`lsp: semanticTokens.onRange ${uri} end`);
     performance.measure(
       `lsp: semanticTokens.onRange ${uri}`,
       `lsp: semanticTokens.onRange ${uri} start`,
-      `lsp: semanticTokens.onRange ${uri} end`
+      `lsp: semanticTokens.onRange ${uri} end`,
     );
     return result;
   });

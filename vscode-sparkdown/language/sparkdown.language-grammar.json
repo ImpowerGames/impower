@@ -107,6 +107,15 @@
       "animation",
       "style",
       "theme"
+    ],
+    "VIEW_DEFINE_TYPES": [
+      "screen",
+      "component"
+    ],
+    "STYLING_DEFINE_TYPES": [
+      "style",
+      "animation",
+      "color"
     ]
   },
   "patterns": [
@@ -942,7 +951,7 @@
     "DefineViewDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.define.sd",
-      "begin": "([^\\S\\n\\r]*)(define)((?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|(?:[/][/]|[/][*])))))(?=(?:screen|component)(?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|(?:[/][/]|[/][*])))))(.*?)$",
+      "begin": "([^\\S\\n\\r]*)(define)((?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|(?:[/][/]|[/][*])))))(?=\\b(?:screen|component)\\b(?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|(?:[/][/]|[/][*])))))(.*?)$",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -992,7 +1001,7 @@
     "DefineStylingDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.define.sd",
-      "begin": "([^\\S\\n\\r]*)(define)((?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|(?:[/][/]|[/][*])))))(?=(?:style|animation|theme)(?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|(?:[/][/]|[/][*])))))(.*?)$",
+      "begin": "([^\\S\\n\\r]*)(define)((?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|(?:[/][/]|[/][*])))))(?=\\b(?:style|animation|color)\\b(?:$|[^\\S\\n\\r]+|(?=(?:[:]|(?:[#]+(?:$|[^\\S\\n\\r]+))|(?:[/][/]|[/][*])))))(.*?)$",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2732,7 +2741,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#AttributeEqualOperator"
+              "include": "#EqualOperator"
             }
           ]
         },
@@ -2785,7 +2794,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#AttributeEqualOperator"
+              "include": "#EqualOperator"
             }
           ]
         },
@@ -2836,7 +2845,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#AttributeEqualOperator"
+              "include": "#EqualOperator"
             }
           ]
         }
@@ -2890,7 +2899,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#AttributeEqualOperator"
+              "include": "#EqualOperator"
             }
           ]
         },
@@ -2943,7 +2952,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#AttributeEqualOperator"
+              "include": "#EqualOperator"
             }
           ]
         },
@@ -2997,7 +3006,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#AttributeEqualOperator"
+              "include": "#EqualOperator"
             }
           ]
         }
@@ -3170,11 +3179,6 @@
       "name": "keyword.operator.expression.array.sd",
       "match": "(.+)"
     },
-    "AttributeEqualOperator": {
-      "tag": "operator",
-      "name": "keyword.operator.sd",
-      "match": "(.+)"
-    },
     "ViewStructFieldValue": {
       "match": "(.+$)",
       "captures": {
@@ -3247,11 +3251,16 @@
               "include": "#AccessPath"
             },
             {
-              "include": "#UnquotedStringFieldValue"
+              "include": "#InvalidFieldValue"
             }
           ]
         }
       }
+    },
+    "InvalidFieldValue": {
+      "tag": "invalid",
+      "name": "invalid.illegal.invalid-field-value.sd",
+      "match": "(.+$)"
     },
     "NumericFieldValue": {
       "tag": "number",
@@ -3406,7 +3415,7 @@
           "include": "#QualifiedAccessPath"
         },
         {
-          "include": "#StringIdentifier"
+          "include": "#StylingStringIdentifier"
         },
         {
           "include": "#UnquotedChar"
@@ -3493,6 +3502,11 @@
     "StylingFunctionName": {
       "tag": "function(variableName)",
       "name": "entity.name.function.sd",
+      "match": "([_\\p{L}][0-9_\\p{L}-]*)"
+    },
+    "StylingStringIdentifier": {
+      "tag": "string",
+      "name": "string.unquoted.identifier.sd",
       "match": "([_\\p{L}][0-9_\\p{L}-]*)"
     },
     "StringIdentifier": {
@@ -6412,8 +6426,11 @@
           ]
         },
         "2": {
-          "tag": "updateOperator",
-          "name": "keyword.operator.assignment.sd"
+          "patterns": [
+            {
+              "include": "#EqualOperator"
+            }
+          ]
         },
         "3": {
           "emit": true,
@@ -6424,6 +6441,11 @@
           ]
         }
       }
+    },
+    "EqualOperator": {
+      "tag": "updateOperator",
+      "name": "keyword.operator.assignment.sd",
+      "match": "([=])"
     },
     "DecrementOperator": {
       "match": "([-][-])([^\\S\\n\\r]*)",

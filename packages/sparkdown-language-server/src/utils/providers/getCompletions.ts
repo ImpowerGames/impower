@@ -17,6 +17,7 @@ import { type SyntaxNode, type Tree } from "@lezer/common";
 import {
   Command,
   CompletionItemKind,
+  InsertTextFormat,
   InsertTextMode,
   MarkupKind,
   type CompletionContext,
@@ -37,10 +38,14 @@ const IMAGE_CLAUSE_KEYWORDS =
 const AUDIO_CLAUSE_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS;
 
+const STYLING_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES;
+
 const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
 const LOGIC_KEYWORDS = ["temp", "return"];
 const FLOW_KEYWORDS = ["DONE", "END"];
+
+const INSERT_TEXT_CURSOR_REGEX = /[$]\d+/g;
 
 const isPrefilteredName = (name: string) => name.includes("~");
 
@@ -405,7 +410,7 @@ const getTypeDescription = (v: unknown): string | undefined => {
   if (typeof v === "object") {
     return "{}";
   }
-  return typeof v;
+  return "<" + typeof v + ">";
 };
 
 const getTypeKind = (v: unknown): CompletionItemKind | undefined => {
@@ -617,11 +622,26 @@ const addStructPropertyValueSchemaCompletions = (
         if (Array.isArray(value)) {
           for (const option of value) {
             const kind = getTypeKind(option);
+            const insertTextPrefix =
+              context?.triggerCharacter === "=" ? " " : "";
+            const insertText = insertTextPrefix + option;
             if (typeof option === "string") {
               if (!valueText) {
+                const insertTextWithoutCursorSyntax = insertText.replace(
+                  INSERT_TEXT_CURSOR_REGEX,
+                  "",
+                );
+                const label = STYLING_DEFINE_TYPES.includes(schemaStruct.$type)
+                  ? insertTextWithoutCursorSyntax
+                  : `"${insertTextWithoutCursorSyntax}"`;
+                const insertTextFormat = insertText.includes("$")
+                  ? InsertTextFormat.Snippet
+                  : undefined;
                 const completion: CompletionItem = {
-                  label: `"${option}"`,
+                  label,
+                  insertText,
                   kind,
+                  insertTextFormat,
                 };
                 if (completion.label && !completions.has(completion.label)) {
                   completions.set(completion.label, completion);
@@ -630,9 +650,33 @@ const addStructPropertyValueSchemaCompletions = (
                 context?.triggerCharacter === '"' &&
                 valueCursorOffset === 1
               ) {
+                const label = insertText.replace(INSERT_TEXT_CURSOR_REGEX, "");
+                const insertTextFormat = insertText.includes("$")
+                  ? InsertTextFormat.Snippet
+                  : undefined;
                 const completion: CompletionItem = {
-                  label: option,
+                  label,
+                  insertText,
                   kind,
+                  insertTextFormat,
+                };
+                if (completion.label && !completions.has(completion.label)) {
+                  completions.set(completion.label, completion);
+                }
+              } else if (STYLING_DEFINE_TYPES.includes(schemaStruct.$type)) {
+                const insertTextWithoutCursorSyntax = insertText.replace(
+                  INSERT_TEXT_CURSOR_REGEX,
+                  "",
+                );
+                const label = insertTextWithoutCursorSyntax;
+                const insertTextFormat = insertText.includes("$")
+                  ? InsertTextFormat.Snippet
+                  : undefined;
+                const completion: CompletionItem = {
+                  label,
+                  insertText,
+                  kind,
+                  insertTextFormat,
                 };
                 if (completion.label && !completions.has(completion.label)) {
                   completions.set(completion.label, completion);
@@ -1602,6 +1646,13 @@ export const getCompletions = (
         (isWhitespaceNode(n.name) &&
           (prevNode.name === "AssignEqualOperator" ||
             prevNode.name === "ArrayItemMark") &&
+          leftStack.some(
+            (x) =>
+              x.name === "DefineViewDeclaration" ||
+              x.name === "DefineStylingDeclaration" ||
+              x.name === "DefinePlainDeclaration",
+          )) ||
+        (n.type.name === "AssignEqualOperator" &&
           leftStack.some(
             (x) =>
               x.name === "DefineViewDeclaration" ||
