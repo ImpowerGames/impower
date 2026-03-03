@@ -1,18 +1,18 @@
 .theme-light {
-  ---theme-gradient-gloss-transparent: hsl(0 0% 0% / 0%);
-  ---theme-gradient-gloss-shine: hsl(0 0% 0% / 5%);
+  --theme-gradient-gloss-transparent: hsl(0 0% 0% / 0%);
+  --theme-gradient-gloss-shine: hsl(0 0% 0% / 5%);
 }
 
 .theme-dark {
-  ---theme-gradient-gloss-transparent: hsl(0 0% 100% / 0%);
-  ---theme-gradient-gloss-shine: hsl(0 0% 100% / 5%);
+  --theme-gradient-gloss-transparent: hsl(0 0% 100% / 0%);
+  --theme-gradient-gloss-shine: hsl(0 0% 100% / 5%);
 }
 
 :root {
-  ---theme-gradient-gloss: conic-gradient(
+  --theme-gradient-gloss: conic-gradient(
     from 25deg at 35% 75%,
-    var(---theme-gradient-gloss-transparent),
+    var(--theme-gradient-gloss-transparent),
     85%,
-    var(---theme-gradient-gloss-shine)
+    var(--theme-gradient-gloss-shine)
   );
 }

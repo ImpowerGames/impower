@@ -57,7 +57,7 @@ export default class UIManager extends Manager {
         el.style.cssText = Object.entries(params.style)
           .map(([k, v]) => {
             const [prop, value] = getCSSPropertyKeyValue(k, v);
-            return `${prop}: ${value}`;
+            return `${prop}:${value}`;
           })
           .join(";");
       }
@@ -80,17 +80,17 @@ export default class UIManager extends Manager {
                   weight: font.font_weight || undefined,
                   stretch: font.font_stretch || undefined,
                   display: (font.font_display as FontDisplay) || undefined,
-                }
+                },
               );
               if (
                 !Array.from(
-                  document.fonts as unknown as Iterable<FontFace>
+                  document.fonts as unknown as Iterable<FontFace>,
                 ).some(
                   (f) =>
                     f.family === font.font_family &&
                     f.style === font.font_style &&
                     f.weight === font.font_weight &&
-                    f.stretch === font.font_stretch
+                    f.stretch === font.font_stretch,
                 )
               ) {
                 if (
@@ -150,7 +150,7 @@ export default class UIManager extends Manager {
             });
           } else {
             Array.from(element.attributes).forEach((attr) =>
-              element.removeAttribute(attr.name)
+              element.removeAttribute(attr.name),
             );
           }
         }

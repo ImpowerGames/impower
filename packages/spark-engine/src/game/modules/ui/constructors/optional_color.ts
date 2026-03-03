@@ -4,6 +4,4 @@ export const optional_color: Create<any> = () => ({
   $type: "style",
   $name: "$optional",
   value: "",
-  light: "",
-  dark: "",
 });

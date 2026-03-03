@@ -42,7 +42,7 @@ export const getCssAnimation = (value: string | null, suffix = ""): string => {
   }
   return value
     .split(" ")
-    .map((v) => `var(---theme-animation-${v}${suffix || ""})`)
+    .map((v) => `var(--theme-animation-${v}${suffix || ""})`)
     .join(", ");
 };
 
@@ -80,27 +80,28 @@ export const getCssBorderStyle = (value: string): string => {
   return value;
 };
 
-export const getCssColor = (color: string): string => {
-  if (color === "current") {
+export const getCssColor = (value: string): string => {
+  if (value === "current") {
     return "currentColor";
   }
   if (
-    color === "none" ||
-    color === "transparent" ||
-    color === "black" ||
-    color === "white" ||
-    color === "currentColor" ||
-    color.startsWith("#") ||
-    color.startsWith("rgb") ||
-    color.startsWith("hsl") ||
-    color.startsWith("lch")
+    value === "none" ||
+    value === "transparent" ||
+    value === "black" ||
+    value === "white" ||
+    value === "currentColor" ||
+    value.startsWith("var(") ||
+    value.startsWith("#") ||
+    value.startsWith("rgb") ||
+    value.startsWith("hsl") ||
+    value.startsWith("lch")
   ) {
-    return color;
+    return value;
   }
-  if (!color) {
-    return color;
+  if (!value) {
+    return value;
   }
-  return `var(---theme-color-${color})`;
+  return `var(--theme-color-${value})`;
 };
 
 export const getCssChildColumns = (columns: string): string => {
@@ -168,12 +169,12 @@ export const getCssZ = (value: string): string => {
   if (isValidNumber(value) || value.startsWith("var(")) {
     return value;
   }
-  return `var(---theme-z-index-${value})`;
+  return `var(--theme-z-index-${value})`;
 };
 
 export const getCssValueWithUnit = (
   value: string | number,
-  defaultUnit: string
+  defaultUnit: string,
 ): string => {
   if (typeof value === "number") {
     return `${value}${defaultUnit}`;
@@ -272,6 +273,9 @@ export const getCssTextStroke = (value: string): string => {
 };
 
 export const getCssTextSize = (value: string): string => {
+  if (value.startsWith("var(")) {
+    return value;
+  }
   if (
     value === "2xs" ||
     value === "xs" ||
@@ -288,7 +292,7 @@ export const getCssTextSize = (value: string): string => {
     value === "8xl" ||
     value === "9xl"
   ) {
-    return `var(---theme-text-${value}-font-size)`;
+    return `var(--theme-text-${value}-font-size)`;
   }
   if (!Number.isNaN(Number(value))) {
     return `${value}px`;
@@ -297,6 +301,9 @@ export const getCssTextSize = (value: string): string => {
 };
 
 export const getCssTextLeading = (value: string): string => {
+  if (value.startsWith("var(")) {
+    return value;
+  }
   if (
     value === "none" ||
     value === "xs" ||
@@ -305,7 +312,7 @@ export const getCssTextLeading = (value: string): string => {
     value === "lg" ||
     value === "xl"
   ) {
-    return `var(---theme-text-leading-${value})`;
+    return `var(--theme-text-leading-${value})`;
   }
   return value;
 };
@@ -321,8 +328,11 @@ export const getCssTextStyle = (value: boolean | string): string => {
 };
 
 export const getCssTextFont = (value: string): string => {
+  if (value.startsWith("var(")) {
+    return value;
+  }
   if (value === "sans" || value === "serif" || value === "mono") {
-    return `var(---theme-font-${value})`;
+    return `var(--theme-font-${value})`;
   }
   return value;
 };
@@ -386,7 +396,7 @@ export const getCssDisplay = (value: string | boolean): string => {
 
 export const getCssDuration = (
   value: string | null,
-  defaultValue = "0s"
+  defaultValue = "0s",
 ): string => {
   if (!value) {
     return defaultValue;
@@ -396,7 +406,7 @@ export const getCssDuration = (
 
 export const getCssEase = (
   value: string | null,
-  defaultValue = "linear"
+  defaultValue = "linear",
 ): string => {
   if (!value) {
     return defaultValue;
@@ -428,11 +438,12 @@ export const getCssEase = (
     const x2 = 1 - incomingPercent / 100;
     return `cubic-bezier(${x1}, 0, ${x2}, 1)`;
   }
-  return `var(---theme-easing-${value})`;
+  return `var(--theme-ease-${value})`;
 };
 
 export const getCssFilter = (value: string): string => {
   if (
+    value.startsWith("var(") ||
     value.startsWith("blur(") ||
     value.startsWith("brightness(") ||
     value.startsWith("contrast(") ||
@@ -446,7 +457,7 @@ export const getCssFilter = (value: string): string => {
   ) {
     return value;
   }
-  return `var(---theme-filter-${value})`;
+  return `var(--theme-filter-${value})`;
 };
 
 export const getCssFlex = (value: boolean | string): string => {
@@ -475,7 +486,7 @@ export const getCssGradient = (value: string): string => {
   ) {
     return value;
   }
-  return `var(---theme-gradient-${value})`;
+  return `var(--theme-gradient-${value})`;
 };
 
 export const getCssGrow = (value: boolean | string): string => {
@@ -512,7 +523,7 @@ export const getCssImage = (value: string): string => {
   ) {
     return value;
   }
-  return `var(---theme-image-${value})`;
+  return `var(--theme-image-${value})`;
 };
 
 export const getCssVisible = (value: boolean | string): string => {
@@ -526,7 +537,10 @@ export const getCssVisible = (value: boolean | string): string => {
 };
 
 export const getCssMask = (value: string): string => {
-  return `var(---theme-mask-${value})`;
+  if (value.startsWith("var(")) {
+    return value;
+  }
+  return `var(--theme-mask-${value})`;
 };
 
 export const getCssInteractable = (value: boolean | string): string => {
@@ -593,10 +607,14 @@ export const getCssPosition = (value: string): string => {
 };
 
 export const getCssPattern = (value: string): string => {
-  if (!value || value === "none") {
+  if (!value) {
     return "none";
   }
-  if (value.startsWith("var(") || value.startsWith("url(")) {
+  if (
+    value === "none" ||
+    value.startsWith("var(") ||
+    value.startsWith("url(")
+  ) {
     return value;
   }
   return `'${value}'`;
@@ -605,7 +623,7 @@ export const getCssPattern = (value: string): string => {
 export const getCssProportion = (
   value: string | null,
   defaultValue: number,
-  emptyValue = defaultValue
+  emptyValue = defaultValue,
 ): number => {
   if (value === "") {
     return emptyValue;
@@ -630,7 +648,10 @@ export const getCssRatio = (value: string): string => {
   if (value.includes(":")) {
     return value.replace(":", "/");
   }
-  return `var(---theme-ratio-${value})`;
+  if (value.startsWith("var(")) {
+    return value;
+  }
+  return `var(--theme-ratio-${value})`;
 };
 
 export const getCssRepeat = (value: boolean | string): string => {
@@ -660,7 +681,7 @@ export const getCssGlow = (value: string): string => {
   }
   const [width, color] = value.split(WHITESPACE_REGEX);
   return `0 0 ${getCssSize(width ?? 2)} 0 ${getCssColor(
-    color ?? "currentColor"
+    color ?? "currentColor",
   )}`;
 };
 
@@ -670,7 +691,7 @@ export const getCssRing = (value: string): string => {
   }
   const [width, color] = value.split(WHITESPACE_REGEX);
   return `0 0 0 ${getCssSize(width ?? 2)} ${getCssColor(
-    color ?? "currentColor"
+    color ?? "currentColor",
   )}`;
 };
 
@@ -715,9 +736,12 @@ export const getCssShadow = (value: string): string => {
 };
 
 export const getCssShadowInset = (value: string): string => {
+  if (value.startsWith("var(")) {
+    return value;
+  }
   const isValidNumber = !Number.isNaN(Number(value));
   if (isValidNumber) {
-    return `var(---theme-shadow-inset-${value})`;
+    return `var(--theme-shadow-inset-${value})`;
   }
   return value;
 };
@@ -752,7 +776,7 @@ export const isNumberChar = (c: string | undefined): boolean =>
   !Number.isNaN(Number(c));
 
 export const isVariableValue = (
-  value: string | number | undefined
+  value: string | number | undefined,
 ): boolean => {
   if (typeof value === "number") {
     return false;
@@ -771,7 +795,7 @@ export const isVariableValue = (
 
 export const getCssSize = (
   value: string | number,
-  defaultUnit: "px" | "rem" = "px"
+  defaultUnit: "px" | "rem" = "px",
 ): string => {
   if (value === "none") {
     return "0";
@@ -794,8 +818,11 @@ export const getCssSize = (
   if (value === "xl") {
     return defaultUnit === "px" ? "24px" : "1.5rem";
   }
+  if (typeof value === "string" && value.startsWith("var(")) {
+    return value;
+  }
   if (isVariableValue(value)) {
-    return `var(---theme-size-${value})`;
+    return `var(--theme-size-${value})`;
   }
   return getCssValueWithUnit(value, defaultUnit);
 };

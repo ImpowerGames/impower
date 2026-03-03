@@ -17,7 +17,7 @@ const transformer = (
   config: {
     patterns?: string[] | undefined;
     icons?: string[] | undefined;
-  }
+  },
 ): string => {
   if (!html) {
     return html;
@@ -29,7 +29,7 @@ const transformer = (
     for (let i = 0; i < patternFiles.length; i += 1) {
       const patternFile = patternFiles[i] || "";
       Object.entries(
-        extractAllGraphics("---theme-pattern-", patternFile)
+        extractAllGraphics("--theme-pattern-", patternFile),
       ).forEach(([key, value]) => {
         patterns[key] = value;
       });
@@ -39,10 +39,10 @@ const transformer = (
   if (iconFiles) {
     for (let i = 0; i < iconFiles.length; i += 1) {
       const iconFile = iconFiles[i] || "";
-      Object.entries(extractAllGraphics("---theme-icon-", iconFile)).forEach(
+      Object.entries(extractAllGraphics("--theme-icon-", iconFile)).forEach(
         ([key, value]) => {
           icons[key] = value;
-        }
+        },
       );
     }
   }

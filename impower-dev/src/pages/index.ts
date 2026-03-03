@@ -9,7 +9,7 @@ import { Workspace } from "../modules/spark-editor/workspace/Workspace";
 
 const load = async () => {
   const graphics: Record<string, string> = {};
-  const svgs = extractAllSVGs("---theme-icon-", icons);
+  const svgs = extractAllSVGs("--theme-icon-", icons);
   Object.entries(svgs).forEach(([name, svg]) => {
     graphics[name] = svg;
   });
@@ -47,7 +47,7 @@ if ("serviceWorker" in navigator) {
     },
     (error) => {
       console.error(`Service worker registration failed: ${error}`);
-    }
+    },
   );
   // TODO: Handle service worker refresh with Approach #4 instead of Approach #2:
   // https://redfin.engineering/how-to-fix-the-refresh-button-when-using-service-workers-a8e27af6df68

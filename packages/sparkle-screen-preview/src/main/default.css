@@ -2,79 +2,80 @@
 
 .screen {
   /* Divider */
-  ---theme-divider-background-color: var(---theme-color-fg-12);
+  --theme-divider-background-color: var(--theme-color-fg-12);
 
   /* Buttons */
-  ---theme-button-background-color: var(---theme-color-neutral-20);
-  ---theme-button-border-color: var(---theme-color-neutral-40);
-  ---theme-button-text-color: var(---theme-color-neutral-100);
+  --theme-button-background-color: var(--theme-color-neutral-20);
+  --theme-button-border-color: var(--theme-color-neutral-40);
+  --theme-button-text-color: var(--theme-color-neutral-100);
 
   /* Inputs */
-  ---theme-input-background-color: var(---theme-color-neutral-20);
-  ---theme-input-border-color: var(---theme-color-neutral-40);
-  ---theme-input-text-color: var(---theme-color-neutral-100);
-  ---theme-input-text-placeholder-color: var(---theme-color-neutral-70);
+  --theme-input-background-color: var(--theme-color-neutral-20);
+  --theme-input-border-color: var(--theme-color-neutral-40);
+  --theme-input-text-color: var(--theme-color-neutral-100);
+  --theme-input-text-placeholder-color: var(--theme-color-neutral-70);
 
   /* Dropdowns */
-  ---theme-dropdown-background-color: var(---theme-color-neutral-20);
-  ---theme-dropdown-border-color: var(---theme-color-neutral-40);
-  ---theme-dropdown-text-color: var(---theme-color-neutral-100);
+  --theme-dropdown-background-color: var(--theme-color-neutral-20);
+  --theme-dropdown-border-color: var(--theme-color-neutral-40);
+  --theme-dropdown-text-color: var(--theme-color-neutral-100);
 
   /* Options */
-  ---theme-option-background-color: var(---theme-color-neutral-20);
-  ---theme-option-text-color: var(---theme-color-neutral-100);
+  --theme-option-background-color: var(--theme-color-neutral-20);
+  --theme-option-text-color: var(--theme-color-neutral-100);
 
   /* Checkboxes */
-  ---theme-checkbox-background-color: var(---theme-color-neutral-20);
-  ---theme-checkbox-border-color: var(---theme-color-neutral-60);
-  ---theme-checkbox-check-color: var(---theme-color-fill-contrast);
+  --theme-checkbox-background-color: var(--theme-color-neutral-20);
+  --theme-checkbox-border-color: var(--theme-color-neutral-60);
+  --theme-checkbox-check-color: var(--theme-color-fill-contrast);
 
   /* Sliders */
-  ---theme-slider-thumb-background-color: var(---theme-color-primary-60);
-  ---theme-slider-thumb-border-color: var(---theme-color-primary-60);
-  ---theme-slider-fill-color: var(---theme-color-primary-60);
-  ---theme-slider-track-color: var(---theme-color-neutral-40);
+  --theme-slider-thumb-background-color: var(--theme-color-primary-60);
+  --theme-slider-thumb-border-color: var(--theme-color-primary-60);
+  --theme-slider-fill-color: var(--theme-color-primary-60);
+  --theme-slider-track-color: var(--theme-color-neutral-40);
 
-  ---fill-color: var(---theme-slider-fill-color);
-  ---track-color: var(---theme-slider-track-color);
-  ---thumb-background-color: var(---theme-slider-thumb-background-color);
-  ---thumb-border-color: var(---theme-slider-thumb-border-color);
-  ---thumb-size: var(---theme-size-thumb);
+  ---fill-color: var(--theme-slider-fill-color);
+  ---track-color: var(--theme-slider-track-color);
+  ---thumb-background-color: var(--theme-slider-thumb-background-color);
+  ---thumb-border-color: var(--theme-slider-thumb-border-color);
+  ---thumb-size: var(--theme-size-thumb);
 }
 
 * {
-  scrollbar-color: var(---theme-color-scrollbar-thumb)
-    var(---theme-color-scrollbar-track);
-  scrollbar-width: var(---theme-scrollbar-thickness);
-  scrollbar-gutter: var(---theme-scrollbar-gutter);
-  scroll-behavior: var(---theme-scrollbar-behavior);
-  scroll-margin: var(---theme-scrollbar-margin);
-  scroll-padding: var(---theme-scrollbar-padding);
+  scrollbar-color: var(--theme-color-scrollbar-thumb)
+    var(--theme-color-scrollbar-track);
+  scrollbar-width: var(--theme-scrollbar-thickness);
+  scrollbar-gutter: var(--theme-scrollbar-gutter);
+  scroll-behavior: var(--theme-scrollbar-behavior);
+  scroll-margin: var(--theme-scrollbar-margin);
+  scroll-padding: var(--theme-scrollbar-padding);
 
-  transition-property: opacity, translate, rotate, scale, transform, filter,
-    backdrop-filter, clip-path, mix-blend-mode, box-shadow, color,
-    background-color, border-color, text-decoration-color, fill, stroke;
-  transition-duration: var(---theme-transition-fast);
+  transition-property:
+    opacity, translate, rotate, scale, transform, filter, backdrop-filter,
+    clip-path, mix-blend-mode, box-shadow, color, background-color,
+    border-color, text-decoration-color, fill, stroke;
+  transition-duration: var(--theme-transition-fast);
 }
 
 .button:hover,
 .dropdown_field:hover,
 .checkbox_field:hover,
 .slider_field:hover {
-  background-color: var(---theme-color-background-hover);
+  background-color: var(--theme-color-background-hover);
 }
 
 .button:active,
 .dropdown_field:active,
 .checkbox_field:active,
 .slider_field:active {
-  background-color: var(---theme-color-background-active);
+  background-color: var(--theme-color-background-active);
 }
 
 .screen {
   min-height: 100vh;
-  font-size: var(---theme-text-md-font-size);
-  color: var(---theme-color-text);
+  font-size: var(--theme-text-md-font-size);
+  color: var(--theme-color-text);
 }
 
 .component {
@@ -86,14 +87,14 @@ style {
 }
 
 .box {
-  background: var(---theme-color-surface);
-  padding: var(---theme-spacing-md);
-  border-radius: var(---theme-radius-lg);
-  gap: var(---theme-spacing-md);
+  background: var(--theme-color-surface);
+  padding: var(--theme-spacing-md);
+  border-radius: var(--theme-radius-lg);
+  gap: var(--theme-spacing-md);
 }
 
 .background {
-  background: var(---theme-color-bg-50);
+  background: var(--theme-color-bg-50);
   position: absolute;
   inset: 0;
 }
@@ -107,18 +108,18 @@ style {
 
 .row {
   flex-direction: row;
-  gap: var(---theme-spacing-sm);
+  gap: var(--theme-spacing-sm);
 }
 
 .column {
   flex-direction: column;
-  gap: var(---theme-spacing-sm);
+  gap: var(--theme-spacing-sm);
 }
 
 .grid {
   display: grid;
   grid-template-columns: var(---columns, 1fr 1fr 1fr);
-  gap: var(---theme-spacing-sm);
+  gap: var(--theme-spacing-sm);
 }
 .grid * {
   min-width: 0;
@@ -128,15 +129,15 @@ style {
 
 .scroller {
   flex-direction: column;
-  gap: var(---theme-spacing-sm);
+  gap: var(--theme-spacing-sm);
   max-width: 100%;
   max-height: 100%;
   overflow-y: scroll;
   overscroll-behavior: contain;
   scroll-behavior: smooth;
-  scrollbar-color: var(---theme-color-scrollbar-thumb)
-    var(---theme-color-scrollbar-track);
-  scrollbar-width: var(---theme-scrollbar-thickness);
+  scrollbar-color: var(--theme-color-scrollbar-thumb)
+    var(--theme-color-scrollbar-track);
+  scrollbar-width: var(--theme-scrollbar-thickness);
 }
 .scroller * {
   min-width: 0;
@@ -156,8 +157,8 @@ style {
 }
 
 .divider {
-  background-color: var(---theme-divider-background-color);
-  border-radius: var(---theme-radius-lg);
+  background-color: var(--theme-divider-background-color);
+  border-radius: var(--theme-radius-lg);
 }
 
 .text {
@@ -175,41 +176,41 @@ style {
   max-width: 100%;
   height: auto;
   object-fit: contain;
-  border-radius: var(---theme-radius-sm);
+  border-radius: var(--theme-radius-sm);
 }
 
 .button {
   padding: 8px 20px;
-  border-radius: var(---theme-radius-lg);
-  color: var(---theme-button-text-color);
+  border-radius: var(--theme-radius-lg);
+  color: var(--theme-button-text-color);
   font-weight: 600;
   text-align: center;
   justify-content: center;
   border-width: 1px;
   border-style: solid;
-  border-color: var(---theme-button-border-color);
-  background-color: var(---theme-button-background-color);
+  border-color: var(--theme-button-border-color);
+  background-color: var(--theme-button-background-color);
 }
 
 .label {
   display: flex;
   flex-direction: column;
-  gap: var(---theme-spacing-2xs);
+  gap: var(--theme-spacing-2xs);
   align-items: start;
   position: relative;
 }
 
 .input_field {
-  padding: var(---theme-padding-input);
-  border-radius: var(---theme-radius-md);
-  color: var(---theme-input-text-color);
+  padding: var(--theme-padding-input);
+  border-radius: var(--theme-radius-md);
+  color: var(--theme-input-text-color);
   border-width: 1px;
   border-style: solid;
-  border-color: var(---theme-input-border-color);
-  background-color: var(---theme-input-background-color);
+  border-color: var(--theme-input-border-color);
+  background-color: var(--theme-input-background-color);
 }
 .input_field::placeholder {
-  color: var(---theme-input-text-placeholder-color);
+  color: var(--theme-input-text-placeholder-color);
 }
 
 .slider_field {
@@ -252,37 +253,37 @@ style {
 
 .checkbox {
   flex-direction: row;
-  gap: var(---theme-spacing-xs);
+  gap: var(--theme-spacing-xs);
   align-items: center;
   justify-content: space-between;
 }
 .checkbox_field {
-  width: var(---theme-size-checkbox);
-  height: var(---theme-size-checkbox);
-  min-width: var(---theme-size-checkbox);
-  min-height: var(---theme-size-checkbox);
-  border-radius: var(---theme-radius-sm);
+  width: var(--theme-size-checkbox);
+  height: var(--theme-size-checkbox);
+  min-width: var(--theme-size-checkbox);
+  min-height: var(--theme-size-checkbox);
+  border-radius: var(--theme-radius-sm);
   appearance: none;
   cursor: pointer;
   position: relative;
   align-self: center;
   border-width: 1px;
   border-style: solid;
-  border-color: var(---theme-checkbox-border-color);
-  background-color: var(---theme-checkbox-background-color);
+  border-color: var(--theme-checkbox-border-color);
+  background-color: var(--theme-checkbox-background-color);
 }
 .checkbox_field:checked {
-  border-color: var(---theme-color-border-checked);
-  background: var(---theme-color-background-checked);
+  border-color: var(--theme-color-border-checked);
+  background: var(--theme-color-background-checked);
 }
 .checkbox_field:checked::after {
   content: "";
   position: absolute;
-  top: var(---theme-spacing-3xs);
-  left: var(---theme-spacing-sm);
-  width: var(---theme-spacing-2xs);
-  height: var(---theme-spacing-sm);
-  border: solid var(---theme-checkbox-check-color);
+  top: var(--theme-spacing-3xs);
+  left: var(--theme-spacing-sm);
+  width: var(--theme-spacing-2xs);
+  height: var(--theme-spacing-sm);
+  border: solid var(--theme-checkbox-check-color);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
@@ -291,26 +292,26 @@ style {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  padding: var(---theme-padding-input);
-  border-radius: var(---theme-radius-md);
-  color: var(---theme-dropdown-text-color);
+  padding: var(--theme-padding-input);
+  border-radius: var(--theme-radius-md);
+  color: var(--theme-dropdown-text-color);
   line-height: 1.25;
   min-width: 160px;
   cursor: pointer;
   padding-right: 36px;
   border-width: 1px;
   border-style: solid;
-  border-color: var(---theme-dropdown-border-color);
-  background-color: var(---theme-dropdown-background-color);
+  border-color: var(--theme-dropdown-border-color);
+  background-color: var(--theme-dropdown-background-color);
 }
 .dropdown_arrow::after {
   content: "";
   position: absolute;
   top: 50%;
-  right: var(---theme-spacing-sm);
+  right: var(--theme-spacing-sm);
   transform: translateY(-50%);
-  width: var(---theme-size-thumb);
-  height: var(---theme-size-thumb);
+  width: var(--theme-size-thumb);
+  height: var(--theme-size-thumb);
   background-color: currentColor;
   mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M7 10l5 5 5-5z'/></svg>");
   -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M7 10l5 5 5-5z'/></svg>");
@@ -324,12 +325,12 @@ style {
 }
 
 .option {
-  background: var(---theme-option-background-color);
-  color: var(---theme-option-text-color);
+  background: var(--theme-option-background-color);
+  color: var(--theme-option-text-color);
   padding: 4px 10px;
 }
 .option[selected] {
-  background: var(---theme-color-background-selected);
+  background: var(--theme-color-background-selected);
   font-weight: bold;
 }
 
@@ -338,13 +339,13 @@ style {
 .dropdown_field:hover,
 .checkbox_field:hover,
 .slider_field:hover {
-  border-color: var(---theme-color-border-hover);
+  border-color: var(--theme-color-border-hover);
 }
 .slider_field:hover::-webkit-slider-thumb {
-  border-color: var(---theme-color-border-hover);
+  border-color: var(--theme-color-border-hover);
 }
 .slider_field:hover::-moz-range-thumb {
-  border-color: var(---theme-color-border-hover);
+  border-color: var(--theme-color-border-hover);
 }
 
 .input_field:active,
@@ -352,13 +353,13 @@ style {
 .dropdown_field:active,
 .checkbox_field:active,
 .slider_field:active {
-  border-color: var(---theme-color-border-active);
+  border-color: var(--theme-color-border-active);
 }
 .slider_field:active::-webkit-slider-thumb {
-  border-color: var(---theme-color-border-active);
+  border-color: var(--theme-color-border-active);
 }
 .slider_field:active::-moz-range-thumb {
-  border-color: var(---theme-color-border-active);
+  border-color: var(--theme-color-border-active);
 }
 
 .input_field:focus-visible,
@@ -367,13 +368,12 @@ style {
 .checkbox_field:focus-visible,
 .slider_field:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 var(---theme-focus-ring-width)
-    var(---theme-focus-ring-color);
-  border-color: var(---theme-color-border-focus);
+  box-shadow: 0 0 0 var(--theme-focus-ring-width) var(--theme-focus-ring-color);
+  border-color: var(--theme-color-border-focus);
 }
 .slider_field:focus-visible::-webkit-slider-thumb {
-  border-color: var(---theme-color-border-focus);
+  border-color: var(--theme-color-border-focus);
 }
 .slider_field:focus-visible::-moz-range-thumb {
-  border-color: var(---theme-color-border-focus);
+  border-color: var(--theme-color-border-focus);
 }

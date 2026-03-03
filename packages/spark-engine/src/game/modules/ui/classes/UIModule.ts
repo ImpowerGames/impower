@@ -440,6 +440,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    const colors = this.context?.color;
+    if (colors) {
+      for (const [name, color] of Object.entries(colors)) {
+        if (!name.startsWith("$")) {
+          const varName = getVarName("color", name);
+          const varValue = color.value;
+          if (varValue) {
+            style[varName] = varValue;
+          }
+        }
+      }
+    }
     const eases = this.context?.ease;
     if (eases) {
       for (const [name, ease] of Object.entries(eases)) {

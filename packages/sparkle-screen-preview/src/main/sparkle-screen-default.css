@@ -2,62 +2,63 @@
 
 .screen {
   /* Controls */
-  ---theme-color-control-background: var(---theme-color-neutral-20);
-  ---theme-color-control-border: var(---theme-color-neutral-40);
-  ---theme-color-control-text: var(---theme-color-neutral-100);
+  --theme-color-control-background: var(--theme-color-neutral-20);
+  --theme-color-control-border: var(--theme-color-neutral-40);
+  --theme-color-control-text: var(--theme-color-neutral-100);
 
   /* Inputs */
-  ---theme-color-input-placeholder: var(---theme-color-neutral-70);
+  --theme-color-input-placeholder: var(--theme-color-neutral-70);
 
   /* Checkboxes */
-  ---theme-color-checkbox-check: var(---theme-color-neutral-100);
+  --theme-color-checkbox-check: var(--theme-color-neutral-100);
 
   /* Sliders */
-  ---theme-color-slider-thumb-background: var(---theme-color-primary-60);
-  ---theme-color-slider-thumb-border: var(---theme-color-primary-60);
-  ---theme-color-slider-fill: var(---theme-color-primary-60);
-  ---theme-color-slider-track: var(---theme-color-neutral-40);
+  --theme-color-slider-thumb-background: var(--theme-color-primary-60);
+  --theme-color-slider-thumb-border: var(--theme-color-primary-60);
+  --theme-color-slider-fill: var(--theme-color-primary-60);
+  --theme-color-slider-track: var(--theme-color-neutral-40);
 
-  ---fill-color: var(---theme-color-slider-fill);
-  ---track-color: var(---theme-color-slider-track);
-  ---thumb-background-color: var(---theme-color-slider-thumb-background);
-  ---thumb-border-color: var(---theme-color-slider-thumb-border);
-  ---thumb-size: var(---theme-size-thumb);
+  ---fill-color: var(--theme-color-slider-fill);
+  ---track-color: var(--theme-color-slider-track);
+  ---thumb-background-color: var(--theme-color-slider-thumb-background);
+  ---thumb-border-color: var(--theme-color-slider-thumb-border);
+  ---thumb-size: var(--theme-size-thumb);
 }
 
 * {
-  scrollbar-color: var(---theme-color-scrollbar-thumb)
-    var(---theme-color-scrollbar-track);
-  scrollbar-width: var(---theme-scrollbar-thickness);
-  scrollbar-gutter: var(---theme-scrollbar-gutter);
-  scroll-behavior: var(---theme-scrollbar-behavior);
-  scroll-margin: var(---theme-scrollbar-margin);
-  scroll-padding: var(---theme-scrollbar-padding);
+  scrollbar-color: var(--theme-color-scrollbar-thumb)
+    var(--theme-color-scrollbar-track);
+  scrollbar-width: var(--theme-scrollbar-thickness);
+  scrollbar-gutter: var(--theme-scrollbar-gutter);
+  scroll-behavior: var(--theme-scrollbar-behavior);
+  scroll-margin: var(--theme-scrollbar-margin);
+  scroll-padding: var(--theme-scrollbar-padding);
 
-  transition-property: opacity, translate, rotate, scale, transform, filter,
-    backdrop-filter, clip-path, mix-blend-mode, box-shadow, color,
-    background-color, border-color, text-decoration-color, fill, stroke;
-  transition-duration: var(---theme-transition-fast);
+  transition-property:
+    opacity, translate, rotate, scale, transform, filter, backdrop-filter,
+    clip-path, mix-blend-mode, box-shadow, color, background-color,
+    border-color, text-decoration-color, fill, stroke;
+  transition-duration: var(--theme-transition-fast);
 }
 
 .Button:hover,
 .DropdownField:hover,
 .CheckboxField:hover,
 .SliderField:hover {
-  background-color: var(---theme-color-background-hover);
+  background-color: var(--theme-color-background-hover);
 }
 
 .Button:active,
 .DropdownField:active,
 .CheckboxField:active,
 .SliderField:active {
-  background-color: var(---theme-color-background-active);
+  background-color: var(--theme-color-background-active);
 }
 
 .screen {
   min-height: 100vh;
-  font-size: var(---theme-text-md-font-size);
-  color: var(---theme-color-text);
+  font-size: var(--theme-text-md-font-size);
+  color: var(--theme-color-text);
 }
 
 .component {
@@ -69,26 +70,26 @@ style {
 }
 
 .Box {
-  background: var(---theme-color-surface);
-  padding: var(---theme-spacing-md);
-  border-radius: var(---theme-radius-lg);
-  gap: var(---theme-spacing-md);
+  background: var(--theme-color-surface);
+  padding: var(--theme-spacing-md);
+  border-radius: var(--theme-radius-lg);
+  gap: var(--theme-spacing-md);
 }
 
 .Row {
   flex-direction: row;
-  gap: var(---theme-spacing-sm);
+  gap: var(--theme-spacing-sm);
 }
 
 .Column {
   flex-direction: column;
-  gap: var(---theme-spacing-sm);
+  gap: var(--theme-spacing-sm);
 }
 
 .Grid {
   display: grid;
   grid-template-columns: var(---columns, 1fr 1fr 1fr);
-  gap: var(---theme-spacing-sm);
+  gap: var(--theme-spacing-sm);
 }
 .Grid * {
   min-width: 0;
@@ -98,15 +99,15 @@ style {
 
 .ScrollArea {
   flex-direction: column;
-  gap: var(---theme-spacing-sm);
+  gap: var(--theme-spacing-sm);
   max-width: 100%;
   max-height: 100%;
   overflow-y: scroll;
   overscroll-behavior: contain;
   scroll-behavior: smooth;
-  scrollbar-color: var(---theme-color-scrollbar-thumb)
-    var(---theme-color-scrollbar-track);
-  scrollbar-width: var(---theme-scrollbar-thickness);
+  scrollbar-color: var(--theme-color-scrollbar-thumb)
+    var(--theme-color-scrollbar-track);
+  scrollbar-width: var(--theme-scrollbar-thickness);
 }
 .ScrollArea * {
   min-width: 0;
@@ -126,8 +127,8 @@ style {
 }
 
 .Divider {
-  background-color: var(---theme-color-fg-12);
-  border-radius: var(---theme-radius-lg);
+  background-color: var(--theme-color-fg-12);
+  border-radius: var(--theme-radius-lg);
 }
 
 .Text {
@@ -145,58 +146,60 @@ style {
   max-width: 100%;
   height: auto;
   object-fit: contain;
-  border-radius: var(---theme-radius-sm);
+  border-radius: var(--theme-radius-sm);
 }
 
 .Button {
   padding: 8px 20px;
-  border-radius: var(---theme-radius-lg);
-  color: var(---theme-color-control-text);
+  border-radius: var(--theme-radius-lg);
+  color: var(--theme-color-control-text);
   font-weight: 600;
   text-align: center;
   justify-content: center;
-  border-width: var(---theme-border-width-control);
+  border-width: var(--theme-border-width-control);
   border-style: solid;
-  border-color: var(---theme-color-control-border);
-  background-color: var(---theme-color-control-background);
+  border-color: var(--theme-color-control-border);
+  background-color: var(--theme-color-control-background);
 }
 
 .Label {
   display: flex;
   flex-direction: column;
-  gap: var(---theme-spacing-2xs);
+  gap: var(--theme-spacing-2xs);
   align-items: start;
   position: relative;
 }
 
 .InputField {
-  padding: var(---theme-padding-input);
-  border-radius: var(---theme-radius-md);
-  color: var(---theme-color-control-text);
-  border-width: var(---theme-border-width-control);
+  padding: var(--theme-padding-input);
+  border-radius: var(--theme-radius-md);
+  color: var(--theme-color-control-text);
+  border-width: var(--theme-border-width-control);
   border-style: solid;
-  border-color: var(---theme-color-control-border);
-  background-color: var(---theme-color-control-background);
+  border-color: var(--theme-color-control-border);
+  background-color: var(--theme-color-control-background);
 }
 .InputField::placeholder {
-  color: var(---theme-color-input-placeholder);
+  color: var(--theme-color-input-placeholder);
 }
 
 .InputAreaField {
   width: 100%;
   min-height: 100px;
-  padding: var(---theme-padding-input);
+  padding: var(--theme-padding-input);
   font-family: inherit;
-  border-radius: var(---theme-radius-lg);
+  border-radius: var(--theme-radius-lg);
   resize: vertical;
   outline: none;
   resize: none; /* don't allow resizing */
   overflow: auto;
-  transition: border-color 0.2s, background-color 0.2s;
-  border-width: var(---theme-border-width-control);
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+  border-width: var(--theme-border-width-control);
   border-style: solid;
-  border-color: var(---theme-color-control-border);
-  background-color: var(---theme-color-control-background);
+  border-color: var(--theme-color-control-border);
+  background-color: var(--theme-color-control-background);
 }
 
 .SliderField {
@@ -219,7 +222,7 @@ style {
   width: var(---thumb-size);
   height: var(---thumb-size);
   background: var(---thumb-background-color);
-  border-width: var(---theme-border-width-control);
+  border-width: var(--theme-border-width-control);
   border-style: solid;
   border-color: var(---thumb-border-color);
 }
@@ -229,7 +232,7 @@ style {
   width: var(---thumb-size);
   height: var(---thumb-size);
   background: var(---thumb-background-color);
-  border-width: var(---theme-border-width-control);
+  border-width: var(--theme-border-width-control);
   border-style: solid;
   border: var(---thumb-border-color);
 }
@@ -239,36 +242,36 @@ style {
 
 .Checkbox {
   flex-direction: row;
-  gap: var(---theme-spacing-xs);
+  gap: var(--theme-spacing-xs);
   align-items: center;
   justify-content: space-between;
 }
 .CheckboxField {
-  width: var(---theme-size-checkbox);
-  height: var(---theme-size-checkbox);
-  min-width: var(---theme-size-checkbox);
-  min-height: var(---theme-size-checkbox);
-  border-radius: var(---theme-radius-sm);
+  width: var(--theme-size-checkbox);
+  height: var(--theme-size-checkbox);
+  min-width: var(--theme-size-checkbox);
+  min-height: var(--theme-size-checkbox);
+  border-radius: var(--theme-radius-sm);
   appearance: none;
   cursor: pointer;
   position: relative;
   align-self: center;
-  border-width: var(---theme-border-width-control);
+  border-width: var(--theme-border-width-control);
   border-style: solid;
-  border-color: var(---theme-color-control-border);
-  background-color: var(---theme-color-control-background);
+  border-color: var(--theme-color-control-border);
+  background-color: var(--theme-color-control-background);
 }
 .CheckboxField:checked {
-  border-color: var(---theme-color-border-checked);
-  background-color: var(---theme-color-background-checked);
+  border-color: var(--theme-color-border-checked);
+  background-color: var(--theme-color-background-checked);
 }
 .CheckboxField:checked::after {
   content: "";
   position: absolute;
   inset: 0;
-  background-color: var(---theme-color-checkbox-check);
-  mask-image: var(---theme-icon-check);
-  -webkit-mask-image: var(---theme-icon-check);
+  background-color: var(--theme-color-checkbox-check);
+  mask-image: var(--theme-icon-check);
+  -webkit-mask-image: var(--theme-icon-check);
   mask-repeat: no-repeat;
   -webkit-mask-repeat: no-repeat;
   mask-position: center;
@@ -282,29 +285,29 @@ style {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  padding: var(---theme-padding-input);
-  border-radius: var(---theme-radius-md);
-  color: var(---theme-color-control-text);
+  padding: var(--theme-padding-input);
+  border-radius: var(--theme-radius-md);
+  color: var(--theme-color-control-text);
   line-height: 1.25;
   min-width: 160px;
   cursor: pointer;
   padding-right: 36px;
-  border-width: var(---theme-border-width-control);
+  border-width: var(--theme-border-width-control);
   border-style: solid;
-  border-color: var(---theme-color-control-border);
-  background-color: var(---theme-color-control-background);
+  border-color: var(--theme-color-control-border);
+  background-color: var(--theme-color-control-background);
 }
 .DropdownArrow::after {
   content: "";
   position: absolute;
   top: 50%;
-  right: var(---theme-spacing-sm);
+  right: var(--theme-spacing-sm);
   transform: translateY(-50%);
-  width: var(---theme-size-thumb);
-  height: var(---theme-size-thumb);
+  width: var(--theme-size-thumb);
+  height: var(--theme-size-thumb);
   background-color: currentColor;
-  mask-image: var(---theme-icon-arrow-down);
-  -webkit-mask-image: var(---theme-icon-arrow-down);
+  mask-image: var(--theme-icon-arrow-down);
+  -webkit-mask-image: var(--theme-icon-arrow-down);
   mask-repeat: no-repeat;
   -webkit-mask-repeat: no-repeat;
   mask-position: center;
@@ -315,12 +318,12 @@ style {
 }
 
 .Option {
-  background: var(---theme-color-control-background);
-  color: var(---theme-color-control-text);
+  background: var(--theme-color-control-background);
+  color: var(--theme-color-control-text);
   padding: 4px 10px;
 }
 .Option[selected] {
-  background: var(---theme-color-background-selected);
+  background: var(--theme-color-background-selected);
   font-weight: bold;
 }
 
@@ -330,13 +333,13 @@ style {
 .DropdownField:hover,
 .CheckboxField:hover,
 .SliderField:hover {
-  border-color: var(---theme-color-border-hover);
+  border-color: var(--theme-color-border-hover);
 }
 .SliderField:hover::-webkit-slider-thumb {
-  border-color: var(---theme-color-border-hover);
+  border-color: var(--theme-color-border-hover);
 }
 .SliderField:hover::-moz-range-thumb {
-  border-color: var(---theme-color-border-hover);
+  border-color: var(--theme-color-border-hover);
 }
 
 .InputField:active,
@@ -345,13 +348,13 @@ style {
 .DropdownField:active,
 .CheckboxField:active,
 .SliderField:active {
-  border-color: var(---theme-color-border-active);
+  border-color: var(--theme-color-border-active);
 }
 .SliderField:active::-webkit-slider-thumb {
-  border-color: var(---theme-color-border-active);
+  border-color: var(--theme-color-border-active);
 }
 .SliderField:active::-moz-range-thumb {
-  border-color: var(---theme-color-border-active);
+  border-color: var(--theme-color-border-active);
 }
 
 .InputField:focus-visible,
@@ -361,13 +364,12 @@ style {
 .CheckboxField:focus-visible,
 .SliderField:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 var(---theme-focus-ring-width)
-    var(---theme-focus-ring-color);
-  border-color: var(---theme-color-border-focus);
+  box-shadow: 0 0 0 var(--theme-focus-ring-width) var(--theme-focus-ring-color);
+  border-color: var(--theme-color-border-focus);
 }
 .SliderField:focus-visible::-webkit-slider-thumb {
-  border-color: var(---theme-color-border-focus);
+  border-color: var(--theme-color-border-focus);
 }
 .SliderField:focus-visible::-moz-range-thumb {
-  border-color: var(---theme-color-border-focus);
+  border-color: var(--theme-color-border-focus);
 }

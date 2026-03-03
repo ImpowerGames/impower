@@ -373,7 +373,7 @@ export function renderVNode(
       ]
         .filter(Boolean)
         .join(" ");
-      const animationDeclaration = `---theme-animation-${name}: ${shorthand};`;
+      const animationDeclaration = `--theme-animation-${name}: ${shorthand};`;
       return `:is(:root,:host) { ${animationDeclaration} }`;
     }
 
@@ -384,7 +384,7 @@ export function renderVNode(
     if (type === "theme") {
       // Special case: build a style block
       const styleContent = (children ?? [])
-        .map((c, i) => "---theme-" + renderVNode(c, ctx, el, i))
+        .map((c, i) => "--theme-" + renderVNode(c, ctx, el, i))
         .join("");
       const name = el.args?.name;
       return {

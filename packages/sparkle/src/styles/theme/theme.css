@@ -1,256 +1,258 @@
 :is(:root, :host, [theme], .theme-dark, .theme-light) > * {
   /* Primary */
-  ---theme-color-primary-10: var(---theme-color-sky-10);
-  ---theme-color-primary-20: var(---theme-color-sky-20);
-  ---theme-color-primary-30: var(---theme-color-sky-30);
-  ---theme-color-primary-40: var(---theme-color-sky-40);
-  ---theme-color-primary-50: var(---theme-color-sky-50);
-  ---theme-color-primary-60: var(---theme-color-sky-60);
-  ---theme-color-primary-70: var(---theme-color-sky-70);
-  ---theme-color-primary-80: var(---theme-color-sky-80);
-  ---theme-color-primary-90: var(---theme-color-sky-90);
-  ---theme-color-primary-95: var(---theme-color-sky-95);
-  ---theme-color-primary-99: var(---theme-color-sky-99);
-  ---theme-color-primary: var(---theme-color-primary-50);
+  --theme-color-primary-10: var(--theme-color-sky-10);
+  --theme-color-primary-20: var(--theme-color-sky-20);
+  --theme-color-primary-30: var(--theme-color-sky-30);
+  --theme-color-primary-40: var(--theme-color-sky-40);
+  --theme-color-primary-50: var(--theme-color-sky-50);
+  --theme-color-primary-60: var(--theme-color-sky-60);
+  --theme-color-primary-70: var(--theme-color-sky-70);
+  --theme-color-primary-80: var(--theme-color-sky-80);
+  --theme-color-primary-90: var(--theme-color-sky-90);
+  --theme-color-primary-95: var(--theme-color-sky-95);
+  --theme-color-primary-99: var(--theme-color-sky-99);
+  --theme-color-primary: var(--theme-color-primary-50);
 
   /* Success */
-  ---theme-color-success-10: var(---theme-color-green-10);
-  ---theme-color-success-20: var(---theme-color-green-20);
-  ---theme-color-success-30: var(---theme-color-green-30);
-  ---theme-color-success-40: var(---theme-color-green-40);
-  ---theme-color-success-50: var(---theme-color-green-50);
-  ---theme-color-success-60: var(---theme-color-green-60);
-  ---theme-color-success-70: var(---theme-color-green-70);
-  ---theme-color-success-80: var(---theme-color-green-80);
-  ---theme-color-success-90: var(---theme-color-green-90);
-  ---theme-color-success-95: var(---theme-color-green-95);
-  ---theme-color-success-99: var(---theme-color-green-99);
-  ---theme-color-success: var(---theme-color-success-50);
+  --theme-color-success-10: var(--theme-color-green-10);
+  --theme-color-success-20: var(--theme-color-green-20);
+  --theme-color-success-30: var(--theme-color-green-30);
+  --theme-color-success-40: var(--theme-color-green-40);
+  --theme-color-success-50: var(--theme-color-green-50);
+  --theme-color-success-60: var(--theme-color-green-60);
+  --theme-color-success-70: var(--theme-color-green-70);
+  --theme-color-success-80: var(--theme-color-green-80);
+  --theme-color-success-90: var(--theme-color-green-90);
+  --theme-color-success-95: var(--theme-color-green-95);
+  --theme-color-success-99: var(--theme-color-green-99);
+  --theme-color-success: var(--theme-color-success-50);
 
   /* Warning */
-  ---theme-color-warning-10: var(---theme-color-amber-10);
-  ---theme-color-warning-20: var(---theme-color-amber-20);
-  ---theme-color-warning-30: var(---theme-color-amber-30);
-  ---theme-color-warning-40: var(---theme-color-amber-40);
-  ---theme-color-warning-50: var(---theme-color-amber-50);
-  ---theme-color-warning-60: var(---theme-color-amber-60);
-  ---theme-color-warning-70: var(---theme-color-amber-70);
-  ---theme-color-warning-80: var(---theme-color-amber-80);
-  ---theme-color-warning-90: var(---theme-color-amber-90);
-  ---theme-color-warning-95: var(---theme-color-amber-95);
-  ---theme-color-warning-99: var(---theme-color-amber-99);
-  ---theme-color-warning: var(---theme-color-warning-50);
+  --theme-color-warning-10: var(--theme-color-amber-10);
+  --theme-color-warning-20: var(--theme-color-amber-20);
+  --theme-color-warning-30: var(--theme-color-amber-30);
+  --theme-color-warning-40: var(--theme-color-amber-40);
+  --theme-color-warning-50: var(--theme-color-amber-50);
+  --theme-color-warning-60: var(--theme-color-amber-60);
+  --theme-color-warning-70: var(--theme-color-amber-70);
+  --theme-color-warning-80: var(--theme-color-amber-80);
+  --theme-color-warning-90: var(--theme-color-amber-90);
+  --theme-color-warning-95: var(--theme-color-amber-95);
+  --theme-color-warning-99: var(--theme-color-amber-99);
+  --theme-color-warning: var(--theme-color-warning-50);
 
   /* Danger */
-  ---theme-color-danger-10: var(---theme-color-red-10);
-  ---theme-color-danger-20: var(---theme-color-red-20);
-  ---theme-color-danger-30: var(---theme-color-red-30);
-  ---theme-color-danger-40: var(---theme-color-red-40);
-  ---theme-color-danger-50: var(---theme-color-red-50);
-  ---theme-color-danger-60: var(---theme-color-red-60);
-  ---theme-color-danger-70: var(---theme-color-red-70);
-  ---theme-color-danger-80: var(---theme-color-red-80);
-  ---theme-color-danger-90: var(---theme-color-red-90);
-  ---theme-color-danger-95: var(---theme-color-red-95);
-  ---theme-color-danger-99: var(---theme-color-red-99);
-  ---theme-color-danger: var(---theme-color-danger-50);
+  --theme-color-danger-10: var(--theme-color-red-10);
+  --theme-color-danger-20: var(--theme-color-red-20);
+  --theme-color-danger-30: var(--theme-color-red-30);
+  --theme-color-danger-40: var(--theme-color-red-40);
+  --theme-color-danger-50: var(--theme-color-red-50);
+  --theme-color-danger-60: var(--theme-color-red-60);
+  --theme-color-danger-70: var(--theme-color-red-70);
+  --theme-color-danger-80: var(--theme-color-red-80);
+  --theme-color-danger-90: var(--theme-color-red-90);
+  --theme-color-danger-95: var(--theme-color-red-95);
+  --theme-color-danger-99: var(--theme-color-red-99);
+  --theme-color-danger: var(--theme-color-danger-50);
 
   /* General */
-  ---theme-color-border-focus: var(---theme-color-primary-70);
-  ---theme-color-border-hover: var(---theme-color-neutral-80);
-  ---theme-color-border-active: var(---theme-color-neutral-70);
-  ---theme-color-border-checked: var(---theme-color-primary-60);
-  ---theme-color-background-hover: var(---theme-color-neutral-30);
-  ---theme-color-background-active: var(---theme-color-neutral-40);
-  ---theme-color-background-selected: var(---theme-color-neutral-50);
-  ---theme-color-background-checked: var(---theme-color-primary-60);
+  --theme-color-border-focus: var(--theme-color-primary-70);
+  --theme-color-border-hover: var(--theme-color-neutral-80);
+  --theme-color-border-active: var(--theme-color-neutral-70);
+  --theme-color-border-checked: var(--theme-color-primary-60);
+  --theme-color-background-hover: var(--theme-color-neutral-30);
+  --theme-color-background-active: var(--theme-color-neutral-40);
+  --theme-color-background-selected: var(--theme-color-neutral-50);
+  --theme-color-background-checked: var(--theme-color-primary-60);
 
   /*
    * Breakpoints
    */
 
-  ---theme-breakpoint-xs: 400px;
-  ---theme-breakpoint-sm: 600px;
-  ---theme-breakpoint-md: 960px;
-  ---theme-breakpoint-lg: 1280px;
-  ---theme-breakpoint-xl: 1920px;
+  --theme-breakpoint-xs: 400px;
+  --theme-breakpoint-sm: 600px;
+  --theme-breakpoint-md: 960px;
+  --theme-breakpoint-lg: 1280px;
+  --theme-breakpoint-xl: 1920px;
 
   /*
    * Typography
    */
 
   /* Fonts */
-  ---theme-font-mono: "Courier Prime Sans", SFMono-Regular, Consolas,
-    "Liberation Mono", Menlo, monospace;
-  ---theme-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
-    "Segoe UI Emoji", "Segoe UI Symbol";
-  ---theme-font-serif: Georgia, "Times New Roman", serif;
-  ---theme-font-icon: "icon";
+  --theme-font-mono:
+    "Courier Prime Sans", SFMono-Regular, Consolas, "Liberation Mono", Menlo,
+    monospace;
+  --theme-font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol";
+  --theme-font-serif: Georgia, "Times New Roman", serif;
+  --theme-font-icon: "icon";
 
   /* Type Scales */
-  ---theme-text-2xs-font-size: 0.6875rem;
-  ---theme-text-2xs-line-height: 1rem;
+  --theme-text-2xs-font-size: 0.6875rem;
+  --theme-text-2xs-line-height: 1rem;
 
-  ---theme-text-xs-font-size: 0.75rem;
-  ---theme-text-xs-line-height: 1rem;
+  --theme-text-xs-font-size: 0.75rem;
+  --theme-text-xs-line-height: 1rem;
 
-  ---theme-text-sm-font-size: 0.875rem;
-  ---theme-text-sm-line-height: 1.25rem;
+  --theme-text-sm-font-size: 0.875rem;
+  --theme-text-sm-line-height: 1.25rem;
 
-  ---theme-text-md-font-size: 1rem;
-  ---theme-text-md-line-height: 1.5rem;
+  --theme-text-md-font-size: 1rem;
+  --theme-text-md-line-height: 1.5rem;
 
-  ---theme-text-lg-font-size: 1.125rem;
-  ---theme-text-lg-line-height: 1.75rem;
+  --theme-text-lg-font-size: 1.125rem;
+  --theme-text-lg-line-height: 1.75rem;
 
-  ---theme-text-xl-font-size: 1.25rem;
-  ---theme-text-xl-line-height: 1.75rem;
+  --theme-text-xl-font-size: 1.25rem;
+  --theme-text-xl-line-height: 1.75rem;
 
-  ---theme-text-2xl-font-size: 1.5rem;
-  ---theme-text-2xl-line-height: 2rem;
+  --theme-text-2xl-font-size: 1.5rem;
+  --theme-text-2xl-line-height: 2rem;
 
-  ---theme-text-3xl-font-size: 1.875rem;
-  ---theme-text-3xl-line-height: 2.25rem;
+  --theme-text-3xl-font-size: 1.875rem;
+  --theme-text-3xl-line-height: 2.25rem;
 
-  ---theme-text-4xl-font-size: 2.25rem;
-  ---theme-text-4xl-line-height: 2.5rem;
+  --theme-text-4xl-font-size: 2.25rem;
+  --theme-text-4xl-line-height: 2.5rem;
 
-  ---theme-text-5xl-font-size: 3rem;
-  ---theme-text-5xl-line-height: 1;
+  --theme-text-5xl-font-size: 3rem;
+  --theme-text-5xl-line-height: 1;
 
-  ---theme-text-6xl-font-size: 3.75rem;
-  ---theme-text-6xl-line-height: 1;
+  --theme-text-6xl-font-size: 3.75rem;
+  --theme-text-6xl-line-height: 1;
 
-  ---theme-text-7xl-font-size: 4.5rem;
-  ---theme-text-7xl-line-height: 1;
+  --theme-text-7xl-font-size: 4.5rem;
+  --theme-text-7xl-line-height: 1;
 
-  ---theme-text-8xl-font-size: 6rem;
-  ---theme-text-8xl-line-height: 1;
+  --theme-text-8xl-font-size: 6rem;
+  --theme-text-8xl-line-height: 1;
 
-  ---theme-text-9xl-font-size: 8rem;
-  ---theme-text-9xl-line-height: 1;
+  --theme-text-9xl-font-size: 8rem;
+  --theme-text-9xl-line-height: 1;
 
   /* Text Leading */
-  ---theme-text-leading-none: 1;
-  ---theme-text-leading-xs: 1.25;
-  ---theme-text-leading-sm: 1.375;
-  ---theme-text-leading-md: 1.5;
-  ---theme-text-leading-lg: 1.625;
-  ---theme-text-leading-xl: 2;
-  ---theme-text-leading-2xl: 4;
+  --theme-text-leading-none: 1;
+  --theme-text-leading-xs: 1.25;
+  --theme-text-leading-sm: 1.375;
+  --theme-text-leading-md: 1.5;
+  --theme-text-leading-lg: 1.625;
+  --theme-text-leading-xl: 2;
+  --theme-text-leading-2xl: 4;
 
   /*
    * Opacities
    */
 
-  ---theme-opacity-drag: 0.16;
-  ---theme-opacity-press: 0.12;
-  ---theme-opacity-focus: 0.12;
-  ---theme-opacity-hover: 0.05;
+  --theme-opacity-drag: 0.16;
+  --theme-opacity-press: 0.12;
+  --theme-opacity-focus: 0.12;
+  --theme-opacity-hover: 0.05;
 
   /*
    * Z-indexes
    */
 
-  ---theme-z-index-drawer: 700;
-  ---theme-z-index-dialog: 800;
-  ---theme-z-index-dropdown: 900;
-  ---theme-z-index-toast: 950;
-  ---theme-z-index-tooltip: 1000;
+  --theme-z-index-drawer: 700;
+  --theme-z-index-dialog: 800;
+  --theme-z-index-dropdown: 900;
+  --theme-z-index-toast: 950;
+  --theme-z-index-tooltip: 1000;
 
   /*
    * Scrollbars
    */
 
-  ---theme-scrollbar-size: 8px;
-  ---theme-scrollbar-thickness: thin;
+  --theme-scrollbar-size: 8px;
+  --theme-scrollbar-thickness: thin;
 
   /*
    * Ratios
    */
-  ---theme-ratio-square: 1;
-  ---theme-ratio-landscape: 4/3;
-  ---theme-ratio-portrait: 3/4;
-  ---theme-ratio-widescreen: 16/9;
-  ---theme-ratio-ultrawide: 18/5;
-  ---theme-ratio-eighth: 1/8;
-  ---theme-ratio-quarter: 1/4;
-  ---theme-ratio-half: 1/2;
-  ---theme-ratio-third: 1/3;
-  ---theme-ratio-sixteenth: 1/16;
-  ---theme-ratio-minor-second: 1.067;
-  ---theme-ratio-major-second: 1.125;
-  ---theme-ratio-minor-third: 1.2;
-  ---theme-ratio-major-third: 1.25;
-  ---theme-ratio-perfect-fourth: 1.333;
-  ---theme-ratio-augmented-fourth: 1.414;
-  ---theme-ratio-perfect-fifth: 1.5;
-  ---theme-ratio-golden: 1.618;
-  ---theme-ratio-major-sixth: 1.667;
-  ---theme-ratio-minor-seventh: 1.778;
-  ---theme-ratio-major-seventh: 1.875;
-  ---theme-ratio-octave: 2;
+  --theme-ratio-square: 1;
+  --theme-ratio-landscape: 4/3;
+  --theme-ratio-portrait: 3/4;
+  --theme-ratio-widescreen: 16/9;
+  --theme-ratio-ultrawide: 18/5;
+  --theme-ratio-eighth: 1/8;
+  --theme-ratio-quarter: 1/4;
+  --theme-ratio-half: 1/2;
+  --theme-ratio-third: 1/3;
+  --theme-ratio-sixteenth: 1/16;
+  --theme-ratio-minor-second: 1.067;
+  --theme-ratio-major-second: 1.125;
+  --theme-ratio-minor-third: 1.2;
+  --theme-ratio-major-third: 1.25;
+  --theme-ratio-perfect-fourth: 1.333;
+  --theme-ratio-augmented-fourth: 1.414;
+  --theme-ratio-perfect-fifth: 1.5;
+  --theme-ratio-golden: 1.618;
+  --theme-ratio-major-sixth: 1.667;
+  --theme-ratio-minor-seventh: 1.778;
+  --theme-ratio-major-seventh: 1.875;
+  --theme-ratio-octave: 2;
 
   /*
    * Spacing
    */
-  ---theme-spacing-3xs: 2px;
-  ---theme-spacing-2xs: 4px;
-  ---theme-spacing-xs: 8px;
-  ---theme-spacing-sm: 12px;
-  ---theme-spacing-md: 16px;
-  ---theme-spacing-lg: 20px;
-  ---theme-spacing-xl: 28px;
-  ---theme-spacing-2xl: 36px;
-  ---theme-spacing-3xl: 48px;
-  ---theme-spacing-4xl: 72px;
+  --theme-spacing-3xs: 2px;
+  --theme-spacing-2xs: 4px;
+  --theme-spacing-xs: 8px;
+  --theme-spacing-sm: 12px;
+  --theme-spacing-md: 16px;
+  --theme-spacing-lg: 20px;
+  --theme-spacing-xl: 28px;
+  --theme-spacing-2xl: 36px;
+  --theme-spacing-3xl: 48px;
+  --theme-spacing-4xl: 72px;
 
   /*
    * Transitions
    */
-  ---theme-transition-x-slow: 1000ms;
-  ---theme-transition-slow: 500ms;
-  ---theme-transition-medium: 250ms;
-  ---theme-transition-fast: 150ms;
-  ---theme-transition-x-fast: 50ms;
+  --theme-transition-x-slow: 1000ms;
+  --theme-transition-slow: 500ms;
+  --theme-transition-medium: 250ms;
+  --theme-transition-fast: 150ms;
+  --theme-transition-x-fast: 50ms;
 
   /* 
    * Focus rings 
    */
-  ---theme-focus-ring-color: var(---theme-color-primary-20);
-  ---theme-focus-ring-style: solid;
-  ---theme-focus-ring-width: 3px;
-  ---theme-focus-ring-offset: 2px;
+  --theme-focus-ring-color: var(--theme-color-primary-20);
+  --theme-focus-ring-style: solid;
+  --theme-focus-ring-width: 3px;
+  --theme-focus-ring-offset: 2px;
 
   /* 
    * Radius
    */
-  ---theme-radius-sm: 4px;
-  ---theme-radius-md: 6px;
-  ---theme-radius-lg: 8px;
+  --theme-radius-sm: 4px;
+  --theme-radius-md: 6px;
+  --theme-radius-lg: 8px;
 
   /* 
    * Padding
    */
-  ---theme-padding-button: var(---theme-spacing-xs) var(---theme-spacing-lg);
-  ---theme-padding-input: var(---theme-spacing-xs) var(---theme-spacing-sm);
-  ---theme-padding-option: var(---theme-spacing-2xs) 10px;
+  --theme-padding-button: var(--theme-spacing-xs) var(--theme-spacing-lg);
+  --theme-padding-input: var(--theme-spacing-xs) var(--theme-spacing-sm);
+  --theme-padding-option: var(--theme-spacing-2xs) 10px;
 
   /* 
    * Sizes
    */
-  ---theme-size-thumb: 16px;
-  ---theme-size-checkbox: 16px;
+  --theme-size-thumb: 16px;
+  --theme-size-checkbox: 16px;
 
   /*
    * Borders
    */
-  ---theme-border-width-control: 1px;
+  --theme-border-width-control: 1px;
 
   /*
   * Icons
   */
-  ---theme-icon-check: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m9 20.42l-6.21-6.21l2.83-2.83L9 14.77l9.88-9.89l2.83 2.83z"/></svg>');
-  ---theme-icon-arrow-down: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor"  d="M7 10l5 5 5-5z"/></svg>');
+  --theme-icon-check: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m9 20.42l-6.21-6.21l2.83-2.83L9 14.77l9.88-9.89l2.83 2.83z"/></svg>');
+  --theme-icon-arrow-down: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor"  d="M7 10l5 5 5-5z"/></svg>');
 }
