@@ -10,6 +10,7 @@ import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
 import { UnobserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
 import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
+import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 
@@ -55,9 +56,14 @@ export default class UIManager extends Manager {
       }
       if (params.style) {
         el.style.cssText = Object.entries(params.style)
-          .map(([k, v]) => {
+          .flatMap(([k, v]) => {
             const [prop, value] = getCSSPropertyKeyValue(k, v);
-            return `${prop}:${value}`;
+            const cssEntries = getCssEquivalent(prop, value);
+            const arr = [];
+            for (const [k, v] of cssEntries) {
+              arr.push(`${k}:${v}`);
+            }
+            return arr;
           })
           .join(";");
       }
@@ -158,13 +164,18 @@ export default class UIManager extends Manager {
           if (params.style) {
             Object.entries(params.style).forEach(([k, v]) => {
               const [prop, value] = getCSSPropertyKeyValue(k, v);
+              const cssEntries = getCssEquivalent(prop, value);
               if (v == null) {
-                if (element) {
-                  element.style.removeProperty(prop);
+                for (const [cssProp] of cssEntries) {
+                  if (element) {
+                    element.style.removeProperty(cssProp);
+                  }
                 }
               } else {
-                if (element) {
-                  element.style.setProperty(prop, value);
+                for (const [cssProp, cssValue] of cssEntries) {
+                  if (element) {
+                    element.style.setProperty(cssProp, cssValue);
+                  }
                 }
               }
             });

@@ -1,31 +1,9 @@
 import { getVarName } from "../../../spark-engine/src/game/modules/ui/utils/getVarName";
 import { getCSSPropertyName } from "./getCSSPropertyName";
 
-const createTextShadow = (r: number, color = "black", unit = "px"): string => {
-  return createShadows(r, color, unit).join(", ") || "none";
-};
-
-const createShadows = (r: number, color = "black", unit = "px"): string[] => {
-  if (r === 0) {
-    return [];
-  }
-  // number of shadows
-  const n = Math.ceil(16 * Math.PI);
-  const shadows: string[] = [];
-  for (let i = 0; i < n; i += 1) {
-    const theta = (2 * Math.PI * i) / n;
-    shadows.push(
-      `${r * Math.cos(theta)}${unit} ${r * Math.sin(theta)}${unit} 1px ${color}`,
-    );
-  }
-  return shadows;
-};
-
 const isNumber = (value: unknown): value is number => {
   return !Number.isNaN(Number(value));
 };
-
-const VALUE_AND_UNIT_REGEX = /((?:\d*[.])?\d+)([a-z]+)/;
 
 export const getCSSPropertyKeyValue = (
   name: string,
@@ -87,24 +65,6 @@ export const getCSSPropertyKeyValue = (
     const src = cssValue.trim();
     const urlValue = src.includes("(") ? src : `url('${encodeURI(src)}')`;
     return [cssProp, urlValue];
-  }
-  if (cssProp === "text-stroke") {
-    if (cssValue === "none" || cssValue === "0" || cssValue === 0) {
-      return ["text-shadow", "none"];
-    }
-    if (isNumber(cssValue)) {
-      return ["text-shadow", createTextShadow(cssValue)];
-    }
-    if (typeof cssValue === "string") {
-      const parts = cssValue.split(" ");
-      const match = parts[0]?.match(VALUE_AND_UNIT_REGEX);
-      const r = match?.[1];
-      const unit = match?.[2];
-      const num = Number(r);
-      if (!Number.isNaN(num)) {
-        return ["text-shadow", createTextShadow(num, parts[1], unit)];
-      }
-    }
   }
   if (cssProp === "line-height") {
     return [cssProp, String(cssValue)];
