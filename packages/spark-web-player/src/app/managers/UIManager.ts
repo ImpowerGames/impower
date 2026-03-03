@@ -57,15 +57,18 @@ export default class UIManager extends Manager {
       if (params.style) {
         el.style.cssText = Object.entries(params.style)
           .flatMap(([k, v]) => {
-            const [prop, value] = getCSSPropertyKeyValue(k, v);
-            const cssEntries = getCssEquivalent(prop, value);
             const arr = [];
-            for (const [k, v] of cssEntries) {
-              arr.push(`${k}:${v}`);
+            if (v != null) {
+              const [prop, value] = getCSSPropertyKeyValue(k, v);
+              const cssEntries = getCssEquivalent(prop, value);
+              for (const [k, v] of cssEntries) {
+                arr.push(`${k}:${v}`);
+              }
             }
             return arr;
           })
           .join(";");
+        console.log(params.style, el.style.cssText);
       }
       if (params.attributes) {
         Object.entries(params.attributes).forEach(([k, v]) => {
