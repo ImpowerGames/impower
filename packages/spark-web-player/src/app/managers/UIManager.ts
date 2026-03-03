@@ -68,7 +68,6 @@ export default class UIManager extends Manager {
             return arr;
           })
           .join(";");
-        console.log(params.style, el.style.cssText);
       }
       if (params.attributes) {
         Object.entries(params.attributes).forEach(([k, v]) => {
