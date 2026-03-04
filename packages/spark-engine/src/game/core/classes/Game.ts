@@ -209,7 +209,7 @@ export class Game<T extends M = {}> {
         modules?: {
           [name in keyof T]: abstract new (...args: any) => T[name];
         };
-      }
+      },
   ) {
     this._program = this.updateProgram(options.program, options.story);
 
@@ -308,7 +308,7 @@ export class Game<T extends M = {}> {
             return system.now();
           },
         },
-        (callback: () => void) => system.requestFrame?.(callback) ?? 0
+        (callback: () => void) => system.requestFrame?.(callback) ?? 0,
       );
     }
   }
@@ -317,11 +317,11 @@ export class Game<T extends M = {}> {
     this._program = program;
     if (!story && !this._program.compiled) {
       throw new Error(
-        "Program must be successfully compiled before it can be run"
+        "Program must be successfully compiled before it can be run",
       );
     }
     this._pathLocationEntries = Object.entries(
-      this._program.pathLocations || {}
+      this._program.pathLocations || {},
     );
     this._scripts = Object.keys(this._program.scripts);
 
@@ -371,7 +371,7 @@ export class Game<T extends M = {}> {
         favoredConditions?: (boolean | undefined)[];
         favoredChoices?: (number | undefined)[];
       }
-    >
+    >,
   ) {
     this._simulation = "simulating";
     if (this._startPath) {
@@ -383,7 +383,7 @@ export class Game<T extends M = {}> {
         this._program,
         fromPath,
         toPath,
-        simulationOptions
+        simulationOptions,
       );
       if (route) {
         this.simulateRoute(route, 0);
@@ -399,8 +399,8 @@ export class Game<T extends M = {}> {
     this._connection.connectOutput(send);
     await Promise.all(
       this._moduleNames.map((moduleName) =>
-        this._modules[moduleName]?.onConnected()
-      )
+        this._modules[moduleName]?.onConnected(),
+      ),
     );
     await this.restore();
   }
@@ -408,11 +408,11 @@ export class Game<T extends M = {}> {
   static isContainerPath(program: SparkProgram, path: string) {
     return Boolean(
       path === "0" ||
-        program.knotLocations?.[path] ||
-        program.stitchLocations?.[path] ||
-        program.functionLocations?.[path] ||
-        program.sceneLocations?.[path] ||
-        program.branchLocations?.[path]
+      program.knotLocations?.[path] ||
+      program.stitchLocations?.[path] ||
+      program.functionLocations?.[path] ||
+      program.sceneLocations?.[path] ||
+      program.branchLocations?.[path],
     );
   }
 
@@ -424,7 +424,7 @@ export class Game<T extends M = {}> {
         favoredConditions?: (boolean | undefined)[];
         favoredChoices?: (number | undefined)[];
       }
-    >
+    >,
   ) {
     if (!simulationOptions) {
       return {};
@@ -453,7 +453,7 @@ export class Game<T extends M = {}> {
       findClosestPath(
         this._startFrom,
         this._pathLocationEntries,
-        this._scripts
+        this._scripts,
       ) || "0";
     if (this._startPath) {
       const trueLocation = this._program.pathLocations?.[this._startPath];
@@ -471,13 +471,13 @@ export class Game<T extends M = {}> {
 
   static getValidStartFrom(
     program: SparkProgram,
-    startFrom: { file: string; line: number }
+    startFrom: { file: string; line: number },
   ) {
     const scripts = Object.keys(program.scripts);
     const path = findClosestPath(
       startFrom,
       Object.entries(program.pathLocations || {}),
-      scripts
+      scripts,
     );
     if (path) {
       const trueLocation = program.pathLocations?.[path];
@@ -505,12 +505,12 @@ export class Game<T extends M = {}> {
   }
 
   protected updateBreakpointsMap(
-    breakpoints: { file: string; line: number }[]
+    breakpoints: { file: string; line: number }[],
   ) {
     const actualBreakpoints = Game.getActualBreakpoints(
       this._pathLocationEntries,
       breakpoints,
-      this._scripts
+      this._scripts,
     );
     const breakpointMap: Record<number, Map<number, Breakpoint>> = {};
     for (const b of actualBreakpoints) {
@@ -529,12 +529,12 @@ export class Game<T extends M = {}> {
   }
 
   protected updateFunctionBreakpointsMap(
-    functionBreakpoints: { name: string }[]
+    functionBreakpoints: { name: string }[],
   ) {
     const actualBreakpoints = Game.getActualFunctionBreakpoints(
       this._program.functionLocations,
       functionBreakpoints,
-      this._scripts
+      this._scripts,
     );
     const breakpointMap: Record<number, Map<number, Breakpoint>> = {};
     for (const b of actualBreakpoints) {
@@ -556,7 +556,7 @@ export class Game<T extends M = {}> {
     const actualBreakpoints = Game.getActualDataBreakpoints(
       this._program.dataLocations,
       dataBreakpoints,
-      this._scripts
+      this._scripts,
     );
     const breakpointMap: Record<number, Map<number, Breakpoint>> = {};
     for (const b of actualBreakpoints) {
@@ -591,7 +591,7 @@ export class Game<T extends M = {}> {
         favoredConditions?: (boolean | undefined)[];
         favoredChoices?: (number | undefined)[];
       }
-    >
+    >,
   ) {
     // Plan a route from the top of the knot containing the target path, to the target path itself
     return planRoute(story, fromPath, toPath, {
@@ -674,7 +674,7 @@ export class Game<T extends M = {}> {
     const newSteps = [];
     let lastValidNewRouteStep = validSteps.at(-1);
     let lastValidOldRouteCheckpoint = this.getCheckpoint(
-      lastValidNewRouteStep?.seq || ""
+      lastValidNewRouteStep?.seq || "",
     );
     while (lastValidNewRouteStep && !lastValidOldRouteCheckpoint) {
       const invalidStep = validSteps.pop();
@@ -683,7 +683,7 @@ export class Game<T extends M = {}> {
       }
       lastValidNewRouteStep = validSteps.at(-1);
       lastValidOldRouteCheckpoint = this.getCheckpoint(
-        lastValidNewRouteStep?.seq || ""
+        lastValidNewRouteStep?.seq || "",
       );
     }
 
@@ -783,7 +783,7 @@ export class Game<T extends M = {}> {
 
   async restore(): Promise<void> {
     await Promise.all(
-      this._moduleNames.map((k) => this._modules[k]?.onRestore())
+      this._moduleNames.map((k) => this._modules[k]?.onRestore()),
     );
   }
 
@@ -859,7 +859,7 @@ export class Game<T extends M = {}> {
   }
 
   async onReceive(
-    msg: RequestMessage | NotificationMessage
+    msg: RequestMessage | NotificationMessage,
   ): Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
     | { result: unknown; transfer?: ArrayBuffer[] }
@@ -930,7 +930,7 @@ export class Game<T extends M = {}> {
       if (this._executionTimedOut) {
         this.Error(
           "Execution timed out: Possible infinite loop",
-          ErrorType.Error
+          ErrorType.Error,
         );
         // Execution is taking too long. Force it to stop.
         return true;
@@ -1124,7 +1124,7 @@ export class Game<T extends M = {}> {
     this.connection.emit(
       GameHitBreakpointMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
-      })
+      }),
     );
   }
 
@@ -1132,7 +1132,7 @@ export class Game<T extends M = {}> {
     this.connection.emit(
       GameAwaitingInteractionMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
-      })
+      }),
     );
   }
 
@@ -1140,7 +1140,7 @@ export class Game<T extends M = {}> {
     this.connection.emit(
       GameAutoAdvancedToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
-      })
+      }),
     );
   }
 
@@ -1148,7 +1148,7 @@ export class Game<T extends M = {}> {
     this.connection.emit(
       GameClickedToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
-      })
+      }),
     );
   }
 
@@ -1156,7 +1156,7 @@ export class Game<T extends M = {}> {
     this.connection.emit(
       GameChosePathToContinueMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
-      })
+      }),
     );
   }
 
@@ -1170,25 +1170,25 @@ export class Game<T extends M = {}> {
 
   protected notifyStartedThread(threadIndex: number) {
     this.connection.emit(
-      GameStartedThreadMessage.type.notification({ threadId: threadIndex })
+      GameStartedThreadMessage.type.notification({ threadId: threadIndex }),
     );
   }
 
   protected notifyExitedThread(threadIndex: number) {
     this.connection.emit(
-      GameExitedThreadMessage.type.notification({ threadId: threadIndex })
+      GameExitedThreadMessage.type.notification({ threadId: threadIndex }),
     );
   }
 
   protected notifyPreviewed(path: string) {
     const location = this.getDocumentLocation(
-      this._program.pathLocations?.[path]
+      this._program.pathLocations?.[path],
     );
     this.connection.emit(
       GamePreviewedMessage.type.notification({
         location,
         path,
-      })
+      }),
     );
   }
 
@@ -1212,7 +1212,7 @@ export class Game<T extends M = {}> {
         state: this._state,
         restarted: this._restarted,
         simulation: this._simulation,
-      })
+      }),
     );
   }
 
@@ -1220,7 +1220,7 @@ export class Game<T extends M = {}> {
     this.connection.emit(
       GameSteppedMessage.type.notification({
         location: this.getDocumentLocation(this._executingLocation),
-      })
+      }),
     );
   }
 
@@ -1257,7 +1257,7 @@ export class Game<T extends M = {}> {
     for (const name of variableState["_globalVariables"].keys()) {
       const listDefinition = this._story.listDefinitions?.TryListGetDefinition(
         name,
-        null
+        null,
       )?.result;
       if (!listDefinition) {
         const valueObj = variableState.GetVariableWithName(name);
@@ -1267,7 +1267,7 @@ export class Game<T extends M = {}> {
             this.getVariableInfo(name, value, {
               kind: "data",
               visibility: "public",
-            })
+            }),
           );
         }
       }
@@ -1292,7 +1292,7 @@ export class Game<T extends M = {}> {
             this.getVariableInfo(listDefinition.name, value, {
               kind: "data",
               visibility: "public",
-            })
+            }),
           );
         }
       }
@@ -1308,7 +1308,7 @@ export class Game<T extends M = {}> {
           this.getVariableInfo(type, structs, {
             kind: "interface",
             visibility: "public",
-          })
+          }),
         );
       }
     }
@@ -1335,7 +1335,7 @@ export class Game<T extends M = {}> {
                   (p) =>
                     Number.isNaN(Number(p)) &&
                     !p.includes("-") &&
-                    !p.includes("$")
+                    !p.includes("$"),
                 )
                 .join(".")
             : undefined;
@@ -1348,8 +1348,8 @@ export class Game<T extends M = {}> {
                   kind: "data",
                   visibility: "private",
                 },
-                scopePath
-              )
+                scopePath,
+              ),
             );
           }
         }
@@ -1367,7 +1367,7 @@ export class Game<T extends M = {}> {
           this.getVariableInfo(index.toString(), v, {
             kind: "property",
             visibility: "public",
-          })
+          }),
         );
       });
     } else if (typeof value === "object" && value) {
@@ -1377,7 +1377,7 @@ export class Game<T extends M = {}> {
             this.getVariableInfo(k, v, {
               kind: "property",
               visibility: "public",
-            })
+            }),
           );
         }
       }
@@ -1386,7 +1386,7 @@ export class Game<T extends M = {}> {
         this.getVariableInfo("", value, {
           kind: "property",
           visibility: "public",
-        })
+        }),
       );
     }
     return variables;
@@ -1398,14 +1398,14 @@ export class Game<T extends M = {}> {
       this.getVariableInfo("", value, {
         kind: "property",
         visibility: "public",
-      })
+      }),
     );
     return variables;
   }
 
   getRuntimeValue(
     name: string,
-    valueObj: InkObject | null
+    valueObj: InkObject | null,
   ): unknown | undefined {
     if (valueObj && "value" in valueObj) {
       if (valueObj.value instanceof InkList) {
@@ -1441,7 +1441,7 @@ export class Game<T extends M = {}> {
     name: string,
     value: unknown,
     presentationHint?: VariablePresentationHint,
-    scopePath?: string
+    scopePath?: string,
   ): Variable {
     let variablesReference = 0;
     if (typeof value === "object" && value != null) {
@@ -1461,34 +1461,34 @@ export class Game<T extends M = {}> {
       value === undefined
         ? "undefined"
         : value === null
-        ? "null"
-        : typeof value === "object"
-        ? Array.isArray(value)
-          ? `[${value.length}]`
-          : Object.keys(value).filter((k) => !k.startsWith("$")).length > 0
-          ? "$type" in value &&
-            (value.$type === "list.def" || value.$type === "list.var")
-            ? "(...)"
-            : "{...}"
-          : "$type" in value &&
-            (value.$type === "list.def" || value.$type === "list.var")
-          ? "()"
-          : "{}"
-        : JSON.stringify(value);
+          ? "null"
+          : typeof value === "object"
+            ? Array.isArray(value)
+              ? `[${value.length}]`
+              : Object.keys(value).filter((k) => !k.startsWith("$")).length > 0
+                ? "$type" in value &&
+                  (value.$type === "list.def" || value.$type === "list.var")
+                  ? "(...)"
+                  : "{...}"
+                : "$type" in value &&
+                    (value.$type === "list.def" || value.$type === "list.var")
+                  ? "()"
+                  : "{}"
+            : JSON.stringify(value);
     const displayType =
       value === undefined
         ? "undefined"
         : value === null
-        ? "null"
-        : typeof value === "object"
-        ? Array.isArray(value)
-          ? `array`
-          : "$type" in value && typeof value.$type === "string"
-          ? value.$type === "list.def" || value.$type === "list.var"
-            ? "list"
-            : value.$type
-          : "object"
-        : typeof value;
+          ? "null"
+          : typeof value === "object"
+            ? Array.isArray(value)
+              ? `array`
+              : "$type" in value && typeof value.$type === "string"
+                ? value.$type === "list.def" || value.$type === "list.var"
+                  ? "list"
+                  : value.$type
+                : "object"
+            : typeof value;
     return {
       scopePath,
       name,
@@ -1522,7 +1522,7 @@ export class Game<T extends M = {}> {
   getStackTrace(
     threadId: number,
     startFrame: number = 0,
-    levels?: number
+    levels?: number,
   ): { stackFrames: StackFrame[]; totalFrames: number } {
     const stackFrames: StackFrame[] = [];
     const callStack = this._story.state.callStack;
@@ -1574,7 +1574,7 @@ export class Game<T extends M = {}> {
         type,
         location: this.getDocumentLocation(this._executingLocation),
         state: this._state,
-      })
+      }),
     );
   }
 
@@ -1598,7 +1598,7 @@ export class Game<T extends M = {}> {
     const previewPath = findClosestPath(
       { file, line },
       this._pathLocationEntries,
-      this._scripts
+      this._scripts,
     );
     if (!previewPath) {
       return null;
@@ -1679,12 +1679,12 @@ export class Game<T extends M = {}> {
   static documentLocation(
     program: SparkProgram,
     scripts: string[],
-    location: ScriptLocation | null | undefined
+    location: ScriptLocation | null | undefined,
   ): DocumentLocation {
     const [scriptIndex, startLine, startColumn, endLine, endColumn] =
       location || [];
     const uri =
-      scriptIndex != null ? scripts[scriptIndex] ?? program.uri : program.uri;
+      scriptIndex != null ? (scripts[scriptIndex] ?? program.uri) : program.uri;
     return {
       uri,
       range: {
@@ -1703,7 +1703,7 @@ export class Game<T extends M = {}> {
   static getActualBreakpoints(
     pathLocationEntries: [string, ScriptLocation][],
     breakpoints: { file: string; line: number }[],
-    scripts: string[]
+    scripts: string[],
   ) {
     const actualBreakpoints: Breakpoint[] = [];
     for (const breakpoint of breakpoints) {
@@ -1743,7 +1743,7 @@ export class Game<T extends M = {}> {
   static getActualFunctionBreakpoints(
     functionLocations: Record<string, ScriptLocation> | undefined,
     breakpoints: { name: string }[],
-    scripts: string[]
+    scripts: string[],
   ) {
     const actualBreakpoints: Breakpoint[] = [];
     for (const breakpoint of breakpoints) {
@@ -1783,7 +1783,7 @@ export class Game<T extends M = {}> {
   static getActualDataBreakpoints(
     dataLocations: Record<string, ScriptLocation> | undefined,
     breakpoints: { dataId: string }[],
-    scripts: string[]
+    scripts: string[],
   ) {
     const actualBreakpoints: Breakpoint[] = [];
     for (const breakpoint of breakpoints) {
@@ -1824,7 +1824,7 @@ export class Game<T extends M = {}> {
     return findClosestPath(
       { file, line },
       this._pathLocationEntries,
-      this._scripts
+      this._scripts,
     );
   }
 }
