@@ -134,6 +134,11 @@ export class Game<T extends M = {}> {
     return this._previewFrom;
   }
 
+  protected _previewPath?: string;
+  get previewPath() {
+    return this._previewPath;
+  }
+
   protected _simulatePath?: string | null;
   get simulatePath() {
     return this._simulatePath;
@@ -1607,6 +1612,7 @@ export class Game<T extends M = {}> {
       return previewPath;
     }
     this._previewFrom = { file, line };
+    this._previewPath = previewPath;
     this._executingPath = "";
     this._executingLocation = [-1, -1, -1, -1, -1];
     if (this._simulation === "simulating") {
