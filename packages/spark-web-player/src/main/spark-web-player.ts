@@ -1465,10 +1465,17 @@ export default class SparkWebPlayer extends Component(spec) {
       this._game?.program.uri !== program?.uri ||
       this._game.program.version !== program?.version;
 
+    const validPreviewFrom = previewPath
+      ? previewFrom
+      : this._game?.previewFrom;
+    const validPreviewPath = previewPath
+      ? previewPath
+      : this._game?.previewPath;
+
     if (
       this._game &&
       this._game.state === "previewing" &&
-      this._game.context.system.previewing === previewPath &&
+      this._game.context.system.previewing === validPreviewPath &&
       !programChanged
     ) {
       // Already previewing this path, so no need to do anything
@@ -1476,7 +1483,7 @@ export default class SparkWebPlayer extends Component(spec) {
     }
 
     this._options ??= {};
-    this._options.previewFrom = { file, line };
+    this._options.previewFrom = validPreviewFrom;
 
     // Build game if one doesn't exist or program has changed
     const shouldBuildNewGame =
@@ -1494,8 +1501,8 @@ export default class SparkWebPlayer extends Component(spec) {
     if (checkpoint) {
       this._game.load(checkpoint);
     } else {
-      if (previewPath) {
-        const simulateFromPath = Game.getSimulateFromPath(previewPath);
+      if (validPreviewPath) {
+        const simulateFromPath = Game.getSimulateFromPath(validPreviewPath);
         this._game.simulatePath = simulateFromPath;
       }
       this._game.simulation = "fail";
@@ -1507,7 +1514,9 @@ export default class SparkWebPlayer extends Component(spec) {
 
     this._app = await this.buildApp(this._game);
 
-    this._game.preview(file, line);
+    if (validPreviewFrom) {
+      this._game.preview(validPreviewFrom.file, validPreviewFrom.line);
+    }
   };
 }
 
