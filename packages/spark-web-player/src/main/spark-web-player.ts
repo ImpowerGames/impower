@@ -1461,10 +1461,15 @@ export default class SparkWebPlayer extends Component(spec) {
       Object.keys(program.scripts),
     );
 
+    const programChanged =
+      this._game?.program.uri !== program?.uri ||
+      this._game.program.version !== program?.version;
+
     if (
       this._game &&
       this._game.state === "previewing" &&
-      this._game.context.system.previewing === previewPath
+      this._game.context.system.previewing === previewPath &&
+      !programChanged
     ) {
       // Already previewing this path, so no need to do anything
       return;
@@ -1475,10 +1480,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
     // Build game if one doesn't exist or program has changed
     const shouldBuildNewGame =
-      !this._game ||
-      (this._game.state === "previewing" &&
-        (this._game.program.uri !== program?.uri ||
-          this._game.program.version !== program?.version));
+      !this._game || (this._game.state === "previewing" && programChanged);
 
     if (shouldBuildNewGame) {
       this._game = await this.buildGame(program);
