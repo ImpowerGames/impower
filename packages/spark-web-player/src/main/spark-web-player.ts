@@ -104,7 +104,7 @@ export default class SparkWebPlayer extends Component(spec) {
   private _loadingInitialProgram?: Promise<void> = new Promise<void>(
     (resolve) => {
       this._resolveLoadingInitialProgram = resolve;
-    }
+    },
   );
   get loadingInitialProgram() {
     if (this._program) {
@@ -129,34 +129,34 @@ export default class SparkWebPlayer extends Component(spec) {
     this.refs.playButton?.addEventListener("click", this.handleClickPlayButton);
     this.refs.toolbar?.addEventListener(
       "pointerdown",
-      this.handlePointerDownToolbar
+      this.handlePointerDownToolbar,
     );
     this.refs.toolbar?.addEventListener(
       "pointermove",
-      this.handlePointerMoveToolbar
+      this.handlePointerMoveToolbar,
     );
     this.refs.toolbar?.addEventListener(
       "pointerup",
-      this.handlePointerUpToolbar
+      this.handlePointerUpToolbar,
     );
     this.refs.fullscreenButton?.addEventListener(
       "pointerdown",
-      this.handlePointerDownFullscreenButton
+      this.handlePointerDownFullscreenButton,
     );
     this.refs.fullscreenButton?.addEventListener(
       "pointerup",
-      this.handlePointerUpFullscreenButton
+      this.handlePointerUpFullscreenButton,
     );
     this.refs.fullscreenButton?.addEventListener(
       "click",
-      this.handleClickFullscreenButton
+      this.handleClickFullscreenButton,
     );
     this._gameResizeObserver = new ResizeObserver(this.handleResize);
     this._gameResizeObserver.observe(this.refs.game);
     this.updateSizeAndAspectRatioDisplay();
     this.emit(
       MessageProtocol.event,
-      ConnectedPreviewMessage.type.notification({ type: "game" })
+      ConnectedPreviewMessage.type.notification({ type: "game" }),
     );
   }
 
@@ -167,31 +167,31 @@ export default class SparkWebPlayer extends Component(spec) {
     window.removeEventListener("resize", this.handleResize);
     this.refs.playButton?.removeEventListener(
       "click",
-      this.handleClickPlayButton
+      this.handleClickPlayButton,
     );
     this.refs.toolbar?.removeEventListener(
       "pointerdown",
-      this.handlePointerDownToolbar
+      this.handlePointerDownToolbar,
     );
     this.refs.toolbar?.removeEventListener(
       "pointermove",
-      this.handlePointerMoveToolbar
+      this.handlePointerMoveToolbar,
     );
     this.refs.toolbar?.removeEventListener(
       "pointerup",
-      this.handlePointerUpToolbar
+      this.handlePointerUpToolbar,
     );
     this.refs.fullscreenButton?.removeEventListener(
       "pointerdown",
-      this.handlePointerDownFullscreenButton
+      this.handlePointerDownFullscreenButton,
     );
     this.refs.fullscreenButton?.removeEventListener(
       "pointerup",
-      this.handlePointerUpFullscreenButton
+      this.handlePointerUpFullscreenButton,
     );
     this.refs.fullscreenButton?.removeEventListener(
       "click",
-      this.handleClickFullscreenButton
+      this.handleClickFullscreenButton,
     );
     this._gameResizeObserver?.disconnect();
   }
@@ -202,7 +202,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this.refs.playButton.style.opacity = "0";
       const animations = this.refs.playButton.getAnimations();
       await Promise.allSettled(
-        animations.map((animation) => animation.finished)
+        animations.map((animation) => animation.finished),
       );
       this.refs.playButton.style.display = "none";
     }
@@ -236,15 +236,15 @@ export default class SparkWebPlayer extends Component(spec) {
     const icon = this._app?.paused
       ? "pause"
       : this._game?.state === "running"
-      ? "play"
-      : "preview";
+        ? "play"
+        : "preview";
     this.refs.launchStateIcon.setAttribute("icon", icon);
   }
 
   protected updateExecutionLabels(params?: GameExecutedParams) {
     this.refs.locationItems.classList.toggle(
       "error",
-      params?.simulation === "fail"
+      params?.simulation === "fail",
     );
     const firstExecutedLocation = params?.locations?.[0];
     const lastExecutedLocation = params?.locations?.at(-1);
@@ -256,7 +256,7 @@ export default class SparkWebPlayer extends Component(spec) {
     if (this._program && params.simulatePath && params.simulation === "fail") {
       const simulateFromLocation = Game.pathToDocumentLocation(
         this._program,
-        params.simulatePath
+        params.simulatePath,
       );
       if (simulateFromLocation) {
         const filePath = this.getRelativeFilePath(simulateFromLocation.uri);
@@ -275,7 +275,7 @@ export default class SparkWebPlayer extends Component(spec) {
     if (this._program && params.startPath && params.simulation === "fail") {
       const startFromLocation = Game.pathToDocumentLocation(
         this._program,
-        params.startPath
+        params.startPath,
       );
       if (startFromLocation) {
         const filePath = this.getRelativeFilePath(startFromLocation.uri);
@@ -418,7 +418,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
     this.emit(
       MessageProtocol.event,
-      GameResizedMessage.type.notification({ width, height: closestMatch })
+      GameResizedMessage.type.notification({ width, height: closestMatch }),
     );
   };
 
@@ -453,7 +453,7 @@ export default class SparkWebPlayer extends Component(spec) {
   protected handleClickFullscreenButton = async () => {
     this.emit(
       MessageProtocol.event,
-      GameToggledFullscreenModeMessage.type.notification({})
+      GameToggledFullscreenModeMessage.type.notification({}),
     );
   };
 
@@ -463,7 +463,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         await this.handleSelectedCompilerDocument(
           SelectedCompilerDocumentMessage.type,
-          e.detail
+          e.detail,
         );
         profile("end", e.detail.method);
         return;
@@ -477,7 +477,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleResizeGame(
           ResizeGameMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -489,7 +489,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleSetGameBreakpoints(
           SetGameBreakpointsMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -501,7 +501,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleSetGameFunctionBreakpoints(
           SetGameFunctionBreakpointsMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -513,7 +513,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleSetGameDataBreakpoints(
           SetGameDataBreakpointsMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -525,7 +525,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleEnableGameDebug(
           EnableGameDebugMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -537,7 +537,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleDisableGameDebug(
           DisableGameDebugMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -549,7 +549,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleStartGame(
           StartGameMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -561,7 +561,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleStopGame(
           StopGameMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -573,7 +573,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleRestartGame(
           RestartGameMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -585,7 +585,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handlePauseGame(
           PauseGameMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -597,7 +597,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleUnpauseGame(
           UnpauseGameMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -609,7 +609,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleStepGameClock(
           StepGameClockMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -621,7 +621,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleStepGame(
           StepGameMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -633,7 +633,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleContinueGame(
           ContinueGameMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -645,7 +645,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleGetGameScripts(
           GetGameScriptsMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -657,7 +657,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleGetGamePossibleBreakpointLocations(
           GetGamePossibleBreakpointLocationsMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -669,7 +669,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleGetGameStackTrace(
           GetGameStackTraceMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -681,7 +681,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleGetGameEvaluationContext(
           GetGameEvaluationContextMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -693,7 +693,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleGetGameVariables(
           GetGameVariablesMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -705,7 +705,7 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("start", e.detail.method);
         const response = await this.handleGetGameThreads(
           GetGameThreadsMessage.type,
-          e.detail
+          e.detail,
         );
         if (response) {
           this.emit(MessageProtocol.event, response);
@@ -718,7 +718,7 @@ export default class SparkWebPlayer extends Component(spec) {
         this.refs.viewport.classList.add("fullscreen");
         this.emit(
           MessageProtocol.event,
-          EnterGameFullscreenModeMessage.type.response(e.detail.id, {})
+          EnterGameFullscreenModeMessage.type.response(e.detail.id, {}),
         );
         profile("end", e.detail.method);
         return;
@@ -728,7 +728,7 @@ export default class SparkWebPlayer extends Component(spec) {
         this.refs.viewport.classList.remove("fullscreen");
         this.emit(
           MessageProtocol.event,
-          ExitGameFullscreenModeMessage.type.response(e.detail.id, {})
+          ExitGameFullscreenModeMessage.type.response(e.detail.id, {}),
         );
         profile("end", e.detail.method);
         return;
@@ -738,7 +738,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleSelectedCompilerDocument = async (
     messageType: typeof SelectedCompilerDocumentMessage.type,
-    message: SelectedCompilerDocumentMessage.Notification
+    message: SelectedCompilerDocumentMessage.Notification,
   ) => {
     const { textDocument, selectedRange, checkpoint, userEvent, docChanged } =
       message.params;
@@ -755,7 +755,7 @@ export default class SparkWebPlayer extends Component(spec) {
           this._program,
           startFrom.file,
           startFrom.line,
-          checkpoint
+          checkpoint,
         );
       }
     }
@@ -763,7 +763,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleCompiledProgram = async (
     messageType: typeof CompiledProgramMessage.type,
-    message: CompiledProgramMessage.Notification
+    message: CompiledProgramMessage.Notification,
   ) => {
     const { program, checkpoint } = message.params;
     await this.loadProgram(program, checkpoint);
@@ -771,7 +771,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleResizeGame = async (
     messageType: typeof ResizeGameMessage.type,
-    message: ResizeGameMessage.Request
+    message: ResizeGameMessage.Request,
   ) => {
     const { height } = message.params;
     this.refs.game.style.height = `${height}px`;
@@ -780,7 +780,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleSetGameBreakpoints = async (
     messageType: typeof SetGameBreakpointsMessage.type,
-    message: SetGameBreakpointsMessage.Request
+    message: SetGameBreakpointsMessage.Request,
   ) => {
     const { breakpoints } = message.params;
     this._options ??= {};
@@ -795,7 +795,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleSetGameFunctionBreakpoints = async (
     messageType: typeof SetGameFunctionBreakpointsMessage.type,
-    message: SetGameFunctionBreakpointsMessage.Request
+    message: SetGameFunctionBreakpointsMessage.Request,
   ) => {
     const { functionBreakpoints } = message.params;
     this._options ??= {};
@@ -810,7 +810,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleSetGameDataBreakpoints = async (
     messageType: typeof SetGameDataBreakpointsMessage.type,
-    message: SetGameDataBreakpointsMessage.Request
+    message: SetGameDataBreakpointsMessage.Request,
   ) => {
     const { dataBreakpoints } = message.params;
     this._options ??= {};
@@ -825,7 +825,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleEnableGameDebug = async (
     messageType: typeof EnableGameDebugMessage.type,
-    message: EnableGameDebugMessage.Request
+    message: EnableGameDebugMessage.Request,
   ) => {
     if (this._game) {
       this._game.startDebugging();
@@ -841,7 +841,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleDisableGameDebug = async (
     messageType: typeof DisableGameDebugMessage.type,
-    message: DisableGameDebugMessage.Request
+    message: DisableGameDebugMessage.Request,
   ) => {
     if (this._game) {
       this._game.stopDebugging();
@@ -857,7 +857,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleStartGame = async (
     messageType: typeof StartGameMessage.type,
-    message: StartGameMessage.Request
+    message: StartGameMessage.Request,
   ) => {
     this.hidePlayButton();
     const success = await this.startGameAndApp();
@@ -874,7 +874,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleStopGame = async (
     messageType: typeof StopGameMessage.type,
-    message: StopGameMessage.Request
+    message: StopGameMessage.Request,
   ) => {
     await this.stopGame("quit");
     return messageType.response(message.id, {});
@@ -882,7 +882,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleRestartGame = async (
     messageType: typeof RestartGameMessage.type,
-    message: RestartGameMessage.Request
+    message: RestartGameMessage.Request,
   ) => {
     await this.restartGame();
     return messageType.response(message.id, {});
@@ -890,7 +890,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handlePauseGame = async (
     messageType: typeof PauseGameMessage.type,
-    message: PauseGameMessage.Request
+    message: PauseGameMessage.Request,
   ) => {
     if (this._app) {
       this._app.pause();
@@ -909,7 +909,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleUnpauseGame = async (
     messageType: typeof UnpauseGameMessage.type,
-    message: UnpauseGameMessage.Request
+    message: UnpauseGameMessage.Request,
   ) => {
     if (this._app) {
       this._app.unpause();
@@ -928,7 +928,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleStepGameClock = async (
     messageType: typeof StepGameClockMessage.type,
-    message: StepGameClockMessage.Request
+    message: StepGameClockMessage.Request,
   ) => {
     const { seconds } = message.params;
     if (this._app) {
@@ -948,7 +948,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleStepGame = async (
     messageType: typeof StepGameMessage.type,
-    message: StepGameMessage.Request
+    message: StepGameMessage.Request,
   ) => {
     const { traversal } = message.params;
     return this._game
@@ -961,7 +961,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleContinueGame = async (
     messageType: typeof ContinueGameMessage.type,
-    message: ContinueGameMessage.Request
+    message: ContinueGameMessage.Request,
   ) => {
     return this._game
       ? messageType.response(message.id, { done: this._game.continue() })
@@ -973,7 +973,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleGetGameScripts = async (
     messageType: typeof GetGameScriptsMessage.type,
-    message: GetGameScriptsMessage.Request
+    message: GetGameScriptsMessage.Request,
   ) => {
     if (this._program) {
       const uris = Object.keys(this._program?.scripts || {});
@@ -987,7 +987,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleGetGameThreads = async (
     messageType: typeof GetGameThreadsMessage.type,
-    message: GetGameThreadsMessage.Request
+    message: GetGameThreadsMessage.Request,
   ) => {
     if (this._game) {
       const threads = this._game.getThreads();
@@ -1001,7 +1001,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleGetGamePossibleBreakpointLocations = async (
     messageType: typeof GetGamePossibleBreakpointLocationsMessage.type,
-    message: GetGamePossibleBreakpointLocationsMessage.Request
+    message: GetGamePossibleBreakpointLocationsMessage.Request,
   ) => {
     const { search } = message.params;
     const program = this._game?.program || this._program;
@@ -1035,7 +1035,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleGetGameStackTrace = async (
     messageType: typeof GetGameStackTraceMessage.type,
-    message: GetGameStackTraceMessage.Request
+    message: GetGameStackTraceMessage.Request,
   ) => {
     const { threadId, startFrame, levels } = message.params;
     if (this._game) {
@@ -1050,7 +1050,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleGetGameEvaluationContext = async (
     messageType: typeof GetGameEvaluationContextMessage.type,
-    message: GetGameEvaluationContextMessage.Request
+    message: GetGameEvaluationContextMessage.Request,
   ) => {
     if (this._game) {
       const context = this._game.getEvaluationContext();
@@ -1064,7 +1064,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   protected handleGetGameVariables = async (
     messageType: typeof GetGameVariablesMessage.type,
-    message: GetGameVariablesMessage.Request
+    message: GetGameVariablesMessage.Request,
   ) => {
     const { scope, variablesReference, value } = message.params;
     if (this._game) {
@@ -1108,7 +1108,7 @@ export default class SparkWebPlayer extends Component(spec) {
         await this.debouncedRestartGame();
         this.emit(
           MessageProtocol.event,
-          GameReloadedMessage.type.notification({})
+          GameReloadedMessage.type.notification({}),
         );
       } else {
         this._options ??= {};
@@ -1120,7 +1120,7 @@ export default class SparkWebPlayer extends Component(spec) {
             program,
             this._options.startFrom.file,
             this._options.startFrom.line,
-            checkpoint
+            checkpoint,
           );
         }
       }
@@ -1130,7 +1130,7 @@ export default class SparkWebPlayer extends Component(spec) {
         this._resolveLoadingInitialProgram();
       }
     },
-    true
+    true,
   );
 
   async startGameAndApp(restarted?: boolean) {
@@ -1174,7 +1174,7 @@ export default class SparkWebPlayer extends Component(spec) {
     error?: {
       message: string;
       location: DocumentLocation;
-    }
+    },
   ) {
     const lastExecutedLocation = this._game?.getLastExecutedDocumentLocation();
     await this.destroyGameAndApp();
@@ -1185,7 +1185,7 @@ export default class SparkWebPlayer extends Component(spec) {
       GameExitedMessage.type.notification({
         reason,
         error,
-      })
+      }),
     );
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
     if (lastExecutedLocation) {
@@ -1274,7 +1274,7 @@ export default class SparkWebPlayer extends Component(spec) {
       game,
       this.refs.gameView,
       this.refs.gameOverlay,
-      this._audioContext
+      this._audioContext,
     );
     profile("end", "app/create");
     profile("start", "app/init");
@@ -1293,7 +1293,7 @@ export default class SparkWebPlayer extends Component(spec) {
             favoredConditions?: (boolean | undefined)[];
           }
         >
-      | undefined
+      | undefined,
   ) {
     profile("start", "game/simulate");
     game.simulate(simulationOptions);
@@ -1324,7 +1324,7 @@ export default class SparkWebPlayer extends Component(spec) {
             await this.stopGame("error", error);
           }
         }
-      }
+      },
     );
     game.connection.outgoing.addListener(
       GameFinishedMessage.method,
@@ -1332,7 +1332,7 @@ export default class SparkWebPlayer extends Component(spec) {
         if (GameFinishedMessage.type.isNotification(msg)) {
           await this.stopGame("finished");
         }
-      }
+      },
     );
     game.connection.outgoing.addListener(
       GameStartedThreadMessage.method,
@@ -1340,10 +1340,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (GameStartedThreadMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
-            GameStartedThreadMessage.type.notification(msg.params)
+            GameStartedThreadMessage.type.notification(msg.params),
           );
         }
-      }
+      },
     );
     game.connection.outgoing.addListener(
       GameExitedThreadMessage.method,
@@ -1351,17 +1351,17 @@ export default class SparkWebPlayer extends Component(spec) {
         if (GameExitedThreadMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
-            GameExitedThreadMessage.type.notification(msg.params)
+            GameExitedThreadMessage.type.notification(msg.params),
           );
         }
-      }
+      },
     );
     game.connection.outgoing.addListener(GameExecutedMessage.method, (msg) => {
       if (GameExecutedMessage.type.isNotification(msg)) {
         this.updateExecutionLabels(msg.params);
         this.emit(
           MessageProtocol.event,
-          GameExecutedMessage.type.notification(msg.params)
+          GameExecutedMessage.type.notification(msg.params),
         );
       }
     });
@@ -1369,7 +1369,7 @@ export default class SparkWebPlayer extends Component(spec) {
       if (GamePreviewedMessage.type.isNotification(msg)) {
         this.emit(
           MessageProtocol.event,
-          GamePreviewedMessage.type.notification(msg.params)
+          GamePreviewedMessage.type.notification(msg.params),
         );
       }
     });
@@ -1377,7 +1377,7 @@ export default class SparkWebPlayer extends Component(spec) {
       if (GameSteppedMessage.type.isNotification(msg)) {
         this.emit(
           MessageProtocol.event,
-          GameSteppedMessage.type.notification(msg.params)
+          GameSteppedMessage.type.notification(msg.params),
         );
       }
     });
@@ -1387,10 +1387,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (GameHitBreakpointMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
-            GameHitBreakpointMessage.type.notification(msg.params)
+            GameHitBreakpointMessage.type.notification(msg.params),
           );
         }
-      }
+      },
     );
     game.connection.outgoing.addListener(
       GameAwaitingInteractionMessage.method,
@@ -1398,10 +1398,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (GameAwaitingInteractionMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
-            GameAwaitingInteractionMessage.type.notification(msg.params)
+            GameAwaitingInteractionMessage.type.notification(msg.params),
           );
         }
-      }
+      },
     );
     game.connection.outgoing.addListener(
       GameAutoAdvancedToContinueMessage.method,
@@ -1409,10 +1409,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (GameAutoAdvancedToContinueMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
-            GameAutoAdvancedToContinueMessage.type.notification(msg.params)
+            GameAutoAdvancedToContinueMessage.type.notification(msg.params),
           );
         }
-      }
+      },
     );
     game.connection.outgoing.addListener(
       GameClickedToContinueMessage.method,
@@ -1420,10 +1420,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (GameClickedToContinueMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
-            GameClickedToContinueMessage.type.notification(msg.params)
+            GameClickedToContinueMessage.type.notification(msg.params),
           );
         }
-      }
+      },
     );
     game.connection.outgoing.addListener(
       GameChosePathToContinueMessage.method,
@@ -1431,10 +1431,10 @@ export default class SparkWebPlayer extends Component(spec) {
         if (GameChosePathToContinueMessage.type.isNotification(msg)) {
           this.emit(
             MessageProtocol.event,
-            GameChosePathToContinueMessage.type.notification(msg.params)
+            GameChosePathToContinueMessage.type.notification(msg.params),
           );
         }
-      }
+      },
     );
   }
 
@@ -1442,7 +1442,7 @@ export default class SparkWebPlayer extends Component(spec) {
     program: SparkProgram,
     file: string,
     line: number,
-    checkpoint: string | undefined
+    checkpoint: string | undefined,
   ) => {
     if (this._game?.state === "running") {
       // Should not preview while game is running
@@ -1458,7 +1458,7 @@ export default class SparkWebPlayer extends Component(spec) {
     const previewPath = findClosestPath(
       previewFrom,
       Object.entries(program.pathLocations ?? {}),
-      Object.keys(program.scripts)
+      Object.keys(program.scripts),
     );
 
     if (
