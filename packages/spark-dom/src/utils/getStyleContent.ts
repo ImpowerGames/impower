@@ -166,9 +166,9 @@ export const getStyleContent = (
           const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v);
           if (cssValue) {
             const cssEntries = getCssEquivalent(cssProp, cssValue);
-            styleContent += cssEntries
-              .map(([k, v]) => `\n${indent}${k}: ${v};`)
-              .join("");
+            for (const [k, v] of cssEntries) {
+              styleContent += `\n${indent}${k}: ${v};`;
+            }
           }
         }
       }
