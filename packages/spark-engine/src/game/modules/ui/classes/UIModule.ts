@@ -428,54 +428,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       position: "absolute",
       inset: "0",
     };
-    const images = this.context?.image;
-    if (images) {
-      for (const [name, image] of Object.entries(images)) {
-        if (!name.startsWith("$")) {
-          const varName = getVarName("image", name);
-          const varValue = this.getUrl(image.src);
-          if (varValue) {
-            style[varName] = varValue;
-          }
-        }
-      }
-    }
-    const colors = this.context?.color;
-    if (colors) {
-      for (const [name, color] of Object.entries(colors)) {
-        if (!name.startsWith("$")) {
-          const varName = getVarName("color", name);
-          const varValue = color.value;
-          if (varValue) {
-            style[varName] = varValue;
-          }
-        }
-      }
-    }
-    const eases = this.context?.ease;
-    if (eases) {
-      for (const [name, ease] of Object.entries(eases)) {
-        if (!name.startsWith("$")) {
-          const varName = getVarName("ease", name);
-          const varValue = this.getTimingFunction(ease);
-          if (varValue) {
-            style[varName] = varValue;
-          }
-        }
-      }
-    }
-    const fonts = this.context?.font;
-    if (fonts) {
-      for (const [name] of Object.entries(fonts)) {
-        if (!name.startsWith("$")) {
-          const varName = getVarName("font", name);
-          const varValue = name;
-          if (varValue) {
-            style[varName] = varValue;
-          }
-        }
-      }
-    }
     return style;
   }
 
@@ -528,8 +480,61 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   constructStyles(): void {
-    // Process Fonts
+    const variablesStyle: Record<string, string> = {};
+    const images = this.context?.image;
+    if (images) {
+      for (const [name, image] of Object.entries(images)) {
+        if (!name.startsWith("$")) {
+          const varName = getVarName("image", name);
+          const varValue = this.getUrl(image.src);
+          if (varValue) {
+            variablesStyle[varName] = varValue;
+          }
+        }
+      }
+    }
+    const colors = this.context?.color;
+    if (colors) {
+      for (const [name, color] of Object.entries(colors)) {
+        if (!name.startsWith("$")) {
+          const varName = getVarName("color", name);
+          const varValue = color.value;
+          if (varValue) {
+            variablesStyle[varName] = varValue;
+          }
+        }
+      }
+    }
+    const eases = this.context?.ease;
+    if (eases) {
+      for (const [name, ease] of Object.entries(eases)) {
+        if (!name.startsWith("$")) {
+          const varName = getVarName("ease", name);
+          const varValue = this.getTimingFunction(ease);
+          if (varValue) {
+            variablesStyle[varName] = varValue;
+          }
+        }
+      }
+    }
     const fonts = this.context?.font;
+    if (fonts) {
+      for (const [name] of Object.entries(fonts)) {
+        if (!name.startsWith("$")) {
+          const varName = getVarName("font", name);
+          const varValue = name;
+          if (varValue) {
+            variablesStyle[varName] = varValue;
+          }
+        }
+      }
+    }
+    this.constructStyle("variables", {
+      styles: {
+        "": variablesStyle,
+      },
+    });
+    // Process Fonts
     if (fonts) {
       this.constructStyle("fonts", { fonts });
     }

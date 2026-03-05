@@ -1273,7 +1273,7 @@ export default class SparkWebPlayer extends Component(spec) {
     this._app = new Application(
       game,
       this.refs.gameView,
-      this.refs.gameOverlay,
+      this.refs.gameUI,
       this._audioContext,
     );
     profile("end", "app/create");

@@ -14,7 +14,7 @@ export default spec({
     viewport: "#viewport",
     gameBackground: "#game-background",
     gameView: "#game-view",
-    gameOverlay: "#game-overlay",
+    gameUI: "#game-ui",
     game: "#game",
     playButton: "#play-button",
     toolbar: "#toolbar",
@@ -86,7 +86,7 @@ export default spec({
         <div id="game">
           <div id="game-background"></div>
           <div id="game-view"></div>
-          <div id="game-overlay"></div>
+          <div id="game-ui"></div>
           ${playButton ? playButtonComponent : ""}
         </div>
         ${toolbar ? toolbarComponent : ""}
