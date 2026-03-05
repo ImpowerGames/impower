@@ -1385,7 +1385,7 @@ repository:
     patterns:
       - { include: "#Comment" }
       - { include: "#SelectorPropertyNamePart" }
-      - { include: "#StringIdentifier" }
+      - { include: "#ParameterStringIdentifier" }
       - { include: "#IllegalChar" }
     end: $|({{WS}}*)([)])
     endCaptures:
@@ -1762,6 +1762,8 @@ repository:
         patterns:
           - { include: "#Comment" }
           - { include: "#StylingValuePart" }
+          - { include: "#StylingStringIdentifier" }
+          - { include: "#UnquotedChar" }
       2:
         patterns:
           - { include: "#EndOfLine" }
@@ -1776,8 +1778,6 @@ repository:
       - { include: "#PunctuationComma" }
       - { include: "#StylingFunction" }
       - { include: "#QualifiedAccessPath" }
-      - { include: "#StylingStringIdentifier" }
-      - { include: "#UnquotedChar" }
 
   StylingFunction:
     begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
@@ -1808,6 +1808,8 @@ repository:
       - { include: "#Comment" }
       - { include: "#CalcOperator" }
       - { include: "#StylingValuePart" }
+      - { include: "#ParameterStringIdentifier" }
+      - { include: "#UnquotedChar" }
     end: $|({{WS}}*)([)])
     endCaptures:
       1:
@@ -1827,7 +1829,7 @@ repository:
     name: string.unquoted.identifier.sd
     match: ({{IDENTIFIER}})
 
-  StringIdentifier:
+  ParameterStringIdentifier:
     tag: string
     name: string.unquoted.identifier.sd
     match: ({{IDENTIFIER}})

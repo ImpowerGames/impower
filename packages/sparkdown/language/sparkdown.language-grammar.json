@@ -2663,7 +2663,7 @@
           "include": "#SelectorPropertyNamePart"
         },
         {
-          "include": "#StringIdentifier"
+          "include": "#ParameterStringIdentifier"
         },
         {
           "include": "#IllegalChar"
@@ -3376,6 +3376,12 @@
             },
             {
               "include": "#StylingValuePart"
+            },
+            {
+              "include": "#StylingStringIdentifier"
+            },
+            {
+              "include": "#UnquotedChar"
             }
           ]
         },
@@ -3413,12 +3419,6 @@
         },
         {
           "include": "#QualifiedAccessPath"
-        },
-        {
-          "include": "#StylingStringIdentifier"
-        },
-        {
-          "include": "#UnquotedChar"
         }
       ]
     },
@@ -3479,6 +3479,12 @@
         },
         {
           "include": "#StylingValuePart"
+        },
+        {
+          "include": "#ParameterStringIdentifier"
+        },
+        {
+          "include": "#UnquotedChar"
         }
       ],
       "end": "$|([^\\S\\n\\r]*)([)])",
@@ -3509,7 +3515,7 @@
       "name": "string.unquoted.identifier.sd",
       "match": "([_\\p{L}][0-9_\\p{L}-]*)"
     },
-    "StringIdentifier": {
+    "ParameterStringIdentifier": {
       "tag": "string",
       "name": "string.unquoted.identifier.sd",
       "match": "([_\\p{L}][0-9_\\p{L}-]*)"
