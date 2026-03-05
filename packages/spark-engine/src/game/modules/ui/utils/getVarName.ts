@@ -1,4 +1,4 @@
-const INVALID_VAR_NAME_CHAR = /[^\p{L}0-9]+/gu;
+const INVALID_VAR_NAME_CHAR = /[^_\p{L}0-9]+/gu;
 
 export const getVarName = (type: string, name: string) => {
   // An image with the same attributes should direct to the same image
