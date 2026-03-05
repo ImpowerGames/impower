@@ -519,7 +519,10 @@ export const getCssImage = (value: string): string => {
   if (
     value === "none" ||
     value.startsWith("var(") ||
-    value.startsWith("url(")
+    value.startsWith("url(") ||
+    value.startsWith("linear-gradient(") ||
+    value.startsWith("radial-gradient(") ||
+    value.startsWith("conic-gradient(")
   ) {
     return value;
   }
