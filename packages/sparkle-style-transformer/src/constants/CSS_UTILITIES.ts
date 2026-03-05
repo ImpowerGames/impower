@@ -176,8 +176,8 @@ export const CSS_UTILITIES = {
   },
 
   "child-layout": {
-    row: { display: "flex", "flex-direction": "row" },
-    column: { display: "flex", "flex-direction": "column" },
+    row: { "flex-direction": "row" },
+    column: { "flex-direction": "column" },
     grid: { display: "grid" },
   },
 
