@@ -2,6 +2,35 @@ import { SPARKLE_TO_CSS_NAME_MAP } from "../constants/CSS_ALIASES.js";
 
 const WHITESPACE_REGEX = /[\t ]+/;
 const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
+const GRADIENT_KEYWORDS = new Set([
+  "left",
+  "right",
+  "top",
+  "bottom",
+  "in",
+  "to",
+  "srgb",
+  "srgb-linear",
+  "display-p3",
+  "display-p3-linear",
+  "a98-rgb",
+  "prophoto-rgb",
+  "rec2020",
+  "lab",
+  "oklab",
+  "hsl",
+  "hwb",
+  "lch",
+  "oklch",
+  "shorter",
+  "longer",
+  "increasing",
+  "decreasing",
+  "hue",
+  "xyz",
+  "xyz-d50",
+  "xyz-d65",
+]);
 
 /**
  * Quick positive‑list validator for CSS values we generate from the Sparkle
@@ -18,7 +47,7 @@ const VALUE_UNIT_REGEX = /^(\d+(?:\.\d+)?)([a-z]+)?$/;
  */
 // eslint-disable-next-line no-useless-escape
 const SAFE_CSS_VALUE_RE =
-  /^(?:url\([^)]*\)|var\(.*\)|(?:rgb|rgba|hsl|hsla|lch)\([^)]*\)|(?:linear-gradient|radial-gradient|conic-gradient)\([^)]*\)|#[0-9a-f]{3,8}|[a-z0-9_-]+(?:\s+[a-z0-9_-]+)*|[0-9.+-]+(?:deg|px|rem|em|%|vh|vw|vmin|vmax)?)$/i;
+  /^(?:url\([^)]*\)|var\(.*\)|(?:rgb|rgba|hsl|hsla|lch)\([^)]*\)|(?:linear-gradient|radial-gradient|conic-gradient|repeating-linear-gradient|repeating-radial-gradient|repeating-conic-gradient)\([^)]*\)|#[0-9a-f]{3,8}|[a-z0-9_-]+(?:\s+[a-z0-9_-]+)*|[0-9.+-]+(?:deg|px|rem|em|%|vh|vw|vmin|vmax)?)$/i;
 
 /**
  * Whitelist‑based guard for values that will be concatenated into the `style`
@@ -31,6 +60,83 @@ export function validateCss(value: string | null | undefined): boolean {
   }
   const v = String(value)?.trim() ?? "";
   return SAFE_CSS_VALUE_RE.test(v);
+}
+
+function transformColors(css: string): string {
+  let result = "";
+  let i = 0;
+
+  while (i < css.length) {
+    // 1. Skip Block Comments /* ... */
+    if (css[i] === "/" && css[i + 1] === "*") {
+      const end = css.indexOf("*/", i + 2);
+      if (end !== -1) {
+        result += css.slice(i, end + 2);
+        i = end + 2;
+        continue;
+      }
+    }
+
+    // 2. Skip Strings "..." or '...'
+    if (css[i] === '"' || css[i] === "'") {
+      const quote = css[i];
+      let end = i + 1;
+      while (end < css.length && css[end] !== quote) {
+        if (css[end] === "\\") end++; // Handle escaped quotes
+        end++;
+      }
+      result += css.slice(i, end + 1);
+      i = end + 1;
+      continue;
+    }
+
+    // 3. Process potential identifiers
+    // We look for alphanumeric sequences
+    if (/[a-z]/i.test(css[i]!)) {
+      let identifier = "";
+      const start = i;
+      while (i < css.length && /[%/.a-z0-9_-]/i.test(css[i]!)) {
+        identifier += css[i];
+        i++;
+      }
+
+      // If the identifier is not a recognized keyword, assume it is a color
+      if (!GRADIENT_KEYWORDS.has(identifier) && isBoundary(css, start, i)) {
+        result += getCssColor(identifier);
+      } else {
+        result += identifier;
+      }
+      continue;
+    }
+
+    // 4. Default: Just append the character
+    result += css[i];
+    i++;
+  }
+
+  return result;
+}
+
+/**
+ * Ensures the word is a standalone CSS identifier,
+ * not part of a class name (.blue-btn) or variable (--blue).
+ */
+function isBoundary(css: string, start: number, end: number): boolean {
+  const prev = css[start - 1];
+  const next = css[end];
+
+  // If it starts with - it is a variable, not a named color
+  if (prev === "-") return false;
+
+  // If it ends with (, it is a function, not a named color
+  if (next === "(") return false;
+
+  // Standard CSS delimiters
+  const delimiters = /[\s,()!:;]/;
+  const isStartOk = !prev || delimiters.test(prev);
+  const isEndOk = !next || delimiters.test(next);
+
+  return isStartOk && isEndOk;
 }
 
 export const getCssAnimation = (value: string | null, suffix = ""): string => {
@@ -90,16 +196,22 @@ export const getCssColor = (value: string): string => {
     value === "black" ||
     value === "white" ||
     value === "currentColor" ||
-    value.startsWith("var(") ||
     value.startsWith("#") ||
-    value.startsWith("rgb") ||
-    value.startsWith("hsl") ||
+    value.startsWith("var(") ||
+    value.startsWith("rgb(") ||
+    value.startsWith("rgba(") ||
+    value.startsWith("hsl(") ||
+    value.startsWith("hsla(") ||
     value.startsWith("lch")
   ) {
     return value;
   }
   if (!value) {
     return value;
+  }
+  if (value.includes("/")) {
+    const [color, alpha] = value.split("/");
+    return `rgb(from var(--theme-color-${color}) r g b / ${alpha})`;
   }
   return `var(--theme-color-${value})`;
 };
@@ -257,7 +369,7 @@ export const getCssTextStroke = (value: string): string => {
   const widthUnit = widthMatch?.[2] || "";
   let r = isValidNumber(widthValue) ? Number(widthValue) : 1;
   let u = widthUnit || "px";
-  let c = color || "black";
+  let c = getCssColor(color || "black");
   if (r === 0) {
     return "none";
   }
@@ -455,7 +567,7 @@ export const getCssFilter = (value: string): string => {
     value.startsWith("sepia(") ||
     value.startsWith("saturate(")
   ) {
-    return value;
+    return transformColors(value);
   }
   return `var(--theme-filter-${value})`;
 };
@@ -482,9 +594,12 @@ export const getCssGradient = (value: string): string => {
     value.startsWith("var(") ||
     value.startsWith("linear-gradient(") ||
     value.startsWith("radial-gradient(") ||
-    value.startsWith("conic-gradient(")
+    value.startsWith("conic-gradient(") ||
+    value.startsWith("repeating-linear-gradient(") ||
+    value.startsWith("repeating-radial-gradient(") ||
+    value.startsWith("repeating-conic-gradient(")
   ) {
-    return value;
+    return transformColors(value);
   }
   return `var(--theme-gradient-${value})`;
 };
@@ -522,9 +637,12 @@ export const getCssImage = (value: string): string => {
     value.startsWith("url(") ||
     value.startsWith("linear-gradient(") ||
     value.startsWith("radial-gradient(") ||
-    value.startsWith("conic-gradient(")
+    value.startsWith("conic-gradient(") ||
+    value.startsWith("repeating-linear-gradient(") ||
+    value.startsWith("repeating-radial-gradient(") ||
+    value.startsWith("repeating-conic-gradient(")
   ) {
-    return value;
+    return transformColors(value);
   }
   return `var(--theme-image-${value})`;
 };

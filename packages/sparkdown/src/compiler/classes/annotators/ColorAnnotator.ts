@@ -105,7 +105,8 @@ export class ColorAnnotator extends SparkdownAnnotator<
     }
     if (
       nodeRef.name === "AccessPath" ||
-      nodeRef.name === "StylingStringIdentifier"
+      nodeRef.name === "StylingStringIdentifier" ||
+      nodeRef.name === "ParameterStringIdentifier"
     ) {
       const propertyPath = this.definePropertyPathParts
         .filter((p) => p.key)

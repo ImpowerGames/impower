@@ -20,29 +20,37 @@ export const getDocumentColors = (
   while (cur.value) {
     if (cur.value.type.possibleColorReference) {
       const text = document.read(cur.from, cur.to);
-      const [pathPart1, pathPart2] = text.split(".");
-      const type = pathPart2 ? pathPart1 : "";
-      const name = pathPart2 ? pathPart2 : pathPart1;
-      if (name) {
-        const declarationStructType = cur.value.type.declaration?.type || "";
-        if (
-          type === "color" ||
-          STYLING_DEFINE_TYPES.includes(declarationStructType)
-        ) {
-          const colorStruct = program?.context?.["color"]?.[name];
-          if (colorStruct) {
-            const value = colorStruct.value;
-            const rgb = colord(value).toRgb();
-            const color = Color.create(
-              rgb.r / 255,
-              rgb.g / 255,
-              rgb.b / 255,
-              rgb.a,
-            );
-            infos.push({
-              color,
-              range: document.range(cur.from, cur.to),
-            });
+      if (text === "transparent") {
+        const color = Color.create(0, 0, 0, 0);
+        infos.push({
+          color,
+          range: document.range(cur.from, cur.to),
+        });
+      } else {
+        const [pathPart1, pathPart2] = text.split(".");
+        const type = pathPart2 ? pathPart1 : "";
+        const name = pathPart2 ? pathPart2 : pathPart1;
+        if (name) {
+          const declarationStructType = cur.value.type.declaration?.type || "";
+          if (
+            type === "color" ||
+            STYLING_DEFINE_TYPES.includes(declarationStructType)
+          ) {
+            const colorStruct = program?.context?.["color"]?.[name];
+            if (colorStruct) {
+              const value = colorStruct.value;
+              const rgb = colord(value).toRgb();
+              const color = Color.create(
+                rgb.r / 255,
+                rgb.g / 255,
+                rgb.b / 255,
+                rgb.a,
+              );
+              infos.push({
+                color,
+                range: document.range(cur.from, cur.to),
+              });
+            }
           }
         }
       }
