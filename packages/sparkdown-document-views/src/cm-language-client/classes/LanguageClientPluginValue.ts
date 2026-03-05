@@ -88,7 +88,7 @@ export default class LanguageClientPluginValue implements PluginValue {
       hover: HoverSupport;
       lint: LintSupport;
       semanticTokens: SemanticTokensSupport;
-    }
+    },
   ) {
     this._view = view;
     this._supports = supports;
@@ -129,8 +129,8 @@ export default class LanguageClientPluginValue implements PluginValue {
           this.updateDiagnostics(this._view, params.diagnostics);
           this.updateFoldingRanges(this._view);
           this.updateDocumentColors(this._view);
-        }
-      )
+        },
+      ),
     );
     this._supports.completion.addSource(this.pullCompletions);
     this._supports.hover.addSource(this.pullHovers);
@@ -146,15 +146,15 @@ export default class LanguageClientPluginValue implements PluginValue {
   }
 
   pullCompletions = async (
-    clientContext: CompletionContext
+    clientContext: CompletionContext,
   ): Promise<CompletionResult | null> => {
     const position = offsetToPosition(
       clientContext.state.doc,
-      clientContext.pos
+      clientContext.pos,
     );
     const serverContext = getServerCompletionContext(
       this._serverCapabilities,
-      clientContext
+      clientContext,
     );
     if (!serverContext) {
       return null;
@@ -166,7 +166,7 @@ export default class LanguageClientPluginValue implements PluginValue {
         textDocument: this._textDocument,
         position,
         context: serverContext,
-      }
+      },
     );
     const versionAfter = getDocumentVersion(clientContext.state);
     if (versionAfter !== versionBefore) {
@@ -220,7 +220,7 @@ export default class LanguageClientPluginValue implements PluginValue {
             view: EditorView,
             completion: Completion,
             from: number,
-            to: number
+            to: number,
           ) => {
             if (
               insertTextFormat === (2 satisfies typeof InsertTextFormat.Snippet)
@@ -229,7 +229,7 @@ export default class LanguageClientPluginValue implements PluginValue {
                 view,
                 completion,
                 from,
-                to
+                to,
               );
             } else {
               view.dispatch({
@@ -257,7 +257,7 @@ export default class LanguageClientPluginValue implements PluginValue {
             if (typeof content !== "string") {
               const { value, kind } = getClientMarkupContent(
                 content,
-                this._fileSystemReader
+                this._fileSystemReader,
               );
               content = { value, kind };
             }
@@ -289,11 +289,11 @@ export default class LanguageClientPluginValue implements PluginValue {
   };
 
   pullHovers = async (
-    clientContext: HoverContext
+    clientContext: HoverContext,
   ): Promise<HoverResult | null> => {
     const position = offsetToPosition(
       clientContext.view.state.doc,
-      clientContext.pos
+      clientContext.pos,
     );
     const result = await this._serverConnection.sendRequest(HoverMessage.type, {
       textDocument: this._textDocument,
@@ -312,7 +312,7 @@ export default class LanguageClientPluginValue implements PluginValue {
       : clientContext.pos;
     const { value, kind } = getClientMarkupContent(
       contents,
-      this._fileSystemReader
+      this._fileSystemReader,
     );
     const dom = getClientMarkupDom({
       content: { value, kind },
@@ -329,7 +329,7 @@ export default class LanguageClientPluginValue implements PluginValue {
   pullSemanticTokens = async (): Promise<SemanticTokens | null> => {
     const result = await this._serverConnection.sendRequest(
       SemanticTokensFullMessage.type,
-      { textDocument: this._textDocument }
+      { textDocument: this._textDocument },
     );
     return result;
   };
@@ -339,7 +339,7 @@ export default class LanguageClientPluginValue implements PluginValue {
       DocumentDiagnosticMessage.type,
       {
         textDocument: this._textDocument,
-      }
+      },
     );
     if (result.kind === "full") {
       this.updateDiagnostics(view, result.items);
@@ -349,7 +349,13 @@ export default class LanguageClientPluginValue implements PluginValue {
   async updateDiagnostics(view: EditorView, diagnostics: Diagnostic[]) {
     const transaction = setDiagnostics(
       view.state,
-      getClientDiagnostics(view.state, diagnostics)
+      getClientDiagnostics(
+        view.state,
+        diagnostics,
+        this._fileSystemReader,
+        this._language,
+        this._highlighter,
+      ),
     );
     view.dispatch(transaction);
   }
@@ -366,7 +372,7 @@ export default class LanguageClientPluginValue implements PluginValue {
   async updateDocumentColors(view: EditorView) {
     const result = await this._serverConnection.sendRequest(
       DocumentColorMessage.type,
-      { textDocument: this._textDocument }
+      { textDocument: this._textDocument },
     );
     const transaction = this._supports.color.transaction(view.state, result);
     view.dispatch(transaction);

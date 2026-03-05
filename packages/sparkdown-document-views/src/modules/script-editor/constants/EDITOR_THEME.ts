@@ -16,6 +16,12 @@ const EDITOR_THEME: {
   "*, *::before, *::after": {
     boxSizing: "border-box",
   },
+  "& samp": {
+    fontSize: "95%",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: "6px",
+    padding: "2px 5px",
+  },
   ".cm-editor": {
     color: EDITOR_COLORS.foreground,
     flex: 1,
@@ -352,6 +358,10 @@ const EDITOR_THEME: {
   },
   "& .cm-diagnosticText": {
     marginRight: "16px",
+    display: "flex",
+  },
+  "& .cm-diagnosticText p": {
+    margin: "4px 8px",
   },
   "& .cm-diagnosticAction": {
     backgroundColor: "transparent",

@@ -1572,21 +1572,21 @@ export class SparkdownCompiler {
               const validDescription =
                 selector && (selector.displayName || selector.name)
                   ? selector.displayType
-                    ? `${selector.displayType} named '${
+                    ? `${selector.displayType} named \`${
                         selector.displayName || selector.name
-                      }'`
+                      }\``
                     : selector.types && selector.types.length > 0
-                      ? `${selector.types[0]} named '${
+                      ? `${selector.types[0]} named \`${
                           selector.displayName || selector.name
-                        }'`
+                        }\``
                       : expectedSelectorTypes &&
                           expectedSelectorTypes.length > 0
-                        ? `${expectedSelectorTypes[0]} named '${
+                        ? `${expectedSelectorTypes[0]} named \`${
                             selector.displayName || selector.name
-                          }'`
+                          }\``
                         : `'${selector.displayName || selector.name}'`
                   : selector && selector.types
-                    ? `type named '${selector.types[0]}'`
+                    ? `type named \`${selector.types[0]}\``
                     : `type`;
               const type =
                 selector?.displayType ||

@@ -9,7 +9,7 @@ const getSyntaxHighlightedHtml = (
   highlighter: {
     style(tags: readonly Tag[]): string | null;
     scope?(node: NodeType): boolean;
-  }
+  },
 ) => {
   const tree = language.parser.parse(str);
   let html = "";
@@ -32,7 +32,7 @@ const syntaxHighlightingReplacer = (
     style(tags: readonly Tag[]): string | null;
     scope?(node: NodeType): boolean;
   },
-  match: string[]
+  match: string[],
 ) => {
   const $2 = match[2] || "";
   const $4 = match[4] || "";
@@ -48,7 +48,7 @@ const getRules = (
   highlighter: {
     style(tags: readonly Tag[]): string | null;
     scope?(node: NodeType): boolean;
-  }
+  },
 ): {
   regex: RegExp;
   replacer: (...match: string[]) => string;
@@ -105,7 +105,7 @@ const getRules = (
   {
     regex: MARKDOWN_REGEX.inline_code,
     replacer: (_match, $1, _$2) => {
-      return `<code>${$1}</code>`;
+      return `<samp>${$1}</samp>`;
     },
   },
   {
@@ -135,7 +135,7 @@ export const getMarkdownHtml = (
   highlighter: {
     style(tags: readonly Tag[]): string | null;
     scope?(node: NodeType): boolean;
-  }
+  },
 ): string => {
   const codeMatch =
     markdown.match(MARKDOWN_REGEX.fenced_code_backtick) ||
