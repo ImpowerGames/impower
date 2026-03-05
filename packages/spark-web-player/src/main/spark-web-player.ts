@@ -1505,9 +1505,7 @@ export default class SparkWebPlayer extends Component(spec) {
         const simulateFromPath = Game.getSimulateFromPath(validPreviewPath);
         this._game.simulatePath = simulateFromPath;
       }
-      if (!shouldBuildNewGame) {
-        this._game.simulation = "fail";
-      }
+      this._game.simulation = "fail";
     }
 
     if (shouldBuildNewGame) {
