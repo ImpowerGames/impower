@@ -1,7 +1,7 @@
 import { Create } from "../../../core/types/Create";
 
 export const properties_style = () => ({
-  display: true,
+  displayed: true,
   visible: true,
   interactable: true,
   overflow: true,

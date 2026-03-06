@@ -31,6 +31,7 @@ const PROPERTY_NAMES = [
   "translate",
   "rotate",
   "scale",
+  "transform",
   "filter",
   "backdrop-filter",
   "mix-blend-mode",
@@ -46,7 +47,7 @@ export const schema_style: Create<Schema<any>> = () => {
   const schema = {
     $type: "style",
     $name: "$schema",
-    display: [true, false],
+    displayed: [true, false],
     visible: [true, false],
     interactable: [true, false],
     overflow: [true, false],
@@ -240,12 +241,68 @@ export const schema_style: Create<Schema<any>> = () => {
       { $type: "graphic" },
       { $type: "gradient" },
     ],
+
+    display: ["none", "flex", "block", "inline", "inline-block"],
+    pointer_events: ["auto", "none"],
+    max_width: [
+      GRID_STEP,
+      0,
+      Math.pow(GRID_STEP, 2),
+      "none",
+      "fit-content",
+      "min-content",
+      "max-content",
+    ],
+    max_height: [
+      GRID_STEP,
+      0,
+      Math.pow(GRID_STEP, 2),
+      "none",
+      "fit-content",
+      "min-content",
+      "max-content",
+    ],
+    align_items: [
+      "flex-start",
+      "flex-end",
+      "start",
+      "end",
+      "center",
+      "stretch",
+      "space-between",
+      "space-around",
+      "space-evenly",
+      "self-start",
+      "self-end",
+      "baseline",
+      "first",
+      "last",
+      "safe",
+      "unsafe",
+      "anchor-center",
+      "normal",
+    ],
+    justify_content: [
+      "flex-start",
+      "flex-end",
+      "start",
+      "end",
+      "center",
+      "stretch",
+      "space-between",
+      "space-around",
+      "space-evenly",
+    ],
+    will_change: PROPERTY_NAMES,
   };
+  for (const [prop, value] of Object.entries(schema)) {
+    schema[prop.replaceAll("_", "-") as keyof typeof schema] ??= value as any;
+  }
   for (const [prop, alias] of Object.entries(CSS_ALIASES)) {
     const aliasName = alias.replaceAll("-", "_") as keyof typeof schema;
     const schemaValue = schema[aliasName] as any;
-    schema[prop as keyof typeof schema] = schemaValue;
-    schema[prop.replaceAll("-", "_") as keyof typeof schema] = schemaValue;
+    schema[prop as keyof typeof schema] ??= schemaValue;
+    schema[prop.replaceAll("-", "_") as keyof typeof schema] ??= schemaValue;
   }
   return schema;
 };

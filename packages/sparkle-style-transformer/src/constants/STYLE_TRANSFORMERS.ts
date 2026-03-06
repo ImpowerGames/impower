@@ -59,7 +59,7 @@ import {
 const get = (v: string) => v;
 
 export const STYLE_TRANSFORMERS = {
-  display: getCssDisplay,
+  displayed: getCssDisplay,
 
   position: getCssPosition,
 

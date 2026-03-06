@@ -1,5 +1,5 @@
 export const CSS_UTILITIES = {
-  display: {
+  displayed: {
     "": { display: "" },
   },
 

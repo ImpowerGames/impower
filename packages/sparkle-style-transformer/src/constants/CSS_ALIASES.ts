@@ -1,4 +1,6 @@
 export const CSS_ALIASES = {
+  display: "displayed",
+
   "aspect-ratio": "aspect",
 
   "min-width": "width-min",
