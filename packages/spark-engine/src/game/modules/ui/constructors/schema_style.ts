@@ -244,6 +244,16 @@ export const schema_style: Create<Schema<any>> = () => {
 
     display: ["none", "flex", "block", "inline", "inline-block"],
     pointer_events: ["auto", "none"],
+    min_width: [
+      GRID_STEP,
+      0,
+      Math.pow(GRID_STEP, 2),
+      "none",
+      "fit-content",
+      "min-content",
+      "max-content",
+      "stretch",
+    ],
     max_width: [
       GRID_STEP,
       0,
@@ -252,6 +262,17 @@ export const schema_style: Create<Schema<any>> = () => {
       "fit-content",
       "min-content",
       "max-content",
+      "stretch",
+    ],
+    min_height: [
+      GRID_STEP,
+      0,
+      Math.pow(GRID_STEP, 2),
+      "none",
+      "fit-content",
+      "min-content",
+      "max-content",
+      "stretch",
     ],
     max_height: [
       GRID_STEP,
@@ -261,6 +282,7 @@ export const schema_style: Create<Schema<any>> = () => {
       "fit-content",
       "min-content",
       "max-content",
+      "stretch",
     ],
     align_items: [
       "flex-start",
