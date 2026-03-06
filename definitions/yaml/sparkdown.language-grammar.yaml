@@ -3147,7 +3147,6 @@ repository:
   ConditionalIndentedBlock:
     tag: meta
     name: meta.definition.type.conditional-block.sd
-    brackets: true
     begin: ({{WS}}*)({{CONDITIONAL_BLOCK_KEYWORDS}})\b
     beginCaptures:
       1:
@@ -3215,12 +3214,12 @@ repository:
         name: punctuation.definition.template-expression.end.sd
 
   Indent:
-    tag: content
+    tag: special(content)
     name: markup.raw.whitespace.indent.sd
     match: ^({{WS}}+)
 
   TrailingWhitespace:
-    tag: special(content)
+    tag: local(content)
     name: markup.raw.whitespace.trailing.sd
     match: (?<!^)({{WS}}+)$
 
@@ -4693,52 +4692,70 @@ repository:
   ImageCommand:
     tag: macroName
     name: meta.image.sd
-    match: (\[\[)({{WS}}*)((?:\\.|[^\]])*?)({{WS}}*)(\]\])({{WS}}*)
-    captures:
+    brackets: true
+    begin: (\[\[)({{WS}}*)
+    beginCaptures:
       1:
         patterns:
           - { include: "#ImageBeginMark" }
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "#AssetCommandContent" }
-      4:
+    patterns:
+      - { include: "#ImageCommandContent" }
+    end: $|({{WS}}*)(\]\])({{WS}}*)
+    endCaptures:
+      1:
         patterns:
           - { include: "#ExtraWhitespace" }
-      5:
+      2:
         patterns:
           - { include: "#ImageEndMark" }
-      6:
+      3:
         emit: true
         patterns:
           - { include: "#OptionalSeparator" }
 
+  ImageCommandContent:
+    match: ((?:\\.|[^\]])*?)(?=$|{{WS}}*\]\])
+    captures:
+      1:
+        patterns:
+          - { include: "#AssetCommandContent" }
+
   AudioCommand:
     tag: macroName
     name: meta.audio.sd
-    match: ([(][(])({{WS}}*)((?:\\.|[^)])*?)({{WS}}*)([)][)])({{WS}}*)
-    captures:
+    brackets: true
+    begin: ([(][(])({{WS}}*)
+    beginCaptures:
       1:
         patterns:
           - { include: "#AudioBeginMark" }
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "#AssetCommandContent" }
-      4:
+    patterns:
+      - { include: "#AudioCommandContent" }
+    end: $|({{WS}}*)([)][)])({{WS}}*)
+    endCaptures:
+      1:
         patterns:
           - { include: "#ExtraWhitespace" }
-      5:
+      2:
         patterns:
           - { include: "#AudioEndMark" }
-      6:
+      3:
         emit: true
         patterns:
           - { include: "#OptionalSeparator" }
+
+  AudioCommandContent:
+    match: ((?:\\.|[^)])*?)(?=$|{{WS}}*[)][)])
+    captures:
+      1:
+        patterns:
+          - { include: "#AssetCommandContent" }
 
   AssetCommandContent:
     match: (.*?)($|(?:{{IMAGE_CLAUSE_KEYWORDS}}|{{AUDIO_CLAUSE_KEYWORDS}})(?=$|{{WS}}).*)

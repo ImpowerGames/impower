@@ -3,6 +3,10 @@ import { tags } from "@lezer/highlight";
 import c from "./EDITOR_COLORS";
 
 const EDITOR_HIGHLIGHTS = HighlightStyle.define([
+  {
+    tag: tags.special(tags.content),
+    class: "indent",
+  },
   { tag: tags.content },
 
   { tag: tags.paren, color: c.bracket },

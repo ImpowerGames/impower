@@ -5939,7 +5939,6 @@
     "ConditionalIndentedBlock": {
       "tag": "meta",
       "name": "meta.definition.type.conditional-block.sd",
-      "brackets": true,
       "begin": "([^\\S\\n\\r]*)(\\b(?:if|elseif|else|match|case|stopping|shuffle|cycle|once|repeat|for|fill)\\b)\\b",
       "beginCaptures": {
         "1": {
@@ -6076,12 +6075,12 @@
       }
     },
     "Indent": {
-      "tag": "content",
+      "tag": "special(content)",
       "name": "markup.raw.whitespace.indent.sd",
       "match": "^([^\\S\\n\\r]+)"
     },
     "TrailingWhitespace": {
-      "tag": "special(content)",
+      "tag": "local(content)",
       "name": "markup.raw.whitespace.trailing.sd",
       "match": "(?<!^)([^\\S\\n\\r]+)$"
     },
@@ -8733,8 +8732,9 @@
     "ImageCommand": {
       "tag": "macroName",
       "name": "meta.image.sd",
-      "match": "(\\[\\[)([^\\S\\n\\r]*)((?:\\\\.|[^\\]])*?)([^\\S\\n\\r]*)(\\]\\])([^\\S\\n\\r]*)",
-      "captures": {
+      "brackets": true,
+      "begin": "(\\[\\[)([^\\S\\n\\r]*)",
+      "beginCaptures": {
         "1": {
           "patterns": [
             {
@@ -8748,29 +8748,30 @@
               "include": "#ExtraWhitespace"
             }
           ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#AssetCommandContent"
-            }
-          ]
-        },
-        "4": {
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ImageCommandContent"
+        }
+      ],
+      "end": "$|([^\\S\\n\\r]*)(\\]\\])([^\\S\\n\\r]*)",
+      "endCaptures": {
+        "1": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
             }
           ]
         },
-        "5": {
+        "2": {
           "patterns": [
             {
               "include": "#ImageEndMark"
             }
           ]
         },
-        "6": {
+        "3": {
           "emit": true,
           "patterns": [
             {
@@ -8780,11 +8781,24 @@
         }
       }
     },
+    "ImageCommandContent": {
+      "match": "((?:\\\\.|[^\\]])*?)(?=$|[^\\S\\n\\r]*\\]\\])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetCommandContent"
+            }
+          ]
+        }
+      }
+    },
     "AudioCommand": {
       "tag": "macroName",
       "name": "meta.audio.sd",
-      "match": "([(][(])([^\\S\\n\\r]*)((?:\\\\.|[^)])*?)([^\\S\\n\\r]*)([)][)])([^\\S\\n\\r]*)",
-      "captures": {
+      "brackets": true,
+      "begin": "([(][(])([^\\S\\n\\r]*)",
+      "beginCaptures": {
         "1": {
           "patterns": [
             {
@@ -8798,33 +8812,46 @@
               "include": "#ExtraWhitespace"
             }
           ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#AssetCommandContent"
-            }
-          ]
-        },
-        "4": {
+        }
+      },
+      "patterns": [
+        {
+          "include": "#AudioCommandContent"
+        }
+      ],
+      "end": "$|([^\\S\\n\\r]*)([)][)])([^\\S\\n\\r]*)",
+      "endCaptures": {
+        "1": {
           "patterns": [
             {
               "include": "#ExtraWhitespace"
             }
           ]
         },
-        "5": {
+        "2": {
           "patterns": [
             {
               "include": "#AudioEndMark"
             }
           ]
         },
-        "6": {
+        "3": {
           "emit": true,
           "patterns": [
             {
               "include": "#OptionalSeparator"
+            }
+          ]
+        }
+      }
+    },
+    "AudioCommandContent": {
+      "match": "((?:\\\\.|[^)])*?)(?=$|[^\\S\\n\\r]*[)][)])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetCommandContent"
             }
           ]
         }

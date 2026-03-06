@@ -84,7 +84,7 @@ const INLINE_HIDDEN_TAGS = [
   tags.definition(tags.content),
   tags.definition(tags.separator),
   tags.definition(tags.logicOperator),
-  tags.special(tags.content),
+  tags.local(tags.content),
   tags.comment,
   tags.blockComment,
   tags.docComment,
@@ -132,7 +132,7 @@ const DUAL_LANGUAGE_HIGHLIGHTS = createHighlightStyle({
 
 export const debugDecorations = (
   decorations: RangeSet<Decoration>,
-  state: EditorState
+  state: EditorState,
 ) => {
   const iter = decorations.iter(0);
   while (iter.value) {
@@ -140,7 +140,7 @@ export const debugDecorations = (
       iter.from,
       iter.to,
       JSON.stringify(state.sliceDoc(iter.from, iter.to)),
-      iter.value
+      iter.value,
     );
     iter.next();
   }
@@ -154,7 +154,7 @@ const createRevealDecorations = (doc: Text, from: number, to?: number) => {
     lineDecorations.push(
       Decoration.line({
         attributes: { style: "opacity: 1" },
-      }).range(doc.line(i).from)
+      }).range(doc.line(i).from),
     );
   }
   return lineDecorations;
@@ -162,7 +162,7 @@ const createRevealDecorations = (doc: Text, from: number, to?: number) => {
 
 const createDecorations = (
   doc: Text,
-  spec: DecorationSpec
+  spec: DecorationSpec,
 ): Range<Decoration>[] => {
   if (spec.type === "mark") {
     return [
@@ -218,7 +218,7 @@ const createDecorations = (
         return blocks.map((b) =>
           Decoration.line({
             attributes: b.attributes,
-          }).range(doc.lineAt(b.from).from)
+          }).range(doc.lineAt(b.from).from),
         );
       }
     }
@@ -257,7 +257,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         attributes: {
           style: "display: block; opacity: 1; text-align: center;",
         },
-      })
+      }),
     );
   };
 
@@ -310,7 +310,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         type: "collapse",
         from: hideFrom,
         to: hideTo,
-      })
+      }),
     );
     isBlankLineFrom = undefined;
     if (hiddenNodeEndsWithNewline) {
@@ -327,7 +327,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
           type: "replace",
           from,
           to,
-        })
+        }),
       );
     }
   };
@@ -340,7 +340,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
           from: isBlankLineFrom,
           to: to - 1,
           separator: true,
-        })
+        }),
       );
     }
     isBlankLineFrom = to;
@@ -460,7 +460,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             type: "page_break",
             from,
             to,
-          })
+          }),
         );
         return false;
       } else if (name === "Scene") {
@@ -469,7 +469,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             type: "page_break",
             from,
             to,
-          })
+          }),
         );
         return false;
       } else if (name === "Knot") {
@@ -478,7 +478,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             type: "page_break",
             from,
             to,
-          })
+          }),
         );
         return false;
       } else if (name === "Indent" && inConditionalBlock.length === 0) {
@@ -506,7 +506,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             type: "reveal",
             from,
             to,
-          })
+          }),
         );
         decorations.push(
           ...createDecorations(doc, {
@@ -516,7 +516,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             language: LANGUAGE_SUPPORT.language,
             highlighter: LANGUAGE_HIGHLIGHTS,
             ...frontMatterPositionContent,
-          })
+          }),
         );
       } else if (name === "FrontMatterField") {
         const firstCaptureBlock = frontMatterFieldCaptureBlocks[0];
@@ -539,7 +539,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         if (position) {
           frontMatterPositionContent[position] ??= [];
           frontMatterPositionContent[position]!.push(
-            ...frontMatterFieldCaptureBlocks
+            ...frontMatterFieldCaptureBlocks,
           );
         }
       } else if (name === "BlockTitle" || name === "InlineTitle") {
@@ -549,7 +549,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             type: "reveal",
             from,
             to,
-          })
+          }),
         );
       } else if (name === "BlockHeading" || name === "InlineHeading") {
         // Add Heading Spec
@@ -558,7 +558,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             type: "reveal",
             from,
             to,
-          })
+          }),
         );
       } else if (
         name === "BlockTransitional" ||
@@ -570,7 +570,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             type: "reveal",
             from,
             to,
-          })
+          }),
         );
       } else if (
         name === "BlockAction" ||
@@ -583,7 +583,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             type: "reveal",
             from,
             to,
-          })
+          }),
         );
       } else if (name === "Choice") {
         // Add Choice Spec
@@ -592,7 +592,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             type: "reveal",
             from,
             to,
-          })
+          }),
         );
       } else if (name === "BlockDialogue" || name === "InlineDialogue") {
         if (inDualDialogue) {
@@ -630,7 +630,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
               });
             });
             decorations.push(
-              ...createDecorations(doc, { type: "replace", from, to })
+              ...createDecorations(doc, { type: "replace", from, to }),
             );
           }
         } else {
@@ -662,7 +662,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
       decorations.push(Decoration.mark({ class: style }).range(from, to));
     },
     from,
-    to
+    to,
   );
 
   // console.log("REPARSED TREE");

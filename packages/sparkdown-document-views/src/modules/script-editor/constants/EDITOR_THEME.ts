@@ -16,6 +16,14 @@ const EDITOR_THEME: {
   "*, *::before, *::after": {
     boxSizing: "border-box",
   },
+  ".indent": {
+    display: "inline-block",
+    textIndent: "0",
+  },
+  ".indent + *": {
+    display: "inline-block",
+    textIndent: "0",
+  },
   "& samp": {
     fontSize: "95%",
     backgroundColor: "rgba(0,0,0,0.5)",
