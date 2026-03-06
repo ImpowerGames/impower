@@ -3248,7 +3248,7 @@
               "include": "#StringFieldValue"
             },
             {
-              "include": "#AccessPath"
+              "include": "#AccessPathFieldValue"
             },
             {
               "include": "#InvalidFieldValue"
@@ -3334,6 +3334,25 @@
           ]
         },
         "4": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        }
+      }
+    },
+    "AccessPathFieldValue": {
+      "match": "([_\\p{L}][0-9_\\p{L}-]*.*?)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[/][/].*$))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AccessPath"
+            }
+          ]
+        },
+        "2": {
           "patterns": [
             {
               "include": "#EndOfLine"

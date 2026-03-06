@@ -1689,7 +1689,7 @@ repository:
           - { include: "#NumericFieldValue" }
           - { include: "#BooleanFieldValue" }
           - { include: "#StringFieldValue" }
-          - { include: "#AccessPath" }
+          - { include: "#AccessPathFieldValue" }
           - { include: "#InvalidFieldValue" }
 
   InvalidFieldValue:
@@ -1737,6 +1737,16 @@ repository:
         patterns:
           - { include: "#PunctuationStringClose" }
       4:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  AccessPathFieldValue:
+    match: ({{IDENTIFIER}}.*?)({{EOPL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#AccessPath" }
+      2:
         patterns:
           - { include: "#EndOfLine" }
 
