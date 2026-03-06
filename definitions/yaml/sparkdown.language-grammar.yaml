@@ -1413,7 +1413,7 @@ repository:
       - { include: "#UnassignedEventAttribute" }
 
   AssignedBracedStyleAttribute:
-    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}}?[=])([{])
+    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])([{])
     beginCaptures:
       1:
         patterns:
@@ -1423,8 +1423,11 @@ repository:
           - { include: "#StyleAttributeName" }
       3:
         patterns:
-          - { include: "#EqualOperator" }
+          - { include: "#ComparisonOperator" }
       4:
+        patterns:
+          - { include: "#EqualOperator" }
+      5:
         patterns:
           - { include: "#PunctuationBraceOpen" }
     patterns:
@@ -1439,7 +1442,7 @@ repository:
   AssignedQuotedStyleAttribute:
     tag: string
     name: string.quoted.double.view.sd
-    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}}?[=])(["])
+    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])(["])
     beginCaptures:
       1:
         patterns:
@@ -1449,8 +1452,11 @@ repository:
           - { include: "#StyleAttributeName" }
       3:
         patterns:
-          - { include: "#EqualOperator" }
+          - { include: "#ComparisonOperator" }
       4:
+        patterns:
+          - { include: "#EqualOperator" }
+      5:
         patterns:
           - { include: "#PunctuationStringOpen" }
     patterns:
@@ -1463,7 +1469,7 @@ repository:
           - { include: "#PunctuationStringClose" }
 
   AssignedUnquotedStyleAttribute:
-    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}}?[=])
+    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])
     beginCaptures:
       1:
         patterns:
@@ -1472,6 +1478,9 @@ repository:
         patterns:
           - { include: "#StyleAttributeName" }
       3:
+        patterns:
+          - { include: "#ComparisonOperator" }
+      4:
         patterns:
           - { include: "#EqualOperator" }
     patterns:
@@ -1490,7 +1499,7 @@ repository:
           - { include: "#StyleAttributeName" }
 
   AssignedBracedEventAttribute:
-    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}}?[=])([{])
+    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])([{])
     beginCaptures:
       1:
         patterns:
@@ -1500,8 +1509,11 @@ repository:
           - { include: "#EventAttributeName" }
       3:
         patterns:
-          - { include: "#EqualOperator" }
+          - { include: "#ComparisonOperator" }
       4:
+        patterns:
+          - { include: "#EqualOperator" }
+      5:
         patterns:
           - { include: "#PunctuationBraceOpen" }
     patterns:
@@ -1516,7 +1528,7 @@ repository:
   AssignedQuotedEventAttribute:
     tag: string
     name: string.quoted.double.view.sd
-    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}}?[=])(["])
+    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])(["])
     beginCaptures:
       1:
         patterns:
@@ -1526,8 +1538,11 @@ repository:
           - { include: "#EventAttributeName" }
       3:
         patterns:
-          - { include: "#EqualOperator" }
+          - { include: "#ComparisonOperator" }
       4:
+        patterns:
+          - { include: "#EqualOperator" }
+      5:
         patterns:
           - { include: "#PunctuationStringOpen" }
     patterns:
@@ -1540,7 +1555,7 @@ repository:
           - { include: "#PunctuationStringClose" }
 
   AssignedUnquotedEventAttribute:
-    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}}?[=])
+    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])
     beginCaptures:
       1:
         patterns:
@@ -1550,6 +1565,9 @@ repository:
           - { include: "#Comment" }
           - { include: "#EventAttributeName" }
       3:
+        patterns:
+          - { include: "#ComparisonOperator" }
+      4:
         patterns:
           - { include: "#EqualOperator" }
     patterns:
@@ -3429,6 +3447,11 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalSeparator" }
+
+  ComparisonOperator:
+    tag: updateOperator
+    name: keyword.operator.comparison.sd
+    match: ({{COMPARISON_OPERATOR}})
 
   AssignEqualOperator:
     match: ({{WS}}*)([=])({{WS}}*)
