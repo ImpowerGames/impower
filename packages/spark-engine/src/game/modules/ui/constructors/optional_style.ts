@@ -24,7 +24,7 @@ export const properties_style = () => ({
   height: { $type: "[auto | <length> | <percentage>]" },
   height_min: { $type: "[none | <length> | <percentage>]" },
   height_max: { $type: "[none | <length> | <percentage>]" },
-  aspect_ratio: { $type: "[<number>/<number>]" },
+  aspect_ratio: { $type: "[auto | <number>/<number>]" },
   corner: { $type: "[<length> | pill | circle]" },
   corner_top_left_radius: { $type: "[<length> | pill | circle]" },
   corner_top_right_radius: { $type: "[<length> | pill | circle]" },
@@ -63,7 +63,7 @@ export const properties_style = () => ({
   text_color: { $type: "color" },
   text_size: { $type: "<length>" },
   text_leading: {
-    $type: "[normal | <number> | none | <size>]",
+    $type: "[normal | <number> | <size> | none]",
   },
   text_tracking: { $type: "<length>" },
   text_align: { $type: "[left | center | right | justify]" },
