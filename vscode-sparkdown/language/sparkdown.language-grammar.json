@@ -3364,6 +3364,9 @@
               "include": "#StringEscape"
             },
             {
+              "include": "#Color"
+            },
+            {
               "include": "#StringCharacter"
             }
           ]

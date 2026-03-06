@@ -1750,6 +1750,7 @@ repository:
       2:
         patterns:
           - { include: "#StringEscape" }
+          - { include: "#Color" }
           - { include: "#StringCharacter" }
       3:
         patterns:

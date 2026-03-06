@@ -2,12 +2,12 @@ export const traverse = <T>(
   obj: T,
   process: (fieldPath: string, fieldValue: any) => void,
   shouldProcess?: (fieldPath: string, fieldValue: any) => boolean,
-  fieldPath: string = ""
+  fieldPath: string = "",
 ) => {
   if (obj) {
     for (const [k, v] of Object.entries(obj)) {
       const path = fieldPath ? `${fieldPath}.${k}` : k;
-      if (typeof v === "object" && v && !("$name" in v)) {
+      if (typeof v === "object" && v && !("$type" in v) && !("$name" in v)) {
         if (Array.isArray(v)) {
           process(path, v);
           traverse(v, process, shouldProcess, path);

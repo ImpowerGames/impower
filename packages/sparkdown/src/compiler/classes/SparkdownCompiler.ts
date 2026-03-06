@@ -1516,6 +1516,12 @@ export class SparkdownCompiler {
               this._config,
               state,
             );
+            if (expectedSelectorTypes.includes("color")) {
+              const range = doc.range(cur.from, cur.to);
+              program.colorAnnotations ??= {};
+              program.colorAnnotations[uri] ??= [];
+              program.colorAnnotations[uri].push(range);
+            }
             const selector = reference.selectors?.[0];
             // Validate that reference resolves to existing an struct
             let found: any = undefined;

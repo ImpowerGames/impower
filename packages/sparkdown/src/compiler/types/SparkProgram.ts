@@ -1,13 +1,13 @@
 import { SparkleNode } from "@impower/sparkle-screen-renderer/src/parser/parser";
 import { type File } from "./File";
-import { type SparkDiagnostic } from "./SparkDiagnostic";
+import { Range, type SparkDiagnostic } from "./SparkDiagnostic";
 
-export type Location = [
+export type ScriptLocation = [
   scriptIndex: number,
   startLine: number,
   startColumn: number,
   endLine: number,
-  endColumn: number
+  endColumn: number,
 ];
 
 export interface SparkProgram {
@@ -37,29 +37,32 @@ export interface SparkProgram {
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];
   };
+  colorAnnotations?: {
+    [uri: string]: Range[];
+  };
   pathLocations?: {
-    [path: string]: Location;
+    [path: string]: ScriptLocation;
   };
   functionLocations?: {
-    [name: string]: Location;
+    [name: string]: ScriptLocation;
   };
   sceneLocations?: {
-    [name: string]: Location;
+    [name: string]: ScriptLocation;
   };
   branchLocations?: {
-    [name: string]: Location;
+    [name: string]: ScriptLocation;
   };
   knotLocations?: {
-    [name: string]: Location;
+    [name: string]: ScriptLocation;
   };
   stitchLocations?: {
-    [name: string]: Location;
+    [name: string]: ScriptLocation;
   };
   labelLocations?: {
-    [name: string]: Location;
+    [name: string]: ScriptLocation;
   };
   dataLocations?: {
-    [name: string]: Location;
+    [name: string]: ScriptLocation;
   };
   version?: number;
 }

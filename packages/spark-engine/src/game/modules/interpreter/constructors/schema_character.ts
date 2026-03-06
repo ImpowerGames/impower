@@ -1,8 +1,8 @@
-import { Character } from "../../..";
 import { Create } from "../../../core/types/Create";
 import { Schema } from "../../../core/types/Schema";
 
-export const schema_character: Create<Schema<Character>> = () => ({
+export const schema_character: Create<Schema<any>> = () => ({
   $type: "character",
   $name: "$schema",
+  color: ["", { $type: "color" }],
 });

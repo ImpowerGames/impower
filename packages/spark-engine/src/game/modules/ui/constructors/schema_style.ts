@@ -41,7 +41,7 @@ const PROPERTY_NAMES = [
   "border-color",
   "text-decoration-color",
 ];
-const COLORS = ["transparent", "black", "white", { $type: "color" }];
+const COLORS = ["transparent", { $type: "color" }];
 
 export const schema_style: Create<Schema<any>> = () => {
   const schema = {

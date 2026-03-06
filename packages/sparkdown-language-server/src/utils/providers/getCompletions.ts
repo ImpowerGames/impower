@@ -631,55 +631,63 @@ const addStructPropertyValueSchemaCompletions = (
                   INSERT_TEXT_CURSOR_REGEX,
                   "",
                 );
-                const label = STYLING_DEFINE_TYPES.includes(schemaStruct.$type)
-                  ? insertTextWithoutCursorSyntax
-                  : `"${insertTextWithoutCursorSyntax}"`;
-                const insertTextFormat = insertText.includes("$")
-                  ? InsertTextFormat.Snippet
-                  : undefined;
-                const completion: CompletionItem = {
-                  label,
-                  insertText,
-                  kind,
-                  insertTextFormat,
-                };
-                if (completion.label && !completions.has(completion.label)) {
-                  completions.set(completion.label, completion);
+                if (insertTextWithoutCursorSyntax) {
+                  const label = STYLING_DEFINE_TYPES.includes(
+                    schemaStruct.$type,
+                  )
+                    ? insertTextWithoutCursorSyntax
+                    : `"${insertTextWithoutCursorSyntax}"`;
+                  const insertTextFormat = insertText.includes("$")
+                    ? InsertTextFormat.Snippet
+                    : undefined;
+                  const completion: CompletionItem = {
+                    label,
+                    insertText,
+                    kind,
+                    insertTextFormat,
+                  };
+                  if (completion.label && !completions.has(completion.label)) {
+                    completions.set(completion.label, completion);
+                  }
                 }
               } else if (
                 context?.triggerCharacter === '"' &&
                 valueCursorOffset === 1
               ) {
                 const label = insertText.replace(INSERT_TEXT_CURSOR_REGEX, "");
-                const insertTextFormat = insertText.includes("$")
-                  ? InsertTextFormat.Snippet
-                  : undefined;
-                const completion: CompletionItem = {
-                  label,
-                  insertText,
-                  kind,
-                  insertTextFormat,
-                };
-                if (completion.label && !completions.has(completion.label)) {
-                  completions.set(completion.label, completion);
+                if (label) {
+                  const insertTextFormat = insertText.includes("$")
+                    ? InsertTextFormat.Snippet
+                    : undefined;
+                  const completion: CompletionItem = {
+                    label,
+                    insertText,
+                    kind,
+                    insertTextFormat,
+                  };
+                  if (completion.label && !completions.has(completion.label)) {
+                    completions.set(completion.label, completion);
+                  }
                 }
               } else if (STYLING_DEFINE_TYPES.includes(schemaStruct.$type)) {
                 const insertTextWithoutCursorSyntax = insertText.replace(
                   INSERT_TEXT_CURSOR_REGEX,
                   "",
                 );
-                const label = insertTextWithoutCursorSyntax;
-                const insertTextFormat = insertText.includes("$")
-                  ? InsertTextFormat.Snippet
-                  : undefined;
-                const completion: CompletionItem = {
-                  label,
-                  insertText,
-                  kind,
-                  insertTextFormat,
-                };
-                if (completion.label && !completions.has(completion.label)) {
-                  completions.set(completion.label, completion);
+                if (insertTextWithoutCursorSyntax) {
+                  const label = insertTextWithoutCursorSyntax;
+                  const insertTextFormat = insertText.includes("$")
+                    ? InsertTextFormat.Snippet
+                    : undefined;
+                  const completion: CompletionItem = {
+                    label,
+                    insertText,
+                    kind,
+                    insertTextFormat,
+                  };
+                  if (completion.label && !completions.has(completion.label)) {
+                    completions.set(completion.label, completion);
+                  }
                 }
               }
             } else if (

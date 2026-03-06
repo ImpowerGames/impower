@@ -104,7 +104,6 @@ export class ColorAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (
-      nodeRef.name === "AccessPath" ||
       nodeRef.name === "StylingStringIdentifier" ||
       nodeRef.name === "ParameterStringIdentifier"
     ) {

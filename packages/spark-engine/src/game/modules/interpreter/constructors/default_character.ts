@@ -13,6 +13,5 @@ export const default_character: Create<Character> = (obj) => ({
     prosody: {},
   },
   name: "",
-  color: "",
   ...obj,
 });
