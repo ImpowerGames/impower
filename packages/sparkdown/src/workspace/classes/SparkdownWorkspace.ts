@@ -473,6 +473,11 @@ export abstract class SparkdownWorkspace {
     this.onChangeTextDocument(params);
   }
 
+  async compileTextDocument(params: { textDocument: { uri: string } }) {
+    const { textDocument } = params;
+    this.compile(textDocument.uri, true);
+  }
+
   async selectTextDocument(params: {
     textDocument: { uri: string };
     selectedRange: Range;

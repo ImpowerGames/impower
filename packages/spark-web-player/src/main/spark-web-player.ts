@@ -751,12 +751,19 @@ export default class SparkWebPlayer extends Component(spec) {
       this._options.startFrom = startFrom;
       this._checkpoint = checkpoint;
       if (this._program && this._game?.state !== "running") {
-        await this.updatePreview(
-          this._program,
-          startFrom.file,
-          startFrom.line,
-          checkpoint,
-        );
+        if (startFrom.file in this._program.scripts) {
+          await this.updatePreview(
+            this._program,
+            startFrom.file,
+            startFrom.line,
+            checkpoint,
+          );
+        } else {
+          // Ensure the workspace re-compiles document so preview can be updated
+          await SparkWebPlayer.workspace.compileTextDocument({
+            textDocument,
+          });
+        }
       }
     }
   };
@@ -1486,14 +1493,13 @@ export default class SparkWebPlayer extends Component(spec) {
     this._options.previewFrom = validPreviewFrom;
 
     // Build game if one doesn't exist or program has changed
-    const shouldBuildNewGame =
-      !this._game || (this._game.state === "previewing" && programChanged);
+    const shouldBuildNewGame = !this._game || programChanged;
 
     if (shouldBuildNewGame) {
       this._game = await this.buildGame(program);
     }
 
-    if (!this._game || this._game.state !== "previewing") {
+    if (!this._game) {
       console.error("No game to preview");
       return;
     }
