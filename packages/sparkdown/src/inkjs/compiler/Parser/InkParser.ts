@@ -1114,6 +1114,7 @@ export class InkParser extends StringParser {
         // So consume newline as part of this text
         const c = this.ParseSingleCharacter();
         if (c !== null) {
+          sb ??= "";
           sb += c;
           // Ensure any logic directly following the newline is not escaped
           sb += " ";
@@ -1161,6 +1162,7 @@ export class InkParser extends StringParser {
             // So consume newline as part of this text
             const c = this.ParseSingleCharacter();
             if (c !== null) {
+              sb ??= "";
               sb += c;
               // Ensure any logic directly following the newline is not escaped
               sb += " ";
@@ -1170,11 +1172,13 @@ export class InkParser extends StringParser {
             if (str && str.trim()) {
               // There is some content before escaped space.
               // So insert newline since we are escaping space between content.
+              sb ??= "";
               sb += "\n";
               // Ensure any logic directly following the newline is not escaped
               sb += " ";
             } else {
               // Include backslash before escaped indent
+              sb ??= "";
               sb += "\\";
               sb += escapedSpace;
             }
@@ -1183,6 +1187,7 @@ export class InkParser extends StringParser {
           // Escaped newline or non-space character
           const c = this.ParseSingleCharacter();
           if (c !== null) {
+            sb ??= "";
             if (c !== "\n") {
               // Include backslash before escaped character
               sb += "\\";
