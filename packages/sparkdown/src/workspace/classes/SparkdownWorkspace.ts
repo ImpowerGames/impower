@@ -28,7 +28,7 @@ const globToRegex = (glob: string) => {
       .replace(/[.]/g, "[.]")
       .replace(/[*]/g, ".*")
       .replace(/[{](.*)[}]/g, (_match, $1) => `(${$1.replace(/[,]/g, "|")})`),
-    "i"
+    "i",
   );
 };
 
@@ -109,8 +109,8 @@ export abstract class SparkdownWorkspace {
       URL.createObjectURL(
         new Blob([compilerInlineWorkerContent], {
           type: "text/javascript",
-        })
-      )
+        }),
+      ),
     );
     compilerWorker.onerror = (e) => {
       console.error(e);
@@ -120,7 +120,7 @@ export abstract class SparkdownWorkspace {
     this._compilerChannelConnection = new Port1MessageConnection(channel.port1);
     if (this._profilerId) {
       this._compilerChannelConnection.profile(
-        this._profilerId + " " + "workspace"
+        this._profilerId + " " + "workspace",
       );
     }
     this.connectToWorker(workerConnection, channel.port2);
@@ -128,7 +128,7 @@ export abstract class SparkdownWorkspace {
 
   protected async connectToWorker(
     workerConnection: WorkerMessageConnection,
-    port2: MessagePort
+    port2: MessagePort,
   ) {
     this._initializingCompiler = new Promise<void>((resolve) => {
       this._resolveInitializingCompiler = resolve;
@@ -138,7 +138,7 @@ export abstract class SparkdownWorkspace {
       CompilerInitializeMessage.type,
       {
         profilerId: this._profilerId,
-      }
+      },
     );
     this._initializedCompiler = true;
     this._resolveInitializingCompiler();
@@ -156,7 +156,7 @@ export abstract class SparkdownWorkspace {
       uri?: string;
       omitImageData?: boolean;
       files?: { uri: string; src?: string; text?: string }[];
-    } & Omit<SparkdownCompilerConfig, "files">
+    } & Omit<SparkdownCompilerConfig, "files">,
   ) {
     const { omitImageData, settings, uri, ...compilerConfig } =
       initializationOptions;
@@ -188,7 +188,7 @@ export abstract class SparkdownWorkspace {
             this._watchedFiles.set(watchedFile.uri, watchedFile);
             this.onCreatedFile(watchedFile);
             return watchedFile;
-          })
+          }),
         )
       : undefined;
     await this.loadCompiler({
@@ -233,7 +233,7 @@ export abstract class SparkdownWorkspace {
   async configureCompiler(config: SparkdownCompilerConfig) {
     return this._compilerChannelConnection.sendRequest(
       ConfigureCompilerMessage.type,
-      config
+      config,
     );
   }
 
@@ -340,14 +340,14 @@ export abstract class SparkdownWorkspace {
 
   protected async updateCompilerDocument(
     textDocument: { uri: string },
-    contentChanges: SparkdownDocumentContentChangeEvent[]
+    contentChanges: SparkdownDocumentContentChangeEvent[],
   ) {
     return this._compilerChannelConnection.sendRequest(
       UpdateCompilerDocumentMessage.type,
       {
         textDocument,
         contentChanges,
-      }
+      },
     );
   }
 
@@ -357,7 +357,7 @@ export abstract class SparkdownWorkspace {
 
   async compile(
     uri: string,
-    force: boolean
+    force: boolean,
   ): Promise<SparkProgram | undefined> {
     profile("start", this._profilerId, "workspace" + " " + "compile", uri);
     let anyDocChanged = false;
@@ -430,7 +430,7 @@ export abstract class SparkdownWorkspace {
       {
         textDocument: { uri },
         startFrom: this._documentSelected,
-      }
+      },
     );
     return result;
   }
@@ -487,7 +487,7 @@ export abstract class SparkdownWorkspace {
     this.onSelectTextDocument(params);
     const result = await this._compilerChannelConnection.sendRequest(
       SelectCompilerDocumentMessage.type,
-      params
+      params,
     );
     this.sendNotification(SelectedCompilerDocumentMessage.method, result);
     return result;
@@ -502,7 +502,7 @@ export abstract class SparkdownWorkspace {
     this.onCreatedFile(file);
     await this._compilerChannelConnection.sendRequest(
       AddCompilerFileMessage.type,
-      { file }
+      { file },
     );
     if (
       this._lastCompiledUri &&
@@ -521,7 +521,7 @@ export abstract class SparkdownWorkspace {
       this.onChangedFile(file);
       await this._compilerChannelConnection.sendRequest(
         UpdateCompilerFileMessage.type,
-        { file }
+        { file },
       );
       if (
         this._lastCompiledUri &&
@@ -544,7 +544,7 @@ export abstract class SparkdownWorkspace {
       RemoveCompilerFileMessage.type,
       {
         file: { uri },
-      }
+      },
     );
     if (
       this._lastCompiledUri &&
