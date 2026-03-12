@@ -9,7 +9,9 @@ See VSCode's [Syntax Highlight Guide](https://code.visualstudio.com/api/language
 ## Install
 
 ```
-npm install @impower/codemirror-vscode-language @impower/textmate-grammar-tree @lezer/common
+npm install @impower/codemirror-vscode-language @impower/textmate-grammar-tree
+npm install @codemirror/state @codemirror/view @codemirror/language @codemirror/autocomplete
+npm install @lezer/common
 ```
 
 ## Usage
