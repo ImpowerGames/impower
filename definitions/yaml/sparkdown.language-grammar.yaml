@@ -4808,7 +4808,7 @@ repository:
           - { include: "#NameValue" }
 
   AssetCommandInstruction:
-    match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}})({{WS}}*)($|\S+))?({{WS}}*)($|\S+)?({{WS}}*)(.*)
+    match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}})({{WS}}*)($|\S+)({{WS}}*))?(.*)
     captures:
       1:
         patterns:
@@ -4826,14 +4826,7 @@ repository:
         patterns:
           - { include: "#AssetCommandAddOperator" }
           - { include: "#AssetCommandName" }
-          - { include: "#IllegalChar" }
-      6:
-        patterns:
           - { include: "#Separator" }
-      7:
-        patterns:
-          - { include: "#AssetCommandAddOperator" }
-          - { include: "#AssetCommandName" }
           - { include: "#IllegalChar" }
 
   ImageBeginMark:
@@ -4909,7 +4902,7 @@ repository:
   AssetCommandAddOperator:
     tag: propertyName
     name: variable.other.property.add.sd
-    match: ([+])
+    match: ({{WS}}*[+]{{WS}}*)
 
   AssetCommandFilter:
     match: ([~])($|[^~\s]+)?

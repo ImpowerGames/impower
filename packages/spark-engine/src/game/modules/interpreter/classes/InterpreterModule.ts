@@ -540,7 +540,11 @@ export class InterpreterModule extends Module<
       if (foundClauseKeyword) {
         args.push(part);
       } else {
-        assets.push(...part.split("+"));
+        for (const a of part.split("+")) {
+          if (a) {
+            assets.push(a);
+          }
+        }
       }
     }
     const clauses: Record<string, unknown> = {};

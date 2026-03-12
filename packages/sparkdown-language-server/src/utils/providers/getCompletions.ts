@@ -1083,9 +1083,9 @@ export const getCompletions = (
 
   // console.log("program", program);
   // console.log(printTree(tree, document.getText()));
-  // console.log(leftStack.map((n) => n.type.name));
-  // console.log("prev", prevNode.name);
-  // console.log("next", nextNode.name);
+  console.log(leftStack.map((n) => n.type.name));
+  console.log("prev", prevNode.name);
+  console.log("next", nextNode.name);
 
   // FrontMatter
   if (
@@ -1208,7 +1208,9 @@ export const getCompletions = (
   if (leftStack.some((n) => n.type.name === "ImageCommand")) {
     const beforeImageNode = leftStack.find(
       (n) =>
-        n.type.name === "ImageCommand_c1" || n.type.name === "ImageCommand_c2",
+        n.type.name === "ImageBeginMark" ||
+        n.type.name === "ImageCommand_begin_c1" ||
+        n.type.name === "ImageCommand_begin_c2",
     );
     if (beforeImageNode) {
       if (isCursorAfterNodeText(beforeImageNode)) {
@@ -1249,8 +1251,11 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      isWhitespaceNode(leftStack[0]?.name) &&
-      prevNode.name === "AssetCommandTarget"
+      (isWhitespaceNode(leftStack[0]?.name) &&
+        (prevNode.name === "AssetCommandTarget" ||
+          prevNode.name === "AssetCommandFileName" ||
+          prevNode.name === "AssetCommandAddOperator")) ||
+      leftStack[0]?.name === "AssetCommandAddOperator"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const controlNode = getDescendentInsideParent(
@@ -1384,7 +1389,9 @@ export const getCompletions = (
   if (leftStack.some((n) => n.type.name === "AudioCommand")) {
     const beforeAudioNode = leftStack.find(
       (n) =>
-        n.type.name === "AudioCommand_c1" || n.type.name === "AudioCommand_c2",
+        n.type.name === "AudioBeginMark" ||
+        n.type.name === "AudioCommand_begin_c1" ||
+        n.type.name === "AudioCommand_begin_c2",
     );
     if (beforeAudioNode) {
       if (isCursorAfterNodeText(beforeAudioNode)) {
@@ -1410,8 +1417,11 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
-      isWhitespaceNode(leftStack[0]?.name) &&
-      prevNode.name === "AssetCommandTarget"
+      (isWhitespaceNode(leftStack[0]?.name) &&
+        (prevNode.name === "AssetCommandTarget" ||
+          prevNode.name === "AssetCommandFileName" ||
+          prevNode.name === "AssetCommandAddOperator")) ||
+      leftStack[0]?.name === "AssetCommandAddOperator"
     ) {
       if (isCursorAfterNodeText(leftStack[0])) {
         const controlNode = getDescendentInsideParent(

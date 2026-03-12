@@ -8964,7 +8964,7 @@
       }
     },
     "AssetCommandInstruction": {
-      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|fade|queue|await)\\b)([^\\S\\n\\r]*)($|\\S+))?([^\\S\\n\\r]*)($|\\S+)?([^\\S\\n\\r]*)(.*)",
+      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|fade|queue|await)\\b)([^\\S\\n\\r]*)($|\\S+)([^\\S\\n\\r]*))?(.*)",
       "captures": {
         "1": {
           "patterns": [
@@ -9003,24 +9003,7 @@
               "include": "#AssetCommandName"
             },
             {
-              "include": "#IllegalChar"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
               "include": "#Separator"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#AssetCommandAddOperator"
-            },
-            {
-              "include": "#AssetCommandName"
             },
             {
               "include": "#IllegalChar"
@@ -9128,7 +9111,7 @@
     "AssetCommandAddOperator": {
       "tag": "propertyName",
       "name": "variable.other.property.add.sd",
-      "match": "([+])"
+      "match": "([^\\S\\n\\r]*[+][^\\S\\n\\r]*)"
     },
     "AssetCommandFilter": {
       "match": "([~])($|[^~\\s]+)?",
