@@ -44,12 +44,6 @@ new EditorView({
 
 ## Example .language-grammar.json
 
-IMPORTANT: Include a codemirror-specific "tag" field inside any nodes you want to be syntax highlighted in codemirror.
-
-(For example, vscode's `name: "punctuation.paren.open"` is roughly equivalent to codemirror's `tag: "paren"`)
-
-Tag modifiers are also supported: `tag: "constant(variableName)"`
-
 ```json
 {
   "scopeName": "text.source.mycustomlang",
@@ -57,25 +51,49 @@ Tag modifiers are also supported: `tag: "constant(variableName)"`
   "patterns": [{ "include": "#Expression" }],
   "repository": {
     "Expression": {
-      "patterns": [{ "include": "#Letter" }, { "include": "#ParenExpression" }]
+      "patterns": [{ "include": "#Keyword" }, { "include": "#ParenExpression" }]
+    },
+    "Keyword": {
+      "tag": "keyword",
+      "match": "this|grammar"
     },
     "ParenExpression": {
-      "name": "expression.group",
+      "brackets": true,
       "begin": "\\(",
       "beginCaptures": {
-        "0": { "name": "punctuation.paren.open", "tag": "paren" }
+        "0": { "tag": "paren" }
       },
       "patterns": [{ "include": "#Expression" }],
       "end": "\\)",
       "endCaptures": {
-        "0": { "name": "punctuation.paren.close", "tag": "paren" }
+        "0": { "tag": "paren" }
       }
-    },
-    "Letter": {
-      "name": "keyword.letter",
-      "tag": "keyword",
-      "match": "a|b|c"
     }
   }
 }
 ```
+
+---
+
+### "tag":
+
+Include a codemirror-specific "tag" field inside any nodes you want to be syntax highlighted in codemirror.
+
+(In the example above, the words `this` and `grammar` are highlighted as `keyword`. And `(` and `)` are highlighted as `paren` )
+
+Tag modifiers are also supported: e.g. `"tag": "constant(variableName)"`
+
+> [!NOTE]
+> "name" fields are completely ignored by codemirror, but can be safely included alongside any "tag" fields in your grammar to support syntax highlighting in vscode.
+>
+> For example: `{"tag":"paren", "name":"punctuation.paren.open"}`
+
+---
+
+### "brackets":
+
+Include `"brackets": true` inside any nodes whose begin and end pattern should be highlighted as matching brackets.
+
+(In the example above, since brackets is set to true inside the `ParenExpression` rule, the begin and end parenthesis will be properly highlighted by codemirror's bracketMatching extension)
+
+---
