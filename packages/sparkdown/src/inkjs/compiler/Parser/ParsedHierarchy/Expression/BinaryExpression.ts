@@ -54,7 +54,7 @@ export class BinaryExpression extends Expression {
         (leftUnary.op === "not" || leftUnary.op === "!")
       ) {
         this.Error(
-          `Using 'not' or '!' here negates '${leftUnary.innerExpression}' rather than the result of the '?' or 'has' operator. You need to add parentheses around the (A ? B) expression.`
+          `Using \`not\` or \`!\` here negates \`${leftUnary.innerExpression}\` rather than the result of the \`?\` or \`has\` operator. You need to add parentheses around the \`(A ? B)\` expression.`
         );
       }
     }

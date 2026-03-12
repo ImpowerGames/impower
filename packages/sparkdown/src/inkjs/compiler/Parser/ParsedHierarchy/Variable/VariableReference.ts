@@ -136,7 +136,7 @@ export class VariableReference extends Expression {
           this.parent instanceof FlowBase
         ) {
           this.Warning(
-            `'${targetFlow.identifier}' being used as read count rather than being called as function. Perhaps you intended to write ${targetFlow.identifier}()`
+            `\`${targetFlow.identifier}\` being used as read count rather than being called as function. Perhaps you intended to write ${targetFlow.identifier}()`
           );
         }
       }
@@ -148,7 +148,7 @@ export class VariableReference extends Expression {
     // or list item reference.
     if (this.path.length > 1) {
       const pathStr = this.path.join(".");
-      let errorMsg = `Cannot find item or path named '${pathStr}'`;
+      let errorMsg = `Cannot find item or path named \`${pathStr}\``;
 
       this.Error(errorMsg);
 
@@ -156,7 +156,7 @@ export class VariableReference extends Expression {
     }
 
     if (!context.ResolveVariableWithName(this.name, this).found) {
-      this.Error(`Cannot find variable named '${this.name}'`, this);
+      this.Error(`Cannot find variable named \`${this.name}\``, this);
     }
   }
 

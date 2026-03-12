@@ -201,7 +201,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
       if (!varDecl.isPropertyDeclaration) {
         this.Error(
-          `Duplicate identifier '${varName}'. A ${varab.typeName.toLowerCase()} named '${varName}' already exists on ${
+          `Duplicate identifier \`${varName}\`. A ${varab.typeName.toLowerCase()} named \`${varName}\` already exists on ${
             varab.debugMetadata
           }`,
           varDecl.identifier.debugMetadata
@@ -292,11 +292,11 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
           container.namedContent.get(namedChild.name!) || null;
 
         if (existingChild) {
-          const errorMsg = `Duplicate identifier '${
+          const errorMsg = `Duplicate identifier \`${
             namedChild.name
-          }'. ${this.GetType()} already contains flow named '${
+          }\`. ${this.GetType()} already contains flow named \`${
             namedChild.name
-          }' on ${(existingChild as any as RuntimeObject).debugMetadata}`;
+          }\` on ${(existingChild as any as RuntimeObject).debugMetadata}`;
           this.Error(errorMsg, childFlow?.identifier || childFlow);
         }
 
@@ -445,7 +445,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
             this.args[ii].identifier?.name == this.args[jj].identifier?.name
           ) {
             this.Error(
-              `Multiple arguments with the same name: '${this.args[ii].identifier}'`
+              `Multiple arguments with the same name: \`${this.args[ii].identifier}\``
             );
           }
         }
@@ -475,7 +475,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     // Not allowed sub-flows
     for (const [key, value] of this._subFlowsByName) {
       this.Error(
-        `Functions may not contain stitches, but saw '${key}' within the function '${this.identifier}'`,
+        `Functions may not contain stitches, but saw \`${key}\` within the function \`${this.identifier}\``,
         value
       );
     }
@@ -488,7 +488,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     for (const divert of allDiverts) {
       if (!divert.isFunctionCall && !(divert.parent instanceof DivertTarget)) {
         this.Error(
-          `Functions may not contain diverts, but saw '${divert}'`,
+          `Functions may not contain diverts, but saw \`${divert}\``,
           divert
         );
       }
@@ -497,7 +497,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     const allChoices = this._rootWeave.FindAll<Choice>(Choice)();
     for (const choice of allChoices) {
       this.Error(
-        `Functions may not contain choices, but saw '${choice}'`,
+        `Functions may not contain choices, but saw \`${choice}\``,
         choice
       );
     }
@@ -507,12 +507,12 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     let message: string =
       "Apparent loose end exists where the flow runs out. Do you need a '-> DONE' statement, choice or divert?";
     if (terminatingObject.parent === this._rootWeave && this._firstChildFlow) {
-      message = `${message} Note that if you intend to enter '${this._firstChildFlow.identifier}' next, you need to divert to it explicitly.`;
+      message = `${message} Note that if you intend to enter \`${this._firstChildFlow.identifier}\` next, you need to divert to it explicitly.`;
     }
 
     const terminatingDivert = asOrNull(terminatingObject, Divert);
     if (terminatingDivert && terminatingDivert.isTunnel) {
-      message += ` When final tunnel to '${terminatingDivert.target} ->' returns it won't have anywhere to go.`;
+      message += ` When final tunnel to \`${terminatingDivert.target} ->\` returns it won't have anywhere to go.`;
     }
 
     if (terminatingObject) {
@@ -526,5 +526,5 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   };
 
   public readonly toString = (): string =>
-    `${this.typeName} '${this.identifier}'`;
+    `${this.typeName} \`${this.identifier}\``;
 }

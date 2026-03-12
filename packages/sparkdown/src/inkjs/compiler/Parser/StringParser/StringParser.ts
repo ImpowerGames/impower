@@ -139,7 +139,7 @@ export class StringParser {
       if (lineRemainder === null || lineRemainder.length === 0) {
         butSaw = "end of line";
       } else {
-        butSaw = `'${lineRemainder}'`;
+        butSaw = `\`${lineRemainder}\``;
       }
       const lineRemainderLength = lineRemainder?.length ?? 0;
 

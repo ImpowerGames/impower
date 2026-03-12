@@ -184,7 +184,7 @@ export class Story extends FlowBase {
 
       if (existingDefinition) {
         if (!existingDefinition.expression.Equals(constDecl.expression)) {
-          const errorMsg = `Cannot redeclare const '${constDecl.constantName}' with a different value. (It is already declared on ${existingDefinition.debugMetadata})`;
+          const errorMsg = `Cannot redeclare const \`${constDecl.constantName}\` with a different value. (It is already declared on ${existingDefinition.debugMetadata})`;
           this.Error(errorMsg, constDecl, false);
         }
       }
@@ -369,7 +369,7 @@ export class Story extends FlowBase {
         if (itemInThisList) {
           if (foundItem) {
             this.Error(
-              `Ambiguous item name '${itemName}' found in multiple sets, including ${
+              `Ambiguous item name \`${itemName}\` found in multiple sets, including ${
                 originalFoundList!.identifier
               } and ${value!.identifier}`,
               source,
@@ -511,7 +511,7 @@ export class Story extends FlowBase {
   public readonly AddExternal = (decl: ExternalDeclaration): void => {
     if (this.externals.has(decl.name!)) {
       this.Error(
-        `Duplicate external definition of '${decl.name}'`,
+        `Duplicate external definition of \`${decl.name}\``,
         decl,
         false
       );
@@ -532,11 +532,11 @@ export class Story extends FlowBase {
     newObj: ParsedObject | Identifier | DebugMetadata
   ): void => {
     obj.Error(
-      `Duplicate identifier '${
+      `Duplicate identifier \`${
         identifier.name
-      }'. A ${obj.typeName.toLowerCase()} named '${
+      }\`. A ${obj.typeName.toLowerCase()} named \`${
         identifier.name
-      }' already exists on ${identifier.debugMetadata}`,
+      }\` already exists on ${identifier.debugMetadata}`,
       newObj
     );
   };
@@ -553,13 +553,13 @@ export class Story extends FlowBase {
     for (const part of identifier?.name.split(".")) {
       if (Story.IsReservedKeyword(part)) {
         obj.Error(
-          `'${part}' cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a reserved keyword`,
+          `\`${part}\` cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a reserved keyword`,
           identifier?.debugMetadata
         );
         return;
       } else if (FunctionCall.IsBuiltIn(part)) {
         obj.Error(
-          `'${part}' cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a built in function`,
+          `\`${part}\` cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a built in function`,
           identifier?.debugMetadata
         );
 
@@ -694,7 +694,7 @@ export class Story extends FlowBase {
         for (const arg of flow.args) {
           if (arg.identifier?.name === identifier?.name) {
             obj.Error(
-              `Duplicate identifier '${identifier}'. A parameter named '${identifier}' already exists for ${flow.identifier} on ${flow.debugMetadata}`,
+              `Duplicate identifier \`${identifier}\`. A parameter named \`${identifier}\` already exists for ${flow.identifier} on ${flow.debugMetadata}`,
               varDecl?.identifier.debugMetadata
             );
 

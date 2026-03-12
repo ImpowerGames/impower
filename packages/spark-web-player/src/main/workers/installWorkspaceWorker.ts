@@ -45,7 +45,7 @@ export function installWorkspaceWorker(connection: MessageConnection) {
 
     override async sendNotification<P>(
       method: string,
-      params: P
+      params: P,
     ): Promise<void> {
       const message = {
         jsonrpc: "2.0",
@@ -58,7 +58,7 @@ export function installWorkspaceWorker(connection: MessageConnection) {
           cancelable: true,
           composed: true,
           detail: message,
-        })
+        }),
       );
     }
 
@@ -105,11 +105,8 @@ export function installWorkspaceWorker(connection: MessageConnection) {
     const message = e.data;
     // Handle Workspace Events
     if (InitializeMessage.type.is(message)) {
-      const { initializationOptions } = message.params;
       connection.sendResponse(message, async () => {
-        const { program } = await state.workspace.initialize(
-          initializationOptions
-        );
+        const { program } = await state.workspace.initialize(message.params);
         return {
           capabilities: {},
           program,
@@ -127,17 +124,17 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       await Promise.all(
         changes
           .filter((change) => change.type == FileChangeType.Deleted)
-          .map((change) => state.workspace.deleteFile(change.uri))
+          .map((change) => state.workspace.deleteFile(change.uri)),
       );
       await Promise.all(
         changes
           .filter((change) => change.type == FileChangeType.Created)
-          .map((change) => state.workspace.createFile(change.uri))
+          .map((change) => state.workspace.createFile(change.uri)),
       );
       await Promise.all(
         changes
           .filter((change) => change.type == FileChangeType.Changed)
-          .map((change) => state.workspace.changeFile(change.uri))
+          .map((change) => state.workspace.changeFile(change.uri)),
       );
       return;
     }

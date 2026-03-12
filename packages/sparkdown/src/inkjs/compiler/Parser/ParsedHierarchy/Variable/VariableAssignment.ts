@@ -170,7 +170,7 @@ export class VariableAssignment extends ParsedObject {
           this.Error(`Cannot re-assign a const variable`, this);
         } else {
           this.Error(
-            `Cannot find variable named '${this.variableName}'`,
+            `Cannot find variable named \`${this.variableName}\``,
             this.identifier
           );
         }

@@ -16,6 +16,7 @@ import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdo
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import {
   type Connection,
+  Diagnostic,
   Disposable,
   type DocumentDiagnosticParams,
   type DocumentDiagnosticReport,
@@ -110,6 +111,27 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     return this._documents.annotations(uri);
   }
 
+  getDiagnostics(program: SparkProgram, uri: string) {
+    const programDiagnostics = program.diagnostics?.[uri] || [];
+    const diagnostics = (
+      this.clientCapabilities?.textDocument?.diagnostic?.markupMessageSupport
+        ? programDiagnostics
+        : programDiagnostics.map((d) => {
+            return {
+              ...d,
+              message:
+                typeof d.message === "string"
+                  ? d.message
+                  : d.message.value
+                      .replaceAll("\`\`\`", "")
+                      .replaceAll("\`", "'"),
+            };
+          })
+    ) as Diagnostic[];
+
+    return diagnostics;
+  }
+
   override async sendNotification<P>(method: string, params: P): Promise<void> {
     this._connection?.sendNotification(method, params);
     if (method === CompiledProgramMessage.method) {
@@ -117,8 +139,8 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       const compiledProgramParams = params as CompiledProgramParams;
       const program = compiledProgramParams.program;
       for (const uri of this.uris()) {
-        const diagnostics = program.diagnostics?.[uri] || [];
         const version = this.getProgramState(uri).version;
+        const diagnostics = this.getDiagnostics(program, uri);
         this._connection.sendDiagnostics({
           uri,
           diagnostics,
@@ -208,14 +230,16 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
           const uri = params.textDocument.uri;
           const document = this._documents.get(uri);
           const program = await this.compile(uri, false);
+          const resultId = `${document?.version ?? -1}`;
           if (document && program) {
+            const items = this.getDiagnostics(program, uri);
             return {
               kind: "full",
-              resultId: uri,
-              items: program.diagnostics?.[uri] || [],
+              resultId,
+              items,
             };
           }
-          return { kind: "unchanged", resultId: uri };
+          return { kind: "unchanged", resultId };
         },
       ),
     );

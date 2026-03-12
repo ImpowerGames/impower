@@ -42,15 +42,15 @@ export class List extends Expression {
         if (listItem === null) {
           if (listName === null) {
             this.Error(
-              `Could not find list definition that contains item '${itemIdentifier}'`
+              `Could not find list definition that contains item \`${itemIdentifier}\``
             );
           } else {
-            this.Error(`Could not find list item ${itemIdentifier}`);
+            this.Error(`Could not find list item \`${itemIdentifier}\``);
           }
         } else {
           if (listItem.parent == null) {
             this.Error(
-              `Could not find list definition for item ${itemIdentifier}`
+              `Could not find list definition for item \`${itemIdentifier}\``
             );
             return;
           }
@@ -61,7 +61,7 @@ export class List extends Expression {
           const item = new RuntimeInkListItem(listName, listItem.name || null);
 
           if (runtimeRawList.has(item.serialized())) {
-            this.Warning(`Duplicate of item '${itemIdentifier}' in list.`);
+            this.Warning(`Duplicate of item \`${itemIdentifier}\` in list.`);
           } else {
             runtimeRawList.Add(item, listItem.seriesValue);
           }

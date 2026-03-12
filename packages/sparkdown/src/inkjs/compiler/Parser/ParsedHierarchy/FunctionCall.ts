@@ -286,7 +286,7 @@ export class FunctionCall extends Expression {
       if (targetObject === null) {
         if (!attemptingTurnCountOfVariableTarget) {
           this.Error(
-            `Failed to find target for TURNS_SINCE: '${divert.target}'`
+            `Failed to find target for TURNS_SINCE: \`${divert.target}\``
           );
         }
       } else {
@@ -304,7 +304,7 @@ export class FunctionCall extends Expression {
 
       if (runtimeVarRef.pathForCount !== null) {
         this.Error(
-          `Should be '${FunctionCall.name}'(-> '${this._variableReferenceToCount.name}). Usage without the '->' only makes sense for variable targets.`
+          `Should be \`${FunctionCall.name}(-> ${this._variableReferenceToCount.name})\`. Usage without \`->\` only makes sense for variable targets.`
         );
       }
     }

@@ -142,7 +142,20 @@ export interface DiagnosticRelatedInformation {
   /**
    * The message of this related diagnostic information.
    */
-  message: string;
+  message: string | MarkupContent;
+}
+
+export type MarkupKind = "plaintext" | "markdown";
+
+export interface MarkupContent {
+  /**
+   * The type of the Markup
+   */
+  kind: MarkupKind;
+  /**
+   * The content itself
+   */
+  value: string;
 }
 
 export interface SparkDiagnostic {
@@ -175,7 +188,7 @@ export interface SparkDiagnostic {
   /**
    * The diagnostic's message. It usually appears in the user interface
    */
-  message: string;
+  message: string | MarkupContent;
   /**
    * Additional metadata about the diagnostic.
    *

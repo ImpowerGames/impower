@@ -129,7 +129,7 @@ export class DivertTarget extends Expression {
 
       if (badUsage) {
         this.Error(
-          `Can't use a divert target like that. Did you intend to call '${this.divert.target}' as a function: likeThis(), or check the read count: likeThis, with no arrows?`,
+          `Can't use a divert target like that. Did you intend to call \`${this.divert.target}\` as a function: \`likeThis()\`, or check the read count: \`likeThis\`, with no arrows?`,
           this
         );
       }
@@ -155,7 +155,7 @@ export class DivertTarget extends Expression {
       }
 
       this.Error(
-        `Since '${this.divert.target.dotSeparatedComponents}' is a variable, it shouldn't be preceded by '->' here.`
+        `Since \`${this.divert.target.dotSeparatedComponents}\` is a variable, it shouldn't be preceded by '->' here.`
       );
     }
 
@@ -199,7 +199,7 @@ export class DivertTarget extends Expression {
         for (const arg of targetFlow.args) {
           if (arg.isByReference) {
             this.Error(
-              `Can't store a divert target to a knot or function that has by-reference arguments ('${targetFlow.identifier}' has 'ref ${arg.identifier}').`
+              `Can't store a divert target to a knot or function that has by-reference arguments (\`${targetFlow.identifier}\` has \`ref ${arg.identifier}\`).`
             );
           }
         }

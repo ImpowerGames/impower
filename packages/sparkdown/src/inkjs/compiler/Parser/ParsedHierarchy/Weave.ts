@@ -145,7 +145,7 @@ export class Weave extends ParsedObject {
         const existingObj: ParsedObject = existingWeavePoint;
 
         this.Error(
-          `A ${typeName} with the same label name '${weavePoint.name}' already exists on ${existingObj.debugMetadata}`,
+          `A ${typeName} with the same label name \`${weavePoint.name}\` already exists on ${existingObj.debugMetadata}`,
           weavePoint.identifier
         );
       }
@@ -821,9 +821,9 @@ export class Weave extends ParsedObject {
         const otherContentWithName =
           flow.ContentWithNameAtLevel(weavePointName);
         if (otherContentWithName && otherContentWithName !== weavePoint) {
-          const errorMsg = `Duplicate identifier '${weavePointName}'. A ${otherContentWithName
+          const errorMsg = `Duplicate identifier \`${weavePointName}\`. A ${otherContentWithName
             .GetType()
-            .toLowerCase()} named '${weavePointName}' already exists on ${
+            .toLowerCase()} named \`${weavePointName}\` already exists on ${
             otherContentWithName.debugMetadata
           }`;
           this.Error(errorMsg, weavePoint?.identifier || weavePoint);

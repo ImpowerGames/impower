@@ -39,6 +39,16 @@ interface ProgramState {
   compiledDocumentVersion?: number;
 }
 
+export interface ClientCapabilities {
+  textDocument?: {
+    diagnostic?: {
+      dynamicRegistration?: boolean;
+      relatedDocumentSupport?: boolean;
+      markupMessageSupport?: boolean;
+    };
+  };
+}
+
 export abstract class SparkdownWorkspace {
   protected _compilerChannelConnection: Port1MessageConnection;
 
@@ -58,6 +68,12 @@ export abstract class SparkdownWorkspace {
   get compilerConfig() {
     return this._compilerConfig;
   }
+
+  protected _clientCapabilities?: ClientCapabilities;
+  get clientCapabilities() {
+    return this._clientCapabilities;
+  }
+
   protected _scriptFilePattern?: RegExp;
 
   protected _imageFilePattern?: RegExp;
@@ -144,8 +160,9 @@ export abstract class SparkdownWorkspace {
     this._resolveInitializingCompiler();
   }
 
-  async initialize(
-    initializationOptions: {
+  async initialize(params: {
+    capabilities: ClientCapabilities;
+    initializationOptions?: {
       settings: {
         scriptFiles?: string;
         imageFiles?: string;
@@ -156,47 +173,51 @@ export abstract class SparkdownWorkspace {
       uri?: string;
       omitImageData?: boolean;
       files?: { uri: string; src?: string; text?: string }[];
-    } & Omit<SparkdownCompilerConfig, "files">,
-  ) {
-    const { omitImageData, settings, uri, ...compilerConfig } =
-      initializationOptions;
-    if (omitImageData != null) {
-      this.omitImageData = omitImageData;
-    }
-    if (settings) {
-      this.loadConfiguration(settings);
-    }
-    if (compilerConfig.startFrom) {
-      this._documentSelected = compilerConfig.startFrom;
-    }
-    const files = compilerConfig.files
-      ? await Promise.all(
-          compilerConfig.files.map(async (file) => {
-            const uri = file.uri;
-            const name = this.getFileName(file.uri);
-            const ext = this.getFileExtension(file.uri);
-            const type = this.getFileType(file.uri);
-            const [src, text] = await Promise.all([
-              file.src ? file.src : this.getFileSrc(file.uri),
-              type === "script" || type === "text" || ext === "svg"
-                ? file.text
+    } & Omit<SparkdownCompilerConfig, "files">;
+  }) {
+    this._clientCapabilities = params.capabilities;
+    if (params.initializationOptions) {
+      const { omitImageData, settings, uri, ...compilerConfig } =
+        params.initializationOptions;
+      if (omitImageData != null) {
+        this.omitImageData = omitImageData;
+      }
+      if (settings) {
+        this.loadConfiguration(settings);
+      }
+      if (compilerConfig.startFrom) {
+        this._documentSelected = compilerConfig.startFrom;
+      }
+      const files = compilerConfig.files
+        ? await Promise.all(
+            compilerConfig.files.map(async (file) => {
+              const uri = file.uri;
+              const name = this.getFileName(file.uri);
+              const ext = this.getFileExtension(file.uri);
+              const type = this.getFileType(file.uri);
+              const [src, text] = await Promise.all([
+                file.src ? file.src : this.getFileSrc(file.uri),
+                type === "script" || type === "text" || ext === "svg"
                   ? file.text
-                  : this.getFileText(file.uri)
-                : undefined,
-            ]);
-            const watchedFile = { uri, name, ext, type, src, text };
-            this._watchedFiles.set(watchedFile.uri, watchedFile);
-            this.onCreatedFile(watchedFile);
-            return watchedFile;
-          }),
-        )
-      : undefined;
-    await this.loadCompiler({
-      ...compilerConfig,
-      files,
-    });
-    const program = uri ? await this.compile(uri, true) : undefined;
-    return { program };
+                    ? file.text
+                    : this.getFileText(file.uri)
+                  : undefined,
+              ]);
+              const watchedFile = { uri, name, ext, type, src, text };
+              this._watchedFiles.set(watchedFile.uri, watchedFile);
+              this.onCreatedFile(watchedFile);
+              return watchedFile;
+            }),
+          )
+        : undefined;
+      await this.loadCompiler({
+        ...compilerConfig,
+        files,
+      });
+      const program = uri ? await this.compile(uri, true) : undefined;
+      return { program };
+    }
+    return {};
   }
 
   loadConfiguration(settings: any) {

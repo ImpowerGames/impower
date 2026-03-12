@@ -149,11 +149,11 @@ export class Divert extends ParsedObject {
               targetPath.ResolveFromContext(this);
             if (targetForCount) {
               this.Error(
-                `can't pass a read count by reference. '${
+                `can't pass a read count by reference. \`${
                   targetPath.dotSeparatedComponents
-                }' is a knot/stitch/label, but '${
+                }\` is a knot/stitch/label, but \`${
                   this.target!.dotSeparatedComponents
-                }' requires the name of a variable to be passed.`
+                }\` requires the name of a variable to be passed.`
               );
 
               break;
@@ -234,7 +234,7 @@ export class Divert extends ParsedObject {
 
               if (argument && !argument.isDivertTarget) {
                 this.Error(
-                  `Since '${argument.identifier}' is used as a variable divert target (on ${this.debugMetadata}), it should be marked as: -> ${argument.identifier}`,
+                  `Since \`${argument.identifier}\` is used as a variable divert target (on ${this.debugMetadata}), it should be marked as: -> ${argument.identifier}`,
                   resolveResult.ownerFlow
                 );
               }
@@ -340,7 +340,7 @@ export class Divert extends ParsedObject {
 
     if (!targetWasFound && !isBuiltIn && !isExternal) {
       this.Error(
-        `target not found: '${this.target}'`,
+        `target not found: \`${this.target}\``,
         this.pathIdentifiers ? new Identifier(...this.pathIdentifiers) : this
       );
     }
@@ -404,9 +404,9 @@ export class Divert extends ParsedObject {
       }
 
       this.Error(
-        `to '${
+        `to \`${
           targetFlow!.identifier
-        }' requires ${paramCount} arguments, ${butClause}`
+        }\` requires ${paramCount} arguments, ${butClause}`
       );
 
       return;
@@ -423,11 +423,11 @@ export class Divert extends ParsedObject {
         let varRef = asOrNull(divArgExpr, VariableReference);
         if (!(divArgExpr instanceof DivertTarget) && varRef === null) {
           this.Error(
-            `Target '${
+            `Target \`${
               targetFlow!.identifier
-            }' expects a divert target for the parameter named -> ${
+            }\` expects a divert target for the parameter named -> ${
               flowArg.identifier
-            } but saw ${divArgExpr}`,
+            } but saw \`${divArgExpr}\``,
             divArgExpr
           );
         } else if (varRef) {
@@ -439,7 +439,7 @@ export class Divert extends ParsedObject {
             knotCountPath.ResolveFromContext(varRef);
           if (targetForCount) {
             this.Error(
-              `Passing read count of '${knotCountPath.dotSeparatedComponents}' instead of a divert target. You probably meant '${knotCountPath}'`
+              `Passing read count of \`${knotCountPath.dotSeparatedComponents}\` instead of a divert target. You probably meant \`${knotCountPath}\``
             );
           }
         }
@@ -473,7 +473,7 @@ export class Divert extends ParsedObject {
 
     if (ownArgCount !== externalArgCount) {
       this.Error(
-        `incorrect number of arguments sent to external function '${externalName}'. Expected ${externalArgCount} but got ${ownArgCount}`
+        `incorrect number of arguments sent to external function \`${externalName}\`. Expected ${externalArgCount} but got ${ownArgCount}`
       );
     }
   };

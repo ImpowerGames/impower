@@ -30,7 +30,7 @@ import { asOrNull } from "../../inkjs/engine/TypeAssertion";
 import { StringValue } from "../../inkjs/engine/Value";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
 import { SparkDeclaration } from "../types/SparkDeclaration";
-import { DiagnosticSeverity } from "../types/SparkDiagnostic";
+import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
@@ -1442,7 +1442,10 @@ export class SparkdownCompiler {
               program.diagnostics[uri].push({
                 range,
                 severity,
-                message: diagnostic.message,
+                message: {
+                  value: diagnostic.message,
+                  kind: "markdown",
+                },
                 relatedInformation: [
                   {
                     location: { uri, range },
@@ -1482,14 +1485,17 @@ export class SparkdownCompiler {
                   reference.declaration === "knot" ||
                   reference.declaration === "stitch"
                 ) {
-                  const message = `Cannot declare ${reference.declaration} named '${symbolId}':\nConflicts with builtin type '${symbolId}'`;
+                  const message = `Cannot declare ${reference.declaration} named \`${symbolId}\`:\nConflicts with builtin type \`${symbolId}\``;
                   const range = doc.range(cur.from, cur.to);
                   program.diagnostics ??= {};
                   program.diagnostics[uri] ??= [];
                   program.diagnostics[uri].push({
                     range,
                     severity: DiagnosticSeverity.Error,
-                    message,
+                    message: {
+                      value: message,
+                      kind: "markdown",
+                    },
                     relatedInformation: [
                       {
                         location: { uri, range },
@@ -1563,7 +1569,10 @@ export class SparkdownCompiler {
                 program.diagnostics[uri].push({
                   range,
                   severity: DiagnosticSeverity.Warning,
-                  message,
+                  message: {
+                    value: message,
+                    kind: "markdown",
+                  },
                   relatedInformation: [
                     {
                       location: { uri, range },
@@ -1612,7 +1621,10 @@ export class SparkdownCompiler {
               program.diagnostics[uri].push({
                 range,
                 severity,
-                message,
+                message: {
+                  value: message,
+                  kind: "markdown",
+                },
                 relatedInformation: [
                   {
                     location: { uri, range },
@@ -1671,7 +1683,10 @@ export class SparkdownCompiler {
                         program.diagnostics[uri].push({
                           range,
                           severity: DiagnosticSeverity.Error,
-                          message,
+                          message: {
+                            value: message,
+                            kind: "markdown",
+                          },
                           relatedInformation: [
                             {
                               location: { uri, range },
@@ -1722,7 +1737,7 @@ export class SparkdownCompiler {
     startCharacter: number,
     endLine: number,
     endCharacter: number,
-  ) {
+  ): SparkDiagnostic | null {
     if (startCharacter < 0) {
       // This error is occurring in a part of the script that was automatically added during transpilation
       // Assume it will be properly reported elsewhere and do not report it here.
@@ -1774,10 +1789,13 @@ export class SparkdownCompiler {
         ]
       : [];
     const source = LANGUAGE_NAME;
-    const diagnostic = {
+    const diagnostic: SparkDiagnostic = {
       range,
       severity,
-      message,
+      message: {
+        value: message,
+        kind: "markdown",
+      },
       relatedInformation,
       source,
     };

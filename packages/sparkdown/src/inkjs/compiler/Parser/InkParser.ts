@@ -1796,7 +1796,7 @@ export class InkParser extends StringParser {
 
       if (!(expr instanceof VariableReference)) {
         this.Error(
-          `can only increment and decrement variables, but saw '${expr}'.`
+          `can only increment and decrement variables, but saw \`${expr}\`.`
         );
 
         // Drop down and succeed without the increment after reporting error

@@ -40,7 +40,7 @@ export class Knot extends FlowBase {
       if (knotWithStitchName) {
         const stitch = this.subFlowsByName.get(stitchName);
         const stitchDisplayName = stitch ? stitch.name : "NO STITCH FOUND";
-        const errorMsg = `Duplicate identifier '${stitchDisplayName}'. A knot named '${stitchDisplayName}' already exists on ${knotWithStitchName.debugMetadata}`;
+        const errorMsg = `Duplicate identifier \`${stitchDisplayName}\`. A knot named \`${stitchDisplayName}\` already exists on ${knotWithStitchName.debugMetadata}`;
         this.Error(errorMsg, stitch?.identifier || stitch);
       }
     }

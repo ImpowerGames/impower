@@ -103,9 +103,7 @@ try {
     if (workspaceFolders) {
       workspace.loadWorkspaceFolders(workspaceFolders);
     }
-    const { program } = await workspace.initialize(
-      params?.initializationOptions,
-    );
+    const { program } = await workspace.initialize(params);
     if (program) {
       return { capabilities, program };
     }

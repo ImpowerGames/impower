@@ -83,7 +83,7 @@ export class IncDecExpression extends Expression {
 
     if (!varResolveResult.found) {
       this.Error(
-        `variable for ${this.incrementDecrementWord} could not be found: '${this.identifier}' after searching: {this.descriptionOfScope}`
+        `variable for ${this.incrementDecrementWord} could not be found`
       );
     }
 

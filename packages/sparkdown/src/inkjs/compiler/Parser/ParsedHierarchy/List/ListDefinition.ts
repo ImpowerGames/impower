@@ -24,7 +24,7 @@ export class ListDefinition extends ParsedObject {
         allItems.set(e.name!, e.seriesValue);
       } else {
         this.Error(
-          `List '${this.identifier}' contains duplicate items called '${e.name}'`
+          `List \`${this.identifier}\` contains duplicate items called \`${e.name}\``
         );
       }
     }
