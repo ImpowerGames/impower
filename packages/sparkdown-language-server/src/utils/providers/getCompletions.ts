@@ -1264,6 +1264,11 @@ export const getCompletions = (
           leftStack,
         );
         const control = getNodeText(controlNode);
+        const clauses =
+          control === "animate"
+            ? ["with", ...IMAGE_CLAUSE_KEYWORDS.filter((k) => k !== "with")]
+            : IMAGE_CLAUSE_KEYWORDS;
+        addKeywordCompletions(completions, "clause", clauses);
         if (control !== "hide" && control !== "animate") {
           addStructReferenceCompletions(
             completions,
@@ -1272,11 +1277,6 @@ export const getCompletions = (
             isPrefilteredName,
           );
         }
-        const clauses =
-          control === "animate"
-            ? ["with", ...IMAGE_CLAUSE_KEYWORDS.filter((k) => k !== "with")]
-            : IMAGE_CLAUSE_KEYWORDS;
-        addKeywordCompletions(completions, "clause", clauses);
       }
       return buildCompletions();
     }
@@ -1430,10 +1430,10 @@ export const getCompletions = (
           leftStack,
         );
         const control = getNodeText(controlNode);
+        addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS);
         if (control !== "stop") {
           addStructReferenceCompletions(completions, program, AUDIO_TYPES);
         }
-        addKeywordCompletions(completions, "clause", AUDIO_CLAUSE_KEYWORDS);
       }
       return buildCompletions();
     }
