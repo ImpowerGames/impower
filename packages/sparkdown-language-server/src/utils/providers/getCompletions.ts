@@ -1083,9 +1083,9 @@ export const getCompletions = (
 
   // console.log("program", program);
   // console.log(printTree(tree, document.getText()));
-  console.log(leftStack.map((n) => n.type.name));
-  console.log("prev", prevNode.name);
-  console.log("next", nextNode.name);
+  // console.log(leftStack.map((n) => n.type.name));
+  // console.log("prev", prevNode.name);
+  // console.log("next", nextNode.name);
 
   // FrontMatter
   if (
