@@ -3,27 +3,55 @@ import { type Color, type ColorPresentation } from "vscode-languageserver";
 
 export const getColorPresentations = (color: Color): ColorPresentation[] => {
   const presentations: ColorPresentation[] = [];
+
   const rgba: RgbaColor = {
-    r: color.red * 255,
-    g: color.green * 255,
-    b: color.blue * 255,
-    a: color.alpha,
+    r: Math.round(color.red * 255),
+    g: Math.round(color.green * 255),
+    b: Math.round(color.blue * 255),
+    a: Number(color.alpha.toFixed(3)),
   };
+
   const c = colord(rgba);
-  const hex = c.toHex();
-  const rbga = c.toRgb();
-  const hsla = c.toHsl();
-  const hexLabel = hex.toUpperCase();
-  const rgbLabel =
-    rbga.a < 1
-      ? `rgb(${rbga.r} ${rbga.g} ${rbga.b} / ${rgba.a * 100}%)`
-      : `rgb(${rbga.r} ${rbga.g} ${rbga.b})`;
-  const hslLabel =
-    hsla.a < 1
-      ? `hsl(${hsla.h} ${hsla.s}% ${hsla.l}% / ${hsla.a * 100}%)`
-      : `hsl(${hsla.h} ${hsla.s}% ${hsla.l}%)`;
-  presentations.push({ label: hexLabel });
-  presentations.push({ label: rgbLabel });
-  presentations.push({ label: hslLabel });
+  const rgb = c.toRgb();
+  const hsl = c.toHsl();
+
+  const a = rgba.a;
+
+  // Reusable formatting helpers for alpha channel
+  const alphaSlashPercentage = a === 1 ? "" : ` / ${Math.round(a * 100)}%`;
+
+  // HEX
+  presentations.push({ label: c.toHex().toLowerCase() });
+  presentations.push({ label: c.toHex().toUpperCase() });
+
+  // NAMED COLOR
+  if (name) {
+    presentations.push({ label: name });
+  }
+
+  // RGB & RGBA
+  // Modern space-separated
+  presentations.push({
+    label: `rgb(${rgb.r} ${rgb.g} ${rgb.b}${alphaSlashPercentage})`,
+  });
+  // Legacy comma-separated
+  if (a === 1) {
+    presentations.push({ label: `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})` });
+  } else {
+    presentations.push({ label: `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})` });
+  }
+
+  // HSL & HSLA
+  // Modern space-separated
+  presentations.push({
+    label: `hsl(${hsl.h} ${hsl.s}% ${hsl.l}%${alphaSlashPercentage})`,
+  });
+  // Legacy comma-separated
+  if (a === 1) {
+    presentations.push({ label: `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)` });
+  } else {
+    presentations.push({ label: `hsla(${hsl.h}, ${hsl.s}%, ${hsl.l}%, ${a})` });
+  }
+
   return presentations;
 };
