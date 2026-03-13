@@ -378,13 +378,16 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       // For finding references
       const value = this.read(nodeRef.from, nodeRef.to);
       const symbolIds =
-        this.defineType === "character" && defineProperty === ".name"
+        this.defineType === "character" && defineProperty === "name"
           ? ["character.?.name=" + value.slice(1, -1)]
           : [];
+      // don't include surrounding string quotes in symbol range
+      const from = value.startsWith('"') ? nodeRef.from + 1 : nodeRef.from;
+      const to = value.endsWith('"') ? nodeRef.to - 1 : nodeRef.to;
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           symbolIds,
-        }).range(nodeRef.from + 1, nodeRef.to - 1), // don't include surrounding string quotes in symbol range
+        }).range(from, to),
       );
       return annotations;
     }

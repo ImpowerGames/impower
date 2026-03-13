@@ -3361,13 +3361,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#StringEscape"
-            },
-            {
-              "include": "#Color"
-            },
-            {
-              "include": "#StringCharacter"
+              "include": "#PlainStringContent"
             }
           ]
         },
@@ -3982,55 +3976,6 @@
           "include": "#Expression"
         }
       ]
-    },
-    "ViewString": {
-      "tag": "string",
-      "name": "string.unquoted.view.sd",
-      "begin": "(?=\\S)",
-      "patterns": [
-        {
-          "include": "#StringEscape"
-        },
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#ConditionalBracedBlock"
-        },
-        {
-          "include": "#StringCharacter"
-        }
-      ],
-      "end": "(?=\\s)"
-    },
-    "InterpolatedString": {
-      "tag": "special(string)",
-      "name": "string.interpolated.view.sd",
-      "begin": "([{])",
-      "beginCaptures": {
-        "1": {
-          "tag": "special(string)",
-          "name": "string.interpolated.view.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#StringEscape"
-        },
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#StringCharacter"
-        }
-      ],
-      "end": "([}])|($)",
-      "endCaptures": {
-        "1": {
-          "tag": "special(string)",
-          "name": "string.interpolated.view.sd"
-        }
-      }
     },
     "Label": {
       "match": "([(])([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}-]*)([^\\S\\n\\r]*)([)])([^\\S\\n\\r]*)",
@@ -6726,17 +6671,40 @@
       }
     },
     "StringContent": {
-      "patterns": [
-        {
-          "include": "#StringEscape"
-        },
-        {
-          "include": "#ConditionalBracedBlock"
-        },
-        {
-          "include": "#StringCharacter"
+      "match": "((?:\\\\.|[^\"])*?)(?=$|\")",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StringEscape"
+            },
+            {
+              "include": "#ConditionalBracedBlock"
+            },
+            {
+              "include": "#StringCharacter"
+            }
+          ]
         }
-      ]
+      }
+    },
+    "PlainStringContent": {
+      "match": "((?:\\\\.|[^\"])*?)(?=$|\")",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StringEscape"
+            },
+            {
+              "include": "#Color"
+            },
+            {
+              "include": "#StringCharacter"
+            }
+          ]
+        }
+      }
     },
     "PunctuationStringOpen": {
       "match": "([\"])",

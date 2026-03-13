@@ -100,17 +100,23 @@ export const getSymbol = (
                     propertyNameNode.to,
                   );
                   if (propertyName === "name") {
-                    const stringContentNode = stack.find(
-                      (n) => n.name === "StringLiteral_content",
+                    const stringFieldValueNode = stack.find(
+                      (n) => n.name === "StringFieldValue",
                     );
-                    if (stringContentNode) {
-                      return {
-                        symbol: stringContentNode,
-                        nameRange: document.range(
-                          stringContentNode.from,
-                          stringContentNode.to,
-                        ),
-                      };
+                    if (stringFieldValueNode) {
+                      const stringContentNode = getDescendent(
+                        ["StringContent", "PlainStringContent"],
+                        stringFieldValueNode,
+                      );
+                      if (stringContentNode) {
+                        return {
+                          symbol: stringContentNode,
+                          nameRange: document.range(
+                            stringContentNode.from,
+                            stringContentNode.to,
+                          ),
+                        };
+                      }
                     }
                   }
                 }
