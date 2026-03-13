@@ -134,6 +134,7 @@ export const getFormatting = (
       currentIndentLevel = contentNode
         ? expectedRootIndentLevel + indentOffset + 1
         : expectedRootIndentLevel;
+      currentIndentLevel = Math.max(0, currentIndentLevel);
       indent({ type: "block_declaration", level: currentIndentLevel });
       return currentIndentLevel;
     }
@@ -238,9 +239,12 @@ export const getFormatting = (
       const unknownNode = stack.find((n) => n.name === "Unknown");
       const frontMatterNode = stack.find((n) => n.name === "FrontMatter");
       if (frontMatterNode) {
-        let indentLevel = currentIndentation.includes("\t")
-          ? currentIndentation.split("\t").length - 1
-          : Math.round(currentIndentation.length / options.tabSize);
+        let indentLevel = Math.max(
+          0,
+          currentIndentation.includes("\t")
+            ? currentIndentation.split("\t").length - 1
+            : Math.round(currentIndentation.length / options.tabSize),
+        );
         const frontMatterFieldContentNode = stack.find(
           (n) => n.name === "FrontMatterField_content",
         );
@@ -252,9 +256,10 @@ export const getFormatting = (
         setIndent({ type: "frontmatter", level: newIndentLevel });
       }
     }
+    const validIndentLevel = Math.max(0, newIndentLevel);
     const expectedIndentation = options.insertSpaces
-      ? " ".repeat(newIndentLevel * options.tabSize)
-      : "\t".repeat(newIndentLevel);
+      ? " ".repeat(validIndentLevel * options.tabSize)
+      : "\t".repeat(validIndentLevel);
     if (currentIndentation !== expectedIndentation) {
       pushIfInRange({
         lineNumber: indentRange.start.line + 1,
@@ -805,13 +810,7 @@ export const getDocumentFormattingEdits = (
     formattingOnType,
   );
 
-  // console.log("LINES", [...lines]);
-
-  // console.log("EDITS", edits);
-
   const result = resolveFormattingConflicts(edits, document, formattingOnType);
-
-  // console.log("RESULT", result);
 
   return result;
 };
