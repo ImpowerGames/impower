@@ -24,12 +24,6 @@ const EDITOR_THEME: {
     display: "inline-block",
     textIndent: "0",
   },
-  "& samp": {
-    fontSize: "95%",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: "6px",
-    padding: "2px 5px",
-  },
   ".cm-editor": {
     color: EDITOR_COLORS.foreground,
     flex: 1,
@@ -205,6 +199,18 @@ const EDITOR_THEME: {
     float: "right",
     width: "100%",
     position: "relative",
+    "& .cm-search-matches": {
+      position: "absolute",
+      top: "12px",
+      right: "186px",
+      height: "34px",
+      display: "flex",
+      padding: "0 8px",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "inherit",
+      color: "rgba(255,255,255,0.5)",
+    },
     "& .cm-textfield": {
       margin: "3px 5px 3px 0px",
     },
@@ -367,9 +373,6 @@ const EDITOR_THEME: {
   "& .cm-diagnosticText": {
     marginRight: "16px",
     display: "flex",
-  },
-  "& .cm-diagnosticText p": {
-    margin: "4px 8px",
   },
   "& .cm-diagnosticAction": {
     backgroundColor: "transparent",

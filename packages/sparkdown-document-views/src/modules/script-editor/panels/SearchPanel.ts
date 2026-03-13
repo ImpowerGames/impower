@@ -1,18 +1,18 @@
 import {
-  SearchQuery,
+  closeSearchPanel,
   findNext,
   findPrevious,
-  selectMatches,
-  replaceNext,
-  replaceAll,
-  closeSearchPanel,
-  setSearchQuery,
   getSearchQuery,
+  replaceAll,
+  replaceNext,
+  SearchQuery,
+  selectMatches,
+  setSearchQuery,
 } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import {
-  Panel,
   EditorView,
+  Panel,
   runScopeHandlers,
   ViewUpdate,
 } from "@codemirror/view";
@@ -21,6 +21,10 @@ export class SearchPanel implements Panel {
   dom: HTMLElement;
 
   searchInput: HTMLInputElement;
+
+  matchesDisplay: HTMLDivElement;
+
+  matchesLabel: HTMLSpanElement;
 
   replaceInput: HTMLInputElement;
 
@@ -74,6 +78,14 @@ export class SearchPanel implements Panel {
     this.replaceInput.value = query.replace;
     this.replaceInput.onchange = this.commit;
     this.replaceInput.onkeyup = this.commit;
+
+    this.matchesDisplay = document.createElement("div");
+    this.matchesDisplay.className = "cm-search-matches";
+
+    this.matchesLabel = document.createElement("span");
+    this.matchesLabel.className = "cm-search-matches-label";
+    this.matchesLabel.ariaLabel = "Matches";
+    this.matchesDisplay.appendChild(this.matchesLabel);
 
     this.caseCheckbox = document.createElement("input");
     this.caseCheckbox.name = "case";
@@ -153,6 +165,7 @@ export class SearchPanel implements Panel {
     this.dom.onkeydown = (e: KeyboardEvent) => this.keydown(e);
     this.dom.appendChild(this.closeButton);
     this.dom.appendChild(this.searchInput);
+    this.dom.appendChild(this.matchesDisplay);
     this.dom.appendChild(this.caseLabel);
     this.dom.appendChild(this.wordLabel);
     this.dom.appendChild(this.reLabel);
@@ -181,6 +194,40 @@ export class SearchPanel implements Panel {
     }
   }
 
+  updateCount() {
+    const { state } = this.view;
+    if (!this.query.search) {
+      this.matchesLabel.textContent = "";
+      return;
+    }
+
+    const searchQuery = new SearchQuery(getSearchQuery(state));
+    let cursor = searchQuery.getCursor(state);
+    let total = 0;
+    let current = 0;
+    const mainSel = state.selection.main;
+
+    let item = cursor.next();
+
+    while (!item.done) {
+      if (item.value.from <= mainSel.from && item.value.to >= mainSel.to) {
+        current = total;
+      }
+      item = cursor.next();
+      total++;
+    }
+
+    if (total === 0) {
+      this.matchesLabel.textContent = state.phrase("No results");
+    } else {
+      this.matchesLabel.textContent = state.phrase(
+        "$1 of $2",
+        current + 1,
+        String(total),
+      );
+    }
+  }
+
   keydown(e: KeyboardEvent) {
     if (runScopeHandlers(this.view, e, "search-panel")) {
       e.preventDefault();
@@ -198,7 +245,7 @@ export class SearchPanel implements Panel {
             userEvent: "select.search.matches.first",
             effects: EditorView.scrollIntoView(
               EditorSelection.range(first.value.from, first.value.to),
-              { y: "center" }
+              { y: "center" },
             ),
           });
         }
@@ -216,6 +263,7 @@ export class SearchPanel implements Panel {
       for (let effect of tr.effects) {
         if (effect.is(setSearchQuery) && !effect.value.eq(this.query))
           this.setQuery(effect.value);
+        this.updateCount();
       }
   }
 
