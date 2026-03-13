@@ -7143,13 +7143,13 @@
     "RGBColor": {
       "tag": "string",
       "name": "string.color.rgb.sd",
-      "match": "(rgb)([(][\\d]+[\\s]+[\\d]+[\\s]+[\\d]+(?:[\\s]*[/][\\s]*[\\d.]+[%]?)?[)])",
+      "match": "(rgb)(a)?([(])(.*)([)])",
       "color": true
     },
     "HSLColor": {
       "tag": "string",
       "name": "string.color.hsl.sd",
-      "match": "(hsl)([(][\\d]+[\\s]+[\\d]+[%]?[\\s]+[\\d]+[%]?(?:[\\s]*[/][\\s]*[\\d.]+[%]?)?[)])",
+      "match": "(hsl)(a)?([(])(.*)([)])",
       "color": true
     },
     "FrontMatter": {
