@@ -576,7 +576,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#ViewStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   DefineStylingDeclaration:
     tag: meta
@@ -600,7 +600,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#StylingStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   DefinePlainDeclaration:
     tag: meta
@@ -624,7 +624,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#PlainStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   DefineKeyword:
     tag: controlKeyword
@@ -769,7 +769,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#ViewStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   StylingStructObjectItemBlock:
     begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{EOPL}})
@@ -788,7 +788,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#StylingStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   PlainStructObjectItemBlock:
     begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{EOPL}})
@@ -807,7 +807,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#PlainStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   ViewStructObjectItemWithInlineScalarProperty:
     tag: meta
@@ -834,7 +834,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#ViewStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   StylingStructObjectItemWithInlineScalarProperty:
     tag: meta
@@ -861,7 +861,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#StylingStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   PlainStructObjectItemWithInlineScalarProperty:
     tag: meta
@@ -888,7 +888,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#PlainStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   ViewStructObjectItemWithInlineObjectProperty:
     begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{WS}}*)([:])({{WS}}*)(.*$)
@@ -920,7 +920,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#ViewStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   StylingStructObjectItemWithInlineObjectProperty:
     begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{WS}}*)([:])({{WS}}*)(.*$)
@@ -952,7 +952,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#StylingStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   PlainStructObjectItemWithInlineObjectProperty:
     begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{WS}}*)([:])({{WS}}*)(.*$)
@@ -984,7 +984,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#PlainStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   ViewStructScalarItem:
     match: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})(.*$)
@@ -1087,7 +1087,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#ViewStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   StylingStructObjectProperty:
     begin: ^({{WS}}*)(.+$)
@@ -1103,7 +1103,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#StylingStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   PlainStructObjectProperty:
     begin: ^({{WS}}*)(.+$)
@@ -1119,7 +1119,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#PlainStructField" }
       - { include: "#Unknown" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    end: (?=^(?!$|//|\1{{WS}}|\1[-]))
 
   ViewDeclarationObjectPropertyAssignment:
     begin: (?=\S)

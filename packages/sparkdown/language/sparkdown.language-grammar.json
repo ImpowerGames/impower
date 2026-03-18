@@ -1,5 +1,7 @@
 {
-  "fileTypes": ["sd"],
+  "fileTypes": [
+    "sd"
+  ],
   "keyEquivalent": "^~S",
   "indentUnit": "  ",
   "name": "Sparkdown",
@@ -33,9 +35,25 @@
     "PROPERTY_NAME_TERMINATOR": "(?:[:]|[=]|[\\r\\n])",
     "ASSIGN_EQUAL_OPERATOR": "(?:{{WS}}*[=]{{WS}}*)",
     "ARRAY_ITEM_OPERATOR": "(?:[-](?:$|{{WS}}+))",
-    "IMAGE_CONTROL_KEYWORDS": ["show", "hide", "animate"],
-    "IMAGE_CLAUSE_KEYWORDS": ["over", "after", "with", "wait", "ease"],
-    "AUDIO_CONTROL_KEYWORDS": ["play", "stop", "fade", "queue", "await"],
+    "IMAGE_CONTROL_KEYWORDS": [
+      "show",
+      "hide",
+      "animate"
+    ],
+    "IMAGE_CLAUSE_KEYWORDS": [
+      "over",
+      "after",
+      "with",
+      "wait",
+      "ease"
+    ],
+    "AUDIO_CONTROL_KEYWORDS": [
+      "play",
+      "stop",
+      "fade",
+      "queue",
+      "await"
+    ],
     "AUDIO_CLAUSE_KEYWORDS": [
       "over",
       "after",
@@ -67,7 +85,11 @@
       "repeat",
       "in"
     ],
-    "INNER_CONTROL_STATEMENT_KEYWORDS": ["case", "fill", "slot"],
+    "INNER_CONTROL_STATEMENT_KEYWORDS": [
+      "case",
+      "fill",
+      "slot"
+    ],
     "DECLARATION_KEYWORDS": [
       "include",
       "function",
@@ -86,8 +108,15 @@
       "style",
       "theme"
     ],
-    "VIEW_DEFINE_TYPES": ["screen", "component"],
-    "STYLING_DEFINE_TYPES": ["style", "animation", "color"]
+    "VIEW_DEFINE_TYPES": [
+      "screen",
+      "component"
+    ],
+    "STYLING_DEFINE_TYPES": [
+      "style",
+      "animation",
+      "color"
+    ]
   },
   "patterns": [
     {
@@ -967,7 +996,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "DefineStylingDeclaration": {
       "tag": "meta",
@@ -1017,7 +1046,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "DefinePlainDeclaration": {
       "tag": "meta",
@@ -1067,7 +1096,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "DefineKeyword": {
       "tag": "controlKeyword",
@@ -1345,7 +1374,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "StylingStructObjectItemBlock": {
       "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+)))((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[/][/].*$))",
@@ -1386,7 +1415,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "PlainStructObjectItemBlock": {
       "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+)))((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[/][/].*$))",
@@ -1427,7 +1456,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "ViewStructObjectItemWithInlineScalarProperty": {
       "tag": "meta",
@@ -1484,7 +1513,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "StylingStructObjectItemWithInlineScalarProperty": {
       "tag": "meta",
@@ -1541,7 +1570,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "PlainStructObjectItemWithInlineScalarProperty": {
       "tag": "meta",
@@ -1598,7 +1627,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "ViewStructObjectItemWithInlineObjectProperty": {
       "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+)))((?:[0-9]+|[_\\p{L}][0-9_\\p{L}-]*|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))([^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(.*$)",
@@ -1670,7 +1699,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "StylingStructObjectItemWithInlineObjectProperty": {
       "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+)))((?:[0-9]+|[_\\p{L}][0-9_\\p{L}-]*|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))([^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(.*$)",
@@ -1742,7 +1771,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "PlainStructObjectItemWithInlineObjectProperty": {
       "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+)))((?:[0-9]+|[_\\p{L}][0-9_\\p{L}-]*|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))([^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(.*$)",
@@ -1814,7 +1843,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "ViewStructScalarItem": {
       "match": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+)))(.*$)",
@@ -2025,7 +2054,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "StylingStructObjectProperty": {
       "begin": "^([^\\S\\n\\r]*)(.+$)",
@@ -2059,7 +2088,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "PlainStructObjectProperty": {
       "begin": "^([^\\S\\n\\r]*)(.+$)",
@@ -2093,7 +2122,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]))"
+      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "ViewDeclarationObjectPropertyAssignment": {
       "begin": "(?=\\S)",
