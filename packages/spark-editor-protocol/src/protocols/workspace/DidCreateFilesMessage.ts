@@ -1,9 +1,9 @@
-import { CreateFilesParams } from "../../types";
+import type * as LSP from "vscode-languageserver-protocol";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidCreateFilesMethod = typeof DidCreateFilesMessage.method;
 
-export interface DidCreateFilesParams extends CreateFilesParams {}
+export interface DidCreateFilesParams extends LSP.CreateFilesParams {}
 
 export class DidCreateFilesMessage {
   static readonly method = "workspace/didCreateFiles";

@@ -12,6 +12,7 @@ import {
   ScrolledEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SearchEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
+import { SelectEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import {
   SelectedEditorMessage,
   SelectedEditorMethod,
@@ -28,6 +29,7 @@ import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocol
 import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { UnfocusWindowMessage } from "@impower/spark-editor-protocol/src/protocols/window/UnfocusWindowMessage";
+import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import {
   EditorState,
   PaneType,
@@ -46,6 +48,7 @@ import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classe
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import { ShowDocumentResult } from "vscode-languageserver-protocol";
 import { debounce } from "../utils/debounce";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
@@ -57,12 +60,12 @@ import createZipFile from "./utils/createZipFile";
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
-    this._loadProject.bind(this)
+    this._loadProject.bind(this),
   );
 
   constructor() {
     const cachedProjectId = localStorage.getItem(
-      WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY
+      WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY,
     );
     const id = cachedProjectId || WorkspaceConstants.LOCAL_PROJECT_ID;
     this.restoreProjectWorkspace(id);
@@ -73,8 +76,28 @@ export default class WorkspaceWindow {
     this.handleScreenSizeChange(mediaQuery as any as MediaQueryListEvent);
   }
 
-  protected handleProtocol = (e: Event) => {
+  protected handleProtocol = async (e: Event) => {
     if (e instanceof CustomEvent) {
+      if (ShowDocumentMessage.type.is(e.detail)) {
+        const response = await this.handleShowDocument(
+          ShowDocumentMessage.type,
+          e.detail,
+        );
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+        return;
+      }
+      if (ApplyWorkspaceEditMessage.type.is(e.detail)) {
+        const response = await this.handleApplyWorkspaceEdit(
+          ApplyWorkspaceEditMessage.type,
+          e.detail,
+        );
+        if (response) {
+          this.emit(MessageProtocol.event, response);
+        }
+        return;
+      }
       if (ScrolledEditorMessage.type.is(e.detail)) {
         this.handleScrolledEditor(e.detail);
       }
@@ -122,13 +145,13 @@ export default class WorkspaceWindow {
   protected cacheProjectWorkspace = debounce((store: WorkspaceCache) => {
     localStorage.setItem(
       WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + store.project.id,
-      JSON.stringify(this.getCacheableState(store))
+      JSON.stringify(this.getCacheableState(store)),
     );
   }, 300);
 
   protected restoreProjectWorkspace(id: string) {
     const cachedWorkspaceState = localStorage.getItem(
-      WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + id
+      WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + id,
     );
     if (cachedWorkspaceState) {
       const workspaceState = JSON.parse(cachedWorkspaceState) as WorkspaceCache;
@@ -156,12 +179,30 @@ export default class WorkspaceWindow {
         cancelable: true,
         composed: true,
         detail,
-      })
+      }),
     );
   }
 
+  protected handleShowDocument = async (
+    messageType: typeof ShowDocumentMessage.type,
+    message: ShowDocumentMessage.Request,
+  ) => {
+    const { uri, selection, takeFocus } = message.params;
+    const result = await this.showDocument(uri, selection, takeFocus);
+    return messageType.response(message.id, result);
+  };
+
+  protected handleApplyWorkspaceEdit = async (
+    messageType: typeof ApplyWorkspaceEditMessage.type,
+    message: ApplyWorkspaceEditMessage.Request,
+  ) => {
+    const { label, edit, metadata } = message.params;
+    const result = await Workspace.fs.applyWorkspaceEdit(edit, label, metadata);
+    return messageType.response(message.id, result);
+  };
+
   protected handleScrolledEditor = (
-    message: NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams>
+    message: NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams>,
   ) => {
     const { textDocument, visibleRange } = message.params;
     const uri = textDocument.uri;
@@ -192,9 +233,9 @@ export default class WorkspaceWindow {
   };
 
   protected handleSelectedEditor = (
-    message: NotificationMessage<SelectedEditorMethod, SelectedEditorParams>
+    message: NotificationMessage<SelectedEditorMethod, SelectedEditorParams>,
   ) => {
-    const { textDocument, selectedRange } = message.params;
+    const { textDocument, selectedRange, hasFocus } = message.params;
     const uri = textDocument.uri;
     const filename = uri.split("/").slice(-1).join("");
     const pane = this.getPaneType(filename);
@@ -212,7 +253,7 @@ export default class WorkspaceWindow {
                 ...this.store.panes[pane].panels[panel],
                 activeEditor: {
                   ...this.store.panes[pane].panels[panel]!.activeEditor,
-                  focused: true,
+                  focused: hasFocus,
                   selectedRange,
                 },
               },
@@ -227,7 +268,7 @@ export default class WorkspaceWindow {
     message: NotificationMessage<
       ChangedEditorBreakpointsMethod,
       ChangedEditorBreakpointsParams
-    >
+    >,
   ) => {
     const { textDocument, breakpointLines } = message.params;
     const uri = textDocument.uri;
@@ -244,7 +285,7 @@ export default class WorkspaceWindow {
   };
 
   protected handleChangedEditorPinpoints = (
-    message: ChangedEditorPinpointsMessage.Notification
+    message: ChangedEditorPinpointsMessage.Notification,
   ) => {
     const { textDocument, pinpointLines } = message.params;
     const uri = textDocument.uri;
@@ -261,7 +302,7 @@ export default class WorkspaceWindow {
   };
 
   protected handleChangedEditorHighlights = (
-    message: ChangedEditorHighlightsMessage.Notification
+    message: ChangedEditorHighlightsMessage.Notification,
   ) => {
     const { textDocument, highlightLines } = message.params;
     const uri = textDocument.uri;
@@ -278,7 +319,7 @@ export default class WorkspaceWindow {
   };
 
   protected handleCompiledProgram = (
-    message: CompiledProgramMessage.Notification
+    message: CompiledProgramMessage.Notification,
   ) => {
     const { program } = message.params;
     this.update({
@@ -312,11 +353,11 @@ export default class WorkspaceWindow {
       lines.map((line) => ({
         uri,
         range: { start: { line, character: 0 }, end: { line, character: 0 } },
-      }))
+      })),
     );
     this.emit(
       MessageProtocol.event,
-      SetEditorHighlightsMessage.type.request({ locations })
+      SetEditorHighlightsMessage.type.request({ locations }),
     );
   }
 
@@ -332,11 +373,11 @@ export default class WorkspaceWindow {
       lines.map((line) => ({
         uri,
         range: { start: { line, character: 0 }, end: { line, character: 0 } },
-      }))
+      })),
     );
     this.emit(
       MessageProtocol.event,
-      SetEditorPinpointsMessage.type.request({ locations })
+      SetEditorPinpointsMessage.type.request({ locations }),
     );
   }
 
@@ -345,7 +386,7 @@ export default class WorkspaceWindow {
     options: {
       favoredChoices?: (number | undefined)[];
       favoredConditions?: (boolean | undefined)[];
-    }
+    },
   ) {
     this.update({
       ...this.store,
@@ -489,57 +530,60 @@ export default class WorkspaceWindow {
     return undefined;
   }
 
-  showDocument(uri: string, range?: Range, takeFocus?: boolean) {
-    const filename = Workspace.fs.getFilename(uri);
-    const pane = this.getPaneType(filename);
-    const panel = this.getPanelType(filename);
-    if (pane && panel) {
-      this.update({
-        ...this.store,
-        panes: {
-          ...this.store.panes,
-          [pane]: {
-            ...this.store.panes[pane],
-            view: panel === "main" ? "list" : "logic-editor",
-            panel: panel,
-            panels: {
-              ...this.store.panes[pane].panels,
-              [panel]: {
-                ...this.store.panes[pane].panels[panel],
-                activeEditor: {
-                  ...this.store.panes[pane].panels[panel]?.activeEditor,
-                  filename: filename,
-                  focused: takeFocus
-                    ? takeFocus
-                    : this.store.panes[pane].panels[panel]?.activeEditor
+  async showDocument(
+    uri: string,
+    range?: Range,
+    takeFocus?: boolean,
+  ): Promise<ShowDocumentResult> {
+    return new Promise((resolve) => {
+      const filename = Workspace.fs.getFilename(uri);
+      const pane = this.getPaneType(filename);
+      const panel = this.getPanelType(filename);
+      if (pane && panel) {
+        this.update({
+          ...this.store,
+          panes: {
+            ...this.store.panes,
+            [pane]: {
+              ...this.store.panes[pane],
+              view: panel === "main" ? "list" : "logic-editor",
+              panel: panel,
+              panels: {
+                ...this.store.panes[pane].panels,
+                [panel]: {
+                  ...this.store.panes[pane].panels[panel],
+                  activeEditor: {
+                    ...this.store.panes[pane].panels[panel]?.activeEditor,
+                    filename: filename,
+                    focused:
+                      takeFocus ??
+                      this.store.panes[pane].panels[panel]?.activeEditor
                         ?.focused,
-                  visibleRange: range
-                    ? { ...range }
-                    : this.store.panes[pane].panels[panel]?.activeEditor
-                        ?.visibleRange,
-                  selectedRange:
-                    range && takeFocus
+                    visibleRange: undefined,
+                    selectedRange: range
                       ? { ...range }
                       : this.store.panes[pane].panels[panel]?.activeEditor
                           ?.selectedRange,
+                    scrollStrategy: "center",
+                  },
                 },
               },
             },
           },
-        },
-      });
-    }
-    window.setTimeout(() => {
-      // Reveal range after opening file
-      this.emit(
-        MessageProtocol.event,
-        ShowDocumentMessage.type.request({
-          uri,
-          selection: range,
-          takeFocus,
-        })
-      );
-    }, 10);
+        });
+      }
+      if (range) {
+        this.emit(
+          MessageProtocol.event,
+          SelectEditorMessage.type.request({
+            textDocument: { uri },
+            range,
+            scrollIntoView: "center",
+            takeFocus,
+          }),
+        );
+      }
+    });
   }
 
   unfocus() {
@@ -572,7 +616,7 @@ export default class WorkspaceWindow {
   search(uri: string) {
     this.emit(
       MessageProtocol.event,
-      SearchEditorMessage.type.request({ textDocument: { uri } })
+      SearchEditorMessage.type.request({ textDocument: { uri } }),
     );
   }
 
@@ -583,7 +627,7 @@ export default class WorkspaceWindow {
     });
     this.emit(
       MessageProtocol.event,
-      DidOpenPaneMessage.type.notification({ pane })
+      DidOpenPaneMessage.type.notification({ pane }),
     );
   }
 
@@ -600,7 +644,7 @@ export default class WorkspaceWindow {
     });
     this.emit(
       MessageProtocol.event,
-      DidOpenPanelMessage.type.notification({ pane, panel })
+      DidOpenPanelMessage.type.notification({ pane, panel }),
     );
   }
 
@@ -617,7 +661,7 @@ export default class WorkspaceWindow {
     });
     this.emit(
       MessageProtocol.event,
-      DidOpenViewMessage.type.notification({ pane, view })
+      DidOpenViewMessage.type.notification({ pane, view }),
     );
   }
 
@@ -660,7 +704,7 @@ export default class WorkspaceWindow {
       });
       this.emit(
         MessageProtocol.event,
-        DidOpenFileEditorMessage.type.notification({ pane, panel, filename })
+        DidOpenFileEditorMessage.type.notification({ pane, panel, filename }),
       );
     }
   }
@@ -690,7 +734,7 @@ export default class WorkspaceWindow {
       });
       this.emit(
         MessageProtocol.event,
-        DidCloseFileEditorMessage.type.notification({ pane, panel })
+        DidCloseFileEditorMessage.type.notification({ pane, panel }),
       );
     }
   }
@@ -705,7 +749,7 @@ export default class WorkspaceWindow {
     });
     this.emit(
       MessageProtocol.event,
-      DidExpandPreviewPaneMessage.type.notification({})
+      DidExpandPreviewPaneMessage.type.notification({}),
     );
   }
 
@@ -719,7 +763,7 @@ export default class WorkspaceWindow {
     });
     this.emit(
       MessageProtocol.event,
-      DidCollapsePreviewPaneMessage.type.notification({})
+      DidCollapsePreviewPaneMessage.type.notification({}),
     );
   }
 
@@ -885,7 +929,7 @@ export default class WorkspaceWindow {
     }
     this.emit(
       MessageProtocol.event,
-      StepGameClockMessage.type.request({ seconds })
+      StepGameClockMessage.type.request({ seconds }),
     );
   }
 
@@ -941,7 +985,7 @@ export default class WorkspaceWindow {
       });
       this.emit(
         MessageProtocol.event,
-        DisableGameDebugMessage.type.request({})
+        DisableGameDebugMessage.type.request({}),
       );
     }
   }
@@ -1039,10 +1083,10 @@ export default class WorkspaceWindow {
             },
           });
           const projectTextRevision = revisions.findLast(
-            (r) => r.mimeType === "text/plain"
+            (r) => r.mimeType === "text/plain",
           );
           const projectZipRevision = revisions.findLast(
-            (r) => r.mimeType === "application/zip"
+            (r) => r.mimeType === "application/zip",
           );
           const remoteProjectExists = projectTextRevision || projectZipRevision;
           const textSyncStatus = remoteProjectExists
@@ -1055,9 +1099,9 @@ export default class WorkspaceWindow {
             textSyncStatus === "unsynced" || zipSyncStatus === "unsynced"
               ? "unsynced"
               : textSyncStatus === "sync_conflict" ||
-                zipSyncStatus === "sync_conflict"
-              ? "sync_conflict"
-              : textSyncStatus;
+                  zipSyncStatus === "sync_conflict"
+                ? "sync_conflict"
+                : textSyncStatus;
           const name =
             (await Workspace.fs.readProjectMetadata(id, "name")) ||
             WorkspaceConstants.DEFAULT_PROJECT_NAME;
@@ -1116,10 +1160,10 @@ export default class WorkspaceWindow {
         const revisions = await Workspace.sync.google.getFileRevisions(id);
         if (revisions) {
           const projectTextRevision = revisions.findLast(
-            (r) => r.mimeType === "text/plain"
+            (r) => r.mimeType === "text/plain",
           );
           const projectZipRevision = revisions.findLast(
-            (r) => r.mimeType === "application/zip"
+            (r) => r.mimeType === "application/zip",
           );
           if (projectTextRevision) {
             await this.pullRemoteScriptBundleChanges(id, projectTextRevision);
@@ -1216,15 +1260,15 @@ export default class WorkspaceWindow {
   protected async syncText(
     fileId: string,
     projectTextRevision: RemoteStorage.Revision | undefined,
-    pushLocalChanges: boolean
+    pushLocalChanges: boolean,
   ): Promise<SyncStatus> {
     const textRevisionId = await Workspace.fs.readProjectMetadata(
       fileId,
-      "textRevisionId"
+      "textRevisionId",
     );
     const textSynced = await Workspace.fs.readProjectMetadata(
       fileId,
-      "textSynced"
+      "textSynced",
     );
     const remoteTextChanged =
       projectTextRevision?.id && projectTextRevision?.id !== textRevisionId;
@@ -1254,7 +1298,7 @@ export default class WorkspaceWindow {
     const filename = Workspace.sync.google.getProjectFilename(projectName);
     const remoteProjectFile = await Workspace.sync.google.updateProjectFile(
       fileId,
-      createTextFile(filename, content)
+      createTextFile(filename, content),
     );
     const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
     await Promise.all([
@@ -1262,7 +1306,7 @@ export default class WorkspaceWindow {
       Workspace.fs.writeProjectMetadata(
         fileId,
         "textRevisionId",
-        remoteProjectFile.headRevisionId!
+        remoteProjectFile.headRevisionId!,
       ),
       Workspace.fs.writeProjectMetadata(fileId, "textSynced", String(true)),
     ]);
@@ -1271,14 +1315,14 @@ export default class WorkspaceWindow {
 
   async pullRemoteScriptBundleChanges(
     fileId: string,
-    revision: RemoteStorage.Revision
+    revision: RemoteStorage.Revision,
   ) {
     const remoteProjectTextContent =
       await Workspace.sync.google.getFileRevision(fileId, revision.id!, "text");
     const remoteProjectName = revision.originalFilename!.split(".")[0]!;
     await Workspace.fs.writeProjectScriptBundle(
       fileId,
-      remoteProjectTextContent || ""
+      remoteProjectTextContent || "",
     );
     await Promise.all([
       Workspace.fs.writeProjectMetadata(fileId, "name", remoteProjectName),
@@ -1297,15 +1341,15 @@ export default class WorkspaceWindow {
   protected async syncZip(
     fileId: string,
     projectZipRevision: RemoteStorage.Revision | undefined,
-    pushLocalChanges: boolean
+    pushLocalChanges: boolean,
   ): Promise<SyncStatus> {
     const zipRevisionId = await Workspace.fs.readProjectMetadata(
       fileId,
-      "zipRevisionId"
+      "zipRevisionId",
     );
     const zipSynced = await Workspace.fs.readProjectMetadata(
       fileId,
-      "zipSynced"
+      "zipSynced",
     );
     const remoteZipChanged =
       projectZipRevision?.id && projectZipRevision?.id !== zipRevisionId;
@@ -1336,7 +1380,7 @@ export default class WorkspaceWindow {
     const filename = Workspace.sync.google.getProjectFilename(projectName);
     const remoteProjectFile = await Workspace.sync.google.updateProjectFile(
       fileId,
-      createZipFile(filename, content)
+      createZipFile(filename, content),
     );
     const remoteProjectName =
       remoteProjectFile?.name?.split(".")[0] || projectName;
@@ -1345,7 +1389,7 @@ export default class WorkspaceWindow {
       Workspace.fs.writeProjectMetadata(
         fileId,
         "zipRevisionId",
-        remoteProjectFile.headRevisionId!
+        remoteProjectFile.headRevisionId!,
       ),
       Workspace.fs.writeProjectMetadata(fileId, "zipSynced", String(true)),
     ]);
@@ -1354,12 +1398,12 @@ export default class WorkspaceWindow {
 
   protected async pullRemoteAssetBundleChanges(
     fileId: string,
-    revision: RemoteStorage.Revision
+    revision: RemoteStorage.Revision,
   ) {
     const remoteProjectZipContent = await Workspace.sync.google.getFileRevision(
       fileId,
       revision.id!,
-      "arraybuffer"
+      "arraybuffer",
     );
     const remoteProjectName = revision.originalFilename!.split(".")[0]!;
     await Workspace.fs.writeProjectAssetBundle(fileId, remoteProjectZipContent);
@@ -1464,50 +1508,48 @@ export default class WorkspaceWindow {
         const projectName =
           (await Workspace.fs.readProjectMetadata(projectId, "name")) ||
           WorkspaceConstants.DEFAULT_PROJECT_NAME;
-        const projectTextContent = await Workspace.fs.readProjectScriptBundle(
-          projectId
-        );
-        const projectZipContent = await Workspace.fs.readProjectAssetBundle(
-          projectId
-        );
+        const projectTextContent =
+          await Workspace.fs.readProjectScriptBundle(projectId);
+        const projectZipContent =
+          await Workspace.fs.readProjectAssetBundle(projectId);
         const filename = Workspace.sync.google.getProjectFilename(projectName);
         const remoteProjectZipFile =
           await Workspace.sync.google.createProjectFile(
             folderId,
-            createZipFile(filename, projectZipContent)
+            createZipFile(filename, projectZipContent),
           );
         const projectFileId = remoteProjectZipFile?.id;
         if (projectFileId) {
           const remoteProjectTextFile =
             await Workspace.sync.google.updateProjectFile(
               projectFileId,
-              createTextFile(filename, projectTextContent)
+              createTextFile(filename, projectTextContent),
             );
           await Promise.all([
             Workspace.fs.writeProjectMetadata(
               projectFileId,
               "name",
-              projectName
+              projectName,
             ),
             Workspace.fs.writeProjectMetadata(
               projectFileId,
               "textRevisionId",
-              remoteProjectTextFile.headRevisionId!
+              remoteProjectTextFile.headRevisionId!,
             ),
             Workspace.fs.writeProjectMetadata(
               projectFileId,
               "textSynced",
-              String(true)
+              String(true),
             ),
             Workspace.fs.writeProjectMetadata(
               projectFileId,
               "zipRevisionId",
-              remoteProjectZipFile.headRevisionId!
+              remoteProjectZipFile.headRevisionId!,
             ),
             Workspace.fs.writeProjectMetadata(
               projectFileId,
               "zipSynced",
-              String(true)
+              String(true),
             ),
           ]);
           this.loadNewProject(projectFileId);
@@ -1539,7 +1581,7 @@ export default class WorkspaceWindow {
       await Workspace.fs.writeProjectMetadata(
         projectId,
         "textSynced",
-        String(false)
+        String(false),
       );
       if (projectId !== "local") {
         this.update({
@@ -1559,7 +1601,7 @@ export default class WorkspaceWindow {
       await Workspace.fs.writeProjectMetadata(
         projectId,
         "zipSynced",
-        String(false)
+        String(false),
       );
       if (projectId !== "local") {
         this.update({

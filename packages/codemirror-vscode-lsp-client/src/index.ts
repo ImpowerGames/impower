@@ -1,0 +1,90 @@
+export {
+  LSPClient,
+  WorkspaceMapping,
+  type LSPClientConfig,
+  type LSPClientExtension,
+} from "./client";
+export { serverColorDecorations } from "./colors";
+export { serverCompletions, serverCompletionSource } from "./completion";
+export {
+  jumpToDeclaration,
+  jumpToDefinition,
+  jumpToDefinitionKeymap,
+  jumpToImplementation,
+  jumpToTypeDefinition,
+  serverDefinitions,
+} from "./definition";
+export { serverDiagnostics } from "./diagnostics";
+export { serverFolding } from "./folding";
+export { formatDocument, formatKeymap, serverFormatting } from "./formatting";
+export { serverHovers } from "./hover";
+export { contextMenu } from "./menu";
+export { LSPPlugin } from "./plugin";
+export {
+  convertFromChangeEvents,
+  convertFromPosition,
+  convertToChangeEvents,
+  convertToPosition,
+} from "./pos";
+export {
+  closeReferencePanel,
+  findReferences,
+  findReferencesKeymap,
+  forEachReference,
+  isReferencePanelOpen,
+  serverReferences,
+} from "./references";
+export { renameKeymap, renameSymbol, serverRenaming } from "./rename";
+export { serverSemanticHighlighting } from "./semantics";
+export {
+  nextSignature,
+  prevSignature,
+  serverSignatureHelp,
+  showSignatureHelp,
+  signatureKeymap,
+} from "./signature";
+export { serverAutoSync } from "./sync";
+export { BrowserTransport, WorkerTransport, type Transport } from "./transport";
+export { getDocumentVersion, versionConfig, versioning } from "./version";
+export { Workspace, type WorkspaceFile } from "./workspace";
+
+import { Extension } from "@codemirror/state";
+import { LSPClientExtension } from "./client";
+import { serverColorDecorations } from "./colors";
+import { serverCompletions } from "./completion";
+import { serverDefinitions } from "./definition";
+import { serverDiagnostics } from "./diagnostics";
+import { serverFolding } from "./folding";
+import { serverFormatting } from "./formatting";
+import { serverHovers } from "./hover";
+import { contextMenu } from "./menu";
+import { serverReferences } from "./references";
+import { serverRenaming } from "./rename";
+import { serverSemanticHighlighting } from "./semantics";
+import { serverSignatureHelp } from "./signature";
+import { serverAutoSync } from "./sync";
+
+/// This function bundles all the extensions defined in this package,
+/// in a way that can be passed to the
+/// [`extensions`](#lsp-client.LSPClientConfig.extensions) option to
+/// `LSPClient`.
+export function languageServerExtensions(): readonly (
+  | Extension
+  | LSPClientExtension
+)[] {
+  return [
+    serverCompletions(),
+    serverFolding(),
+    serverColorDecorations(),
+    serverSemanticHighlighting(),
+    serverHovers(),
+    serverRenaming(),
+    serverReferences(),
+    serverFormatting(),
+    serverDefinitions(),
+    serverSignatureHelp(),
+    serverDiagnostics(),
+    serverAutoSync(),
+    contextMenu(),
+  ];
+}

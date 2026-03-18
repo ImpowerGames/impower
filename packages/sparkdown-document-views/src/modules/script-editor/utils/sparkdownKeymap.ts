@@ -1,3 +1,5 @@
+import { formatDocument } from "@impower/codemirror-vscode-lsp-client/src";
+
 export const sparkdownKeymap = [
   {
     key: "PageUp",
@@ -13,4 +15,5 @@ export const sparkdownKeymap = [
       return true;
     },
   },
+  { key: "Mod-s", run: formatDocument, preventDefault: true },
 ] as const;

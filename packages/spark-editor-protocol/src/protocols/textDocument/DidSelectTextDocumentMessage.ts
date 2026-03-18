@@ -8,6 +8,7 @@ export type DidSelectTextDocumentMethod =
 export interface DidSelectTextDocumentParams {
   textDocument: TextDocumentIdentifier;
   selectedRange: Range;
+  hasFocus?: boolean;
   docChanged: boolean;
   userEvent?: boolean;
 }
@@ -21,9 +22,8 @@ export class DidSelectTextDocumentMessage {
 }
 
 export namespace DidSelectTextDocumentMessage {
-  export interface Notification
-    extends NotificationMessage<
-      DidSelectTextDocumentMethod,
-      DidSelectTextDocumentParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    DidSelectTextDocumentMethod,
+    DidSelectTextDocumentParams
+  > {}
 }

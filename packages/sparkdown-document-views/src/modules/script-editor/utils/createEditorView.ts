@@ -20,10 +20,15 @@ import {
   ViewUpdate,
   panels,
 } from "@codemirror/view";
+import {
+  LSPClient,
+  Workspace,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
+  InitializeParams,
+  InitializeResult,
   MessageConnection,
-  ServerCapabilities,
 } from "@impower/spark-editor-protocol/src/types";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import {
@@ -39,7 +44,6 @@ import {
   highlightsChanged,
   highlightsField,
 } from "../../../cm-highlight-lines/highlightLines";
-import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import {
   getPinpointLineNumbers,
   pinpointDeco,
@@ -68,9 +72,11 @@ export const readOnly = new Compartment();
 export const editable = new Compartment();
 
 interface EditorConfig {
+  serverWorker: Worker;
   serverConnection: MessageConnection;
-  serverCapabilities: ServerCapabilities;
-  fileSystemReader?: FileSystemReader;
+  serverInitializeParams: InitializeParams;
+  serverInitializeResult: InitializeResult;
+  serverWorkspace: (client: LSPClient) => Workspace;
   textDocument: { uri: string; version: number; text: string };
   scrollMargin?: {
     top?: number;
@@ -98,7 +104,7 @@ interface EditorConfig {
   onSelectionChanged?: (
     update: ViewUpdate,
     anchor: number,
-    head: number
+    head: number,
   ) => void;
   onBreakpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
   onPinpointsChanged?: (update: ViewUpdate, lineNumbers: number[]) => void;
@@ -106,21 +112,23 @@ interface EditorConfig {
   onHeightChanged?: () => void;
   changeFilter?: (tr: Transaction) => boolean | readonly number[];
   transactionFilter?: (
-    tr: Transaction
+    tr: Transaction,
   ) => TransactionSpec | readonly TransactionSpec[];
   transactionExtender?: (
-    tr: Transaction
+    tr: Transaction,
   ) => Pick<TransactionSpec, "effects" | "annotations"> | null;
 }
 
 const createEditorView = (
   parent: HTMLElement,
-  config: EditorConfig
+  config: EditorConfig,
 ): [EditorView, { dispose: () => void }] => {
   const textDocument = config.textDocument;
+  const serverWorker = config.serverWorker;
   const serverConnection = config.serverConnection;
-  const serverCapabilities = config.serverCapabilities;
-  const fileSystemReader = config.fileSystemReader;
+  const serverInitializeParams = config.serverInitializeParams;
+  const serverInitializeResult = config.serverInitializeResult;
+  const serverWorkspace = config.serverWorkspace;
   const scrollMargin = config?.scrollMargin;
   const top = config?.top;
   const bottom = config?.bottom;
@@ -171,14 +179,14 @@ const createEditorView = (
         folded,
       },
       {},
-      { history: historyField, folded: foldedField }
+      { history: historyField, folded: foldedField },
     );
   }
   const restoredExtensions = restoredState
     ? [
         historyField.init(() => restoredState?.field(historyField)),
         foldedField.init(
-          () => restoredState?.field(foldedField) as DecorationSet
+          () => restoredState?.field(foldedField) as DecorationSet,
         ),
       ]
     : [];
@@ -199,7 +207,7 @@ const createEditorView = (
   const scrollTo = scrollToLine
     ? EditorView.scrollIntoView(
         EditorSelection.range(scrollToLine.from, scrollToLine.to),
-        { y: "start" }
+        { y: "start" },
       )
     : undefined;
   const view: EditorView = new EditorView({
@@ -230,7 +238,7 @@ const createEditorView = (
                 try {
                   // Using state.doc.line() errors on Mac, so must use initialText.line() instead
                   return breakpointMarker.range(
-                    initialText.line(lineNumber).from
+                    initialText.line(lineNumber).from,
                   ) as Range<GutterMarker>;
                 } catch {
                   return null;
@@ -248,7 +256,7 @@ const createEditorView = (
                   try {
                     // Using state.doc.line() errors on Mac, so must use initialText.line() instead
                     return pinpointDeco.range(
-                      initialText.line(lineNumber).from
+                      initialText.line(lineNumber).from,
                     );
                   } catch {
                     return null;
@@ -269,7 +277,7 @@ const createEditorView = (
                   try {
                     // Using state.doc.line() errors on Mac, so must use initialText.line() instead
                     return highlightDeco.range(
-                      initialText.line(lineNumber).from
+                      initialText.line(lineNumber).from,
                     );
                   } catch {
                     return null;
@@ -293,16 +301,17 @@ const createEditorView = (
               bottom: `${bottom}px !important`,
             },
           },
-          { dark: true }
+          { dark: true },
         ),
         sparkdownLanguageExtension({
           textDocument,
+          serverWorker,
           serverConnection,
-          serverCapabilities,
-          fileSystemReader,
+          serverInitializeParams,
+          serverInitializeResult,
+          serverWorkspace,
         }),
         variableWidgets({
-          fileSystemReader,
           programContext,
         }),
         EditorState.changeFilter.of(
@@ -311,7 +320,7 @@ const createEditorView = (
               return changeFilter(tr);
             }
             return true;
-          }
+          },
         ),
         EditorState.transactionFilter.of(
           (tr: Transaction): TransactionSpec | readonly TransactionSpec[] => {
@@ -319,17 +328,17 @@ const createEditorView = (
               return transactionFilter(tr);
             }
             return tr;
-          }
+          },
         ),
         EditorState.transactionExtender.of(
           (
-            tr: Transaction
+            tr: Transaction,
           ): Pick<TransactionSpec, "effects" | "annotations"> | null => {
             if (transactionExtender) {
               return transactionExtender(tr);
             }
             return null;
-          }
+          },
         ),
         EditorView.updateListener.of((u) => {
           const parsing = syntaxParserRunning(u.view);
@@ -348,7 +357,7 @@ const createEditorView = (
           }
           if (u.docChanged || breakpointsChanged(u)) {
             const currentBreakpointLineNumbers = getBreakpointLineNumbers(
-              u.view
+              u.view,
             );
             if (
               JSON.stringify(currentBreakpointLineNumbers) !==
@@ -394,8 +403,8 @@ const createEditorView = (
           const userEvent = transaction?.isUserEvent("undo")
             ? "undo"
             : transaction?.isUserEvent("redo")
-            ? "redo"
-            : undefined;
+              ? "redo"
+              : undefined;
           const focused = u.view.hasFocus;
           const snippet = Boolean(parent.querySelector(".cm-snippetField"));
           const lint = Boolean(parent.querySelector(".cm-panel-lint"));

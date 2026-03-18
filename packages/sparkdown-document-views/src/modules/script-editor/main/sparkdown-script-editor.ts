@@ -1,6 +1,13 @@
 import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import {
+  convertFromPosition,
+  convertToChangeEvents,
+  convertToPosition,
+  getDocumentVersion,
+  LSPClient,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
@@ -20,11 +27,21 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import {
+  ScrollEditorMessage,
+  ScrollEditorMethod,
+  ScrollEditorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ScrollEditorMessage";
+import {
   SearchEditorMessage,
   SearchEditorMethod,
   SearchEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import {
+  SelectEditorMessage,
+  SelectEditorMethod,
+  SelectEditorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/SelectEditorMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
 import {
@@ -46,7 +63,6 @@ import {
   SelectedPreviewParams,
 } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
-import { DidCloseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCloseTextDocumentMessage";
 import { DidOpenTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
 import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage";
 import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage";
@@ -61,15 +77,13 @@ import {
   DidExpandPreviewPaneMethod,
   DidExpandPreviewPaneParams,
 } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
+import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
+import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import {
-  ShowDocumentMessage,
-  ShowDocumentMethod,
-} from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
-import {
+  InitializeParams,
+  InitializeResult,
   MessageConnection,
   Range,
-  ServerCapabilities,
-  ShowDocumentParams,
   TextDocumentItem,
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
@@ -78,17 +92,13 @@ import { Component } from "../../../../../spec-component/src/component";
 import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
 import getUnitlessValue from "../../../../../spec-component/src/utils/getUnitlessValue";
 import { setHighlights } from "../../../cm-highlight-lines/highlightLines";
-import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
-import { getServerChanges } from "../../../cm-language-client/utils/getServerChanges";
-import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition";
-import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset";
 import { setPinpoints } from "../../../cm-pinpoints/pinpoints";
-import { getDocumentVersion } from "../../../cm-versioning/versioning";
 import { getScrollableParent } from "../../../utils/getScrollableParent";
 import { getScrollClientHeight } from "../../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../../utils/getScrollTop";
 import { getVisibleRange } from "../../../utils/getVisibleRange";
 import { scrollY } from "../../../utils/scrollY";
+import { SparkdownCodemirrorWorkspace } from "../classes/SparkdownCodemirrorWorkspace";
 import { gotoLinePanelOpen } from "../panels/GotoLinePanel";
 import createEditorView, {
   editable,
@@ -97,11 +107,9 @@ import createEditorView, {
 import spec from "./_sparkdown-script-editor";
 
 export default class SparkdownScriptEditor extends Component(spec) {
+  static languageServerWorker: Worker;
+
   static languageServerConnection: MessageConnection;
-
-  static languageServerCapabilities: ServerCapabilities;
-
-  static fileSystemReader: FileSystemReader;
 
   protected _loadingRequest?: string | number;
 
@@ -110,6 +118,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected _initialVisibleRange?: Range;
 
   protected _initialSelectedRange?: Range;
+
+  protected _initialScrollStrategy?: "nearest" | "start" | "end" | "center";
 
   protected _loaded = false;
 
@@ -171,28 +181,24 @@ export default class SparkdownScriptEditor extends Component(spec) {
   override onDisconnected() {
     this.root.removeEventListener(
       "touchstart",
-      this.handlePointerEnterScroller
+      this.handlePointerEnterScroller,
     );
     this.root.removeEventListener(
       "mouseenter",
-      this.handlePointerEnterScroller
+      this.handlePointerEnterScroller,
     );
     this.root.removeEventListener(
       "mouseleave",
-      this.handlePointerLeaveScroller
+      this.handlePointerLeaveScroller,
     );
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     if (this._textDocument) {
-      SparkdownScriptEditor.languageServerConnection.sendNotification(
-        DidCloseTextDocumentMessage.type,
-        { textDocument: this._textDocument }
-      );
       if (this._editing) {
         this.emit(
           MessageProtocol.event,
           UnfocusedEditorMessage.type.notification({
             textDocument: this._textDocument,
-          })
+          }),
         );
       }
     }
@@ -204,8 +210,11 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected handleProtocol = async (e: Event) => {
     if (e instanceof CustomEvent) {
-      if (ShowDocumentMessage.type.is(e.detail)) {
-        this.handleShowDocument(e.detail);
+      if (ScrollEditorMessage.type.is(e.detail)) {
+        this.handleScrollEditor(e.detail);
+      }
+      if (SelectEditorMessage.type.is(e.detail)) {
+        this.handleSelectEditor(e.detail);
       }
       if (LoadEditorMessage.type.is(e.detail)) {
         const response = await this.handleLoadEditor(e.detail);
@@ -264,19 +273,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
   override onAttributeChanged(name: string, newValue: string) {
     if (name === SparkdownScriptEditor.attrs.readonly) {
       if (newValue != null) {
-        this._view?.dispatch({
-          effects: [
-            readOnly.reconfigure(EditorState.readOnly.of(true)),
-            editable.reconfigure(EditorView.editable.of(false)),
-          ],
-        });
+        this.allowEditing(false);
       } else {
-        this._view?.dispatch({
-          effects: [
-            readOnly.reconfigure(EditorState.readOnly.of(false)),
-            editable.reconfigure(EditorView.editable.of(true)),
-          ],
-        });
+        this.allowEditing(true);
       }
     }
   }
@@ -296,28 +295,33 @@ export default class SparkdownScriptEditor extends Component(spec) {
   }
 
   protected handleLoadEditor = (
-    message: RequestMessage<LoadEditorMethod, LoadEditorParams>
+    message: RequestMessage<LoadEditorMethod, LoadEditorParams>,
   ) => {
     const params = message.params;
     const textDocument = params.textDocument;
     const focused = params.focused;
     const visibleRange = params.visibleRange;
     const selectedRange = params.selectedRange;
+    const scrollStrategy = params.scrollStrategy;
     const breakpointLines = params.breakpointLines;
     const pinpointLines = params.pinpointLines;
     const highlightLines = params.highlightLines;
-    const languageServerCapabilities = params.languageServerCapabilities;
+    const languageServerInitializeParams =
+      params.languageServerInitializeParams;
+    const languageServerInitializeResult =
+      params.languageServerInitializeResult;
     this._loadingRequest = message.id;
-    SparkdownScriptEditor.languageServerCapabilities =
-      languageServerCapabilities;
     this.loadTextDocument(
       textDocument,
       focused,
       visibleRange,
       selectedRange,
+      scrollStrategy,
       breakpointLines,
       pinpointLines,
-      highlightLines
+      highlightLines,
+      languageServerInitializeParams,
+      languageServerInitializeResult,
     );
     return LoadEditorMessage.type.response(message.id, {});
   };
@@ -326,7 +330,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     _message: NotificationMessage<
       DidExpandPreviewPaneMethod,
       DidExpandPreviewPaneParams
-    >
+    >,
   ) => {
     this._userInitiatedScroll = false;
   };
@@ -335,31 +339,38 @@ export default class SparkdownScriptEditor extends Component(spec) {
     _message: NotificationMessage<
       DidCollapsePreviewPaneMethod,
       DidCollapsePreviewPaneParams
-    >
+    >,
   ) => {
     this.scrollToRange(this._visibleRange);
   };
 
-  protected handleShowDocument = (
-    message: RequestMessage<ShowDocumentMethod, ShowDocumentParams>
+  protected handleScrollEditor = (
+    message: RequestMessage<ScrollEditorMethod, ScrollEditorParams>,
   ) => {
     const params = message.params;
-    const uri = params.uri;
-    const selection = params.selection;
+    const textDocument = params.textDocument;
+    const range = params.range;
+    const scrollStrategy = params.scrollStrategy;
+    if (textDocument.uri === this._textDocument?.uri) {
+      this.scrollToRange(range, scrollStrategy);
+    }
+  };
+
+  protected handleSelectEditor = (
+    message: RequestMessage<SelectEditorMethod, SelectEditorParams>,
+  ) => {
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const range = params.range;
+    const scrollIntoView = params.scrollIntoView;
     const takeFocus = params.takeFocus;
-    if (uri === this._textDocument?.uri) {
-      if (selection) {
-        if (takeFocus) {
-          this.selectRange(selection, "center");
-        } else {
-          this.scrollToRange(selection, "center");
-        }
-      }
+    if (textDocument.uri === this._textDocument?.uri) {
+      this.selectRange(range, scrollIntoView ?? false, takeFocus);
     }
   };
 
   protected handleScrolledPreview = (
-    message: NotificationMessage<ScrolledPreviewMethod, ScrolledPreviewParams>
+    message: NotificationMessage<ScrolledPreviewMethod, ScrolledPreviewParams>,
   ) => {
     if (this._loaded) {
       this._userInitiatedScroll = false;
@@ -378,7 +389,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
   };
 
   protected handleSelectedPreview = (
-    message: NotificationMessage<SelectedPreviewMethod, SelectedPreviewParams>
+    message: NotificationMessage<SelectedPreviewMethod, SelectedPreviewParams>,
   ) => {
     const params = message.params;
     const textDocument = params.textDocument;
@@ -393,7 +404,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
   };
 
   protected handleSearchEditor = (
-    message: RequestMessage<SearchEditorMethod, SearchEditorParams>
+    message: RequestMessage<SearchEditorMethod, SearchEditorParams>,
   ) => {
     const params = message.params;
     const textDocument = params.textDocument;
@@ -408,7 +419,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     message: RequestMessage<
       ShowEditorStatusBarMethod,
       ShowEditorStatusBarParams
-    >
+    >,
   ) => {
     const bottomPanels =
       this.root.querySelector<HTMLElement>(".cm-panels-bottom");
@@ -434,7 +445,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     message: RequestMessage<
       HideEditorStatusBarMethod,
       HideEditorStatusBarParams
-    >
+    >,
   ) => {
     const bottomPanels =
       this.root.querySelector<HTMLElement>(".cm-panels-bottom");
@@ -450,7 +461,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
   };
 
   protected handleSetEditorHighlights = (
-    message: SetEditorHighlightsMessage.Request
+    message: SetEditorHighlightsMessage.Request,
   ) => {
     const { locations } = message.params;
     if (this._view) {
@@ -458,14 +469,14 @@ export default class SparkdownScriptEditor extends Component(spec) {
         this._view,
         locations
           .filter((l) => l.uri === this._textDocument?.uri)
-          .map((l) => l.range.start.line + 1)
+          .map((l) => l.range.start.line + 1),
       );
     }
     return SetEditorHighlightsMessage.type.response(message.id, {});
   };
 
   protected handleSetEditorPinpoints = (
-    message: SetEditorPinpointsMessage.Request
+    message: SetEditorPinpointsMessage.Request,
   ) => {
     const { locations } = message.params;
     if (this._view) {
@@ -473,7 +484,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
         this._view,
         locations
           .filter((l) => l.uri === this._textDocument?.uri)
-          .map((l) => l.range.start.line + 1)
+          .map((l) => l.range.start.line + 1),
       );
     }
     return SetEditorPinpointsMessage.type.response(message.id, {});
@@ -514,9 +525,12 @@ export default class SparkdownScriptEditor extends Component(spec) {
     focused: boolean | undefined,
     visibleRange: Range | undefined,
     selectedRange: Range | undefined,
+    scrollStrategy: "nearest" | "start" | "end" | "center" | undefined,
     breakpointLines: number[] | undefined,
     pinpointLines: number[] | undefined,
-    highlightLines: number[] | undefined
+    highlightLines: number[] | undefined,
+    serverInitializeParams: InitializeParams,
+    serverInitializeResult: InitializeResult,
   ) {
     if (this._view) {
       this.unbindView(this._view);
@@ -528,6 +542,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this._initialFocused = focused;
     this._initialVisibleRange = visibleRange;
     this._initialSelectedRange = selectedRange;
+    this._initialScrollStrategy = scrollStrategy;
     this._loaded = false;
     this._searching = false;
     this._searchInputFocused = false;
@@ -538,9 +553,65 @@ export default class SparkdownScriptEditor extends Component(spec) {
       this._top = getUnitlessValue(this.top, 0);
       this._bottom = getUnitlessValue(this.bottom, 0);
       [this._view, this._disposable] = createEditorView(mainContainer, {
+        serverWorker: SparkdownScriptEditor.languageServerWorker,
         serverConnection: SparkdownScriptEditor.languageServerConnection,
-        serverCapabilities: SparkdownScriptEditor.languageServerCapabilities,
-        fileSystemReader: SparkdownScriptEditor.fileSystemReader,
+        serverInitializeParams: serverInitializeParams,
+        serverInitializeResult: serverInitializeResult,
+        serverWorkspace: (client: LSPClient) =>
+          new SparkdownCodemirrorWorkspace(client, {
+            showDocument: async (params) => {
+              return new Promise((resolve) => {
+                const request = ShowDocumentMessage.type.request(params);
+                const onProtocol = (e: Event) => {
+                  if (e instanceof CustomEvent) {
+                    const message = e.detail;
+                    if (
+                      ShowDocumentMessage.type.isResponse(message, request.id)
+                    ) {
+                      resolve();
+                      window.removeEventListener(
+                        MessageProtocol.event,
+                        onProtocol,
+                      );
+                    }
+                  }
+                };
+                window.addEventListener(MessageProtocol.event, onProtocol);
+                this.emit(MessageProtocol.event, request);
+              });
+            },
+            applyWorkspaceEdit: async (params) => {
+              return new Promise((resolve) => {
+                const request = ApplyWorkspaceEditMessage.type.request(params);
+                const onProtocol = (e: Event) => {
+                  if (e instanceof CustomEvent) {
+                    const message = e.detail;
+                    if (
+                      ApplyWorkspaceEditMessage.type.isResponse(
+                        message,
+                        request.id,
+                      )
+                    ) {
+                      resolve();
+                      window.removeEventListener(
+                        MessageProtocol.event,
+                        onProtocol,
+                      );
+                    }
+                  }
+                };
+                window.addEventListener(MessageProtocol.event, onProtocol);
+                this.emit(MessageProtocol.event, request);
+              });
+            },
+            onWillApplyWorkspaceEdit: () => {
+              // TODO: Block all script edits AND asset changes until workspace edit has been fully applied
+              this.allowEditing(false);
+            },
+            onDidApplyWorkspaceEdit: () => {
+              this.allowEditing(true);
+            },
+          }),
         textDocument: this._textDocument,
         scrollMargin: this._scrollMargin,
         top: this._top,
@@ -557,7 +628,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
               MessageProtocol.event,
               FocusedEditorMessage.type.notification({
                 textDocument: this._textDocument,
-              })
+              }),
             );
             this.emit("input/focused");
           }
@@ -571,7 +642,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
                 MessageProtocol.event,
                 UnfocusedEditorMessage.type.notification({
                   textDocument: this._textDocument,
-                })
+                }),
               );
               this.emit("input/unfocused");
             }
@@ -584,9 +655,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
               const beforeVersion = getDocumentVersion(tr.startState);
               const afterVersion = beforeVersion + 1;
               const after = tr.newDoc.toString();
-              const contentChanges = getServerChanges(
+              const contentChanges = convertToChangeEvents(
                 tr.startState.doc,
-                tr.changes
+                tr.changes,
               );
               this.emit(
                 MessageProtocol.event,
@@ -596,31 +667,21 @@ export default class SparkdownScriptEditor extends Component(spec) {
                     version: afterVersion,
                   },
                   contentChanges,
-                })
+                }),
               );
               this.emit(
                 MessageProtocol.event,
                 WillSaveTextDocumentMessage.type.notification({
                   textDocument: { uri },
                   reason: TextDocumentSaveReason.AfterDelay,
-                })
+                }),
               );
               this.emit(
                 MessageProtocol.event,
                 DidSaveTextDocumentMessage.type.notification({
                   textDocument: { uri },
                   text: after,
-                })
-              );
-              SparkdownScriptEditor.languageServerConnection.sendNotification(
-                DidChangeTextDocumentMessage.type,
-                {
-                  textDocument: {
-                    uri,
-                    version: afterVersion,
-                  },
-                  contentChanges,
-                }
+                }),
               );
             }
           }
@@ -629,33 +690,26 @@ export default class SparkdownScriptEditor extends Component(spec) {
         onSelectionChanged: (update, anchor, head) => {
           const uri = this._textDocument?.uri;
           if (uri) {
-            this.emit(
-              MessageProtocol.event,
-              DidSelectTextDocumentMessage.type.notification({
+            const params: DidSelectTextDocumentMessage.Notification["params"] =
+              {
                 textDocument: { uri },
                 selectedRange: {
-                  start: offsetToPosition(update.state.doc, anchor),
-                  end: offsetToPosition(update.state.doc, head),
+                  start: convertToPosition(update.state.doc, anchor),
+                  end: convertToPosition(update.state.doc, head),
                 },
+                hasFocus: this._view?.hasFocus,
                 docChanged: update.docChanged,
                 userEvent: update.transactions.some((tr) =>
-                  tr.annotation(Transaction.userEvent)
+                  tr.annotation(Transaction.userEvent),
                 ),
-              })
+              };
+            this.emit(
+              MessageProtocol.event,
+              DidSelectTextDocumentMessage.type.notification(params),
             );
             this.emit(
               MessageProtocol.event,
-              SelectedEditorMessage.type.notification({
-                textDocument: { uri },
-                selectedRange: {
-                  start: offsetToPosition(update.state.doc, anchor),
-                  end: offsetToPosition(update.state.doc, head),
-                },
-                docChanged: update.docChanged,
-                userEvent: update.transactions.some((tr) =>
-                  tr.annotation(Transaction.userEvent)
-                ),
-              })
+              SelectedEditorMessage.type.notification(params),
             );
           }
         },
@@ -667,9 +721,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
               ChangedEditorBreakpointsMessage.type.notification({
                 textDocument: { uri },
                 breakpointLines: breakpointLineNumbers.map(
-                  (lineNumber) => lineNumber - 1
+                  (lineNumber) => lineNumber - 1,
                 ),
-              })
+              }),
             );
           }
         },
@@ -681,9 +735,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
               ChangedEditorPinpointsMessage.type.notification({
                 textDocument: { uri },
                 pinpointLines: pinpointLineNumbers.map(
-                  (lineNumber) => lineNumber - 1
+                  (lineNumber) => lineNumber - 1,
                 ),
-              })
+              }),
             );
           }
         },
@@ -695,9 +749,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
               ChangedEditorHighlightsMessage.type.notification({
                 textDocument: { uri },
                 highlightLines: highlightLineNumbers.map(
-                  (lineNumber) => lineNumber - 1
+                  (lineNumber) => lineNumber - 1,
                 ),
-              })
+              }),
             );
           }
         },
@@ -709,7 +763,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
             if (!this._searching) {
               // Opened panel
               const findInput = this.root.querySelector(
-                ".cm-search input[name='search']"
+                ".cm-search input[name='search']",
               );
               if (findInput) {
                 findInput.addEventListener("focus", this.handleFocusFindInput);
@@ -718,16 +772,16 @@ export default class SparkdownScriptEditor extends Component(spec) {
                 this.handleFocusFindInput();
               }
               const replaceInput = this.root.querySelector(
-                ".cm-search input[name='replace']"
+                ".cm-search input[name='replace']",
               );
               if (replaceInput) {
                 replaceInput.addEventListener(
                   "focus",
-                  this.handleFocusReplaceInput
+                  this.handleFocusReplaceInput,
                 );
                 replaceInput.addEventListener(
                   "blur",
-                  this.handleBlurReplaceInput
+                  this.handleBlurReplaceInput,
                 );
               }
               const gotoLineInput =
@@ -735,11 +789,11 @@ export default class SparkdownScriptEditor extends Component(spec) {
               if (gotoLineInput) {
                 gotoLineInput.addEventListener(
                   "focus",
-                  this.handleFocusGotoLineInput
+                  this.handleFocusGotoLineInput,
                 );
                 gotoLineInput.addEventListener(
                   "blur",
-                  this.handleBlurGotoLineInput
+                  this.handleBlurGotoLineInput,
                 );
                 // gotoLineInput starts focused
                 this.handleFocusGotoLineInput();
@@ -752,13 +806,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
         },
       });
     }
-    SparkdownScriptEditor.languageServerConnection.sendNotification(
-      DidOpenTextDocumentMessage.type,
-      { textDocument }
-    );
     this.emit(
       MessageProtocol.event,
-      DidOpenTextDocumentMessage.type.notification({ textDocument })
+      DidOpenTextDocumentMessage.type.notification({ textDocument }),
     );
   }
 
@@ -773,7 +823,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected scrollToRange(
     range: Range | undefined,
-    strategy: "nearest" | "start" | "end" | "center" = "start"
+    strategy: "nearest" | "start" | "end" | "center" = "start",
   ) {
     const view = this._view;
     if (view) {
@@ -784,14 +834,14 @@ export default class SparkdownScriptEditor extends Component(spec) {
           scrollY(0, this._scroller);
         } else {
           const line = doc.line(
-            Math.min(Math.max(1, startLineNumber), doc.lines)
+            Math.min(Math.max(1, startLineNumber), doc.lines),
           );
           view.dispatch({
             effects: EditorView.scrollIntoView(
               EditorSelection.range(line.from, line.to),
               {
                 y: strategy,
-              }
+              },
             ),
           });
         }
@@ -801,13 +851,18 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected selectRange(
     range: Range,
-    scrollIntoView: "nearest" | "start" | "end" | "center" | false
+    scrollIntoView: "nearest" | "start" | "end" | "center" | false,
+    takeFocus?: boolean,
   ) {
     const view = this._view;
     if (view) {
       const doc = view.state.doc;
-      const anchor = positionToOffset(doc, range.start);
-      const head = positionToOffset(doc, range.end);
+      const anchor = convertFromPosition(doc, range.start);
+      const head = convertFromPosition(doc, range.end);
+      if (takeFocus) {
+        this.focus({ preventScroll: true });
+        view.focus();
+      }
       view.dispatch({
         selection: EditorSelection.create([
           EditorSelection.range(anchor, head),
@@ -834,22 +889,24 @@ export default class SparkdownScriptEditor extends Component(spec) {
       const initialFocused = this._initialFocused;
       const initialVisibleRange = this._initialVisibleRange;
       const initialSelectedRange = this._initialSelectedRange;
+      const initialScrollStrategy = this._initialScrollStrategy;
       // Restore visible range
       this.scrollToRange(initialVisibleRange);
       // Try to restore focus
       const view = this._view;
-      if (document.hasFocus() && this._view && initialFocused) {
+      if (document.hasFocus() && this._view) {
         clearInterval(this._focusIntervalTimeout);
         this._focusIntervalTimeout = window.setInterval(() => {
           if (this._view !== view || !this._view || this._view.hasFocus) {
             clearInterval(this._focusIntervalTimeout);
             return;
           }
-          this.focus({ preventScroll: true });
-          this._view.focus();
           if (initialSelectedRange) {
-            // Only restore selectedRange if was focused
-            this.selectRange(initialSelectedRange, false);
+            this.selectRange(
+              initialSelectedRange,
+              !initialVisibleRange ? (initialScrollStrategy ?? false) : false,
+              initialFocused,
+            );
           }
         }, 100);
       }
@@ -872,7 +929,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
         MessageProtocol.event,
         HoveredOnEditorMessage.type.notification({
           textDocument: this._textDocument,
-        })
+        }),
       );
     }
   };
@@ -884,7 +941,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
         MessageProtocol.event,
         HoveredOffEditorMessage.type.notification({
           textDocument: this._textDocument,
-        })
+        }),
       );
     }
   };
@@ -905,7 +962,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
                 textDocument: this._textDocument,
                 visibleRange,
                 target: e.target instanceof HTMLElement ? "element" : "window",
-              })
+              }),
             );
           }
         }
@@ -926,6 +983,24 @@ export default class SparkdownScriptEditor extends Component(spec) {
       return visibleRange;
     }
     return undefined;
+  }
+
+  protected allowEditing(allowed: boolean) {
+    if (allowed) {
+      this._view?.dispatch({
+        effects: [
+          readOnly.reconfigure(EditorState.readOnly.of(false)),
+          editable.reconfigure(EditorView.editable.of(true)),
+        ],
+      });
+    } else {
+      this._view?.dispatch({
+        effects: [
+          readOnly.reconfigure(EditorState.readOnly.of(true)),
+          editable.reconfigure(EditorView.editable.of(false)),
+        ],
+      });
+    }
   }
 }
 

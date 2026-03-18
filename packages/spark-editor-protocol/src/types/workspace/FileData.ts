@@ -9,4 +9,5 @@ export interface FileData {
   type: string;
   version: number;
   text?: string;
+  languageId?: string | null;
 }

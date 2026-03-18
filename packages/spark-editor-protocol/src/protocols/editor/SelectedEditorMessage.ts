@@ -8,6 +8,7 @@ export interface SelectedEditorParams {
   textDocument: TextDocumentIdentifier;
   selectedRange: Range;
   docChanged: boolean;
+  hasFocus?: boolean;
   userEvent?: boolean;
 }
 
@@ -20,6 +21,8 @@ export class SelectedEditorMessage {
 }
 
 export namespace SelectedEditorMessage {
-  export interface Notification
-    extends NotificationMessage<SelectedEditorMethod, SelectedEditorParams> {}
+  export interface Notification extends NotificationMessage<
+    SelectedEditorMethod,
+    SelectedEditorParams
+  > {}
 }

@@ -15,12 +15,6 @@ const completionTheme = EditorView.baseTheme({
     border: `solid 1px #FFFFFF21`,
     borderRadius: "4px",
   },
-  "& .cm-tooltip p": {
-    margin: "4px 8px",
-  },
-  "& .cm-tooltip pre": {
-    margin: "4px 8px",
-  },
   "& .cm-tooltip.cm-tooltip-autocomplete": {
     minWidth: "min(90vw, 400px)",
   },
@@ -73,7 +67,7 @@ const positionInfo = (
   list: Rect,
   _option: Rect,
   info: Rect,
-  space: Rect
+  space: Rect,
 ) => {
   let offset = 0;
   let maxWidth = 0;
@@ -99,7 +93,7 @@ const positionInfo = (
     narrow = true;
     maxWidth = Math.min(
       Info.Width,
-      (rtl ? list.right : space.right - list.left) - Info.Margin
+      (rtl ? list.right : space.right - list.left) - Info.Margin,
     );
     let spaceBelow = space.bottom - list.bottom;
     if (spaceBelow >= infoHeight || spaceBelow > list.top) {
@@ -122,8 +116,8 @@ const positionInfo = (
           ? `left-${vertical}`
           : `right-${vertical}`
         : left
-        ? "left"
-        : "right"),
+          ? "left"
+          : "right"),
   };
 };
 

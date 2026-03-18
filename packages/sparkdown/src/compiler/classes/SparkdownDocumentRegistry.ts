@@ -21,6 +21,8 @@ const DEBUG = false;
 
 const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
+const LANGUAGE_ID = "sparkdown";
+
 export type SparkdownDocumentContentChangeEvent =
   TextDocumentContentChangeEvent;
 
@@ -219,20 +221,33 @@ export class SparkdownDocumentRegistry {
   add(params: {
     textDocument: {
       uri: string;
-      languageId: string;
-      version: number;
       text: string;
+      version: number | null;
+      languageId: string | null;
+    };
+  }) {
+    return this.set(params);
+  }
+
+  set(params: {
+    textDocument: {
+      uri: string;
+      text: string;
+      version: number | null;
+      languageId: string | null;
     };
   }) {
     const td = params.textDocument;
+    const beforeDocument =
+      this._syncedDocuments.get(td.uri) ||
+      new SparkdownDocument(td.uri, td.languageId ?? LANGUAGE_ID, -1, "");
     const syncedDocument = new SparkdownDocument(
       td.uri,
-      td.languageId,
-      td.version,
+      td.languageId ?? LANGUAGE_ID,
+      td.version ?? beforeDocument.version + 1,
       td.text.replace(NEWLINE_REGEX, "\n"),
     );
     this._syncedDocuments.set(td.uri, syncedDocument);
-    const beforeDocument = new SparkdownDocument(td.uri, td.languageId, -1, "");
     this.updateSyntaxTree(beforeDocument, syncedDocument);
     return true;
   }
@@ -260,7 +275,7 @@ export class SparkdownDocumentRegistry {
     }
     let syncedDocument =
       this._syncedDocuments.get(td.uri) ||
-      new SparkdownDocument(td.uri, "sparkdown", td.version - 1, "");
+      new SparkdownDocument(td.uri, LANGUAGE_ID, td.version - 1, "");
     if (syncedDocument) {
       const beforeDocument = new SparkdownDocument(
         syncedDocument.uri,

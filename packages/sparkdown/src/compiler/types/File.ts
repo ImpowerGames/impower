@@ -6,4 +6,6 @@ export interface File {
   src?: string;
   text?: string;
   data?: string;
+  version?: number | null;
+  languageId?: string | null;
 }

@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
-    "fflate": "^0.8.1"
+    "fflate": "^0.8.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
   }
 }

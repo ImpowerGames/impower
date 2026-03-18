@@ -97,6 +97,8 @@ export abstract class SparkdownWorkspace {
     line: number;
   };
 
+  protected _openDocuments = new Set<string>();
+
   protected _onNextCompiled = new Map<
     string,
     ((program: SparkProgram | undefined) => void)[]
@@ -172,9 +174,17 @@ export abstract class SparkdownWorkspace {
       };
       uri?: string;
       omitImageData?: boolean;
-      files?: { uri: string; src?: string; text?: string }[];
+      files?: Omit<File, "type" | "name" | "ext">[];
     } & Omit<SparkdownCompilerConfig, "files">;
-  }) {
+  }): Promise<{
+    program?: SparkProgram;
+    textDocuments?: {
+      uri: string;
+      text: string;
+      version: number | null;
+      languageId: string | null;
+    }[];
+  }> {
     this._clientCapabilities = params.capabilities;
     if (params.initializationOptions) {
       const { omitImageData, settings, uri, ...compilerConfig } =
@@ -195,15 +205,28 @@ export abstract class SparkdownWorkspace {
               const name = this.getFileName(file.uri);
               const ext = this.getFileExtension(file.uri);
               const type = this.getFileType(file.uri);
-              const [src, text] = await Promise.all([
-                file.src ? file.src : this.getFileSrc(file.uri),
+              const [src, text, version, languageId] = await Promise.all([
+                file.src ?? this.getFileSrc(file.uri),
                 type === "script" || type === "text" || ext === "svg"
-                  ? file.text
-                    ? file.text
-                    : this.getFileText(file.uri)
+                  ? (file.text ?? this.getFileText(file.uri))
                   : undefined,
+                file.version !== undefined
+                  ? file.version
+                  : this.getFileVersion(file.uri),
+                file.languageId !== undefined
+                  ? file.languageId
+                  : this.getFileLanguageId(file.uri),
               ]);
-              const watchedFile = { uri, name, ext, type, src, text };
+              const watchedFile = {
+                uri,
+                name,
+                ext,
+                type,
+                src,
+                text,
+                version,
+                languageId,
+              };
               this._watchedFiles.set(watchedFile.uri, watchedFile);
               this.onCreatedFile(watchedFile);
               return watchedFile;
@@ -215,7 +238,23 @@ export abstract class SparkdownWorkspace {
         files,
       });
       const program = uri ? await this.compile(uri, true) : undefined;
-      return { program };
+      const textDocuments: {
+        uri: string;
+        text: string;
+        version: number | null;
+        languageId: string | null;
+      }[] = [];
+      for (const [, file] of this._watchedFiles) {
+        if (file.version !== undefined && file.languageId !== undefined) {
+          textDocuments.push({
+            ...file,
+            text: file.text || "",
+            version: file.version,
+            languageId: file.languageId!,
+          });
+        }
+      }
+      return { program, textDocuments };
     }
     return {};
   }
@@ -262,20 +301,24 @@ export abstract class SparkdownWorkspace {
     const name = this.getFileName(file.uri);
     const type = this.getFileType(file.uri);
     const ext = this.getFileExtension(file.uri);
-    const [src, text] = await Promise.all([
+    const [src, text, version, languageId] = await Promise.all([
       this.getFileSrc(file.uri),
       type === "script" || type === "text" || ext === "svg"
         ? this.getFileText(file.uri)
         : undefined,
+      this.getFileVersion(file.uri),
+      this.getFileLanguageId(file.uri),
     ]);
 
     return {
       uri: file.uri,
+      version,
       name,
       type,
       ext,
       src,
       text,
+      languageId,
     };
   }
 
@@ -359,6 +402,10 @@ export abstract class SparkdownWorkspace {
     return this._documentVersions.get(uri) != null;
   }
 
+  textDocumentIsOpen(uri: string) {
+    return this._openDocuments.has(uri);
+  }
+
   protected async updateCompilerDocument(
     textDocument: { uri: string },
     contentChanges: SparkdownDocumentContentChangeEvent[],
@@ -439,9 +486,33 @@ export abstract class SparkdownWorkspace {
     if (result?.program) {
       result.program.version = state.version;
       this.sendNotification(CompiledProgramMessage.method, result);
+      this.onCompiledTextDocument({
+        textDocument: { uri },
+        program: result.program,
+      });
     }
     profile("end", this._profilerId, "workspace" + " " + "compile", uri);
     return result?.program;
+  }
+
+  getDiagnostics(program: SparkProgram, uri: string) {
+    const programDiagnostics = program.diagnostics?.[uri] || [];
+    const diagnostics = this.clientCapabilities?.textDocument?.diagnostic
+      ?.markupMessageSupport
+      ? programDiagnostics
+      : programDiagnostics.map((d) => {
+          return {
+            ...d,
+            message:
+              typeof d.message === "string"
+                ? d.message
+                : d.message.value
+                    .replaceAll("\`\`\`", "")
+                    .replaceAll("\`", "'"),
+          };
+        });
+
+    return diagnostics;
   }
 
   protected async compileDocument(uri: string) {
@@ -469,6 +540,7 @@ export abstract class SparkdownWorkspace {
     };
   }) {
     const textDocument = params.textDocument;
+    this._openDocuments.add(textDocument.uri);
     this._documentVersions.set(textDocument.uri, textDocument.version);
     this.updateCompilerDocument(textDocument, [
       { text: textDocument.text },
@@ -476,6 +548,16 @@ export abstract class SparkdownWorkspace {
       this.debouncedCompile(textDocument.uri, false);
     });
     this.onOpenTextDocument(params);
+  }
+
+  async closeTextDocument(params: {
+    textDocument: {
+      uri: string;
+    };
+  }) {
+    const textDocument = params.textDocument;
+    this._openDocuments.delete(textDocument.uri);
+    this.onCloseTextDocument(params);
   }
 
   async changeTextDocument(params: {
@@ -541,9 +623,11 @@ export abstract class SparkdownWorkspace {
 
   async changeFile(uri: string) {
     const type = this.getFileType(uri);
-    if (type && type !== "script") {
+    if (type && (type !== "script" || !this._openDocuments.has(uri))) {
+      // Changed file is an asset or an unopened script
       const file = await this.loadFile({ uri });
       this._watchedFiles.set(uri, file);
+      this._documentVersions.set(uri, file.version);
       this.onChangedFile(file);
       await this._compilerChannelConnection.sendRequest(
         UpdateCompilerFileMessage.type,
@@ -590,6 +674,12 @@ export abstract class SparkdownWorkspace {
     };
   }) {}
 
+  onCloseTextDocument(params: {
+    textDocument: {
+      uri: string;
+    };
+  }) {}
+
   onChangeTextDocument(params: {
     textDocument: {
       uri: string;
@@ -605,15 +695,32 @@ export abstract class SparkdownWorkspace {
     userEvent?: boolean;
   }) {}
 
+  onCompiledTextDocument(params: {
+    textDocument: { uri: string };
+    program: SparkProgram;
+  }) {}
+
   onDeletedFile(file: File) {}
 
   onChangedFile(file: File) {}
 
   onCreatedFile(file: File) {}
 
-  abstract sendNotification<P>(method: string, params: P): Promise<void>;
+  abstract sendRequest<P, M extends string, R>(
+    method: M,
+    params: P,
+  ): Promise<R>;
+
+  abstract sendNotification<P, M extends string>(
+    method: M,
+    params: P,
+  ): Promise<void>;
 
   abstract getFileText(uri: string): Promise<string>;
 
   abstract getFileSrc(uri: string): Promise<string>;
+
+  abstract getFileVersion(uri: string): Promise<number>;
+
+  abstract getFileLanguageId(uri: string): Promise<string>;
 }

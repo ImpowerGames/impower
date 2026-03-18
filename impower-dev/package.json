@@ -14,6 +14,7 @@
     "postinstall:sparkdown-screenplay-pdf": "cd ../packages/sparkdown-screenplay-pdf && npm ci && cd ../../impower-dev",
     "postinstall:opfs-workspace": "cd ../packages/opfs-workspace && npm ci && cd ../../impower-dev",
     "postinstall:codemirror-vscode-language": "cd ../packages/codemirror-vscode-language && npm ci && cd ../../impower-dev",
+    "postinstall:codemirror-vscode-lsp-client": "cd ../packages/codemirror-vscode-lsp-client && npm ci && cd ../../impower-dev",
     "postinstall:sparkdown-document-views": "cd ../packages/sparkdown-document-views && npm ci && cd ../../impower-dev",
     "postinstall:spark-web-player": "cd ../packages/spark-web-player && npm ci && cd ../../impower-dev",
     "postinstall": "npm-run-all -p postinstall:*",
@@ -77,11 +78,18 @@
   },
   "peerDependencies": {
     "@codemirror/autocomplete": "^6.19.0",
+    "@codemirror/collab": "^6.1.1",
+    "@codemirror/commands": "^6.10.3",
     "@codemirror/language": "^6.11.3",
+    "@codemirror/lint": "^6.9.5",
+    "@codemirror/search": "^6.6.0",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.6",
+    "@impower/codemirror-vscode-lsp-client": "file:../packages/codemirror-vscode-lsp-client",
     "@impower/jsonrpc": "file:../packages/jsonrpc",
     "@lezer/common": "^1.2.3",
-    "@lezer/highlight": "^1.2.1"
+    "@lezer/highlight": "^1.2.1",
+    "marked": "^17.0.4",
+    "vscode-languageserver-protocol": "^3.17.5"
   }
 }

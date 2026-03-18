@@ -8,7 +8,15 @@ export const getWorkspaceImageFile = async (fileUri: vscode.Uri) => {
   if (ext === "svg") {
     const buffer = await vscode.workspace.fs.readFile(fileUri);
     const text = Buffer.from(buffer).toString("utf8");
-    return { type: "image", uri, name, ext, text };
+    return {
+      type: "image",
+      uri,
+      name,
+      ext,
+      text,
+      version: null,
+      languageId: null,
+    };
   }
-  return { type: "image", uri, name, ext };
+  return { type: "image", uri, name, ext, version: null, languageId: null };
 };

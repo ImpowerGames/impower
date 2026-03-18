@@ -16,11 +16,8 @@ const load = async () => {
   await Promise.allSettled([
     Sparkle.init({ graphics }),
     SparkdownScriptEditor.init({
+      languageServerWorker: Workspace.ls.worker,
       languageServerConnection: Workspace.ls.connection,
-      fileSystemReader: {
-        scheme: Workspace.fs.scheme,
-        url: (uri: string) => Workspace.fs.getUrl(uri),
-      },
       graphics,
     }),
     SparkdownScreenplayPreview.init(),

@@ -4,7 +4,7 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 export type WillCreateFilesMethod = typeof WillCreateFilesMessage.method;
 
 export interface WillCreateFilesParams extends CreateFilesParams {
-  files: (FileCreate & { data: ArrayBuffer })[];
+  files: (FileCreate & { data?: ArrayBuffer })[];
 }
 
 export class WillCreateFilesMessage {

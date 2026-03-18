@@ -142,7 +142,7 @@ export interface DiagnosticRelatedInformation {
   /**
    * The message of this related diagnostic information.
    */
-  message: string | MarkupContent;
+  message: string;
 }
 
 export type MarkupKind = "plaintext" | "markdown";

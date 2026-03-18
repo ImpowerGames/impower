@@ -115,6 +115,7 @@ export const getSymbol = (
                             stringContentNode.from,
                             stringContentNode.to,
                           ),
+                          canRename: true,
                         };
                       }
                     }

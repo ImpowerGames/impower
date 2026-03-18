@@ -51,7 +51,7 @@ const esbuildProblemMatcher = (): esbuild.Plugin => ({
         console.error(`✘ [ERROR] ${text}`);
         if (location == null) return;
         console.error(
-          `    ${location.file}:${location.line}:${location.column}:`
+          `    ${location.file}:${location.line}:${location.column}:`,
         );
       });
       console.log(LOG_PREFIX + `build finished`);
@@ -82,8 +82,19 @@ const config: esbuild.BuildOptions = {
     events: "events",
     stream: "stream-browserify",
     url: "url-browserify",
+    "@codemirror/autocomplete": "@codemirror/autocomplete",
+    "@codemirror/collab": "@codemirror/collab",
+    "@codemirror/commands": "@codemirror/commands",
+    "@codemirror/language": "@codemirror/language",
+    "@codemirror/lint": "@codemirror/lint",
+    "@codemirror/search": "@codemirror/search",
     "@codemirror/state": "@codemirror/state",
+    "@codemirror/view": "@codemirror/view",
     "@lezer/common": "@lezer/common",
+    "@lezer/highlight": "@lezer/highlight",
+    "vscode-languageserver-protocol": "vscode-languageserver-protocol",
+    "vscode-jsonrpc/browser": "vscode-jsonrpc/browser",
+    marked: "marked",
   },
   banner: {
     js: `const window = {};`,

@@ -1,6 +1,11 @@
 import { syntaxParserRunning } from "@codemirror/language";
 import { EditorSelection, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import {
+  convertFromChangeEvents,
+  convertFromPosition,
+  convertToPosition,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { HoveredOnEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
@@ -52,9 +57,6 @@ import {
 } from "@impower/spark-editor-protocol/src/types";
 import { Component } from "../../../../../spec-component/src/component";
 import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
-import { getClientChanges } from "../../../cm-language-client";
-import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition.js";
-import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset.js";
 import debounce from "../../../utils/debounce.js";
 import { getScrollableParent } from "../../../utils/getScrollableParent.js";
 import { getScrollClientHeight } from "../../../utils/getScrollClientHeight.js";
@@ -118,22 +120,22 @@ export default class SparkScreenplayPreview extends Component(spec) {
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     this.emit(
       MessageProtocol.event,
-      ConnectedPreviewMessage.type.notification({ type: "screenplay" })
+      ConnectedPreviewMessage.type.notification({ type: "screenplay" }),
     );
   }
 
   override onDisconnected() {
     this.root.removeEventListener(
       "touchstart",
-      this.handlePointerEnterScroller
+      this.handlePointerEnterScroller,
     );
     this.root.removeEventListener(
       "mouseenter",
-      this.handlePointerEnterScroller
+      this.handlePointerEnterScroller,
     );
     this.root.removeEventListener(
       "mouseleave",
-      this.handlePointerLeaveScroller
+      this.handlePointerLeaveScroller,
     );
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     const view = this._view;
@@ -189,7 +191,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
   }
 
   protected handleLoadPreview = (
-    message: RequestMessage<LoadPreviewMethod, LoadPreviewParams>
+    message: RequestMessage<LoadPreviewMethod, LoadPreviewParams>,
   ) => {
     const params = message.params;
     const textDocument = params.textDocument;
@@ -205,7 +207,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     _message: NotificationMessage<
       DidExpandPreviewPaneMethod,
       DidExpandPreviewPaneParams
-    >
+    >,
   ) => {
     this.scrollToRange(this._visibleRange);
   };
@@ -214,13 +216,13 @@ export default class SparkScreenplayPreview extends Component(spec) {
     _message: NotificationMessage<
       DidCollapsePreviewPaneMethod,
       DidCollapsePreviewPaneParams
-    >
+    >,
   ) => {
     this._userInitiatedScroll = false;
   };
 
   protected handleRevealPreviewRange = (
-    message: RequestMessage<RevealPreviewRangeMethod, RevealPreviewRangeParams>
+    message: RequestMessage<RevealPreviewRangeMethod, RevealPreviewRangeParams>,
   ) => {
     const params = message.params;
     const textDocument = params.textDocument;
@@ -235,7 +237,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     message: NotificationMessage<
       DidChangeTextDocumentMethod,
       DidChangeTextDocumentParams
-    >
+    >,
   ) => {
     const params = message.params;
     const textDocument = params.textDocument;
@@ -244,7 +246,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
       const view = this._view;
       if (view) {
         this._scrollTarget = undefined;
-        const changes = getClientChanges(view.state, contentChanges);
+        const changes = convertFromChangeEvents(view.state, contentChanges);
         for (const change of changes) {
           // Instead of simply passing in the changes array, each change must be applied individually.
           // This is because getClientChanges returns positions relative to the previous change, not the start document,
@@ -255,7 +257,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     }
   };
   protected handleScrolledEditor = (
-    message: NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams>
+    message: NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams>,
   ) => {
     if (this._loaded) {
       this._userInitiatedScroll = false;
@@ -274,7 +276,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
   };
 
   protected handleSelectedEditor = (
-    message: NotificationMessage<SelectedEditorMethod, SelectedEditorParams>
+    message: NotificationMessage<SelectedEditorMethod, SelectedEditorParams>,
   ) => {
     const params = message.params;
     const textDocument = params.textDocument;
@@ -292,7 +294,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     textDocument: TextDocumentItem,
     focused: boolean | undefined,
     visibleRange: Range | undefined,
-    selectedRange: Range | undefined
+    selectedRange: Range | undefined,
   ) {
     if (this._view) {
       this.unbindView(this._view);
@@ -338,14 +340,14 @@ export default class SparkScreenplayPreview extends Component(spec) {
                   type: "screenplay",
                   textDocument: { uri },
                   selectedRange: {
-                    start: offsetToPosition(u.state.doc, anchor),
-                    end: offsetToPosition(u.state.doc, head),
+                    start: convertToPosition(u.state.doc, anchor),
+                    end: convertToPosition(u.state.doc, head),
                   },
                   docChanged: u.docChanged,
                   userEvent: u.transactions.some((tr) =>
-                    tr.annotation(Transaction.userEvent)
+                    tr.annotation(Transaction.userEvent),
                   ),
-                })
+                }),
               );
             }
           }
@@ -370,12 +372,12 @@ export default class SparkScreenplayPreview extends Component(spec) {
         } else {
           this._scrollTarget = range;
           const line = doc.line(
-            Math.min(Math.max(1, startLineNumber), doc.lines)
+            Math.min(Math.max(1, startLineNumber), doc.lines),
           );
           view.dispatch({
             effects: EditorView.scrollIntoView(
               EditorSelection.range(line.from, line.to),
-              { y: "start" }
+              { y: "start" },
             ),
           });
         }
@@ -387,8 +389,8 @@ export default class SparkScreenplayPreview extends Component(spec) {
     const view = this._view;
     if (view) {
       const doc = view.state.doc;
-      const anchor = positionToOffset(doc, range.start);
-      const head = positionToOffset(doc, range.end);
+      const anchor = convertFromPosition(doc, range.start);
+      const head = convertFromPosition(doc, range.end);
       view.dispatch({
         selection: EditorSelection.create([
           EditorSelection.range(anchor, head),
@@ -430,7 +432,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
         HoveredOnPreviewMessage.type.notification({
           type: "screenplay",
           textDocument: this._textDocument,
-        })
+        }),
       );
     }
   };
@@ -443,7 +445,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
         HoveredOffPreviewMessage.type.notification({
           type: "screenplay",
           textDocument: this._textDocument,
-        })
+        }),
       );
     }
   };
@@ -466,7 +468,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
                 textDocument: this._textDocument,
                 visibleRange: visibleRange,
                 target: e.target instanceof HTMLElement ? "element" : "window",
-              })
+              }),
             );
           }
         }

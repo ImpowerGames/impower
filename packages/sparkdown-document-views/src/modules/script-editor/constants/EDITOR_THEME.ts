@@ -38,6 +38,31 @@ const EDITOR_THEME: {
     caretColor: "white",
     minHeight: "100%",
   },
+  "& .cm-panel": {
+    backgroundColor: "inherit",
+  },
+  "& .cm-lsp-reference-panel:focus": {
+    outline: "none",
+  },
+  "& .cm-lsp-reference-panel": {
+    padding: "3px 0",
+    "& .cm-lsp-reference-file": {
+      padding: "0 32px",
+      fontWeight: "normal",
+    },
+    "& .cm-lsp-reference": {
+      padding: "0 32px",
+      fontWeight: "normal",
+    },
+  },
+  "& .cm-dialog-close": {
+    display: "none",
+    padding: "4px 8px",
+    top: "0",
+    left: "0",
+    right: "auto",
+    bottom: "auto",
+  },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-textfield:hover": {
       borderColor: EDITOR_COLORS.borderHover,
@@ -103,6 +128,9 @@ const EDITOR_THEME: {
   },
   "&.cm-focused .cm-nonmatchingBracket": {
     backgroundColor: "transparent",
+  },
+  "& .cm-selectionBackground": {
+    backgroundColor: "#264F78",
   },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
     backgroundColor: "#264F78",

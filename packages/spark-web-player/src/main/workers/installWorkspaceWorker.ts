@@ -3,6 +3,8 @@ import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileCha
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
+import { DidCloseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidCloseTextDocumentMessage";
+import { DidOpenTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
 import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSelectTextDocumentMessage";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
@@ -43,6 +45,19 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       super(WORKSPACE_INLINE_WORKER_STRING, profilerId);
     }
 
+    override sendRequest<P, M extends string, R>(
+      method: M,
+      params: P,
+    ): Promise<R> {
+      const message = {
+        jsonrpc: "2.0",
+        method,
+        params,
+        id: crypto.randomUUID(),
+      };
+      return connection.request(message);
+    }
+
     override async sendNotification<P>(
       method: string,
       params: P,
@@ -72,6 +87,20 @@ export function installWorkspaceWorker(connection: MessageConnection) {
     override async getFileText(uri: string): Promise<string> {
       return connection.sendRequest(ExecuteCommandMessage.type, {
         command: "sparkdown.getFileText",
+        arguments: [uri],
+      });
+    }
+
+    override async getFileVersion(uri: string): Promise<number> {
+      return connection.sendRequest(ExecuteCommandMessage.type, {
+        command: "sparkdown.getFileVersion",
+        arguments: [uri],
+      });
+    }
+
+    override async getFileLanguageId(uri: string): Promise<string> {
+      return connection.sendRequest(ExecuteCommandMessage.type, {
+        command: "sparkdown.getFileLanguageId",
         arguments: [uri],
       });
     }
@@ -136,6 +165,14 @@ export function installWorkspaceWorker(connection: MessageConnection) {
           .filter((change) => change.type == FileChangeType.Changed)
           .map((change) => state.workspace.changeFile(change.uri)),
       );
+      return;
+    }
+    if (DidOpenTextDocumentMessage.type.is(message)) {
+      state.workspace.openTextDocument(message.params);
+      return;
+    }
+    if (DidCloseTextDocumentMessage.type.is(message)) {
+      state.workspace.closeTextDocument(message.params);
       return;
     }
     if (DidChangeTextDocumentMessage.type.is(message)) {

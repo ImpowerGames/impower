@@ -93,7 +93,7 @@ export class SparkdownPreviewGamePanelManager {
 
   async showPanel(
     context: vscode.ExtensionContext,
-    document: vscode.TextDocument | undefined
+    document: vscode.TextDocument | undefined,
   ) {
     if (this._panel) {
       const viewColumn = this._viewColumn;
@@ -104,7 +104,7 @@ export class SparkdownPreviewGamePanelManager {
         this._panelTitle
       ) {
         vscode.window.tabGroups.close(
-          vscode.window.tabGroups.activeTabGroup.activeTab
+          vscode.window.tabGroups.activeTabGroup.activeTab,
         );
       }
       return this.createPanel(context, document);
@@ -113,7 +113,7 @@ export class SparkdownPreviewGamePanelManager {
 
   protected async createPanel(
     context: vscode.ExtensionContext,
-    document: vscode.TextDocument | undefined
+    document: vscode.TextDocument | undefined,
   ) {
     const viewType = this._viewType;
     const panelTitle = this._panelTitle;
@@ -130,7 +130,7 @@ export class SparkdownPreviewGamePanelManager {
     panel: WebviewPanel,
     context: vscode.ExtensionContext,
     document: vscode.TextDocument | undefined,
-    canvasHeight?: number
+    canvasHeight?: number,
   ) {
     // Setup document and panel
     this._panel = panel;
@@ -140,7 +140,7 @@ export class SparkdownPreviewGamePanelManager {
     };
     panel.onDidDispose(() => {
       this._connection.receive(
-        GameExitedMessage.type.notification({ reason: "quit" })
+        GameExitedMessage.type.notification({ reason: "quit" }),
       );
       this._panel = undefined;
     });
@@ -157,7 +157,7 @@ export class SparkdownPreviewGamePanelManager {
           const [uri] = params.arguments || [];
           if (uri && typeof uri === "string") {
             const buffer = await vscode.workspace.fs.readFile(
-              vscode.Uri.parse(uri)
+              vscode.Uri.parse(uri),
             );
             const text = new TextDecoder("utf-8").decode(buffer);
             this.sendResponse(ExecuteCommandMessage.type, message.id, text);
@@ -170,6 +170,36 @@ export class SparkdownPreviewGamePanelManager {
               .asWebviewUri(vscode.Uri.parse(uri))
               .toString();
             this.sendResponse(ExecuteCommandMessage.type, message.id, src);
+          }
+        }
+        if (params.command === "sparkdown.getFileVersion") {
+          const [uri] = params.arguments || [];
+          if (uri && typeof uri === "string") {
+            let version = null;
+            try {
+              const doc =
+                getEditor(uri)?.document ??
+                (await vscode.workspace.openTextDocument(uri));
+              version = doc.version;
+            } catch {}
+            this.sendResponse(ExecuteCommandMessage.type, message.id, version);
+          }
+        }
+        if (params.command === "sparkdown.getFileLanguageId") {
+          const [uri] = params.arguments || [];
+          if (uri && typeof uri === "string") {
+            let languageId = null;
+            try {
+              const doc =
+                getEditor(uri)?.document ??
+                (await vscode.workspace.openTextDocument(uri));
+              languageId = doc.languageId;
+            } catch {}
+            this.sendResponse(
+              ExecuteCommandMessage.type,
+              message.id,
+              languageId,
+            );
           }
         }
       }
@@ -210,13 +240,13 @@ export class SparkdownPreviewGamePanelManager {
               await vscode.window.showTextDocument(
                 editor.document,
                 editor.viewColumn,
-                false
+                false,
               );
             }
             editor.selection = new vscode.Selection(range.start, range.end);
             editor.revealRange(
               range,
-              vscode.TextEditorRevealType.InCenterIfOutsideViewport
+              vscode.TextEditorRevealType.InCenterIfOutsideViewport,
             );
           }
         }
@@ -246,7 +276,7 @@ export class SparkdownPreviewGamePanelManager {
 
   async connectAndInitializeWebview(
     document: vscode.TextDocument | undefined,
-    canvasHeight?: number
+    canvasHeight?: number,
   ) {
     const editor = document ? getEditor(document.uri) : undefined;
     const sparkdownConfig = vscode.workspace.getConfiguration("sparkdown");
@@ -322,7 +352,7 @@ export class SparkdownPreviewGamePanelManager {
 
   notifyChangedTextDocument(
     document: vscode.TextDocument,
-    changes: readonly vscode.TextDocumentContentChangeEvent[]
+    changes: readonly vscode.TextDocumentContentChangeEvent[],
   ) {
     const textDocument = {
       uri: document.uri.toString(),
@@ -349,7 +379,7 @@ export class SparkdownPreviewGamePanelManager {
   async notifySelectedEditor(
     document: vscode.TextDocument,
     selectedRange: vscode.Range,
-    userEvent: boolean
+    userEvent: boolean,
   ) {
     this.sendNotification(DidSelectTextDocumentMessage.type, {
       textDocument: { uri: document.uri.toString() },
@@ -394,7 +424,7 @@ export class SparkdownPreviewGamePanelManager {
 
   protected sendNotification<M extends string, P>(
     type: MessageProtocolNotificationType<M, P>,
-    params: P
+    params: P,
   ): void {
     const notification = type.notification(params);
     this._panel?.webview.postMessage(notification);
@@ -402,7 +432,7 @@ export class SparkdownPreviewGamePanelManager {
 
   protected async sendRequest<M extends string, P, R>(
     type: MessageProtocolRequestType<M, P, R>,
-    params: P
+    params: P,
   ): Promise<R> {
     const request = type.request(params);
     return new Promise<R>((resolve, reject) => {
@@ -427,7 +457,7 @@ export class SparkdownPreviewGamePanelManager {
   protected sendResponse<M extends string, P, R>(
     type: MessageProtocolRequestType<M, P, R>,
     id: string | number,
-    result: R
+    result: R,
   ): void {
     const response = type.response(id, result);
     this._panel?.webview.postMessage(response);
@@ -435,7 +465,7 @@ export class SparkdownPreviewGamePanelManager {
 
   protected getWebviewContent(
     webview: vscode.Webview,
-    context: vscode.ExtensionContext
+    context: vscode.ExtensionContext,
   ) {
     const jsMainUri = getWebviewUri(webview, context.extensionUri, [
       "out",
@@ -462,7 +492,7 @@ export class SparkdownPreviewGamePanelManager {
     const fontPathMonoBoldItalic = getWebviewUri(
       webview,
       context.extensionUri,
-      ["out", "data", "courier-prime-bold-italic.ttf"]
+      ["out", "data", "courier-prime-bold-italic.ttf"],
     );
     const styleNonce = getNonce();
     const scriptNonce = getNonce();

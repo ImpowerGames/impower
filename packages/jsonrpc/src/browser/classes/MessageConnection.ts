@@ -2,6 +2,7 @@ import { ConnectMessage } from "../../common/classes/ConnectMessage";
 import { MessageProtocolNotificationType } from "../../common/classes/MessageProtocolNotificationType";
 import { MessageProtocolRequestType } from "../../common/classes/MessageProtocolRequestType";
 import { RequestError } from "../../common/classes/RequestError";
+import { NotificationMessage } from "../../common/types/NotificationMessage";
 import { ProgressValue } from "../../common/types/ProgressValue";
 import { RequestMessage } from "../../common/types/RequestMessage";
 import { ResponseError } from "../../common/types/ResponseError";
@@ -46,12 +47,12 @@ export abstract class MessageConnection {
 
   abstract addEventListener<K extends keyof MessageConnectionEvents>(
     event: K,
-    listener: MessageConnectionEvents[K]
+    listener: MessageConnectionEvents[K],
   ): void;
 
   abstract removeEventListener<K extends keyof MessageConnectionEvents>(
     event: K,
-    listener: MessageConnectionEvents[K]
+    listener: MessageConnectionEvents[K],
   ): void;
 
   postMessage(message: any, transfer?: Transferable[]) {
@@ -66,13 +67,18 @@ export abstract class MessageConnection {
     this._profilerId = id;
   }
 
-  async sendRequest<M extends string, P, R>(
-    type: MessageProtocolRequestType<M, P, R>,
-    params: P,
+  notify<M extends string, P extends object>(
+    message: NotificationMessage<M, P>,
     transfer?: Transferable[],
-    onProgress?: (value: ProgressValue) => void
+  ) {
+    this.postMessage(message, transfer);
+  }
+
+  async request<M extends string, P, R>(
+    request: RequestMessage<M, P, R>,
+    transfer?: Transferable[],
+    onProgress?: (value: ProgressValue) => void,
   ): Promise<R> {
-    const request = type.request(params);
     return new Promise<R>((resolve, reject) => {
       const onResponse = (e: MessageEvent) => {
         const message = e.data;
@@ -102,14 +108,24 @@ export abstract class MessageConnection {
     });
   }
 
+  async sendRequest<M extends string, P, R>(
+    type: MessageProtocolRequestType<M, P, R>,
+    params: P,
+    transfer?: Transferable[],
+    onProgress?: (value: ProgressValue) => void,
+  ): Promise<R> {
+    const request = type.request(params);
+    return this.request(request, transfer, onProgress);
+  }
+
   async sendResponse<
     M extends string,
     P,
-    R extends object | string | boolean | number
+    R extends object | string | boolean | number,
   >(
     message: RequestMessage<M, P, R>,
     result: R | (() => Promise<R> | R),
-    transfer?: Transferable[]
+    transfer?: Transferable[],
   ) {
     const method = message.method;
     const id = message.id;
@@ -145,9 +161,9 @@ export abstract class MessageConnection {
   sendNotification<M extends string, P extends object>(
     type: MessageProtocolNotificationType<M, P>,
     params: P,
-    transfer?: Transferable[]
+    transfer?: Transferable[],
   ) {
-    const response = type.notification(params);
-    this.postMessage(response, transfer);
+    const notification = type.notification(params);
+    this.notify(notification, transfer);
   }
 }

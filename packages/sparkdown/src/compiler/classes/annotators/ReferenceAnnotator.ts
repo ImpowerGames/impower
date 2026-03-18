@@ -26,7 +26,8 @@ export interface Reference {
     | "define_type_name"
     | "define_variable_name"
     | "param"
-    | "property";
+    | "property"
+    | "character_name";
   kind?: "write" | "read";
   symbolIds?: string[];
   interdependentIds?: string[];
@@ -377,16 +378,18 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       );
       // For finding references
       const value = this.read(nodeRef.from, nodeRef.to);
-      const symbolIds =
-        this.defineType === "character" && defineProperty === "name"
-          ? ["character.?.name=" + value.slice(1, -1)]
-          : [];
+      const isCharacterNameFieldValue =
+        this.defineType === "character" && defineProperty === "name";
+      const symbolIds = isCharacterNameFieldValue
+        ? ["character.?.name=" + value.slice(1, -1)]
+        : [];
       // don't include surrounding string quotes in symbol range
       const from = value.startsWith('"') ? nodeRef.from + 1 : nodeRef.from;
       const to = value.endsWith('"') ? nodeRef.to - 1 : nodeRef.to;
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
           symbolIds,
+          declaration: isCharacterNameFieldValue ? "character_name" : undefined,
         }).range(from, to),
       );
       return annotations;

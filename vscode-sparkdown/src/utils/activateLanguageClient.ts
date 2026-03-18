@@ -40,8 +40,30 @@ const getFileSrc = (uri: string) => {
   }
 };
 
+const getFileVersion = async (uri: string) => {
+  let version = null;
+  try {
+    const doc =
+      getEditor(uri)?.document ??
+      (await vscode.workspace.openTextDocument(uri));
+    version = doc.version;
+  } catch {}
+  return version;
+};
+
+const getFileLanguageId = async (uri: string) => {
+  let languageId = null;
+  try {
+    const doc =
+      getEditor(uri)?.document ??
+      (await vscode.workspace.openTextDocument(uri));
+    languageId = doc.version;
+  } catch {}
+  return languageId;
+};
+
 export const activateLanguageClient = async (
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ): Promise<void> => {
   const sparkdownConfig = vscode.workspace.getConfiguration("sparkdown");
   const editor = getEditor();
@@ -54,7 +76,6 @@ export const activateLanguageClient = async (
     command: string;
     arguments?: LSPAny[];
   }) => {
-    // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
     if (params.command === "sparkdown.getFileText") {
       const [uri] = params.arguments || [];
       if (uri && typeof uri === "string") {
@@ -67,7 +88,20 @@ export const activateLanguageClient = async (
         return getFileSrc(uri);
       }
     }
-    return undefined;
+    if (params.command === "sparkdown.getFileVersion") {
+      const [uri] = params.arguments || [];
+      if (uri && typeof uri === "string") {
+        return getFileVersion(uri);
+      }
+    }
+    if (params.command === "sparkdown.getFileLanguageId") {
+      const [uri] = params.arguments || [];
+      if (uri && typeof uri === "string") {
+        return getFileLanguageId(uri);
+      }
+    }
+    console.error("UNHANDLED EXECUTE COMMAND:", params);
+    return null;
   };
   const client = await createSparkdownLanguageClient(context, {
     documentSelector: [{ language: "sparkdown" }],
@@ -95,7 +129,7 @@ export const activateLanguageClient = async (
       provideDocumentSymbols: async (
         document: vscode.TextDocument,
         token: vscode.CancellationToken,
-        next: ProvideDocumentSymbolsSignature
+        next: ProvideDocumentSymbolsSignature,
       ) => {
         const value = await next(document, token);
         SparkdownOutlineTreeDataProvider.instance.update(document.uri, value);
@@ -104,7 +138,7 @@ export const activateLanguageClient = async (
       executeCommand: async (
         command: string,
         args: any[],
-        next: ExecuteCommandSignature
+        next: ExecuteCommandSignature,
       ) => {
         const result = await executeCommandMiddleware({
           command,
@@ -122,13 +156,13 @@ export const activateLanguageClient = async (
     CompiledProgramMessage.method,
     (params: CompiledProgramParams) => {
       onCompile(context, params);
-    }
+    },
   );
   client.onRequest(
     ExecuteCommandRequest.method,
     (params: ExecuteCommandParams) => {
       return executeCommandMiddleware(params);
-    }
+    },
   );
   SparkProgramManager.instance.bindLanguageClient(client);
   await client.start();
@@ -137,12 +171,12 @@ export const activateLanguageClient = async (
 
 const onCompile = async (
   _context: vscode.ExtensionContext,
-  params: CompiledProgramParams
+  params: CompiledProgramParams,
 ) => {
   const program = params.program;
   const textDocument = params.textDocument;
   const document = await getOpenTextDocument(
-    vscode.Uri.parse(textDocument.uri)
+    vscode.Uri.parse(textDocument.uri),
   );
   if (document) {
     SparkProgramManager.instance.update(document.uri, program);

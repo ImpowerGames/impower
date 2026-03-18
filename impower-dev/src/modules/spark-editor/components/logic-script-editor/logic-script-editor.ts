@@ -65,7 +65,7 @@ export default class LogicScriptEditor extends Component(spec) {
     message: NotificationMessage<
       DidChangeTextDocumentMethod,
       DidChangeTextDocumentParams
-    >
+    >,
   ) => {
     const params = message.params;
     const textDocument = params.textDocument;
@@ -75,7 +75,7 @@ export default class LogicScriptEditor extends Component(spec) {
   };
 
   protected handleDidWriteFiles = (
-    message: NotificationMessage<DidWriteFilesMethod, DidWriteFilesParams>
+    message: NotificationMessage<DidWriteFilesMethod, DidWriteFilesParams>,
   ) => {
     const params = message.params;
     const remote = params.remote;
@@ -86,7 +86,7 @@ export default class LogicScriptEditor extends Component(spec) {
   };
 
   protected handleDidDeleteFiles = (
-    message: NotificationMessage<DidDeleteFilesMethod, DidDeleteFilesParams>
+    message: NotificationMessage<DidDeleteFilesMethod, DidDeleteFilesParams>,
   ) => {
     const params = message.params;
     const files = params.files;
@@ -99,7 +99,7 @@ export default class LogicScriptEditor extends Component(spec) {
     message: NotificationMessage<
       DidSaveTextDocumentMethod,
       DidSaveTextDocumentParams
-    >
+    >,
   ) => {
     const params = message.params;
     const textDocument = params.textDocument;
@@ -135,7 +135,7 @@ export default class LogicScriptEditor extends Component(spec) {
 
   override onContextChanged(
     oldContext: { textPulledAt: string },
-    newContext: { textPulledAt: string }
+    newContext: { textPulledAt: string },
   ) {
     if (oldContext.textPulledAt !== newContext.textPulledAt) {
       this.loadFile();
@@ -160,8 +160,11 @@ export default class LogicScriptEditor extends Component(spec) {
         const file = files[uri];
         const text = file?.text || "";
         const version = file?.version || 0;
-        const languageServerCapabilities =
-          await Workspace.ls.getServerCapabilities();
+        const languageId = file?.languageId || "sparkdown";
+        const languageServerInitializeParams =
+          await Workspace.ls.getInitializeParams();
+        const languageServerInitializeResult =
+          await Workspace.ls.getInitializeResult();
         this._uri = uri;
         this._version = version;
         this.emit(
@@ -169,7 +172,7 @@ export default class LogicScriptEditor extends Component(spec) {
           LoadEditorMessage.type.request({
             textDocument: {
               uri,
-              languageId: "sparkdown",
+              languageId,
               version,
               text,
             },
@@ -179,8 +182,9 @@ export default class LogicScriptEditor extends Component(spec) {
             breakpointLines,
             pinpointLines,
             highlightLines,
-            languageServerCapabilities,
-          })
+            languageServerInitializeParams,
+            languageServerInitializeResult,
+          }),
         );
       } else {
       }

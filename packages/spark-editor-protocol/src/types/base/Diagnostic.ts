@@ -1,3 +1,4 @@
+import { MarkupContent } from "vscode-languageserver-protocol";
 import { Range } from "./Range";
 
 /**
@@ -98,7 +99,7 @@ export interface Diagnostic {
   /**
    * The diagnostic's message. It usually appears in the user interface
    */
-  message: string;
+  message: string | MarkupContent;
   /**
    * Additional metadata about the diagnostic.
    *

@@ -1,16 +1,17 @@
 import { DiagnosticTag } from "@impower/spark-editor-protocol/src/enums/DiagnosticTag";
-import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
+import {
+  InitializeMessage,
+  InitializeParams,
+  InitializeResult,
+} from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { InitializedMessage } from "@impower/spark-editor-protocol/src/protocols/InitializedMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import {
   ClientCapabilities,
   ConfigurationParams,
-  InitializeResult,
-  MessageConnection,
-  ServerCapabilities,
+  DiagnosticClientCapabilities,
 } from "@impower/spark-editor-protocol/src/types";
-import { createBrowserMessageConnection } from "@impower/spark-editor-protocol/src/utils/createBrowserMessageConnection";
 import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
@@ -19,10 +20,15 @@ import {
   CompiledProgramMessage,
   CompiledProgramParams,
 } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import {
+  BrowserMessageReader,
+  BrowserMessageWriter,
+  createMessageConnection,
+  MessageConnection,
+} from "vscode-jsonrpc/browser";
 import type { SparkProgram } from "../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
 import ConsoleLogger from "./ConsoleLogger";
 import { Workspace } from "./Workspace";
-
 const CLIENT_CAPABILITIES: ClientCapabilities = {
   workspace: {
     didChangeConfiguration: {
@@ -30,6 +36,9 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
     },
     didChangeWatchedFiles: {
       dynamicRegistration: false,
+    },
+    workspaceEdit: {
+      failureHandling: "abort",
     },
   },
   textDocument: {
@@ -39,27 +48,25 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
       willSaveWaitUntil: true,
       didSave: true,
     },
-    colorProvider: { dynamicRegistration: true },
-    foldingRange: {
-      dynamicRegistration: true,
-    },
-    publishDiagnostics: {
-      relatedInformation: true,
-      tagSupport: {
-        valueSet: [DiagnosticTag.Unnecessary, DiagnosticTag.Deprecated],
-      },
-    },
     completion: {
       dynamicRegistration: true,
-      contextSupport: true,
       completionItem: {
+        snippetSupport: true,
+        commitCharactersSupport: true,
         documentationFormat: ["plaintext", "markdown"],
-        // snippetSupport: true,
-        // insertReplaceSupport: true,
-        // commitCharactersSupport: true,
         // deprecatedSupport: true,
         // preselectSupport: true,
+        // tagSupport: { valueSet: [] },
+        // insertReplaceSupport: true,
         // resolveSupport: { properties: ["documentation", "detail"] },
+        // insertTextModeSupport: { valueSet: [] },
+        labelDetailsSupport: true,
+      },
+      completionItemKind: { valueSet: [] },
+      // insertTextMode: InsertTextMode.asIs,
+      contextSupport: true,
+      completionList: {
+        itemDefaults: ["commitCharacters", "editRange", "insertTextFormat"],
       },
     },
     hover: {
@@ -70,36 +77,58 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
       dynamicRegistration: true,
       hierarchicalDocumentSymbolSupport: true,
     },
-    // signatureHelp: {
-    //   dynamicRegistration: true,
-    //   signatureInformation: {
-    //     documentationFormat: ["plaintext", "markdown"],
-    //     parameterInformation: {
-    //       labelOffsetSupport: true,
-    //     },
-    //     activeParameterSupport: true,
-    //   },
-    //   contextSupport: true,
-    // },
-    // declaration: {
-    //   dynamicRegistration: true,
-    //   linkSupport: false,
-    // },
-    // definition: {
-    //   dynamicRegistration: true,
-    //   linkSupport: true,
-    // },
-    // typeDefinition: {
-    //   dynamicRegistration: true,
-    //   linkSupport: true,
-    // },
-    // implementation: {
-    //   dynamicRegistration: true,
-    //   linkSupport: true,
-    // },
-    // references: {
-    //   dynamicRegistration: true,
-    // },
+    formatting: {
+      dynamicRegistration: true,
+    },
+    rename: {
+      dynamicRegistration: true,
+    },
+    signatureHelp: {
+      dynamicRegistration: true,
+      contextSupport: true,
+      signatureInformation: {
+        documentationFormat: ["plaintext", "markdown"],
+        parameterInformation: {
+          labelOffsetSupport: true,
+        },
+        activeParameterSupport: true,
+      },
+    },
+    definition: {
+      dynamicRegistration: true,
+      linkSupport: true,
+    },
+    declaration: {
+      dynamicRegistration: true,
+      linkSupport: false,
+    },
+    implementation: {
+      dynamicRegistration: true,
+      linkSupport: true,
+    },
+    typeDefinition: {
+      dynamicRegistration: true,
+      linkSupport: true,
+    },
+    references: {
+      dynamicRegistration: true,
+    },
+    diagnostic: {
+      dynamicRegistration: true,
+      markupMessageSupport: true,
+    } as DiagnosticClientCapabilities,
+    publishDiagnostics: {
+      relatedInformation: true,
+      tagSupport: {
+        valueSet: [DiagnosticTag.Unnecessary, DiagnosticTag.Deprecated],
+      },
+    },
+    colorProvider: {
+      dynamicRegistration: true,
+    },
+    foldingRange: {
+      dynamicRegistration: true,
+    },
     // documentHighlight: {
     //   dynamicRegistration: true,
     // },
@@ -117,10 +146,8 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
     //   dynamicRegistration: true,
     //   tooltipSupport: false,
     // },
-    // formatting: {},
     // rangeFormatting: {},
     // onTypeFormatting: {},
-    // rename: {},
     // selectionRange: {},
     // moniker: {},
   },
@@ -132,6 +159,19 @@ export type LanguageServerEvents = {
 
 export default class WorkspaceLanguageServer {
   protected _worker: Worker;
+  get worker() {
+    return this._worker;
+  }
+
+  protected _reader: BrowserMessageReader;
+  get reader() {
+    return this._reader;
+  }
+
+  protected _writer: BrowserMessageWriter;
+  get writer() {
+    return this._writer;
+  }
 
   protected _name = "Sparkdown Language Server";
   get name() {
@@ -154,11 +194,17 @@ export default class WorkspaceLanguageServer {
     "compiler/didCompile": new Set(),
   };
 
-  protected _serverCapabilities?: ServerCapabilities;
-
   protected _program?: SparkProgram;
 
+  protected _initializeParams?: InitializeParams;
+  get initializeParams() {
+    return this._initializeParams;
+  }
+
   protected _initializeResult?: InitializeResult;
+  get initializeResult() {
+    return this._initializeResult;
+  }
 
   protected _onInitialized: ((result: InitializeResult) => void)[] = [];
 
@@ -167,9 +213,12 @@ export default class WorkspaceLanguageServer {
     this._worker.onerror = (e) => {
       console.error(e);
     };
-    this._connection = createBrowserMessageConnection(
-      this._worker,
-      new ConsoleLogger()
+    this._reader = new BrowserMessageReader(this._worker);
+    this._writer = new BrowserMessageWriter(this._worker);
+    this._connection = createMessageConnection(
+      this._reader,
+      this._writer,
+      new ConsoleLogger(),
     );
     this._connection.onRequest(
       ConfigurationMessage.method,
@@ -181,7 +230,7 @@ export default class WorkspaceLanguageServer {
           return {};
         });
         return result;
-      }
+      },
     );
     this._connection.onNotification(
       CompiledProgramMessage.method,
@@ -193,15 +242,15 @@ export default class WorkspaceLanguageServer {
         });
         this.emit(
           MessageProtocol.event,
-          CompiledProgramMessage.type.notification(params)
+          CompiledProgramMessage.type.notification(params),
         );
         performance.mark(`CompiledProgramMessage end`);
         performance.measure(
           `CompiledProgramMessage`,
           `CompiledProgramMessage start`,
-          `CompiledProgramMessage end`
+          `CompiledProgramMessage end`,
         );
-      }
+      },
     );
     this._connection.onClose(() => {
       this.stop();
@@ -211,33 +260,36 @@ export default class WorkspaceLanguageServer {
 
   async start(
     projectPath: string,
-    files: { uri: string }[]
+    files: { uri: string }[],
   ): Promise<InitializeResult> {
     const uri = Workspace.window.getOpenedDocumentUri();
+    this._initializeParams = {
+      rootUri: projectPath,
+      processId: null,
+      capabilities: CLIENT_CAPABILITIES,
+      initializationOptions: {
+        settings: Workspace.configuration.settings,
+        files,
+        definitions: {
+          builtins: DEFAULT_BUILTIN_DEFINITIONS,
+          optionals: DEFAULT_OPTIONAL_DEFINITIONS,
+          schemas: DEFAULT_SCHEMA_DEFINITIONS,
+          descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
+        },
+        uri,
+      },
+      workspaceFolders: [
+        {
+          uri: projectPath,
+          name: "Project",
+        },
+      ],
+    };
     const result = await this._connection.sendRequest<InitializeResult>(
       InitializeMessage.method,
-      {
-        capabilities: CLIENT_CAPABILITIES,
-        initializationOptions: {
-          settings: Workspace.configuration.settings,
-          files,
-          definitions: {
-            builtins: DEFAULT_BUILTIN_DEFINITIONS,
-            optionals: DEFAULT_OPTIONAL_DEFINITIONS,
-            schemas: DEFAULT_SCHEMA_DEFINITIONS,
-            descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
-          },
-          uri,
-        },
-        workspaceFolders: [
-          {
-            uri: projectPath,
-            name: "Project",
-          },
-        ],
-      }
+      this._initializeParams,
     );
-    this._serverCapabilities = result.capabilities;
+    this._initializeResult = result;
     this.updateProgram(result["program"]);
     this._connection.sendNotification(InitializedMessage.method, {});
     this._onInitialized.forEach((callback) => {
@@ -257,12 +309,20 @@ export default class WorkspaceLanguageServer {
     return this._initializeResult;
   }
 
-  async getServerCapabilities(): Promise<ServerCapabilities> {
+  async getInitializeParams(): Promise<InitializeParams> {
     await this.initialization();
-    if (!this._serverCapabilities) {
+    if (!this._initializeParams) {
       throw new Error("Language server not initialized.");
     }
-    return this._serverCapabilities;
+    return this._initializeParams;
+  }
+
+  async getInitializeResult(): Promise<InitializeResult> {
+    await this.initialization();
+    if (!this._initializeResult) {
+      throw new Error("Language server not initialized.");
+    }
+    return this._initializeResult;
   }
 
   async getProgram() {
@@ -277,20 +337,20 @@ export default class WorkspaceLanguageServer {
     this._connection.dispose();
   }
 
-  updateProgram(program: SparkProgram) {
+  updateProgram(program: SparkProgram | undefined) {
     this._program = program;
   }
 
   addEventListener<K extends keyof LanguageServerEvents>(
     event: K,
-    listener: LanguageServerEvents[K]
+    listener: LanguageServerEvents[K],
   ) {
     this._events[event].add(listener);
   }
 
   removeEventListener<K extends keyof LanguageServerEvents>(
     event: K,
-    listener: LanguageServerEvents[K]
+    listener: LanguageServerEvents[K],
   ) {
     this._events[event].delete(listener);
   }
@@ -302,7 +362,7 @@ export default class WorkspaceLanguageServer {
         cancelable: true,
         composed: true,
         detail,
-      })
+      }),
     );
   }
 }

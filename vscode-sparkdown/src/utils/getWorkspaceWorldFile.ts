@@ -7,5 +7,13 @@ export const getWorkspaceWorldFile = async (fileUri: vscode.Uri) => {
   const ext = path.extname(uri).slice(1);
   const buffer = await vscode.workspace.fs.readFile(fileUri);
   const text = Buffer.from(buffer).toString("utf8");
-  return { type: "world", uri, name, ext, text };
+  return {
+    type: "world",
+    uri,
+    name,
+    ext,
+    text,
+    version: null,
+    languageId: null,
+  };
 };

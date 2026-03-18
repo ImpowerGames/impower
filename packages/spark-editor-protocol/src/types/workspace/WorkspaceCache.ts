@@ -1,5 +1,8 @@
-import type { Diagnostic } from "../base/Diagnostic";
-import type { Range } from "../base/Range";
+import type {
+  Diagnostic,
+  MarkupContent,
+  Range,
+} from "vscode-languageserver-protocol";
 
 export type PanelType =
   | "main"
@@ -64,6 +67,7 @@ export interface EditorState {
   focused?: boolean;
   visibleRange?: Range;
   selectedRange?: Range;
+  scrollStrategy?: "nearest" | "start" | "end" | "center";
 }
 
 export interface PanelState {
@@ -139,7 +143,10 @@ export interface DebugState {
   breakpoints?: Record<string, number[]>;
   pinpoints?: Record<string, number[]>;
   highlights?: Record<string, number[]>;
-  diagnostics?: Record<string, Diagnostic[]>;
+  diagnostics?: Record<
+    string,
+    (Omit<Diagnostic, "message"> & { message: string | MarkupContent })[]
+  >;
 }
 
 export interface WorkspaceCache extends PanesState<PaneType> {

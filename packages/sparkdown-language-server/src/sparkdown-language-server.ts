@@ -86,6 +86,7 @@ try {
       },
       referencesProvider: true,
       declarationProvider: true,
+      definitionProvider: true,
       documentLinkProvider: {
         resolveProvider: false,
       },
@@ -103,11 +104,8 @@ try {
     if (workspaceFolders) {
       workspace.loadWorkspaceFolders(workspaceFolders);
     }
-    const { program } = await workspace.initialize(params);
-    if (program) {
-      return { capabilities, program };
-    }
-    return { capabilities };
+    const result = await workspace.initialize(params);
+    return { capabilities, ...result };
   });
 
   connection.onInitialized(async () => {
@@ -406,6 +404,36 @@ try {
       `lsp: onDeclaration ${uri}`,
       `lsp: onDeclaration ${uri} start`,
       `lsp: onDeclaration ${uri} end`,
+    );
+    return references;
+  });
+
+  // definitionProvider
+  connection.onDefinition((params) => {
+    const uri = params.textDocument.uri;
+    const document = workspace.document(uri);
+    const tree = workspace.tree(uri);
+    const program = workspace.program(uri);
+    performance.mark(`lsp: onDefinition ${uri} start`);
+    const { references } = getReferences(
+      document,
+      tree,
+      program,
+      workspace,
+      params.position,
+      {
+        searchOtherFiles: true,
+        includeDeclaration: true,
+        excludeUses: true,
+        includeInterdependent: false,
+        includeLinks: false,
+      },
+    );
+    performance.mark(`lsp: onDefinition ${uri} end`);
+    performance.measure(
+      `lsp: onDefinition ${uri}`,
+      `lsp: onDefinition ${uri} start`,
+      `lsp: onDefinition ${uri} end`,
     );
     return references;
   });

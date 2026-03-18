@@ -238,6 +238,20 @@ export class SparkdownCompiler {
     if (config.files !== undefined && config.files !== this._config.files) {
       this._config.files = config.files;
       for (const file of config.files) {
+        if (
+          file.type === "script" &&
+          file.version !== undefined &&
+          file.languageId !== undefined
+        ) {
+          this.documents.add({
+            textDocument: {
+              uri: file.uri,
+              languageId: file.languageId!,
+              version: file.version,
+              text: file.text || "",
+            },
+          });
+        }
         this.addFile({ file });
       }
     }
@@ -247,13 +261,17 @@ export class SparkdownCompiler {
   addFile(params: AddCompilerFileParams) {
     const result = this.files.add(params);
     const file = params.file;
-    if (file.type === "script") {
+    if (
+      file.type === "script" &&
+      file.version !== undefined &&
+      file.languageId !== undefined
+    ) {
       this.documents.add({
         textDocument: {
           uri: file.uri,
-          languageId: "sparkdown",
-          version: 0,
           text: file.text || "",
+          version: file.version,
+          languageId: file.languageId,
         },
       });
     }
@@ -261,6 +279,21 @@ export class SparkdownCompiler {
   }
 
   updateFile(params: UpdateCompilerFileParams) {
+    const file = params.file;
+    if (
+      file.type === "script" &&
+      file.version !== undefined &&
+      file.languageId !== undefined
+    ) {
+      this.documents.set({
+        textDocument: {
+          uri: file.uri,
+          text: file.text! || "",
+          version: file.version,
+          languageId: file.languageId,
+        },
+      });
+    }
     return this.files.update(params);
   }
 

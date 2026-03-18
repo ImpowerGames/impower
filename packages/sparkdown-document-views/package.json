@@ -12,12 +12,16 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.6",
     "@impower/codemirror-vscode-language": "file:../codemirror-vscode-language",
+    "@impower/codemirror-vscode-lsp-client": "file:../codemirror-vscode-lsp-client",
     "@impower/jsonrpc": "file:../jsonrpc",
     "@impower/spark-dom": "file:../spark-dom",
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
     "@impower/spark-engine": "file:../spark-engine",
     "@impower/sparkdown": "file:../sparkdown",
     "@impower/textmate-grammar-tree": "file:../textmate-grammar-tree",
-    "@lezer/common": "^1.2.3"
+    "@lezer/common": "^1.2.3",
+    "@lezer/highlight": "^1.2.3",
+    "marked": "^17.0.4",
+    "vscode-languageserver-protocol": "^3.17.5"
   }
 }

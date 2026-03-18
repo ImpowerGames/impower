@@ -14,6 +14,8 @@ export const getWorkspaceFiles = async (): Promise<
     ext: string;
     text?: string;
     src?: string;
+    version?: number | null;
+    languageId?: string | null;
   }[]
 > => {
   const workspaceFilePatterns = getWorkspaceFilePatterns();
@@ -24,7 +26,7 @@ export const getWorkspaceFiles = async (): Promise<
     fontFileUrls,
     worldFileUrls,
   ] = await Promise.all(
-    workspaceFilePatterns.map((pattern) => vscode.workspace.findFiles(pattern))
+    workspaceFilePatterns.map((pattern) => vscode.workspace.findFiles(pattern)),
   );
   return Promise.all([
     ...(scriptFileUris || []).map(getWorkspaceScriptFile),

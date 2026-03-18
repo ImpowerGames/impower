@@ -1,6 +1,7 @@
-import { Range, ServerCapabilities, TextDocumentItem } from "../../types";
+import { Range, TextDocumentItem } from "../../types";
 import { RequestMessage } from "../../types/base/RequestMessage";
 import { ResponseMessage } from "../../types/base/ResponseMessage";
+import { InitializeParams, InitializeResult } from "../InitializeMessage";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type LoadEditorMethod = typeof LoadEditorMessage.method;
@@ -10,10 +11,12 @@ export interface LoadEditorParams {
   focused?: boolean;
   visibleRange?: Range;
   selectedRange?: Range;
+  scrollStrategy?: "nearest" | "start" | "end" | "center";
   breakpointLines?: number[];
   pinpointLines?: number[];
   highlightLines?: number[];
-  languageServerCapabilities: ServerCapabilities;
+  languageServerInitializeParams: InitializeParams;
+  languageServerInitializeResult: InitializeResult;
 }
 
 export interface LoadEditorResult {}
@@ -28,12 +31,13 @@ export class LoadEditorMessage {
 }
 
 export namespace LoadEditorMessage {
-  export interface Request
-    extends RequestMessage<
-      LoadEditorMethod,
-      LoadEditorParams,
-      LoadEditorResult
-    > {}
-  export interface Response
-    extends ResponseMessage<LoadEditorMethod, LoadEditorResult> {}
+  export interface Request extends RequestMessage<
+    LoadEditorMethod,
+    LoadEditorParams,
+    LoadEditorResult
+  > {}
+  export interface Response extends ResponseMessage<
+    LoadEditorMethod,
+    LoadEditorResult
+  > {}
 }

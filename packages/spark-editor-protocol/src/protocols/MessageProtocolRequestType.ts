@@ -11,7 +11,7 @@ import { isResponse } from "../utils/isResponse";
 export class MessageProtocolRequestType<
   M extends string,
   P,
-  R
+  R,
 > extends ProtocolRequestType<P, R, void, void, void> {
   constructor(method: M) {
     super(method);
@@ -25,11 +25,14 @@ export class MessageProtocolRequestType<
   isRequest(obj: any): obj is RequestMessage<M, P, R> {
     return isRequest(obj, this.method);
   }
-  isResponse(obj: any): obj is ResponseMessage<M, R> {
-    return isResponse(obj, this.method);
+  isResponse(obj: any, id?: string | number): obj is ResponseMessage<M, R> {
+    return isResponse(obj, this.method, id);
   }
-  isProgressResponse(obj: any): obj is ProgressResponseMessage<M> {
-    return isProgressResponse(obj, this.method);
+  isProgressResponse(
+    obj: any,
+    id?: string | number,
+  ): obj is ProgressResponseMessage<M> {
+    return isProgressResponse(obj, this.method, id);
   }
   request(params: P): RequestMessage<M, P, R> {
     return {
@@ -41,7 +44,7 @@ export class MessageProtocolRequestType<
   }
   progress(
     id: number | string,
-    value: ProgressValue
+    value: ProgressValue,
   ): ProgressResponseMessage<M> {
     return {
       jsonrpc: "2.0",
@@ -68,7 +71,7 @@ export class MessageProtocolRequestType<
   }
   result(
     result: R,
-    transfer?: ArrayBuffer[]
+    transfer?: ArrayBuffer[],
   ): { result: R; transfer?: ArrayBuffer[] } {
     return {
       result,

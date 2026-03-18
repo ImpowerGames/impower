@@ -1,3 +1,4 @@
+import type { SparkProgram } from "../../../sparkdown/src/compiler";
 import type * as LSP from "../types";
 import { MessageProtocolRequestType } from "./MessageProtocolRequestType";
 
@@ -33,10 +34,18 @@ export interface InitializationOptions {
 }
 
 export interface InitializeParams extends LSP.InitializeParams {
-  initializationOptions: InitializationOptions;
+  initializationOptions?: InitializationOptions;
 }
 
-export interface InitializeResult extends LSP.InitializeResult {}
+export interface InitializeResult extends LSP.InitializeResult {
+  program?: SparkProgram;
+  textDocuments?: {
+    uri: string;
+    text: string;
+    version: number | null;
+    languageId: string | null;
+  }[];
+}
 
 export abstract class InitializeMessage {
   static readonly method = "initialize";

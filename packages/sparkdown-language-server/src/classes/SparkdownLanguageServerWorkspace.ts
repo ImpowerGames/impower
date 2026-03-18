@@ -1,8 +1,4 @@
 import {
-  CompiledProgramMessage,
-  CompiledProgramParams,
-} from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
-import {
   CompileProgramMessage,
   CompileProgramParams,
 } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
@@ -16,13 +12,16 @@ import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdo
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import {
   type Connection,
-  Diagnostic,
   Disposable,
   type DocumentDiagnosticParams,
   type DocumentDiagnosticReport,
   DocumentDiagnosticRequest,
+  ErrorCodes,
   ExecuteCommandRequest,
   FileChangeType,
+  FoldingRangeRefreshRequest,
+  PublishDiagnosticsNotification,
+  SemanticTokensRefreshRequest,
   TextDocumentSyncKind,
 } from "vscode-languageserver";
 
@@ -111,47 +110,21 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     return this._documents.annotations(uri);
   }
 
-  getDiagnostics(program: SparkProgram, uri: string) {
-    const programDiagnostics = program.diagnostics?.[uri] || [];
-    const diagnostics = (
-      this.clientCapabilities?.textDocument?.diagnostic?.markupMessageSupport
-        ? programDiagnostics
-        : programDiagnostics.map((d) => {
-            return {
-              ...d,
-              message:
-                typeof d.message === "string"
-                  ? d.message
-                  : d.message.value
-                      .replaceAll("\`\`\`", "")
-                      .replaceAll("\`", "'"),
-            };
-          })
-    ) as Diagnostic[];
-
-    return diagnostics;
+  override async sendNotification<P, M extends string>(
+    method: M,
+    params: P,
+  ): Promise<void> {
+    this._connection?.sendNotification(method, params);
   }
 
-  override async sendNotification<P>(method: string, params: P): Promise<void> {
-    this._connection?.sendNotification(method, params);
-    if (method === CompiledProgramMessage.method) {
-      // When sending 'compiler/didCompile' notification, also send 'textDocument/publishDiagnostics' notification
-      const compiledProgramParams = params as CompiledProgramParams;
-      const program = compiledProgramParams.program;
-      for (const uri of this.uris()) {
-        const version = this.getProgramState(uri).version;
-        const diagnostics = this.getDiagnostics(program, uri);
-        this._connection.sendDiagnostics({
-          uri,
-          diagnostics,
-          version,
-        });
-      }
-    }
+  override async sendRequest<P, M extends string, R>(
+    method: M,
+    params: P,
+  ): Promise<R> {
+    return this._connection?.sendRequest(method, params);
   }
 
   override async getFileText(uri: string): Promise<string> {
-    // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
     return this._connection.sendRequest(ExecuteCommandRequest.type, {
       command: "sparkdown.getFileText",
       arguments: [uri],
@@ -161,6 +134,20 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   override async getFileSrc(uri: string): Promise<string> {
     return this._connection?.sendRequest(ExecuteCommandRequest.type, {
       command: "sparkdown.getFileSrc",
+      arguments: [uri],
+    });
+  }
+
+  override async getFileVersion(uri: string): Promise<number> {
+    return this._connection?.sendRequest(ExecuteCommandRequest.type, {
+      command: "sparkdown.getFileVersion",
+      arguments: [uri],
+    });
+  }
+
+  override async getFileLanguageId(uri: string): Promise<string> {
+    return this._connection?.sendRequest(ExecuteCommandRequest.type, {
+      command: "sparkdown.getFileLanguageId",
       arguments: [uri],
     });
   }
@@ -186,21 +173,71 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     this._documents.update(params);
   }
 
+  override onCompiledTextDocument(params: {
+    textDocument?: { uri: string };
+    program: any;
+  }): void {
+    const uris = Array.from(this._documentVersions.keys());
+    for (const uri of uris) {
+      const version = this._documentVersions.get(uri);
+      const diagnostics = this.getDiagnostics(params.program, uri);
+      this.sendNotification(PublishDiagnosticsNotification.method, {
+        uri,
+        diagnostics,
+        version,
+      });
+      this.sendRequest(FoldingRangeRefreshRequest.method, {});
+      this.sendRequest(SemanticTokensRefreshRequest.method, {});
+    }
+  }
+
   override onCreatedFile(file: {
     uri: string;
     name: string;
     ext: string;
     type: string;
-    src: string;
-    text: string | undefined;
+    src?: string;
+    text?: string | undefined;
+    version?: number | null;
+    languageId?: string | null;
   }) {
-    if (file.type === "script") {
-      this._documents.add({
+    if (
+      file.type === "script" &&
+      file.version !== undefined &&
+      file.languageId !== undefined
+    ) {
+      this._documents.set({
         textDocument: {
           uri: file.uri,
-          languageId: "sparkdown",
-          version: 0,
-          text: file.text ?? "",
+          text: file.text! || "",
+          version: file.version,
+          languageId: file.languageId,
+        },
+      });
+    }
+  }
+
+  override onChangedFile(file: {
+    uri: string;
+    name: string;
+    ext: string;
+    type: string;
+    src?: string;
+    text?: string | undefined;
+    version?: number | null;
+    languageId?: string | null;
+  }) {
+    if (
+      file.type === "script" &&
+      file.version !== undefined &&
+      file.languageId !== undefined
+    ) {
+      this._documents.set({
+        textDocument: {
+          uri: file.uri,
+          text: file.text! || "",
+          version: file.version,
+          languageId: file.languageId,
         },
       });
     }
@@ -211,8 +248,10 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     name: string;
     ext: string;
     type: string;
-    src: string;
-    text: string | undefined;
+    src?: string;
+    text?: string | undefined;
+    version?: number | null;
+    languageId?: string | null;
   }) {
     this._documents.remove({ textDocument: { uri: file.uri } });
   }
@@ -237,7 +276,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
               kind: "full",
               resultId,
               items,
-            };
+            } as DocumentDiagnosticReport;
           }
           return { kind: "unchanged", resultId };
         },
@@ -256,6 +295,11 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     disposables.push(
       this._connection.onDidOpenTextDocument((event) => {
         return this.openTextDocument(event);
+      }),
+    );
+    disposables.push(
+      this._connection.onDidCloseTextDocument((event) => {
+        return this.closeTextDocument(event);
       }),
     );
     disposables.push(
@@ -281,7 +325,34 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
             .filter((change) => change.type == FileChangeType.Changed)
             .map((change) => this.changeFile(change.uri)),
         );
+        const closedTextDocumentChanges = changes.filter(
+          (change) =>
+            this.getFileType(change.uri) === "script" &&
+            !this.textDocumentIsOpen(change.uri),
+        );
+        for (const c of closedTextDocumentChanges) {
+          this._connection.sendRequest(
+            "workspace/textDocumentContent/refresh",
+            { uri: c.uri },
+          );
+        }
       }),
+    );
+    disposables.push(
+      this._connection.onRequest(
+        "workspace/textDocumentContent",
+        (params: { uri: string }) => {
+          const document = this._documents.get(params.uri);
+          if (!document) {
+            return {
+              code: ErrorCodes.InvalidRequest,
+              message: `Document does not exist: ${params.uri}`,
+            };
+          }
+          const text = document.getText();
+          return { text };
+        },
+      ),
     );
     return Disposable.create(() => {
       for (const disposable of disposables) {

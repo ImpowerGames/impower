@@ -1,5 +1,10 @@
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
+import {
+  ApplyWorkspaceEditMessage,
+  ApplyWorkspaceEditResult,
+  WorkspaceEdit,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage";
@@ -48,7 +53,7 @@ const FILE_SEPARATOR_PREFIX = "//// ";
 const FILE_SEPARATOR_SUFFIX = " ////";
 const FILE_SPLITTER_REGEX = new RegExp(
   GRAMMAR.repository.FileSplitter.match,
-  "umg"
+  "umg",
 );
 const FILE_SEPARATOR_REGEX = new RegExp(GRAMMAR.repository.FileSeparator.match);
 const FILE_NAME_CAPTURE_INDEX = 3;
@@ -63,7 +68,7 @@ export default class WorkspaceFileSystem {
   protected _worker: Worker;
 
   protected _initialFilesRef = new SingletonPromise(
-    this.loadInitialFiles.bind(this)
+    this.loadInitialFiles.bind(this),
   );
 
   protected _preloaded: Record<string, HTMLElement> = {};
@@ -118,21 +123,22 @@ export default class WorkspaceFileSystem {
         type: "script",
         uri: mainScriptUri,
         version: 0,
+        languageId: "sparkdown",
         text,
         src: URL.createObjectURL(
-          new Blob([encodedText], { type: "text/plain" })
+          new Blob([encodedText], { type: "text/plain" }),
         ),
       };
     }
     Workspace.ls.connection.onRequest(
-      ExecuteCommandMessage.type,
-      async (params) => {
+      ExecuteCommandMessage.method,
+      async (params: ExecuteCommandParams) => {
         return this.executeCommand(params);
-      }
+      },
     );
     Workspace.ls.start(
       this.getDirectoryUri(projectId),
-      Object.values(this._files)
+      Object.values(this._files),
     );
     return result;
   }
@@ -149,6 +155,16 @@ export default class WorkspaceFileSystem {
       const result = await Workspace.fs.getFileSrc(uri);
       return result;
     }
+    if (params.command === "sparkdown.getFileVersion") {
+      const [uri] = params.arguments || [];
+      const result = await Workspace.fs.getFileVersion(uri);
+      return result;
+    }
+    if (params.command === "sparkdown.getFileLanguageId") {
+      const [uri] = params.arguments || [];
+      const result = await Workspace.fs.getFileLanguageId(uri);
+      return result;
+    }
     return undefined;
   }
 
@@ -162,6 +178,14 @@ export default class WorkspaceFileSystem {
     return this._files?.[uri]?.src;
   }
 
+  async getFileVersion(uri: string) {
+    return this._files?.[uri]?.version;
+  }
+
+  async getFileLanguageId(uri: string) {
+    return this._files?.[uri]?.languageId;
+  }
+
   protected emit<T>(eventName: string, detail?: T): boolean {
     return window.dispatchEvent(
       new CustomEvent(eventName, {
@@ -169,7 +193,7 @@ export default class WorkspaceFileSystem {
         cancelable: true,
         composed: true,
         detail,
-      })
+      }),
     );
   }
 
@@ -189,7 +213,7 @@ export default class WorkspaceFileSystem {
         return {};
       });
       this._worker.postMessage(
-        ConfigurationMessage.type.response(message.id, result)
+        ConfigurationMessage.type.response(message.id, result),
       );
     } else if (DidWriteFilesMessage.type.isNotification(message)) {
       message.params.files.forEach((file) => {
@@ -242,7 +266,7 @@ export default class WorkspaceFileSystem {
   protected async sendRequest<M extends string, P, R>(
     type: MessageProtocolRequestType<M, P, R>,
     params: P,
-    transfer: Transferable[] = []
+    transfer: Transferable[] = [],
   ): Promise<R> {
     return new Promise((resolve, reject) => {
       const request = type.request(params);
@@ -285,7 +309,7 @@ export default class WorkspaceFileSystem {
   }
 
   protected async readDirectoryFiles(
-    params: ReadDirectoryFilesParams
+    params: ReadDirectoryFilesParams,
   ): Promise<FileData[]> {
     return this.sendRequest(ReadDirectoryFilesMessage.type, params);
   }
@@ -301,7 +325,7 @@ export default class WorkspaceFileSystem {
   async writeProjectMetadata(
     projectId: string,
     field: ProjectMetadataField,
-    value: string
+    value: string,
   ) {
     const uri = this.getFileUri(projectId, `.${field}`);
     await this.writeTextDocument({
@@ -328,7 +352,7 @@ export default class WorkspaceFileSystem {
     const zipFilesToDelete = Object.entries(existingFiles)
       .filter(
         ([uri, fileData]) =>
-          fileData.name && !zipFilesToWrite.some((file) => file.uri === uri)
+          fileData.name && !zipFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
     await Promise.all([
@@ -382,7 +406,7 @@ export default class WorkspaceFileSystem {
       const array = getTextBuffer(text);
       const arrayBuffer = array.buffer.slice(
         array.byteOffset,
-        array.byteLength + array.byteOffset
+        array.byteLength + array.byteOffset,
       ) as ArrayBuffer;
       return {
         uri,
@@ -394,7 +418,7 @@ export default class WorkspaceFileSystem {
         ([uri, fileData]) =>
           fileData.name &&
           fileData.text != null &&
-          !textFilesToWrite.some((file) => file.uri === uri)
+          !textFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
     await Promise.all([
@@ -419,7 +443,7 @@ export default class WorkspaceFileSystem {
         ([uri, fileData]) =>
           fileData.name &&
           fileData.text == null &&
-          !zipFilesToWrite.some((file) => file.uri === uri)
+          !zipFilesToWrite.some((file) => file.uri === uri),
       )
       .map(([uri]) => ({ uri }));
     await Promise.all([
@@ -434,7 +458,7 @@ export default class WorkspaceFileSystem {
 
   splitProjectTextContent(
     projectId: string,
-    text: string
+    text: string,
   ): Record<string, string> {
     const chunks: Record<string, string> = {};
     let filename = "";
@@ -474,7 +498,7 @@ export default class WorkspaceFileSystem {
     const result = await this.sendRequest(
       WillCreateFilesMessage.type,
       params,
-      params.files.map((file) => file.data)
+      params.files.map((file) => file.data) as Transferable[],
     );
     return result;
   }
@@ -506,7 +530,7 @@ export default class WorkspaceFileSystem {
           },
         ],
       },
-      [encodedText.buffer]
+      [encodedText.buffer],
     );
     return result;
   }
@@ -542,5 +566,24 @@ export default class WorkspaceFileSystem {
     } catch (e) {
       console.warn("Could not load: ", file.name, file.src);
     }
+  }
+
+  async applyWorkspaceEdit(
+    edit: WorkspaceEdit,
+    label?: string,
+    metadata?: { isRefactoring?: boolean },
+  ): Promise<ApplyWorkspaceEditResult> {
+    const result = await this.sendRequest(
+      ApplyWorkspaceEditMessage.type,
+      {
+        edit,
+        label,
+        metadata,
+      },
+      edit.documentChanges
+        ?.filter((c) => "kind" in c && c.kind === "create")
+        .map((c) => c.data) as Transferable[],
+    );
+    return result;
   }
 }
