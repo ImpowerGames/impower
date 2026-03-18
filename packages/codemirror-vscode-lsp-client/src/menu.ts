@@ -10,11 +10,10 @@ const contextMenuStyles = new StyleModule({
   ".cm-context-menu": {
     position: "fixed",
     zIndex: "10000",
-    backgroundColor: "#111111",
-    border: "1px solid #272727",
+    backgroundColor: "#1F1F1F",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.6)",
     color: "#cccccc",
-    padding: "6px 0",
+    padding: "13px 0",
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontSize: "13px",
@@ -24,16 +23,13 @@ const contextMenuStyles = new StyleModule({
   },
   ".cm-context-menu .cm-menu-item": {
     display: "flex",
-    height: "28px",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "4px 18px",
+    padding: "7px 26px",
     cursor: "default",
-    margin: "0 6px",
-    borderRadius: "6px",
   },
   ".cm-context-menu .cm-menu-item:hover": {
-    backgroundColor: "#2a2d2e",
+    backgroundColor: "#363636",
     color: "#ffffff",
   },
   ".cm-context-menu .cm-menu-item-shortcut": {
@@ -45,9 +41,9 @@ const contextMenuStyles = new StyleModule({
   },
   ".cm-context-menu .cm-menu-separator": {
     border: "none",
-    borderTop: "1px #454545 solid",
+    borderTop: "1px #5E5E5E solid",
     height: "1px",
-    margin: "4px 0",
+    margin: "8px 0",
   },
 });
 
@@ -105,7 +101,10 @@ const contextMenuPlugin = ViewPlugin.fromClass(
 
           const shortcutSpan = document.createElement("span");
           shortcutSpan.className = "cm-menu-item-shortcut";
-          shortcutSpan.textContent = this.view.state.phrase(item.shortcut);
+          shortcutSpan.textContent = item.shortcut
+            .split("+")
+            .map((key) => this.view.state.phrase(key))
+            .join("+");
           itemEl.appendChild(shortcutSpan);
 
           itemEl.onmousedown = (e) => {
