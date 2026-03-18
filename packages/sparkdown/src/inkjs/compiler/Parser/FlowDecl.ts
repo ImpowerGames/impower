@@ -5,6 +5,6 @@ export class FlowDecl {
   constructor(
     public readonly name: Identifier,
     public readonly args: Argument[],
-    public readonly isFunction: boolean
+    public readonly isFunction: boolean,
   ) {}
 }

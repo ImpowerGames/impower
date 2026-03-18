@@ -8,7 +8,7 @@ export const getHeightOfTextbox = (
   text: FormattedText[],
   width: number,
   style: TextOptions = {},
-  maxHeight: number | null = null
+  maxHeight: number | null = null,
 ) => {
   const textboxStyle = { ...DEFAULT_STYLE, ...style };
   const lines = wrapTextbox(doc, text, width, textboxStyle);

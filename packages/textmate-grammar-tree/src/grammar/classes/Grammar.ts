@@ -22,7 +22,7 @@ export class Grammar {
   declarator?: (
     typeIndex: number,
     typeId: string,
-    def: RuleDefinition
+    def: RuleDefinition,
   ) => Record<string, any>;
 
   /**
@@ -60,8 +60,8 @@ export class Grammar {
     declarator?: (
       typeIndex: number,
       typeId: string,
-      def: RuleDefinition
-    ) => Record<string, any>
+      def: RuleDefinition,
+    ) => Record<string, any>,
   ) {
     this.definition = definition;
     this.declarator = declarator;
@@ -86,7 +86,7 @@ export class Grammar {
     const noneNode = new GrammarNode(
       NodeID.none,
       { id: "none" },
-      this.declarator
+      this.declarator,
     );
     const topNode = new GrammarNode(NodeID.top, { id: "top" }, this.declarator);
     const unrecognizedNode = new GrammarNode(
@@ -95,7 +95,7 @@ export class Grammar {
       (typeIndex, typeId, def) => ({
         isError: true,
         ...(this.declarator?.(typeIndex, typeId, def) || {}),
-      })
+      }),
     );
     const incompleteNode = new GrammarNode(
       NodeID.incomplete,
@@ -103,7 +103,7 @@ export class Grammar {
       (typeIndex, typeId, def) => ({
         isError: true,
         ...(this.declarator?.(typeIndex, typeId, def) || {}),
-      })
+      }),
     );
     this.nodes = [
       noneNode,
@@ -128,7 +128,7 @@ export class Grammar {
     str: string,
     next: (pos: number) => string,
     relativePos: number,
-    absolutePos = relativePos
+    absolutePos = relativePos,
   ) {
     const state = new GrammarState(str, next, absolutePos);
 

@@ -36,7 +36,7 @@ export class MatchRule implements Rule {
     this.node = new GrammarNode(
       repo.nextTypeIndex(),
       def,
-      repo.grammar.declarator
+      repo.grammar.declarator,
     );
 
     this.matcher = new RegExpMatcher(def.match, def.flags);
@@ -102,7 +102,7 @@ export class MatchRule implements Rule {
                   const noneMatched = Matched.create(
                     GrammarNode.Unrecognized,
                     pos + i,
-                    1
+                    1,
                   );
                   children.push(noneMatched);
                   break;
@@ -112,7 +112,7 @@ export class MatchRule implements Rule {
                 capture.node,
                 pos,
                 resultStr.length,
-                children.length > 0 ? children : undefined
+                children.length > 0 ? children : undefined,
               );
               matched.children ??= [];
               matched.children.push(captureMatched);
@@ -120,7 +120,7 @@ export class MatchRule implements Rule {
               const captureMatched = Matched.create(
                 capture,
                 pos,
-                resultStr.length
+                resultStr.length,
               );
               matched.children ??= [];
               matched.children.push(captureMatched);

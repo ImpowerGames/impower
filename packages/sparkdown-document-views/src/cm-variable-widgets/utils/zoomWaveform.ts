@@ -9,7 +9,7 @@ export const zoomWaveform = (
   newZoomOffset: number,
   xFocus: number,
   width: number,
-  bufferLength: number
+  bufferLength: number,
 ): void => {
   const xOffset = context.xOffset;
   const maxZoomOffset = context.maxZoomOffset;
@@ -20,7 +20,7 @@ export const zoomWaveform = (
     xFocus,
     xOffset,
     prevWidth,
-    bufferLength
+    bufferLength,
   );
   context.zoomOffset = clamp(newZoomOffset, 0, maxZoomOffset);
   const newWidth = width * getCurrentScale(context);
@@ -28,7 +28,7 @@ export const zoomWaveform = (
     xFocus,
     xOffset,
     newWidth,
-    bufferLength
+    bufferLength,
   );
   const pixelsPerSample = newWidth / bufferLength;
   const sampleOffset = newSampleIndex - prevSampleIndex;

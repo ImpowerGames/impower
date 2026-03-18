@@ -12,15 +12,15 @@ import { getSide } from "../utils/getSide";
 export function getPlacementList(
   alignment: Alignment | null,
   autoAlignment: boolean,
-  allowedPlacements: Array<Placement>
+  allowedPlacements: Array<Placement>,
 ) {
   const allowedPlacementsSortedByAlignment = alignment
     ? [
         ...allowedPlacements.filter(
-          (placement) => getAlignment(placement) === alignment
+          (placement) => getAlignment(placement) === alignment,
         ),
         ...allowedPlacements.filter(
-          (placement) => getAlignment(placement) !== alignment
+          (placement) => getAlignment(placement) !== alignment,
         ),
       ]
     : allowedPlacements.filter((placement) => getSide(placement) === placement);
@@ -75,7 +75,7 @@ export interface Options {
  * @see https://floating-ui.com/docs/autoPlacement
  */
 export const autoPlacement = (
-  options: Partial<Options & DetectOverflowOptions> = {}
+  options: Partial<Options & DetectOverflowOptions> = {},
 ): Middleware => ({
   name: "autoPlacement",
   options,
@@ -107,7 +107,7 @@ export const autoPlacement = (
     const { main, cross } = getAlignmentSides(
       currentPlacement,
       rects,
-      await platform.isRTL?.(elements.floating)
+      await platform.isRTL?.(elements.floating),
     );
 
     // Make `computeCoords` start from the right place.
@@ -167,9 +167,9 @@ export const autoPlacement = (
             0,
             // Aligned placements should not check their opposite crossAxis
             // side.
-            getAlignment(d[0]) ? 2 : 3
+            getAlignment(d[0]) ? 2 : 3,
           )
-          .every((v) => v <= 0)
+          .every((v) => v <= 0),
     );
 
     const resetPlacement =

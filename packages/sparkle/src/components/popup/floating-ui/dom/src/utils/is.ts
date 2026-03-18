@@ -52,10 +52,10 @@ export function isContainingBlock(element: Element): boolean {
     (!safari && (css.backdropFilter ? css.backdropFilter !== "none" : false)) ||
     (!safari && (css.filter ? css.filter !== "none" : false)) ||
     ["transform", "perspective", "filter"].some((value) =>
-      (css.willChange || "").includes(value)
+      (css.willChange || "").includes(value),
     ) ||
     ["paint", "layout", "strict", "content"].some((value) =>
-      (css.contain || "").includes(value)
+      (css.contain || "").includes(value),
     )
   );
 }

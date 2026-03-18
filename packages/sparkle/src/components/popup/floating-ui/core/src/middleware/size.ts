@@ -18,7 +18,7 @@ export interface Options {
     args: MiddlewareState & {
       availableWidth: number;
       availableHeight: number;
-    }
+    },
   ): void | Promise<void>;
 }
 
@@ -29,7 +29,7 @@ export interface Options {
  * @see https://floating-ui.com/docs/size
  */
 export const size = (
-  options: Partial<Options & DetectOverflowOptions> = {}
+  options: Partial<Options & DetectOverflowOptions> = {},
 ): Middleware => ({
   name: "size",
   options,

@@ -1,5 +1,5 @@
 export const parseSVGKeyTimesAttribute = (
-  animateElement: SVGAnimateElement | SVGElement
+  animateElement: SVGAnimateElement | SVGElement,
 ): number[] => {
   const valuesAttr = animateElement.getAttribute("values");
   const keyTimesAttr = animateElement.getAttribute("keyTimes") || "";

@@ -13,7 +13,7 @@ export class ReturnType extends ParsedObject {
 
     if (returnedExpression) {
       this.returnedExpression = this.AddContent(
-        returnedExpression
+        returnedExpression,
       ) as Expression;
     }
   }

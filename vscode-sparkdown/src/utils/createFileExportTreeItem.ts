@@ -6,7 +6,7 @@ export const createFileExportTreeItem = (
   commandStat: vscode.FileStat | undefined,
   exporting: boolean | undefined,
   extension: string,
-  tooltip = ""
+  tooltip = "",
 ): vscode.TreeItem => {
   const action = commandStat ? "Sync" : "Export";
   const modified =
@@ -20,7 +20,7 @@ export const createFileExportTreeItem = (
     exporting ? "sync~spin" : action?.toLowerCase(),
     modified
       ? new vscode.ThemeColor("gitDecoration.modifiedResourceForeground")
-      : undefined
+      : undefined,
   );
   item.tooltip = tooltip;
   item.command = {

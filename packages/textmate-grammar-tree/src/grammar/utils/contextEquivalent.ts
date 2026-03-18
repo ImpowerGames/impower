@@ -1,6 +1,6 @@
 export const contextEquivalent = (
   a: Record<string, string>,
-  b: Record<string, string>
+  b: Record<string, string>,
 ) => {
   if (a === b) {
     return true;

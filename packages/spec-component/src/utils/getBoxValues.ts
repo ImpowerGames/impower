@@ -1,7 +1,7 @@
 import getUnitlessValue from "./getUnitlessValue";
 
 const getBoxValues = (
-  value: string | null
+  value: string | null,
 ): {
   top?: number;
   bottom?: number;

@@ -15,21 +15,21 @@ export class ContextServiceEditorInTextSymbol extends AbsContextService {
 
   public onDidChangeActiveTextEditor(
     document: TextDocument,
-    cursorPos: Position
+    cursorPos: Position,
   ) {
     this.updateContextState(document, cursorPos);
   }
 
   public onDidChangeTextEditorSelection(
     document: TextDocument,
-    cursorPos: Position
+    cursorPos: Position,
   ) {
     this.updateContextState(document, cursorPos);
   }
 
   private updateContextState(
     document: TextDocument,
-    cursorPos: Position
+    cursorPos: Position,
   ): string {
     const parsedDoc = SparkdownDocumentManager.instance.get(document.uri);
     const tree = SparkdownDocumentManager.instance.tree(document.uri);
@@ -37,7 +37,7 @@ export class ContextServiceEditorInTextSymbol extends AbsContextService {
     const symbolName = symbol.symbol?.name as string;
     if (
       ["Space", "Word", "EmDash", "IndentingColon", "Punctuation"].includes(
-        symbolName
+        symbolName,
       )
     ) {
       this.setState(symbolName);

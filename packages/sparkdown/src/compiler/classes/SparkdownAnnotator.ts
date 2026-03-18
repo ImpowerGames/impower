@@ -4,7 +4,7 @@ import { SparkdownAnnotation } from "./SparkdownAnnotation";
 
 export abstract class SparkdownAnnotator<
   AnnotationType extends SparkdownAnnotation = SparkdownAnnotation,
-  ConfigType extends Record<string, any> = {}
+  ConfigType extends Record<string, any> = {},
 > {
   current: RangeSet<AnnotationType> = RangeSet.empty;
 
@@ -31,7 +31,7 @@ export abstract class SparkdownAnnotator<
     iterateFrom: number,
     iterateTo: number,
     added: Range<AnnotationType>[],
-    removed: Range<AnnotationType>[]
+    removed: Range<AnnotationType>[],
   ) {}
 
   remove(from: number, to: number, value: AnnotationType) {}
@@ -40,7 +40,7 @@ export abstract class SparkdownAnnotator<
     annotations: Range<AnnotationType>[],
     nodeRef: SyntaxNodeRef,
     iteratingFrom: number,
-    iteratingTo: number
+    iteratingTo: number,
   ): Range<AnnotationType>[] {
     return annotations;
   }
@@ -49,7 +49,7 @@ export abstract class SparkdownAnnotator<
     annotations: Range<AnnotationType>[],
     nodeRef: SyntaxNodeRef,
     iteratingFrom: number,
-    iteratingTo: number
+    iteratingTo: number,
   ): Range<AnnotationType>[] {
     return annotations;
   }
@@ -98,7 +98,7 @@ export abstract class SparkdownAnnotator<
         iter.from,
         iter.to,
         JSON.stringify(this.read(iter.from, iter.to)),
-        iter.value
+        iter.value,
       );
       iter.next();
     }

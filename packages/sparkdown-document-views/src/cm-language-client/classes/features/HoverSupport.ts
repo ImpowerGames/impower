@@ -24,7 +24,7 @@ export interface HoverResult {
 }
 
 export type HoverSource = (
-  context: HoverContext
+  context: HoverContext,
 ) => HoverResult | null | Promise<HoverResult | null>;
 
 export default class HoverSupport implements FeatureSupport {

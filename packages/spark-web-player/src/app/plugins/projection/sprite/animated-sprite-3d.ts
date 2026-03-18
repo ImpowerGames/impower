@@ -164,7 +164,7 @@ export class AnimatedSprite3D extends Sprite3D {
 
     super(
       firstFrame instanceof Texture ? firstFrame : firstFrame!.texture,
-      camera
+      camera,
     );
 
     this._textures = null;
@@ -431,7 +431,7 @@ export class AnimatedSprite3D extends Sprite3D {
     if (value < 0 || value > this.totalFrames - 1) {
       throw new Error(
         `[AnimatedSprite]: Invalid frame index value ${value}, ` +
-          `expected to be between 0 and totalFrames ${this.totalFrames}.`
+          `expected to be between 0 and totalFrames ${this.totalFrames}.`,
       );
     }
 

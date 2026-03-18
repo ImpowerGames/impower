@@ -85,7 +85,7 @@ class IndentedLineWrappingPluginValue implements PluginValue {
 }
 
 export const indentedLineWrapping = (
-  config: IndentedLineWrappingConfig = {}
+  config: IndentedLineWrappingConfig = {},
 ): Extension => {
   return [
     indentedLineWrappingConfig.of(config),

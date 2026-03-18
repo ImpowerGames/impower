@@ -1,6 +1,6 @@
 const debounce = <T extends (...args: any[]) => void>(
   callback: T,
-  delay: number
+  delay: number,
 ): T => {
   let timeout = 0;
   return ((...args: Parameters<T>) => {

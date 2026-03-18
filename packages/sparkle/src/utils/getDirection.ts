@@ -3,7 +3,7 @@ export const getDirection = (
   oldRect: DOMRect | undefined,
   newRect: DOMRect,
   fallbackDelta: number,
-  reverse?: boolean
+  reverse?: boolean,
 ) => {
   if (axis == null) {
     return null;

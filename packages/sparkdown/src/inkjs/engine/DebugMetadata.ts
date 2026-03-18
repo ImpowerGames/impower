@@ -36,7 +36,7 @@ export class DebugMetadata {
       newDebugMetadata.startLineNumber = this.startLineNumber;
       newDebugMetadata.startCharacterNumber = Math.min(
         this.startCharacterNumber,
-        dm.startCharacterNumber
+        dm.startCharacterNumber,
       );
     }
 
@@ -50,7 +50,7 @@ export class DebugMetadata {
       newDebugMetadata.endLineNumber = this.endLineNumber;
       newDebugMetadata.endCharacterNumber = Math.max(
         this.endCharacterNumber,
-        dm.endCharacterNumber
+        dm.endCharacterNumber,
       );
     }
 

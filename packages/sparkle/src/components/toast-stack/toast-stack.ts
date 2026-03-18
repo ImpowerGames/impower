@@ -80,7 +80,7 @@ export default class ToastStack
 
   protected override onContentAssigned(children: Element[]) {
     this._templates = children.filter(
-      (el) => el.tagName.toLowerCase() === "template"
+      (el) => el.tagName.toLowerCase() === "template",
     ) as HTMLTemplateElement[];
   }
 
@@ -99,7 +99,7 @@ export default class ToastStack
     message: string,
     action?: string,
     timeout?: string,
-    type?: string
+    type?: string,
   ): Promise<void> {
     const template = this.getTemplate(type);
     const templateContent =
@@ -132,10 +132,10 @@ export default class ToastStack
     message: string,
     action?: string,
     timeout?: string,
-    type?: string
+    type?: string,
   ): Promise<void> {
     return this._queue.enqueue(() =>
-      this.showAlert(message, action, timeout, type)
+      this.showAlert(message, action, timeout, type),
     );
   }
 }

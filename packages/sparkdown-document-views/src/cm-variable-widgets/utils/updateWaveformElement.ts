@@ -21,10 +21,10 @@ const getOrCreateCanvas = (previewEl: HTMLElement): HTMLCanvasElement => {
 const getOrCreateRangeInput = (
   waveformContext: WaveformContext,
   previewContext: PreviewConfig,
-  previewEl: HTMLElement
+  previewEl: HTMLElement,
 ): HTMLInputElement => {
   const existing = Array.from(previewEl.getElementsByTagName("input")).find(
-    (el) => el.type === "range"
+    (el) => el.type === "range",
   );
   if (existing) {
     return existing;
@@ -85,7 +85,7 @@ const updateFilenameElement = (
   previewContext: PreviewConfig,
   el: HTMLElement,
   drawWaveform: () => void,
-  playSound: (buffer: Float32Array) => void
+  playSound: (buffer: Float32Array) => void,
 ): void => {
   if (el) {
     if (waveformContext.referenceBuffer && waveformContext.referenceFileName) {
@@ -118,7 +118,7 @@ const updateFilenameElement = (
 const updateSwapElement = (
   waveformContext: WaveformContext,
   _previewContext: PreviewConfig,
-  el: HTMLElement
+  el: HTMLElement,
 ): void => {
   if (el) {
     if (waveformContext.referenceBuffer && waveformContext.referenceFileName) {
@@ -134,10 +134,10 @@ const getOrCreateFileInput = (
   previewContext: PreviewConfig,
   previewEl: HTMLElement,
   drawWaveform: () => void,
-  playSound: (buffer: Float32Array) => void
+  playSound: (buffer: Float32Array) => void,
 ): HTMLInputElement => {
   const existing = Array.from(previewEl.getElementsByTagName("input")).find(
-    (el) => el.type === "file"
+    (el) => el.type === "file",
   );
   if (existing) {
     return existing;
@@ -247,7 +247,7 @@ const getOrCreateFileInput = (
     previewContext,
     filenameEl,
     drawWaveform,
-    playSound
+    playSound,
   );
   updateSwapElement(waveformContext, previewContext, swapButtonEl);
   return newEl;
@@ -255,7 +255,7 @@ const getOrCreateFileInput = (
 
 const updateRangeFill = (
   context: WaveformContext,
-  rangeEl: HTMLElement
+  rangeEl: HTMLElement,
 ): void => {
   const fillEl = rangeEl?.parentElement?.firstElementChild as HTMLElement;
   if (fillEl) {
@@ -270,7 +270,7 @@ export const updateWaveformElement = (
   previewContext: PreviewConfig,
   audioContext: AudioContext,
   el: HTMLElement,
-  playSound: (audioContext: AudioContext, buffer: Float32Array) => void
+  playSound: (audioContext: AudioContext, buffer: Float32Array) => void,
 ): void => {
   if (el) {
     const play = (buffer: Float32Array) => playSound?.(audioContext, buffer);
@@ -281,7 +281,7 @@ export const updateWaveformElement = (
     const rangeInput = getOrCreateRangeInput(
       waveformContext,
       previewContext,
-      el
+      el,
     );
     updateRangeFill(waveformContext, rangeInput);
     const onRangePointerMove = throttle((): void => {
@@ -289,14 +289,14 @@ export const updateWaveformElement = (
       const x = width * 0.5;
       const bufferLength = getMaxBufferLength(
         waveformContext.soundBuffer,
-        waveformContext.referenceBuffer
+        waveformContext.referenceBuffer,
       );
       zoomWaveform(
         waveformContext,
         Number(rangeInput.value),
         x,
         width,
-        bufferLength
+        bufferLength,
       );
       updateRangeFill(waveformContext, rangeInput);
       draw();
@@ -307,14 +307,14 @@ export const updateWaveformElement = (
       const x = width * 0.5;
       const bufferLength = getMaxBufferLength(
         waveformContext.soundBuffer,
-        waveformContext.referenceBuffer
+        waveformContext.referenceBuffer,
       );
       zoomWaveform(
         waveformContext,
         Number(rangeInput.value),
         x,
         width,
-        bufferLength
+        bufferLength,
       );
       updateRangeFill(waveformContext, rangeInput);
       draw();
@@ -326,14 +326,14 @@ export const updateWaveformElement = (
       const x = width * 0.5;
       const bufferLength = getMaxBufferLength(
         waveformContext.soundBuffer,
-        waveformContext.referenceBuffer
+        waveformContext.referenceBuffer,
       );
       zoomWaveform(
         waveformContext,
         Number(rangeInput.value),
         x,
         width,
-        bufferLength
+        bufferLength,
       );
       updateRangeFill(waveformContext, rangeInput);
       draw();
@@ -360,17 +360,17 @@ export const updateWaveformElement = (
         previewContext,
         el,
         draw,
-        play
+        play,
       );
       fileInput.onchange = (e: Event): void => {
         const file = (e.target as HTMLInputElement)?.files?.[0];
         const filenameEl =
           fileInput?.parentElement?.parentElement?.getElementsByTagName(
-            "span"
+            "span",
           )?.[0];
         const swapLabelEl =
           fileInput?.parentElement?.parentElement?.getElementsByTagName(
-            "label"
+            "label",
           )?.[0];
         if (file) {
           const fileUrl = URL.createObjectURL(file);
@@ -383,7 +383,7 @@ export const updateWaveformElement = (
                 previewContext,
                 filenameEl,
                 draw,
-                play
+                play,
               );
             }
             if (swapLabelEl) {
@@ -400,7 +400,7 @@ export const updateWaveformElement = (
               previewContext,
               filenameEl,
               draw,
-              play
+              play,
             );
           }
           if (swapLabelEl) {
@@ -460,14 +460,14 @@ export const updateWaveformElement = (
       const x = e.clientX - rect.left;
       const bufferLength = getMaxBufferLength(
         waveformContext.soundBuffer,
-        waveformContext.referenceBuffer
+        waveformContext.referenceBuffer,
       );
       zoomWaveform(
         waveformContext,
         waveformContext.zoomOffset - e.deltaY,
         x,
         width,
-        bufferLength
+        bufferLength,
       );
       updateRangeFill(waveformContext, rangeInput);
       drawSoundWaveform(canvasContext, waveformContext);

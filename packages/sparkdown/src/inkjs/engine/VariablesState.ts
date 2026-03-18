@@ -114,7 +114,7 @@ export class VariablesState extends VariablesStateAccessor<
         throw new StoryException(
           "Cannot assign to a variable (" +
             variableName +
-            ") that hasn't been declared in the story"
+            ") that hasn't been declared in the story",
         );
 
       let val = Value.Create(value);
@@ -123,7 +123,7 @@ export class VariablesState extends VariablesStateAccessor<
           throw new Error("Cannot pass null to VariableState");
         } else {
           throw new Error(
-            "Invalid value passed to VariableState: " + value.toString()
+            "Invalid value passed to VariableState: " + value.toString(),
           );
         }
       }
@@ -134,7 +134,7 @@ export class VariablesState extends VariablesStateAccessor<
 
   constructor(
     callStack: CallStack,
-    listDefsOrigin: ListDefinitionsOrigin | null
+    listDefsOrigin: ListDefinitionsOrigin | null,
   ) {
     super();
     this._globalVariables = new Map();
@@ -241,7 +241,7 @@ export class VariablesState extends VariablesStateAccessor<
 
   public RuntimeObjectsEqual(
     obj1: InkObject | null,
-    obj2: InkObject | null
+    obj2: InkObject | null,
   ): boolean {
     if (obj1 === null) {
       return throwNullException("obj1");
@@ -279,13 +279,13 @@ export class VariablesState extends VariablesStateAccessor<
 
     throw new Error(
       "FastRoughDefinitelyEquals: Unsupported runtime object type: " +
-        obj1.constructor.name
+        obj1.constructor.name,
     );
   }
 
   public GetVariableWithName(
     name: string | null,
-    contextIndex: number = -1
+    contextIndex: number = -1,
   ): InkObject | null {
     let varValue = this.GetRawVariableWithName(name, contextIndex);
 
@@ -329,7 +329,7 @@ export class VariablesState extends VariablesStateAccessor<
         variableValue = tryGetValueFromMap(
           this._defaultGlobalVariables,
           name,
-          null
+          null,
         );
         if (variableValue.exists) return variableValue.result;
       }
@@ -377,7 +377,7 @@ export class VariablesState extends VariablesStateAccessor<
         // existingPointer = GetRawVariableWithName (name, contextIndex) as VariablePointerValue;
         existingPointer = asOrNull(
           this.GetRawVariableWithName(name, contextIndex),
-          VariablePointerValue
+          VariablePointerValue,
         );
         if (existingPointer != null) {
           name = existingPointer.variableName;
@@ -394,7 +394,7 @@ export class VariablesState extends VariablesStateAccessor<
         name,
         value,
         varAss.isNewDeclaration,
-        contextIndex
+        contextIndex,
       );
     }
   }
@@ -405,7 +405,7 @@ export class VariablesState extends VariablesStateAccessor<
 
   public RetainListOriginsForAssignment(
     oldValue: InkObject,
-    newValue: InkObject
+    newValue: InkObject,
   ) {
     let oldList = asOrThrows(oldValue, ListValue);
     let newList = asOrThrows(newValue, ListValue);
@@ -428,7 +428,7 @@ export class VariablesState extends VariablesStateAccessor<
         oldValue = tryGetValueFromMap(
           this._globalVariables,
           variableName,
-          null
+          null,
         );
       }
     }
@@ -472,18 +472,18 @@ export class VariablesState extends VariablesStateAccessor<
 
     if (contextIndex == -1)
       contextIndex = this.GetContextIndexOfVariableNamed(
-        varPointer.variableName
+        varPointer.variableName,
       );
 
     let valueOfVariablePointedTo = this.GetRawVariableWithName(
       varPointer.variableName,
-      contextIndex
+      contextIndex,
     );
 
     // var doubleRedirectionPointer = valueOfVariablePointedTo as VariablePointerValue;
     let doubleRedirectionPointer = asOrNull(
       valueOfVariablePointedTo,
-      VariablePointerValue
+      VariablePointerValue,
     );
     if (doubleRedirectionPointer != null) {
       return doubleRedirectionPointer;
@@ -506,7 +506,7 @@ export class VariablesState extends VariablesStateAccessor<
    * @param {function} callback
    */
   public ObserveVariableChange(
-    callback: (variableName: string, newValue: InkObject) => void
+    callback: (variableName: string, newValue: InkObject) => void,
   ) {
     this.variableChangedEventCallbacks.push(callback);
   }

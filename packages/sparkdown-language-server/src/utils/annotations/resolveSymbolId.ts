@@ -10,7 +10,7 @@ export const resolveSymbolId = (
   reference: Reference | undefined,
   scopePath: string | undefined,
   program: SparkProgram | undefined,
-  config: SparkdownCompilerConfig | undefined
+  config: SparkdownCompilerConfig | undefined,
 ) => {
   if (refId.startsWith("?.")) {
     // Infer the type from the place it is used
@@ -20,13 +20,13 @@ export const resolveSymbolId = (
     const expectedSelectorTypes = getExpectedSelectorTypes(
       program,
       reference?.assigned,
-      config
+      config,
     );
     for (const selector of reference.selectors) {
       let [_, foundPath] = resolveSelector<any>(
         program,
         selector,
-        expectedSelectorTypes
+        expectedSelectorTypes,
       );
       if (foundPath) {
         return foundPath;

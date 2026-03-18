@@ -81,7 +81,7 @@ export class Compiler {
       this.options.sourceFilename || null,
       this.OnError,
       null,
-      this.options.fileHandler
+      this.options.fileHandler,
     );
 
     this._parsedStory = this.parser.ParseStory();
@@ -104,7 +104,7 @@ export class Compiler {
           const range = new DebugSourceRange(
             textContent.value?.length || 0,
             textContent.debugMetadata,
-            textContent.value || "unknown"
+            textContent.value || "unknown",
           );
 
           this.debugSourceRanges.push(range);
@@ -121,7 +121,7 @@ export class Compiler {
   };
 
   public readonly DebugMetadataForContentAtOffset = (
-    offset: number
+    offset: number,
   ): DebugMetadata | null => {
     let currOffset = 0;
 
@@ -144,7 +144,7 @@ export class Compiler {
   public readonly OnError = (
     message: string,
     severity: ErrorType,
-    source: SourceMetadata | null
+    source: SourceMetadata | null,
   ) => {
     switch (severity) {
       case ErrorType.Information:

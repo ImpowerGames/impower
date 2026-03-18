@@ -398,7 +398,7 @@ export default class Popup
     if (!anchorEl) {
       // We can't start the positioner without an anchor
       throw new Error(
-        "Invalid anchor element: no anchor could be found using the anchor slot or the anchor attribute."
+        "Invalid anchor element: no anchor could be found using the anchor slot or the anchor attribute.",
       );
     }
     if (!popupEl) {
@@ -456,7 +456,7 @@ export default class Popup
               ? `${rects.reference.height}px`
               : "";
           },
-        })
+        }),
       );
     } else {
       // Cleanup styles if we're not matching width/height
@@ -479,7 +479,7 @@ export default class Popup
               ? "bestFit"
               : "initialPlacement",
           padding: this.flipPadding || 0,
-        })
+        }),
       );
     }
 
@@ -492,7 +492,7 @@ export default class Popup
             ? this.getElementById(shiftBoundary)
             : undefined,
           padding: this.shiftPadding || 0,
-        })
+        }),
       );
     }
 
@@ -520,14 +520,14 @@ export default class Popup
                 : null;
             this.updateRootCssVariable(
               "---auto-size-available-height",
-              autoSizeAvailableHeight
+              autoSizeAvailableHeight,
             );
             this.updateRootCssVariable(
               "---auto-size-available-width",
-              autoSizeAvailableWidth
+              autoSizeAvailableWidth,
             );
           },
-        })
+        }),
       );
     } else {
       // Cleanup styles if we're no longer using auto-size

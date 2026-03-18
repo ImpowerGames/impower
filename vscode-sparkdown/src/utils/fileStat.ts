@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 export const fileStat = async (
-  filepath: string | vscode.Uri
+  filepath: string | vscode.Uri,
 ): Promise<vscode.FileStat | undefined> => {
   try {
     const uri =

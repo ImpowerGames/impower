@@ -37,13 +37,13 @@ export const getPinpointPositions = (view: EditorView) => {
 
 export const getPinpointLineNumbers = (view: EditorView) => {
   return getPinpointPositions(view).map(
-    (pos) => view.state.doc.lineAt(pos).number
+    (pos) => view.state.doc.lineAt(pos).number,
   );
 };
 
 export const pinpointsChanged = (update: ViewUpdate): boolean => {
   return update.transactions.some((t) =>
-    t.effects.some((e) => e.is(setPinpointsEffect))
+    t.effects.some((e) => e.is(setPinpointsEffect)),
   );
 };
 
@@ -105,10 +105,10 @@ export const pinpointsField = StateField.define<DecorationSet>({
             .filter(
               (lineNumber) =>
                 typeof lineNumber === "number" &&
-                lineNumber <= tr.state.doc.lines
+                lineNumber <= tr.state.doc.lines,
             )
             .map((lineNumber) =>
-              pinpointDeco.range(tr.state.doc.line(lineNumber).from)
+              pinpointDeco.range(tr.state.doc.line(lineNumber).from),
             ),
           sort: true,
         });

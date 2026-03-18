@@ -1,6 +1,6 @@
 export const resolveDivertPath = (
   divertPath: string,
-  scopePath: string
+  scopePath: string,
 ): string | null => {
   if (divertPath.endsWith(".")) {
     return null;

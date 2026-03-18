@@ -4,7 +4,7 @@ export const getOtherNodesInsideParent = <T extends string>(
   targetTypeName: T | T[],
   parentTypeName: T | T[],
   stack: GrammarSyntaxNode<T>[],
-  direction: "both" | "behind" | "ahead" = "both"
+  direction: "both" | "behind" | "ahead" = "both",
 ): GrammarSyntaxNode<T>[] => {
   const matches: GrammarSyntaxNode<T>[] = [];
   const current = stack[0];
@@ -12,12 +12,12 @@ export const getOtherNodesInsideParent = <T extends string>(
     stack.find((n) =>
       typeof targetTypeName === "string"
         ? n.name === targetTypeName
-        : targetTypeName.includes(n.name as T)
+        : targetTypeName.includes(n.name as T),
     ) || stack.find((n) => n.name === stack[0]?.name);
   const parent = stack.find((n) =>
     typeof parentTypeName === "string"
       ? n.name === parentTypeName
-      : parentTypeName.includes(n.name as T)
+      : parentTypeName.includes(n.name as T),
   );
   if (current && parent) {
     if (direction === "both" || direction === "behind") {

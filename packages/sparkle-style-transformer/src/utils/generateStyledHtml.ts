@@ -10,7 +10,7 @@ const QUOTE_REGEX = /([\\]["]|["'`])/g;
 
 const generateStyledHtml = (
   html: string,
-  options?: { attributePrefix?: string }
+  options?: { attributePrefix?: string },
 ): string => {
   const { attributePrefix = "" } = options || {};
   if (!html) {
@@ -40,7 +40,7 @@ const generateStyledHtml = (
             propValue,
             attributePrefix,
             styleTransformers,
-            styles
+            styles,
           );
           const attrName = getSparkleAttribute(propName, attributePrefix);
           props[attrName] = propValue;

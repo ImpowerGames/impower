@@ -177,7 +177,7 @@ export default class Dropdown
     }
     if (this.refs.optionsSlot) {
       this.setupOptions(
-        this.refs.optionsSlot.assignedElements({ flatten: true })
+        this.refs.optionsSlot.assignedElements({ flatten: true }),
       );
     }
   }
@@ -321,7 +321,7 @@ export default class Dropdown
       option.refs.label,
       option.refs.icon,
       option.refs.inactiveIcon,
-      option.refs.activeIcon
+      option.refs.activeIcon,
     );
     if (this.interrupted(newValue)) {
       return;
@@ -351,7 +351,7 @@ export default class Dropdown
           } else {
             return this.deactivateOption(option);
           }
-        })
+        }),
       );
     } else {
       const detail = { key: this.key, value: this._activatingValue };
@@ -476,7 +476,7 @@ export default class Dropdown
   protected setupOptions(children: Element[]) {
     this.unbindOptions();
     this._options = children.filter(
-      (el) => el.tagName.toLowerCase() === this.selectors.option
+      (el) => el.tagName.toLowerCase() === this.selectors.option,
     ) as Option[];
     this.bindOptions();
     this.updateOptions();

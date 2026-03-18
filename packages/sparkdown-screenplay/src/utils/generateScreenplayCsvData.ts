@@ -2,7 +2,7 @@ import { ScreenplayToken } from "../types/ScreenplayToken";
 
 export const generateScreenplayCsvData = (
   tokens: ScreenplayToken[],
-  language = "en-US"
+  language = "en-US",
 ): string[][] => {
   const strings: string[][] = [["KEY", "CONTEXT", language]];
   (tokens || []).forEach((t) => {

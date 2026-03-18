@@ -101,7 +101,7 @@ export class FunctionCall extends Expression {
   }
 
   public readonly GenerateIntoContainer = (
-    container: RuntimeContainer
+    container: RuntimeContainer,
   ): void => {
     const foundList = this.story.ResolveList(this.name);
 
@@ -128,7 +128,7 @@ export class FunctionCall extends Expression {
         (divertTarget === null && variableDivertTarget === null)
       ) {
         this.Error(
-          `The ${this.name}() function should take one argument: a divert target to the target knot, stitch, gather or choice you want to check. e.g. TURNS_SINCE(-> myKnot)`
+          `The ${this.name}() function should take one argument: a divert target to the target knot, stitch, gather or choice you want to check. e.g. TURNS_SINCE(-> myKnot)`,
         );
         return;
       }
@@ -153,7 +153,7 @@ export class FunctionCall extends Expression {
     } else if (this.isRandom) {
       if (this.args.length !== 2) {
         this.Error(
-          "RANDOM should take 2 parameters: a minimum and a maximum integer"
+          "RANDOM should take 2 parameters: a minimum and a maximum integer",
         );
       }
 
@@ -185,7 +185,7 @@ export class FunctionCall extends Expression {
     } else if (this.isListRange) {
       if (this.args.length !== 3) {
         this.Error(
-          "LIST_RANGE should take 3 parameters - a list, a min and a max"
+          "LIST_RANGE should take 3 parameters - a list, a min and a max",
         );
       }
 
@@ -221,7 +221,7 @@ export class FunctionCall extends Expression {
     } else if (foundList !== null) {
       if (this.args.length > 1) {
         this.Error(
-          "Can currently only construct a list from one integer (or an empty list from a given list definition)"
+          "Can currently only construct a list from one integer (or an empty list from a given list definition)",
         );
       }
 
@@ -276,7 +276,7 @@ export class FunctionCall extends Expression {
 
       if (attemptingTurnCountOfVariableTarget) {
         this.Error(
-          `When getting the TURNS_SINCE() of a variable target, remove the '->' - i.e. it should just be TURNS_SINCE(${divert.runtimeDivert.variableDivertName})`
+          `When getting the TURNS_SINCE() of a variable target, remove the '->' - i.e. it should just be TURNS_SINCE(${divert.runtimeDivert.variableDivertName})`,
         );
 
         return;
@@ -286,7 +286,7 @@ export class FunctionCall extends Expression {
       if (targetObject === null) {
         if (!attemptingTurnCountOfVariableTarget) {
           this.Error(
-            `Failed to find target for TURNS_SINCE: \`${divert.target}\``
+            `Failed to find target for TURNS_SINCE: \`${divert.target}\``,
           );
         }
       } else {
@@ -304,7 +304,7 @@ export class FunctionCall extends Expression {
 
       if (runtimeVarRef.pathForCount !== null) {
         this.Error(
-          `Should be \`${FunctionCall.name}(-> ${this._variableReferenceToCount.name})\`. Usage without \`->\` only makes sense for variable targets.`
+          `Should be \`${FunctionCall.name}(-> ${this._variableReferenceToCount.name})\`. Usage without \`->\` only makes sense for variable targets.`,
         );
       }
     }

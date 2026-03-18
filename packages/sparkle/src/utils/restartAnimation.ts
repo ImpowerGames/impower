@@ -1,6 +1,6 @@
 export const restartAnimation = (
   target: Element | null,
-  animationName?: string
+  animationName?: string,
 ): Animation | null => {
   if (!target) {
     return null;
@@ -9,7 +9,7 @@ export const restartAnimation = (
     .getAnimations()
     .filter(
       (animation) =>
-        !animationName || (animation as any).animationName === animationName
+        !animationName || (animation as any).animationName === animationName,
     )?.[0];
   if (!animation) {
     return null;

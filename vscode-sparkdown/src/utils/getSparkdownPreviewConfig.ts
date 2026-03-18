@@ -3,7 +3,7 @@ import { SparkdownPreviewConfig } from "../types/SparkdownPreviewConfig";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 
 export const getSparkdownPreviewConfig = (
-  uri?: vscode.Uri
+  uri?: vscode.Uri,
 ): SparkdownPreviewConfig => {
   if (!uri) {
     const activeUri = getActiveSparkdownDocument();
@@ -14,11 +14,11 @@ export const getSparkdownPreviewConfig = (
   const gameConfig = vscode.workspace.getConfiguration("sparkdown.game", uri);
   const screenplayConfig = vscode.workspace.getConfiguration(
     "sparkdown.screenplay",
-    uri
+    uri,
   );
   const editorConfig = vscode.workspace.getConfiguration(
     "sparkdown.editor",
-    uri
+    uri,
   );
   return {
     game_preview_synchronized_with_cursor:

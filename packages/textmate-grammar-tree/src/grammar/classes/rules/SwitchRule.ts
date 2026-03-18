@@ -39,7 +39,7 @@ export class SwitchRule implements Rule {
     this.node = new GrammarNode(
       repo.nextTypeIndex(),
       def,
-      repo.grammar.declarator
+      repo.grammar.declarator,
     );
 
     this.emit = def.emit;

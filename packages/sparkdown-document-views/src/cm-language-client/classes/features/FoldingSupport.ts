@@ -61,18 +61,18 @@ const updateFoldablesEffect = StateEffect.define<
 
 const setFoldables = (
   state: EditorState,
-  ranges: FoldingRange[]
+  ranges: FoldingRange[],
 ): TransactionSpec => {
   const effects: StateEffect<unknown>[] = [];
   const foldables = ranges
     .map((r) => {
       const fromLineNumber = Math.max(
         1,
-        Math.min(state.doc.lines, r.startLine + 1)
+        Math.min(state.doc.lines, r.startLine + 1),
       );
       const toLineNumber = Math.max(
         1,
-        Math.min(state.doc.lines, r.endLine + 1)
+        Math.min(state.doc.lines, r.endLine + 1),
       );
       return {
         kind: r.kind,
@@ -93,7 +93,7 @@ const foldableDecorationsField = StateField.define<DecorationSet>({
     for (let e of tr.effects) {
       if (e.is(updateFoldablesEffect)) {
         decorations = Decoration.set(
-          e.value.map((r) => foldableMark.range(r.from, r.to))
+          e.value.map((r) => foldableMark.range(r.from, r.to)),
         );
         return decorations;
       }
@@ -124,7 +124,7 @@ export const foldingRangesService = foldService.of((state, from, to) => {
 
 const foldingChanged = (update: ViewUpdate): boolean => {
   return update.transactions.some((t) =>
-    t.effects.some((e) => e.is(updateFoldablesEffect))
+    t.effects.some((e) => e.is(updateFoldablesEffect)),
   );
 };
 

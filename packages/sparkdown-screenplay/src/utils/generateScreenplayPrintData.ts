@@ -12,7 +12,7 @@ export const generateScreenplayPrintData = (
     bold?: ArrayBuffer | Uint8Array;
     italic?: ArrayBuffer | Uint8Array;
     bolditalic?: ArrayBuffer | Uint8Array;
-  }
+  },
 ): ScreenplayPrintData => {
   const print =
     PRINT_PROFILES[config?.screenplay_print_paper_size || ""] ||

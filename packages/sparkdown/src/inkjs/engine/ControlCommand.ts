@@ -8,7 +8,7 @@ export class ControlCommand extends InkObject {
   }
 
   constructor(
-    commandType: ControlCommand.CommandType = ControlCommand.CommandType.NotSet
+    commandType: ControlCommand.CommandType = ControlCommand.CommandType.NotSet,
   ) {
     super();
     this._commandType = commandType;

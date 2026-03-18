@@ -10,7 +10,7 @@ interface IContextService extends IDisposable {
    */
   onDidChangeActiveTextEditor(
     document: TextDocument,
-    cursorPos: Position
+    cursorPos: Position,
   ): void;
   /**
    * handler of onDidChangeTextEditorSelection
@@ -18,7 +18,7 @@ interface IContextService extends IDisposable {
    */
   onDidChangeTextEditorSelection(
     document: TextDocument,
-    cursorPos: Position
+    cursorPos: Position,
   ): void;
 }
 
@@ -38,7 +38,7 @@ export abstract class AbsContextService implements IContextService {
    */
   public abstract onDidChangeActiveTextEditor(
     document: TextDocument,
-    cursorPos: Position
+    cursorPos: Position,
   ): void;
 
   /**
@@ -47,7 +47,7 @@ export abstract class AbsContextService implements IContextService {
    */
   public abstract onDidChangeTextEditorSelection(
     document: TextDocument,
-    cursorPos: Position
+    cursorPos: Position,
   ): void;
 
   /**

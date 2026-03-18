@@ -43,7 +43,7 @@ export class VariableReference extends Expression {
   }
 
   public readonly GenerateIntoContainer = (
-    container: RuntimeContainer
+    container: RuntimeContainer,
   ): void => {
     let constantValue = this.story.constants.get(this.name);
 
@@ -136,7 +136,7 @@ export class VariableReference extends Expression {
           this.parent instanceof FlowBase
         ) {
           this.Warning(
-            `\`${targetFlow.identifier}\` being used as read count rather than being called as function. Perhaps you intended to write ${targetFlow.identifier}()`
+            `\`${targetFlow.identifier}\` being used as read count rather than being called as function. Perhaps you intended to write ${targetFlow.identifier}()`,
           );
         }
       }

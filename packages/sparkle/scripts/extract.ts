@@ -26,7 +26,7 @@ export const normalize = (str: string): string => {
 const args = process.argv.slice(2);
 const getTypeValues = (
   type: string,
-  typeMap?: Record<string, string[]>
+  typeMap?: Record<string, string[]>,
 ): string[] | undefined => {
   let values = typeMap?.[type];
   if (values) {
@@ -56,7 +56,7 @@ export const camelCaseToKebabCase = (str: string): string => {
 
 export const getValues = (
   str: string,
-  typeMap?: Record<string, string[]>
+  typeMap?: Record<string, string[]>,
 ): string[] | undefined => {
   const s = str.trim();
   if (

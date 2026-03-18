@@ -6,11 +6,11 @@ import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 export class CharacterAnnotator extends SparkdownAnnotator {
   override enter(
     annotations: Range<SparkdownAnnotation>[],
-    nodeRef: SparkdownSyntaxNodeRef
+    nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation>[] {
     if (nodeRef.name === "DialogueCharacter") {
       annotations.push(
-        SparkdownAnnotation.mark().range(nodeRef.from, nodeRef.to)
+        SparkdownAnnotation.mark().range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }

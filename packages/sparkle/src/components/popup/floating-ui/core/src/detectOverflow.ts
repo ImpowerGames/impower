@@ -52,7 +52,7 @@ export interface Options {
  */
 export async function detectOverflow(
   state: MiddlewareState,
-  options: Partial<Options> = {}
+  options: Partial<Options> = {},
 ): Promise<SideObject> {
   const { x, y, platform, rects, elements, strategy } = state;
 
@@ -71,14 +71,14 @@ export async function detectOverflow(
   const clippingClientRect = rectToClientRect(
     await platform.getClippingRect({
       element:
-        (await platform.isElement?.(element)) ?? true
+        ((await platform.isElement?.(element)) ?? true)
           ? element
           : element.contextElement ||
             (await platform.getDocumentElement?.(elements.floating)),
       boundary,
       rootBoundary,
       strategy,
-    })
+    }),
   );
 
   const rect =
@@ -98,7 +98,7 @@ export async function detectOverflow(
           offsetParent,
           strategy,
         })
-      : rect
+      : rect,
   );
 
   return {

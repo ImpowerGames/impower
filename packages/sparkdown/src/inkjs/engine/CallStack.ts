@@ -36,7 +36,7 @@ export class CallStack {
   set currentThread(value: CallStack.Thread) {
     Debug.Assert(
       this._threads.length == 1,
-      "Shouldn't be directly setting the current thread when we have a stack of them"
+      "Shouldn't be directly setting the current thread when we have a stack of them",
     );
 
     this._threads.length = 0;
@@ -72,7 +72,7 @@ export class CallStack {
     this._threads.push(new CallStack.Thread());
 
     this._threads[0].callstack.push(
-      new CallStack.Element(PushPopType.Tunnel, this._startOfRoot)
+      new CallStack.Element(PushPopType.Tunnel, this._startOfRoot),
     );
   }
 
@@ -144,12 +144,12 @@ export class CallStack {
   public Push(
     type: PushPopType,
     externalEvaluationStackHeight: number = 0,
-    outputStreamLengthWithPushed: number = 0
+    outputStreamLengthWithPushed: number = 0,
   ) {
     let element = new CallStack.Element(
       type,
       this.currentElement.currentPointer,
-      false
+      false,
     );
 
     element.evaluationStackHeightWhenPushed = externalEvaluationStackHeight;
@@ -177,7 +177,7 @@ export class CallStack {
 
   public GetTemporaryVariableWithName(
     name: string | null,
-    contextIndex: number = -1
+    contextIndex: number = -1,
   ) {
     // contextIndex 0 means global, so index is actually 1-based
     if (contextIndex == -1) contextIndex = this.currentElementIndex + 1;
@@ -187,7 +187,7 @@ export class CallStack {
     let varValue = tryGetValueFromMap(
       contextElement.temporaryVariables,
       name,
-      null
+      null,
     );
     if (varValue.exists) {
       return varValue.result;
@@ -200,7 +200,7 @@ export class CallStack {
     name: string,
     value: any,
     declareNew: boolean,
-    contextIndex: number = -1
+    contextIndex: number = -1,
   ) {
     if (contextIndex == -1) contextIndex = this.currentElementIndex + 1;
 
@@ -213,7 +213,7 @@ export class CallStack {
     let oldValue = tryGetValueFromMap(
       contextElement.temporaryVariables,
       name,
-      null
+      null,
     );
     if (oldValue.exists)
       ListValue.RetainListOriginsForAssignment(oldValue.result, value);
@@ -251,7 +251,7 @@ export class CallStack {
         "=== THREAD {0}/{1} {2}===\n",
         t + 1,
         this._threads.length,
-        isCurrent ? "(current) " : ""
+        isCurrent ? "(current) " : "",
       );
 
       for (let i = 0; i < thread.callstack.length; i++) {
@@ -293,7 +293,7 @@ export namespace CallStack {
     constructor(
       type: PushPopType,
       pointer: Pointer,
-      inExpressionEvaluation: boolean = false
+      inExpressionEvaluation: boolean = false,
     ) {
       this.currentPointer = pointer.copy();
       this.inExpressionEvaluation = inExpressionEvaluation;
@@ -305,7 +305,7 @@ export namespace CallStack {
       let copy = new Element(
         this.type,
         this.currentPointer,
-        this.inExpressionEvaluation
+        this.inExpressionEvaluation,
       );
       copy.temporaryVariables = new Map(this.temporaryVariables);
       copy.evaluationStackHeightWhenPushed =
@@ -353,7 +353,7 @@ export namespace CallStack {
             currentContainerPathStr = currentContainerPathStrToken.toString();
 
             let threadPointerResult = storyContext.ContentAtPath(
-              new Path(currentContainerPathStr)
+              new Path(currentContainerPathStr),
             );
             pointer.container = threadPointerResult.container;
             pointer.index = parseInt(jElementObj["idx"]);
@@ -362,7 +362,7 @@ export namespace CallStack {
               throw new Error(
                 "When loading state, internal story location couldn't be found: " +
                   currentContainerPathStr +
-                  ". Has the story changed since this save data was created?"
+                  ". Has the story changed since this save data was created?",
               );
             else if (threadPointerResult.approximate) {
               if (pointer.container !== null) {
@@ -371,13 +371,13 @@ export namespace CallStack {
                     currentContainerPathStr +
                     "', so it was approximated to '" +
                     pointer.container.path.toString() +
-                    "' to recover. Has the story changed since this save data was created?"
+                    "' to recover. Has the story changed since this save data was created?",
                 );
               } else {
                 storyContext.Warning(
                   "When loading state, exact internal story location couldn't be found: '" +
                     currentContainerPathStr +
-                    "' and it may not be recoverable. Has the story changed since this save data was created?"
+                    "' and it may not be recoverable. Has the story changed since this save data was created?",
                 );
               }
             }
@@ -428,11 +428,14 @@ export namespace CallStack {
             return throwNullException("el.currentPointer.container");
           }
           if (el.currentPointer.pathFromEnd) {
-            writer.WriteProperty("path", el.currentPointer.pathFromEnd.componentsString);
+            writer.WriteProperty(
+              "path",
+              el.currentPointer.pathFromEnd.componentsString,
+            );
           } else {
             writer.WriteProperty(
               "cPath",
-              el.currentPointer.container.path.componentsString
+              el.currentPointer.container.path.componentsString,
             );
             if (el.currentPointer.index != null) {
               writer.WriteIntProperty("idx", el.currentPointer.index);
@@ -447,7 +450,7 @@ export namespace CallStack {
           writer.WritePropertyStart("temp");
           JsonSerialisation.WriteDictionaryRuntimeObjs(
             writer,
-            el.temporaryVariables
+            el.temporaryVariables,
           );
           writer.WritePropertyEnd();
         }
@@ -466,7 +469,7 @@ export namespace CallStack {
         }
         writer.WriteProperty(
           "previousContentObject",
-          resolvedPointer.pathFromEnd.toString()
+          resolvedPointer.pathFromEnd.toString(),
         );
       }
 

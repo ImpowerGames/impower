@@ -41,17 +41,17 @@ export class Compiler {
     grammar: Grammar,
     packet?: Packet,
     compiled?: Int32Array,
-    reused?: ITreeBuffer[]
+    reused?: ITreeBuffer[],
   ) {
     this.grammar = grammar;
     this.packet = packet || new Packet([]);
     this.compiled = compiled || new Int32Array(COMPILER_ARRAY_INTERVAL);
     this.reused =
       packet && reused ? reused.slice(0, packet.compilerReusedCount) : [];
-    this.nodeCount = packet && compiled ? packet.compilerNodeCount ?? 0 : 0;
+    this.nodeCount = packet && compiled ? (packet.compilerNodeCount ?? 0) : 0;
     this.maxTreeBufferLength =
       packet && compiled
-        ? packet.compilerMaxTreeBufferLength ?? DEFAULT_MAX_TREE_BUFFER_LENGTH
+        ? (packet.compilerMaxTreeBufferLength ?? DEFAULT_MAX_TREE_BUFFER_LENGTH)
         : DEFAULT_MAX_TREE_BUFFER_LENGTH;
     this.index = packet && compiled ? packet.chunks.length : 0;
   }
@@ -83,7 +83,7 @@ export class Compiler {
   reuse(editedFrom: number, editedTo: number, editedOffset: number) {
     const splitPointBeforeEdit = this.packet.findBehindSplitPoint(editedFrom);
     const splitBehind = this.packet.findBehindSplitPoint(
-      splitPointBeforeEdit.chunk?.from ?? 0
+      splitPointBeforeEdit.chunk?.from ?? 0,
     );
     if (splitBehind.index != null) {
       const right = this.rewind(splitBehind.index);
@@ -130,7 +130,7 @@ export class Compiler {
             chunk.compiled[i]!,
             chunk.from + chunk.compiled[i + 1]!,
             chunk.from + chunk.compiled[i + 2]!,
-            chunk.compiled[i + 3]!
+            chunk.compiled[i + 3]!,
           );
         }
       }

@@ -5,7 +5,7 @@ export function diffAndPatch(
   parent: Node,
   oldVNode: VNode | null,
   newVNode: VNode | null,
-  index: number = 0
+  index: number = 0,
 ): void {
   const existing = parent?.childNodes[index] || null;
 
@@ -67,7 +67,7 @@ export function diffAndPatch(
     for (let i = 0; i < newLen; i++) {
       parent.insertBefore(
         createElement(newChildren[i]),
-        parent.childNodes[index + i] || null
+        parent.childNodes[index + i] || null,
       );
     }
     return;
@@ -156,7 +156,7 @@ export function diffAndPatch(
 function updateProps(
   el: Element,
   oldProps: Record<string, string>,
-  newProps: Record<string, string>
+  newProps: Record<string, string>,
 ) {
   for (const k of Object.keys(oldProps)) {
     if (!(k in newProps)) {
@@ -175,7 +175,7 @@ function flatten<V extends VNode>(children: VNode[]): V[] {
     typeof c === "string"
       ? [c as V]
       : c.tag === "fragment"
-      ? flatten<V>((c as VElement).children)
-      : [c as V]
+        ? flatten<V>((c as VElement).children)
+        : [c as V],
   );
 }

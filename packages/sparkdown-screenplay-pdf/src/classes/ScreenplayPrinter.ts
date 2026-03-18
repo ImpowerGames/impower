@@ -59,7 +59,7 @@ export default class ScreenplayPrinter {
   constructor(
     doc: PDFKit.PDFDocument,
     data: ScreenplayPrintData,
-    onProgress?: (percentage: number) => void
+    onProgress?: (percentage: number) => void,
   ) {
     this._doc = doc;
     this._spans = data.spans;
@@ -100,7 +100,7 @@ export default class ScreenplayPrinter {
         if (span.positions?.l || span.positions?.r) {
           const height = Math.max(
             this.getHeightOfLines(span.positions.l || []),
-            this.getHeightOfLines(span.positions.r || [])
+            this.getHeightOfLines(span.positions.r || []),
           );
           if (this._state.y + height > this.getMaxY()) {
             this.addPage();
@@ -181,7 +181,7 @@ export default class ScreenplayPrinter {
           width: innerWidthThird,
           align: "left",
           links: true,
-        }
+        },
       );
 
       //top center
@@ -197,7 +197,7 @@ export default class ScreenplayPrinter {
           width: innerWidthThird,
           align: "center",
           links: true,
-        }
+        },
       );
 
       //top right
@@ -213,7 +213,7 @@ export default class ScreenplayPrinter {
           width: innerWidthThird,
           align: "right",
           links: true,
-        }
+        },
       );
 
       //bottom left
@@ -229,7 +229,7 @@ export default class ScreenplayPrinter {
           width: innerWidthHalf,
           align: "left",
           links: true,
-        }
+        },
       );
 
       //bottom right
@@ -245,7 +245,7 @@ export default class ScreenplayPrinter {
           width: innerWidthHalf,
           align: "right",
           links: true,
-        }
+        },
       );
 
       //center center
@@ -288,7 +288,7 @@ export default class ScreenplayPrinter {
         this._profile.page_number_top_margin - this._state.fontHeight,
         {
           color: "#777777",
-        }
+        },
       );
     }
   }
@@ -303,7 +303,7 @@ export default class ScreenplayPrinter {
         this._profile.page_height - this._profile.page_footer_bottom_margin,
         {
           color: "#777777",
-        }
+        },
       );
     }
   }
@@ -326,7 +326,7 @@ export default class ScreenplayPrinter {
       let diagonal;
       diagonal = Math.sqrt(
         Math.pow(this._profile.page_width, 2) +
-          Math.pow(this._profile.page_height, 2)
+          Math.pow(this._profile.page_height, 2),
       );
       diagonal -= 4;
       const font_size = ((1.667 * diagonal) / len) * PDF_POINTS_PER_INCH;
@@ -339,7 +339,7 @@ export default class ScreenplayPrinter {
         -(font_size / 2),
         {
           lineBreak: false,
-        }
+        },
       );
       this._doc.rotate(-angle, options);
       this._doc.fontSize(this._profile.font_size ?? 12);
@@ -361,7 +361,7 @@ export default class ScreenplayPrinter {
       if (span.level != null) {
         let headingText = span.content?.map((c) => c.text).join("") || "";
         const levelIndent = span.tag
-          ? this._profile?.settings?.[span.tag]?.level_indent ?? 0
+          ? (this._profile?.settings?.[span.tag]?.level_indent ?? 0)
           : 0;
         feed += span.level * levelIndent;
         const invisible =
@@ -387,7 +387,7 @@ export default class ScreenplayPrinter {
             const oc = this.getOutlineChild(
               this._doc.outline,
               (span.level || 0) - 1,
-              0
+              0,
             );
             if (oc !== undefined) {
               oc.addItem(headingText);
@@ -403,7 +403,7 @@ export default class ScreenplayPrinter {
             this.getOutlineChild(
               this._doc.outline,
               this._state.outlineDepth,
-              0
+              0,
             ).addItem(content.map((c) => c.text).join(""));
           }
         }
@@ -424,7 +424,7 @@ export default class ScreenplayPrinter {
             [{ text: sceneNumber }],
             sceneNumberX,
             this._state.y,
-            sceneTextOptions
+            sceneTextOptions,
           );
         }
         if (
@@ -438,7 +438,7 @@ export default class ScreenplayPrinter {
             [{ text: sceneNumber }],
             sceneNumberX,
             this._state.y,
-            sceneTextOptions
+            sceneTextOptions,
           );
         }
       }
@@ -448,7 +448,7 @@ export default class ScreenplayPrinter {
           content,
           feed,
           this._state.y,
-          textOptions
+          textOptions,
         );
         this._state.y += height;
         return height;
@@ -475,7 +475,7 @@ export default class ScreenplayPrinter {
 
   breakLineAfter(
     minLineCount: number,
-    line: PageLine | undefined
+    line: PageLine | undefined,
   ): [PageLine[], PageLine[]] {
     if (!line) {
       return [[], []];
@@ -519,7 +519,7 @@ export default class ScreenplayPrinter {
           ? lines
               .filter((l) => l.repeatAfterSplit)
               .map((l) =>
-                this.suffixLineWithText(l, " " + CONTD, this._profile)
+                this.suffixLineWithText(l, " " + CONTD, this._profile),
               )
           : [];
 
@@ -595,8 +595,8 @@ export default class ScreenplayPrinter {
       line.position === "l"
         ? this._profile.settings[line.tag]?.dual_first_left_margin
         : line.position === "r"
-        ? this._profile.settings[line.tag]?.dual_second_left_margin
-        : this._profile.settings[line.tag]?.left_margin;
+          ? this._profile.settings[line.tag]?.dual_second_left_margin
+          : this._profile.settings[line.tag]?.left_margin;
     return tagSettingMargin ?? this._profile.left_margin ?? 0;
   }
 
@@ -605,8 +605,8 @@ export default class ScreenplayPrinter {
       line.position === "l"
         ? this._profile.settings[line.tag]?.dual_first_right_margin
         : line.position === "r"
-        ? this._profile.settings[line.tag]?.dual_second_right_margin
-        : this._profile.settings[line.tag]?.right_margin;
+          ? this._profile.settings[line.tag]?.dual_second_right_margin
+          : this._profile.settings[line.tag]?.right_margin;
     return tagSettingMargin ?? this._profile.right_margin ?? 0;
   }
 
@@ -645,7 +645,7 @@ export default class ScreenplayPrinter {
 
   getContentWithFonts(
     content: FormattedText[],
-    options: TextOptions = {}
+    options: TextOptions = {},
   ): FormattedText[] {
     return content.map((c) => {
       const augmented = {
@@ -657,10 +657,10 @@ export default class ScreenplayPrinter {
         (augmented.bold && augmented.italic
           ? "bolditalic"
           : augmented.bold
-          ? "bold"
-          : augmented.italic
-          ? "italic"
-          : "normal");
+            ? "bold"
+            : augmented.italic
+              ? "italic"
+              : "normal");
       return augmented;
     });
   }
@@ -683,7 +683,7 @@ export default class ScreenplayPrinter {
   createLineWithText(
     tag: ScreenplayTokenType,
     text: string,
-    print: PrintProfile | undefined
+    print: PrintProfile | undefined,
   ) {
     return {
       tag: tag,
@@ -701,7 +701,7 @@ export default class ScreenplayPrinter {
   suffixLineWithText(
     line: PageLine,
     text: string,
-    print: PrintProfile | undefined
+    print: PrintProfile | undefined,
   ) {
     if (line.content.at(-1)?.text === text) {
       // already suffixed with text, so no need to do anything
@@ -743,7 +743,7 @@ export default class ScreenplayPrinter {
   getOutlineChild(
     obj: PDFKit.PDFOutline,
     targetDepth: number,
-    currentDepth: number
+    currentDepth: number,
   ): PDFKit.PDFOutline {
     if (currentDepth === targetDepth) {
       return obj;
@@ -763,7 +763,7 @@ export default class ScreenplayPrinter {
     text: string | FormattedText[],
     x: number,
     y: number,
-    options: TextOptions = {}
+    options: TextOptions = {},
   ): number {
     const width =
       options?.width ??
@@ -780,7 +780,7 @@ export default class ScreenplayPrinter {
         y * PDF_POINTS_PER_INCH + this._doc.currentLineHeight() / 2,
         this._doc.widthOfString(contentWithFonts.map((c) => c.text).join("")),
         this._doc.currentLineHeight(),
-        { color: options?.highlightColor }
+        { color: options?.highlightColor },
       );
     }
 
@@ -794,7 +794,7 @@ export default class ScreenplayPrinter {
       {
         ...options,
         baseline: "top",
-      }
+      },
     );
 
     return this.getHeightOfText(content, width, options);
@@ -809,7 +809,7 @@ export default class ScreenplayPrinter {
   getHeightOfText(
     content: FormattedText[],
     width: number = 1,
-    options: TextOptions = {}
+    options: TextOptions = {},
   ): number {
     const contentWithFonts = this.getContentWithFonts(content, options);
     // sizes specified in inches must be converted to PDF points (72 per inch) and then converted back to inches
@@ -821,7 +821,7 @@ export default class ScreenplayPrinter {
         {
           ...options,
           baseline: "top",
-        }
+        },
       ) / PDF_POINTS_PER_INCH
     );
   }
@@ -836,7 +836,7 @@ export default class ScreenplayPrinter {
       {
         ...options,
         baseline: "top",
-      }
+      },
     );
   }
 

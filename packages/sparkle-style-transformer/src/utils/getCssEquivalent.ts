@@ -6,7 +6,7 @@ import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS.js";
 export const getCssEquivalent = (
   key: string,
   value: unknown,
-  includeUnrecognized = true
+  includeUnrecognized = true,
 ): [cssPropName: string, cssPropValue: string][] => {
   const aliases: Record<string, string> = {
     ...STYLE_ALIASES,

@@ -7,7 +7,7 @@ export class CharacterRange {
   public static Define = (
     start: string,
     end: string,
-    excludes: string[] | CharacterSet = []
+    excludes: string[] | CharacterSet = [],
   ): CharacterRange => new CharacterRange(start, end, excludes);
 
   private _correspondingCharSet: CharacterSet = new CharacterSet();
@@ -16,7 +16,7 @@ export class CharacterRange {
   constructor(
     private _start: string,
     private _end: string,
-    excludes: string[] | CharacterSet = []
+    excludes: string[] | CharacterSet = [],
   ) {
     if (excludes instanceof CharacterSet) {
       this._excludes = excludes.set;

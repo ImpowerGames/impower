@@ -27,7 +27,7 @@ export default class ScreenplayTypesetter {
           .join(" ");
 
         const authorLines = positionLines.filter(
-          (l) => l.tag === "meta:author"
+          (l) => l.tag === "meta:author",
         );
         author = authorLines
           .map((l) => l.content.map((c) => c.text).join("") || "")
@@ -40,7 +40,7 @@ export default class ScreenplayTypesetter {
   compose(
     tokens: ScreenplayToken[],
     config?: ScreenplayConfig,
-    profile?: PrintProfile
+    profile?: PrintProfile,
   ): DocumentSpan[] {
     let spans: DocumentSpan[] = [];
     const metadata: Record<string, PageLine[]> = {};
@@ -56,7 +56,7 @@ export default class ScreenplayTypesetter {
           t.text,
           profile,
           { prefix: t.prefix, suffix: t.suffix },
-          { align }
+          { align },
         );
       } else if (t.tag === "page_break") {
         const prevSpan = spans.at(-1);
@@ -78,7 +78,7 @@ export default class ScreenplayTypesetter {
           undefined,
           {
             level,
-          }
+          },
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -93,7 +93,7 @@ export default class ScreenplayTypesetter {
           undefined,
           {
             level,
-          }
+          },
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -108,7 +108,7 @@ export default class ScreenplayTypesetter {
           undefined,
           {
             level,
-          }
+          },
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -123,7 +123,7 @@ export default class ScreenplayTypesetter {
           undefined,
           {
             level,
-          }
+          },
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -138,7 +138,7 @@ export default class ScreenplayTypesetter {
           undefined,
           {
             level,
-          }
+          },
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -149,7 +149,7 @@ export default class ScreenplayTypesetter {
           t.text,
           profile,
           { prefix: t.prefix, suffix: t.suffix },
-          undefined
+          undefined,
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -163,7 +163,7 @@ export default class ScreenplayTypesetter {
           t.text,
           profile,
           { prefix: t.prefix, suffix: t.suffix },
-          style
+          style,
         );
         if (lines.length > 0) {
           const scene = t.scene ?? sceneIndex + 1;
@@ -178,7 +178,7 @@ export default class ScreenplayTypesetter {
           t.text,
           profile,
           { prefix: t.prefix, suffix: t.suffix },
-          style
+          style,
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -192,7 +192,7 @@ export default class ScreenplayTypesetter {
           undefined,
           {
             canSplitAfter: 3,
-          }
+          },
         );
         if (lines.length > 0) {
           spans.push({ tag: t.tag, lines });
@@ -218,7 +218,7 @@ export default class ScreenplayTypesetter {
           profile,
           { prefix: t.prefix, suffix: t.suffix },
           undefined,
-          lineOptions
+          lineOptions,
         );
         if (lines.length > 0) {
           if (t.position === "l" || t.position === "r") {
@@ -294,7 +294,7 @@ export default class ScreenplayTypesetter {
     text: string,
     profile?: PrintProfile,
     affixOptions: { prefix?: string; suffix?: string } = {},
-    textOptions: TextOptions = {}
+    textOptions: TextOptions = {},
   ): BlockLayout => {
     return {
       tag,
@@ -308,7 +308,7 @@ export default class ScreenplayTypesetter {
     profile?: PrintProfile,
     affixOptions: { prefix?: string; suffix?: string } = {},
     textOptions: TextOptions = {},
-    lineOptions: LineOptions = {}
+    lineOptions: LineOptions = {},
   ): PageLine[] {
     let affixedText = text;
     if (affixOptions.prefix) {
@@ -324,7 +324,7 @@ export default class ScreenplayTypesetter {
     for (const textLine of textLines) {
       if (textLine) {
         pageLines.push(
-          this.line(tag, textLine, profile, textOptions, lineOptions)
+          this.line(tag, textLine, profile, textOptions, lineOptions),
         );
       }
     }
@@ -336,7 +336,7 @@ export default class ScreenplayTypesetter {
     text: string = "",
     profile?: PrintProfile,
     textOptions: TextOptions = {},
-    lineOptions: LineOptions = {}
+    lineOptions: LineOptions = {},
   ): PageLine {
     const styledContent = this.style(tag, text, textOptions, profile);
     const content = this.consolidateContent(styledContent);
@@ -351,7 +351,7 @@ export default class ScreenplayTypesetter {
     tag: ScreenplayTokenType,
     text: string | undefined,
     textOptions: TextOptions = {},
-    profile?: PrintProfile
+    profile?: PrintProfile,
   ): FormattedText[] {
     if (text == null) {
       return [];

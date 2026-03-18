@@ -2,7 +2,7 @@ import { BASE64_LOOKUP } from "../constants/BASE64_LOOKUP";
 
 export const decodeBase64 = (
   str: string,
-  separator = ";base64,"
+  separator = ";base64,",
 ): Uint8Array => {
   const splitStr = separator ? str.split(separator) : undefined;
   const base64 = splitStr?.[1] || str;

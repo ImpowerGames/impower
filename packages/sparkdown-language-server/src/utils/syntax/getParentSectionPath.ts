@@ -3,7 +3,7 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 
 export const getParentSectionPath = <T extends string>(
   stack: GrammarSyntaxNode<T>[],
-  read: (from: number, to: number) => string
+  read: (from: number, to: number) => string,
 ): T[] => {
   let parentPathParts: {
     kind: "" | "function" | "scene" | "branch" | "knot" | "stitch";
@@ -14,7 +14,7 @@ export const getParentSectionPath = <T extends string>(
     if (topLevelNode.name === "Function") {
       const functionNameNode = getDescendent(
         "FunctionDeclarationName",
-        topLevelNode
+        topLevelNode,
       );
       if (functionNameNode) {
         parentPathParts.unshift({
@@ -39,7 +39,7 @@ export const getParentSectionPath = <T extends string>(
       if (lastPart?.kind !== "branch") {
         const branchNameNode = getDescendent(
           "BranchDeclarationName",
-          topLevelNode
+          topLevelNode,
         );
         if (branchNameNode) {
           parentPathParts.unshift({
@@ -64,7 +64,7 @@ export const getParentSectionPath = <T extends string>(
       if (lastPart?.kind !== "stitch") {
         const stitchNameNode = getDescendent(
           "StitchDeclarationName",
-          topLevelNode
+          topLevelNode,
         );
         if (stitchNameNode) {
           parentPathParts.unshift({

@@ -26,7 +26,7 @@ export function search<T, TR>(
      * on failure.
      */
     precise?: boolean;
-  } = {}
+  } = {},
 ) {
   if (haystack.length === 0) {
     return null;

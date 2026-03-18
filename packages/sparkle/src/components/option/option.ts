@@ -234,13 +234,13 @@ export default class Option
   }
 
   structuralAttributes = Object.keys(spec.props).map(
-    (prop) => Option.attrs[prop as keyof typeof Option.attrs]
+    (prop) => Option.attrs[prop as keyof typeof Option.attrs],
   );
 
   override shouldAttributeTriggerUpdate(
     name: string,
     oldValue: string,
-    newValue: string
+    newValue: string,
   ) {
     if (this.structuralAttributes.includes(name)) {
       return true;

@@ -72,7 +72,7 @@ export class GrammarRepository {
   add(obj: RuleDefinition, id?: string): GrammarNode;
   add(
     obj: ScopedRuleDefinition | MatchRuleDefinition | RuleDefinition,
-    id?: string
+    id?: string,
   ): GrammarNode | Rule {
     // If no id was explicitly provided by the grammar, use fallback id
     if (!obj.id) {
@@ -109,7 +109,7 @@ export class GrammarRepository {
     const node = new GrammarNode(
       this.nextTypeIndex(),
       obj,
-      this.grammar.declarator
+      this.grammar.declarator,
     );
     this.map.set(node.typeId, node);
     return node;

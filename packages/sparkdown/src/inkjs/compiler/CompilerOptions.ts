@@ -9,6 +9,6 @@ export class CompilerOptions {
     public readonly countAllVisits: boolean = false,
     public readonly errorHandler: ErrorHandler | null = null,
     public readonly fileHandler: IFileHandler | null = null,
-    public readonly serializationHandler: ISerializationHandler | null = null
+    public readonly serializationHandler: ISerializationHandler | null = null,
   ) {}
 }

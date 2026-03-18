@@ -19,7 +19,7 @@ export class IncDecExpression extends Expression {
   constructor(
     identifier: Identifier | null,
     isIncOrExpression: boolean | Expression,
-    isInc?: boolean
+    isInc?: boolean,
   ) {
     super();
 
@@ -39,7 +39,7 @@ export class IncDecExpression extends Expression {
   }
 
   public readonly GenerateIntoContainer = (
-    container: RuntimeContainer
+    container: RuntimeContainer,
   ): void => {
     // x = x + y
     // ^^^ ^ ^ ^
@@ -48,7 +48,7 @@ export class IncDecExpression extends Expression {
 
     // 1.
     container.AddContent(
-      new RuntimeVariableReference(this.identifier?.name || null)
+      new RuntimeVariableReference(this.identifier?.name || null),
     );
 
     // 2.
@@ -62,13 +62,13 @@ export class IncDecExpression extends Expression {
 
     // 3.
     container.AddContent(
-      NativeFunctionCall.CallWithName(this.isInc ? "+" : "-")
+      NativeFunctionCall.CallWithName(this.isInc ? "+" : "-"),
     );
 
     // 4.
     this._runtimeAssignment = new RuntimeVariableAssignment(
       this.identifier?.name || null,
-      false
+      false,
     );
     container.AddContent(this._runtimeAssignment);
   };
@@ -78,12 +78,12 @@ export class IncDecExpression extends Expression {
 
     const varResolveResult = context.ResolveVariableWithName(
       this.identifier?.name || "",
-      this
+      this,
     );
 
     if (!varResolveResult.found) {
       this.Error(
-        `variable for ${this.incrementDecrementWord} could not be found`
+        `variable for ${this.incrementDecrementWord} could not be found`,
       );
     }
 

@@ -27,7 +27,7 @@ export const getRenameEdits = (
   program: SparkProgram | undefined,
   workspace: SparkdownLanguageServerWorkspace,
   newName: string,
-  position: Position
+  position: Position,
 ): WorkspaceEdit | null | undefined => {
   if (!document || !tree) {
     return undefined;
@@ -54,7 +54,7 @@ export const getRenameEdits = (
       includeDeclaration: true,
       includeInterdependent: false,
       includeLinks: true,
-    }
+    },
   );
 
   const { symbol, nameRange } = getSymbol(document, tree, position);

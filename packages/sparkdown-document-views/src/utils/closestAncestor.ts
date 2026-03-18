@@ -1,6 +1,6 @@
 export const closestAncestor = (
   selector: string,
-  el: Element | HTMLElement
+  el: Element | HTMLElement,
 ): HTMLElement | null => {
   if (!el || el instanceof Document || el instanceof Window) {
     return null;

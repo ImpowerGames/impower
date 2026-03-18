@@ -14,7 +14,7 @@ export const findProp = <T>(
   tree: Tree,
   from: number,
   to: number,
-  offset = 0
+  offset = 0,
 ): T | null => {
   const bundle: T | undefined =
     offset >= from && offset + tree.length >= to ? tree.prop(prop) : undefined;

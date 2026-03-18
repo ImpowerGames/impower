@@ -3,7 +3,7 @@ import { getStyledHtml } from "./getStyledHtml";
 
 export const generateScreenplayMainHtml = (
   bodySpans: DocumentSpan[],
-  indent = ""
+  indent = "",
 ): string => {
   const html: string[] = [];
   bodySpans.forEach((span) => {

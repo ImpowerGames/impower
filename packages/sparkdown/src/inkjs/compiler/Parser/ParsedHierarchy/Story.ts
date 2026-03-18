@@ -117,7 +117,7 @@ export class Story extends FlowBase {
   // the include statement was, and append the knots/stitches to the very
   // end of the main story.
   public override PreProcessTopLevelObjects(
-    topLevelContent: ParsedObject[]
+    topLevelContent: ParsedObject[],
   ): void {
     super.PreProcessTopLevelObjects(topLevelContent);
 
@@ -171,7 +171,7 @@ export class Story extends FlowBase {
   }
 
   public readonly ExportRuntime = (
-    errorHandler: ErrorHandler | null = null
+    errorHandler: ErrorHandler | null = null,
   ): RuntimeStory | null => {
     this._errorHandler = errorHandler;
 
@@ -218,7 +218,7 @@ export class Story extends FlowBase {
               !(prop.expression instanceof VariableReference)
             ) {
               const variableIdentifier = new Identifier(
-                structDef.key + prop.key
+                structDef.key + prop.key,
               );
               variableIdentifier.debugMetadata = prop.debugMetadata;
               const variableDeclaration = new VariableAssignment({
@@ -258,7 +258,7 @@ export class Story extends FlowBase {
           this._listDefs.set(key, value.listDefinition);
           runtimeLists.push(value.listDefinition.runtimeListDefinition);
           variableInitialization.AddContent(
-            value.listDefinition.runtimeObject!
+            value.listDefinition.runtimeObject!,
           );
         } else if (value.structDefinition) {
           this._structDefs.set(key, value.structDefinition);
@@ -296,7 +296,7 @@ export class Story extends FlowBase {
     const runtimeStory = new RuntimeStory(
       rootContainer,
       runtimeLists,
-      runtimeStructs
+      runtimeStructs,
     );
 
     this.runtimeObject = runtimeStory;
@@ -315,7 +315,7 @@ export class Story extends FlowBase {
     try {
       this.ResolveReferences(this);
     } catch (e) {
-      console.error(e)
+      console.error(e);
     }
 
     runtimeStory.ResetState();
@@ -324,7 +324,7 @@ export class Story extends FlowBase {
   };
 
   public readonly ResolveStruct = (
-    structName: string
+    structName: string,
   ): StructDefinition | null => {
     let struct: StructDefinition | null | undefined =
       this._structDefs.get(structName);
@@ -347,7 +347,7 @@ export class Story extends FlowBase {
   public readonly ResolveListItem = (
     listName: string | null,
     itemName: string,
-    source: ParsedObject | null = null
+    source: ParsedObject | null = null,
   ): ListElementDefinition | null => {
     let listDef: ListDefinition | null | undefined = null;
 
@@ -373,7 +373,7 @@ export class Story extends FlowBase {
                 originalFoundList!.identifier
               } and ${value!.identifier}`,
               source,
-              false
+              false,
             );
           } else {
             foundItem = itemInThisList;
@@ -450,7 +450,7 @@ export class Story extends FlowBase {
   public override readonly Error = (
     message: string,
     source: ParsedObject | DebugMetadata | null | undefined,
-    isWarning: boolean | null | undefined
+    isWarning: boolean | null | undefined,
   ) => {
     let errorType: ErrorType = isWarning ? ErrorType.Warning : ErrorType.Error;
 
@@ -513,7 +513,7 @@ export class Story extends FlowBase {
       this.Error(
         `Duplicate external definition of \`${decl.name}\``,
         decl,
-        false
+        false,
       );
     } else if (decl.name) {
       this.externals.set(decl.name, decl);
@@ -521,7 +521,7 @@ export class Story extends FlowBase {
   };
 
   public readonly DontFlattenContainer = (
-    container: RuntimeContainer
+    container: RuntimeContainer,
   ): void => {
     this._dontFlattenContainers.add(container);
   };
@@ -529,7 +529,7 @@ export class Story extends FlowBase {
   public readonly NameConflictError = (
     obj: ParsedObject,
     identifier: Identifier,
-    newObj: ParsedObject | Identifier | DebugMetadata
+    newObj: ParsedObject | Identifier | DebugMetadata,
   ): void => {
     obj.Error(
       `Duplicate identifier \`${
@@ -537,7 +537,7 @@ export class Story extends FlowBase {
       }\`. A ${obj.typeName.toLowerCase()} named \`${
         identifier.name
       }\` already exists on ${identifier.debugMetadata}`,
-      newObj
+      newObj,
     );
   };
 
@@ -547,20 +547,20 @@ export class Story extends FlowBase {
     obj: ParsedObject,
     identifier: Identifier,
     symbolType: SymbolType,
-    typeNameOverride: string = ""
+    typeNameOverride: string = "",
   ): void => {
     const typeNameToPrint: string = typeNameOverride || obj.typeName;
     for (const part of identifier?.name.split(".")) {
       if (Story.IsReservedKeyword(part)) {
         obj.Error(
           `\`${part}\` cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a reserved keyword`,
-          identifier?.debugMetadata
+          identifier?.debugMetadata,
         );
         return;
       } else if (FunctionCall.IsBuiltIn(part)) {
         obj.Error(
           `\`${part}\` cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a built in function`,
-          identifier?.debugMetadata
+          identifier?.debugMetadata,
         );
 
         return;
@@ -570,7 +570,7 @@ export class Story extends FlowBase {
     // Top level knots
     const maybeKnotOrFunction = this.ContentWithNameAtLevel(
       identifier?.name || "",
-      FlowLevel.Knot
+      FlowLevel.Knot,
     );
 
     const knotOrFunction = asOrNull(maybeKnotOrFunction, FlowBase);
@@ -583,13 +583,13 @@ export class Story extends FlowBase {
         this.NameConflictError(
           knotOrFunction,
           knotOrFunction.identifier,
-          obj.identifier || obj
+          obj.identifier || obj,
         );
       } else {
         this.NameConflictError(
           obj,
           identifier,
-          knotOrFunction?.identifier || knotOrFunction
+          knotOrFunction?.identifier || knotOrFunction,
         );
       }
       return;
@@ -674,7 +674,7 @@ export class Story extends FlowBase {
       this.NameConflictError(
         obj,
         identifier,
-        targetContent?.identifier || targetContent
+        targetContent?.identifier || targetContent,
       );
       return;
     }
@@ -695,7 +695,7 @@ export class Story extends FlowBase {
           if (arg.identifier?.name === identifier?.name) {
             obj.Error(
               `Duplicate identifier \`${identifier}\`. A parameter named \`${identifier}\` already exists for ${flow.identifier} on ${flow.debugMetadata}`,
-              varDecl?.identifier.debugMetadata
+              varDecl?.identifier.debugMetadata,
             );
 
             return;

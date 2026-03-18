@@ -9,7 +9,7 @@ export const getClientChanges = (
   contentChanges: {
     range?: Range;
     text: string;
-  }[]
+  }[],
 ): ChangeSpec[] => {
   const changes: ChangeSpec[] = [];
   let changeDoc = state.doc;

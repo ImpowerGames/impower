@@ -6,5 +6,5 @@ export type GrammarToken = [
   from: number,
   to: number,
   open?: ParserAction,
-  close?: ParserAction
+  close?: ParserAction,
 ];

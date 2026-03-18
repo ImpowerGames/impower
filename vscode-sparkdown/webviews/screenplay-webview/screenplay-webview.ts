@@ -22,7 +22,7 @@ window.addEventListener("message", (e: MessageEvent) => {
       cancelable: true,
       composed: true,
       detail: message,
-    })
+    }),
   );
 });
 

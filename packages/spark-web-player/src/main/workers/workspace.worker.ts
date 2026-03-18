@@ -5,7 +5,7 @@ import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSpa
 import { profile } from "../../utils/profile";
 
 const connection = new Port2MessageConnection((message: any, transfer) =>
-  self.postMessage(message, { transfer })
+  self.postMessage(message, { transfer }),
 );
 connection.profile("player");
 connection.listen();
@@ -33,17 +33,17 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
   if (params.program.startFrom) {
     profile(
       "start",
-      compilerState.compiler.profilerId + " " + "game/setStartFrom"
+      compilerState.compiler.profilerId + " " + "game/setStartFrom",
     );
     gameState.game.setStartFrom(params.program.startFrom);
     profile(
       "end",
-      compilerState.compiler.profilerId + " " + "game/setStartFrom"
+      compilerState.compiler.profilerId + " " + "game/setStartFrom",
     );
     if (gameState.game.startPath) {
       profile(
         "start",
-        compilerState.compiler.profilerId + " " + "game/planRoute"
+        compilerState.compiler.profilerId + " " + "game/planRoute",
       );
       const toPath = gameState.game.startPath;
       const fromPath = Game.getSimulateFromPath(toPath);
@@ -52,21 +52,21 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
         gameState.game.program,
         fromPath,
         toPath,
-        compilerState.compiler.config.simulationOptions
+        compilerState.compiler.config.simulationOptions,
       );
       profile(
         "end",
-        compilerState.compiler.profilerId + " " + "game/planRoute"
+        compilerState.compiler.profilerId + " " + "game/planRoute",
       );
       if (newRoute) {
         profile(
           "start",
-          compilerState.compiler.profilerId + " " + "game/simulateRoute"
+          compilerState.compiler.profilerId + " " + "game/simulateRoute",
         );
         const checkpoint = gameState.game.patchAndSimulateRoute(newRoute);
         profile(
           "end",
-          compilerState.compiler.profilerId + " " + "game/simulateRoute"
+          compilerState.compiler.profilerId + " " + "game/simulateRoute",
         );
         if (checkpoint) {
           // Augment with simulated checkpoint
@@ -101,17 +101,17 @@ compilerState.compiler.addEventListener("compiler/didSelect", (params) => {
     ) {
       profile(
         "start",
-        compilerState.compiler.profilerId + " " + "game/setStartFrom"
+        compilerState.compiler.profilerId + " " + "game/setStartFrom",
       );
       gameState.game.setStartFrom(newStartFrom);
       profile(
         "end",
-        compilerState.compiler.profilerId + " " + "game/setStartFrom"
+        compilerState.compiler.profilerId + " " + "game/setStartFrom",
       );
       if (gameState.game.startPath) {
         profile(
           "start",
-          compilerState.compiler.profilerId + " " + "game/planRoute"
+          compilerState.compiler.profilerId + " " + "game/planRoute",
         );
         const toPath = gameState.game.startPath;
         const fromPath = Game.getSimulateFromPath(toPath);
@@ -120,21 +120,21 @@ compilerState.compiler.addEventListener("compiler/didSelect", (params) => {
           gameState.game.program,
           fromPath,
           toPath,
-          compilerState.compiler.config.simulationOptions
+          compilerState.compiler.config.simulationOptions,
         );
         profile(
           "end",
-          compilerState.compiler.profilerId + " " + "game/planRoute"
+          compilerState.compiler.profilerId + " " + "game/planRoute",
         );
         if (newRoute) {
           profile(
             "start",
-            compilerState.compiler.profilerId + " " + "game/simulateRoute"
+            compilerState.compiler.profilerId + " " + "game/simulateRoute",
           );
           const checkpoint = gameState.game.patchAndSimulateRoute(newRoute);
           profile(
             "end",
-            compilerState.compiler.profilerId + " " + "game/simulateRoute"
+            compilerState.compiler.profilerId + " " + "game/simulateRoute",
           );
           if (checkpoint) {
             // Augment with simulated checkpoint

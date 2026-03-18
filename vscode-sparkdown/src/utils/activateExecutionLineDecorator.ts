@@ -11,13 +11,13 @@ const currentlyExecutedLineDecoration: vscode.TextEditorDecorationType =
   vscode.window.createTextEditorDecorationType({
     dark: {
       overviewRulerColor: new vscode.ThemeColor(
-        "editorOverviewRuler.infoForeground"
+        "editorOverviewRuler.infoForeground",
       ),
       backgroundColor: "rgba(0,0,0,0.18)",
     },
     light: {
       overviewRulerColor: new vscode.ThemeColor(
-        "editorOverviewRuler.infoForeground"
+        "editorOverviewRuler.infoForeground",
       ),
       backgroundColor: "rgba(255,255,255,0.04)",
     },
@@ -29,13 +29,13 @@ const previewingLineDecoration: vscode.TextEditorDecorationType =
   vscode.window.createTextEditorDecorationType({
     dark: {
       overviewRulerColor: new vscode.ThemeColor(
-        "editorOverviewRuler.infoForeground"
+        "editorOverviewRuler.infoForeground",
       ),
       backgroundColor: "rgba(0,0,0,0.18)",
     },
     light: {
       overviewRulerColor: new vscode.ThemeColor(
-        "editorOverviewRuler.infoForeground"
+        "editorOverviewRuler.infoForeground",
       ),
       backgroundColor: "rgba(255,255,255,0.04)",
     },
@@ -47,7 +47,7 @@ let currentlyExecutedLines = new Set<number>();
 let previewingLines = new Set<number>();
 
 export const activateExecutionLineDecorator = (
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ) => {
   const handleGamePreviewed = (message: Message) => {
     if (GamePreviewedMessage.type.isNotification(message)) {
@@ -74,17 +74,17 @@ export const activateExecutionLineDecorator = (
   };
   SparkdownPreviewGamePanelManager.instance.connection.incoming.addListener(
     GamePreviewedMessage.method,
-    handleGamePreviewed
+    handleGamePreviewed,
   );
   SparkdownPreviewGamePanelManager.instance.connection.incoming.addListener(
     GameExecutedMessage.method,
-    handleGameExecuted
+    handleGameExecuted,
   );
   context.subscriptions.push({
     dispose: () => {
       SparkdownPreviewGamePanelManager.instance.connection.incoming.removeListener(
         GameExecutedMessage.method,
-        handleGameExecuted
+        handleGameExecuted,
       );
     },
   });
@@ -101,13 +101,13 @@ export const activateExecutionLineDecorator = (
   };
   SparkdownPreviewGamePanelManager.instance.connection.incoming.addListener(
     GameExitedMessage.method,
-    handleGameExited
+    handleGameExited,
   );
   context.subscriptions.push({
     dispose: () => {
       SparkdownPreviewGamePanelManager.instance.connection.incoming.removeListener(
         GameExitedMessage.method,
-        handleGameExited
+        handleGameExited,
       );
     },
   });
@@ -116,14 +116,14 @@ export const activateExecutionLineDecorator = (
     vscode.debug.onDidStartDebugSession(() => {
       previewingLines.clear();
       updateLineDecorationsOfAllEditors();
-    })
+    }),
   );
 
   context.subscriptions.push(
     vscode.debug.onDidTerminateDebugSession(() => {
       currentlyExecutedLines.clear();
       updateLineDecorationsOfAllEditors();
-    })
+    }),
   );
 
   context.subscriptions.push({
@@ -144,14 +144,14 @@ export const activateExecutionLineDecorator = (
 const highlightLines = (
   lineSet: Set<number>,
   editor: vscode.TextEditor,
-  locations: Location[]
+  locations: Location[],
 ) => {
   const documentLocations = Object.groupBy(locations, ({ uri }) => uri);
   for (const [uri, locations] of Object.entries(documentLocations)) {
     if (editor?.document.uri.toString() === uri) {
       if (locations) {
         const sortedLocations = Array.from(
-          locations.sort((a, b) => a.range.start.line - b.range.start.line)
+          locations.sort((a, b) => a.range.start.line - b.range.start.line),
         );
         let prevEndLine: number | undefined = undefined;
         for (const location of sortedLocations) {
@@ -192,14 +192,14 @@ const updateDecorations = (editor: vscode.TextEditor) => {
   editor.setDecorations(
     currentlyExecutedLineDecoration,
     Array.from(currentlyExecutedLines).map(
-      (line) => new vscode.Range(line, 0, line, 0)
-    )
+      (line) => new vscode.Range(line, 0, line, 0),
+    ),
   );
   editor.setDecorations(
     previewingLineDecoration,
     Array.from(previewingLines).map(
-      (line) => new vscode.Range(line, 0, line, 0)
-    )
+      (line) => new vscode.Range(line, 0, line, 0),
+    ),
   );
 };
 

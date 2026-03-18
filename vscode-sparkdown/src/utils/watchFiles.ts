@@ -6,7 +6,7 @@ import { updateCommands } from "./updateCommands";
 
 export const watchFiles = (
   context: vscode.ExtensionContext,
-  doc: vscode.TextDocument
+  doc: vscode.TextDocument,
 ) => {
   const uri = doc.uri;
   const state = fileSystemWatcherState[uri.toString()] || {
@@ -17,7 +17,7 @@ export const watchFiles = (
   if (!state.outputFilesWatcher) {
     const relativePath = getWorkspaceRelativePath(
       uri,
-      EXPORTABLE_FILE_EXTENSIONS
+      EXPORTABLE_FILE_EXTENSIONS,
     );
     if (relativePath) {
       state.outputFilesWatcher =

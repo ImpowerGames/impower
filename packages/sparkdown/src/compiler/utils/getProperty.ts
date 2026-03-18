@@ -1,6 +1,6 @@
 export const getProperty = <T>(
   obj: any,
-  propertyPath: string
+  propertyPath: string,
 ): T | undefined => {
   if (!propertyPath) {
     return obj;

@@ -32,7 +32,7 @@ export class StringParser {
         message: string,
         index: number,
         source: SourceMetadata,
-        isWarning?: boolean
+        isWarning?: boolean,
       ) => void) = null;
   public state: StringParserState;
   public hadError: boolean = false;
@@ -91,7 +91,7 @@ export class StringParser {
 
   public readonly SucceedRule = (
     expectedRuleId: number,
-    result: ParseRuleReturn = null
+    result: ParseRuleReturn = null,
   ): ParseRuleReturn => {
     // Get state at point where this rule stared evaluating
     const stateAtSucceedRule = this.state.Peek(expectedRuleId);
@@ -117,13 +117,13 @@ export class StringParser {
   public RuleDidSucceed?: (
     result: ParseRuleReturn,
     startState: StringParserElement | null,
-    endState: StringParserElement
+    endState: StringParserElement,
   ) => void;
 
   public readonly Expect = (
     rule: ParseRule,
     message: string | null = null,
-    recoveryRule: ParseRule | null = null
+    recoveryRule: ParseRule | null = null,
   ): ParseRuleReturn => {
     let result: ParseRuleReturn = this.ParseObject(rule);
     if (result === null) {
@@ -166,14 +166,14 @@ export class StringParser {
 
   public readonly ErrorWithParsedObject = (
     message: string,
-    result: ParsedObject | null
+    result: ParsedObject | null,
   ): void => {
     this.Error(message, result?.debugMetadata);
   };
 
   public readonly WarningWithParsedObject = (
     message: string,
-    result: ParsedObject
+    result: ParsedObject,
   ): void => {
     this.Warning(message, result?.debugMetadata);
   };
@@ -184,13 +184,13 @@ export class StringParser {
 
   public readonly Warning = (
     message: string,
-    source?: SourceMetadata | null
+    source?: SourceMetadata | null,
   ): void => this.Diagnostic(message, source, true);
 
   public Diagnostic = (
     message: string,
     source?: SourceMetadata | null,
-    isWarning: boolean = false
+    isWarning: boolean = false,
   ): void => {
     if (!this.state.errorReportedAlreadyInScope) {
       const errorType = isWarning ? "Warning" : "Error";
@@ -210,7 +210,7 @@ export class StringParser {
             fileName: this._fileName,
             filePath: this._filePath,
           },
-          isWarning
+          isWarning,
         );
       }
 
@@ -303,7 +303,7 @@ export class StringParser {
   };
 
   public readonly Parse = <T extends ParseRule>(
-    rule: SpecificParseRule<T>
+    rule: SpecificParseRule<T>,
   ): ParseRuleReturn => {
     const ruleId: number = this.BeginRule();
 
@@ -318,7 +318,9 @@ export class StringParser {
     return result;
   };
 
-  public readonly OneOf = <R extends ParseRuleReturn>(array: (() => R | null)[]): R | null => {
+  public readonly OneOf = <R extends ParseRuleReturn>(
+    array: (() => R | null)[],
+  ): R | null => {
     for (const rule of array) {
       const result = this.ParseObject(rule);
       if (result !== null) {
@@ -381,7 +383,7 @@ export class StringParser {
   private readonly TryAddResultToList = <T>(
     result: ParseRuleReturn,
     list: T[],
-    flatten: boolean = true
+    flatten: boolean = true,
   ): void => {
     if (result === StringParser.ParseSuccess) {
       return;
@@ -405,7 +407,7 @@ export class StringParser {
     ruleA: ParseRule,
     ruleB: ParseRule,
     untilTerminator: ParseRule | null = null,
-    flatten: boolean = true
+    flatten: boolean = true,
   ): T[] => {
     const ruleId: number = this.BeginRule();
     const results: T[] = [];
@@ -532,20 +534,22 @@ export class StringParser {
   public readonly ParseUntilCharactersFromString = (
     str: string,
     maxCount: number = -1,
-    allowEscaped = false
-  ): string | null => this.ParseCharactersFromString(str, false, maxCount, allowEscaped);
+    allowEscaped = false,
+  ): string | null =>
+    this.ParseCharactersFromString(str, false, maxCount, allowEscaped);
 
   public readonly ParseUntilCharactersFromCharSet = (
     charSet: CharacterSet,
     maxCount: number = -1,
-    allowEscaped = false
-  ): string | null => this.ParseCharactersFromCharSet(charSet, false, maxCount, allowEscaped);
+    allowEscaped = false,
+  ): string | null =>
+    this.ParseCharactersFromCharSet(charSet, false, maxCount, allowEscaped);
 
   public readonly ParseCharactersFromString = (
     str: string,
     maxCountOrShouldIncludeStrChars: boolean | number = -1,
     maxCount: number = -1,
-    allowEscaped = false
+    allowEscaped = false,
   ): string | null => {
     const charSet = new CharacterSet(str);
     if (typeof maxCountOrShouldIncludeStrChars === "number") {
@@ -553,7 +557,7 @@ export class StringParser {
         charSet,
         true,
         maxCountOrShouldIncludeStrChars,
-        allowEscaped
+        allowEscaped,
       );
     }
 
@@ -561,7 +565,7 @@ export class StringParser {
       charSet,
       maxCountOrShouldIncludeStrChars,
       maxCount,
-      allowEscaped
+      allowEscaped,
     );
   };
 
@@ -569,7 +573,7 @@ export class StringParser {
     charSet: CharacterSet,
     shouldIncludeChars: boolean = true,
     maxCount: number = -1,
-    allowEscaped = false
+    allowEscaped = false,
   ): string | null => {
     if (maxCount === -1) {
       maxCount = Number.MAX_SAFE_INTEGER;
@@ -586,18 +590,18 @@ export class StringParser {
     let li: number = this.lineIndex;
     let count: number = 0;
     let escaped = false;
-    while (
-      ii < this._chars.length &&
-      count < maxCount
-    ) {
+    while (ii < this._chars.length && count < maxCount) {
       if (allowEscaped && this._chars[ii] === "\\") {
         ii += 1;
         cli += 1;
         escaped = true;
         continue;
       }
-      
-      if (charSet.set.has(this._chars[ii]!) !== shouldIncludeChars && !escaped) {
+
+      if (
+        charSet.set.has(this._chars[ii]!) !== shouldIncludeChars &&
+        !escaped
+      ) {
         break;
       }
 
@@ -609,7 +613,7 @@ export class StringParser {
       ii += 1;
       cli += 1;
       count += 1;
-      
+
       escaped = false;
     }
 
@@ -636,7 +640,7 @@ export class StringParser {
   public readonly ParseRuleUntil = <T>(
     rule: ParseRule,
     untilTerminator: ParseRule | null = null,
-    flatten: boolean = true
+    flatten: boolean = true,
   ): T[] => {
     const ruleId: number = this.BeginRule();
     const results: T[] = [];
@@ -672,7 +676,7 @@ export class StringParser {
   public ParseUntil(
     stopRule: ParseRule,
     pauseCharacters: CharacterSet | null = null,
-    endCharacters: CharacterSet | null = null
+    endCharacters: CharacterSet | null = null,
   ): string {
     const ruleId: number = this.BeginRule();
     const pauseAndEnd: CharacterSet = new CharacterSet();
@@ -755,7 +759,7 @@ export class StringParser {
     this.ParseCharactersFromString(" \t");
 
     const parsedString = this.ParseCharactersFromCharSet(
-      StringParser.numbersCharacterSet
+      StringParser.numbersCharacterSet,
     );
     if (parsedString === null) {
       // Roll back and fail
@@ -778,7 +782,7 @@ export class StringParser {
         Number.MIN_SAFE_INTEGER +
         " to " +
         Number.MAX_SAFE_INTEGER +
-        ")"
+        ")",
     );
 
     return null;
@@ -793,7 +797,7 @@ export class StringParser {
     if (leadingInt !== null) {
       if (this.ParseString(".") !== null) {
         const afterDecimalPointStr = this.ParseCharactersFromCharSet(
-          StringParser.numbersCharacterSet
+          StringParser.numbersCharacterSet,
         );
 
         return Number(`${leadingInt}.${afterDecimalPointStr}`);

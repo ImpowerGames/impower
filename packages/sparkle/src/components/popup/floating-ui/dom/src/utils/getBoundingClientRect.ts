@@ -11,7 +11,7 @@ export function getBoundingClientRect(
   element: Element | VirtualElement,
   includeScale = false,
   isFixedStrategy = false,
-  offsetParent?: Element | Window
+  offsetParent?: Element | Window,
 ): ClientRectObject {
   const clientRect = element.getBoundingClientRect();
   const domElement = unwrapElement(element);
@@ -30,7 +30,7 @@ export function getBoundingClientRect(
   const visualOffsets = getVisualOffsets(
     domElement,
     isFixedStrategy,
-    offsetParent
+    offsetParent,
   );
 
   let x = (clientRect.left + visualOffsets.x) / scale.x;

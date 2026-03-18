@@ -84,13 +84,13 @@ export class StringParserState {
   public readonly Pop = (expectedRuleId: number): void => {
     if (this._numElements == 1) {
       throw new Error(
-        "Attempting to remove final stack element is illegal! Mismatched Begin/Succceed/Fail?"
+        "Attempting to remove final stack element is illegal! Mismatched Begin/Succceed/Fail?",
       );
     }
 
     if (this.currentElement.uniqueId != expectedRuleId) {
       throw new Error(
-        "Mismatched rule IDs while Poping - do you have mismatched Begin/Succeed/Fail?"
+        "Mismatched rule IDs while Poping - do you have mismatched Begin/Succeed/Fail?",
       );
     }
 
@@ -101,7 +101,7 @@ export class StringParserState {
   public Peek = (expectedRuleId: number) => {
     if (this.currentElement.uniqueId != expectedRuleId) {
       throw new Error(
-        "Mismatched rule IDs while Peeking - do you have mismatched Begin/Succeed/Fail?"
+        "Mismatched rule IDs while Peeking - do you have mismatched Begin/Succeed/Fail?",
       );
     }
 
@@ -123,7 +123,7 @@ export class StringParserState {
   public readonly Squash = (): void => {
     if (this._numElements < 2) {
       throw new Error(
-        "Attempting to remove final stack element is illegal! Mismatched Begin/Succceed/Fail?"
+        "Attempting to remove final stack element is illegal! Mismatched Begin/Succceed/Fail?",
       );
     }
 

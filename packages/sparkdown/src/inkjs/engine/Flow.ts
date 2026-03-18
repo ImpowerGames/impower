@@ -26,10 +26,10 @@ export class Flow {
 
       this.callStack.SetJsonToken(jObject["callstack"], story);
       this.outputStream = JsonSerialisation.JArrayToRuntimeObjList(
-        jObject["outputStream"]
+        jObject["outputStream"],
       );
       this.currentChoices = JsonSerialisation.JArrayToRuntimeObjList(
-        jObject["currentChoices"]
+        jObject["currentChoices"],
       ) as Choice[];
 
       let jChoiceThreadsObj = jObject["choiceThreads"];
@@ -47,7 +47,7 @@ export class Flow {
 
     writer.WriteProperty("callstack", (w) => this.callStack.WriteJson(w));
     writer.WriteProperty("outputStream", (w) =>
-      JsonSerialisation.WriteListRuntimeObjs(w, this.outputStream)
+      JsonSerialisation.WriteListRuntimeObjs(w, this.outputStream),
     );
 
     let hasChoiceThreads = false;
@@ -88,11 +88,11 @@ export class Flow {
 
   public LoadFlowChoiceThreads(
     jChoiceThreads: Record<string, any>,
-    story: Story
+    story: Story,
   ) {
     for (let choice of this.currentChoices) {
       let foundActiveThread = this.callStack.ThreadWithIndex(
-        choice.originalThreadIndex
+        choice.originalThreadIndex,
       );
       if (foundActiveThread !== null) {
         choice.threadAtGeneration = foundActiveThread.Copy();
@@ -101,7 +101,7 @@ export class Flow {
           jChoiceThreads[`${choice.originalThreadIndex}`];
         choice.threadAtGeneration = new CallStack.Thread(
           jSavedChoiceThread,
-          story
+          story,
         );
       }
     }

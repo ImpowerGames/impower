@@ -6,8 +6,7 @@ import { DidChangeTextDocumentParams } from "../../types/DidChangeTextDocumentPa
 export type UpdateCompilerDocumentMethod =
   typeof UpdateCompilerDocumentMessage.method;
 
-export interface UpdateCompilerDocumentParams
-  extends DidChangeTextDocumentParams {}
+export interface UpdateCompilerDocumentParams extends DidChangeTextDocumentParams {}
 
 export type UpdateCompilerDocumentResult = boolean;
 
@@ -21,15 +20,13 @@ export class UpdateCompilerDocumentMessage {
 }
 
 export namespace UpdateCompilerDocumentMessage {
-  export interface Request
-    extends RequestMessage<
-      UpdateCompilerDocumentMethod,
-      UpdateCompilerDocumentParams,
-      UpdateCompilerDocumentResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      UpdateCompilerDocumentMethod,
-      UpdateCompilerDocumentResult
-    > {}
+  export interface Request extends RequestMessage<
+    UpdateCompilerDocumentMethod,
+    UpdateCompilerDocumentParams,
+    UpdateCompilerDocumentResult
+  > {}
+  export interface Response extends ResponseMessage<
+    UpdateCompilerDocumentMethod,
+    UpdateCompilerDocumentResult
+  > {}
 }

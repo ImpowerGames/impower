@@ -5,7 +5,7 @@ import { isHTMLElement } from "./is";
 import { round } from "./math";
 
 export function getCssDimensions(
-  element: Element
+  element: Element,
 ): Dimensions & { fallback: boolean } {
   const css = getComputedStyle(element);
   // In testing environments, the `width` and `height` properties are empty

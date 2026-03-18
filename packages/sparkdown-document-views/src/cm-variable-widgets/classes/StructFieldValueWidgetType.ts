@@ -46,7 +46,7 @@ const getNewValue = (
   max: number,
   step: number,
   startValue: number,
-  deltaX: number
+  deltaX: number,
 ): number => {
   const newValue = roundToNearestStep((startValue || 0) + deltaX * step, step);
   if (newValue < min) {
@@ -82,14 +82,14 @@ export default class StructFieldValueWidgetType extends WidgetType {
     e: MouseEvent,
     startX: number,
     x: number,
-    previewTextContent: string
+    previewTextContent: string,
   ) => void;
 
   onDragEnd?: (
     e: MouseEvent,
     startX: number,
     x: number,
-    previewTextContent: string
+    previewTextContent: string,
   ) => void;
 
   onClick?: (e: MouseEvent) => void;
@@ -105,16 +105,16 @@ export default class StructFieldValueWidgetType extends WidgetType {
         e: MouseEvent,
         startX: number,
         x: number,
-        previewTextContent: string
+        previewTextContent: string,
       ) => void;
       onDragEnd?: (
         e: MouseEvent,
         startX: number,
         x: number,
-        previewTextContent: string
+        previewTextContent: string,
       ) => void;
       onClick?: (e: MouseEvent) => void;
-    }
+    },
   ) {
     super();
     this.id = id;
@@ -134,23 +134,23 @@ export default class StructFieldValueWidgetType extends WidgetType {
     const previewClassName = `${STRUCT_FIELD_VALUE_PREVIEW_CLASS_PREFIX}${this.id}`;
     const minNumber =
       typeof this.startValue === "number"
-        ? (this.range?.[1] as number) ?? 0
+        ? ((this.range?.[1] as number) ?? 0)
         : undefined;
     const maxNumber =
       typeof this.startValue === "number"
-        ? (this.range?.[2] as number) ?? 100
+        ? ((this.range?.[2] as number) ?? 100)
         : undefined;
     const options =
       typeof this.startValue === "number"
         ? [minNumber, ((minNumber ?? 0) + (maxNumber ?? 0)) / 2, maxNumber]
         : Array.isArray(this.range)
-        ? this.range
-        : BOOLEAN_ARRAY;
+          ? this.range
+          : BOOLEAN_ARRAY;
     const min = minNumber ?? 0;
     const max = maxNumber ?? options.length - 1;
     const step =
       typeof this.startValue === "number"
-        ? (this.range?.[0] as number) ?? 1
+        ? ((this.range?.[0] as number) ?? 1)
         : 0.05;
     const start =
       typeof this.startValue === "number"
@@ -237,7 +237,7 @@ export default class StructFieldValueWidgetType extends WidgetType {
           event,
           startX,
           event.clientX,
-          previewEl.textContent || ""
+          previewEl.textContent || "",
         );
       }
     };
@@ -286,7 +286,7 @@ export default class StructFieldValueWidgetType extends WidgetType {
         event,
         startX,
         event.clientX,
-        previewEl.textContent || ""
+        previewEl.textContent || "",
       );
       window.removeEventListener("mousemove", onMouseMove);
       document.documentElement.style.cursor = null as unknown as string;

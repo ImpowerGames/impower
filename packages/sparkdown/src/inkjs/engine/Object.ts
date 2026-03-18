@@ -109,10 +109,12 @@ export class InkObject {
           const index = parentContainer.content.indexOf(this);
           if (index >= 0) {
             comps.pop();
-            comps.push(new Path.Component(index - parentContainer.content.length))
+            comps.push(
+              new Path.Component(index - parentContainer.content.length),
+            );
           }
         }
-        
+
         this._pathFromEnd = new Path(comps);
       }
     }
@@ -129,12 +131,12 @@ export class InkObject {
       if (nearestContainer === null) {
         Debug.Assert(
           this.parent !== null,
-          "Can't resolve relative path because we don't have a parent"
+          "Can't resolve relative path because we don't have a parent",
         );
         nearestContainer = asOrNull(this.parent, Container);
         Debug.Assert(
           nearestContainer !== null,
-          "Expected parent to be a container"
+          "Expected parent to be a container",
         );
         Debug.Assert(path.GetComponent(0).isParent);
         path = path.tail;

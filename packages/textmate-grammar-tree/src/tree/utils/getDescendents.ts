@@ -3,7 +3,7 @@ import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 
 export const getDescendents = <T extends string>(
   descendentTypeName: T | T[],
-  parent: SyntaxNode
+  parent: SyntaxNode,
 ): GrammarSyntaxNode<T>[] => {
   const descendents = [];
   if (parent) {

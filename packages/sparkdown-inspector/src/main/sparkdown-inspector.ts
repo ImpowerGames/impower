@@ -152,7 +152,7 @@ export default class SparkdownInspector extends Component(spec) {
 
       this.root
         .querySelectorAll<HTMLInputElement>(
-          "input[type='range'], input[type='text'], input[type='checkbox']"
+          "input[type='range'], input[type='text'], input[type='checkbox']",
         )
         .forEach((input) => {
           const path = input.dataset["path"];
@@ -162,7 +162,7 @@ export default class SparkdownInspector extends Component(spec) {
             input.addEventListener("input", () => {
               const numberInput =
                 input.parentElement?.querySelector<HTMLInputElement>(
-                  `input[type="number"][data-linked-to="${input.id}"]`
+                  `input[type="number"][data-linked-to="${input.id}"]`,
                 );
               if (numberInput) {
                 numberInput.value = input.value;
@@ -177,7 +177,7 @@ export default class SparkdownInspector extends Component(spec) {
             input.addEventListener("input", () => {
               const slider =
                 input.parentElement?.querySelector<HTMLInputElement>(
-                  `input[type="range"]#${input.dataset["linkedTo"]}`
+                  `input[type="range"]#${input.dataset["linkedTo"]}`,
                 );
               if (slider) {
                 slider.value = input.value;

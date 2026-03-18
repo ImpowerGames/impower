@@ -77,7 +77,7 @@ function devServiceWorkerPlugin(options: {
         if (req.url === `/${options.outfile}`) {
           res.setHeader(
             "Content-Type",
-            "application/javascript; charset=utf-8"
+            "application/javascript; charset=utf-8",
           );
           res.end(code);
           return;

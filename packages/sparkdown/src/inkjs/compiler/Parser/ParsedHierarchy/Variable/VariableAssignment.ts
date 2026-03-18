@@ -11,7 +11,7 @@ import { VariableAssignment as RuntimeVariableAssignment } from "../../../../eng
 import { VariableReference } from "./VariableReference";
 import { Identifier } from "../Identifier";
 import { asOrNull } from "../../../../engine/TypeAssertion";
-import { StructDefinition } from "../Struct/StructDefinition"
+import { StructDefinition } from "../Struct/StructDefinition";
 
 export class VariableAssignment extends ParsedObject {
   private _runtimeAssignment: RuntimeVariableAssignment | null = null;
@@ -120,7 +120,7 @@ export class VariableAssignment extends ParsedObject {
 
     this._runtimeAssignment = new RuntimeVariableAssignment(
       this.variableName,
-      this.isNewTemporaryDeclaration
+      this.isNewTemporaryDeclaration,
     );
 
     container.AddContent(this._runtimeAssignment);
@@ -141,7 +141,7 @@ export class VariableAssignment extends ParsedObject {
       context.CheckForNamingCollisions(
         this,
         this.identifier,
-        this.isGlobalDeclaration ? SymbolType.Var : SymbolType.Temp
+        this.isGlobalDeclaration ? SymbolType.Var : SymbolType.Temp,
       );
     }
 
@@ -154,7 +154,7 @@ export class VariableAssignment extends ParsedObject {
         !variableReference.isListItemReference
       ) {
         this.Error(
-          "A variable must be initialized to a number, string, boolean, constant, list item, or divert target."
+          "A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
         );
       }
     }
@@ -162,7 +162,7 @@ export class VariableAssignment extends ParsedObject {
     if (!this.isNewTemporaryDeclaration) {
       const resolvedVarAssignment = context.ResolveVariableWithName(
         this.variableName,
-        this
+        this,
       );
 
       if (!resolvedVarAssignment.found) {
@@ -171,7 +171,7 @@ export class VariableAssignment extends ParsedObject {
         } else {
           this.Error(
             `Cannot find variable named \`${this.variableName}\``,
-            this.identifier
+            this.identifier,
           );
         }
       }
@@ -189,7 +189,7 @@ export class VariableAssignment extends ParsedObject {
       this.isGlobalDeclaration
         ? "var"
         : this.isNewTemporaryDeclaration
-        ? "~ temp"
-        : ""
+          ? "~ temp"
+          : ""
     } ${this.variableName}`;
 }

@@ -5,7 +5,7 @@ export const getCurrentBreakpoint = (
     sm?: number | null;
     md?: number | null;
     lg?: number | null;
-  }
+  },
 ) => {
   if (width <= (breakpoints?.xs ?? 400)) {
     return "xs";

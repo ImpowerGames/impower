@@ -22,8 +22,8 @@ export class TextmateGrammarParser extends Parser {
       topNode: NodeType,
       typeIndex: number,
       typeId: string,
-      def: RuleDefinition
-    ) => NodeType
+      def: RuleDefinition,
+    ) => NodeType,
   ) {
     super();
     const nodeTypeProp = "nodeType";
@@ -38,13 +38,13 @@ export class TextmateGrammarParser extends Parser {
     const declarator = (
       typeIndex: number,
       typeId: string,
-      data: RuleDefinition
+      data: RuleDefinition,
     ) => ({
       [nodeTypeProp]: validGetNodeType(
         validRootNodeType,
         typeIndex,
         typeId,
-        data
+        data,
       ),
     });
     this.grammar = new Grammar(grammarDefinition, declarator);
@@ -55,14 +55,14 @@ export class TextmateGrammarParser extends Parser {
   createParse(
     input: Input,
     fragments: readonly TreeFragment[],
-    ranges: { from: number; to: number }[]
+    ranges: { from: number; to: number }[],
   ) {
     const parse = new TextmateGrammarParse(
       this.grammar,
       this.nodeSet,
       input,
       fragments,
-      ranges
+      ranges,
     );
     return parse;
   }

@@ -28,7 +28,7 @@ export function parse(
     attrName?: string;
     attrValue?: string;
     parseNode?: boolean;
-  }
+  },
 ): Document {
   "txml";
   options = options || {};
@@ -69,7 +69,7 @@ export function parse(
                 "\nColumn: " +
                 (parsedText[parsedText.length - 1]!.length + 1) +
                 "\nChar: " +
-                S[pos]
+                S[pos],
             );
           }
 
@@ -283,7 +283,7 @@ export function parse(
    */
   function findElements() {
     var r = new RegExp(
-      "\\s" + options?.attrName + "\\s*=['\"]" + options?.attrValue + "['\"]"
+      "\\s" + options?.attrName + "\\s*=['\"]" + options?.attrValue + "['\"]",
     ).exec(S);
     if (r) {
       return r.index;
@@ -326,11 +326,11 @@ export function traverse(
     index: number,
     depth: number,
     path: string,
-    parent: Node | null
+    parent: Node | null,
   ) => void,
   dept = 0,
   path = "",
-  parent: Node | null = null
+  parent: Node | null = null,
 ) {
   if (Array.isArray(children)) {
     children.forEach((child: Node, i: number) => {
@@ -342,7 +342,7 @@ export function traverse(
             f,
             dept + 1,
             (path ? path + "." : "") + i + "." + child.tagName,
-            child
+            child,
           );
         }
       }
@@ -362,7 +362,7 @@ export function stringify(
   options?: {
     quote?: string;
     selfClosingTags: string[];
-  }
+  },
 ): string {
   var out = "";
 

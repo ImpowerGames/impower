@@ -20,7 +20,7 @@ export class StringBuilder {
   public AppendFormat(format: string, ...args: any[]) {
     // taken from http://stackoverflow.com/questions/610406/javascript-equivalent-to-printf-string-format
     this.string += format.replace(/{(\d+)}/g, (match: string, num: number) =>
-      typeof args[num] != "undefined" ? args[num] : match
+      typeof args[num] != "undefined" ? args[num] : match,
     );
   }
   public toString(): string {

@@ -30,7 +30,7 @@ export interface TryGetResult<T> {
 export function tryGetValueFromMap<K, V>(
   map: Map<K, V> | null,
   key: K,
-  /* out */ value: V
+  /* out */ value: V,
 ): TryGetResult<V> {
   if (map === null) {
     return { result: value, exists: false };
@@ -47,7 +47,7 @@ export function tryGetValueFromMap<K, V>(
 
 export function tryParseInt(
   value: any,
-  /* out */ defaultValue: number = 0
+  /* out */ defaultValue: number = 0,
 ): TryGetResult<number> {
   let val = parseInt(value);
 
@@ -60,7 +60,7 @@ export function tryParseInt(
 
 export function tryParseFloat(
   value: any,
-  /* out */ defaultValue: number = 0
+  /* out */ defaultValue: number = 0,
 ): TryGetResult<number> {
   let val = parseFloat(value);
 

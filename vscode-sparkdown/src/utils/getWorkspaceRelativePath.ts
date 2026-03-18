@@ -3,7 +3,7 @@ import * as vscode from "vscode";
 
 export const getWorkspaceRelativePath = (
   uri: vscode.Uri,
-  extensions: string[] | string
+  extensions: string[] | string,
 ): vscode.RelativePattern | undefined => {
   const workspaceFolder: vscode.WorkspaceFolder | undefined =
     vscode.workspace.getWorkspaceFolder(uri);
@@ -15,7 +15,7 @@ export const getWorkspaceRelativePath = (
   const currentFolder = path.resolve(uriPath, "../");
   const relativeSearchFolderPrefix = path.relative(
     workspaceFolderPath,
-    currentFolder
+    currentFolder,
   );
   const folder = relativeSearchFolderPrefix
     ? relativeSearchFolderPrefix + "/"
@@ -24,6 +24,6 @@ export const getWorkspaceRelativePath = (
     typeof extensions === "string" ? extensions : `*.{${extensions.join(",")}}`;
   return new vscode.RelativePattern(
     workspaceFolderPath,
-    folder + `**/${filename}`
+    folder + `**/${filename}`,
   );
 };

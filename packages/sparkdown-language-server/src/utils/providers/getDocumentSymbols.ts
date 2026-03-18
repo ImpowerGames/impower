@@ -25,7 +25,7 @@ export const isRangeContained = (outer: Range, inner: Range): boolean => {
 
 export const getDocumentSymbols = (
   document: SparkdownDocument | undefined,
-  annotations: SparkdownAnnotations | undefined
+  annotations: SparkdownAnnotations | undefined,
 ): DocumentSymbol[] => {
   const symbols: DocumentSymbol[] = [];
   if (!document || !annotations) {
@@ -63,7 +63,7 @@ export const getDocumentSymbols = (
         if (lastHeading) {
           lastHeading.symbol.range.end.line = line - 1;
           lastHeading.symbol.range.end.character = document.positionAt(
-            line - 1
+            line - 1,
           ).character;
         }
         topMarks.push(mark);
@@ -86,16 +86,16 @@ export const getDocumentSymbols = (
         if (lastTopHeading) {
           lastTopHeading.symbol.range.end.line = line - 1;
           lastTopHeading.symbol.range.end.character = document.positionAt(
-            line - 1
+            line - 1,
           ).character;
         }
         const lastNested = headingMarks.findLast(
-          (m) => m.type === "branch" || m.type === "stitch"
+          (m) => m.type === "branch" || m.type === "stitch",
         );
         if (lastNested) {
           lastNested.symbol.range.end.line = line - 1;
           lastNested.symbol.range.end.character = document.positionAt(
-            line - 1
+            line - 1,
           ).character;
         }
         topMarks.push(mark);
@@ -116,7 +116,7 @@ export const getDocumentSymbols = (
         };
         const lastTopHeading = headingMarks.findLast(
           (m) =>
-            m.type === "function" || m.type === "scene" || m.type === "knot"
+            m.type === "function" || m.type === "scene" || m.type === "knot",
         );
         if (lastTopHeading) {
           if (lastTopHeading.type === "function") {
@@ -127,12 +127,12 @@ export const getDocumentSymbols = (
           }
         }
         const lastNested = headingMarks.findLast(
-          (m) => m.type === "branch" || m.type === "stitch"
+          (m) => m.type === "branch" || m.type === "stitch",
         );
         if (lastNested) {
           lastNested.symbol.range.end.line = line - 1;
           lastNested.symbol.range.end.character = document.positionAt(
-            line - 1
+            line - 1,
           ).character;
         }
         headingMarks.push(mark);
@@ -154,16 +154,16 @@ export const getDocumentSymbols = (
         if (lastTopHeading) {
           lastTopHeading.symbol.range.end.line = line - 1;
           lastTopHeading.symbol.range.end.character = document.positionAt(
-            line - 1
+            line - 1,
           ).character;
         }
         const lastNested = headingMarks.findLast(
-          (m) => m.type === "branch" || m.type === "stitch"
+          (m) => m.type === "branch" || m.type === "stitch",
         );
         if (lastNested) {
           lastNested.symbol.range.end.line = line - 1;
           lastNested.symbol.range.end.character = document.positionAt(
-            line - 1
+            line - 1,
           ).character;
         }
         topMarks.push(mark);
@@ -184,7 +184,7 @@ export const getDocumentSymbols = (
         };
         const lastTopHeading = headingMarks.findLast(
           (m) =>
-            m.type === "function" || m.type === "scene" || m.type === "knot"
+            m.type === "function" || m.type === "scene" || m.type === "knot",
         );
         if (lastTopHeading) {
           if (lastTopHeading.type === "function") {
@@ -195,12 +195,12 @@ export const getDocumentSymbols = (
           }
         }
         const lastNested = headingMarks.findLast(
-          (m) => m.type === "branch" || m.type === "stitch"
+          (m) => m.type === "branch" || m.type === "stitch",
         );
         if (lastNested) {
           lastNested.symbol.range.end.line = line - 1;
           lastNested.symbol.range.end.character = document.positionAt(
-            line - 1
+            line - 1,
           ).character;
         }
         headingMarks.push(mark);
@@ -228,7 +228,7 @@ export const getDocumentSymbols = (
     }
   }
   const lastTop = headingMarks.findLast(
-    (m) => m.type === "function" || m.type === "scene" || m.type === "knot"
+    (m) => m.type === "function" || m.type === "scene" || m.type === "knot",
   );
   if (
     lastTop &&
@@ -236,11 +236,11 @@ export const getDocumentSymbols = (
   ) {
     lastTop.symbol.range.end.line = document.lineCount - 1;
     lastTop.symbol.range.end.character = document.positionAt(
-      document.lineCount - 1
+      document.lineCount - 1,
     ).character;
   }
   const lastNested = headingMarks.findLast(
-    (m) => m.type === "branch" || m.type === "stitch"
+    (m) => m.type === "branch" || m.type === "stitch",
   );
   if (
     lastNested &&
@@ -248,14 +248,14 @@ export const getDocumentSymbols = (
   ) {
     lastNested.symbol.range.end.line = document.lineCount - 1;
     lastNested.symbol.range.end.character = document.positionAt(
-      document.lineCount - 1
+      document.lineCount - 1,
     ).character;
   }
   const result = topMarks
     .filter(
       (s) =>
         Boolean(s.symbol.name) &&
-        Boolean(isRangeContained(s.symbol.range, s.symbol.selectionRange))
+        Boolean(isRangeContained(s.symbol.range, s.symbol.selectionRange)),
     )
     .map((s) => s.symbol);
   return result;

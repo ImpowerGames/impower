@@ -92,13 +92,13 @@ export default class Icon
   }
 
   structuralAttributes = Object.keys(spec.props).map(
-    (prop) => Icon.attrs[prop as keyof typeof Icon.attrs]
+    (prop) => Icon.attrs[prop as keyof typeof Icon.attrs],
   );
 
   override shouldAttributeTriggerUpdate(
     name: string,
     oldValue: string,
-    newValue: string
+    newValue: string,
   ) {
     if (this.structuralAttributes.includes(name)) {
       return true;

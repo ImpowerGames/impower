@@ -126,10 +126,10 @@ export class Weave extends ParsedObject {
   public readonly ResolveWeavePointNaming = (): void => {
     const namedWeavePoints = [
       ...this.FindAll<IWeavePoint>(Gather)(
-        (w) => !(w.name === null || w.name === undefined)
+        (w) => !(w.name === null || w.name === undefined),
       ),
       ...this.FindAll<IWeavePoint>(Choice)(
-        (w) => !(w.name === null || w.name === undefined)
+        (w) => !(w.name === null || w.name === undefined),
       ),
     ];
     this._namedWeavePoints = new Map();
@@ -146,7 +146,7 @@ export class Weave extends ParsedObject {
 
         this.Error(
           `A ${typeName} with the same label name \`${weavePoint.name}\` already exists on ${existingObj.debugMetadata}`,
-          weavePoint.identifier
+          weavePoint.identifier,
         );
       }
       if (weavePoint.identifier?.name) {
@@ -191,7 +191,7 @@ export class Weave extends ParsedObject {
             const weaveContentCount = contentIdx - innerWeaveStartIdx;
             const weaveContent = structuredContent.slice(
               innerWeaveStartIdx,
-              innerWeaveStartIdx + weaveContentCount
+              innerWeaveStartIdx + weaveContentCount,
             );
 
             structuredContent.splice(innerWeaveStartIdx, weaveContentCount);
@@ -214,7 +214,7 @@ export class Weave extends ParsedObject {
   // a choice point with a known indentation level, we may be told to
   // determine the indentation level by incrementing from our closest ancestor.
   public readonly DetermineBaseIndentationFromContent = (
-    contentList: ParsedObject[]
+    contentList: ParsedObject[],
   ): number => {
     for (const obj of contentList) {
       if (obj instanceof Choice || obj instanceof Gather) {
@@ -249,7 +249,7 @@ export class Weave extends ParsedObject {
           this.gatherPointsToResolve.splice(
             0,
             0,
-            ...weave.gatherPointsToResolve
+            ...weave.gatherPointsToResolve,
           );
         } else {
           // Other object
@@ -329,7 +329,7 @@ export class Weave extends ParsedObject {
       // to the FlowBase so that it can maintain a list of them,
       // and resolve the divert references later
       this.gatherPointsToResolve.push(
-        new GatherPointToResolve(divert, gatherContainer)
+        new GatherPointToResolve(divert, gatherContainer),
       );
     }
 
@@ -356,7 +356,7 @@ export class Weave extends ParsedObject {
       if (this.previousWeavePoint instanceof Gather) {
         this.looseEnds.splice(
           this.looseEnds.indexOf(this.previousWeavePoint),
-          1
+          1,
         );
       }
 
@@ -369,7 +369,8 @@ export class Weave extends ParsedObject {
       } //guaranteed not to happen
 
       // Add choice's inner content to self
-      choice.innerContentContainer.name = choice.name || `c-${this._choiceCount}`;
+      choice.innerContentContainer.name =
+        choice.name || `c-${this._choiceCount}`;
       this.currentContainer.AddToNamedContentOnly(choice.innerContentContainer);
       this._choiceCount += 1;
 
@@ -599,7 +600,7 @@ export class Weave extends ParsedObject {
   // While analysing final loose ends, we look to see whether there
   // are any diverts etc which choices etc divert from
   public readonly ContentThatFollowsWeavePoint = (
-    weavePoint: IWeavePoint
+    weavePoint: IWeavePoint,
   ): ParsedObject[] => {
     const returned = [];
     const obj = weavePoint as ParsedObject;
@@ -648,7 +649,7 @@ export class Weave extends ParsedObject {
   };
 
   public readonly ValidateTermination = (
-    badTerminationHandler: BadTerminationHandler
+    badTerminationHandler: BadTerminationHandler,
   ): void => {
     // Don't worry if the last object in the flow is a "TODO",
     // even if there are other loose ends in other places
@@ -674,7 +675,7 @@ export class Weave extends ParsedObject {
         this.ValidateFlowOfObjectsTerminates(
           looseEndFlow,
           looseEnd as ParsedObject,
-          badTerminationHandler
+          badTerminationHandler,
         );
       }
     } else {
@@ -693,13 +694,13 @@ export class Weave extends ParsedObject {
       this.ValidateFlowOfObjectsTerminates(
         this.structuredContent,
         this,
-        badTerminationHandler
+        badTerminationHandler,
       );
     }
   };
 
   readonly BadNestedTerminationHandler: BadTerminationHandler = (
-    terminatingObj
+    terminatingObj,
   ) => {
     let conditional: Conditional | null = null;
     for (
@@ -733,7 +734,7 @@ export class Weave extends ParsedObject {
   public readonly ValidateFlowOfObjectsTerminates = (
     objFlow: ParsedObject[],
     defaultObj: ParsedObject,
-    badTerminationHandler: BadTerminationHandler
+    badTerminationHandler: BadTerminationHandler,
   ) => {
     let terminated = false;
     let terminatingObj: ParsedObject = defaultObj;
@@ -743,7 +744,7 @@ export class Weave extends ParsedObject {
           !d.isThread &&
           !d.isTunnel &&
           !d.isFunctionCall &&
-          !(d.parent instanceof DivertTarget)
+          !(d.parent instanceof DivertTarget),
       );
 
       if (divert !== null) {
@@ -770,7 +771,7 @@ export class Weave extends ParsedObject {
   };
 
   public readonly WeavePointHasLooseEnd = (
-    weavePoint: IWeavePoint
+    weavePoint: IWeavePoint,
   ): boolean => {
     // No content, must be a loose end.
     if (weavePoint.content === null) {

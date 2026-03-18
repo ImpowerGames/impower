@@ -30,7 +30,7 @@ export interface SemanticTokensContext {
 }
 
 export type SemanticTokensSource = (
-  context: SemanticTokensContext
+  context: SemanticTokensContext,
 ) => SemanticTokens | null | Promise<SemanticTokens | null>;
 
 export interface SemanticHighlightingOptions {
@@ -82,7 +82,7 @@ function tokensToDecorations(
   state: EditorState,
   legend: SemanticTokensLegend,
   sem: SemanticTokens,
-  classNameForToken: (type: string, modifiers: string[]) => string
+  classNameForToken: (type: string, modifiers: string[]) => string,
 ): DecorationSet {
   const builder: RangeBuilder = new RangeBuilder();
   const { data } = sem;
@@ -124,7 +124,7 @@ function tokensToDecorations(
 function posFromLineCol(
   state: EditorState,
   lineNumber1Based: number,
-  column: number
+  column: number,
 ): number | null {
   if (lineNumber1Based < 1 || lineNumber1Based > state.doc.lines) return null;
   const line = state.doc.line(lineNumber1Based);
@@ -157,7 +157,7 @@ function defaultClassName(type: string, mods: string[]) {
 
 /** ---- Public extension factory ---- */
 export function semanticHighlighting(
-  opts: SemanticHighlightingOptions
+  opts: SemanticHighlightingOptions,
 ): Extension {
   const {
     legend,
@@ -171,7 +171,7 @@ export function semanticHighlighting(
 
     const run = async () => {
       const tokens = await Promise.any(
-        sources.map((source) => source({ state: view.state }))
+        sources.map((source) => source({ state: view.state })),
       );
       if (destroyed || !tokens) {
         return;
@@ -180,7 +180,7 @@ export function semanticHighlighting(
         view.state,
         legend,
         tokens,
-        classNameForToken
+        classNameForToken,
       );
       view.dispatch({ effects: setSemanticDecorations.of(decos) });
     };
@@ -205,9 +205,9 @@ export function semanticHighlighting(
   return [semanticField, plugin];
 }
 
-export default class SemanticTokensSupport
-  implements FeatureSupport<Diagnostic[]>
-{
+export default class SemanticTokensSupport implements FeatureSupport<
+  Diagnostic[]
+> {
   sources: SemanticTokensSource[] = [];
 
   addSource(source: SemanticTokensSource): void {

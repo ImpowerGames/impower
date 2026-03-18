@@ -2,7 +2,7 @@ import Graphic from "../types/graphic.js";
 
 const generateCSSGraphic = (
   graphic: Graphic,
-  args: string[]
+  args: string[],
 ): { graphic: Graphic; angle: number; zoom: number } => {
   const angleIndex = args.findIndex((v) => v.endsWith("deg"));
   const angleValue = Number(args[angleIndex]?.replace("deg", ""));
@@ -11,7 +11,7 @@ const generateCSSGraphic = (
   const zoomValue = Number(args[zoomIndex]?.replace("%", ""));
   const zoom = !Number.isNaN(zoomValue) ? zoomValue / 100 : 1;
   const strokeIndex = args.findIndex(
-    (v) => !Number.isNaN(Number(v)) || v.endsWith("px")
+    (v) => !Number.isNaN(Number(v)) || v.endsWith("px"),
   );
   const strokeWidthValue = Number(args[strokeIndex]?.replace("px", ""));
   const strokeWidth = !Number.isNaN(strokeWidthValue)
@@ -25,12 +25,14 @@ const generateCSSGraphic = (
       shapes: graphic.shapes?.map((s, i) => ({
         ...s,
         fill:
-          s.fill === "currentColor" ? colors[i] ?? colors[0] ?? s.fill : s.fill,
+          s.fill === "currentColor"
+            ? (colors[i] ?? colors[0] ?? s.fill)
+            : s.fill,
         stroke:
           s.stroke === "currentColor"
-            ? colors[i] ?? colors[0] ?? s.stroke
+            ? (colors[i] ?? colors[0] ?? s.stroke)
             : s.stroke,
-        strokeWidth: s.stroke ? strokeWidth ?? s.strokeWidth : s.strokeWidth,
+        strokeWidth: s.stroke ? (strokeWidth ?? s.strokeWidth) : s.strokeWidth,
       })),
     },
     angle,

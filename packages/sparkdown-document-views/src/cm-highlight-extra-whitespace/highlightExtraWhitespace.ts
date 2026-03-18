@@ -46,7 +46,7 @@ function matcher(decorator: MatchDecorator): Extension {
     }),
     {
       decorations: (v) => v.decorations,
-    }
+    },
   );
 }
 
@@ -55,7 +55,7 @@ function iterMatches(
   re: RegExp,
   from: number,
   to: number,
-  f: (from: number, m: RegExpExecArray) => void
+  f: (from: number, m: RegExpExecArray) => void,
 ) {
   re.lastIndex = 0;
   for (
@@ -97,7 +97,7 @@ export class MatchDecorator {
     match: RegExpExecArray,
     view: EditorView,
     from: number,
-    add: (from: number, to: number, deco: Decoration) => void
+    add: (from: number, to: number, deco: Decoration) => void,
   ) => void;
   private boundary: RegExp | undefined;
   private maxLength: number;
@@ -115,7 +115,7 @@ export class MatchDecorator {
       | ((
           match: RegExpExecArray,
           view: EditorView,
-          pos: number
+          pos: number,
         ) => Decoration | null);
     /// Customize the way decorations are added for matches. This
     /// function, when given, will be called for matches and should
@@ -130,7 +130,7 @@ export class MatchDecorator {
       from: number,
       to: number,
       match: RegExpExecArray,
-      view: EditorView
+      view: EditorView,
     ) => void;
     /// By default, changed lines are re-matched entirely. You can
     /// provide a boundary expression, which should match single
@@ -147,7 +147,7 @@ export class MatchDecorator {
     const { regexp, decoration, decorate, boundary, maxLength = 1000 } = config;
     if (!regexp.global)
       throw new RangeError(
-        "The regular expression given to MatchDecorator should have its 'g' flag set"
+        "The regular expression given to MatchDecorator should have its 'g' flag set",
       );
     this.regexp = regexp;
     if (decorate) {
@@ -163,7 +163,7 @@ export class MatchDecorator {
         add(from, from + match[0].length, decoration);
     } else {
       throw new RangeError(
-        "Either 'decorate' or 'decoration' should be provided to MatchDecorator"
+        "Either 'decorate' or 'decoration' should be provided to MatchDecorator",
       );
     }
     this.boundary = boundary;
@@ -178,7 +178,7 @@ export class MatchDecorator {
     let add = build.add.bind(build);
     for (let { from, to } of matchRanges(view, this.maxLength))
       iterMatches(view.state.doc, this.regexp, from, to, (from, m) =>
-        this.addMatch(m, view, from, add)
+        this.addMatch(m, view, from, add),
       );
     return build.finish();
   }
@@ -206,7 +206,7 @@ export class MatchDecorator {
         update.view,
         deco.map(update.changes),
         changeFrom,
-        changeTo
+        changeTo,
       );
     return deco;
   }
@@ -215,7 +215,7 @@ export class MatchDecorator {
     view: EditorView,
     deco: DecorationSet,
     updateFrom: number,
-    updateTo: number
+    updateTo: number,
   ) {
     for (let r of view.visibleRanges) {
       // VENDORING CHANGE: Had extend `from` by -1 and `to` by +1
@@ -252,7 +252,7 @@ export class MatchDecorator {
             this.addMatch(m, view, m.index + fromLine.from, add);
         } else {
           iterMatches(view.state.doc, this.regexp, start, end, (from, m) =>
-            this.addMatch(m, view, from, add)
+            this.addMatch(m, view, from, add),
           );
         }
         deco = deco.update({
@@ -273,7 +273,7 @@ const whitespaceHighlighter = matcher(
       /(?<=\S[ ]*)[ ]$|(?<=\S)[ ](?=[ ])|(?<=\S[ ]+)[ ](?=[ ])|(?<=\S[ ]+)[ ](?=\S)/gm,
     decoration: (match) => getDecoration(match[0]),
     boundary: /\S/,
-  })
+  }),
 );
 
 /// Returns an extension that highlights whitespace, adding a

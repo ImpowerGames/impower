@@ -5,7 +5,7 @@ import { MarkupContent } from "../types/MarkupContent";
 export const getSyntaxHighlightedHtml = (
   str: string,
   language: Language,
-  highlighter: HighlightStyle
+  highlighter: HighlightStyle,
 ) => {
   const tree = language.parser.parse(str);
   let html = "";
@@ -33,7 +33,7 @@ export const getSyntaxHighlightedHtml = (
 export const getMarkupHtml = (
   m: MarkupContent,
   language?: Language,
-  highlighter?: HighlightStyle
+  highlighter?: HighlightStyle,
 ) => {
   return m.markdown && language && highlighter
     ? getSyntaxHighlightedHtml(m.value ?? "", language, highlighter)
@@ -43,7 +43,7 @@ export const getMarkupHtml = (
 const getFormattedHTML = (
   lines: MarkupContent[],
   language?: Language,
-  highlighter?: HighlightStyle
+  highlighter?: HighlightStyle,
 ) => {
   return lines
     .map((m) => {

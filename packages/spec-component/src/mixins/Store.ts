@@ -4,7 +4,7 @@ import emit from "../utils/emit";
 const Store = <T extends object>(
   data: T,
   event?: string,
-  target?: EventTarget
+  target?: EventTarget,
 ) => {
   return class Store implements IStore<T> {
     #event = event;

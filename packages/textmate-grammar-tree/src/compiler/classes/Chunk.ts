@@ -212,7 +212,7 @@ export class Chunk {
     cursor: FlatBufferCursor,
     bufferStart: number,
     buffer: Uint16Array,
-    index: number
+    index: number,
   ): number {
     let { id, start, end, size } = cursor;
     cursor.next();

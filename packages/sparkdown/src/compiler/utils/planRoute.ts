@@ -106,7 +106,7 @@ export const planRoute = (
   story: Story,
   fromPath: string,
   toPath: string,
-  options?: SearchOptions
+  options?: SearchOptions,
 ): RoutePlan | null => {
   const start = makeStartNode(story, fromPath);
   const isBfs = (options?.searchStrategy ?? "bfs") === "bfs";
@@ -153,7 +153,7 @@ export const planRoute = (
         favoredConditionalValues,
         options?.stayWithinKnot !== false,
         options?.functions || [],
-        deadlineTime
+        deadlineTime,
       );
 
       if (result.hitTarget) {
@@ -196,7 +196,7 @@ const runUntilDecisionOrBranch = (
   favoredConditionalValues: (boolean | undefined)[],
   stayWithinKnot: boolean,
   functions: string[],
-  deadlineTime: number
+  deadlineTime: number,
 ): RunResult => {
   // 1) Restore snapshot
   story.state.LoadJson(node.stateJson);
@@ -277,7 +277,7 @@ const runUntilDecisionOrBranch = (
         if (simulator.willForceChoice(previousPath)) {
           const forcedSourcePath = simulator?.forceChoice(previousPath);
           const forced = story.currentChoices.find(
-            (choice) => choice.sourcePath === forcedSourcePath
+            (choice) => choice.sourcePath === forcedSourcePath,
           );
           if (forced) {
             // Force a choice
@@ -306,8 +306,8 @@ const runUntilDecisionOrBranch = (
                   {
                     options,
                     selected: favoredChoiceIndex,
-                  }
-                )
+                  },
+                ),
               );
             }
           }
@@ -332,8 +332,8 @@ const runUntilDecisionOrBranch = (
                 {
                   options,
                   selected: i,
-                }
-              )
+                },
+              ),
             );
           }
           break;
@@ -372,7 +372,7 @@ const runUntilDecisionOrBranch = (
               kind: "condition",
               path: story.pausedBeforeCondition,
               value: favoredConditionalValue,
-            })
+            }),
           );
           // Fork opposite of favored branch
           branches.push(
@@ -380,7 +380,7 @@ const runUntilDecisionOrBranch = (
               kind: "condition",
               path: story.pausedBeforeCondition,
               value: !favoredConditionalValue,
-            })
+            }),
           );
         } else {
           // Fork true branch
@@ -389,7 +389,7 @@ const runUntilDecisionOrBranch = (
               kind: "condition",
               path: story.pausedBeforeCondition,
               value: true,
-            })
+            }),
           );
           // Fork false branch
           branches.push(
@@ -397,7 +397,7 @@ const runUntilDecisionOrBranch = (
               kind: "condition",
               path: story.pausedBeforeCondition,
               value: false,
-            })
+            }),
           );
         }
         break;
@@ -450,7 +450,7 @@ const makeStartNode = (story: Story, fromPath: string): SearchNode => {
 const exitedKnot = (
   story: Story,
   knotName: string,
-  functions: string[]
+  functions: string[],
 ): boolean => {
   const ptr = story.state.currentPointer;
 
@@ -483,7 +483,7 @@ const forkCondition = (
   story: Story,
   parent: SearchNode,
   stepsEncountered: RouteStep[],
-  ov: ConditionOverride
+  ov: ConditionOverride,
 ): SearchNode => {
   return {
     stateJson: story.state.toJson(),
@@ -501,7 +501,7 @@ const forkChoice = (
   parent: SearchNode,
   stepsEncountered: RouteStep[],
   ov: ChoiceOverride,
-  choice: { options: string[]; selected: number }
+  choice: { options: string[]; selected: number },
 ): SearchNode => {
   return {
     stateJson: story.state.toJson(),
@@ -516,7 +516,7 @@ const forkChoice = (
 
 export const buildRouteSimulator = (
   decisions: RouteOverride[],
-  fromDecision = 0
+  fromDecision = 0,
 ): Simulator => {
   const condQueues = new Map<string, boolean[]>();
   const conditionPointers = new Map<string, number>();
@@ -542,7 +542,7 @@ export const buildRouteSimulator = (
   const nextFrom = <T>(
     queues: Map<string, T[]>,
     pointers: Map<string, number>,
-    key: string
+    key: string,
   ): T | null => {
     const q = queues.get(key);
     if (!q || q.length === 0) {

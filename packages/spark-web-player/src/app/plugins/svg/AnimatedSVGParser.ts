@@ -56,7 +56,7 @@ export interface AnimatedSVGParserOptions {
 export function AnimatedSVGParser(
   svg: string | SVGElement | SVGSVGElement,
   graphicsContext: GraphicsContext,
-  options?: AnimatedSVGParserOptions
+  options?: AnimatedSVGParserOptions,
 ): GraphicsContext {
   // Convert string input to SVG element
   if (typeof svg === "string") {
@@ -104,7 +104,7 @@ function renderChildren(
   session: Session,
   fillStyle: FillStyle,
   strokeStyle: StrokeStyle,
-  options?: AnimatedSVGParserOptions
+  options?: AnimatedSVGParserOptions,
 ): void {
   const children = svg.children;
 
@@ -184,7 +184,7 @@ function renderChildren(
           const tweenedCommands = getTweenedPathCommands(
             fractionalFrameIndex,
             keySplines,
-            values.map((d) => getPathCommands(d))
+            values.map((d) => getPathCommands(d)),
           );
           const tweenedInstructions = stringifyPath(tweenedCommands);
           graphicsPath = new GraphicsPath(tweenedInstructions, true);
@@ -197,7 +197,7 @@ function renderChildren(
       } else {
         // #if _DEBUG
         warn(
-          `Animating ${attributeName} is not supported, your svg may render incorrectly`
+          `Animating ${attributeName} is not supported, your svg may render incorrectly`,
         );
         // #endif
       }
@@ -209,7 +209,7 @@ function renderChildren(
         if ((svg.getAttribute("fill-rule") as string) === "evenodd") {
           // #if _DEBUG
           warn(
-            "SVG Evenodd fill rule not supported, your svg may render incorrectly"
+            "SVG Evenodd fill rule not supported, your svg may render incorrectly",
           );
           // #endif
         }
@@ -308,7 +308,7 @@ function renderChildren(
       session,
       fillStyle,
       strokeStyle,
-      options
+      options,
     );
   }
 }

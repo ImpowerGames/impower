@@ -17,7 +17,7 @@ import spec from "./_collapsible";
 const getCollapsedButtonWidth = (
   iconWidth: number,
   buttonPaddingLeft: number,
-  buttonPaddingRight: number
+  buttonPaddingRight: number,
 ): number => {
   return iconWidth - iconWidth / 2 + buttonPaddingLeft + buttonPaddingRight;
 };
@@ -26,7 +26,7 @@ const getCollapsedIconOffset = (
   buttonX: number,
   iconX: number,
   iconWidth: number,
-  buttonPaddingLeft: number
+  buttonPaddingLeft: number,
 ): number => {
   return buttonX - iconX - iconWidth / 4 + buttonPaddingLeft;
 };
@@ -259,7 +259,7 @@ export default class Collapsible
         const transitionProperty = `transform, opacity`;
         const duration = getCssDuration(
           this.getAttribute("duration"),
-          this.duration || "150ms"
+          this.duration || "150ms",
         );
         const ease = getCssEase(this.ease, "ease-out");
         buttonEl.style.setProperty("transition-property", transitionProperty);
@@ -336,27 +336,27 @@ export default class Collapsible
 
     buttonEl.style.setProperty(
       "--overflow-x",
-      this._cachedCSSVariables["--overflow-x"] || null
+      this._cachedCSSVariables["--overflow-x"] || null,
     );
     buttonEl.style.setProperty(
       "--overflow-y",
-      this._cachedCSSVariables["--overflow-y"] || null
+      this._cachedCSSVariables["--overflow-y"] || null,
     );
     buttonEl.style.setProperty(
       "--border-width",
-      this._cachedCSSVariables["--border-width"] || null
+      this._cachedCSSVariables["--border-width"] || null,
     );
     buttonEl.style.setProperty(
       "--margin",
-      this._cachedCSSVariables["--margin"] || null
+      this._cachedCSSVariables["--margin"] || null,
     );
     buttonEl.style.setProperty(
       "--shadow",
-      this._cachedCSSVariables["--shadow"] || null
+      this._cachedCSSVariables["--shadow"] || null,
     );
     buttonEl.style.setProperty(
       "--filter",
-      this._cachedCSSVariables["--filter"] || null
+      this._cachedCSSVariables["--filter"] || null,
     );
   }
 
@@ -367,7 +367,7 @@ export default class Collapsible
     const collapsedButtonWidth = getCollapsedButtonWidth(
       this._iconWidth,
       this._buttonPaddingLeft,
-      this._buttonPaddingRight
+      this._buttonPaddingRight,
     );
     if (buttonEl && iconEl && labelEl) {
       buttonEl.style.setProperty("transition-property", "none");
@@ -391,14 +391,14 @@ export default class Collapsible
       const collapsedButtonWidth = getCollapsedButtonWidth(
         this._iconWidth,
         this._buttonPaddingLeft,
-        this._buttonPaddingRight
+        this._buttonPaddingRight,
       );
       const buttonTranslateX = this._buttonWidth - collapsedButtonWidth;
       const iconTranslateX = getCollapsedIconOffset(
         this._buttonX,
         this._iconX,
         this._iconWidth,
-        this._buttonPaddingLeft
+        this._buttonPaddingLeft,
       );
       buttonEl.style.transitionProperty = "none";
       iconEl.style.transitionProperty = "none";
@@ -408,7 +408,7 @@ export default class Collapsible
       buttonEl.style.setProperty("align-self", null);
       buttonEl.style.setProperty(
         "transform",
-        `translateX(${buttonTranslateX}px)`
+        `translateX(${buttonTranslateX}px)`,
       );
       iconEl.style.setProperty("max-width", null);
       iconEl.style.setProperty("transform", `translateX(${iconTranslateX}px)`);
@@ -441,14 +441,14 @@ export default class Collapsible
         const collapsedButtonWidth = getCollapsedButtonWidth(
           this._iconWidth,
           this._buttonPaddingLeft,
-          this._buttonPaddingRight
+          this._buttonPaddingRight,
         );
         const buttonTranslateX = this._buttonWidth - collapsedButtonWidth;
         const iconTranslateX = getCollapsedIconOffset(
           this._buttonX,
           this._iconX,
           this._iconWidth,
-          this._buttonPaddingLeft
+          this._buttonPaddingLeft,
         );
         buttonEl.style.transform = `translateX(${buttonTranslateX}px)`;
         iconEl.style.transform = `translateX(${iconTranslateX}px)`;
@@ -541,7 +541,7 @@ export default class Collapsible
   protected override onContentAssigned(children: Element[]) {
     const elements = children;
     const buttons = elements.filter(
-      (el) => el.tagName.toLowerCase() === this.selectors.button
+      (el) => el.tagName.toLowerCase() === this.selectors.button,
     );
     const button = buttons?.[0];
     const targetEl = (button?.shadowRoot || button)

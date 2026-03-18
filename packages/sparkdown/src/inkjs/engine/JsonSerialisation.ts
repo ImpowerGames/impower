@@ -32,7 +32,7 @@ import { SimpleJson } from "./SimpleJson";
 export class JsonSerialisation {
   public static JArrayToRuntimeObjList(
     jArray: any[],
-    skipLast: boolean = false
+    skipLast: boolean = false,
   ) {
     let count = jArray.length;
     if (skipLast) count--;
@@ -53,7 +53,7 @@ export class JsonSerialisation {
 
   public static WriteDictionaryRuntimeObjs(
     writer: SimpleJson.Writer,
-    dictionary: Map<string, InkObject>
+    dictionary: Map<string, InkObject>,
   ) {
     writer.WriteObjectStart();
     for (let [key, value] of dictionary) {
@@ -66,7 +66,7 @@ export class JsonSerialisation {
 
   public static WriteListRuntimeObjs(
     writer: SimpleJson.Writer,
-    list: InkObject[]
+    list: InkObject[],
   ) {
     writer.WriteArrayStart();
     for (let value of list) {
@@ -77,7 +77,7 @@ export class JsonSerialisation {
 
   public static WriteIntDictionary(
     writer: SimpleJson.Writer,
-    dict: Map<string, number>
+    dict: Map<string, number>,
   ) {
     writer.WriteObjectStart();
     for (let [key, value] of dict) {
@@ -91,8 +91,8 @@ export class JsonSerialisation {
     obj: InkObject,
     onWriteRuntimeObject?: (
       writer: SimpleJson.Writer,
-      obj: InkObject
-    ) => boolean
+      obj: InkObject,
+    ) => boolean,
   ): void {
     let container = asOrNull(obj, Container);
     if (container) {
@@ -100,7 +100,7 @@ export class JsonSerialisation {
         writer,
         container,
         false,
-        onWriteRuntimeObject
+        onWriteRuntimeObject,
       );
       return;
     }
@@ -224,7 +224,7 @@ export class JsonSerialisation {
     let controlCmd = asOrNull(obj, ControlCommand);
     if (controlCmd) {
       writer.Write(
-        JsonSerialisation._controlCommandNames[controlCmd.commandType]!
+        JsonSerialisation._controlCommandNames[controlCmd.commandType]!,
       );
       return;
     }
@@ -513,12 +513,12 @@ export class JsonSerialisation {
   public static toJson<T>(
     me: T,
     removes?: (keyof T)[],
-    space?: number
+    space?: number,
   ): string {
     return JSON.stringify(
       me,
       (k, v) => (removes?.some((r) => r === k) ? undefined : v),
-      space
+      space,
     );
   }
 
@@ -528,8 +528,8 @@ export class JsonSerialisation {
     withoutName: boolean = false,
     onWriteRuntimeObject?: (
       writer: SimpleJson.Writer,
-      obj: InkObject
-    ) => boolean
+      obj: InkObject,
+    ) => boolean,
   ) {
     writer.WriteArrayStart();
     if (container === null) {
@@ -557,7 +557,7 @@ export class JsonSerialisation {
           writer,
           namedContainer,
           true,
-          onWriteRuntimeObject
+          onWriteRuntimeObject,
         );
         writer.WritePropertyEnd();
       }
@@ -588,7 +588,7 @@ export class JsonSerialisation {
           container.name = terminatingObj[key].toString();
         } else {
           let namedContentItem = this.JTokenToRuntimeObject(
-            terminatingObj[key]
+            terminatingObj[key],
           );
           // var namedSubContainer = namedContentItem as Container;
           let namedSubContainer = asOrNull(namedContentItem, Container);

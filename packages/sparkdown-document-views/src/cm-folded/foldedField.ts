@@ -17,7 +17,7 @@ const foldExtension = codeFolding();
 const getFolded = (
   state: EditorState,
   from: number,
-  to: number
+  to: number,
 ): { from: number; to: number } | null => {
   let found: { from: number; to: number } | null = null;
   foldedRanges(state)?.between(from, to, (from, to) => {
@@ -54,13 +54,13 @@ export const foldWidget = Decoration.replace({
       const conf: {
         placeholderDOM?: (
           view: EditorView,
-          callback: (e: Event) => void
+          callback: (e: Event) => void,
         ) => HTMLElement;
         placeholderText: string;
       } = defaultFoldConfig;
       const onclick = (event: Event): void => {
         const line = view.lineBlockAt(
-          view.posAtDOM(event.target as HTMLElement)
+          view.posAtDOM(event.target as HTMLElement),
         );
         const folded = getFolded(view.state, line.from, line.to);
         if (folded) {
@@ -100,7 +100,7 @@ const fromJSON = (json: { from: number; to: number }[]): DecorationSet => {
       json.map(({ from, to }) => {
         return { from, to, value: foldWidget };
       }),
-      true
+      true,
     );
   }
   console.error("Invalid JSON:", json);

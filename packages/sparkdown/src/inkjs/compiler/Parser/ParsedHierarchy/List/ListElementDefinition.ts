@@ -30,7 +30,7 @@ export class ListElementDefinition extends ParsedObject {
   constructor(
     public readonly indentifier: Identifier,
     public readonly inInitialList: boolean,
-    public readonly explicitValue: number | null = null
+    public readonly explicitValue: number | null = null,
   ) {
     super();
     this.parent = this.parent as ListDefinition;
@@ -45,7 +45,7 @@ export class ListElementDefinition extends ParsedObject {
     context.CheckForNamingCollisions(
       this,
       this.indentifier,
-      SymbolType.ListItem
+      SymbolType.ListItem,
     );
   }
 

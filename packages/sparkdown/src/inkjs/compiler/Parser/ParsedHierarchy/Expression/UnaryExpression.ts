@@ -22,7 +22,7 @@ export class UnaryExpression extends Expression {
   // e.g. convert (-(5)) into (-5)
   public static readonly WithInner = (
     inner: Expression,
-    op: string
+    op: string,
   ): Expression => {
     const innerNumber = asOrNull(inner, NumberExpression);
 
@@ -54,7 +54,7 @@ export class UnaryExpression extends Expression {
 
   constructor(
     inner: Expression,
-    public readonly op: string
+    public readonly op: string,
   ) {
     super();
 

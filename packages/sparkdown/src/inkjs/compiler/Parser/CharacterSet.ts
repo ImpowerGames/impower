@@ -14,7 +14,7 @@ export class CharacterSet {
 
   public readonly Add = (arg: string) => {
     this.set.add(arg);
-    
+
     return this;
   };
 

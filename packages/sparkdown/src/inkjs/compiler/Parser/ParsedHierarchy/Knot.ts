@@ -14,7 +14,7 @@ export class Knot extends FlowBase {
     name: Identifier,
     topLevelObjects: ParsedObject[],
     args: Argument[],
-    isFunction: boolean
+    isFunction: boolean,
   ) {
     super(name, topLevelObjects, args, isFunction);
   }
@@ -34,7 +34,7 @@ export class Knot extends FlowBase {
       const knotWithStitchName = parentStory.ContentWithNameAtLevel(
         stitchName,
         FlowLevel.Knot,
-        false
+        false,
       );
 
       if (knotWithStitchName) {

@@ -2,7 +2,7 @@ import { INamedContent } from "./INamedContent";
 
 export function asOrNull<T>(
   obj: any,
-  type: (new (...arg: any[]) => T) | (Function & { prototype: T })
+  type: (new (...arg: any[]) => T) | (Function & { prototype: T }),
 ): T | null {
   if (obj instanceof type) {
     return unsafeTypeAssertion(obj, type);
@@ -13,7 +13,7 @@ export function asOrNull<T>(
 
 export function asOrThrows<T>(
   obj: any,
-  type: (new (...arg: any[]) => T) | (Function & { prototype: T })
+  type: (new (...arg: any[]) => T) | (Function & { prototype: T }),
 ): T | never {
   if (obj instanceof type) {
     return unsafeTypeAssertion(obj, type);
@@ -64,7 +64,7 @@ export function isEquatable(type: any) {
 function unsafeTypeAssertion<T>(
   obj: any,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  type: (new () => T) | (Function & { prototype: T })
+  type: (new () => T) | (Function & { prototype: T }),
 ) {
   return obj as T;
 }

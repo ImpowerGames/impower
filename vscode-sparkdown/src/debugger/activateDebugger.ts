@@ -22,7 +22,7 @@ import { FileAccessor, SparkDebugSession } from "./SparkDebugSession";
 
 export const activateDebugger = (
   context: vscode.ExtensionContext,
-  factory?: vscode.DebugAdapterDescriptorFactory
+  factory?: vscode.DebugAdapterDescriptorFactory,
 ) => {
   SparkdownDebugManager.activate(context);
 
@@ -39,10 +39,10 @@ export const activateDebugger = (
             program:
               SparkdownPreviewGamePanelManager.instance.document.uri.fsPath,
           },
-          { noDebug: true }
+          { noDebug: true },
         );
       }
-    })
+    }),
   );
 
   context.subscriptions.push(
@@ -58,7 +58,7 @@ export const activateDebugger = (
           stopOnEntry: true,
         });
       }
-    })
+    }),
   );
 
   context.subscriptions.push(
@@ -68,7 +68,7 @@ export const activateDebugger = (
           "Please enter the name of a .sd file in the workspace folder",
         value: "main.sd",
       });
-    })
+    }),
   );
 
   context.subscriptions.push(
@@ -78,13 +78,13 @@ export const activateDebugger = (
           "Please enter the name of a .sav file in the workspace folder",
         value: "main.sav",
       });
-    })
+    }),
   );
 
   // register a configuration provider for 'mock' debug type
   const provider = new MockConfigurationProvider();
   context.subscriptions.push(
-    vscode.debug.registerDebugConfigurationProvider("game", provider)
+    vscode.debug.registerDebugConfigurationProvider("game", provider),
   );
 
   // register a dynamic configuration provider for 'mock' debug type
@@ -93,7 +93,7 @@ export const activateDebugger = (
       "game",
       {
         provideDebugConfigurations(
-          _folder: WorkspaceFolder | undefined
+          _folder: WorkspaceFolder | undefined,
         ): ProviderResult<DebugConfiguration[]> {
           return [
             {
@@ -117,15 +117,15 @@ export const activateDebugger = (
           ];
         },
       },
-      vscode.DebugConfigurationProviderTriggerKind.Dynamic
-    )
+      vscode.DebugConfigurationProviderTriggerKind.Dynamic,
+    ),
   );
 
   if (!factory) {
     factory = new InlineDebugAdapterFactory(context);
   }
   context.subscriptions.push(
-    vscode.debug.registerDebugAdapterDescriptorFactory("game", factory)
+    vscode.debug.registerDebugAdapterDescriptorFactory("game", factory),
   );
   if ("dispose" in factory) {
     context.subscriptions.push(factory as { dispose: () => any });
@@ -137,7 +137,7 @@ export const activateDebugger = (
     vscode.languages.registerEvaluatableExpressionProvider("sparkdown", {
       provideEvaluatableExpression(
         document: vscode.TextDocument,
-        position: vscode.Position
+        position: vscode.Position,
       ): vscode.ProviderResult<vscode.EvaluatableExpression> {
         const VARIABLE_REGEXP = /\$[a-z][a-z0-9]*/gi;
         const line = document.lineAt(position.line).text;
@@ -148,7 +148,7 @@ export const activateDebugger = (
             position.line,
             m.index,
             position.line,
-            m.index + m[0].length
+            m.index + m[0].length,
           );
 
           if (varRange.contains(position)) {
@@ -157,7 +157,7 @@ export const activateDebugger = (
         }
         return undefined;
       },
-    })
+    }),
   );
 
   // override VS Code's default implementation of the "inline values" feature"
@@ -166,7 +166,7 @@ export const activateDebugger = (
       provideInlineValues(
         document: vscode.TextDocument,
         viewport: vscode.Range,
-        context: vscode.InlineValueContext
+        context: vscode.InlineValueContext,
       ): vscode.ProviderResult<vscode.InlineValue[]> {
         const allValues: vscode.InlineValue[] = [];
 
@@ -185,7 +185,7 @@ export const activateDebugger = (
                 l,
                 m.index,
                 l,
-                m.index + varName.length
+                m.index + varName.length,
               );
 
               // some literal text
@@ -193,7 +193,7 @@ export const activateDebugger = (
 
               // value found via variable lookup
               allValues.push(
-                new vscode.InlineValueVariableLookup(varRange, varName, false)
+                new vscode.InlineValueVariableLookup(varRange, varName, false),
               );
 
               // value determined via expression evaluation
@@ -204,7 +204,7 @@ export const activateDebugger = (
 
         return allValues;
       },
-    })
+    }),
   );
 };
 
@@ -216,7 +216,7 @@ class MockConfigurationProvider implements vscode.DebugConfigurationProvider {
   resolveDebugConfiguration(
     folder: WorkspaceFolder | undefined,
     config: DebugConfiguration,
-    token?: CancellationToken
+    token?: CancellationToken,
   ): ProviderResult<DebugConfiguration> {
     // if launch.json is missing or empty
     if (!config.type && !config.request && !config.name) {
@@ -266,7 +266,7 @@ class InlineDebugAdapterFactory
   }
 
   createDebugAdapterDescriptor(
-    _session: vscode.DebugSession
+    _session: vscode.DebugSession,
   ): ProviderResult<vscode.DebugAdapterDescriptor> {
     const context = this._context;
 
@@ -292,7 +292,7 @@ class InlineDebugAdapterFactory
         ) {
           await SparkdownPreviewGamePanelManager.instance.showPanel(
             context,
-            activeOrVisibleEditor.document
+            activeOrVisibleEditor.document,
           );
         }
       },
@@ -310,11 +310,11 @@ class InlineDebugAdapterFactory
         ) {
           activeOrVisibleEditor.revealRange(
             range,
-            vscode.TextEditorRevealType.InCenterIfOutsideViewport
+            vscode.TextEditorRevealType.InCenterIfOutsideViewport,
           );
           await SparkdownPreviewGamePanelManager.instance.showPanel(
             context,
-            activeOrVisibleEditor.document
+            activeOrVisibleEditor.document,
           );
         }
       },
@@ -344,8 +344,8 @@ class InlineDebugAdapterFactory
     return new vscode.DebugAdapterInlineImplementation(
       new SparkDebugSession(
         fileAccessor,
-        SparkdownPreviewGamePanelManager.instance.connection
-      )
+        SparkdownPreviewGamePanelManager.instance.connection,
+      ),
     );
   }
 }

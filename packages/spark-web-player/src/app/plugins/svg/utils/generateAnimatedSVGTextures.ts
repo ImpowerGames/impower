@@ -5,8 +5,7 @@ import {
 } from "./generateAnimatedSVGTexture";
 import { parseSVGDurAttribute } from "./parseSVGDurAttribute";
 
-export interface GenerateAnimatedSVGTexturesOptions
-  extends GenerateAnimatedSVGTextureOptions {
+export interface GenerateAnimatedSVGTexturesOptions extends GenerateAnimatedSVGTextureOptions {
   fps?: number;
   batchCount?: number;
   duration?: number;
@@ -15,12 +14,12 @@ export interface GenerateAnimatedSVGTexturesOptions
 export const generateAnimatedSVGTextures = async (
   renderer: Renderer,
   svg: SVGElement,
-  options?: GenerateAnimatedSVGTexturesOptions
+  options?: GenerateAnimatedSVGTexturesOptions,
 ): Promise<Texture[]> => {
   const { fps = 60, batchCount = 50 } = options || {};
   const textures: Texture[] = [];
   const animateDurEl = Array.from(svg.getElementsByTagName("animate")).find(
-    (e) => e.getAttribute("dur")
+    (e) => e.getAttribute("dur"),
   );
   const animationDuration = animateDurEl
     ? parseSVGDurAttribute(animateDurEl)
@@ -38,7 +37,7 @@ export const generateAnimatedSVGTextures = async (
       renderer,
       svg,
       time,
-      options
+      options,
     );
     textures.push(frameTexture);
     time += secondsPerTexture;

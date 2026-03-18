@@ -57,11 +57,11 @@ export class SparkdownPreviewScreenplayPanelManager {
 
   async showPanel(
     context: vscode.ExtensionContext,
-    document: vscode.TextDocument
+    document: vscode.TextDocument,
   ) {
     if (document.languageId !== "sparkdown") {
       vscode.window.showErrorMessage(
-        `You can only preview Sparkdown documents as a Screenplay!`
+        `You can only preview Sparkdown documents as a Screenplay!`,
       );
       return undefined;
     }
@@ -74,7 +74,7 @@ export class SparkdownPreviewScreenplayPanelManager {
         this._panelTitle
       ) {
         vscode.window.tabGroups.close(
-          vscode.window.tabGroups.activeTabGroup.activeTab
+          vscode.window.tabGroups.activeTabGroup.activeTab,
         );
       }
       return this.createPanel(context, document);
@@ -83,7 +83,7 @@ export class SparkdownPreviewScreenplayPanelManager {
 
   protected async createPanel(
     context: vscode.ExtensionContext,
-    document: vscode.TextDocument
+    document: vscode.TextDocument,
   ) {
     const viewType = this._viewType;
     const panelTitle = this._panelTitle;
@@ -99,7 +99,7 @@ export class SparkdownPreviewScreenplayPanelManager {
   async initializePanel(
     context: vscode.ExtensionContext,
     document: vscode.TextDocument,
-    panel: WebviewPanel
+    panel: WebviewPanel,
   ) {
     this._document = document;
     this._panel = panel;
@@ -158,13 +158,13 @@ export class SparkdownPreviewScreenplayPanelManager {
               await vscode.window.showTextDocument(
                 editor.document,
                 editor.viewColumn,
-                false
+                false,
               );
             }
             editor.selection = new vscode.Selection(range.start, range.end);
             editor.revealRange(
               range,
-              vscode.TextEditorRevealType.InCenterIfOutsideViewport
+              vscode.TextEditorRevealType.InCenterIfOutsideViewport,
             );
           }
         }
@@ -192,7 +192,7 @@ export class SparkdownPreviewScreenplayPanelManager {
         selectedRange: selectedRange
           ? getServerRange(selectedRange)
           : undefined,
-      })
+      }),
     );
   }
 
@@ -209,7 +209,7 @@ export class SparkdownPreviewScreenplayPanelManager {
 
   notifyChangedTextDocument(
     document: vscode.TextDocument,
-    contentChanges: readonly vscode.TextDocumentContentChangeEvent[]
+    contentChanges: readonly vscode.TextDocumentContentChangeEvent[],
   ) {
     if (document.uri.toString() === this._document?.uri.toString()) {
       if (this._panel) {
@@ -223,7 +223,7 @@ export class SparkdownPreviewScreenplayPanelManager {
               range: getServerRange(c.range),
               text: c.text,
             })),
-          })
+          }),
         );
       }
     }
@@ -233,12 +233,12 @@ export class SparkdownPreviewScreenplayPanelManager {
     if (this._document) {
       if (this._panel) {
         const configuration = getSparkdownPreviewConfig(
-          getUri(this._document.uri.toString())
+          getUri(this._document.uri.toString()),
         );
         this._panel.webview.postMessage(
           DidChangeConfigurationMessage.type.notification({
             settings: { ...configuration },
-          })
+          }),
         );
       }
     }
@@ -247,7 +247,7 @@ export class SparkdownPreviewScreenplayPanelManager {
   notifySelectedEditor(
     document: vscode.TextDocument,
     range: vscode.Range,
-    userEvent: boolean
+    userEvent: boolean,
   ) {
     if (document.uri.toString() === this._document?.uri.toString()) {
       if (this._panel) {
@@ -257,7 +257,7 @@ export class SparkdownPreviewScreenplayPanelManager {
             selectedRange: getServerRange(range),
             userEvent,
             docChanged: this._selectedVersion !== document.version,
-          })
+          }),
         );
       }
       this._selectedVersion = document.version;
@@ -272,7 +272,7 @@ export class SparkdownPreviewScreenplayPanelManager {
             textDocument: { uri: document.uri.toString() },
             visibleRange: getServerRange(range),
             target: "element",
-          })
+          }),
         );
       }
     }
@@ -280,7 +280,7 @@ export class SparkdownPreviewScreenplayPanelManager {
 
   protected getWebviewContent(
     webview: vscode.Webview,
-    context: vscode.ExtensionContext
+    context: vscode.ExtensionContext,
   ) {
     const jsMainUri = getWebviewUri(webview, context.extensionUri, [
       "out",
@@ -307,7 +307,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     const fontPathMonoBoldItalic = getWebviewUri(
       webview,
       context.extensionUri,
-      ["out", "data", "courier-prime-bold-italic.ttf"]
+      ["out", "data", "courier-prime-bold-italic.ttf"],
     );
     const styleNonce = getNonce();
     const scriptNonce = getNonce();

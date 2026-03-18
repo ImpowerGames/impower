@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 export async function activateVirtualDeclarations(
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ) {
   // Fetch global declarations
   const globalDeclarations = await getGlobalDeclarations(context);
@@ -18,7 +18,7 @@ export async function activateVirtualDeclarations(
       for (const folder of event.added) {
         await updateWorkspaceIfNeeded(folder, globalDeclarations);
       }
-    })
+    }),
   );
 
   // Watch for creating .ts, .sd, or .json
@@ -34,7 +34,7 @@ export async function activateVirtualDeclarations(
 
   // Watch for deleting declarations file
   const declarationsWatcher = vscode.workspace.createFileSystemWatcher(
-    getUserDeclarationsLocalFilePath().join("/")
+    getUserDeclarationsLocalFilePath().join("/"),
   );
   context.subscriptions.push(declarationsWatcher);
   declarationsWatcher.onDidDelete(async (uri) => {
@@ -50,7 +50,7 @@ async function getGlobalDeclarations(context: vscode.ExtensionContext) {
     context.extensionUri,
     "out",
     "data",
-    "spark.d.ts"
+    "spark.d.ts",
   );
   const declarationsFile = await vscode.workspace.fs.readFile(declarationsUri);
   if (!declarationsFile) {
@@ -59,7 +59,7 @@ async function getGlobalDeclarations(context: vscode.ExtensionContext) {
   }
   const declarationsFileContent = new TextDecoder().decode(declarationsFile);
   const globalDeclarations = /declare\s+global\s*\{/.test(
-    declarationsFileContent
+    declarationsFileContent,
   )
     ? declarationsFileContent
     : [
@@ -79,13 +79,13 @@ async function updateAllWorkspacesIfNeeded(globalDeclarations: string) {
   await Promise.all(
     vscode.workspace.workspaceFolders.map(async (workspaceFolder) => {
       updateWorkspaceIfNeeded(workspaceFolder, globalDeclarations);
-    })
+    }),
   );
 }
 
 async function updateWorkspaceIfNeeded(
   workspaceFolder: vscode.WorkspaceFolder,
-  globalDeclarations: string
+  globalDeclarations: string,
 ) {
   const [hasSd, hasTs, hasTsconfig] = await Promise.all([
     hasFileInFolder(workspaceFolder, "**/*.sd"),
@@ -104,15 +104,15 @@ function getUserDeclarationsLocalFilePath() {
   return [".spark", "runtime", "index.d.ts"];
 }
 function getUserDeclarationsWorkspaceFileUri(
-  workspaceFolder: vscode.WorkspaceFolder
+  workspaceFolder: vscode.WorkspaceFolder,
 ) {
   return vscode.Uri.joinPath(
     workspaceFolder.uri!,
-    ...getUserDeclarationsLocalFilePath()
+    ...getUserDeclarationsLocalFilePath(),
   );
 }
 async function readUserDeclarationsFile(
-  workspaceFolder: vscode.WorkspaceFolder
+  workspaceFolder: vscode.WorkspaceFolder,
 ) {
   try {
     const uri = getUserDeclarationsWorkspaceFileUri(workspaceFolder);
@@ -125,7 +125,7 @@ async function readUserDeclarationsFile(
 
 async function createUserDeclarationsFile(
   workspaceFolder: vscode.WorkspaceFolder,
-  globalDeclarations: string
+  globalDeclarations: string,
 ) {
   const uri = getUserDeclarationsWorkspaceFileUri(workspaceFolder);
   const dir = uri.with({
@@ -134,18 +134,18 @@ async function createUserDeclarationsFile(
   await vscode.workspace.fs.createDirectory(dir);
   await vscode.workspace.fs.writeFile(
     uri,
-    Buffer.from(globalDeclarations, "utf8")
+    Buffer.from(globalDeclarations, "utf8"),
   );
 }
 
 async function hasFileInFolder(
   folder: vscode.WorkspaceFolder,
-  pattern: string
+  pattern: string,
 ): Promise<boolean> {
   const result = await vscode.workspace.findFiles(
     new vscode.RelativePattern(folder, pattern),
     "**/node_modules/**",
-    1
+    1,
   );
   return result.length > 0;
 }

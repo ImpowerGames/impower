@@ -5,7 +5,7 @@ export const filterSVG = (
   svg: string,
   filter: { includes: unknown[]; excludes: unknown[] },
   filterableTag = "filter",
-  defaultTag = "default"
+  defaultTag = "default",
 ) => {
   const document = parse(svg);
   traverse(document, (n: Node, index, _d, _p, parent) => {

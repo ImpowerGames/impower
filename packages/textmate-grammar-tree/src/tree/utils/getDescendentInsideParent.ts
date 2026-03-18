@@ -3,7 +3,7 @@ import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 export const getDescendentInsideParent = <T extends string>(
   descendentTypeName: T | T[],
   parentTypeName: T | T[],
-  stack: GrammarSyntaxNode<T>[]
+  stack: GrammarSyntaxNode<T>[],
 ): GrammarSyntaxNode<T> | undefined => {
   const parentTypeNameArray =
     typeof parentTypeName === "string" ? [parentTypeName] : parentTypeName;

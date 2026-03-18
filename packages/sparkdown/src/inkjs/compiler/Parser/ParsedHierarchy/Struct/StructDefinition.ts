@@ -145,7 +145,7 @@ export class StructDefinition extends ParsedObject {
           ) {
             this.Error(
               `Duplicate identifier \`${prop.identifier.name}\``,
-              prop.identifier.debugMetadata
+              prop.identifier.debugMetadata,
             );
           } else if (prop.identifier?.name) {
             parent.value[prop.identifier.name] = value;
@@ -172,7 +172,7 @@ export class StructDefinition extends ParsedObject {
           ) {
             this.Error(
               `Duplicate identifier \`${prop.identifier.name}\``,
-              prop.identifier.debugMetadata
+              prop.identifier.debugMetadata,
             );
           } else if (prop.identifier?.name) {
             parent.value[prop.identifier.name] = value;

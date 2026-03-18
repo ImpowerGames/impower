@@ -16,7 +16,7 @@ export namespace SimpleJson {
       const nativeFloatParsing = JSON.parse(
         "0",
         // @ts-expect-error : typing
-        (_, __, context) => context != null
+        (_, __, context) => context != null,
       );
 
       if (!nativeFloatParsing) {
@@ -25,7 +25,7 @@ export namespace SimpleJson {
         // At time of writing : only happen for Safari iOS and Mac
         const jsonWithExplicitFloat = text.replace(
           /(,\s*)([0-9]+\.[0]+)([,]*)/g,
-          '$1"$2f"$3'
+          '$1"$2f"$3',
         );
         this._rootObject = JSON.parse(jsonWithExplicitFloat);
       } else {
@@ -100,7 +100,7 @@ export namespace SimpleJson {
       }
 
       this._stateStack.push(
-        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.Object)
+        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.Object),
       );
     }
 
@@ -114,7 +114,7 @@ export namespace SimpleJson {
     public WriteProperty(
       name: any,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      innerOrContent: ((w: Writer) => void) | string | boolean | null
+      innerOrContent: ((w: Writer) => void) | string | boolean | null,
     ) {
       this.WritePropertyStart(name);
       if (arguments[1] instanceof Function) {
@@ -152,7 +152,7 @@ export namespace SimpleJson {
       this.IncrementChildCount();
 
       this._stateStack.push(
-        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.Property)
+        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.Property),
       );
     }
 
@@ -172,10 +172,12 @@ export namespace SimpleJson {
       this._currentPropertyName = "";
 
       this._stateStack.push(
-        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.Property)
+        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.Property),
       );
       this._stateStack.push(
-        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.PropertyName)
+        new SimpleJson.Writer.StateElement(
+          SimpleJson.Writer.State.PropertyName,
+        ),
       );
     }
 
@@ -222,7 +224,7 @@ export namespace SimpleJson {
       }
 
       this._stateStack.push(
-        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.Array)
+        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.Array),
       );
     }
 
@@ -237,7 +239,7 @@ export namespace SimpleJson {
     public Write(
       value: number | string | boolean | null,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      escape: boolean = true
+      escape: boolean = true,
     ) {
       // if (value === null) {
       //   console.error("Warning: trying to write a null value");
@@ -308,7 +310,7 @@ export namespace SimpleJson {
       this.StartNewObject(false);
       this._currentString = "";
       this._stateStack.push(
-        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.String)
+        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.String),
       );
     }
 
@@ -351,12 +353,12 @@ export namespace SimpleJson {
         this.Assert(
           this.state === SimpleJson.Writer.State.None ||
             this.state === SimpleJson.Writer.State.Property ||
-            this.state === SimpleJson.Writer.State.Array
+            this.state === SimpleJson.Writer.State.Array,
         );
       } else {
         this.Assert(
           this.state === SimpleJson.Writer.State.Property ||
-            this.state === SimpleJson.Writer.State.Array
+            this.state === SimpleJson.Writer.State.Array,
         );
       }
 

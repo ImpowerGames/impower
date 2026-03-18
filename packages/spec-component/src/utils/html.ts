@@ -10,11 +10,11 @@ const html = (
       s == null || s === false
         ? ""
         : typeof s === "number"
-        ? String(s)
-        : typeof s === "function"
-        ? s()
-        : sanitize(s)
-    )
+          ? String(s)
+          : typeof s === "function"
+            ? s()
+            : sanitize(s),
+    ),
   );
 
 export default html;

@@ -14,7 +14,7 @@ import { FormattedLine } from "../types/FormattedLine";
 export const lineWrapParagraph = (
   paragraph: FormattedText[],
   textWidth: number,
-  doc: PDFKit.PDFDocument
+  doc: PDFKit.PDFDocument,
 ) => {
   // this function turns paragraphs into printable, wrapped lines
 
@@ -38,7 +38,7 @@ export const lineWrapParagraph = (
         textpart,
         spaceLeftInLine,
         textWidth,
-        doc
+        doc,
       );
       wrappedLines.forEach((wrappedLine, index, array) => {
         switch (index) {
@@ -109,7 +109,7 @@ export const wrapTextInLines = (
   textPart: FormattedText,
   widthLeft: number,
   widthTextbox: number,
-  doc: PDFKit.PDFDocument
+  doc: PDFKit.PDFDocument,
 ) => {
   // This function splits up text into smallest fragments (words & spaces)
   // and adds then word by word to lines until line is full. Then the line
@@ -123,7 +123,7 @@ export const wrapTextInLines = (
   const wordChunks = getWordChunks(text);
   const measuredTextChunks = measureTextFragments(
     wordChunks.map((text) => ({ ...textPart, text })),
-    doc
+    doc,
   );
   const lines = [{ ...textPart, text: "", width: 0 }];
   let spaceLeft = widthLeft;
@@ -150,7 +150,7 @@ export const wrapTextInLines = (
         const charChunks = getCharChunks(measuredTextChunk.text);
         measureTextFragments(
           charChunks.map((text) => ({ ...textPart, text })),
-          doc
+          doc,
         ).forEach((measuredCharChunk) => {
           if (measuredCharChunk.minWidth <= spaceLeft) {
             // If it fits in line --> Add char to current line
@@ -175,7 +175,7 @@ export const wrapTextInLines = (
 
 export const removeTrailingSpaces = (
   lines: FormattedLine[],
-  doc: PDFKit.PDFDocument
+  doc: PDFKit.PDFDocument,
 ) => {
   // Words in text chunks do always keep the space at the end. This is
   // for left aligned texts no problem but can look quite ugly for right
@@ -194,7 +194,7 @@ export const removeTrailingSpaces = (
       const newLastText = lastText.text.substring(0, lastText.text.length - 1);
       const newLastTextWidth = measureTextWidth(
         { ...lastText, text: newLastText },
-        doc
+        doc,
       );
       lastText.text = newLastText;
       lastText.width = newLastTextWidth;

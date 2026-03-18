@@ -7,7 +7,7 @@ import { getSymbol } from "./getSymbol";
 export const canRename = (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
-  position: Position
+  position: Position,
 ):
   | Range
   | {

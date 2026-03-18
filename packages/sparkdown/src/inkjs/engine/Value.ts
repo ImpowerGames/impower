@@ -15,7 +15,7 @@ export abstract class AbstractValue extends InkObject {
 
   public static Create(
     val: any,
-    preferredNumberType?: ValueType
+    preferredNumberType?: ValueType,
   ): Value<any> | null {
     // This code doesn't exist in upstream and is simply here to enforce
     // the creation of the proper number value.
@@ -67,7 +67,7 @@ export abstract class AbstractValue extends InkObject {
         " from " +
         this.valueType +
         " to " +
-        targetType
+        targetType,
     );
   }
 }
@@ -319,7 +319,7 @@ export class VariablePointerValue extends Value<string> {
 
   public get isTruthy(): never {
     throw new Error(
-      "Shouldn't be checking the truthiness of a variable pointer"
+      "Shouldn't be checking the truthiness of a variable pointer",
     );
   }
 
@@ -391,7 +391,7 @@ export class ListValue extends Value<InkList> {
   }
   public static RetainListOriginsForAssignment(
     oldValue: InkObject | null,
-    newValue: InkObject
+    newValue: InkObject,
   ) {
     let oldList = asOrNull(oldValue, ListValue);
     let newList = asOrNull(newValue, ListValue);

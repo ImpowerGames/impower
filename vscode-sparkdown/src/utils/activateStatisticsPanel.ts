@@ -7,7 +7,7 @@ import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 
 export const activateStatisticsPanel = (
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ): void => {
   // Register Statistics panel
   context.subscriptions.push(
@@ -21,10 +21,10 @@ export const activateStatisticsPanel = (
         return;
       }
       createStatisticsPanel(editor, context);
-    })
+    }),
   );
   vscode.window.registerWebviewPanelSerializer(
     "sparkdown-statistics",
-    new SparkdownStatisticsPanelSerializer(context)
+    new SparkdownStatisticsPanelSerializer(context),
   );
 };

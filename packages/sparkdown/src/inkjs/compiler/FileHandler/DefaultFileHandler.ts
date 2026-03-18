@@ -10,13 +10,13 @@ export class DefaultFileHandler implements IFileHandler {
 
   readonly ResolveInkFilename = (): string => {
     throw Error(
-      "Can't resolve filename because no FileHandler was provided when instantiating the parser / compiler."
+      "Can't resolve filename because no FileHandler was provided when instantiating the parser / compiler.",
     );
   };
 
   readonly LoadInkFileContents = (): string => {
     throw Error(
-      "Can't load ink content because no FileHandler was provided when instantiating the parser / compiler."
+      "Can't load ink content because no FileHandler was provided when instantiating the parser / compiler.",
     );
   };
 }

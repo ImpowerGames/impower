@@ -77,7 +77,7 @@ export class StoryState {
           container.name +
           " - on " +
           container.debugMetadata +
-          ") unknown. The story may need to be compiled with countAllVisits flag (-c)."
+          ") unknown. The story may need to be compiled with countAllVisits flag (-c).",
       );
       return 0;
     }
@@ -132,7 +132,7 @@ export class StoryState {
           container.name +
           " - on " +
           container.debugMetadata +
-          ") unknown. The story may need to be compiled with countAllVisits flag (-c)."
+          ") unknown. The story may need to be compiled with countAllVisits flag (-c).",
       );
     }
 
@@ -448,7 +448,7 @@ export class StoryState {
 
     this._variablesState = new VariablesState(
       this.callStack,
-      story.listDefinitions
+      story.listDefinitions,
     );
 
     this._visitCounts = new Map();
@@ -466,7 +466,7 @@ export class StoryState {
     this.callStack.currentElement.previousPointer =
       this.callStack.currentElement.currentPointer.copy();
     this.callStack.currentElement.currentPointer = Pointer.StartOf(
-      this.story.mainContentContainer
+      this.story.mainContentContainer,
     );
   }
 
@@ -542,7 +542,7 @@ export class StoryState {
       }
     } else {
       copy._currentFlow.currentChoices.push(
-        ...this._currentFlow.currentChoices
+        ...this._currentFlow.currentChoices,
       );
     }
 
@@ -610,7 +610,7 @@ export class StoryState {
   public ApplyCountChanges(
     container: Container,
     newCount: number,
-    isVisit: boolean
+    isVisit: boolean,
   ) {
     let counts = isVisit ? this._visitCounts : this._turnIndices;
     counts.set(container.path.toString(), newCount);
@@ -632,7 +632,7 @@ export class StoryState {
       }
     } else {
       writer.WriteProperty(this._currentFlow.name, (w) =>
-        this._currentFlow.WriteJson(w)
+        this._currentFlow.WriteJson(w),
       );
     }
 
@@ -642,11 +642,11 @@ export class StoryState {
     writer.WriteProperty("currentFlowName", this._currentFlow.name);
 
     writer.WriteProperty("variablesState", (w) =>
-      this.variablesState.WriteJson(w)
+      this.variablesState.WriteJson(w),
     );
 
     writer.WriteProperty("evalStack", (w) =>
-      JsonSerialisation.WriteListRuntimeObjs(w, this.evaluationStack)
+      JsonSerialisation.WriteListRuntimeObjs(w, this.evaluationStack),
     );
 
     if (!this.divertedPointer.isNull) {
@@ -655,15 +655,15 @@ export class StoryState {
       }
       writer.WriteProperty(
         "currentDivertTarget",
-        this.divertedPointer.path.componentsString
+        this.divertedPointer.path.componentsString,
       );
     }
 
     writer.WriteProperty("visitCounts", (w) =>
-      JsonSerialisation.WriteIntDictionary(w, this._visitCounts)
+      JsonSerialisation.WriteIntDictionary(w, this._visitCounts),
     );
     writer.WriteProperty("turnIndices", (w) =>
-      JsonSerialisation.WriteIntDictionary(w, this._turnIndices)
+      JsonSerialisation.WriteIntDictionary(w, this._turnIndices),
     );
 
     writer.WriteIntProperty("turnIdx", this.currentTurnIndex);
@@ -689,7 +689,7 @@ export class StoryState {
           jSaveVersion +
           "', but minimum is " +
           this.kMinCompatibleLoadVersion +
-          "), so can't load."
+          "), so can't load.",
       );
     }
 
@@ -734,14 +734,14 @@ export class StoryState {
       this._currentFlow.name = this.kDefaultFlowName;
       this._currentFlow.callStack.SetJsonToken(
         jObject["callstackThreads"] as Record<string, any>,
-        this.story
+        this.story,
       );
       this._currentFlow.outputStream = JsonSerialisation.JArrayToRuntimeObjList(
-        jObject["outputStream"] as any[]
+        jObject["outputStream"] as any[],
       );
       this._currentFlow.currentChoices =
         JsonSerialisation.JArrayToRuntimeObjList(
-          jObject["currentChoices"] as any[]
+          jObject["currentChoices"] as any[],
         ) as Choice[];
 
       let jChoiceThreadsObj = jObject["choiceThreads"];
@@ -755,7 +755,7 @@ export class StoryState {
     this.variablesState.callStack = this._currentFlow.callStack;
 
     this._evaluationStack = JsonSerialisation.JArrayToRuntimeObjList(
-      jObject["evalStack"]
+      jObject["evalStack"],
     );
 
     let currentDivertTargetPath = jObject["currentDivertTarget"];
@@ -765,10 +765,10 @@ export class StoryState {
     }
 
     this._visitCounts = JsonSerialisation.JObjectToIntDictionary(
-      jObject["visitCounts"]
+      jObject["visitCounts"],
     );
     this._turnIndices = JsonSerialisation.JObjectToIntDictionary(
-      jObject["turnIndices"]
+      jObject["turnIndices"],
     );
     this.currentTurnIndex = parseInt(jObject["turnIdx"]);
     this.storySeed = parseInt(jObject["storySeed"]);
@@ -846,7 +846,7 @@ export class StoryState {
     if (headFirstNewlineIdx != -1) {
       if (headFirstNewlineIdx > 0) {
         let leadingSpaces = new StringValue(
-          str.substring(0, headFirstNewlineIdx)
+          str.substring(0, headFirstNewlineIdx),
         );
         listTexts.push(leadingSpaces);
       }
@@ -870,8 +870,8 @@ export class StoryState {
         let trailingSpaces = new StringValue(
           str.substring(
             tailLastNewlineIdx + 1,
-            tailLastNewlineIdx + 1 + numSpaces
-          )
+            tailLastNewlineIdx + 1 + numSpaces,
+          ),
         );
         listTexts.push(trailingSpaces);
       }
@@ -1083,7 +1083,7 @@ export class StoryState {
 
       let popped = this.evaluationStack.splice(
         this.evaluationStack.length - numberOfObjects,
-        numberOfObjects
+        numberOfObjects,
       );
       return nullIfUndefined(popped);
     }
@@ -1154,11 +1154,11 @@ export class StoryState {
 
   public StartFunctionEvaluationFromGame(
     funcContainer: Container,
-    args: any[]
+    args: any[],
   ) {
     this.callStack.Push(
       PushPopType.FunctionEvaluationFromGame,
-      this.evaluationStack.length
+      this.evaluationStack.length,
     );
     this.callStack.currentElement.previousPointer =
       this.callStack.currentElement.currentPointer.copy();
@@ -1184,7 +1184,7 @@ export class StoryState {
               "number, string, bool or InkList. Argument was " +
               (nullIfUndefined(args[i]) === null
                 ? "null"
-                : args[i].constructor.name)
+                : args[i].constructor.name),
           );
         }
 
@@ -1213,7 +1213,7 @@ export class StoryState {
     ) {
       throw new Error(
         "Expected external function evaluation to be complete. Stack trace: " +
-          this.callStack.callStackTrace
+          this.callStack.callStackTrace,
       );
     }
 

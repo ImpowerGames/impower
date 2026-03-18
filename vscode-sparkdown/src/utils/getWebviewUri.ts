@@ -14,7 +14,7 @@ import { Uri, Webview } from "vscode";
 export function getWebviewUri(
   webview: Webview,
   extensionUri: Uri,
-  pathList: string[] = []
+  pathList: string[] = [],
 ) {
   return webview.asWebviewUri(Uri.joinPath(extensionUri, ...pathList));
 }

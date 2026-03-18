@@ -22,9 +22,8 @@ export class SelectedCompilerDocumentMessage {
 }
 
 export namespace SelectedCompilerDocumentMessage {
-  export interface Notification
-    extends NotificationMessage<
-      SelectedCompilerDocumentMethod,
-      SelectedCompilerDocumentParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    SelectedCompilerDocumentMethod,
+    SelectedCompilerDocumentParams
+  > {}
 }

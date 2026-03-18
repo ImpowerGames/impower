@@ -13,15 +13,15 @@ export function activateInspector(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(
       { language: "yaml" },
-      new InspectorCodeLensProvider()
-    )
+      new InspectorCodeLensProvider(),
+    ),
   );
 
   context.subscriptions.push(
     vscode.window.registerWebviewPanelSerializer(
       `sparkdown-inspector`,
-      new SparkdownInspectorSerializer(context)
-    )
+      new SparkdownInspectorSerializer(context),
+    ),
   );
 
   context.subscriptions.push(
@@ -30,8 +30,8 @@ export function activateInspector(context: vscode.ExtensionContext) {
       async (uri: vscode.Uri) => {
         const textDocument = await vscode.workspace.openTextDocument(uri);
         revealOrCreateWebviewPanel(context, textDocument);
-      }
-    )
+      },
+    ),
   );
 
   context.subscriptions.push(
@@ -39,7 +39,7 @@ export function activateInspector(context: vscode.ExtensionContext) {
       if (inspectorPanel && editor && editor.document.languageId === "yaml") {
         updateWebviewContent(inspectorPanel.panel, editor.document);
       }
-    })
+    }),
   );
 
   context.subscriptions.push(
@@ -55,7 +55,7 @@ export function activateInspector(context: vscode.ExtensionContext) {
           updateWebviewContent(inspectorPanel.panel, e.document);
         }
       }
-    })
+    }),
   );
 }
 
@@ -79,7 +79,7 @@ export class SparkdownInspectorSerializer
 
   async deserializeWebviewPanel(
     panel: vscode.WebviewPanel,
-    state: { textDocument: { uri: string }; openPaths: string[] }
+    state: { textDocument: { uri: string }; openPaths: string[] },
   ) {
     if (state) {
       const { textDocument, openPaths } = state;
@@ -96,7 +96,7 @@ export class SparkdownInspectorSerializer
 
 function revealOrCreateWebviewPanel(
   context: vscode.ExtensionContext,
-  textDocument: vscode.TextDocument
+  textDocument: vscode.TextDocument,
 ) {
   if (inspectorPanel) {
     inspectorPanel.panel.reveal();
@@ -111,7 +111,7 @@ function revealOrCreateWebviewPanel(
     {
       enableScripts: true,
       retainContextWhenHidden: true,
-    }
+    },
   );
 
   initializeWebviewPanel(panel, context, textDocument);
@@ -121,7 +121,7 @@ function initializeWebviewPanel(
   panel: vscode.WebviewPanel,
   context: vscode.ExtensionContext,
   document: vscode.TextDocument,
-  openPaths?: string[]
+  openPaths?: string[],
 ) {
   inspectorPanel ??= {
     panel,
@@ -184,7 +184,7 @@ function initializeWebviewPanel(
       }
     },
     undefined,
-    context.subscriptions
+    context.subscriptions,
   );
 
   panel.onDidDispose(() => {
@@ -197,8 +197,8 @@ function initializeWebviewPanel(
         context.extension.extensionUri,
         "out",
         "webviews",
-        "inspector-webview.js"
-      )
+        "inspector-webview.js",
+      ),
     )
     .toString();
 
@@ -239,7 +239,7 @@ function getWebviewContent(jsWebviewUri: string): string {
 
 async function updateWebviewContent(
   panel: vscode.WebviewPanel,
-  textDocument: vscode.TextDocument
+  textDocument: vscode.TextDocument,
 ) {
   const data = yaml.parse(textDocument.getText());
 
@@ -258,7 +258,7 @@ async function updateWebviewContent(
 async function editDocument(
   textDocument: vscode.TextDocument,
   path: string,
-  value: any
+  value: any,
 ) {
   const text = textDocument.getText();
   const doc = yaml.parseDocument(text, { keepSourceTokens: true });

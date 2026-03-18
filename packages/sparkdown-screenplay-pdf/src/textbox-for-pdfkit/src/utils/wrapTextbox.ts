@@ -10,14 +10,14 @@ export const wrapTextbox = (
   doc: PDFKit.PDFDocument,
   text: FormattedText[],
   width: number,
-  style: TextOptions = {}
+  style: TextOptions = {},
 ) => {
   const textboxStyle = { ...DEFAULT_STYLE, ...style };
   const normalizedTexts = normalizeTexts(text, textboxStyle);
   const textsWithWidth = measureTextsWidth(normalizedTexts, doc);
   const paragraphedTexts = summarizeParagraphs(textsWithWidth);
   const lines = paragraphedTexts.flatMap((pTexts) =>
-    lineWrapParagraph(pTexts, width, doc)
+    lineWrapParagraph(pTexts, width, doc),
   );
   return removeTrailingSpaces(lines, doc);
 };

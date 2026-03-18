@@ -21,7 +21,7 @@ const state: {
 const vscode = acquireVsCodeApi();
 
 const connection = new WindowMessageConnection((message: any) =>
-  vscode.postMessage(message)
+  vscode.postMessage(message),
 );
 connection.listen();
 
@@ -37,7 +37,7 @@ connection.addEventListener("message", async (e: MessageEvent) => {
         cancelable: true,
         composed: true,
         detail: message,
-      })
+      }),
     );
   }
 });

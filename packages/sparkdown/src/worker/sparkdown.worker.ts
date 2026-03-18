@@ -2,7 +2,7 @@ import { Port2MessageConnection } from "@impower/jsonrpc/src/browser/classes/Por
 import { installSparkdownWorker } from "./installSparkdownWorker";
 
 const connection = new Port2MessageConnection((message: any, transfer) =>
-  self.postMessage(message, { transfer })
+  self.postMessage(message, { transfer }),
 );
 connection.listen();
 

@@ -48,7 +48,7 @@ export default class StructKeyboardWidgetType extends WidgetType {
   constructor(
     id: string,
     onKeyDown: (e: PointerEvent, semitones: number) => void,
-    onKeyUp?: (e: PointerEvent, semitones: number) => void
+    onKeyUp?: (e: PointerEvent, semitones: number) => void,
   ) {
     super();
     this.id = id;
@@ -141,7 +141,7 @@ export default class StructKeyboardWidgetType extends WidgetType {
       textColor: string,
       backgroundColor: string,
       width: string,
-      height: string
+      height: string,
     ): HTMLElement => {
       const listItem = document.createElement("div");
       listItem.style.minWidth = "0";
@@ -211,13 +211,13 @@ export default class StructKeyboardWidgetType extends WidgetType {
     };
     whiteKeyNotes.forEach((o) =>
       whiteKeyList.appendChild(
-        createOption(o, "#fff", "#2B83B7", "32px", "100%")
-      )
+        createOption(o, "#fff", "#2B83B7", "32px", "100%"),
+      ),
     );
     blackKeyNotes.forEach((o) =>
       blackKeyList.appendChild(
-        createOption(o, "#fff", "#001933", o ? "32px" : "16px", "55%")
-      )
+        createOption(o, "#fff", "#001933", o ? "32px" : "16px", "55%"),
+      ),
     );
     popup.appendChild(whiteKeyList);
     popup.appendChild(blackKeyList);

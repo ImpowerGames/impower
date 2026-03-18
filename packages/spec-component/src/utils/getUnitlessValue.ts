@@ -1,7 +1,7 @@
 const getUnitlessValue = (
   value: string | null,
   defaultValue: number,
-  emptyValue = defaultValue
+  emptyValue = defaultValue,
 ): number => {
   if (value === "") {
     return emptyValue;

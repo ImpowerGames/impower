@@ -29,7 +29,7 @@ export class GrammarState {
   constructor(
     str: string,
     next?: (absolutePos: number) => string,
-    absolutePos: number = 0
+    absolutePos: number = 0,
   ) {
     this.str = str;
     this.next = next;
@@ -50,7 +50,7 @@ export class GrammarState {
       return true;
     }
     const hasVisited = this.visited.some(
-      (frame) => frame.ruleId === ruleId && frame.position === position
+      (frame) => frame.ruleId === ruleId && frame.position === position,
     );
     if (hasVisited) {
       console.warn("Infinite recursion detected!", ruleId, position);
@@ -64,7 +64,7 @@ export class GrammarState {
 
   exit(ruleId: string, position: number) {
     const idx = this.visited.findIndex(
-      (f) => f.ruleId === ruleId && f.position === position
+      (f) => f.ruleId === ruleId && f.position === position,
     );
     if (idx >= 0) this.visited.splice(idx, 1);
   }

@@ -39,7 +39,7 @@ export class ListDefinitionsOrigin {
   }
   public TryListGetDefinition(
     name: string | null,
-    /* out */ def: ListDefinition | null
+    /* out */ def: ListDefinition | null,
   ): TryGetResult<ListDefinition | null> {
     if (name === null) {
       return { result: def, exists: false };

@@ -33,7 +33,7 @@ const isSpace = (part: string | undefined) => {
 
 export const styleText = (
   text: string,
-  overrides?: TextOptions
+  overrides?: TextOptions,
 ): FormattedText[] => {
   const textChunks: FormattedText[] = [];
   const chars = text.replace("\t", "    ").match(CHAR_REGEX);
@@ -177,7 +177,7 @@ export const styleText = (
           }
           // Style Tag
           const styleMarker = MARKERS.find(
-            (marker) => marker === chars.slice(i, i + marker.length).join("")
+            (marker) => marker === chars.slice(i, i + marker.length).join(""),
           );
           if (styleMarker) {
             let currentMarker = "";
@@ -188,12 +188,12 @@ export const styleText = (
             }
             const lastMatchingMark =
               activeMarks.findLast(
-                ([activeMarker]) => activeMarker === currentMarker
+                ([activeMarker]) => activeMarker === currentMarker,
               ) ||
               activeMarks.findLast(
                 ([activeMarker]) =>
                   activeMarker.slice(0, styleMarker.length) ===
-                  currentMarker.slice(0, styleMarker.length)
+                  currentMarker.slice(0, styleMarker.length),
               );
             if (lastMatchingMark) {
               while (activeMarks.at(-1) !== lastMatchingMark) {
@@ -211,13 +211,13 @@ export const styleText = (
       }
       escaped = false;
       const activeCenteredMark = activeMarks.findLast(([m]) =>
-        m.startsWith("^")
+        m.startsWith("^"),
       );
       const activeUnderlineMark = activeMarks.findLast(([m]) =>
-        m.startsWith("_")
+        m.startsWith("_"),
       );
       const activeBoldItalicMark = activeMarks.findLast(([m]) =>
-        m.startsWith("***")
+        m.startsWith("***"),
       );
       const activeBoldMark = activeMarks.findLast(([m]) => m === "**");
       const activeItalicMark = activeMarks.findLast(([m]) => m === "*");

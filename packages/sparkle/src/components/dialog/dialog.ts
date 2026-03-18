@@ -226,31 +226,31 @@ export default class Dialog
     if (this.shadowRoot) {
       this.refs.labelSlot.addEventListener(
         "slotchange",
-        this.handleLabelSlotAssigned
+        this.handleLabelSlotAssigned,
       );
     } else {
       this.handleLabelChildrenAssigned(
-        Array.from(this.refs.labelSlot.children || [])
+        Array.from(this.refs.labelSlot.children || []),
       );
     }
     if (this.shadowRoot) {
       this.refs.cancelSlot.addEventListener(
         "slotchange",
-        this.handleCancelSlotAssigned
+        this.handleCancelSlotAssigned,
       );
     } else {
       this.handleCancelChildrenAssigned(
-        Array.from(this.refs.cancelSlot.children || [])
+        Array.from(this.refs.cancelSlot.children || []),
       );
     }
     if (this.shadowRoot) {
       this.refs.confirmSlot.addEventListener(
         "slotchange",
-        this.handleConfirmSlotAssigned
+        this.handleConfirmSlotAssigned,
       );
     } else {
       this.handleConfirmChildrenAssigned(
-        Array.from(this.refs.confirmSlot.children || [])
+        Array.from(this.refs.confirmSlot.children || []),
       );
     }
   }
@@ -265,24 +265,24 @@ export default class Dialog
     this.refs.cancel.removeEventListener("click", this.handleClickCancelButton);
     this.refs.confirm.removeEventListener(
       "click",
-      this.handleClickConfirmButton
+      this.handleClickConfirmButton,
     );
     if (this.shadowRoot) {
       this.refs.labelSlot.removeEventListener(
         "slotchange",
-        this.handleLabelSlotAssigned
+        this.handleLabelSlotAssigned,
       );
     }
     if (this.shadowRoot) {
       this.refs.cancelSlot.removeEventListener(
         "slotchange",
-        this.handleCancelSlotAssigned
+        this.handleCancelSlotAssigned,
       );
     }
     if (this.shadowRoot) {
       this.refs.confirmSlot.removeEventListener(
         "slotchange",
-        this.handleConfirmSlotAssigned
+        this.handleConfirmSlotAssigned,
       );
     }
     this.emit(REMOVED_EVENT);
@@ -370,7 +370,7 @@ export default class Dialog
   }
 
   protected async animateClose(
-    returnValue?: string
+    returnValue?: string,
   ): Promise<string | undefined> {
     this.refs.dialog.inert = true;
     this.open = false;
@@ -396,14 +396,14 @@ export default class Dialog
   };
 
   protected handleClickCancelButton = async (
-    e: Event
+    e: Event,
   ): Promise<string | undefined> => {
     e.stopPropagation();
     return this.animateClose("cancel");
   };
 
   protected handleClickConfirmButton = async (
-    e: Event
+    e: Event,
   ): Promise<string | undefined> => {
     e.stopPropagation();
     return this.animateClose("confirm");

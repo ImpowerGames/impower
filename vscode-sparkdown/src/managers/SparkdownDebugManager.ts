@@ -33,24 +33,24 @@ export class SparkdownDebugManager {
 
     this._syncCursorToExecution = context.globalState.get<boolean>(
       PINNED_STATE_KEY,
-      true
+      true,
     );
     vscode.commands.executeCommand(
       "setContext",
       PINNED_STATE_KEY,
-      this._syncCursorToExecution
+      this._syncCursorToExecution,
     );
 
     context.subscriptions.push(
       vscode.commands.registerCommand("sparkdown.debug.pin", () => {
         this.syncCursorToExecution = true;
-      })
+      }),
     );
 
     context.subscriptions.push(
       vscode.commands.registerCommand("sparkdown.debug.unpin", () => {
         this.syncCursorToExecution = false;
-      })
+      }),
     );
   }
 }

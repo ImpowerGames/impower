@@ -41,7 +41,7 @@ export class Quaternion extends ObservablePoint {
     y = 0,
     z = 0,
     w = 1,
-    observer?: Observer<ObservablePoint>
+    observer?: Observer<ObservablePoint>,
   ) {
     super(observer || { _onUpdate: () => {} });
     this._array.set([x, y, z, w]);
@@ -206,7 +206,7 @@ export class Quaternion extends ObservablePoint {
     a: Quaternion,
     b: Quaternion,
     t: number,
-    out = new Quaternion()
+    out = new Quaternion(),
   ) {
     return out.setFrom(Quat.slerp(a.array, b.array, t, temp));
   }

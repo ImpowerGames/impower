@@ -24,7 +24,7 @@ export const platform: Required<Platform> = {
       reference: getRectRelativeToOffsetParent(
         reference,
         await getOffsetParentFn(floating),
-        strategy
+        strategy,
       ),
       floating: { x: 0, y: 0, ...(await getDimensionsFn(floating)) },
     };

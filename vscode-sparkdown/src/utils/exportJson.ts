@@ -23,7 +23,7 @@ export const exportJson = async (): Promise<void> => {
   if (!program) {
     vscode.window.showWarningMessage(
       "Still compiling program... Try again later.",
-      "OK"
+      "OK",
     );
     return;
   }

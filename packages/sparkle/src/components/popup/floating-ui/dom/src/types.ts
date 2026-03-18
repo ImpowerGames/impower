@@ -49,7 +49,7 @@ export interface Platform {
   }) => Promisable<Rect>;
   getOffsetParent?: (
     element: Element,
-    polyfill?: (element: HTMLElement) => Element | null
+    polyfill?: (element: HTMLElement) => Element | null,
   ) => Promisable<Element | Window>;
   isElement?: (value: unknown) => Promisable<boolean>;
   getDocumentElement?: (element: Element) => Promisable<HTMLElement>;
@@ -85,7 +85,7 @@ export type SizeOptions = Prettify<
       args: MiddlewareState & {
         availableWidth: number;
         availableHeight: number;
-      }
+      },
     ): Promisable<void>;
   }
 >;
@@ -137,7 +137,7 @@ export type Middleware = Prettify<
  * @see https://floating-ui.com/docs/autoPlacement
  */
 declare const autoPlacement: (
-  options?: Partial<AutoPlacementOptions & DetectOverflowOptions>
+  options?: Partial<AutoPlacementOptions & DetectOverflowOptions>,
 ) => Middleware;
 
 /**
@@ -146,7 +146,7 @@ declare const autoPlacement: (
  * @see https://floating-ui.com/docs/shift
  */
 declare const shift: (
-  options?: Partial<ShiftOptions & DetectOverflowOptions>
+  options?: Partial<ShiftOptions & DetectOverflowOptions>,
 ) => Middleware;
 
 /**
@@ -156,7 +156,7 @@ declare const shift: (
  * @see https://floating-ui.com/docs/flip
  */
 declare const flip: (
-  options?: Partial<FlipOptions & DetectOverflowOptions>
+  options?: Partial<FlipOptions & DetectOverflowOptions>,
 ) => Middleware;
 
 /**
@@ -166,7 +166,7 @@ declare const flip: (
  * @see https://floating-ui.com/docs/size
  */
 declare const size: (
-  options?: Partial<SizeOptions & DetectOverflowOptions>
+  options?: Partial<SizeOptions & DetectOverflowOptions>,
 ) => Middleware;
 
 /**
@@ -185,7 +185,7 @@ declare const arrow: (options: {
  * @see https://floating-ui.com/docs/hide
  */
 declare const hide: (
-  options?: Partial<HideOptions & DetectOverflowOptions>
+  options?: Partial<HideOptions & DetectOverflowOptions>,
 ) => Middleware;
 
 /**
@@ -198,7 +198,7 @@ declare const hide: (
  */
 declare const detectOverflow: (
   state: MiddlewareState,
-  options?: Partial<DetectOverflowOptions>
+  options?: Partial<DetectOverflowOptions>,
 ) => Promise<SideObject>;
 
 export { inline, limitShift, offset } from "../../core";

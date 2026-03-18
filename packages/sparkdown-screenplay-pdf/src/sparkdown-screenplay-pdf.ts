@@ -57,7 +57,7 @@ export const buildPDF = async (
     cancellable: boolean;
     message?: string;
     percentage?: number;
-  }) => void
+  }) => void,
 ) => {
   let currentProgress = 0;
 
@@ -121,9 +121,9 @@ export const buildPDF = async (
       progress(
         "report",
         progressBeforeGenerate +
-          (100 - progressBeforeGenerate) * (percentage / 100)
+          (100 - progressBeforeGenerate) * (percentage / 100),
       );
-    }
+    },
   );
   printer.print();
 
@@ -131,14 +131,14 @@ export const buildPDF = async (
     doc.pipe(
       new PdfWriteStream(async (chunks) => {
         resolve(Buffer.concat(chunks));
-      })
+      }),
     );
     doc.end();
   });
 
   const arrayBuffer = array.buffer.slice(
     array.byteOffset,
-    array.byteLength + array.byteOffset
+    array.byteLength + array.byteOffset,
   );
 
   progress("end", 100);

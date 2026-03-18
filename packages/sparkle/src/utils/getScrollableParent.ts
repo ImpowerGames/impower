@@ -23,7 +23,7 @@ export const getScrollableParent = (el: Element | null): Element => {
   if (host) {
     if (host.slot) {
       const slotted = host.parentElement?.shadowRoot?.querySelector(
-        `slot[name=${host.slot}]`
+        `slot[name=${host.slot}]`,
       );
       if (slotted) {
         return getScrollableParent(slotted);

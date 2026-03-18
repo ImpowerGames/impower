@@ -14,12 +14,12 @@ export class SparkdownCheatSheetWebviewViewProvider
     const styleUriString = getWebviewUri(
       webviewView.webview,
       this._extensionUri,
-      ["out", "data", "cheatsheet.css"]
+      ["out", "data", "cheatsheet.css"],
     ).toString();
     const codiconUriString = getWebviewUri(
       webviewView.webview,
       this._extensionUri,
-      ["out", "data", "codicon.css"]
+      ["out", "data", "codicon.css"],
     ).toString();
 
     const fontUri = getWebviewUri(webviewView.webview, this._extensionUri, [
@@ -35,12 +35,12 @@ export class SparkdownCheatSheetWebviewViewProvider
     const fontUriItalic = getWebviewUri(
       webviewView.webview,
       this._extensionUri,
-      ["out", "data", "courier-prime-italic.ttf"]
+      ["out", "data", "courier-prime-italic.ttf"],
     ).toString();
     const fontUriBoldItalic = getWebviewUri(
       webviewView.webview,
       this._extensionUri,
-      ["out", "data", "courier-prime-bold-italic.ttf"]
+      ["out", "data", "courier-prime-bold-italic.ttf"],
     ).toString();
 
     const cspSource = webviewView.webview.cspSource;
@@ -105,7 +105,7 @@ class CheatsheetItem {
     public symbol: string,
     public description: string,
     public example: string,
-    public info?: string
+    public info?: string,
   ) {
     this.label = `${symbol} ${description}`.trim();
     this.highlights = [[0, symbol.length]];
@@ -122,8 +122,8 @@ const getCheatSheetAsHtml = () => {
     <span><mark class="symbol">${
       item.symbol
     }</mark> <mark class="description">${item.description}</mark>${
-        item.info ? `<span class="info">\n${item.info}</span>` : ""
-      }</span>
+      item.info ? `<span class="info">\n${item.info}</span>` : ""
+    }</span>
   </summary>
   <p><span class="example">${item.example}</span></p>
 </details>`;
@@ -139,7 +139,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     new CheatsheetItem(
       "character: dialogue",
       "Inline dialogue starts with a character name followed by `:`",
-      `<span><span class='dialogue_character'>steel: </span><span class='dialogue'>The man's a myth!</span></span>`
+      `<span><span class='dialogue_character'>steel: </span><span class='dialogue'>The man's a myth!</span></span>`,
     ),
     new CheatsheetItem(
       "@ CHARACTER",
@@ -152,7 +152,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
 <span>
 </span>
 <span class='dialogue_character'>@ MONKEY</span>
-<span class='dialogue'>Dude, I'm a monkey.</span>`.trim()
+<span class='dialogue'>Dude, I'm a monkey.</span>`.trim(),
     ),
     new CheatsheetItem(
       ">",
@@ -160,7 +160,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
       `
 <span class='dialogue_character'>@ DAN</span>
 <span class='dialogue'>Then let's retire them. <span class='keyword'>&gt</span></span>
-<span class='dialogue'>Permanently.</span>`.trim()
+<span class='dialogue'>Permanently.</span>`.trim(),
     ),
     new CheatsheetItem(
       "()",
@@ -168,7 +168,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
       `
 <span class='dialogue_character'>@ STEEL</span>
 <span class='parenthetical'>(starting the engine)</span>
-<span class='dialogue'>So much for retirement!</span>`.trim()
+<span class='dialogue'>So much for retirement!</span>`.trim(),
     ),
     new CheatsheetItem(
       "[<]",
@@ -179,25 +179,25 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
 <span>
 </span>
 <span class='dialogue_character'>@ STEEL <mark class='caret'>[&gt]</mark></span>
-<span class='dialogue'>Screw retirement.</span>`.trim()
+<span class='dialogue'>Screw retirement.</span>`.trim(),
     ),
     new CheatsheetItem(
       "$",
       "A heading block is prefixed with `$`",
       `
-<span class='heading'>$ INT. BRICK'S ROOM - DAY</span>`.trim()
+<span class='heading'>$ INT. BRICK'S ROOM - DAY</span>`.trim(),
     ),
     new CheatsheetItem(
       "%",
       "A transitional block is prefixed with `%`",
       `
-<span class='transitional'>% CUT TO:</span>`.trim()
+<span class='transitional'>% CUT TO:</span>`.trim(),
     ),
     new CheatsheetItem(
       "!",
       "Action text is any paragraph that doesn't meet criteria for another element. An action block can also be explicitly declared with `!`",
       `
-The men look at each other.`.trim()
+The men look at each other.`.trim(),
     ),
   ];
 
@@ -205,42 +205,42 @@ The men look at each other.`.trim()
     new CheatsheetItem(
       "*Italics*",
       "",
-      "<span class='italics'>*italicized text*</span>"
+      "<span class='italics'>*italicized text*</span>",
     ),
     new CheatsheetItem(
       "**Bold**",
       "",
-      "<span class='bold'>**bolded text**</span>"
+      "<span class='bold'>**bolded text**</span>",
     ),
     new CheatsheetItem(
       "***Bold Italics***",
       "",
-      "<span class='bold italics'>***bolded and italicized text***</span>"
+      "<span class='bold italics'>***bolded and italicized text***</span>",
     ),
     new CheatsheetItem(
       "_Underline_",
       "",
-      "<span class='underline'>_underlined text_</span>"
+      "<span class='underline'>_underlined text_</span>",
     ),
     new CheatsheetItem(
       "^Centered^",
       "",
-      "<span class='centered'>^centered text^</span>"
+      "<span class='centered'>^centered text^</span>",
     ),
     new CheatsheetItem(
       "::Shaky::",
       "",
-      "<span class='inline'>::<span class='shaky' style='animation-delay:calc(0.06s*1)'>s</span><span class='shaky' style='animation-delay:calc(0.06s*2)'>h</span><span class='shaky' style='animation-delay:calc(0.06s*3)'>a</span><span class='shaky' style='animation-delay:calc(0.06s*4)'>k</span><span class='shaky' style='animation-delay:calc(0.06s*5)'>y</span><span class='shaky' style='animation-delay:calc(0.06s*6)'> </span><span class='shaky' style='animation-delay:calc(0.06s*7)'>t</span><span class='shaky' style='animation-delay:calc(0.06s*8)'>e</span><span class='shaky' style='animation-delay:calc(0.06s*9)'>x</span><span class='shaky' style='animation-delay:calc(0.06s*10)'>t</span>::</span>"
+      "<span class='inline'>::<span class='shaky' style='animation-delay:calc(0.06s*1)'>s</span><span class='shaky' style='animation-delay:calc(0.06s*2)'>h</span><span class='shaky' style='animation-delay:calc(0.06s*3)'>a</span><span class='shaky' style='animation-delay:calc(0.06s*4)'>k</span><span class='shaky' style='animation-delay:calc(0.06s*5)'>y</span><span class='shaky' style='animation-delay:calc(0.06s*6)'> </span><span class='shaky' style='animation-delay:calc(0.06s*7)'>t</span><span class='shaky' style='animation-delay:calc(0.06s*8)'>e</span><span class='shaky' style='animation-delay:calc(0.06s*9)'>x</span><span class='shaky' style='animation-delay:calc(0.06s*10)'>t</span>::</span>",
     ),
     new CheatsheetItem(
       "~~Wavy~~",
       "",
-      "<span class='inline'>~~<span class='wavy' style='animation-delay:calc(0.06s*1)'>w</span><span class='wavy' style='animation-delay:calc(0.06s*2)'>a</span><span class='wavy' style='animation-delay:calc(0.06s*3)'>v</span><span class='wavy' style='animation-delay:calc(0.06s*4)'>y</span><span class='wavy' style='animation-delay:calc(0.06s*5)'> </span><span class='wavy' style='animation-delay:calc(0.06s*6)'>t</span><span class='wavy' style='animation-delay:calc(0.06s*7)'>e</span><span class='wavy' style='animation-delay:calc(0.06s*8)'>x</span><span class='wavy' style='animation-delay:calc(0.06s*9)'>t</span>~~</span>"
+      "<span class='inline'>~~<span class='wavy' style='animation-delay:calc(0.06s*1)'>w</span><span class='wavy' style='animation-delay:calc(0.06s*2)'>a</span><span class='wavy' style='animation-delay:calc(0.06s*3)'>v</span><span class='wavy' style='animation-delay:calc(0.06s*4)'>y</span><span class='wavy' style='animation-delay:calc(0.06s*5)'> </span><span class='wavy' style='animation-delay:calc(0.06s*6)'>t</span><span class='wavy' style='animation-delay:calc(0.06s*7)'>e</span><span class='wavy' style='animation-delay:calc(0.06s*8)'>x</span><span class='wavy' style='animation-delay:calc(0.06s*9)'>t</span>~~</span>",
     ),
     new CheatsheetItem(
       "`Raw`",
       "(displayed without any styling)",
-      "`¯\\_(ツ)_/¯`"
+      "`¯\\_(ツ)_/¯`",
     ),
   ];
 
@@ -251,7 +251,7 @@ The men look at each other.`.trim()
       `
 <span class='dialogue_character'>@ BRUCE</span>
 <span class='note'>[[bruce_frown]]</span>
-<span class='dialogue'>Don't you know who I am?</span>`.trim()
+<span class='dialogue'>Don't you know who I am?</span>`.trim(),
     ),
     new CheatsheetItem(
       "((audio))",
@@ -259,7 +259,7 @@ The men look at each other.`.trim()
       `
 <span class='dialogue_character'>@ BATMAN</span>
 <span class='note'>((sfx_thunder))</span>
-<span class='dialogue'>I'm Batman.</span>`.trim()
+<span class='dialogue'>I'm Batman.</span>`.trim(),
     ),
   ];
 
@@ -267,19 +267,19 @@ The men look at each other.`.trim()
     new CheatsheetItem(
       "scene",
       "Declare a scene",
-      "<span class='section'>scene ActOne:</span>"
+      "<span class='section'>scene ActOne:</span>",
     ),
     new CheatsheetItem(
       "branch",
       "Declare a branch",
-      "<span class='section'>scene ActOne:\n\n  branch PartA:</span>"
+      "<span class='section'>scene ActOne:\n\n  branch PartA:</span>",
     ),
     new CheatsheetItem(
       "function:",
       "Declare a function",
       `
 <span class='section'>function add(x, y):</span>
-<span class='keyword'>  return x + y</span>`.trim()
+<span class='keyword'>  return x + y</span>`.trim(),
     ),
     new CheatsheetItem(
       "-> SceneOrBranch",
@@ -292,7 +292,7 @@ The men look at each other.`.trim()
 <span class='dialogue'>To the Batmobile!</span>
 <span>
 </span>
-<span class='action'><span class='divert'>-></span> <span class='divert_target'>TheBatmobile</span></span>`.trim()
+<span class='action'><span class='divert'>-></span> <span class='divert_target'>TheBatmobile</span></span>`.trim(),
     ),
     new CheatsheetItem(
       "+ Choice -> SceneOrBranch",
@@ -302,7 +302,7 @@ The men look at each other.`.trim()
 <span class='action'><mark class='keyword'>+</mark> To the Batcave! <span class='divert'>-></span> <span class='divert_target'>TheBatcave</span></span>
 <span class='action'><mark class='keyword'>+</mark> To Wayne Manor! <span class='divert'>-></span> <span class='divert_target'>WayneManor</span></span>
 <span class='action'><mark class='keyword'>+</mark> To Crime Alley! <span class='divert'>-></span> <span class='divert_target'>CrimeAlley</span></span>
-`.trim()
+`.trim(),
     ),
     new CheatsheetItem(
       "* Choice -> SceneOrBranch",
@@ -313,7 +313,7 @@ The men look at each other.`.trim()
 <span class='action'><mark class='keyword'>*</mark> The butler! <span class='divert'>-></span> <span class='divert_target'>AccuseButler</span></span>
 <span class='action'><mark class='keyword'>*</mark> You! <span class='divert'>-></span> <span class='divert_target'>AccusePartner</span></span>
 <span class='action'><mark class='keyword'>*</mark> Myself! <span class='divert'>-></span> <span class='divert_target'>AccuseSelf</span></span>
-`.trim()
+`.trim(),
     ),
   ];
 
@@ -324,7 +324,7 @@ The men look at each other.`.trim()
       "const x = 0",
       "Declare a constant variable (cannot be changed, not persisted)",
       `
-<span class='keyword'>const MAX_POINTS = 100</span>`.trim()
+<span class='keyword'>const MAX_POINTS = 100</span>`.trim(),
     ),
     new CheatsheetItem(
       "store x = 0",
@@ -332,32 +332,32 @@ The men look at each other.`.trim()
       `
 <span class='keyword'>store name = "John"</span>
 <span class='keyword'>store score = 100</span>
-<span class='keyword'>store alive = true</span>`.trim()
+<span class='keyword'>store alive = true</span>`.trim(),
     ),
     new CheatsheetItem(
       "temp x = 0",
       "Declare a temporary variable (local to the current function, scene, or branch, not persisted)",
       `
 <span class='section'>function calculate():</span>
-<span class='keyword'>temp count = 0</span>`.trim()
+<span class='keyword'>temp count = 0</span>`.trim(),
     ),
     new CheatsheetItem(
       "~ x = 1",
       "Set a declared variable",
       `
-<span class='keyword'>~ name = "Johnny"</span>`.trim()
+<span class='keyword'>~ name = "Johnny"</span>`.trim(),
     ),
     new CheatsheetItem(
       "~ x += 1",
       "Increment a declared variable",
       `
-<span class='keyword'>~ count += 10</span>`.trim()
+<span class='keyword'>~ count += 10</span>`.trim(),
     ),
     new CheatsheetItem(
       "~ x -= 1",
       "Decrement a declared variable",
       `
-<span class='keyword'>~ score -= 10</span>`.trim()
+<span class='keyword'>~ score -= 10</span>`.trim(),
     ),
   ];
 
@@ -370,7 +370,7 @@ The men look at each other.`.trim()
 <span class='keyword'>@ number score = 1</span>
 <span>
 </span>
-<span class='action'>Your current score is <mark class='keyword'>{score}</mark>.</span>`.trim()
+<span class='action'>Your current score is <mark class='keyword'>{score}</mark>.</span>`.trim(),
     ),
     new CheatsheetItem(
       "{count:item|items}",
@@ -383,32 +383,32 @@ The men look at each other.`.trim()
 <span>
 </span>
 <span class='dialogue_character'>@ SALLY</span>
-<span class='dialogue'>I have <mark class='keyword'>{count}</mark> sea <mark class='keyword'>{count:shell|shells}</mark> for sale!</span>`.trim()
+<span class='dialogue'>I have <mark class='keyword'>{count}</mark> sea <mark class='keyword'>{count:shell|shells}</mark> for sale!</span>`.trim(),
     ),
     new CheatsheetItem(
       "{switch:on|off}",
       "Display different text according to a boolean value",
-      `<span class='action'>You did <mark class='keyword'>{success:terribly...|very well!}</mark></span>`
+      `<span class='action'>You did <mark class='keyword'>{success:terribly...|very well!}</mark></span>`,
     ),
     new CheatsheetItem(
       "{first|second|third|fourth}",
       "Display different text every time the player returns to the current section",
-      `<span class='action'>This is the <mark class='keyword'>{first|second|third|fourth}</mark> time you've seen this.</span>`
+      `<span class='action'>This is the <mark class='keyword'>{first|second|third|fourth}</mark> time you've seen this.</span>`,
     ),
     new CheatsheetItem(
       "{first|second|third|always from now on|+}",
       "End a dynamic sequence with + to repeat the last option once all other options have been exhausted",
-      `<span class='action'><mark class='keyword'>{I bought a cookie.|I bought another cookie.|I cannot afford any more cookies.|+}</mark></span>`
+      `<span class='action'><mark class='keyword'>{I bought a cookie.|I bought another cookie.|I cannot afford any more cookies.|+}</mark></span>`,
     ),
     new CheatsheetItem(
       "{~|spade|club|heart|diamond}",
       "Start a dynamic sequence with ~ to shuffle the options",
-      `<span class='action'>You drew <mark class='keyword'>{~|an ace|a king|a queen|a jack}</mark> from the deck.</span>`
+      `<span class='action'>You drew <mark class='keyword'>{~|an ace|a king|a queen|a jack}</mark> from the deck.</span>`,
     ),
     new CheatsheetItem(
       "{~~|rock|paper|scissors}",
       "Start a dynamic sequence with ~~ to fully randomize the options (allows repeats)",
-      `<span class='action'>You rolled a <mark class='keyword'>{~~|one|two|three|four|five|six}</mark> on the dice.</span>`
+      `<span class='action'>You rolled a <mark class='keyword'>{~~|one|two|three|four|five|six}</mark> on the dice.</span>`,
     ),
     new CheatsheetItem(
       "> {First|Second|Third}",
@@ -416,7 +416,7 @@ The men look at each other.`.trim()
       `
 <span class='action'>Are you sure you want to try again?</span>
 <span class='action'><mark class='keyword'>+</mark> Just one more time... <mark class='keyword'>></mark> <mark class='keyword'>{First|Second|Third}</mark></span>
-<span class='action'><mark class='keyword'>+</mark> I give up! <mark class='keyword'>> GoHome</mark></span>`.trim()
+<span class='action'><mark class='keyword'>+</mark> I give up! <mark class='keyword'>> GoHome</mark></span>`.trim(),
     ),
   ];
 
@@ -429,7 +429,7 @@ The men look at each other.`.trim()
 <span class='condition'>if (health < 0):</span>
 <span class='action'>  You are dead.</span>
 <span class='action'>  <span class='divert'>-></span> <span class='divert_target'>GameOver</span></span>
-`.trim()
+`.trim(),
     ),
     new CheatsheetItem(
       "elseif (condition):",
@@ -440,7 +440,7 @@ The men look at each other.`.trim()
 <span class='action'>  <span class='divert'>-></span> <span class='divert_target'>GameOver</span></span>
 <span class='condition'>elseif (health == max_health):</span>
 <span class='action'>  You are fully healed.</span>
-`.trim()
+`.trim(),
     ),
     new CheatsheetItem(
       "else:",
@@ -453,7 +453,7 @@ The men look at each other.`.trim()
 <span class='action'>  You are fully healed.</span>
 <span class='condition'>else:</span>
 <span class='action'>  You are scathed, but still able to fight.</span>
-`.trim()
+`.trim(),
     ),
   ];
 
@@ -475,12 +475,12 @@ The men look at each other.`.trim()
 <span>    <mark class='tvalue'>1588 Mission Dr.</mark></span>
 <span>    <mark class='tvalue'>Solvang, CA 93463</mark></span>
 <span class='keyword'>---</mark>
-`.trim()
+`.trim(),
     ),
     new CheatsheetItem(
       "//",
       "Comments are not displayed at runtime or when printing to pdf",
-      "<span class='note'>// TODO: Add more dialogue choices</span>"
+      "<span class='note'>// TODO: Add more dialogue choices</span>",
     ),
   ];
 

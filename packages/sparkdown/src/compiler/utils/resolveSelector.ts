@@ -7,7 +7,7 @@ export const resolveSelector = <T>(
   program: SparkProgram,
   selector: SparkSelector,
   expectedSelectorTypes: string[],
-  state?: SparkdownCompilerState
+  state?: SparkdownCompilerState,
 ): [T | undefined, string | undefined] => {
   // Validate that reference resolves to existing an struct
   const searchSelectorTypes =
@@ -30,7 +30,7 @@ export const resolveSelector = <T>(
           const [obj, foundPath] = selectProperty(
             program.context,
             selectorPath,
-            selector.fuzzy
+            selector.fuzzy,
           );
           if (obj !== undefined) {
             return [obj as T, foundPath];
@@ -38,7 +38,7 @@ export const resolveSelector = <T>(
         }
       } else if (selector.property && selector.value) {
         for (const [name, struct] of Object.entries(
-          program.context?.[selectorType] || {}
+          program.context?.[selectorType] || {},
         )) {
           const selectorName = name;
           const selectorProperty = selector.property;
@@ -56,7 +56,7 @@ export const resolveSelector = <T>(
             const [propValue] = selectProperty(
               program.context,
               selectorPath,
-              selector.fuzzy
+              selector.fuzzy,
             );
             if (propValue !== undefined && propValue === selector.value) {
               return [struct as T, `${selectorType}.${name}`];
@@ -75,7 +75,7 @@ export const resolveSelector = <T>(
           const [obj, foundPath] = selectProperty(
             program.context,
             selectorPath,
-            selector.fuzzy
+            selector.fuzzy,
           );
           if (obj !== undefined) {
             return [obj as T, foundPath];

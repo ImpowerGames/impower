@@ -3,7 +3,7 @@ const isSameArgs = (p: any[], n: any[]) =>
 
 export function conflate<F extends (...args: any[]) => any>(
   fn: F,
-  memoize: boolean
+  memoize: boolean,
 ) {
   type Result = Awaited<ReturnType<F>>;
   type Waiter = { resolve: (v: Result) => void; reject: (e?: unknown) => void };
@@ -91,7 +91,7 @@ export function conflate<F extends (...args: any[]) => any>(
     hasPending = true;
 
     return new Promise<Result>((resolve, reject) =>
-      nextWaiters.push({ resolve, reject })
+      nextWaiters.push({ resolve, reject }),
     );
   };
 }

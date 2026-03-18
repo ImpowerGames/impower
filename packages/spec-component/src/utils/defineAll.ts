@@ -4,7 +4,7 @@ import define from "./define";
 
 const defineAll = (
   constructors: readonly SpecComponentConstructor[],
-  options?: DefineOptions
+  options?: DefineOptions,
 ) => {
   if (options?.graphics) {
     constructors.forEach((constructor) => {
@@ -16,7 +16,7 @@ const defineAll = (
     });
   }
   return Promise.all(
-    constructors.map((constructor) => define(constructor.tag!, constructor))
+    constructors.map((constructor) => define(constructor.tag!, constructor)),
   );
 };
 

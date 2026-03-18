@@ -24,7 +24,7 @@ export class ListDefinition extends ParsedObject {
         allItems.set(e.name!, e.seriesValue);
       } else {
         this.Error(
-          `List \`${this.identifier}\` contains duplicate items called \`${e.name}\``
+          `List \`${this.identifier}\` contains duplicate items called \`${e.name}\``,
         );
       }
     }
@@ -33,7 +33,7 @@ export class ListDefinition extends ParsedObject {
   }
 
   public readonly ItemNamed = (
-    itemName: string
+    itemName: string,
   ): ListElementDefinition | null => {
     if (this._elementsByName === null) {
       this._elementsByName = new Map();
@@ -71,7 +71,7 @@ export class ListDefinition extends ParsedObject {
       if (itemDef.inInitialList) {
         const item = new RuntimeInkListItem(
           this.identifier?.name || null,
-          itemDef.name || null
+          itemDef.name || null,
         );
         initialValues.Add(item, itemDef.seriesValue);
       }

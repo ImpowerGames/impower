@@ -123,7 +123,7 @@ export abstract class ParsedObject {
 
   // Return the object so that method can be chained easily
   public readonly AddContent = <T extends ParsedObject, V extends T | T[]>(
-    subContent: V
+    subContent: V,
   ) => {
     if (this.content === null) {
       this.content = [];
@@ -151,7 +151,7 @@ export abstract class ParsedObject {
 
   public readonly InsertContent = <T extends ParsedObject>(
     index: number,
-    subContent: T
+    subContent: T,
   ): T => {
     if (this.content === null) {
       this.content = [];
@@ -165,7 +165,7 @@ export abstract class ParsedObject {
 
   public readonly Find =
     <T extends ParsedObject>(
-      type: (new (...arg: any[]) => T) | (Function & { prototype: T })
+      type: (new (...arg: any[]) => T) | (Function & { prototype: T }),
     ) =>
     (queryFunc: FindQueryFunc<T> | null = null): T | null => {
       let tObj = asOrNull(this, type) as any as T;
@@ -189,7 +189,7 @@ export abstract class ParsedObject {
 
   public readonly FindAll =
     <T extends ParsedObject>(
-      type: (new (...arg: any[]) => T) | (Function & { prototype: T })
+      type: (new (...arg: any[]) => T) | (Function & { prototype: T }),
     ) =>
     (queryFunc?: FindQueryFunc<T>, foundSoFar?: T[]): T[] => {
       const found = Array.isArray(foundSoFar) ? foundSoFar : [];
@@ -221,7 +221,7 @@ export abstract class ParsedObject {
   public Error(
     message: string,
     source: ParsedObject | Identifier | DebugMetadata | null = null,
-    isWarning: boolean = false
+    isWarning: boolean = false,
   ): void {
     if (source === null) {
       source = this;
@@ -269,7 +269,7 @@ export abstract class ParsedObject {
 
   public readonly Warning = (
     message: string,
-    source: ParsedObject | Identifier | DebugMetadata | null = null
+    source: ParsedObject | Identifier | DebugMetadata | null = null,
   ): void => {
     this.Error(message, source, true);
   };

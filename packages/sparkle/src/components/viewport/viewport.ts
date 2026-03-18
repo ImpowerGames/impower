@@ -115,14 +115,14 @@ export default class Viewport
       this.handleViewportChange,
       {
         passive: true,
-      }
+      },
     );
     window.visualViewport?.addEventListener(
       "resize",
       this.handleViewportChange,
       {
         passive: true,
-      }
+      },
     );
     const constrainedEvent = this.constrainedEvent;
     if (constrainedEvent) {
@@ -137,11 +137,11 @@ export default class Viewport
   override onDisconnected() {
     window.visualViewport?.removeEventListener(
       "scroll",
-      this.handleViewportChange
+      this.handleViewportChange,
     );
     window.visualViewport?.removeEventListener(
       "resize",
-      this.handleViewportChange
+      this.handleViewportChange,
     );
     const constrainedEvent = this.constrainedEvent;
     if (constrainedEvent) {

@@ -164,7 +164,7 @@ export default class Tabs
       const vertical = newValue != null;
       this.updateRootAttribute(
         Tabs.attrs.ariaOrientation,
-        vertical ? "vertical" : "horizontal"
+        vertical ? "vertical" : "horizontal",
       );
       this.updateTabs(false);
     }
@@ -180,7 +180,7 @@ export default class Tabs
     const vertical = this.vertical;
     this.updateRootAttribute(
       Tabs.attrs.ariaOrientation,
-      vertical ? "vertical" : "horizontal"
+      vertical ? "vertical" : "horizontal",
     );
   }
 
@@ -233,7 +233,7 @@ export default class Tabs
       tab.refs.icon,
       tab.refs.inactiveIcon,
       tab.refs.activeIcon,
-      this.refs.indicator
+      this.refs.indicator,
     );
     if (this.interrupted(newValue)) {
       return;
@@ -256,7 +256,7 @@ export default class Tabs
     newValue: string | null,
     tab: Tab,
     oldTab?: Tab,
-    instantly?: boolean
+    instantly?: boolean,
   ): Promise<void> {
     const indicator = this.refs.indicator;
     const navEl = this.refs.nav;
@@ -320,7 +320,7 @@ export default class Tabs
         } else {
           return this.deactivateTab(tab);
         }
-      })
+      }),
     );
   }
 
@@ -436,7 +436,7 @@ export default class Tabs
   protected setupTabs(children: Element[]) {
     this.unbindTabs();
     this._tabs = children.filter(
-      (el) => el.tagName.toLowerCase() === this.selectors.tab
+      (el) => el.tagName.toLowerCase() === this.selectors.tab,
     ) as Tab[];
     this.bindTabs();
     this.updateTabs(false);

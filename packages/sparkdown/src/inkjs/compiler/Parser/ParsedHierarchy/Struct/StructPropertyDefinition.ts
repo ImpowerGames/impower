@@ -16,7 +16,7 @@ export class StructPropertyDefinition extends ParsedObject {
   constructor(
     public readonly level: number,
     identifier: Identifier,
-    public readonly expression: Expression | null = null
+    public readonly expression: Expression | null = null,
   ) {
     super();
     this.identifier = identifier;
@@ -33,7 +33,7 @@ export class StructPropertyDefinition extends ParsedObject {
       if (!this.expression.isSingleString) {
         this.Error(
           "Property strings cannot contain any logic.",
-          this.expression
+          this.expression,
         );
       }
       return this.expression.toString();
@@ -55,14 +55,14 @@ export class StructPropertyDefinition extends ParsedObject {
       if (this.expression.path.length > 2) {
         this.Error(
           "Property cannot reference another property.",
-          this.expression
+          this.expression,
         );
         return undefined;
       }
     }
     this.Error(
       "Initial value must be a number, string, boolean, or reference",
-      this.expression
+      this.expression,
     );
     return undefined;
   };

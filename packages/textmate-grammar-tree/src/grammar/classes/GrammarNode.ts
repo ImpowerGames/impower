@@ -25,8 +25,8 @@ export class GrammarNode implements Node {
     declarator?: (
       typeIndex: number,
       typeId: string,
-      data: RuleDefinition
-    ) => Record<string, any>
+      data: RuleDefinition,
+    ) => Record<string, any>,
   ) {
     let { id, ...definitionProps } = def;
 

@@ -7,13 +7,13 @@ export const activateOutlineView = (context: vscode.ExtensionContext): void => {
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider(
       "sparkdown-outline",
-      SparkdownOutlineTreeDataProvider.instance
-    )
+      SparkdownOutlineTreeDataProvider.instance,
+    ),
   );
   context.subscriptions.push(
     vscode.window.createTreeView("sparkdown-outline", {
       treeDataProvider: SparkdownOutlineTreeDataProvider.instance,
-    })
+    }),
   );
 
   context.subscriptions.push(
@@ -21,7 +21,7 @@ export const activateOutlineView = (context: vscode.ExtensionContext): void => {
       for (const uri of e.uris) {
         updateOutline(uri);
       }
-    })
+    }),
   );
 
   context.subscriptions.push(
@@ -29,7 +29,7 @@ export const activateOutlineView = (context: vscode.ExtensionContext): void => {
       if (doc?.languageId === "sparkdown") {
         updateOutline(doc.uri);
       }
-    })
+    }),
   );
   const uri = getActiveSparkdownDocument();
   if (uri) {

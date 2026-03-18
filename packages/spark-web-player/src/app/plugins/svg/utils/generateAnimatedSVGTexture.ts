@@ -5,8 +5,7 @@ import {
 } from "../AnimatedSVGParser";
 import { parseSVGViewBoxAttribute } from "./parseSVGViewBoxAttribute";
 
-export interface GenerateAnimatedSVGTextureOptions
-  extends AnimatedSVGParserOptions {
+export interface GenerateAnimatedSVGTextureOptions extends AnimatedSVGParserOptions {
   quality?: number;
   scale?: number;
 }
@@ -15,7 +14,7 @@ export const generateAnimatedSVGTexture = (
   renderer: Renderer,
   svg: SVGElement,
   time: number,
-  options?: GenerateAnimatedSVGTextureOptions
+  options?: GenerateAnimatedSVGTextureOptions,
 ) => {
   const { scale = 1, quality = 4, ...rest } = options || {};
   // Create graphicsContext
@@ -45,7 +44,7 @@ export const generateAnimatedSVGTexture = (
       0,
       0,
       dimensions.width * scale,
-      dimensions.height * scale
+      dimensions.height * scale,
     ),
   });
   return renderTexture;

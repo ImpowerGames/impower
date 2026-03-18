@@ -8,7 +8,7 @@ export const getDocumentLinks = (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
   annotations: SparkdownAnnotations | undefined,
-  workspace: SparkdownLanguageServerWorkspace
+  workspace: SparkdownLanguageServerWorkspace,
 ): DocumentLink[] | null | undefined => {
   if (!document || !tree) {
     return undefined;

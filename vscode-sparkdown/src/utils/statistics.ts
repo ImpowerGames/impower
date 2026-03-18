@@ -116,7 +116,7 @@ const getLineCountWithoutWhitespace = (script: string): number => {
 };
 
 const createCharacterStatistics = (
-  program: SparkProgram
+  program: SparkProgram,
 ): CharacterStatistics => {
   const dialoguePieces: DialoguePiece[] = [];
   for (let i = 0; i < program.tokens.length; i++) {
@@ -169,7 +169,7 @@ const createCharacterStatistics = (
         }
         return `${prev} ${curr} `;
       },
-      ""
+      "",
     );
     monologueCounter += monologues;
     const wordsSpoken = getWordCount(allDialogueCombined || "");
@@ -223,7 +223,7 @@ const createSceneStatistics = (program: SparkProgram): SceneStatistics => {
 };
 
 const getLocationType = (
-  val: RegExpExecArray | null
+  val: RegExpExecArray | null,
 ): "int" | "ext" | "mixed" | "other" => {
   if (val && val[1]) {
     if (/i(nt)?\.?\/e(xt)?\.?/i.test(val[1])) {
@@ -257,7 +257,7 @@ const getLocationTime = (val: RegExpExecArray | null): string => {
 };
 
 const getLengthChart = (
-  program: SparkProgram
+  program: SparkProgram,
 ): {
   action: LengthChartItem[];
   dialogue: LengthChartItem[];
@@ -368,7 +368,7 @@ const getLengthChart = (
     characterDuration.push(value);
   });
   const durationByProp = Object.entries(scenePropDurations).map(
-    ([prop, duration]) => ({ prop, duration })
+    ([prop, duration]) => ({ prop, duration }),
   );
 
   return {
@@ -385,7 +385,7 @@ const getLengthChart = (
 const createLengthStatistics = (
   script: string,
   pageCount: number,
-  program: SparkProgram
+  program: SparkProgram,
 ): LengthStatistics => {
   return {
     characters: getCharacterCount(script),
@@ -399,7 +399,7 @@ const createLengthStatistics = (
 };
 
 const createDurationStatistics = (
-  program: SparkProgram
+  program: SparkProgram,
 ): DurationStatistics => {
   const lengthCharts = getLengthChart(program);
   console.log("Created duration stats");
@@ -423,7 +423,7 @@ export const retrieveScreenPlayStatistics = async (
   context: vscode.ExtensionContext,
   script: string,
   program: SparkProgram,
-  config: ScreenplayConfig
+  config: ScreenplayConfig,
 ): Promise<ScreenPlayStatistics> => {
   return {
     characterStats: createCharacterStatistics(program),

@@ -122,7 +122,7 @@ export class InkList extends Map<SerializedInkListItem, number> {
         } else {
           return [];
         }
-      })()
+      })(),
     );
 
     if (arguments[0] instanceof InkList) {
@@ -144,7 +144,7 @@ export class InkList extends Map<SerializedInkListItem, number> {
       }
       let def = originStory.listDefinitions.TryListGetDefinition(
         singleOriginListName,
-        null
+        null,
       );
       if (def.exists) {
         // Throwing now, because if the value is `null` it will
@@ -156,7 +156,7 @@ export class InkList extends Map<SerializedInkListItem, number> {
       } else {
         throw new Error(
           "InkList origin could not be found in story when constructing new list: " +
-            singleOriginListName
+            singleOriginListName,
         );
       }
     } else if (
@@ -182,14 +182,14 @@ export class InkList extends Map<SerializedInkListItem, number> {
       throw new Error(
         "Could not find the InkListItem from the string '" +
           myListItem +
-          "' to create an InkList because it doesn't exist in the original list definition in ink."
+          "' to create an InkList because it doesn't exist in the original list definition in ink.",
       );
     }
   }
 
   public AddItem(
     itemOrItemName: InkListItem | string | null,
-    storyObject: Story | null = null
+    storyObject: Story | null = null,
   ) {
     if (itemOrItemName instanceof InkListItem) {
       let item = itemOrItemName;
@@ -211,14 +211,14 @@ export class InkList extends Map<SerializedInkListItem, number> {
             throw new Error(
               "Could not add the item " +
                 item +
-                " to this list because it doesn't exist in the original list definition in ink."
+                " to this list because it doesn't exist in the original list definition in ink.",
             );
           }
         }
       }
 
       throw new Error(
-        "Failed to add item to list because the item was from a new list definition that wasn't previously known to this list. Only items from previously known lists can be used, so that the int value can be found."
+        "Failed to add item to list because the item was from a new list definition that wasn't previously known to this list. Only items from previously known lists can be used, so that the int value can be found.",
       );
     } else if (itemOrItemName !== null) {
       //itemOrItemName is a string
@@ -239,7 +239,7 @@ export class InkList extends Map<SerializedInkListItem, number> {
                 " to this list because it could come from either " +
                 origin.name +
                 " or " +
-                foundListDef.name
+                foundListDef.name,
             );
           } else {
             foundListDef = origin;
@@ -252,7 +252,7 @@ export class InkList extends Map<SerializedInkListItem, number> {
           throw new Error(
             "Could not add the item " +
               itemName +
-              " to this list because it isn't known to any list definitions previously associated with this list."
+              " to this list because it isn't known to any list definitions previously associated with this list.",
           );
         } else {
           let newItem = InkList.FromString(itemName, storyObject)

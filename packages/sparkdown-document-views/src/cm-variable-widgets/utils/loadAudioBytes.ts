@@ -1,6 +1,6 @@
 export const loadAudioBytes = async (
   url: string,
-  audioContext: AudioContext
+  audioContext: AudioContext,
 ): Promise<Float32Array> => {
   const response = await fetch(url);
   const buffer = await response.arrayBuffer();

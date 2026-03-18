@@ -4,7 +4,7 @@ import { Range } from "@impower/spark-editor-protocol/src/types";
 export const getVisibleRange = (
   view: EditorView,
   scrollTop: number,
-  scrollBottom: number
+  scrollBottom: number,
 ): Range => {
   const doc = view.state.doc;
   let startLineNumber = 0;

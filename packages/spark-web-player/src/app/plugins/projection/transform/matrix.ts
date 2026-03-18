@@ -70,9 +70,9 @@ export class Matrix4x4 extends Matrix implements TransformId {
         (data) => {
           Mat4.getTranslation(
             this.array,
-            data.array as Float32Array<ArrayBuffer>
+            data.array as Float32Array<ArrayBuffer>,
           );
-        }
+        },
       );
     }
     return this._position.data;
@@ -86,7 +86,7 @@ export class Matrix4x4 extends Matrix implements TransformId {
         new Point3D(),
         (data) => {
           Mat4.getScaling(this.array, data.array as Float32Array<ArrayBuffer>);
-        }
+        },
       );
     }
     return this._scaling.data;
@@ -108,9 +108,9 @@ export class Matrix4x4 extends Matrix implements TransformId {
           }
           Quat.normalize(
             Mat4.getRotation(matrix, data.array as Float32Array<ArrayBuffer>),
-            data.array as Float32Array<ArrayBuffer>
+            data.array as Float32Array<ArrayBuffer>,
           );
-        }
+        },
       );
     }
     return this._rotation.data;
@@ -125,9 +125,9 @@ export class Matrix4x4 extends Matrix implements TransformId {
             this.array[4]!,
             this.array[5]!,
             this.array[6]!,
-            data.array as Float32Array<ArrayBuffer>
+            data.array as Float32Array<ArrayBuffer>,
           ),
-          data.array as Float32Array<ArrayBuffer>
+          data.array as Float32Array<ArrayBuffer>,
         );
       });
     }
@@ -152,7 +152,7 @@ export class Matrix4x4 extends Matrix implements TransformId {
         new Point3D(),
         (data) => {
           Vec3.negate(this.left.array, data.array as Float32Array<ArrayBuffer>);
-        }
+        },
       );
     }
     return this._right.data;
@@ -166,9 +166,9 @@ export class Matrix4x4 extends Matrix implements TransformId {
           Vec3.cross(
             this.up.array,
             this.forward.array,
-            data.array as Float32Array<ArrayBuffer>
+            data.array as Float32Array<ArrayBuffer>,
           ),
-          data.array as Float32Array<ArrayBuffer>
+          data.array as Float32Array<ArrayBuffer>,
         );
       });
     }
@@ -187,11 +187,11 @@ export class Matrix4x4 extends Matrix implements TransformId {
               this.array[8]!,
               this.array[9]!,
               this.array[10]!,
-              data.array as Float32Array<ArrayBuffer>
+              data.array as Float32Array<ArrayBuffer>,
             ),
-            data.array as Float32Array<ArrayBuffer>
+            data.array as Float32Array<ArrayBuffer>,
           );
-        }
+        },
       );
     }
     return this._forward.data;
@@ -206,9 +206,9 @@ export class Matrix4x4 extends Matrix implements TransformId {
         (data) => {
           Vec3.negate(
             this.forward.array,
-            data.array as Float32Array<ArrayBuffer>
+            data.array as Float32Array<ArrayBuffer>,
           );
-        }
+        },
       );
     }
     return this._backward.data;
@@ -241,13 +241,13 @@ export class Matrix4x4 extends Matrix implements TransformId {
   setFromRotationPositionScale(
     rotation: Quaternion,
     position: Point3D,
-    scaling: Point3D
+    scaling: Point3D,
   ) {
     Mat4.fromRotationTranslationScale(
       rotation.array,
       position.array,
       scaling.array,
-      this.array
+      this.array,
     );
     this._transformId++;
   }
@@ -291,10 +291,10 @@ export class Matrix4x4 extends Matrix implements TransformId {
     q: Quaternion,
     v: Point3D,
     s: Point3D,
-    out = new Matrix4x4()
+    out = new Matrix4x4(),
   ) {
     return out.setFrom(
-      Mat4.fromRotationTranslationScale(q.array, v.array, s.array, temp)
+      Mat4.fromRotationTranslationScale(q.array, v.array, s.array, temp),
     );
   }
 
@@ -337,7 +337,7 @@ export class Matrix4x4 extends Matrix implements TransformId {
     eye: Point3D,
     center: Point3D,
     up: Point3D,
-    out = new Matrix4x4()
+    out = new Matrix4x4(),
   ) {
     return out.setFrom(Mat4.lookAt(eye.array, center.array, up.array, temp));
   }
@@ -364,7 +364,7 @@ export class Matrix4x4 extends Matrix implements TransformId {
     aspect: number,
     near: number,
     far: number,
-    out = new Matrix4x4()
+    out = new Matrix4x4(),
   ) {
     return out.setFrom(Mat4.perspective(fovy, aspect, near, far, temp));
   }
@@ -386,7 +386,7 @@ export class Matrix4x4 extends Matrix implements TransformId {
     top: number,
     near: number,
     far: number,
-    out = new Matrix4x4()
+    out = new Matrix4x4(),
   ) {
     return out.setFrom(Mat4.ortho(left, right, bottom, top, near, far, temp));
   }
@@ -420,7 +420,7 @@ export class Matrix4x4 extends Matrix implements TransformId {
     eye: Point3D,
     target: Point3D,
     up: Point3D,
-    out = new Matrix4x4()
+    out = new Matrix4x4(),
   ) {
     return out.setFrom(Mat4.targetTo(eye.array, target.array, up.array, temp));
   }
@@ -466,7 +466,7 @@ export class Matrix4x4 extends Matrix implements TransformId {
     a: Matrix4x4,
     rad: number,
     axis: Point3D,
-    out = new Matrix4x4()
+    out = new Matrix4x4(),
   ) {
     return out.setFrom(Mat4.rotate(a.array, rad, axis.array, temp));
   }

@@ -8,9 +8,7 @@ export interface InstructionNode {
   children?: InstructionNode[];
 }
 
-export class SparkdownCompilationTreeDataProvider
-  implements vscode.TreeDataProvider<InstructionNode>
-{
+export class SparkdownCompilationTreeDataProvider implements vscode.TreeDataProvider<InstructionNode> {
   private static _instance: SparkdownCompilationTreeDataProvider;
   static get instance(): SparkdownCompilationTreeDataProvider {
     if (!this._instance) {
@@ -62,7 +60,7 @@ export class SparkdownCompilationTreeDataProvider
         ? element.children[0]?.type === "json"
           ? vscode.TreeItemCollapsibleState.Collapsed
           : vscode.TreeItemCollapsibleState.Expanded
-        : vscode.TreeItemCollapsibleState.None
+        : vscode.TreeItemCollapsibleState.None,
     );
 
     if (element.id) {
@@ -74,45 +72,45 @@ export class SparkdownCompilationTreeDataProvider
         element.type === "newline"
           ? "terminal.ansiBrightCyan"
           : element.type === "string"
-          ? "terminal.ansiBrightCyan"
-          : element.type === "number"
-          ? "terminal.ansiBrightCyan"
-          : element.type === "boolean"
-          ? "terminal.ansiBrightCyan"
-          : element.type === "operator"
-          ? "chart.axis"
-          : element.type === "command"
-          ? "charts.orange"
-          : element.type === "divert reference"
-          ? "charts.blue"
-          : element.type === "variable reference"
-          ? "charts.blue"
-          : element.type === "divert to"
-          ? "terminal.ansiBrightMagenta"
-          : element.type === "tunnel to"
-          ? "terminal.ansiBrightMagenta"
-          : element.type === "call function"
-          ? "terminal.ansiBrightMagenta"
-          : element.type === "call external function"
-          ? "terminal.ansiBrightMagenta"
-          : element.type === "list"
-          ? "charts.red"
-          : element.type === "set global variable"
-          ? "charts.red"
-          : element.type === "set local variable"
-          ? "charts.red"
-          : element.type === "get variable value"
-          ? "terminal.ansiBrightGreen"
-          : element.type === "get read count"
-          ? "terminal.ansiBrightGreen"
-          : element.type === "choice"
-          ? "terminal.ansiBrightYellow"
-          : "";
+            ? "terminal.ansiBrightCyan"
+            : element.type === "number"
+              ? "terminal.ansiBrightCyan"
+              : element.type === "boolean"
+                ? "terminal.ansiBrightCyan"
+                : element.type === "operator"
+                  ? "chart.axis"
+                  : element.type === "command"
+                    ? "charts.orange"
+                    : element.type === "divert reference"
+                      ? "charts.blue"
+                      : element.type === "variable reference"
+                        ? "charts.blue"
+                        : element.type === "divert to"
+                          ? "terminal.ansiBrightMagenta"
+                          : element.type === "tunnel to"
+                            ? "terminal.ansiBrightMagenta"
+                            : element.type === "call function"
+                              ? "terminal.ansiBrightMagenta"
+                              : element.type === "call external function"
+                                ? "terminal.ansiBrightMagenta"
+                                : element.type === "list"
+                                  ? "charts.red"
+                                  : element.type === "set global variable"
+                                    ? "charts.red"
+                                    : element.type === "set local variable"
+                                      ? "charts.red"
+                                      : element.type === "get variable value"
+                                        ? "terminal.ansiBrightGreen"
+                                        : element.type === "get read count"
+                                          ? "terminal.ansiBrightGreen"
+                                          : element.type === "choice"
+                                            ? "terminal.ansiBrightYellow"
+                                            : "";
 
       if (color) {
         treeItem.iconPath = new vscode.ThemeIcon(
           "circle-filled",
-          new vscode.ThemeColor(color)
+          new vscode.ThemeColor(color),
         );
       }
     }
@@ -122,7 +120,7 @@ export class SparkdownCompilationTreeDataProvider
 
   getChildren(element?: InstructionNode): Thenable<InstructionNode[]> {
     return Promise.resolve(
-      element ? element.children || [] : this._treeData.children || []
+      element ? element.children || [] : this._treeData.children || [],
     );
   }
 
@@ -161,7 +159,7 @@ export class SparkdownCompilationTreeDataProvider
       depth: number,
       parent: InstructionNode | null,
       idPrefix = "",
-      labelSuffix = ""
+      labelSuffix = "",
     ): InstructionNode => {
       let instructionNode: InstructionNode;
       if (typeof node === "string") {
@@ -169,34 +167,34 @@ export class SparkdownCompilationTreeDataProvider
           node === "\n"
             ? JSON.stringify(node)
             : node[0] === "^"
-            ? JSON.stringify(node.slice(1))
-            : node;
+              ? JSON.stringify(node.slice(1))
+              : node;
         const type =
           node === "\n"
             ? "newline"
             : node[0] === "^"
-            ? "string"
-            : [
-                "+",
-                "-",
-                "/",
-                "*",
-                "%",
-                "_",
-                "==",
-                ">",
-                "<",
-                ">=",
-                "<=",
-                "!=",
-                "!",
-                "&&",
-                "||",
-                "MIN",
-                "MAX",
-              ].includes(node)
-            ? "operator"
-            : "command";
+              ? "string"
+              : [
+                    "+",
+                    "-",
+                    "/",
+                    "*",
+                    "%",
+                    "_",
+                    "==",
+                    ">",
+                    "<",
+                    ">=",
+                    "<=",
+                    "!=",
+                    "!",
+                    "&&",
+                    "||",
+                    "MIN",
+                    "MAX",
+                  ].includes(node)
+                ? "operator"
+                : "command";
         instructionNode = {
           label: `${label}`,
           id: idPrefix,
@@ -237,7 +235,7 @@ export class SparkdownCompilationTreeDataProvider
               if (i === node.length - 1) {
                 if (typeof container === "object" && container) {
                   const children = Object.entries(container).filter(
-                    ([key]) => key !== "#n" && key !== "#f"
+                    ([key]) => key !== "#n" && key !== "#f",
                   );
                   instructionNode = {
                     label: children.length > 0 ? `{ ... }` : "{ }",
@@ -253,7 +251,7 @@ export class SparkdownCompilationTreeDataProvider
                         depth + 1,
                         instructionNode,
                         `${prefix}${key}`,
-                        containerLabelSuffix
+                        containerLabelSuffix,
                       );
                     }),
                   };
@@ -272,7 +270,7 @@ export class SparkdownCompilationTreeDataProvider
                   depth + 1,
                   instructionNode,
                   `${prefix}${containerName}`,
-                  containerLabelSuffix
+                  containerLabelSuffix,
                 );
               }
             })
@@ -300,8 +298,8 @@ export class SparkdownCompilationTreeDataProvider
               ? arg2 === 0
                 ? "(global)"
                 : arg2 >= 1
-                ? "(local)"
-                : ""
+                  ? "(local)"
+                  : ""
               : "";
           const type = "variable reference";
           instructionNode = {

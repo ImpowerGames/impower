@@ -5,7 +5,7 @@ const trimEnd = (str: string, length: number) => {
 export const getCssDurationMS = (
   value: string | null,
   defaultValue: number,
-  emptyValue = defaultValue
+  emptyValue = defaultValue,
 ): number => {
   if (value == null) {
     return defaultValue;
@@ -23,11 +23,11 @@ export const getCssDurationMS = (
   const ms = v.endsWith("ms")
     ? Number(trimEnd(v, "ms".length))
     : v.endsWith("s")
-    ? Number(trimEnd(v, "s".length)) * 1000
-    : v.endsWith("min")
-    ? Number(trimEnd(v, "min".length)) * 1000 * 60
-    : v.endsWith("h")
-    ? Number(trimEnd(v, "h".length)) * 1000 * 60 * 60
-    : Number(v);
+      ? Number(trimEnd(v, "s".length)) * 1000
+      : v.endsWith("min")
+        ? Number(trimEnd(v, "min".length)) * 1000 * 60
+        : v.endsWith("h")
+          ? Number(trimEnd(v, "h".length)) * 1000 * 60 * 60
+          : Number(v);
   return ms;
 };

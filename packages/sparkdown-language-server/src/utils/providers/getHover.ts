@@ -10,7 +10,7 @@ import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
 const resolveRootImage = (
   ref: { $type: string; $name: string },
   context: { [type: string]: { [name: string]: any } } | undefined,
-  stack: Set<{ $type: string; $name: string }>
+  stack: Set<{ $type: string; $name: string }>,
 ):
   | { $type: "image"; $name: string; src: string; uri: string; data: string }
   | {
@@ -22,9 +22,9 @@ const resolveRootImage = (
   | undefined => {
   const referencedValue = ref?.$type
     ? context?.[ref?.$type]?.[ref.$name]
-    : context?.["filtered_image"]?.[ref.$name] ??
+    : (context?.["filtered_image"]?.[ref.$name] ??
       context?.["image"]?.[ref.$name] ??
-      context?.["layered_image"]?.[ref.$name];
+      context?.["layered_image"]?.[ref.$name]);
 
   if (stack.has(referencedValue)) {
     return "circular";
@@ -51,7 +51,7 @@ export const getHover = (
   annotations: SparkdownAnnotations | undefined,
   program: SparkProgram | undefined,
   config: SparkdownCompilerConfig | undefined,
-  position: Position
+  position: Position,
 ): Hover | null => {
   if (!document || !annotations || !program) {
     return null;
@@ -76,7 +76,7 @@ export const getHover = (
           const [resolved] = resolveSelector<any>(
             program,
             selector,
-            getExpectedSelectorTypes(program, reference.assigned, config)
+            getExpectedSelectorTypes(program, reference.assigned, config),
           );
           if (resolved) {
             resolvedValue = resolved;
@@ -97,7 +97,7 @@ export const getHover = (
               ) {
                 filterImage(
                   program.context,
-                  program.context?.["filtered_image"]?.[selector.name]
+                  program.context?.["filtered_image"]?.[selector.name],
                 );
               }
             }
@@ -105,15 +105,15 @@ export const getHover = (
             const rootImage = resolveRootImage(
               resolvedValue,
               program.context,
-              stack
+              stack,
             );
             if (rootImage !== "circular") {
               const src =
                 rootImage?.$type === "filtered_image"
                   ? rootImage?.filtered_src
                   : rootImage?.$type === "image"
-                  ? rootImage?.src || rootImage?.uri
-                  : undefined;
+                    ? rootImage?.src || rootImage?.uri
+                    : undefined;
               if (src) {
                 result = {
                   contents: {

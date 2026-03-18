@@ -72,7 +72,7 @@ export const inline = (options: Partial<Options> = {}): Middleware => ({
     const { padding = 2, x, y } = options;
 
     const nativeClientRects = Array.from(
-      (await platform.getClientRects?.(elements.reference)) || []
+      (await platform.getClientRects?.(elements.reference)) || [],
     );
 
     const clientRects = getRectsByLine(nativeClientRects);
@@ -94,7 +94,7 @@ export const inline = (options: Partial<Options> = {}): Middleware => ({
               x > rect.left - paddingObject.left &&
               x < rect.right + paddingObject.right &&
               y > rect.top - paddingObject.top &&
-              y < rect.bottom + paddingObject.bottom
+              y < rect.bottom + paddingObject.bottom,
           ) || fallback
         );
       }
@@ -129,7 +129,7 @@ export const inline = (options: Partial<Options> = {}): Middleware => ({
         const maxRight = max(...clientRects.map((rect) => rect.right));
         const minLeft = min(...clientRects.map((rect) => rect.left));
         const measureRects = clientRects.filter((rect) =>
-          isLeftSide ? rect.left === minLeft : rect.right === maxRight
+          isLeftSide ? rect.left === minLeft : rect.right === maxRight,
         );
 
         const top = measureRects[0]?.top;

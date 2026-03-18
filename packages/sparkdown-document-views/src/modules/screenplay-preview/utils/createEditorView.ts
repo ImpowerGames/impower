@@ -17,7 +17,7 @@ interface EditorConfig {
 
 const createEditorView = (
   parent: HTMLElement,
-  config?: EditorConfig
+  config?: EditorConfig,
 ): EditorView => {
   const textDocument = config?.textDocument;
   const scrollMargin = config?.scrollMargin;
@@ -49,7 +49,7 @@ const createEditorView = (
   const scrollTo = scrollToLine
     ? EditorView.scrollIntoView(
         EditorSelection.range(scrollToLine.from, scrollToLine.to),
-        { y: "start" }
+        { y: "start" },
       )
     : undefined;
   const view = new EditorView({

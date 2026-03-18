@@ -71,7 +71,7 @@ export class RuntimeVariable {
 
   constructor(
     public readonly name: string,
-    private _value: IRuntimeVariableType
+    private _value: IRuntimeVariableType,
   ) {}
 
   public setMemory(data: Uint8Array, offset = 0) {
@@ -165,7 +165,7 @@ export class MockRuntime extends EventEmitter {
   public async start(
     program: string,
     stopOnEntry: boolean,
-    debug: boolean
+    debug: boolean,
   ): Promise<void> {
     await this.loadSource(this.normalizePathAndCasing(program));
 
@@ -344,7 +344,7 @@ export class MockRuntime extends EventEmitter {
    */
   public async setBreakPoint(
     path: string,
-    line: number
+    line: number,
   ): Promise<IRuntimeBreakpoint> {
     path = this.normalizePathAndCasing(path);
 
@@ -370,7 +370,7 @@ export class MockRuntime extends EventEmitter {
    */
   public clearBreakPoint(
     path: string,
-    line: number
+    line: number,
   ): IRuntimeBreakpoint | undefined {
     const bps = this.breakPoints.get(this.normalizePathAndCasing(path));
     if (bps) {
@@ -390,7 +390,7 @@ export class MockRuntime extends EventEmitter {
 
   public setDataBreakpoint(
     address: string,
-    accessType: "read" | "write" | "readWrite"
+    accessType: "read" | "write" | "readWrite",
   ): boolean {
     const x = accessType === "readWrite" ? "read write" : accessType;
 
@@ -411,7 +411,7 @@ export class MockRuntime extends EventEmitter {
 
   public setExceptionsFilters(
     namedException: string | undefined,
-    otherExceptions: boolean
+    otherExceptions: boolean,
   ): void {
     this.namedException = namedException;
     this.otherExceptions = otherExceptions;
@@ -427,7 +427,7 @@ export class MockRuntime extends EventEmitter {
   }
 
   public async getGlobalVariables(
-    cancellationToken?: () => boolean
+    cancellationToken?: () => boolean,
   ): Promise<RuntimeVariable[]> {
     let a: RuntimeVariable[] = [];
 
@@ -455,7 +455,7 @@ export class MockRuntime extends EventEmitter {
    */
   public disassemble(
     address: number,
-    instructionCount: number
+    instructionCount: number,
   ): RuntimeDisassembledInstruction[] {
     const instructions: RuntimeDisassembledInstruction[] = [];
 
@@ -646,7 +646,7 @@ export class MockRuntime extends EventEmitter {
           matches1[2],
           this._sourceFile,
           ln,
-          matches1.index
+          matches1.index,
         );
       }
     }

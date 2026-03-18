@@ -18,7 +18,7 @@ export class MultipleConditionExpression extends Expression {
   }
 
   public readonly GenerateIntoContainer = (
-    container: RuntimeContainer
+    container: RuntimeContainer,
   ): void => {
     //    A && B && C && D
     // => (((A B &&) C &&) D &&) etc

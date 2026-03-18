@@ -3,7 +3,7 @@ import { TextOptions } from "../types/TextOptions";
 
 export const normalizeTexts = (
   textArray: FormattedText[],
-  textboxStyle: TextOptions
+  textboxStyle: TextOptions,
 ) => {
   /* 
       This function adds default values to every text object. This is necessary
@@ -26,7 +26,7 @@ export const normalizeTexts = (
 
 export const normalizeLineHeight = (
   text: FormattedText,
-  textboxStyle: TextOptions
+  textboxStyle: TextOptions,
 ) => {
   if (text.lineHeight != null) {
     if (text.fontSize != null) {
@@ -49,7 +49,7 @@ export const normalizeLineHeight = (
 };
 
 export const normalizeLinebreaks = (
-  normalizedTextWithLinebreaks: FormattedText
+  normalizedTextWithLinebreaks: FormattedText,
 ) => {
   /* 
       This function checks whether linebreaks with '\n' are inside the text. 

@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 export const readFile = async (
-  filepath: string | vscode.Uri
+  filepath: string | vscode.Uri,
 ): Promise<ArrayBuffer | undefined> => {
   try {
     const uri =
@@ -9,7 +9,7 @@ export const readFile = async (
     const array = await vscode.workspace.fs.readFile(uri);
     return array.buffer.slice(
       array.byteOffset,
-      array.byteLength + array.byteOffset
+      array.byteLength + array.byteOffset,
     ) as ArrayBuffer;
   } catch {
     return undefined;

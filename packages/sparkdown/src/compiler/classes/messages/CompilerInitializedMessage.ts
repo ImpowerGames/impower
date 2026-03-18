@@ -15,9 +15,8 @@ export class CompilerInitializedMessage {
 }
 
 export namespace CompilerInitializedMessage {
-  export interface Notification
-    extends NotificationMessage<
-      CompilerInitializedMethod,
-      CompilerInitializedParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    CompilerInitializedMethod,
+    CompilerInitializedParams
+  > {}
 }

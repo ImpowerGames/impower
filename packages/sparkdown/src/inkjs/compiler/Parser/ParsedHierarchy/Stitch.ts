@@ -13,7 +13,7 @@ export class Stitch extends FlowBase {
     name: Identifier,
     topLevelObjects: ParsedObject[],
     args: Argument[],
-    isFunction: boolean
+    isFunction: boolean,
   ) {
     super(name, topLevelObjects, args, isFunction);
   }

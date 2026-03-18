@@ -60,7 +60,7 @@ function createGradient(
   markerCssProperty: string,
   indentWidth: number,
   startOffset: number,
-  columns: number
+  columns: number,
 ) {
   const gradient = `repeating-linear-gradient(to right, var(${markerCssProperty}) 0 ${MARKER_THICKNESS}, transparent ${MARKER_THICKNESS} ${indentWidth}ch)`;
   // Subtract one pixel from the background width to get rid of artifacts of pixel rounding
@@ -72,7 +72,7 @@ function createGradient(
 function makeBackgroundCSS(
   entry: IndentEntry,
   indentWidth: number,
-  hideFirstIndent: boolean
+  hideFirstIndent: boolean,
 ) {
   const { level, active } = entry;
   if (hideFirstIndent && level === 0) {
@@ -89,8 +89,8 @@ function makeBackgroundCSS(
           "--indent-marker-bg-color",
           indentWidth,
           startAt,
-          guidesBeforeActive
-        )
+          guidesBeforeActive,
+        ),
       );
     }
     backgrounds.push(
@@ -98,8 +98,8 @@ function makeBackgroundCSS(
         "--indent-marker-active-bg-color",
         indentWidth,
         active - 1,
-        1
-      )
+        1,
+      ),
     );
     if (active !== level) {
       backgrounds.push(
@@ -107,8 +107,8 @@ function makeBackgroundCSS(
           "--indent-marker-bg-color",
           indentWidth,
           active,
-          level - active
-        )
+          level - active,
+        ),
       );
     }
   } else {
@@ -117,8 +117,8 @@ function makeBackgroundCSS(
         "--indent-marker-bg-color",
         indentWidth,
         startAt,
-        level - startAt
-      )
+        level - startAt,
+      ),
     );
   }
 
@@ -177,7 +177,7 @@ class IndentGuideClass implements PluginValue {
       const backgrounds = makeBackgroundCSS(
         entry,
         this.unitWidth,
-        hideFirstIndent
+        hideFirstIndent,
       );
 
       builder.add(
@@ -188,7 +188,7 @@ class IndentGuideClass implements PluginValue {
           attributes: {
             style: `--indent-guides: ${backgrounds}`,
           },
-        })
+        }),
       );
     }
 

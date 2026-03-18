@@ -29,7 +29,7 @@ export default class StructPresetWidgetType extends WidgetType {
   constructor(
     id: string,
     options: StructPresetOption[],
-    onOpenPopup: (e: MouseEvent) => void
+    onOpenPopup: (e: MouseEvent) => void,
   ) {
     super();
     this.id = id;
@@ -100,7 +100,7 @@ export default class StructPresetWidgetType extends WidgetType {
 
     const createOption = (
       option: StructPresetOption,
-      type: "li" | "div" = "li"
+      type: "li" | "div" = "li",
     ): HTMLElement => {
       const listItem = document.createElement(type);
       listItem.style.padding = "0";
@@ -170,7 +170,7 @@ export default class StructPresetWidgetType extends WidgetType {
           }
         },
       },
-      "div"
+      "div",
     );
     closeListItem.style.borderTop = "1px solid #FFFFFF26";
     const closeButton = closeListItem.firstElementChild as HTMLElement;

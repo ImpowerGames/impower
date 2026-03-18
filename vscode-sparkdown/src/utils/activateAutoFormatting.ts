@@ -39,31 +39,31 @@ export const activateAutoFormatting = (context: ExtensionContext) => {
     }),
     commands.registerCommand(
       "sparkdown.extension.onBackspaceKey",
-      onBackspaceKey
+      onBackspaceKey,
     ),
     commands.registerCommand("sparkdown.extension.editing.toggleBold", () =>
-      toggleEmphasis(EmphasisType.BOLD)
+      toggleEmphasis(EmphasisType.BOLD),
     ),
     commands.registerCommand("sparkdown.extension.editing.toggleItalic", () =>
-      toggleEmphasis(EmphasisType.ITALIC)
+      toggleEmphasis(EmphasisType.ITALIC),
     ),
     commands.registerCommand(
       "sparkdown.extension.editing.toggleItalicAsterisk",
-      () => toggleEmphasis(EmphasisType.ITALIC)
+      () => toggleEmphasis(EmphasisType.ITALIC),
     ),
     commands.registerCommand(
       "sparkdown.extension.editing.toggleUnderline",
-      () => toggleEmphasis(EmphasisType.UNDERLINE)
+      () => toggleEmphasis(EmphasisType.UNDERLINE),
     ),
     commands.registerCommand("sparkdown.extension.editing.toggleCenter", () =>
-      toggleEmphasis(EmphasisType.CENTER)
+      toggleEmphasis(EmphasisType.CENTER),
     ),
     commands.registerCommand("sparkdown.extension.editing.toggleWavy", () =>
-      toggleEmphasis(EmphasisType.WAVY)
+      toggleEmphasis(EmphasisType.WAVY),
     ),
     commands.registerCommand("sparkdown.extension.editing.toggleShaky", () =>
-      toggleEmphasis(EmphasisType.SHAKY)
-    )
+      toggleEmphasis(EmphasisType.SHAKY),
+    ),
   );
 
   const config = workspace.getConfiguration("sparkdown");
@@ -76,7 +76,7 @@ const getIndent = (editor: TextEditor, indentLevel: number) => {
   const tabSize =
     typeof editor.options.tabSize === "number"
       ? editor.options.tabSize
-      : editor.options.tabSize?.length ?? 1;
+      : (editor.options.tabSize?.length ?? 1);
   return editor.options.insertSpaces
     ? " ".repeat(indentLevel * tabSize)
     : "\t".repeat(indentLevel);
@@ -85,7 +85,7 @@ const getIndent = (editor: TextEditor, indentLevel: number) => {
 const asNormal = async (
   editor: TextEditor,
   key: "backspace" | "enter" | "tab",
-  modifiers?: IModifier
+  modifiers?: IModifier,
 ) => {
   switch (key) {
     case "enter":
@@ -205,7 +205,7 @@ const closeAngleBracket = async (editor: TextEditor): Promise<boolean> => {
   const stack = getStack<SparkdownNodeName>(
     tree,
     parsedDoc.offsetAt(cursor),
-    -1
+    -1,
   );
 
   if (
@@ -224,7 +224,7 @@ const closeAngleBracket = async (editor: TextEditor): Promise<boolean> => {
         n.name === "BlockWrite" ||
         n.name === "InlineWrite" ||
         n.name === "BlockDialogue" ||
-        n.name === "InlineDialogue"
+        n.name === "InlineDialogue",
     )
   ) {
     return false;
@@ -254,23 +254,23 @@ const completeKnotEndMarker = async (editor: TextEditor): Promise<boolean> => {
           (editBuilder) => {
             if (expectedText.startsWith(currentTextBeforeCursor)) {
               const insertText = expectedText.slice(
-                currentTextBeforeCursor.length
+                currentTextBeforeCursor.length,
               );
               editBuilder.insert(
                 new Position(cursor.line, currentTextBeforeCursor.length),
-                insertText
+                insertText,
               );
             } else {
               editBuilder.replace(
                 new Range(cursor.line, 0, cursor.line, matches[0].length),
-                expectedText
+                expectedText,
               );
             }
           },
           {
             undoStopBefore: false,
             undoStopAfter: false,
-          }
+          },
         );
       }
       return false;
@@ -280,7 +280,7 @@ const completeKnotEndMarker = async (editor: TextEditor): Promise<boolean> => {
 };
 
 const completeStitchEndMarker = async (
-  editor: TextEditor
+  editor: TextEditor,
 ): Promise<boolean> => {
   const cursor = editor.selection.active;
   const currentLineText = editor.document.lineAt(cursor.line).text;
@@ -296,13 +296,13 @@ const completeStitchEndMarker = async (
           (editBuilder) => {
             editBuilder.replace(
               new Range(cursor.line, 0, cursor.line, matches[0].length),
-              expectedText
+              expectedText,
             );
           },
           {
             undoStopBefore: false,
             undoStopAfter: false,
-          }
+          },
         );
       }
       return false;
@@ -320,12 +320,12 @@ const deleteAngleBrackets = async (editor: TextEditor): Promise<boolean> => {
           cursor.line,
           cursor.character - 1,
           cursor.line,
-          cursor.character + 1
+          cursor.character + 1,
         ),
-        ""
+        "",
       );
     },
-    { undoStopBefore: false, undoStopAfter: false }
+    { undoStopBefore: false, undoStopAfter: false },
   );
   return true;
 };
@@ -355,7 +355,7 @@ const styleByWrapping = (startPattern: string, endPattern = startPattern) => {
         selection.start.line == pos.line &&
         selection.start.character >= pos.character
           ? s
-          : 0
+          : 0,
       )
       .reduce((a, b) => a + b, 0);
 
@@ -395,7 +395,7 @@ const styleByWrapping = (startPattern: string, endPattern = startPattern) => {
           new Range(start, end),
           false,
           startPattern,
-          endPattern
+          endPattern,
         );
       } else {
         // Select word under cursor
@@ -414,7 +414,7 @@ const styleByWrapping = (startPattern: string, endPattern = startPattern) => {
           wordRange,
           false,
           startPattern,
-          endPattern
+          endPattern,
         );
       }
     } else {
@@ -430,7 +430,7 @@ const styleByWrapping = (startPattern: string, endPattern = startPattern) => {
         selection,
         true,
         startPattern,
-        endPattern
+        endPattern,
       );
     }
   }
@@ -461,7 +461,7 @@ const wrapRange = (
   range: Range,
   isSelected: boolean,
   startPtn: string,
-  endPtn: string
+  endPtn: string,
 ) => {
   let text = editor.document.getText(range);
   const prevSelection = newSelections[i];
@@ -474,7 +474,7 @@ const wrapRange = (
     wsEdit.replace(
       editor.document.uri,
       range,
-      text.substr(startPtn.length, text.length - ptnLength)
+      text.substr(startPtn.length, text.length - ptnLength),
     );
 
     shifts.push([range.end, -ptnLength]);
@@ -506,7 +506,7 @@ const wrapRange = (
         }),
         prevSelection.end.with({
           character: prevSelection.end.character + shift - ptnLength,
-        })
+        }),
       );
     }
   } else {
@@ -542,7 +542,7 @@ const wrapRange = (
         }),
         prevSelection.end.with({
           character: prevSelection.end.character + shift + ptnLength,
-        })
+        }),
       );
     }
   }
@@ -554,7 +554,7 @@ const wrapRange = (
 const isWrapped = (
   text: string,
   startPattern: string,
-  endPattern: string
+  endPattern: string,
 ): boolean => {
   return text.startsWith(startPattern) && text.endsWith(endPattern);
 };
@@ -563,7 +563,7 @@ const getContext = (
   editor: TextEditor,
   cursorPos: Position,
   startPattern: string,
-  endPattern: string
+  endPattern: string,
 ): string => {
   let startPositionCharacter = cursorPos.character - startPattern.length;
   let endPositionCharacter = cursorPos.character + endPattern.length;
@@ -577,16 +577,16 @@ const getContext = (
       cursorPos.line,
       startPositionCharacter,
       cursorPos.line,
-      cursorPos.character
-    )
+      cursorPos.character,
+    ),
   );
   let rightText = editor.document.getText(
     new Range(
       cursorPos.line,
       cursorPos.character,
       cursorPos.line,
-      endPositionCharacter
-    )
+      endPositionCharacter,
+    ),
   );
 
   if (rightText == endPattern) {

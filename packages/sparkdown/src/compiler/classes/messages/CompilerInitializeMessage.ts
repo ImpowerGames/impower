@@ -19,9 +19,8 @@ export class CompilerInitializeMessage {
 }
 
 export namespace CompilerInitializeMessage {
-  export interface Request
-    extends RequestMessage<
-      CompilerInitializeMethod,
-      CompilerInitializeParams
-    > {}
+  export interface Request extends RequestMessage<
+    CompilerInitializeMethod,
+    CompilerInitializeParams
+  > {}
 }

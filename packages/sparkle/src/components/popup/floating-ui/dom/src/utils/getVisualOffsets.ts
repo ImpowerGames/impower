@@ -1,12 +1,12 @@
-import { getWindow } from './getWindow';
-import { isSafari } from './is';
+import { getWindow } from "./getWindow";
+import { isSafari } from "./is";
 
-const noOffsets = {x: 0, y: 0};
+const noOffsets = { x: 0, y: 0 };
 
 export function getVisualOffsets(
   element: Element | undefined,
   isFixed = true,
-  floatingOffsetParent?: Element | Window | undefined
+  floatingOffsetParent?: Element | Window | undefined,
 ) {
   if (!isSafari()) {
     return noOffsets;

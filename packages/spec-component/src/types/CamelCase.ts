@@ -1,6 +1,6 @@
 export type StringLength<
   S extends string,
-  Acc extends 0[] = []
+  Acc extends 0[] = [],
 > = S extends `${string}${infer Rest}`
   ? StringLength<Rest, [...Acc, 0]>
   : Acc["length"];
@@ -16,7 +16,7 @@ export type CamelCase<S extends string> =
 
 export type Unprefix<
   S extends string,
-  P extends string
+  P extends string,
 > = S extends `${P}${Separator}${infer U}` ? `${U}` : S;
 
 export type CamelCased<T> = {

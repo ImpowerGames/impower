@@ -30,7 +30,7 @@ export const utf8ToString = (array: Uint8Array) => {
         char2 = array[i++] || 0;
         char3 = array[i++] || 0;
         out += String.fromCharCode(
-          ((c & 0x0f) << 12) | ((char2 & 0x3f) << 6) | ((char3 & 0x3f) << 0)
+          ((c & 0x0f) << 12) | ((char2 & 0x3f) << 6) | ((char3 & 0x3f) << 0),
         );
         break;
     }

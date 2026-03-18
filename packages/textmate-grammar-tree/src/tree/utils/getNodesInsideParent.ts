@@ -3,13 +3,13 @@ import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 export const getNodesInsideParent = <T extends string>(
   targetTypeName: T | T[],
   parentTypeName: T | T[],
-  stack: GrammarSyntaxNode<T>[]
+  stack: GrammarSyntaxNode<T>[],
 ): GrammarSyntaxNode<T>[] => {
   const matches: GrammarSyntaxNode<T>[] = [];
   const parent = stack.find((n) =>
     typeof parentTypeName === "string"
       ? n.name === parentTypeName
-      : parentTypeName.includes(n.name as T)
+      : parentTypeName.includes(n.name as T),
   );
   if (parent) {
     const cur = parent?.node.cursor();

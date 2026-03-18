@@ -87,7 +87,7 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
   constructor(
     startContent: ContentList,
     choiceOnlyContent: ContentList,
-    innerContent: ContentList
+    innerContent: ContentList,
   ) {
     super();
 
@@ -200,7 +200,7 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
 
       // Add the container
       this._outerContainer.AddToNamedContentOnly(
-        this._startContentRuntimeContainer
+        this._startContentRuntimeContainer,
       );
 
       // This is the label to return to
@@ -268,7 +268,7 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
       const innerChoiceOnlyContent =
         this.innerContent.GenerateRuntimeObject() as RuntimeContainer;
       this._innerContentContainer.AddContentsOfContainer(
-        innerChoiceOnlyContent
+        innerChoiceOnlyContent,
       );
     }
 
@@ -331,7 +331,7 @@ export class Choice extends ParsedObject implements IWeavePoint, INamedContent {
       context.CheckForNamingCollisions(
         this as ParsedObject,
         this.identifier,
-        SymbolType.SubFlowAndWeave
+        SymbolType.SubFlowAndWeave,
       );
     }
   }

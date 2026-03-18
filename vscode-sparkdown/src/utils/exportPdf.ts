@@ -12,7 +12,7 @@ import { updateCommands } from "./updateCommands";
 
 export const exportPdf = async (
   context: vscode.ExtensionContext,
-  worker: Worker
+  worker: Worker,
 ): Promise<void> => {
   const uri = getActiveSparkdownDocument();
   if (!uri) {
@@ -39,11 +39,11 @@ export const exportPdf = async (
       const fontFilePattern = sparkdownConfig["fontFiles"];
       const scriptWorkspaceRelativePath = getWorkspaceRelativePath(
         uri,
-        scriptFilePattern
+        scriptFilePattern,
       );
       const fontWorkspaceRelativePath = getWorkspaceRelativePath(
         uri,
-        fontFilePattern
+        fontFilePattern,
       );
 
       let scriptFileUris: vscode.Uri[] = [uri];
@@ -59,8 +59,8 @@ export const exportPdf = async (
         let [workspaceScriptFileUris, workspaceFontFileUrls] =
           await Promise.all(
             workspaceFilePatterns.map((pattern) =>
-              vscode.workspace.findFiles(pattern)
-            )
+              vscode.workspace.findFiles(pattern),
+            ),
           );
         if (workspaceScriptFileUris) {
           scriptFileUris = workspaceScriptFileUris;
@@ -75,7 +75,7 @@ export const exportPdf = async (
             const buffer = await vscode.workspace.fs.readFile(fileUri);
             const text = Buffer.from(buffer).toString("utf8");
             return text;
-          })
+          }),
         ),
         Promise.all(
           (fontFileUris || []).map(
@@ -83,13 +83,13 @@ export const exportPdf = async (
               const array = await vscode.workspace.fs.readFile(fileUri);
               const arrayBuffer = array.buffer.slice(
                 array.byteOffset,
-                array.byteLength + array.byteOffset
+                array.byteLength + array.byteOffset,
               ) as ArrayBuffer;
               const filename =
                 fileUri.toString().split("/").at(-1)?.split(".")[0] || "";
               return [filename, arrayBuffer];
-            }
-          )
+            },
+          ),
         ),
       ]);
       const config = getSparkdownPreviewConfig(uri);
@@ -130,7 +130,7 @@ export const exportPdf = async (
       }
       await writeFile(fsPath, pdfBuffer);
       updateCommands(uri);
-    }
+    },
   );
   SparkdownCommandTreeDataProvider.instance.notifyExportEnded("pdf");
 };

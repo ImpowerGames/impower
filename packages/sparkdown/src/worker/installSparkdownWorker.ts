@@ -27,42 +27,42 @@ export function installSparkdownWorker(connection: MessageConnection) {
       }
       if (ConfigureCompilerMessage.type.is(message)) {
         connection.sendResponse(message, () =>
-          state.compiler.configure(message.params)
+          state.compiler.configure(message.params),
         );
         return;
       }
       if (AddCompilerFileMessage.type.is(message)) {
         connection.sendResponse(message, () =>
-          state.compiler.addFile(message.params)
+          state.compiler.addFile(message.params),
         );
         return;
       }
       if (UpdateCompilerFileMessage.type.is(message)) {
         connection.sendResponse(message, () =>
-          state.compiler.updateFile(message.params)
+          state.compiler.updateFile(message.params),
         );
         return;
       }
       if (RemoveCompilerFileMessage.type.is(message)) {
         connection.sendResponse(message, () =>
-          state.compiler.removeFile(message.params)
+          state.compiler.removeFile(message.params),
         );
         return;
       }
       if (UpdateCompilerDocumentMessage.type.is(message)) {
         connection.sendResponse(message, () =>
-          state.compiler.updateDocument(message.params)
+          state.compiler.updateDocument(message.params),
         );
       }
       if (CompileProgramMessage.type.is(message)) {
         connection.sendResponse(message, () =>
-          state.compiler.compile(message.params)
+          state.compiler.compile(message.params),
         );
         return;
       }
       if (SelectCompilerDocumentMessage.type.is(message)) {
         connection.sendResponse(message, () =>
-          state.compiler.selectDocument(message.params)
+          state.compiler.selectDocument(message.params),
         );
         return;
       }

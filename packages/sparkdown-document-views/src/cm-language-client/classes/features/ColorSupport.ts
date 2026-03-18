@@ -30,7 +30,7 @@ const updateColorDecorationEffect = StateEffect.define<
 
 const setColorDecorations = (
   state: EditorState,
-  colors: ColorInformation[]
+  colors: ColorInformation[],
 ): TransactionSpec => {
   const effects: StateEffect<unknown>[] = [];
   const value = colors
@@ -67,8 +67,8 @@ const colorDecorationsField = StateField.define<DecorationSet>({
                 to: r.to,
               }),
               side: 1,
-            }).range(r.from)
-          )
+            }).range(r.from),
+          ),
         );
         return decorations;
       }
@@ -79,9 +79,9 @@ const colorDecorationsField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
-export default class ColorSupport
-  implements FeatureSupport<ColorInformation[]>
-{
+export default class ColorSupport implements FeatureSupport<
+  ColorInformation[]
+> {
   load() {
     return [colorDecorationsField, COLOR_SUPPORT_WIDGET_THEME];
   }

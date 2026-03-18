@@ -21,12 +21,13 @@ export class AddCompilerFileMessage {
 }
 
 export namespace AddCompilerFileMessage {
-  export interface Request
-    extends RequestMessage<
-      AddCompilerFileMethod,
-      AddCompilerFileParams,
-      AddCompilerFileResult
-    > {}
-  export interface Response
-    extends ResponseMessage<AddCompilerFileMethod, AddCompilerFileResult> {}
+  export interface Request extends RequestMessage<
+    AddCompilerFileMethod,
+    AddCompilerFileParams,
+    AddCompilerFileResult
+  > {}
+  export interface Response extends ResponseMessage<
+    AddCompilerFileMethod,
+    AddCompilerFileResult
+  > {}
 }

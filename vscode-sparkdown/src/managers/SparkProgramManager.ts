@@ -53,21 +53,21 @@ export class SparkProgramManager {
       this._compiledPrograms.set(scriptUri, program);
       this._compiledUris.add(vscode.Uri.parse(scriptUri));
       this._listeners.forEach((listener) =>
-        listener(vscode.Uri.parse(scriptUri), program)
+        listener(vscode.Uri.parse(scriptUri), program),
       );
     }
     const resources = Array.from(
-      this._compiledUris.keys().map((uri) => uri.toString())
+      this._compiledUris.keys().map((uri) => uri.toString()),
     );
     vscode.commands.executeCommand(
       "setContext",
       `sparkdown.program`,
-      resources
+      resources,
     );
     vscode.commands.executeCommand(
       "setContext",
       `sparkdown.json`,
-      resources.map((uri) => uri.replace(/.sd$/, ".json"))
+      resources.map((uri) => uri.replace(/.sd$/, ".json")),
     );
   }
 
@@ -113,7 +113,7 @@ export class SparkProgramManager {
     return client.sendRequest<SparkProgram>(
       CompileProgramMessage.method,
       params,
-      CancellationToken.None
+      CancellationToken.None,
     );
   }
 }

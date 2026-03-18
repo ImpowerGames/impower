@@ -9,7 +9,7 @@ interface InitOptions extends DefineOptions {
 
 export default abstract class SparkdownInspector {
   static async init(
-    options?: InitOptions
+    options?: InitOptions,
   ): Promise<CustomElementConstructor[]> {
     const constructors = options?.constructors ?? DEFAULT_CONSTRUCTORS;
     return defineAll(constructors, options);

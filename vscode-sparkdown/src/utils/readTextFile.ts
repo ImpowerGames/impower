@@ -3,7 +3,7 @@ import { readFile } from "./readFile";
 
 export const readTextFile = async (
   filepath: string | vscode.Uri,
-  encoding?: BufferEncoding | undefined
+  encoding?: BufferEncoding | undefined,
 ): Promise<string | undefined> => {
   const data = await readFile(filepath);
   if (data === undefined) {

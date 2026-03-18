@@ -42,7 +42,7 @@ export const getReferences = (
     excludeUses?: boolean;
     includeInterdependent: boolean;
     includeLinks: boolean;
-  }
+  },
 ): {
   resolvedSymbolIds?: string[];
   references?: (Location & DocumentHighlight)[];
@@ -64,7 +64,7 @@ export const getReferences = (
 
   const { symbolIds, interdependentIds } = getSymbolIds(
     workspace.annotations(document.uri),
-    symbol
+    symbol,
   );
   if (!symbolIds && !interdependentIds) {
     return {
@@ -82,7 +82,7 @@ export const getReferences = (
     getSymbolContext(
       document,
       workspace.annotations(document.uri).references,
-      symbol.from
+      symbol.from,
     );
 
   const references: (Location & DocumentHighlight)[] = [];
@@ -116,7 +116,7 @@ export const getReferences = (
 
   const addSymbol = (
     uri: string,
-    r: RangeCursor<SparkdownAnnotation<Reference>>
+    r: RangeCursor<SparkdownAnnotation<Reference>>,
   ) => {
     const from = r.from;
     const to = r.to;
@@ -137,19 +137,19 @@ export const getReferences = (
   };
 
   const getDocumentHighlightKind = (
-    r: RangeCursor<SparkdownAnnotation<Reference>>
+    r: RangeCursor<SparkdownAnnotation<Reference>>,
   ) => {
     return r.value?.type.kind === "write"
       ? DocumentHighlightKind.Write
       : r.value?.type.kind === "read"
-      ? DocumentHighlightKind.Read
-      : DocumentHighlightKind.Text;
+        ? DocumentHighlightKind.Read
+        : DocumentHighlightKind.Text;
   };
 
   const addMatchingSymbols = (
     uri: string,
     r: RangeCursor<SparkdownAnnotation<Reference>>,
-    refScopePath: string
+    refScopePath: string,
   ) => {
     if (r.value) {
       const refSymbolIds = r.value.type.symbolIds;
@@ -160,7 +160,7 @@ export const getReferences = (
             r.value.type,
             refScopePath,
             program,
-            workspace.compilerConfig
+            workspace.compilerConfig,
           );
           const fullyResolvedRefId =
             resolvedRefId && r.value.type.usage === "divert"
@@ -174,7 +174,7 @@ export const getReferences = (
                   symbolReference,
                   symbolScopePath,
                   program,
-                  workspace.compilerConfig
+                  workspace.compilerConfig,
                 );
                 if (resolvedSymbolId) {
                   resolvedSymbolIds.push(resolvedSymbolId);
@@ -234,7 +234,7 @@ export const getReferences = (
                     symbolReference,
                     symbolScopePath,
                     program,
-                    workspace.compilerConfig
+                    workspace.compilerConfig,
                   );
                   if (resolvedSymbolId) {
                     resolvedSymbolIds.push(resolvedSymbolId);

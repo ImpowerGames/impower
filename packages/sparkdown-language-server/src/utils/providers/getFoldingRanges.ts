@@ -8,7 +8,7 @@ const INDENT_REGEX = /^([ \t]+)/;
 export const getFoldingRanges = (
   document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations,
-  program: SparkProgram | undefined
+  program: SparkProgram | undefined,
 ): FoldingRange[] => {
   const indentFolding: FoldingRange[] = [];
   if (!document) {
@@ -74,7 +74,7 @@ export const getFoldingRanges = (
         const line = document.positionAt(cur.from).line;
         const lastTop = headingFolding.findLast(
           (h) =>
-            h.kind === "function" || h.kind === "scene" || h.kind === "knot"
+            h.kind === "function" || h.kind === "scene" || h.kind === "knot",
         );
         if (lastTop) {
           lastTop.endLine = line - 1;
@@ -93,7 +93,7 @@ export const getFoldingRanges = (
         const line = document.positionAt(cur.from).line;
         const lastTop = headingFolding.findLast(
           (h) =>
-            h.kind === "function" || h.kind === "scene" || h.kind === "knot"
+            h.kind === "function" || h.kind === "scene" || h.kind === "knot",
         );
         if (lastTop) {
           lastTop.endLine = line - 1;
@@ -124,7 +124,7 @@ export const getFoldingRanges = (
         const line = document.positionAt(cur.from).line;
         const lastTop = headingFolding.findLast(
           (h) =>
-            h.kind === "function" || h.kind === "scene" || h.kind === "knot"
+            h.kind === "function" || h.kind === "scene" || h.kind === "knot",
         );
         if (lastTop) {
           lastTop.endLine = line - 1;
@@ -155,19 +155,19 @@ export const getFoldingRanges = (
     }
   }
   const lastTop = headingFolding.findLast(
-    (h) => h.kind === "function" || h.kind === "scene" || h.kind === "knot"
+    (h) => h.kind === "function" || h.kind === "scene" || h.kind === "knot",
   );
   if (lastTop && lastTop.endLine === lastTop.startLine) {
     lastTop.endLine = document.lineCount - 1;
   }
   const lastNested = headingFolding.findLast(
-    (h) => h.kind === "branch" || h.kind === "stitch"
+    (h) => h.kind === "branch" || h.kind === "stitch",
   );
   if (lastNested && lastNested.endLine === lastNested.startLine) {
     lastNested.endLine = document.lineCount - 1;
   }
   const result = [...indentFolding, ...headingFolding].sort(
-    (a, b) => a.startLine - b.startLine
+    (a, b) => a.startLine - b.startLine,
   );
   return result;
 };

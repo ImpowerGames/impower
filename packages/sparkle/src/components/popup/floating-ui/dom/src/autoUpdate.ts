@@ -44,7 +44,7 @@ export function autoUpdate(
   reference: ReferenceElement,
   floating: FloatingElement,
   update: () => void,
-  options: Partial<Options> = {}
+  options: Partial<Options> = {},
 ) {
   const {
     ancestorScroll = true,
@@ -59,8 +59,8 @@ export function autoUpdate(
           ...(isElement(reference)
             ? getOverflowAncestors(reference)
             : reference.contextElement
-            ? getOverflowAncestors(reference.contextElement)
-            : []),
+              ? getOverflowAncestors(reference.contextElement)
+              : []),
           ...getOverflowAncestors(floating),
         ]
       : [];

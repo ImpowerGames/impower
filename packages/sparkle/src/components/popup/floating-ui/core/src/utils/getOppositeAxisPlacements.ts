@@ -26,7 +26,7 @@ export function getOppositeAxisPlacements(
   placement: Placement,
   flipAlignment: boolean,
   direction: "none" | Alignment,
-  rtl?: boolean
+  rtl?: boolean,
 ): Placement[] {
   const alignment = getAlignment(placement);
   let list = getSideList(getSide(placement), direction === "start", rtl);

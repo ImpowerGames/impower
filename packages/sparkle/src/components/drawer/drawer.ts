@@ -117,7 +117,7 @@ export default class Drawer
   }
 
   protected handleClose = async (
-    returnValue?: string
+    returnValue?: string,
   ): Promise<string | undefined> => {
     this.open = false;
     this.dialog.inert = true;
@@ -133,13 +133,13 @@ export default class Drawer
   };
 
   protected handleEscapeClose = async (
-    e: Event
+    e: Event,
   ): Promise<string | undefined> => {
     return this.handleClose("escape");
   };
 
   protected handleClickClose = async (
-    e: Event
+    e: Event,
   ): Promise<string | undefined> => {
     const button = e.currentTarget as HTMLButtonElement;
     const returnValue = button?.getAttribute?.("id") ?? "";

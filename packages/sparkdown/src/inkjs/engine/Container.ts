@@ -88,7 +88,7 @@ export class Container extends InkObject implements INamedContent {
   get pathToFirstLeafContent() {
     if (this._pathToFirstLeafContent == null)
       this._pathToFirstLeafContent = this.path.PathByAppendingPath(
-        this.internalPathToFirstLeafContent
+        this.internalPathToFirstLeafContent,
       );
 
     return this._pathToFirstLeafContent;
@@ -137,7 +137,7 @@ export class Container extends InkObject implements INamedContent {
     Debug.AssertType(
       namedContentObj,
       InkObject,
-      "Can only add Runtime.Objects to a Runtime.Container"
+      "Can only add Runtime.Objects to a Runtime.Container",
     );
     let runtimeObj = asOrThrows(namedContentObj, InkObject);
     runtimeObj.parent = this;
@@ -149,7 +149,7 @@ export class Container extends InkObject implements INamedContent {
   public ContentAtPath(
     path: Path,
     partialPathStart: number = 0,
-    partialPathLength: number = -1
+    partialPathLength: number = -1,
   ) {
     if (partialPathLength == -1) partialPathLength = path.length;
 
@@ -229,7 +229,7 @@ export class Container extends InkObject implements INamedContent {
       let foundContent = tryGetValueFromMap(
         this.namedContent,
         component.name,
-        null
+        null,
       );
       if (foundContent.exists) {
         return asOrThrows(foundContent.result, InkObject);
@@ -243,7 +243,7 @@ export class Container extends InkObject implements INamedContent {
   public BuildStringOfHierarchy(
     sb: StringBuilder,
     indentation: number,
-    pointedObj: InkObject | null
+    pointedObj: InkObject | null,
   ): string;
   public BuildStringOfHierarchy() {
     let sb: StringBuilder;
@@ -326,7 +326,7 @@ export class Container extends InkObject implements INamedContent {
         Debug.AssertType(
           value,
           Container,
-          "Can only print out named Containers"
+          "Can only print out named Containers",
         );
         let container = value as Container;
         container.BuildStringOfHierarchy(sb, indentation, pointedObj);

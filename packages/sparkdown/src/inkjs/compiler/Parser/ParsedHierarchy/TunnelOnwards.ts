@@ -80,7 +80,7 @@ export class TunnelOnwards extends ParsedObject {
       let returnDivertObj = asOrNull(returnRuntimeObj, RuntimeDivert);
       if (returnDivertObj != null && returnDivertObj.hasVariableTarget) {
         let runtimeVarRef = new VariableReference(
-          returnDivertObj.variableDivertName
+          returnDivertObj.variableDivertName,
         );
         container.AddContent(runtimeVarRef);
       } else {

@@ -6,16 +6,16 @@ export const getWorkspaceFileWatchers = (): [
   imageWatcher: vscode.FileSystemWatcher,
   audioWatcher: vscode.FileSystemWatcher,
   fontWatcher: vscode.FileSystemWatcher,
-  worldWatcher: vscode.FileSystemWatcher
+  worldWatcher: vscode.FileSystemWatcher,
 ] => {
   const workspaceFilePatterns = getWorkspaceFilePatterns();
   return workspaceFilePatterns.map((pattern) =>
-    vscode.workspace.createFileSystemWatcher(pattern)
+    vscode.workspace.createFileSystemWatcher(pattern),
   ) as [
     scriptWatcher: vscode.FileSystemWatcher,
     imageWatcher: vscode.FileSystemWatcher,
     audioWatcher: vscode.FileSystemWatcher,
     fontWatcher: vscode.FileSystemWatcher,
-    worldWatcher: vscode.FileSystemWatcher
+    worldWatcher: vscode.FileSystemWatcher,
   ];
 };

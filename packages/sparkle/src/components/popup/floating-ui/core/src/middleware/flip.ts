@@ -58,7 +58,7 @@ export interface Options {
  * @see https://floating-ui.com/docs/flip
  */
 export const flip = (
-  options: Partial<Options & DetectOverflowOptions> = {}
+  options: Partial<Options & DetectOverflowOptions> = {},
 ): Middleware => ({
   name: "flip",
   options,
@@ -98,8 +98,8 @@ export const flip = (
           initialPlacement,
           flipAlignment,
           fallbackAxisSideDirection,
-          rtl
-        )
+          rtl,
+        ),
       );
     }
 
@@ -144,7 +144,7 @@ export const flip = (
       let resetPlacement = overflowsData
         .filter((d) => (d.overflows[0] ?? 0) <= 0)
         .sort(
-          (a, b) => (a.overflows[1] ?? 0) - (b.overflows[1] ?? 0)
+          (a, b) => (a.overflows[1] ?? 0) - (b.overflows[1] ?? 0),
         )[0]?.placement;
 
       // Otherwise fallback.
@@ -159,7 +159,7 @@ export const flip = (
                     d.overflows
                       .filter((overflow) => overflow > 0)
                       .reduce((acc, overflow) => acc + overflow, 0),
-                  ] as const
+                  ] as const,
               )
               .sort((a, b) => a[1] - b[1])[0]?.[0];
             if (placement) {

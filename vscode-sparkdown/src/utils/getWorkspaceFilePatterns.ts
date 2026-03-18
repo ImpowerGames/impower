@@ -5,7 +5,7 @@ export const getWorkspaceFilePatterns = (): [
   imageFiles: string,
   audioFiles: string,
   fontFiles: string,
-  worldFiles: string
+  worldFiles: string,
 ] => {
   const sparkdownConfig = vscode.workspace.getConfiguration("sparkdown");
   const scriptFiles = sparkdownConfig["scriptFiles"];
@@ -24,7 +24,7 @@ export const getWorkspaceFilePatterns = (): [
     imageFiles: string,
     audioFiles: string,
     fontFiles: string,
-    worldFiles: string
+    worldFiles: string,
   ];
   return workspaceFilePatterns;
 };

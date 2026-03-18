@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 
 export const getSyncOrExportPath = async (
   editor: vscode.TextEditor,
-  extension: string
+  extension: string,
 ): Promise<string> => {
   let filename = editor.document.fileName.replace(/(\.[^.]*)$/, "");
   filename += `.${extension}`;

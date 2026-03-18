@@ -160,7 +160,7 @@ export class Story extends InkObject {
 
   public onWriteRuntimeObject?: (
     writer: SimpleJson.Writer,
-    obj: InkObject
+    obj: InkObject,
   ) => boolean = undefined;
 
   // TODO: Implement Profiler
@@ -174,7 +174,7 @@ export class Story extends InkObject {
   constructor(
     contentContainer: Container,
     lists: ListDefinition[] | null,
-    structs: StructDefinition[] | null
+    structs: StructDefinition[] | null,
   );
   constructor(jsonString: string);
   constructor(json: Record<string, any>);
@@ -240,28 +240,28 @@ export class Story extends InkObject {
       let versionObj = rootObject["inkVersion"];
       if (versionObj == null)
         throw new Error(
-          "ink version number not found. Are you sure it's a valid .ink.json file?"
+          "ink version number not found. Are you sure it's a valid .ink.json file?",
         );
 
       let formatFromFile = parseInt(versionObj);
       if (formatFromFile > Story.inkVersionCurrent) {
         throw new Error(
-          "Version of ink used to build story was newer than the current version of the engine"
+          "Version of ink used to build story was newer than the current version of the engine",
         );
       } else if (formatFromFile < this.inkVersionMinimumCompatible) {
         throw new Error(
-          "Version of ink used to build story is too old to be loaded by this version of the engine"
+          "Version of ink used to build story is too old to be loaded by this version of the engine",
         );
       } else if (formatFromFile != Story.inkVersionCurrent) {
         console.warn(
-          `WARNING: Version of ink ${Story.inkVersionCurrent} used to build story doesn't match current version of engine (${formatFromFile}). Non-critical, but recommend synchronising.`
+          `WARNING: Version of ink ${Story.inkVersionCurrent} used to build story doesn't match current version of engine (${formatFromFile}). Non-critical, but recommend synchronising.`,
         );
       }
 
       let rootToken = rootObject["root"];
       if (rootToken == null)
         throw new Error(
-          "Root node for ink not found. Are you sure it's a valid .ink.json file?"
+          "Root node for ink not found. Are you sure it's a valid .ink.json file?",
         );
 
       let listDefsObj;
@@ -272,7 +272,7 @@ export class Story extends InkObject {
 
       this._mainContentContainer = asOrThrows(
         JsonSerialisation.JTokenToRuntimeObject(rootToken),
-        Container
+        Container,
       );
 
       this.ResetState();
@@ -299,8 +299,8 @@ export class Story extends InkObject {
         w,
         this._mainContentContainer,
         false,
-        this.onWriteRuntimeObject
-      )
+        this.onWriteRuntimeObject,
+      ),
     );
 
     if (this._listDefinitions != null) {
@@ -342,7 +342,7 @@ export class Story extends InkObject {
 
     this._state = new StoryState(this);
     this._state.variablesState.ObserveVariableChange(
-      this.VariableStateDidChangeEvent.bind(this)
+      this.VariableStateDidChangeEvent.bind(this),
     );
 
     this.ResetGlobals();
@@ -382,7 +382,7 @@ export class Story extends InkObject {
     if (this._asyncSaving) {
       throw new Error(
         "Story is already in background saving mode, can't switch flow to " +
-          flowName
+          flowName,
       );
     }
 
@@ -427,7 +427,7 @@ export class Story extends InkObject {
 
       if (!this.canContinue) {
         throw new Error(
-          "Can't continue - should check canContinue before calling Continue"
+          "Can't continue - should check canContinue before calling Continue",
         );
       }
 
@@ -478,7 +478,7 @@ export class Story extends InkObject {
       if (!this.canContinue) {
         if (this.state.callStack.canPopThread)
           this.AddError(
-            "Thread available to pop, threads should always be flat by the end of evaluation?"
+            "Thread available to pop, threads should always be flat by the end of evaluation?",
           );
 
         if (
@@ -488,19 +488,19 @@ export class Story extends InkObject {
         ) {
           if (this.state.callStack.CanPop(PushPopType.Tunnel))
             this.AddError(
-              "unexpectedly reached end of content. Do you need a '->->' to return from a tunnel?"
+              "unexpectedly reached end of content. Do you need a '->->' to return from a tunnel?",
             );
           else if (this.state.callStack.CanPop(PushPopType.Function))
             this.AddError(
-              "unexpectedly reached end of content. Do you need a '~ return'?"
+              "unexpectedly reached end of content. Do you need a '~ return'?",
             );
           else if (!this.state.callStack.canPop)
             this.AddError(
-              "ran out of content. Do you need a '-> DONE' or '-> END'?"
+              "ran out of content. Do you need a '-> DONE' or '-> END'?",
             );
           else
             this.AddError(
-              "unexpectedly reached end of content for unknown reason. Please debug compiler!"
+              "unexpectedly reached end of content for unknown reason. Please debug compiler!",
             );
         }
       }
@@ -542,24 +542,24 @@ export class Story extends InkObject {
         if (this.state.hasError) {
           sb.Append(`${this.state.currentErrors!.length}`);
           sb.Append(
-            this.state.currentErrors!.length == 1 ? " error" : " errors"
+            this.state.currentErrors!.length == 1 ? " error" : " errors",
           );
           if (this.state.hasWarning) sb.Append(" and ");
         }
         if (this.state.hasWarning) {
           sb.Append(`${this.state.currentWarnings!.length}`);
           sb.Append(
-            this.state.currentWarnings!.length == 1 ? " warning" : " warnings"
+            this.state.currentWarnings!.length == 1 ? " warning" : " warnings",
           );
           if (this.state.hasWarning) sb.Append(" and ");
         }
         sb.Append(
-          ". It is strongly suggested that you assign an error handler to story.onError. The first issue was: "
+          ". It is strongly suggested that you assign an error handler to story.onError. The first issue was: ",
         );
         sb.Append(
           this.state.hasError
             ? this.state.currentErrors![0]
-            : this.state.currentWarnings![0]
+            : this.state.currentWarnings![0],
         );
 
         throw new StoryException(sb.toString());
@@ -580,7 +580,7 @@ export class Story extends InkObject {
         if (sitePath) {
           const forcedSourcePath = this.simulator.forceChoice(sitePath);
           const forced = currentChoices.find(
-            (choice) => choice.sourcePath === forcedSourcePath
+            (choice) => choice.sourcePath === forcedSourcePath,
           );
           if (forced != null) {
             this.ChooseChoice(forced);
@@ -588,7 +588,6 @@ export class Story extends InkObject {
         }
       }
     }
-
   }
 
   public ContinueSingleStep() {
@@ -617,7 +616,7 @@ export class Story extends InkObject {
           this._stateSnapshotAtLastNewline.currentText,
           this.state.currentText,
           this._stateSnapshotAtLastNewline.currentTags.length,
-          this.state.currentTags.length
+          this.state.currentTags.length,
         );
 
         if (
@@ -650,7 +649,7 @@ export class Story extends InkObject {
     prevText: string | null,
     currText: string | null,
     prevTagCount: number,
-    currTagCount: number
+    currTagCount: number,
   ) {
     if (prevText === null) {
       return throwNullException("prevText");
@@ -726,7 +725,7 @@ export class Story extends InkObject {
       result = this.mainContentContainer.ContentAtPath(
         path,
         undefined,
-        pathLengthToUse
+        pathLengthToUse,
       );
       p.container = result.container;
       p.index = path.lastComponent.index;
@@ -752,7 +751,7 @@ export class Story extends InkObject {
       this.Error(
         "Failed to find content at path '" +
           path +
-          "', and no approximation of it was possible."
+          "', and no approximation of it was possible.",
       );
     } else if (result.approximate)
       this.Warning(
@@ -760,7 +759,7 @@ export class Story extends InkObject {
           path +
           "', so it was approximated to: '" +
           result.obj.path +
-          "'."
+          "'.",
       );
 
     return p;
@@ -811,7 +810,7 @@ export class Story extends InkObject {
 
     if (this._asyncSaving)
       throw new Error(
-        "Story is already in background saving mode, can't call CopyStateForBackgroundThreadSave again!"
+        "Story is already in background saving mode, can't call CopyStateForBackgroundThreadSave again!",
       );
 
     let stateToSave = this._state;
@@ -929,11 +928,11 @@ export class Story extends InkObject {
       if (varPointer && varPointer.contextIndex == -1) {
         // Create new object so we're not overwriting the story's own data
         let contextIdx = this.state.callStack.ContextForVariableNamed(
-          varPointer.variableName
+          varPointer.variableName,
         );
         currentContentObj = new VariablePointerValue(
           varPointer.variableName,
-          contextIdx
+          contextIdx,
         );
       }
 
@@ -1000,7 +999,7 @@ export class Story extends InkObject {
     // Container currentContainerAncestor = currentChildOfContainer.parent as Container;
     let currentContainerAncestor = asOrNull(
       currentChildOfContainer.parent,
-      Container
+      Container,
     );
     let allChildrenEnteredAtStart = true;
     while (
@@ -1024,7 +1023,7 @@ export class Story extends InkObject {
       // currentContainerAncestor = currentContainerAncestor.parent as Container;
       currentContainerAncestor = asOrNull(
         currentContainerAncestor.parent,
-        Container
+        Container,
       );
     }
   }
@@ -1032,7 +1031,7 @@ export class Story extends InkObject {
   public PopChoiceStringAndTags(tags: string[]) {
     let choiceOnlyStrVal = asOrThrows(
       this.state.PopEvaluationStack(),
-      StringValue
+      StringValue,
     );
 
     while (
@@ -1050,7 +1049,6 @@ export class Story extends InkObject {
 
     // Don't create choice if choice point doesn't pass conditional
     if (choicePoint.hasCondition) {
-
       // If a simulator is installed, let it force the boolean (true=visible, false=hidden)
       if (this.simulator) {
         const sitePath = this.state.previousPointer.path?.toString();
@@ -1064,7 +1062,8 @@ export class Story extends InkObject {
 
       let conditionValue = this.state.PopEvaluationStack();
 
-      if (this.onEvaluateCondition) this.onEvaluateCondition(this.IsTruthy(conditionValue));
+      if (this.onEvaluateCondition)
+        this.onEvaluateCondition(this.IsTruthy(conditionValue));
 
       if (!this.IsTruthy(conditionValue)) {
         showChoice = false;
@@ -1086,7 +1085,7 @@ export class Story extends InkObject {
     // Don't create choice if player has already read this content
     if (choicePoint.onceOnly) {
       let visitCount = this.state.VisitCountForContainer(
-        choicePoint.choiceTarget
+        choicePoint.choiceTarget,
       );
       if (visitCount > 0) {
         showChoice = false;
@@ -1122,7 +1121,7 @@ export class Story extends InkObject {
         this.Error(
           "Shouldn't use a divert target (to " +
             divTarget.targetPath +
-            ") as a conditional value. Did you intend a function call 'likeThis()' or a read count check 'likeThis'? (no arrows)"
+            ") as a conditional value. Did you intend a function call 'likeThis()' or a read count check 'likeThis'? (no arrows)",
         );
         return false;
       }
@@ -1142,7 +1141,6 @@ export class Story extends InkObject {
       let currentDivert = contentObj;
 
       if (currentDivert.isConditional) {
-
         // If simulator provides a forced value, inject it onto the eval stack.
         if (this.simulator) {
           const sitePath = this.state.previousPointer.path?.toString();
@@ -1156,7 +1154,8 @@ export class Story extends InkObject {
 
         let conditionValue = this.state.PopEvaluationStack();
 
-        if (this.onEvaluateCondition) this.onEvaluateCondition(this.IsTruthy(conditionValue));
+        if (this.onEvaluateCondition)
+          this.onEvaluateCondition(this.IsTruthy(conditionValue));
 
         // False conditional? Cancel divert
         if (!this.IsTruthy(conditionValue)) return true;
@@ -1172,7 +1171,7 @@ export class Story extends InkObject {
           this.Error(
             "Tried to divert using a target from a variable that could not be found (" +
               varName +
-              ")"
+              ")",
           );
         } else if (!(varContents instanceof DivertTargetValue)) {
           // var intContent = varContents as IntValue;
@@ -1196,7 +1195,7 @@ export class Story extends InkObject {
       } else if (currentDivert.isExternal) {
         this.CallExternalFunction(
           currentDivert.targetPathString,
-          currentDivert.externalArgs
+          currentDivert.externalArgs,
         );
         return true;
       } else {
@@ -1207,7 +1206,7 @@ export class Story extends InkObject {
         this.state.callStack.Push(
           currentDivert.stackPushType,
           undefined,
-          this.state.outputStream.length
+          this.state.outputStream.length,
         );
       }
 
@@ -1219,7 +1218,7 @@ export class Story extends InkObject {
         ) {
           this.Error(
             "Divert target doesn't exist: " +
-              currentDivert.debugMetadata.filePath
+              currentDivert.debugMetadata.filePath,
           );
         } else {
           this.Error("Divert resolution failed: " + currentDivert);
@@ -1237,7 +1236,7 @@ export class Story extends InkObject {
         case ControlCommand.CommandType.EvalStart:
           this.Assert(
             this.state.inExpressionEvaluation === false,
-            "Already in expression evaluation?"
+            "Already in expression evaluation?",
           );
           this.state.inExpressionEvaluation = true;
           break;
@@ -1245,7 +1244,7 @@ export class Story extends InkObject {
         case ControlCommand.CommandType.EvalEnd:
           this.Assert(
             this.state.inExpressionEvaluation === true,
-            "Not in expression evaluation mode"
+            "Not in expression evaluation mode",
           );
           this.state.inExpressionEvaluation = false;
           break;
@@ -1293,7 +1292,7 @@ export class Story extends InkObject {
             if (overrideTunnelReturnTarget === null) {
               this.Assert(
                 popped instanceof Void,
-                "Expected void if ->-> doesn't override target"
+                "Expected void if ->-> doesn't override target",
               );
             }
           }
@@ -1307,7 +1306,7 @@ export class Story extends InkObject {
             let names: Map<PushPopType, string> = new Map();
             names.set(
               PushPopType.Function,
-              "function return statement (return)"
+              "function return statement (return)",
             );
             names.set(PushPopType.Tunnel, "tunnel onwards statement (->->)");
 
@@ -1325,7 +1324,7 @@ export class Story extends InkObject {
 
             if (overrideTunnelReturnTarget)
               this.state.divertedPointer = this.PointerAtPath(
-                overrideTunnelReturnTarget.targetPath
+                overrideTunnelReturnTarget.targetPath,
               );
           }
           break;
@@ -1335,7 +1334,7 @@ export class Story extends InkObject {
 
           this.Assert(
             this.state.inExpressionEvaluation === true,
-            "Expected to be in an expression when evaluating a string"
+            "Expected to be in an expression when evaluating a string",
           );
           this.state.inExpressionEvaluation = false;
           break;
@@ -1391,7 +1390,7 @@ export class Story extends InkObject {
                   break;
                 } else {
                   this.Error(
-                    "Unexpected ControlCommand while extracting tag from choice"
+                    "Unexpected ControlCommand while extracting tag from choice",
                   );
                   break;
                 }
@@ -1409,7 +1408,7 @@ export class Story extends InkObject {
               sb.Append(strVal.toString());
             }
             let choiceTag = new Tag(
-              this.state.CleanOutputWhitespace(sb.toString())
+              this.state.CleanOutputWhitespace(sb.toString()),
             );
             // Pushing to the evaluation stack means it gets picked up
             // when a Choice is generated from the next Choice Point.
@@ -1481,7 +1480,7 @@ export class Story extends InkObject {
 
         case ControlCommand.CommandType.Turns:
           this.state.PushEvaluationStack(
-            new IntValue(this.state.currentTurnIndex + 1)
+            new IntValue(this.state.currentTurnIndex + 1),
           );
           break;
 
@@ -1496,7 +1495,7 @@ export class Story extends InkObject {
             this.Error(
               "TURNS_SINCE / READ_COUNT expected a divert target (knot, stitch, label name), but saw " +
                 target +
-                extraNote
+                extraNote,
             );
             break;
           }
@@ -1506,7 +1505,7 @@ export class Story extends InkObject {
           // var container = ContentAtPath (divertTarget.targetPath).correctObj as Container;
           let container = asOrNull(
             this.ContentAtPath(divertTarget.targetPath).correctObj,
-            Container
+            Container,
           );
 
           let eitherCount;
@@ -1527,7 +1526,7 @@ export class Story extends InkObject {
               "Failed to find container for " +
                 evalCommand.toString() +
                 " lookup at " +
-                divertTarget.targetPath.toString()
+                divertTarget.targetPath.toString(),
             );
           }
 
@@ -1540,12 +1539,12 @@ export class Story extends InkObject {
 
           if (minInt == null || minInt instanceof IntValue === false)
             return this.Error(
-              "Invalid value for minimum parameter of RANDOM(min, max)"
+              "Invalid value for minimum parameter of RANDOM(min, max)",
             );
 
           if (maxInt == null || maxInt instanceof IntValue === false)
             return this.Error(
-              "Invalid value for maximum parameter of RANDOM(min, max)"
+              "Invalid value for maximum parameter of RANDOM(min, max)",
             );
 
           // Originally a primitive type, but here, can be null.
@@ -1568,7 +1567,7 @@ export class Story extends InkObject {
           if (!isFinite(randomRange) || randomRange > Number.MAX_SAFE_INTEGER) {
             randomRange = Number.MAX_SAFE_INTEGER;
             this.Error(
-              "RANDOM was called with a range that exceeds the size that ink numbers can use."
+              "RANDOM was called with a range that exceeds the size that ink numbers can use.",
             );
           }
           if (randomRange <= 0)
@@ -1577,7 +1576,7 @@ export class Story extends InkObject {
                 minInt.value +
                 " and maximum as " +
                 maxInt.value +
-                ". The maximum must be larger"
+                ". The maximum must be larger",
             );
 
           let resultSeed = this.state.storySeed + this.state.previousRandom;
@@ -1612,7 +1611,7 @@ export class Story extends InkObject {
         case ControlCommand.CommandType.VisitIndex:
           let count =
             this.state.VisitCountForContainer(
-              this.state.currentPointer.container
+              this.state.currentPointer.container,
             ) - 1; // index not count
           this.state.PushEvaluationStack(new IntValue(count));
           break;
@@ -1655,12 +1654,12 @@ export class Story extends InkObject {
           // var listNameVal = state.PopEvaluationStack () as StringValue;
           let listNameVal = asOrThrows(
             this.state.PopEvaluationStack(),
-            StringValue
+            StringValue,
           );
 
           if (intVal === null) {
             throw new StoryException(
-              "Passed non-integer when creating a list element from a numerical value."
+              "Passed non-integer when creating a list element from a numerical value.",
             );
           }
 
@@ -1671,7 +1670,7 @@ export class Story extends InkObject {
           }
           let foundListDef = this.listDefinitions.TryListGetDefinition(
             listNameVal.value,
-            null
+            null,
           );
           if (foundListDef.exists) {
             // Originally a primitive type, but here, can be null.
@@ -1682,17 +1681,17 @@ export class Story extends InkObject {
 
             let foundItem = foundListDef.result!.TryGetItemWithValue(
               intVal.value,
-              InkListItem.Null
+              InkListItem.Null,
             );
             if (foundItem.exists) {
               generatedListValue = new ListValue(
                 foundItem.result!,
-                intVal.value
+                intVal.value,
               );
             }
           } else {
             throw new StoryException(
-              "Failed to find list called " + listNameVal.value
+              "Failed to find list called " + listNameVal.value,
             );
           }
 
@@ -1710,7 +1709,7 @@ export class Story extends InkObject {
 
           if (targetList === null || min === null || max === null)
             throw new StoryException(
-              "Expected list, minimum and maximum for LIST_RANGE"
+              "Expected list, minimum and maximum for LIST_RANGE",
             );
 
           if (targetList.value === null) {
@@ -1718,7 +1717,7 @@ export class Story extends InkObject {
           }
           let result = targetList.value.ListWithSubRange(
             min.valueObject,
-            max.valueObject
+            max.valueObject,
           );
 
           this.state.PushEvaluationStack(new ListValue(result));
@@ -1813,7 +1812,7 @@ export class Story extends InkObject {
           this.Warning(
             "Variable not found: '" +
               varRef.name +
-              "'. Using default value of 0 (false). This can happen with temporary variables if the declaration hasn't yet been hit. Globals are always given a default value on load if a value doesn't exist in the save state."
+              "'. Using default value of 0 (false). This can happen with temporary variables if the declaration hasn't yet been hit. Globals are always given a default value on load if a value doesn't exist in the save state.",
           );
           foundValue = new IntValue(0);
         }
@@ -1840,7 +1839,7 @@ export class Story extends InkObject {
   public ChoosePathString(
     path: string,
     resetCallstack = true,
-    args: any[] = []
+    args: any[] = [],
   ) {
     this.IfAsyncWeCant("call ChoosePathString right now");
     if (this.onChoosePathString !== null) this.onChoosePathString(path, args);
@@ -1861,7 +1860,7 @@ export class Story extends InkObject {
             "when you called ChoosePathString(" +
             path +
             ") - this is almost certainly not not what you want! Full stack trace: \n" +
-            this.state.callStack.callStackTrace
+            this.state.callStack.callStackTrace,
         );
       }
     }
@@ -1875,7 +1874,7 @@ export class Story extends InkObject {
       throw new Error(
         "Can't " +
           activityStr +
-          ". Story is in the middle of a ContinueAsync(). Make more ContinueAsync() calls or a single Continue() call beforehand."
+          ". Story is in the middle of a ContinueAsync(). Make more ContinueAsync() calls or a single Continue() call beforehand.",
       );
   }
 
@@ -1891,7 +1890,7 @@ export class Story extends InkObject {
     let choices = this.currentChoices;
     this.Assert(
       choiceIdx >= 0 && choiceIdx < choices.length,
-      "choice out of range"
+      "choice out of range",
     );
 
     let choiceToChoose = choices[choiceIdx]!;
@@ -1930,7 +1929,7 @@ export class Story extends InkObject {
   public EvaluateFunction(
     functionName: string,
     args: any[] = [],
-    returnTextOutput: boolean = false
+    returnTextOutput: boolean = false,
   ): Story.EvaluateFunctionTextOutput | any {
     // EvaluateFunction behaves slightly differently than the C# version.
     // In C#, you can pass a (second) parameter `out textOutput` to get the
@@ -2015,7 +2014,7 @@ export class Story extends InkObject {
 
   public CallExternalFunction(
     funcName: string | null,
-    numberOfArguments: number
+    numberOfArguments: number,
   ) {
     if (funcName === null) {
       return throwNullException("funcName");
@@ -2035,7 +2034,7 @@ export class Story extends InkObject {
           funcName +
           ' could not be called because 1) it wasn\'t marked as lookaheadSafe when BindExternalFunction was called and 2) the story is in the middle of string generation, either because choice text is being generated, or because you have ink like "hello {func()}". You can work around this by generating the result of your function into a temporary variable before the string or choice gets generated: ~ temp x = ' +
           funcName +
-          "()"
+          "()",
       );
     }
 
@@ -2055,14 +2054,14 @@ export class Story extends InkObject {
           fallbackFunctionContainer !== null,
           "Trying to call external function '" +
             funcName +
-            "' which has not been bound, and fallback ink function could not be found."
+            "' which has not been bound, and fallback ink function could not be found.",
         );
 
         // Divert direct into fallback function and we're done
         this.state.callStack.Push(
           PushPopType.Function,
           undefined,
-          this.state.outputStream.length
+          this.state.outputStream.length,
         );
         this.state.divertedPointer = Pointer.StartOf(fallbackFunctionContainer);
         return;
@@ -2071,7 +2070,7 @@ export class Story extends InkObject {
           false,
           "Trying to call external function '" +
             funcName +
-            "' which has not been bound (and ink fallbacks disabled)."
+            "' which has not been bound (and ink fallbacks disabled).",
         );
       }
     }
@@ -2099,7 +2098,7 @@ export class Story extends InkObject {
       this.Assert(
         returnObj !== null,
         "Could not create ink value from returned object of type " +
-          typeof funcResult
+          typeof funcResult,
       );
     } else {
       returnObj = new Void();
@@ -2111,12 +2110,12 @@ export class Story extends InkObject {
   public BindExternalFunctionGeneral(
     funcName: string,
     func: Story.ExternalFunction,
-    lookaheadSafe: boolean = true
+    lookaheadSafe: boolean = true,
   ) {
     this.IfAsyncWeCant("bind an external function");
     this.Assert(
       !this._externals.has(funcName),
-      "Function '" + funcName + "' has already been bound."
+      "Function '" + funcName + "' has already been bound.",
     );
     this._externals.set(funcName, {
       function: func,
@@ -2135,7 +2134,7 @@ export class Story extends InkObject {
   public BindExternalFunction(
     funcName: string,
     func: Story.ExternalFunction,
-    lookaheadSafe: boolean = false
+    lookaheadSafe: boolean = false,
   ) {
     this.Assert(func != null, "Can't bind a null function");
 
@@ -2144,7 +2143,7 @@ export class Story extends InkObject {
       (args: any) => {
         this.Assert(
           args.length >= func.length,
-          "External function expected " + func.length + " arguments"
+          "External function expected " + func.length + " arguments",
         );
 
         let coercedArgs = [];
@@ -2153,7 +2152,7 @@ export class Story extends InkObject {
         }
         return func.apply(null, coercedArgs);
       },
-      lookaheadSafe
+      lookaheadSafe,
     );
   }
 
@@ -2161,7 +2160,7 @@ export class Story extends InkObject {
     this.IfAsyncWeCant("unbind an external a function");
     this.Assert(
       this._externals.has(funcName),
-      "Function '" + funcName + "' has not been bound."
+      "Function '" + funcName + "' has not been bound.",
     );
     this._externals.delete(funcName);
   }
@@ -2169,11 +2168,11 @@ export class Story extends InkObject {
   public ValidateExternalBindings(): void;
   public ValidateExternalBindings(
     c: Container | null,
-    missingExternals: Set<string>
+    missingExternals: Set<string>,
   ): void;
   public ValidateExternalBindings(
     o: InkObject | null,
-    missingExternals: Set<string>
+    missingExternals: Set<string>,
   ): void;
   public ValidateExternalBindings() {
     let c: Container | null = null;
@@ -2191,7 +2190,7 @@ export class Story extends InkObject {
     if (c === null && o === null) {
       this.ValidateExternalBindings(
         this._mainContentContainer,
-        missingExternals
+        missingExternals,
       );
       this._hasValidatedExternals = true;
 
@@ -2219,7 +2218,7 @@ export class Story extends InkObject {
       for (let [, value] of c.namedContent) {
         this.ValidateExternalBindings(
           asOrNull(value, InkObject),
-          missingExternals
+          missingExternals,
         );
       }
     } else if (o != null) {
@@ -2246,7 +2245,7 @@ export class Story extends InkObject {
 
   public ObserveVariable(
     variableName: string,
-    observer: Story.VariableObserver
+    observer: Story.VariableObserver,
   ) {
     this.IfAsyncWeCant("observe a new variable");
 
@@ -2256,7 +2255,7 @@ export class Story extends InkObject {
       throw new Error(
         "Cannot observe variable '" +
           variableName +
-          "' because it wasn't declared in the ink story."
+          "' because it wasn't declared in the ink story.",
       );
 
     if (this._variableObservers.has(variableName)) {
@@ -2268,7 +2267,7 @@ export class Story extends InkObject {
 
   public ObserveVariables(
     variableNames: string[],
-    observers: Story.VariableObserver[]
+    observers: Story.VariableObserver[],
   ) {
     for (let i = 0, l = variableNames.length; i < l; i++) {
       this.ObserveVariable(variableNames[i], observers[i]);
@@ -2277,7 +2276,7 @@ export class Story extends InkObject {
 
   public RemoveVariableObserver(
     observer?: Story.VariableObserver,
-    specificVariableName?: string
+    specificVariableName?: string,
   ) {
     // A couple of things to know about this method:
     //
@@ -2325,7 +2324,7 @@ export class Story extends InkObject {
 
   public VariableStateDidChangeEvent(
     variableName: string,
-    newValueObj: InkObject
+    newValueObj: InkObject,
   ) {
     if (this._variableObservers === null) return;
 
@@ -2333,7 +2332,7 @@ export class Story extends InkObject {
     if (typeof observers !== "undefined") {
       if (!(newValueObj instanceof Value)) {
         throw new Error(
-          "Tried to get the value of a variable that isn't a standard type"
+          "Tried to get the value of a variable that isn't a standard type",
         );
       }
       // var val = newValueObj as Value;
@@ -2386,7 +2385,7 @@ export class Story extends InkObject {
           if (str.value !== null) tags.push(str.value);
         } else {
           this.Error(
-            "Tag contained non-text content. Only plain text is allowed when using globalTags or TagsAtContentPath. If you want to evaluate dynamic content, you need to use story.Continue()."
+            "Tag contained non-text content. Only plain text is allowed when using globalTags or TagsAtContentPath. If you want to evaluate dynamic content, you need to use story.Continue().",
           );
         }
       } else {
@@ -2403,7 +2402,7 @@ export class Story extends InkObject {
     this.mainContentContainer.BuildStringOfHierarchy(
       sb,
       0,
-      this.state.currentPointer.Resolve()
+      this.state.currentPointer.Resolve(),
     );
 
     return sb.toString();
@@ -2414,7 +2413,7 @@ export class Story extends InkObject {
     container.BuildStringOfHierarchy(
       sb,
       0,
-      this.state.currentPointer.Resolve()
+      this.state.currentPointer.Resolve(),
     );
     return sb.toString();
   }
@@ -2476,7 +2475,10 @@ export class Story extends InkObject {
     if (pointer.container === null) {
       return throwNullException("pointer.container");
     }
-    while (pointer.index != null && pointer.index >= pointer.container.content.length) {
+    while (
+      pointer.index != null &&
+      pointer.index >= pointer.container.content.length
+    ) {
       successfulIncrement = false;
 
       // Container nextAncestor = pointer.container.parent as Container;
@@ -2614,7 +2616,7 @@ export class Story extends InkObject {
   public AddError(
     message: string,
     isWarning = false,
-    useEndLineNumber = false
+    useEndLineNumber = false,
   ) {
     let dm = this.currentDebugMetadata;
 
@@ -2732,11 +2734,9 @@ export class Story extends InkObject {
 
   private _profiler: any | null = null; // TODO: Profiler
 
-  
   get stateSnapshotAtLastNewline() {
     return this._stateSnapshotAtLastNewline;
   }
-
 }
 
 export namespace Story {

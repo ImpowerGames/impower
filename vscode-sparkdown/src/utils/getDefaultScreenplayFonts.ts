@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { readFile } from "./readFile";
 
 export const getFonts = async (
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ): Promise<{
   normal: ArrayBuffer;
   bold: ArrayBuffer;
@@ -15,32 +15,32 @@ export const getFonts = async (
         context.extensionUri,
         "out",
         "data",
-        "courier-prime.ttf"
-      )
+        "courier-prime.ttf",
+      ),
     ),
     readFile(
       vscode.Uri.joinPath(
         context.extensionUri,
         "out",
         "data",
-        "courier-prime-bold.ttf"
-      )
+        "courier-prime-bold.ttf",
+      ),
     ),
     readFile(
       vscode.Uri.joinPath(
         context.extensionUri,
         "out",
         "data",
-        "courier-prime-italic.ttf"
-      )
+        "courier-prime-italic.ttf",
+      ),
     ),
     readFile(
       vscode.Uri.joinPath(
         context.extensionUri,
         "out",
         "data",
-        "courier-prime-bold-italic.ttf"
-      )
+        "courier-prime-bold-italic.ttf",
+      ),
     ),
   ]);
 

@@ -23,7 +23,7 @@ export default class ScrollController<T extends ScrollHost> {
       dragging?: boolean;
       scrolling?: boolean;
       mouseDragging?: boolean;
-    }
+    },
   ) {
     this.host = host;
     this.dragging = options?.dragging ?? this.dragging;
@@ -79,7 +79,7 @@ export default class ScrollController<T extends ScrollHost> {
         new CustomEvent("scrollend", {
           bubbles: false,
           cancelable: false,
-        })
+        }),
       );
       this.host.requestUpdate();
     } else {

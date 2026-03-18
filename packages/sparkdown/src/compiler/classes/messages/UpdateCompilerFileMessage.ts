@@ -21,15 +21,13 @@ export class UpdateCompilerFileMessage {
 }
 
 export namespace UpdateCompilerFileMessage {
-  export interface Request
-    extends RequestMessage<
-      UpdateCompilerFileMethod,
-      UpdateCompilerFileParams,
-      UpdateCompilerFileResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      UpdateCompilerFileMethod,
-      UpdateCompilerFileResult
-    > {}
+  export interface Request extends RequestMessage<
+    UpdateCompilerFileMethod,
+    UpdateCompilerFileParams,
+    UpdateCompilerFileResult
+  > {}
+  export interface Response extends ResponseMessage<
+    UpdateCompilerFileMethod,
+    UpdateCompilerFileResult
+  > {}
 }

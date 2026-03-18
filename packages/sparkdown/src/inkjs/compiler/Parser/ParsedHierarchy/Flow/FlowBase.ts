@@ -68,7 +68,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     topLevelObjects: ParsedObject[] | null = null,
     args: Argument[] | null = null,
     public readonly isFunction: boolean = false,
-    isIncludedStory: boolean = false
+    isIncludedStory: boolean = false,
   ) {
     super();
 
@@ -84,7 +84,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
     topLevelObjects = this.SplitWeaveAndSubFlowContent(
       topLevelObjects,
-      this.GetType() == "Story" && !isIncludedStory
+      this.GetType() == "Story" && !isIncludedStory,
     );
 
     this.AddContent(topLevelObjects);
@@ -94,7 +94,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
   public readonly SplitWeaveAndSubFlowContent = (
     contentObjs: ParsedObject[],
-    isRootStory: boolean
+    isRootStory: boolean,
   ): ParsedObject[] => {
     const weaveObjs: ParsedObject[] = [];
     const subFlowObjs: ParsedObject[] = [];
@@ -119,10 +119,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
     // Implicit final gather in top level story for ending without warning that you run out of content
     if (isRootStory) {
-      weaveObjs.push(
-        new Gather(null, 1),
-        new Divert([Identifier.Done()])
-      );
+      weaveObjs.push(new Gather(null, 1), new Divert([Identifier.Done()]));
     }
 
     const finalContent: ParsedObject[] = [];
@@ -147,7 +144,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
   public ResolveVariableWithName = (
     varName: string,
-    fromNode: ParsedObject
+    fromNode: ParsedObject,
   ): VariableResolveResult => {
     const result: VariableResolveResult = {} as any;
 
@@ -204,7 +201,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
           `Duplicate identifier \`${varName}\`. A ${varab.typeName.toLowerCase()} named \`${varName}\` already exists on ${
             varab.debugMetadata
           }`,
-          varDecl.identifier.debugMetadata
+          varDecl.identifier.debugMetadata,
         );
       }
 
@@ -242,7 +239,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       if (foundReturn !== null) {
         this.Error(
           `Return statements can only be used in knots that are declared as functions: == function ${this.identifier} ==`,
-          foundReturn
+          foundReturn,
         );
       }
     }
@@ -331,7 +328,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   };
 
   public readonly GenerateArgumentVariableAssignments = (
-    container: RuntimeContainer
+    container: RuntimeContainer,
   ): void => {
     if (this.args === null || this.args.length === 0) {
       return;
@@ -350,7 +347,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   public readonly ContentWithNameAtLevel = (
     name: string,
     level: FlowLevel | null = null,
-    deepSearch: boolean = false
+    deepSearch: boolean = false,
   ): ParsedObject | null => {
     // Referencing self?
     if (level === this.flowLevel || level === null) {
@@ -364,7 +361,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
       if (this._rootWeave) {
         weavePointResult = this._rootWeave.WeavePointNamed(
-          name
+          name,
         ) as ParsedObject;
         if (weavePointResult) {
           return weavePointResult;
@@ -396,7 +393,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     const weaveResultSelf = this.ContentWithNameAtLevel(
       name,
       FlowLevel.WeavePoint,
-      false
+      false,
     );
 
     if (weaveResultSelf) {
@@ -433,7 +430,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
           this,
           arg.identifier,
           SymbolType.Arg,
-          "argument"
+          "argument",
         );
       }
 
@@ -445,7 +442,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
             this.args[ii].identifier?.name == this.args[jj].identifier?.name
           ) {
             this.Error(
-              `Multiple arguments with the same name: \`${this.args[ii].identifier}\``
+              `Multiple arguments with the same name: \`${this.args[ii].identifier}\``,
             );
           }
         }
@@ -468,7 +465,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     // if (!(this instanceof Knot)) { // cannont use Knot here because of circular dependancy
     if (this.flowLevel !== FlowLevel.Knot) {
       this.Error(
-        "Functions cannot be stitches - i.e. they should be defined as '== function myFunc ==' rather than internal to another knot."
+        "Functions cannot be stitches - i.e. they should be defined as '== function myFunc ==' rather than internal to another knot.",
       );
     }
 
@@ -476,7 +473,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     for (const [key, value] of this._subFlowsByName) {
       this.Error(
         `Functions may not contain stitches, but saw \`${key}\` within the function \`${this.identifier}\``,
-        value
+        value,
       );
     }
 
@@ -489,7 +486,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       if (!divert.isFunctionCall && !(divert.parent instanceof DivertTarget)) {
         this.Error(
           `Functions may not contain diverts, but saw \`${divert}\``,
-          divert
+          divert,
         );
       }
     }
@@ -498,7 +495,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     for (const choice of allChoices) {
       this.Error(
         `Functions may not contain choices, but saw \`${choice}\``,
-        choice
+        choice,
       );
     }
   };
@@ -517,7 +514,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
     if (terminatingObject) {
       const debugMetadata = new DebugMetadata(
-        terminatingObject?.debugMetadata || undefined
+        terminatingObject?.debugMetadata || undefined,
       );
       debugMetadata.startLineNumber = debugMetadata.endLineNumber;
       debugMetadata.startCharacterNumber = debugMetadata.endCharacterNumber;

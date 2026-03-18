@@ -139,15 +139,15 @@ export const getEventData = <T extends keyof EventMap>(event: Event) => {
       shiftKey: touchEventData.shiftKey,
       changedTouches: Array.from(
         { length: touchEventData.changedTouches.length },
-        (_, index) => touchEventData.changedTouches.item(index)
+        (_, index) => touchEventData.changedTouches.item(index),
       ),
       targetTouches: Array.from(
         { length: touchEventData.targetTouches.length },
-        (_, index) => touchEventData.targetTouches.item(index)
+        (_, index) => touchEventData.targetTouches.item(index),
       ),
       touches: Array.from(
         { length: touchEventData.touches.length },
-        (_, index) => touchEventData.touches.item(index)
+        (_, index) => touchEventData.touches.item(index),
       ),
       targetId: (touchEventData.target as HTMLElement)?.id,
       currentTargetId: (touchEventData.currentTarget as HTMLElement)?.id,

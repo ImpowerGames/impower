@@ -19,12 +19,13 @@ export class ConfigureCompilerMessage {
 }
 
 export namespace ConfigureCompilerMessage {
-  export interface Request
-    extends RequestMessage<
-      ConfigureCompilerMethod,
-      ConfigureCompilerParams,
-      ConfigureCompilerResult
-    > {}
-  export interface Response
-    extends ResponseMessage<ConfigureCompilerMethod, ConfigureCompilerResult> {}
+  export interface Request extends RequestMessage<
+    ConfigureCompilerMethod,
+    ConfigureCompilerParams,
+    ConfigureCompilerResult
+  > {}
+  export interface Response extends ResponseMessage<
+    ConfigureCompilerMethod,
+    ConfigureCompilerResult
+  > {}
 }

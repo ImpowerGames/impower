@@ -36,7 +36,7 @@ export abstract class Expression extends ParsedObject {
   // Instead, we generate a prototype of the runtime object(s), then
   // copy them each time they're used.
   public readonly GenerateConstantIntoContainer = (
-    container: RuntimeContainer
+    container: RuntimeContainer,
   ): void => {
     if (this._prototypeRuntimeConstantExpression === null) {
       this._prototypeRuntimeConstantExpression = new RuntimeContainer();

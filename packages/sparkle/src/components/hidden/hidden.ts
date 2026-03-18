@@ -294,7 +294,7 @@ export default class Hidden
       if (hideDelay > 0) {
         this._hideTransitionTimeout = window.setTimeout(
           () => this.animateHide(),
-          hideDelay
+          hideDelay,
         );
       } else {
         await this.animateHide();
@@ -323,7 +323,7 @@ export default class Hidden
       if (showDelay > 0) {
         this._showTransitionTimeout = window.setTimeout(
           () => this.animateShow(),
-          showDelay
+          showDelay,
         );
       } else {
         await this.animateShow();

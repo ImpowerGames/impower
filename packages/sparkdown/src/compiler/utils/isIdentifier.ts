@@ -2,7 +2,7 @@ import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.jso
 
 const IDENTIFIER_REGEX = new RegExp(
   `^${GRAMMAR_DEFINITION.repository.Identifier.match}$`,
-  "u"
+  "u",
 );
 
 export const isIdentifier = (str: string) => IDENTIFIER_REGEX.test(str);

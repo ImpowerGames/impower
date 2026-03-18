@@ -87,18 +87,18 @@ const VARIABLE_WIDGET_CONTEXT: VariableWidgetContext = {
 const getPlayButton = (dom: HTMLElement, id: string) => {
   const rootEl = dom.getRootNode().firstChild as HTMLElement;
   return rootEl?.querySelector<HTMLElement>(
-    `.${STRUCT_PLAY_BUTTON_CLASS_NAME}.${id.replaceAll(".", "-")}`
+    `.${STRUCT_PLAY_BUTTON_CLASS_NAME}.${id.replaceAll(".", "-")}`,
   );
 };
 
 const getPreviewElement = (
   dom: HTMLElement | EventTarget | null,
-  id: string
+  id: string,
 ) => {
   const rootEl = (dom as HTMLElement)?.getRootNode?.()
     ?.firstChild as HTMLElement;
   return rootEl?.querySelector?.<HTMLElement>(
-    `.${STRUCT_PRESET_PREVIEW_CLASS_NAME}.${id.replaceAll(".", "-")}`
+    `.${STRUCT_PRESET_PREVIEW_CLASS_NAME}.${id.replaceAll(".", "-")}`,
   );
 };
 
@@ -110,7 +110,7 @@ const playAudio = async (
   loadPlayers: () => Promise<AudioPlayer[]>,
   duration?: number,
   offset: number = 0,
-  pitchBend: number = 0
+  pitchBend: number = 0,
 ) => {
   // TODO: Retain play button state even on editor teardown.
   context.audioContext ??= new AudioContext();
@@ -156,7 +156,7 @@ const playAudio = async (
             });
             player.start(currentTime, 0, offset, duration);
           });
-        })
+        }),
       );
       if (playButton) {
         playButton.dataset["action"] = "play";
@@ -174,7 +174,7 @@ const playAudioVariable = async (
   dom: HTMLElement,
   toggle: boolean,
   duration?: number,
-  offset?: number
+  offset?: number,
 ) => {
   context.audioContext ??= new AudioContext();
   const audioContext = context.audioContext;
@@ -198,7 +198,7 @@ const playLayeredAudioVariable = async (
   dom: HTMLElement,
   toggle: boolean,
   duration?: number,
-  offset?: number
+  offset?: number,
 ) => {
   context.audioContext ??= new AudioContext();
   const audioContext = context.audioContext;
@@ -212,7 +212,7 @@ const playLayeredAudioVariable = async (
           volume: a?.volume ?? 1,
         });
         return player;
-      })
+      }),
     );
   playAudio(context, buttonId, dom, toggle, getPlayers, duration, offset);
 };
@@ -223,7 +223,7 @@ const playSynthVariable = async (
   buttonId: string,
   dom: HTMLElement,
   toggle: boolean,
-  pitchBend: number = 0
+  pitchBend: number = 0,
 ) => {
   context.audioContext ??= new AudioContext();
   const audioContext = context.audioContext;
@@ -232,7 +232,7 @@ const playSynthVariable = async (
     const audioBuffer = audioContext.createBuffer(
       1,
       synthBuffer.soundBuffer.length,
-      audioContext.sampleRate
+      audioContext.sampleRate,
     );
     audioBuffer.copyToChannel(synthBuffer.soundBuffer, 0);
     return [
@@ -247,7 +247,7 @@ const playSynthVariable = async (
     getPlayers,
     undefined,
     undefined,
-    pitchBend
+    pitchBend,
   );
 };
 
@@ -257,7 +257,7 @@ const createSynthBuffer = (synth: Synth, context: VariableWidgetContext) => {
   return new SynthBuffer(
     synth,
     [{ pitch: synth.pitch.frequency }],
-    audioContext.sampleRate
+    audioContext.sampleRate,
   );
 };
 
@@ -266,7 +266,7 @@ const updateSynthWaveform = (
   synth: Synth,
   context: VariableWidgetContext,
   variableId: string,
-  config: Required<VariableWidgetsConfiguration>
+  config: Required<VariableWidgetsConfiguration>,
 ) => {
   context.audioContext ??= new AudioContext();
   const synthBuffer = createSynthBuffer(synth, context);
@@ -290,20 +290,20 @@ const updateSynthWaveform = (
       const audioBuffer = audioContext.createBuffer(
         1,
         buffer.length,
-        audioContext.sampleRate
+        audioContext.sampleRate,
       );
       audioBuffer.copyToChannel(buffer, 0);
       new AudioPlayer(audioBuffer, audioContext, {
         volume: synth.volume,
       }).start();
-    }
+    },
   );
 };
 
 const getFirstIndentedLine = (
   state: EditorState,
   lineNumber: number,
-  indentStr: string
+  indentStr: string,
 ) => {
   for (let n = lineNumber + 1; n < state.doc.lines; n += 1) {
     const line = state.doc.line(n);
@@ -322,7 +322,7 @@ const getFirstIndentedLine = (
 const getNextUnindentedLine = (
   state: EditorState,
   lineNumber: number,
-  indentStr: string
+  indentStr: string,
 ) => {
   let prevLine = state.doc.line(lineNumber);
   for (let n = lineNumber + 1; n < state.doc.lines; n += 1) {
@@ -363,7 +363,7 @@ const getStructValueRange = (view: EditorView, structWidgetPos: number) => {
 const getStructValueChanges = (
   view: EditorView,
   structWidgetPos: number,
-  structObj: unknown
+  structObj: unknown,
 ) => {
   // Use latest view state
   const state = view.state;
@@ -443,7 +443,7 @@ const getSynthVariableWidgets = (
   state: EditorState,
   widgetPos: number,
   variableId: string,
-  _variable: SparkVariable
+  _variable: SparkVariable,
 ) => {
   const config = state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
@@ -492,7 +492,7 @@ const getSynthVariableWidgets = (
                 context,
                 variableId,
                 button,
-                false
+                false,
               );
             }
             const previewEl = getPreviewElement(e.target, variableId);
@@ -502,7 +502,7 @@ const getSynthVariableWidgets = (
                 randomizedObj,
                 context,
                 variableId,
-                config
+                config,
               );
             }
           }
@@ -511,7 +511,7 @@ const getSynthVariableWidgets = (
           console.warn(
             `Could not overwrite struct at line ${
               state.doc.lineAt(structWidgetPos).number
-            }`
+            }`,
           );
         }
       },
@@ -558,7 +558,7 @@ const getSynthVariableWidgets = (
           }
           playSynthVariable(synth, context, variableId, dom, false, semitones);
         }
-      }
+      },
     ),
   });
   widgetRanges.push(presetWidget.range(widgetPos));
@@ -572,7 +572,7 @@ const getAudioVariableWidgets = (
   state: EditorState,
   widgetPos: number,
   variableId: string,
-  _variable: SparkVariable
+  _variable: SparkVariable,
 ) => {
   const config = state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
@@ -592,7 +592,7 @@ const getAudioVariableWidgets = (
           context,
           variableId,
           dom,
-          true
+          true,
         );
       }
     }),
@@ -606,7 +606,7 @@ const getLayeredAudioVariableWidgets = (
   state: EditorState,
   widgetPos: number,
   variableId: string,
-  variable: SparkVariable
+  variable: SparkVariable,
 ) => {
   const config = state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
@@ -626,7 +626,7 @@ const getLayeredAudioVariableWidgets = (
           context,
           variableId,
           dom,
-          true
+          true,
         );
       }
     }),
@@ -658,7 +658,7 @@ const getLayeredAudioVariableWidgets = (
                   context,
                   fieldId,
                   dom,
-                  true
+                  true,
                 );
               }
             }),
@@ -690,7 +690,7 @@ const getLayeredAudioVariableWidgets = (
                   dom,
                   true,
                   duration,
-                  offset
+                  offset,
                 );
               }
             }),
@@ -706,7 +706,7 @@ const getLayeredAudioVariableWidgets = (
 const createVariableWidgets = (
   view: EditorView,
   state: EditorState,
-  variables: Record<string, SparkVariable>
+  variables: Record<string, SparkVariable>,
 ) => {
   const widgetRanges: Range<Decoration>[] = [];
   Object.entries(variables).forEach(([variableId, variable]) => {
@@ -714,12 +714,12 @@ const createVariableWidgets = (
     if (to != null && to < state.doc.length - 1) {
       if (variable.type === "synth" && !variable.implicit) {
         widgetRanges.push(
-          ...getSynthVariableWidgets(view, state, to, variableId, variable)
+          ...getSynthVariableWidgets(view, state, to, variableId, variable),
         );
       }
       if (variable.type === "audio" && !variable.implicit) {
         widgetRanges.push(
-          ...getAudioVariableWidgets(view, state, to, variableId, variable)
+          ...getAudioVariableWidgets(view, state, to, variableId, variable),
         );
       }
       if (variable.type === "layered_audio" && !variable.implicit) {
@@ -729,8 +729,8 @@ const createVariableWidgets = (
             state,
             to,
             variableId,
-            variable
-          )
+            variable,
+          ),
         );
       }
     }
@@ -748,7 +748,7 @@ const variablePresetWidgetsPlugin = ViewPlugin.fromClass(
             this.decorations = createVariableWidgets(
               update.view,
               update.state,
-              e.value.variables
+              e.value.variables,
             );
             return;
           }
@@ -761,7 +761,7 @@ const variablePresetWidgetsPlugin = ViewPlugin.fromClass(
   },
   {
     decorations: (v) => v.decorations,
-  }
+  },
 );
 
 export const variableWidgets = (options: VariableWidgetsConfiguration = {}) => [

@@ -274,13 +274,13 @@ export default class Input
   }
 
   structuralAttributes = Object.keys(spec.props).map(
-    (prop) => Input.attrs[prop as keyof typeof Input.attrs]
+    (prop) => Input.attrs[prop as keyof typeof Input.attrs],
   );
 
   override shouldAttributeTriggerUpdate(
     name: string,
     oldValue: string,
-    newValue: string
+    newValue: string,
   ) {
     if (this.structuralAttributes.includes(name)) {
       return true;

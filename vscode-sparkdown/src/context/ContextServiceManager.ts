@@ -18,11 +18,11 @@ export class ContextServiceManager implements IDisposable {
     // subscribe update handler for context
     context.subscriptions.push(
       window.onDidChangeActiveTextEditor(() =>
-        this.onDidChangeActiveTextEditor()
+        this.onDidChangeActiveTextEditor(),
       ),
       window.onDidChangeTextEditorSelection(() =>
-        this.onDidChangeTextEditorSelection()
-      )
+        this.onDidChangeTextEditorSelection(),
+      ),
     );
     // initialize context state
     this.onDidChangeActiveTextEditor();

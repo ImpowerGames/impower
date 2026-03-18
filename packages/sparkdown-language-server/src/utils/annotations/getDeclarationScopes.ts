@@ -2,7 +2,7 @@ import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/Sp
 
 export const getDeclarationScopes = (
   read: (from: number, to: number) => string,
-  scriptAnnotations: Map<string, SparkdownAnnotations>
+  scriptAnnotations: Map<string, SparkdownAnnotations>,
 ) => {
   let scopePathParts: {
     kind: "" | "function" | "scene" | "branch" | "knot" | "stitch";
@@ -66,7 +66,7 @@ export const getDeclarationScopes = (
           scopes[scopePath] ??= {};
           scopes[scopePath][cur.value.type] ??= [];
           scopes[scopePath][cur.value.type]!.push(
-            read(cur.from, cur.to).trim().replaceAll(/[ ]+/, ".")
+            read(cur.from, cur.to).trim().replaceAll(/[ ]+/, "."),
           );
         }
         if (

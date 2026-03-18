@@ -1,6 +1,6 @@
 export const debounce = <T extends (...args: any[]) => void>(
   callback: T,
-  delay: number
+  delay: number,
 ): T => {
   let timeout: NodeJS.Timeout | undefined = undefined;
   return ((...args: Parameters<T>) => {

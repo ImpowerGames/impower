@@ -44,12 +44,13 @@ export class CompileProgramMessage {
 }
 
 export namespace CompileProgramMessage {
-  export interface Request
-    extends RequestMessage<
-      CompileProgramMethod,
-      CompileProgramParams,
-      CompileProgramResult
-    > {}
-  export interface Response
-    extends ResponseMessage<CompileProgramMethod, CompileProgramResult> {}
+  export interface Request extends RequestMessage<
+    CompileProgramMethod,
+    CompileProgramParams,
+    CompileProgramResult
+  > {}
+  export interface Response extends ResponseMessage<
+    CompileProgramMethod,
+    CompileProgramResult
+  > {}
 }

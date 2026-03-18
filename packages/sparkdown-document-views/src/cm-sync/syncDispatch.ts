@@ -4,7 +4,7 @@ import syncAnnotation from "./syncAnnotation";
 
 export const syncDispatch = (
   transactions: readonly Transaction[],
-  view: EditorView
+  view: EditorView,
 ) => {
   for (const transaction of transactions) {
     if (!transaction.changes.empty && !transaction.annotation(syncAnnotation)) {

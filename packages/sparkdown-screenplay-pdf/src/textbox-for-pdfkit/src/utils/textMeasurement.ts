@@ -10,7 +10,7 @@ import { MeasuredText } from "../types/MeasuredText";
 
 export const measureTextWidth = (
   textChunk: FormattedText,
-  doc: PDFKit.PDFDocument
+  doc: PDFKit.PDFDocument,
 ) => {
   if (textChunk.font != null) {
     doc.font(textChunk.font);
@@ -30,7 +30,7 @@ export const measureTextWidth = (
 
 export const measureTextsWidth = (
   textChunks: FormattedText[],
-  doc: PDFKit.PDFDocument
+  doc: PDFKit.PDFDocument,
 ) => {
   const textsWithWidth = textChunks.map((textChunk) => {
     textChunk.width = measureTextWidth(textChunk, doc);
@@ -41,7 +41,7 @@ export const measureTextsWidth = (
 
 export const checkParagraphFitsInLine = (
   textChunks: FormattedText[],
-  textWidth: number
+  textWidth: number,
 ) => {
   let paragraphWidth = 0;
   textChunks.forEach((textChunk) => {
@@ -54,7 +54,7 @@ export const checkParagraphFitsInLine = (
 
 export const measureTextFragments = (
   textChunks: FormattedText[],
-  doc: PDFKit.PDFDocument
+  doc: PDFKit.PDFDocument,
 ): MeasuredText[] => {
   return textChunks.map((textChunk) => {
     return {
@@ -62,7 +62,7 @@ export const measureTextFragments = (
       fullWidth: measureTextWidth(textChunk, doc),
       minWidth: measureTextWidth(
         { ...textChunk, text: textChunk.text.trimEnd() },
-        doc
+        doc,
       ),
     };
   });

@@ -30,7 +30,7 @@ const convertArray = (
   lines: string[],
   indent: string,
   scalarAssignOperator: string,
-  objectAssignOperator: string
+  objectAssignOperator: string,
 ) => {
   if (obj.length === 0) {
     lines.push("- ");
@@ -50,7 +50,7 @@ const convertObject = (
   lines: string[],
   indent: string,
   scalarAssignOperator: string,
-  objectAssignOperator: string
+  objectAssignOperator: string,
 ) => {
   for (let k in obj) {
     const recurse: string[] = [];
@@ -90,7 +90,7 @@ const convert = (
   lines: string[],
   indent: string,
   scalarAssignOperator: string,
-  objectAssignOperator: string
+  objectAssignOperator: string,
 ) => {
   const type = getType(obj);
 
@@ -101,7 +101,7 @@ const convert = (
         lines,
         indent,
         scalarAssignOperator,
-        objectAssignOperator
+        objectAssignOperator,
       );
       break;
     case "object":
@@ -110,7 +110,7 @@ const convert = (
         lines,
         indent,
         scalarAssignOperator,
-        objectAssignOperator
+        objectAssignOperator,
       );
       break;
     case "string":
@@ -133,7 +133,7 @@ export const structStringify = (
   lineSeparator = "\n",
   indent = "  ",
   scalarAssignOperator = SCALAR_ASSIGN_OPERATOR,
-  objectAssignOperator = OBJECT_ASSIGN_OPERATOR
+  objectAssignOperator = OBJECT_ASSIGN_OPERATOR,
 ): string => {
   const lines: string[] = [];
   convert(obj, lines, indent, scalarAssignOperator, objectAssignOperator);

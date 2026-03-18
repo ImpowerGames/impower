@@ -3,6 +3,6 @@ export const formatList = (arr: string[]) => {
   return quotedList.length === 1
     ? quotedList[0]
     : quotedList.length === 2
-    ? `${quotedList[0]} or ${quotedList[1]}`
-    : quotedList.slice(0, -1).join(", ") + `, or ${quotedList.at(-1)}`;
+      ? `${quotedList[0]} or ${quotedList[1]}`
+      : quotedList.slice(0, -1).join(", ") + `, or ${quotedList.at(-1)}`;
 };

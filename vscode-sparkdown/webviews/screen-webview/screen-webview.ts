@@ -29,7 +29,7 @@ window.addEventListener("message", (e) => {
       cancelable: true,
       composed: true,
       detail: message,
-    })
+    }),
   );
 });
 

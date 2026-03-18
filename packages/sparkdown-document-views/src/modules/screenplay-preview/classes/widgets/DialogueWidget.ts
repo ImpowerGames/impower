@@ -20,7 +20,7 @@ const escapeDialogueLines = (block: MarkupContent[]) => {
       ? // Already prefixed
         c
       : // Prefix each dialogue line so it is styled like text
-        { ...c, value: "<>" + c.value }
+        { ...c, value: "<>" + c.value },
   );
 };
 
@@ -47,7 +47,7 @@ export default class DialogueWidget extends BlockWidget<DialogueSpec> {
         blockEl.innerHTML = getFormattedHTML(
           escapeDialogueLines(block),
           this.spec.language,
-          this.spec.highlighter
+          this.spec.highlighter,
         );
         container.appendChild(blockEl);
       });
@@ -58,7 +58,7 @@ export default class DialogueWidget extends BlockWidget<DialogueSpec> {
         container.innerHTML = getFormattedHTML(
           escapeDialogueLines(standaloneBlock),
           this.spec.language,
-          this.spec.highlighter
+          this.spec.highlighter,
         );
       }
     }

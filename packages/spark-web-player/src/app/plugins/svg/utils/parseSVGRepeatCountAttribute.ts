@@ -1,12 +1,12 @@
 export const parseSVGRepeatCountAttribute = (
-  animateElement: SVGAnimateElement | SVGElement
+  animateElement: SVGAnimateElement | SVGElement,
 ): number => {
   const repeatCountAttr = animateElement.getAttribute("repeatCount");
   const repeatCount =
     repeatCountAttr == null
       ? 1
       : repeatCountAttr === "indefinite"
-      ? Infinity
-      : Number(repeatCountAttr);
+        ? Infinity
+        : Number(repeatCountAttr);
   return repeatCount;
 };

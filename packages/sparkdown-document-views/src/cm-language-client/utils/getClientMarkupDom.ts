@@ -15,7 +15,7 @@ const createNode = (
   highlighter: {
     style(tags: readonly Tag[]): string | null;
     scope?(node: NodeType): boolean;
-  }
+  },
 ): HTMLElement => {
   const preview = document.createElement("div");
   if (detail) {
@@ -52,16 +52,16 @@ export const getClientMarkupDom = (options: {
   const documentationValue =
     typeof options?.content === "string"
       ? options?.content
-      : options?.content?.value ?? "";
+      : (options?.content?.value ?? "");
   const documentationKind =
     typeof options?.content === "string"
       ? "plaintext"
-      : options?.content?.kind ?? "plaintext";
+      : (options?.content?.kind ?? "plaintext");
   return createNode(
     detailValue,
     documentationValue,
     documentationKind,
     options?.language,
-    options?.highlighter
+    options?.highlighter,
   );
 };

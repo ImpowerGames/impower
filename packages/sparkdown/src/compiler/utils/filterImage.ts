@@ -3,14 +3,14 @@ import { filterSVG } from "./filterSVG";
 
 const getNestedFilters = (
   name: string,
-  context: { [type: string]: { [name: string]: any } }
+  context: { [type: string]: { [name: string]: any } },
 ): { includes: unknown[]; excludes: unknown[] }[] => {
   const filteredImage = context?.["filtered_image"]?.[name];
   if (filteredImage) {
     const filters: { includes: unknown[]; excludes: unknown[] }[] =
       filteredImage?.["filters"]?.map?.(
         (reference: { $type: "filtered_image"; $name: string }) =>
-          context?.["filter"]?.[reference?.$name]
+          context?.["filter"]?.[reference?.$name],
       ) || [];
     const imageToFilterName = filteredImage?.["image"]?.["$name"];
     if (imageToFilterName !== name) {
@@ -24,7 +24,7 @@ const getNestedFilters = (
 const getRootImage = (
   name: string,
   context: { [type: string]: { [name: string]: any } },
-  stack: Set<{ $type: string; $name: string }>
+  stack: Set<{ $type: string; $name: string }>,
 ):
   | { $type: "image"; $name: string; src: string; data: string }
   | {
@@ -55,7 +55,7 @@ const getRootImage = (
 
 export const filterImage = (
   context: { [type: string]: { [name: string]: any } },
-  filteredImage: any
+  filteredImage: any,
 ): string | undefined => {
   if (filteredImage && !filteredImage.filtered_src) {
     const filters = getNestedFilters(filteredImage.$name, context);
@@ -69,7 +69,7 @@ export const filterImage = (
     const imageToFilter = getRootImage(
       filteredImage?.image?.$name,
       context,
-      stack
+      stack,
     );
     if (imageToFilter) {
       if (imageToFilter === "circular") {
@@ -82,7 +82,7 @@ export const filterImage = (
           if (imageToFilter.data) {
             filteredImage.filtered_src = filterSVG(
               imageToFilter.data,
-              combinedFilter
+              combinedFilter,
             );
           }
         }
@@ -91,7 +91,7 @@ export const filterImage = (
           !imageToFilter.$name.startsWith("$")
         ) {
           for (const [key, layerImage] of Object.entries(
-            imageToFilter.assets
+            imageToFilter.assets,
           )) {
             const filteredLayers: {
               $type: "image";

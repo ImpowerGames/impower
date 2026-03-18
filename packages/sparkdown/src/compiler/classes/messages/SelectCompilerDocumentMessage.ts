@@ -31,15 +31,13 @@ export class SelectCompilerDocumentMessage {
 }
 
 export namespace SelectCompilerDocumentMessage {
-  export interface Request
-    extends RequestMessage<
-      SelectCompilerDocumentMethod,
-      SelectCompilerDocumentParams,
-      SelectCompilerDocumentResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      SelectCompilerDocumentMethod,
-      SelectCompilerDocumentResult
-    > {}
+  export interface Request extends RequestMessage<
+    SelectCompilerDocumentMethod,
+    SelectCompilerDocumentParams,
+    SelectCompilerDocumentResult
+  > {}
+  export interface Response extends ResponseMessage<
+    SelectCompilerDocumentMethod,
+    SelectCompilerDocumentResult
+  > {}
 }

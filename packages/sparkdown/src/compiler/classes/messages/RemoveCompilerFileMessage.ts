@@ -20,15 +20,13 @@ export class RemoveCompilerFileMessage {
 }
 
 export namespace RemoveCompilerFileMessage {
-  export interface Request
-    extends RequestMessage<
-      RemoveCompilerFileMethod,
-      RemoveCompilerFileParams,
-      RemoveCompilerFileResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      RemoveCompilerFileMethod,
-      RemoveCompilerFileResult
-    > {}
+  export interface Request extends RequestMessage<
+    RemoveCompilerFileMethod,
+    RemoveCompilerFileParams,
+    RemoveCompilerFileResult
+  > {}
+  export interface Response extends ResponseMessage<
+    RemoveCompilerFileMethod,
+    RemoveCompilerFileResult
+  > {}
 }

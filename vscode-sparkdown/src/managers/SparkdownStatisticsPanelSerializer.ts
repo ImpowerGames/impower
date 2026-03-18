@@ -29,7 +29,7 @@ export function getStatisticsPanels(docuri: vscode.Uri): statisticsPanel[] {
 
 export function updateStatisticsDocumentVersion(
   docuri: vscode.Uri,
-  version: number
+  version: number,
 ) {
   for (const panel of getStatisticsPanels(docuri)) {
     panel.panel.webview.postMessage({
@@ -52,7 +52,7 @@ export async function refreshPanel(
   context: vscode.ExtensionContext,
   statspanel: vscode.WebviewPanel,
   document: vscode.TextDocument,
-  config: ScreenplayConfig
+  config: ScreenplayConfig,
 ) {
   statspanel.webview.postMessage({
     command: "sparkdown.updateversion",
@@ -65,7 +65,7 @@ export async function refreshPanel(
       context,
       document.getText(),
       program,
-      config
+      config,
     );
     statspanel.webview.postMessage({
       command: "sparkdown.updateStats",
@@ -77,11 +77,11 @@ export async function refreshPanel(
 
 export function createStatisticsPanel(
   editor: vscode.TextEditor,
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ): vscode.WebviewPanel | undefined {
   if (editor.document.languageId !== "sparkdown") {
     vscode.window.showErrorMessage(
-      "You can only view statistics of Sparkdown documents!"
+      "You can only view statistics of Sparkdown documents!",
     );
     return undefined;
   }
@@ -104,7 +104,7 @@ export function createStatisticsPanel(
       "sparkdown-statistics", // Identifies the type of the webview. Used internally
       panelname, // Title of the panel displayed to the user
       vscode.ViewColumn.Three, // Editor column to show the new webview panel in.
-      { enableScripts: true }
+      { enableScripts: true },
     );
   }
   loadWebView(editor.document.uri, statsPanel, context);
@@ -114,14 +114,19 @@ export function createStatisticsPanel(
 async function loadWebView(
   docuri: vscode.Uri,
   statspanel: vscode.WebviewPanel,
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ) {
   const id = Date.now() + Math.floor(Math.random() * 1000);
   statsPanels.push({ uri: docuri.toString(), panel: statspanel, id: id });
 
   const statsHtml =
     (await readTextFile(
-      vscode.Uri.joinPath(context.extensionUri, "out", "webviews", `stats.html`)
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "out",
+        "webviews",
+        `stats.html`,
+      ),
     )) || "";
 
   const jsUriString = getWebviewUri(statspanel.webview, context.extensionUri, [
@@ -133,7 +138,7 @@ async function loadWebView(
   const codiconUriString = getWebviewUri(
     statspanel.webview,
     context.extensionUri,
-    ["node_modules", "@vscode/codicons", "dist", "codicon.css"]
+    ["node_modules", "@vscode/codicons", "dist", "codicon.css"],
   ).toString();
 
   statspanel.webview.html = statsHtml
@@ -162,24 +167,24 @@ async function loadWebView(
       let editor = getEditor(vscode.Uri.parse(message.uri));
       if (editor === undefined) {
         const doc = await vscode.workspace.openTextDocument(
-          vscode.Uri.parse(message.uri)
+          vscode.Uri.parse(message.uri),
         );
         editor = await vscode.window.showTextDocument(doc);
       } else {
         await vscode.window.showTextDocument(
           editor.document,
           editor.viewColumn,
-          false
+          false,
         );
       }
       if (editor && !Number.isNaN(sourceLine)) {
         editor.selection = new vscode.Selection(
           new vscode.Position(sourceLine, 0),
-          new vscode.Position(sourceLine, 0)
+          new vscode.Position(sourceLine, 0),
         );
         editor.revealRange(
           new vscode.Range(sourceLine, 0, sourceLine + 1, 0),
-          vscode.TextEditorRevealType.Default
+          vscode.TextEditorRevealType.Default,
         );
       }
     }
@@ -189,26 +194,26 @@ async function loadWebView(
       let editor = getEditor(vscode.Uri.parse(message.uri));
       if (!editor) {
         const doc = await vscode.workspace.openTextDocument(
-          vscode.Uri.parse(message.uri)
+          vscode.Uri.parse(message.uri),
         );
         editor = await vscode.window.showTextDocument(doc);
       } else {
         await vscode.window.showTextDocument(
           editor.document,
           editor.viewColumn,
-          false
+          false,
         );
       }
       if (editor && !Number.isNaN(startline) && !Number.isNaN(endline)) {
         const startpos = new vscode.Position(startline, 0);
         const endpos = new vscode.Position(
           endline,
-          editor.document.lineAt(endline).text.length
+          editor.document.lineAt(endline).text.length,
         );
         editor.selection = new vscode.Selection(startpos, endpos);
         editor.revealRange(
           new vscode.Range(startpos, endpos),
-          vscode.TextEditorRevealType.Default
+          vscode.TextEditorRevealType.Default,
         );
         vscode.window.showTextDocument(editor.document);
       }
@@ -289,7 +294,7 @@ export class SparkdownStatisticsPanelSerializer
 
   async deserializeWebviewPanel(
     webviewPanel: vscode.WebviewPanel,
-    state: { docuri: string }
+    state: { docuri: string },
   ) {
     // `state` is the state persisted using `setState` inside the webview
 

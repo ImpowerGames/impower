@@ -14,16 +14,16 @@ const handleNewline = (args: { text: string }): boolean => {
   const lineText = editor.document.getText(
     new vscode.Range(
       new vscode.Position(position.line, 0),
-      new vscode.Position(position.line, Number.MAX_SAFE_INTEGER)
-    )
+      new vscode.Position(position.line, Number.MAX_SAFE_INTEGER),
+    ),
   );
   const previousLineText =
     position.line > 0
       ? editor.document.getText(
           new vscode.Range(
             new vscode.Position(position.line - 1, 0),
-            new vscode.Position(position.line - 1, Number.MAX_SAFE_INTEGER)
-          )
+            new vscode.Position(position.line - 1, Number.MAX_SAFE_INTEGER),
+          ),
         )
       : "";
   const beforeText = lineText.slice(0, position.character + 1);
@@ -66,10 +66,10 @@ const handleNewline = (args: { text: string }): boolean => {
         new vscode.Range(
           new vscode.Position(
             position.line,
-            lineText.length - onEnterRule.action.deleteText.length
+            lineText.length - onEnterRule.action.deleteText.length,
           ),
-          new vscode.Position(position.line, lineText.length)
-        )
+          new vscode.Position(position.line, lineText.length),
+        ),
       );
       return true;
     }
@@ -79,7 +79,7 @@ const handleNewline = (args: { text: string }): boolean => {
 };
 
 export const activateNewlineHelper = (
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ): void => {
   try {
     const uri = getActiveSparkdownDocument();
@@ -95,7 +95,7 @@ export const activateNewlineHelper = (
               text: args.text,
             });
           }
-        })
+        }),
       );
     }
   } catch {
@@ -105,23 +105,23 @@ export const activateNewlineHelper = (
       .showInformationMessage(
         "Conflict with another extension! The 'type' command for vscode can only be registered by a single extension. You may want to disable the 'Parenthetical New Line Helper' setting in order to avoid further conflicts from Sparkdown",
         moreDetails,
-        openGithub1
+        openGithub1,
       )
       .then((val) => {
         switch (val) {
           case moreDetails: {
             vscode.env.openExternal(
               vscode.Uri.parse(
-                "https://github.com/piersdeseilligny/betterfountain/issues/84"
-              )
+                "https://github.com/piersdeseilligny/betterfountain/issues/84",
+              ),
             );
             break;
           }
           case openGithub1: {
             vscode.env.openExternal(
               vscode.Uri.parse(
-                "https://github.com/Microsoft/vscode/issues/13441"
-              )
+                "https://github.com/Microsoft/vscode/issues/13441",
+              ),
             );
             break;
           }

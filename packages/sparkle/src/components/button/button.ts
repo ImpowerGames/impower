@@ -298,13 +298,13 @@ export default class Button
   }
 
   structuralAttributes = Object.keys(spec.props).map(
-    (prop) => Button.attrs[prop as keyof typeof Button.attrs]
+    (prop) => Button.attrs[prop as keyof typeof Button.attrs],
   );
 
   override shouldAttributeTriggerUpdate(
     name: string,
     oldValue: string,
-    newValue: string
+    newValue: string,
   ) {
     if (this.structuralAttributes.includes(name)) {
       return true;
@@ -355,7 +355,7 @@ export default class Button
       const active = newValue != null;
       this.updateRootAttribute(
         Button.attrs.ariaChecked,
-        active ? "true" : "false"
+        active ? "true" : "false",
       );
     }
   }

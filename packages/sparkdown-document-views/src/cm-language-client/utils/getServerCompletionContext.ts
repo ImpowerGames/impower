@@ -7,7 +7,7 @@ import {
 
 export const getServerCompletionContext = (
   serverCapabilities: ServerCapabilities<any> | undefined,
-  context: ClientCompletionContext
+  context: ClientCompletionContext,
 ): ServerCompletionContext | null => {
   const line = context.state.doc.lineAt(context.pos);
   let triggerKind: CompletionTriggerKind = CompletionTriggerKind.Invoked;
@@ -16,7 +16,7 @@ export const getServerCompletionContext = (
     !context.explicit &&
     triggerCharacter &&
     serverCapabilities?.completionProvider?.triggerCharacters?.includes(
-      triggerCharacter
+      triggerCharacter,
     )
   ) {
     triggerKind = CompletionTriggerKind.TriggerCharacter;

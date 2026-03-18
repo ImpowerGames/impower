@@ -36,7 +36,7 @@ export class SparkdownFileDecorationProvider
   private _commandStats: Record<string, vscode.FileStat | undefined> = {};
 
   provideFileDecoration(
-    uri: vscode.Uri
+    uri: vscode.Uri,
   ): vscode.ProviderResult<vscode.FileDecoration> {
     this.uris[uri.path] = uri;
     const sourceStat = this._stat;
@@ -49,7 +49,7 @@ export class SparkdownFileDecorationProvider
       return {
         tooltip: `Source has new changes`,
         color: new vscode.ThemeColor(
-          "gitDecoration.modifiedResourceForeground"
+          "gitDecoration.modifiedResourceForeground",
         ),
         badge: "*",
       };

@@ -5,7 +5,7 @@ import { getEditor } from "./getEditor";
 import { watchFiles } from "./watchFiles";
 
 export const activateFileWatcher = async (
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ): Promise<void> => {
   const uri = getActiveSparkdownDocument();
   const editor = getEditor(uri);
@@ -21,18 +21,18 @@ export const activateFileWatcher = async (
         watchFiles(context, change.document);
         // updateStatisticsDocumentVersion(change.document.uri, change.document.version);
       }
-    })
+    }),
   );
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(async (editor) => {
       if (editor?.document?.languageId === "sparkdown") {
         watchFiles(context, editor.document);
       }
-    })
+    }),
   );
   context.subscriptions.push(
     vscode.workspace.onDidCloseTextDocument((doc) => {
       delete fileSystemWatcherState[doc.uri.toString()];
-    })
+    }),
   );
 };

@@ -37,6 +37,6 @@ export const activateDocumentManager = (context: ExtensionContext) => {
       if (data.languageId === "sparkdown") {
         SparkdownDocumentManager.instance.remove(data);
       }
-    })
+    }),
   );
 };

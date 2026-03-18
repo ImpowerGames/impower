@@ -1,5 +1,5 @@
 export const parseSVGKeySplinesAttribute = (
-  animateElement: SVGAnimateElement | SVGElement
+  animateElement: SVGAnimateElement | SVGElement,
 ): [number, number, number, number][] => {
   const valuesAttr = animateElement.getAttribute("values") || "";
   const keySplinesAttr = animateElement.getAttribute("keySplines") || "";
@@ -13,8 +13,8 @@ export const parseSVGKeySplinesAttribute = (
               number,
               number,
               number,
-              number
-            ]
+              number,
+            ],
         )
     : values.map(() => [0, 0, 1, 1] as [number, number, number, number]);
   return keySplines;

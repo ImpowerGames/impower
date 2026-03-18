@@ -72,7 +72,6 @@ export class Identifier {
 
   public readonly toString = (): string => this.name || "undefined identifer";
 
-  
   public ResetRuntime() {
     this.alreadyHadError = false;
     this.alreadyHadWarning = false;

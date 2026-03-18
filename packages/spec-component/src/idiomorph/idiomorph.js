@@ -197,7 +197,7 @@ const Idiomorph = (() => {
                 block: false,
                 ignore: true,
               },
-            })
+            }),
           );
         });
         return;
@@ -230,7 +230,7 @@ const Idiomorph = (() => {
           const elements = insertSiblings(
             previousSibling,
             morphedNode,
-            nextSibling
+            nextSibling,
           );
           if (ctx.config.twoPass) {
             restoreFromPantry(morphedNode.parentNode, ctx);
@@ -300,7 +300,7 @@ const Idiomorph = (() => {
         handleHeadElement(
           /** @type {HTMLHeadElement} */ (newContent),
           oldNode,
-          ctx
+          ctx,
         );
       } else {
         syncNodeFrom(newContent, oldNode, ctx);
@@ -394,7 +394,7 @@ const Idiomorph = (() => {
         oldParent,
         newChild,
         insertionPoint,
-        ctx
+        ctx,
       );
 
       // if we found a potential match, remove the nodes until that point and morph
@@ -411,7 +411,7 @@ const Idiomorph = (() => {
         oldParent,
         newChild,
         insertionPoint,
-        ctx
+        ctx,
       );
 
       // if we found a soft match for the current node, morph
@@ -768,7 +768,7 @@ const Idiomorph = (() => {
     finalConfig.callbacks = Object.assign(
       {},
       defaults.callbacks,
-      config.callbacks
+      config.callbacks,
     );
 
     // copy head config into final config  (do this to deep merge the head)
@@ -902,13 +902,13 @@ const Idiomorph = (() => {
     oldParent,
     newChild,
     insertionPoint,
-    ctx
+    ctx,
   ) {
     // max id matches we are willing to discard in our search
     let newChildPotentialIdCount = getIdIntersectionCount(
       ctx,
       newChild,
-      oldParent
+      oldParent,
     );
 
     /**
@@ -936,7 +936,7 @@ const Idiomorph = (() => {
         otherMatchCount += getIdIntersectionCount(
           ctx,
           potentialMatch,
-          newContent
+          newContent,
         );
         if (otherMatchCount > newChildPotentialIdCount) {
           // if we have more potential id matches in _other_ content, we
@@ -1023,7 +1023,7 @@ const Idiomorph = (() => {
     // remove svgs to avoid false-positive matches on head, etc.
     let contentWithSvgsRemoved = newContent.replace(
       /<svg(\s[^>]*>|>)([\s\S]*?)<\/svg>/gim,
-      ""
+      "",
     );
 
     // if the newContent contains a html, head or body tag, we can simply parse it w/o wrapping
@@ -1050,7 +1050,7 @@ const Idiomorph = (() => {
       // deal with touchy tags like tr, tbody, etc.
       let responseDoc = parser.parseFromString(
         "<body><template>" + newContent + "</template></body>",
-        "text/html"
+        "text/html",
       );
       let content = /** @type {HTMLTemplateElement} */ (
         responseDoc.body.querySelector("template")

@@ -5,7 +5,7 @@ import { getSampleIndex } from "./getSampleIndex";
 
 export const drawSoundWaveform = (
   canvasContext: CanvasRenderingContext2D | null,
-  context: WaveformContext
+  context: WaveformContext,
 ): void => {
   if (!canvasContext) {
     return;

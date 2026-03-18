@@ -45,7 +45,7 @@ const rainbowBracketsPlugin = (config: typeof DEFAULT_CONFIG) =>
         this.matchingMarks = matchingBracketColors.map((_, i) =>
           Decoration.mark({
             class: `cm-matchingBracket-colored-${i}`,
-          })
+          }),
         );
         this.nonmatchingMark = Decoration.mark({
           class: `cm-nonmatchingBracket-colored`,
@@ -88,7 +88,7 @@ const rainbowBracketsPlugin = (config: typeof DEFAULT_CONFIG) =>
                 const matchingMark = matchingMarks[colorIndex]!;
                 decorations.push(
                   matchingMark.range(open.from, open.from + 1),
-                  matchingMark.range(pos, pos + 1)
+                  matchingMark.range(pos, pos + 1),
                 );
               }
             }
@@ -112,7 +112,7 @@ const rainbowBracketsPlugin = (config: typeof DEFAULT_CONFIG) =>
     },
     {
       decorations: (v) => v.decorations,
-    }
+    },
   );
 
 const rainbowBrackets = (config = DEFAULT_CONFIG) => {

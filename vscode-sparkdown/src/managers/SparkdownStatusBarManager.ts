@@ -19,7 +19,7 @@ export class SparkdownStatusBarManager {
     if (!this._statusBarItem) {
       this._statusBarItem = vscode.window.createStatusBarItem(
         vscode.StatusBarAlignment.Right,
-        100
+        100,
       );
     }
     this._statusBarItem.show();
@@ -38,7 +38,7 @@ export class SparkdownStatusBarManager {
       const durationDialogue = lengthDialogue;
       const durationAction = lengthAction;
       this._statusBarItem.text = getRuntimeString(
-        durationDialogue + durationAction
+        durationDialogue + durationAction,
       );
       this._statusBarItem.tooltip =
         "Dialogue: " +

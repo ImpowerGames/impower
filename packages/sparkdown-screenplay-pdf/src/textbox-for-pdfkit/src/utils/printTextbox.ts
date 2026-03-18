@@ -22,7 +22,7 @@ export const printTextbox = (
   posY: number,
   width: number,
   style: TextOptions = {},
-  height: number | null = null
+  height: number | null = null,
 ) => {
   const textboxStyle = { ...DEFAULT_STYLE, ...style };
   const lines = wrapTextbox(doc, text, width, textboxStyle);
@@ -39,7 +39,7 @@ const printLines = (
   posY: number,
   style: TextOptions,
   doc: PDFKit.PDFDocument,
-  maxHeight: number | null
+  maxHeight: number | null,
 ) => {
   const textboxStyle = { ...DEFAULT_STYLE, ...style };
   let currentHeight = 0;
@@ -94,7 +94,7 @@ const printLines = (
 function getLineStartXPosition(
   line: FormattedLine,
   width: number,
-  posX: number
+  posX: number,
 ) {
   const spaceLeft = width - (line.width ?? 0);
   if (spaceLeft < 0) return posX;

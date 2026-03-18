@@ -88,7 +88,7 @@ const offsetParentPolyfill = (element: HTMLElement): HTMLElement | null => {
 
 const offsetTopLeftPolyfill = (
   element: HTMLElement,
-  offsetTopOrLeft: "offsetTop" | "offsetLeft"
+  offsetTopOrLeft: "offsetTop" | "offsetLeft",
 ) => {
   let value = element[offsetTopOrLeft];
   let nextOffsetParent = offsetParentPolyfill(element);

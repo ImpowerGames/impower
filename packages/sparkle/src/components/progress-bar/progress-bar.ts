@@ -107,7 +107,7 @@ export default class ProgressBar
       this.updateRootAttribute(ProgressBar.attrs.ariaValueNow, newValue);
       this.updateRootCssVariable(
         name,
-        newValue.endsWith("%") ? newValue : `${newValue}%`
+        newValue.endsWith("%") ? newValue : `${newValue}%`,
       );
     }
   }

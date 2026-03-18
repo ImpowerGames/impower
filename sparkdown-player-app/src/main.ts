@@ -14,7 +14,7 @@ const SPARKDOWN_EDITOR_ORIGIN = import.meta.env.VITE_SPARKDOWN_EDITOR_ORIGIN;
 const connection = new Port2MessageConnection(
   (message: any, transfer?: Transferable[]) =>
     window.parent.postMessage(message, SPARKDOWN_EDITOR_ORIGIN, transfer),
-  SPARKDOWN_EDITOR_ORIGIN
+  SPARKDOWN_EDITOR_ORIGIN,
 );
 connection.listen();
 
@@ -28,12 +28,12 @@ connection.addEventListener("message", async (e) => {
         cancelable: true,
         composed: true,
         detail: message,
-      })
+      }),
     );
     // Forward protocol responses and notifications from editor to service worker
     navigator.serviceWorker.controller?.postMessage(
       message,
-      (message as any).result?.transfer || (message as any).params?.transfer
+      (message as any).result?.transfer || (message as any).params?.transfer,
     );
   }
 });
@@ -47,7 +47,7 @@ window.addEventListener(MessageProtocol.event, (e) => {
       // Forward responses and notifications from player to editor
       connection.postMessage(
         message,
-        message.result?.transfer || message.params?.transfer
+        message.result?.transfer || message.params?.transfer,
       );
     }
   }
@@ -78,11 +78,11 @@ window.addEventListener("drop", async (e) => {
         name,
         buffer,
       };
-    })
+    }),
   );
   connection.postMessage(
     DropFilesMessage.type.request({ files }),
-    files.map((f) => f.buffer)
+    files.map((f) => f.buffer),
   );
 });
 
@@ -96,7 +96,7 @@ if ("serviceWorker" in navigator) {
     // Forward protocol messages from service worker to editor
     connection.postMessage(
       message,
-      message.result?.transfer || message.params?.transfer
+      message.result?.transfer || message.params?.transfer,
     );
   });
 }

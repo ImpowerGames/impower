@@ -108,7 +108,7 @@ export default class PdfWriteStream {
 
   emit(eventName: string | symbol, ...args: unknown[]): boolean {
     const exists = Boolean(
-      this.repeatCallbacks[eventName] || this.onceCallbacks[eventName]
+      this.repeatCallbacks[eventName] || this.onceCallbacks[eventName],
     );
     (this.repeatCallbacks[eventName] || []).forEach((c) => c(...args));
     (this.onceCallbacks[eventName] || []).forEach((c) => c(...args));

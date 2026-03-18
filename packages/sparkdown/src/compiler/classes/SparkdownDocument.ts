@@ -35,7 +35,7 @@ export class SparkdownDocument implements TextDocument {
     uri: DocumentUri,
     languageId: string,
     version: number,
-    content: string
+    content: string,
   ) {
     this.text = TextDocument.create(uri, languageId, version, content);
   }
@@ -56,7 +56,7 @@ export class SparkdownDocument implements TextDocument {
     return {
       start: this.text.positionAt(from),
       end: this.text.positionAt(
-        to ?? this.text.offsetAt(this.text.positionAt(Number.MAX_VALUE))
+        to ?? this.text.offsetAt(this.text.positionAt(Number.MAX_VALUE)),
       ),
     };
   }
@@ -87,7 +87,7 @@ export class SparkdownDocument implements TextDocument {
         line: line + 1,
         character: 0,
       }) - 1,
-      0
+      0,
     );
     return {
       start: {

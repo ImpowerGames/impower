@@ -84,7 +84,7 @@ export default class Divider
     if (name === Divider.attrs.vertical) {
       this.updateRootAttribute(
         Divider.attrs.ariaOrientation,
-        newValue != null ? "vertical" : "horizontal"
+        newValue != null ? "vertical" : "horizontal",
       );
     }
   }

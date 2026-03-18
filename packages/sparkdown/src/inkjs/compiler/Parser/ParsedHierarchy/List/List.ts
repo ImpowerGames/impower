@@ -16,7 +16,7 @@ export class List extends Expression {
   }
 
   public readonly GenerateIntoContainer = (
-    container: RuntimeContainer
+    container: RuntimeContainer,
   ): void => {
     const runtimeRawList = new RuntimeInkList();
 
@@ -36,13 +36,13 @@ export class List extends Expression {
         const listItem = this.story.ResolveListItem(
           listName,
           listItemName,
-          this
+          this,
         ) as ListElementDefinition;
 
         if (listItem === null) {
           if (listName === null) {
             this.Error(
-              `Could not find list definition that contains item \`${itemIdentifier}\``
+              `Could not find list definition that contains item \`${itemIdentifier}\``,
             );
           } else {
             this.Error(`Could not find list item \`${itemIdentifier}\``);
@@ -50,7 +50,7 @@ export class List extends Expression {
         } else {
           if (listItem.parent == null) {
             this.Error(
-              `Could not find list definition for item \`${itemIdentifier}\``
+              `Could not find list definition for item \`${itemIdentifier}\``,
             );
             return;
           }

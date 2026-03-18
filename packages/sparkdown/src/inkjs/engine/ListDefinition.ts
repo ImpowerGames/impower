@@ -44,7 +44,7 @@ export class ListDefinition {
   }
   public TryGetItemWithValue(
     val: number,
-    /* out */ item: InkListItem
+    /* out */ item: InkListItem,
   ): TryGetResult<InkListItem> {
     for (let [key, value] of this._itemNameToValues) {
       if (value == val) {
@@ -60,7 +60,7 @@ export class ListDefinition {
   public TryGetValueForItem(
     item: InkListItem,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    /* out */ intVal: number
+    /* out */ intVal: number,
   ): TryGetResult<number> {
     if (!item.itemName) return { result: 0, exists: false };
     let value = this._itemNameToValues.get(item.itemName);

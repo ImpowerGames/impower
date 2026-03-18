@@ -12,7 +12,7 @@ export const setVariableAndValue = (
   name: string,
   value: string | null,
   valueFormatter: (v: string) => string,
-  styles: Record<string, string> = {}
+  styles: Record<string, string> = {},
 ): Record<string, string> => {
   if (!name) {
     return styles;
@@ -27,7 +27,7 @@ export const setVariableAndValue = (
 };
 
 export const inferTransformer = (
-  name: string
+  name: string,
 ): ((v: string) => string) | undefined => {
   if (name === "icon" || name.endsWith("-icon")) {
     const getIcon = (v: string) => getCssIcon(v);
@@ -69,7 +69,7 @@ export const inferTransformer = (
 
 export const getSparklePropName = (
   propName: string,
-  attributePrefix: string
+  attributePrefix: string,
 ) => {
   const unprefixedPropName = propName.startsWith(attributePrefix)
     ? propName.slice(attributePrefix.length)
@@ -86,7 +86,7 @@ export const setSparkleStyle = (
   propValue: string,
   attributePrefix: string,
   styleTransformers: Record<string, (v: string) => string>,
-  styles: Record<string, string> = {}
+  styles: Record<string, string> = {},
 ): Record<string, string> => {
   const normalizedName = getSparklePropName(propName, attributePrefix);
 
@@ -114,7 +114,7 @@ export const setSparkleStyle = (
 
 export const getSparkleAttribute = (
   propName: string,
-  attributePrefix: string
+  attributePrefix: string,
 ): string => {
   const styleTransformers = STYLE_TRANSFORMERS;
   const normalizedName = getSparklePropName(propName, attributePrefix);
@@ -126,7 +126,7 @@ export const getSparkleAttribute = (
 
 export const generateSparkleAttributesAndStyles = (
   props: Record<string, string>,
-  options?: { attributePrefix?: string }
+  options?: { attributePrefix?: string },
 ): {
   attributes: Record<string, string>;
   styles: Record<string, string>;
@@ -144,7 +144,7 @@ export const generateSparkleAttributesAndStyles = (
       propValue,
       attributePrefix,
       styleTransformers,
-      styles
+      styles,
     );
   }
   return {

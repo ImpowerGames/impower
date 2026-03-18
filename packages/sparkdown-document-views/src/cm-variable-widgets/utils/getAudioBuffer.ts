@@ -2,7 +2,7 @@ import type { SynthBuffer } from "@impower/spark-engine/src/game/modules/audio/c
 
 export const getAudioBuffer = async (
   sound: Float32Array | SynthBuffer | string | undefined,
-  audioContext: AudioContext
+  audioContext: AudioContext,
 ): Promise<AudioBuffer> => {
   if (typeof sound === "string") {
     const response = await fetch(sound);
@@ -14,7 +14,7 @@ export const getAudioBuffer = async (
     const audioBuffer = audioContext.createBuffer(
       1,
       sound.soundBuffer.length,
-      audioContext.sampleRate
+      audioContext.sampleRate,
     );
     audioBuffer.copyToChannel(sound.soundBuffer, 0);
     return audioBuffer;

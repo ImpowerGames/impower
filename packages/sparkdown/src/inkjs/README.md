@@ -1,4 +1,3 @@
-
 # InkJS (Sparkdown Flavor)
 
 Spark games utilize a slightly modified version of [inkjs](https://github.com/y-lohse/inkjs/) compiler -- a javascript port of inkle's [ink](https://github.com/inkle/ink) scripting language -- to compile and run sparkdown.
@@ -27,9 +26,9 @@ This helps keep our keyword naming convention consistent across the entire synta
 
 ### 2. Whitespace is now required after all choice, logic, gather, and clause operators
 
-The space following a choice, logic, gather, and clause operator is no longer optional. 
+The space following a choice, logic, gather, and clause operator is no longer optional.
 
-That means `*`, `+`, `~`, `-`, and `=` must be followed by at least one whitespace for the compiler to recognize it as an instruction. 
+That means `*`, `+`, `~`, `-`, and `=` must be followed by at least one whitespace for the compiler to recognize it as an instruction.
 
 ```
 * [choice]
@@ -81,13 +80,18 @@ And all the men and women merely players.
 
 The `\` backslash operator joins text together in a similar way to the `<>` glue operator, with a few key differences:
 
-  1. Unlike glue, `\` preserves a single newline between the joined text.
-  2. The next line will always be interpreted as plain text, even if it starts with a syntax keyword
+1. Unlike glue, `\` preserves a single newline between the joined text.
+2. The next line will always be interpreted as plain text, even if it starts with a syntax keyword
+
+
     ```
     And did you consider that might... \
     include me??
     ```
-  3. If the next line of text is empty, `\` will do nothing.
+
+3. If the next line of text is empty, `\` will do nothing.
+
+
     ```
     This does nothing. \
 
@@ -175,7 +179,7 @@ define character.robert:
   voice = "low"
 ```
 
-Defines can't be set at runtime and aren't saved in the save state. 
+Defines can't be set at runtime and aren't saved in the save state.
 So they are mostly useful for configuration:
 
 ```
@@ -189,7 +193,7 @@ define style.dialogue:
 
 ### 8. Compiler errors now include exact source location
 
-An additional `source` parameter has been added to the compiler's error handler. 
+An additional `source` parameter has been added to the compiler's error handler.
 
 This parameter includes an error's filename, start line, start column, end line, and end column, so we can display the error in a text editor exactly where it appears in the source file.
 

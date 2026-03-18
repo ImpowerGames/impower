@@ -1,5 +1,5 @@
 export const getClientCompletionValidFor = (
-  triggerCharacters: string[] | undefined
+  triggerCharacters: string[] | undefined,
 ) => {
   const chars = triggerCharacters
     ? triggerCharacters.join("").replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&")

@@ -47,7 +47,7 @@ export class ScopedRule implements Rule {
     this.node = new GrammarNode(
       repo.nextTypeIndex(),
       def,
-      repo.grammar.declarator
+      repo.grammar.declarator,
     );
 
     const beginId = this.id + "_begin";
@@ -59,7 +59,7 @@ export class ScopedRule implements Rule {
       id: beginId,
       match: def.begin,
       captures: def.beginCaptures,
-      closedBy: def.closedBy ?? def.brackets ? endId : undefined,
+      closedBy: (def.closedBy ?? def.brackets) ? endId : undefined,
     };
     this.beginRule = repo.add(beginRuleItem, beginId);
 
@@ -72,7 +72,7 @@ export class ScopedRule implements Rule {
       id: endId,
       match: def.end,
       captures: def.endCaptures,
-      openedBy: def.openedBy ?? def.brackets ? beginId : undefined,
+      openedBy: (def.openedBy ?? def.brackets) ? beginId : undefined,
     };
     this.endRule = repo.add(endRuleItem, endId);
 
@@ -80,7 +80,7 @@ export class ScopedRule implements Rule {
     const contentRuleItem: SwitchRuleDefinition = {
       id: contentId,
       patterns: def.patterns ?? [],
-      tag: def.contentTag
+      tag: def.contentTag,
     };
     this.contentRule = repo.add(contentRuleItem, contentId);
 
@@ -136,7 +136,7 @@ export class ScopedRule implements Rule {
               }] Too many consecutive empty matches at pos=${
                 state.absolutePos + pos
               }. Possible infinite loop!`,
-              patternMatched
+              patternMatched,
             );
             break;
           }
@@ -164,7 +164,7 @@ export class ScopedRule implements Rule {
     if (contentChildren.length === 1) {
       const wrapped = contentChildren[0]!.wrap(
         this.contentRule.node,
-        Wrapping.FULL
+        Wrapping.FULL,
       );
       wrappedContentChildren = [wrapped];
     } else if (contentChildren.length > 1) {
@@ -175,12 +175,12 @@ export class ScopedRule implements Rule {
           if (i === 0) {
             // first child
             wrapped.push(
-              contentChild.wrap(this.contentRule.node, Wrapping.BEGIN)
+              contentChild.wrap(this.contentRule.node, Wrapping.BEGIN),
             );
           } else if (i === contentChildren.length - 1) {
             // last child
             wrapped.push(
-              contentChild.wrap(this.contentRule.node, Wrapping.END)
+              contentChild.wrap(this.contentRule.node, Wrapping.END),
             );
           } else {
             wrapped.push(contentChild);

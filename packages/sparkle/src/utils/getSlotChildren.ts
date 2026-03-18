@@ -1,6 +1,6 @@
 export const getSlotChildren = (
   customEl: HTMLElement,
-  slot: HTMLSlotElement | null
+  slot: HTMLSlotElement | null,
 ) => {
   if (!slot) {
     return [];

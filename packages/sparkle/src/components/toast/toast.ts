@@ -171,11 +171,11 @@ export default class Toast
     if (this.shadowRoot) {
       this.refs.actionSlot.addEventListener(
         "slotchange",
-        this.handleActionSlotAssigned
+        this.handleActionSlotAssigned,
       );
     } else {
       this.handleActionChildrenAssigned(
-        Array.from(this.refs.actionSlot.children || [])
+        Array.from(this.refs.actionSlot.children || []),
       );
     }
   }
@@ -186,7 +186,7 @@ export default class Toast
     if (this.shadowRoot) {
       this.refs.actionSlot.removeEventListener(
         "slotchange",
-        this.handleActionSlotAssigned
+        this.handleActionSlotAssigned,
       );
     }
   }
@@ -218,7 +218,7 @@ export default class Toast
     if (open && autoCloseDuration >= 0 && autoCloseDuration < Infinity) {
       this._autoHideTimeout = window.setTimeout(
         () => this.close(),
-        autoCloseDuration
+        autoCloseDuration,
       );
     }
   }
@@ -235,7 +235,7 @@ export default class Toast
 
   protected async changeState(
     open: boolean,
-    autoCloseDuration: number
+    autoCloseDuration: number,
   ): Promise<void> {
     if (!this._setup) {
       this._setup = true;
@@ -331,7 +331,7 @@ export default class Toast
           container.removeChild(this);
           resolve();
         },
-        { once: true }
+        { once: true },
       );
     });
   }

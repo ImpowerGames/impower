@@ -36,7 +36,7 @@ class StringInput implements Input {
 export function sliceType(
   cursor: TreeCursor,
   input: Input,
-  type: number
+  type: number,
 ): string | null {
   if (cursor.type.id === type) {
     const s = input.read(cursor.from, cursor.to);
@@ -63,7 +63,7 @@ export type CursorNode = {
 
 function cursorNode(
   { type, from, to }: TreeCursor,
-  isLeaf = false
+  isLeaf = false,
 ): CursorNode {
   return { type, from, to, isLeaf };
 }
@@ -89,7 +89,7 @@ export function traverseTree(
     beforeEnter,
     onEnter,
     onLeave,
-  }: TreeTraversalOptions
+  }: TreeTraversalOptions,
 ): void {
   if ("cursor" in cursor) {
     cursor = cursor.cursor();
@@ -138,16 +138,16 @@ export function traverseTree(
 function isChildOf(child: CursorNode, parent: CursorNode | undefined): boolean {
   return Boolean(
     parent &&
-      child.from >= parent.from &&
-      child.from <= parent.to &&
-      child.to <= parent.to &&
-      child.to >= parent.from
+    child.from >= parent.from &&
+    child.from <= parent.to &&
+    child.to <= parent.to &&
+    child.to >= parent.from,
   );
 }
 
 export function validatorTraversal(
   input: Input | string,
-  { fullMatch = true }: { fullMatch?: boolean } = {}
+  { fullMatch = true }: { fullMatch?: boolean } = {},
 ) {
   if (typeof input === "string") {
     input = new StringInput(input);
@@ -200,7 +200,7 @@ export function validatorTraversal(
 export function validateTree(
   tree: TreeCursor | Tree | SyntaxNode,
   input: Input | string,
-  options?: { fullMatch?: boolean }
+  options?: { fullMatch?: boolean },
 ): boolean {
   const { state, traversal } = validatorTraversal(input, options);
   traverseTree(tree, traversal);
@@ -237,7 +237,7 @@ export function printTree(
     start = 0,
     includeParents,
     maxErrors = MAX_ERRORS,
-  }: PrintTreeOptions = {}
+  }: PrintTreeOptions = {},
 ): string {
   const inp = typeof input === "string" ? new StringInput(input) : input;
   const state = {
@@ -273,8 +273,8 @@ export function printTree(
         (node.type.isError || !validator.state.valid
           ? colorize(node.type.name, Color.Red)
           : isTop
-          ? colorize(node.type.name, Color.Cyan)
-          : node.type.name) +
+            ? colorize(node.type.name, Color.Cyan)
+            : node.type.name) +
         " " +
         (hasRange
           ? "[" +

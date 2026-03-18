@@ -5,10 +5,10 @@ import { FileSystemReader } from "../types/FileSystemReader";
 function replace(
   str: string,
   regexp: RegExp,
-  replacerFunction: (...args: string[]) => string
+  replacerFunction: (...args: string[]) => string,
 ) {
   const replacements = Array.from(str.matchAll(regexp)).map((match) =>
-    replacerFunction(...match)
+    replacerFunction(...match),
   );
   let i = 0;
   return str.replace(regexp, () => replacements[i++]!);
@@ -16,7 +16,7 @@ function replace(
 
 export const getClientMarkupContent = (
   content: MarkupContent,
-  fileSystemReader: FileSystemReader
+  fileSystemReader: FileSystemReader,
 ) => {
   const kind = content.kind;
   let value = content.value;

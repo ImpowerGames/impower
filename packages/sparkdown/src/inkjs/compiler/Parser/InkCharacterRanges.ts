@@ -53,18 +53,18 @@ export abstract class InkCharacterRanges {
   public static readonly LatinBasic: CharacterRange = CharacterRange.Define(
     "\u0041",
     "\u007A",
-    new CharacterSet().AddRange("\u005B", "\u0060")
+    new CharacterSet().AddRange("\u005B", "\u0060"),
   );
 
   public static readonly LatinExtendedA: CharacterRange = CharacterRange.Define(
     "\u0100",
-    "\u017F"
+    "\u017F",
     // no excludes here
   );
 
   public static readonly LatinExtendedB: CharacterRange = CharacterRange.Define(
     "\u0180",
-    "\u024F"
+    "\u024F",
     // no excludes here
   );
 
@@ -73,13 +73,13 @@ export abstract class InkCharacterRanges {
     "\u03FF",
     new CharacterSet()
       .AddRange("\u0378", "\u0385")
-      .AddCharacters("\u0374\u0375\u0378\u0387\u038B\u038D\u03A2")
+      .AddCharacters("\u0374\u0375\u0378\u0387\u038B\u038D\u03A2"),
   );
 
   public static readonly Cyrillic: CharacterRange = CharacterRange.Define(
     "\u0400",
     "\u04FF",
-    new CharacterSet().AddRange("\u0482", "\u0489")
+    new CharacterSet().AddRange("\u0482", "\u0489"),
   );
 
   public static readonly Armenian: CharacterRange = CharacterRange.Define(
@@ -88,25 +88,25 @@ export abstract class InkCharacterRanges {
     new CharacterSet()
       .AddCharacters("\u0530")
       .AddRange("\u0557", "\u0560")
-      .AddRange("\u0588", "\u058E")
+      .AddRange("\u0588", "\u058E"),
   );
 
   public static readonly Hebrew: CharacterRange = CharacterRange.Define(
     "\u0590",
     "\u05FF",
-    new CharacterSet()
+    new CharacterSet(),
   );
 
   public static readonly Arabic: CharacterRange = CharacterRange.Define(
     "\u0600",
     "\u06FF",
-    new CharacterSet()
+    new CharacterSet(),
   );
 
   public static readonly Korean: CharacterRange = CharacterRange.Define(
     "\uAC00",
     "\uD7AF",
-    new CharacterSet()
+    new CharacterSet(),
   );
 
   public static readonly Latin1Supplement: CharacterRange =
@@ -115,11 +115,11 @@ export abstract class InkCharacterRanges {
   public static readonly Chinese: CharacterRange = CharacterRange.Define(
     "\u4E00",
     "\u9FFF",
-    new CharacterSet()
+    new CharacterSet(),
   );
 
   private static readonly ExtendIdentifierCharacterRanges = (
-    identifierCharSet: CharacterSet
+    identifierCharSet: CharacterSet,
   ): void => {
     const characterRanges = this.ListAllCharacterRanges();
     for (const charRange of characterRanges) {

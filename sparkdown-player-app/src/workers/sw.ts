@@ -12,7 +12,7 @@ async function sendRequest<M extends string, P, R>(
   client: Client,
   type: MessageProtocolRequestType<M, P, R>,
   params: P,
-  transfer?: Transferable[]
+  transfer?: Transferable[],
 ): Promise<R> {
   const request = type.request(params);
   return new Promise<R>((resolve, reject) => {
@@ -44,7 +44,7 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
         FetchGameAssetMessage.type,
         {
           path,
-        }
+        },
       );
       const buffer = transfer[0];
       const filename = path.split("/").at(-1);

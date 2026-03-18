@@ -24,7 +24,7 @@ export const defineNodeType = (
   typeIndex: number,
   typeId: string,
   def?: RuleDefinition,
-  props?: NodePropSource[]
+  props?: NodePropSource[],
 ): NodeType => {
   if (typeIndex === NodeID.none) {
     return NodeType.none;

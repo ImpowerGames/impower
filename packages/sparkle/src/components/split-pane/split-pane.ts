@@ -290,7 +290,7 @@ export default class SplitPane
     this.refs.divider.addEventListener("keydown", this.handleKeyDownDivider);
     this.refs.resize.addEventListener(
       "pointerdown",
-      this.handlePointerDownResize
+      this.handlePointerDownResize,
     );
     this.refs.resize.addEventListener("pointerup", this.handlePointerUpResize);
   }
@@ -307,11 +307,11 @@ export default class SplitPane
     this.refs.divider.removeEventListener("keydown", this.handleKeyDownDivider);
     this.refs.resize.removeEventListener(
       "pointerdown",
-      this.handlePointerDownResize
+      this.handlePointerDownResize,
     );
     this.refs.resize.removeEventListener(
       "pointerup",
-      this.handlePointerUpResize
+      this.handlePointerUpResize,
     );
   }
 

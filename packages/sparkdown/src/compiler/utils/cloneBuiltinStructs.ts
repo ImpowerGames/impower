@@ -2,7 +2,7 @@ import { clone } from "./clone";
 
 export function cloneBuiltinStructs(
   context: any,
-  builtinDefinitions: { [type: string]: { [name: string]: any } } | undefined
+  builtinDefinitions: { [type: string]: { [name: string]: any } } | undefined,
 ) {
   const builtins = builtinDefinitions;
   if (builtins) {

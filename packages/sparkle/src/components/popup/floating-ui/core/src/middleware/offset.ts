@@ -39,7 +39,7 @@ export type Options = OffsetValue | OffsetFunction;
 
 export async function convertValueToCoords(
   state: MiddlewareState,
-  value: Options
+  value: Options,
 ): Promise<Coords> {
   const { placement, platform, elements } = state;
   const rtl = await platform.isRTL?.(elements.floating);

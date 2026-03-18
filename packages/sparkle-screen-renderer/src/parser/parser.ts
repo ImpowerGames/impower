@@ -140,7 +140,7 @@ export function parseSparkle(input: string): SparkleNode[] {
           const attributesString = (match?.[4] || "").trim();
           const attributeArray = splitArgs(
             attributesString,
-            ATTRIBUTE_SEPARATORS
+            ATTRIBUTE_SEPARATORS,
           );
 
           // Determine child node type

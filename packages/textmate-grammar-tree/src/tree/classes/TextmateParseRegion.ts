@@ -51,7 +51,7 @@ export class TextmateParseRegion {
   constructor(
     input: Input,
     ranges: { from: number; to: number }[],
-    fragments?: readonly TreeFragment[]
+    fragments?: readonly TreeFragment[],
   ) {
     this.input = input;
     this.from = ranges[0]!.from;

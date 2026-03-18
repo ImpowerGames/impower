@@ -2,7 +2,7 @@ const search = (
   obj: any,
   nameSelector: string,
   fuzzy: boolean | undefined,
-  fieldPath: string = ""
+  fieldPath: string = "",
 ): [any, string] => {
   for (const [k, v] of Object.entries(obj)) {
     const path = fieldPath ? `${fieldPath}.${k}` : k;
@@ -25,7 +25,7 @@ const search = (
 export const selectProperty = <T>(
   obj: any,
   propertyPath: string,
-  fuzzy?: boolean
+  fuzzy?: boolean,
 ): [T | undefined, string] => {
   if (!propertyPath) {
     return obj;

@@ -3,7 +3,7 @@ import { FormattedText } from "../types/FormattedText";
 export const getStyledHtml = (
   content: FormattedText[] | undefined,
   className = "",
-  indent = ""
+  indent = "",
 ): string => {
   if (!content) {
     return "";
@@ -33,7 +33,9 @@ export const getStyledHtml = (
       .join("")
       .split("\n")
       .map((h) =>
-        h ? `\n${indent}<p${classAttr}${alignAttr}>${h}</p>` : `\n${indent}<br>`
+        h
+          ? `\n${indent}<p${classAttr}${alignAttr}>${h}</p>`
+          : `\n${indent}<br>`,
       )
       .join("");
   });

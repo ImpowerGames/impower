@@ -83,7 +83,7 @@ export class ConditionalSingleBranch extends ParsedObject {
           if (text.text.startsWith("else:")) {
             this.Warning(
               "Saw the text 'else:' which is being treated as content. Did you mean '- else:'?",
-              text
+              text,
             );
           }
         }
@@ -144,7 +144,7 @@ export class ConditionalSingleBranch extends ParsedObject {
     if (duplicatesStackValue || (this.isElse && this.matchingEquality)) {
       this._contentContainer.InsertContent(
         RuntimeControlCommand.PopEvaluatedValue(),
-        0
+        0,
       );
     }
 

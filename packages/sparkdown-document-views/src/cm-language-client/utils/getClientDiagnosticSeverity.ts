@@ -1,7 +1,7 @@
 import { DiagnosticSeverity } from "@impower/spark-editor-protocol/src/enums/DiagnosticSeverity";
 
 export const getClientDiagnosticSeverity = (
-  s: DiagnosticSeverity | undefined
+  s: DiagnosticSeverity | undefined,
 ): "error" | "warning" | "info" => {
   if (s === DiagnosticSeverity.Error) {
     return "error";

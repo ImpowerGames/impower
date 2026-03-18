@@ -12,7 +12,7 @@ export interface SourceMetadata {
 export type ErrorHandler = (
   message: string,
   type: ErrorType,
-  source: SourceMetadata | null
+  source: SourceMetadata | null,
 ) => void;
 
 export enum ErrorType {

@@ -9,7 +9,7 @@ export class ImplicitAnnotator extends SparkdownAnnotator<
 > {
   override enter(
     annotations: Range<SparkdownAnnotation<string>>[],
-    nodeRef: SparkdownSyntaxNodeRef
+    nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<string>>[] {
     if (nodeRef.name === "AssetCommandName") {
       const context = getContextNames(nodeRef.node);
@@ -20,8 +20,8 @@ export class ImplicitAnnotator extends SparkdownAnnotator<
           annotations.push(
             SparkdownAnnotation.mark("filtered_image").range(
               nodeRef.from,
-              nodeRef.to
-            )
+              nodeRef.to,
+            ),
           );
           return annotations;
         }

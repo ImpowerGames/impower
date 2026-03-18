@@ -38,7 +38,7 @@ export class Matched {
      * - BEGIN: The {@link GrammarNode} in this match begins the branch.
      * - END: The {@link GrammarNode} in this match ends the branch.
      */
-    public wrapping: Wrapping = Wrapping.FULL
+    public wrapping: Wrapping = Wrapping.FULL,
   ) {}
 
   /** Changes the starting offset of the match. */
@@ -109,7 +109,7 @@ export class Matched {
 }
 
 const isGrammarTokenList = (
-  token: GrammarToken | GrammarToken[]
+  token: GrammarToken | GrammarToken[],
 ): token is GrammarToken[] => {
   if (token.length === 0) {
     return true;

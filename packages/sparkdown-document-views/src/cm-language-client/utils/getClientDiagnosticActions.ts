@@ -7,7 +7,7 @@ export const getClientDiagnosticActions = (
     name: string;
     focus?: { from: number; to: number };
     changes?: { from: number; to?: number; insert?: string }[];
-  }[]
+  }[],
 ): Action[] => {
   const actions: Action[] = [];
   if (!data) {
@@ -27,9 +27,9 @@ export const getClientDiagnosticActions = (
             effects: EditorView.scrollIntoView(
               EditorSelection.range(
                 Math.min(doc.length, Math.max(0, a.focus.from)),
-                Math.min(doc.length, a.focus.to)
+                Math.min(doc.length, a.focus.to),
               ),
-              { y: "center" }
+              { y: "center" },
             ),
           });
           view.focus();

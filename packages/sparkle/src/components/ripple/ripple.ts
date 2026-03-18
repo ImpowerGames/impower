@@ -206,7 +206,7 @@ export default class Ripple extends SparkleElement {
     const maxDim = Math.max(height, width);
     const softEdgeSize = Math.max(
       SOFT_EDGE_CONTAINER_RATIO * maxDim,
-      SOFT_EDGE_MINIMUM_SIZE
+      SOFT_EDGE_MINIMUM_SIZE,
     );
 
     let maxRadius = maxDim;
@@ -221,7 +221,7 @@ export default class Ripple extends SparkleElement {
   }
 
   private updateAnimationPosition(
-    pointerEvent?: TouchEvent | MouseEvent | PointerEvent
+    pointerEvent?: TouchEvent | MouseEvent | PointerEvent,
   ) {
     const { height, width } = getDimensions(this);
 
@@ -281,7 +281,7 @@ export default class Ripple extends SparkleElement {
         duration: PRESS_GROW_MS,
         easing: PRESS_EASE,
         fill: ANIMATION_FILL,
-      }
+      },
     );
 
     return this.growAnimation.finished;

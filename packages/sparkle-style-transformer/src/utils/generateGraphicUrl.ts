@@ -12,7 +12,7 @@ const generateGraphicUrl = (
   pattern: Graphic,
   tiling: boolean,
   angle = 0,
-  zoom = 1
+  zoom = 1,
 ): string => {
   let paths = "";
   const width = pattern.width;
@@ -39,7 +39,7 @@ const generateGraphicUrl = (
         const strokeLineProps = `${strokeWidthProp}${strokeLineJoinProp}${strokeLineCapProp}`;
         const dProp = validD ? `d='${validD}'` : "";
         paths += `<path ${fillProp} ${strokeProp} ${strokeLineProps} ${dProp}/>`;
-      }
+      },
     );
   }
   if (tiling) {

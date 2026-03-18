@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 
 export const getEditor = (
-  uri?: vscode.Uri | string
+  uri?: vscode.Uri | string,
 ): vscode.TextEditor | undefined => {
   if (!uri) {
     return undefined;

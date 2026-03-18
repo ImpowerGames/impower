@@ -13,7 +13,7 @@ interface InitOptions extends DefineOptions {
 
 export default abstract class Sparkle {
   static async init(
-    options?: InitOptions
+    options?: InitOptions,
   ): Promise<CustomElementConstructor[]> {
     const styles = options?.styles ?? DEFAULT_SPARKLE_STYLES;
     const constructors = options?.constructors ?? DEFAULT_SPARKLE_CONSTRUCTORS;

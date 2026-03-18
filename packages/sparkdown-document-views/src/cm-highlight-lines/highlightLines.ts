@@ -58,13 +58,13 @@ export const getHighlightPositions = (view: EditorView) => {
 
 export const getHighlightLineNumbers = (view: EditorView) => {
   return getHighlightPositions(view).map(
-    (pos) => view.state.doc.lineAt(pos).number
+    (pos) => view.state.doc.lineAt(pos).number,
   );
 };
 
 export const highlightsChanged = (update: ViewUpdate): boolean => {
   return update.transactions.some((t) =>
-    t.effects.some((e) => e.is(setHighlightsEffect))
+    t.effects.some((e) => e.is(setHighlightsEffect)),
   );
 };
 
@@ -133,7 +133,9 @@ export const highlightsField = StateField.define<DecorationSet>({
               add.push(highlightDeco.range(tr.state.doc.line(i).from));
             }
             add.push(
-              highlightDeco.range(tr.state.doc.line(highlightedLineNumber).from)
+              highlightDeco.range(
+                tr.state.doc.line(highlightedLineNumber).from,
+              ),
             );
             prevHighlightedLineNumber = highlightedLineNumber;
           }
@@ -157,7 +159,7 @@ export const highlightsField = StateField.define<DecorationSet>({
  * @returns {Extension} A CodeMirror extension array.
  */
 export function highlightLines(
-  config: HighlightsConfiguration = {}
+  config: HighlightsConfiguration = {},
 ): Extension {
   return [highlightsConfig.of(config), highlightsField, highlightsTheme];
 }

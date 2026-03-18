@@ -187,13 +187,13 @@ export default class Tab
   }
 
   structuralAttributes = Object.keys(spec.props).map(
-    (prop) => Tab.attrs[prop as keyof typeof Tab.attrs]
+    (prop) => Tab.attrs[prop as keyof typeof Tab.attrs],
   );
 
   override shouldAttributeTriggerUpdate(
     name: string,
     oldValue: string,
-    newValue: string
+    newValue: string,
   ) {
     if (this.structuralAttributes.includes(name)) {
       return true;
@@ -205,11 +205,11 @@ export default class Tab
     if (name === Tab.attrs.disabled) {
       this.updateRootAttribute(
         Tab.attrs.tabIndex,
-        newValue != null ? "-1" : "0"
+        newValue != null ? "-1" : "0",
       );
       this.updateRootAttribute(
         Tab.attrs.ariaDisabled,
-        newValue != null ? "true" : "false"
+        newValue != null ? "true" : "false",
       );
       const ripple = this.refs.ripple;
       if (ripple) {
@@ -236,7 +236,7 @@ export default class Tab
       const active = newValue != null;
       this.updateRootAttribute(
         Tab.attrs.ariaSelected,
-        active ? "true" : "false"
+        active ? "true" : "false",
       );
       this.updateRootAttribute(Tab.attrs.tabIndex, active ? "0" : "-1");
     }

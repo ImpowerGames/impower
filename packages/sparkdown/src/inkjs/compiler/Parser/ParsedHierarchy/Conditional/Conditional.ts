@@ -11,7 +11,7 @@ export class Conditional extends ParsedObject {
 
   constructor(
     public initialCondition: Expression,
-    public branches: ConditionalSingleBranch[]
+    public branches: ConditionalSingleBranch[],
   ) {
     super();
 

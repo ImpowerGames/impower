@@ -35,9 +35,9 @@ export class TextmateGrammarParse implements PartialParse {
    * An object storing details about the region of the document to be
    * parsed, where it was edited, the length, etc.
    */
-  protected declare region: TextmateParseRegion;
+  declare protected region: TextmateParseRegion;
 
-  protected declare compiler: Compiler;
+  declare protected compiler: Compiler;
 
   /** The current position of the parser. */
   declare parsedPos: number;
@@ -65,7 +65,7 @@ export class TextmateGrammarParse implements PartialParse {
     nodeSet: NodeSet,
     input: Input,
     fragments: readonly TreeFragment[],
-    ranges: { from: number; to: number }[]
+    ranges: { from: number; to: number }[],
   ) {
     // console.log(
     //   "NEW PARSE",
@@ -84,13 +84,13 @@ export class TextmateGrammarParse implements PartialParse {
         const f = fragments[idx]!;
         // try to find the buffer for this fragment's tree in the cache
         const cachedCompiler = Object.values(
-          (f.tree as any).props as any[]
+          (f.tree as any).props as any[],
         ).find((v) => v instanceof Compiler);
         if (cachedCompiler) {
           const restartFrom = cachedCompiler.reuse(
             this.region.edit.from,
             this.region.edit.to,
-            this.region.edit.offset
+            this.region.edit.offset,
           );
           if (restartFrom != null) {
             this.region.from = restartFrom;
@@ -172,7 +172,7 @@ export class TextmateGrammarParse implements PartialParse {
       // );
       const buffer = result.cursor;
       const reused = result.reused.map(
-        (b) => new TreeBuffer(b.buffer, b.length, nodeSet)
+        (b) => new TreeBuffer(b.buffer, b.length, nodeSet),
       ) as unknown as readonly Tree[];
       const maxBufferLength = result.maxBufferLength;
       // build tree from buffer
@@ -252,7 +252,7 @@ export class TextmateGrammarParse implements PartialParse {
         matchLength = 1;
         console.warn(
           "Possible infinite loop!",
-          JSON.stringify(this.region.input.read(Math.max(0, pos - 100), pos))
+          JSON.stringify(this.region.input.read(Math.max(0, pos - 100), pos)),
         );
       }
 
@@ -318,11 +318,11 @@ export class TextmateGrammarParse implements PartialParse {
           return true;
         } else if (this.parsedPos > this.compiler.ahead.first.from) {
           const splitAhead = this.compiler.ahead.findAheadSplitPoint(
-            this.parsedPos
+            this.parsedPos,
           );
           if (splitAhead.chunk && splitAhead.index != null) {
             const aheadSplitBuffer = this.compiler.ahead.split(
-              splitAhead.index
+              splitAhead.index,
             );
             this.compiler.ahead = aheadSplitBuffer.right;
             if (this.parsedPos === this.compiler.ahead.first?.from) {

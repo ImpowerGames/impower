@@ -14,7 +14,7 @@ export class Vec3 {
     x: number,
     y: number,
     z: number,
-    out: Float32Array = new Float32Array(3)
+    out: Float32Array = new Float32Array(3),
   ) {
     return <Float32Array>vec3.set(out, x, y, z);
   }
@@ -27,28 +27,28 @@ export class Vec3 {
   static add(
     a: Float32Array,
     b: Float32Array,
-    out: Float32Array = new Float32Array(3)
+    out: Float32Array = new Float32Array(3),
   ) {
     return <Float32Array>vec3.add(out, a, b);
   }
   static transformQuat(
     a: Float32Array,
     q: Float32Array,
-    out: Float32Array = new Float32Array(3)
+    out: Float32Array = new Float32Array(3),
   ) {
     return <Float32Array>vec3.transformQuat(out, a, q);
   }
   static subtract(
     a: Float32Array,
     b: Float32Array,
-    out: Float32Array = new Float32Array(3)
+    out: Float32Array = new Float32Array(3),
   ) {
     return <Float32Array>vec3.subtract(out, a, b);
   }
   static scale(
     a: Float32Array,
     b: number,
-    out: Float32Array = new Float32Array(3)
+    out: Float32Array = new Float32Array(3),
   ) {
     return <Float32Array>vec3.scale(out, a, b);
   }
@@ -61,14 +61,14 @@ export class Vec3 {
   static cross(
     a: Float32Array,
     b: Float32Array,
-    out: Float32Array = new Float32Array(3)
+    out: Float32Array = new Float32Array(3),
   ) {
     return <Float32Array>vec3.cross(out, a, b);
   }
   static transformMat4(
     a: Float32Array,
     m: Float32Array,
-    out: Float32Array = new Float32Array(3)
+    out: Float32Array = new Float32Array(3),
   ) {
     return <Float32Array>vec3.transformMat4(out, a, m);
   }
@@ -90,7 +90,7 @@ export class Vec3 {
   static multiply(
     a: Float32Array,
     b: Float32Array,
-    out: Float32Array = new Float32Array(3)
+    out: Float32Array = new Float32Array(3),
   ) {
     return <Float32Array>vec3.multiply(out, a, b);
   }
@@ -104,7 +104,7 @@ export class Vec3 {
     a: Float32Array,
     b: Float32Array,
     t: number,
-    out: Float32Array = new Float32Array(3)
+    out: Float32Array = new Float32Array(3),
   ) {
     return <Float32Array>vec3.lerp(out, a, b, t);
   }

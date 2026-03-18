@@ -6,7 +6,7 @@ import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/Spark
 export const getSymbolContext = (
   document: SparkdownDocument,
   references: RangeSet<SparkdownAnnotation<Reference>>,
-  pos: number
+  pos: number,
 ): {
   scopePath?: string;
   reference?: Reference;

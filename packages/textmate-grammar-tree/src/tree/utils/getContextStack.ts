@@ -1,7 +1,7 @@
 import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 
 export const getContextStack = <T extends string>(
-  node: GrammarSyntaxNode<T>
+  node: GrammarSyntaxNode<T>,
 ): GrammarSyntaxNode<T>[] => {
   const context: GrammarSyntaxNode<T>[] = [node];
   let parent = node.parent;

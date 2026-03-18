@@ -29,6 +29,8 @@ export class CompiledProgramMessage {
 }
 
 export namespace CompiledProgramMessage {
-  export interface Notification
-    extends NotificationMessage<CompiledProgramMethod, CompiledProgramParams> {}
+  export interface Notification extends NotificationMessage<
+    CompiledProgramMethod,
+    CompiledProgramParams
+  > {}
 }

@@ -3,7 +3,7 @@ import { IBufferCursor } from "../types/IBufferCursor";
 export class FlatBufferCursor implements IBufferCursor {
   constructor(
     readonly buffer: Int32Array | readonly number[],
-    public index: number
+    public index: number,
   ) {}
 
   get id() {

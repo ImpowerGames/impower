@@ -47,7 +47,7 @@ export class Path {
 
   constructor(
     argOne: FlowLevel | Identifier[] | Identifier,
-    argTwo?: Identifier[]
+    argTwo?: Identifier[],
   ) {
     if (Object.values(FlowLevel).includes(argOne as FlowLevel)) {
       this._baseTargetLevel = argOne as FlowLevel;
@@ -78,7 +78,7 @@ export class Path {
   };
 
   public readonly ResolveFromContext = (
-    context: ParsedObject
+    context: ParsedObject,
   ): ParsedObject | null => {
     if (this.components == null || this.components.length == 0) {
       return null;
@@ -103,7 +103,7 @@ export class Path {
   // Find the root object from the base, i.e. root from:
   //    root.sub1.sub2
   public readonly ResolveBaseTarget = (
-    originalContext: ParsedObject
+    originalContext: ParsedObject,
   ): ParsedObject | null => {
     const firstComp = this.firstComponent;
 
@@ -124,7 +124,7 @@ export class Path {
         ancestorContext,
         firstComp,
         null,
-        deepSearch
+        deepSearch,
       );
 
       if (foundBase) {
@@ -140,7 +140,7 @@ export class Path {
   // Find the final child from path given root, i.e.:
   //   root.sub.finalChild
   public readonly ResolveTailComponents = (
-    rootTarget: ParsedObject
+    rootTarget: ParsedObject,
   ): ParsedObject | null => {
     let foundComponent: ParsedObject | null = rootTarget;
 
@@ -160,7 +160,7 @@ export class Path {
       foundComponent = this.GetChildFromContext(
         foundComponent,
         compName,
-        minimumExpectedLevel
+        minimumExpectedLevel,
       );
 
       if (foundComponent === null) {
@@ -179,7 +179,7 @@ export class Path {
     context: ParsedObject,
     childName: string | null,
     minimumLevel: FlowLevel | null,
-    forceDeepSearch: boolean = false
+    forceDeepSearch: boolean = false,
   ): ParsedObject | null => {
     // null childLevel means that we don't know where to find it
     const ambiguousChildLevel: boolean = minimumLevel === null;
@@ -206,7 +206,7 @@ export class Path {
       return flowContext.ContentWithNameAtLevel(
         childName,
         minimumLevel,
-        shouldDeepSearch
+        shouldDeepSearch,
       );
     }
 

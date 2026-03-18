@@ -223,7 +223,7 @@ export default class Tooltip
       clearTimeout(this.hoverTimeout);
       this.hoverTimeout = window.setTimeout(
         () => this.show(),
-        getCssDurationMS(this.showDelay, 0)
+        getCssDurationMS(this.showDelay, 0),
       );
     }
   };
@@ -233,7 +233,7 @@ export default class Tooltip
       clearTimeout(this.hoverTimeout);
       this.hoverTimeout = window.setTimeout(
         () => this.hide(),
-        getCssDurationMS(this.hideDelay, 0)
+        getCssDurationMS(this.hideDelay, 0),
       );
     }
   };

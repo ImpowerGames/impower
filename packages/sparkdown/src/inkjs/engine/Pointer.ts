@@ -34,15 +34,15 @@ export class Pointer {
 
     if (this.index != null) {
       let namedChild = asINamedContentOrNull(
-        this.container!.content[this.index]
+        this.container!.content[this.index],
       );
       if (namedChild && namedChild.hasValidName && namedChild.name) {
         return this.container!.path.PathByAppendingComponent(
-          new Path.Component(namedChild.name)
+          new Path.Component(namedChild.name),
         );
       }
       return this.container!.path.PathByAppendingComponent(
-        new Path.Component(this.index)
+        new Path.Component(this.index),
       );
     } else {
       return this.container!.path;
@@ -54,15 +54,15 @@ export class Pointer {
 
     if (this.index != null) {
       let namedChild = asINamedContentOrNull(
-        this.container!.content[this.index]
+        this.container!.content[this.index],
       );
       if (namedChild && namedChild.hasValidName && namedChild.name) {
         return this.container!.path.PathByAppendingComponent(
-          new Path.Component(namedChild.name)
+          new Path.Component(namedChild.name),
         );
       }
       return this.container!.path.PathByAppendingComponent(
-        new Path.Component(this.index - this.container!.content.length)
+        new Path.Component(this.index - this.container!.content.length),
       );
     } else {
       return this.container!.path;

@@ -30,7 +30,7 @@ export class StringExpression extends Expression {
   }
 
   public readonly GenerateIntoContainer = (
-    container: RuntimeContainer
+    container: RuntimeContainer,
   ): void => {
     container.AddContent(RuntimeControlCommand.BeginString());
 

@@ -16,7 +16,7 @@ export const generateScreenplayHtmlData = (
     bold?: ArrayBuffer | Uint8Array;
     italic?: ArrayBuffer | Uint8Array;
     bolditalic?: ArrayBuffer | Uint8Array;
-  }
+  },
 ): string => {
   let rawHtml: string = STATIC_HTML;
 
@@ -28,7 +28,7 @@ export const generateScreenplayHtmlData = (
       "$FONTS$",
       `<style>
       ${STATIC_FONTS.split("\n").join("\n      ")}
-    </style>`
+    </style>`,
     );
     if (fonts?.normal) {
       rawHtml = rawHtml.replace("$COURIERPRIME$", encodeBase64(fonts.normal));
@@ -36,19 +36,19 @@ export const generateScreenplayHtmlData = (
     if (fonts?.bold) {
       rawHtml = rawHtml.replace(
         "$COURIERPRIME-BOLD$",
-        encodeBase64(fonts.bold)
+        encodeBase64(fonts.bold),
       );
     }
     if (fonts?.italic) {
       rawHtml = rawHtml.replace(
         "$COURIERPRIME-ITALIC$",
-        encodeBase64(fonts.italic)
+        encodeBase64(fonts.italic),
       );
     }
     if (fonts?.bolditalic) {
       rawHtml = rawHtml.replace(
         "$COURIERPRIME-BOLD-ITALIC$",
-        encodeBase64(fonts.bolditalic)
+        encodeBase64(fonts.bolditalic),
       );
     }
   } else {
@@ -59,7 +59,7 @@ export const generateScreenplayHtmlData = (
     "$CSS$",
     `<style>
       ${STATIC_CSS.split("\n").join("\n      ")}
-    </style>`
+    </style>`,
   );
 
   const titleHtml = config?.screenplay_print_title_page
@@ -72,7 +72,7 @@ export const generateScreenplayHtmlData = (
           <div class="innerpage title-grid">
             ${titleHtml}
           </div>
-        </div>`
+        </div>`,
     );
   } else {
     rawHtml = rawHtml.replace("$TITLEPAGE$", "");
@@ -88,7 +88,7 @@ export const generateScreenplayHtmlData = (
           <div class="innerpage">
             ${mainHtml}
           </div>
-        </div>`
+        </div>`,
     );
   } else {
     rawHtml = rawHtml.replace("$MAINPAGE$", "");

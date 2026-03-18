@@ -1,8 +1,6 @@
 import * as vscode from "vscode";
 
-export class SparkdownOutlineTreeDataProvider
-  implements vscode.TreeDataProvider<OutlineTreeItem>
-{
+export class SparkdownOutlineTreeDataProvider implements vscode.TreeDataProvider<OutlineTreeItem> {
   private static _instance: SparkdownOutlineTreeDataProvider;
   static get instance(): SparkdownOutlineTreeDataProvider {
     if (!this._instance) {
@@ -46,7 +44,7 @@ export class SparkdownOutlineTreeDataProvider
 
   async update(
     uri: vscode.Uri,
-    symbols?: vscode.SymbolInformation[] | vscode.DocumentSymbol[] | null
+    symbols?: vscode.SymbolInformation[] | vscode.DocumentSymbol[] | null,
   ): Promise<void> {
     if (symbols !== undefined) {
       this._symbols = symbols as vscode.DocumentSymbol[];
@@ -58,11 +56,11 @@ export class SparkdownOutlineTreeDataProvider
       kind: vscode.SymbolKind.File,
       range: new vscode.Range(
         new vscode.Position(0, 0),
-        new vscode.Position(0, 0)
+        new vscode.Position(0, 0),
       ),
       selectionRange: new vscode.Range(
         new vscode.Position(0, 0),
-        new vscode.Position(0, 0)
+        new vscode.Position(0, 0),
       ),
       children: this._symbols,
     };
@@ -70,7 +68,7 @@ export class SparkdownOutlineTreeDataProvider
       null,
       uri,
       rootSymbol,
-      this._symbolUris
+      this._symbolUris,
     );
     this.onDidChangeTreeDataEmitter.fire(null);
   }
@@ -84,7 +82,7 @@ export class OutlineTreeItem extends vscode.TreeItem {
     parent: OutlineTreeItem | null,
     uri: vscode.Uri,
     symbol: vscode.DocumentSymbol,
-    symbolUris: Record<string, vscode.Range>
+    symbolUris: Record<string, vscode.Range>,
   ) {
     const path = parent?.label ? `${parent.label}.${symbol.name}` : symbol.name;
     const resourceUri = vscode.Uri.file(uri.path).with({
@@ -116,13 +114,13 @@ export class OutlineTreeItem extends vscode.TreeItem {
       symbol.kind === vscode.SymbolKind.EnumMember
         ? "enum-member"
         : symbol.kind === vscode.SymbolKind.TypeParameter
-        ? "type-parameter"
-        : vscode.SymbolKind[symbol.kind].toLowerCase();
+          ? "type-parameter"
+          : vscode.SymbolKind[symbol.kind].toLowerCase();
     this.iconPath = new vscode.ThemeIcon(`symbol-${iconType}`);
     this.children =
       "children" in symbol
         ? symbol.children.map(
-            (c) => new OutlineTreeItem(this, uri, c, symbolUris)
+            (c) => new OutlineTreeItem(this, uri, c, symbolUris),
           )
         : [];
   }

@@ -39,7 +39,7 @@ export interface Options {
  * @see https://floating-ui.com/docs/shift
  */
 export const shift = (
-  options: Partial<Options & DetectOverflowOptions> = {}
+  options: Partial<Options & DetectOverflowOptions> = {},
 ): Middleware => ({
   name: "shift",
   options,
@@ -146,7 +146,7 @@ export type LimitShiftOptions = {
  * Built-in `limiter` that will stop `shift()` at a certain point.
  */
 export const limitShift = (
-  options: Partial<LimitShiftOptions> = {}
+  options: Partial<LimitShiftOptions> = {},
 ): {
   options: Partial<LimitShiftOffset>;
   fn: (state: MiddlewareState) => Coords;

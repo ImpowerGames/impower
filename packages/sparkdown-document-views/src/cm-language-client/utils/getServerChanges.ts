@@ -4,7 +4,7 @@ import { offsetToPosition } from "./offsetToPosition";
 
 export const getServerChanges = (
   beforeDoc: Text,
-  changes: ChangeSet
+  changes: ChangeSet,
 ): TextDocumentContentChangeEvent[] => {
   const result: TextDocumentContentChangeEvent[] = [];
   let changeDoc = beforeDoc;

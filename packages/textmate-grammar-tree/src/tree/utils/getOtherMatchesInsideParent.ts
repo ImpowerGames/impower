@@ -6,7 +6,7 @@ export const getOtherMatchesInsideParent = <T extends string>(
   parentTypeName: T | T[],
   stack: GrammarSyntaxNode<T>[],
   tree: Tree,
-  read: (from: number, to: number) => string
+  read: (from: number, to: number) => string,
 ): string[] => {
   const side = -1;
   const matches = [];
@@ -14,7 +14,7 @@ export const getOtherMatchesInsideParent = <T extends string>(
   const parent = stack.find((n) =>
     typeof parentTypeName === "string"
       ? n.name === parentTypeName
-      : parentTypeName.includes(n.name as T)
+      : parentTypeName.includes(n.name as T),
   );
   if (current && parent) {
     const prevCur = tree.cursorAt(current.from - 1, side);

@@ -2,7 +2,7 @@ import { CamelCasedArrayMap } from "../types/CamelCase";
 import convertKebabToCamelCase from "./convertKebabToCamelCase";
 
 const getAttributeNameMap = <T extends string>(
-  obj: T[]
+  obj: T[],
 ): CamelCasedArrayMap<T> =>
   Object.values(obj).reduce((p, c) => {
     const key = c;

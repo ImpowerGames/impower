@@ -25,11 +25,11 @@ export class RegExpMatcher implements Matcher {
    * True if the source `RegExp` has an capturing groups. Used to short
    * circuit the `match` method's behavior, and improve performance.
    */
-  private declare hasCapturingGroups: boolean;
+  declare private hasCapturingGroups: boolean;
 
-  protected declare _pattern: string;
+  declare protected _pattern: string;
 
-  protected declare _flags: string;
+  declare protected _flags: string;
 
   protected _backReferences: string[] = [];
 
@@ -138,7 +138,7 @@ export class RegExpMatcher implements Matcher {
           // consist of contiguous ranges covering the entirety of the match
           if (capturedLength !== total.length) {
             throw new Error(
-              `Invalid capturing group lengths: ${this.regexp.source}`
+              `Invalid capturing group lengths: ${this.regexp.source}`,
             );
           }
         }

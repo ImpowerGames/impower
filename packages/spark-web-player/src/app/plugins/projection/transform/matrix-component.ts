@@ -13,7 +13,7 @@ export class MatrixComponent<T> {
   constructor(
     private _parent: TransformId,
     private _data: T,
-    private _update: (data: T) => void
+    private _update: (data: T) => void,
   ) {}
 
   get data() {

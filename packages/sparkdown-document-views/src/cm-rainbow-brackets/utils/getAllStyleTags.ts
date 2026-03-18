@@ -8,7 +8,7 @@ import { Tag, getStyleTags } from "@lezer/highlight";
  */
 
 export const getAllStyleTags = (
-  node: SyntaxNode
+  node: SyntaxNode,
 ): {
   tags: readonly Tag[];
   opaque: boolean;

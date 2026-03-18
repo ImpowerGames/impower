@@ -25,15 +25,15 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider(
       { language: "sparkdown" },
-      new ScreenPreviewCodeLensProvider()
-    )
+      new ScreenPreviewCodeLensProvider(),
+    ),
   );
 
   context.subscriptions.push(
     vscode.window.registerWebviewPanelSerializer(
       `sparkdown-preview-screen`,
-      new SparkdownScreenPreviewSerializer(context)
-    )
+      new SparkdownScreenPreviewSerializer(context),
+    ),
   );
 
   context.subscriptions.push(
@@ -42,8 +42,8 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
       async (uri: vscode.Uri, ranges: vscode.Range[]) => {
         const textDocument = await vscode.workspace.openTextDocument(uri);
         revealOrCreateWebviewPanel(context, textDocument, ranges);
-      }
-    )
+      },
+    ),
   );
 
   context.subscriptions.push(
@@ -66,7 +66,7 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
                 const prevSerializedScreenRange =
                   screenPreviewPanel.state.ranges?.[0] || null;
                 const currentSerializedScreenRange = getSerializableRange(
-                  ranges[0]!
+                  ranges[0]!,
                 );
                 if (
                   screenPreviewPanel.state.textDocument?.uri !==
@@ -77,14 +77,14 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
                   updateWebviewContent(
                     screenPreviewPanel.panel,
                     document,
-                    ranges
+                    ranges,
                   );
               }
             }
           }
         }
       }
-    })
+    }),
   );
 
   context.subscriptions.push(
@@ -112,7 +112,7 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
           }
         }
       }
-    })
+    }),
   );
 }
 
@@ -120,7 +120,7 @@ function getAllScreenRanges(document: vscode.TextDocument) {
   const parsedDoc = SparkdownDocumentManager.instance.get(document.uri);
   const tree = SparkdownDocumentManager.instance.tree(document.uri);
   const annotations = SparkdownDocumentManager.instance.annotations(
-    document.uri
+    document.uri,
   );
 
   if (!parsedDoc || !tree) {
@@ -134,18 +134,18 @@ function getAllScreenRanges(document: vscode.TextDocument) {
       if (cur.value.type === "screen") {
         const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
         const declarationNode = stack.find(
-          (n) => n.name === "ScreenDeclaration"
+          (n) => n.name === "ScreenDeclaration",
         );
         if (declarationNode) {
           const range = parsedDoc.range(
             declarationNode.from,
-            declarationNode.to
+            declarationNode.to,
           );
           ranges.push(
             new vscode.Range(
               new vscode.Position(range.start.line, range.start.character),
-              new vscode.Position(range.end.line, range.end.character)
-            )
+              new vscode.Position(range.end.line, range.end.character),
+            ),
           );
         }
       }
@@ -159,7 +159,7 @@ function getAllScreenDependencyRanges(document: vscode.TextDocument) {
   const parsedDoc = SparkdownDocumentManager.instance.get(document.uri);
   const tree = SparkdownDocumentManager.instance.tree(document.uri);
   const annotations = SparkdownDocumentManager.instance.annotations(
-    document.uri
+    document.uri,
   );
 
   if (!parsedDoc || !tree) {
@@ -182,18 +182,18 @@ function getAllScreenDependencyRanges(document: vscode.TextDocument) {
             n.name === "ComponentDeclaration" ||
             n.name === "StyleDeclaration" ||
             n.name === "AnimationDeclaration" ||
-            n.name === "ThemeDeclaration"
+            n.name === "ThemeDeclaration",
         );
         if (declarationNode) {
           const range = parsedDoc.range(
             declarationNode.from,
-            declarationNode.to
+            declarationNode.to,
           );
           ranges.push(
             new vscode.Range(
               new vscode.Position(range.start.line, range.start.character),
-              new vscode.Position(range.end.line, range.end.character)
-            )
+              new vscode.Position(range.end.line, range.end.character),
+            ),
           );
         }
       }
@@ -205,7 +205,7 @@ function getAllScreenDependencyRanges(document: vscode.TextDocument) {
 
 function getScreenRange(
   document: vscode.TextDocument,
-  position: vscode.Position
+  position: vscode.Position,
 ) {
   const parsedDoc = SparkdownDocumentManager.instance.get(document.uri);
   const tree = SparkdownDocumentManager.instance.tree(document.uri);
@@ -217,7 +217,7 @@ function getScreenRange(
   const stack = getStack<SparkdownNodeName>(
     tree,
     parsedDoc.offsetAt(position),
-    -1
+    -1,
   );
 
   const declarationNode = stack.find((n) => n.name === "ScreenDeclaration");
@@ -225,7 +225,7 @@ function getScreenRange(
     const range = parsedDoc.range(declarationNode.from, declarationNode.to);
     const screenRange = new vscode.Range(
       new vscode.Position(range.start.line, range.start.character),
-      new vscode.Position(range.end.line, range.end.character)
+      new vscode.Position(range.end.line, range.end.character),
     );
     return screenRange;
   }
@@ -239,7 +239,7 @@ function getDocumentRange(range: {
 }) {
   return new vscode.Range(
     new vscode.Position(range.start.line, range.start.character),
-    new vscode.Position(range.end.line, range.end.character)
+    new vscode.Position(range.end.line, range.end.character),
   );
 }
 
@@ -265,7 +265,7 @@ class ScreenPreviewCodeLensProvider implements vscode.CodeLensProvider {
           title: "$(preview)$(dash)Screen Preview",
           command: "sparkdown.previewScreen",
           arguments: [document.uri, [range, ...screenDependencyRanges]],
-        })
+        }),
     );
   }
 }
@@ -277,7 +277,7 @@ export class SparkdownScreenPreviewSerializer
 
   async deserializeWebviewPanel(
     panel: vscode.WebviewPanel,
-    state: ScreenPreviewPanelState
+    state: ScreenPreviewPanelState,
   ) {
     if (state) {
       const { textDocument, ranges } = state;
@@ -292,7 +292,7 @@ export class SparkdownScreenPreviewSerializer
             panel,
             this.context,
             document,
-            ranges.map((r) => getDocumentRange(r))
+            ranges.map((r) => getDocumentRange(r)),
           );
         } else {
           panel.dispose();
@@ -305,7 +305,7 @@ export class SparkdownScreenPreviewSerializer
 function revealOrCreateWebviewPanel(
   context: vscode.ExtensionContext,
   textDocument: vscode.TextDocument,
-  ranges: vscode.Range[]
+  ranges: vscode.Range[],
 ) {
   if (screenPreviewPanel?.panel) {
     screenPreviewPanel.panel.reveal();
@@ -320,7 +320,7 @@ function revealOrCreateWebviewPanel(
     {
       enableScripts: true,
       retainContextWhenHidden: true,
-    }
+    },
   );
 
   initializeWebviewPanel(panel, context, textDocument, ranges);
@@ -330,7 +330,7 @@ function initializeWebviewPanel(
   panel: vscode.WebviewPanel,
   context: vscode.ExtensionContext,
   document: vscode.TextDocument,
-  documentRanges: vscode.Range[]
+  documentRanges: vscode.Range[],
 ) {
   screenPreviewPanel ??= {
     panel,
@@ -376,7 +376,7 @@ function initializeWebviewPanel(
       }
     },
     undefined,
-    context.subscriptions
+    context.subscriptions,
   );
 
   panel.onDidDispose(() => {
@@ -389,8 +389,8 @@ function initializeWebviewPanel(
         context.extension.extensionUri,
         "out",
         "webviews",
-        "screen-webview.js"
-      )
+        "screen-webview.js",
+      ),
     )
     .toString();
 
@@ -432,7 +432,7 @@ function getWebviewContent(jsWebviewUri: string): string {
 async function updateWebviewContent(
   panel: vscode.WebviewPanel,
   document: vscode.TextDocument,
-  documentRanges: vscode.Range[]
+  documentRanges: vscode.Range[],
 ) {
   const text = documentRanges
     .map((range) => document.getText(range))
@@ -460,7 +460,7 @@ async function updateWebviewContent(
 async function editDocument(
   textDocument: vscode.TextDocument,
   path: string,
-  value: any
+  value: any,
 ) {
   const text = textDocument.getText();
   const doc = yaml.parseDocument(text, { keepSourceTokens: true });

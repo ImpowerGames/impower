@@ -4,7 +4,7 @@ import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 export const getStack = <T extends string>(
   tree: Tree,
   offset: number,
-  side: 0 | 1 | -1 | undefined = undefined
+  side: 0 | 1 | -1 | undefined = undefined,
 ): GrammarSyntaxNode<T>[] => {
   const stackIterator = tree.resolveStack(offset, side);
   const stack = [] as GrammarSyntaxNode<T>[];

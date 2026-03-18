@@ -20,7 +20,7 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
 
   constructor(
     identifier: Identifier | null,
-    public readonly indentationDepth: number
+    public readonly indentationDepth: number,
   ) {
     super();
 
@@ -58,7 +58,7 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
       context.CheckForNamingCollisions(
         this,
         this.identifier,
-        SymbolType.SubFlowAndWeave
+        SymbolType.SubFlowAndWeave,
       );
     }
   }

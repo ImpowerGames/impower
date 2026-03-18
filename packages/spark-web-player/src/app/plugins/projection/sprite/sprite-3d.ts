@@ -89,7 +89,7 @@ export class Sprite3D extends PerspectiveMesh {
   protected _anchor: ObservablePoint = new ObservablePoint(
     { _onUpdate: () => {} },
     0.5,
-    0.5
+    0.5,
   );
   /**
    * The anchor point of the sprite.
@@ -139,7 +139,7 @@ export class Sprite3D extends PerspectiveMesh {
       new Point3D(),
       new Point3D(),
       new Point3D(),
-    ]
+    ],
   ) {
     const spritePos = this.transform.worldTransform.position;
     const ax = this._anchor.x;
@@ -154,7 +154,7 @@ export class Sprite3D extends PerspectiveMesh {
       worldCorner.set(
         spritePos.x + rotRight[0]! * x + rotUp[0]! * y,
         spritePos.y + rotRight[1]! * x + rotUp[1]! * y,
-        spritePos.z + rotRight[2]! * x + rotUp[2]! * y
+        spritePos.z + rotRight[2]! * x + rotUp[2]! * y,
       );
     }
     return out;
@@ -175,7 +175,7 @@ export class Sprite3D extends PerspectiveMesh {
       spritePos.x,
       spritePos.y,
       spritePos.z,
-      screenCenter
+      screenCenter,
     );
 
     if (Number.isNaN(screenCenter.x) || Number.isNaN(screenCenter.y)) {
@@ -246,7 +246,7 @@ export class Sprite3D extends PerspectiveMesh {
         const y = cornerOffsets[i]![1]! * h * 0.5 + (0.5 - ay) * h;
         this.transform.localToWorld(
           localCorners[i]!.set(x, y, 0),
-          worldCorners[i]
+          worldCorners[i],
         );
       }
     }
@@ -258,7 +258,7 @@ export class Sprite3D extends PerspectiveMesh {
         worldCorner.x,
         worldCorner.y,
         worldCorner.z,
-        viewPos
+        viewPos,
       );
       const depth = -viewPos.z;
       if (depth <= 0) {
@@ -275,7 +275,7 @@ export class Sprite3D extends PerspectiveMesh {
         worldCorner.x,
         worldCorner.y,
         worldCorner.z,
-        screenCorners[i]
+        screenCorners[i],
       );
     }
 
@@ -288,7 +288,7 @@ export class Sprite3D extends PerspectiveMesh {
       screenCorners[1]!.x,
       screenCorners[1]!.y, // bottom-right
       screenCorners[0]!.x,
-      screenCorners[0]!.y // bottom-left
+      screenCorners[0]!.y, // bottom-left
     );
 
     // Sprites that are closer to camera should render ontop of others
@@ -298,7 +298,7 @@ export class Sprite3D extends PerspectiveMesh {
       anchorOffset.x,
       anchorOffset.y,
       anchorOffset.z,
-      viewPos
+      viewPos,
     );
     this.zIndex = viewPos.z;
 

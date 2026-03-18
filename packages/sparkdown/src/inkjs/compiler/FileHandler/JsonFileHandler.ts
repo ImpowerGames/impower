@@ -6,7 +6,7 @@ export class JsonFileHandler implements IFileHandler {
   readonly ResolveInkFilename = (filename: string): string => {
     if (Object.keys(this.fileHierarchy).includes(filename)) return filename;
     throw new Error(
-      `Cannot locate ${filename}. Are you trying a relative import ? This is not yet implemented.`
+      `Cannot locate ${filename}. Are you trying a relative import ? This is not yet implemented.`,
     );
   };
 

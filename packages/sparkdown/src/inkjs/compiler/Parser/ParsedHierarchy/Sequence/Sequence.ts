@@ -18,7 +18,7 @@ export class Sequence extends ParsedObject {
 
   constructor(
     elementContentLists: ContentList[],
-    public readonly sequenceType: SequenceType
+    public readonly sequenceType: SequenceType,
   ) {
     super();
 
@@ -172,7 +172,7 @@ export class Sequence extends ParsedObject {
       contentContainerForSequenceBranch.name = `s-${elIndex}`;
       contentContainerForSequenceBranch.InsertContent(
         RuntimeControlCommand.PopEvaluatedValue(),
-        0
+        0,
       );
 
       // When sequence element is complete, divert back to end of sequence
@@ -183,7 +183,7 @@ export class Sequence extends ParsedObject {
       // Save the diverts for reference resolution later (in ResolveReferences)
       this.AddDivertToResolve(
         sequenceDivert,
-        contentContainerForSequenceBranch
+        contentContainerForSequenceBranch,
       );
       this.AddDivertToResolve(seqBranchCompleteDivert, postSequenceNoOp);
     }
@@ -195,10 +195,10 @@ export class Sequence extends ParsedObject {
 
   public readonly AddDivertToResolve = (
     divert: RuntimeDivert,
-    targetContent: RuntimeObject
+    targetContent: RuntimeObject,
   ) => {
     this._sequenceDivertsToResolve.push(
-      new SequenceDivertToResolve(divert, targetContent)
+      new SequenceDivertToResolve(divert, targetContent),
     );
   };
 

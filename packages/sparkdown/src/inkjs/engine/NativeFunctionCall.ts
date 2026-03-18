@@ -96,7 +96,7 @@ export class NativeFunctionCall extends InkObject {
         throw new StoryException(
           "Attempting to perform " +
             this.name +
-            ' on a void value. Did you forget to "return" a value from a function you called here?'
+            ' on a void value. Did you forget to "return" a value from a function you called here?',
         );
       if (p instanceof ListValue) hasList = true;
     }
@@ -124,7 +124,7 @@ export class NativeFunctionCall extends InkObject {
   }
 
   public CallType<T extends { toString: () => string }>(
-    parametersOfSingleType: Array<Value<T>>
+    parametersOfSingleType: Array<Value<T>>,
   ) {
     let param1 = asOrThrows(parametersOfSingleType[0], Value);
     let valType = param1.valueType;
@@ -140,7 +140,7 @@ export class NativeFunctionCall extends InkObject {
       if (!opForTypeObj) {
         const key = ValueType[valType];
         throw new StoryException(
-          "Cannot perform operation " + this.name + " on " + key
+          "Cannot perform operation " + this.name + " on " + key,
         );
       }
 
@@ -185,7 +185,7 @@ export class NativeFunctionCall extends InkObject {
     } else {
       throw new Error(
         "Unexpected number of parameters to NativeFunctionCall: " +
-          parametersOfSingleType.length
+          parametersOfSingleType.length,
       );
     }
   }
@@ -210,10 +210,10 @@ export class NativeFunctionCall extends InkObject {
       let op = this._operationFuncs.get(ValueType.Int) as BinaryOp<number>;
       if (op === null)
         return throwNullException(
-          "NativeFunctionCall.CallBinaryListOperation op"
+          "NativeFunctionCall.CallBinaryListOperation op",
         );
       let result = asBooleanOrThrows(
-        op(v1.isTruthy ? 1 : 0, v2.isTruthy ? 1 : 0)
+        op(v1.isTruthy ? 1 : 0, v2.isTruthy ? 1 : 0),
       );
       return new BoolValue(result);
     }
@@ -227,7 +227,7 @@ export class NativeFunctionCall extends InkObject {
         " operation on " +
         ValueType[v1.valueType] +
         " and " +
-        ValueType[v2.valueType]
+        ValueType[v2.valueType],
     );
   }
 
@@ -239,7 +239,7 @@ export class NativeFunctionCall extends InkObject {
 
     if (listVal.value === null)
       return throwNullException(
-        "NativeFunctionCall.CallListIncrementOperation listVal.value"
+        "NativeFunctionCall.CallListIncrementOperation listVal.value",
       );
     for (let [listItemKey, listItemValue] of listVal.value) {
       let listItem = InkListItem.fromSerializedKey(listItemKey);
@@ -250,14 +250,14 @@ export class NativeFunctionCall extends InkObject {
 
       if (intVal.value === null)
         return throwNullException(
-          "NativeFunctionCall.CallListIncrementOperation intVal.value"
+          "NativeFunctionCall.CallListIncrementOperation intVal.value",
         );
       let targetInt = intOp(listItemValue, intVal.value);
 
       let itemOrigin = null;
       if (listVal.value.origins === null)
         return throwNullException(
-          "NativeFunctionCall.CallListIncrementOperation listVal.value.origins"
+          "NativeFunctionCall.CallListIncrementOperation listVal.value.origins",
         );
       for (let origin of listVal.value.origins) {
         if (origin.name == listItem.originName) {
@@ -268,7 +268,7 @@ export class NativeFunctionCall extends InkObject {
       if (itemOrigin != null) {
         let incrementedItem = itemOrigin.TryGetItemWithValue(
           targetInt,
-          InkListItem.Null
+          InkListItem.Null,
         );
         if (incrementedItem.exists)
           resultInkList.Add(incrementedItem.result, targetInt);
@@ -307,13 +307,13 @@ export class NativeFunctionCall extends InkObject {
           specialCaseList = asOrThrows(specialCaseList, ListValue);
           if (specialCaseList.value === null)
             return throwNullException(
-              "NativeFunctionCall.CoerceValuesToSingleType specialCaseList.value"
+              "NativeFunctionCall.CoerceValuesToSingleType specialCaseList.value",
             );
           let list = specialCaseList.value.originOfMaxItem;
 
           if (list === null)
             return throwNullException(
-              "NativeFunctionCall.CoerceValuesToSingleType list"
+              "NativeFunctionCall.CoerceValuesToSingleType list",
             );
           let item = list.TryGetItemWithValue(intVal, InkListItem.Null);
           if (item.exists) {
@@ -324,12 +324,12 @@ export class NativeFunctionCall extends InkObject {
               "Could not find List item with the value " +
                 intVal +
                 " in " +
-                list.name
+                list.name,
             );
         } else {
           const key = ValueType[val.valueType];
           throw new StoryException(
-            "Cannot mix Lists and " + key + " values in this operation"
+            "Cannot mix Lists and " + key + " values in this operation",
           );
         }
       }
@@ -447,10 +447,10 @@ export class NativeFunctionCall extends InkObject {
       this.AddListBinaryOp(this.Greater, (x, y) => x.GreaterThan(y));
       this.AddListBinaryOp(this.Less, (x, y) => x.LessThan(y));
       this.AddListBinaryOp(this.GreaterThanOrEquals, (x, y) =>
-        x.GreaterThanOrEquals(y)
+        x.GreaterThanOrEquals(y),
       );
       this.AddListBinaryOp(this.LessThanOrEquals, (x, y) =>
-        x.LessThanOrEquals(y)
+        x.LessThanOrEquals(y),
       );
       this.AddListBinaryOp(this.NotEquals, (x, y) => !x.Equals(y));
 
@@ -472,20 +472,20 @@ export class NativeFunctionCall extends InkObject {
         this.Equal,
         2,
         ValueType.DivertTarget,
-        divertTargetsEqual
+        divertTargetsEqual,
       );
       this.AddOpToNativeFunc(
         this.NotEquals,
         2,
         ValueType.DivertTarget,
-        divertTargetsNotEqual
+        divertTargetsNotEqual,
       );
     }
   }
 
   public AddOpFuncForType(
     valType: ValueType,
-    op: UnaryOp<number | InkList> | BinaryOp<number | string | InkList | Path>
+    op: UnaryOp<number | InkList> | BinaryOp<number | string | InkList | Path>,
   ): void {
     if (this._operationFuncs == null) {
       this._operationFuncs = new Map();
@@ -498,7 +498,7 @@ export class NativeFunctionCall extends InkObject {
     name: string,
     args: number,
     valType: ValueType,
-    op: UnaryOp<any> | BinaryOp<any>
+    op: UnaryOp<any> | BinaryOp<any>,
   ): void {
     if (this._nativeFunctions === null)
       return throwNullException("NativeFunctionCall._nativeFunctions");

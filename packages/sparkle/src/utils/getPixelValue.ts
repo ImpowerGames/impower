@@ -2,7 +2,7 @@ import getUnitlessValue from "../../../spec-component/src/utils/getUnitlessValue
 
 export const getPixelValue = (
   element: HTMLElement,
-  variableName: string
+  variableName: string,
 ): number => {
   const computedStyle = getComputedStyle(element);
   const prop = variableName.startsWith("--")

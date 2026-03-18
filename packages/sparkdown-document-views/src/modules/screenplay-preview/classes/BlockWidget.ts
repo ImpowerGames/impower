@@ -2,7 +2,7 @@ import { WidgetType } from "@codemirror/view";
 import { DecorationSpec } from "../types/DecorationSpec";
 
 export default abstract class BlockWidget<
-  T extends DecorationSpec = DecorationSpec
+  T extends DecorationSpec = DecorationSpec,
 > extends WidgetType {
   readonly spec: T;
 

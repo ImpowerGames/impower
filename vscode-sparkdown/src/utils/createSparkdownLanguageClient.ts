@@ -4,13 +4,13 @@ import { LanguageClient } from "vscode-languageclient/browser";
 
 export const createSparkdownLanguageClient = async (
   context: vscode.ExtensionContext,
-  clientOptions: LanguageClientOptions = {}
+  clientOptions: LanguageClientOptions = {},
 ) => {
   const serverMain = vscode.Uri.joinPath(
     context.extensionUri,
     "out",
     "workers",
-    "sparkdown-language-server.js"
+    "sparkdown-language-server.js",
   );
   const serverMainUrl = serverMain.toString(true);
   const worker = new Worker(serverMainUrl);
@@ -21,6 +21,6 @@ export const createSparkdownLanguageClient = async (
     "sparkdown-language-server",
     "Sparkdown Language Server",
     clientOptions,
-    worker
+    worker,
   );
 };

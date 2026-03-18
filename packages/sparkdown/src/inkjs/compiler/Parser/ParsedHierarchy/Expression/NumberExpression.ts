@@ -35,7 +35,7 @@ export class NumberExpression extends Expression {
   public isBool = (): boolean => this.subtype == "bool";
 
   public readonly GenerateIntoContainer = (
-    container: RuntimeContainer
+    container: RuntimeContainer,
   ): void => {
     if (this.isInt()) {
       container.AddContent(new IntValue(this.value as number));

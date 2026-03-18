@@ -38,7 +38,7 @@ export const languageClientConfig = Facet.define<
   combine(configs) {
     return combineConfig<Required<LanguageClientConfig>>(
       configs,
-      defaultLanguageClientConfig
+      defaultLanguageClientConfig,
     );
   },
 });

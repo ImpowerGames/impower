@@ -15,7 +15,7 @@ export const filterMatchesName = (
   name: string,
   filter: { includes: unknown[]; excludes: unknown[] },
   filterableTag = "filter",
-  defaultTag = "default"
+  defaultTag = "default",
 ) => {
   return (
     (!filterableTag || nameContainsTag(name, filterableTag)) &&

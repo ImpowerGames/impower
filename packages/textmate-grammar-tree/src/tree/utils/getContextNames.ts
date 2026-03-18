@@ -1,7 +1,7 @@
 import { type GrammarSyntaxNode } from "../types/GrammarSyntaxNode";
 
 export const getContextNames = <T extends string>(
-  node: GrammarSyntaxNode<T>
+  node: GrammarSyntaxNode<T>,
 ): T[] => {
   const context: T[] = [];
   let parent = node.parent;

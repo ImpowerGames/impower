@@ -17,7 +17,7 @@ const revealSilently = async <T>(
     readonly select?: boolean;
     readonly focus?: boolean;
     readonly expand?: boolean | number;
-  }
+  },
 ) => {
   programmaticSelectionDepth++;
   try {
@@ -32,8 +32,8 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider(
       "sparkdown-compilation",
-      SparkdownCompilationTreeDataProvider.instance
-    )
+      SparkdownCompilationTreeDataProvider.instance,
+    ),
   );
   const treeView = vscode.window.createTreeView("sparkdown-compilation", {
     treeDataProvider: SparkdownCompilationTreeDataProvider.instance,
@@ -47,7 +47,7 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
     // If user selected tree item, then select the corresponding document location
     if (SparkdownCompilationTreeDataProvider.instance.uri) {
       const program = SparkProgramManager.instance.get(
-        SparkdownCompilationTreeDataProvider.instance.uri
+        SparkdownCompilationTreeDataProvider.instance.uri,
       );
       if (program) {
         if (e.selection.length > 0) {
@@ -63,12 +63,12 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
               if (editor) {
                 const range = new vscode.Range(
                   new vscode.Position(startLine, startCol),
-                  new vscode.Position(endLine, endCol)
+                  new vscode.Position(endLine, endCol),
                 );
                 editor.selection = new vscode.Selection(range.start, range.end);
                 editor.revealRange(
                   range,
-                  vscode.TextEditorRevealType.InCenterIfOutsideViewport
+                  vscode.TextEditorRevealType.InCenterIfOutsideViewport,
                 );
               }
             }
@@ -85,7 +85,7 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
     const program = SparkProgramManager.instance.get(editor.document.uri);
     SparkdownCompilationTreeDataProvider.instance.setTreeData(
       editor.document.uri,
-      program?.compiled
+      program?.compiled,
     );
   }
 
@@ -95,10 +95,10 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
         const program = SparkProgramManager.instance.get(editor.document.uri);
         SparkdownCompilationTreeDataProvider.instance.setTreeData(
           editor.document.uri,
-          program?.compiled
+          program?.compiled,
         );
       }
-    })
+    }),
   );
 
   const handleCompiledProgram = (uri: vscode.Uri, program: SparkProgram) => {
@@ -108,7 +108,7 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
     ) {
       SparkdownCompilationTreeDataProvider.instance.setTreeData(
         uri,
-        program.compiled
+        program.compiled,
       );
     }
   };
@@ -136,12 +136,12 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
                 findClosestPathLocation(
                   { file: document.uri.toString(), line: range.active.line },
                   Object.entries(program.pathLocations || {}),
-                  Object.keys(program.scripts)
+                  Object.keys(program.scripts),
                 ) || [];
               if (path) {
                 const instructionNode =
                   SparkdownCompilationTreeDataProvider.instance.getNodeById(
-                    path
+                    path,
                   );
                 if (instructionNode) {
                   revealSilently(treeView, instructionNode, {
@@ -155,7 +155,7 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
           }
         }
       }
-    })
+    }),
   );
 
   const handleGameExecuted = (message: Message) => {
@@ -167,7 +167,7 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
           if (lastExecutedPath) {
             const instructionNode =
               SparkdownCompilationTreeDataProvider.instance.getNodeById(
-                lastExecutedPath
+                lastExecutedPath,
               );
             if (instructionNode) {
               revealSilently(treeView, instructionNode, {
@@ -183,13 +183,13 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
   };
   SparkdownPreviewGamePanelManager.instance.connection.incoming.addListener(
     GameExecutedMessage.method,
-    handleGameExecuted
+    handleGameExecuted,
   );
   context.subscriptions.push({
     dispose: () => {
       SparkdownPreviewGamePanelManager.instance.connection.incoming.removeListener(
         GameExecutedMessage.method,
-        handleGameExecuted
+        handleGameExecuted,
       );
     },
   });

@@ -5,7 +5,7 @@ const VARIABLE_REGEX = /(--(?:.|\n)+[)][;])/g;
 
 const extractAllGraphics = (
   prefix: string,
-  css: string
+  css: string,
 ): Record<string, Graphic> => {
   const result: Record<string, Graphic> = {};
   if (css) {

@@ -40,7 +40,7 @@ export class Divert extends InkObject {
         this._targetPointer.index = this._targetPath.lastComponent.index;
       } else {
         this._targetPointer = Pointer.StartOf(
-          targetObj instanceof Container ? targetObj : null
+          targetObj instanceof Container ? targetObj : null,
         );
       }
     }

@@ -4,7 +4,7 @@ import { getStyledHtml } from "./getStyledHtml";
 
 export const generateScreenplayTitleHtml = (
   spans: DocumentSpan[],
-  indent = ""
+  indent = "",
 ): string => {
   const metaSpan = spans[0];
   if (!metaSpan || metaSpan.tag !== "meta") {

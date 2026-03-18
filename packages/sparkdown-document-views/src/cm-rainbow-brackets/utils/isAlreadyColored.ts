@@ -27,5 +27,5 @@ export const isAlreadyColored = (node: SyntaxNode) =>
     tags.macroName,
     tags.propertyName,
     tags.variableName,
-    tags.attributeName
+    tags.attributeName,
   );

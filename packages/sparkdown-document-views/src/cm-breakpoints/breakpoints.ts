@@ -79,7 +79,7 @@ export const getBreakpointPositions = (view: EditorView) => {
 
 export const getBreakpointLineNumbers = (view: EditorView) => {
   return getBreakpointPositions(view).map(
-    (pos) => view.state.doc.lineAt(pos).number
+    (pos) => view.state.doc.lineAt(pos).number,
   );
 };
 
@@ -101,8 +101,8 @@ export const toggleBreakpoint = (view: EditorView, pos: number) => {
 export const breakpointsChanged = (update: ViewUpdate): boolean => {
   return update.transactions.some((t) =>
     t.effects.some(
-      (e) => e.is(clearBreakpointsEffect) || e.is(setBreakpointEffect)
-    )
+      (e) => e.is(clearBreakpointsEffect) || e.is(setBreakpointEffect),
+    ),
   );
 };
 

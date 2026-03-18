@@ -5,7 +5,7 @@ export interface ComponentSpec<
   Stores extends Record<string, IStore>,
   Context extends Record<string, unknown>,
   Graphics extends Record<string, string>,
-  Selectors extends Record<string, null | string | string[]>
+  Selectors extends Record<string, null | string | string[]>,
 > {
   tag: `${string}-${string}`;
   props: Props;

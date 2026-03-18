@@ -9,7 +9,7 @@ export class SparkdownPreviewGamePanelSerializer
 
   async deserializeWebviewPanel(
     panel: vscode.WebviewPanel,
-    state: { textDocument: { uri: string }; canvasHeight: number }
+    state: { textDocument: { uri: string }; canvasHeight: number },
   ) {
     if (state) {
       const documentUri = vscode.Uri.parse(state.textDocument.uri);
@@ -20,7 +20,7 @@ export class SparkdownPreviewGamePanelSerializer
           panel,
           this._context,
           document,
-          canvasHeight
+          canvasHeight,
         );
       } else {
         panel.dispose();

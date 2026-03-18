@@ -1,7 +1,7 @@
 const proxy = <T extends object, F extends (data: T) => void>(
   data: T,
   callback: F,
-  rootObj = data
+  rootObj = data,
 ): T => {
   const object = data as any;
   if (object == null || typeof object !== "object") {
@@ -35,7 +35,7 @@ const proxy = <T extends object, F extends (data: T) => void>(
 
 const reactive = <T extends object, F extends (data: T) => void>(
   data: T,
-  callback: F
+  callback: F,
 ): T => {
   return proxy(data, callback);
 };

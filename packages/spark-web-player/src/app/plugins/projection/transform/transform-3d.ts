@@ -71,7 +71,7 @@ export class Transform3D extends Transform {
     this.localTransform.setFromRotationPositionScale(
       this.rotationQuaternion,
       this.position,
-      this.scale
+      this.scale,
     );
 
     // force an update.
@@ -109,7 +109,7 @@ export class Transform3D extends Transform {
     Mat4.invert(this.worldTransform.array, this.inverseWorldTransform.array);
     Mat4.transpose(
       this.inverseWorldTransform.array,
-      this.normalTransform.array
+      this.normalTransform.array,
     );
     this._worldID++;
     if (parentTransform) {
@@ -127,7 +127,7 @@ export class Transform3D extends Transform {
       up = up.array;
     }
     let rot = Mat4.getRotation(
-      Mat4.targetTo(point.array, this.worldTransform.position.array, up)
+      Mat4.targetTo(point.array, this.worldTransform.position.array, up),
     );
     this.rotationQuaternion.set(rot[0]!, rot[1], rot[2], rot[3]);
   }

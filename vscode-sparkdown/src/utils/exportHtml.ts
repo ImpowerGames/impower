@@ -10,7 +10,7 @@ import { getSyncOrExportPath } from "./getSyncOrExportPath";
 import { writeFile } from "./writeFile";
 
 export const exportHtml = async (
-  context: vscode.ExtensionContext
+  context: vscode.ExtensionContext,
 ): Promise<void> => {
   const uri = getActiveSparkdownDocument();
   if (!uri) {

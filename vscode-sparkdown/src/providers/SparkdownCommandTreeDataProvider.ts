@@ -3,9 +3,7 @@ import { createFileExportTreeItem } from "../utils/createFileExportTreeItem";
 import { fileStat } from "../utils/fileStat";
 import { getEditor } from "../utils/getEditor";
 
-export class SparkdownCommandTreeDataProvider
-  implements vscode.TreeDataProvider<vscode.TreeItem>
-{
+export class SparkdownCommandTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
   private static _instance: SparkdownCommandTreeDataProvider;
   static get instance(): SparkdownCommandTreeDataProvider {
     if (!this._instance) {
@@ -38,7 +36,7 @@ export class SparkdownCommandTreeDataProvider
   private _commandStats: Record<string, vscode.FileStat | undefined> = {};
 
   getTreeItem(
-    element: vscode.TreeItem
+    element: vscode.TreeItem,
   ): vscode.TreeItem | Thenable<vscode.TreeItem> {
     return element;
   }
@@ -58,8 +56,8 @@ export class SparkdownCommandTreeDataProvider
           stat,
           exporting,
           "pdf",
-          !stat ? "Export screenplay as formatted .pdf document" : ""
-        )
+          !stat ? "Export screenplay as formatted .pdf document" : "",
+        ),
       );
     }
 
@@ -75,8 +73,8 @@ export class SparkdownCommandTreeDataProvider
           stat,
           exporting,
           "html",
-          !stat ? "Export screenplay as formatted .html document" : ""
-        )
+          !stat ? "Export screenplay as formatted .html document" : "",
+        ),
       );
     }
 
@@ -92,8 +90,8 @@ export class SparkdownCommandTreeDataProvider
           stat,
           exporting,
           "csv",
-          !stat ? "Export screenplay as translatable .csv document" : ""
-        )
+          !stat ? "Export screenplay as translatable .csv document" : "",
+        ),
       );
     }
 
@@ -109,8 +107,8 @@ export class SparkdownCommandTreeDataProvider
           stat,
           exporting,
           "json",
-          !stat ? "Export screenplay as tokens to .json file" : ""
-        )
+          !stat ? "Export screenplay as tokens to .json file" : "",
+        ),
       );
     }
 

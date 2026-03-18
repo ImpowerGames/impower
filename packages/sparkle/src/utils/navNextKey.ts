@@ -1,5 +1,5 @@
 export const navNextKey = (
-  dir: "row" | "column" | "row-reverse" | "column-reverse" | null | undefined
+  dir: "row" | "column" | "row-reverse" | "column-reverse" | null | undefined,
 ): "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight" => {
   if (dir === "row") {
     return "ArrowRight";

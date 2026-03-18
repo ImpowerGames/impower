@@ -93,7 +93,7 @@ export class GotoLinePanel implements Panel {
     }
     let docLine = state.doc.line(Math.max(1, Math.min(state.doc.lines, line)));
     let selection = EditorSelection.cursor(
-      docLine.from + Math.max(0, Math.min(col, docLine.length))
+      docLine.from + Math.max(0, Math.min(col, docLine.length)),
     );
     this.view.dispatch({
       effects: [
@@ -193,7 +193,7 @@ const gotoLinePanelKeymap = Prec.high(
       key: "Mod-g",
       run: openGotoLinePanel,
     },
-  ])
+  ]),
 );
 
 export const gotoLinePanel = () => [

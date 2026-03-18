@@ -7,7 +7,7 @@ import { getSide } from "./utils/getSide";
 export function computeCoordsFromPlacement(
   { reference, floating }: ElementRects,
   placement: Placement,
-  rtl?: boolean
+  rtl?: boolean,
 ): Coords {
   const commonX = reference.x + reference.width / 2 - floating.width / 2;
   const commonY = reference.y + reference.height / 2 - floating.height / 2;
