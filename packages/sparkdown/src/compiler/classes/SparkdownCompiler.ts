@@ -1632,7 +1632,7 @@ export class SparkdownCompiler {
                         ? `${expectedSelectorTypes[0]} named \`${
                             selector.displayName || selector.name
                           }\``
-                        : `'${selector.displayName || selector.name}'`
+                        : `\`${selector.displayName || selector.name}\``
                   : selector && selector.types
                     ? `type named \`${selector.types[0]}\``
                     : `type`;
