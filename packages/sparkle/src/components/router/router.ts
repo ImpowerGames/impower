@@ -187,7 +187,7 @@ export default class Router
       return slot
         .assignedElements()
         .filter(
-          (el): el is HTMLTemplateElement => el instanceof HTMLTemplateElement
+          (el): el is HTMLTemplateElement => el instanceof HTMLTemplateElement,
         );
     }
     return [];
@@ -198,7 +198,7 @@ export default class Router
     if (slot) {
       const assignedElements = slot.assignedElements({ flatten: true });
       return assignedElements.filter(
-        (el): el is HTMLTemplateElement => el instanceof HTMLTemplateElement
+        (el): el is HTMLTemplateElement => el instanceof HTMLTemplateElement,
       );
     }
     return [];
@@ -209,7 +209,7 @@ export default class Router
     if (slot) {
       const assignedElements = slot.assignedElements({ flatten: true });
       return assignedElements.filter(
-        (el): el is HTMLTemplateElement => el instanceof HTMLTemplateElement
+        (el): el is HTMLTemplateElement => el instanceof HTMLTemplateElement,
       );
     }
     return [];
@@ -221,7 +221,7 @@ export default class Router
 
   protected _loadedValue: string | null = null;
 
-  protected _loadedNode: Node | null = null;
+  protected _loadedContentNodes: Node[] = [];
 
   protected _enter_transform = "";
 
@@ -244,6 +244,12 @@ export default class Router
     const eventSourceEl = this.eventSource === "window" ? window : this;
     eventSourceEl.removeEventListener(this.exitEvent, this.handleChanging);
     eventSourceEl.removeEventListener(this.enterEvent, this.handleChanged);
+  }
+
+  override onAttributeChanged(name: string, newValue: string) {
+    if (name === Router.attrs.active) {
+      this.loadRoute(newValue);
+    }
   }
 
   cacheAnimationNames() {
@@ -313,8 +319,8 @@ export default class Router
       if (this.interrupted(newValue)) {
         return;
       }
-      if (this.unmount === "on-enter" && this._loadedNode) {
-        this.assignContent(this._loadedNode);
+      if (this.unmount === "on-enter" && this._loadedContentNodes.length > 0) {
+        this.assignContent(this._loadedContentNodes);
       }
       this.endTransitions();
     }
@@ -332,40 +338,40 @@ export default class Router
     this.updateStatus("entering");
   }
 
-  loadContent(newValue: string | null, slotName?: string): Node | null {
+  loadContent(newValue: string | null, slotName?: string): Node[] {
     if (newValue) {
       const template = this.findTemplate(this.contentTemplates, newValue);
       if (template) {
         return this.loadTemplate(template, slotName);
       }
     }
-    return null;
+    return [];
   }
 
-  loadHeader(newValue: string | null): Node | null {
+  loadHeader(newValue: string | null): Node[] {
     if (newValue) {
       const template = this.findTemplate(this.headerTemplates, newValue);
       if (template) {
         return this.loadTemplate(template, "header");
       }
     }
-    return null;
+    return [];
   }
 
-  loadFooter(newValue: string | null): Node | null {
+  loadFooter(newValue: string | null): Node[] {
     if (newValue) {
       const template = this.findTemplate(this.footerTemplates, newValue);
       if (template) {
         return this.loadTemplate(template, "footer");
       }
     }
-    return null;
+    return [];
   }
 
   loadRoute(newValue: string | null, slotName?: string) {
     if (newValue !== this._loadedValue) {
       this._loadedValue = newValue;
-      this._loadedNode = this.loadContent(newValue, slotName);
+      this._loadedContentNodes = this.loadContent(newValue, slotName);
       this.loadHeader(newValue);
       this.loadFooter(newValue);
     }
@@ -382,17 +388,17 @@ export default class Router
 
   findTemplate(
     templates: HTMLTemplateElement[],
-    value: string
+    value: string,
   ): HTMLTemplateElement | undefined {
     return templates.find((el) => el.getAttribute("value") === value);
   }
 
-  loadTemplate(template: HTMLTemplateElement, slotName?: string): Node | null {
+  loadTemplate(template: HTMLTemplateElement, slotName?: string): Node[] {
     const templateContent = template.content.cloneNode(true);
     return this.assignContent(templateContent, slotName);
   }
 
-  assignContent(node: Node, slotName?: string): Node | null {
+  assignContent(node: Node | Node[], slotName?: string): Node[] {
     const preserve = (n: ChildNode) =>
       n instanceof HTMLElement && n.getAttribute("value") != null;
     return this.setAssignedToSlot(node, slotName, preserve);
@@ -407,10 +413,10 @@ export default class Router
           if (newValue != null) {
             const templates = this.contentTemplates;
             const oldIndex = templates.findIndex(
-              (t) => t.getAttribute("value") === oldValue
+              (t) => t.getAttribute("value") === oldValue,
             );
             const newIndex = templates.findIndex(
-              (t) => t.getAttribute("value") === newValue
+              (t) => t.getAttribute("value") === newValue,
             );
             if (newIndex >= 0) {
               this._loadingValue = newValue;
@@ -424,7 +430,7 @@ export default class Router
                 e.detail.oldRect,
                 e.detail.newRect,
                 newIndex - oldIndex,
-                true
+                true,
               );
               this.emit(EXIT_EVENT, { ...e.detail, key: this.key, direction });
               this.exitRoute(direction);
@@ -443,7 +449,7 @@ export default class Router
           if (newValue != null) {
             const templates = this.contentTemplates;
             const newIndex = templates.findIndex(
-              (t) => t.getAttribute("value") === newValue
+              (t) => t.getAttribute("value") === newValue,
             );
             if (newIndex >= 0) {
               e.stopPropagation();

@@ -14,10 +14,10 @@ const Component = <
   Context extends Record<string, unknown>,
   Graphics extends Record<string, string>,
   Selectors extends Record<string, null | string | string[]>,
-  T extends CustomElementConstructor
+  T extends CustomElementConstructor,
 >(
   spec: ComponentSpec<Props, Stores, Context, Graphics, Selectors>,
-  Base: T = HTMLElement as T
+  Base: T = HTMLElement as T,
 ) => {
   const propToAttrMap = {} as Record<keyof Props, string>;
   if (spec.props) {
@@ -164,7 +164,7 @@ const Component = <
     }
 
     getRefMap<S extends Record<string, null | string | string[]>>(
-      selectors: S
+      selectors: S,
     ) {
       return Object.entries(selectors).reduce((obj, [key, value]) => {
         obj[key as keyof typeof obj] = (
@@ -173,7 +173,7 @@ const Component = <
               ? value.flatMap((v) =>
                   v
                     ? Array.from(this.self.querySelectorAll(v))
-                    : [this.self.getElementById(key)]
+                    : [this.self.getElementById(key)],
                 )
               : this.self.querySelector(value)
             : this.self.getElementById(key)
@@ -189,7 +189,7 @@ const Component = <
     attributeChangedCallback(
       name: string,
       oldValue: string,
-      newValue: string
+      newValue: string,
     ): void {
       if (newValue !== oldValue) {
         this.onAttributeChanged(name, newValue);
@@ -211,7 +211,7 @@ const Component = <
     shouldAttributeTriggerUpdate(
       _name: string,
       _oldValue: string,
-      _newValue: string
+      _newValue: string,
     ): boolean {
       return false;
     }
@@ -247,7 +247,7 @@ const Component = <
         Object.values(this.stores).forEach((store) => {
           store.target.removeEventListener(
             store.event,
-            this.#handleStoreUpdate
+            this.#handleStoreUpdate,
           );
         });
       }
@@ -279,7 +279,7 @@ const Component = <
         });
         this.#context = newContext;
         const changed = Object.entries(newContext).some(
-          ([k, v]) => v !== oldContext[k]
+          ([k, v]) => v !== oldContext[k],
         );
         if (changed) {
           this.onContextChanged(oldContext, newContext);
@@ -306,7 +306,7 @@ const Component = <
      */
     shouldContextTriggerUpdate(
       _oldContext: Context,
-      _newContext: Context
+      _newContext: Context,
     ): boolean {
       return true;
     }
@@ -320,16 +320,14 @@ const Component = <
         window.cancelAnimationFrame(this.#renderFrameHandle);
       }
       this.#renderFrameHandle = window.requestAnimationFrame(
-        this.#update.bind(this)
+        this.#update.bind(this),
       );
     }
 
     #update() {
       const innerHTML = this.html;
-      if (innerHTML !== this.#html) {
-        this.#html = innerHTML;
-        this.render();
-      }
+      this.#html = innerHTML;
+      this.render();
     }
 
     render() {
@@ -338,8 +336,22 @@ const Component = <
         Idiomorph.morph(this.shadowRoot, this.#html, {
           morphStyle: "innerHTML",
           callbacks: {
-            beforeNodeMorphed: (oldNode: Element, _newNode: Node): boolean => {
-              return oldNode?.tagName?.toLowerCase() !== "s-router";
+            beforeNodeMorphed: (
+              oldNode: Element,
+              newNode: Element,
+            ): boolean => {
+              if (oldNode?.tagName?.toLowerCase() === "s-router") {
+                for (const attr of newNode.attributes) {
+                  oldNode.setAttribute(attr.name, attr.value);
+                }
+                for (const attr of oldNode.attributes) {
+                  if (newNode.getAttribute(attr.name) == null) {
+                    oldNode.removeAttribute(attr.name);
+                  }
+                }
+                return false;
+              }
+              return true;
             },
           },
         });
@@ -347,8 +359,22 @@ const Component = <
         Idiomorph.morph(this, this.#html, {
           morphStyle: "innerHTML",
           callbacks: {
-            beforeNodeMorphed: (oldNode: Element, _newNode: Node): boolean => {
-              return oldNode?.tagName?.toLowerCase() !== "s-router";
+            beforeNodeMorphed: (
+              oldNode: Element,
+              newNode: Element,
+            ): boolean => {
+              if (oldNode?.tagName?.toLowerCase() === "s-router") {
+                for (const attr of newNode.attributes) {
+                  oldNode.setAttribute(attr.name, attr.value);
+                }
+                for (const attr of oldNode.attributes) {
+                  if (newNode.getAttribute(attr.name) == null) {
+                    oldNode.removeAttribute(attr.name);
+                  }
+                }
+                return false;
+              }
+              return true;
             },
           },
         });

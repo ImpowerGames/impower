@@ -34,7 +34,7 @@ export const DEFAULT_SPARKLE_TRANSFORMERS = {
 };
 
 const DEFAULT_SPARKLE_ALIAS_ATTRIBUTES = getAttributeNameMap(
-  getKeys(STYLE_ALIASES)
+  getKeys(STYLE_ALIASES),
 );
 
 const DEFAULT_SPARKLE_ATTRIBUTE_AND_ALIAS_NAMES = [
@@ -1232,13 +1232,13 @@ export default class SparkleElement
    */
   get textDecorationThickness(): "" | SizeName | string | null {
     return this.getStringAttribute(
-      SparkleElement.attrs.textDecorationThickness
+      SparkleElement.attrs.textDecorationThickness,
     );
   }
   set textDecorationThickness(value) {
     this.setStringAttribute(
       SparkleElement.attrs.textDecorationThickness,
-      value
+      value,
     );
   }
 
@@ -1845,7 +1845,7 @@ export default class SparkleElement
   override attributeChangedCallback(
     name: string,
     oldValue: string,
-    newValue: string
+    newValue: string,
   ) {
     this.propagateAttribute(name, newValue);
     super.attributeChangedCallback(name, oldValue, newValue);
@@ -1855,11 +1855,11 @@ export default class SparkleElement
     if (this.shadowRoot) {
       this.contentSlot?.addEventListener(
         "slotchange",
-        this.handleContentSlotAssigned
+        this.handleContentSlotAssigned,
       );
     } else {
       this.handleContentChildrenAssigned(
-        Array.from(this.contentSlot?.children || [])
+        Array.from(this.contentSlot?.children || []),
       );
     }
     this.bindFocus(this.root);
@@ -1873,7 +1873,7 @@ export default class SparkleElement
     if (this.shadowRoot) {
       this.contentSlot?.removeEventListener(
         "slotchange",
-        this.handleContentSlotAssigned
+        this.handleContentSlotAssigned,
       );
     }
     this.unbindFocus(this.root);
@@ -1885,7 +1885,7 @@ export default class SparkleElement
   override shouldAttributeTriggerUpdate(
     name: string,
     oldValue: string,
-    newValue: string
+    newValue: string,
   ) {
     if (DEFAULT_SPARKLE_ATTRIBUTE_AND_ALIAS_NAMES.includes(name)) {
       return false;
@@ -1931,22 +1931,22 @@ export default class SparkleElement
   getAssignedToSlot<T extends ChildNode>(name?: string): T[] {
     if (this.shadowRoot) {
       return Array.from(this.childNodes).filter((n) =>
-        isAssignedToSlot(n, name)
+        isAssignedToSlot(n, name),
       ) as T[];
     }
     if (name) {
       return Array.from(this.self.querySelectorAll(`[name=${name}]`)).flatMap(
-        (slot) => Array.from(slot?.childNodes || []) as T[]
+        (slot) => Array.from(slot?.childNodes || []) as T[],
       );
     }
     return Array.from(this.contentSlot?.childNodes || []) as T[];
   }
 
   setAssignedToSlot(
-    content: string | Node,
+    content: string | Node | Node[],
     name?: string,
-    preserve?: (n: ChildNode) => boolean
-  ): Node | null {
+    preserve?: (n: ChildNode) => boolean,
+  ): Node[] {
     const assigned = this.getAssignedToSlot(name);
     assigned.forEach((n) => {
       if (n.parentElement && (!preserve || !preserve(n))) {
@@ -1959,28 +1959,58 @@ export default class SparkleElement
       newNode.style.display = "contents";
       if (typeof content === "string") {
         newNode.textContent = content;
+      } else if (Array.isArray(content)) {
+        for (const c of content) {
+          newNode.appendChild(c);
+        }
       } else {
         newNode.appendChild(content);
       }
-      if (this.shadowRoot) {
-        return this.appendChild(newNode)?.firstElementChild;
+      const nodesToAppend = [];
+      if (newNode instanceof DocumentFragment) {
+        newNode.childNodes.forEach((n) => {
+          nodesToAppend.push(n);
+        });
       } else {
-        return (
-          this.self.querySelector(`[name=${name}]`)?.appendChild(newNode)
-            ?.firstElementChild || null
-        );
+        nodesToAppend.push(newNode);
+      }
+      const parent = this.shadowRoot
+        ? this
+        : this.self.querySelector(`[name=${name}]`);
+      if (parent) {
+        const appendedNodes = [];
+        for (const node of nodesToAppend) {
+          appendedNodes.push(parent.appendChild(node));
+        }
+        return appendedNodes;
       }
     } else {
       const newNode =
         typeof content === "string"
           ? document.createTextNode(content)
           : content;
-      if (this.shadowRoot) {
-        return this.appendChild(newNode);
+      const nodesToAppend = [];
+      if (newNode instanceof DocumentFragment) {
+        newNode.childNodes.forEach((n) => {
+          nodesToAppend.push(n);
+        });
+      } else if (Array.isArray(newNode)) {
+        for (const c of newNode) {
+          nodesToAppend.push(c);
+        }
       } else {
-        return this.contentSlot?.appendChild(newNode) || null;
+        nodesToAppend.push(newNode);
+      }
+      const parent = this.shadowRoot ? this : this.contentSlot;
+      if (parent) {
+        const appendedNodes = [];
+        for (const node of nodesToAppend) {
+          appendedNodes.push(parent.appendChild(node));
+        }
+        return appendedNodes;
       }
     }
+    return [];
   }
 
   updateRootCssVariable(name: string, value: string | null) {
@@ -2015,7 +2045,7 @@ export default class SparkleElement
   updateStyleAttribute(
     name: string,
     newValue: string | null,
-    valueFormatter?: (v: string) => string
+    valueFormatter?: (v: string) => string,
   ) {
     const varName = `---${name}`;
     const formattedValue =
@@ -2079,7 +2109,7 @@ export default class SparkleElement
 
   setStringAttribute<T extends string>(
     name: T,
-    value: T | number | boolean | null
+    value: T | number | boolean | null,
   ): void {
     if (typeof value === "boolean") {
       if (value) {
