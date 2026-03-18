@@ -15,9 +15,8 @@ export class GameToggledFullscreenModeMessage {
 }
 
 export namespace GameToggledFullscreenModeMessage {
-  export interface Notification
-    extends NotificationMessage<
-      GameToggledFullscreenModeMethod,
-      GameToggledFullscreenModeParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    GameToggledFullscreenModeMethod,
+    GameToggledFullscreenModeParams
+  > {}
 }

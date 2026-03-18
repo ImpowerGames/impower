@@ -15,7 +15,7 @@ export default spec({
       loading:
         stores?.workspace?.current?.preview?.modes?.game?.loading || false,
       horizontalLayout: stores?.workspace?.current?.screen?.horizontalLayout,
-    } as const),
+    }) as const,
   html: ({ context }) => {
     const { horizontalLayout } = context;
     return html`

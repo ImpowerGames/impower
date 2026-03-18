@@ -48,7 +48,7 @@ export class Camera extends Container3D implements TransformId {
         this._transformId++;
       },
     },
-    undefined
+    undefined,
   );
 
   /**
@@ -143,7 +143,7 @@ export class Camera extends Container3D implements TransformId {
   screenToRay(
     x: number,
     y: number,
-    viewSize: { width: number; height: number } = this.renderer.screen
+    viewSize: { width: number; height: number } = this.renderer.screen,
   ) {
     let screen = this.screenToWorld(x, y, 1, undefined, viewSize);
     if (screen) {
@@ -152,7 +152,7 @@ export class Camera extends Container3D implements TransformId {
       }
       return new Ray(
         this.worldTransform.position,
-        Point3D.subtract(screen, this.worldTransform.position)
+        Point3D.subtract(screen, this.worldTransform.position),
       );
     }
     return undefined;
@@ -171,12 +171,12 @@ export class Camera extends Container3D implements TransformId {
     y: number,
     distance: number,
     out = new Point3D(),
-    viewSize: { width: number; height: number } = this.renderer.screen
+    viewSize: { width: number; height: number } = this.renderer.screen,
   ) {
     // Make sure the transform is updated in case something has been changed,
     // otherwise it may be using wrong values.
     this.transform.updateTransform(
-      (this.parent as unknown as Container3D)?.transform
+      (this.parent as unknown as Container3D)?.transform,
     );
 
     let far = this.far;
@@ -195,14 +195,14 @@ export class Camera extends Container3D implements TransformId {
       ((y / viewSize.height) * 2 - 1) * -1,
       1,
       1,
-      vec4
+      vec4,
     );
     this.far = far;
 
     let worldSpace = Vec4.transformMat4(
       clipSpace,
       invertedViewProjection,
-      vec4
+      vec4,
     );
     worldSpace[3] = 1.0 / worldSpace[3]!;
     for (let i = 0; i < 3; i++) {
@@ -224,12 +224,12 @@ export class Camera extends Container3D implements TransformId {
     y: number,
     z: number,
     out = new Point(),
-    viewSize: { width: number; height: number } = this.renderer.screen
+    viewSize: { width: number; height: number } = this.renderer.screen,
   ) {
     // Make sure the transform is updated in case something has been changed,
     // otherwise it may be using wrong values.
     this.transform.updateTransform(
-      (this.parent as unknown as Container3D)?.transform
+      (this.parent as unknown as Container3D)?.transform,
     );
 
     const worldSpace = Vec4.set(x, y, z, 1, vec4);
@@ -242,14 +242,14 @@ export class Camera extends Container3D implements TransformId {
     }
     return out.set(
       ((clipSpace[0]! + 1) / 2) * viewSize.width,
-      viewSize.height - ((clipSpace[1]! + 1) / 2) * viewSize.height
+      viewSize.height - ((clipSpace[1]! + 1) / 2) * viewSize.height,
     );
   }
 
   worldToView(x: number, y: number, z: number, out = new Point3D()): Point3D {
     // Ensure the view matrix is up to date
     this.transform.updateTransform(
-      (this.parent as unknown as Container3D)?.transform
+      (this.parent as unknown as Container3D)?.transform,
     );
 
     // Convert Point3D to Vec4
@@ -363,7 +363,7 @@ export class Camera extends Container3D implements TransformId {
               this._orthographicSize,
               this._near,
               this._far,
-              data.array
+              data.array,
             );
           } else {
             Mat4.perspective(
@@ -371,12 +371,12 @@ export class Camera extends Container3D implements TransformId {
               aspect,
               this._near,
               this._far,
-              data.array
+              data.array,
             );
             data.array[8] = this._obliqueness.x;
             data.array[9] = this._obliqueness.y;
           }
-        }
+        },
       );
     }
     return this._projection.data;
@@ -392,15 +392,15 @@ export class Camera extends Container3D implements TransformId {
           const target = Vec3.add(
             this.worldTransform.position.array,
             this.worldTransform.forward.array,
-            vec3
+            vec3,
           );
           Mat4.lookAt(
             this.worldTransform.position.array,
             target,
             this.worldTransform.up.array,
-            data.array
+            data.array,
           );
-        }
+        },
       );
     }
     return this._view.data;
@@ -414,7 +414,7 @@ export class Camera extends Container3D implements TransformId {
         new Matrix4x4(),
         (data) => {
           Mat4.multiply(this.projection.array, this.view.array, data.array);
-        }
+        },
       );
     }
     return this._viewProjection.data;

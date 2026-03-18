@@ -5,7 +5,7 @@ import DEFAULT_PARSER from "../constants/DEFAULT_PARSER";
 const evaluate = (
   expr: string,
   context: Record<string, unknown> = {},
-  config = DEFAULT_COMPILER_CONFIG
+  config = DEFAULT_COMPILER_CONFIG,
 ): unknown => {
   if (!expr) {
     return undefined;

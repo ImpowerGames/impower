@@ -5,12 +5,12 @@ interface FileEntry {
 
 export const getAllFilesRecursive = async (
   directoryHandle: FileSystemDirectoryHandle,
-  directoryPath: string
+  directoryPath: string,
 ): Promise<FileEntry[]> => {
   const getEntryPromises: Promise<FileEntry>[] = [];
   const traverse = async (
     directoryHandle: FileSystemDirectoryHandle,
-    directoryPath: string
+    directoryPath: string,
   ) => {
     // @ts-ignore - values() method should exist
     const directoryIterator = directoryHandle.values();
@@ -37,6 +37,6 @@ export const getAllFilesRecursive = async (
   await traverse(directoryHandle, directoryPath);
   const entries = await Promise.all(getEntryPromises);
   return entries.sort((a, b) =>
-    a.path > b.path ? 1 : b.path > a.path ? -1 : 0
+    a.path > b.path ? 1 : b.path > a.path ? -1 : 0,
   );
 };

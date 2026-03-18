@@ -4,7 +4,7 @@ import readline from "readline";
 
 export const getWordVectors = async (
   modelPath: string,
-  include?: (word: string) => boolean
+  include?: (word: string) => boolean,
 ) => {
   const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
 

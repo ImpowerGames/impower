@@ -2,7 +2,7 @@ import { NotificationMessage } from "../types/NotificationMessage";
 
 export const isNotification = <M extends string, P>(
   obj: any,
-  method: M = obj.method
+  method: M = obj.method,
 ): obj is NotificationMessage<M, P> => {
   return (
     typeof obj === "object" &&

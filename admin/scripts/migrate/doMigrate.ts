@@ -44,7 +44,7 @@ export const doMigrate = async (
   fromStorageBucket: string,
   toCredentials: ServiceAccount,
   toDatabaseURL: string,
-  toStorageBucket: string
+  toStorageBucket: string,
 ) => {
   console.log("Initializing FROM app");
   const fromApp =
@@ -55,7 +55,7 @@ export const doMigrate = async (
         databaseURL: fromDatabaseURL,
         storageBucket: fromStorageBucket,
       },
-      "from"
+      "from",
     );
   console.log("Initializing TO app");
   const toApp =
@@ -66,7 +66,7 @@ export const doMigrate = async (
         databaseURL: toDatabaseURL,
         storageBucket: toStorageBucket,
       },
-      "to"
+      "to",
     );
 
   // Migrate all users
@@ -134,7 +134,7 @@ export const doMigrate = async (
         .bucket()
         .file(f.name)
         .save(downloadedFile, options);
-    })
+    }),
   );
   const [userFiles] = await getStorage(fromApp).bucket().getFiles({
     prefix: `users`,
@@ -157,7 +157,7 @@ export const doMigrate = async (
         .bucket()
         .file(f.name)
         .save(downloadedFile, options);
-    })
+    }),
   );
 
   // Migrate all database data
@@ -170,7 +170,7 @@ export const doMigrate = async (
   const toBulkWriter = getFirestore(toApp).bulkWriter();
   const fromCollections = await getFirestore(fromApp).listCollections();
   const migrateCollection = async (
-    collection: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>
+    collection: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>,
   ) => {
     const colSnap = await collection.get();
     const colPromises = colSnap.docs.map(async (docSnap) => {
@@ -183,18 +183,18 @@ export const doMigrate = async (
               return await toBulkWriter.set(
                 getFirestore(toApp).doc(childDocSnap.ref.path),
                 childDocSnap.data(),
-                { merge: true }
+                { merge: true },
               );
-            }
+            },
           );
           const childColDocResults = await Promise.all(childColDocPromises);
           return childColDocResults;
-        }
+        },
       );
       const fromDocPromise = toBulkWriter.set(
         getFirestore(toApp).doc(docSnap.ref.path),
         docSnap.data(),
-        { merge: true }
+        { merge: true },
       );
       const docResult = await fromDocPromise;
       const colResults = await Promise.all(fromChildColPromises);
@@ -207,7 +207,7 @@ export const doMigrate = async (
     return colFlatResults;
   };
   await Promise.all(
-    fromCollections.map((collection) => migrateCollection(collection))
+    fromCollections.map((collection) => migrateCollection(collection)),
   );
   await toBulkWriter.close();
 };

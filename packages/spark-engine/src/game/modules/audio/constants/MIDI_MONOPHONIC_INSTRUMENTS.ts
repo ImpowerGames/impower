@@ -101,7 +101,7 @@ const MIDI_MONOPHONIC_INSTRUMENT_MAP: Record<string, SynthConfig> = {
 } as const;
 
 export const MIDI_MONOPHONIC_INSTRUMENTS = Object.values(
-  MIDI_MONOPHONIC_INSTRUMENT_MAP
+  MIDI_MONOPHONIC_INSTRUMENT_MAP,
 ).map((value) =>
-  clone(_synth(), { ...DEFAULT_MONOPHONIC_INSTRUMENT, ...value })
+  clone(_synth(), { ...DEFAULT_MONOPHONIC_INSTRUMENT, ...value }),
 );

@@ -18,9 +18,8 @@ export class HoveredOffPreviewMessage {
 }
 
 export namespace HoveredOffPreviewMessage {
-  export interface Notification
-    extends NotificationMessage<
-      HoveredOffPreviewMethod,
-      HoveredOffPreviewParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    HoveredOffPreviewMethod,
+    HoveredOffPreviewParams
+  > {}
 }

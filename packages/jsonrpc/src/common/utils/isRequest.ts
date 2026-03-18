@@ -2,7 +2,7 @@ import { RequestMessage } from "../types/RequestMessage";
 
 export const isRequest = <M extends string, R>(
   obj: any,
-  method: M = obj.method
+  method: M = obj.method,
 ): obj is RequestMessage<M, R> => {
   return (
     typeof obj === "object" &&

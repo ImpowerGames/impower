@@ -2,7 +2,7 @@ import { ResponseMessage } from "../types/ResponseMessage";
 
 export const isResponse = <M extends string, R>(
   obj: any,
-  method: M = obj.method
+  method: M = obj.method,
 ): obj is ResponseMessage<M, R> => {
   return (
     typeof obj === "object" &&

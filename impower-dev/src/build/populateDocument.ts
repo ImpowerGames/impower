@@ -10,7 +10,7 @@ const populateDocument = (
     cssPath?: string;
     jsPath?: string;
     mjsPath?: string;
-  }
+  },
 ) => {
   let result = documentHtml || "";
   const css = page?.css ? indent(page?.css.trim(), 4) : "";
@@ -32,25 +32,25 @@ const populateDocument = (
   if (mjs) {
     result = result.replace(
       "<script></script>",
-      `<script type="module">\n${mjs}\n</script>`
+      `<script type="module">\n${mjs}\n</script>`,
     );
   }
   if (cssPath) {
     result = result.replace(
       "<style></style>",
-      `<link rel="stylesheet" type="text/css" href="${cssPath}">`
+      `<link rel="stylesheet" type="text/css" href="${cssPath}">`,
     );
   }
   if (jsPath) {
     result = result.replace(
       "<script></script>",
-      `<script src="${jsPath}" defer></script>`
+      `<script src="${jsPath}" defer></script>`,
     );
   }
   if (mjsPath) {
     result = result.replace(
       "<script></script>",
-      `<script type="module" src="${mjsPath}" defer></script>`
+      `<script type="module" src="${mjsPath}" defer></script>`,
     );
   }
   return result;

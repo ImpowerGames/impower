@@ -27,7 +27,7 @@ const esbuildProblemMatcher = () => ({
         console.error(`✘ [ERROR] ${text}`);
         if (location == null) return;
         console.error(
-          `    ${location.file}:${location.line}:${location.column}:`
+          `    ${location.file}:${location.line}:${location.column}:`,
         );
       });
       console.log(LOG_PREFIX + `build finished`);
@@ -55,7 +55,7 @@ async function main() {
     const rebuild = async () => {
       console.log(
         LOG_PREFIX +
-          `detected change in ${OPFS_WORKSPACE_SRC_PATH}, rebuilding...`
+          `detected change in ${OPFS_WORKSPACE_SRC_PATH}, rebuilding...`,
       );
       await ctx.rebuild();
     };

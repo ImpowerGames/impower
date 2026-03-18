@@ -2,7 +2,7 @@ import { PITCH_NOTATION_REGEX } from "../constants/PITCH_NOTATION_REGEX";
 import { Flat, NaturalPitch, Sharp } from "../types/Note";
 
 export const parseNote = (
-  note: string
+  note: string,
 ):
   | {
       natural: NaturalPitch;

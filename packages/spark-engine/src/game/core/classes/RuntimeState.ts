@@ -68,13 +68,13 @@ export class RuntimeState {
     const cloned = new RuntimeState();
     if (state) {
       cloned.pathsExecutedThisFrame = new Set(
-        Array.from(state.pathsExecutedThisFrame)
+        Array.from(state.pathsExecutedThisFrame),
       );
       cloned.choicesEncountered = JSON.parse(
-        JSON.stringify(state.choicesEncountered)
+        JSON.stringify(state.choicesEncountered),
       );
       cloned.conditionsEncountered = JSON.parse(
-        JSON.stringify(state.conditionsEncountered)
+        JSON.stringify(state.conditionsEncountered),
       );
     }
     return cloned;

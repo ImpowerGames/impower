@@ -2,7 +2,7 @@ import { ProgressResponseMessage } from "../types/ProgressResponseMessage";
 
 export const isProgressResponse = <M extends string>(
   obj: any,
-  method: M = obj.method
+  method: M = obj.method,
 ): obj is ProgressResponseMessage<M> => {
   return (
     typeof obj === "object" &&

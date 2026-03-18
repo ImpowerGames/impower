@@ -61,7 +61,7 @@ export class Application implements IApplication {
         return performance.now();
       },
     },
-    (callback: () => void) => window.requestAnimationFrame(callback)
+    (callback: () => void) => window.requestAnimationFrame(callback),
   );
   get clock() {
     return this._clock;
@@ -171,7 +171,7 @@ export class Application implements IApplication {
     game: Game,
     view: HTMLElement,
     overlay: HTMLElement,
-    audioContext?: AudioContext
+    audioContext?: AudioContext,
   ) {
     this._game = game;
 
@@ -264,7 +264,7 @@ export class Application implements IApplication {
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
     await this._game.connect(async (msg: Message, _t?: ArrayBuffer[]) => {
       const partialResponse = await this.onReceive(
-        msg as RequestMessage | NotificationMessage
+        msg as RequestMessage | NotificationMessage,
       );
       if (partialResponse && "id" in msg) {
         this.emit({
@@ -394,7 +394,7 @@ export class Application implements IApplication {
     if (this._overlay) {
       this._overlay.removeEventListener(
         "pointerdown",
-        this.onPointerDownOverlay
+        this.onPointerDownOverlay,
       );
       this._overlay.removeEventListener("pointerup", this.onPointerUpOverlay);
       this._overlay.removeEventListener("click", this.onClickOverlay);
@@ -431,7 +431,7 @@ export class Application implements IApplication {
   };
 
   async onReceive(
-    msg: RequestMessage | NotificationMessage
+    msg: RequestMessage | NotificationMessage,
   ): Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
     | { result: unknown; transfer?: ArrayBuffer[] }

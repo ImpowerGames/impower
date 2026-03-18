@@ -21,12 +21,13 @@ export class RestartGameMessage {
 }
 
 export namespace RestartGameMessage {
-  export interface Request
-    extends RequestMessage<
-      RestartGameMethod,
-      RestartGameParams,
-      RestartGameResult
-    > {}
-  export interface Response
-    extends ResponseMessage<RestartGameMethod, RestartGameResult> {}
+  export interface Request extends RequestMessage<
+    RestartGameMethod,
+    RestartGameParams,
+    RestartGameResult
+  > {}
+  export interface Response extends ResponseMessage<
+    RestartGameMethod,
+    RestartGameResult
+  > {}
 }

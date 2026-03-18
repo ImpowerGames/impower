@@ -16,9 +16,8 @@ export class DidChangeWatchedFilesMessage {
 }
 
 export namespace DidChangeWatchedFilesMessage {
-  export interface Notification
-    extends NotificationMessage<
-      DidChangeWatchedFilesMethod,
-      DidChangeWatchedFilesParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    DidChangeWatchedFilesMethod,
+    DidChangeWatchedFilesParams
+  > {}
 }

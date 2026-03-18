@@ -17,6 +17,8 @@ export class GameResizedMessage {
 }
 
 export namespace GameResizedMessage {
-  export interface Notification
-    extends NotificationMessage<GameResizedMethod, GameResizedParams> {}
+  export interface Notification extends NotificationMessage<
+    GameResizedMethod,
+    GameResizedParams
+  > {}
 }

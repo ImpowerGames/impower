@@ -22,13 +22,13 @@ export class ES6StaticEval extends ES5StaticEval {
           elements: !node.params
             ? []
             : Array.isArray(node.params)
-            ? node.params
-            : [node.params],
+              ? node.params
+              : [node.params],
         },
         "=",
         params,
         ctx,
-        context
+        context,
       );
 
       return this._eval(node.body, ctx);

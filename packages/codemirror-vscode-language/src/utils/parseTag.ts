@@ -30,7 +30,7 @@ const PARSE_TAG_REGEX =
  */
 export const parseTag = (
   node: string,
-  str: string
+  str: string,
 ): {
   [selector: string]: Tag | readonly Tag[];
 } => {

@@ -9,48 +9,48 @@ export default spec({
     ({
       name: stores?.workspace?.current?.project?.name || "",
       syncState: stores?.workspace?.current?.sync?.status || "",
-    } as const),
+    }) as const,
   html: ({ context }) => {
     const { name, syncState } = context;
     const syncStateInfo =
       syncState === "cached"
         ? "Saved in cache"
         : syncState === "loading"
-        ? "Loading..."
-        : syncState === "importing"
-        ? "Importing..."
-        : syncState === "exporting"
-        ? "Exporting..."
-        : syncState === "syncing"
-        ? "Syncing..."
-        : syncState === "unsynced"
-        ? "Unsynced changes"
-        : syncState === "synced"
-        ? "Synced online ✓"
-        : syncState === "offline"
-        ? "Cannot sync while offline"
-        : syncState === "load_error"
-        ? "Error: Could not load project"
-        : syncState === "import_error"
-        ? "Error: Could not import project"
-        : syncState === "export_error"
-        ? "Error: Could not export project"
-        : syncState === "sync_error"
-        ? "Error: Could not sync project"
-        : syncState === "sync_conflict"
-        ? "Sync conflict detected"
-        : "";
+          ? "Loading..."
+          : syncState === "importing"
+            ? "Importing..."
+            : syncState === "exporting"
+              ? "Exporting..."
+              : syncState === "syncing"
+                ? "Syncing..."
+                : syncState === "unsynced"
+                  ? "Unsynced changes"
+                  : syncState === "synced"
+                    ? "Synced online ✓"
+                    : syncState === "offline"
+                      ? "Cannot sync while offline"
+                      : syncState === "load_error"
+                        ? "Error: Could not load project"
+                        : syncState === "import_error"
+                          ? "Error: Could not import project"
+                          : syncState === "export_error"
+                            ? "Error: Could not export project"
+                            : syncState === "sync_error"
+                              ? "Error: Could not sync project"
+                              : syncState === "sync_conflict"
+                                ? "Sync conflict detected"
+                                : "";
     const captionColor =
       syncState === "unsynced"
         ? "primary"
         : syncState === "load_error" ||
-          syncState === "import_error" ||
-          syncState === "export_error" ||
-          syncState === "sync_error"
-        ? "danger"
-        : syncState === "sync_conflict" || syncState === "offline"
-        ? "warning"
-        : "fg-60";
+            syncState === "import_error" ||
+            syncState === "export_error" ||
+            syncState === "sync_error"
+          ? "danger"
+          : syncState === "sync_conflict" || syncState === "offline"
+            ? "warning"
+            : "fg-60";
     const stateSkeleton = () => html`
       <s-skeleton id="name-skeleton">Saved in cache</s-skeleton>
     `;

@@ -18,8 +18,13 @@ export class PauseGameMessage {
 }
 
 export namespace PauseGameMessage {
-  export interface Request
-    extends RequestMessage<PauseGameMethod, PauseGameParams, PauseGameResult> {}
-  export interface Response
-    extends ResponseMessage<PauseGameMethod, PauseGameResult> {}
+  export interface Request extends RequestMessage<
+    PauseGameMethod,
+    PauseGameParams,
+    PauseGameResult
+  > {}
+  export interface Response extends ResponseMessage<
+    PauseGameMethod,
+    PauseGameResult
+  > {}
 }

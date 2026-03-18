@@ -20,12 +20,13 @@ export class GetGameScriptsMessage {
 }
 
 export namespace GetGameScriptsMessage {
-  export interface Request
-    extends RequestMessage<
-      GetGameScriptsMethod,
-      GetGameScriptsParams,
-      GetGameScriptsResult
-    > {}
-  export interface Response
-    extends ResponseMessage<GetGameScriptsMethod, GetGameScriptsResult> {}
+  export interface Request extends RequestMessage<
+    GetGameScriptsMethod,
+    GetGameScriptsParams,
+    GetGameScriptsResult
+  > {}
+  export interface Response extends ResponseMessage<
+    GetGameScriptsMethod,
+    GetGameScriptsResult
+  > {}
 }

@@ -2,11 +2,11 @@ export const resolve = <
   T,
   Store extends Record<string, T>,
   Context extends Record<string, Store>,
-  TypeName extends keyof Context
+  TypeName extends keyof Context,
 >(
   context: Context,
   ref: string,
-  possibleRoots: TypeName[]
+  possibleRoots: TypeName[],
 ) => {
   if (ref.includes(".")) {
     const [type, name] = ref.split(".");

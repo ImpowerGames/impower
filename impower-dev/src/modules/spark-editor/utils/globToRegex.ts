@@ -4,7 +4,7 @@ const globToRegex = (glob: string) => {
       .replace(/[.]/g, "[.]")
       .replace(/[*]/g, ".*")
       .replace(/[{](.*)[}]/g, (_match, $1) => `(${$1.replace(/[,]/g, "|")})`),
-    "i"
+    "i",
   );
 };
 

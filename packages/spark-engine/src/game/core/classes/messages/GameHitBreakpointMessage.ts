@@ -17,9 +17,8 @@ export class GameHitBreakpointMessage {
 }
 
 export namespace GameHitBreakpointMessage {
-  export interface Notification
-    extends NotificationMessage<
-      GameHitBreakpointMethod,
-      GameHitBreakpointParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    GameHitBreakpointMethod,
+    GameHitBreakpointParams
+  > {}
 }

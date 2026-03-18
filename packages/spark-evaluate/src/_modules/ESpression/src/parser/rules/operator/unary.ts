@@ -156,7 +156,7 @@ export class UnaryOperatorRule extends BaseRule<IConfUnaryRule> {
     return this.makeNode(
       op,
       c.separators || !nodes.length || !nodes[0] ? nodes : nodes[0]!,
-      ctx
+      ctx,
     );
   }
 
@@ -183,7 +183,7 @@ export class UnaryOperatorRule extends BaseRule<IConfUnaryRule> {
   makeNode(
     op: string,
     argument: INode | Array<INode | null>,
-    ctx: ParserContext
+    ctx: ParserContext,
   ): INode {
     const c = this.config[op];
     if (!c) {

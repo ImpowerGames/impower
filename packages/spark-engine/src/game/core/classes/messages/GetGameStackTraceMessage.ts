@@ -43,12 +43,13 @@ export class GetGameStackTraceMessage {
 }
 
 export namespace GetGameStackTraceMessage {
-  export interface Request
-    extends RequestMessage<
-      GetGameStackTraceMethod,
-      GetGameStackTraceParams,
-      GetGameStackTraceResult
-    > {}
-  export interface Response
-    extends ResponseMessage<GetGameStackTraceMethod, GetGameStackTraceResult> {}
+  export interface Request extends RequestMessage<
+    GetGameStackTraceMethod,
+    GetGameStackTraceParams,
+    GetGameStackTraceResult
+  > {}
+  export interface Response extends ResponseMessage<
+    GetGameStackTraceMethod,
+    GetGameStackTraceResult
+  > {}
 }

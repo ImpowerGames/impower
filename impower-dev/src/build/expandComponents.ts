@@ -6,7 +6,7 @@ import isCustomElement from "./isCustomElement.js";
 
 const expandComponents = (
   node: Element,
-  components: Record<string, ComponentSpec>
+  components: Record<string, ComponentSpec>,
 ) => {
   const expand = (node: Element) => {
     if (isCustomElement(node.tagName) && components[node.tagName]) {

@@ -18,12 +18,13 @@ export class InitializeMessage {
 }
 
 export namespace InitializeMessage {
-  export interface Request
-    extends RequestMessage<
-      InitializeMethod,
-      InitializeParams,
-      InitializeResult
-    > {}
-  export interface Response
-    extends ResponseMessage<InitializeMethod, InitializeResult> {}
+  export interface Request extends RequestMessage<
+    InitializeMethod,
+    InitializeParams,
+    InitializeResult
+  > {}
+  export interface Response extends ResponseMessage<
+    InitializeMethod,
+    InitializeResult
+  > {}
 }

@@ -19,9 +19,8 @@ export class ChangedEditorBreakpointsMessage {
 }
 
 export namespace ChangedEditorBreakpointsMessage {
-  export interface Notification
-    extends NotificationMessage<
-      ChangedEditorBreakpointsMethod,
-      ChangedEditorBreakpointsParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    ChangedEditorBreakpointsMethod,
+    ChangedEditorBreakpointsParams
+  > {}
 }

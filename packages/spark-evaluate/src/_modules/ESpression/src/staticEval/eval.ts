@@ -53,7 +53,7 @@ export abstract class StaticEval {
   abstract lvalue(
     node: INode,
     context: KeyedObject,
-    unchecked?: boolean
+    unchecked?: boolean,
   ): ILvalue;
 
   /**
@@ -65,7 +65,7 @@ export abstract class StaticEval {
    */
   protected _eval(
     expression: INode | INode[] | undefined,
-    context: KeyedObject
+    context: KeyedObject,
   ): unknown {
     try {
       if (expression === undefined || Array.isArray(expression)) {
@@ -98,7 +98,7 @@ export abstract class StaticEval {
     ...operands: any[]
   ): any {
     const results = operands.map(
-      (node) => (node || undefined) && this._eval(node, context)
+      (node) => (node || undefined) && this._eval(node, context),
     );
 
     return operatorCB?.(...results);
@@ -107,7 +107,7 @@ export abstract class StaticEval {
 
 export function unsupportedError(
   type: string,
-  operator: string | undefined
+  operator: string | undefined,
 ): Error {
   return new Error(`Unsupported ${type}: ${operator}`);
 }

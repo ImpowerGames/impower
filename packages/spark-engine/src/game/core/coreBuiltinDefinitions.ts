@@ -14,5 +14,6 @@ export const coreBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_world>>,
 });
 
-export interface CoreBuiltins
-  extends ReturnType<typeof coreBuiltinDefinitions> {}
+export interface CoreBuiltins extends ReturnType<
+  typeof coreBuiltinDefinitions
+> {}

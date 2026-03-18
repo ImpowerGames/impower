@@ -57,7 +57,7 @@ const findLongestCommonSubstring = (str1 = "", str2 = ""): string => {
 export const getSimilarPhrases = (
   phrases: string[],
   keywords: { [word: string]: number },
-  onProgress?: (current: number, total: number) => void
+  onProgress?: (current: number, total: number) => void,
 ): { [phrase: string]: [string, number][] } => {
   const similarPhrases: {
     [phrase: string]: [string, number][];
@@ -72,7 +72,7 @@ export const getSimilarPhrases = (
         const bWords = getCleanedWords(bPhrase);
         const longestCommonSubstring = findLongestCommonSubstring(
           aPhrase,
-          bPhrase
+          bPhrase,
         ).toLowerCase();
         const longerPhraseWords =
           aWords.length > bWords.length ? aWords : bWords;

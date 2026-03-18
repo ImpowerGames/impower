@@ -21,8 +21,8 @@ export abstract class BaseRule<T extends { type?: string }> {
     config.maxSep = !config.separators
       ? 0
       : typeof config.maxSep === "undefined"
-      ? Infinity
-      : config.maxSep;
+        ? Infinity
+        : config.maxSep;
   }
 
   addExtra(conf: IExtraConf, node: INode, ctx: ParserContext): INode {

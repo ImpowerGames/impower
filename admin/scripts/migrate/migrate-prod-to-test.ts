@@ -24,7 +24,7 @@ const migrate = async () => {
       fromStorageBucket,
       toCredentials,
       toDatabaseURL,
-      toStorageBucket
+      toStorageBucket,
     );
     console.log("Migrated data from impowergames to impowergames-test");
   } catch (error) {

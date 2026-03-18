@@ -12,7 +12,7 @@ import { getStorage } from "firebase-admin/storage";
 export const doWipe = async (
   credentials: ServiceAccount,
   databaseURL: string,
-  storageBucket: string
+  storageBucket: string,
 ) => {
   console.log("Initializing TO app");
   const adminApp =
@@ -23,7 +23,7 @@ export const doWipe = async (
         databaseURL,
         storageBucket,
       },
-      "to"
+      "to",
     );
   const auth = getAuth(adminApp);
   const firestore = getFirestore(adminApp);
@@ -74,8 +74,8 @@ export const doWipe = async (
   const collections = await firestore.listCollections();
   await Promise.all(
     collections.map((collection) =>
-      firestore.recursiveDelete(collection, bulkWriter)
-    )
+      firestore.recursiveDelete(collection, bulkWriter),
+    ),
   );
   await bulkWriter.close();
 };

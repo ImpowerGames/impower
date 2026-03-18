@@ -14,7 +14,7 @@ const choose = (
     severity?: "info" | "warning" | "error";
     message?: string;
   }[],
-  number[]
+  number[],
 ] => {
   let newArgs = [...args];
   const diagnostics: {

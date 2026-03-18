@@ -100,7 +100,7 @@ export class BasicEval extends StaticEval {
       context,
       0,
       (...values: any[]) => values,
-      ...(node.elements || [])
+      ...(node.elements || []),
     );
   }
 
@@ -116,7 +116,7 @@ export class BasicEval extends StaticEval {
   protected _member<T>(
     node: INode,
     context: KeyedObject,
-    project: (m: ILvalue | undefined) => T
+    project: (m: ILvalue | undefined) => T,
   ): T {
     const short = node.optional || node.shortCircuited;
     const name = node.property?.name || "";
@@ -128,16 +128,16 @@ export class BasicEval extends StaticEval {
           ? o === null || typeof o === "undefined"
             ? project(undefined)
             : node.computed
-            ? this._resolve(
-                context,
-                RESOLVE_NORMAL,
-                (prop) => project({ o, m: prop }),
-                node.property
-              )
-            : project({ o, m: name })
+              ? this._resolve(
+                  context,
+                  RESOLVE_NORMAL,
+                  (prop) => project({ o, m: prop }),
+                  node.property,
+                )
+              : project({ o, m: name })
           : project({ o, m: node.computed ? m : name }),
       node.object,
-      short || !node.computed ? undefined : node.property
+      short || !node.computed ? undefined : node.property,
     );
   }
 
@@ -156,7 +156,7 @@ export class BasicEval extends StaticEval {
             context,
             RESOLVE_NORMAL,
             (...ar) => func.apply(obj, ar),
-            ...(node.arguments || [])
+            ...(node.arguments || []),
           )
         : func.apply(obj, args);
     };
@@ -171,7 +171,7 @@ export class BasicEval extends StaticEval {
       node.callee?.type === MEMBER_EXP
         ? { ...node.callee, type: "_MemberObject" }
         : node.callee,
-      ...(short ? [] : node.arguments || [])
+      ...(short ? [] : node.arguments || []),
     );
   }
 
@@ -182,7 +182,7 @@ export class BasicEval extends StaticEval {
       context,
       RESOLVE_SHORT_CIRCUITED,
       (t) => this._eval(t ? node.consequent : node.alternate, context),
-      node.test
+      node.test,
     );
   }
 
@@ -192,7 +192,7 @@ export class BasicEval extends StaticEval {
       context,
       RESOLVE_NORMAL,
       (...values: any[]) => values.pop(),
-      ...(node.expressions || [])
+      ...(node.expressions || []),
     );
   }
 
@@ -217,7 +217,7 @@ export class BasicEval extends StaticEval {
             throw unsupportedError(BINARY_EXP, node.operator);
         }
       },
-      node.left
+      node.left,
     );
   }
 
@@ -232,7 +232,7 @@ export class BasicEval extends StaticEval {
       RESOLVE_NORMAL,
       binaryOpCB[node.operator],
       node.left,
-      node.right
+      node.right,
     );
   }
 
@@ -246,7 +246,7 @@ export class BasicEval extends StaticEval {
       context,
       RESOLVE_NORMAL,
       unaryOpCB[node.operator],
-      node.argument
+      node.argument,
     );
   }
 
@@ -261,7 +261,7 @@ export class BasicEval extends StaticEval {
       context,
       RESOLVE_NORMAL,
       (...values: any[]) => values.pop(),
-      ...(node.body || [])
+      ...(node.body || []),
     );
   }
 

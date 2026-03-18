@@ -16,7 +16,7 @@ const normalize = (value: number, min: number, max: number): number => {
 
 export const convertMidiToToneSequences = (
   midi: Midi,
-  sampleRate: number
+  sampleRate: number,
 ): ToneSequence[] => {
   const midiTrackChannels: ToneSequence[] = [];
   midi.tracks.forEach((track) => {
@@ -73,7 +73,7 @@ export const convertMidiToToneSequences = (
     }
     const midiChannels: Map<number, ToneSequence> = new Map();
     const sortedEvents = [...conductorTrack, ...track].sort(
-      (a, b) => a.ticks - b.ticks
+      (a, b) => a.ticks - b.ticks,
     );
     let mpq = 0;
     let instruments: number[] = [];
@@ -147,7 +147,7 @@ export const convertMidiToToneSequences = (
         const pitchBend = pitchBends[channelNumber] ?? 0;
         const pitchHertz = transpose(
           convertPitchNumberToHertz(noteNumber),
-          pitchBend
+          pitchBend,
         );
         const mono = channelNumber === 9;
         // TODO: Calculate start and end volume from channel volume

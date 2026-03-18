@@ -17,7 +17,7 @@ export class Mat4 {
   static translate(
     mat: Float32Array,
     v: Float32Array,
-    out = new Float32Array(16)
+    out = new Float32Array(16),
   ) {
     return <Float32Array>mat4.translate(out, mat, v);
   }
@@ -37,14 +37,14 @@ export class Mat4 {
     q: Float32Array,
     v: Float32Array,
     s: Float32Array,
-    out = new Float32Array(16)
+    out = new Float32Array(16),
   ) {
     return <Float32Array>mat4.fromRotationTranslationScale(out, q, v, s);
   }
   static fromRotation(
     rad: number,
     axis: Float32Array,
-    out = new Float32Array(16)
+    out = new Float32Array(16),
   ) {
     return <Float32Array>mat4.fromRotation(out, rad, axis);
   }
@@ -57,7 +57,7 @@ export class Mat4 {
   static multiply(
     a: Float32Array,
     b: Float32Array,
-    out = new Float32Array(16)
+    out = new Float32Array(16),
   ) {
     return <Float32Array>mat4.multiply(out, a, b);
   }
@@ -65,7 +65,7 @@ export class Mat4 {
     eye: Float32Array,
     center: Float32Array,
     up: Float32Array,
-    out = new Float32Array(16)
+    out = new Float32Array(16),
   ) {
     return <Float32Array>mat4.lookAt(out, eye, center, up);
   }
@@ -77,7 +77,7 @@ export class Mat4 {
     aspect: number,
     near: number,
     far: number,
-    out = new Float32Array(16)
+    out = new Float32Array(16),
   ) {
     return <Float32Array>mat4.perspective(out, fovy, aspect, near, far);
   }
@@ -88,7 +88,7 @@ export class Mat4 {
     top: number,
     near: number,
     far: number,
-    out = new Float32Array(16)
+    out = new Float32Array(16),
   ) {
     return <Float32Array>mat4.ortho(out, left, right, bottom, top, near, far);
   }
@@ -102,7 +102,7 @@ export class Mat4 {
     eye: Float32Array,
     target: Float32Array,
     up: Float32Array,
-    out = new Float32Array(16)
+    out = new Float32Array(16),
   ) {
     return <Float32Array>mat4.targetTo(out, eye, target, up);
   }
@@ -119,7 +119,7 @@ export class Mat4 {
     a: Float32Array,
     rad: number,
     axis: Float32Array,
-    out = new Float32Array(16)
+    out = new Float32Array(16),
   ) {
     return <Float32Array>mat4.rotate(out, a, rad, axis);
   }
@@ -129,7 +129,7 @@ export class Mat4 {
   static transformPoint(
     mat: Float32Array,
     point: Float32Array,
-    out: Float32Array = new Float32Array(3)
+    out: Float32Array = new Float32Array(3),
   ) {
     const res = <Float32Array>vec3.transformMat4(out, point, mat);
     return res;

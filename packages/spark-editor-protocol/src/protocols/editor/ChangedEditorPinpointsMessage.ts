@@ -19,9 +19,8 @@ export class ChangedEditorPinpointsMessage {
 }
 
 export namespace ChangedEditorPinpointsMessage {
-  export interface Notification
-    extends NotificationMessage<
-      ChangedEditorPinpointsMethod,
-      ChangedEditorPinpointsParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    ChangedEditorPinpointsMethod,
+    ChangedEditorPinpointsParams
+  > {}
 }

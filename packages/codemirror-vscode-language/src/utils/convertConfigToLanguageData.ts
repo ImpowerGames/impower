@@ -2,7 +2,7 @@ import { CodeMirrorLanguageData } from "../types/CodeMirrorLanguageData";
 import { VSCodeConfigDefinition } from "../types/VSCodeConfigDefinition";
 
 export const convertConfigToLanguageData = (
-  config: VSCodeConfigDefinition
+  config: VSCodeConfigDefinition,
 ): CodeMirrorLanguageData => {
   const comments = config?.comments;
   const autoClosingPairs = config?.autoClosingPairs ?? [];
@@ -31,7 +31,7 @@ export const convertConfigToLanguageData = (
   if (surroundingPairs) {
     const surroundBrackets = surroundingPairs.filter(
       ([surroundOpen]) =>
-        !autoClosingPairs.some(({ open }) => surroundOpen === open)
+        !autoClosingPairs.some(({ open }) => surroundOpen === open),
     );
     data.surroundBrackets = {
       brackets: surroundBrackets.map(([open]) => open!),

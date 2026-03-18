@@ -7,7 +7,7 @@ import { parseTag } from "./parseTag";
 
 export const getLanguageNodeProps = (
   typeId: string,
-  def: RuleDefinition
+  def: RuleDefinition,
 ): NodePropSource[] => {
   const { tag, openedBy, closedBy, group } = def;
   const props = [];

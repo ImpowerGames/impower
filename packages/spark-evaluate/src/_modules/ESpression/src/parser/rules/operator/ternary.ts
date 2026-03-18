@@ -88,7 +88,7 @@ export class TernaryOperatorRule extends BaseRule<IConfTernaryRule> {
         [c.middle || "consequent"]: consequent,
         [c.last || "alternate"]: alternate,
       },
-      ctx
+      ctx,
     );
   }
 }

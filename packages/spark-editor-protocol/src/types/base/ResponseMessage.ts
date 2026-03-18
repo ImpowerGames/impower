@@ -1,8 +1,10 @@
 import { Message } from "./Message";
 import { ResponseError } from "./ResponseError";
 
-export interface ResponseMessage<M extends string = string, R = any>
-  extends Message<M, R> {
+export interface ResponseMessage<
+  M extends string = string,
+  R = any,
+> extends Message<M, R> {
   /**
    * The request id.
    */

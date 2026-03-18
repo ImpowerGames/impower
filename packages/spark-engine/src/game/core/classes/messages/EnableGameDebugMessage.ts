@@ -18,12 +18,13 @@ export class EnableGameDebugMessage {
 }
 
 export namespace EnableGameDebugMessage {
-  export interface Request
-    extends RequestMessage<
-      EnableGameDebugMethod,
-      EnableGameDebugParams,
-      EnableGameDebugResult
-    > {}
-  export interface Response
-    extends ResponseMessage<EnableGameDebugMethod, EnableGameDebugResult> {}
+  export interface Request extends RequestMessage<
+    EnableGameDebugMethod,
+    EnableGameDebugParams,
+    EnableGameDebugResult
+  > {}
+  export interface Response extends ResponseMessage<
+    EnableGameDebugMethod,
+    EnableGameDebugResult
+  > {}
 }

@@ -22,12 +22,13 @@ export class FetchGameAssetMessage {
 }
 
 export namespace FetchGameAssetMessage {
-  export interface Request
-    extends RequestMessage<
-      FetchGameAssetMethod,
-      FetchGameAssetParams,
-      FetchGameAssetResult
-    > {}
-  export interface Response
-    extends ResponseMessage<FetchGameAssetMethod, FetchGameAssetResult> {}
+  export interface Request extends RequestMessage<
+    FetchGameAssetMethod,
+    FetchGameAssetParams,
+    FetchGameAssetResult
+  > {}
+  export interface Response extends ResponseMessage<
+    FetchGameAssetMethod,
+    FetchGameAssetResult
+  > {}
 }

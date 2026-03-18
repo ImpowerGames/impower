@@ -11,7 +11,7 @@ export const getTermRelevancyScore = (
   tagsSortedBySpecificity: string[],
   termTagsMap: {
     [term: string]: string[];
-  }
+  },
 ): number => {
   const matchedTags: string[] = [];
   const words = getCleanedWords(phrase);
@@ -25,7 +25,7 @@ export const getTermRelevancyScore = (
       const tagMatchIndex = tagsSortedBySpecificity.findIndex(
         (tag) =>
           (subphrase === tag?.toLowerCase() || termTags.includes(tag)) &&
-          (tagsSortedBySpecificity.length === 1 || !matchedTags.includes(tag))
+          (tagsSortedBySpecificity.length === 1 || !matchedTags.includes(tag)),
       );
       if (tagMatchIndex >= 0) {
         const match = tagsSortedBySpecificity[tagMatchIndex];
@@ -64,7 +64,7 @@ const getRelevantPhrases = (
   termTagsMap: {
     [term: string]: string[];
   },
-  limit?: number
+  limit?: number,
 ): [string, number][] => {
   const phraseRelevancyScoreMap: { [phrase: string]: number } = {};
 
@@ -73,7 +73,7 @@ const getRelevantPhrases = (
   }
 
   const primaryTagIndex = tagsSortedBySpecificity.findIndex(
-    (tag) => tagPhrasesMap[tag]?.length || 0 > 0
+    (tag) => tagPhrasesMap[tag]?.length || 0 > 0,
   );
   if (primaryTagIndex >= 0) {
     const primaryTag = tagsSortedBySpecificity[primaryTagIndex] || "";
@@ -90,7 +90,7 @@ const getRelevantPhrases = (
               phraseRelevancyScoreMap[p] = getTermRelevancyScore(
                 p,
                 tagsSortedBySpecificity,
-                termTagsMap
+                termTagsMap,
               );
             }
             // The increment value is weighted by how specific the tag is.
@@ -116,7 +116,7 @@ const getRelevantPhrases = (
       const aScore = phraseRelevancyScoreMap[aPhrase] || 0;
       const bScore = phraseRelevancyScoreMap[bPhrase] || 0;
       return bScore - aScore;
-    }
+    },
   );
 
   if (limit) {

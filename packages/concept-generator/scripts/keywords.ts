@@ -17,5 +17,5 @@ fs.writeFile(
     } else {
       console.log("EXPORTED TO: ", keywordsPath);
     }
-  }
+  },
 );

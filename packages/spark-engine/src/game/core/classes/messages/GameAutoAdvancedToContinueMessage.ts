@@ -18,9 +18,8 @@ export class GameAutoAdvancedToContinueMessage {
 }
 
 export namespace GameAutoAdvancedToContinueMessage {
-  export interface Notification
-    extends NotificationMessage<
-      GameAutoAdvancedToContinueMethod,
-      GameAutoAdvancedToContinueParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    GameAutoAdvancedToContinueMethod,
+    GameAutoAdvancedToContinueParams
+  > {}
 }

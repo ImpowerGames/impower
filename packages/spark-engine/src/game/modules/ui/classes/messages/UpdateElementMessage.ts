@@ -23,6 +23,6 @@ export class UpdateElementMessage {
 export interface UpdateElementMessageMap extends Record<string, [any, any]> {
   [UpdateElementMessage.method]: [
     ReturnType<typeof UpdateElementMessage.type.request>,
-    ReturnType<typeof UpdateElementMessage.type.response>
+    ReturnType<typeof UpdateElementMessage.type.response>,
   ];
 }

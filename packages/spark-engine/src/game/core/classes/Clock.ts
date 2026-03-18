@@ -143,7 +143,7 @@ export class Clock {
 
   constructor(
     clock: ClockSource,
-    requestFrame: (callback: FrameRequestCallback) => number
+    requestFrame: (callback: FrameRequestCallback) => number,
   ) {
     this._clock = clock;
     this._requestFrame = requestFrame;

@@ -19,12 +19,13 @@ export class ConnectGameMessage {
 }
 
 export namespace ConnectGameMessage {
-  export interface Request
-    extends RequestMessage<
-      ConnectGameMethod,
-      ConnectGameParams,
-      ConnectGameResult
-    > {}
-  export interface Response
-    extends ResponseMessage<ConnectGameMethod, ConnectGameResult> {}
+  export interface Request extends RequestMessage<
+    ConnectGameMethod,
+    ConnectGameParams,
+    ConnectGameResult
+  > {}
+  export interface Response extends ResponseMessage<
+    ConnectGameMethod,
+    ConnectGameResult
+  > {}
 }

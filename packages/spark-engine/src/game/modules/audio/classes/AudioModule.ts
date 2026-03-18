@@ -66,8 +66,8 @@ export class AudioModule extends Module<
       if (this._state.channels) {
         await Promise.all(
           Object.keys(this._state.channels).map((channel) =>
-            this.restoreChannel(channel)
-          )
+            this.restoreChannel(channel),
+          ),
         );
       }
     }
@@ -110,7 +110,7 @@ export class AudioModule extends Module<
       UpdateAudioPlayersMessage.type.request({
         channel,
         updates,
-      })
+      }),
     );
   }
 
@@ -125,7 +125,7 @@ export class AudioModule extends Module<
   }
 
   protected async loadAllAudio(
-    dataArray: LoadAudioPlayerParams[]
+    dataArray: LoadAudioPlayerParams[],
   ): Promise<void> {
     await Promise.all(dataArray.map((d) => this.loadAudio(d)));
   }
@@ -145,7 +145,7 @@ export class AudioModule extends Module<
   protected getData(
     channel: string,
     asset: unknown,
-    suffix: string
+    suffix: string,
   ): LoadAudioPlayerParams | null {
     if (!asset) {
       return null;
@@ -217,7 +217,7 @@ export class AudioModule extends Module<
 
   protected getAudioData(
     channel: string,
-    key: string
+    key: string,
   ): LoadAudioPlayerParams[] {
     const indexOfFirstSeparator = key.indexOf("~");
     const asset =
@@ -278,7 +278,7 @@ export class AudioModule extends Module<
 
   protected getAllAudioData(
     channel: string,
-    keys: string[]
+    keys: string[],
   ): LoadAudioPlayerParams[] {
     return keys.flatMap((n) => this.getAudioData(channel, n));
   }
@@ -296,7 +296,7 @@ export class AudioModule extends Module<
   protected process(
     channel: string,
     event: AudioInstruction,
-    data?: LoadAudioPlayerParams
+    data?: LoadAudioPlayerParams,
   ): AudioPlayerUpdate {
     const update: AudioPlayerUpdate = {
       control: event.control as AudioPlayerUpdate["control"],
@@ -318,7 +318,7 @@ export class AudioModule extends Module<
   protected setCurrentlyPlaying(
     channel: string,
     update: AudioPlayerUpdate,
-    data?: LoadAudioPlayerParams
+    data?: LoadAudioPlayerParams,
   ) {
     if (update.control === "stop") {
       if (data?.key) {
@@ -340,7 +340,7 @@ export class AudioModule extends Module<
   protected saveChannelState(
     channel: string,
     update: AudioPlayerUpdate,
-    data?: LoadAudioPlayerParams
+    data?: LoadAudioPlayerParams,
   ) {
     if (
       update.control === "stop" ||
@@ -354,7 +354,7 @@ export class AudioModule extends Module<
         if (existingUpdateIndex != null && existingUpdateIndex >= 0) {
           this._state.channels?.[channel]?.looping?.splice(
             existingUpdateIndex,
-            1
+            1,
           );
         }
       } else {
@@ -363,7 +363,7 @@ export class AudioModule extends Module<
     } else {
       if (data?.key) {
         const existingUpdate = this._state.channels?.[channel]?.looping?.find(
-          (s) => s.key === data.key
+          (s) => s.key === data.key,
         );
         if (existingUpdate) {
           if (data.syncedTo != null) {
@@ -398,14 +398,14 @@ export class AudioModule extends Module<
       ConfigureAudioMixerMessage.type.request({
         mixer,
         gain,
-      })
+      }),
     );
   }
 
   schedule(
     channel: string,
     sequence: AudioInstruction[],
-    autoTrigger = false
+    autoTrigger = false,
   ): number {
     const audioToLoad = new Set<LoadAudioPlayerParams>();
     const updates: AudioPlayerUpdate[] = [];
@@ -498,7 +498,7 @@ export class AudioModule extends Module<
           now,
         },
       ],
-      true
+      true,
     );
   }
 
@@ -507,7 +507,7 @@ export class AudioModule extends Module<
     to: number,
     after?: number,
     over?: number,
-    now?: boolean
+    now?: boolean,
   ) {
     return this.schedule(
       channel,
@@ -520,7 +520,7 @@ export class AudioModule extends Module<
           now,
         },
       ],
-      true
+      true,
     );
   }
 }

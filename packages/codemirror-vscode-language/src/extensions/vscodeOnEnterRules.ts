@@ -49,7 +49,7 @@ export const onEnterRulesCommand =
       const beforeText = state.sliceDoc(beforeLine.from, selectionFrom);
       const afterText = state.sliceDoc(
         selectionTo,
-        afterTextLine.from + afterTextLine.text.length
+        afterTextLine.from + afterTextLine.text.length,
       );
       const previousLineText =
         beforeLine.number > 1 ? doc.line(beforeLine.number - 1)?.text : "";
@@ -105,7 +105,7 @@ export const onEnterRulesCommand =
         ) {
           return {
             range: EditorSelection.cursor(
-              pos - onEnterRule.action.deleteText.length + cursorOffset
+              pos - onEnterRule.action.deleteText.length + cursorOffset,
             ),
             changes: [
               {
@@ -185,6 +185,6 @@ export const vscodeOnEnterRules = (config: VSCodeOnEnterRulesConfig = {}) => [
         key: "Enter",
         run: onEnterRulesCommand(),
       },
-    ])
+    ]),
   ),
 ];

@@ -8,7 +8,7 @@ export default spec({
   reducer: ({ stores }) =>
     ({
       view: stores?.workspace?.current?.panes?.logic?.view || "",
-    } as const),
+    }) as const,
   html: ({ context }) => {
     const { view } = context;
     return html`

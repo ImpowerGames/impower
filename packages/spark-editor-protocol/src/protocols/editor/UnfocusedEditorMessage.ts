@@ -17,6 +17,8 @@ export class UnfocusedEditorMessage {
 }
 
 export namespace UnfocusedEditorMessage {
-  export interface Notification
-    extends NotificationMessage<UnfocusedEditorMethod, UnfocusedEditorParams> {}
+  export interface Notification extends NotificationMessage<
+    UnfocusedEditorMethod,
+    UnfocusedEditorParams
+  > {}
 }

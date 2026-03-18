@@ -36,7 +36,7 @@ export const parseBeatmap = (
   script:
     | string
     | string[]
-    | { line: number; from: number; to: number; text: string }[]
+    | { line: number; from: number; to: number; text: string }[],
 ): ParsedBeat[] => {
   const beats: ParsedBeat[] = [];
   let from = 0;

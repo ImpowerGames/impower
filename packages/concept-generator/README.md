@@ -23,7 +23,7 @@ In general terms, relevancy is determined by...
 
 ## Important Files
 
-The scripts in this repo take the user-created configuration files (`concepts.yaml` and `phrases.txt`) and use them to output a condensed json file (`terms.json`) that can be used by a concept generator. 
+The scripts in this repo take the user-created configuration files (`concepts.yaml` and `phrases.txt`) and use them to output a condensed json file (`terms.json`) that can be used by a concept generator.
 
 - The `phrases.txt` file contains a list of common english phrases (idioms, catchphrases, slogans, etc.)
 
@@ -39,33 +39,33 @@ The scripts in this repo take the user-created configuration files (`concepts.ya
 
   ```yaml
   vampire:
-  - bat_
-  - blood
-  - cloak
-  - coffin
-  - cross
-  - fang
-  - stake
-  - suck
-  - throat
-  - undying
-  - vampire
+    - bat_
+    - blood
+    - cloak
+    - coffin
+    - cross
+    - fang
+    - stake
+    - suck
+    - throat
+    - undying
+    - vampire
   vehicle:
-  - _green light_
-  - _red light_
-  - belt
-  - brake
-  - bus
-  - cab
-  - car_
-  - pedal
-  - street
-  - wheel
+    - _green light_
+    - _red light_
+    - belt
+    - brake
+    - bus
+    - cab
+    - car_
+    - pedal
+    - street
+    - wheel
   victorian:
-  - ^regency
-  - telegram
-  - telegraph
-  - zeppelin
+    - ^regency
+    - telegram
+    - telegraph
+    - zeppelin
   ```
 
 - The `terms.json` file contains a map of subphrases extracted from the `phrases.txt` list and words related to each subphrase according to the `concepts.yaml` map.
@@ -100,7 +100,7 @@ Impower loads the `phrases.txt` and `terms.json` files as remote configs in our 
 
 ## Configuring the Procedural Generation Logic
 
-To adjust the "brain" of a concept generator, edit the `concepts.yaml` file. 
+To adjust the "brain" of a concept generator, edit the `concepts.yaml` file.
 
 1. Open `src/input/concepts.yaml`
 2. Edit the terms list for any concept.
@@ -116,59 +116,59 @@ To change which phrases can be suggested to the user, edit the `phrases.txt` lis
 
 You can use several special characters in `concepts.yaml` to make the process of assembling related terms a bit easier.
 
-1. Recursive Spread: `^` 
+1. Recursive Spread: `^`
 
-    Many concepts are simply combinations of smaller concepts.
+   Many concepts are simply combinations of smaller concepts.
 
-    For example, we define `noir` as a combination of the following concepts: `crime`, `dark`, `detective`, and `mystery`.
+   For example, we define `noir` as a combination of the following concepts: `crime`, `dark`, `detective`, and `mystery`.
 
-    Since we already defined these concepts elsewhere in the yaml file, we can simply use the `^` caret symbol to include all the terms we listed for those concepts inside the current term list.
+   Since we already defined these concepts elsewhere in the yaml file, we can simply use the `^` caret symbol to include all the terms we listed for those concepts inside the current term list.
 
-    ```yaml
-    noir:
-    - ^crime
-    - ^dark
-    - ^detective
-    - ^mystery
-    ```
+   ```yaml
+   noir:
+     - ^crime
+     - ^dark
+     - ^detective
+     - ^mystery
+   ```
 
-    (The above configuration automatically includes all `crime`, `dark`, `detective`, and `mystery` terms inside the `noir` list as well.);
+   (The above configuration automatically includes all `crime`, `dark`, `detective`, and `mystery` terms inside the `noir` list as well.);
 
-2. Forbid Auto-Prefix/Suffix: `_` 
+2. Forbid Auto-Prefix/Suffix: `_`
 
-    When you add a word to a term list, suffixed and prefixed variants of that word will be automatically included as part of the concept. 
+   When you add a word to a term list, suffixed and prefixed variants of that word will be automatically included as part of the concept.
 
-    For example, adding the word "appear" also automatically includes suffixed variants like "appears", "appeared", "appearing", etc. and prefixed variants like "disappear", "reappear", etc.
+   For example, adding the word "appear" also automatically includes suffixed variants like "appears", "appeared", "appearing", etc. and prefixed variants like "disappear", "reappear", etc.
 
-    You can use `_` underscores to disable this behavior.
+   You can use `_` underscores to disable this behavior.
 
-    ```yaml
-    technology:
-    - bit_
-    - _cord
-    - _count_
-    ```
+   ```yaml
+   technology:
+     - bit_
+     - _cord
+     - _count_
+   ```
 
-    (The above configuration prevents the words "bitter", "discord" and "discounted" from being automatically included in the `technology` term list.);
+   (The above configuration prevents the words "bitter", "discord" and "discounted" from being automatically included in the `technology` term list.);
 
-3. Force Auto-Prefix/Suffix: `~` 
+3. Force Auto-Prefix/Suffix: `~`
 
-    Terms that contain multiple words (e.g. phrases like `breaking and entering`) aren't automatically suffixed or prefixed. 
+   Terms that contain multiple words (e.g. phrases like `breaking and entering`) aren't automatically suffixed or prefixed.
 
-    You can use `~` tildes to forcibly include all versions of the phrase that contain valid prefixed or suffixed variants of that word.
+   You can use `~` tildes to forcibly include all versions of the phrase that contain valid prefixed or suffixed variants of that word.
 
-    ```yaml
-    steal:
-    - _break~ and enter
-    - _break~ in_
-    - _get~ away_
-    - _take~ that_
-    - _take~ this_
-    - _took that_
-    - _took this_
-    ```
+   ```yaml
+   steal:
+     - _break~ and enter
+     - _break~ in_
+     - _get~ away_
+     - _take~ that_
+     - _take~ this_
+     - _took that_
+     - _took this_
+   ```
 
-    (The above configuration will implicitly include phrases like `breaking and entering` and `breaking in`. Notice that the past tense for `take` does not follow typical english suffix rules (`taked` is not a valid word). So `_took that_` and `_took this_` must be manually included inside the term list. See `./src/utils/getTermVariants.ts` for a list of common suffixes and prefixes that the parser will attempt to add to a word.)
+   (The above configuration will implicitly include phrases like `breaking and entering` and `breaking in`. Notice that the past tense for `take` does not follow typical english suffix rules (`taked` is not a valid word). So `_took that_` and `_took this_` must be manually included inside the term list. See `./src/utils/getTermVariants.ts` for a list of common suffixes and prefixes that the parser will attempt to add to a word.)
 
 4. Sentiment: `<NEG>` and `<POS>`
 
@@ -176,23 +176,24 @@ You can use several special characters in `concepts.yaml` to make the process of
 
    For example, for the concept `rival`, we only want to include the word `like` if it is used in a way in which carries a negative connotation. (e.g. `I don't like you`). To do this you can prefix the term with the sentiment token `<NEG>`.
 
-    ```yaml
-    rival:
-    - _<NEG> like
-    - _not to like_
-    ```
+   ```yaml
+   rival:
+     - _<NEG> like
+     - _not to like_
+   ```
 
-    (With the above configuration, the concept generator will only match phrases including the term `like` if the term is negated with another word: e.g. "don't like", "won't like", "can't like" etc. This is mostly useful for negative relationship tags like "Rivals" or "Revenge")
+   (With the above configuration, the concept generator will only match phrases including the term `like` if the term is negated with another word: e.g. "don't like", "won't like", "can't like" etc. This is mostly useful for negative relationship tags like "Rivals" or "Revenge")
 
-    Conversely, you can use the `<POS>` sentiment token to match phrases containing a term, only if the term in the phrase has NOT been negated with another word: e.g. "i like", "do like", "i really like" etc. This is mostly useful for positive relationship tags like "Dating", "Friendship", or "Romance"
+   Conversely, you can use the `<POS>` sentiment token to match phrases containing a term, only if the term in the phrase has NOT been negated with another word: e.g. "i like", "do like", "i really like" etc. This is mostly useful for positive relationship tags like "Dating", "Friendship", or "Romance"
 
-    ```yaml
-    love:
-    - _<POS> like
-    - _<NEG> say no
-    ```
+   ```yaml
+   love:
+     - _<POS> like
+     - _<NEG> say no
+   ```
 
-    (The above configuration will match phrases like `They really like me` and `Can't say no`.)
+   (The above configuration will match phrases like `They really like me` and `Can't say no`.)
+
 ---
 
 ## Using Word2Vec To Discover Even More Related Terms

@@ -12,10 +12,12 @@ export class UpdateAudioPlayersMessage {
   >(UpdateAudioPlayersMessage.method);
 }
 
-export interface UpdateAudioPlayersMessageMap
-  extends Record<string, [any, any]> {
+export interface UpdateAudioPlayersMessageMap extends Record<
+  string,
+  [any, any]
+> {
   [UpdateAudioPlayersMessage.method]: [
     ReturnType<typeof UpdateAudioPlayersMessage.type.request>,
-    ReturnType<typeof UpdateAudioPlayersMessage.type.response>
+    ReturnType<typeof UpdateAudioPlayersMessage.type.response>,
   ];
 }

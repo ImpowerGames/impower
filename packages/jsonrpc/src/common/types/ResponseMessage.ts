@@ -2,7 +2,8 @@ import { IMessage } from "./IMessage";
 import { ResponseError } from "./ResponseError";
 
 export interface ResponseMessage<M extends string = string, R = unknown>
-  extends Partial<ValidResponseMessage<M, R>>,
+  extends
+    Partial<ValidResponseMessage<M, R>>,
     Partial<InvalidResponseMessage<M>> {
   id: number | string;
 }

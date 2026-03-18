@@ -61,5 +61,6 @@ export const interpreterBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_inflection>>,
 });
 
-export interface InterpreterBuiltins
-  extends ReturnType<typeof interpreterBuiltinDefinitions> {}
+export interface InterpreterBuiltins extends ReturnType<
+  typeof interpreterBuiltinDefinitions
+> {}

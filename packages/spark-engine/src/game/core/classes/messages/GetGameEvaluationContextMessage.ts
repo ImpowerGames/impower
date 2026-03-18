@@ -21,15 +21,13 @@ export class GetGameEvaluationContextMessage {
 }
 
 export namespace GetGameEvaluationContextMessage {
-  export interface Request
-    extends RequestMessage<
-      GetGameEvaluationContextMethod,
-      GetGameEvaluationContextParams,
-      GetGameEvaluationContextResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      GetGameEvaluationContextMethod,
-      GetGameEvaluationContextResult
-    > {}
+  export interface Request extends RequestMessage<
+    GetGameEvaluationContextMethod,
+    GetGameEvaluationContextParams,
+    GetGameEvaluationContextResult
+  > {}
+  export interface Response extends ResponseMessage<
+    GetGameEvaluationContextMethod,
+    GetGameEvaluationContextResult
+  > {}
 }

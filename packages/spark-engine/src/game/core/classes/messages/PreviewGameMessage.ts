@@ -22,12 +22,13 @@ export class PreviewGameMessage {
 }
 
 export namespace PreviewGameMessage {
-  export interface Request
-    extends RequestMessage<
-      PreviewGameMethod,
-      PreviewGameParams,
-      PreviewGameResult
-    > {}
-  export interface Response
-    extends ResponseMessage<PreviewGameMethod, PreviewGameResult> {}
+  export interface Request extends RequestMessage<
+    PreviewGameMethod,
+    PreviewGameParams,
+    PreviewGameResult
+  > {}
+  export interface Response extends ResponseMessage<
+    PreviewGameMethod,
+    PreviewGameResult
+  > {}
 }

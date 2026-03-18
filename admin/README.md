@@ -82,4 +82,4 @@ Test the test endpoint at https://test.impower.app, and once all bugs are fixed,
 1. Deploy the prod frontend by merging the branch deploy/test into deploy/prod
 2. Deploy the prod backend by running `npm run deploy-prod` in `server/functions`
 3. Deploy the prod remote config variables by running `npm run config-prod` in `impower/admin`
-6. Upgrade prod data to the latest structure by running `npm run restructure-prod` in `impower/admin`
+4. Upgrade prod data to the latest structure by running `npm run restructure-prod` in `impower/admin`

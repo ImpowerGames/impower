@@ -3,7 +3,7 @@ import { Prosody } from "../types/Prosody";
 
 export const getStressMatch = (
   phrase: string,
-  prosody: Prosody | undefined
+  prosody: Prosody | undefined,
 ): [string, string] => {
   if (prosody) {
     const entries = Object.entries(prosody);

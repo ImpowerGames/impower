@@ -35,7 +35,7 @@ export default class FileAddButton extends Component(spec) {
               uri: Workspace.fs.getFileUri(projectId, validFileName),
               data,
             };
-          })
+          }),
         );
         await Workspace.fs.createFiles({
           files,

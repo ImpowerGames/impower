@@ -1,7 +1,7 @@
 import { OscillatorType } from "../types/OscillatorType";
 
 export const stringifyOscillatorType = (
-  token: OscillatorType
+  token: OscillatorType,
 ): string | undefined => {
   if (token === "sine") {
     return "sin";

@@ -6,5 +6,5 @@ import { combineStructMap } from "../core/utils/combineStructMap";
 export const DEFAULT_SCHEMA_DEFINITIONS = combineStructMap(
   uiSchemaDefinitions(),
   audioSchemaDefinitions(),
-  interpreterSchemaDefinitions()
+  interpreterSchemaDefinitions(),
 );

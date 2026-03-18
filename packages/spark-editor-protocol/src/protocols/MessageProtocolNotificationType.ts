@@ -3,7 +3,7 @@ import { NotificationMessage } from "../types/base/NotificationMessage";
 
 export class MessageProtocolNotificationType<
   M extends string,
-  P = undefined
+  P = undefined,
 > extends ProtocolNotificationType<P, void> {
   constructor(method: M) {
     super(method);

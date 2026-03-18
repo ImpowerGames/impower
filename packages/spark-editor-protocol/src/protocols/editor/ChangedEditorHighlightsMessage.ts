@@ -19,9 +19,8 @@ export class ChangedEditorHighlightsMessage {
 }
 
 export namespace ChangedEditorHighlightsMessage {
-  export interface Notification
-    extends NotificationMessage<
-      ChangedEditorHighlightsMethod,
-      ChangedEditorHighlightsParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    ChangedEditorHighlightsMethod,
+    ChangedEditorHighlightsParams
+  > {}
 }

@@ -55,14 +55,14 @@ export class Element {
     }
     const classes = selector.split(" ");
     return this._children.find((child) =>
-      classes.every((c) => child.name.split(" ").includes(c))
+      classes.every((c) => child.name.split(" ").includes(c)),
     );
   }
 
   findChildren(selector: string): Element[] {
     const classes = selector.split(" ");
     return this._children.filter((child) =>
-      classes.every((c) => child.name.split(" ").includes(c))
+      classes.every((c) => child.name.split(" ").includes(c)),
     );
   }
 

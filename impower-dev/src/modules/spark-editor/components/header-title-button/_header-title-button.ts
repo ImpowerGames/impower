@@ -10,7 +10,7 @@ export default spec({
       name: stores?.workspace?.current?.project?.name || "",
       syncState: stores?.workspace?.current?.sync?.status || "",
       editingName: stores?.workspace?.current?.screen?.editingName || false,
-    } as const),
+    }) as const,
   html: ({ context }) => {
     const { name, syncState, editingName } = context;
     const label = "Project Name";

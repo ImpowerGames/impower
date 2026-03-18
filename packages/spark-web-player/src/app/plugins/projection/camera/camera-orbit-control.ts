@@ -95,7 +95,7 @@ export class CameraOrbitControl {
       },
     },
     30,
-    180
+    180,
   );
   /**
    * Orientation euler angles (x-axis and y-axis).
@@ -278,7 +278,7 @@ export class CameraOrbitControl {
           this.angles.x,
           this.angles.y,
           0,
-          new Float32Array(4)
+          new Float32Array(4),
         );
 
         const worldRight = Vec3.transformQuat(right, rot, new Float32Array(3));
@@ -334,7 +334,7 @@ export class CameraOrbitControl {
         e.preventDefault(); // Prevent page scroll
         this._previousPinchDistance = Math.hypot(
           e.touches[0]!.clientX - e.touches[1]!.clientX,
-          e.touches[0]!.clientY - e.touches[1]!.clientY
+          e.touches[0]!.clientY - e.touches[1]!.clientY,
         );
       }
       this._controlling = false;
@@ -347,7 +347,7 @@ export class CameraOrbitControl {
       e.preventDefault(); // Prevent page scroll
       const currentPinchDistance = Math.hypot(
         e.touches[0]!.clientX - e.touches[1]!.clientX,
-        e.touches[0]!.clientY - e.touches[1]!.clientY
+        e.touches[0]!.clientY - e.touches[1]!.clientY,
       );
       const deltaPinchDistance =
         currentPinchDistance - this._previousPinchDistance;
@@ -449,7 +449,7 @@ export class CameraOrbitControl {
     target: Point3D,
     radius: number,
     padding: number = 1.2,
-    resetAngles = true
+    resetAngles = true,
   ) {
     this.target.x = target.x;
     this.target.y = target.y;
@@ -466,7 +466,7 @@ export class CameraOrbitControl {
     const center = new Point3D(
       (min.x + max.x) / 2,
       (min.y + max.y) / 2,
-      (min.z + max.z) / 2
+      (min.z + max.z) / 2,
     );
 
     const dx = max.x - min.x;
@@ -513,10 +513,10 @@ export class CameraOrbitControl {
         effectiveTarget.x,
         effectiveTarget.y,
         effectiveTarget.z,
-        subtractAVec3
+        subtractAVec3,
       ),
       Vec3.scale(dirVec3, distance, subtractBVec3),
-      posVec3
+      posVec3,
     );
 
     this.camera.position.set(posVec3[0]!, posVec3[1]!, posVec3[2]!);
@@ -524,7 +524,7 @@ export class CameraOrbitControl {
       rotVec4[0]!,
       rotVec4[1]!,
       rotVec4[2]!,
-      rotVec4[3]!
+      rotVec4[3]!,
     );
   }
 }

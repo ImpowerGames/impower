@@ -2,7 +2,7 @@ import { getCleanedWords } from "../../src/utils/getCleanedWords";
 
 export const getKeywords = (
   phrases: string[],
-  sort = false
+  sort = false,
 ): Record<string, number> => {
   const keywords: Record<string, number> = {};
 
@@ -17,7 +17,7 @@ export const getKeywords = (
     const sortedEntries = Object.entries(keywords).sort(
       ([, aValue], [, bValue]) => {
         return bValue - aValue;
-      }
+      },
     );
     const sortedDict: Record<string, number> = {};
     sortedEntries.forEach(([key, value]) => {

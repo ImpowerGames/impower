@@ -6,7 +6,7 @@ const data: Record<string, { v: string; d: string }> = {};
   if (!data[name]) {
     const file = fs.readFileSync(
       `../client/resources/icons/solid/${name}.svg`,
-      "utf8"
+      "utf8",
     );
     const v = file.match(/viewBox="(.*?)"/)?.[1] || "";
     const d = file.match(/d="(.*?)"/)?.[1] || "";

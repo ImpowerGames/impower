@@ -21,12 +21,13 @@ export class SearchEditorMessage {
 }
 
 export namespace SearchEditorMessage {
-  export interface Request
-    extends RequestMessage<
-      SearchEditorMethod,
-      SearchEditorParams,
-      SearchEditorResult
-    > {}
-  export interface Response
-    extends ResponseMessage<SearchEditorMethod, SearchEditorResult> {}
+  export interface Request extends RequestMessage<
+    SearchEditorMethod,
+    SearchEditorParams,
+    SearchEditorResult
+  > {}
+  export interface Response extends ResponseMessage<
+    SearchEditorMethod,
+    SearchEditorResult
+  > {}
 }

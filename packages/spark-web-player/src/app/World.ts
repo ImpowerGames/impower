@@ -192,7 +192,7 @@ export class World {
             this.onKeyPress(e);
           }
         },
-      }
+      },
     );
   }
 
@@ -292,7 +292,7 @@ export class World {
     event: PointerEvent,
     dragThreshold: number,
     distanceX: number,
-    distanceY: number
+    distanceY: number,
   ): void {}
 
   /**
@@ -345,7 +345,7 @@ export class World {
    * @returns Optionally a response with result or error
    */
   public async receiveRequest(
-    msg: RequestMessage
+    msg: RequestMessage,
   ): Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
     | { result: unknown; transfer?: ArrayBuffer[] }
@@ -360,7 +360,7 @@ export class World {
    * @returns Optionally a response with result or error
    */
   protected async onReceiveRequest(
-    msg: RequestMessage
+    msg: RequestMessage,
   ): Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
     | { result: unknown; transfer?: ArrayBuffer[] }
@@ -388,7 +388,7 @@ export class World {
    */
   generateSvgTextures(
     svg: string,
-    options?: GenerateAnimatedSVGTexturesOptions
+    options?: GenerateAnimatedSVGTexturesOptions,
   ) {
     const svgEl = parseSVG(svg);
     return generateAnimatedSVGTextures(this._app.renderer, svgEl, options);

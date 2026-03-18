@@ -1,7 +1,7 @@
 export interface RequestMessage<
   M extends string = string,
   P = unknown,
-  R = unknown
+  R = unknown,
 > {
   /**
    * The message's jsonrpc version.

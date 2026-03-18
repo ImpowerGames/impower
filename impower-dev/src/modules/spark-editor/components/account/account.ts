@@ -11,19 +11,19 @@ export default class Account extends Component(spec) {
     Workspace.sync.google.addEventListener("revoke", this.handleRevoke);
     this.refs.importProjectButton.addEventListener(
       "change",
-      this.handleImportLocalProject
+      this.handleImportLocalProject,
     );
     this.refs.exportProjectButton.addEventListener(
       "click",
-      this.handleExportLocalProject
+      this.handleExportLocalProject,
     );
     this.refs.loadProjectButton.addEventListener(
       "click",
-      this.handleLoadRemoteProject
+      this.handleLoadRemoteProject,
     );
     this.refs.saveProjectButton.addEventListener(
       "click",
-      this.handleSaveRemoteProject
+      this.handleSaveRemoteProject,
     );
     this.refs.signinButton.addEventListener("click", this.handleSignIn);
     this.refs.signoutButton.addEventListener("click", this.handleSignOut);
@@ -33,19 +33,19 @@ export default class Account extends Component(spec) {
     Workspace.sync.google.removeEventListener("revoke", this.handleRevoke);
     this.refs.importProjectButton.removeEventListener(
       "change",
-      this.handleImportLocalProject
+      this.handleImportLocalProject,
     );
     this.refs.exportProjectButton.removeEventListener(
       "click",
-      this.handleExportLocalProject
+      this.handleExportLocalProject,
     );
     this.refs.loadProjectButton.removeEventListener(
       "click",
-      this.handleLoadRemoteProject
+      this.handleLoadRemoteProject,
     );
     this.refs.saveProjectButton.removeEventListener(
       "click",
-      this.handleSaveRemoteProject
+      this.handleSaveRemoteProject,
     );
     this.refs.signinButton.removeEventListener("click", this.handleSignIn);
     this.refs.signoutButton.removeEventListener("click", this.handleSignOut);

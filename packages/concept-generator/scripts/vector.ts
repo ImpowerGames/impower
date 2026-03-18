@@ -13,7 +13,7 @@ const terms = JSON.parse(fs.readFileSync(termsPath, "utf8"));
 const include = (word: string) =>
   Boolean(
     (concepts as Record<string, string[]>)[word] ||
-      (terms as Record<string, string[]>)[word]
+    (terms as Record<string, string[]>)[word],
   );
 
 getWordVectors(modelPath, include).then((result) => {
@@ -27,6 +27,6 @@ getWordVectors(modelPath, include).then((result) => {
       } else {
         console.log("EXPORTED TO: ", termVectorsPath);
       }
-    }
+    },
   );
 });

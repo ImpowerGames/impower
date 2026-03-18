@@ -12,7 +12,7 @@ export const regexes: Record<string, Record<string, string>> = {
 const regex = (
   value: string,
   _locale: string,
-  arg: string
+  arg: string,
 ): [
   string,
   {
@@ -22,7 +22,7 @@ const regex = (
     severity?: "info" | "warning" | "error";
     message?: string;
   }[],
-  number[]
+  number[],
 ] => {
   const configRegexes = regexes;
   const varRegexes: { [regex: string]: string } = configRegexes?.[arg] || {};

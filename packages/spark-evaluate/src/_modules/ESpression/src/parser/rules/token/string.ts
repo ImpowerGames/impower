@@ -106,7 +106,11 @@ export interface IPosition {
 
 export class StringRule extends BaseRule<IConfStringRule> {
   constructor(
-    public override config: IConfStringRule = { LT: true, hex: true, raw: true }
+    public override config: IConfStringRule = {
+      LT: true,
+      hex: true,
+      raw: true,
+    },
   ) {
     super();
   }

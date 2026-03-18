@@ -9,15 +9,15 @@ const A4 = 440.0; // An A-note in the fourth octave
 const calculateStepsFromNote = (
   natural: NaturalPitch,
   accidental: Accidental,
-  octave: number
+  octave: number,
 ): number => {
   const naturalIndex = FUNDAMENTAL_KEYS.indexOf(natural);
   const index =
     accidental === "#"
       ? naturalIndex + 1
       : accidental === "b"
-      ? naturalIndex - 1
-      : naturalIndex;
+        ? naturalIndex - 1
+        : naturalIndex;
   const step = index - 9;
   return step - (4 - octave) * 12;
 };
@@ -27,7 +27,7 @@ const calculateFrequencyByStep = (steps: number): number => {
 };
 
 export const convertPitchNoteToHertz = (
-  note: Note | string | number | undefined
+  note: Note | string | number | undefined,
 ): Hertz | undefined => {
   if (note == null) {
     return note;
@@ -44,6 +44,6 @@ export const convertPitchNoteToHertz = (
   }
   const { natural, accidental, octave } = noteObj;
   return calculateFrequencyByStep(
-    calculateStepsFromNote(natural, accidental, octave)
+    calculateStepsFromNote(natural, accidental, octave),
   );
 };

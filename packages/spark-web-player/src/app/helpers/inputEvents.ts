@@ -27,7 +27,7 @@ export interface InputEventCallbacks {
     e: PointerEvent,
     threshold: number,
     dx: number,
-    dy: number
+    dy: number,
   ) => void;
   onDrag?: (e: PointerEvent) => void;
   onDragEnd?: (e: PointerEvent) => void;
@@ -65,7 +65,7 @@ export function createInputState(): InputState {
 export function attachInputEvents(
   canvas: HTMLElement | null,
   state: InputState,
-  callbacks: InputEventCallbacks
+  callbacks: InputEventCallbacks,
 ) {
   if (!canvas) return;
 

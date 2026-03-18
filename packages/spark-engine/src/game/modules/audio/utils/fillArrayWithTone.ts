@@ -11,7 +11,7 @@ export const fillArrayWithTone = (
   soundBuffer: Float32Array,
   volumeBuffer?: Float32Array,
   pitchBuffer?: Float32Array,
-  pitchRange?: [number, number]
+  pitchRange?: [number, number],
 ): void => {
   const envelopeDuration =
     synth.envelope.attack +
@@ -42,7 +42,7 @@ export const fillArrayWithTone = (
         pitchBuffer,
         pitchRange,
         volume,
-        pitch
+        pitch,
       );
     }
   }

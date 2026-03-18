@@ -4,7 +4,7 @@ import { findClosestPathLocation } from "./findClosestPathLocation";
 export const findClosestPath = (
   from: { file: string; line: number },
   pathLocationEntries: [string, ScriptLocation][],
-  scripts: string[]
+  scripts: string[],
 ) => {
   const { file, line } = from;
   if (file == null || line == null) {

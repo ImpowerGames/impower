@@ -71,7 +71,7 @@ const stringifyBeatmap = (
   beats: Beat[],
   reversed = false,
   minRowsPerBeat = 3,
-  minColumnsPerBeat = 3
+  minColumnsPerBeat = 3,
 ): string => {
   let tokens: string[] = [];
   if (Array.isArray(beats)) {
@@ -97,7 +97,7 @@ const stringifyBeatmap = (
         currBeatLines[y] = setChar(
           currBeatLines[y] || rowOf(" ", minColumnsPerBeat),
           x,
-          d
+          d,
         );
         tokens[tokens.length - 1] = currBeatLines.reverse().join("\n");
         i = n;
@@ -112,7 +112,7 @@ const stringifyBeatmap = (
       rowOf("~", minColumnsPerBeat),
       name,
       rowOf("-", minColumnsPerBeat),
-      `!END!`
+      `!END!`,
     );
     tokens.push(`!START!`, rowOf("~", minColumnsPerBeat));
   } else {
@@ -120,7 +120,7 @@ const stringifyBeatmap = (
     tokens.push(
       rowOf("-", minColumnsPerBeat),
       `!END!`,
-      rowOf("~", minColumnsPerBeat)
+      rowOf("~", minColumnsPerBeat),
     );
   }
   return tokens.join("\n");

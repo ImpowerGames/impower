@@ -18,9 +18,8 @@ export class GameClickedToContinueMessage {
 }
 
 export namespace GameClickedToContinueMessage {
-  export interface Notification
-    extends NotificationMessage<
-      GameClickedToContinueMethod,
-      GameClickedToContinueParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    GameClickedToContinueMethod,
+    GameClickedToContinueParams
+  > {}
 }

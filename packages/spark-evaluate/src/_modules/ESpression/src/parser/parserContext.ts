@@ -60,7 +60,7 @@ export class ParserContext {
   constructor(
     public e: string,
     public rules: IRuleSet,
-    public config: IParserConfig
+    public config: IParserConfig,
   ) {}
 
   rest(): string {
@@ -275,7 +275,7 @@ export class ParserContext {
             t.type === type &&
             t.content === content &&
             t.from === from &&
-            t.to === to
+            t.to === to,
         )
       ) {
         this.tokens.push({ type, content, from, to });
@@ -314,7 +314,7 @@ export class ParserContext {
 
   parseMulti(
     c: IMultiConf,
-    jumps: string[] | string | number
+    jumps: string[] | string | number,
   ): Array<INode | null> & { match?: boolean } {
     const nodes: Array<INode | null> & { match?: boolean } = [];
     let sep: boolean | string;

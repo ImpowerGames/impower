@@ -23,8 +23,13 @@ export class StepGameMessage {
 }
 
 export namespace StepGameMessage {
-  export interface Request
-    extends RequestMessage<StepGameMethod, StepGameParams, StepGameResult> {}
-  export interface Response
-    extends ResponseMessage<StepGameMethod, StepGameResult> {}
+  export interface Request extends RequestMessage<
+    StepGameMethod,
+    StepGameParams,
+    StepGameResult
+  > {}
+  export interface Response extends ResponseMessage<
+    StepGameMethod,
+    StepGameResult
+  > {}
 }

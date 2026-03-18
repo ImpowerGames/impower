@@ -9,7 +9,7 @@ import { getFirestore } from "firebase-admin/firestore";
 
 export const doCleanup = async (
   credentials: ServiceAccount,
-  databaseURL: string
+  databaseURL: string,
 ) => {
   const adminApp =
     getApp("to") ||
@@ -18,7 +18,7 @@ export const doCleanup = async (
         credential: cert(credentials),
         databaseURL,
       },
-      "to"
+      "to",
     );
   const firestore = getFirestore(adminApp);
   const database = getDatabase(adminApp);
@@ -49,7 +49,7 @@ export const doCleanup = async (
           .doc(s.ref.parent.parent.id)
           .collection("contributions")
           .doc(s.id),
-        s.data()
+        s.data(),
       );
     }
   });
@@ -64,7 +64,7 @@ export const doCleanup = async (
           .collection("users")
           .doc(s.ref.parent.parent.id)
           .collection("deleted_submissions")
-          .doc(s.id.replace("project", "game"))
+          .doc(s.id.replace("project", "game")),
       );
     }
   });
@@ -86,7 +86,7 @@ export const doCleanup = async (
           .collection("users")
           .doc(s.id)
           .collection("submissions")
-          .doc("games")
+          .doc("games"),
       );
     }
   });

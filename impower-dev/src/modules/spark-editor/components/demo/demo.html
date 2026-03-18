@@ -14,13 +14,21 @@
 <s-badge m="4" color="warning">Warning</s-badge>
 <s-badge m="4" color="danger">Danger</s-badge>
 <s-button m="4" action="dialog:open">Open Dialog</s-button>
-<s-dialog id="dialog" icon="gear" label="Reset settings?" cancel="Cancel" confirm="Reset">
+<s-dialog
+  id="dialog"
+  icon="gear"
+  label="Reset settings?"
+  cancel="Cancel"
+  confirm="Reset"
+>
   <s-divider></s-divider>
   This will reset your app preferences back to their default settings.
   <s-divider></s-divider>
 </s-dialog>
 <s-collapsible id="collapsible">
-  <s-button m="4" color="primary" icon="gear" action="collapsible:!collapsed">Collapsible</s-button>
+  <s-button m="4" color="primary" icon="gear" action="collapsible:!collapsed"
+    >Collapsible</s-button
+  >
 </s-collapsible>
 <s-tooltip label="top" placement="top">
   <s-button m="4">Tooltip</s-button>

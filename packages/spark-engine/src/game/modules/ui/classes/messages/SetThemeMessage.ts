@@ -18,6 +18,6 @@ export class SetThemeMessage {
 export interface SetThemeMessageMap extends Record<string, [any, any]> {
   [SetThemeMessage.method]: [
     ReturnType<typeof SetThemeMessage.type.request>,
-    ReturnType<typeof SetThemeMessage.type.response>
+    ReturnType<typeof SetThemeMessage.type.response>,
   ];
 }

@@ -63,7 +63,7 @@ export const getTermTags = (
   concepts: {
     [tag: string]: string[];
   },
-  phrases: string[]
+  phrases: string[],
 ): { [word: string]: string[] } => {
   const validKeyphrases = getKeyphrases(phrases);
   const termTags: { [word: string]: string[] } = {};
@@ -75,7 +75,7 @@ export const getTermTags = (
         const subphrases = new Set<string>();
         if (term.includes("*")) {
           const allConnotations = getNegative(term).flatMap((alt) =>
-            getPositive(alt)
+            getPositive(alt),
           );
           allConnotations.forEach((connotatedTerm) => {
             subphrases.add(connotatedTerm);

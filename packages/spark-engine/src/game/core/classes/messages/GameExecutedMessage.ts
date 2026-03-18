@@ -25,6 +25,8 @@ export class GameExecutedMessage {
 }
 
 export namespace GameExecutedMessage {
-  export interface Notification
-    extends NotificationMessage<GameExecutedMethod, GameExecutedParams> {}
+  export interface Notification extends NotificationMessage<
+    GameExecutedMethod,
+    GameExecutedParams
+  > {}
 }

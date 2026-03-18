@@ -18,7 +18,7 @@ export class Port2MessageConnection extends MessageConnection {
 
   constructor(
     postMessage: (message: any, transfer?: Transferable[]) => void,
-    targetOrigin?: string
+    targetOrigin?: string,
   ) {
     super(postMessage);
     this._targetOrigin = targetOrigin;
@@ -26,7 +26,7 @@ export class Port2MessageConnection extends MessageConnection {
 
   override addEventListener<K extends keyof MessageConnectionEvents>(
     event: K,
-    listener: MessageConnectionEvents[K]
+    listener: MessageConnectionEvents[K],
   ) {
     if (this._port2) {
       this._port2.addEventListener(event, listener);
@@ -36,7 +36,7 @@ export class Port2MessageConnection extends MessageConnection {
 
   override removeEventListener<K extends keyof MessageConnectionEvents>(
     event: K,
-    listener: MessageConnectionEvents[K]
+    listener: MessageConnectionEvents[K],
   ) {
     if (this._port2) {
       this._port2.removeEventListener(event, listener);

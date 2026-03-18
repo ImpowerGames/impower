@@ -2,7 +2,7 @@ export const traverse = <T>(
   obj: T,
   process: (fieldPath: string, fieldValue: any) => void,
   shouldProcess?: (fieldPath: string, fieldValue: any) => boolean,
-  fieldPath: string = ""
+  fieldPath: string = "",
 ) => {
   if (obj) {
     Object.entries(obj).forEach(([k, v]) => {

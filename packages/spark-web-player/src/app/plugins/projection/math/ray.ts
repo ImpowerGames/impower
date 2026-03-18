@@ -28,7 +28,7 @@ export class Ray {
     return Point3D.add(
       this._origin,
       Point3D.scale(this._direction, distance, point),
-      point
+      point,
     );
   }
 }

@@ -25,12 +25,13 @@ export class LoadPreviewMessage {
 }
 
 export namespace LoadPreviewMessage {
-  export interface Request
-    extends RequestMessage<
-      LoadPreviewMethod,
-      LoadPreviewParams,
-      LoadPreviewResult
-    > {}
-  export interface Response
-    extends ResponseMessage<LoadPreviewMethod, LoadPreviewResult> {}
+  export interface Request extends RequestMessage<
+    LoadPreviewMethod,
+    LoadPreviewParams,
+    LoadPreviewResult
+  > {}
+  export interface Response extends ResponseMessage<
+    LoadPreviewMethod,
+    LoadPreviewResult
+  > {}
 }

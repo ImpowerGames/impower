@@ -17,7 +17,10 @@ const EPSILON = 0.000001;
 export class Plane {
   private _normal = new Point3D();
 
-  constructor(normal: Point3D, public distance: number) {
+  constructor(
+    normal: Point3D,
+    public distance: number,
+  ) {
     this._normal = normal.normalize(this._normal);
   }
 

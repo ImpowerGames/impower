@@ -2,7 +2,7 @@ export const getSortedMap = <T>(
   map: {
     [key: string]: T;
   },
-  sortByValue = false
+  sortByValue = false,
 ): { [value: string]: T } => {
   const sortedMap: { [value: string]: T } = {};
   const sortedEntries = Object.entries(map).sort(
@@ -14,7 +14,7 @@ export const getSortedMap = <T>(
         return aValue > bValue ? 1 : -1;
       }
       return aKey > bKey ? 1 : -1;
-    }
+    },
   );
   sortedEntries.forEach(([key, value]) => {
     sortedMap[key] = value;

@@ -1,7 +1,7 @@
 const A4 = 440; // A4 = 440Hz
 
 export const convertPitchNumberToHertz = (
-  note: number | undefined
+  note: number | undefined,
 ): number | undefined => {
   if (note == null) {
     return note;

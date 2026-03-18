@@ -11,7 +11,7 @@ export default spec({
   reducer: ({ stores }) =>
     ({
       textPulledAt: stores?.workspace?.current?.sync?.textPulledAt || "",
-    } as const),
+    }) as const,
   html: () => {
     return html`
       <s-box bg-color="editor-bg" grow>

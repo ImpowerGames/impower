@@ -17,7 +17,7 @@ export class IFrameMessageConnection extends MessageConnection {
         this._iframe.contentWindow?.postMessage(
           message,
           targetOrigin,
-          transfer
+          transfer,
         );
       } else {
         this._iframe.contentWindow?.postMessage(message, { transfer });
@@ -27,14 +27,14 @@ export class IFrameMessageConnection extends MessageConnection {
 
   override addEventListener<K extends keyof MessageConnectionEvents>(
     event: K,
-    listener: MessageConnectionEvents[K]
+    listener: MessageConnectionEvents[K],
   ) {
     window.addEventListener(event, listener);
   }
 
   override removeEventListener<K extends keyof MessageConnectionEvents>(
     event: K,
-    listener: MessageConnectionEvents[K]
+    listener: MessageConnectionEvents[K],
   ) {
     window.removeEventListener(event, listener);
   }

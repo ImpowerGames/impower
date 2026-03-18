@@ -24,12 +24,13 @@ export class GetGameThreadsMessage {
 }
 
 export namespace GetGameThreadsMessage {
-  export interface Request
-    extends RequestMessage<
-      GetGameThreadsMethod,
-      GetGameThreadsParams,
-      GetGameThreadsResult
-    > {}
-  export interface Response
-    extends ResponseMessage<GetGameThreadsMethod, GetGameThreadsResult> {}
+  export interface Request extends RequestMessage<
+    GetGameThreadsMethod,
+    GetGameThreadsParams,
+    GetGameThreadsResult
+  > {}
+  export interface Response extends ResponseMessage<
+    GetGameThreadsMethod,
+    GetGameThreadsResult
+  > {}
 }

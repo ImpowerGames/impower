@@ -13,7 +13,7 @@ self.onmessage = (event): void => {
   const sampleRate = 44100;
   const length = getNumberOfSamples(
     toneSequence.tones,
-    toneSequence.sampleRate
+    toneSequence.sampleRate,
   );
   const result = new Float32Array(length);
   progress += 0.1;

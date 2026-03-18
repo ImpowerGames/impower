@@ -6,11 +6,11 @@ export default class EditToggleButton extends Component(spec) {
   override onConnected() {
     this.refs.doneButton.addEventListener(
       "pointerdown",
-      this.handlePointerDownDoneButton
+      this.handlePointerDownDoneButton,
     );
     this.refs.menuDropdown.addEventListener(
       "changed",
-      this.handleChangedMenuDropdown
+      this.handleChangedMenuDropdown,
     );
     window.addEventListener("editor/focused", this.handleEditorFocused);
     window.addEventListener("editor/unfocused", this.handleEditorUnfocused);
@@ -21,11 +21,11 @@ export default class EditToggleButton extends Component(spec) {
   override onDisconnected() {
     this.refs.doneButton.removeEventListener(
       "pointerdown",
-      this.handlePointerDownDoneButton
+      this.handlePointerDownDoneButton,
     );
     this.refs.menuDropdown.removeEventListener(
       "changed",
-      this.handleChangedMenuDropdown
+      this.handleChangedMenuDropdown,
     );
     window.removeEventListener("editor/focused", this.handleEditorFocused);
     window.removeEventListener("editor/unfocused", this.handleEditorUnfocused);

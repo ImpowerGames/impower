@@ -29,12 +29,13 @@ export class GetGameVariablesMessage {
 }
 
 export namespace GetGameVariablesMessage {
-  export interface Request
-    extends RequestMessage<
-      GetGameVariablesMethod,
-      GetGameVariablesParams,
-      GetGameVariablesResult
-    > {}
-  export interface Response
-    extends ResponseMessage<GetGameVariablesMethod, GetGameVariablesResult> {}
+  export interface Request extends RequestMessage<
+    GetGameVariablesMethod,
+    GetGameVariablesParams,
+    GetGameVariablesResult
+  > {}
+  export interface Response extends ResponseMessage<
+    GetGameVariablesMethod,
+    GetGameVariablesResult
+  > {}
 }

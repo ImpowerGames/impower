@@ -19,6 +19,6 @@ const onProgress = (current: number, total: number) => {
 const result = getConceptualExamples(
   termVectors,
   process.argv.slice(2),
-  onProgress
+  onProgress,
 );
 console.log(result);

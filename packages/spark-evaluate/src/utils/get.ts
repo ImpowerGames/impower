@@ -17,7 +17,7 @@ interface Options<T = never, V = never> {
 const join = <T, V>(
   segs: string[],
   joinChar: string,
-  options: Options<T, V>
+  options: Options<T, V>,
 ): string => {
   if (typeof options.join === "function") {
     return options.join(segs);
@@ -28,7 +28,7 @@ const join = <T, V>(
 const split = <T, V>(
   path: string,
   splitChar: string,
-  options: Options<T, V>
+  options: Options<T, V>,
 ): string[] => {
   if (typeof options.split === "function") {
     return options.split(path);
@@ -39,7 +39,7 @@ const split = <T, V>(
 const isValid = <T, V>(
   key: string,
   target: T,
-  options: Options<T, V>
+  options: Options<T, V>,
 ): boolean => {
   if (typeof options.isValid === "function") {
     return options.isValid(key, target);
@@ -54,7 +54,7 @@ const isValidObject = (val: unknown): boolean => {
 const get = <T extends object, V>(
   target: T,
   path: string,
-  options: Options<T, V> = {}
+  options: Options<T, V> = {},
 ): V | undefined => {
   if (!isValidObject(target)) {
     return typeof options.default !== "undefined" ? options.default : undefined;

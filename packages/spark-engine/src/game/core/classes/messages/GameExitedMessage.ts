@@ -21,6 +21,8 @@ export class GameExitedMessage {
 }
 
 export namespace GameExitedMessage {
-  export interface Notification
-    extends NotificationMessage<GameExitedMethod, GameExitedParams> {}
+  export interface Notification extends NotificationMessage<
+    GameExitedMethod,
+    GameExitedParams
+  > {}
 }

@@ -25,11 +25,11 @@ export default class ShareScreenplay extends Component(spec) {
   override onConnected() {
     this.refs.pdfButton.addEventListener(
       "click",
-      this.handleClickPdfExportButton
+      this.handleClickPdfExportButton,
     );
     this.refs.htmlButton.addEventListener(
       "click",
-      this.handleClickHtmlExportButton
+      this.handleClickHtmlExportButton,
     );
     this.pdfProgressBarEl.style.transform = `scaleX(0)`;
     this.htmlProgressBarEl.style.transform = `scaleX(0)`;
@@ -38,11 +38,11 @@ export default class ShareScreenplay extends Component(spec) {
   override onDisconnected() {
     this.refs.pdfButton.removeEventListener(
       "click",
-      this.handleClickPdfExportButton
+      this.handleClickPdfExportButton,
     );
     this.refs.htmlButton.removeEventListener(
       "click",
-      this.handleClickHtmlExportButton
+      this.handleClickHtmlExportButton,
     );
   }
 

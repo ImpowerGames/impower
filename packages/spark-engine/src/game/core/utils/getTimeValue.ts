@@ -27,7 +27,7 @@ export const getSeconds = (value: string): number | undefined => {
 
 export const getTimeValue = (
   value: string | number | undefined,
-  defaultValue = undefined
+  defaultValue = undefined,
 ): number | undefined => {
   if (typeof value === "number") {
     return value;

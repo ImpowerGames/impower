@@ -19,9 +19,8 @@ export class GameStartedThreadMessage {
 }
 
 export namespace GameStartedThreadMessage {
-  export interface Notification
-    extends NotificationMessage<
-      GameStartedThreadMethod,
-      GameStartedThreadParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    GameStartedThreadMethod,
+    GameStartedThreadParams
+  > {}
 }

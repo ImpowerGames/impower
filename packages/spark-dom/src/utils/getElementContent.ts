@@ -8,7 +8,7 @@ export const getElementContent = (
   options?: {
     breakpoints?: Record<string, number>;
     scope?: string;
-  }
+  },
 ): string => {
   if (typeof content === "string") {
     return content;

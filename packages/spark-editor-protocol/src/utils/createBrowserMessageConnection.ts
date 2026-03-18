@@ -7,7 +7,7 @@ import { Logger } from "../types";
 
 export const createBrowserMessageConnection = (
   worker: Worker,
-  logger: Logger
+  logger: Logger,
 ) => {
   const reader = new BrowserMessageReader(worker);
   const writer = new BrowserMessageWriter(worker);

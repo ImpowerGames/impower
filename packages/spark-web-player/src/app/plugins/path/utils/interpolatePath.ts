@@ -4,7 +4,7 @@ const interpolate = (
   t: number,
   a: number,
   b: number,
-  ease: (t: number) => number = (t: number): number => t
+  ease: (t: number) => number = (t: number): number => t,
 ): number => {
   if (t <= 0) {
     return a;
@@ -20,7 +20,7 @@ export const interpolatePath = (
   t: number,
   aCommands: PathCommand[],
   bCommands: PathCommand[],
-  ease: (t: number) => number = (t: number): number => t
+  ease: (t: number) => number = (t: number): number => t,
 ): PathCommand[] => {
   const commands: PathCommand[] = [];
   const commandCount = Math.max(aCommands.length, bCommands.length);
@@ -30,7 +30,7 @@ export const interpolatePath = (
     const data = [] as number[] as PathData;
     const dataCount = Math.max(
       aCommand?.data?.length ?? 0,
-      bCommand?.data?.length ?? 0
+      bCommand?.data?.length ?? 0,
     );
     for (let d = 0; d < dataCount; d += 1) {
       const a = aCommand?.data?.[d] ?? bCommand?.data?.[d] ?? 0;

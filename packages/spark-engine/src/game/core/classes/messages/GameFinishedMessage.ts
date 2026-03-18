@@ -14,6 +14,8 @@ export class GameFinishedMessage {
 }
 
 export namespace GameFinishedMessage {
-  export interface Notification
-    extends NotificationMessage<GameFinishedMethod, GameFinishedParams> {}
+  export interface Notification extends NotificationMessage<
+    GameFinishedMethod,
+    GameFinishedParams
+  > {}
 }

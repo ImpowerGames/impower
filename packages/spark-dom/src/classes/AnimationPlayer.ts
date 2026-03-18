@@ -60,7 +60,7 @@ export default class AnimationPlayer {
                 const camelCasedPropName = prop
                   .toLowerCase()
                   .replace(/([-_][\p{Ll}])/gu, (group) =>
-                    group.toUpperCase().replace("-", "").replace("_", "")
+                    group.toUpperCase().replace("-", "").replace("_", ""),
                   );
                 convertedKeyframe[camelCasedPropName] = value;
               }
@@ -137,7 +137,7 @@ export default class AnimationPlayer {
         this._instances.push({
           element,
           animation: new Animation(
-            new KeyframeEffect(element, convertedKeyframes, convertedTiming)
+            new KeyframeEffect(element, convertedKeyframes, convertedTiming),
           ),
         });
       });
@@ -151,7 +151,7 @@ export default class AnimationPlayer {
         instance.animation.startTime = currentTime;
         instance.animation.play();
         await instance.animation.finished;
-      })
+      }),
     );
   }
 }

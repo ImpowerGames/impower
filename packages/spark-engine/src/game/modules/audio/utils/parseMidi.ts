@@ -45,7 +45,7 @@ export const parseMidi = (arrayBuffer: ArrayBuffer): Midi => {
 const _parseHeaderChunk = (dataView: DataView) => {
   if (dataView.byteLength < 14) {
     throw new Error(
-      `Expected at least 14 bytes instead of ${dataView.byteLength}`
+      `Expected at least 14 bytes instead of ${dataView.byteLength}`,
     );
   }
 
@@ -54,16 +54,16 @@ const _parseHeaderChunk = (dataView: DataView) => {
       `Unexpected characters "${stringifyDataView(
         dataView,
         0,
-        4
-      )}" found instead of "MThd"`
+        4,
+      )}" found instead of "MThd"`,
     );
   }
 
   if (dataView.getUint32(4) !== 6) {
     throw new Error(
       `The header has an unexpected length of ${dataView.getUint32(
-        4
-      )} instead of 6`
+        4,
+      )} instead of 6`,
     );
   }
 
@@ -84,8 +84,8 @@ const _parseTrackChunk = (dataView: DataView, offset: number) => {
       `Unexpected characters "${stringifyDataView(
         dataView,
         offset,
-        4
-      )}" found instead of "MTrk"`
+        4,
+      )}" found instead of "MTrk"`,
     );
   }
 
@@ -140,13 +140,13 @@ const _readVariableLengthQuantity = (dataView: DataView, offset: number) => {
 const _parseEvent = (
   dataView: DataView,
   offset: number,
-  lastStatusByte: null | number
+  lastStatusByte: null | number,
 ): { statusByte: number; event: MidiEvent; offset: number } => {
   let result: { event: MidiEvent; offset: number };
 
   const { offset: nextOffset, value: ticks } = _readVariableLengthQuantity(
     dataView,
-    offset
+    offset,
   );
 
   const statusByte = dataView.getUint8(nextOffset);
@@ -160,7 +160,7 @@ const _parseEvent = (
       statusByte,
       dataView,
       nextOffset + 1,
-      lastStatusByte
+      lastStatusByte,
     );
   }
 
@@ -174,13 +174,13 @@ const _parseEvent = (
 const _parseSystemExclusiveEvent = (
   statusType: 0xf0,
   dataView: DataView,
-  offset: number
+  offset: number,
 ): { event: MidiSystemExclusiveEvent; offset: number } => {
   let event: MidiSystemExclusiveEvent;
 
   const { offset: nextOffset, value: length } = _readVariableLengthQuantity(
     dataView,
-    offset
+    offset,
   );
 
   event = <MidiSystemExclusiveEvent>{
@@ -197,12 +197,12 @@ const _parseSystemExclusiveEvent = (
 const _parseSystemMetaEvent = (
   statusType: 0xff,
   dataView: DataView,
-  offset: number
+  offset: number,
 ): { event: MidiSystemMetaEvent; offset: number } => {
   const statusData = dataView.getUint8(offset);
   const { offset: nextOffset, value: length } = _readVariableLengthQuantity(
     dataView,
-    offset + 1
+    offset + 1,
   );
 
   let event = {
@@ -275,7 +275,7 @@ const _parseSystemMetaEvent = (
     event.timeSignatureNumerator = dataView.getUint8(nextOffset);
     event.timeSignatureDenominator = Math.pow(
       2,
-      dataView.getUint8(nextOffset + 1)
+      dataView.getUint8(nextOffset + 1),
     );
     event.timeSignatureClicks = dataView.getUint8(nextOffset + 2);
     event.timeSignatureResolution = dataView.getUint8(nextOffset + 3);
@@ -290,8 +290,8 @@ const _parseSystemMetaEvent = (
   } else {
     throw new Error(
       `Cannot parse a system meta event with a type of "${hexifyNumber(
-        statusData
-      )}"`
+        statusData,
+      )}"`,
     );
   }
 
@@ -305,7 +305,7 @@ const _parseVoiceEvent = (
   statusByte: number,
   dataView: DataView,
   offset: number,
-  lastStatusByte: null | number
+  lastStatusByte: null | number,
 ): { event: MidiVoiceEvent; offset: number } => {
   const sanitizedLastStatusByte =
     (statusByte & 0x80) === 0 ? lastStatusByte : null;
@@ -354,8 +354,8 @@ const _parseVoiceEvent = (
     event.controllerValue = dataView.getUint8(sanitizedOffset + 1);
     sanitizedOffset += 2;
   } else if (event.statusType === MIDI_STATUS_TYPE.voice_program_change) {
-    (event.programNumber = dataView.getUint8(sanitizedOffset)),
-      (sanitizedOffset += 1);
+    ((event.programNumber = dataView.getUint8(sanitizedOffset)),
+      (sanitizedOffset += 1));
   } else if (event.statusType === MIDI_STATUS_TYPE.voice_channel_pressure) {
     event.channelPressure = dataView.getUint8(sanitizedOffset);
     sanitizedOffset += 1;
@@ -367,8 +367,8 @@ const _parseVoiceEvent = (
   } else {
     throw new Error(
       `Cannot parse a voice event with a status byte of "${hexifyNumber(
-        statusByte
-      )}"`
+        statusByte,
+      )}"`,
     );
   }
 

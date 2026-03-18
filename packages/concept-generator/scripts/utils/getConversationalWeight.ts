@@ -58,7 +58,7 @@ const getConversationalWeight = (phrase: string): number => {
   const isConversational = conversationalTerms.some(
     (c) =>
       words.includes(c) ||
-      words.some((word) => word.includes("'") && !word.endsWith("'s"))
+      words.some((word) => word.includes("'") && !word.endsWith("'s")),
   );
   return isConversational ? 0.05 : 0;
 };

@@ -23,9 +23,8 @@ export class GameEncounteredRuntimeErrorMessage {
 }
 
 export namespace GameEncounteredRuntimeErrorMessage {
-  export interface Notification
-    extends NotificationMessage<
-      GameEncounteredRuntimeErrorMethod,
-      GameEncounteredRuntimeErrorParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    GameEncounteredRuntimeErrorMethod,
+    GameEncounteredRuntimeErrorParams
+  > {}
 }

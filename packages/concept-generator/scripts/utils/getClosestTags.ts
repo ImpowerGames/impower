@@ -16,7 +16,7 @@ export const getClosestTags = (
     (tag) => [
       tag,
       similarity(targetConcept, vectorizeTag(tag, concepts, termVecs)),
-    ]
+    ],
   );
 
   return tagConceptPairs

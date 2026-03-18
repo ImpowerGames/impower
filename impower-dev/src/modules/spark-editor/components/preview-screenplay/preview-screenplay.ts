@@ -48,13 +48,13 @@ export default class PreviewScreenplay extends Component(spec) {
     message: NotificationMessage<
       DidOpenTextDocumentMethod,
       DidOpenTextDocumentParams
-    >
+    >,
   ) => {
     this.loadFile();
   };
 
   protected handleDidWriteFiles = (
-    message: NotificationMessage<DidWriteFilesMethod, DidWriteFilesParams>
+    message: NotificationMessage<DidWriteFilesMethod, DidWriteFilesParams>,
   ) => {
     const params = message.params;
     const remote = params.remote;
@@ -66,7 +66,7 @@ export default class PreviewScreenplay extends Component(spec) {
   };
 
   protected handleDidDeleteFiles = (
-    message: NotificationMessage<DidDeleteFilesMethod, DidDeleteFilesParams>
+    message: NotificationMessage<DidDeleteFilesMethod, DidDeleteFilesParams>,
   ) => {
     const params = message.params;
     const files = params.files;
@@ -78,7 +78,7 @@ export default class PreviewScreenplay extends Component(spec) {
 
   override onContextChanged(
     oldContext: { textPulledAt: string },
-    newContext: { textPulledAt: string }
+    newContext: { textPulledAt: string },
   ) {
     if (oldContext.textPulledAt !== newContext.textPulledAt) {
       this.loadFile();
@@ -107,7 +107,7 @@ export default class PreviewScreenplay extends Component(spec) {
             },
             visibleRange,
             selectedRange,
-          })
+          }),
         );
       }
     }

@@ -22,15 +22,13 @@ export class RevealPreviewRangeMessage {
 }
 
 export namespace RevealPreviewRangeMessage {
-  export interface Request
-    extends RequestMessage<
-      RevealPreviewRangeMethod,
-      RevealPreviewRangeParams,
-      RevealPreviewRangeResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      RevealPreviewRangeMethod,
-      RevealPreviewRangeResult
-    > {}
+  export interface Request extends RequestMessage<
+    RevealPreviewRangeMethod,
+    RevealPreviewRangeParams,
+    RevealPreviewRangeResult
+  > {}
+  export interface Response extends ResponseMessage<
+    RevealPreviewRangeMethod,
+    RevealPreviewRangeResult
+  > {}
 }

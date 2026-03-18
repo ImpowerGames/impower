@@ -19,7 +19,7 @@ export class VSCodeLanguageSupport extends LanguageSupport {
     name: string,
     grammarDefinition: GrammarDefinition,
     languageData?: CodeMirrorLanguageData,
-    support?: Extension[]
+    support?: Extension[],
   ) {
     const facet = defineLanguageFacet(languageData);
     const topNodeType = NodeType.define({
@@ -31,7 +31,7 @@ export class VSCodeLanguageSupport extends LanguageSupport {
     const parser = new TextmateGrammarParser(
       grammarDefinition,
       topNodeType,
-      defineNodeTypeWithLanguageNodeProps
+      defineNodeTypeWithLanguageNodeProps,
     );
     const language = new Language(facet, parser, support, name);
     super(language, support);

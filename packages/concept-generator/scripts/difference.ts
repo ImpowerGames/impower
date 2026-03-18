@@ -21,6 +21,6 @@ const result = getConceptualDifference(
   process.argv[3] || "",
   termVectors,
   process.argv[4] ? Number.parseInt(process.argv[4] || "30") : undefined,
-  onProgress
+  onProgress,
 );
 console.log(result);

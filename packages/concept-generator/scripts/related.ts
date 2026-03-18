@@ -32,7 +32,7 @@ getRelatedTerms(
   0.4,
   4,
   process.argv.slice(2),
-  onProgress
+  onProgress,
 ).then((result) => {
   fs.writeFile(relatedTermsPath, JSON.stringify(result, null, 2), (err) => {
     if (err) {

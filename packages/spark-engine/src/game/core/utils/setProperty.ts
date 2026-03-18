@@ -2,7 +2,7 @@ export const setProperty = (
   obj: any,
   propertyPath: string,
   value: unknown,
-  skip?: (curr: any, key: string) => boolean
+  skip?: (curr: any, key: string) => boolean,
 ): { successfullySet: string; error: boolean } => {
   const successfullySetParts: string[] = [];
   let error = false;

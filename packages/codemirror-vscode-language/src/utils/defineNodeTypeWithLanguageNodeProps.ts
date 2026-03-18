@@ -9,13 +9,13 @@ export const defineNodeTypeWithLanguageNodeProps = (
   topNode: NodeType,
   typeIndex: number,
   typeId: string,
-  def: RuleDefinition
+  def: RuleDefinition,
 ): NodeType => {
   return defineNodeType(
     topNode,
     typeIndex,
     typeId,
     def,
-    getLanguageNodeProps(typeId, def)
+    getLanguageNodeProps(typeId, def),
   );
 };

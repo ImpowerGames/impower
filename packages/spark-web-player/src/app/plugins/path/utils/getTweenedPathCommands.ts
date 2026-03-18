@@ -5,7 +5,7 @@ import { interpolatePath } from "./interpolatePath";
 export const getTweenedPathCommands = (
   fractionalFrameIndex: number,
   keySplines: [number, number, number, number][],
-  values: PathCommand[][]
+  values: PathCommand[][],
 ): PathCommand[] => {
   const frameIndex = Math.floor(fractionalFrameIndex);
   const tweenValue = fractionalFrameIndex - frameIndex;

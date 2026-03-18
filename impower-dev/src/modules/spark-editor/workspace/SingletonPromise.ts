@@ -1,5 +1,5 @@
 export default class SingletonPromise<
-  T extends (...args: any[]) => Promise<any>
+  T extends (...args: any[]) => Promise<any>,
 > {
   protected _value?: any;
   get value() {

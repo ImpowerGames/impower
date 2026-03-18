@@ -7,7 +7,7 @@ import { getStressMatch } from "./getStressMatch";
 const getFormattingStress = (
   chunks: Chunk[],
   index: number,
-  formatting: "italicized" | "bolded" | "underlined" | "yelled"
+  formatting: "italicized" | "bolded" | "underlined" | "yelled",
 ): number => {
   const chunk = chunks[index]!;
   const prevChunk = chunks[index - 1];
@@ -32,7 +32,7 @@ const getFormattingStress = (
 export const stressPhrases = (
   phrases: Phrase[],
   characterProsody: Prosody | undefined,
-  characterInflection: Inflection | undefined
+  characterInflection: Inflection | undefined,
 ): void => {
   const stressLevelMultiplier = 0.5;
   const lineIncrement = 1;
@@ -44,7 +44,7 @@ export const stressPhrases = (
       if (chunks) {
         const [finalStressType, punctuation] = getStressMatch(
           phrase.text,
-          characterProsody
+          characterProsody,
         );
         const inflectionByStress =
           characterInflection?.[finalStressType || "statement"];
@@ -70,7 +70,7 @@ export const stressPhrases = (
             const underlineStressLevel = getFormattingStress(
               chunks,
               i,
-              "underlined"
+              "underlined",
             );
             if (underlineStressLevel) {
               chunk.pitch += underlineStressLevel;
@@ -82,7 +82,7 @@ export const stressPhrases = (
             const italicStressLevel = getFormattingStress(
               chunks,
               i,
-              "italicized"
+              "italicized",
             );
             if (italicStressLevel) {
               chunk.pitch += italicStressLevel;

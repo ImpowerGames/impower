@@ -1,7 +1,7 @@
 import { MidiTrackState } from "../types/MidiTrackState";
 
 export const createOrResetMidiTrackState = (
-  state?: MidiTrackState
+  state?: MidiTrackState,
 ): MidiTrackState => {
   if (state) {
     state.currentTime = 0;

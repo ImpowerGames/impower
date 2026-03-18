@@ -5,7 +5,7 @@ import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequency
 
 export const transpose = (
   note: number | Note | undefined,
-  semitones: number
+  semitones: number,
 ): Hertz => {
   return (
     (convertPitchNoteToHertz(note) ?? 0) *

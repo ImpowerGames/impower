@@ -5,7 +5,7 @@ interface FileEntry {
 
 export const getAllFiles = async (
   directoryHandle: FileSystemDirectoryHandle,
-  directoryPath: string
+  directoryPath: string,
 ): Promise<FileEntry[]> => {
   const getEntryPromises: Promise<FileEntry>[] = [];
   // @ts-ignore - values() method should exist
@@ -27,6 +27,6 @@ export const getAllFiles = async (
   }
   const entries = await Promise.all(getEntryPromises);
   return entries.sort((a, b) =>
-    a.path > b.path ? 1 : b.path > a.path ? -1 : 0
+    a.path > b.path ? 1 : b.path > a.path ? -1 : 0,
   );
 };

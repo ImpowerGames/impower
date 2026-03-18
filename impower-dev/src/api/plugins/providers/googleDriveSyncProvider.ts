@@ -58,7 +58,7 @@ const hasSyncPermission = (scope: string = "") => {
 const secure = async <T>(
   request: FastifyRequest,
   reply: FastifyReply,
-  response: () => Promise<T>
+  response: () => Promise<T>,
 ) => {
   try {
     if (isXmlHttpRequest(request)) {
@@ -83,7 +83,7 @@ const secure = async <T>(
 const authenticated = async <T>(
   request: FastifyRequest,
   reply: FastifyReply,
-  response: (auth: Auth.OAuth2Client) => Promise<T>
+  response: (auth: Auth.OAuth2Client) => Promise<T>,
 ) => {
   return secure(request, reply, async () => {
     const sessionCookieData = getSessionCookieData(request);
@@ -93,7 +93,7 @@ const authenticated = async <T>(
     }
     const auth = new google.auth.OAuth2(
       process.env["BROWSER_GOOGLE_OAUTH_CLIENT_ID"],
-      process.env["SERVER_GOOGLE_OAUTH_CLIENT_SECRET"]
+      process.env["SERVER_GOOGLE_OAUTH_CLIENT_SECRET"],
     );
     auth.setCredentials({ refresh_token: sessionCookieData.refresh_token });
     const data = await response(auth);
@@ -141,7 +141,7 @@ const getAccountInfo = async (auth: Auth.OAuth2Client) => {
 const googleDriveSyncProvider: FastifyPluginCallback = async (
   app,
   opts,
-  next
+  next,
 ) => {
   // SIGN-IN
   app.post<{
@@ -154,7 +154,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       const auth = new google.auth.OAuth2(
         process.env["BROWSER_GOOGLE_OAUTH_CLIENT_ID"],
         process.env["SERVER_GOOGLE_OAUTH_CLIENT_SECRET"],
-        "postmessage"
+        "postmessage",
       );
       let { tokens } = await auth.getToken(code);
       auth.setCredentials(tokens);
@@ -186,7 +186,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       try {
         const auth = new google.auth.OAuth2(
           process.env["BROWSER_GOOGLE_OAUTH_CLIENT_ID"],
-          process.env["SERVER_GOOGLE_OAUTH_CLIENT_SECRET"]
+          process.env["SERVER_GOOGLE_OAUTH_CLIENT_SECRET"],
         );
         auth.setCredentials({ refresh_token: sessionCookieData.refresh_token });
         const account = await getAccountInfo(auth);
@@ -297,7 +297,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
         });
         const revisions = revisionsResult.data.revisions || [];
         const zipFileRevisions = revisions.filter(
-          (revision) => revision.mimeType === mimeType
+          (revision) => revision.mimeType === mimeType,
         );
         const maxZipFiles = 50;
         const numZipFileRevisionsToDelete =
@@ -310,8 +310,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
                 drive.revisions.delete({
                   fileId,
                   revisionId: revision.id!,
-                })
-              )
+                }),
+              ),
           );
         }
       }
@@ -367,7 +367,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
           return blob.stream();
         }
       });
-    }
+    },
   );
 
   next();

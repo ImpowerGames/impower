@@ -8,7 +8,7 @@ export const hexifyNumber = (number: number): string => {
 export const hexify = (
   dataView: DataView,
   offset = 0,
-  length = dataView.byteLength - (offset - dataView.byteOffset)
+  length = dataView.byteLength - (offset - dataView.byteOffset),
 ) => {
   const byteOffset = offset + dataView.byteOffset;
 

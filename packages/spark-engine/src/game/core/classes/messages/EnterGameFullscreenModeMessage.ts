@@ -19,15 +19,13 @@ export class EnterGameFullscreenModeMessage {
 }
 
 export namespace EnterGameFullscreenModeMessage {
-  export interface Request
-    extends RequestMessage<
-      EnterGameFullscreenModeMethod,
-      EnterGameFullscreenModeParams,
-      EnterGameFullscreenModeResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      EnterGameFullscreenModeMethod,
-      EnterGameFullscreenModeResult
-    > {}
+  export interface Request extends RequestMessage<
+    EnterGameFullscreenModeMethod,
+    EnterGameFullscreenModeParams,
+    EnterGameFullscreenModeResult
+  > {}
+  export interface Response extends ResponseMessage<
+    EnterGameFullscreenModeMethod,
+    EnterGameFullscreenModeResult
+  > {}
 }

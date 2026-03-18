@@ -4,7 +4,7 @@ import { average } from "./math";
 export const vectorizeTerms = (
   terms: string[],
   concepts: { [tag: string]: string[] },
-  termVectors: { [word: string]: number[] }
+  termVectors: { [word: string]: number[] },
 ): number[] => {
   const { specificTerms, adjacentTerms } = splitSpecificAndAdjacentTerms(terms);
 
@@ -17,8 +17,8 @@ export const vectorizeTerms = (
       vectorizeTerms(
         concepts[adjacentTerm.replace("^", "")] || [],
         concepts,
-        termVectors
-      )
+        termVectors,
+      ),
     );
   });
 
@@ -30,7 +30,7 @@ export const vectorizeTerms = (
 export const vectorizeTag = (
   tag: string,
   concepts: { [tag: string]: string[] },
-  termVectors: { [word: string]: number[] }
+  termVectors: { [word: string]: number[] },
 ): number[] => {
   const relatedTerms = concepts[tag];
   if (relatedTerms) {
@@ -41,7 +41,7 @@ export const vectorizeTag = (
 
 export const getTagVectors = (
   concepts: { [tag: string]: string[] },
-  termVectors: { [word: string]: number[] }
+  termVectors: { [word: string]: number[] },
 ): { [tag: string]: number[] } => {
   const tagVectors: { [tag: string]: number[] } = {};
   Object.keys(concepts).forEach((tag) => {

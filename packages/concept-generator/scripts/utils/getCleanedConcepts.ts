@@ -2,7 +2,7 @@ import { transformTerms, unpackSpecificAndAdjacentTerms } from "./getTerms";
 
 export const getCleanedConcepts = (
   concepts: { [tag: string]: string[] },
-  order: "alphabetical" | "term-count" = "alphabetical"
+  order: "alphabetical" | "term-count" = "alphabetical",
 ) => {
   const organizedTerms: { [tag: string]: string[] } = {};
 
@@ -14,7 +14,7 @@ export const getCleanedConcepts = (
   Object.entries(organizedTerms).forEach(([tag, terms]) => {
     const { specific, adjacent } = unpackSpecificAndAdjacentTerms(
       tag,
-      concepts
+      concepts,
     );
     const transformedSpecific = transformTerms(specific);
     const transformedAdjacent = transformTerms(adjacent);
@@ -22,12 +22,12 @@ export const getCleanedConcepts = (
       .filter(
         (term) =>
           !transformedAdjacent.includes(term) &&
-          transformedSpecific.filter((t) => t === term).length < 2
+          transformedSpecific.filter((t) => t === term).length < 2,
       )
       .map((term) =>
         !term.startsWith("^") && term.includes(" ") && !term.includes("_")
           ? `_${term}_`
-          : term
+          : term,
       )
       .sort();
   });

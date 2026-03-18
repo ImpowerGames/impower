@@ -9,7 +9,7 @@ export interface ComponentSpec<
   Selectors extends Record<string, null | string | string[]> = Record<
     string,
     null | string | string[]
-  >
+  >,
 > {
   tag: `${string}-${string}`;
   stores: Stores;

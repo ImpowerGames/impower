@@ -33,7 +33,7 @@ export const getRelatedTerms = async (
   threshold = 0.3,
   depth = 5,
   tags: string[],
-  onProgress?: (current: number, total: number) => void
+  onProgress?: (current: number, total: number) => void,
 ): Promise<{
   [tag: string]: string[];
 }> => {
@@ -116,7 +116,7 @@ export const getRelatedTerms = async (
   } = {};
   Object.entries(suggestedConcepts)
     .sort(
-      ([tagA], [tagB]) => getReferencesCount(tagA) - getReferencesCount(tagB)
+      ([tagA], [tagB]) => getReferencesCount(tagA) - getReferencesCount(tagB),
     )
     .forEach(([tag, suggestedTerms]) => {
       sortedSuggestedConcepts[tag] = suggestedTerms;

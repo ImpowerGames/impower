@@ -33,7 +33,7 @@ import { es5Rules, memberRule, numberRules } from "./es5";
 
 export function es6Rules(
   identStart?: ICharClass,
-  identPart?: ICharClass
+  identPart?: ICharClass,
 ): IRuleSet {
   const destructuring = new UnaryOperatorRule({
     "[": ARRAY_PAT_TYPE,
@@ -62,7 +62,7 @@ export function es6Rules(
     destructuringAssignement: [
       new BinaryOperatorRule(
         { "=": { ...ASSIGN_TYPE, ltypes: undefined } },
-        true
+        true,
       ),
       destructuring,
     ],
@@ -92,7 +92,7 @@ export function es6Rules(
     property_with_target: [
       new BinaryOperatorRule(
         { ":": { ...PROPERTY_TYPE, subRules: "property_target" } },
-        true
+        true,
       ),
       new UnaryOperatorRule({
         "[": { type: EXPRESSION, close: "]", subRules: NOCOMMA_EXPR },
@@ -113,7 +113,7 @@ export function es6Rules(
     property_with_target_bind: [
       new BinaryOperatorRule(
         { ":": { ...PROPERTY_TYPE, subRules: "property_target_bind" } },
-        true
+        true,
       ),
       new UnaryOperatorRule({
         "[": { type: EXPRESSION, close: "]", subRules: NOCOMMA_EXPR },
@@ -164,10 +164,10 @@ export function es6Rules(
               node.params = !node.params
                 ? []
                 : Array.isArray(node.params)
-                ? node.params
-                : node.params?.type !== "params"
-                ? [node.params]
-                : node.params.params;
+                  ? node.params
+                  : node.params?.type !== "params"
+                    ? [node.params]
+                    : node.params.params;
 
               return {
                 ...node,
@@ -179,7 +179,7 @@ export function es6Rules(
             },
           },
         },
-        true
+        true,
       ),
       new UnaryOperatorRule({ "(": PARAMS_TYPE }),
       PROPERTY,
@@ -193,7 +193,7 @@ export function es6Rules(
   rules[NOCOMMA_EXPR]?.splice(
     0,
     0,
-    new TryBranchRule({ subRules: "destructuringAssignement", test: "[{" })
+    new TryBranchRule({ subRules: "destructuringAssignement", test: "[{" }),
   );
   return rules;
 }
@@ -202,13 +202,13 @@ export class ES6Parser extends Parser {
   constructor(
     noStatement?: boolean,
     identStart?: ICharClass,
-    identPart?: ICharClass
+    identPart?: ICharClass,
   ) {
     super(
       es6Rules(identStart, identPart),
       noStatement ? EXPRESSION : STATEMENT,
       identStart,
-      identPart
+      identPart,
     );
   }
 }

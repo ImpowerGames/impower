@@ -1,7 +1,7 @@
 export const profile = (
   mark: "start" | "end",
   profilerId: string | undefined,
-  method: string
+  method: string,
 ) => {
   if (profilerId) {
     const measureName = `${profilerId} ${method}`;

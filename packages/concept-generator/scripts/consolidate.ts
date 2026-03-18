@@ -8,7 +8,7 @@ const concepts = YAML.parse(fs.readFileSync(conceptsPath, "utf8"));
 
 const result = getCleanedConcepts(
   concepts,
-  process.argv[2] as "alphabetical" | "term-count"
+  process.argv[2] as "alphabetical" | "term-count",
 );
 
 fs.writeFile(conceptsPath, YAML.stringify(result), (err) => {

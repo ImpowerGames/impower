@@ -10,99 +10,99 @@ export default class PreviewGameToolbar extends Component(spec) {
   override onConnected() {
     this.refs.runToggleButton?.addEventListener(
       "click",
-      this.handleClickRunToggleButton
+      this.handleClickRunToggleButton,
     );
     this.refs.modeButton?.addEventListener("click", this.handleClickModeButton);
     this.refs.stepBackwardButton?.addEventListener(
       "pointerdown",
-      this.handlePointerDownStepBackwardButton
+      this.handlePointerDownStepBackwardButton,
     );
     this.refs.stepBackwardButton?.addEventListener(
       "pointerup",
-      this.handlePointerUpStepBackwardButton
+      this.handlePointerUpStepBackwardButton,
     );
     this.refs.fastBackwardButton?.addEventListener(
       "pointerdown",
-      this.handlePointerDownFastBackwardButton
+      this.handlePointerDownFastBackwardButton,
     );
     this.refs.fastBackwardButton?.addEventListener(
       "pointerup",
-      this.handlePointerUpFastBackwardButton
+      this.handlePointerUpFastBackwardButton,
     );
     this.refs.pauseToggleButton?.addEventListener(
       "click",
-      this.handleClickPauseToggleButton
+      this.handleClickPauseToggleButton,
     );
     this.refs.fastForwardButton?.addEventListener(
       "pointerdown",
-      this.handlePointerDownFastForwardButton
+      this.handlePointerDownFastForwardButton,
     );
     this.refs.fastForwardButton?.addEventListener(
       "pointerup",
-      this.handlePointerUpFastForwardButton
+      this.handlePointerUpFastForwardButton,
     );
     this.refs.stepForwardButton?.addEventListener(
       "pointerdown",
-      this.handlePointerDownStepForwardButton
+      this.handlePointerDownStepForwardButton,
     );
     this.refs.stepForwardButton?.addEventListener(
       "pointerup",
-      this.handlePointerUpStepForwardButton
+      this.handlePointerUpStepForwardButton,
     );
     this.refs.settingsDropdown?.addEventListener(
       "changed",
-      this.handleSettingsDropdownChanged
+      this.handleSettingsDropdownChanged,
     );
   }
 
   override onDisconnected() {
     this.refs.runToggleButton?.removeEventListener(
       "click",
-      this.handleClickRunToggleButton
+      this.handleClickRunToggleButton,
     );
     this.refs.modeButton?.removeEventListener(
       "click",
-      this.handleClickModeButton
+      this.handleClickModeButton,
     );
     this.refs.stepBackwardButton?.removeEventListener(
       "pointerdown",
-      this.handlePointerDownStepBackwardButton
+      this.handlePointerDownStepBackwardButton,
     );
     this.refs.stepBackwardButton?.removeEventListener(
       "pointerup",
-      this.handlePointerUpStepBackwardButton
+      this.handlePointerUpStepBackwardButton,
     );
     this.refs.fastBackwardButton?.removeEventListener(
       "pointerdown",
-      this.handlePointerDownFastBackwardButton
+      this.handlePointerDownFastBackwardButton,
     );
     this.refs.fastBackwardButton?.removeEventListener(
       "pointerup",
-      this.handlePointerUpFastBackwardButton
+      this.handlePointerUpFastBackwardButton,
     );
     this.refs.pauseToggleButton?.removeEventListener(
       "click",
-      this.handleClickPauseToggleButton
+      this.handleClickPauseToggleButton,
     );
     this.refs.fastForwardButton?.removeEventListener(
       "pointerdown",
-      this.handlePointerDownFastForwardButton
+      this.handlePointerDownFastForwardButton,
     );
     this.refs.fastForwardButton?.removeEventListener(
       "pointerup",
-      this.handlePointerUpFastForwardButton
+      this.handlePointerUpFastForwardButton,
     );
     this.refs.stepForwardButton?.removeEventListener(
       "pointerdown",
-      this.handlePointerDownStepForwardButton
+      this.handlePointerDownStepForwardButton,
     );
     this.refs.stepForwardButton?.removeEventListener(
       "pointerup",
-      this.handlePointerUpStepForwardButton
+      this.handlePointerUpStepForwardButton,
     );
     this.refs.settingsDropdown?.removeEventListener(
       "changed",
-      this.handleSettingsDropdownChanged
+      this.handleSettingsDropdownChanged,
     );
   }
 

@@ -23,12 +23,13 @@ export class SimulateGameRouteMessage {
 }
 
 export namespace SimulateGameRouteMessage {
-  export interface Request
-    extends RequestMessage<
-      SimulateGameRouteMethod,
-      SimulateGameRouteParams,
-      SimulateGameRouteResult
-    > {}
-  export interface Response
-    extends ResponseMessage<SimulateGameRouteMethod, SimulateGameRouteResult> {}
+  export interface Request extends RequestMessage<
+    SimulateGameRouteMethod,
+    SimulateGameRouteParams,
+    SimulateGameRouteResult
+  > {}
+  export interface Response extends ResponseMessage<
+    SimulateGameRouteMethod,
+    SimulateGameRouteResult
+  > {}
 }

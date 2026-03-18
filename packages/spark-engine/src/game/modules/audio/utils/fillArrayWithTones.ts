@@ -9,7 +9,7 @@ export const fillArrayWithTones = (
   soundBuffer: Float32Array,
   volumeBuffer?: Float32Array,
   pitchBuffer?: Float32Array,
-  pitchRange?: [number, number]
+  pitchRange?: [number, number],
 ): void => {
   tones.forEach((tone) => {
     fillArrayWithTone(
@@ -19,7 +19,7 @@ export const fillArrayWithTones = (
       soundBuffer,
       volumeBuffer,
       pitchBuffer,
-      pitchRange
+      pitchRange,
     );
   });
 };

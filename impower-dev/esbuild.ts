@@ -109,7 +109,7 @@ console.log(SRC_COLOR, `  ${PROCESS_ENV_BANNER_JS}`);
 console.log("");
 
 const esbuildInlineWorkerPlugin = (
-  extraConfig?: esbuild.BuildOptions
+  extraConfig?: esbuild.BuildOptions,
 ): esbuild.Plugin => ({
   name: "esbuild-inline-worker",
   setup(build) {
@@ -129,7 +129,7 @@ const esbuildInlineWorkerPlugin = (
         bundledText = bundledText.slice(0, exportIndex);
       }
       console.log(
-        LOG_PREFIX + `loaded inline worker contents (${bundledText.length})`
+        LOG_PREFIX + `loaded inline worker contents (${bundledText.length})`,
       );
       return {
         contents: bundledText,
@@ -153,7 +153,7 @@ const envPlugin = (): esbuild.Plugin => {
               .map((f) => {
                 const modified = PROCESS_ENV_BANNER_JS + "\n" + f.text;
                 return fs.promises.writeFile(f.path, modified, "utf-8");
-              })
+              }),
           );
         }
       });
@@ -186,7 +186,7 @@ const buildApi = async () => {
     console.log(SRC_COLOR, `  ${getRelativePath(p)}`);
     console.log(
       OUT_COLOR,
-      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
+      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`,
     );
   });
   await esbuild.build({
@@ -227,13 +227,13 @@ const buildPages = async () => {
   console.log("");
   console.log(STEP_COLOR, "Building Pages...");
   const entryPoints = (await glob(`${pagesInDir}/**/*.{js,mjs,ts}`)).filter(
-    (p) => !p.endsWith(".d.ts")
+    (p) => !p.endsWith(".d.ts"),
   );
   entryPoints.forEach((p) => {
     console.log(SRC_COLOR, `  ${getRelativePath(p)}`);
     console.log(
       OUT_COLOR,
-      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
+      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`,
     );
   });
   await esbuild.build({
@@ -267,7 +267,7 @@ const buildComponents = async () => {
     console.log(SRC_COLOR, `  ${getRelativePath(p)}`);
     console.log(
       OUT_COLOR,
-      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
+      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`,
     );
   });
   await esbuild.build({
@@ -294,7 +294,7 @@ const expandPageComponents = async () => {
   // Expand/Copy each page's html file using components.js
   const htmlFilePaths = await glob(`${pagesInDir}/**/*.{html}`);
   const componentBundlePaths = await glob(
-    `${componentsOutDir}/**/*.{js,mjs,ts}`
+    `${componentsOutDir}/**/*.{js,mjs,ts}`,
   );
   if (componentBundlePaths.length > 0) {
     console.log("");
@@ -306,20 +306,20 @@ const expandPageComponents = async () => {
     if (!PRODUCTION) {
       documentHtml = documentHtml.replace(
         "</html>",
-        `<script>new EventSource('/livereload').onmessage = () => location.reload()</script>\n</html>`
+        `<script>new EventSource('/livereload').onmessage = () => location.reload()</script>\n</html>`,
       );
     }
     const graphicCSSArray = await Promise.all(
       graphicCSSPaths.map((path) =>
-        fs.promises.readFile(path, "utf-8").catch(() => "")
-      )
+        fs.promises.readFile(path, "utf-8").catch(() => ""),
+      ),
     );
     const injectedGraphics: Record<string, string> = {};
     graphicCSSArray.forEach((css) => {
       Object.entries(extractAllSVGs("---theme-icon-", css)).forEach(
         ([name, svg]) => {
           injectedGraphics[name] = svg;
-        }
+        },
       );
     });
     const ssgCssInPath = `${publicInDir}/ssg.css`;
@@ -359,7 +359,7 @@ const expandPageComponents = async () => {
             });
           }
         }
-      })
+      }),
     );
     scopedCssSet.forEach((css) => {
       ssgCSS += css + "\n\n";
@@ -390,7 +390,7 @@ const expandPageComponents = async () => {
         html = renderPage(documentHtml, page, components);
         await fs.promises.mkdir(path.dirname(dest), { recursive: true });
         await fs.promises.writeFile(dest, html, "utf-8");
-      })
+      }),
     );
     // Finished processing component bundles.
     // Since these bundles are not used at runtime, they can be deleted.
@@ -406,7 +406,7 @@ const expandPageComponents = async () => {
         console.log(OUT_COLOR, `    ⤷ ${getRelativePath(dest)}`);
         await fs.promises.mkdir(path.dirname(dest), { recursive: true });
         await fs.promises.copyFile(src, dest);
-      })
+      }),
     );
   }
 };
@@ -427,7 +427,7 @@ const buildWorkers = async () => {
     console.log(SRC_COLOR, `  ${getRelativePath(p)}`);
     console.log(
       OUT_COLOR,
-      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
+      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`,
     );
   });
   await new Promise<void>((resolve) => {
@@ -441,21 +441,21 @@ const buildWorkers = async () => {
           console.error(stderr);
         }
         resolve();
-      }
+      },
     );
   });
   console.log("");
   console.log(STEP_COLOR, "Caching Resources...");
   console.log(SRC_COLOR, `  ${getRelativePath(publicOutDir)}`);
   const publicFilePaths = await glob(
-    `${publicOutDir}/**/*.{css,html,js,mjs,ico,svg,png,ttf,woff,woff2}`
+    `${publicOutDir}/**/*.{css,html,js,mjs,ico,svg,png,ttf,woff,woff2}`,
   );
   const SW_VERSION = Date.now();
   const SW_RESOURCES: string[] = ["/"];
   SW_RESOURCES.push(
     ...publicFilePaths
       .map((p) => p.replace(/\\/g, "/").replace(publicOutDir, ""))
-      .filter((p) => !p.endsWith(".webmanifest"))
+      .filter((p) => !p.endsWith(".webmanifest")),
   );
   SW_RESOURCES.forEach((p) => {
     console.log(OUT_COLOR, `    ⤷ ${p}`);
@@ -510,7 +510,7 @@ const watchFiles = async () => {
       }/livereload`,
       {
         method: "POST",
-      }
+      },
     );
   };
   console.log(YELLOW, `Watching for changes...`);

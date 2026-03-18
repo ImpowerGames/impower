@@ -36,7 +36,7 @@ import { es6Rules } from "./es6";
 
 export function esNextRules(
   identStart?: ICharClass,
-  identPart?: ICharClass
+  identPart?: ICharClass,
 ): IRuleSet {
   // ES2017 allows trailing commas in function calls
   const restoreComma = CALL_TYPE.trailing;
@@ -57,7 +57,7 @@ export function esNextRules(
           extra: (n) => {
             if (n.left?.type === UNARY_EXP) {
               throw new Error(
-                "Unary operator used immediately before exponentiation expression."
+                "Unary operator used immediately before exponentiation expression.",
               );
             }
             return n;
@@ -69,7 +69,7 @@ export function esNextRules(
     ParentesisExponential: [
       new BinaryOperatorRule(
         { "**": { ...BINARY_TYPE, subRules: "Exponential", type: BINARY_EXP } },
-        true
+        true,
       ),
       new UnaryOperatorRule({ "(": GROUP_TYPE }),
     ],
@@ -112,7 +112,7 @@ export function esNextRules(
             extra: { optional: false, shortCircuited: false },
           },
         },
-        true
+        true,
       ),
       new UnaryOperatorRule({ "(": GROUP_TYPE }),
     ],
@@ -138,8 +138,8 @@ export function esNextRules(
           "^=",
           "**=",
         ],
-        ASSIGN_TYPE
-      )
+        ASSIGN_TYPE,
+      ),
     );
   }
 
@@ -152,7 +152,7 @@ export function esNextRules(
     0,
     new UnaryOperatorRule({
       "...": { type: SPREAD_EXP, isPre: true, subRules: NOCOMMA_EXPR },
-    })
+    }),
   );
 
   // add nullish coalescing operator
@@ -253,7 +253,7 @@ export function esNextRules(
         },
       },
     }),
-    new TryBranchRule({ subRules: "ParentesisOptChain", test: "(" })
+    new TryBranchRule({ subRules: "ParentesisOptChain", test: "(" }),
   );
 
   // restore definition in case many presets are being used.
@@ -265,13 +265,13 @@ export class ESnextParser extends Parser {
   constructor(
     noStatement?: boolean,
     identStart?: ICharClass,
-    identPart?: ICharClass
+    identPart?: ICharClass,
   ) {
     super(
       esNextRules(identStart, identPart),
       noStatement ? EXPRESSION : STATEMENT,
       identStart,
-      identPart
+      identPart,
     );
   }
 }

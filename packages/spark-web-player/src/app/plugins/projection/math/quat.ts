@@ -13,7 +13,7 @@ export class Quat {
     y: number,
     z: number,
     w: number,
-    out = new Float32Array(4)
+    out = new Float32Array(4),
   ) {
     return <Float32Array>quat.set(out, x, y, z, w);
   }
@@ -30,7 +30,7 @@ export class Quat {
     a: Float32Array,
     b: Float32Array,
     t: number,
-    out = new Float32Array(4)
+    out = new Float32Array(4),
   ) {
     return <Float32Array>quat.slerp(out, a, b, t);
   }
@@ -52,7 +52,7 @@ export class Quat {
   static rotationTo(
     from: Float32Array,
     to: Float32Array,
-    out = new Float32Array(4)
+    out = new Float32Array(4),
   ) {
     return <Float32Array>quat.rotationTo(out, from, to);
   }

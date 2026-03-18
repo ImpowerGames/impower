@@ -49,19 +49,19 @@ export default class GoogleDriveSyncProvider {
   protected _gsiScriptRef = new SingletonPromise(this.loadGSIScript.bind(this));
 
   protected _gapiScriptRef = new SingletonPromise(
-    this.loadGAPIScript.bind(this)
+    this.loadGAPIScript.bind(this),
   );
 
   protected _pickerScriptRef = new SingletonPromise(
-    this.loadPickerScript.bind(this)
+    this.loadPickerScript.bind(this),
   );
 
   protected _importPickerBuilderRef = new SingletonPromise(
-    this.loadImportPicker.bind(this)
+    this.loadImportPicker.bind(this),
   );
 
   protected _exportPickerBuilderRef = new SingletonPromise(
-    this.loadExportPicker.bind(this)
+    this.loadExportPicker.bind(this),
   );
 
   protected _accountRef = new SingletonPromise(this.fetchAccount.bind(this));
@@ -78,7 +78,7 @@ export default class GoogleDriveSyncProvider {
     contentType?:
       | "application/x-www-form-urlencoded"
       | "application/json"
-      | "text/plain"
+      | "text/plain",
   ) {
     try {
       const result = (await sendServerRequest(
@@ -86,7 +86,7 @@ export default class GoogleDriveSyncProvider {
         `${window.location.protocol}//${window.location.host}${route}`,
         responseType,
         body,
-        contentType
+        contentType,
       )) as T;
       return result;
     } catch (err: any) {
@@ -249,7 +249,7 @@ export default class GoogleDriveSyncProvider {
       const account = await this.request<AccountInfo>(
         "GET",
         `/api/auth/account`,
-        "json"
+        "json",
       );
       return account;
     } catch (err: any) {
@@ -299,7 +299,7 @@ export default class GoogleDriveSyncProvider {
               `/api/auth/signin`,
               "json",
               `code=${response.code}`,
-              "application/x-www-form-urlencoded"
+              "application/x-www-form-urlencoded",
             );
             this._accountRef.reset();
             const accountInfo = await this._accountRef.get();
@@ -328,19 +328,19 @@ export default class GoogleDriveSyncProvider {
     return this.request<RemoteStorage.Revision[]>(
       "GET",
       `/api/storage/files/${fileId}/revisions`,
-      "json"
+      "json",
     );
   }
 
   async getFileRevision<K extends keyof ResponseTypeMap>(
     fileId: string,
     revisionId: string,
-    responseType: K
+    responseType: K,
   ): Promise<ResponseTypeMap[K]> {
     return this.request<ResponseTypeMap[K]>(
       "GET",
       `/api/storage/files/${fileId}/revisions/${revisionId}`,
-      responseType
+      responseType,
     );
   }
 
@@ -351,7 +351,7 @@ export default class GoogleDriveSyncProvider {
       "POST",
       `/api/storage/files/${folderId}`,
       "json",
-      formData
+      formData,
     );
   }
 
@@ -362,7 +362,7 @@ export default class GoogleDriveSyncProvider {
       "PUT",
       `/api/storage/files/${fileId}`,
       "json",
-      formData
+      formData,
     );
   }
 

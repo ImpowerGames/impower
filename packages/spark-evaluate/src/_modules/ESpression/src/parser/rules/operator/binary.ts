@@ -77,7 +77,7 @@ export interface IConfBinaryRule extends IOperatorDef {
 export class BinaryOperatorRule extends BaseRule<IConfBinaryRule> {
   constructor(
     public override config: IConfBinaryRule,
-    public required: boolean = false
+    public required: boolean = false,
   ) {
     super();
 
@@ -101,7 +101,7 @@ export class BinaryOperatorRule extends BaseRule<IConfBinaryRule> {
 
     if (this.required && !op)
       return ctx.err(
-        `Expected operator (${Object.keys(this.config).join(",")})`
+        `Expected operator (${Object.keys(this.config).join(",")})`,
       );
 
     while (op) {
@@ -129,7 +129,7 @@ export class BinaryOperatorRule extends BaseRule<IConfBinaryRule> {
           [c.left || "left"]: bubbledNode,
           [c.right || "right"]: c.separators ? nodes : nodes[0],
         },
-        ctx
+        ctx,
       );
       if (c.oper) {
         bubbledNode[c.oper] = op;

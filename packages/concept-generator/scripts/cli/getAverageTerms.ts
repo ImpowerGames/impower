@@ -9,14 +9,14 @@ export const getAverageTerms = async (
   limit = 100,
   words: string[],
   vector?: number[],
-  termVectors?: { [word: string]: number[] }
+  termVectors?: { [word: string]: number[] },
 ): Promise<{ related: string[]; vector: number[] }> => {
   const multibar = new cliProgress.MultiBar(
     {
       clearOnComplete: false,
       hideCursor: true,
     },
-    cliProgress.Presets.shades_classic
+    cliProgress.Presets.shades_classic,
   );
 
   const vectorCount = 2519371;

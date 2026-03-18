@@ -15,9 +15,7 @@ import { IMultiConf, ISubRuleConf } from "../conf.interface";
  * Configuration object for a multi expression
  */
 export interface IConfMultipleRule
-  extends IMultiConf,
-    ISubRuleConf,
-    IExtraConf {
+  extends IMultiConf, ISubRuleConf, IExtraConf {
   /** AST node type for the binary expression */
   type: string;
   /** AST property name for the expression's AST. @default "expression" */
@@ -81,7 +79,7 @@ export class MultiOperatorRule extends BaseRule<IConfMultipleRule> {
         [c.prop!]: c.separators ? nodes : nodes[0],
         content: ctx.e.slice(from, to),
       },
-      ctx
+      ctx,
     );
 
     ret.from = from;

@@ -22,6 +22,6 @@ export class AnimateElementsMessage {
 export interface AnimateElementsMessageMap extends Record<string, [any, any]> {
   [AnimateElementsMessage.method]: [
     ReturnType<typeof AnimateElementsMessage.type.request>,
-    ReturnType<typeof AnimateElementsMessage.type.response>
+    ReturnType<typeof AnimateElementsMessage.type.response>,
   ];
 }

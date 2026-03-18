@@ -24,15 +24,13 @@ export class SetGameDataBreakpointsMessage {
 }
 
 export namespace SetGameDataBreakpointsMessage {
-  export interface Request
-    extends RequestMessage<
-      SetGameDataBreakpointsMethod,
-      SetGameDataBreakpointsParams,
-      SetGameDataBreakpointsResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      SetGameDataBreakpointsMethod,
-      SetGameDataBreakpointsResult
-    > {}
+  export interface Request extends RequestMessage<
+    SetGameDataBreakpointsMethod,
+    SetGameDataBreakpointsParams,
+    SetGameDataBreakpointsResult
+  > {}
+  export interface Response extends ResponseMessage<
+    SetGameDataBreakpointsMethod,
+    SetGameDataBreakpointsResult
+  > {}
 }

@@ -18,6 +18,6 @@ export class DestroyElementMessage {
 export interface DestroyElementMessageMap extends Record<string, [any, any]> {
   [DestroyElementMessage.method]: [
     ReturnType<typeof DestroyElementMessage.type.request>,
-    ReturnType<typeof DestroyElementMessage.type.response>
+    ReturnType<typeof DestroyElementMessage.type.response>,
   ];
 }

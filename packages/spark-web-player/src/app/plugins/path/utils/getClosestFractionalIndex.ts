@@ -1,6 +1,6 @@
 export const getClosestFractionalIndex = (
   keyTime: number,
-  keyTimes: number[]
+  keyTimes: number[],
 ): number => {
   for (let i = 0; i < keyTimes.length; i += 1) {
     const t = keyTimes[i];

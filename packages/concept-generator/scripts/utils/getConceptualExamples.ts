@@ -5,7 +5,7 @@ export const getConceptualExamples = (
     [word: string]: number[];
   },
   targetWords: string[],
-  onProgress?: (current: number, total: number) => void
+  onProgress?: (current: number, total: number) => void,
 ): string[] => {
   const words = Object.keys(wordVecs);
 

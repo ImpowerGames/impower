@@ -13,7 +13,7 @@ const curatedPhrases = getCuratedPhrases(
   phrases,
   terms,
   randomTestPhrase,
-  console.log
+  console.log,
 );
 
 const incompatibleTags = [
@@ -28,15 +28,15 @@ Object.entries(curatedPhrases).forEach(([phrase, phraseTags]) => {
   let moderatedPhraseTags: string[] = phraseTags;
   incompatibleTags.forEach((lists) => {
     const incompatiblePhraseTags = lists.map((list) =>
-      list.filter((incompatibleTag) => phraseTags.includes(incompatibleTag))
+      list.filter((incompatibleTag) => phraseTags.includes(incompatibleTag)),
     );
     const incompatibleCounts = incompatiblePhraseTags.map(
-      (lists) => lists.length
+      (lists) => lists.length,
     );
     if (incompatibleCounts.filter((count) => count > 0).length > 1) {
       const mainIncompatibleTags = lists.flatMap((x) => x);
       moderatedPhraseTags = moderatedPhraseTags.filter(
-        (t) => !mainIncompatibleTags.includes(t)
+        (t) => !mainIncompatibleTags.includes(t),
       );
     }
   });
@@ -44,7 +44,7 @@ Object.entries(curatedPhrases).forEach(([phrase, phraseTags]) => {
     console.log(
       "POSSIBLY INAPPROPRIATE",
       phrase,
-      phraseTags.filter((t) => !moderatedPhraseTags.includes(t))
+      phraseTags.filter((t) => !moderatedPhraseTags.includes(t)),
     );
   }
 });

@@ -13,10 +13,12 @@ export class ConfigureAudioMixerMessage {
   >(ConfigureAudioMixerMessage.method);
 }
 
-export interface ConfigureAudioMixerMessageMap
-  extends Record<string, [any, any]> {
+export interface ConfigureAudioMixerMessageMap extends Record<
+  string,
+  [any, any]
+> {
   [ConfigureAudioMixerMessage.method]: [
     ReturnType<typeof ConfigureAudioMixerMessage.type.request>,
-    ReturnType<typeof ConfigureAudioMixerMessage.type.response>
+    ReturnType<typeof ConfigureAudioMixerMessage.type.response>,
   ];
 }

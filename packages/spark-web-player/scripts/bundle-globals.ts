@@ -22,11 +22,11 @@ const getArgArrayValue = (key: string, fallback?: string): string[] => {
 
 const outputPath = path.resolve(getArgValue("--output", "types/spark.d.ts")!);
 const projectPath = path.resolve(
-  getArgValue("--project", "tsconfig.globals.json")!
+  getArgValue("--project", "tsconfig.globals.json")!,
 );
 const externalInlines = getArgArrayValue(
   "--external-inlines",
-  "pixi.js @pixi/colord eventemitter3"
+  "pixi.js @pixi/colord eventemitter3",
 );
 
 const project = new Project({
@@ -37,7 +37,7 @@ let watcher: chokidar.FSWatcher;
 
 function getAllDependencies(
   file: SourceFile,
-  seen = new Set<string>()
+  seen = new Set<string>(),
 ): Set<string> {
   const filePath = file.getFilePath();
   if (seen.has(filePath)) return seen;
@@ -113,7 +113,7 @@ function removeShadowingInterfaces(outputFilePath: string) {
   for (const className of classNames) {
     const interfaceRegex = new RegExp(
       `export\\s+interface\\s+${className}(?!\\w)[^{]*[{][^{}]*[}]`,
-      "g"
+      "g",
     );
     content = content.replace(interfaceRegex, (match) => {
       console.log(LOG_PREFIX + `removed shadowing interface: ${className}`);

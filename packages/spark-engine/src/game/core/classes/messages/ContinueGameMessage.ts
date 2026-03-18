@@ -22,12 +22,13 @@ export class ContinueGameMessage {
 }
 
 export namespace ContinueGameMessage {
-  export interface Request
-    extends RequestMessage<
-      ContinueGameMethod,
-      ContinueGameParams,
-      ContinueGameResult
-    > {}
-  export interface Response
-    extends ResponseMessage<ContinueGameMethod, ContinueGameResult> {}
+  export interface Request extends RequestMessage<
+    ContinueGameMethod,
+    ContinueGameParams,
+    ContinueGameResult
+  > {}
+  export interface Response extends ResponseMessage<
+    ContinueGameMethod,
+    ContinueGameResult
+  > {}
 }

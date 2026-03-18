@@ -16,9 +16,8 @@ export class DidChangeTextDocumentMessage {
 }
 
 export namespace DidChangeTextDocumentMessage {
-  export interface Notification
-    extends NotificationMessage<
-      DidChangeTextDocumentMethod,
-      DidChangeTextDocumentParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    DidChangeTextDocumentMethod,
+    DidChangeTextDocumentParams
+  > {}
 }

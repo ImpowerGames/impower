@@ -3,7 +3,7 @@ import { SessionCookieData } from "../types/SessionCookieData";
 
 const setSessionCookieData = (
   request: FastifyRequest,
-  data: SessionCookieData
+  data: SessionCookieData,
 ) => {
   const expires = new Date();
   expires.setDate(expires.getDate() + 200); // Expire 200 days from now

@@ -55,7 +55,7 @@ export default class FileDropzone extends Component(spec) {
           name,
           buffer,
         };
-      })
+      }),
     );
     this.drop(fileArray);
   };

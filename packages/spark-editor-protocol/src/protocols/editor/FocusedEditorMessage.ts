@@ -17,6 +17,8 @@ export class FocusedEditorMessage {
 }
 
 export namespace FocusedEditorMessage {
-  export interface Notification
-    extends NotificationMessage<FocusedEditorMethod, FocusedEditorParams> {}
+  export interface Notification extends NotificationMessage<
+    FocusedEditorMethod,
+    FocusedEditorParams
+  > {}
 }

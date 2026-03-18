@@ -1,5 +1,5 @@
 export const stringifyArpeggioDirection = (
-  token: "up" | "down" | "up-down" | "down-up"
+  token: "up" | "down" | "up-down" | "down-up",
 ): string | undefined => {
   if (token === "up") {
     return "u";

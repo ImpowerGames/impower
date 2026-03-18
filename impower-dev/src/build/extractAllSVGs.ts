@@ -4,7 +4,7 @@ const VARIABLE_REGEX = /(--(?:.|\n)+?[)])/g;
 
 const extractAllSVGs = (
   prefix: string,
-  css: string
+  css: string,
 ): Record<string, string> => {
   const result: Record<string, string> = {};
   if (css) {

@@ -13,6 +13,6 @@ export class ExitWorldMessage {
 
 export interface ExitWorldMessageMap extends Record<string, [any]> {
   [ExitWorldMessage.method]: [
-    ReturnType<typeof ExitWorldMessage.type.notification>
+    ReturnType<typeof ExitWorldMessage.type.notification>,
   ];
 }

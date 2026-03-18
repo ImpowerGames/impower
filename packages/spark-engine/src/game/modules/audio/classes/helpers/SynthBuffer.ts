@@ -50,8 +50,8 @@ export class SynthBuffer {
                     (synth?.envelope?.decay ?? 0) +
                     (synth?.envelope?.sustain ?? 0) +
                     (synth?.envelope?.release ?? 0)) /
-                  (t?.speed ?? 1)
-            )
+                  (t?.speed ?? 1),
+            ),
           )
         : 0;
     this._durationInSamples = Math.max(1, sampleRate * duration);
@@ -66,7 +66,7 @@ export class SynthBuffer {
       this._soundBuffer,
       this._volumeBuffer,
       this._pitchBuffer,
-      this._pitchRange
+      this._pitchRange,
     );
   }
 }

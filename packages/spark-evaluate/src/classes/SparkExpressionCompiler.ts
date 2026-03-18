@@ -12,7 +12,7 @@ export default class SparkExpressionCompiler extends ESNextStaticEval {
 
   protected CustomTemplateExpression(
     node: INode,
-    context: KeyedObject
+    context: KeyedObject,
   ): unknown {
     const [result, diagnostics] =
       this.config.formatter?.(`{${node.raw}}`, context) || [];

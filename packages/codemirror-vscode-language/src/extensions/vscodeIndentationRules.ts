@@ -40,5 +40,5 @@ const vscodeIndentService = indentService.of((context, pos) => {
 });
 
 export const vscodeIndentationRules = (
-  config: VSCodeIndentationRulesConfig = {}
+  config: VSCodeIndentationRulesConfig = {},
 ) => [vscodeIndentationRulesConfig.of(config), vscodeIndentService];

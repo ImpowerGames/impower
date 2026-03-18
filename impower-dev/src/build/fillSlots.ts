@@ -69,7 +69,7 @@ const fillSlots = (node: Element, template: Element) => {
 
       if (!hasSlotName) {
         const children = node.childNodes.filter(
-          (n) => !inserts.includes(n as Element)
+          (n) => !inserts.includes(n as Element),
         );
         if (children.length > 0) {
           slot.childNodes.length = 0;

@@ -1,7 +1,7 @@
 import { OscillatorType } from "../types/OscillatorType";
 
 export const parseOscillatorType = (
-  token: string | undefined
+  token: string | undefined,
 ): OscillatorType | undefined => {
   const t = token?.trim()?.toLowerCase();
   if (t === "sine" || t === "sin") {

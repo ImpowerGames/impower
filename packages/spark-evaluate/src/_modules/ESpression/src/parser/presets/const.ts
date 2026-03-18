@@ -56,10 +56,10 @@ export const TOKEN = "token";
 export function checkRest(
   attr: string,
   node: INode,
-  ctx: ParserContext
+  ctx: ParserContext,
 ): INode {
   const rest = (node[attr] as [INode]).findIndex(
-    (n) => n && n.type === REST_ELE
+    (n) => n && n.type === REST_ELE,
   );
   if (rest >= 0 && rest !== node[attr].length - 1)
     ctx.err("rest element must be the last");
@@ -233,7 +233,7 @@ export const CALL_TYPE: IConfBinaryOp = {
 
 export function opConf<T>(
   operators: string[] | string[][],
-  config: T | T[]
+  config: T | T[],
 ): { [operator: string]: T } {
   const res: { [operator: string]: T } = {};
   if (!Array.isArray(config)) config = [config];

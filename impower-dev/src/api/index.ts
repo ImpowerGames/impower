@@ -30,33 +30,33 @@ const app = IS_PRODUCTION
       trustProxy: true,
     }) as unknown as FastifyInstance)
   : existsSync(DEV_HTTPS_KEY_PATH) && existsSync(DEV_HTTPS_CERT_PATH)
-  ? (Fastify({
-      http2: true,
-      https: {
-        key: readFileSync(DEV_HTTPS_KEY_PATH),
-        cert: readFileSync(DEV_HTTPS_CERT_PATH),
-      },
-      logger: {
-        transport: {
-          target: "pino-pretty",
-          options: {
-            translateTime: "HH:MM:ss Z",
-            ignore: "pid,hostname",
+    ? (Fastify({
+        http2: true,
+        https: {
+          key: readFileSync(DEV_HTTPS_KEY_PATH),
+          cert: readFileSync(DEV_HTTPS_CERT_PATH),
+        },
+        logger: {
+          transport: {
+            target: "pino-pretty",
+            options: {
+              translateTime: "HH:MM:ss Z",
+              ignore: "pid,hostname",
+            },
           },
         },
-      },
-    }) as unknown as FastifyInstance)
-  : (Fastify({
-      logger: {
-        transport: {
-          target: "pino-pretty",
-          options: {
-            translateTime: "HH:MM:ss Z",
-            ignore: "pid,hostname",
+      }) as unknown as FastifyInstance)
+    : (Fastify({
+        logger: {
+          transport: {
+            target: "pino-pretty",
+            options: {
+              translateTime: "HH:MM:ss Z",
+              ignore: "pid,hostname",
+            },
           },
         },
-      },
-    }) as unknown as FastifyInstance);
+      }) as unknown as FastifyInstance);
 
 export const startServer = async () => {
   try {

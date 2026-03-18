@@ -58,7 +58,7 @@ export default class AudioManager extends Manager {
   }
 
   protected async loadAudioBuffer(
-    params: LoadAudioPlayerParams
+    params: LoadAudioPlayerParams,
   ): Promise<AudioBuffer> {
     // An audio context can be used to decode and create buffers,
     // even if it is not allowed to start running yet
@@ -73,12 +73,12 @@ export default class AudioManager extends Manager {
       const synthBuffer = new SynthBuffer(
         params.synth,
         params.tones,
-        audioContext.sampleRate
+        audioContext.sampleRate,
       );
       const audioBuffer = audioContext.createBuffer(
         1,
         synthBuffer.soundBuffer.length,
-        audioContext.sampleRate
+        audioContext.sampleRate,
       );
       audioBuffer.copyToChannel(synthBuffer.soundBuffer, 0);
       return audioBuffer;
@@ -87,7 +87,7 @@ export default class AudioManager extends Manager {
   }
 
   protected async getAudioBuffer(
-    params: LoadAudioPlayerParams
+    params: LoadAudioPlayerParams,
   ): Promise<AudioBuffer> {
     const existingAudioBuffer = this._audioBuffers.get(params.key);
     if (existingAudioBuffer) {
@@ -102,7 +102,7 @@ export default class AudioManager extends Manager {
 
   protected getAudioMixer(
     mixer: string,
-    gain?: number
+    gain?: number,
   ): AudioMixer | undefined {
     const existingAudioMixer = this._audioMixers.get(mixer);
     if (existingAudioMixer) {
@@ -147,7 +147,7 @@ export default class AudioManager extends Manager {
   }
 
   protected async getAudioPlayer(
-    params: LoadAudioPlayerParams
+    params: LoadAudioPlayerParams,
   ): Promise<AudioPlayer | undefined> {
     const audioChannel = this.getAudioChannel(params.channel);
     if (audioChannel.get(params.key)) {
@@ -178,7 +178,7 @@ export default class AudioManager extends Manager {
   protected async updateAudioPlayer(
     audioPlayer: AudioPlayer,
     update: AudioPlayerUpdate,
-    currentTime: number
+    currentTime: number,
   ) {
     const updateTime = currentTime + (update.after ?? 0);
     const when = update.now
@@ -232,7 +232,7 @@ export default class AudioManager extends Manager {
               queueCreatedAt = currentTime;
             }
             const instances = Array.from(
-              audioChannel.values().flatMap((p) => p.instances)
+              audioChannel.values().flatMap((p) => p.instances),
             );
             if (instances.length > 0) {
               for (const instance of instances) {
@@ -243,7 +243,7 @@ export default class AudioManager extends Manager {
                 instances.some(
                   (instance) =>
                     instance.queueCreatedAt == null ||
-                    instance.queueCreatedAt !== queueCreatedAt
+                    instance.queueCreatedAt !== queueCreatedAt,
                 )
               ) {
                 // An instance was forcedly stopped, disposed, or interrupted by a new queue
@@ -293,7 +293,7 @@ export default class AudioManager extends Manager {
   }
 
   loadAudioPlayer(
-    params: LoadAudioPlayerParams
+    params: LoadAudioPlayerParams,
   ): Promise<AudioPlayer | undefined> {
     return this.onLoadAudioPlayer(params);
   }
@@ -309,7 +309,7 @@ export default class AudioManager extends Manager {
   convertMidiToToneSequences(midi: Midi): ToneSequence[] {
     return convertMidiToToneSequences(
       midi,
-      (this.app.audioContext || this.unsafeAudioContext)?.sampleRate
+      (this.app.audioContext || this.unsafeAudioContext)?.sampleRate,
     );
   }
 
@@ -322,8 +322,8 @@ export default class AudioManager extends Manager {
       await this.onLoadAudioPlayer(msg.params);
       const outputLatency =
         window.AudioContext && "outputLatency" in window.AudioContext.prototype
-          ? (this.app.audioContext || this.unsafeAudioContext)?.outputLatency ??
-            0
+          ? ((this.app.audioContext || this.unsafeAudioContext)
+              ?.outputLatency ?? 0)
           : 0;
       return LoadAudioPlayerMessage.type.result({
         ...msg.params,

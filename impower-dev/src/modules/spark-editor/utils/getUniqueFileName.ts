@@ -2,7 +2,7 @@ const getUniqueFileName = (
   names: string[],
   defaultName: string,
   ignoreIndex?: number,
-  maxCollisionsAllowed?: number
+  maxCollisionsAllowed?: number,
 ): string => {
   const defaultIndexStr = defaultName.match(/\d+/)?.[0];
   const extIndex = defaultName.indexOf(".");
@@ -25,10 +25,10 @@ const getUniqueFileName = (
           key = defaultIndexStr
             ? defaultName.replace(defaultIndexStr, indexStr)
             : extIndex >= 0
-            ? defaultName.slice(0, extIndex) +
-              indexStr +
-              defaultName.slice(extIndex)
-            : defaultName + indexStr;
+              ? defaultName.slice(0, extIndex) +
+                indexStr +
+                defaultName.slice(extIndex)
+              : defaultName + indexStr;
         }
       }
     }

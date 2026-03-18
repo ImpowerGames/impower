@@ -5,15 +5,15 @@ import expandComponents from "./expandComponents.js";
 
 const expandHtml = (
   html: string,
-  components: Record<string, ComponentSpec>
+  components: Record<string, ComponentSpec>,
 ): string => {
   const doc = parse(html);
 
   const htmlNode = doc.childNodes.find(
-    (node) => "tagName" in node && node.tagName === "html"
+    (node) => "tagName" in node && node.tagName === "html",
   ) as Element;
   const body = htmlNode?.childNodes.find(
-    (node) => "tagName" in node && node.tagName === "body"
+    (node) => "tagName" in node && node.tagName === "body",
   ) as Element;
 
   expandComponents(body, components);

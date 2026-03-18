@@ -15,7 +15,7 @@ export class Parser {
     public rules: IRuleSet,
     private startBranch: string,
     identStart?: ICharClass,
-    identPart?: ICharClass
+    identPart?: ICharClass,
   ) {
     this.config = {
       identStart: identStart || { re: /[_\p{L}]/u },

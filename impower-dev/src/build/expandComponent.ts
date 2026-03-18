@@ -22,7 +22,7 @@ const getPropValue = (attrValue: string | null, defaultPropValue: unknown) => {
 
 const attrsToProps = (
   attrs: Attribute[],
-  defaultProps: Record<string, unknown>
+  defaultProps: Record<string, unknown>,
 ): Record<string, unknown> => {
   const obj: Record<string, unknown> = {};
   [...attrs].forEach((attr) => {
@@ -38,7 +38,7 @@ const attrsToProps = (
 const expandComponent = (
   name: string,
   attrs: Attribute[],
-  components: Record<string, ComponentSpec>
+  components: Record<string, ComponentSpec>,
 ): Element => {
   const component = components[name];
 

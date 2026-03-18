@@ -12,7 +12,7 @@ export const randomizeProperties = <T>(
   validation: Schema<T>,
   randomization: Random<T>,
   cullProp?: string,
-  rng?: () => number
+  rng?: () => number,
 ): void => {
   const randomizerProps = getAllProperties(randomization);
   Object.entries(randomizerProps).forEach(([k, v]) => {
@@ -69,7 +69,7 @@ export const randomizeProperties = <T>(
             k,
             forceInverse
               ? inverseOfReferencedValue
-              : pick([referencedValue, inverseOfReferencedValue], rng)
+              : pick([referencedValue, inverseOfReferencedValue], rng),
           );
         }
       }

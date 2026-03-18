@@ -5,7 +5,7 @@ import { getParentPath } from "./getParentPath";
 export const getFileHandleFromPath = async (
   root: FileSystemDirectoryHandle,
   relativePath: string,
-  create = true
+  create = true,
 ): Promise<FileSystemFileHandle> => {
   const directoryPath = getParentPath(relativePath);
   const fileName = getFileName(relativePath);

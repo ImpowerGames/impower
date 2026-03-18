@@ -12,7 +12,7 @@ export default class PreviewScreenplayToolbar extends Component(spec) {
   override onConnected() {
     this.refs.downloadButton?.addEventListener(
       "click",
-      this.handleClickDownloadButton
+      this.handleClickDownloadButton,
     );
     this.refs.modeButton?.addEventListener("click", this.handleClickModeButton);
     this.progressBarEl.style.transform = `scaleX(0)`;
@@ -21,11 +21,11 @@ export default class PreviewScreenplayToolbar extends Component(spec) {
   override onDisconnected() {
     this.refs.downloadButton?.removeEventListener(
       "click",
-      this.handleClickDownloadButton
+      this.handleClickDownloadButton,
     );
     this.refs.modeButton?.removeEventListener(
       "click",
-      this.handleClickModeButton
+      this.handleClickModeButton,
     );
   }
 

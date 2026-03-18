@@ -33,7 +33,7 @@ export class Manager {
   onReceiveNotification(msg: NotificationMessage): void {}
 
   async onReceiveRequest(
-    msg: RequestMessage
+    msg: RequestMessage,
   ): Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
     | { result: unknown; transfer?: ArrayBuffer[] }

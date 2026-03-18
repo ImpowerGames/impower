@@ -3,5 +3,5 @@ export type ScriptLocation = [
   startLine: number,
   startColumn: number,
   endLine: number,
-  endColumn: number
+  endColumn: number,
 ];

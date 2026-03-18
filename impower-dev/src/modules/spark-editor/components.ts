@@ -59,9 +59,9 @@ const style = <
   Selectors extends Record<string, null | string | string[]> = Record<
     string,
     null | string | string[]
-  >
+  >,
 >(
-  spec: ComponentSpec<Props, Stores, Context, Graphics, Selectors>
+  spec: ComponentSpec<Props, Stores, Context, Graphics, Selectors>,
 ): ComponentSpec<Props, Stores, Context, Graphics, Selectors> => {
   return {
     ...spec,

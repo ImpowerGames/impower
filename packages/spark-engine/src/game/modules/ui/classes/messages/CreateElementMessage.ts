@@ -26,6 +26,6 @@ export class CreateElementMessage {
 export interface CreateElementMessageMap extends Record<string, [any, any]> {
   [CreateElementMessage.method]: [
     ReturnType<typeof CreateElementMessage.type.request>,
-    ReturnType<typeof CreateElementMessage.type.response>
+    ReturnType<typeof CreateElementMessage.type.response>,
   ];
 }

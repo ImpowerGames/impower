@@ -10,7 +10,7 @@ import { getSubphrases } from "../utils/getSubphrases";
  */
 const getPhraseTagsMap = (
   phrases: string[],
-  termTagsMap: { [term: string]: string[] }
+  termTagsMap: { [term: string]: string[] },
 ): {
   [phrase: string]: string[];
 } => {

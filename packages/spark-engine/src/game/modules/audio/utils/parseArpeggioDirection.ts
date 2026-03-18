@@ -1,5 +1,5 @@
 export const parseArpeggioDirection = (
-  token: string | undefined
+  token: string | undefined,
 ): "up" | "down" | "up-down" | "down-up" | undefined => {
   const t = token?.trim()?.toLowerCase();
   if (t === "up" || t === "u" || t === "^") {

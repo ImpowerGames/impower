@@ -59,7 +59,7 @@ const bracketState = StateField.define<RangeSet<typeof surroundedBracket>>({
     if (tr.selection) {
       let lineStart = tr.state.doc.lineAt(tr.selection.main.head).from;
       let prevLineStart = tr.startState.doc.lineAt(
-        tr.startState.selection.main.head
+        tr.startState.selection.main.head,
       ).from;
       if (lineStart != tr.changes.mapPos(prevLineStart, -1))
         value = RangeSet.empty;
@@ -134,7 +134,7 @@ const inputHandler = EditorView.inputHandler.of((view, from, to, insert) => {
 /// take care of running this for user input.)
 export function insertBracket(
   state: EditorState,
-  bracket: string
+  bracket: string,
 ): Transaction | null {
   let conf = config(state, state.selection.main.head);
   let tokens = conf.brackets || defaults.brackets;
@@ -170,7 +170,7 @@ function handleOpen(
   state: EditorState,
   open: string,
   surround: string,
-  surroundBefore: string
+  surroundBefore: string,
 ) {
   let dont = null,
     changes = state.changeByRange((range) => {
@@ -183,7 +183,7 @@ function handleOpen(
           effects: surroundBracketEffect.of(range.to + open.length),
           range: EditorSelection.range(
             range.anchor + open.length,
-            range.head + open.length
+            range.head + open.length,
           ),
         };
       let next = nextChar(state.doc, range.head);
@@ -231,7 +231,7 @@ function handleSame(
   state: EditorState,
   token: string,
   allowTriple: boolean,
-  config: SurroundBracketConfig
+  config: SurroundBracketConfig,
 ) {
   let stringPrefixes = config.stringPrefixes || defaults.stringPrefixes;
   let dont = null,
@@ -245,7 +245,7 @@ function handleSame(
           effects: surroundBracketEffect.of(range.to + token.length),
           range: EditorSelection.range(
             range.anchor + token.length,
-            range.head + token.length
+            range.head + token.length,
           ),
         };
       let pos = range.head,
@@ -275,7 +275,7 @@ function handleSame(
         (start = canStartStringAt(
           state,
           pos - 2 * token.length,
-          stringPrefixes
+          stringPrefixes,
         )) > -1 &&
         nodeStart(state, start)
       ) {
@@ -314,14 +314,14 @@ function probablyInString(
   state: EditorState,
   pos: number,
   quoteToken: string,
-  prefixes: readonly string[]
+  prefixes: readonly string[],
 ) {
   let node = syntaxTree(state).resolveInner(pos, -1);
   let maxPrefix = prefixes.reduce((m, p) => Math.max(m, p.length), 0);
   for (let i = 0; i < 5; i++) {
     let start = state.sliceDoc(
       node.from,
-      Math.min(node.to, node.from + quoteToken.length + maxPrefix)
+      Math.min(node.to, node.from + quoteToken.length + maxPrefix),
     );
     let quotePos = start.indexOf(quoteToken);
     if (
@@ -352,7 +352,7 @@ function probablyInString(
 function canStartStringAt(
   state: EditorState,
   pos: number,
-  prefixes: readonly string[]
+  prefixes: readonly string[],
 ) {
   let charCat = state.charCategorizer(pos);
   if (charCat(state.sliceDoc(pos - 1, pos)) != CharCategory.Word) return pos;

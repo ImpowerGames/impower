@@ -23,7 +23,7 @@ export const curveToBezier = (curve: Curve, curveTightness = 0): Curve => {
       clone(curve[0]!),
       clone(curve[1]!),
       clone(curve[2]!),
-      clone(curve[2]!)
+      clone(curve[2]!),
     );
   } else {
     const points: Point[] = [];
@@ -113,7 +113,7 @@ const getPointsOnBezierCurveWithSplitting = (
   points: Curve,
   offset: number,
   tolerance: number,
-  newPoints?: Point[]
+  newPoints?: Point[],
 ): Point[] => {
   const outPoints = newPoints || [];
   if (flatness(points, offset) < tolerance) {
@@ -148,13 +148,13 @@ const getPointsOnBezierCurveWithSplitting = (
       [p1, q1, r1, red],
       0,
       tolerance,
-      outPoints
+      outPoints,
     );
     getPointsOnBezierCurveWithSplitting(
       [red, r2, q3, p4],
       0,
       tolerance,
-      outPoints
+      outPoints,
     );
   }
   return outPoints;
@@ -167,7 +167,7 @@ const simplifyPoints = (
   start: number,
   end: number,
   epsilon: number,
-  newPoints?: Point[]
+  newPoints?: Point[],
 ): Point[] => {
   const outPoints = newPoints || [];
 
@@ -205,7 +205,7 @@ export const simplify = (points: Curve, distance: number): Point[] => {
 export const flattenCurve = (
   points: Curve,
   tolerance = 0.15,
-  distance = 0
+  distance = 0,
 ): Point[] => {
   const newPoints: Point[] = [];
   const numSegments = (points.length - 1) / 3;

@@ -3,11 +3,11 @@ const getRelativeSectionName = <
     name: string;
     parent?: string;
     children?: string[];
-  }
+  },
 >(
   currentSectionName: string,
   sections: Record<string, T>,
-  expression: "<<" | ">>" | "--" | "++" | "<<--" | string
+  expression: "<<" | ">>" | "--" | "++" | "<<--" | string,
 ): string => {
   if (expression === "<<") {
     // FIRST SIBLING

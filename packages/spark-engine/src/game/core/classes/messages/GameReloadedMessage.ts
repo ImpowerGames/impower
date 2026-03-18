@@ -14,6 +14,8 @@ export class GameReloadedMessage {
 }
 
 export namespace GameReloadedMessage {
-  export interface Notification
-    extends NotificationMessage<GameReloadedMethod, GameReloadedParams> {}
+  export interface Notification extends NotificationMessage<
+    GameReloadedMethod,
+    GameReloadedParams
+  > {}
 }

@@ -1,7 +1,9 @@
 import { Message } from "./Message";
 
-export interface NotificationMessage<M extends string = string, P = any>
-  extends Message<M, P> {
+export interface NotificationMessage<
+  M extends string = string,
+  P = any,
+> extends Message<M, P> {
   /**
    * The method to be invoked.
    */

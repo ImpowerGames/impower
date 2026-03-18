@@ -3,7 +3,7 @@ import { getPhrasesSortedByLength } from "../utils/getPhrasesSortedByLength";
 const getPersonalizedPhraseTagsMap = (
   phraseTagsMap: { [phrase: string]: string[] },
   additionsMap?: { [phrase: string]: string[] },
-  deletionsMap?: { [phrase: string]: string[] }
+  deletionsMap?: { [phrase: string]: string[] },
 ): {
   [tag: string]: string[];
 } => {
@@ -13,13 +13,13 @@ const getPersonalizedPhraseTagsMap = (
   const addedPhrases = additionsMap ? Object.keys(additionsMap) : [];
   const deletedPhrases = deletionsMap
     ? Object.keys(deletionsMap).filter(
-        (phrase) => deletionsMap[phrase]?.length === 0
+        (phrase) => deletionsMap[phrase]?.length === 0,
       )
     : [];
 
   const personalizedPhrases = [...addedPhrases, ...phrases];
   const sortedPersonalizedPhrases = getPhrasesSortedByLength(
-    personalizedPhrases.filter((p) => !deletedPhrases.includes(p))
+    personalizedPhrases.filter((p) => !deletedPhrases.includes(p)),
   );
 
   sortedPersonalizedPhrases.forEach((phrase) => {

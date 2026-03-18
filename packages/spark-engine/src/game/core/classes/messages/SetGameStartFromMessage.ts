@@ -22,12 +22,13 @@ export class SetGameStartFromMessage {
 }
 
 export namespace SetGameStartFromMessage {
-  export interface Request
-    extends RequestMessage<
-      SetGameStartFromMethod,
-      SetGameStartFromParams,
-      SetGameStartFromResult
-    > {}
-  export interface Response
-    extends ResponseMessage<SetGameStartFromMethod, SetGameStartFromResult> {}
+  export interface Request extends RequestMessage<
+    SetGameStartFromMethod,
+    SetGameStartFromParams,
+    SetGameStartFromResult
+  > {}
+  export interface Response extends ResponseMessage<
+    SetGameStartFromMethod,
+    SetGameStartFromResult
+  > {}
 }

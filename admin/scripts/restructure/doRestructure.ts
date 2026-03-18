@@ -9,7 +9,7 @@ import { getFirestore } from "firebase-admin/firestore";
 
 export const doRestructure = async (
   credentials: ServiceAccount,
-  databaseURL: string
+  databaseURL: string,
 ) => {
   const adminApp =
     getApp("to") ||
@@ -18,7 +18,7 @@ export const doRestructure = async (
         credential: cert(credentials),
         databaseURL,
       },
-      "to"
+      "to",
     );
   const firestore = getFirestore(adminApp);
   const bulkWriter = firestore.bulkWriter();
@@ -48,7 +48,7 @@ export const doRestructure = async (
   });
   // Copy all pitched_games/{id}/contributions/{contributionId} to pitched_projects/{id}/contributions/{contributionId}
   console.log(
-    "Copy all pitched_games/{id}/contributions/{contributionId} to pitched_projects/{id}/contributions/{contributionId}"
+    "Copy all pitched_games/{id}/contributions/{contributionId} to pitched_projects/{id}/contributions/{contributionId}",
   );
   const contributionSnaps = await firestore
     .collectionGroup("contributions")
@@ -61,7 +61,7 @@ export const doRestructure = async (
           .doc(s.ref.parent.parent.id)
           .collection("contributions")
           .doc(s.id),
-        s.data()
+        s.data(),
       );
     }
   });
@@ -78,7 +78,7 @@ export const doRestructure = async (
           .doc(s.ref.parent.parent.id)
           .collection("deleted_submissions")
           .doc(s.id.replace("game", "project")),
-        { ...s.data(), _documentType: "ProjectDocument", projectType: "game" }
+        { ...s.data(), _documentType: "ProjectDocument", projectType: "game" },
       );
     }
   });
@@ -113,7 +113,7 @@ export const doRestructure = async (
       const commentsSnap = await commentsDocRef.get();
       if (!commentsSnap?.data()?.["_updates"]) {
         promises.push(
-          bulkWriter.set(commentsDocRef, newSubmissionDoc, { merge: true })
+          bulkWriter.set(commentsDocRef, newSubmissionDoc, { merge: true }),
         );
       }
 
@@ -121,7 +121,9 @@ export const doRestructure = async (
       const contributionsSnap = await contributionsDocRef.get();
       if (!contributionsSnap?.data()?.["_updates"]) {
         promises.push(
-          bulkWriter.set(contributionsDocRef, newSubmissionDoc, { merge: true })
+          bulkWriter.set(contributionsDocRef, newSubmissionDoc, {
+            merge: true,
+          }),
         );
       }
 
@@ -129,7 +131,7 @@ export const doRestructure = async (
       const notesSnap = await notesDocRef.get();
       if (!notesSnap?.data()?.["_updates"]) {
         promises.push(
-          bulkWriter.set(notesDocRef, newSubmissionDoc, { merge: true })
+          bulkWriter.set(notesDocRef, newSubmissionDoc, { merge: true }),
         );
       }
 
@@ -137,7 +139,7 @@ export const doRestructure = async (
       const phrasesSnap = await phrasesDocRef.get();
       if (!phrasesSnap?.data()?.["_updates"]) {
         promises.push(
-          bulkWriter.set(phrasesDocRef, newSubmissionDoc, { merge: true })
+          bulkWriter.set(phrasesDocRef, newSubmissionDoc, { merge: true }),
         );
       }
 
@@ -145,7 +147,7 @@ export const doRestructure = async (
       const projectsSnap = await projectsDocRef.get();
       if (!projectsSnap?.data()?.["_updates"]) {
         promises.push(
-          bulkWriter.set(projectsDocRef, newSubmissionDoc, { merge: true })
+          bulkWriter.set(projectsDocRef, newSubmissionDoc, { merge: true }),
         );
       }
 
@@ -153,7 +155,7 @@ export const doRestructure = async (
       const studiosSnap = await studiosDocRef.get();
       if (!studiosSnap?.data()?.["_updates"]) {
         promises.push(
-          bulkWriter.set(studiosDocRef, newSubmissionDoc, { merge: true })
+          bulkWriter.set(studiosDocRef, newSubmissionDoc, { merge: true }),
         );
       }
 
@@ -161,12 +163,12 @@ export const doRestructure = async (
       const suggestionsSnap = await suggestionsDocRef.get();
       if (!suggestionsSnap?.data()?.["_updates"]) {
         promises.push(
-          bulkWriter.set(suggestionsDocRef, newSubmissionDoc, { merge: true })
+          bulkWriter.set(suggestionsDocRef, newSubmissionDoc, { merge: true }),
         );
       }
 
       return Promise.all(promises);
-    })
+    }),
   );
   await bulkWriter.close();
 
@@ -228,7 +230,7 @@ export const doRestructure = async (
         ([target, deletedSubmissionData]) => {
           userData.deleted_submissions[target.replace("game", "project")] =
             deletedSubmissionData;
-        }
+        },
       );
       usersVal[userId] = userData;
     });

@@ -16,9 +16,8 @@ export class ConnectedPreviewMessage {
 }
 
 export namespace ConnectedPreviewMessage {
-  export interface Notification
-    extends NotificationMessage<
-      ConnectedPreviewMethod,
-      ConnectedPreviewParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    ConnectedPreviewMethod,
+    ConnectedPreviewParams
+  > {}
 }

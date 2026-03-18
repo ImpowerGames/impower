@@ -14,7 +14,7 @@ const getSampleIndex = (
   x: number,
   startX: number,
   endX: number,
-  bufferLength: number
+  bufferLength: number,
 ): number => {
   const timeProgress = (x - startX) / (endX - 1);
   return Math.floor(timeProgress * (bufferLength - 1));
@@ -40,7 +40,7 @@ const drawSoundWaveform = (
     volumeColor: string;
     waveColor: string;
     visible: "both" | "reference" | "sound";
-  }
+  },
 ): void => {
   if (!ctx) {
     return;

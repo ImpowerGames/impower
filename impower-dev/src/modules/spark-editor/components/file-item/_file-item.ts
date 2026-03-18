@@ -12,19 +12,20 @@ export default spec({
     const nameComponent = () => (name ? html`<span>${name}</span>` : "");
     const extComponent = () =>
       ext && ext !== "sd" ? html`<span style="opacity:0.3">.${ext}</span>` : "";
-    const nameInputComponent = () => html`<s-input
-      display="inline-block"
-      id="nameInput"
-      child-justify="start"
-      p="0 4"
-      m="0 -4"
-      placeholder-color="fab-bg"
-      color="fg"
-      value="${name || ""}"
-      label="${name || ""}"
-      size="sm"
-      width="100%"
-    ></s-input>`;
+    const nameInputComponent = () =>
+      html`<s-input
+        display="inline-block"
+        id="nameInput"
+        child-justify="start"
+        p="0 4"
+        m="0 -4"
+        placeholder-color="fab-bg"
+        color="fg"
+        value="${name || ""}"
+        label="${name || ""}"
+        size="sm"
+        width="100%"
+      ></s-input>`;
     const nameLabelComponent = () => html`${nameComponent}${extComponent}`;
     return html`
       <s-button

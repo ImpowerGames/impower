@@ -1,7 +1,7 @@
 import { MidiChannelState } from "../types/MidiChannelState";
 
 export const createMidiChannelState = (
-  channelNumber: number
+  channelNumber: number,
 ): MidiChannelState => ({
   isPercussion: channelNumber === 9,
   instrument: 0,

@@ -22,7 +22,7 @@ export default class SparkExpressionParser extends ESnextParser {
   constructor(
     noStatement?: boolean,
     identStart?: ICharClass,
-    identPart?: ICharClass
+    identPart?: ICharClass,
   ) {
     super(noStatement, identStart, identPart);
     this.rules[BINARY_EXP] = [
@@ -37,7 +37,7 @@ export default class SparkExpressionParser extends ESnextParser {
         if (r instanceof StringRule && r.config.templateRules) {
           r.config.unprefixedTemplateRules = UNPREFIXED_TEMPLATE_EXPR;
         }
-      }
+      },
     );
   }
 }

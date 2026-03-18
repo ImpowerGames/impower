@@ -2,11 +2,11 @@ import { ToneSequence } from "../../../spark-engine/src/game/modules/audio/types
 
 export const synthesizeToneSequence = async (
   toneSequence: ToneSequence,
-  onProgress?: (percentage: number) => void
+  onProgress?: (percentage: number) => void,
 ): Promise<Float32Array> => {
   return new Promise((resolve) => {
     const worker = new Worker(
-      new URL("./synthesizeToneSequenceWorker.ts", import.meta.url)
+      new URL("./synthesizeToneSequenceWorker.ts", import.meta.url),
     );
     worker.addEventListener("message", (event) => {
       const { progress, result } = event.data;

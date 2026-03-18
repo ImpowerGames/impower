@@ -13,11 +13,11 @@ export default class HeaderSyncConflictToolbar extends Component(spec) {
   override onDisconnected() {
     this.refs.pullButton.removeEventListener(
       "click",
-      this.handleClickPullButton
+      this.handleClickPullButton,
     );
     this.refs.pushButton.removeEventListener(
       "click",
-      this.handleClickPushButton
+      this.handleClickPushButton,
     );
     this.refs.pullDialog.removeEventListener("confirm", this.handleConfirmPull);
     this.refs.pushDialog.removeEventListener("confirm", this.handleConfirmPush);

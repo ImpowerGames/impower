@@ -225,7 +225,7 @@ const getSuffixed = (term: string): string[] => {
   return Array.from(alternativeTerms).flatMap((altTerm) =>
     altTerm.endsWith("_")
       ? altTerm.substring(0, altTerm.length - 1)
-      : [altTerm, ...getSuffixedVariants(altTerm)]
+      : [altTerm, ...getSuffixedVariants(altTerm)],
   );
 };
 
@@ -273,7 +273,7 @@ const getPrefixed = (term: string): string[] => {
   return Array.from(alternativeTerms).flatMap((altTerm) =>
     altTerm.startsWith("_")
       ? altTerm.substring(1)
-      : [altTerm, ...getPrefixedVariants(altTerm)]
+      : [altTerm, ...getPrefixedVariants(altTerm)],
   );
 };
 

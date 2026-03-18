@@ -2,7 +2,7 @@ const DEFAULT_FADE_DURATION = 0.016;
 
 type AudioListener = (
   this: AudioBufferSourceNode,
-  ev: AudioScheduledSourceNodeEventMap[keyof AudioScheduledSourceNodeEventMap]
+  ev: AudioScheduledSourceNodeEventMap[keyof AudioScheduledSourceNodeEventMap],
 ) => any;
 
 interface AudioInstance {
@@ -121,7 +121,7 @@ export default class AudioPlayer {
       loopStart?: number;
       loopEnd?: number;
       volume?: number;
-    }
+    },
   ) {
     this._audioBuffer = audioBuffer;
     this._audioContext = audioContext;
@@ -140,7 +140,7 @@ export default class AudioPlayer {
   addEventListener<K extends keyof AudioScheduledSourceNodeEventMap>(
     type: K,
     listener: AudioListener,
-    options?: boolean | AddEventListenerOptions
+    options?: boolean | AddEventListenerOptions,
   ): void {
     this._events[type] ??= new Map();
     this._events[type].set(listener, options);
@@ -149,7 +149,7 @@ export default class AudioPlayer {
   removeEventListener<K extends keyof AudioScheduledSourceNodeEventMap>(
     type: K,
     listener: AudioListener,
-    options?: boolean | EventListenerOptions
+    options?: boolean | EventListenerOptions,
   ): void {
     this._events[type] ??= new Map();
     this._events[type].delete(listener);
@@ -188,7 +188,7 @@ export default class AudioPlayer {
     when: number = 0,
     gain?: number,
     offset?: number,
-    duration?: number
+    duration?: number,
   ): AudioInstance {
     const gainNode = this._audioContext.createGain();
     if (gain != null) {
@@ -216,7 +216,7 @@ export default class AudioPlayer {
         // So once they're finished playing, disconnect them
         this._disconnect(instance);
       },
-      { once: true }
+      { once: true },
     );
     this._events.ended.forEach((options, listener) => {
       sourceNode.addEventListener("ended", listener, options);
@@ -233,7 +233,7 @@ export default class AudioPlayer {
     value: number,
     fadeDuration: number = 0,
     cancelsDisconnect = true,
-    disconnectWhenDone = false
+    disconnectWhenDone = false,
   ): void {
     if (!instance.willDisconnect || cancelsDisconnect) {
       instance.willDisconnect = disconnectWhenDone;
@@ -242,14 +242,14 @@ export default class AudioPlayer {
       instance.gainNode.gain.setTargetAtTime(
         value,
         when,
-        this.secondsToApproximateTimeConstant(fadeDuration)
+        this.secondsToApproximateTimeConstant(fadeDuration),
       );
       if (cancelsDisconnect) {
         this._cancelScheduledCallbacks(instance, when);
       }
       if (disconnectWhenDone) {
         this._scheduleCallback(instance, when + fadeDuration, () =>
-          this._disconnect(instance)
+          this._disconnect(instance),
         );
       }
     }
@@ -258,7 +258,7 @@ export default class AudioPlayer {
   protected _scheduleCallback(
     instance: AudioInstance,
     when: number,
-    callback: () => void
+    callback: () => void,
   ): void {
     const delay = when - this._audioContext.currentTime;
     const id = window.setTimeout(callback, delay * 1000);
@@ -268,7 +268,7 @@ export default class AudioPlayer {
 
   protected _cancelScheduledCallbacks(
     instance: AudioInstance,
-    when?: number
+    when?: number,
   ): void {
     if (instance.scheduled) {
       const oldSortedEventTimes = Array.from(instance.scheduled.keys()).sort();
@@ -291,7 +291,7 @@ export default class AudioPlayer {
     fadeDuration = 0,
     gain?: number,
     offset?: number,
-    duration?: number
+    duration?: number,
   ): AudioInstance {
     if (gain != null) {
       this._gain = gain;
@@ -300,7 +300,7 @@ export default class AudioPlayer {
     const endGain = this._gain;
     if (this._loop) {
       const loopingInstance = this._instances.find(
-        (instance) => instance.sourceNode.loop
+        (instance) => instance.sourceNode.loop,
       );
       if (
         loopingInstance &&
@@ -329,7 +329,7 @@ export default class AudioPlayer {
   fade(
     when: number,
     fadeDuration = DEFAULT_FADE_DURATION,
-    gain?: number
+    gain?: number,
   ): AudioInstance[] {
     if (gain != null) {
       this._gain = gain;

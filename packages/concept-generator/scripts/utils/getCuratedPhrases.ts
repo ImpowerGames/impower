@@ -5,7 +5,7 @@ export const getCuratedPhrases = (
   phrases: string[],
   termTags: Record<string, string[]>,
   consoleOutputPhrase = "",
-  onLog?: (message: string) => void
+  onLog?: (message: string) => void,
 ): Record<string, string[]> => {
   const associatedTags: { [phrase: string]: string[] } = {};
 

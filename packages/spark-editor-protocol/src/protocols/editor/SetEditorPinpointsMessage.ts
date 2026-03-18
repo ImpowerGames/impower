@@ -21,15 +21,13 @@ export class SetEditorPinpointsMessage {
 }
 
 export namespace SetEditorPinpointsMessage {
-  export interface Request
-    extends RequestMessage<
-      SetEditorPinpointsMethod,
-      SetEditorPinpointsParams,
-      SetEditorPinpointsResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      SetEditorPinpointsMethod,
-      SetEditorPinpointsResult
-    > {}
+  export interface Request extends RequestMessage<
+    SetEditorPinpointsMethod,
+    SetEditorPinpointsParams,
+    SetEditorPinpointsResult
+  > {}
+  export interface Response extends ResponseMessage<
+    SetEditorPinpointsMethod,
+    SetEditorPinpointsResult
+  > {}
 }

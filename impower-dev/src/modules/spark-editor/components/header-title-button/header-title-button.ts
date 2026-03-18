@@ -9,19 +9,19 @@ export default class HeaderTitleButton extends Component(spec) {
     this.refs.nameInput?.addEventListener("blur", this.handleBlurNameInput);
     this.refs.nameInput?.addEventListener(
       "keydown",
-      this.handleKeyDownNameInput
+      this.handleKeyDownNameInput,
     );
   }
 
   override onDisconnected() {
     this.refs.nameInput?.removeEventListener(
       "focus",
-      this.handleFocusNameInput
+      this.handleFocusNameInput,
     );
     this.refs.nameInput?.removeEventListener("blur", this.handleBlurNameInput);
     this.refs.nameInput?.removeEventListener(
       "keydown",
-      this.handleKeyDownNameInput
+      this.handleKeyDownNameInput,
     );
   }
 

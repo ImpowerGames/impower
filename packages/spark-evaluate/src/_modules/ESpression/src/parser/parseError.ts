@@ -22,7 +22,7 @@ export class ParseError extends SyntaxError {
     message: string,
     expression: string,
     position: number,
-    noMatch?: boolean
+    noMatch?: boolean,
   ) {
     super(`${message} ${expression[position] || ""}`);
     this.description = message;

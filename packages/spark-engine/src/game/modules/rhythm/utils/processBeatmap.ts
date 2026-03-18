@@ -4,7 +4,7 @@ import { parseBeatmap } from "./parseBeatmap";
 const NAME_REGEX = /[_\p{L}][_\p{L}0-9]*/u;
 
 const processBeatmap = (
-  context: SparkParserContext
+  context: SparkParserContext,
 ): { type: string } | undefined => {
   const scope = context.scopes.at(-1)!;
   const from = context.from;

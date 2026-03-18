@@ -18,12 +18,13 @@ export class DisableGameDebugMessage {
 }
 
 export namespace DisableGameDebugMessage {
-  export interface Request
-    extends RequestMessage<
-      DisableGameDebugMethod,
-      DisableGameDebugParams,
-      DisableGameDebugResult
-    > {}
-  export interface Response
-    extends ResponseMessage<DisableGameDebugMethod, DisableGameDebugResult> {}
+  export interface Request extends RequestMessage<
+    DisableGameDebugMethod,
+    DisableGameDebugParams,
+    DisableGameDebugResult
+  > {}
+  export interface Response extends ResponseMessage<
+    DisableGameDebugMethod,
+    DisableGameDebugResult
+  > {}
 }

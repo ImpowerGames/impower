@@ -9,18 +9,18 @@ export default class HeaderMenuButton extends Component(spec) {
     this.refs.openButton.addEventListener("click", this.handleClickOpenButton);
     this.refs.closeButton.addEventListener(
       "click",
-      this.handleClickCloseButton
+      this.handleClickCloseButton,
     );
   }
 
   override onDisconnected() {
     this.refs.openButton.removeEventListener(
       "click",
-      this.handleClickOpenButton
+      this.handleClickOpenButton,
     );
     this.refs.closeButton.removeEventListener(
       "click",
-      this.handleClickCloseButton
+      this.handleClickCloseButton,
     );
   }
 

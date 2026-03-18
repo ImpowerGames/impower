@@ -16,6 +16,6 @@ export class LoadAudioPlayerMessage {
 export interface LoadAudioPlayerMessageMap extends Record<string, [any, any]> {
   [LoadAudioPlayerMessage.method]: [
     ReturnType<typeof LoadAudioPlayerMessage.type.request>,
-    ReturnType<typeof LoadAudioPlayerMessage.type.response>
+    ReturnType<typeof LoadAudioPlayerMessage.type.response>,
   ];
 }

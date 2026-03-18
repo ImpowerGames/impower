@@ -16,17 +16,17 @@ export class AABB {
       this._center.set(
         (this._min.x + this._max.x) / 2,
         (this._min.y + this._max.y) / 2,
-        (this._min.z + this._max.z) / 2
+        (this._min.z + this._max.z) / 2,
       );
       this._extents.set(
         Math.abs(this._max.x - this._center.x),
         Math.abs(this._max.y - this._center.y),
-        Math.abs(this._max.z - this._center.z)
+        Math.abs(this._max.z - this._center.z),
       );
       this._size.set(
         this._extents.x * 2,
         this._extents.y * 2,
-        this._extents.z * 2
+        this._extents.z * 2,
       );
     },
   };

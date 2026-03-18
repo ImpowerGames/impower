@@ -92,7 +92,7 @@ export default class WorkspacePrint {
   protected async sendRequest<M extends string, P, R>(
     type: MessageProtocolRequestType<M, P, R>,
     params: P,
-    transfer: Transferable[] = []
+    transfer: Transferable[] = [],
   ): Promise<R> {
     return new Promise((resolve, reject) => {
       const request = type.request(params);
@@ -105,7 +105,7 @@ export default class WorkspacePrint {
 
   async exportPDF(
     scripts: string[],
-    onProgress?: (value: ProgressValue) => void
+    onProgress?: (value: ProgressValue) => void,
   ) {
     const fonts = await this.getFonts();
     const params: ExportPDFParams = { scripts, fonts, config: this.config };
@@ -123,7 +123,7 @@ export default class WorkspacePrint {
 
   async exportHTML(
     scripts: string[],
-    onProgress?: (value: ProgressValue) => void
+    onProgress?: (value: ProgressValue) => void,
   ) {
     const fonts = await this.getFonts();
     const parser = new ScreenplayParser();

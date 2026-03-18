@@ -113,7 +113,7 @@ export class LogicModule extends Module<
     if (this.context?.config?.logic?.blockMap) {
       // Populate _blockMap
       this._blockMap = JSON.parse(
-        JSON.stringify(this.context?.config?.logic?.blockMap || {})
+        JSON.stringify(this.context?.config?.logic?.blockMap || {}),
       );
       Object.entries(this._blockMap).forEach(([blockId, block]) => {
         // We add a special FinishCommand as the last command of every block.
@@ -201,13 +201,13 @@ export class LogicModule extends Module<
     });
     const closestWaypointLocation = this.getClosestLocationBefore(
       this.context?.config?.logic?.startpoint || "",
-      (this.context?.config?.logic?.waypoints as string[]) || []
+      (this.context?.config?.logic?.waypoints as string[]) || [],
     );
     const startLocation =
       this.getLocation(this.context?.config?.logic?.startpoint || "") ||
       this.DEFAULT_LOCATION;
     this._stopSimulatingAt = this.getClosestSavepoint(
-      this.context?.config?.logic?.startpoint || ""
+      this.context?.config?.logic?.startpoint || "",
     );
     this.context.system.simulating =
       this.context?.config?.logic?.startpoint != null &&
@@ -425,7 +425,7 @@ export class LogicModule extends Module<
               blockId,
               commandId,
               commandIndex,
-              command?.source
+              command?.source,
             );
             return true;
           }
@@ -437,7 +437,7 @@ export class LogicModule extends Module<
             blockId,
             commandId,
             commandIndex,
-            command?.source
+            command?.source,
           );
         }
       }
@@ -463,7 +463,7 @@ export class LogicModule extends Module<
     if (checkpointLocation) {
       const command = this.getCommandAt(
         checkpointLocation.blockId,
-        checkpointLocation.commandIndex
+        checkpointLocation.commandIndex,
       );
       if (command) {
         const runner = this._runnerMap[command.type];
@@ -478,7 +478,7 @@ export class LogicModule extends Module<
   protected willExecuteCommand(
     blockId: string,
     commandId: string,
-    source?: DocumentSource
+    source?: DocumentSource,
   ) {
     const flow = this._flowMap[blockId];
     if (flow) {
@@ -497,7 +497,7 @@ export class LogicModule extends Module<
     blockId: string,
     commandId: string,
     commandIndex: number,
-    source?: DocumentSource
+    source?: DocumentSource,
   ): void {
     const flow = this._flowMap[blockId];
     if (flow) {
@@ -512,7 +512,7 @@ export class LogicModule extends Module<
 
   protected commandJumpStackPush(
     blockId: string,
-    commandIndices: number[]
+    commandIndices: number[],
   ): void {
     const blockState = this._state.blocks?.[blockId];
     if (blockState) {
@@ -612,7 +612,7 @@ export class LogicModule extends Module<
     blockId: string,
     startCommandIndex?: number,
     returnToBlockId?: string,
-    returnToCommandId?: string
+    returnToCommandId?: string,
   ): void {
     const block = this._blockMap[blockId];
     if (!block) {
@@ -658,18 +658,18 @@ export class LogicModule extends Module<
     currentBlockId: string,
     currentCommandIndex: number,
     newBlockId: string,
-    returnWhenFinished?: boolean
+    returnWhenFinished?: boolean,
   ): void {
     const nextCommand = this.getCommandAt(
       currentBlockId,
-      currentCommandIndex + 1
+      currentCommandIndex + 1,
     );
     this.stopBlock(currentBlockId);
     this.enterBlock(
       newBlockId,
       0,
       returnWhenFinished ? currentBlockId : undefined,
-      returnWhenFinished ? nextCommand?.id : undefined
+      returnWhenFinished ? nextCommand?.id : undefined,
     );
   }
 
@@ -707,7 +707,7 @@ export class LogicModule extends Module<
         returnToBlockId,
         returnToCommandIndex,
         returnToBlockState.willReturnToBlockId,
-        returnToBlockState.willReturnToCommandId
+        returnToBlockState.willReturnToCommandId,
       );
     }
 
@@ -728,7 +728,7 @@ export class LogicModule extends Module<
     const id = getRelativeSectionName(
       executingBlockId,
       this._blockMap,
-      selectedBlock
+      selectedBlock,
     );
     return id;
   }
@@ -853,7 +853,7 @@ export class LogicModule extends Module<
 
   getClosestLocationBefore(
     targetCheckpointId: string,
-    possibleCheckpointIds: string[]
+    possibleCheckpointIds: string[],
   ) {
     // TODO: Report error if checkpoint not found
     const possibleLocations = possibleCheckpointIds

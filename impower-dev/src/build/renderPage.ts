@@ -13,7 +13,7 @@ const renderPage = (
     jsPath?: string;
     mjsPath?: string;
   },
-  components: Record<string, ComponentSpec>
+  components: Record<string, ComponentSpec>,
 ): string => {
   const { html, css, js, mjs, cssPath, jsPath, mjsPath } = page;
   const expandedHtml = expandHtml(html || "", components);

@@ -2,7 +2,7 @@ import { Message } from "../types/Message";
 
 export const isMessage = <M extends string, P>(
   obj: any,
-  method: M = obj.method
+  method: M = obj.method,
 ): obj is Message<M, P> => {
   return (
     typeof obj === "object" &&

@@ -14,5 +14,5 @@ export const MAJOR_ARPEGGIOS_UP = [
 ];
 
 export const MAJOR_ARPEGGIOS_DOWN = MAJOR_ARPEGGIOS_UP.map((arr) =>
-  [...arr].reverse()
+  [...arr].reverse(),
 );

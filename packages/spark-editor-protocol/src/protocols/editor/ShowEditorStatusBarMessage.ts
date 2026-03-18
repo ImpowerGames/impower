@@ -19,15 +19,13 @@ export class ShowEditorStatusBarMessage {
 }
 
 export namespace ShowEditorStatusBarMessage {
-  export interface Request
-    extends RequestMessage<
-      ShowEditorStatusBarMethod,
-      ShowEditorStatusBarParams,
-      ShowEditorStatusBarResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      ShowEditorStatusBarMethod,
-      ShowEditorStatusBarResult
-    > {}
+  export interface Request extends RequestMessage<
+    ShowEditorStatusBarMethod,
+    ShowEditorStatusBarParams,
+    ShowEditorStatusBarResult
+  > {}
+  export interface Response extends ResponseMessage<
+    ShowEditorStatusBarMethod,
+    ShowEditorStatusBarResult
+  > {}
 }

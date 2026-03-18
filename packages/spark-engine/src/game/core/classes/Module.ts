@@ -13,7 +13,7 @@ export abstract class Module<
     [method: string]: [IMessage, IMessage];
   },
   B = any,
-  G extends Game = Game
+  G extends Game = Game,
 > {
   protected _game: G;
 
@@ -86,7 +86,7 @@ export abstract class Module<
 
   /** Executed when a relevant request is received */
   async onReceiveRequest(
-    _msg: RequestMessage
+    _msg: RequestMessage,
   ): Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
     | { result: unknown; transfer?: ArrayBuffer[] }
@@ -139,7 +139,7 @@ export abstract class Module<
 
   async emit<M extends string, P, R>(
     msg: RequestMessage<M, P, R> | NotificationMessage<M, P>,
-    transfer?: ArrayBuffer[]
+    transfer?: ArrayBuffer[],
   ): Promise<R> {
     return this._game.connection.emit(msg, transfer);
   }

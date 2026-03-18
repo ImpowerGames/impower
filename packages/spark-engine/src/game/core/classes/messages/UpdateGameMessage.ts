@@ -22,12 +22,13 @@ export class UpdateGameMessage {
 }
 
 export namespace UpdateGameMessage {
-  export interface Request
-    extends RequestMessage<
-      UpdateGameMethod,
-      UpdateGameParams,
-      UpdateGameResult
-    > {}
-  export interface Response
-    extends ResponseMessage<UpdateGameMethod, UpdateGameResult> {}
+  export interface Request extends RequestMessage<
+    UpdateGameMethod,
+    UpdateGameParams,
+    UpdateGameResult
+  > {}
+  export interface Response extends ResponseMessage<
+    UpdateGameMethod,
+    UpdateGameResult
+  > {}
 }

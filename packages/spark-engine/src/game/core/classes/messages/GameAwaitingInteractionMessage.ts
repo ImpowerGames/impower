@@ -18,9 +18,8 @@ export class GameAwaitingInteractionMessage {
 }
 
 export namespace GameAwaitingInteractionMessage {
-  export interface Notification
-    extends NotificationMessage<
-      GameAwaitingInteractionMethod,
-      GameAwaitingInteractionParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    GameAwaitingInteractionMethod,
+    GameAwaitingInteractionParams
+  > {}
 }

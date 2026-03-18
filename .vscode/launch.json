@@ -11,7 +11,7 @@
       "args": [
         "--extensionDevelopmentPath=${workspaceFolder}/vscode-sparkdown"
       ],
-      "outFiles": ["${workspaceFolder}/vscode-sparkdown/out/**/*.js"],
+      "outFiles": ["${workspaceFolder}/vscode-sparkdown/out/**/*.js"]
     }
   ]
 }

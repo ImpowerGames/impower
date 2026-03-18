@@ -21,14 +21,14 @@ export class Port1MessageConnection extends MessageConnection {
 
   override addEventListener<K extends keyof MessageConnectionEvents>(
     event: K,
-    listener: MessageConnectionEvents[K]
+    listener: MessageConnectionEvents[K],
   ) {
     this._port1.addEventListener(event, listener);
   }
 
   override removeEventListener<K extends keyof MessageConnectionEvents>(
     event: K,
-    listener: MessageConnectionEvents[K]
+    listener: MessageConnectionEvents[K],
   ) {
     this._port1.removeEventListener(event, listener);
   }

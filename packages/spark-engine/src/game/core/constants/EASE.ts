@@ -67,10 +67,10 @@ export const EASE: Record<EaseType, (x: number) => number> = {
     return x === 0
       ? 0
       : x === 1
-      ? 1
-      : x < 0.5
-      ? pow(2, 20 * x - 10) / 2
-      : (2 - pow(2, -20 * x + 10)) / 2;
+        ? 1
+        : x < 0.5
+          ? pow(2, 20 * x - 10) / 2
+          : (2 - pow(2, -20 * x + 10)) / 2;
   },
   circ_in: (x: number): number => {
     return 1 - sqrt(1 - pow(x, 2));

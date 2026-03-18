@@ -33,7 +33,7 @@ export default spec({
     }
     const count = relevantDiagnostics.length;
     const severity = Math.min(
-      ...relevantDiagnostics.map((d) => d.severity ?? Infinity)
+      ...relevantDiagnostics.map((d) => d.severity ?? Infinity),
     );
     return {
       count,
@@ -47,8 +47,8 @@ export default spec({
         ? severity === 1
           ? "danger"
           : severity === 2
-          ? "warning"
-          : undefined
+            ? "warning"
+            : undefined
         : undefined;
     const textColorAttr = color ? () => html`text-color="${color}"` : "";
     return html`

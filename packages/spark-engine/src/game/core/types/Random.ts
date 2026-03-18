@@ -7,8 +7,8 @@ export type Random<T = any> = T extends object
           ? RecursivePartial<T[P]>[]
           : T[P][]
         : T[P] extends object | undefined
-        ? RecursivePartial<T[P]>[] | Random<T[P]>
-        : T[P][] | [string, boolean];
+          ? RecursivePartial<T[P]>[] | Random<T[P]>
+          : T[P][] | [string, boolean];
     } & {
       [P in keyof Pick<T, Extract<keyof T, "$type">>]: T[P];
     } & {

@@ -7,7 +7,7 @@ export const getConceptualDifference = (
     [word: string]: number[];
   },
   depth = 30,
-  onProgress?: (current: number, total: number) => void
+  onProgress?: (current: number, total: number) => void,
 ): string[] => {
   const words = Object.keys(wordVecs);
 

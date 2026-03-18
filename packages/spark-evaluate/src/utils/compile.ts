@@ -6,7 +6,7 @@ import { Diagnostic } from "../types/Diagnostic";
 const compile = (
   expr: string,
   context: Record<string, unknown> = {},
-  config = DEFAULT_COMPILER_CONFIG
+  config = DEFAULT_COMPILER_CONFIG,
 ): [unknown, Diagnostic[], Diagnostic[]] => {
   let diagnostics: Diagnostic[] = [];
   let references: Diagnostic[] = [];

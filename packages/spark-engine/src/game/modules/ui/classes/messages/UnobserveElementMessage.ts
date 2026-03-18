@@ -19,6 +19,6 @@ export class UnobserveElementMessage {
 export interface UnobserveElementMessageMap extends Record<string, [any, any]> {
   [UnobserveElementMessage.method]: [
     ReturnType<typeof UnobserveElementMessage.type.request>,
-    ReturnType<typeof UnobserveElementMessage.type.response>
+    ReturnType<typeof UnobserveElementMessage.type.response>,
   ];
 }

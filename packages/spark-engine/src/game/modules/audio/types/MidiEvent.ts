@@ -122,8 +122,7 @@ export interface MidiSystemMetaTrackNameEvent extends IMidiSystemMetaEvent {
   trackName: string;
 }
 
-export interface MidiSystemMetaInstrumentNameEvent
-  extends IMidiSystemMetaEvent {
+export interface MidiSystemMetaInstrumentNameEvent extends IMidiSystemMetaEvent {
   statusData: 0x04;
   instrumentName: string;
 }
@@ -197,8 +196,7 @@ export interface MidiSystemMetaKeySignatureEvent extends IMidiSystemMetaEvent {
   keySignatureScale: number;
 }
 
-export interface MidiSystemMetaSequencerSpecificEvent
-  extends IMidiSystemMetaEvent {
+export interface MidiSystemMetaSequencerSpecificEvent extends IMidiSystemMetaEvent {
   statusData: 0x7f;
   sequencerSpecificData: string;
 }

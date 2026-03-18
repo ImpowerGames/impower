@@ -18,9 +18,8 @@ export class GameChosePathToContinueMessage {
 }
 
 export namespace GameChosePathToContinueMessage {
-  export interface Notification
-    extends NotificationMessage<
-      GameChosePathToContinueMethod,
-      GameChosePathToContinueParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    GameChosePathToContinueMethod,
+    GameChosePathToContinueParams
+  > {}
 }

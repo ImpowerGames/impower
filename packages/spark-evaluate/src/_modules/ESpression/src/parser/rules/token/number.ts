@@ -63,7 +63,7 @@ export class NumberRule extends BaseRule<IConfNumberRule> {
       radix: 10,
       decimal: true,
       exp: true,
-    }
+    },
   ) {
     super();
     if (config.radix < 2 || config.radix > 36)

@@ -380,7 +380,7 @@ export function installGameWorker(connection: MessageConnection) {
         }
         if (scope === "children") {
           const variables = state.game.getChildVariables(
-            variablesReference ?? 0
+            variablesReference ?? 0,
           );
           return { variables };
         }

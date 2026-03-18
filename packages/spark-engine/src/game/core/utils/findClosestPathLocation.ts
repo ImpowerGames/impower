@@ -3,14 +3,14 @@ import { ScriptLocation } from "../types/ScriptLocation";
 export const findClosestPathLocation = (
   breakpoint: { file: string; line: number },
   pathLocationEntries: [string, ScriptLocation][],
-  scripts: string[]
+  scripts: string[],
 ): [string, ScriptLocation] | null => {
   const breakpointScriptIndex = scripts.indexOf(breakpoint.file);
   const breakpointLine = breakpoint.line;
 
   // Step 1: Filter only relevant instructions with the same scriptIndex
   const relevantLocations = pathLocationEntries.filter(
-    ([, location]) => location[0] === breakpointScriptIndex
+    ([, location]) => location[0] === breakpointScriptIndex,
   );
 
   // Step 2: Check for an exact match within startLine and endLine

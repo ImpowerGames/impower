@@ -19,15 +19,13 @@ export class ExitGameFullscreenModeMessage {
 }
 
 export namespace ExitGameFullscreenModeMessage {
-  export interface Request
-    extends RequestMessage<
-      ExitGameFullscreenModeMethod,
-      ExitGameFullscreenModeParams,
-      ExitGameFullscreenModeResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      ExitGameFullscreenModeMethod,
-      ExitGameFullscreenModeResult
-    > {}
+  export interface Request extends RequestMessage<
+    ExitGameFullscreenModeMethod,
+    ExitGameFullscreenModeParams,
+    ExitGameFullscreenModeResult
+  > {}
+  export interface Response extends ResponseMessage<
+    ExitGameFullscreenModeMethod,
+    ExitGameFullscreenModeResult
+  > {}
 }

@@ -28,7 +28,7 @@ export const generateGraphicSvg = (graphic: Graphic): string => {
       const stroke = `stroke="${validStrokeColor}" stroke-opacity="${validStrokeOpacity}" stroke-width="${validStrokeWeight}" stroke-linejoin="${validStrokeJoin}" stroke-linecap="${validStrokeCap}" `;
       const d = `d="${path}" `;
       paths += `<path ${stroke}${fill}${d}/>`;
-    }
+    },
   );
   if (tiling?.on) {
     const angle = tiling.angle ?? 0;

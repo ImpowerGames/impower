@@ -15,6 +15,6 @@ export class LoadWorldMessage {
 export interface LoadWorldMessageMap extends Record<string, [any, any]> {
   [LoadWorldMessage.method]: [
     ReturnType<typeof LoadWorldMessage.type.request>,
-    ReturnType<typeof LoadWorldMessage.type.response>
+    ReturnType<typeof LoadWorldMessage.type.response>,
   ];
 }

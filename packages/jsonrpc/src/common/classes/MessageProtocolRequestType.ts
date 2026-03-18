@@ -42,7 +42,7 @@ export class MessageProtocolRequestType<M extends string, P, R> {
 
   progress(
     id: number | string,
-    value: ProgressValue
+    value: ProgressValue,
   ): ProgressResponseMessage<M> {
     return {
       jsonrpc: "2.0",
@@ -72,7 +72,7 @@ export class MessageProtocolRequestType<M extends string, P, R> {
 
   result(
     result: R,
-    transfer?: ArrayBuffer[]
+    transfer?: ArrayBuffer[],
   ): { result: R; transfer?: ArrayBuffer[] } {
     return {
       result,

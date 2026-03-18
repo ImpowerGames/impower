@@ -27,15 +27,13 @@ export class GetGamePossibleBreakpointLocationsMessage {
 }
 
 export namespace GetGamePossibleBreakpointLocationsMessage {
-  export interface Request
-    extends RequestMessage<
-      GetGamePossibleBreakpointLocationsMethod,
-      GetGamePossibleBreakpointLocationsParams,
-      GetGamePossibleBreakpointLocationsResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      GetGamePossibleBreakpointLocationsMethod,
-      GetGamePossibleBreakpointLocationsResult
-    > {}
+  export interface Request extends RequestMessage<
+    GetGamePossibleBreakpointLocationsMethod,
+    GetGamePossibleBreakpointLocationsParams,
+    GetGamePossibleBreakpointLocationsResult
+  > {}
+  export interface Response extends ResponseMessage<
+    GetGamePossibleBreakpointLocationsMethod,
+    GetGamePossibleBreakpointLocationsResult
+  > {}
 }

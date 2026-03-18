@@ -13,7 +13,7 @@ export default spec({
       filename:
         stores?.workspace?.current?.panes?.logic?.panels?.scripts?.activeEditor
           ?.filename || "",
-    } as const),
+    }) as const,
   html: ({ context }) => {
     const { filename } = context;
     const displayName = filename.split(".")[0] ?? "";

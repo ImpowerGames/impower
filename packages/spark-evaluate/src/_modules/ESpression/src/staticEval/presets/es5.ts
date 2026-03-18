@@ -141,8 +141,8 @@ export class ES5StaticEval extends BasicEval {
         return result;
       },
       ...(node.elements?.map((n: INode) =>
-        n?.type === SPREAD_EXP ? n.argument : n
-      ) || [])
+        n?.type === SPREAD_EXP ? n.argument : n,
+      ) || []),
     );
   }
 
@@ -197,7 +197,7 @@ export class ES5StaticEval extends BasicEval {
         }, {});
       },
       ...computedNodes,
-      ...nodes
+      ...nodes,
     );
   }
 
@@ -210,9 +210,9 @@ export class ES5StaticEval extends BasicEval {
         values.reduce(
           // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
           (r, e, i) => (r += e + node.quasis?.[i + 1]?.value.cooked),
-          node.quasis?.[0]?.value.cooked
+          node.quasis?.[0]?.value.cooked,
         ),
-      ...(node.expressions || [])
+      ...(node.expressions || []),
     );
   }
 
@@ -228,7 +228,7 @@ export class ES5StaticEval extends BasicEval {
           ...(node.quasi?.expressions || []),
         ],
       },
-      context
+      context,
     );
   }
 
@@ -242,7 +242,7 @@ export class ES5StaticEval extends BasicEval {
     // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
     right: any,
     context: KeyedObject,
-    defaultsContext?: KeyedObject
+    defaultsContext?: KeyedObject,
   ): any {
     if (node) {
       switch (node.type) {
@@ -267,7 +267,7 @@ export class ES5StaticEval extends BasicEval {
                   operator,
                   right.slice(i),
                   context,
-                  defaultsContext
+                  defaultsContext,
                 );
               } else {
                 this._assignPattern(
@@ -275,7 +275,7 @@ export class ES5StaticEval extends BasicEval {
                   operator,
                   right[i],
                   context,
-                  defaultsContext
+                  defaultsContext,
                 );
               }
             }
@@ -306,21 +306,21 @@ export class ES5StaticEval extends BasicEval {
                   operator,
                   rest,
                   context,
-                  defaultsContext
+                  defaultsContext,
                 );
               } else {
                 const key = prop.computed
                   ? this._eval(prop.key, context)
                   : prop.key?.type === LITERAL_EXP
-                  ? prop.key.value
-                  : prop.key?.name;
+                    ? prop.key.value
+                    : prop.key?.name;
                 visited[key] = true;
                 this._assignPattern(
                   prop.value,
                   operator,
                   right[key],
                   context,
-                  defaultsContext
+                  defaultsContext,
                 );
               }
             });
@@ -338,7 +338,7 @@ export class ES5StaticEval extends BasicEval {
             operator,
             right,
             context,
-            defaultsContext
+            defaultsContext,
           );
 
         default:
@@ -392,7 +392,7 @@ export class ES5StaticEval extends BasicEval {
       (callee: new (...args: any[]) => any, ...args: any[]) =>
         new callee(...args),
       node.callee,
-      ...(node.arguments || [])
+      ...(node.arguments || []),
     );
   }
 }

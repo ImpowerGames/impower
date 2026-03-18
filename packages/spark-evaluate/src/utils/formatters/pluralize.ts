@@ -11,7 +11,7 @@ const pluralize = (
     severity?: "info" | "warning" | "error";
     message?: string;
   }[],
-  number[]
+  number[],
 ] => {
   const diagnostics: {
     from: number;
@@ -33,7 +33,7 @@ const pluralize = (
       to: params.length,
       severity: "error",
       message: `All possible pluralizations must be specified: ${possibleCategories.join(
-        "|"
+        "|",
       )}`,
     });
   }

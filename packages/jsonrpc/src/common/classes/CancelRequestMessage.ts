@@ -11,6 +11,6 @@ export class CancelRequestMessage {
     `${m}/cancelRequest`;
   static readonly type = <T extends string>(m: T) =>
     new MessageProtocolNotificationType<CancelRequestMethod<T>, P>(
-      CancelRequestMessage.method(m)
+      CancelRequestMessage.method(m),
     );
 }

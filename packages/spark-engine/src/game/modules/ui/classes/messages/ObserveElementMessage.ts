@@ -21,6 +21,6 @@ export class ObserveElementMessage {
 export interface ObserveElementMessageMap extends Record<string, [any, any]> {
   [ObserveElementMessage.method]: [
     ReturnType<typeof ObserveElementMessage.type.request>,
-    ReturnType<typeof ObserveElementMessage.type.response>
+    ReturnType<typeof ObserveElementMessage.type.response>,
   ];
 }

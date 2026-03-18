@@ -12,7 +12,7 @@ export default class MainWindow extends Component(spec) {
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     this.refs.footerVisibilityManager?.addEventListener(
       "changing",
-      this.handleChangingFooterVisibility
+      this.handleChangingFooterVisibility,
     );
     window.addEventListener("enter", this.handleEnter);
   }
@@ -21,7 +21,7 @@ export default class MainWindow extends Component(spec) {
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     this.refs.footerVisibilityManager?.removeEventListener(
       "changing",
-      this.handleChangingFooterVisibility
+      this.handleChangingFooterVisibility,
     );
     window.removeEventListener("enter", this.handleEnter);
   }
@@ -42,12 +42,12 @@ export default class MainWindow extends Component(spec) {
       if (e.detail.hidden) {
         this.emit(
           MessageProtocol.event,
-          HideEditorStatusBarMessage.type.request({})
+          HideEditorStatusBarMessage.type.request({}),
         );
       } else {
         this.emit(
           MessageProtocol.event,
-          ShowEditorStatusBarMessage.type.request({})
+          ShowEditorStatusBarMessage.type.request({}),
         );
       }
     }

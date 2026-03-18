@@ -9,7 +9,7 @@ export const sampleCurveX = (
   t: number,
   ax: number,
   bx: number,
-  cx: number
+  cx: number,
 ): number => {
   return ((ax * t + bx) * t + cx) * t;
 };
@@ -18,7 +18,7 @@ export const sampleCurveY = (
   t: number,
   ay: number,
   by: number,
-  cy: number
+  cy: number,
 ): number => {
   return ((ay * t + by) * t + cy) * t;
 };
@@ -27,7 +27,7 @@ const sampleCurveDerivativeX = (
   t: number,
   ax: number,
   bx: number,
-  cx: number
+  cx: number,
 ): number => {
   return (3 * ax * t + 2 * bx) * t + cx;
 };
@@ -93,7 +93,7 @@ export const bezier = (
   x1?: number,
   y1?: number,
   x2?: number,
-  y2?: number
+  y2?: number,
 ): ((t: number) => number) => {
   const p1x = x1 ?? 0;
   const p1y = y1 ?? 0;

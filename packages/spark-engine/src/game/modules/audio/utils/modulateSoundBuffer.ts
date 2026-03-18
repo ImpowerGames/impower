@@ -4,7 +4,7 @@ import { SynthControllerEvent } from "../types/SynthControllerEvent";
 export const modulateSoundBuffer = (
   soundBuffer: Float32Array,
   events: readonly SynthControllerEvent[],
-  sampleRate: number
+  sampleRate: number,
 ): void => {
   events.forEach((event) => {
     const time = event.time ?? 0;

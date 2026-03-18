@@ -22,15 +22,13 @@ export class SetEditorHighlightsMessage {
 }
 
 export namespace SetEditorHighlightsMessage {
-  export interface Request
-    extends RequestMessage<
-      SetEditorHighlightsMethod,
-      SetEditorHighlightsParams,
-      SetEditorHighlightsResult
-    > {}
-  export interface Response
-    extends ResponseMessage<
-      SetEditorHighlightsMethod,
-      SetEditorHighlightsResult
-    > {}
+  export interface Request extends RequestMessage<
+    SetEditorHighlightsMethod,
+    SetEditorHighlightsParams,
+    SetEditorHighlightsResult
+  > {}
+  export interface Response extends ResponseMessage<
+    SetEditorHighlightsMethod,
+    SetEditorHighlightsResult
+  > {}
 }

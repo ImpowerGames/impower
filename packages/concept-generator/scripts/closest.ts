@@ -12,6 +12,6 @@ const result = getClosestTags(
   concepts,
   termVectors,
   Number.parseInt(process.argv[2] || "5"),
-  ...process.argv.slice(3)
+  ...process.argv.slice(3),
 );
 console.log(result);

@@ -64,7 +64,7 @@ export default class GamePreview extends Component(spec) {
     window.removeEventListener("resized", this.handleResizedSplitPane);
     document.removeEventListener(
       "fullscreenchange",
-      this.handleFullscreenChange
+      this.handleFullscreenChange,
     );
     this.refs.iframe?.removeEventListener("load", this.handleLoad);
   }
@@ -73,23 +73,23 @@ export default class GamePreview extends Component(spec) {
     if (this._iframeChannelConnection) {
       this._iframeChannelConnection.removeEventListener(
         "message",
-        this.handleChannelMessage
+        this.handleChannelMessage,
       );
     }
     const iframe = this.refs.iframe as HTMLIFrameElement;
     const channel = new MessageChannel();
     const iframeWindowConnection = new IFrameMessageConnection(
       iframe,
-      SPARKDOWN_PLAYER_ORIGIN
+      SPARKDOWN_PLAYER_ORIGIN,
     );
     this._iframeChannelConnection = new Port1MessageConnection(channel.port1);
     await this._iframeChannelConnection.connect(
       iframeWindowConnection,
-      channel.port2
+      channel.port2,
     );
     this._iframeChannelConnection.addEventListener(
       "message",
-      this.handleChannelMessage
+      this.handleChannelMessage,
     );
     const projectId = Workspace.window.store.project.id;
     if (!projectId) {
@@ -140,7 +140,7 @@ export default class GamePreview extends Component(spec) {
         {
           transfer: [buffer],
         },
-        [buffer]
+        [buffer],
       );
     }
 
@@ -188,13 +188,13 @@ export default class GamePreview extends Component(spec) {
   };
 
   handleChangedEditorBreakpoints = async (
-    message: ChangedEditorBreakpointsMessage.Notification
+    message: ChangedEditorBreakpointsMessage.Notification,
   ) => {
     // TODO
   };
 
   handleChangedEditorPinpoints = async (
-    message: ChangedEditorPinpointsMessage.Notification
+    message: ChangedEditorPinpointsMessage.Notification,
   ) => {
     // TODO
   };
@@ -204,7 +204,7 @@ export default class GamePreview extends Component(spec) {
   };
 
   handleGameToggledFullscreenMode = async (
-    message: GameToggledFullscreenModeMessage.Notification
+    message: GameToggledFullscreenModeMessage.Notification,
   ) => {
     if (document.fullscreenElement) {
       document.exitFullscreen();
@@ -214,7 +214,7 @@ export default class GamePreview extends Component(spec) {
   };
 
   protected handleGameExecuted = (
-    message: GameExecutedMessage.Notification
+    message: GameExecutedMessage.Notification,
   ): void => {
     const { locations, state, restarted, simulatePath, conditions, choices } =
       message.params;
@@ -274,7 +274,7 @@ export default class GamePreview extends Component(spec) {
   };
 
   protected handleGameExited = (
-    _message: GameExitedMessage.Notification
+    _message: GameExitedMessage.Notification,
   ): void => {
     Workspace.window.setHighlights({});
   };
@@ -284,12 +284,12 @@ export default class GamePreview extends Component(spec) {
       if (document.fullscreenElement) {
         await this._iframeChannelConnection?.sendRequest(
           EnterGameFullscreenModeMessage.type,
-          {}
+          {},
         );
       } else {
         await this._iframeChannelConnection?.sendRequest(
           ExitGameFullscreenModeMessage.type,
-          {}
+          {},
         );
       }
     }
@@ -401,7 +401,7 @@ export default class GamePreview extends Component(spec) {
   getPreviousSource(
     program: SparkProgram,
     currentFile: string | undefined,
-    currentLine: number
+    currentLine: number,
   ) {
     return this.getOffsetSource(program, currentFile, currentLine, -1);
   }
@@ -409,7 +409,7 @@ export default class GamePreview extends Component(spec) {
   getNextSource(
     program: SparkProgram,
     currentFile: string | undefined,
-    currentLine: number
+    currentLine: number,
   ) {
     return this.getOffsetSource(program, currentFile, currentLine, 1);
   }
@@ -418,7 +418,7 @@ export default class GamePreview extends Component(spec) {
     program: SparkProgram,
     currentFile: string | undefined,
     currentLine: number,
-    offset: number
+    offset: number,
   ) {
     if (program) {
       const files = Object.keys(program.scripts);
@@ -427,7 +427,7 @@ export default class GamePreview extends Component(spec) {
         files,
         pathLocationEntries,
         currentFile,
-        currentLine
+        currentLine,
       );
       if (index == null) {
         return null;
@@ -452,10 +452,10 @@ export default class GamePreview extends Component(spec) {
     allFiles: string[],
     allPathToLocationEntries: [
       string,
-      [number, number, number, number, number]
+      [number, number, number, number, number],
     ][],
     currentFile: string | undefined,
-    currentLine: number
+    currentLine: number,
   ) {
     if (currentFile == null) {
       return null;

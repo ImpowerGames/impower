@@ -21,7 +21,7 @@ export const es5IdentPart: ICharClass = {
 
 export function es5IdentifierConf(
   identStart?: ICharClass,
-  identPart?: ICharClass
+  identPart?: ICharClass,
 ): IConfIdentifierRule {
   return {
     identStart,

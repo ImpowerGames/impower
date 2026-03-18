@@ -39,7 +39,7 @@ export const absolutizePath = (segments: PathCommand[]): PathCommand[] => {
         break;
       case "c": {
         const newdata = data.map((d, i) =>
-          i % 2 ? d + cy : d + cx
+          i % 2 ? d + cy : d + cx,
         ) as number[] as PathData;
         out.push({ command: "C", data: newdata });
         cx = newdata[4];
@@ -53,7 +53,7 @@ export const absolutizePath = (segments: PathCommand[]): PathCommand[] => {
         break;
       case "q": {
         const newdata = data.map((d, i) =>
-          i % 2 ? d + cy : d + cx
+          i % 2 ? d + cy : d + cx,
         ) as number[] as PathData;
         out.push({ command: "Q", data: newdata });
         cx = newdata[2];
@@ -96,7 +96,7 @@ export const absolutizePath = (segments: PathCommand[]): PathCommand[] => {
         break;
       case "s": {
         const newdata = data.map((d, i) =>
-          i % 2 ? d + cy : d + cx
+          i % 2 ? d + cy : d + cx,
         ) as PathData;
         out.push({ command: "S", data: newdata });
         cx = newdata[2];

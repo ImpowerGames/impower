@@ -13,7 +13,7 @@ const archetypes = fs.readFileSync(archetypesPath, "utf8").split(/\r?\n/);
 
 const result = getTermTags(
   concepts,
-  Array.from(new Set([...phrases, ...archetypes]))
+  Array.from(new Set([...phrases, ...archetypes])),
 );
 
 fs.writeFile(termsPath, JSON.stringify(result, null, 2), (err) => {

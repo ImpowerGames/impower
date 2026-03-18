@@ -110,5 +110,6 @@ export const audioBuiltinDefinitions = () => ({
   } as Record<string, ReturnType<typeof default_channel>>,
 });
 
-export interface AudioBuiltins
-  extends ReturnType<typeof audioBuiltinDefinitions> {}
+export interface AudioBuiltins extends ReturnType<
+  typeof audioBuiltinDefinitions
+> {}

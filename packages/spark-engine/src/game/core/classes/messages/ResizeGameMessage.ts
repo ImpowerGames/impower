@@ -20,12 +20,13 @@ export class ResizeGameMessage {
 }
 
 export namespace ResizeGameMessage {
-  export interface Request
-    extends RequestMessage<
-      ResizeGameMethod,
-      ResizeGameParams,
-      ResizeGameResult
-    > {}
-  export interface Response
-    extends ResponseMessage<ResizeGameMethod, ResizeGameResult> {}
+  export interface Request extends RequestMessage<
+    ResizeGameMethod,
+    ResizeGameParams,
+    ResizeGameResult
+  > {}
+  export interface Response extends ResponseMessage<
+    ResizeGameMethod,
+    ResizeGameResult
+  > {}
 }

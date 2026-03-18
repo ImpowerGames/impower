@@ -5,7 +5,7 @@ const SW_VERSION: string = process?.env?.["SW_VERSION"] || "v1";
 const SW_CACHE_NAME: string =
   process?.env?.["SW_CACHE_NAME"] || `cache-${SW_VERSION}`;
 const SW_RESOURCES: string[] = JSON.parse(
-  process?.env?.["SW_RESOURCES"] || "[]"
+  process?.env?.["SW_RESOURCES"] || "[]",
 );
 const RESOURCE_PROTOCOL: string = "/file:/";
 
@@ -63,7 +63,7 @@ function splitPath(path: string) {
 async function getDirectoryHandleByPath(
   root: FileSystemDirectoryHandle,
   dirPath: string,
-  { create = false } = {}
+  { create = false } = {},
 ) {
   let dir = root;
   for (const seg of splitPath(dirPath))
@@ -74,7 +74,7 @@ async function getDirectoryHandleByPath(
 async function getFileHandleByPath(
   root: FileSystemDirectoryHandle,
   filePath: string,
-  { create = false } = {}
+  { create = false } = {},
 ) {
   const parts = splitPath(filePath);
   const name = parts.pop();
@@ -91,7 +91,7 @@ self.addEventListener("install", (e) => {
     (async () => {
       const cache = await caches.open(SW_CACHE_NAME);
       cache.addAll(SW_RESOURCES);
-    })()
+    })(),
   );
 });
 
@@ -106,10 +106,10 @@ self.addEventListener("activate", (e) => {
             return caches.delete(name);
           }
           return false;
-        })
+        }),
       );
       await self.clients.claim();
-    })()
+    })(),
   );
 });
 

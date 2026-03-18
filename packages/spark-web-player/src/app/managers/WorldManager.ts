@@ -34,7 +34,7 @@ export default class WorldManager extends Manager {
     const module = await import(/* @vite-ignore */ moduleUrl);
     const CustomWorldClass = module.default;
     const world: World = new CustomWorldClass(this.app, () =>
-      this.exitWorld(src)
+      this.exitWorld(src),
     );
     await world.onLoad();
     this.app.stage.addChild(world.stage);

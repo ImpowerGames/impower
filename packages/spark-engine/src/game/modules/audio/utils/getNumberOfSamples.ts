@@ -2,7 +2,7 @@ import { Tone } from "../types/Tone";
 
 export const getNumberOfSamples = (
   tones: Tone[],
-  sampleRate: number
+  sampleRate: number,
 ): number => {
   let maxMS = 0;
   if (tones) {

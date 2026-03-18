@@ -18,8 +18,13 @@ export class ConnectMessage {
 }
 
 export namespace ConnectMessage {
-  export interface Request
-    extends RequestMessage<ConnectMethod, ConnectParams, ConnectResult> {}
-  export interface Response
-    extends ResponseMessage<ConnectMethod, ConnectResult> {}
+  export interface Request extends RequestMessage<
+    ConnectMethod,
+    ConnectParams,
+    ConnectResult
+  > {}
+  export interface Response extends ResponseMessage<
+    ConnectMethod,
+    ConnectResult
+  > {}
 }

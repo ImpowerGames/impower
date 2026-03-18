@@ -20,6 +20,8 @@ export class ScrolledPreviewMessage {
 }
 
 export namespace ScrolledPreviewMessage {
-  export interface Notification
-    extends NotificationMessage<ScrolledPreviewMethod, ScrolledPreviewParams> {}
+  export interface Notification extends NotificationMessage<
+    ScrolledPreviewMethod,
+    ScrolledPreviewParams
+  > {}
 }

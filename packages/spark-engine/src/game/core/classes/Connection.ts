@@ -10,7 +10,7 @@ import { Socket } from "./Socket";
 export interface ConnectionConfig {
   onSend?: (message: Message, transfer?: ArrayBuffer[]) => void;
   onReceive?: (
-    _msg: RequestMessage | NotificationMessage
+    _msg: RequestMessage | NotificationMessage,
   ) => Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
     | { result: unknown; transfer?: ArrayBuffer[] }
@@ -23,7 +23,7 @@ export class Connection {
   protected _send?: (message: Message, transfer?: ArrayBuffer[]) => void;
 
   protected _receive?: (
-    _msg: RequestMessage | NotificationMessage
+    _msg: RequestMessage | NotificationMessage,
   ) => Promise<
     | { error: ResponseError; transfer?: ArrayBuffer[] }
     | { result: unknown; transfer?: ArrayBuffer[] }
@@ -56,13 +56,13 @@ export class Connection {
 
   connectInput(
     onReceive: (
-      _msg: RequestMessage | NotificationMessage
+      _msg: RequestMessage | NotificationMessage,
     ) => Promise<
       | { error: ResponseError; transfer?: ArrayBuffer[] }
       | { result: unknown; transfer?: ArrayBuffer[] }
       | { transfer?: ArrayBuffer[] }
       | undefined
-    >
+    >,
   ) {
     this._receive = onReceive;
   }
@@ -89,7 +89,7 @@ export class Connection {
                   id: message.id,
                   ...response,
                 },
-                transfer
+                transfer,
               );
             }
           });
@@ -107,7 +107,7 @@ export class Connection {
 
   async emit<M extends string, P, R>(
     msg: RequestMessage<M, P, R> | NotificationMessage<M, P>,
-    transfer?: ArrayBuffer[]
+    transfer?: ArrayBuffer[],
   ): Promise<R> {
     if ("id" in msg && typeof msg.id === "string" && msg.id) {
       const result = await this.emitRequest(msg as RequestMessage, transfer);
@@ -120,14 +120,14 @@ export class Connection {
 
   protected emitNotification<M extends string, P>(
     msg: NotificationMessage<M, P>,
-    transfer?: ArrayBuffer[]
+    transfer?: ArrayBuffer[],
   ): void {
     this.send(msg, transfer);
   }
 
   protected async emitRequest<M extends string, P, R>(
     msg: RequestMessage<M, P>,
-    transfer?: ArrayBuffer[]
+    transfer?: ArrayBuffer[],
   ): Promise<ResponseMessage<M, R>> {
     this.send(msg, transfer);
     return new Promise<ResponseMessage<M, R>>((resolve, reject) => {
@@ -137,7 +137,7 @@ export class Connection {
   }
 
   protected handleResponse<M extends string, R>(
-    message: ResponseMessage<M, R>
+    message: ResponseMessage<M, R>,
   ): void {
     if (message.result !== undefined) {
       const resolve = this._outgoingRequestResolveCallbacks[message.id];
@@ -152,7 +152,7 @@ export class Connection {
 
   protected broadcast(
     message: Message,
-    listenerMap: Record<string, MessageCallback[]>
+    listenerMap: Record<string, MessageCallback[]>,
   ) {
     if (message.method) {
       const generalListeners = listenerMap["*"];

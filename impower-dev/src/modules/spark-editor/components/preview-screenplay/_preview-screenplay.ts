@@ -8,7 +8,7 @@ export default spec({
   reducer: ({ stores }) =>
     ({
       textPulledAt: stores?.workspace?.current?.sync?.textPulledAt || "",
-    } as const),
+    }) as const,
   html: () => {
     return html`
       <se-preview-screenplay-toolbar></se-preview-screenplay-toolbar>

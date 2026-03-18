@@ -10,7 +10,7 @@ const sendServerRequest = async <K extends keyof ResponseTypeMap>(
   contentType?:
     | "application/x-www-form-urlencoded"
     | "application/json"
-    | "text/plain"
+    | "text/plain",
 ) => {
   console.log(CYAN, method, url);
   return new Promise<ResponseTypeMap[K]>((resolve, reject) => {

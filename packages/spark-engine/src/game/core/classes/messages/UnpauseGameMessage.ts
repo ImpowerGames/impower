@@ -18,12 +18,13 @@ export class UnpauseGameMessage {
 }
 
 export namespace UnpauseGameMessage {
-  export interface Request
-    extends RequestMessage<
-      UnpauseGameMethod,
-      UnpauseGameParams,
-      UnpauseGameResult
-    > {}
-  export interface Response
-    extends ResponseMessage<UnpauseGameMethod, UnpauseGameResult> {}
+  export interface Request extends RequestMessage<
+    UnpauseGameMethod,
+    UnpauseGameParams,
+    UnpauseGameResult
+  > {}
+  export interface Response extends ResponseMessage<
+    UnpauseGameMethod,
+    UnpauseGameResult
+  > {}
 }

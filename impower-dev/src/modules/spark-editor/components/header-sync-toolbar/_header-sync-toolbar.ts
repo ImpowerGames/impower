@@ -10,7 +10,7 @@ export default spec({
     ({
       id: stores?.workspace?.current?.project?.id || "",
       syncState: stores?.workspace?.current?.sync?.status || "",
-    } as const),
+    }) as const,
   html: ({ context }) => {
     const { id, syncState } = context;
     const canSync = id && id !== WorkspaceConstants.LOCAL_PROJECT_ID;
@@ -33,9 +33,7 @@ export default spec({
         id="conflictToolbar"
       ></se-header-sync-conflict-toolbar>
     `;
-    return html`${syncState === "sync_conflict"
-      ? conflictToolbar
-      : syncButton}`;
+    return html`${syncState === "sync_conflict" ? conflictToolbar : syncButton}`;
   },
   selectors: {
     syncButton: null,

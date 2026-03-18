@@ -23,7 +23,7 @@ const createThumbnail = async (file: File, size = 256) => {
       x,
       y,
       width * ratio,
-      height * ratio
+      height * ratio,
     );
   }
 

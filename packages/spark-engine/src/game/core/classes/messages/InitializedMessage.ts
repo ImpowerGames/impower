@@ -14,6 +14,8 @@ export class InitializedMessage {
 }
 
 export namespace InitializedMessage {
-  export interface Notification
-    extends NotificationMessage<InitializedMethod, InitializedParams> {}
+  export interface Notification extends NotificationMessage<
+    InitializedMethod,
+    InitializedParams
+  > {}
 }

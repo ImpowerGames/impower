@@ -20,7 +20,7 @@ const arcToCubicCurves = (
   angle: number,
   largeArcFlag: number,
   sweepFlag: number,
-  recursive?: [number, number, number, number]
+  recursive?: [number, number, number, number],
 ): number[][] => {
   const angleRad = degToRad(angle);
   let params: number[][] = [];
@@ -107,7 +107,7 @@ const arcToCubicCurves = (
       angle,
       0,
       sweepFlag,
-      [f2, f2old, cx, cy]
+      [f2, f2old, cx, cy],
     );
   }
 
@@ -147,7 +147,7 @@ const lineToCurve = (
   x: number,
   y: number,
   cx: number,
-  cy: number
+  cy: number,
 ): PathData => {
   return [cx, cy, x, y, x, y] as number[] as PathData;
 };
@@ -281,7 +281,7 @@ export const normalizePath = (segments: PathCommand[]): PathCommand[] => {
             r2,
             angle,
             largeArcFlag,
-            sweepFlag
+            sweepFlag,
           );
           curves.forEach((curve) => {
             out.push({ command: "C", data: curve as number[] as PathData });

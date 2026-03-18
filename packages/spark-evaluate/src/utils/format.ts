@@ -21,14 +21,14 @@ const select = (
   from: number,
   diagnostics: Diagnostic[],
   references: Diagnostic[],
-  formatter: Replacer
+  formatter: Replacer,
 ) => {
   const separated = args.split(PIPE_SEPARATOR_REGEX);
   const params = separated.filter((s) => s !== "|");
   const [formatterResult, formatterDiagnostics, ignoreArgs] = formatter(
     val,
     locale,
-    ...params
+    ...params,
   );
   formatterDiagnostics.forEach((d) => {
     diagnostics.push({
@@ -57,7 +57,7 @@ const replace =
     context: Record<string, unknown>,
     from: number,
     diagnostics: Diagnostic[],
-    references: Diagnostic[]
+    references: Diagnostic[],
   ) =>
   (element: string) => {
     const captures = element.match(SUBSTITUTION_ELEMENT_CAPTURES_REGEX);
@@ -96,7 +96,7 @@ const replace =
         from + captureOffset(captures, 10),
         diagnostics,
         references,
-        choose
+        choose,
       );
     }
     if (!_3_key) {
@@ -144,7 +144,7 @@ const replace =
         from + captureOffset(captures, 10),
         diagnostics,
         references,
-        replacer || choose
+        replacer || choose,
       );
     }
     if (val === undefined) {
@@ -156,7 +156,7 @@ const replace =
         from + captureOffset(captures, 10),
         diagnostics,
         references,
-        choose
+        choose,
       );
     }
     if (Array.isArray(val)) {
@@ -170,7 +170,7 @@ const replace =
         from + captureOffset(captures, 10),
         diagnostics,
         references,
-        choose
+        choose,
       );
     }
     if (typeof val === "boolean") {
@@ -182,7 +182,7 @@ const replace =
         from + captureOffset(captures, 10),
         diagnostics,
         references,
-        choose
+        choose,
       );
     }
     if (typeof val === "number") {
@@ -193,7 +193,7 @@ const replace =
         from + captureOffset(captures, 10),
         diagnostics,
         references,
-        pluralize
+        pluralize,
       );
     }
     return String(val);
@@ -201,7 +201,7 @@ const replace =
 
 const format = (
   str: string,
-  context: Record<string, unknown> = {}
+  context: Record<string, unknown> = {},
 ): [string, Diagnostic[], Diagnostic[]] => {
   const diagnostics: Diagnostic[] = [];
   const references: Diagnostic[] = [];
@@ -212,7 +212,7 @@ const format = (
   const parts = str.split(SUBSTITUTION_ELEMENT_REGEX).map((element) => {
     const replaced = element.replace(
       SUBSTITUTION_ELEMENT_REGEX,
-      replace(context, from, diagnostics, references)
+      replace(context, from, diagnostics, references),
     );
     from += element.length;
     return replaced;

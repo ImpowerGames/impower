@@ -8,5 +8,5 @@ export const DEFAULT_BUILTIN_DEFINITIONS = combineStructMap(
   coreBuiltinDefinitions(),
   uiBuiltinDefinitions(),
   audioBuiltinDefinitions(),
-  interpreterBuiltinDefinitions()
+  interpreterBuiltinDefinitions(),
 );

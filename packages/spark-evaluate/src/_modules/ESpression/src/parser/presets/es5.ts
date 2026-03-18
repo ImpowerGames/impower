@@ -88,7 +88,7 @@ export const biOpConfs: IConfBinaryRule[] = [
       ["<", ">", "<=", ">="],
       ["instanceof", "in"],
     ],
-    [BINARY_TYPE, BINARY_TYPE_SP]
+    [BINARY_TYPE, BINARY_TYPE_SP],
   ),
   opConf(["<<", ">>", ">>>"], BINARY_TYPE),
   opConf(["+", "-"], BINARY_TYPE),
@@ -107,12 +107,12 @@ export const memberRule = new BinaryOperatorRule({
 });
 export function es5Rules(
   identStart?: ICharClass,
-  identPart?: ICharClass
+  identPart?: ICharClass,
 ): IRuleSet {
   // basic tokens used also in parsing object literal's properties
 
   const identifierRule = new IdentifierRule(
-    es5IdentifierConf(identStart, identPart)
+    es5IdentifierConf(identStart, identPart),
   );
   // object needs subset of tokens for parsing properties.
   const tokenRules = numberRules.concat([
@@ -163,7 +163,7 @@ export function es5Rules(
                 ...node,
                 directive: node.expression.raw?.substring(
                   1,
-                  node.expression.raw.length - 1
+                  node.expression.raw.length - 1,
                 ),
               }
             : node,
@@ -188,8 +188,8 @@ export function es5Rules(
             "&=",
             "^=",
           ],
-          ASSIGN_TYPE
-        )
+          ASSIGN_TYPE,
+        ),
       ),
 
       new TernaryOperatorRule({
@@ -217,8 +217,8 @@ export function es5Rules(
             ["+", "-", "!", "~"],
             ["typeof", "void", "delete"],
           ],
-          [UNARY_TYPE_PRE, UNARY_TYPE_PRE_SP]
-        )
+          [UNARY_TYPE_PRE, UNARY_TYPE_PRE_SP],
+        ),
       ),
       UPDATE_EXP,
     ],
@@ -297,13 +297,13 @@ export class ES5Parser extends Parser {
   constructor(
     noStatement?: boolean,
     identStart?: ICharClass,
-    identPart?: ICharClass
+    identPart?: ICharClass,
   ) {
     super(
       es5Rules(identStart, identPart),
       noStatement ? EXPRESSION : STATEMENT,
       identStart,
-      identPart
+      identPart,
     );
   }
 }

@@ -23,8 +23,13 @@ export class StartGameMessage {
 }
 
 export namespace StartGameMessage {
-  export interface Request
-    extends RequestMessage<StartGameMethod, StartGameParams, StartGameResult> {}
-  export interface Response
-    extends ResponseMessage<StartGameMethod, StartGameResult> {}
+  export interface Request extends RequestMessage<
+    StartGameMethod,
+    StartGameParams,
+    StartGameResult
+  > {}
+  export interface Response extends ResponseMessage<
+    StartGameMethod,
+    StartGameResult
+  > {}
 }

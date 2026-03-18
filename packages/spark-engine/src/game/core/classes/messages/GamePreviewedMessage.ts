@@ -18,6 +18,8 @@ export class GamePreviewedMessage {
 }
 
 export namespace GamePreviewedMessage {
-  export interface Notification
-    extends NotificationMessage<GamePreviewedMethod, GamePreviewedParams> {}
+  export interface Notification extends NotificationMessage<
+    GamePreviewedMethod,
+    GamePreviewedParams
+  > {}
 }

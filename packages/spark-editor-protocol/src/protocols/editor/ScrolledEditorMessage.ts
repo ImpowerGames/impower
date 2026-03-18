@@ -19,6 +19,8 @@ export class ScrolledEditorMessage {
 }
 
 export namespace ScrolledEditorMessage {
-  export interface Notification
-    extends NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams> {}
+  export interface Notification extends NotificationMessage<
+    ScrolledEditorMethod,
+    ScrolledEditorParams
+  > {}
 }

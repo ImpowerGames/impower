@@ -20,12 +20,13 @@ export class StepGameClockMessage {
 }
 
 export namespace StepGameClockMessage {
-  export interface Request
-    extends RequestMessage<
-      StepGameClockMethod,
-      StepGameClockParams,
-      StepGameClockResult
-    > {}
-  export interface Response
-    extends ResponseMessage<StepGameClockMethod, StepGameClockResult> {}
+  export interface Request extends RequestMessage<
+    StepGameClockMethod,
+    StepGameClockParams,
+    StepGameClockResult
+  > {}
+  export interface Response extends ResponseMessage<
+    StepGameClockMethod,
+    StepGameClockResult
+  > {}
 }

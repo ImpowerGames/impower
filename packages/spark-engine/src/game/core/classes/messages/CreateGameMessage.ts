@@ -34,12 +34,13 @@ export class CreateGameMessage {
 }
 
 export namespace CreateGameMessage {
-  export interface Request
-    extends RequestMessage<
-      CreateGameMethod,
-      CreateGameParams,
-      CreateGameResult
-    > {}
-  export interface Response
-    extends ResponseMessage<CreateGameMethod, CreateGameResult> {}
+  export interface Request extends RequestMessage<
+    CreateGameMethod,
+    CreateGameParams,
+    CreateGameResult
+  > {}
+  export interface Response extends ResponseMessage<
+    CreateGameMethod,
+    CreateGameResult
+  > {}
 }

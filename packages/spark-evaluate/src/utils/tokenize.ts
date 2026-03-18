@@ -1,7 +1,7 @@
 import DEFAULT_PARSER from "../constants/DEFAULT_PARSER";
 
 const tokenize = (
-  expr: string
+  expr: string,
 ): {
   type: string;
   content: string;

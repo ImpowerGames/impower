@@ -18,12 +18,13 @@ export class DestroyGameMessage {
 }
 
 export namespace DestroyGameMessage {
-  export interface Request
-    extends RequestMessage<
-      DestroyGameMethod,
-      DestroyGameParams,
-      DestroyGameResult
-    > {}
-  export interface Response
-    extends ResponseMessage<DestroyGameMethod, DestroyGameResult> {}
+  export interface Request extends RequestMessage<
+    DestroyGameMethod,
+    DestroyGameParams,
+    DestroyGameResult
+  > {}
+  export interface Response extends ResponseMessage<
+    DestroyGameMethod,
+    DestroyGameResult
+  > {}
 }

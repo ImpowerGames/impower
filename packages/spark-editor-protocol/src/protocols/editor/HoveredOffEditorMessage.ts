@@ -17,9 +17,8 @@ export class HoveredOffEditorMessage {
 }
 
 export namespace HoveredOffEditorMessage {
-  export interface Notification
-    extends NotificationMessage<
-      HoveredOffEditorMethod,
-      HoveredOffEditorParams
-    > {}
+  export interface Notification extends NotificationMessage<
+    HoveredOffEditorMethod,
+    HoveredOffEditorParams
+  > {}
 }

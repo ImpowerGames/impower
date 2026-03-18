@@ -38,7 +38,7 @@ export default class FileList extends Component(spec) {
     message: NotificationMessage<
       DidChangeWatchedFilesMethod,
       DidChangeWatchedFilesParams
-    >
+    >,
   ) => {
     const params = message.params;
     const changes = params.changes;
@@ -48,26 +48,26 @@ export default class FileList extends Component(spec) {
     const excludeRegex = exclude ? globToRegex(exclude) : undefined;
     const isRelevantChange = changes.some(
       (change) =>
-        includeRegex.test(change.uri) && !excludeRegex?.test(change.uri)
+        includeRegex.test(change.uri) && !excludeRegex?.test(change.uri),
     );
     const isCreate = changes.every(
-      (change) => change.type === FileChangeType.Created
+      (change) => change.type === FileChangeType.Created,
     );
     const isDelete = changes.every(
-      (change) => change.type === FileChangeType.Deleted
+      (change) => change.type === FileChangeType.Deleted,
     );
     // The order of the files shouldn't shift around while the user is renaming files.
     const isRename = changes.every((change) =>
       // Renaming files emits a Changed and Created event for the new uri
       change.type === FileChangeType.Created
         ? changes.some(
-            (c) => c.uri === change.uri && c.type === FileChangeType.Changed
+            (c) => c.uri === change.uri && c.type === FileChangeType.Changed,
           )
         : change.type === FileChangeType.Changed
-        ? changes.some(
-            (c) => c.uri === change.uri && c.type === FileChangeType.Created
-          )
-        : true
+          ? changes.some(
+              (c) => c.uri === change.uri && c.type === FileChangeType.Created,
+            )
+          : true,
     );
     if (
       isRelevantChange &&
@@ -102,15 +102,15 @@ export default class FileList extends Component(spec) {
       outletEl.innerHTML = items.join("\n");
       if (scrollIntoView) {
         const uriToScrollTo = this._uris.findLast((uri) =>
-          scrollIntoView?.includes(uri)
+          scrollIntoView?.includes(uri),
         );
         if (uriToScrollTo) {
           const filenameToScrollTo = Workspace.fs.getFilename(uriToScrollTo);
           const fileItemToScrollTo = outletEl.querySelector(
             `se-file-item[filename=${filenameToScrollTo.replaceAll(
               ".",
-              "\\."
-            )}]`
+              "\\.",
+            )}]`,
           );
           const fileItemChildToScrollTo =
             fileItemToScrollTo?.shadowRoot?.firstElementChild?.shadowRoot

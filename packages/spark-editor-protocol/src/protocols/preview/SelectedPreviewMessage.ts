@@ -21,6 +21,8 @@ export class SelectedPreviewMessage {
 }
 
 export namespace SelectedPreviewMessage {
-  export interface Notification
-    extends NotificationMessage<SelectedPreviewMethod, SelectedPreviewParams> {}
+  export interface Notification extends NotificationMessage<
+    SelectedPreviewMethod,
+    SelectedPreviewParams
+  > {}
 }

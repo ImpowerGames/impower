@@ -17,73 +17,75 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   const template = await config.getTemplate();
   const phrasesPath = "../../../concept-generator/src/input/phrases.txt";
   const phrases = JSON.stringify(
-    fs.readFileSync(phrasesPath, "utf8").split(/\r?\n/)
+    fs.readFileSync(phrasesPath, "utf8").split(/\r?\n/),
   );
   const archetypesPath = "../../../concept-generator/src/input/archetypes.txt";
   const archetypes = JSON.stringify(
-    fs.readFileSync(archetypesPath, "utf8").split(/\r?\n/)
+    fs.readFileSync(archetypesPath, "utf8").split(/\r?\n/),
   );
   const termsPath = "../../../concept-generator/src/output/terms.json";
   const terms = fs.readFileSync(termsPath, "utf8");
   const colors = JSON.stringify(
-    (await import("../../../client/resources/json/colors.json")).default
+    (await import("../../../client/resources/json/colors.json")).default,
   );
   const abbreviations = JSON.stringify(
     (await import("../../../client/resources/json/en/abbreviations.json"))
-      .default
+      .default,
   );
   const capitalizations = JSON.stringify(
     (await import("../../../client/resources/json/en/capitalizations.json"))
-      .default
+      .default,
   );
   const projectTags = JSON.stringify(
-    (await import("../../../client/resources/json/en/projectTags.json")).default
+    (await import("../../../client/resources/json/en/projectTags.json"))
+      .default,
   );
   const messages = JSON.stringify(
-    (await import("../../../client/resources/json/en/messages.json")).default
+    (await import("../../../client/resources/json/en/messages.json")).default,
   );
   const atmospheres = JSON.stringify(
-    (await import("../../../client/resources/json/en/atmospheres.json")).default
+    (await import("../../../client/resources/json/en/atmospheres.json"))
+      .default,
   );
   const locations = JSON.stringify(
-    (await import("../../../client/resources/json/en/locations.json")).default
+    (await import("../../../client/resources/json/en/locations.json")).default,
   );
   const catalysts = JSON.stringify(
-    (await import("../../../client/resources/json/en/catalysts.json")).default
+    (await import("../../../client/resources/json/en/catalysts.json")).default,
   );
   const moods = JSON.stringify(
-    (await import("../../../client/resources/json/en/moods.json")).default
+    (await import("../../../client/resources/json/en/moods.json")).default,
   );
   const regexes = JSON.stringify(
-    (await import("../../../client/resources/json/en/regexes.json")).default
+    (await import("../../../client/resources/json/en/regexes.json")).default,
   );
   const visualStyles = JSON.stringify(
     (await import("../../../client/resources/json/en/visualStyles.json"))
-      .default
+      .default,
   );
   const musicalStyles = JSON.stringify(
     (await import("../../../client/resources/json/en/musicalStyles.json"))
-      .default
+      .default,
   );
   const resourceTags = JSON.stringify(
     (await import("../../../client/resources/json/en/resourceTags.json"))
-      .default
+      .default,
   );
   const roleTags = JSON.stringify(
-    (await import("../../../client/resources/json/en/roleTags.json")).default
+    (await import("../../../client/resources/json/en/roleTags.json")).default,
   );
   const tagDisambiguations = JSON.stringify(
     (await import("../../../client/resources/json/en/tagDisambiguations.json"))
-      .default
+      .default,
   );
   const tagColorNames = JSON.stringify(
-    (await import("../../../client/resources/json/tagColorNames.json")).default
+    (await import("../../../client/resources/json/tagColorNames.json")).default,
   );
   const tagIconNames = JSON.stringify(
-    (await import("../../../client/resources/json/tagIconNames.json")).default
+    (await import("../../../client/resources/json/tagIconNames.json")).default,
   );
   const tagPatterns = JSON.stringify(
-    (await import("../../../client/resources/json/tagPatterns.json")).default
+    (await import("../../../client/resources/json/tagPatterns.json")).default,
   );
   template.parameters["phrases"] = {
     defaultValue: { value: phrases },
