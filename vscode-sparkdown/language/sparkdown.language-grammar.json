@@ -996,7 +996,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "DefineStylingDeclaration": {
       "tag": "meta",
@@ -1046,7 +1046,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "DefinePlainDeclaration": {
       "tag": "meta",
@@ -1096,7 +1096,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "DefineKeyword": {
       "tag": "controlKeyword",
@@ -1374,7 +1374,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "StylingStructObjectItemBlock": {
       "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+)))((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[/][/].*$))",
@@ -1415,7 +1415,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "PlainStructObjectItemBlock": {
       "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+)))((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[/][/].*$))",
@@ -1456,7 +1456,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "ViewStructObjectItemWithInlineScalarProperty": {
       "tag": "meta",
@@ -1513,7 +1513,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "StylingStructObjectItemWithInlineScalarProperty": {
       "tag": "meta",
@@ -1570,7 +1570,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "PlainStructObjectItemWithInlineScalarProperty": {
       "tag": "meta",
@@ -1627,7 +1627,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "ViewStructObjectItemWithInlineObjectProperty": {
       "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+)))((?:[0-9]+|[_\\p{L}][0-9_\\p{L}-]*|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))([^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(.*$)",
@@ -1699,7 +1699,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "StylingStructObjectItemWithInlineObjectProperty": {
       "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+)))((?:[0-9]+|[_\\p{L}][0-9_\\p{L}-]*|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))([^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(.*$)",
@@ -1771,7 +1771,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "PlainStructObjectItemWithInlineObjectProperty": {
       "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+)))((?:[0-9]+|[_\\p{L}][0-9_\\p{L}-]*|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))([^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(.*$)",
@@ -1843,7 +1843,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "ViewStructScalarItem": {
       "match": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+)))(.*$)",
@@ -2054,7 +2054,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "StylingStructObjectProperty": {
       "begin": "^([^\\S\\n\\r]*)(.+$)",
@@ -2088,7 +2088,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "PlainStructObjectProperty": {
       "begin": "^([^\\S\\n\\r]*)(.+$)",
@@ -2122,7 +2122,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!$|//|\\1[^\\S\\n\\r]|\\1[-]))"
+      "end": "(?=^(?!$|[^\\S\\n\\r]*//|\\1[^\\S\\n\\r]|\\1[-]))"
     },
     "ViewDeclarationObjectPropertyAssignment": {
       "begin": "(?=\\S)",
