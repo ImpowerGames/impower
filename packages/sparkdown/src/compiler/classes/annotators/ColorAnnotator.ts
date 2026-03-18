@@ -23,7 +23,7 @@ export class ColorAnnotator extends SparkdownAnnotator<
   defineName = "";
 
   definePropertyPathParts: {
-    key: string | number;
+    key?: string | number;
     arrayLength?: number;
   }[] = [];
 
@@ -46,7 +46,7 @@ export class ColorAnnotator extends SparkdownAnnotator<
       this.defineModifier = "";
       this.defineType = "";
       this.defineName = "";
-      this.definePropertyPathParts = [{ key: "" }];
+      this.definePropertyPathParts = [{}];
       return annotations;
     }
     if (nodeRef.name === "DefineModifierName") {
@@ -108,7 +108,7 @@ export class ColorAnnotator extends SparkdownAnnotator<
       nodeRef.name === "ParameterStringIdentifier"
     ) {
       const propertyPath = this.definePropertyPathParts
-        .filter((p) => p.key)
+        .filter((p) => p.key != null)
         .map(({ key }) => key)
         .join(".");
       const declaration = this.defineName

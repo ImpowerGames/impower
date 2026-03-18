@@ -49,7 +49,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
   defineName = "";
 
   definePropertyPathParts: {
-    key: string | number;
+    key?: string | number;
     arrayLength?: number;
   }[] = [];
 
@@ -247,7 +247,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       this.defineModifier = "";
       this.defineType = "";
       this.defineName = "";
-      this.definePropertyPathParts = [{ key: "" }];
+      this.definePropertyPathParts = [{}];
       return annotations;
     }
     if (nodeRef.name === "DefineModifierName") {
@@ -320,7 +320,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         key: name,
       });
       const propertyPath = this.definePropertyPathParts
-        .filter((p) => p.key)
+        .filter((p) => p.key != null)
         .map(({ key }) => key)
         .join(".");
       annotations.push(
@@ -361,7 +361,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     ) {
       // For type checking
       const defineProperty = this.definePropertyPathParts
-        .filter((p) => p.key)
+        .filter((p) => p.key != null)
         .map((p) => p.key)
         .join(".");
       const declaration = {
@@ -425,7 +425,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         )
       ) {
         const defineProperty = this.definePropertyPathParts
-          .filter((p) => p.key)
+          .filter((p) => p.key != null)
           .map((p) => p.key)
           .join(".");
         const declaration = {
@@ -490,7 +490,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       // Record reference in field value
       if (context.some((n) => n.name === "StylingStructFieldValue")) {
         const defineProperty = this.definePropertyPathParts
-          .filter((p) => p.key)
+          .filter((p) => p.key != null)
           .map((p) => p.key)
           .join(".");
         const declaration = {
