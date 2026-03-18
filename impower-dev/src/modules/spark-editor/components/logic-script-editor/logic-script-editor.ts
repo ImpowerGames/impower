@@ -44,6 +44,12 @@ export default class LogicScriptEditor extends Component(spec) {
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
   }
 
+  override onAttributeChanged(name: string, newValue: string) {
+    if (name === LogicScriptEditor.attrs.filename) {
+      this.loadFile();
+    }
+  }
+
   protected handleProtocol = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (DidChangeTextDocumentMessage.type.is(e.detail)) {
@@ -156,6 +162,8 @@ export default class LogicScriptEditor extends Component(spec) {
         const breakpointLines = editor.breakpointLines;
         const pinpointLines = editor.pinpointLines;
         const highlightLines = editor.highlightLines;
+        const originalFilename = editor.originalFilename;
+        const preserveEditor = Boolean(originalFilename);
         const files = await Workspace.fs.getFiles(projectId);
         const file = files[uri];
         const text = file?.text || "";
@@ -184,6 +192,7 @@ export default class LogicScriptEditor extends Component(spec) {
             highlightLines,
             languageServerInitializeParams,
             languageServerInitializeResult,
+            preserveEditor,
           }),
         );
       } else {

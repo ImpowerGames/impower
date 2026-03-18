@@ -7,6 +7,7 @@ import {
   convertToPosition,
   getDocumentVersion,
   LSPClient,
+  LSPPlugin,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
@@ -79,6 +80,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
+import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import {
   InitializeParams,
   InitializeResult,
@@ -267,6 +269,14 @@ export default class SparkdownScriptEditor extends Component(spec) {
           this.emit(MessageProtocol.event, response);
         }
       }
+      if (DidChangeWatchedFilesMessage.type.is(e.detail)) {
+        if (this._view) {
+          const plugin = LSPPlugin.get(this._view);
+          if (plugin) {
+            plugin.client.workspace.changeWatchedFiles(e.detail.params);
+          }
+        }
+      }
     }
   };
 
@@ -310,6 +320,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       params.languageServerInitializeParams;
     const languageServerInitializeResult =
       params.languageServerInitializeResult;
+    const preserveEditor = params.preserveEditor;
     this._loadingRequest = message.id;
     this.loadTextDocument(
       textDocument,
@@ -322,6 +333,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       highlightLines,
       languageServerInitializeParams,
       languageServerInitializeResult,
+      preserveEditor,
     );
     return LoadEditorMessage.type.response(message.id, {});
   };
@@ -531,280 +543,320 @@ export default class SparkdownScriptEditor extends Component(spec) {
     highlightLines: number[] | undefined,
     serverInitializeParams: InitializeParams,
     serverInitializeResult: InitializeResult,
+    preserveEditor: boolean | undefined,
   ) {
-    if (this._view) {
-      this.unbindView(this._view);
-      this._view.destroy();
-    }
-    if (this._disposable) {
-      this._disposable.dispose();
-    }
-    this._initialFocused = focused;
-    this._initialVisibleRange = visibleRange;
-    this._initialSelectedRange = selectedRange;
-    this._initialScrollStrategy = scrollStrategy;
-    this._loaded = false;
-    this._searching = false;
-    this._searchInputFocused = false;
-    this._textDocument = textDocument;
-    const mainContainer = this.refs.main;
-    if (mainContainer) {
-      this._scrollMargin = getBoxValues(this.scrollMargin);
-      this._top = getUnitlessValue(this.top, 0);
-      this._bottom = getUnitlessValue(this.bottom, 0);
-      [this._view, this._disposable] = createEditorView(mainContainer, {
-        serverWorker: SparkdownScriptEditor.languageServerWorker,
-        serverConnection: SparkdownScriptEditor.languageServerConnection,
-        serverInitializeParams: serverInitializeParams,
-        serverInitializeResult: serverInitializeResult,
-        serverWorkspace: (client: LSPClient) =>
-          new SparkdownCodemirrorWorkspace(client, {
-            showDocument: async (params) => {
-              return new Promise((resolve) => {
-                const request = ShowDocumentMessage.type.request(params);
-                const onProtocol = (e: Event) => {
-                  if (e instanceof CustomEvent) {
-                    const message = e.detail;
-                    if (
-                      ShowDocumentMessage.type.isResponse(message, request.id)
-                    ) {
-                      resolve();
-                      window.removeEventListener(
-                        MessageProtocol.event,
-                        onProtocol,
-                      );
-                    }
-                  }
-                };
-                window.addEventListener(MessageProtocol.event, onProtocol);
-                this.emit(MessageProtocol.event, request);
-              });
-            },
-            applyWorkspaceEdit: async (params) => {
-              return new Promise((resolve) => {
-                const request = ApplyWorkspaceEditMessage.type.request(params);
-                const onProtocol = (e: Event) => {
-                  if (e instanceof CustomEvent) {
-                    const message = e.detail;
-                    if (
-                      ApplyWorkspaceEditMessage.type.isResponse(
-                        message,
-                        request.id,
-                      )
-                    ) {
-                      resolve();
-                      window.removeEventListener(
-                        MessageProtocol.event,
-                        onProtocol,
-                      );
-                    }
-                  }
-                };
-                window.addEventListener(MessageProtocol.event, onProtocol);
-                this.emit(MessageProtocol.event, request);
-              });
-            },
-            onWillApplyWorkspaceEdit: () => {
-              // TODO: Block all script edits AND asset changes until workspace edit has been fully applied
-              this.allowEditing(false);
-            },
-            onDidApplyWorkspaceEdit: () => {
-              this.allowEditing(true);
-            },
-          }),
-        textDocument: this._textDocument,
-        scrollMargin: this._scrollMargin,
-        top: this._top,
-        bottom: this._bottom,
-        breakpointLineNumbers: breakpointLines?.map((line) => line + 1),
-        pinpointLineNumbers: pinpointLines?.map((line) => line + 1),
-        highlightLineNumbers: highlightLines?.map((line) => line + 1),
-        scrollToLineNumber: (visibleRange?.start.line ?? 0) + 1,
-        onIdle: this.handleIdle,
-        onFocus: () => {
-          this._editing = true;
-          if (this._textDocument) {
-            this.emit(
-              MessageProtocol.event,
-              FocusedEditorMessage.type.notification({
-                textDocument: this._textDocument,
-              }),
-            );
-            this.emit("input/focused");
-          }
+    if (preserveEditor && this._view) {
+      // We are loading a new text document, but the old editor should be preserved
+      // (This is necessary when renaming a file)
+      this._textDocument = textDocument;
+      const uri = textDocument.uri;
+      const plugin = LSPPlugin.get(this._view);
+      if (plugin) {
+        plugin.uri = uri;
+      }
+      // Notify that selection has changed to the new text document
+      const state = this._view.state;
+      const cursorRange = state.selection.main;
+      const anchor = cursorRange.anchor;
+      const head = cursorRange.head;
+      const params: DidSelectTextDocumentMessage.Notification["params"] = {
+        textDocument: { uri },
+        selectedRange: {
+          start: convertToPosition(state.doc, anchor),
+          end: convertToPosition(state.doc, head),
         },
-        onBlur: () => {
-          this._editing = false;
-          if (this._textDocument) {
-            if (!this._searchInputFocused) {
-              // Editor is still considered focused if focus was moved to search input
+        hasFocus: this._view?.hasFocus,
+        docChanged: false,
+        userEvent: true,
+      };
+      this.emit(
+        MessageProtocol.event,
+        DidSelectTextDocumentMessage.type.notification(params),
+      );
+      this.emit(
+        MessageProtocol.event,
+        SelectedEditorMessage.type.notification(params),
+      );
+    } else {
+      this.root.style.visibility = "hidden";
+      if (this._view) {
+        this.unbindView(this._view);
+        this._view.destroy();
+      }
+      if (this._disposable) {
+        this._disposable.dispose();
+      }
+      this._initialFocused = focused;
+      this._initialVisibleRange = visibleRange;
+      this._initialSelectedRange = selectedRange;
+      this._initialScrollStrategy = scrollStrategy;
+      this._loaded = false;
+      this._searching = false;
+      this._searchInputFocused = false;
+      this._textDocument = textDocument;
+      const mainContainer = this.refs.main;
+      if (mainContainer) {
+        this._scrollMargin = getBoxValues(this.scrollMargin);
+        this._top = getUnitlessValue(this.top, 0);
+        this._bottom = getUnitlessValue(this.bottom, 0);
+        [this._view, this._disposable] = createEditorView(mainContainer, {
+          serverWorker: SparkdownScriptEditor.languageServerWorker,
+          serverConnection: SparkdownScriptEditor.languageServerConnection,
+          serverInitializeParams: serverInitializeParams,
+          serverInitializeResult: serverInitializeResult,
+          serverWorkspace: (client: LSPClient) =>
+            new SparkdownCodemirrorWorkspace(client, {
+              showDocument: async (params) => {
+                return new Promise((resolve) => {
+                  const request = ShowDocumentMessage.type.request(params);
+                  const onProtocol = (e: Event) => {
+                    if (e instanceof CustomEvent) {
+                      const message = e.detail;
+                      if (
+                        ShowDocumentMessage.type.isResponse(message, request.id)
+                      ) {
+                        resolve();
+                        window.removeEventListener(
+                          MessageProtocol.event,
+                          onProtocol,
+                        );
+                      }
+                    }
+                  };
+                  window.addEventListener(MessageProtocol.event, onProtocol);
+                  this.emit(MessageProtocol.event, request);
+                });
+              },
+              applyWorkspaceEdit: async (params) => {
+                return new Promise((resolve) => {
+                  const request =
+                    ApplyWorkspaceEditMessage.type.request(params);
+                  const onProtocol = (e: Event) => {
+                    if (e instanceof CustomEvent) {
+                      const message = e.detail;
+                      if (
+                        ApplyWorkspaceEditMessage.type.isResponse(
+                          message,
+                          request.id,
+                        )
+                      ) {
+                        resolve();
+                        window.removeEventListener(
+                          MessageProtocol.event,
+                          onProtocol,
+                        );
+                      }
+                    }
+                  };
+                  window.addEventListener(MessageProtocol.event, onProtocol);
+                  this.emit(MessageProtocol.event, request);
+                });
+              },
+              onWillApplyWorkspaceEdit: () => {
+                // TODO: Block all script edits AND asset changes until workspace edit has been fully applied
+                this.allowEditing(false);
+              },
+              onDidApplyWorkspaceEdit: () => {
+                this.allowEditing(true);
+              },
+            }),
+          textDocument: this._textDocument,
+          scrollMargin: this._scrollMargin,
+          top: this._top,
+          bottom: this._bottom,
+          breakpointLineNumbers: breakpointLines?.map((line) => line + 1),
+          pinpointLineNumbers: pinpointLines?.map((line) => line + 1),
+          highlightLineNumbers: highlightLines?.map((line) => line + 1),
+          scrollToLineNumber: (visibleRange?.start.line ?? 0) + 1,
+          onIdle: this.handleIdle,
+          onFocus: () => {
+            this._editing = true;
+            if (this._textDocument) {
               this.emit(
                 MessageProtocol.event,
-                UnfocusedEditorMessage.type.notification({
+                FocusedEditorMessage.type.notification({
                   textDocument: this._textDocument,
                 }),
               );
-              this.emit("input/unfocused");
+              this.emit("input/focused");
             }
-          }
-        },
-        transactionExtender: (tr) => {
-          if (tr.docChanged) {
+          },
+          onBlur: () => {
+            this._editing = false;
             if (this._textDocument) {
-              const uri = this._textDocument.uri;
-              const beforeVersion = getDocumentVersion(tr.startState);
-              const afterVersion = beforeVersion + 1;
-              const after = tr.newDoc.toString();
-              const contentChanges = convertToChangeEvents(
-                tr.startState.doc,
-                tr.changes,
-              );
-              this.emit(
-                MessageProtocol.event,
-                DidChangeTextDocumentMessage.type.notification({
-                  textDocument: {
-                    uri,
-                    version: afterVersion,
+              if (!this._searchInputFocused) {
+                // Editor is still considered focused if focus was moved to search input
+                this.emit(
+                  MessageProtocol.event,
+                  UnfocusedEditorMessage.type.notification({
+                    textDocument: this._textDocument,
+                  }),
+                );
+                this.emit("input/unfocused");
+              }
+            }
+          },
+          transactionExtender: (tr) => {
+            if (tr.docChanged) {
+              if (this._textDocument) {
+                const uri = this._textDocument.uri;
+                const beforeVersion = getDocumentVersion(tr.startState);
+                const afterVersion = beforeVersion + 1;
+                const after = tr.newDoc.toString();
+                const contentChanges = convertToChangeEvents(
+                  tr.startState.doc,
+                  tr.changes,
+                );
+                this.emit(
+                  MessageProtocol.event,
+                  DidChangeTextDocumentMessage.type.notification({
+                    textDocument: {
+                      uri,
+                      version: afterVersion,
+                    },
+                    contentChanges,
+                  }),
+                );
+                this.emit(
+                  MessageProtocol.event,
+                  WillSaveTextDocumentMessage.type.notification({
+                    textDocument: { uri },
+                    reason: TextDocumentSaveReason.AfterDelay,
+                  }),
+                );
+                this.emit(
+                  MessageProtocol.event,
+                  DidSaveTextDocumentMessage.type.notification({
+                    textDocument: { uri },
+                    text: after,
+                  }),
+                );
+              }
+            }
+            return null;
+          },
+          onSelectionChanged: (update, anchor, head) => {
+            const uri = this._textDocument?.uri;
+            if (uri) {
+              const params: DidSelectTextDocumentMessage.Notification["params"] =
+                {
+                  textDocument: { uri },
+                  selectedRange: {
+                    start: convertToPosition(update.state.doc, anchor),
+                    end: convertToPosition(update.state.doc, head),
                   },
-                  contentChanges,
-                }),
+                  hasFocus: this._view?.hasFocus,
+                  docChanged: update.docChanged,
+                  userEvent: update.transactions.some((tr) =>
+                    tr.annotation(Transaction.userEvent),
+                  ),
+                };
+              this.emit(
+                MessageProtocol.event,
+                DidSelectTextDocumentMessage.type.notification(params),
               );
               this.emit(
                 MessageProtocol.event,
-                WillSaveTextDocumentMessage.type.notification({
-                  textDocument: { uri },
-                  reason: TextDocumentSaveReason.AfterDelay,
-                }),
+                SelectedEditorMessage.type.notification(params),
               );
+            }
+          },
+          onBreakpointsChanged: (update, breakpointLineNumbers) => {
+            const uri = this._textDocument?.uri;
+            if (uri) {
               this.emit(
                 MessageProtocol.event,
-                DidSaveTextDocumentMessage.type.notification({
+                ChangedEditorBreakpointsMessage.type.notification({
                   textDocument: { uri },
-                  text: after,
+                  breakpointLines: breakpointLineNumbers.map(
+                    (lineNumber) => lineNumber - 1,
+                  ),
                 }),
               );
             }
-          }
-          return null;
-        },
-        onSelectionChanged: (update, anchor, head) => {
-          const uri = this._textDocument?.uri;
-          if (uri) {
-            const params: DidSelectTextDocumentMessage.Notification["params"] =
-              {
-                textDocument: { uri },
-                selectedRange: {
-                  start: convertToPosition(update.state.doc, anchor),
-                  end: convertToPosition(update.state.doc, head),
-                },
-                hasFocus: this._view?.hasFocus,
-                docChanged: update.docChanged,
-                userEvent: update.transactions.some((tr) =>
-                  tr.annotation(Transaction.userEvent),
-                ),
-              };
-            this.emit(
-              MessageProtocol.event,
-              DidSelectTextDocumentMessage.type.notification(params),
-            );
-            this.emit(
-              MessageProtocol.event,
-              SelectedEditorMessage.type.notification(params),
-            );
-          }
-        },
-        onBreakpointsChanged: (update, breakpointLineNumbers) => {
-          const uri = this._textDocument?.uri;
-          if (uri) {
-            this.emit(
-              MessageProtocol.event,
-              ChangedEditorBreakpointsMessage.type.notification({
-                textDocument: { uri },
-                breakpointLines: breakpointLineNumbers.map(
-                  (lineNumber) => lineNumber - 1,
-                ),
-              }),
-            );
-          }
-        },
-        onPinpointsChanged: (update, pinpointLineNumbers) => {
-          const uri = this._textDocument?.uri;
-          if (uri) {
-            this.emit(
-              MessageProtocol.event,
-              ChangedEditorPinpointsMessage.type.notification({
-                textDocument: { uri },
-                pinpointLines: pinpointLineNumbers.map(
-                  (lineNumber) => lineNumber - 1,
-                ),
-              }),
-            );
-          }
-        },
-        onHighlightsChanged: (update, highlightLineNumbers) => {
-          const uri = this._textDocument?.uri;
-          if (uri) {
-            this.emit(
-              MessageProtocol.event,
-              ChangedEditorHighlightsMessage.type.notification({
-                textDocument: { uri },
-                highlightLines: highlightLineNumbers.map(
-                  (lineNumber) => lineNumber - 1,
-                ),
-              }),
-            );
-          }
-        },
-        onViewUpdate: (update) => {
-          if (
-            searchPanelOpen(update.state) ||
-            gotoLinePanelOpen(update.state)
-          ) {
-            if (!this._searching) {
-              // Opened panel
-              const findInput = this.root.querySelector(
-                ".cm-search input[name='search']",
+          },
+          onPinpointsChanged: (update, pinpointLineNumbers) => {
+            const uri = this._textDocument?.uri;
+            if (uri) {
+              this.emit(
+                MessageProtocol.event,
+                ChangedEditorPinpointsMessage.type.notification({
+                  textDocument: { uri },
+                  pinpointLines: pinpointLineNumbers.map(
+                    (lineNumber) => lineNumber - 1,
+                  ),
+                }),
               );
-              if (findInput) {
-                findInput.addEventListener("focus", this.handleFocusFindInput);
-                findInput.addEventListener("blur", this.handleBlurFindInput);
-                // findInput starts focused
-                this.handleFocusFindInput();
-              }
-              const replaceInput = this.root.querySelector(
-                ".cm-search input[name='replace']",
-              );
-              if (replaceInput) {
-                replaceInput.addEventListener(
-                  "focus",
-                  this.handleFocusReplaceInput,
-                );
-                replaceInput.addEventListener(
-                  "blur",
-                  this.handleBlurReplaceInput,
-                );
-              }
-              const gotoLineInput =
-                this.root.querySelector(".cm-gotoLine input");
-              if (gotoLineInput) {
-                gotoLineInput.addEventListener(
-                  "focus",
-                  this.handleFocusGotoLineInput,
-                );
-                gotoLineInput.addEventListener(
-                  "blur",
-                  this.handleBlurGotoLineInput,
-                );
-                // gotoLineInput starts focused
-                this.handleFocusGotoLineInput();
-              }
             }
-            this._searching = true;
-          } else {
-            this._searching = false;
-          }
-        },
-      });
+          },
+          onHighlightsChanged: (update, highlightLineNumbers) => {
+            const uri = this._textDocument?.uri;
+            if (uri) {
+              this.emit(
+                MessageProtocol.event,
+                ChangedEditorHighlightsMessage.type.notification({
+                  textDocument: { uri },
+                  highlightLines: highlightLineNumbers.map(
+                    (lineNumber) => lineNumber - 1,
+                  ),
+                }),
+              );
+            }
+          },
+          onViewUpdate: (update) => {
+            if (
+              searchPanelOpen(update.state) ||
+              gotoLinePanelOpen(update.state)
+            ) {
+              if (!this._searching) {
+                // Opened panel
+                const findInput = this.root.querySelector(
+                  ".cm-search input[name='search']",
+                );
+                if (findInput) {
+                  findInput.addEventListener(
+                    "focus",
+                    this.handleFocusFindInput,
+                  );
+                  findInput.addEventListener("blur", this.handleBlurFindInput);
+                  // findInput starts focused
+                  this.handleFocusFindInput();
+                }
+                const replaceInput = this.root.querySelector(
+                  ".cm-search input[name='replace']",
+                );
+                if (replaceInput) {
+                  replaceInput.addEventListener(
+                    "focus",
+                    this.handleFocusReplaceInput,
+                  );
+                  replaceInput.addEventListener(
+                    "blur",
+                    this.handleBlurReplaceInput,
+                  );
+                }
+                const gotoLineInput =
+                  this.root.querySelector(".cm-gotoLine input");
+                if (gotoLineInput) {
+                  gotoLineInput.addEventListener(
+                    "focus",
+                    this.handleFocusGotoLineInput,
+                  );
+                  gotoLineInput.addEventListener(
+                    "blur",
+                    this.handleBlurGotoLineInput,
+                  );
+                  // gotoLineInput starts focused
+                  this.handleFocusGotoLineInput();
+                }
+              }
+              this._searching = true;
+            } else {
+              this._searching = false;
+            }
+          },
+        });
+      }
     }
     this.emit(
       MessageProtocol.event,
@@ -912,6 +964,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       }
       if (this._textDocument && this._loadingRequest != null) {
         // Only fade in once formatting has finished being applied and height is stable
+        this.root.style.visibility = "visible";
         this.root.style.opacity = "1";
         this._loadingRequest = undefined;
       }

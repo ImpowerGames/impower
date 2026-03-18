@@ -471,10 +471,8 @@ export default class WorkspaceWindow {
         ) {
           const uri = Workspace.fs.getFileUri(projectId, filenameOrUri);
           return {
+            ...panelState.activeEditor,
             uri,
-            focused: panelState?.activeEditor?.focused,
-            visibleRange: panelState?.activeEditor?.visibleRange,
-            selectedRange: panelState?.activeEditor?.selectedRange,
             breakpointLines: this.store.debug?.breakpoints?.[uri],
             pinpointLines: this.store.debug?.pinpoints?.[uri],
             highlightLines: this.store.debug?.highlights?.[uri],
@@ -665,21 +663,21 @@ export default class WorkspaceWindow {
     );
   }
 
-  openedFileEditor(filename: string) {
+  openedFileEditor(filename: string, oldFilename?: string) {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (pane && panel) {
       const activeEditor = this.store.panes[pane].panels[panel]?.activeEditor;
-      const didFileChange = activeEditor && activeEditor.filename !== filename;
-      const visibleRange = didFileChange
-        ? {
+      const isRenaming = Boolean(oldFilename);
+      const visibleRange = isRenaming
+        ? activeEditor?.visibleRange
+        : {
             start: { line: 0, character: 0 },
             end: { line: 0, character: 0 },
-          }
-        : activeEditor?.visibleRange;
-      const selectedRange = didFileChange
-        ? undefined
-        : activeEditor?.selectedRange;
+          };
+      const selectedRange = isRenaming
+        ? activeEditor?.selectedRange
+        : undefined;
       this.update({
         ...this.store,
         panes: {
@@ -693,6 +691,7 @@ export default class WorkspaceWindow {
                 activeEditor: {
                   ...this.store.panes[pane].panels[panel]!.activeEditor,
                   open: true,
+                  originalFilename: oldFilename,
                   filename,
                   visibleRange,
                   selectedRange,

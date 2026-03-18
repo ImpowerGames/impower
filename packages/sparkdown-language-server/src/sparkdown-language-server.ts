@@ -36,70 +36,71 @@ try {
 
   const workspace = new SparkdownLanguageServerWorkspace(connection);
 
+  const capabilities: ServerCapabilities = {
+    textDocumentSync: TextDocumentSyncKind.Incremental,
+    foldingRangeProvider: true,
+    documentSymbolProvider: true,
+    colorProvider: true,
+    hoverProvider: true,
+    completionProvider: {
+      triggerCharacters: [
+        ".",
+        ",",
+        " ",
+        "\n",
+        "\r",
+        "-",
+        "{",
+        "}",
+        "(",
+        ")",
+        "[",
+        "]",
+        "<",
+        ">",
+        "^",
+        "$",
+        "%",
+        "@",
+        "#",
+        ":",
+        "+",
+        "~",
+        "-",
+        `"`,
+        `=`,
+      ],
+      completionItem: {
+        labelDetailsSupport: true,
+      },
+    },
+    documentFormattingProvider: true,
+    documentRangeFormattingProvider: true,
+    documentOnTypeFormattingProvider: {
+      firstTriggerCharacter: "\n",
+      moreTriggerCharacter: [":", "]", "}", ")", "\n"],
+    },
+    renameProvider: {
+      prepareProvider: true,
+    },
+    referencesProvider: true,
+    declarationProvider: true,
+    definitionProvider: true,
+    documentLinkProvider: {
+      resolveProvider: false,
+    },
+    documentHighlightProvider: true,
+    semanticTokensProvider: {
+      legend: {
+        tokenTypes: TOKEN_TYPES,
+        tokenModifiers: TOKEN_MODIFIERS,
+      },
+      range: true,
+      full: true,
+    },
+  };
+
   connection.onInitialize(async (params): Promise<InitializeResult> => {
-    const capabilities: ServerCapabilities = {
-      textDocumentSync: TextDocumentSyncKind.Incremental,
-      foldingRangeProvider: true,
-      documentSymbolProvider: true,
-      colorProvider: true,
-      hoverProvider: true,
-      completionProvider: {
-        triggerCharacters: [
-          ".",
-          ",",
-          " ",
-          "\n",
-          "\r",
-          "-",
-          "{",
-          "}",
-          "(",
-          ")",
-          "[",
-          "]",
-          "<",
-          ">",
-          "^",
-          "$",
-          "%",
-          "@",
-          "#",
-          ":",
-          "+",
-          "~",
-          "-",
-          `"`,
-          `=`,
-        ],
-        completionItem: {
-          labelDetailsSupport: true,
-        },
-      },
-      documentFormattingProvider: true,
-      documentRangeFormattingProvider: true,
-      documentOnTypeFormattingProvider: {
-        firstTriggerCharacter: "\n",
-        moreTriggerCharacter: [":", "]", "}", ")", "\n"],
-      },
-      renameProvider: {
-        prepareProvider: true,
-      },
-      referencesProvider: true,
-      declarationProvider: true,
-      definitionProvider: true,
-      documentLinkProvider: {
-        resolveProvider: false,
-      },
-      documentHighlightProvider: true,
-      semanticTokensProvider: {
-        legend: {
-          tokenTypes: TOKEN_TYPES,
-          tokenModifiers: TOKEN_MODIFIERS,
-        },
-        range: true,
-        full: true,
-      },
-    };
     const workspaceFolders = params?.workspaceFolders;
     if (workspaceFolders) {
       workspace.loadWorkspaceFolders(workspaceFolders);

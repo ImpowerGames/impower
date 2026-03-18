@@ -57,12 +57,11 @@ export class SparkdownCodemirrorWorkspace extends Workspace {
         if (!this._fileRegistry.get(file.uri)) {
           // Add unopened workspace file to registry
           const text = file.text;
-          const lines = text.replace(NEWLINE_REGEX, "\n").split("\n");
           this._fileRegistry.set(file.uri, {
             uri: file.uri,
             version: file.version ?? -1,
             languageId: file.languageId ?? LANGUAGE_ID,
-            doc: Text.of(lines),
+            doc: this.createDoc(text),
             getView: () => null,
           });
         }
@@ -115,9 +114,20 @@ export class SparkdownCodemirrorWorkspace extends Workspace {
     }
   }
 
+  async refreshFile(uri: string) {
+    if (this.getFile(uri) && !this.isOpen(uri)) {
+      try {
+        const { text } = await this.client.fetchTextDocumentContent({ uri });
+        if (this.getFile(uri) && !this.isOpen(uri)) {
+          this.refreshFileContent(uri, text);
+        }
+      } catch {
+        this.removeFile(uri);
+      }
+    }
+  }
+
   override refreshFileContent(uri: string, text: string) {
-    const lines = text.replace(NEWLINE_REGEX, "\n").split("\n");
-    const newDoc = Text.of(lines);
     // Update existing file or create one if it doesn't exist
     const existingFile = this._fileRegistry.get(uri);
     if (!existingFile) {
@@ -125,12 +135,12 @@ export class SparkdownCodemirrorWorkspace extends Workspace {
         uri,
         version: -1,
         languageId: LANGUAGE_ID,
-        doc: newDoc,
+        doc: this.createDoc(text),
         getView: () => null,
       });
     } else if (!existingFile.getView()) {
       existingFile.version = -1;
-      existingFile.doc = newDoc;
+      existingFile.doc = this.createDoc(text);
     }
   }
 
@@ -140,12 +150,6 @@ export class SparkdownCodemirrorWorkspace extends Workspace {
 
   override async requestFile(uri: string): Promise<WorkspaceFile | null> {
     return this.getFile(uri);
-  }
-
-  isOpen(uri: string) {
-    const file = this._fileRegistry.get(uri);
-    const view = file?.getView();
-    return Boolean(view);
   }
 
   override async displayFile(
@@ -233,5 +237,38 @@ export class SparkdownCodemirrorWorkspace extends Workspace {
     );
 
     this._fileHandler.onDidApplyWorkspaceEdit?.();
+  }
+
+  override async changeWatchedFiles(
+    params: lsp.DidChangeWatchedFilesParams,
+  ): Promise<void> {
+    const refreshes: Promise<void>[] = [];
+    for (const change of params.changes) {
+      const uri = change.uri;
+      if (change.type === (2 satisfies typeof lsp.FileChangeType.Changed)) {
+        refreshes.push(this.refreshFile(uri));
+      } else if (
+        change.type === (3 satisfies typeof lsp.FileChangeType.Deleted)
+      ) {
+        this.removeFile(uri);
+      }
+    }
+    await Promise.all(refreshes);
+  }
+
+  removeFile(uri: string) {
+    this._fileRegistry.delete(uri);
+    this._openFiles.delete(uri);
+  }
+
+  createDoc(text: string) {
+    const lines = text.replace(NEWLINE_REGEX, "\n").split("\n");
+    return Text.of(lines);
+  }
+
+  isOpen(uri: string) {
+    const file = this._fileRegistry.get(uri);
+    const view = file?.getView();
+    return Boolean(view);
   }
 }

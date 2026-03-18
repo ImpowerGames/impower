@@ -47,6 +47,7 @@ import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import { findClosestPath } from "@impower/spark-engine/src/game/core/utils/findClosestPath";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
@@ -468,6 +469,15 @@ export default class SparkWebPlayer extends Component(spec) {
         profile("end", e.detail.method);
         return;
       }
+      if (RemovedCompilerFileMessage.type.is(e.detail)) {
+        profile("start", e.detail.method);
+        await this.handleRemovedCompilerFile(
+          RemovedCompilerFileMessage.type,
+          e.detail,
+        );
+        profile("end", e.detail.method);
+        return;
+      }
       if (CompiledProgramMessage.type.is(e.detail)) {
         profile("start", e.detail.method);
         await this.handleCompiledProgram(CompiledProgramMessage.type, e.detail);
@@ -765,6 +775,17 @@ export default class SparkWebPlayer extends Component(spec) {
           });
         }
       }
+    }
+  };
+
+  protected handleRemovedCompilerFile = async (
+    messageType: typeof RemovedCompilerFileMessage.type,
+    message: RemovedCompilerFileMessage.Notification,
+  ) => {
+    const { textDocument } = message.params;
+    this._options ??= {};
+    if (this._options.startFrom?.file === textDocument.uri) {
+      this._options.startFrom = undefined;
     }
   };
 

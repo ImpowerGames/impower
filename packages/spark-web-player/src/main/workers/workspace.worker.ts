@@ -87,6 +87,14 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
   }
 });
 
+compilerState.compiler.addEventListener("compiler/didRemove", (params) => {
+  if (
+    compilerState.compiler.config.startFrom?.file === params.textDocument.uri
+  ) {
+    compilerState.compiler.config.startFrom = undefined;
+  }
+});
+
 compilerState.compiler.addEventListener("compiler/didSelect", (params) => {
   // Plan and simulate route
   if (gameState.game) {

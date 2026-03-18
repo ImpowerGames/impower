@@ -245,7 +245,11 @@ export abstract class SparkdownWorkspace {
         languageId: string | null;
       }[] = [];
       for (const [, file] of this._watchedFiles) {
-        if (file.version !== undefined && file.languageId !== undefined) {
+        if (
+          file &&
+          file.version !== undefined &&
+          file.languageId !== undefined
+        ) {
           textDocuments.push({
             ...file,
             text: file.text || "",
@@ -484,6 +488,7 @@ export abstract class SparkdownWorkspace {
       this._onNextCompiled.delete(uri);
     }
     if (result?.program) {
+      const state = this.getProgramState(uri);
       result.program.version = state.version;
       this.sendNotification(CompiledProgramMessage.method, result);
       this.onCompiledTextDocument({
@@ -649,7 +654,12 @@ export abstract class SparkdownWorkspace {
     this._watchedFiles.delete(uri);
     this._programStates.delete(uri);
     this._documentVersions.delete(uri);
-    this.onDeletedFile(deletedFile!);
+    if (this._documentSelected?.file === uri) {
+      this._documentSelected = undefined;
+    }
+    if (deletedFile) {
+      this.onDeletedFile(deletedFile!);
+    }
     await this._compilerChannelConnection.sendRequest(
       RemoveCompilerFileMessage.type,
       {

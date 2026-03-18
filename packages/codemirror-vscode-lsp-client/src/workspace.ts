@@ -195,6 +195,10 @@ export abstract class Workspace {
       });
     });
   }
+
+  async changeWatchedFiles(
+    params: lsp.DidChangeWatchedFilesParams,
+  ): Promise<void> {}
 }
 
 class DefaultWorkspaceFile implements WorkspaceFile {

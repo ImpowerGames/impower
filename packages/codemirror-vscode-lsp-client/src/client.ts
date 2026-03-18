@@ -496,14 +496,24 @@ export class LSPClient {
     );
   }
 
-  async refreshTextDocumentContent(params: { uri: string }) {
+  async fetchTextDocumentContent(params: {
+    uri: string;
+  }): Promise<{ text: string }> {
     const uri = params.uri;
     const { text } = await this.request<
       { uri: string },
       { text: string },
       "workspace/textDocumentContent"
     >("workspace/textDocumentContent", { uri });
-    this.workspace.refreshFileContent(uri, text);
+    return { text };
+  }
+
+  async refreshTextDocumentContent(params: { uri: string }): Promise<null> {
+    const uri = params.uri;
+    const { text } = await this.fetchTextDocumentContent({ uri });
+    if (text != null) {
+      this.workspace.refreshFileContent(uri, text);
+    }
     if (this.config.extensions) {
       for (let ext of this.config.extensions) {
         let { onRefreshTextDocumentContent } = ext as LSPClientExtension;
@@ -512,6 +522,7 @@ export class LSPClient {
         }
       }
     }
+    return null;
   }
 
   private async receiveMessage(msg: string) {

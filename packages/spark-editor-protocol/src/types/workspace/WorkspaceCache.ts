@@ -62,6 +62,7 @@ export interface PreviewState {
   };
 }
 export interface EditorState {
+  originalFilename?: string;
   filename?: string;
   open?: boolean;
   focused?: boolean;

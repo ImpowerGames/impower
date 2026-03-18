@@ -52,6 +52,10 @@ import {
 } from "./messages/CompiledProgramMessage";
 import { CompileProgramParams } from "./messages/CompileProgramMessage";
 import { RemoveCompilerFileParams } from "./messages/RemoveCompilerFileMessage";
+import {
+  RemovedCompilerFileMessage,
+  RemovedCompilerFileParams,
+} from "./messages/RemovedCompilerFileMessage";
 import { SelectCompilerDocumentParams } from "./messages/SelectCompilerDocumentMessage";
 import {
   SelectedCompilerDocumentMessage,
@@ -72,6 +76,7 @@ export type SparkdownCompilerEvents = {
     params: CompiledProgramParams & { story?: RuntimeStory },
   ) => void;
   "compiler/didSelect": (params: SelectedCompilerDocumentParams) => void;
+  "compiler/didRemove": (params: RemovedCompilerFileParams) => void;
 };
 
 export class SparkdownCompiler {
@@ -120,6 +125,7 @@ export class SparkdownCompiler {
   } = {
     "compiler/didCompile": new Set(),
     "compiler/didSelect": new Set(),
+    "compiler/didRemove": new Set(),
   };
 
   addEventListener<K extends keyof SparkdownCompilerEvents>(
@@ -304,7 +310,11 @@ export class SparkdownCompiler {
   removeFile(params: RemoveCompilerFileParams) {
     this.files.remove(params);
     const file = params.file;
-    return this.documents.remove({ textDocument: { uri: file.uri } });
+    const removed = this.documents.remove({ textDocument: { uri: file.uri } });
+    this._events[RemovedCompilerFileMessage.method].forEach((l) => {
+      l?.({ textDocument: { uri: file.uri } });
+    });
+    return removed;
   }
 
   resolveFile(rootUri: string, relativePath: string) {

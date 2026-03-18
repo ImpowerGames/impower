@@ -21,6 +21,7 @@ import {
   FileChangeType,
   FoldingRangeRefreshRequest,
   PublishDiagnosticsNotification,
+  ResponseError,
   SemanticTokensRefreshRequest,
   TextDocumentSyncKind,
 } from "vscode-languageserver";
@@ -202,6 +203,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     languageId?: string | null;
   }) {
     if (
+      file &&
       file.type === "script" &&
       file.version !== undefined &&
       file.languageId !== undefined
@@ -228,6 +230,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     languageId?: string | null;
   }) {
     if (
+      file &&
       file.type === "script" &&
       file.version !== undefined &&
       file.languageId !== undefined
@@ -325,17 +328,6 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
             .filter((change) => change.type == FileChangeType.Changed)
             .map((change) => this.changeFile(change.uri)),
         );
-        const closedTextDocumentChanges = changes.filter(
-          (change) =>
-            this.getFileType(change.uri) === "script" &&
-            !this.textDocumentIsOpen(change.uri),
-        );
-        for (const c of closedTextDocumentChanges) {
-          this._connection.sendRequest(
-            "workspace/textDocumentContent/refresh",
-            { uri: c.uri },
-          );
-        }
       }),
     );
     disposables.push(
@@ -344,10 +336,10 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         (params: { uri: string }) => {
           const document = this._documents.get(params.uri);
           if (!document) {
-            return {
-              code: ErrorCodes.InvalidRequest,
-              message: `Document does not exist: ${params.uri}`,
-            };
+            throw new ResponseError(
+              ErrorCodes.InvalidRequest,
+              `Document does not exist: ${params.uri}`,
+            );
           }
           const text = document.getText();
           return { text };

@@ -17,6 +17,7 @@ export interface LoadEditorParams {
   highlightLines?: number[];
   languageServerInitializeParams: InitializeParams;
   languageServerInitializeResult: InitializeResult;
+  preserveEditor?: boolean;
 }
 
 export interface LoadEditorResult {}

@@ -221,6 +221,12 @@ export default class WorkspaceLanguageServer {
       new ConsoleLogger(),
     );
     this._connection.onRequest(
+      "workspace/textDocumentContent/refresh",
+      (params: { uri: string }) => {
+        return null;
+      },
+    );
+    this._connection.onRequest(
       ConfigurationMessage.method,
       (params: ConfigurationParams) => {
         const result = params.items.map((item) => {

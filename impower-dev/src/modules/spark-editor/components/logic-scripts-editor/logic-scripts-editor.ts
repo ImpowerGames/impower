@@ -69,14 +69,14 @@ export default class LogicScriptsEditor extends Component(spec) {
 
   handleKeyDownNameInput = async (e: KeyboardEvent) => {
     if (e.key === "Enter") {
-      this.finishEditingName();
+      const nameInput = this.refs.nameInput as unknown as Input;
+      nameInput.unselect();
+      nameInput.blur();
     }
   };
 
   finishEditingName() {
     const nameInput = this.refs.nameInput as unknown as Input;
-    nameInput.unselect();
-    nameInput.blur();
     const newName = nameInput.refs.input.value;
     const oldFilename = this.getFilename();
     const [oldName, oldExt] = oldFilename.split(".");
@@ -101,7 +101,7 @@ export default class LogicScriptsEditor extends Component(spec) {
       } else {
         await Workspace.window.recordAssetChange();
       }
-      Workspace.window.openedFileEditor(newFilename);
+      Workspace.window.openedFileEditor(newFilename, oldFilename);
     }
   }
 }

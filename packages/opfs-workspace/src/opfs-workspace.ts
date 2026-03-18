@@ -525,7 +525,7 @@ const readDirectoryFiles = async (directoryUri: string) => {
 
 const readFile = async (fileUri: string) => {
   const root = await navigator.storage.getDirectory();
-  const fileHandle = await getFileHandleFromUri(root, fileUri);
+  const fileHandle = await getFileHandleFromUri(root, fileUri, false);
   const fileRef = await fileHandle.getFile();
   const buffer = await fileRef.arrayBuffer();
   updateFileCache(fileUri, buffer, false);
@@ -536,7 +536,7 @@ const zipFiles = async (files: { uri: string }[]) => {
   const root = await navigator.storage.getDirectory();
   const refs = await Promise.all(
     files.map(async ({ uri }) => {
-      const fileHandle = await getFileHandleFromUri(root, uri);
+      const fileHandle = await getFileHandleFromUri(root, uri, false);
       const fileRef = await fileHandle.getFile();
       const arrayBuffer = await fileRef.arrayBuffer();
       return { uri, name: fileRef.name, arrayBuffer };
@@ -551,7 +551,7 @@ const zipFiles = async (files: { uri: string }[]) => {
   });
   console.log(
     MAGENTA,
-    "ZIP",
+    "ZIPPED",
     `${refs.length} files (${formatBytes(zipped.buffer.byteLength)})`,
   );
   return zipped.buffer;
@@ -563,7 +563,7 @@ const unzipFiles = async (data: ArrayBuffer) => {
     filename: getFileName(filename),
     data: data.buffer as ArrayBuffer,
   }));
-  console.log(MAGENTA, "UNZIP", `${files.length} files`);
+  console.log(MAGENTA, "UNZIPPED", `${files.length} files`);
   return files;
 };
 
@@ -673,6 +673,7 @@ const writeFiles = async (
 };
 
 const write = async (fileUri: string) => {
+  console.log(MAGENTA, "WRITE", fileUri);
   const queued = State.writeQueue.get(fileUri)!;
   const buffer = queued.buffer;
   const version = queued.version;
@@ -704,9 +705,8 @@ const write = async (fileUri: string) => {
       l({ file, created });
     });
     queued.listeners = [];
-    console.log(MAGENTA, "WRITE", fileUri);
-  } catch (err) {
-    console.error(err, filename, fileUri);
+  } catch (err: any) {
+    console.error(err, filename, fileUri, err.stack);
   }
 };
 
@@ -724,6 +724,7 @@ const deleteFiles = async (files: { uri: string }[]) => {
   const root = await navigator.storage.getDirectory();
   return Promise.all(
     files.map(async (file) => {
+      console.log(MAGENTA, "DELETE", file.uri);
       const relativePath = getPathFromUri(file.uri);
       const directoryPath = getParentPath(relativePath);
       const directoryHandle = await getDirectoryHandleFromPath(
@@ -735,7 +736,6 @@ const deleteFiles = async (files: { uri: string }[]) => {
       if (existingFile) {
         URL.revokeObjectURL(existingFile.src);
         State.files.delete(file.uri);
-        console.log(MAGENTA, "DELETE", file.uri);
       }
       return existingFile;
     }),
@@ -743,13 +743,14 @@ const deleteFiles = async (files: { uri: string }[]) => {
 };
 
 const renameFiles = async (files: { oldUri: string; newUri: string }[]) => {
-  const oldFileData = await Promise.all(files.map((f) => readFile(f.oldUri)));
-  await deleteFiles(files.map((f) => ({ uri: f.oldUri })));
-  const result = await createFiles(
-    oldFileData.map((data, index) => ({
-      uri: files[index]!.newUri,
-      data,
-    })),
+  const result = await Promise.all(
+    files.map(async (f) => {
+      console.log(MAGENTA, "RENAME", f.oldUri, f.newUri);
+      const data = await readFile(f.oldUri);
+      await deleteFiles([{ uri: f.oldUri }]);
+      const r = await createFiles([{ uri: f.newUri, data }]);
+      return r[0]!;
+    }),
   );
   return result;
 };
