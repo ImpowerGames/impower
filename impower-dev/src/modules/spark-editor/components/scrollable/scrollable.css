@@ -5,7 +5,8 @@
 :host > .root {
   display: flex;
   flex-direction: column;
-  overflow-y: scroll;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
   pointer-events: auto;
   position: absolute;
   inset: 0;
