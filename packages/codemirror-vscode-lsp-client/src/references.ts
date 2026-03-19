@@ -18,7 +18,6 @@ export const referencesTheme = EditorView.baseTheme({
   ".cm-lsp-reference-panel": {
     display: "flex",
     flexDirection: "column",
-    height: "300px",
     backgroundColor: "inherit",
     color: "#cccccc",
     fontFamily:
@@ -31,7 +30,6 @@ export const referencesTheme = EditorView.baseTheme({
     overflow: "hidden",
   },
   ".cm-lsp-reference-list": {
-    flex: "0 0 300px",
     overflowY: "auto",
     backgroundColor: "inherit",
     outline: "none",
