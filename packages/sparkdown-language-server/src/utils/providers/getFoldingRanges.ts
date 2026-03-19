@@ -39,9 +39,10 @@ export const getFoldingRanges = (
       const next = lines[i]!;
       if (next && getIndentLevel(next) <= getIndentLevel(curr)) {
         // fold ends the line before the outdented line
-        return i - 1;
+        return getPrevNonBlankLine(i);
       }
     }
+
     return document.lineCount - 1;
   };
   lines.forEach((curr, lineIndex) => {
