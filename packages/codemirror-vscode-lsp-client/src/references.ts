@@ -62,7 +62,9 @@ export const findReferences: Command = (view) => {
   getReferences(plugin, pos)
     .then(
       (response) => {
-        if (!response) return;
+        if (!response) {
+          return undefined;
+        }
         return Promise.all(
           response.map((loc) =>
             plugin.client.workspace.requestFile(loc.uri).then((file) => {
@@ -70,7 +72,20 @@ export const findReferences: Command = (view) => {
             }),
           ),
         ).then((resolved) => {
-          let locs = resolved.filter((l) => l) as ReferenceLocation[];
+          let locs = resolved
+            .filter((l) => l)
+            .toSorted((a, b) => {
+              const aMatches = a.file.getView() === view;
+              const bMatches = b.file.getView() === view;
+
+              if (aMatches && !bMatches) {
+                return -1;
+              } else if (!aMatches && bMatches) {
+                return 1;
+              } else {
+                return 0;
+              }
+            });
           if (locs.length) {
             const initiallySelected = locs.findIndex((l) => {
               if (l.file.getView() === view) {
