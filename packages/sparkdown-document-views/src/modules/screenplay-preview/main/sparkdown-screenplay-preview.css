@@ -1,6 +1,7 @@
 :host {
   display: contents;
-  --loading-indicator-color: rgb(14, 165, 233);
+  --_loading-indicator-color: var(--loading-indicator-color, rgb(14, 165, 233));
+  --_loading-indicator-width: var(--loading-indicator-width, 100%);
 }
 
 :host * {
@@ -28,6 +29,7 @@
   display: flex;
   position: relative;
   min-width: 80px;
+  width: var(--_loading-indicator-width);
   height: 2px;
   content-visibility: auto;
   contain: strict;
@@ -64,7 +66,7 @@
 :host > .root #loading .bar-inner {
   inset: 0;
   animation: none;
-  background: var(--loading-indicator-color);
+  background: var(--_loading-indicator-color);
 }
 
 :host > .root #loading.indeterminate .bar {

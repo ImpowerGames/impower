@@ -49,7 +49,10 @@ export default spec({
           </s-tabs>
         </s-box>
         <template value="main">
-          <se-logic-script-editor filename="main.sd"></se-logic-script-editor>
+          <se-logic-script-editor
+            filename="main.sd"
+            style="--loading-indicator-width:50%"
+          ></se-logic-script-editor>
         </template>
         <template value="scripts">
           <se-logic-scripts-list></se-logic-scripts-list>
