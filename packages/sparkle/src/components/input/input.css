@@ -4,7 +4,6 @@
   --_text-font: var(--theme-input-font-family);
   --_text-weight: var(--theme-input-font-weight);
   --_background-color: var(--theme-input-background-color);
-  --_text-color: var(--theme-input-color);
 }
 
 :host([size="sm"]) > .root {

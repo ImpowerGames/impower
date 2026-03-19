@@ -24,7 +24,6 @@ export default spec({
             display="inline-block"
             id="nameInput"
             placeholder-color="fab-bg"
-            color="fg"
             value="${displayName || ""}"
             label="${displayName || ""}"
             width="100%"
