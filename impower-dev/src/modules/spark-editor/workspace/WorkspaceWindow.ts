@@ -484,7 +484,7 @@ export default class WorkspaceWindow {
   }
 
   getActiveEditorForPane(pane: PaneType):
-    | {
+    | (EditorState & {
         projectId: string;
         uri: string;
         visibleRange:
@@ -497,19 +497,20 @@ export default class WorkspaceWindow {
         selectedRange: Range | undefined;
         breakpointLines: number[] | undefined;
         pinpointLines: number[] | undefined;
-      }
+      })
     | undefined {
     const projectId = this.store.project.id;
     if (projectId) {
       const paneState = this.getPaneState(pane);
       const currentPanelState = paneState.panels[paneState.panel];
-      const openEditor = currentPanelState?.activeEditor?.open
-        ? currentPanelState.activeEditor
-        : Object.values(paneState.panels).find((p) => p.activeEditor?.open)
-            ?.activeEditor;
+      const panelState = currentPanelState?.activeEditor?.open
+        ? currentPanelState
+        : Object.values(paneState.panels).find((p) => p.activeEditor?.open);
+      const openEditor = panelState?.activeEditor;
       if (openEditor?.open && openEditor?.filename) {
         const uri = Workspace.fs.getFileUri(projectId, openEditor.filename);
         return {
+          ...openEditor,
           projectId,
           uri,
           visibleRange: openEditor.visibleRange,

@@ -21,6 +21,12 @@ import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-screenplay";
 
 export default class PreviewScreenplay extends Component(spec) {
+  protected _uri?: string;
+
+  protected _version?: number;
+
+  protected _text?: string;
+
   override onConnected() {
     this.loadFile();
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
@@ -91,24 +97,37 @@ export default class PreviewScreenplay extends Component(spec) {
     if (projectId) {
       const editor = Workspace.window.getActiveEditorForPane("logic");
       if (editor) {
-        const { uri, visibleRange, selectedRange } = editor;
+        const { uri, visibleRange, selectedRange, originalFilename } = editor;
+        const preserveEditor = Boolean(originalFilename);
         const files = await Workspace.fs.getFiles(projectId);
         const file = files[uri];
-        const existingText = file?.text || "";
-        this.emit(
-          MessageProtocol.event,
-          LoadPreviewMessage.type.request({
-            type: "screenplay",
-            textDocument: {
-              uri,
-              languageId: "sparkdown",
-              version: 0,
-              text: existingText,
-            },
-            visibleRange,
-            selectedRange,
-          }),
-        );
+        const text = file?.text || "";
+        const version = file?.version || 0;
+        const languageId = file?.languageId || "sparkdown";
+        if (
+          uri !== this._uri ||
+          version !== this._version ||
+          text !== this._text
+        ) {
+          this._uri = uri;
+          this._version = version;
+          this._text = text;
+          this.emit(
+            MessageProtocol.event,
+            LoadPreviewMessage.type.request({
+              type: "screenplay",
+              textDocument: {
+                uri,
+                languageId,
+                version,
+                text,
+              },
+              visibleRange,
+              selectedRange,
+              preserveEditor,
+            }),
+          );
+        }
       }
     }
   }

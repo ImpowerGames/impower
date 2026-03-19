@@ -21,11 +21,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/HideEditorStatusBarMessage";
 import { HoveredOffEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HoveredOffEditorMessage";
 import { HoveredOnEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
-import {
-  LoadEditorMessage,
-  LoadEditorMethod,
-  LoadEditorParams,
-} from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
+import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import {
   ScrollEditorMessage,
@@ -113,7 +109,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   static languageServerConnection: MessageConnection;
 
-  protected _loadingRequest?: string | number;
+  protected _loadingRequest?: LoadEditorMessage.Request;
 
   protected _initialFocused?: boolean;
 
@@ -307,35 +303,36 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   }
 
-  protected handleLoadEditor = (
-    message: RequestMessage<LoadEditorMethod, LoadEditorParams>,
-  ) => {
-    const params = message.params;
-    const textDocument = params.textDocument;
-    const focused = params.focused;
-    const visibleRange = params.visibleRange;
-    const selectedRange = params.selectedRange;
-    const breakpointLines = params.breakpointLines;
-    const pinpointLines = params.pinpointLines;
-    const highlightLines = params.highlightLines;
-    const languageServerInitializeParams =
-      params.languageServerInitializeParams;
-    const languageServerInitializeResult =
-      params.languageServerInitializeResult;
-    const preserveEditor = params.preserveEditor;
-    this._loadingRequest = message.id;
-    this.loadTextDocument(
-      textDocument,
-      focused,
-      visibleRange,
-      selectedRange,
-      breakpointLines,
-      pinpointLines,
-      highlightLines,
-      languageServerInitializeParams,
-      languageServerInitializeResult,
-      preserveEditor,
-    );
+  protected handleLoadEditor = async (message: LoadEditorMessage.Request) => {
+    this._loadingRequest = message;
+    await this.loadFonts();
+    if (this._loadingRequest.id === message.id) {
+      const params = message.params;
+      const textDocument = params.textDocument;
+      const focused = params.focused;
+      const visibleRange = params.visibleRange;
+      const selectedRange = params.selectedRange;
+      const breakpointLines = params.breakpointLines;
+      const pinpointLines = params.pinpointLines;
+      const highlightLines = params.highlightLines;
+      const languageServerInitializeParams =
+        params.languageServerInitializeParams;
+      const languageServerInitializeResult =
+        params.languageServerInitializeResult;
+      const preserveEditor = params.preserveEditor;
+      this.loadTextDocument(
+        textDocument,
+        focused,
+        visibleRange,
+        selectedRange,
+        breakpointLines,
+        pinpointLines,
+        highlightLines,
+        languageServerInitializeParams,
+        languageServerInitializeResult,
+        preserveEditor,
+      );
+    }
     return LoadEditorMessage.type.response(message.id, {});
   };
 
@@ -865,6 +862,101 @@ export default class SparkdownScriptEditor extends Component(spec) {
       MessageProtocol.event,
       DidOpenTextDocumentMessage.type.notification({ textDocument }),
     );
+  }
+
+  protected async loadFonts() {
+    try {
+      const courierPrimeSans = new FontFace(
+        '"Courier Prime Sans"',
+        'url("/fonts/courier-prime-sans.ttf") format("truetype")',
+        {
+          weight: "400",
+          display: "block",
+        },
+      );
+      const courierPrimeSansBold = new FontFace(
+        '"Courier Prime Sans"',
+        'url("/fonts/courier-prime-sans-bold.ttf") format("truetype")',
+        {
+          weight: "700",
+          display: "block",
+        },
+      );
+      const courierPrimeSansItalic = new FontFace(
+        '"Courier Prime Sans"',
+        'url("/fonts/courier-prime-sans-italic.ttf") format("truetype")',
+        {
+          style: "italic",
+          weight: "400",
+          display: "block",
+        },
+      );
+      const courierPrimeSansBoldItalic = new FontFace(
+        '"Courier Prime Sans"',
+        'url("/fonts/courier-prime-sans-bold-italic.ttf") format("truetype")',
+        {
+          style: "italic",
+          weight: "700",
+          display: "block",
+        },
+      );
+      const courierPrime = new FontFace(
+        '"Courier Prime"',
+        'url("/fonts/courier-prime.ttf") format("truetype")',
+        {
+          weight: "400",
+          display: "block",
+        },
+      );
+      const courierPrimeBold = new FontFace(
+        '"Courier Prime"',
+        'url("/fonts/courier-prime-bold.ttf") format("truetype")',
+        {
+          weight: "700",
+          display: "block",
+        },
+      );
+      const courierPrimeItalic = new FontFace(
+        '"Courier Prime"',
+        'url("/fonts/courier-prime-italic.ttf") format("truetype")',
+        {
+          style: "italic",
+          weight: "400",
+          display: "block",
+        },
+      );
+      const courierPrimeBoldItalic = new FontFace(
+        '"Courier Prime"',
+        'url("/fonts/courier-prime-bold-italic.ttf") format("truetype")',
+        {
+          style: "italic",
+          weight: "700",
+          display: "block",
+        },
+      );
+      await Promise.all(
+        [
+          courierPrimeSans,
+          courierPrimeSansBold,
+          courierPrimeSansItalic,
+          courierPrimeSansBoldItalic,
+          courierPrime,
+          courierPrimeBold,
+          courierPrimeItalic,
+          courierPrimeBoldItalic,
+        ].map(async (fontFace) => {
+          if (
+            "add" in document.fonts &&
+            typeof document.fonts.add === "function"
+          ) {
+            document.fonts.add(fontFace);
+          }
+          await fontFace.load();
+        }),
+      );
+    } catch (err) {
+      console.error("Font failed to load", err);
+    }
   }
 
   protected cacheVisibleRange(range: Range | undefined) {

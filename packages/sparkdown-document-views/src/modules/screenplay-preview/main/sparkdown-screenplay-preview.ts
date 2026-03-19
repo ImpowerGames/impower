@@ -203,8 +203,15 @@ export default class SparkScreenplayPreview extends Component(spec) {
     const focused = params.focused;
     const visibleRange = params.visibleRange;
     const selectedRange = params.selectedRange;
+    const preserveEditor = params.preserveEditor;
     this._loadingRequest = message.id;
-    this.loadTextDocument(textDocument, focused, visibleRange, selectedRange);
+    this.loadTextDocument(
+      textDocument,
+      focused,
+      visibleRange,
+      selectedRange,
+      preserveEditor,
+    );
     return LoadPreviewMessage.type.response(message.id, {});
   };
 
@@ -300,21 +307,27 @@ export default class SparkScreenplayPreview extends Component(spec) {
     focused: boolean | undefined,
     visibleRange: Range | "nearest" | "start" | "end" | "center" | undefined,
     selectedRange: Range | undefined,
+    preserveEditor: boolean | undefined,
   ) {
-    if (this._view) {
-      this.unbindView(this._view);
-      this._view.destroy();
-    }
-    this._scrollTarget = undefined;
-    this._initialFocused = focused;
-    this._initialVisibleRange = visibleRange;
-    this._initialSelectedRange = selectedRange;
-    this._loaded = false;
-    this._textDocument = textDocument;
-    const root = this.root;
-    if (root) {
+    if (preserveEditor && this._view) {
+      // We are loading a new text document, but the old editor should be preserved
+      // (This is necessary when renaming a file)
+      this._textDocument = textDocument;
+    } else {
+      this.refs.preview.style.visibility = "hidden";
+      this.refs.loading.style.opacity = "1";
+      if (this._view) {
+        this.unbindView(this._view);
+        this._view.destroy();
+      }
+      this._scrollTarget = undefined;
+      this._initialFocused = focused;
+      this._initialVisibleRange = visibleRange;
+      this._initialSelectedRange = selectedRange;
+      this._loaded = false;
+      this._textDocument = textDocument;
       this._scrollMargin = getBoxValues(this.scrollMargin);
-      this._view = createEditorView(root, {
+      this._view = createEditorView(this.refs.preview, {
         textDocument,
         scrollMargin: this._scrollMargin,
         scrollToLineNumber:
@@ -447,7 +460,9 @@ export default class SparkScreenplayPreview extends Component(spec) {
       }
       if (this._textDocument && this._loadingRequest != null) {
         // Only fade in once formatting has finished being applied and height is stable
-        this.root.style.opacity = "1";
+        this.refs.loading.style.opacity = "0";
+        this.refs.preview.style.visibility = "visible";
+        this.refs.preview.style.opacity = "1";
         this._loadingRequest = undefined;
       }
       if (this._view) {

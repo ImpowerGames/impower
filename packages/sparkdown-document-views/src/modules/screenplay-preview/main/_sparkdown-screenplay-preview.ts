@@ -7,4 +7,8 @@ export default spec({
   props: { scrollMargin: "" },
   html,
   css,
+  selectors: {
+    loading: "",
+    preview: "",
+  },
 });

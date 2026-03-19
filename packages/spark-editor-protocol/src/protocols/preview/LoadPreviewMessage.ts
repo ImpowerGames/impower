@@ -9,8 +9,9 @@ export interface LoadPreviewParams {
   type: "screenplay";
   textDocument: TextDocumentItem;
   focused?: boolean;
-  visibleRange?: Range;
+  visibleRange?: Range | "nearest" | "start" | "end" | "center";
   selectedRange?: Range;
+  preserveEditor?: boolean;
 }
 
 export interface LoadPreviewResult {}

@@ -175,6 +175,7 @@ export default class LogicScriptEditor extends Component(spec) {
           await Workspace.ls.getInitializeResult();
         this._uri = uri;
         this._version = version;
+        this._text = text;
         this.emit(
           MessageProtocol.event,
           LoadEditorMessage.type.request({
@@ -195,7 +196,6 @@ export default class LogicScriptEditor extends Component(spec) {
             preserveEditor,
           }),
         );
-      } else {
       }
     }
   }
