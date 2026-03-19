@@ -112,8 +112,11 @@ export class StatusPanel implements Panel {
     }
 
     if (isReferencePanelOpen(update.state)) {
-      this.revealBottomPanelButton.classList.add("cm-reveal-references-button");
+      this.revealBottomPanelButton.classList.add(
+        "cm-collapse-references-button",
+      );
       this.revealBottomPanelButton.classList.remove("cm-reveal-lint-button");
+      this.revealBottomPanelButton.classList.remove("cm-collapse-lint-button");
       let referenceCount = 0;
       const files = new Set<string>();
       forEachReference(update.state, (ref: ReferenceLocation) => {
@@ -139,9 +142,17 @@ export class StatusPanel implements Panel {
       this.warningsLabel.hidden = true;
       this.infosLabel.hidden = true;
     } else {
-      this.revealBottomPanelButton.classList.add("cm-reveal-lint-button");
+      if (isLintPanelOpen(update.state)) {
+        this.revealBottomPanelButton.classList.add("cm-collapse-lint-button");
+        this.revealBottomPanelButton.classList.remove("cm-reveal-lint-button");
+      } else {
+        this.revealBottomPanelButton.classList.add("cm-reveal-lint-button");
+        this.revealBottomPanelButton.classList.remove(
+          "cm-collapse-lint-button",
+        );
+      }
       this.revealBottomPanelButton.classList.remove(
-        "cm-reveal-references-button",
+        "cm-collapse-references-button",
       );
       this.referencesLabel.hidden = true;
       let errorCount = 0;
@@ -298,6 +309,12 @@ const statusPanelTheme = EditorView.baseTheme({
     },
     "& .cm-problemsToggleIcon.collapsed": {
       transform: "rotate(-90deg)",
+    },
+    "& .cm-collapse-references-button": {
+      color: "#cccccc",
+    },
+    "& .cm-collapse-lint-button": {
+      color: "#cccccc",
     },
   },
 });
