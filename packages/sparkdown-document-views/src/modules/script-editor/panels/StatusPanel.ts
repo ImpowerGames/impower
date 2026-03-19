@@ -265,6 +265,13 @@ const statusPanelTheme = EditorView.baseTheme({
       display: "flex",
       alignItems: "center",
       gap: "4px",
+      position: "relative",
+      "&:hover::after": {
+        content: "''",
+        position: "absolute",
+        inset: "0",
+        backgroundColor: "rgb(255 255 255 / 5%)",
+      },
     },
     "& .cm-statusIcon": {
       display: "inline-block",
@@ -278,9 +285,6 @@ const statusPanelTheme = EditorView.baseTheme({
     "& .cm-statusLabel": {
       display: "inline-block",
       verticalAlign: "middle",
-    },
-    "& .cm-reveal-references-button": {
-      color: "#cccccc",
     },
     "& .cm-problemsToggleIcon": {
       marginRight: "3px",
