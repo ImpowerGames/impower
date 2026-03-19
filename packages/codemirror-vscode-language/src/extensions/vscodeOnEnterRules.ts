@@ -10,11 +10,11 @@ import {
 
 const INDENT_REGEX = /([ \t]*)/;
 
-export interface VSCodeOnEnterRulesConfig {
+export interface VSCodeOnEnterRulesConfig<T = string> {
   onEnterRules?: {
-    beforeText: string;
-    afterText?: string;
-    previousLineText?: string;
+    beforeText: T;
+    afterText?: T;
+    previousLineText?: T;
     action: {
       indent: string;
       appendText?: string;
@@ -25,8 +25,8 @@ export interface VSCodeOnEnterRulesConfig {
 }
 
 export const vscodeOnEnterRulesConfig = Facet.define<
-  VSCodeOnEnterRulesConfig,
-  Required<VSCodeOnEnterRulesConfig>
+  VSCodeOnEnterRulesConfig<RegExp>,
+  Required<VSCodeOnEnterRulesConfig<RegExp>>
 >({
   combine(configs) {
     return combineConfig(configs, {});
@@ -80,26 +80,16 @@ export function onEnterRulesFilter(tr: Transaction): TransactionSpec {
     const decreasedIndentSize = currentIndentSize - getIndentUnit(state);
     const increasedIndentSize = currentIndentSize + getIndentUnit(state);
     let cursorOffset = 0;
-    for (let i = 0; i < onEnterRules.length; i += 1) {
-      const onEnterRule = onEnterRules[i]!;
-      const beforeTextRegex = onEnterRule.beforeText
-        ? new RegExp(onEnterRule.beforeText, "u")
-        : undefined;
-      const afterTextRegex = onEnterRule.afterText
-        ? new RegExp(onEnterRule.afterText, "u")
-        : undefined;
-      const previousLineTextRegex = onEnterRule.previousLineText
-        ? new RegExp(onEnterRule.previousLineText, "u")
-        : undefined;
-      if (beforeTextRegex && !beforeTextRegex.test(beforeText)) {
+    for (const onEnterRule of onEnterRules) {
+      if (onEnterRule.beforeText && !onEnterRule.beforeText.test(beforeText)) {
         continue;
       }
-      if (afterTextRegex && !afterTextRegex.test(afterText)) {
+      if (onEnterRule.afterText && !onEnterRule.afterText.test(afterText)) {
         continue;
       }
       if (
-        previousLineTextRegex &&
-        !previousLineTextRegex.test(previousLineText)
+        onEnterRule.previousLineText &&
+        !onEnterRule.previousLineText.test(previousLineText)
       ) {
         continue;
       }
@@ -188,7 +178,30 @@ export function onEnterRulesFilter(tr: Transaction): TransactionSpec {
   return tr;
 }
 
-export const vscodeOnEnterRules = (config: VSCodeOnEnterRulesConfig = {}) => [
-  vscodeOnEnterRulesConfig.of(config),
-  EditorState.transactionFilter.of(onEnterRulesFilter),
-];
+export const vscodeOnEnterRules = (
+  config: VSCodeOnEnterRulesConfig<string | RegExp> = {},
+) => {
+  const regexConfig = structuredClone(config);
+  if (regexConfig.onEnterRules) {
+    for (const onEnterRule of regexConfig.onEnterRules) {
+      if (typeof onEnterRule.beforeText === "string") {
+        onEnterRule.beforeText = new RegExp(onEnterRule.beforeText, "u");
+      }
+      if (typeof onEnterRule.afterText === "string") {
+        onEnterRule.afterText = new RegExp(onEnterRule.afterText, "u");
+      }
+      if (typeof onEnterRule.previousLineText === "string") {
+        onEnterRule.previousLineText = new RegExp(
+          onEnterRule.previousLineText,
+          "u",
+        );
+      }
+    }
+  }
+  return [
+    vscodeOnEnterRulesConfig.of(
+      regexConfig as VSCodeOnEnterRulesConfig<RegExp>,
+    ),
+    EditorState.transactionFilter.of(onEnterRulesFilter),
+  ];
+};
