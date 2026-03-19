@@ -534,7 +534,8 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         }
         const position =
           PAGE_POSITIONS[
-            frontMatterKeyword.toLowerCase() as keyof typeof PAGE_POSITIONS
+            ("meta:" +
+              frontMatterKeyword.toLowerCase()) as keyof typeof PAGE_POSITIONS
           ];
         if (position) {
           frontMatterPositionContent[position] ??= [];
