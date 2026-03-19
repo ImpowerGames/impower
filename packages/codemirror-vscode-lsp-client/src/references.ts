@@ -12,25 +12,109 @@ import { LSPClient, LSPClientExtension, WorkspaceMapping } from "./client";
 import { LSPPlugin } from "./plugin";
 import { WorkspaceFile } from "./workspace";
 
+const CHEVRON_SVG_URL = `url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="black"><path d="M7.97612 10.0719L12.3334 5.7146L12.9521 6.33332L8.28548 11L7.66676 11L3.0001 6.33332L3.61882 5.7146L7.97612 10.0719Z"/></svg>')`;
+
 export const referencesTheme = EditorView.baseTheme({
   ".cm-lsp-reference-panel": {
-    fontFamily: "monospace",
-    whiteSpace: "pre",
-    padding: "3px 6px",
-    maxHeight: "120px",
-    overflow: "auto",
-    "& .cm-lsp-reference-file": {
-      fontWeight: "bold",
+    display: "flex",
+    flexDirection: "column",
+    height: "300px",
+    backgroundColor: "inherit",
+    color: "#cccccc",
+    fontFamily:
+      "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontSize: "13px",
+  },
+  ".cm-lsp-reference-container": {
+    display: "flex",
+    flex: 1,
+    overflow: "hidden",
+  },
+  ".cm-lsp-reference-list": {
+    flex: "0 0 300px",
+    overflowY: "auto",
+    backgroundColor: "inherit",
+    outline: "none",
+  },
+  ".cm-lsp-reference-file": {
+    padding: "4px 8px",
+    display: "flex",
+    alignItems: "center",
+    position: "sticky",
+    top: 0,
+    zIndex: 1,
+    cursor: "pointer",
+    userSelect: "none",
+    backgroundColor: "inherit",
+    "&:hover::after": {
+      content: "''",
+      position: "absolute",
+      inset: "0",
+      backgroundColor: "rgb(255 255 255 / 10%)",
     },
-    "& .cm-lsp-reference": {
-      cursor: "pointer",
-      "&[aria-selected]": {
-        backgroundColor: "#0077ee44",
-      },
+  },
+  ".cm-lsp-reference": {
+    fontFamily: "SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace",
+    position: "relative",
+    padding: "4px 32px",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    display: "flex",
+    gap: "8px",
+    "&:hover::after": {
+      content: "''",
+      position: "absolute",
+      inset: "0",
+      backgroundColor: "rgb(255 255 255 / 10%)",
     },
-    "& .cm-lsp-reference-line": {
-      opacity: "0.7",
+    "&[aria-selected]": {
+      backgroundColor: "#04395e",
+      color: "#ffffff",
+      outline: "1px solid #007acc",
+      outlineOffset: "-1px",
     },
+  },
+  ".cm-lsp-reference-line": {
+    color: "#858585",
+    minWidth: "25px",
+    textAlign: "right",
+    cursor: "pointer",
+    userSelect: "none",
+  },
+  ".cm-dialog-close": {
+    position: "absolute",
+    right: "5px",
+    top: "2px",
+    background: "none",
+    border: "none",
+    color: "#ffffff",
+    cursor: "pointer",
+    zIndex: 10,
+    "&:hover": { color: "#007acc" },
+  },
+  ".cm-lsp-collapse-icon": {
+    display: "inline-block",
+    width: "16px",
+    height: "16px",
+    marginRight: "7px",
+    backgroundColor: "currentColor",
+    maskImage: CHEVRON_SVG_URL,
+    webkitMaskImage: CHEVRON_SVG_URL,
+    maskRepeat: "no-repeat",
+    webkitMaskRepeat: "no-repeat",
+    maskPosition: "center",
+    webkitMaskPosition: "center",
+  },
+  ".cm-lsp-file-collapsed .cm-lsp-collapse-icon": {
+    transform: "rotate(-90deg)",
+  },
+  ".cm-lsp-reference-group": {
+    display: "block",
+  },
+  ".cm-lsp-file-collapsed + .cm-lsp-reference-group": {
+    display: "none",
   },
 });
 
@@ -46,11 +130,11 @@ function getReferences(plugin: LSPPlugin, pos: number) {
   });
 }
 
-type ReferenceLocation = { file: WorkspaceFile; range: lsp.Range };
+export interface ReferenceLocation {
+  file: WorkspaceFile;
+  range: lsp.Range;
+}
 
-/// Ask the server to locate all references to the symbol at the
-/// cursor. When the server can provide such references, show them as
-/// a list in a panel.
 export const findReferences: Command = (view) => {
   const plugin = LSPPlugin.get(view);
   if (!plugin || plugin.client.hasCapability("referencesProvider") === false)
@@ -62,9 +146,7 @@ export const findReferences: Command = (view) => {
   getReferences(plugin, pos)
     .then(
       (response) => {
-        if (!response) {
-          return undefined;
-        }
+        if (!response) return undefined;
         return Promise.all(
           response.map((loc) =>
             plugin.client.workspace.requestFile(loc.uri).then((file) => {
@@ -72,28 +154,13 @@ export const findReferences: Command = (view) => {
             }),
           ),
         ).then((resolved) => {
-          let locs = resolved
-            .filter((l) => l)
-            .toSorted((a, b) => {
-              const aMatches = a.file.getView() === view;
-              const bMatches = b.file.getView() === view;
-
-              if (aMatches && !bMatches) {
-                return -1;
-              } else if (!aMatches && bMatches) {
-                return 1;
-              } else {
-                return 0;
-              }
-            });
+          let locs = resolved.filter((l): l is ReferenceLocation => Boolean(l));
           if (locs.length) {
             const initiallySelected = locs.findIndex((l) => {
               if (l.file.getView() === view) {
                 const from = mapping.mapPosition(l.file.uri, l.range.start, 1);
                 const to = mapping.mapPosition(l.file.uri, l.range.end, -1);
-                if (pos >= from && pos <= to) {
-                  return true;
-                }
+                if (pos >= from && pos <= to) return true;
               }
               return false;
             });
@@ -114,39 +181,11 @@ export function isReferencePanelOpen(state: EditorState) {
   return Boolean(state.field(referencesState, false));
 }
 
-/// Close the reference panel, if it is open.
 export const closeReferencePanel: Command = (view) => {
   if (!view.state.field(referencesState, false)) return false;
   view.dispatch({ effects: setReferencePanel.of(null) });
   return true;
 };
-
-/**
- * Iterates over the references currently displayed in the reference panel.
- * @param state The EditorState to inspect.
- * @param f Callback invoked for each reference.
- * 'from' and 'to' are document-local offsets if the reference is in the current file.
- */
-export function forEachReference(
-  state: EditorState,
-  f: (ref: ReferenceLocation, from: number | null, to: number | null) => void,
-) {
-  const refState = state.field(referencesState, false);
-  if (!refState) return;
-
-  for (const loc of refState.locs) {
-    let from: number | null = null;
-    let to: number | null = null;
-
-    // If the reference is in the current file, map it to local offsets
-    if (refState.uri && loc.file.uri === refState.uri) {
-      from = refState.mapping.mapPosition(loc.file.uri, loc.range.start, 1);
-      to = refState.mapping.mapPosition(loc.file.uri, loc.range.end, -1);
-    }
-
-    f(loc, from, to);
-  }
-}
 
 type ReferenceState = {
   uri: string;
@@ -191,7 +230,6 @@ function createReferencePanel(
   initiallySelected: number,
 ): PanelConstructor {
   let created = false;
-  // Make sure that if this panel isn't used, the mapping still gets destroyed
   setTimeout(() => {
     if (!created) mapping.destroy();
   }, 500);
@@ -199,117 +237,150 @@ function createReferencePanel(
   return (view) => {
     created = true;
     let prefixLen = findCommonPrefix(locs.map((l) => l.file.uri));
-    let panel = document.createElement("div"),
-      curFile = null;
-    panel.className = "cm-lsp-reference-panel";
-    panel.tabIndex = 0;
-    panel.role = "listbox";
-    panel.setAttribute("aria-label", view.state.phrase("Reference list"));
+    let dom = document.createElement("div");
+    dom.className = "cm-lsp-reference-panel";
+
+    let listContainer = dom.appendChild(document.createElement("div"));
+    listContainer.className = "cm-lsp-reference-list";
+    listContainer.role = "listbox";
+    listContainer.tabIndex = 0;
+
     let options: HTMLElement[] = [];
+    let curFile = null;
+    let currentGroup: HTMLElement | null = null;
+
     for (let i = 0; i < locs.length; i++) {
       let { file, range } = locs[i];
       let fileName = file.uri.slice(prefixLen);
-      if (fileName != curFile) {
+
+      if (fileName !== curFile) {
         curFile = fileName;
-        let header = panel.appendChild(document.createElement("div"));
+        const header = listContainer.appendChild(document.createElement("div"));
         header.className = "cm-lsp-reference-file";
-        header.textContent = fileName;
+
+        const collapseIcon = header.appendChild(document.createElement("span"));
+        collapseIcon.className = "cm-lsp-collapse-icon";
+
+        header.appendChild(document.createTextNode(fileName));
+
+        currentGroup = listContainer.appendChild(document.createElement("div"));
+        currentGroup.className = "cm-lsp-reference-group";
+
+        header.onclick = (e) => {
+          header.classList.toggle("cm-lsp-file-collapsed");
+          e.stopPropagation();
+        };
       }
-      let entry = panel.appendChild(document.createElement("div"));
+
+      let entry = currentGroup!.appendChild(document.createElement("div"));
       entry.className = "cm-lsp-reference";
       entry.role = "option";
-      let from = mapping.mapPosition(file.uri, range.start, 1),
-        to = mapping.mapPosition(file.uri, range.end, -1);
-      let view = file.getView();
-      const line = (view ? view.state.doc : file.doc).lineAt(from);
-      let lineNumber = entry.appendChild(document.createElement("span"));
-      lineNumber.className = "cm-lsp-reference-line";
-      lineNumber.textContent = (line.number + ": ").padStart(5, " ");
-      let textBefore = line.text.slice(
-        Math.max(0, from - line.from - 50),
-        from - line.from,
+
+      let from = mapping.mapPosition(file.uri, range.start, 1);
+      let to = mapping.mapPosition(file.uri, range.end, -1);
+      let fileDoc = file.getView()?.state.doc || file.doc;
+      const line = fileDoc.lineAt(Math.min(from, fileDoc.length));
+
+      let snippet = entry.appendChild(document.createElement("span"));
+      let textBefore = line.text
+        .slice(0, Math.max(0, from - line.from))
+        .trimStart();
+      let matchText = line.text.slice(
+        Math.max(0, from - line.from),
+        Math.max(0, to - line.from),
       );
-      if (textBefore)
-        entry.appendChild(document.createTextNode(textBefore.trim()));
-      entry.appendChild(document.createElement("span")).textContent =
-        line.text.slice(from - line.from, to - line.from);
-      let textAfter = line.text.slice(
-        to - line.from,
-        Math.min(line.length, 100 - textBefore.length),
-      );
-      if (textAfter) entry.appendChild(document.createTextNode(textAfter));
-      if (initiallySelected === i) entry.setAttribute("aria-selected", "true");
+      let textAfter = line.text.slice(Math.max(0, to - line.from));
+
+      snippet.appendChild(document.createTextNode(textBefore));
+      let matchSpan = snippet.appendChild(document.createElement("span"));
+      matchSpan.className = "cm-lsp-reference-match cm-selectionBackground";
+      matchSpan.textContent = matchText;
+      snippet.appendChild(document.createTextNode(textAfter));
+
+      if (initiallySelected === i) {
+        entry.setAttribute("aria-selected", "true");
+        // Ensure parent is expanded if initially selected
+        let header = currentGroup!.previousElementSibling as HTMLElement;
+        if (header?.classList.contains("cm-lsp-file-collapsed")) {
+          header.classList.remove("cm-lsp-file-collapsed");
+        }
+        setTimeout(() => entry.scrollIntoView({ block: "center" }), 0);
+      }
+
       options.push(entry);
     }
 
-    function curSelection() {
-      for (let i = 0; i < options.length; i++) {
-        if (options[i].hasAttribute("aria-selected")) return i;
-      }
-      return 0;
-    }
     function setSelection(index: number) {
-      for (let i = 0; i < options.length; i++) {
-        if (i == index) options[i].setAttribute("aria-selected", "true");
-        else options[i].removeAttribute("aria-selected");
+      let targetIndex = index;
+      const prevIdx = options.findIndex((o) => o.hasAttribute("aria-selected"));
+      const step = index > prevIdx ? 1 : -1;
+
+      // Skip collapsed items
+      while (
+        options[targetIndex] &&
+        options[targetIndex].offsetParent === null
+      ) {
+        targetIndex += step;
       }
+
+      if (targetIndex < 0 || targetIndex >= options.length) return;
+
+      options.forEach((opt, i) => {
+        if (i === targetIndex) {
+          opt.setAttribute("aria-selected", "true");
+          opt.scrollIntoView({ block: "nearest" });
+          showReference(i, false);
+        } else {
+          opt.removeAttribute("aria-selected");
+        }
+      });
     }
-    function showReference(index: number) {
+
+    function showReference(index: number, takeFocus: boolean) {
       let { file, range } = locs[index];
       let plugin = LSPPlugin.get(view);
       if (!plugin) return;
       plugin.client.workspace.displayFile(
-        { uri: file.uri, selection: range, takeFocus: false },
+        { uri: file.uri, selection: range, takeFocus },
         "select.reference",
       );
     }
 
-    panel.addEventListener("keydown", (event) => {
-      if (event.keyCode == 27) {
-        // Escape
+    listContainer.addEventListener("keydown", (e) => {
+      const idx = options.findIndex((o) => o.hasAttribute("aria-selected"));
+      if (e.key === "ArrowUp") setSelection(idx - 1);
+      else if (e.key === "ArrowDown") setSelection(idx + 1);
+      else if (e.key === "Enter") {
+        showReference(idx, true);
+        closeReferencePanel(view);
+      } else if (e.key === "Escape") {
         closeReferencePanel(view);
         view.focus();
-      } else if (event.keyCode == 38 || event.keyCode == 33) {
-        // ArrowUp, PageUp
-        setSelection((curSelection() - 1 + locs.length) % locs.length);
-      } else if (event.keyCode == 40 || event.keyCode == 34) {
-        // ArrowDown, PageDown
-        setSelection((curSelection() + 1) % locs.length);
-      } else if (event.keyCode == 36) {
-        // Home
-        setSelection(0);
-      } else if (event.keyCode == 35) {
-        // End
-        setSelection(options.length - 1);
-      } else if (event.keyCode == 13 || event.keyCode == 10) {
-        // Enter, Space
-        showReference(curSelection());
-      } else {
-        return;
-      }
-      event.preventDefault();
+      } else return;
+      e.preventDefault();
     });
-    panel.addEventListener("click", (event) => {
-      for (let i = 0; i < options.length; i++) {
-        if (options[i].contains(event.target as HTMLElement)) {
-          setSelection(i);
-          showReference(i);
-          event.preventDefault();
+
+    listContainer.addEventListener("click", (e) => {
+      const target = (e.target as HTMLElement).closest(".cm-lsp-reference");
+      if (target) {
+        const idx = options.indexOf(target as HTMLElement);
+        setSelection(idx);
+        if (e.detail === 2) {
+          showReference(idx, true);
+          closeReferencePanel(view);
         }
       }
     });
-    let dom = document.createElement("div");
-    dom.appendChild(panel);
+
     let close = dom.appendChild(document.createElement("button"));
     close.className = "cm-dialog-close";
     close.textContent = "×";
-    close.addEventListener("click", () => closeReferencePanel(view));
-    close.setAttribute("aria-label", view.state.phrase("close"));
+    close.onclick = () => closeReferencePanel(view);
 
     return {
       dom,
       destroy: () => mapping.destroy(),
-      mount: () => panel.focus(),
+      mount: () => listContainer.focus(),
     };
   };
 }
@@ -331,9 +402,33 @@ function findCommonPrefix(uris: string[]) {
   return prefix;
 }
 
-/// Binds Shift-F12 to [`findReferences`](#lsp-client.findReferences)
-/// and Escape to
-/// [`closeReferencePanel`](#lsp-client.closeReferencePanel).
+/**
+ * Iterates over the references currently displayed in the reference panel.
+ * @param state The EditorState to inspect.
+ * @param f Callback invoked for each reference.
+ * 'from' and 'to' are document-local offsets if the reference is in the current file.
+ */
+export function forEachReference(
+  state: EditorState,
+  f: (ref: ReferenceLocation, from: number | null, to: number | null) => void,
+) {
+  const refState = state.field(referencesState, false);
+  if (!refState) return;
+
+  for (const loc of refState.locs) {
+    let from: number | null = null;
+    let to: number | null = null;
+
+    // If the reference is in the current file, map it to local offsets
+    if (refState.uri && loc.file.uri === refState.uri) {
+      from = refState.mapping.mapPosition(loc.file.uri, loc.range.start, 1);
+      to = refState.mapping.mapPosition(loc.file.uri, loc.range.end, -1);
+    }
+
+    f(loc, from, to);
+  }
+}
+
 export const findReferencesKeymap: readonly KeyBinding[] = [
   { key: "Shift-F12", run: findReferences, preventDefault: true },
   { key: "Escape", run: closeReferencePanel },
@@ -341,19 +436,11 @@ export const findReferencesKeymap: readonly KeyBinding[] = [
 
 export function serverReferences(): LSPClientExtension {
   return {
-    clientCapabilities: {
-      textDocument: {
-        references: {},
-      },
-    },
+    clientCapabilities: { textDocument: { references: {} } },
     onRefreshTextDocumentContent: (client: LSPClient) => {
       for (const file of client.workspace.files) {
         const view = file.getView();
-        if (view) {
-          if (isReferencePanelOpen(view.state)) {
-            findReferences(view);
-          }
-        }
+        if (view && isReferencePanelOpen(view.state)) findReferences(view);
       }
     },
     editorExtension: [referencesTheme, keymap.of([...findReferencesKeymap])],

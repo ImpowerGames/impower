@@ -117,11 +117,14 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected _initialFocused?: boolean;
 
-  protected _initialVisibleRange?: Range;
+  protected _initialVisibleRange?:
+    | Range
+    | "nearest"
+    | "start"
+    | "end"
+    | "center";
 
   protected _initialSelectedRange?: Range;
-
-  protected _initialScrollStrategy?: "nearest" | "start" | "end" | "center";
 
   protected _loaded = false;
 
@@ -312,7 +315,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
     const focused = params.focused;
     const visibleRange = params.visibleRange;
     const selectedRange = params.selectedRange;
-    const scrollStrategy = params.scrollStrategy;
     const breakpointLines = params.breakpointLines;
     const pinpointLines = params.pinpointLines;
     const highlightLines = params.highlightLines;
@@ -327,7 +329,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
       focused,
       visibleRange,
       selectedRange,
-      scrollStrategy,
       breakpointLines,
       pinpointLines,
       highlightLines,
@@ -535,9 +536,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected loadTextDocument(
     textDocument: TextDocumentItem,
     focused: boolean | undefined,
-    visibleRange: Range | undefined,
+    visibleRange: Range | "nearest" | "start" | "end" | "center" | undefined,
     selectedRange: Range | undefined,
-    scrollStrategy: "nearest" | "start" | "end" | "center" | undefined,
     breakpointLines: number[] | undefined,
     pinpointLines: number[] | undefined,
     highlightLines: number[] | undefined,
@@ -590,7 +590,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
       this._initialFocused = focused;
       this._initialVisibleRange = visibleRange;
       this._initialSelectedRange = selectedRange;
-      this._initialScrollStrategy = scrollStrategy;
       this._loaded = false;
       this._searching = false;
       this._searchInputFocused = false;
@@ -668,7 +667,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
           breakpointLineNumbers: breakpointLines?.map((line) => line + 1),
           pinpointLineNumbers: pinpointLines?.map((line) => line + 1),
           highlightLineNumbers: highlightLines?.map((line) => line + 1),
-          scrollToLineNumber: (visibleRange?.start.line ?? 0) + 1,
+          scrollToLineNumber:
+            visibleRange && typeof visibleRange !== "string"
+              ? (visibleRange?.start.line ?? 0) + 1
+              : undefined,
           onIdle: this.handleIdle,
           onFocus: () => {
             this._editing = true;
@@ -920,12 +922,11 @@ export default class SparkdownScriptEditor extends Component(spec) {
         selection: EditorSelection.create([
           EditorSelection.range(anchor, head),
         ]),
-        effects:
-          typeof scrollIntoView === "string"
-            ? EditorView.scrollIntoView(EditorSelection.range(anchor, head), {
-                y: scrollIntoView,
-              })
-            : undefined,
+        effects: !scrollIntoView
+          ? undefined
+          : EditorView.scrollIntoView(EditorSelection.range(anchor, head), {
+              y: scrollIntoView,
+            }),
       });
     }
   }
@@ -940,11 +941,18 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected handleIdle = () => {
     if (!this._loaded) {
       const initialFocused = this._initialFocused;
-      const initialVisibleRange = this._initialVisibleRange;
       const initialSelectedRange = this._initialSelectedRange;
-      const initialScrollStrategy = this._initialScrollStrategy;
+      const initialVisibleRange =
+        this._initialVisibleRange == null ||
+        typeof this._initialVisibleRange === "string"
+          ? initialSelectedRange
+          : this._initialVisibleRange;
+      const scrollStrategy =
+        typeof this._initialVisibleRange === "string"
+          ? this._initialVisibleRange
+          : undefined;
       // Restore visible range
-      this.scrollToRange(initialVisibleRange);
+      this.scrollToRange(initialVisibleRange, scrollStrategy);
       // Try to restore focus
       const view = this._view;
       if (document.hasFocus() && this._view) {
@@ -957,7 +965,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
           if (initialSelectedRange) {
             this.selectRange(
               initialSelectedRange,
-              !initialVisibleRange ? (initialScrollStrategy ?? false) : false,
+              scrollStrategy ?? false,
               initialFocused,
             );
           }

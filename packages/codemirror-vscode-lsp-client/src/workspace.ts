@@ -1,4 +1,4 @@
-import { ChangeSet, Text } from "@codemirror/state";
+import { ChangeSet, EditorSelection, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import * as lsp from "vscode-languageserver-protocol";
 import { LSPClient } from "./client";
@@ -190,7 +190,9 @@ export abstract class Workspace {
       }
       view.dispatch({
         selection: { anchor: from, head: to },
-        scrollIntoView: true,
+        effects: EditorView.scrollIntoView(EditorSelection.range(from, to), {
+          y: "center",
+        }),
         userEvent,
       });
     });

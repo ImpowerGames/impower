@@ -34,6 +34,9 @@ const EDITOR_THEME: {
     fontSize: "1rem",
     padding: "6px 2px 0 0",
   },
+  "kbd, code, pre": {
+    fontFamily: "Courier Prime Sans",
+  },
   "& .cm-content": {
     caretColor: "white",
     minHeight: "100%",
@@ -44,16 +47,12 @@ const EDITOR_THEME: {
   "& .cm-lsp-reference-panel:focus": {
     outline: "none",
   },
-  "& .cm-lsp-reference-panel": {
-    padding: "3px 0",
-    "& .cm-lsp-reference-file": {
-      padding: "0 32px",
-      fontWeight: "normal",
-    },
-    "& .cm-lsp-reference": {
-      padding: "0 32px",
-      fontWeight: "normal",
-    },
+  "& .cm-lsp-reference-file": {
+    paddingLeft: "16px",
+  },
+  "& .cm-lsp-reference": {
+    fontFamily: "Courier Prime Sans",
+    paddingLeft: "40px",
   },
   "& .cm-dialog-close": {
     display: "none",

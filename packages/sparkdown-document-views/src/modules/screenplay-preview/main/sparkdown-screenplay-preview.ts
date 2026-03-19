@@ -73,7 +73,12 @@ export default class SparkScreenplayPreview extends Component(spec) {
 
   protected _initialFocused?: boolean;
 
-  protected _initialVisibleRange?: Range;
+  protected _initialVisibleRange?:
+    | Range
+    | "nearest"
+    | "start"
+    | "end"
+    | "center";
 
   protected _initialSelectedRange?: Range;
 
@@ -293,7 +298,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
   protected loadTextDocument(
     textDocument: TextDocumentItem,
     focused: boolean | undefined,
-    visibleRange: Range | undefined,
+    visibleRange: Range | "nearest" | "start" | "end" | "center" | undefined,
     selectedRange: Range | undefined,
   ) {
     if (this._view) {
@@ -312,7 +317,10 @@ export default class SparkScreenplayPreview extends Component(spec) {
       this._view = createEditorView(root, {
         textDocument,
         scrollMargin: this._scrollMargin,
-        scrollToLineNumber: (visibleRange?.start.line ?? 0) + 1,
+        scrollToLineNumber:
+          visibleRange && typeof visibleRange !== "string"
+            ? (visibleRange?.start.line ?? 0) + 1
+            : undefined,
         onUpdate: (u) => {
           if (!syntaxParserRunning(u.view)) {
             this.onIdle();
@@ -360,7 +368,10 @@ export default class SparkScreenplayPreview extends Component(spec) {
     this._visibleRange = range;
   }
 
-  protected scrollToRange(range: Range | undefined) {
+  protected scrollToRange(
+    range: Range | undefined,
+    strategy: "nearest" | "start" | "end" | "center" = "start",
+  ) {
     const view = this._view;
     if (view) {
       if (range) {
@@ -377,7 +388,9 @@ export default class SparkScreenplayPreview extends Component(spec) {
           view.dispatch({
             effects: EditorView.scrollIntoView(
               EditorSelection.range(line.from, line.to),
-              { y: "start" },
+              {
+                y: strategy,
+              },
             ),
           });
         }
@@ -385,32 +398,52 @@ export default class SparkScreenplayPreview extends Component(spec) {
     }
   }
 
-  protected selectRange(range: Range, scrollIntoView: boolean) {
+  protected selectRange(
+    range: Range,
+    scrollIntoView: "nearest" | "start" | "end" | "center" | false,
+    takeFocus?: boolean,
+  ) {
     const view = this._view;
     if (view) {
       const doc = view.state.doc;
       const anchor = convertFromPosition(doc, range.start);
       const head = convertFromPosition(doc, range.end);
+      if (takeFocus) {
+        this.focus({ preventScroll: true });
+        view.focus();
+      }
       view.dispatch({
         selection: EditorSelection.create([
           EditorSelection.range(anchor, head),
         ]),
-        scrollIntoView,
+        effects: !scrollIntoView
+          ? undefined
+          : EditorView.scrollIntoView(EditorSelection.range(anchor, head), {
+              y: scrollIntoView,
+            }),
       });
     }
   }
 
   protected onIdle = debounce(() => {
     if (!this._loaded) {
-      const initialVisibleRange = this._initialVisibleRange;
       const initialSelectedRange = this._initialSelectedRange;
+      const initialVisibleRange =
+        this._initialVisibleRange == null ||
+        typeof this._initialVisibleRange === "string"
+          ? initialSelectedRange
+          : this._initialVisibleRange;
+      const scrollStrategy =
+        typeof this._initialVisibleRange === "string"
+          ? this._initialVisibleRange
+          : undefined;
       if (initialVisibleRange) {
         // Restore visible range
-        this.scrollToRange(initialVisibleRange);
+        this.scrollToRange(initialVisibleRange, scrollStrategy);
       }
       if (initialSelectedRange) {
         //Restore selected range
-        this.selectRange(initialSelectedRange, false);
+        this.selectRange(initialSelectedRange, scrollStrategy ?? false);
       }
       if (this._textDocument && this._loadingRequest != null) {
         // Only fade in once formatting has finished being applied and height is stable

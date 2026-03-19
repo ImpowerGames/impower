@@ -66,9 +66,8 @@ export interface EditorState {
   filename?: string;
   open?: boolean;
   focused?: boolean;
-  visibleRange?: Range;
+  visibleRange?: Range | "nearest" | "start" | "end" | "center";
   selectedRange?: Range;
-  scrollStrategy?: "nearest" | "start" | "end" | "center";
 }
 
 export interface PanelState {

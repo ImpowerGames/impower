@@ -5,11 +5,12 @@ import {
   openLintPanel,
 } from "@codemirror/lint";
 import { EditorState, Extension, StateField } from "@codemirror/state";
-import { EditorView, Panel, ViewUpdate, showPanel } from "@codemirror/view";
+import { EditorView, Panel, showPanel, ViewUpdate } from "@codemirror/view";
 import {
   closeReferencePanel,
   forEachReference,
   isReferencePanelOpen,
+  ReferenceLocation,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import EDITOR_COLORS from "../constants/EDITOR_COLORS";
 import {
@@ -17,6 +18,8 @@ import {
   gotoLinePanelOpen,
   openGotoLinePanel,
 } from "./GotoLinePanel";
+
+const CHEVRON_SVG_URL = `url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="black"><path d="M7.97612 10.0719L12.3334 5.7146L12.9521 6.33332L8.28548 11L7.66676 11L3.0001 6.33332L3.61882 5.7146L7.97612 10.0719Z"/></svg>')`;
 
 export class StatusPanel implements Panel {
   dom: HTMLElement;
@@ -103,25 +106,43 @@ export class StatusPanel implements Panel {
 
   updateStatus(update: ViewUpdate) {
     if (isLintPanelOpen(update.state) || isReferencePanelOpen(update.state)) {
-      this.revealBottomPanelIcon.classList.add("open");
+      this.revealBottomPanelIcon.classList.remove("collapsed");
     } else {
-      this.revealBottomPanelIcon.classList.remove("open");
+      this.revealBottomPanelIcon.classList.add("collapsed");
     }
 
     if (isReferencePanelOpen(update.state)) {
+      this.revealBottomPanelButton.classList.add("cm-reveal-references-button");
+      this.revealBottomPanelButton.classList.remove("cm-reveal-lint-button");
       let referenceCount = 0;
-      forEachReference(update.state, () => {
+      const files = new Set<string>();
+      forEachReference(update.state, (ref: ReferenceLocation) => {
+        files.add(ref.file.uri);
         referenceCount++;
       });
+      const fileCount = files.size;
       this.referencesLabel.textContent = update.state.phrase(
-        referenceCount === 1 ? `$1 Reference` : `$1 References`,
+        referenceCount === 1 && fileCount === 1
+          ? `$1 reference in $2 file`
+          : referenceCount !== 1 && fileCount !== 1
+            ? `$1 references in $2 files`
+            : referenceCount === 1 && fileCount !== 1
+              ? `$1 reference in $2 files`
+              : referenceCount !== 1 && fileCount === 1
+                ? `$1 references in $2 file`
+                : "",
         referenceCount,
+        fileCount,
       );
       this.referencesLabel.hidden = false;
       this.errorsLabel.hidden = true;
       this.warningsLabel.hidden = true;
       this.infosLabel.hidden = true;
     } else {
+      this.revealBottomPanelButton.classList.add("cm-reveal-lint-button");
+      this.revealBottomPanelButton.classList.remove(
+        "cm-reveal-references-button",
+      );
       this.referencesLabel.hidden = true;
       let errorCount = 0;
       let warningCount = 0;
@@ -258,12 +279,21 @@ const statusPanelTheme = EditorView.baseTheme({
       display: "inline-block",
       verticalAlign: "middle",
     },
-    "& .cm-problemsToggleIcon": {
-      backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="none"  stroke="%23516A85" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6l-6 6"/></svg>')`,
-      marginRight: "3px",
+    "& .cm-reveal-references-button": {
+      color: "#cccccc",
     },
-    "& .cm-problemsToggleIcon.open": {
-      transform: "rotate(90deg)",
+    "& .cm-problemsToggleIcon": {
+      marginRight: "3px",
+      backgroundColor: "currentColor",
+      maskImage: CHEVRON_SVG_URL,
+      webkitMaskImage: CHEVRON_SVG_URL,
+      maskRepeat: "no-repeat",
+      webkitMaskRepeat: "no-repeat",
+      maskPosition: "center",
+      webkitMaskPosition: "center",
+    },
+    "& .cm-problemsToggleIcon.collapsed": {
+      transform: "rotate(-90deg)",
     },
   },
 });

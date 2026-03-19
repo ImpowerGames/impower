@@ -32,6 +32,7 @@ export {
   findReferencesKeymap,
   forEachReference,
   isReferencePanelOpen,
+  ReferenceLocation,
   serverReferences,
 } from "./references";
 export { renameKeymap, renameSymbol, serverRenaming } from "./rename";

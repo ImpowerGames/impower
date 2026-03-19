@@ -487,7 +487,13 @@ export default class WorkspaceWindow {
     | {
         projectId: string;
         uri: string;
-        visibleRange: Range | undefined;
+        visibleRange:
+          | Range
+          | "nearest"
+          | "start"
+          | "end"
+          | "center"
+          | undefined;
         selectedRange: Range | undefined;
         breakpointLines: number[] | undefined;
         pinpointLines: number[] | undefined;
@@ -557,12 +563,11 @@ export default class WorkspaceWindow {
                       takeFocus ??
                       this.store.panes[pane].panels[panel]?.activeEditor
                         ?.focused,
-                    visibleRange: undefined,
+                    visibleRange: "center",
                     selectedRange: range
                       ? { ...range }
                       : this.store.panes[pane].panels[panel]?.activeEditor
                           ?.selectedRange,
-                    scrollStrategy: "center",
                   },
                 },
               },

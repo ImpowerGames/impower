@@ -9,9 +9,8 @@ export type LoadEditorMethod = typeof LoadEditorMessage.method;
 export interface LoadEditorParams {
   textDocument: TextDocumentItem;
   focused?: boolean;
-  visibleRange?: Range;
+  visibleRange?: Range | "nearest" | "start" | "end" | "center";
   selectedRange?: Range;
-  scrollStrategy?: "nearest" | "start" | "end" | "center";
   breakpointLines?: number[];
   pinpointLines?: number[];
   highlightLines?: number[];
