@@ -23,7 +23,6 @@ export const colorPickerWidgetTheme = EditorView.baseTheme({
     margin: "0 4px",
     height: "14px",
     width: "14px",
-    verticalAlign: "middle",
     position: "relative",
     borderRadius: "2px",
   },

@@ -15,7 +15,14 @@ export {
   serverDefinitions,
 } from "./definition";
 export { serverDiagnostics } from "./diagnostics";
-export { serverFolding } from "./folding";
+export {
+  foldingChanged,
+  foldingMarkerDOM,
+  foldingPlaceholderDOM,
+  serverFolding,
+  setFoldables,
+  type Foldable,
+} from "./folding";
 export { formatDocument, formatKeymap, serverFormatting } from "./formatting";
 export { serverHovers } from "./hover";
 export { contextMenu } from "./menu";
@@ -32,8 +39,8 @@ export {
   findReferencesKeymap,
   forEachReference,
   isReferencePanelOpen,
-  ReferenceLocation,
   serverReferences,
+  type ReferenceLocation,
 } from "./references";
 export { renameKeymap, renameSymbol, serverRenaming } from "./rename";
 export { serverSemanticHighlighting } from "./semantics";

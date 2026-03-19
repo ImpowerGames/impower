@@ -180,6 +180,11 @@ const EDITOR_THEME: {
     overflowWrap: "break-word",
     whiteSpace: "pre-wrap",
   },
+  "& .cm-line": {
+    "& span": {
+      verticalAlign: "baseline",
+    },
+  },
   "& .cm-panels": {
     backgroundColor: EDITOR_COLORS.panel,
   },

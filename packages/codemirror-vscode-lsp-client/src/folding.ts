@@ -8,16 +8,9 @@ import {
   EditorState,
   StateEffect,
   StateField,
-  Transaction,
   TransactionSpec,
 } from "@codemirror/state";
-import {
-  Decoration,
-  DecorationSet,
-  EditorView,
-  ViewUpdate,
-  keymap,
-} from "@codemirror/view";
+import { EditorView, ViewUpdate, keymap } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
@@ -34,6 +27,7 @@ const foldingTheme = EditorView.baseTheme({
   },
   "& .cm-foldGutter": {
     width: "16px",
+    alignItems: "flex-end",
   },
   "& .cm-foldGutter .cm-gutterElement .cm-fold-arrow": {
     fontSize: "0.9em",
@@ -48,59 +42,71 @@ const foldingTheme = EditorView.baseTheme({
   "& .cm-foldGutter .cm-gutterElement .cm-fold-closed": {
     color: "var(--fold-closed-color)",
     opacity: "1",
-    transform: "translateX(-2px) rotate(-90deg)",
+    transform: "rotate(-90deg)",
   },
 });
-
-const foldableMark = Decoration.mark({ class: "cm-foldable" });
 
 export interface Foldable {
   kind?: string;
   from: number;
   to: number;
+  collapsedText?: string;
 }
 
-const updateFoldablesEffect = StateEffect.define<Foldable[]>({
-  map: (value, change) =>
-    value.map((r) => ({
-      kind: r.kind,
-      from: change.mapPos(r.from),
-      to: change.mapPos(r.to),
-    })),
-});
+const setFoldingRanges = StateEffect.define<Foldable[]>();
 
-export function convertFromFoldingRanges(
-  plugin: LSPPlugin,
-  ranges: lsp.FoldingRange[],
-): Foldable[] {
-  const result: Foldable[] = ranges.map(
-    (f): Foldable => ({
-      kind: f.kind,
-      from: plugin.unsyncedChanges.mapPos(
-        plugin.fromPosition(
-          { line: f.startLine, character: f.startCharacter ?? 0 },
-          plugin.syncedDoc,
-        ),
-      ),
-      to: plugin.unsyncedChanges.mapPos(
-        plugin.fromPosition(
-          { line: f.endLine, character: f.endCharacter ?? 0 },
-          plugin.syncedDoc,
-        ),
-      ),
-    }),
-  );
-  return result
-    .filter(({ from, to }) => from != null && to != null && from < to)
-    .sort((a, b) => {
-      switch (true) {
-        case a.from < b.from:
-          return -1;
-        case a.from > b.from:
-          return 1;
+export function foldingPlaceholderDOM(
+  view: EditorView,
+  onclick: (this: GlobalEventHandlers, ev: PointerEvent) => any,
+  prepared: boolean,
+) {
+  const ranges = view.state.field(foldingRangeField);
+  // prepared is usually the placeholder text if default logic is used
+  // but we fetch our specific match from state
+  const match =
+    ranges.find((r) => {
+      try {
+        // We find the range that corresponds to the visible fold location
+        return (
+          r.from ===
+          view.posAtDOM(
+            view.contentDOM.querySelector(".cm-foldPlaceholder")
+              ?.parentElement || view.contentDOM,
+          )
+        );
+      } catch {
+        return false;
       }
-      return 0;
-    });
+    }) ||
+    ranges.find(
+      (r) =>
+        view.state.doc.lineAt(r.from).from ===
+        view.state.doc.lineAt(view.posAtDOM(view.contentDOM)).from,
+    );
+
+  const dom = document.createElement("span");
+  dom.textContent = match?.collapsedText || "⋯";
+  dom.className = "cm-foldPlaceholder";
+  dom.onclick = onclick;
+  return dom;
+}
+
+export function foldingMarkerDOM(open: boolean) {
+  const dom = document.createElement("span");
+  dom.className = "cm-fold-arrow";
+  dom.textContent = "⌵";
+  if (open) {
+    dom.classList.add("cm-fold-open");
+  } else {
+    dom.classList.add("cm-fold-closed");
+  }
+  return dom;
+}
+
+export function foldingChanged(update: ViewUpdate): boolean {
+  return update.transactions.some((t) =>
+    t.effects.some((e) => e.is(setFoldingRanges)),
+  );
 }
 
 export function setFoldables(
@@ -108,61 +114,92 @@ export function setFoldables(
   foldables: Foldable[],
 ): TransactionSpec {
   const effects: StateEffect<unknown>[] = [];
-  effects.push(updateFoldablesEffect.of(foldables));
+  effects.push(setFoldingRanges.of(foldables));
   return { effects };
 }
 
-const foldableDecorationsField = StateField.define<DecorationSet>({
+const foldingRangeField = StateField.define<Foldable[]>({
   create() {
-    return Decoration.none;
+    return [];
   },
-  update(decorations: DecorationSet, tr: Transaction) {
+  update(ranges, tr) {
     for (let e of tr.effects) {
-      if (e.is(updateFoldablesEffect)) {
-        decorations = Decoration.set(
-          e.value.map((r) => foldableMark.range(r.from, r.to)),
-        );
-        return decorations;
-      }
+      if (e.is(setFoldingRanges)) return e.value;
     }
-    decorations = decorations.map(tr.changes);
-    return decorations;
+
+    if (tr.docChanged) {
+      return ranges.map((range) => ({
+        ...range,
+        from: tr.changes.mapPos(range.from),
+        to: tr.changes.mapPos(range.to),
+      }));
+    }
+
+    return ranges;
   },
-  provide: (f) => EditorView.decorations.from(f),
 });
 
-export const foldingRangesService = foldService.of((state, from, to) => {
-  const ranges = state.field(foldableDecorationsField, false);
-  if (!ranges) {
-    return null;
-  }
-  let result = null;
-  const line = state.doc.lineAt(from).number;
-  ranges.between(from, to, (f, t) => {
-    const startLine = state.doc.lineAt(f).number;
-    if (line === startLine) {
-      result = { from: to, to: t };
-      return false;
+const foldingRangesService = foldService.of((state, from, to) => {
+  const ranges = state.field(foldingRangeField);
+  const line = state.doc.lineAt(from);
+
+  for (const range of ranges) {
+    // Check if this range starts on the line currently being queried by the gutter
+    const rangeStartLine = state.doc.lineAt(range.from);
+    if (rangeStartLine.number === line.number) {
+      return { from: range.from, to: range.to };
     }
-    return undefined;
-  });
-  return result;
+  }
+  return null;
 });
+
+export function convertFromFoldingRanges(
+  plugin: LSPPlugin,
+  ranges: lsp.FoldingRange[],
+): Foldable[] {
+  const result: Foldable[] = ranges.map((r): Foldable => {
+    // 1. Get the raw document positions from LSP line/char
+    const rawFrom = plugin.fromPosition(
+      { line: r.startLine, character: r.startCharacter ?? 0 },
+      plugin.syncedDoc,
+    );
+    const rawTo = plugin.fromPosition(
+      { line: r.endLine, character: r.endCharacter ?? 0 },
+      plugin.syncedDoc,
+    );
+
+    // 2. Adjust for CodeMirror's folding expectations:
+    // CodeMirror folding ranges should start at the END of the first line
+    // so that the first line remains visible while the rest is collapsed.
+    const startLine = plugin.syncedDoc.lineAt(rawFrom);
+    const endLine = plugin.syncedDoc.lineAt(rawTo);
+
+    // Use the end of the start line as the 'from' and end of the final line as 'to'
+    const adjustedFrom = plugin.unsyncedChanges.mapPos(startLine.to);
+    const adjustedTo = plugin.unsyncedChanges.mapPos(endLine.to);
+
+    return {
+      kind: r.kind,
+      from: adjustedFrom,
+      to: adjustedTo,
+      collapsedText: r.collapsedText,
+    };
+  });
+
+  return result
+    .filter(({ from, to }) => from != null && to != null && from < to)
+    .sort((a, b) => a.from - b.from);
+}
 
 export function serverFolding(): LSPClientExtension {
   const updateDocumentFolding = (client: LSPClient, uri: string) => {
     let file = client.workspace.getFile(uri);
-    if (!file) {
-      return;
-    }
+    if (!file) return;
     const view = file.getView();
-    if (!view) {
-      return;
-    }
+    if (!view) return;
     const plugin = LSPPlugin.get(view);
-    if (!plugin) {
-      return;
-    }
+    if (!plugin) return;
+
     plugin.client
       .request<
         lsp.FoldingRangeParams,
@@ -172,15 +209,21 @@ export function serverFolding(): LSPClientExtension {
         textDocument: { uri },
       })
       .then((result) => {
-        const foldables = convertFromFoldingRanges(plugin, result);
-        view.dispatch(setFoldables(view.state, foldables));
+        if (result) {
+          const foldables = convertFromFoldingRanges(plugin, result);
+          view.dispatch(setFoldables(view.state, foldables));
+        }
       });
   };
 
   return {
     clientCapabilities: {
       textDocument: {
-        foldingRange: {},
+        foldingRange: {
+          foldingRange: {
+            collapsedText: true,
+          },
+        },
       },
     },
     requestHandlers: {
@@ -198,31 +241,24 @@ export function serverFolding(): LSPClientExtension {
       ) => {
         updateDocumentFolding(client, params.textDocument.uri);
       },
+      "textDocument/didChange": (
+        client,
+        params: lsp.DidChangeTextDocumentParams,
+      ) => {
+        updateDocumentFolding(client, params.textDocument.uri);
+      },
     },
     editorExtension: [
       foldingTheme,
-      foldableDecorationsField,
+      foldingRangeField,
       foldingRangesService,
-      codeFolding({ placeholderText: "⋯" }),
+      codeFolding({
+        placeholderText: "⋯",
+        placeholderDOM: foldingPlaceholderDOM,
+      }),
       foldGutter({
-        markerDOM: (open: boolean) => {
-          const dom = document.createElement("span");
-          dom.className = "cm-fold-arrow";
-          dom.textContent = "⌵";
-          if (open) {
-            dom.classList.add("cm-fold-open");
-            dom.classList.remove("cm-fold-closed");
-          } else {
-            dom.classList.add("cm-fold-closed");
-            dom.classList.remove("cm-fold-open");
-          }
-          return dom;
-        },
-        foldingChanged: (update: ViewUpdate): boolean => {
-          return update.transactions.some((t) =>
-            t.effects.some((e) => e.is(updateFoldablesEffect)),
-          );
-        },
+        markerDOM: foldingMarkerDOM,
+        foldingChanged,
       }),
       keymap.of([...foldKeymap]),
     ],

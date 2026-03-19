@@ -42,6 +42,9 @@ const PREVIEW_THEME: {
   "& .cm-line": {
     opacity: 0,
     padding: 0,
+    "& span": {
+      verticalAlign: "baseline",
+    },
   },
   "& .cm-line.cm-activeLine": {
     backgroundColor: "transparent",
