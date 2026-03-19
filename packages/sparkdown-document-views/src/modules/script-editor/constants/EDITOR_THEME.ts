@@ -166,15 +166,23 @@ const EDITOR_THEME: {
   "& .cm-gutter-lint": {
     width: "1em",
   },
-  "& .cm-foldGutter .cm-gutterElement span": {
-    width: "1em",
-    display: "inline-block",
+  "& .cm-foldGutter": {
+    "& .cm-fold-arrow": {
+      transition: "opacity .25s",
+      opacity: "0",
+    },
+    "&:hover .cm-fold-arrow": {
+      opacity: "1",
+    },
+    "& .cm-fold-arrow.cm-fold-closed": {
+      opacity: "1",
+    },
   },
   "& .cm-foldPlaceholder": {
     backgroundColor: "transparent",
     border: "none",
     color: "grey",
-    margin: ".1em .4em 0",
+    margin: ".1em .2em 0",
   },
   "& .cm-lineWrapping": {
     overflowWrap: "break-word",
