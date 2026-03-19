@@ -92,8 +92,10 @@ const config: esbuild.BuildOptions = {
     "@codemirror/view": "@codemirror/view",
     "@lezer/common": "@lezer/common",
     "@lezer/highlight": "@lezer/highlight",
-    "vscode-languageserver-protocol": "vscode-languageserver-protocol",
+    "style-mod": "style-mod",
     "vscode-jsonrpc/browser": "vscode-jsonrpc/browser",
+    "vscode-languageserver-protocol": "vscode-languageserver-protocol",
+    "vscode-languageserver-textdocument": "vscode-languageserver-textdocument",
     marked: "marked",
   },
   banner: {
