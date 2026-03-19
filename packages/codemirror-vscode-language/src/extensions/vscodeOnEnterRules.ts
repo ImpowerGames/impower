@@ -170,7 +170,7 @@ export function onEnterRulesFilter(tr: Transaction): TransactionSpec {
       changes: changeSpec.changes,
       selection: changeSpec.selection,
       effects: changeSpec.effects,
-      userEvent: tr.annotation(Transaction.userEvent) || "input.type",
+      userEvent: "input.type",
     };
   }
 
