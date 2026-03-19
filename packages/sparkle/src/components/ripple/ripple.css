@@ -39,7 +39,7 @@
 }
 
 :host > .root::before {
-  background-color: currentColor;
+  background-color: var(--_ripple-color, currentColor);
   transition-property: opacity, background-color;
   transition-timing-function: linear;
   transition-duration: var(--_hover-duration);

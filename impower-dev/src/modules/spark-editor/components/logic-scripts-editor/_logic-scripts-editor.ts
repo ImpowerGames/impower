@@ -29,6 +29,7 @@ export default spec({
             width="100%"
             text-align="center"
             bg-color="transparent"
+            ripple-color="white"
           ></s-input>
         </se-logic-diagnostics-label>
       </se-file-editor-navigation>

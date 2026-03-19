@@ -93,10 +93,6 @@
   user-select: none;
 }
 
-:host(:not([disabled])) > .root > .input:hover {
-  color: var(--theme-input-color-hover);
-}
-
 :host > .root > .input:focus {
   outline: none;
 }

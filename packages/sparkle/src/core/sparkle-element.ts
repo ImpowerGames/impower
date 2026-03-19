@@ -1,6 +1,9 @@
 import { STYLE_ALIASES } from "../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
 import { STYLE_TRANSFORMERS } from "../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
-import { getCssPattern } from "../../../sparkle-style-transformer/src/utils/transformers";
+import {
+  getCssColor,
+  getCssPattern,
+} from "../../../sparkle-style-transformer/src/utils/transformers";
 import { Component } from "../../../spec-component/src/component";
 import { Properties } from "../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../spec-component/src/utils/getAttributeNameMap";
@@ -24,13 +27,15 @@ import spec from "./_sparkle-element";
 export const DEFAULT_SPARKLE_ATTRIBUTES = {
   rtl: "rtl",
   disabled: "disabled",
+  rippleColor: "ripple-color",
   ...getAttributeNameMap(getKeys(STYLE_TRANSFORMERS)),
   ...ARIA_PROPERTY_NAME_MAP,
 };
 
 export const DEFAULT_SPARKLE_TRANSFORMERS = {
   ...STYLE_TRANSFORMERS,
-  "background-pattern": (v: string) => getCssPattern(v),
+  "background-pattern": getCssPattern,
+  "ripple-color": getCssColor,
 };
 
 const DEFAULT_SPARKLE_ALIAS_ATTRIBUTES = getAttributeNameMap(

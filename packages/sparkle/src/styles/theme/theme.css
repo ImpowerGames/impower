@@ -1,4 +1,8 @@
 :is(:root, :host, [theme], .theme-dark, .theme-light) > * {
+  /* General */
+  --theme-color-black: rgb(0 0 0);
+  --theme-color-white: rgb(255 255 255);
+
   /* Primary */
   --theme-color-primary-10: var(--theme-color-sky-10);
   --theme-color-primary-20: var(--theme-color-sky-20);
