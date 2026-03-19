@@ -1,5 +1,6 @@
 :root {
   --swp-background-color: hsl(210.6, 100%, 10%);
+  --swp-toolbar-border-color: hsl(210.6, 70%, 15%);
   background-color: hsl(210.6, 100%, 10%);
   color: #ffffffde;
 }

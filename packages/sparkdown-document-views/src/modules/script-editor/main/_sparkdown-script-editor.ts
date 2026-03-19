@@ -8,6 +8,8 @@ export default spec({
   html,
   css,
   selectors: {
+    loading: "",
+    editor: "",
     main: "",
     placeholder: "",
   },

@@ -12,10 +12,15 @@
   ---text-size: var(--theme-text-sm-font-size);
   ---text-weight: 600;
   ---text-wrap: nowrap;
-  ---transition-property: opacity, transform, box-shadow;
+  ---transition-property:
+    opacity, transform, box-shadow, background-color, color;
   ---duration: 100ms;
   ---active-text-color: var(--theme-color-primary-60);
   ---inactive-text-color: var(--theme-color-neutral-60);
+  ---active-background-color: var(---color);
+  ---inactive-background-color: var(---color);
+  ---active-border-color: var(---color);
+  ---inactive-border-color: var(---color);
   ---padding-tb: 16px;
   ---padding-lr: 20px;
 }
@@ -46,7 +51,8 @@
   font-size: var(---text-size);
   font-weight: var(---text-weight);
   color: var(---inactive-text-color, var(---text-color));
-  background-color: var(---color);
+  background-color: var(---inactive-background-color, var(---color));
+  border-color: var(---inactive-border-color, var(---color));
   white-space: var(---text-wrap);
   transition-property: var(---transition-property);
   transition-duration: var(---duration);
@@ -66,6 +72,14 @@
   color: var(
     ---active-text-color,
     var(---inactive-text-color, var(---text-color))
+  ) !important;
+  background-color: var(
+    ---active-background-color,
+    var(---inactive-background-color, var(---color))
+  ) !important;
+  border-color: var(
+    ---active-border-color,
+    var(---inactive-border-color, var(---color))
   ) !important;
 }
 

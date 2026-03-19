@@ -14,13 +14,13 @@ export default spec({
       <s-router key="assets-panel" directional active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
           <s-tabs
-            indicator-color="tab-active"
+            indicator-color="tab-active-text"
             height="panel-nav"
             active="${panel}"
           >
             <s-tab
-              active-text-color="tab-active"
-              inactive-text-color="tab-inactive"
+              active-text-color="tab-active-text"
+              inactive-text-color="tab-inactive-text"
               disable-ripple
               p="20"
               child-layout="row"
@@ -32,8 +32,8 @@ export default spec({
               Files
             </s-tab>
             <s-tab
-              active-text-color="tab-active"
-              inactive-text-color="tab-inactive"
+              active-text-color="tab-active-text"
+              inactive-text-color="tab-inactive-text"
               disable-ripple
               p="20"
               child-layout="row"

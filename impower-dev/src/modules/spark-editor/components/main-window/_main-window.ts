@@ -50,8 +50,8 @@ export default spec({
           ></s-divider>
           <s-tabs indicator="none" height="footer-nav" active="${pane}">
             <s-tab
-              active-text-color="tab-active"
-              inactive-text-color="tab-inactive"
+              active-text-color="tab-active-text"
+              inactive-text-color="tab-inactive-text"
               shrink
               disable-ripple
               icon="bolt"
@@ -62,8 +62,8 @@ export default spec({
               Logic
             </s-tab>
             <s-tab
-              active-text-color="tab-active"
-              inactive-text-color="tab-inactive"
+              active-text-color="tab-active-text"
+              inactive-text-color="tab-inactive-text"
               shrink
               disable-ripple
               icon="photo"
@@ -74,8 +74,8 @@ export default spec({
               Assets
             </s-tab>
             <s-tab
-              active-text-color="tab-active"
-              inactive-text-color="tab-inactive"
+              active-text-color="tab-active-text"
+              inactive-text-color="tab-inactive-text"
               shrink
               disable-ripple
               icon="share"

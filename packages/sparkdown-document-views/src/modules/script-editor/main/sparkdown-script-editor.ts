@@ -578,7 +578,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
         SelectedEditorMessage.type.notification(params),
       );
     } else {
-      this.root.style.visibility = "hidden";
+      this.refs.editor.style.visibility = "hidden";
+      this.refs.loading.style.opacity = "1";
       if (this._view) {
         this.unbindView(this._view);
         this._view.destroy();
@@ -594,12 +595,12 @@ export default class SparkdownScriptEditor extends Component(spec) {
       this._searching = false;
       this._searchInputFocused = false;
       this._textDocument = textDocument;
-      const mainContainer = this.refs.main;
-      if (mainContainer) {
+      const editorContainer = this.refs.editor;
+      if (editorContainer) {
         this._scrollMargin = getBoxValues(this.scrollMargin);
         this._top = getUnitlessValue(this.top, 0);
         this._bottom = getUnitlessValue(this.bottom, 0);
-        [this._view, this._disposable] = createEditorView(mainContainer, {
+        [this._view, this._disposable] = createEditorView(editorContainer, {
           serverWorker: SparkdownScriptEditor.languageServerWorker,
           serverConnection: SparkdownScriptEditor.languageServerConnection,
           serverInitializeParams: serverInitializeParams,
@@ -964,8 +965,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
       }
       if (this._textDocument && this._loadingRequest != null) {
         // Only fade in once formatting has finished being applied and height is stable
-        this.root.style.visibility = "visible";
-        this.root.style.opacity = "1";
+        this.refs.loading.style.opacity = "0";
+        this.refs.editor.style.visibility = "visible";
+        this.refs.editor.style.opacity = "1";
         this._loadingRequest = undefined;
       }
       if (this._view) {

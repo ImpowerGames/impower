@@ -184,7 +184,11 @@ const EDITOR_THEME: {
   "& .cm-panels": {
     backgroundColor: EDITOR_COLORS.panel,
   },
+  "& .cm-panels.cm-panels-bottom": {
+    borderTop: `1px solid ${EDITOR_COLORS.panelBorder}`,
+  },
   "& .cm-panels.cm-panels-top": {
+    borderBottom: `1px solid ${EDITOR_COLORS.panelBorder}`,
     "& .cm-panel": {
       // Top panels should cover up panel header
       marginTop: "-48px",

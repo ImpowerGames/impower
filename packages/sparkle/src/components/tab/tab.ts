@@ -22,6 +22,10 @@ const DEFAULT_TRANSFORMERS = {
   "icon-size": getCssSize,
   "active-text-color": getCssColor,
   "inactive-text-color": getCssColor,
+  "active-background-color": getCssColor,
+  "inactive-background-color": getCssColor,
+  "active-border-color": getCssColor,
+  "inactive-border-color": getCssColor,
   "hover-color": getCssColor,
 };
 
@@ -174,6 +178,46 @@ export default class Tab
   }
   set activeTextColor(value) {
     this.setStringAttribute(Tab.attrs.activeTextColor, value);
+  }
+
+  /**
+   * The inactive background color.
+   */
+  get inactiveBackgroundColor(): string | null {
+    return this.getStringAttribute(Tab.attrs.inactiveBackgroundColor);
+  }
+  set inactiveBackgroundColor(value) {
+    this.setStringAttribute(Tab.attrs.inactiveBackgroundColor, value);
+  }
+
+  /**
+   * The active background color.
+   */
+  get activeBackgroundColor(): string | null {
+    return this.getStringAttribute(Tab.attrs.activeBackgroundColor);
+  }
+  set activeBackgroundColor(value) {
+    this.setStringAttribute(Tab.attrs.activeBackgroundColor, value);
+  }
+
+  /**
+   * The inactive border color.
+   */
+  get inactiveBorderColor(): string | null {
+    return this.getStringAttribute(Tab.attrs.inactiveBorderColor);
+  }
+  set inactiveBorderColor(value) {
+    this.setStringAttribute(Tab.attrs.inactiveBorderColor, value);
+  }
+
+  /**
+   * The active border color.
+   */
+  get activeBorderColor(): string | null {
+    return this.getStringAttribute(Tab.attrs.activeBorderColor);
+  }
+  set activeBorderColor(value) {
+    this.setStringAttribute(Tab.attrs.activeBorderColor, value);
   }
 
   /**
