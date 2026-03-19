@@ -3,5 +3,34 @@
 }
 
 :host > .root {
-  display: flex;
+  display: block;
+  position: relative;
+  contain: layout; /* Helps with layout isolation */
+}
+
+/* Styles applied only when component handles its own scroll */
+:host([internal-scroller]) > .root {
+  overflow-y: auto;
+  overflow-x: hidden;
+  contain: strict; /* Strict containment is only safe with explicit height constraints */
+  -webkit-overflow-scrolling: touch;
+}
+
+:host > .root #spacer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+}
+
+:host > .root #content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+}
+
+::slotted(*) {
+  box-sizing: border-box;
 }

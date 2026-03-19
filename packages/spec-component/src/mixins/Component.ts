@@ -327,61 +327,45 @@ const Component = <
     #update() {
       const innerHTML = this.html;
       this.#html = innerHTML;
+      this.disconnectedCallback();
       this.render();
+      this.connectedCallback();
     }
 
     render() {
-      this.disconnectedCallback();
       if (this.shadowRoot) {
-        Idiomorph.morph(this.shadowRoot, this.#html, {
-          morphStyle: "innerHTML",
-          callbacks: {
-            beforeNodeMorphed: (
-              oldNode: Element,
-              newNode: Element,
-            ): boolean => {
-              if (oldNode?.tagName?.toLowerCase() === "s-router") {
-                for (const attr of newNode.attributes) {
-                  oldNode.setAttribute(attr.name, attr.value);
-                }
-                for (const attr of oldNode.attributes) {
-                  if (newNode.getAttribute(attr.name) == null) {
-                    oldNode.removeAttribute(attr.name);
-                  }
-                }
-                return false;
-              }
-              return true;
-            },
-          },
-        });
+        this.morph(this.shadowRoot, this.#html);
       } else {
-        Idiomorph.morph(this, this.#html, {
-          morphStyle: "innerHTML",
-          callbacks: {
-            beforeNodeMorphed: (
-              oldNode: Element,
-              newNode: Element,
-            ): boolean => {
-              if (oldNode?.tagName?.toLowerCase() === "s-router") {
-                for (const attr of newNode.attributes) {
-                  oldNode.setAttribute(attr.name, attr.value);
-                }
-                for (const attr of oldNode.attributes) {
-                  if (newNode.getAttribute(attr.name) == null) {
-                    oldNode.removeAttribute(attr.name);
-                  }
-                }
-                return false;
-              }
-              return true;
-            },
-          },
-        });
+        this.morph(this, this.#html);
       }
-      this.#refs = this.getRefMap(this.selectors);
+      this.rebindRefs();
       this.onRender();
-      this.connectedCallback();
+    }
+
+    morph(parent: Node, innerHTML: Node | string) {
+      Idiomorph.morph(parent, innerHTML, {
+        morphStyle: "innerHTML",
+        callbacks: {
+          beforeNodeMorphed: (oldNode: Element, newNode: Element): boolean => {
+            if (oldNode?.tagName?.toLowerCase() === "s-router") {
+              for (const attr of newNode.attributes) {
+                oldNode.setAttribute(attr.name, attr.value);
+              }
+              for (const attr of oldNode.attributes) {
+                if (newNode.getAttribute(attr.name) == null) {
+                  oldNode.removeAttribute(attr.name);
+                }
+              }
+              return false;
+            }
+            return true;
+          },
+        },
+      });
+    }
+
+    rebindRefs() {
+      this.#refs = this.getRefMap(this.selectors);
     }
 
     /**

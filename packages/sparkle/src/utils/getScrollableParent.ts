@@ -1,8 +1,8 @@
 import { isScrollable } from "./isScrollable";
 
-export const getScrollableParent = (el: Element | null): Element => {
-  if (!el || el === document.body) {
-    return document.body;
+export const getScrollableParent = (el: Element | null): Window | Element => {
+  if (!el || el === document.documentElement) {
+    return window;
   }
   if (isScrollable(el)) {
     return el;

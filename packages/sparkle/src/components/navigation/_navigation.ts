@@ -1,14 +1,10 @@
 import { spec } from "../../../../spec-component/src/spec";
 import sharedCSS from "../../styles/shared";
-import css from "./list.css";
-import html from "./list.html";
+import css from "./navigation.css";
+import html from "./navigation.html";
 
 export default spec({
-  tag: "s-list",
+  tag: "s-navigation",
   html,
   css: [...sharedCSS, css],
-  selectors: {
-    spacer: "",
-    content: "",
-  },
 });

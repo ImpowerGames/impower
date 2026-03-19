@@ -14,6 +14,7 @@ import Hidden from "./components/hidden/_hidden";
 import Icon from "./components/icon/_icon";
 import Input from "./components/input/_input";
 import List from "./components/list/_list";
+import Navigation from "./components/navigation/_navigation";
 import Option from "./components/option/_option";
 import Popup from "./components/popup/_popup";
 import ProgressBar from "./components/progress-bar/_progress-bar";
@@ -88,6 +89,7 @@ const components = [
   style(Hidden),
   style(Box),
   style(List),
+  style(Navigation),
   style(Viewport),
   style(ScrollBlocker),
   style(Circle),

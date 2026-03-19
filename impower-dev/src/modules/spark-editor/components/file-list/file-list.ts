@@ -6,6 +6,7 @@ import {
   DidChangeWatchedFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
+import type List from "../../../../../../packages/sparkle/src/components/list/list";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import globToRegex from "../../utils/globToRegex";
 import { Workspace } from "../../workspace/Workspace";
@@ -96,10 +97,14 @@ export default class FileList extends Component(spec) {
 
   async loadEntries(scrollIntoView?: string[]) {
     this._uris = await this.loadFiles();
-    const outletEl = this.refs.outlet;
+    const outletEl = this.refs.outlet as List<string>;
     if (outletEl) {
-      const items = this.createItems(this._uris);
-      outletEl.innerHTML = items.join("\n");
+      outletEl.items = this._uris;
+      outletEl.itemHeight = 52;
+      outletEl.renderItem = (uri: string, index: number) => {
+        const filename = Workspace.fs.getFilename(uri);
+        return `<se-file-item filename="${filename}"></se-file-item>`;
+      };
       if (scrollIntoView) {
         const uriToScrollTo = this._uris.findLast((uri) =>
           scrollIntoView?.includes(uri),
@@ -122,15 +127,6 @@ export default class FileList extends Component(spec) {
       }
     }
     this.updateState();
-  }
-
-  createItems(uris: string[]) {
-    const items: string[] = [];
-    uris.forEach((uri) => {
-      const filename = Workspace.fs.getFilename(uri);
-      items.push(`<se-file-item filename="${filename}"></se-file-item>`);
-    });
-    return items;
   }
 
   async loadFiles() {

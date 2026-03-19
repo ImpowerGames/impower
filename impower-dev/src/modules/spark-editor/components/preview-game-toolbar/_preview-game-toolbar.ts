@@ -201,9 +201,9 @@ export default spec({
             child-align="center"
             grow
           >
-            <s-list child-layout="row" child-justify="center" grow>
+            <s-navigation child-layout="row" child-justify="center" grow>
               ${loading ? loadingToolbar : readyToolbar}
-            </s-list>
+            </s-navigation>
           </s-box>
         </s-box>
       </s-box>

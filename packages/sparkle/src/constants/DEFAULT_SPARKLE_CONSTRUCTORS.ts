@@ -11,6 +11,7 @@ import Hidden from "../components/hidden/hidden";
 import Icon from "../components/icon/icon";
 import Input from "../components/input/input";
 import List from "../components/list/list";
+import Navigation from "../components/navigation/navigation";
 import Option from "../components/option/option";
 import Popup from "../components/popup/popup";
 import ProgressBar from "../components/progress-bar/progress-bar";
@@ -32,6 +33,7 @@ const DEFAULT_SPARKLE_CONSTRUCTORS = [
   Hidden,
   Box,
   List,
+  Navigation,
   Viewport,
   ScrollBlocker,
   Circle,
