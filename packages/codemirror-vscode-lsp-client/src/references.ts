@@ -231,7 +231,7 @@ function createReferencePanel(
       );
       if (textBefore)
         entry.appendChild(document.createTextNode(textBefore.trim()));
-      entry.appendChild(document.createElement("strong")).textContent =
+      entry.appendChild(document.createElement("span")).textContent =
         line.text.slice(from - line.from, to - line.from);
       let textAfter = line.text.slice(
         to - line.from,
