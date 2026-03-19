@@ -1,83 +1,83 @@
 :host {
   display: contents;
-  ---overflow-x: visible;
-  ---overflow-y: visible;
-  ---child-layout: row;
-  ---child-align: center;
-  ---child-justify: center;
-  ---position: relative;
-  ---interactable: auto;
-  ---selectable: none;
-  ---width: auto;
-  ---height: auto;
-  ---text-font: var(--theme-font-sans);
-  ---text-wrap: nowrap;
-  ---transition-property:
+  --_overflow-x: visible;
+  --_overflow-y: visible;
+  --_child-layout: row;
+  --_child-align: center;
+  --_child-justify: center;
+  --_position: relative;
+  --_interactable: auto;
+  --_selectable: none;
+  --_width: auto;
+  --_height: auto;
+  --_text-font: var(--theme-font-sans);
+  --_text-wrap: nowrap;
+  --_transition-property:
     transform, background-color, color, border, box-shadow;
-  ---duration: 100ms;
-  ---color: var(--theme-color-primary-60);
-  ---text-color: var(--theme-color-neutral-0);
-  ---spacing: 8px;
-  ---border-width: 1px;
-  ---corner: 4px;
-  ---background-color: var(---color);
-  ---ease: ease-out;
+  --_duration: 100ms;
+  --_color: var(--theme-color-primary-60);
+  --_text-color: var(--theme-color-neutral-0);
+  --_spacing: 8px;
+  --_border-width: 1px;
+  --_corner: 4px;
+  --_background-color: var(--_color);
+  --_ease: ease-out;
 }
 
 :host([size="xs"]) > .root {
-  ---height-min: 24px;
-  ---text-size: var(--theme-text-2xs-font-size);
-  ---text-leading: var(--theme-text-2xs-line-height);
-  ---padding-lr: 8px;
+  --_height-min: 24px;
+  --_text-size: var(--theme-text-2xs-font-size);
+  --_text-leading: var(--theme-text-2xs-line-height);
+  --_padding-lr: 8px;
 }
 
 :host([size="sm"]) > .root {
-  ---height-min: 32px;
-  ---text-size: var(--theme-text-sm-font-size);
-  ---text-leading: var(--theme-text-sm-line-height);
-  ---padding-lr: 10px;
+  --_height-min: 32px;
+  --_text-size: var(--theme-text-sm-font-size);
+  --_text-leading: var(--theme-text-sm-line-height);
+  --_padding-lr: 10px;
 }
 
 :host,
 :host([size="md"]) > .root {
-  ---height-min: 40px;
-  ---text-size: var(--theme-text-sm-font-size);
-  ---text-leading: var(--theme-text-sm-line-height);
-  ---padding-lr: 16px;
+  --_height-min: 40px;
+  --_text-size: var(--theme-text-sm-font-size);
+  --_text-leading: var(--theme-text-sm-line-height);
+  --_padding-lr: 16px;
 }
 
 :host([size="lg"]) > .root {
-  ---height-min: 48px;
-  ---text-size: var(--theme-text-md-font-size);
-  ---text-leading: var(--theme-text-md-line-height);
-  ---padding-lr: 20px;
+  --_height-min: 48px;
+  --_text-size: var(--theme-text-md-font-size);
+  --_text-leading: var(--theme-text-md-line-height);
+  --_padding-lr: 20px;
 }
 
 :host > .root {
   display: flex;
   cursor: pointer;
   text-decoration: none;
-  overflow-x: var(---overflow-x);
-  overflow-y: var(---overflow-y);
-  flex-direction: var(---child-layout);
-  align-items: var(---child-align);
-  justify-content: var(---child-justify);
-  position: var(---position);
-  pointer-events: var(---interactable);
-  user-select: var(---selectable);
-  width: var(---width);
-  height: var(---height);
-  min-height: var(---height-min);
-  font-family: var(---text-font);
-  font-size: var(---text-size);
-  line-height: var(---text-leading);
-  white-space: var(---text-wrap);
-  transition-property: var(---transition-property);
-  transition-duration: var(---duration);
-  border-color: var(---border-color);
-  border-width: var(---border-width);
-  border-radius: var(---corner);
-  padding-inline: var(---padding-lr);
+  overflow-x: var(--_overflow-x);
+  overflow-y: var(--_overflow-y);
+  flex-direction: var(--_child-layout);
+  align-items: var(--_child-align);
+  justify-content: var(--_child-justify);
+  position: var(--_position);
+  pointer-events: var(--_interactable);
+  user-select: var(--_selectable);
+  width: var(--_width);
+  height: var(--_height);
+  min-height: var(--_height-min);
+  font-family: var(--_text-font);
+  font-size: var(--_text-size);
+  line-height: var(--_text-leading);
+  white-space: var(--_text-wrap);
+  transition-property: var(--_transition-property);
+  transition-duration: var(--_duration);
+  border-color: var(--_border-color);
+  border-width: var(--_border-width);
+  border-radius: var(--_corner);
+  padding-inline: var(--_padding-lr);
   will-change: transform, opacity;
 }
 
@@ -98,44 +98,44 @@
 /* Filled */
 :host(:not([variant])) > .root,
 :host([variant="filled"]) > .root {
-  ---shadow: var(--theme-shadow-box-1);
+  --_shadow: var(--theme-shadow-box-1);
 }
 @media (hover: hover) and (pointer: fine) {
   :host(:not([variant])) > .root:hover,
   :host([variant="filled"]) > .root:hover {
-    ---shadow: var(--theme-shadow-box-2);
+    --_shadow: var(--theme-shadow-box-2);
   }
   :host(:not([variant])) > .root:active,
   :host([variant="filled"]) > .root:active {
-    ---shadow: var(--theme-shadow-box-0);
+    --_shadow: var(--theme-shadow-box-0);
   }
 }
 :host(:not([variant])),
 :host([variant="filled"]) {
-  ---text-weight: 500;
+  --_text-weight: 500;
 }
 :host(:not([variant])) > .root,
 :host([variant="filled"]) > .root {
-  color: var(---text-color);
-  background-color: var(---color);
-  font-weight: var(---text-weight);
-  box-shadow: var(---shadow);
+  color: var(--_text-color);
+  background-color: var(--_color);
+  font-weight: var(--_text-weight);
+  box-shadow: var(--_shadow);
 }
 
 /* Tonal */
 :host([variant="tonal"]) {
-  ---text-color: white;
-  ---text-weight: 400;
-  ---shadow: none;
+  --_text-color: white;
+  --_text-weight: 400;
+  --_shadow: none;
 }
 :host([variant="tonal"]) > .root {
-  color: var(---text-color);
-  font-weight: var(---text-weight);
-  box-shadow: var(---shadow);
-  background-color: var(---color);
+  color: var(--_text-color);
+  font-weight: var(--_text-weight);
+  box-shadow: var(--_shadow);
+  background-color: var(--_color);
   border-style: solid;
-  border-color: var(---color);
-  border-width: var(---border-width);
+  border-color: var(--_color);
+  border-width: var(--_border-width);
 }
 :host([variant="tonal"]) > .root::after {
   position: absolute;
@@ -148,76 +148,76 @@
 
 /* Outlined */
 :host([variant="outlined"]) {
-  ---text-weight: 500;
-  ---shadow: none;
-  ---background-color: transparent;
+  --_text-weight: 500;
+  --_shadow: none;
+  --_background-color: transparent;
 }
 :host([variant="outlined"]) > .root {
-  ---text-color: var(---color);
-  font-weight: var(---text-weight);
-  color: var(---text-color);
-  box-shadow: var(---shadow);
-  background-color: var(---background-color);
+  --_text-color: var(--_color);
+  font-weight: var(--_text-weight);
+  color: var(--_text-color);
+  box-shadow: var(--_shadow);
+  background-color: var(--_background-color);
   border-style: solid;
-  border-color: var(---color);
-  border-width: var(---border-width);
+  border-color: var(--_color);
+  border-width: var(--_border-width);
 }
 @media (hover: hover) and (pointer: fine) {
   :host([variant="outlined"]:not([disabled])) > .root:hover,
   :host([variant="outlined"][checked]:not([disabled])) > .root {
-    ---text-color: var(--theme-color-neutral-0);
-    background-color: var(---color);
-    color: var(---text-color);
+    --_text-color: var(--theme-color-neutral-0);
+    background-color: var(--_color);
+    color: var(--_text-color);
   }
   :host([variant="outlined"]:not([disabled])) > .root:active {
-    ---text-color: var(--theme-color-neutral-0);
-    background-color: var(---color);
-    color: var(---text-color);
+    --_text-color: var(--theme-color-neutral-0);
+    background-color: var(--_color);
+    color: var(--_text-color);
   }
 }
 
 /* Text */
 :host([variant="text"]) {
-  ---text-weight: 500;
-  ---shadow: none;
-  ---background-color: transparent;
+  --_text-weight: 500;
+  --_shadow: none;
+  --_background-color: transparent;
 }
 :host([variant="text"]) > .root {
-  ---text-color: var(---color);
-  font-weight: var(---text-weight);
-  color: var(---text-color);
-  box-shadow: var(---shadow);
-  background-color: var(---background-color);
+  --_text-color: var(--_color);
+  font-weight: var(--_text-weight);
+  color: var(--_text-color);
+  box-shadow: var(--_shadow);
+  background-color: var(--_background-color);
 }
 
 /* Icon */
 :host([variant="icon"]) {
-  ---shadow: none;
-  ---background-color: transparent;
-  ---aspect: 1;
-  ---corner: 50%;
-  ---padding: 0;
+  --_shadow: none;
+  --_background-color: transparent;
+  --_aspect: 1;
+  --_corner: 50%;
+  --_padding: 0;
 }
 :host([variant="icon"]) > .root {
-  ---text-color: var(---color);
-  aspect-ratio: var(---aspect);
-  color: var(---text-color);
-  box-shadow: var(---shadow);
-  background-color: var(---background-color);
-  padding: var(---padding);
-  border-radius: var(---corner);
+  --_text-color: var(--_color);
+  aspect-ratio: var(--_aspect);
+  color: var(--_text-color);
+  box-shadow: var(--_shadow);
+  background-color: var(--_background-color);
+  padding: var(--_padding);
+  border-radius: var(--_corner);
 }
 
 :host > .root > .label {
   display: flex;
   visibility: visible;
-  width: var(---width);
-  height: var(---height);
-  flex-direction: var(---child-layout);
-  align-items: var(---child-align);
-  justify-content: var(---child-justify);
+  width: var(--_width);
+  height: var(--_height);
+  flex-direction: var(--_child-layout);
+  align-items: var(--_child-align);
+  justify-content: var(--_child-justify);
   z-index: 1;
-  transition-duration: var(---duration);
+  transition-duration: var(--_duration);
   will-change: transform, opacity;
 }
 :host([text-overflow="ellipsis"]) > .root > .label {
@@ -227,13 +227,13 @@
   text-overflow: ellipsis;
 }
 :host([child-justify]) > .root > .label {
-  flex-grow: var(---grow);
+  flex-grow: var(--_grow);
 }
 :host([loading]) > .root > .label {
   visibility: hidden;
 }
 :host([icon]:not([variant="icon"])) > .root > .label {
-  padding-left: var(---spacing);
+  padding-left: var(--_spacing);
 }
 
 :host > .root > .icon {
@@ -275,7 +275,7 @@
   border-radius: inherit;
   position: absolute;
   inset: 0;
-  background-color: var(---color);
+  background-color: var(--_color);
 }
 
 :host > .root > .icon {
@@ -284,18 +284,18 @@
 :host([icon]) > .root > .icon {
   position: relative;
   display: flex;
-  width: var(---icon-size, var(--theme-icon-size));
-  height: var(---icon-size, var(--theme-icon-size));
-  min-width: var(---icon-size, var(--theme-icon-size));
-  min-height: var(---icon-size, var(--theme-icon-size));
-  font-size: var(---icon-size, var(--theme-icon-size));
+  width: var(--_icon-size, var(--theme-icon-size));
+  height: var(--_icon-size, var(--theme-icon-size));
+  min-width: var(--_icon-size, var(--theme-icon-size));
+  min-height: var(--_icon-size, var(--theme-icon-size));
+  font-size: var(--_icon-size, var(--theme-icon-size));
   justify-content: center;
   align-items: center;
   will-change: transform, opacity;
 }
 :host([variant="icon"][animation]) > .root > .icon {
-  animation: var(---animation);
-  animation-timing-function: var(---ease);
+  animation: var(--_animation);
+  animation-timing-function: var(--_ease);
 }
 :host([variant="icon"][animation]) > .root {
   animation: none !important;
@@ -309,7 +309,7 @@
   align-items: center;
   width: 100%;
   height: 100%;
-  color: var(---text-color);
+  color: var(--_text-color);
   transition-property: none;
   will-change: transform, opacity;
 }
@@ -325,7 +325,7 @@
   align-items: center;
   width: 100%;
   height: 100%;
-  color: var(---active-color, var(---text-color, transparent));
+  color: var(--_active-color, var(--_text-color, transparent));
   transition-property: none;
   will-change: transform;
 }

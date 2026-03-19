@@ -1,50 +1,50 @@
 :host {
   display: contents;
-  ---background-color: var(--theme-color-surface);
-  ---child-layout: column;
-  ---child-align: stretch;
-  ---child-justify: flex-start;
-  ---child-gap: 16px;
-  ---shadow: var(--theme-shadow-box-5);
-  ---z: var(--theme-z-index-dialog);
-  ---title-text-weight: 400;
-  ---title-text-size: var(--theme-text-2xl-font-size);
-  ---title-text-leading: var(--theme-text-2xl-line-height);
-  ---text-size: var(--theme-text-sm-font-size);
-  ---text-leading: var(--theme-text-sm-line-height);
-  ---border-color: var(--theme-color-surface-border);
-  ---border-width: 1px;
-  ---corner: 8px;
-  ---margin: auto;
-  ---padding: 24px;
-  ---enter: var(--theme-animation-open);
-  ---exit: var(--theme-animation-close);
-  ---mobile-enter:
+  --_background-color: var(--theme-color-surface);
+  --_child-layout: column;
+  --_child-align: stretch;
+  --_child-justify: flex-start;
+  --_child-gap: 16px;
+  --_shadow: var(--theme-shadow-box-5);
+  --_z: var(--theme-z-index-dialog);
+  --_title-text-weight: 400;
+  --_title-text-size: var(--theme-text-2xl-font-size);
+  --_title-text-leading: var(--theme-text-2xl-line-height);
+  --_text-size: var(--theme-text-sm-font-size);
+  --_text-leading: var(--theme-text-sm-line-height);
+  --_border-color: var(--theme-color-surface-border);
+  --_border-width: 1px;
+  --_corner: 8px;
+  --_margin: auto;
+  --_padding: 24px;
+  --_enter: var(--theme-animation-open);
+  --_exit: var(--theme-animation-close);
+  --_mobile-enter:
     var(--theme-animation-slide-in-up), var(--theme-animation-fade-in);
-  ---mobile-exit:
+  --_mobile-exit:
     var(--theme-animation-slide-out-down), var(--theme-animation-fade-out);
-  ---ease: ease-out;
+  --_ease: ease-out;
 }
 
 :host > .root {
   display: flex;
   pointer-events: auto;
-  flex-direction: var(---child-layout);
-  align-items: var(---child-align);
+  flex-direction: var(--_child-layout);
+  align-items: var(--_child-align);
   position: fixed;
   inset: 0;
   padding: 0;
   overflow: hidden;
-  box-shadow: var(---shadow);
-  z-index: var(---z);
-  color: var(---text-color);
-  transition: opacity 0.5s var(---ease);
-  background-color: var(---background-color);
+  box-shadow: var(--_shadow);
+  z-index: var(--_z);
+  color: var(--_text-color);
+  transition: opacity 0.5s var(--_ease);
+  background-color: var(--_background-color);
   border-style: solid;
-  border-color: var(---border-color);
-  border-width: var(---border-width);
-  border-radius: var(---corner);
-  margin: var(---margin);
+  border-color: var(--_border-color);
+  border-width: var(--_border-width);
+  border-radius: var(--_corner);
+  margin: var(--_margin);
   max-inline-size: min(90vw, 60ch);
   will-change: transform, opacity;
   contain: strict;
@@ -53,12 +53,12 @@
   opacity: 0;
 }
 :host([loaded][open]) > .root {
-  animation: var(---enter) forwards;
-  animation-timing-function: var(---ease);
+  animation: var(--_enter) forwards;
+  animation-timing-function: var(--_ease);
 }
 :host([loaded]:not([open])) > .root {
-  animation: var(---exit) forwards;
-  animation-timing-function: var(---ease);
+  animation: var(--_exit) forwards;
+  animation-timing-function: var(--_ease);
 }
 @media (width <= 960px) {
   :host > .root {
@@ -68,12 +68,12 @@
     max-inline-size: 100vw;
   }
   :host([loaded][open]) > .root {
-    animation: var(---mobile-enter) forwards;
-    animation-timing-function: var(---ease);
+    animation: var(--_mobile-enter) forwards;
+    animation-timing-function: var(--_ease);
   }
   :host([loaded]:not([open])) > .root {
-    animation: var(---mobile-exit) forwards;
-    animation-timing-function: var(---ease);
+    animation: var(--_mobile-exit) forwards;
+    animation-timing-function: var(--_ease);
   }
 }
 
@@ -95,19 +95,19 @@
 :host > .root > form {
   pointer-events: auto;
   display: flex;
-  flex-direction: var(---child-layout);
-  align-items: var(---child-align);
-  gap: var(---child-gap);
+  flex-direction: var(--_child-layout);
+  align-items: var(--_child-align);
+  gap: var(--_child-gap);
   max-block-size: 80vh;
   max-block-size: 80dvb;
-  padding: var(---padding);
+  padding: var(--_padding);
 }
 
 :host > .root > .form > .header {
   display: flex;
   flex-direction: column;
   align-self: flex-start;
-  gap: var(---child-gap);
+  gap: var(--_child-gap);
   padding-block-end: 8px;
 }
 :host([icon]) > .root > .form > .header {
@@ -130,12 +130,12 @@
   display: flex;
   justify-items: flex-start;
   z-index: 1;
-  font-size: var(---text-size);
-  line-height: var(---text-leading);
-  gap: var(---child-gap);
+  font-size: var(--_text-size);
+  line-height: var(--_text-leading);
+  gap: var(--_child-gap);
   border-style: color;
-  border-color: var(---border-color);
-  border-width: var(---border-width);
+  border-color: var(--_border-color);
+  border-width: var(--_border-width);
 }
 
 :host > .root > .form > .footer {
@@ -143,14 +143,14 @@
   flex-direction: row;
   align-items: center;
   justify-content: flex-end;
-  gap: var(---child-gap);
+  gap: var(--_child-gap);
 }
 
 :host > .root > .form > .header > .label {
   display: none;
-  font-weight: var(---title-text-weight);
-  font-size: var(---title-text-size);
-  line-height: var(---title-text-leading);
+  font-weight: var(--_title-text-weight);
+  font-size: var(--_title-text-size);
+  line-height: var(--_title-text-leading);
   margin: 0;
 }
 :host([label]) > .root > .form > .header > .label {

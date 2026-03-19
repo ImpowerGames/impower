@@ -441,18 +441,18 @@ export const CSS_UTILITIES = {
   },
 
   "fill-color": {
-    "": { "---fill-color": "" },
+    "": { "--_fill-color": "" },
   },
   "track-color": {
-    "": { "---track-color": "" },
+    "": { "--_track-color": "" },
   },
   "thumb-background-color": {
-    "": { "---thumb-background-color": "" },
+    "": { "--_thumb-background-color": "" },
   },
   "thumb-border-color": {
-    "": { "---thumb-border-color": "" },
+    "": { "--_thumb-border-color": "" },
   },
   "thumb-size": {
-    "": { "---thumb-size": "" },
+    "": { "--_thumb-size": "" },
   },
 } as const;

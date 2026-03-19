@@ -85,7 +85,7 @@ const SRC: Record<string, BuiltinDefinition> = {
   },
   slider: {
     begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style slider_label">${CONTENT_CHILDREN_PLACEHOLDER}`,
-    end: `</div><input class="style slider_field" type="range" ${ATTRS_PLACEHOLDER} oninput="this.style.setProperty('---fill-percentage', (this.value-this.min)/(this.max-this.min)*100 + '%')"/></label>`,
+    end: `</div><input class="style slider_field" type="range" ${ATTRS_PLACEHOLDER} oninput="this.style.setProperty('--_fill-percentage', (this.value-this.min)/(this.max-this.min)*100 + '%')"/></label>`,
   },
   checkbox: {
     begin: `<label class="style ${CLASSES_PLACEHOLDER}"><div class="style checkbox_label">${CONTENT_CHILDREN_PLACEHOLDER}`,

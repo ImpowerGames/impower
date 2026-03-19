@@ -2014,7 +2014,7 @@ export default class SparkleElement
   }
 
   updateRootCssVariable(name: string, value: string | null) {
-    const varName = name.startsWith("---") ? name : `---${name}`;
+    const varName = name.startsWith("--_") ? name : `--_${name}`;
     this.root.style.setProperty(varName, value ?? null);
   }
 
@@ -2047,7 +2047,7 @@ export default class SparkleElement
     newValue: string | null,
     valueFormatter?: (v: string) => string,
   ) {
-    const varName = `---${name}`;
+    const varName = `--_${name}`;
     const formattedValue =
       valueFormatter && newValue != null ? valueFormatter(newValue) : newValue;
     if (formattedValue) {

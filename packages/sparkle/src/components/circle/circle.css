@@ -1,26 +1,26 @@
 :host {
   display: contents;
-  ---aspect: 1/1;
-  ---child-layout: column;
-  ---child-justify: center;
-  ---child-align: center;
-  ---shrink: 0;
-  ---corner: 50%;
-  ---aspect: 1;
-  ---size: 40px;
-  ---width: var(---size);
-  ---height: var(---size);
+  --_aspect: 1/1;
+  --_child-layout: column;
+  --_child-justify: center;
+  --_child-align: center;
+  --_shrink: 0;
+  --_corner: 50%;
+  --_aspect: 1;
+  --_size: 40px;
+  --_width: var(--_size);
+  --_height: var(--_size);
 }
 
 :host > .root {
   display: flex;
-  flex-direction: var(---child-layout);
-  justify-content: var(---child-justify);
-  align-items: var(---child-align);
-  flex-shrink: var(---shrink);
-  border-radius: var(---corner);
-  aspect-ratio: var(---aspect);
-  width: var(---width);
-  height: var(---height);
+  flex-direction: var(--_child-layout);
+  justify-content: var(--_child-justify);
+  align-items: var(--_child-align);
+  flex-shrink: var(--_shrink);
+  border-radius: var(--_corner);
+  aspect-ratio: var(--_aspect);
+  width: var(--_width);
+  height: var(--_height);
   will-change: transform;
 }

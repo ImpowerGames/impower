@@ -519,11 +519,11 @@ export default class Popup
                 ? `${availableWidth}px`
                 : null;
             this.updateRootCssVariable(
-              "---auto-size-available-height",
+              "--_auto-size-available-height",
               autoSizeAvailableHeight,
             );
             this.updateRootCssVariable(
-              "---auto-size-available-width",
+              "--_auto-size-available-width",
               autoSizeAvailableWidth,
             );
           },

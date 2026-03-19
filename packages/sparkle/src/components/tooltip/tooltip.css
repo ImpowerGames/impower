@@ -1,25 +1,25 @@
 :host {
   display: contents;
-  ---position: absolute;
-  ---width-max: 20rem;
-  ---hide-delay: 0ms;
-  ---show-delay: 75ms;
-  ---interactable: auto;
-  ---width: max-content;
-  ---z: var(--theme-z-index-tooltip);
-  ---background-color: var(--theme-tooltip-background-color);
-  ---text-font: var(--theme-tooltip-font-family);
-  ---text-size: var(--theme-tooltip-font-size);
-  ---text-weight: var(--theme-tooltip-font-weight);
-  ---text-leading: var(--theme-tooltip-line-height);
-  ---text-color: var(--theme-tooltip-color);
-  ---corner: var(--theme-tooltip-border-radius);
-  ---padding-tb: 4px;
-  ---padding-lr: 8px;
-  ---shadow: var(--theme-shadow-box-2);
-  ---enter: var(--theme-animation-open);
-  ---exit: var(--theme-animation-close);
-  ---ease: ease-out;
+  --_position: absolute;
+  --_width-max: 20rem;
+  --_hide-delay: 0ms;
+  --_show-delay: 75ms;
+  --_interactable: auto;
+  --_width: max-content;
+  --_z: var(--theme-z-index-tooltip);
+  --_background-color: var(--theme-tooltip-background-color);
+  --_text-font: var(--theme-tooltip-font-family);
+  --_text-size: var(--theme-tooltip-font-size);
+  --_text-weight: var(--theme-tooltip-font-weight);
+  --_text-leading: var(--theme-tooltip-line-height);
+  --_text-color: var(--theme-tooltip-color);
+  --_corner: var(--theme-tooltip-border-radius);
+  --_padding-tb: 4px;
+  --_padding-lr: 8px;
+  --_shadow: var(--theme-shadow-box-2);
+  --_enter: var(--theme-animation-open);
+  --_exit: var(--theme-animation-close);
+  --_ease: ease-out;
 }
 
 :host > .root {
@@ -30,33 +30,33 @@
   will-change: transform, opacity;
 }
 :host([open]) > .popup[anchored] {
-  animation: var(---enter) forwards;
-  animation-timing-function: var(---ease);
+  animation: var(--_enter) forwards;
+  animation-timing-function: var(--_ease);
 }
 :host(:not([open])) > .popup[anchored] {
-  animation: var(---exit) forwards;
-  animation-timing-function: var(---ease);
+  animation: var(--_exit) forwards;
+  animation-timing-function: var(--_ease);
 }
 
 :host > .popup {
   isolation: isolate;
-  pointer-events: var(---interactable);
-  z-index: var(---z);
-  position: var(---position);
-  width: var(---width);
-  max-width: var(---width-max);
-  background-color: var(---background-color);
-  font-family: var(---text-font);
-  font-size: var(---text-size);
-  font-weight: var(---text-weight);
-  line-height: var(---text-leading);
-  color: var(---text-color);
-  border-radius: var(---corner);
-  padding-block: var(---padding-tb);
-  padding-inline: var(---padding-lr);
-  max-width: var(---auto-size-available-width, none);
-  max-height: var(---auto-size-available-height, none);
-  box-shadow: var(---shadow);
+  pointer-events: var(--_interactable);
+  z-index: var(--_z);
+  position: var(--_position);
+  width: var(--_width);
+  max-width: var(--_width-max);
+  background-color: var(--_background-color);
+  font-family: var(--_text-font);
+  font-size: var(--_text-size);
+  font-weight: var(--_text-weight);
+  line-height: var(--_text-leading);
+  color: var(--_text-color);
+  border-radius: var(--_corner);
+  padding-block: var(--_padding-tb);
+  padding-inline: var(--_padding-lr);
+  max-width: var(--_auto-size-available-width, none);
+  max-height: var(--_auto-size-available-height, none);
+  box-shadow: var(--_shadow);
 }
 
 :host > .popup.fixed {

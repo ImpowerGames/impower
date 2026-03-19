@@ -9,7 +9,7 @@
   background-size: cover;
   border: none;
   pointer-events: none;
-  touch-action: var(---touch-action, none);
+  touch-action: var(--_touch-action, none);
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   -webkit-user-select: none;

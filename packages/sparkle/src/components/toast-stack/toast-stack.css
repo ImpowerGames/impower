@@ -1,25 +1,25 @@
 :host {
   display: contents;
-  ---overflow-y: visible;
-  ---child-layout: column-reverse;
-  ---position: absolute;
-  ---z: var(--theme-z-index-toast);
-  ---width-max: 100%;
-  ---height-max: 100%;
-  ---inset-t: auto;
-  ---inset-b: 16px;
-  ---inset-lr: 16px;
+  --_overflow-y: visible;
+  --_child-layout: column-reverse;
+  --_position: absolute;
+  --_z: var(--theme-z-index-toast);
+  --_width-max: 100%;
+  --_height-max: 100%;
+  --_inset-t: auto;
+  --_inset-b: 16px;
+  --_inset-lr: 16px;
 }
 
 :host > .root {
   display: flex;
-  flex-direction: var(---child-layout);
-  overflow-y: var(---overflow-y);
-  position: var(---position);
-  z-index: var(---z);
-  max-width: var(---width-max);
-  max-height: var(---height-max);
-  inset-block-start: var(---inset-t);
-  inset-block-end: var(---inset-b);
-  inset-inline: var(---inset-lr);
+  flex-direction: var(--_child-layout);
+  overflow-y: var(--_overflow-y);
+  position: var(--_position);
+  z-index: var(--_z);
+  max-width: var(--_width-max);
+  max-height: var(--_height-max);
+  inset-block-start: var(--_inset-t);
+  inset-block-end: var(--_inset-b);
+  inset-inline: var(--_inset-lr);
 }

@@ -1,31 +1,31 @@
 :host {
   display: contents;
-  ---color: var(--theme-color-fg-05);
-  ---sheen-color: var(--theme-color-fg-15);
-  ---width-min: 40px;
-  ---grow: 0;
-  ---shrink: 0;
-  ---background-fit: 400% 100%;
-  ---corner: 9999px;
+  --_color: var(--theme-color-fg-05);
+  --_sheen-color: var(--theme-color-fg-15);
+  --_width-min: 40px;
+  --_grow: 0;
+  --_shrink: 0;
+  --_background-fit: 400% 100%;
+  --_corner: 9999px;
 }
 
 :host > .root {
-  ---background-gradient: linear-gradient(
+  --_background-gradient: linear-gradient(
     270deg,
-    var(---sheen-color),
-    var(---color),
-    var(---color),
-    var(---sheen-color)
+    var(--_sheen-color),
+    var(--_color),
+    var(--_color),
+    var(--_sheen-color)
   );
   display: flex;
-  min-width: var(---width-min);
-  width: var(---width);
-  flex-grow: var(---grow);
-  flex-shrink: var(---shrink);
-  background-size: var(---background-fit);
-  background-image: var(---background-gradient);
-  border-radius: var(---corner);
+  min-width: var(--_width-min);
+  width: var(--_width);
+  flex-grow: var(--_grow);
+  flex-shrink: var(--_shrink);
+  background-size: var(--_background-fit);
+  background-image: var(--_background-gradient);
+  border-radius: var(--_corner);
   color: transparent;
-  animation: var(---animation, var(--theme-animation-sheen));
+  animation: var(--_animation, var(--theme-animation-sheen));
   will-change: transform, opacity;
 }

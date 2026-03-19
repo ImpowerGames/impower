@@ -473,7 +473,7 @@ function renderBuiltinVNode(
       styleEntries.push(...getCssEquivalent(k, v, false));
     }
 
-    // Set initial slider ---fill-percentage
+    // Set initial slider --_fill-percentage
     if (!Number.isNaN(Number(spreadProps["value"]))) {
       const min = Number(spreadProps["min"] ?? 0);
       const max = Number(spreadProps["max"] ?? 100);
@@ -482,7 +482,7 @@ function renderBuiltinVNode(
         max === min
           ? 0 // avoid divide-by-zero
           : ((value - min) / (max - min)) * 100;
-      styleEntries.push(["---fill-percentage", `${percentage}%`]);
+      styleEntries.push(["--_fill-percentage", `${percentage}%`]);
     }
 
     // Add inline style to props

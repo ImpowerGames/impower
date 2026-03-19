@@ -1,30 +1,30 @@
 :host {
   display: contents;
-  ---child-layout: column;
-  ---text-font: var(--theme-input-font-family);
-  ---text-weight: var(--theme-input-font-weight);
-  ---background-color: var(--theme-input-background-color);
-  ---color: var(--theme-input-color);
+  --_child-layout: column;
+  --_text-font: var(--theme-input-font-family);
+  --_text-weight: var(--theme-input-font-weight);
+  --_background-color: var(--theme-input-background-color);
+  --_text-color: var(--theme-input-color);
 }
 
 :host([size="sm"]) > .root {
-  ---padding-lr: var(--theme-input-spacing-sm);
+  --_padding-lr: var(--theme-input-spacing-sm);
 }
 :host([size="md"]) > .root {
-  ---padding-lr: var(--theme-input-spacing-md);
+  --_padding-lr: var(--theme-input-spacing-md);
 }
 :host([size="lg"]) > .root {
-  ---padding-lr: var(--theme-input-spacing-lg);
+  --_padding-lr: var(--theme-input-spacing-lg);
 }
 
 :host > .root {
   display: flex;
-  flex-direction: var(---child-layout);
+  flex-direction: var(--_child-layout);
   align-items: stretch;
   justify-content: start;
   position: relative;
-  font-family: var(---text-font);
-  font-weight: var(---text-weight);
+  font-family: var(--_text-font);
+  font-weight: var(--_text-weight);
   letter-spacing: var(--theme-input-letter-spacing);
   vertical-align: middle;
   overflow: hidden;
@@ -35,8 +35,8 @@
     var(--theme-transition-fast) box-shadow,
     var(--theme-transition-fast) background-color;
   border: none;
-  background-color: var(---background-color);
-  color: var(---color);
+  background-color: var(--_background-color);
+  color: var(--_text-color);
 }
 
 :host([disabled]) > .root {
@@ -51,7 +51,7 @@
   min-width: 0;
   width: 100%;
   height: 100%;
-  color: var(---color);
+  color: var(--_text-color);
   border: none;
   background: inherit;
   box-shadow: none;
@@ -90,7 +90,7 @@
 }
 
 :host > .root > .input::placeholder {
-  color: var(---placeholder-color, var(--theme-input-placeholder-color));
+  color: var(--_placeholder-color, var(--theme-input-placeholder-color));
   user-select: none;
 }
 
@@ -116,9 +116,9 @@
 
 :host([size="sm"]) > .root {
   border-radius: var(--theme-input-border-radius-sm);
-  font-size: var(---text-size, var(--theme-input-font-size-sm));
+  font-size: var(--_text-size, var(--theme-input-font-size-sm));
   height: var(--theme-input-height-sm);
-  padding-inline: var(---padding-lr);
+  padding-inline: var(--_padding-lr);
 }
 
 :host([size="sm"]) > .root > .prefix ::slotted(*) {
@@ -132,9 +132,9 @@
 :host > .root,
 :host([size="md"]) > .root {
   border-radius: var(--theme-input-border-radius-md);
-  font-size: var(---text-size, var(--theme-input-font-size-md));
+  font-size: var(--_text-size, var(--theme-input-font-size-md));
   height: var(--theme-input-height-md);
-  padding-inline: var(---padding-lr);
+  padding-inline: var(--_padding-lr);
 }
 
 :host > .root > .prefix ::slotted(*),
@@ -149,9 +149,9 @@
 
 :host([size="lg"]) > .root {
   border-radius: var(--theme-input-border-radius-lg);
-  font-size: var(---text-size, var(--theme-input-font-size-lg));
+  font-size: var(--_text-size, var(--theme-input-font-size-lg));
   height: var(--theme-input-height-lg);
-  padding-inline: var(---padding-lr);
+  padding-inline: var(--_padding-lr);
 }
 
 :host([size="lg"]) > .root > .prefix ::slotted(*) {

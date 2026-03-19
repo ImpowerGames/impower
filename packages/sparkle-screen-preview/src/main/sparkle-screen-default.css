@@ -18,11 +18,11 @@
   --theme-color-slider-fill: var(--theme-color-primary-60);
   --theme-color-slider-track: var(--theme-color-neutral-40);
 
-  ---fill-color: var(--theme-color-slider-fill);
-  ---track-color: var(--theme-color-slider-track);
-  ---thumb-background-color: var(--theme-color-slider-thumb-background);
-  ---thumb-border-color: var(--theme-color-slider-thumb-border);
-  ---thumb-size: var(--theme-size-thumb);
+  --_fill-color: var(--theme-color-slider-fill);
+  --_track-color: var(--theme-color-slider-track);
+  --_thumb-background-color: var(--theme-color-slider-thumb-background);
+  --_thumb-border-color: var(--theme-color-slider-thumb-border);
+  --_thumb-size: var(--theme-size-thumb);
 }
 
 * {
@@ -88,7 +88,7 @@ style {
 
 .Grid {
   display: grid;
-  grid-template-columns: var(---columns, 1fr 1fr 1fr);
+  grid-template-columns: var(--_columns, 1fr 1fr 1fr);
   gap: var(--theme-spacing-sm);
 }
 .Grid * {
@@ -210,34 +210,34 @@ style {
   margin: 6px 0;
   background: linear-gradient(
     to right,
-    var(---fill-color) var(---fill-percentage),
-    var(---track-color) var(---fill-percentage)
+    var(--_fill-color) var(--_fill-percentage),
+    var(--_track-color) var(--_fill-percentage)
   );
 }
 .SliderField::-webkit-slider-thumb {
   appearance: none;
   border-radius: 50%;
   cursor: pointer;
-  margin-top: calc(-1 * var(---thumb-size) / 4);
-  width: var(---thumb-size);
-  height: var(---thumb-size);
-  background: var(---thumb-background-color);
+  margin-top: calc(-1 * var(--_thumb-size) / 4);
+  width: var(--_thumb-size);
+  height: var(--_thumb-size);
+  background: var(--_thumb-background-color);
   border-width: var(--theme-border-width-control);
   border-style: solid;
-  border-color: var(---thumb-border-color);
+  border-color: var(--_thumb-border-color);
 }
 .SliderField::-moz-range-thumb {
   border-radius: 50%;
   cursor: pointer;
-  width: var(---thumb-size);
-  height: var(---thumb-size);
-  background: var(---thumb-background-color);
+  width: var(--_thumb-size);
+  height: var(--_thumb-size);
+  background: var(--_thumb-background-color);
   border-width: var(--theme-border-width-control);
   border-style: solid;
-  border: var(---thumb-border-color);
+  border: var(--_thumb-border-color);
 }
 .SliderField::-moz-range-progress {
-  background: var(---fill-color);
+  background: var(--_fill-color);
 }
 
 .Checkbox {

@@ -17,7 +17,7 @@ export const setVariableAndValue = (
   if (!name) {
     return styles;
   }
-  const varName = name.startsWith("---") ? name : `---${name}`;
+  const varName = name.startsWith("--_") ? name : `--_${name}`;
   const formattedValue = value != null ? valueFormatter(value) : value;
   if (!formattedValue) {
     return styles;
@@ -97,7 +97,7 @@ export const setSparkleStyle = (
     setVariableAndValue(normalizedName, propValue, transformer, styles);
   }
 
-  // Automatically set `---fill-percentage` based on `min` and `max`
+  // Automatically set `--_fill-percentage` based on `min` and `max`
   if (!Number.isNaN(Number(props["value"]))) {
     const min = Number(props["min"] ?? 0);
     const max = Number(props["max"] ?? 100);
@@ -106,7 +106,7 @@ export const setSparkleStyle = (
       max === min
         ? 0 // avoid divide-by-zero
         : ((value - min) / (max - min)) * 100;
-    styles["---fill-percentage"] = `${percentage}%`;
+    styles["--_fill-percentage"] = `${percentage}%`;
   }
 
   return styles;

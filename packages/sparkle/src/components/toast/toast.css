@@ -1,55 +1,55 @@
 :host {
   display: contents;
-  ---icon-size: var(--theme-text-lg-font-size);
-  ---interactable: auto;
-  ---position: relative;
-  ---child-layout: row;
-  ---child-align: center;
-  ---child-justify: center;
-  ---shadow: var(--theme-shadow-box-2);
-  ---background-color: var(--theme-color-surface);
-  ---text-color: var(--theme-color-neutral-80);
-  ---text-font: var(--theme-font-sans);
-  ---text-size: var(--theme-text-sm-font-size);
-  ---text-leading: 1.6;
-  ---text-weight: 400;
-  ---spacing: 16px;
-  ---border-color: var(--theme-color-surface-border);
-  ---border-width: 1px;
-  ---corner: 4px;
-  ---margin: 4px;
-  ---padding-tb: 12px;
-  ---padding-lr: 16px;
-  ---enter: var(--theme-animation-enter-fade);
-  ---exit: var(--theme-animation-exit-fade);
-  ---ease: ease-out;
+  --_icon-size: var(--theme-text-lg-font-size);
+  --_interactable: auto;
+  --_position: relative;
+  --_child-layout: row;
+  --_child-align: center;
+  --_child-justify: center;
+  --_shadow: var(--theme-shadow-box-2);
+  --_background-color: var(--theme-color-surface);
+  --_text-color: var(--theme-color-neutral-80);
+  --_text-font: var(--theme-font-sans);
+  --_text-size: var(--theme-text-sm-font-size);
+  --_text-leading: 1.6;
+  --_text-weight: 400;
+  --_spacing: 16px;
+  --_border-color: var(--theme-color-surface-border);
+  --_border-width: 1px;
+  --_corner: 4px;
+  --_margin: 4px;
+  --_padding-tb: 12px;
+  --_padding-lr: 16px;
+  --_enter: var(--theme-animation-enter-fade);
+  --_exit: var(--theme-animation-exit-fade);
+  --_ease: ease-out;
 }
 
 :host > .root {
   display: flex;
-  pointer-events: var(---interactable);
-  position: var(---position);
-  flex-direction: var(---child-layout);
-  align-items: var(---child-align);
-  box-shadow: var(---shadow);
+  pointer-events: var(--_interactable);
+  position: var(--_position);
+  flex-direction: var(--_child-layout);
+  align-items: var(--_child-align);
+  box-shadow: var(--_shadow);
   border-style: solid;
-  background-color: var(---background-color);
-  color: var(---text-color);
-  font-family: var(---text-font);
-  font-size: var(---text-size);
-  font-weight: var(---text-weight);
-  line-height: var(---text-leading);
-  border-color: var(---border-color);
-  border-width: var(---border-width);
-  border-radius: var(---corner);
-  margin: var(---margin);
-  padding-block: var(---padding-tb);
-  padding-inline: var(---padding-lr);
+  background-color: var(--_background-color);
+  color: var(--_text-color);
+  font-family: var(--_text-font);
+  font-size: var(--_text-size);
+  font-weight: var(--_text-weight);
+  line-height: var(--_text-leading);
+  border-color: var(--_border-color);
+  border-width: var(--_border-width);
+  border-radius: var(--_corner);
+  margin: var(--_margin);
+  padding-block: var(--_padding-tb);
+  padding-inline: var(--_padding-lr);
   will-change: transform;
 }
 :host([action]) > .root {
   padding-right: calc(
-    var(---padding-r, var(---padding-lr, var(---padding))) - 8px
+    var(--_padding-r, var(--_padding-lr, var(--_padding))) - 8px
   );
 }
 
@@ -57,12 +57,12 @@
   will-change: transform, opacity;
 }
 :host([open]) > .popup {
-  animation: var(---enter) forwards;
-  animation-timing-function: var(---ease);
+  animation: var(--_enter) forwards;
+  animation-timing-function: var(--_ease);
 }
 :host(:not([open])) > .popup {
-  animation: var(---exit) forwards;
-  animation-timing-function: var(---ease);
+  animation: var(--_exit) forwards;
+  animation-timing-function: var(--_ease);
 }
 
 :host > .root > .message {
@@ -72,7 +72,7 @@
   overflow: hidden;
 }
 :host([action]) > .root > .message {
-  padding-right: var(---spacing);
+  padding-right: var(--_spacing);
 }
 
 :host > .root > .close {
@@ -82,6 +82,6 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
-  color: var(---color);
-  font-size: var(---icon-size);
+  color: var(--_color);
+  font-size: var(--_icon-size);
 }

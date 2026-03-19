@@ -1,28 +1,28 @@
 :host {
   display: contents;
-  ---value: 0;
-  ---size: 1em;
-  ---background-color: var(--theme-color-neutral-30);
-  ---color: var(--theme-color-primary-60);
-  ---position: relative;
-  ---child-justify: center;
-  ---child-align: center;
-  ---track-width: 2px;
-  ---indicator-width: var(---track-width);
-  ---duration: 0.35s;
-  ---speed: 2;
-  ---text-font: var(--theme-font-sans);
-  ---text-size: var(--theme-text-xs-font-size);
-  ---text-leading: var(--theme-text-xs-line-height);
+  --_value: 0;
+  --_size: 1em;
+  --_background-color: var(--theme-color-neutral-30);
+  --_color: var(--theme-color-primary-60);
+  --_position: relative;
+  --_child-justify: center;
+  --_child-align: center;
+  --_track-width: 2px;
+  --_indicator-width: var(--_track-width);
+  --_duration: 0.35s;
+  --_speed: 2;
+  --_text-font: var(--theme-font-sans);
+  --_text-size: var(--theme-text-xs-font-size);
+  --_text-leading: var(--theme-text-xs-line-height);
 }
 
 :host > .root {
   display: flex;
-  position: var(---position);
-  min-width: var(---size);
-  min-height: var(---size);
-  width: var(---size);
-  height: var(---size);
+  position: var(--_position);
+  min-width: var(--_size);
+  min-height: var(--_size);
+  width: var(--_size);
+  height: var(--_size);
   justify-content: center;
   align-items: center;
   background-color: transparent;
@@ -32,11 +32,11 @@
 
 :host > .root > .label {
   display: flex;
-  justify-content: var(---child-justify);
-  align-items: var(---child-align);
-  font-family: var(---text-font);
-  font-size: var(---text-size);
-  line-height: var(---text-leading);
+  justify-content: var(--_child-justify);
+  align-items: var(--_child-align);
+  font-family: var(--_text-font);
+  font-size: var(--_text-size);
+  line-height: var(--_text-leading);
 }
 
 :host > .root > .circle {
@@ -52,40 +52,40 @@
 
 :host > .root > .circle > .track,
 :host > .root > .circle > .indicator {
-  ---radius: calc(var(---size) / 2);
+  --_radius: calc(var(--_size) / 2);
   fill: none;
-  r: calc(var(---radius) - var(---track-width) / 2);
-  cx: var(---radius);
-  cy: var(---radius);
+  r: calc(var(--_radius) - var(--_track-width) / 2);
+  cx: var(--_radius);
+  cy: var(--_radius);
 }
 
 :host > .root > .circle > .track {
-  stroke: var(---background-color);
-  stroke-width: var(---track-width);
+  stroke: var(--_background-color);
+  stroke-width: var(--_track-width);
   transform-origin: 0% 0%;
 }
 
 :host > .root > .circle > .indicator {
-  stroke: var(---color);
-  stroke-width: var(---indicator-width);
+  stroke: var(--_color);
+  stroke-width: var(--_indicator-width);
   stroke-linecap: round;
   transform-origin: 50% 50%;
   will-change: transform;
 }
 
 :host([value]) > .root > .circle > .indicator {
-  ---circumference: calc(var(---size) * 3.141592654);
+  --_circumference: calc(var(--_size) * 3.141592654);
   transition-property: stroke-dashoffset;
-  transition-duration: var(---duration);
-  stroke-dasharray: var(---circumference) var(---circumference);
+  transition-duration: var(--_duration);
+  stroke-dasharray: var(--_circumference) var(--_circumference);
   stroke-dashoffset: calc(
-    var(---circumference) - var(---value) * var(---circumference)
+    var(--_circumference) - var(--_value) * var(--_circumference)
   );
 }
 
 :host(:not([value])) > .root > .circle > .indicator {
   stroke-dasharray: 137%, 137%;
-  animation: indeterminate-circle calc(1s * var(---speed)) linear infinite;
+  animation: indeterminate-circle calc(1s * var(--_speed)) linear infinite;
 }
 
 @keyframes indeterminate-circle {

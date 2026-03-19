@@ -1,64 +1,64 @@
 :host {
   display: contents;
-  ---interactable: auto;
-  ---selectable: none;
-  ---child-layout: column;
-  ---child-align: center;
-  ---child-justify: center;
-  ---position: relative;
-  ---grow: 1;
-  ---shrink: 1;
-  ---text-font: var(--theme-font-sans);
-  ---text-size: var(--theme-text-sm-font-size);
-  ---text-weight: 600;
-  ---text-wrap: nowrap;
-  ---transition-property:
+  --_interactable: auto;
+  --_selectable: none;
+  --_child-layout: column;
+  --_child-align: center;
+  --_child-justify: center;
+  --_position: relative;
+  --_grow: 1;
+  --_shrink: 1;
+  --_text-font: var(--theme-font-sans);
+  --_text-size: var(--theme-text-sm-font-size);
+  --_text-weight: 600;
+  --_text-wrap: nowrap;
+  --_transition-property:
     opacity, transform, box-shadow, background-color, color;
-  ---duration: 100ms;
-  ---active-text-color: var(--theme-color-primary-60);
-  ---inactive-text-color: var(--theme-color-neutral-60);
-  ---active-background-color: var(---color);
-  ---inactive-background-color: var(---color);
-  ---active-border-color: var(---color);
-  ---inactive-border-color: var(---color);
-  ---padding-tb: 16px;
-  ---padding-lr: 20px;
+  --_duration: 100ms;
+  --_active-text-color: var(--theme-color-primary-60);
+  --_inactive-text-color: var(--theme-color-neutral-60);
+  --_active-background-color: var(--_color);
+  --_inactive-background-color: var(--_color);
+  --_active-border-color: var(--_color);
+  --_inactive-border-color: var(--_color);
+  --_padding-tb: 16px;
+  --_padding-lr: 20px;
 }
 
 :host(:not([child-layout="row"])) {
-  ---child-gap: 2px;
-  ---icon-size: calc(1.5 * var(---text-size));
+  --_child-gap: 2px;
+  --_icon-size: calc(1.5 * var(--_text-size));
 }
 
 :host([child-layout="row"]) {
-  ---child-gap: 8px;
-  ---icon-size: calc(1.15 * var(---text-size));
+  --_child-gap: 8px;
+  --_icon-size: calc(1.15 * var(--_text-size));
 }
 
 :host > .root {
   display: flex;
   cursor: pointer;
-  pointer-events: var(---interactable);
-  user-select: var(---selectable);
+  pointer-events: var(--_interactable);
+  user-select: var(--_selectable);
   flex-basis: 0;
-  flex-direction: var(---child-layout);
-  align-items: var(---child-align);
-  justify-content: var(---child-justify);
-  position: var(---position);
-  flex-grow: var(---grow);
-  flex-shrink: var(---shrink);
-  font-family: var(---text-font);
-  font-size: var(---text-size);
-  font-weight: var(---text-weight);
-  color: var(---inactive-text-color, var(---text-color));
-  background-color: var(---inactive-background-color, var(---color));
-  border-color: var(---inactive-border-color, var(---color));
-  white-space: var(---text-wrap);
-  transition-property: var(---transition-property);
-  transition-duration: var(---duration);
-  padding-block: var(---padding-tb);
-  padding-inline: var(---padding-lr);
-  gap: var(---child-gap);
+  flex-direction: var(--_child-layout);
+  align-items: var(--_child-align);
+  justify-content: var(--_child-justify);
+  position: var(--_position);
+  flex-grow: var(--_grow);
+  flex-shrink: var(--_shrink);
+  font-family: var(--_text-font);
+  font-size: var(--_text-size);
+  font-weight: var(--_text-weight);
+  color: var(--_inactive-text-color, var(--_text-color));
+  background-color: var(--_inactive-background-color, var(--_color));
+  border-color: var(--_inactive-border-color, var(--_color));
+  white-space: var(--_text-wrap);
+  transition-property: var(--_transition-property);
+  transition-duration: var(--_duration);
+  padding-block: var(--_padding-tb);
+  padding-inline: var(--_padding-lr);
+  gap: var(--_child-gap);
   line-height: 1;
   will-change: transform, opacity;
 }
@@ -70,16 +70,16 @@
 
 :host([active]:not([disabled])) > .root {
   color: var(
-    ---active-text-color,
-    var(---inactive-text-color, var(---text-color))
+    --_active-text-color,
+    var(--_inactive-text-color, var(--_text-color))
   ) !important;
   background-color: var(
-    ---active-background-color,
-    var(---inactive-background-color, var(---color))
+    --_active-background-color,
+    var(--_inactive-background-color, var(--_color))
   ) !important;
   border-color: var(
-    ---active-border-color,
-    var(---inactive-border-color, var(---color))
+    --_active-border-color,
+    var(--_inactive-border-color, var(--_color))
   ) !important;
 }
 
@@ -89,8 +89,8 @@
   position: absolute;
   inset: 0;
   border-style: solid;
-  border-width: 0 0 var(---indicator-width) 0;
-  border-color: var(---indicator-color);
+  border-width: 0 0 var(--_indicator-width) 0;
+  border-color: var(--_indicator-color);
   pointer-events: none;
 }
 
@@ -102,10 +102,10 @@
 :host > .root > .icon,
 :host > .root > .label {
   display: flex;
-  flex-direction: var(---child-layout);
-  align-items: var(---child-align);
-  justify-content: var(---child-justify);
-  transition-duration: var(---duration);
+  flex-direction: var(--_child-layout);
+  align-items: var(--_child-align);
+  justify-content: var(--_child-justify);
+  transition-duration: var(--_duration);
   will-change: transform, opacity;
 }
 :host > .root > .label {
@@ -128,11 +128,11 @@
 :host([icon]) > .root > .icon {
   position: relative;
   display: flex;
-  width: var(---icon-size, var(--theme-icon-size));
-  height: var(---icon-size, var(--theme-icon-size));
-  min-width: var(---icon-size, var(--theme-icon-size));
-  min-height: var(---icon-size, var(--theme-icon-size));
-  font-size: var(---icon-size, var(--theme-icon-size));
+  width: var(--_icon-size, var(--theme-icon-size));
+  height: var(--_icon-size, var(--theme-icon-size));
+  min-width: var(--_icon-size, var(--theme-icon-size));
+  min-height: var(--_icon-size, var(--theme-icon-size));
+  font-size: var(--_icon-size, var(--theme-icon-size));
   justify-content: center;
   align-items: center;
   will-change: transform, opacity;
@@ -146,7 +146,7 @@
   align-items: center;
   width: 100%;
   height: 100%;
-  color: var(---inactive-text-color, var(---text-color));
+  color: var(--_inactive-text-color, var(--_text-color));
   transition-property: none;
   will-change: transform, opacity;
 }
@@ -163,8 +163,8 @@
   width: 100%;
   height: 100%;
   color: var(
-    ---active-text-color,
-    var(---inactive-text-color, var(---text-color))
+    --_active-text-color,
+    var(--_inactive-text-color, var(--_text-color))
   );
   transition-property: none;
   will-change: transform, opacity;

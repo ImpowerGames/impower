@@ -1,11 +1,11 @@
 .root::after {
   display: none;
-  ---focus-duration: 50ms;
+  --_focus-duration: 50ms;
   position: absolute;
   inset: 0;
   content: "";
   border-radius: inherit;
-  transition-duration: var(---focus-duration);
+  transition-duration: var(--_focus-duration);
   transition-timing-function: ease;
   outline-offset: calc(-2 * var(--theme-focus-ring-width));
   pointer-events: none;

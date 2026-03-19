@@ -1,9 +1,9 @@
 :host {
   display: contents;
-  ---exit: var(--theme-animation-close);
-  ---enter: var(--theme-animation-open);
-  ---ease: ease-out;
-  ---position: relative;
+  --_exit: var(--theme-animation-close);
+  --_enter: var(--theme-animation-open);
+  --_ease: ease-out;
+  --_position: relative;
 }
 
 :host > .root {
@@ -24,10 +24,10 @@
   pointer-events: auto;
 }
 :host > .root[status="exiting"] {
-  animation: var(---exit) both;
-  animation-timing-function: var(---ease);
+  animation: var(--_exit) both;
+  animation-timing-function: var(--_ease);
 }
 :host > .root[status="entering"] {
-  animation: var(---enter) both;
-  animation-timing-function: var(---ease);
+  animation: var(--_enter) both;
+  animation-timing-function: var(--_ease);
 }
