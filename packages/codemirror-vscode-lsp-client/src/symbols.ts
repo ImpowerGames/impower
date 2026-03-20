@@ -34,11 +34,7 @@ export const stickyScrollTheme = EditorView.theme({
     backgroundColor: "inherit",
     width: "100%",
   },
-  ".cm-sticky-header-row .cm-gutters": {
-    paddingTop: "4px",
-  },
   ".cm-sticky-header-row .cm-sticky-header-text.cm-line": {
-    paddingTop: "4px",
     paddingLeft: 0,
     whiteSpace: "pre",
     flex: 1,

@@ -204,6 +204,12 @@ const EDITOR_THEME: {
       verticalAlign: "baseline",
     },
   },
+  ".cm-sticky-header-row .cm-gutters": {
+    paddingTop: "2px",
+  },
+  ".cm-sticky-header-row .cm-sticky-header-text.cm-line": {
+    paddingTop: "2px",
+  },
   "& .cm-panels": {
     backgroundColor: EDITOR_COLORS.panel,
   },
