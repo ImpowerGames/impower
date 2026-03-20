@@ -4,7 +4,7 @@ export {
   type LSPClientConfig,
   type LSPClientExtension,
 } from "./client";
-export { serverColorDecorations } from "./colors";
+export { serverColorDecorations } from "./color";
 export { serverCompletions, serverCompletionSource } from "./completion";
 export {
   jumpToDeclaration,
@@ -58,7 +58,7 @@ export { Workspace, type WorkspaceFile } from "./workspace";
 
 import { Extension } from "@codemirror/state";
 import { LSPClientExtension } from "./client";
-import { serverColorDecorations } from "./colors";
+import { serverColorDecorations } from "./color";
 import { serverCompletions } from "./completion";
 import { serverDefinitions } from "./definition";
 import { serverDiagnostics } from "./diagnostics";
