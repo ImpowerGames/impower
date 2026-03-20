@@ -24,15 +24,19 @@ const EDITOR_THEME: {
     display: "inline-block",
     textIndent: "0",
   },
-  ".cm-editor": {
+  "&.cm-editor": {
     color: EDITOR_COLORS.foreground,
+    backgroundColor: "inherit",
     flex: 1,
     minHeight: "100%",
-  },
-  "& .cm-scroller": {
+    lineHeight: "1.4",
     fontFamily: "Courier Prime Sans",
     fontSize: "1rem",
+  },
+  "& .cm-scroller": {
     padding: "6px 2px 0 0",
+    fontFamily: "Courier Prime Sans",
+    fontSize: "1rem",
   },
   "kbd, code, pre": {
     fontFamily: "Courier Prime Sans",

@@ -77,6 +77,7 @@ export {
   showSignatureHelp,
   signatureKeymap,
 } from "./signature";
+export { serverDocumentSymbols } from "./symbols";
 export { serverAutoSync } from "./sync";
 export { BrowserTransport, WorkerTransport, type Transport } from "./transport";
 export { getDocumentVersion, versionConfig, versioning } from "./version";
@@ -97,6 +98,7 @@ import { serverReferences } from "./references";
 import { serverRenaming } from "./rename";
 import { serverSemanticHighlighting } from "./semantics";
 import { serverSignatureHelp } from "./signature";
+import { serverDocumentSymbols } from "./symbols";
 import { serverAutoSync } from "./sync";
 
 /// This function bundles all the extensions defined in this package,
@@ -112,6 +114,7 @@ export function languageServerExtensions(): readonly (
     serverFolding(),
     serverColorDecorations(),
     serverDocumentLinks(),
+    serverDocumentSymbols(),
     serverSemanticHighlighting(),
     serverHovers(),
     serverRenaming(),

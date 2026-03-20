@@ -26,7 +26,7 @@ export const indentedLineWrappingConfig = Facet.define<
 >({
   combine(configs) {
     return combineConfig(configs, {
-      padding: `4px`,
+      padding: `0px`,
     });
   },
 });
@@ -68,7 +68,7 @@ class IndentedLineWrappingPluginValue implements PluginValue {
       }
 
       const indentWidth = `${indentSize}ch`;
-      const textIndent = `calc(-${indentWidth} - 1px)`;
+      const textIndent = `-${indentWidth}`;
       const paddingLeft = `calc(${config.padding} + ${indentWidth})`;
 
       const decoration = Decoration.line({

@@ -14,6 +14,8 @@ import {
   serverCompletions,
   serverDefinitions,
   serverDiagnostics,
+  serverDocumentLinks,
+  serverDocumentSymbols,
   serverFolding,
   serverFormatting,
   serverHovers,
@@ -24,7 +26,6 @@ import {
   WorkerTransport,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
-import { serverDocumentLinks } from "@impower/codemirror-vscode-lsp-client/src/link";
 import {
   type InitializeParams,
   type InitializeResult,
@@ -62,6 +63,7 @@ export const sparkdownLanguageExtension = (config: {
       serverCompletions(),
       serverFolding(),
       serverColorDecorations(),
+      serverDocumentSymbols(),
       serverSemanticHighlighting(),
       serverHovers(),
       serverRenaming(),
