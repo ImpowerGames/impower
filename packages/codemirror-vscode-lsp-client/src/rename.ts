@@ -17,6 +17,7 @@ export const renameTheme = EditorView.baseTheme({
     alignItems: "stretch",
     gap: "4px",
     padding: "8px",
+    borderRadius: "inherit",
   },
   ".cm-lsp-rename-input": {
     fontSize: "16px",
