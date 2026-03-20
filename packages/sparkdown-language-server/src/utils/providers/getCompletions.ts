@@ -414,7 +414,6 @@ const addScriptCompletions = (
           const extIndex = relativePath.lastIndexOf(".");
           const name =
             extIndex < 0 ? relativePath : relativePath.slice(0, extIndex);
-          const structs = program?.context?.["screen"];
           const completion: CompletionItem = {
             label: name,
             insertText: insertTextPrefix + name + insertTextSuffix,
