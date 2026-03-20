@@ -1,6 +1,7 @@
 import path from "path";
 import * as vscode from "vscode";
 import { getEditor } from "./getEditor";
+import { getOpenTextDocument } from "./getOpenTextDocument";
 
 export const getWorkspaceScriptFile = async (fileUri: vscode.Uri) => {
   const uri = fileUri.toString();
@@ -8,9 +9,8 @@ export const getWorkspaceScriptFile = async (fileUri: vscode.Uri) => {
   const ext = path.extname(uri).slice(1);
   const buffer = await vscode.workspace.fs.readFile(fileUri);
   const text = Buffer.from(buffer).toString("utf8");
-  const doc =
-    getEditor(uri)?.document ?? (await vscode.workspace.openTextDocument(uri));
-  const version = doc.version ?? null;
-  const languageId = doc.languageId ?? null;
+  const doc = getEditor(uri)?.document ?? (await getOpenTextDocument(fileUri));
+  const version = doc?.version ?? null;
+  const languageId = doc?.languageId ?? null;
   return { type: "script", uri, name, ext, text, version, languageId };
 };

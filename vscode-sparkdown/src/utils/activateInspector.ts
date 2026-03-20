@@ -180,7 +180,9 @@ function initializeWebviewPanel(
       if (message.method === "update") {
         const { textDocument, path, value } = message.params;
         const document = await getOpenTextDocument(textDocument.uri);
-        await editDocument(document, path, value);
+        if (document) {
+          await editDocument(document, path, value);
+        }
       }
     },
     undefined,

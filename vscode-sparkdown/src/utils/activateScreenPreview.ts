@@ -40,8 +40,10 @@ export function activateScreenPreview(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "sparkdown.previewScreen",
       async (uri: vscode.Uri, ranges: vscode.Range[]) => {
-        const textDocument = await vscode.workspace.openTextDocument(uri);
-        revealOrCreateWebviewPanel(context, textDocument, ranges);
+        const textDocument = await getOpenTextDocument(uri);
+        if (textDocument) {
+          revealOrCreateWebviewPanel(context, textDocument, ranges);
+        }
       },
     ),
   );
@@ -284,8 +286,10 @@ export class SparkdownScreenPreviewSerializer
       if (textDocument) {
         const textDocumentUri = vscode.Uri.parse(textDocument.uri);
         const document = await getOpenTextDocument(textDocumentUri);
-        if (!SparkdownDocumentManager.instance.get(document.uri)) {
-          SparkdownDocumentManager.instance.add(document);
+        if (document) {
+          if (!SparkdownDocumentManager.instance.get(document.uri)) {
+            SparkdownDocumentManager.instance.add(document);
+          }
         }
         if (document && ranges) {
           initializeWebviewPanel(
@@ -372,7 +376,9 @@ function initializeWebviewPanel(
       if (message.method === "update") {
         const { textDocument, path, value } = message.params;
         const document = await getOpenTextDocument(textDocument.uri);
-        await editDocument(document, path, value);
+        if (document) {
+          await editDocument(document, path, value);
+        }
       }
     },
     undefined,

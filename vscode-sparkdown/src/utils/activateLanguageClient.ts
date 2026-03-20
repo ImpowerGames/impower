@@ -41,25 +41,19 @@ const getFileSrc = (uri: string) => {
 };
 
 const getFileVersion = async (uri: string) => {
-  let version = null;
-  try {
-    const doc =
-      getEditor(uri)?.document ??
-      (await vscode.workspace.openTextDocument(uri));
-    version = doc.version;
-  } catch {}
-  return version;
+  const doc = getEditor(uri)?.document ?? (await getOpenTextDocument(uri));
+  if (doc) {
+    return doc.version;
+  }
+  return null;
 };
 
 const getFileLanguageId = async (uri: string) => {
-  let languageId = null;
-  try {
-    const doc =
-      getEditor(uri)?.document ??
-      (await vscode.workspace.openTextDocument(uri));
-    languageId = doc.version;
-  } catch {}
-  return languageId;
+  const doc = getEditor(uri)?.document ?? (await getOpenTextDocument(uri));
+  if (doc) {
+    return doc.version;
+  }
+  return null;
 };
 
 export const activateLanguageClient = async (
