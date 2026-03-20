@@ -44,6 +44,12 @@ const EDITOR_THEME: {
   "& .cm-panel": {
     backgroundColor: "inherit",
   },
+  "& .cm-lsp-rename-tooltip": {
+    backgroundColor: EDITOR_COLORS.panel,
+  },
+  "& .cm-lsp-rename-input": {
+    backgroundColor: EDITOR_COLORS.inputBackground,
+  },
   "& .cm-lsp-reference-panel:focus": {
     outline: "none",
   },
@@ -107,6 +113,7 @@ const EDITOR_THEME: {
     borderWidth: "1px",
     borderStyle: "solid",
     borderColor: EDITOR_COLORS.border,
+    backgroundColor: EDITOR_COLORS.inputBackground,
     "&:focus-visible": {
       outline: "none",
       borderColor: EDITOR_COLORS.selectedForeground,

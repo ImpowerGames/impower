@@ -16,6 +16,7 @@ const EDITOR_COLORS = {
   panelBorder: "hsl(210.6, 70%, 15%)",
   border: "hsl(210.6, 30%, 20%)",
   borderHover: "hsl(210.6, 30%, 30%)",
+  inputBackground: "hsl(210.6, 100%, 7%)",
   buttonHover: "rgba(43, 17, 17, 0.05)",
   buttonActive: "rgba(255, 255, 255, 0.11)",
   match: "#18A3FF",

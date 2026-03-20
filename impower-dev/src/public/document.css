@@ -95,3 +95,7 @@ main {
 .picker * {
   pointer-events: auto;
 }
+
+.cm-context-menu {
+  background-color: var(--theme-color-panel);
+}

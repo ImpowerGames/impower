@@ -281,7 +281,7 @@ const statusPanelTheme = EditorView.baseTheme({
         content: "''",
         position: "absolute",
         inset: "0",
-        backgroundColor: "rgb(255 255 255 / 5%)",
+        backgroundColor: "rgba(255, 255, 255, 0.5)",
       },
     },
     "& .cm-statusIcon": {

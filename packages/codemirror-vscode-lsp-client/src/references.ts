@@ -49,7 +49,7 @@ export const referencesTheme = EditorView.baseTheme({
       content: "''",
       position: "absolute",
       inset: "0",
-      backgroundColor: "rgb(255 255 255 / 10%)",
+      backgroundColor: "rgba(255, 255, 255, 0.1)",
     },
   },
   ".cm-lsp-reference": {
@@ -66,7 +66,7 @@ export const referencesTheme = EditorView.baseTheme({
       content: "''",
       position: "absolute",
       inset: "0",
-      backgroundColor: "rgb(255 255 255 / 10%)",
+      backgroundColor: "rgba(255, 255, 255, 0.1)",
     },
     "&[aria-selected]": {
       backgroundColor: "#04395e",

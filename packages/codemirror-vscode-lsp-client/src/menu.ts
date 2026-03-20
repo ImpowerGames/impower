@@ -22,15 +22,21 @@ const contextMenuStyles = new StyleModule({
     userSelect: "none",
   },
   ".cm-context-menu .cm-menu-item": {
+    position: "relative",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     padding: "7px 26px",
     cursor: "default",
-  },
-  ".cm-context-menu .cm-menu-item:hover": {
-    backgroundColor: "#363636",
-    color: "#ffffff",
+    "&:hover": {
+      color: "#ffffff",
+    },
+    "&:hover::after": {
+      content: "''",
+      position: "absolute",
+      inset: "0",
+      backgroundColor: "rgba(255, 255, 255, 0.1)",
+    },
   },
   ".cm-context-menu .cm-menu-item-shortcut": {
     color: "#858585",
@@ -41,7 +47,7 @@ const contextMenuStyles = new StyleModule({
   },
   ".cm-context-menu .cm-menu-separator": {
     border: "none",
-    borderTop: "1px #5E5E5E solid",
+    borderTop: "1px rgba(255, 255, 255, 0.2) solid",
     height: "1px",
     margin: "8px 0",
   },

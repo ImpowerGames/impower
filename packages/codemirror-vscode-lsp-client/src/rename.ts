@@ -12,17 +12,11 @@ import { LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
 
 export const renameTheme = EditorView.baseTheme({
-  ".cm-tooltip.cm-lsp-rename-tooltip": {
-    fontSize: "16px",
+  ".cm-lsp-rename-tooltip": {
     display: "flex",
     alignItems: "stretch",
     gap: "4px",
-    backgroundColor: "#1F1F1F",
-    border: "none",
-    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.6)",
     padding: "8px",
-    borderRadius: "8px",
-    zIndex: "100",
   },
   ".cm-lsp-rename-input": {
     fontSize: "16px",
@@ -84,14 +78,16 @@ function createRenameTooltip(pos: number, word: string): Tooltip {
     pos,
     arrow: false,
     create(view) {
-      let dom = document.createElement("div");
-      dom.className = "cm-lsp-rename-tooltip";
+      const dom = document.createElement("div");
 
-      let input = document.createElement("input");
+      const tooltip = dom.appendChild(document.createElement("div"));
+      tooltip.className = "cm-lsp-rename-tooltip";
+
+      const input = tooltip.appendChild(document.createElement("input"));
       input.value = word;
       input.className = "cm-lsp-rename-input";
 
-      const button = document.createElement("button");
+      const button = tooltip.appendChild(document.createElement("button"));
       button.className = "cm-lsp-rename-submit";
       button.textContent = view.state.phrase("Rename");
 
@@ -136,9 +132,6 @@ function createRenameTooltip(pos: number, word: string): Tooltip {
           close();
         }
       };
-
-      dom.appendChild(input);
-      dom.appendChild(button);
 
       setTimeout(() => {
         input.focus();
