@@ -394,6 +394,42 @@ const addScreenElementReferenceCompletions = (
   }
 };
 
+const addScriptCompletions = (
+  completions: Map<string, CompletionItem>,
+  program: SparkProgram | undefined,
+  exclude?: string[],
+  insertTextPrefix = "",
+  insertTextSuffix = "",
+) => {
+  if (program?.files) {
+    for (const file of Object.values(program.files)) {
+      if (file.type === "script") {
+        const uri = file.uri;
+        if (!exclude || !exclude.includes(uri)) {
+          const workspace = program.workspace;
+          const relativePath =
+            workspace && uri.startsWith(workspace)
+              ? uri.slice(workspace.length + 1)
+              : uri;
+          const extIndex = relativePath.lastIndexOf(".");
+          const name =
+            extIndex < 0 ? relativePath : relativePath.slice(0, extIndex);
+          const structs = program?.context?.["screen"];
+          const completion: CompletionItem = {
+            label: name,
+            insertText: insertTextPrefix + name + insertTextSuffix,
+            labelDetails: { description: "script" },
+            kind: CompletionItemKind.File,
+          };
+          if (completion.label && !completions.has(completion.label)) {
+            completions.set(completion.label, completion);
+          }
+        }
+      }
+    }
+  }
+};
+
 const getTypeDescription = (v: unknown): string | undefined => {
   if (
     v &&
@@ -1144,6 +1180,25 @@ export const getCompletions = (
       position,
       exclude,
     );
+    return buildCompletions();
+  }
+
+  // Include
+  if (
+    (isWhitespaceNode(leftStack[0]?.name) &&
+      prevNode?.name === "IncludeKeyword") ||
+    (isWhitespaceNode(leftStack[0]?.name) &&
+      leftStack.some((n) => n?.name === "Include_begin")) ||
+    leftStack.some((n) => n?.name === "IncludeContent")
+  ) {
+    const includeContentNode = getDescendentInsideParent(
+      "IncludeContent",
+      "Include",
+      leftStack,
+    );
+    if (isCursorAfterNodeText(includeContentNode)) {
+      addScriptCompletions(completions, program, [document.uri]);
+    }
     return buildCompletions();
   }
 

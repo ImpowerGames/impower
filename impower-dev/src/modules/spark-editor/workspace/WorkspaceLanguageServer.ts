@@ -283,6 +283,7 @@ export default class WorkspaceLanguageServer {
           descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
         },
         uri,
+        workspace: projectPath,
       },
       workspaceFolders: [
         {

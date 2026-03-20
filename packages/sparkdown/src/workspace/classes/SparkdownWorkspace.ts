@@ -163,7 +163,14 @@ export abstract class SparkdownWorkspace {
   }
 
   async initialize(params: {
+    rootUri: string | null;
     capabilities: ClientCapabilities;
+    workspaceFolders?:
+      | {
+          uri: string;
+          name: string;
+        }[]
+      | null;
     initializationOptions?: {
       settings: {
         scriptFiles?: string;
@@ -233,8 +240,13 @@ export abstract class SparkdownWorkspace {
             }),
           )
         : undefined;
+      const workspace =
+        compilerConfig.workspace ??
+        params.workspaceFolders?.[0]?.uri ??
+        params.rootUri;
       await this.loadCompiler({
         ...compilerConfig,
+        workspace,
         files,
       });
       const program = uri ? await this.compile(uri, true) : undefined;

@@ -374,9 +374,15 @@ const kindToType: { [kind: number]: string } = {
   12: "value", // Value
   13: "enum", // Enum
   14: "keyword", // Keyword
+  15: "snippet", // Snippet
   16: "color", // Color
+  17: "file", // File
+  18: "reference", // Reference
+  19: "folder", // Folder
   20: "enumMember", // EnumMember
   21: "constant", // Constant
   22: "struct", // Struct
+  23: "event", // Event
+  24: "operator", // Operator
   25: "typeParameter", // TypeParameter
 };

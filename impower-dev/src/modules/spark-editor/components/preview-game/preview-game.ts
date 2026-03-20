@@ -98,7 +98,10 @@ export default class GamePreview extends Component(spec) {
     }
     const files = await Workspace.fs.getFiles(projectId);
     const uri = Workspace.window.getOpenedDocumentUri();
+    const projectPath = await Workspace.fs.getDirectoryUri(projectId);
     await this._iframeChannelConnection.sendRequest(InitializeMessage.type, {
+      rootUri: projectPath,
+      processId: 0,
       initializationOptions: {
         settings: Workspace.configuration.settings,
         files: Object.values(files),
@@ -110,11 +113,11 @@ export default class GamePreview extends Component(spec) {
         },
         skipValidation: true,
         uri,
+        workspace: projectPath,
         ...this.getGameConfiguration(),
       },
       capabilities: {},
-      rootUri: null,
-      processId: 0,
+      workspaceFolders: [{ uri: projectPath, name: "Project" }],
     });
     this._initialized = true;
     this._resolveInitializing();
