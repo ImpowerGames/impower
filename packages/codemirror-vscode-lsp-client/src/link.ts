@@ -25,7 +25,6 @@ const documentLinkTheme = EditorView.baseTheme({
     color: "#4daafc",
   },
   ".cm-lsp-link-tooltip": {
-    fontFamily: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`,
     display: "flex",
     flexDirection: "row",
     gap: "4px",

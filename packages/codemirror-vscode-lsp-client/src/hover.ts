@@ -10,13 +10,7 @@ import { LSPPlugin } from "./plugin";
 import { convertFromPosition } from "./pos";
 import { escHTML } from "./text";
 
-const hoverTheme = EditorView.baseTheme({
-  "& .cm-tooltip": {
-    fontFamily: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`,
-    fontSize: "0.96em",
-    border: `solid 1px #FFFFFF21`,
-  },
-});
+const hoverTheme = EditorView.baseTheme({});
 
 export interface ServerHoversConfig {
   hoverTime?: number;

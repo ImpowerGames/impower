@@ -17,7 +17,6 @@ export const renameTheme = EditorView.baseTheme({
     alignItems: "stretch",
     gap: "4px",
     padding: "8px",
-    borderRadius: "inherit",
   },
   ".cm-lsp-rename-input": {
     fontSize: "16px",
@@ -80,15 +79,13 @@ function createRenameTooltip(pos: number, word: string): Tooltip {
     arrow: false,
     create(view) {
       const dom = document.createElement("div");
+      dom.className = "cm-lsp-rename-tooltip";
 
-      const tooltip = dom.appendChild(document.createElement("div"));
-      tooltip.className = "cm-lsp-rename-tooltip";
-
-      const input = tooltip.appendChild(document.createElement("input"));
+      const input = dom.appendChild(document.createElement("input"));
       input.value = word;
       input.className = "cm-lsp-rename-input";
 
-      const button = tooltip.appendChild(document.createElement("button"));
+      const button = dom.appendChild(document.createElement("button"));
       button.className = "cm-lsp-rename-submit";
       button.textContent = view.state.phrase("Rename");
 
