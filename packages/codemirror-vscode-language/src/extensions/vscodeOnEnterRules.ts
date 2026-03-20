@@ -39,10 +39,20 @@ export function onEnterRulesFilter(tr: Transaction): TransactionSpec {
     return tr;
   }
 
-  // 2. Detect if this transaction is inserting a new line.
-  // This catches standard Enter keys, IME line breaks, and pasted newlines.
+  // 2. Ensure this is a typed input (like hitting Enter).
+  // We explicitly reject pastes, drops, and non-inputs (like undo/redo).
+  if (
+    !tr.isUserEvent("input") ||
+    tr.isUserEvent("input.paste") ||
+    tr.isUserEvent("input.drop")
+  ) {
+    return tr;
+  }
+
+  // 3. Detect if this transaction is inserting a new line.
   let isInsertingNewline = false;
   tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+    // A standard Enter key press inserts a line break, meaning inserted.lines > 1
     if (inserted.lines > 1) {
       isInsertingNewline = true;
     }
@@ -51,11 +61,11 @@ export function onEnterRulesFilter(tr: Transaction): TransactionSpec {
     return tr;
   }
 
-  // 3. Get the configured onEnterRules
+  // 4. Get the configured onEnterRules
   const config = tr.state.facet(vscodeOnEnterRulesConfig);
   const onEnterRules = config.onEnterRules;
 
-  // 4. Evaluate the rules against the state BEFORE the transaction occurred
+  // 5. Evaluate the rules against the state BEFORE the transaction occurred
   const state = tr.startState;
   const doc = state.doc;
   let triggeredRule = undefined;
@@ -174,7 +184,7 @@ export function onEnterRulesFilter(tr: Transaction): TransactionSpec {
     };
   }
 
-  // 5. If no rules matched, return the original transaction unmodified.
+  // 6. If no rules matched, return the original transaction unmodified.
   return tr;
 }
 
