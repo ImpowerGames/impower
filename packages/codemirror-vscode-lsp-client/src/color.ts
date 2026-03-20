@@ -293,7 +293,7 @@ const updateColorDecorationEffect = StateEffect.define<DocumentColor[]>({
     })),
 });
 
-export function convertFromColorInformations(
+export function convertFromServerColors(
   plugin: LSPPlugin,
   infos: lsp.ColorInformation[],
 ): DocumentColor[] {
@@ -371,7 +371,7 @@ export async function updateDocumentColors(client: LSPClient, uri: string) {
     textDocument: { uri },
   });
   view.dispatch(
-    setDocumentColors(view.state, convertFromColorInformations(plugin, result)),
+    setDocumentColors(view.state, convertFromServerColors(plugin, result)),
   );
 }
 

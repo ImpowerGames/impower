@@ -34,7 +34,7 @@ export function convertToChangeEvents(
 
 const NEWLINE_REGEX = /\r\n|\r\n/g;
 
-export const convertFromChangeEvents = (
+export const convertFromServerChangeEvents = (
   state: EditorState,
   contentChanges: {
     range?: lsp.Range;

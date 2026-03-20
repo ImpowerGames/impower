@@ -54,7 +54,7 @@ export interface DocumentSemanticToken {
   modifiers: string[];
 }
 
-function convertFromSemanticTokensToDecorations(
+export function convertFromServerSemanticTokens(
   plugin: LSPPlugin,
   tokens: SemanticTokens,
 ): DocumentSemanticToken[] {
@@ -195,7 +195,7 @@ export async function updateDocumentSemanticHighlighting(
   view.dispatch(
     setDocumentSemanticHighlighting(
       view.state,
-      convertFromSemanticTokensToDecorations(plugin, result),
+      convertFromServerSemanticTokens(plugin, result),
     ),
   );
 }

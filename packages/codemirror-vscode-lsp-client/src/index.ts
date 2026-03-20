@@ -5,6 +5,7 @@ export {
   type LSPClientExtension,
 } from "./client";
 export {
+  convertFromServerColors,
   serverColorDecorations,
   setDocumentColors,
   updateDocumentColors,
@@ -19,8 +20,13 @@ export {
   jumpToTypeDefinition,
   serverDefinitions,
 } from "./definition";
-export { serverDiagnostics, updateDocumentDiagnostics } from "./diagnostics";
 export {
+  convertFromServerDiagnostics,
+  serverDiagnostics,
+  updateDocumentDiagnostics,
+} from "./diagnostics";
+export {
+  convertFromServerFoldingRanges,
   foldingChanged,
   foldingMarkerDOM,
   foldingPlaceholderDOM,
@@ -32,6 +38,7 @@ export {
 export { formatDocument, formatKeymap, serverFormatting } from "./formatting";
 export { serverHovers } from "./hover";
 export {
+  convertFromServerDocumentLinks,
   serverDocumentLinks,
   setDocumentLinks,
   updateDocumentLinks,
@@ -40,8 +47,8 @@ export {
 export { contextMenu } from "./menu";
 export { LSPPlugin } from "./plugin";
 export {
-  convertFromChangeEvents,
   convertFromPosition,
+  convertFromServerChangeEvents,
   convertToChangeEvents,
   convertToPosition,
 } from "./pos";
@@ -56,6 +63,7 @@ export {
 } from "./references";
 export { renameKeymap, renameSymbol, serverRenaming } from "./rename";
 export {
+  convertFromServerSemanticTokens,
   serverSemanticHighlighting,
   setDocumentSemanticHighlighting,
   updateDocumentSemanticHighlighting,

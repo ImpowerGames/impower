@@ -2,8 +2,8 @@ import { syntaxParserRunning } from "@codemirror/language";
 import { EditorSelection, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
-  convertFromChangeEvents,
   convertFromPosition,
+  convertFromServerChangeEvents,
   convertToPosition,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
@@ -258,7 +258,10 @@ export default class SparkScreenplayPreview extends Component(spec) {
       const view = this._view;
       if (view) {
         this._scrollTarget = undefined;
-        const changes = convertFromChangeEvents(view.state, contentChanges);
+        const changes = convertFromServerChangeEvents(
+          view.state,
+          contentChanges,
+        );
         for (const change of changes) {
           // Instead of simply passing in the changes array, each change must be applied individually.
           // This is because getClientChanges returns positions relative to the previous change, not the start document,

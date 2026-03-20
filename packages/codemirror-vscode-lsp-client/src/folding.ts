@@ -161,7 +161,7 @@ const foldingRangesService = foldService.of((state, from, to) => {
   return null;
 });
 
-export function convertFromFoldingRanges(
+export function convertFromServerFoldingRanges(
   plugin: LSPPlugin,
   ranges: lsp.FoldingRange[],
 ): DocumentFoldingRange[] {
@@ -218,7 +218,7 @@ export async function updateDocumentFoldingRanges(
   >("textDocument/foldingRange", {
     textDocument: { uri },
   });
-  const foldables = convertFromFoldingRanges(plugin, result);
+  const foldables = convertFromServerFoldingRanges(plugin, result);
   view.dispatch(setDocumentFoldingRanges(view.state, foldables));
 }
 

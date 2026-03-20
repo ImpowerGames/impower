@@ -188,7 +188,7 @@ export function setDocumentLinks(
   return { effects };
 }
 
-function convertFromDocumentLinks(
+export function convertFromServerDocumentLinks(
   plugin: LSPPlugin,
   links: lsp.DocumentLink[],
 ) {
@@ -261,7 +261,10 @@ export async function updateDocumentLinks(client: LSPClient, uri: string) {
     textDocument: { uri: plugin.uri },
   });
   view.dispatch(
-    setDocumentLinks(view.state, convertFromDocumentLinks(plugin, result)),
+    setDocumentLinks(
+      view.state,
+      convertFromServerDocumentLinks(plugin, result),
+    ),
   );
 }
 
