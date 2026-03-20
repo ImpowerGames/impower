@@ -155,8 +155,9 @@ export class SparkdownCodemirrorWorkspace extends Workspace {
   override async displayFile(
     params: {
       uri: string;
-      selection: lsp.Range;
-      takeFocus: boolean;
+      selection?: lsp.Range;
+      takeFocus?: boolean;
+      external?: boolean;
     },
     userEvent: string,
   ): Promise<void> {

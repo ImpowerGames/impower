@@ -177,7 +177,13 @@ const contextMenuPlugin = ViewPlugin.fromClass(
 export function getShortcutLabel(key: string) {
   return key
     .split("-")
-    .map((k) => (k.length === 1 ? k.toUpperCase() : k))
+    .map((k) => {
+      const key = k.length === 1 ? k.toUpperCase() : k;
+      if (key === "Mod") {
+        return /Mac/.test(navigator.platform) ? "Cmd" : "Ctrl";
+      }
+      return key;
+    })
     .join("+");
 }
 

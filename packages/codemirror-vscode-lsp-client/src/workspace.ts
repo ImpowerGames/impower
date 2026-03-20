@@ -167,8 +167,9 @@ export abstract class Workspace {
   async displayFile(
     params: {
       uri: string;
-      selection: lsp.Range;
-      takeFocus: boolean;
+      selection?: lsp.Range;
+      takeFocus?: boolean;
+      external?: boolean;
     },
     userEvent: string,
   ): Promise<void> {
@@ -177,25 +178,30 @@ export abstract class Workspace {
     if (!view) {
       throw new Error(`File is not open: ${file.uri}`);
     }
-    let plugin = LSPPlugin.get(view);
-    plugin.client.withMapping(async (mapping) => {
-      const from = mapping.getMapping(params.uri)
-        ? mapping.mapPosition(params.uri, params.selection.start)
-        : plugin.fromPosition(params.selection.start, view.state.doc);
-      const to = mapping.getMapping(params.uri)
-        ? mapping.mapPosition(params.uri, params.selection.end)
-        : plugin.fromPosition(params.selection.end, view.state.doc);
-      if (params.takeFocus) {
-        view.focus();
-      }
-      view.dispatch({
-        selection: { anchor: from, head: to },
-        effects: EditorView.scrollIntoView(EditorSelection.range(from, to), {
-          y: "center",
-        }),
-        userEvent,
+    if (params.takeFocus) {
+      view.focus();
+    }
+    if (params.selection) {
+      let plugin = LSPPlugin.get(view);
+      plugin.client.withMapping(async (mapping) => {
+        const from = mapping.getMapping(params.uri)
+          ? mapping.mapPosition(params.uri, params.selection.start)
+          : plugin.fromPosition(params.selection.start, view.state.doc);
+        const to = mapping.getMapping(params.uri)
+          ? mapping.mapPosition(params.uri, params.selection.end)
+          : plugin.fromPosition(params.selection.end, view.state.doc);
+        if (params.takeFocus) {
+          view.focus();
+        }
+        view.dispatch({
+          selection: { anchor: from, head: to },
+          effects: EditorView.scrollIntoView(EditorSelection.range(from, to), {
+            y: "center",
+          }),
+          userEvent,
+        });
       });
-    });
+    }
   }
 
   async changeWatchedFiles(

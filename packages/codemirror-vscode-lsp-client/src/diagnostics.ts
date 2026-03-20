@@ -76,15 +76,7 @@ export function convertFromServerDiagnostics(
       }),
     )
     .filter(({ from, to }) => from != null && to != null && from <= to)
-    .sort((a, b) => {
-      switch (true) {
-        case a.from < b.from:
-          return -1;
-        case a.from > b.from:
-          return 1;
-      }
-      return 0;
-    });
+    .sort((a, b) => a.from - b.from);
   return result;
 }
 
@@ -102,43 +94,43 @@ export function renderDiagnosticMessage(
   return elt;
 }
 
-export function serverDiagnostics(): LSPClientExtension {
-  const updateDocumentDiagnostics = (client: LSPClient, uri: string) => {
-    client
-      .request<
-        lsp.DocumentDiagnosticParams,
-        lsp.DocumentDiagnosticReport,
-        typeof lsp.DocumentDiagnosticRequest.method
-      >("textDocument/diagnostic", {
-        textDocument: { uri },
-      })
-      .then((result) => {
-        if (result.kind === "full") {
-          let file = client.workspace.getFile(uri);
-          if (
-            !file ||
-            (result.resultId != null && result.resultId != `${file.version}`)
-          ) {
-            return;
-          }
-          const view = file.getView();
-          if (!view) {
-            return;
-          }
-          const plugin = LSPPlugin.get(view);
-          if (!plugin) {
-            return;
-          }
-          view.dispatch(
-            setDiagnostics(
-              view.state,
-              convertFromServerDiagnostics(plugin, result.items),
-            ),
-          );
-        }
-      });
-  };
+export async function updateDocumentDiagnostics(
+  client: LSPClient,
+  uri: string,
+) {
+  const result = await client.request<
+    lsp.DocumentDiagnosticParams,
+    lsp.DocumentDiagnosticReport,
+    typeof lsp.DocumentDiagnosticRequest.method
+  >("textDocument/diagnostic", {
+    textDocument: { uri },
+  });
+  if (result.kind === "full") {
+    let file = client.workspace.getFile(uri);
+    if (
+      !file ||
+      (result.resultId != null && result.resultId != `${file.version}`)
+    ) {
+      return;
+    }
+    const view = file.getView();
+    if (!view) {
+      return;
+    }
+    const plugin = LSPPlugin.get(view);
+    if (!plugin) {
+      return;
+    }
+    view.dispatch(
+      setDiagnostics(
+        view.state,
+        convertFromServerDiagnostics(plugin, result.items),
+      ),
+    );
+  }
+}
 
+export function serverDiagnostics(): LSPClientExtension {
   return {
     clientCapabilities: {
       textDocument: {

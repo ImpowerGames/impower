@@ -44,7 +44,7 @@ export const colorPickerWidgetTheme = EditorView.baseTheme({
   },
 });
 
-export interface ColorPickerInfo {
+export interface DocumentColor {
   from: number;
   to: number;
   color: lsp.Color;
@@ -153,9 +153,9 @@ export function getBestPresentationMatch(
 }
 
 export default class ColorPickerWidget extends WidgetType {
-  private readonly info: ColorPickerInfo;
+  private readonly info: DocumentColor;
 
-  constructor(info: ColorPickerInfo) {
+  constructor(info: DocumentColor) {
     super();
     this.info = info;
   }
@@ -284,7 +284,7 @@ export default class ColorPickerWidget extends WidgetType {
   }
 }
 
-const updateColorDecorationEffect = StateEffect.define<ColorPickerInfo[]>({
+const updateColorDecorationEffect = StateEffect.define<DocumentColor[]>({
   map: (value, change) =>
     value.map((v) => ({
       color: v.color,
@@ -296,8 +296,8 @@ const updateColorDecorationEffect = StateEffect.define<ColorPickerInfo[]>({
 export function convertFromColorInformations(
   plugin: LSPPlugin,
   infos: lsp.ColorInformation[],
-): ColorPickerInfo[] {
-  const result: ColorPickerInfo[] = infos.map((c): ColorPickerInfo => {
+): DocumentColor[] {
+  const result: DocumentColor[] = infos.map((c): DocumentColor => {
     return {
       color: c.color,
       from: plugin.unsyncedChanges.mapPos(
@@ -310,25 +310,17 @@ export function convertFromColorInformations(
   });
   return result
     .filter(({ from, to }) => from != null && to != null && from <= to)
-    .sort((a, b) => {
-      switch (true) {
-        case a.from < b.from:
-          return -1;
-        case a.from > b.from:
-          return 1;
-      }
-      return 0;
-    });
+    .sort((a, b) => a.from - b.from);
 }
 
-const setColorDecorations = (
+export function setDocumentColors(
   state: EditorState,
-  colors: ColorPickerInfo[],
-): TransactionSpec => {
+  colors: DocumentColor[],
+): TransactionSpec {
   const effects: StateEffect<unknown>[] = [];
   effects.push(updateColorDecorationEffect.of(colors));
   return { effects };
-};
+}
 
 const colorPickerPlugin = ViewPlugin.fromClass(
   class {
@@ -364,38 +356,26 @@ const colorPickerPlugin = ViewPlugin.fromClass(
   },
 );
 
-export function serverColorDecorations(): LSPClientExtension {
-  const updateDocumentColors = (client: LSPClient, uri: string) => {
-    let file = client.workspace.getFile(uri);
-    if (!file) {
-      return;
-    }
-    const view = file.getView();
-    if (!view) {
-      return;
-    }
-    const plugin = LSPPlugin.get(view);
-    if (!plugin) {
-      return;
-    }
-    plugin.client
-      .request<
-        lsp.DocumentColorParams,
-        lsp.ColorInformation[],
-        typeof lsp.DocumentColorRequest.method
-      >("textDocument/documentColor", {
-        textDocument: { uri },
-      })
-      .then((result) => {
-        view.dispatch(
-          setColorDecorations(
-            view.state,
-            convertFromColorInformations(plugin, result),
-          ),
-        );
-      });
-  };
+export async function updateDocumentColors(client: LSPClient, uri: string) {
+  let file = client.workspace.getFile(uri);
+  if (!file) return;
+  const view = file.getView();
+  if (!view) return;
+  const plugin = LSPPlugin.get(view);
+  if (!plugin) return;
+  const result = await plugin.client.request<
+    lsp.DocumentColorParams,
+    lsp.ColorInformation[],
+    typeof lsp.DocumentColorRequest.method
+  >("textDocument/documentColor", {
+    textDocument: { uri },
+  });
+  view.dispatch(
+    setDocumentColors(view.state, convertFromColorInformations(plugin, result)),
+  );
+}
 
+export function serverColorDecorations(): LSPClientExtension {
   return {
     clientCapabilities: {
       textDocument: {
@@ -406,6 +386,12 @@ export function serverColorDecorations(): LSPClientExtension {
       "textDocument/didOpen": (
         client,
         params: lsp.DidOpenTextDocumentParams,
+      ) => {
+        updateDocumentColors(client, params.textDocument.uri);
+      },
+      "textDocument/didChange": (
+        client,
+        params: lsp.DidChangeTextDocumentParams,
       ) => {
         updateDocumentColors(client, params.textDocument.uri);
       },

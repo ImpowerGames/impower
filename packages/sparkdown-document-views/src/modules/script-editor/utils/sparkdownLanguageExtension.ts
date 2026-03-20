@@ -24,6 +24,7 @@ import {
   WorkerTransport,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
+import { serverDocumentLinks } from "@impower/codemirror-vscode-lsp-client/src/link";
 import {
   type InitializeParams,
   type InitializeResult,
@@ -69,6 +70,7 @@ export const sparkdownLanguageExtension = (config: {
       serverDefinitions(),
       serverSignatureHelp(),
       serverDiagnostics(),
+      serverDocumentLinks(),
       serverAutoSync({ delay: 0 }),
       contextMenu(),
     ],

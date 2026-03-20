@@ -1,5 +1,7 @@
 import {
+  combineConfig,
   EditorState,
+  Facet,
   StateEffect,
   StateField,
   TransactionSpec,
@@ -45,15 +47,21 @@ const semanticField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
+export interface DocumentSemanticToken {
+  from: number;
+  to: number;
+  type: string;
+  modifiers: string[];
+}
+
 function convertFromSemanticTokensToDecorations(
   plugin: LSPPlugin,
   tokens: SemanticTokens,
-  classNameForToken: (type: string, modifiers: string[]) => string,
-): DecorationSet {
+): DocumentSemanticToken[] {
   const { data } = tokens;
 
   if (!data || data.length === 0) {
-    return Decoration.none;
+    return [];
   }
 
   const legend =
@@ -61,10 +69,10 @@ function convertFromSemanticTokensToDecorations(
 
   const { tokenTypes, tokenModifiers } = legend;
 
-  const builder: RangeBuilder = new RangeBuilder();
-
   let line = 0;
   let char = 0;
+
+  const result: DocumentSemanticToken[] = [];
 
   for (let i = 0; i < data.length; i += 5) {
     const deltaLine = data[i]!;
@@ -77,10 +85,10 @@ function convertFromSemanticTokensToDecorations(
     char = deltaLine === 0 ? char + deltaStart : deltaStart;
 
     const type = tokenTypes[tokenTypeIndex] ?? "unknown";
-    const mods: string[] = [];
+    const modifiers: string[] = [];
     for (let bit = 0; bit < 31 && bit < tokenModifiers.length; bit++) {
       if (tokenModsBits & (1 << bit)) {
-        mods.push(tokenModifiers[bit]!);
+        modifiers.push(tokenModifiers[bit]!);
       }
     }
 
@@ -101,11 +109,10 @@ function convertFromSemanticTokensToDecorations(
     );
     if (from == null || to == null || to <= from) continue;
 
-    const cls = classNameForToken(type, mods);
-    builder.add(from, to, Decoration.mark({ class: cls }));
+    result.push({ from, to, type, modifiers });
   }
 
-  return builder.finish();
+  return result;
 }
 
 /** Simple range builder that collects decorations efficiently */
@@ -122,19 +129,30 @@ class RangeBuilder {
   }
 }
 
-function defaultClassName(type: string, mods: string[]) {
+function defaultClassNameForToken(type: string, mods: string[]) {
   const safe = (s: string) => s.replace(/[^\w-]/g, "-");
   const parts = ["lsp-semantic-token", `lsp-type-${safe(type)}`];
   for (const m of mods) parts.push(`lsp-modifier-${safe(m)}`);
   return parts.join(" ");
 }
 
-export function setSemanticDecorations(
+export function setDocumentSemanticHighlighting(
   state: EditorState,
-  decos: DecorationSet,
+  tokens: DocumentSemanticToken[],
 ): TransactionSpec {
   const effects: StateEffect<unknown>[] = [];
-  effects.push(setSemanticDecorationsEffect.of(decos));
+  if (tokens.length > 0) {
+    const config = state.facet(serverSemanticHighlightingConfig);
+    const builder: RangeBuilder = new RangeBuilder();
+    for (const token of tokens) {
+      const cls = config.classNameForToken(token.type, token.modifiers);
+      builder.add(token.from, token.to, Decoration.mark({ class: cls }));
+    }
+    const decorations = builder.finish();
+    effects.push(setSemanticDecorationsEffect.of(decorations));
+  } else {
+    effects.push(setSemanticDecorationsEffect.of(Decoration.none));
+  }
   return { effects };
 }
 
@@ -146,46 +164,45 @@ export interface ServerSemanticHighlightingConfig {
   classNameForToken?: (type: string, modifiers: string[]) => string;
 }
 
+export const serverSemanticHighlightingConfig = Facet.define<
+  ServerSemanticHighlightingConfig,
+  Required<ServerSemanticHighlightingConfig>
+>({
+  combine(configs) {
+    const combined = combineConfig(configs, {});
+    combined.classNameForToken ??= defaultClassNameForToken;
+    return combined;
+  },
+});
+
+export async function updateDocumentSemanticHighlighting(
+  client: LSPClient,
+  uri: string,
+) {
+  let file = client.workspace.getFile(uri);
+  if (!file) return;
+  const view = file.getView();
+  if (!view) return;
+  const plugin = LSPPlugin.get(view);
+  if (!plugin) return;
+  const result = await plugin.client.request<
+    lsp.SemanticTokensParams,
+    lsp.SemanticTokens | null,
+    typeof lsp.SemanticTokensRequest.method
+  >("textDocument/semanticTokens/full", {
+    textDocument: { uri },
+  });
+  view.dispatch(
+    setDocumentSemanticHighlighting(
+      view.state,
+      convertFromSemanticTokensToDecorations(plugin, result),
+    ),
+  );
+}
+
 export function serverSemanticHighlighting(
   config: ServerSemanticHighlightingConfig = {},
 ): LSPClientExtension {
-  const { classNameForToken = defaultClassName } = config;
-
-  const updateDocumentSemantics = (client: LSPClient, uri: string) => {
-    let file = client.workspace.getFile(uri);
-    if (!file) {
-      return;
-    }
-    const view = file.getView();
-    if (!view) {
-      return;
-    }
-    const plugin = LSPPlugin.get(view);
-    if (!plugin) {
-      return;
-    }
-    plugin.client
-      .request<
-        lsp.SemanticTokensParams,
-        lsp.SemanticTokens | null,
-        typeof lsp.SemanticTokensRequest.method
-      >("textDocument/semanticTokens/full", {
-        textDocument: { uri },
-      })
-      .then((result) => {
-        view.dispatch(
-          setSemanticDecorations(
-            view.state,
-            convertFromSemanticTokensToDecorations(
-              plugin,
-              result,
-              classNameForToken,
-            ),
-          ),
-        );
-      });
-  };
-
   return {
     clientCapabilities: {
       textDocument: {
@@ -237,7 +254,7 @@ export function serverSemanticHighlighting(
     requestHandlers: {
       "workspace/semanticTokens/refresh": (client): null => {
         for (const file of client.workspace.files) {
-          updateDocumentSemantics(client, file.uri);
+          updateDocumentSemanticHighlighting(client, file.uri);
         }
         return null;
       },
@@ -247,9 +264,24 @@ export function serverSemanticHighlighting(
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        updateDocumentSemantics(client, params.textDocument.uri);
+        updateDocumentSemanticHighlighting(client, params.textDocument.uri);
+      },
+      "textDocument/didChange": (
+        client,
+        params: lsp.DidChangeTextDocumentParams,
+      ) => {
+        updateDocumentSemanticHighlighting(client, params.textDocument.uri);
+      },
+      "textDocument/publishDiagnostics": (
+        client,
+        params: lsp.PublishDiagnosticsParams,
+      ) => {
+        updateDocumentSemanticHighlighting(client, params.uri);
       },
     },
-    editorExtension: [semanticField],
+    editorExtension: [
+      semanticField,
+      serverSemanticHighlightingConfig.of(config),
+    ],
   };
 }

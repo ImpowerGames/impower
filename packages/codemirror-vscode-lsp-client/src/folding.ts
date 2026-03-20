@@ -55,14 +55,14 @@ const foldingTheme = EditorView.baseTheme({
   },
 });
 
-export interface Foldable {
+export interface DocumentFoldingRange {
   kind?: string;
   from: number;
   to: number;
   collapsedText?: string;
 }
 
-const setFoldingRanges = StateEffect.define<Foldable[]>();
+const setFoldingRanges = StateEffect.define<DocumentFoldingRange[]>();
 
 export function foldingPlaceholderDOM(
   view: EditorView,
@@ -117,16 +117,16 @@ export function foldingChanged(update: ViewUpdate): boolean {
   );
 }
 
-export function setFoldables(
+export function setDocumentFoldingRanges(
   state: EditorState,
-  foldables: Foldable[],
+  foldables: DocumentFoldingRange[],
 ): TransactionSpec {
   const effects: StateEffect<unknown>[] = [];
   effects.push(setFoldingRanges.of(foldables));
   return { effects };
 }
 
-const foldingRangeField = StateField.define<Foldable[]>({
+const foldingRangeField = StateField.define<DocumentFoldingRange[]>({
   create() {
     return [];
   },
@@ -164,66 +164,65 @@ const foldingRangesService = foldService.of((state, from, to) => {
 export function convertFromFoldingRanges(
   plugin: LSPPlugin,
   ranges: lsp.FoldingRange[],
-): Foldable[] {
-  const result: Foldable[] = ranges.map((r): Foldable => {
-    // 1. Get the raw document positions from LSP line/char
-    const rawFrom = plugin.fromPosition(
-      { line: r.startLine, character: r.startCharacter ?? 0 },
-      plugin.syncedDoc,
-    );
-    const rawTo = plugin.fromPosition(
-      { line: r.endLine, character: r.endCharacter ?? 0 },
-      plugin.syncedDoc,
-    );
+): DocumentFoldingRange[] {
+  const result: DocumentFoldingRange[] = ranges.map(
+    (r): DocumentFoldingRange => {
+      // 1. Get the raw document positions from LSP line/char
+      const rawFrom = plugin.fromPosition(
+        { line: r.startLine, character: r.startCharacter ?? 0 },
+        plugin.syncedDoc,
+      );
+      const rawTo = plugin.fromPosition(
+        { line: r.endLine, character: r.endCharacter ?? 0 },
+        plugin.syncedDoc,
+      );
 
-    // 2. Adjust for CodeMirror's folding expectations:
-    // CodeMirror folding ranges should start at the END of the first line
-    // so that the first line remains visible while the rest is collapsed.
-    const startLine = plugin.syncedDoc.lineAt(rawFrom);
-    const endLine = plugin.syncedDoc.lineAt(rawTo);
+      // 2. Adjust for CodeMirror's folding expectations:
+      // CodeMirror folding ranges should start at the END of the first line
+      // so that the first line remains visible while the rest is collapsed.
+      const startLine = plugin.syncedDoc.lineAt(rawFrom);
+      const endLine = plugin.syncedDoc.lineAt(rawTo);
 
-    // Use the end of the start line as the 'from' and end of the final line as 'to'
-    const adjustedFrom = plugin.unsyncedChanges.mapPos(startLine.to);
-    const adjustedTo = plugin.unsyncedChanges.mapPos(endLine.to);
+      // Use the end of the start line as the 'from' and end of the final line as 'to'
+      const adjustedFrom = plugin.unsyncedChanges.mapPos(startLine.to);
+      const adjustedTo = plugin.unsyncedChanges.mapPos(endLine.to);
 
-    return {
-      kind: r.kind,
-      from: adjustedFrom,
-      to: adjustedTo,
-      collapsedText: r.collapsedText,
-    };
-  });
+      return {
+        kind: r.kind,
+        from: adjustedFrom,
+        to: adjustedTo,
+        collapsedText: r.collapsedText,
+      };
+    },
+  );
 
   return result
     .filter(({ from, to }) => from != null && to != null && from < to)
     .sort((a, b) => a.from - b.from);
 }
 
+export async function updateDocumentFoldingRanges(
+  client: LSPClient,
+  uri: string,
+) {
+  let file = client.workspace.getFile(uri);
+  if (!file) return;
+  const view = file.getView();
+  if (!view) return;
+  const plugin = LSPPlugin.get(view);
+  if (!plugin) return;
+  const result = await plugin.client.request<
+    lsp.FoldingRangeParams,
+    lsp.FoldingRange[] | null,
+    typeof lsp.FoldingRangeRequest.method
+  >("textDocument/foldingRange", {
+    textDocument: { uri },
+  });
+  const foldables = convertFromFoldingRanges(plugin, result);
+  view.dispatch(setDocumentFoldingRanges(view.state, foldables));
+}
+
 export function serverFolding(): LSPClientExtension {
-  const updateDocumentFolding = (client: LSPClient, uri: string) => {
-    let file = client.workspace.getFile(uri);
-    if (!file) return;
-    const view = file.getView();
-    if (!view) return;
-    const plugin = LSPPlugin.get(view);
-    if (!plugin) return;
-
-    plugin.client
-      .request<
-        lsp.FoldingRangeParams,
-        lsp.FoldingRange[] | null,
-        typeof lsp.FoldingRangeRequest.method
-      >("textDocument/foldingRange", {
-        textDocument: { uri },
-      })
-      .then((result) => {
-        if (result) {
-          const foldables = convertFromFoldingRanges(plugin, result);
-          view.dispatch(setFoldables(view.state, foldables));
-        }
-      });
-  };
-
   return {
     clientCapabilities: {
       textDocument: {
@@ -237,7 +236,7 @@ export function serverFolding(): LSPClientExtension {
     requestHandlers: {
       "workspace/foldingRange/refresh": (client): null => {
         for (const file of client.workspace.files) {
-          updateDocumentFolding(client, file.uri);
+          updateDocumentFoldingRanges(client, file.uri);
         }
         return null;
       },
@@ -247,13 +246,19 @@ export function serverFolding(): LSPClientExtension {
         client,
         params: lsp.DidOpenTextDocumentParams,
       ) => {
-        updateDocumentFolding(client, params.textDocument.uri);
+        updateDocumentFoldingRanges(client, params.textDocument.uri);
       },
       "textDocument/didChange": (
         client,
         params: lsp.DidChangeTextDocumentParams,
       ) => {
-        updateDocumentFolding(client, params.textDocument.uri);
+        updateDocumentFoldingRanges(client, params.textDocument.uri);
+      },
+      "textDocument/publishDiagnostics": (
+        client,
+        params: lsp.PublishDiagnosticsParams,
+      ) => {
+        updateDocumentFoldingRanges(client, params.uri);
       },
     },
     editorExtension: [

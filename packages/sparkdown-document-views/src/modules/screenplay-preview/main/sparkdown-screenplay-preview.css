@@ -25,7 +25,8 @@
 }
 
 :host > .root #loading {
-  z-index: 99999;
+  z-index: 1;
+  pointer-events: none;
   display: flex;
   position: relative;
   min-width: 80px;
@@ -34,6 +35,10 @@
   content-visibility: auto;
   contain: strict;
   transition: opacity 0.25s;
+}
+
+:host > .root #loading * {
+  pointer-events: none;
 }
 
 :host > .root #loading .progress,

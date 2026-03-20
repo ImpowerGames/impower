@@ -4,7 +4,12 @@ export {
   type LSPClientConfig,
   type LSPClientExtension,
 } from "./client";
-export { serverColorDecorations } from "./color";
+export {
+  serverColorDecorations,
+  setDocumentColors,
+  updateDocumentColors,
+  type DocumentColor,
+} from "./color";
 export { serverCompletions, serverCompletionSource } from "./completion";
 export {
   jumpToDeclaration,
@@ -14,17 +19,24 @@ export {
   jumpToTypeDefinition,
   serverDefinitions,
 } from "./definition";
-export { serverDiagnostics } from "./diagnostics";
+export { serverDiagnostics, updateDocumentDiagnostics } from "./diagnostics";
 export {
   foldingChanged,
   foldingMarkerDOM,
   foldingPlaceholderDOM,
   serverFolding,
-  setFoldables,
-  type Foldable,
+  setDocumentFoldingRanges,
+  updateDocumentFoldingRanges,
+  type DocumentFoldingRange,
 } from "./folding";
 export { formatDocument, formatKeymap, serverFormatting } from "./formatting";
 export { serverHovers } from "./hover";
+export {
+  serverDocumentLinks,
+  setDocumentLinks,
+  updateDocumentLinks,
+  type DocumentLink,
+} from "./link";
 export { contextMenu } from "./menu";
 export { LSPPlugin } from "./plugin";
 export {
@@ -43,7 +55,13 @@ export {
   type ReferenceLocation,
 } from "./references";
 export { renameKeymap, renameSymbol, serverRenaming } from "./rename";
-export { serverSemanticHighlighting } from "./semantics";
+export {
+  serverSemanticHighlighting,
+  setDocumentSemanticHighlighting,
+  updateDocumentSemanticHighlighting,
+  type DocumentSemanticToken,
+  type ServerSemanticHighlightingConfig,
+} from "./semantics";
 export {
   nextSignature,
   prevSignature,
@@ -65,6 +83,7 @@ import { serverDiagnostics } from "./diagnostics";
 import { serverFolding } from "./folding";
 import { serverFormatting } from "./formatting";
 import { serverHovers } from "./hover";
+import { serverDocumentLinks } from "./link";
 import { contextMenu } from "./menu";
 import { serverReferences } from "./references";
 import { serverRenaming } from "./rename";
@@ -84,6 +103,7 @@ export function languageServerExtensions(): readonly (
     serverCompletions(),
     serverFolding(),
     serverColorDecorations(),
+    serverDocumentLinks(),
     serverSemanticHighlighting(),
     serverHovers(),
     serverRenaming(),
