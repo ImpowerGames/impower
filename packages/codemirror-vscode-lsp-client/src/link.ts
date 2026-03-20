@@ -192,12 +192,8 @@ export function convertFromServerDocumentLinks(
   links: lsp.DocumentLink[],
 ) {
   return links.map((l) => ({
-    from: plugin.unsyncedChanges.mapPos(
-      plugin.fromPosition(l.range.start, plugin.syncedDoc),
-    ),
-    to: plugin.unsyncedChanges.mapPos(
-      plugin.fromPosition(l.range.end, plugin.syncedDoc),
-    ),
+    from: plugin.fromPosition(l.range.start, plugin.syncedDoc),
+    to: plugin.fromPosition(l.range.end, plugin.syncedDoc),
     target: l.target,
     tooltip: l.tooltip,
     data: l.data,

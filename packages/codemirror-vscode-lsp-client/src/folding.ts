@@ -184,8 +184,8 @@ export function convertFromServerFoldingRanges(
       const endLine = plugin.syncedDoc.lineAt(rawTo);
 
       // Use the end of the start line as the 'from' and end of the final line as 'to'
-      const adjustedFrom = plugin.unsyncedChanges.mapPos(startLine.to);
-      const adjustedTo = plugin.unsyncedChanges.mapPos(endLine.to);
+      const adjustedFrom = startLine.to;
+      const adjustedTo = endLine.to;
 
       return {
         kind: r.kind,

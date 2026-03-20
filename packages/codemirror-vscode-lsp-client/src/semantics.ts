@@ -101,12 +101,8 @@ export function convertFromServerSemanticTokens(
       character: char + length,
     };
 
-    const from = plugin.unsyncedChanges.mapPos(
-      plugin.fromPosition(start, plugin.syncedDoc),
-    );
-    const to = plugin.unsyncedChanges.mapPos(
-      plugin.fromPosition(end, plugin.syncedDoc),
-    );
+    const from = plugin.fromPosition(start, plugin.syncedDoc);
+    const to = plugin.fromPosition(end, plugin.syncedDoc);
     if (from == null || to == null || to <= from) continue;
 
     result.push({ from, to, type, modifiers });

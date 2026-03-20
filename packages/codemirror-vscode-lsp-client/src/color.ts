@@ -300,12 +300,8 @@ export function convertFromServerColors(
   const result: DocumentColor[] = infos.map((c): DocumentColor => {
     return {
       color: c.color,
-      from: plugin.unsyncedChanges.mapPos(
-        plugin.fromPosition(c.range.start, plugin.syncedDoc),
-      ),
-      to: plugin.unsyncedChanges.mapPos(
-        plugin.fromPosition(c.range.end, plugin.syncedDoc),
-      ),
+      from: plugin.fromPosition(c.range.start, plugin.syncedDoc),
+      to: plugin.fromPosition(c.range.end, plugin.syncedDoc),
     };
   });
   return result
