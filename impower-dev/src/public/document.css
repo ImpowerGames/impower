@@ -173,13 +173,13 @@ body.keyboard-open footer {
 .platform-ios footer {
   top: 0;
   bottom: auto;
-  /* On iOS, position relative to the visual viewport bottom */
+  /* On iOS, shift down relative to the visual viewport height */
   transform: translateY(calc(var(--vv-offset-top) + var(--vv-height) - 100%));
 }
 .platform-android footer {
   bottom: 0;
   top: auto;
-  /* On Android, simply shift up by the keyboard height */
+  /* On Android, shift up by the keyboard height */
   transform: translateY(calc(-1 * var(--cm-bottom-offset)));
 }
 
