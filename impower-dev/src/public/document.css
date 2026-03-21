@@ -65,8 +65,10 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   /* Updated by JS */
-  --keyboard-height: 0px;
-  --viewport-offset-top: 0px;
+  --cm-top-offset: 0px;
+  --cm-bottom-offset: 0px;
+  --vv-offset-top: 0px;
+  --vv-height: 100vh;
 }
 
 html {
@@ -129,13 +131,16 @@ header {
   will-change: transform, top;
   transition: transform 0.05s linear;
 
+  /* Position according to visual viewport */
+  padding-top: var(--safe-top);
+  transform: translate3d(0, var(--vv-offset-top), 0);
+
   /* Visual Polish */
   background-color: blueviolet;
   text-align: center;
-  padding-top: env(safe-area-inset-top);
 }
 body.keyboard-open header {
-  background-color: goldenrod;
+  background-color: lightseagreen;
 }
 
 footer {
@@ -154,13 +159,28 @@ footer {
   will-change: transform, top;
   transition: transform 0.05s linear;
 
+  /* Position according to visual viewport */
+  padding-bottom: var(--safe-bottom);
+
   /* Visual Polish */
   background-color: blueviolet;
   text-align: center;
-  padding-bottom: env(safe-area-inset-bottom);
 }
 body.keyboard-open footer {
-  background-color: goldenrod;
+  background-color: lightseagreen;
+}
+/* Responsive Footer Transform Logic */
+.platform-ios footer {
+  top: 0;
+  bottom: auto;
+  /* On iOS, position relative to the visual viewport bottom */
+  transform: translateY(calc(var(--vv-offset-top) + var(--vv-height) - 100%));
+}
+.platform-android footer {
+  bottom: 0;
+  top: auto;
+  /* On Android, simply shift up by the keyboard height */
+  transform: translateY(calc(-1 * var(--cm-bottom-offset)));
 }
 
 input,

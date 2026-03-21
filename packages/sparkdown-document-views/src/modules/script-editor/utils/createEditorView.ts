@@ -466,8 +466,21 @@ const createEditorView = (
             "& .cm-panels.cm-panels-top": {
               top: `var(--cm-top-offset) !important`,
             },
-            "& .cm-panels.cm-panels-bottom": {
-              bottom: `var(--cm-bottom-offset) !important`,
+            // Replaces global CSS for panels
+            ".cm-panels-bottom": {
+              willChange: "transform",
+            },
+            // Platform specific logic inside the theme using the body classes
+            ".platform-android & .cm-panels-bottom": {
+              bottom: "0 !important",
+              top: "auto !important",
+              transform: "translateY(calc(-1 * var(--cm-bottom-offset)))",
+            },
+            ".platform-ios & .cm-panels-bottom": {
+              top: "0 !important",
+              bottom: "auto !important",
+              transform:
+                "translateY(calc(var(--vv-offset-top) + var(--vv-height) - var(--cm-bottom-offset)))",
             },
           },
           { dark: true },
@@ -488,10 +501,6 @@ const createEditorView = (
   const header = document.querySelector("header");
   const footer = document.querySelector("footer");
 
-  const footerHeight = 80;
-  const extraYMarginOffset = 0;
-  const extraBottomOffset = 20;
-
   const syncLayout = () => {
     if (!isMobile()) {
       return;
@@ -507,23 +516,14 @@ const createEditorView = (
     }
 
     const keyboardHeight = window.innerHeight - vv.height;
-    const bottomOffset = keyboardHeight + footerHeight;
 
-    // Update the CSS variable used by .cm-panels-bottom
-    document.documentElement.style.setProperty(
-      "--cm-bottom-offset",
-      `${bottomOffset}px`,
-    );
+    // Update CSS variables for padding-bottom
+    const documentEl = document.documentElement;
+    documentEl.style.setProperty("--cm-bottom-offset", `${keyboardHeight}px`);
+    documentEl.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
+    documentEl.style.setProperty("--vv-height", `${vv.height}px`);
 
-    // 1. Dynamically reconfigure scroll margins via Compartment
-    view.dispatch({
-      effects: marginConf.reconfigure(
-        EditorView.scrollMargins.of(() => ({
-          ...scrollMargin,
-          bottom: bottomOffset + extraBottomOffset,
-        })),
-      ),
-    });
+    document.body.classList.add(isIOS() ? "platform-ios" : "platform-android");
 
     if (header) {
       header.style.display = "block";
@@ -532,40 +532,21 @@ const createEditorView = (
       footer.style.display = "block";
     }
 
-    // Update CSS variables for padding-bottom
-    document.documentElement.style.setProperty(
-      "--keyboard-height",
-      `${keyboardHeight}px`,
-    );
-    document.documentElement.style.setProperty(
-      "--viewport-offset-top",
-      `${vv.offsetTop}px`,
-    );
-
-    // Position Header: Locked to the top of the visual viewport
-    if (header) {
-      header.style.transform = `translate3d(0, ${vv.offsetTop}px, 0)`;
-    }
-
-    if (footer) {
-      if (isIOS()) {
-        const visibleBottomY = vv.offsetTop + vv.height;
-        footer.style.top = "0px";
-        footer.style.bottom = "auto";
-        footer.style.transform = `translate3d(0, ${visibleBottomY - footer.offsetHeight}px, 0)`;
-      } else {
-        footer.style.bottom = "0px";
-        footer.style.top = "auto";
-        footer.style.transform = `translate3d(0, ${-keyboardHeight}px, 0)`;
-      }
-    }
+    // 1. Dynamically reconfigure scroll margins via Compartment
+    view.dispatch({
+      effects: marginConf.reconfigure(
+        EditorView.scrollMargins.of(() => ({
+          ...scrollMargin,
+          bottom: keyboardHeight,
+        })),
+      ),
+    });
 
     // Ensure cursor is visible
     if (view.hasFocus && keyboardHeight > 0) {
       view.dispatch({
         effects: EditorView.scrollIntoView(view.state.selection.main, {
           y: "center",
-          yMargin: bottomOffset + extraYMarginOffset,
         }),
       });
     }
