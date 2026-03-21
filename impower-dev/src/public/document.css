@@ -76,6 +76,7 @@ html {
 /* When the keyboard is active, we may need to prevent body scrolling 
    to stop iOS from "rubber-banding" the bottom-fixed toolbar away. */
 body {
+  overscroll-behavior: none;
   height: 100%;
   padding: 0;
   margin: 0;
@@ -99,6 +100,7 @@ main {
   margin: 0;
   display: flex;
   flex-direction: column;
+  overscroll-behavior: contain;
 }
 
 .picker * {
@@ -131,4 +133,9 @@ main {
 
 body.keyboard-open #fixed-bottom-toolbar {
   background-color: lightseagreen;
+}
+
+input,
+textarea {
+  overscroll-behavior: contain;
 }

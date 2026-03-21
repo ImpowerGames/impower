@@ -37,6 +37,7 @@ const EDITOR_THEME: {
     padding: "6px 2px 0 0",
     fontFamily: "Courier Prime Sans",
     fontSize: "1rem",
+    overscrollBehavior: "contain",
   },
   "kbd, code, pre": {
     fontFamily: "Courier Prime Sans",
