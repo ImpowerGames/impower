@@ -494,6 +494,8 @@ const createEditorView = (
       window.scrollTo(0, 0);
     }
 
+    view.contentDOM.style.paddingBottom = `calc(${footerHeight}px + var(--keyboard-height) + var(--safe-bottom))`;
+
     if (header) {
       header.style.display = "block";
     }
@@ -547,8 +549,6 @@ const createEditorView = (
         });
       });
     }
-
-    view.contentDOM.style.paddingBottom = `calc(${footerHeight}px + var(--keyboard-height) + var(--safe-bottom))`;
 
     lastKeyboardHeight = keyboardHeight;
   };
