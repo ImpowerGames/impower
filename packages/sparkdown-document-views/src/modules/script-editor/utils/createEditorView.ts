@@ -24,6 +24,10 @@ import {
   LSPClient,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
+import {
+  isIOS,
+  isMobile,
+} from "@impower/codemirror-vscode-lsp-client/src/context";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
   InitializeParams,
@@ -453,11 +457,6 @@ const createEditorView = (
             // This prevents the browser from jumping the page to the input
             // and allows our Visual Viewport code to handle the positioning.
             document.body.classList.add("keyboard-open");
-            // Force a scroll reset immediately on focus
-            setTimeout(() => {
-              window.scrollTo(0, 0);
-              document.body.scrollTop = 0;
-            }, 10);
           },
           blur: (event, view) => {
             document.body.classList.remove("keyboard-open");
@@ -475,9 +474,89 @@ const createEditorView = (
       // }
     }
   };
+
+  const header = document.querySelector("header");
+  const footer = document.querySelector("footer");
+
+  const syncLayout = () => {
+    if (!isMobile()) {
+      return;
+    }
+
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const keyboardHeight = window.innerHeight - vv.height;
+
+    // Update CSS variables for padding-bottom
+    document.documentElement.style.setProperty(
+      "--keyboard-height",
+      `${keyboardHeight}px`,
+    );
+    document.documentElement.style.setProperty(
+      "--viewport-offset-top",
+      `${vv.offsetTop}px`,
+    );
+
+    // LOCKDOWN: Prevent background "nudging" by forcing the body scroll to zero.
+    // This ensures the layout viewport stays aligned with the physical screen.
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+      window.scrollTo(0, 0);
+    }
+
+    // Position Header & Footer
+    if (header) {
+      header.style.transform = `translate3d(0, ${vv.offsetTop}px, 0)`;
+    }
+    if (footer) {
+      if (isIOS()) {
+        const visibleBottomY = vv.offsetTop + vv.height;
+        footer.style.top = "0px";
+        footer.style.bottom = "auto";
+        footer.style.transform = `translate3d(0, ${visibleBottomY - footer.offsetHeight}px, 0)`;
+      } else {
+        footer.style.bottom = "0px";
+        footer.style.transform = `translate3d(0, ${-keyboardHeight}px, 0)`;
+      }
+    }
+    if (header) {
+      header.style.display = "block";
+    }
+    if (footer) {
+      footer.style.display = "block";
+    }
+
+    view.contentDOM.style.paddingBottom =
+      "calc(80px + var(--keyboard-height) + var(--safe-bottom))";
+
+    // 3. CodeMirror Specific: Ensure selection is in view
+    // We use the built-in scrollIntoView effect which is much more precise than manual scrollTop math
+    if (view.hasFocus && keyboardHeight > 0) {
+      requestAnimationFrame(() => {
+        // This forces CodeMirror to scroll the cursor into the currently visible part of its scroller
+        view.dispatch({
+          effects: EditorView.scrollIntoView(view.state.selection.main, {
+            y: "center",
+            yMargin: 40, // Extra buffer to stay above our toolbar
+          }),
+        });
+      });
+    }
+  };
+
+  syncLayout();
+
+  // Listen for selection changes inside CodeMirror
+  view.dom.addEventListener("click", () => setTimeout(syncLayout, 100));
+  view.dom.addEventListener("focusin", () => setTimeout(syncLayout, 100));
+
+  window.visualViewport?.addEventListener("resize", syncLayout);
+  window.visualViewport?.addEventListener("scroll", syncLayout);
   window.addEventListener(MessageProtocol.event, handleProtocol);
   const disposable = {
     dispose: () => {
+      window.visualViewport?.removeEventListener("resize", syncLayout);
+      window.visualViewport?.removeEventListener("scroll", syncLayout);
       window.removeEventListener(MessageProtocol.event, handleProtocol);
     },
   };

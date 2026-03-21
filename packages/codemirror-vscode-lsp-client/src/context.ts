@@ -58,3 +58,7 @@ export function isMobile() {
     navigator.maxTouchPoints > 0
   );
 }
+
+export function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+}

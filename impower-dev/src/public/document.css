@@ -64,54 +64,75 @@
 }
 
 html {
-  overscroll-behavior: none;
-  padding: 0;
-  margin: 0;
   width: 100%;
   height: 100%;
-  position: fixed;
-  overflow: hidden;
-}
 
-/* When the keyboard is active, we may need to prevent body scrolling 
-   to stop iOS from "rubber-banding" the bottom-fixed toolbar away. */
-body {
+  overflow: hidden;
   overscroll-behavior: none;
-  height: 100%;
+
   padding: 0;
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  font-size: 0.875rem;
-  font-family: var(--theme-font-sans);
-  min-height: 100dvh;
 }
 
-body.keyboard-open {
-  overflow: hidden;
+body {
   height: 100%;
+  min-height: 100dvh;
+
+  overflow: hidden;
+  overscroll-behavior: none;
+
+  display: flex;
+  flex-direction: column;
+
+  padding: 0;
+  margin: 0;
+
+  font-size: 0.875rem;
+  font-family: var(--theme-font-sans);
+}
+body.keyboard-open {
   position: fixed;
   width: 100%;
 }
 
 main {
   height: 100%;
-  padding: 0;
-  margin: 0;
   display: flex;
   flex-direction: column;
   overscroll-behavior: contain;
+
+  padding: 0;
+  margin: 0;
 }
 
-.picker * {
-  pointer-events: auto;
+header {
+  display: none;
+
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+
+  width: 100%;
+
+  z-index: 9999;
+
+  /* CRITICAL: Prevents iOS from applying its own weird offsets */
+  will-change: transform, top;
+  transition: transform 0.05s linear;
+
+  /* Visual Polish */
+  background-color: blueviolet;
+  text-align: center;
+  padding-top: env(safe-area-inset-top);
+}
+body.keyboard-open header {
+  background-color: lightseagreen;
 }
 
-.cm-context-menu {
-  background-color: var(--theme-color-panel);
-}
+footer {
+  display: none;
 
-#fixed-bottom-toolbar {
   position: fixed;
   left: 0;
   right: 0;
@@ -130,12 +151,19 @@ main {
   text-align: center;
   padding-bottom: env(safe-area-inset-bottom);
 }
-
-body.keyboard-open #fixed-bottom-toolbar {
+body.keyboard-open footer {
   background-color: lightseagreen;
 }
 
 input,
 textarea {
   overscroll-behavior: contain;
+}
+
+.picker * {
+  pointer-events: auto;
+}
+
+.cm-context-menu {
+  background-color: var(--theme-color-panel);
 }
