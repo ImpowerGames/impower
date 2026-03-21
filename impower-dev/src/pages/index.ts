@@ -76,68 +76,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
 export class KeyboardAvoider {
   private element: HTMLElement;
-  private offsetBuffer: number;
+  private isIOS: boolean;
 
-  /**
-   * @param element The HTML element you want to fix above the keyboard.
-   * @param offsetBuffer Optional extra padding (in px) above the keyboard.
-   */
-  constructor(element: HTMLElement, offsetBuffer: number = 0) {
+  constructor(element: HTMLElement) {
     this.element = element;
-    this.offsetBuffer = offsetBuffer;
-
+    // Simple iOS detection
+    this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     this.init();
   }
 
   private init(): void {
-    if (!window.visualViewport) {
-      console.warn("Visual Viewport API is not supported in this browser.");
-      return;
-    }
+    if (!window.visualViewport) return;
 
-    // Bind the event listener to preserve the 'this' context
-    window.visualViewport.addEventListener("resize", this.handleViewportChange);
-    window.visualViewport.addEventListener("scroll", this.handleViewportChange);
+    window.visualViewport.addEventListener("resize", this.updatePosition);
+    window.visualViewport.addEventListener("scroll", this.updatePosition);
 
-    // Run once on initialization to set the initial state
-    this.handleViewportChange();
+    this.updatePosition();
   }
 
-  private handleViewportChange = (): void => {
+  private updatePosition = (): void => {
     const viewport = window.visualViewport;
     if (!viewport) return;
 
-    // 1. Calculate the keyboard height
-    const offsetBottom = window.innerHeight - viewport.height;
+    if (this.isIOS) {
+      /**
+       * iOS FIX:
+       * Instead of using 'bottom', we calculate the absolute 'top' position.
+       * (Viewport Offset Top + Viewport Height) = The very bottom edge of the visible screen.
+       * We subtract the element's height to pin it to that bottom edge.
+       */
+      const elementHeight = this.element.offsetHeight;
+      const visibleBottom = viewport.offsetTop + viewport.height;
 
-    // 2. Handle the "Offset Top" (The iOS Scroll Issue)
-    // On iOS, the viewport.offsetTop is non-zero if the page has shifted.
-    // We subtract it to keep the div pinned to the actual bottom of the screen.
-    const finalOffset = Math.max(0, offsetBottom - viewport.offsetTop);
-
-    this.element.style.bottom = `${finalOffset}px`;
-
-    // 3. Force the layout back to (0,0)
-    // This prevents the "obscuring" effect where the body is scrolled up.
-    if (viewport.offsetTop !== 0) {
-      window.scrollTo(0, 0);
-      document.body.scrollTop = 0;
+      // We use transform for maximum performance and to avoid layout thrashing
+      this.element.style.top = "0px";
+      this.element.style.bottom = "auto";
+      this.element.style.transform = `translateY(${visibleBottom - elementHeight}px)`;
+    } else {
+      // Android usually handles 'bottom' resizing correctly
+      const offsetBottom =
+        window.innerHeight - viewport.height - viewport.offsetTop;
+      this.element.style.bottom = `${Math.max(0, offsetBottom)}px`;
     }
   };
-
-  /**
-   * Call this method when the element is removed from the DOM to prevent memory leaks.
-   */
-  public destroy(): void {
-    if (window.visualViewport) {
-      window.visualViewport.removeEventListener(
-        "resize",
-        this.handleViewportChange,
-      );
-      window.visualViewport.removeEventListener(
-        "scroll",
-        this.handleViewportChange,
-      );
-    }
-  }
 }

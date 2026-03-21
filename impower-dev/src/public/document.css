@@ -114,17 +114,19 @@ main {
   left: 0;
   right: 0;
   bottom: 0;
+
   width: 100%;
+
   z-index: 9999;
 
   /* CRITICAL: Prevents iOS from applying its own weird offsets */
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
+  will-change: transform, top;
+  transition: transform 0.05s linear;
 
   /* Visual Polish */
   background-color: blueviolet;
   text-align: center;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 body.keyboard-open #bottom-toolbar {
