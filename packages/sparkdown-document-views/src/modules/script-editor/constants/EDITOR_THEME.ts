@@ -72,6 +72,11 @@ const EDITOR_THEME: {
     right: "auto",
     bottom: "auto",
   },
+  "& button": {
+    position: "relative",
+    cursor: "pointer",
+    backgroundColor: "transparent",
+  },
 
   ".cm-textfield:active": {
     borderColor: EDITOR_COLORS.borderHover,
@@ -80,7 +85,7 @@ const EDITOR_THEME: {
     backgroundColor: EDITOR_COLORS.buttonHover,
   },
   "button:active": {
-    backgroundColor: EDITOR_COLORS.buttonHover,
+    backgroundColor: EDITOR_COLORS.buttonActive,
   },
   ".cm-panel.cm-search button[name='close']:active": {
     backgroundColor: EDITOR_COLORS.buttonHover,
@@ -102,13 +107,6 @@ const EDITOR_THEME: {
 
   "& label:has(input[type='checkbox'])": {
     cursor: "pointer",
-  },
-  "& button": {
-    cursor: "pointer",
-    backgroundColor: "transparent",
-  },
-  "& button:active": {
-    backgroundColor: EDITOR_COLORS.buttonActive,
   },
   "& button:focus-visible": {
     outline: `2px solid ${EDITOR_COLORS.focus}`,

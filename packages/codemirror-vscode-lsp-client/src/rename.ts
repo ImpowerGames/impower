@@ -46,15 +46,6 @@ export const renameTheme = EditorView.baseTheme({
       cursor: "not-allowed",
     },
   },
-
-  "&:active:not(:disabled)": {
-    backgroundColor: " #026ec1",
-  },
-  "@media (hover: hover) and (pointer: fine)": {
-    "&:hover:not(:disabled)": {
-      backgroundColor: " #026ec1",
-    },
-  },
 });
 
 const openRename = StateEffect.define<{
