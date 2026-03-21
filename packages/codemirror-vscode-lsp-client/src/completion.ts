@@ -64,6 +64,12 @@ const completionTheme = EditorView.baseTheme({
     left: "-1px",
     width: "calc(100% + 2px)",
   },
+
+  "@media (hover: hover) and (pointer: fine)": {
+    ".cm-tooltip.cm-tooltip-autocomplete > ul > li:hover:not(:disabled)": {
+      backgroundColor: "rgba(255, 255, 255, 0.06)",
+    },
+  },
 });
 
 export const enum Info {

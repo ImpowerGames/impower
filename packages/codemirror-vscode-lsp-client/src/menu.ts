@@ -48,7 +48,7 @@ const contextMenuStyles = new StyleModule({
       content: "''",
       position: "absolute",
       inset: "0",
-      backgroundColor: "rgba(255, 255, 255, 0.1)",
+      backgroundColor: "rgba(255, 255, 255, 0.06)",
     },
     ".cm-context-menu .cm-menu-item:hover .cm-menu-item-shortcut": {
       color: "#ffffff",
