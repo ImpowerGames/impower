@@ -135,7 +135,7 @@ header {
   padding-top: env(safe-area-inset-top);
 }
 body.keyboard-open header {
-  background-color: lightseagreen;
+  background-color: goldenrod;
 }
 
 footer {
@@ -160,7 +160,7 @@ footer {
   padding-bottom: env(safe-area-inset-bottom);
 }
 body.keyboard-open footer {
-  background-color: lightseagreen;
+  background-color: goldenrod;
 }
 
 input,
