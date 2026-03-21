@@ -449,9 +449,6 @@ const createEditorView = (
           setEditorState?.(editorState);
         }),
         EditorView.domEventHandlers({
-          touchmove: (event) => {
-            event.preventDefault();
-          },
           focus: (event, view) => {
             // This prevents the browser from jumping the page to the input
             // and allows our Visual Viewport code to handle the positioning.
