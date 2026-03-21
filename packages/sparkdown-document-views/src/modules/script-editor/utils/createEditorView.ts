@@ -454,8 +454,6 @@ const createEditorView = (
         }),
         EditorView.domEventHandlers({
           focus: (event, view) => {
-            // This prevents the browser from jumping the page to the input
-            // and allows our Visual Viewport code to handle the positioning.
             document.body.classList.add("keyboard-open");
           },
           blur: (event, view) => {
@@ -478,6 +476,10 @@ const createEditorView = (
   const header = document.querySelector("header");
   const footer = document.querySelector("footer");
 
+  const footerHeight = 80;
+
+  let lastKeyboardHeight = 0;
+
   const syncLayout = () => {
     if (!isMobile()) {
       return;
@@ -485,6 +487,19 @@ const createEditorView = (
 
     const vv = window.visualViewport;
     if (!vv) return;
+
+    // 1. LOCKDOWN FIRST: Force scroll to 0 before reading viewport math
+    // This stops the browser's native scroll from poisoning our calculations
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+      window.scrollTo(0, 0);
+    }
+
+    if (header) {
+      header.style.display = "block";
+    }
+    if (footer) {
+      footer.style.display = "block";
+    }
 
     const keyboardHeight = window.innerHeight - vv.height;
 
@@ -498,16 +513,11 @@ const createEditorView = (
       `${vv.offsetTop}px`,
     );
 
-    // LOCKDOWN: Prevent background "nudging" by forcing the body scroll to zero.
-    // This ensures the layout viewport stays aligned with the physical screen.
-    if (window.scrollY !== 0 || window.scrollX !== 0) {
-      window.scrollTo(0, 0);
-    }
-
-    // Position Header & Footer
+    // Position Header: Locked to the top of the visual viewport
     if (header) {
       header.style.transform = `translate3d(0, ${vv.offsetTop}px, 0)`;
     }
+
     if (footer) {
       if (isIOS()) {
         const visibleBottomY = vv.offsetTop + vv.height;
@@ -516,32 +526,31 @@ const createEditorView = (
         footer.style.transform = `translate3d(0, ${visibleBottomY - footer.offsetHeight}px, 0)`;
       } else {
         footer.style.bottom = "0px";
+        footer.style.top = "auto";
         footer.style.transform = `translate3d(0, ${-keyboardHeight}px, 0)`;
       }
     }
-    if (header) {
-      header.style.display = "block";
-    }
-    if (footer) {
-      footer.style.display = "block";
-    }
 
-    view.contentDOM.style.paddingBottom =
-      "calc(80px + var(--keyboard-height) + var(--safe-bottom))";
-
-    // 3. CodeMirror Specific: Ensure selection is in view
-    // We use the built-in scrollIntoView effect which is much more precise than manual scrollTop math
-    if (view.hasFocus && keyboardHeight > 0) {
+    // 3. CodeMirror Specific: Only force scroll when the keyboard ACTUALLY opens/changes
+    // Triggering this on every click fights the user's natural scrolling
+    if (
+      view.hasFocus &&
+      keyboardHeight > 0 &&
+      keyboardHeight !== lastKeyboardHeight
+    ) {
       requestAnimationFrame(() => {
-        // This forces CodeMirror to scroll the cursor into the currently visible part of its scroller
         view.dispatch({
           effects: EditorView.scrollIntoView(view.state.selection.main, {
             y: "center",
-            yMargin: 40, // Extra buffer to stay above our toolbar
+            yMargin: footerHeight, // Ensures it clears the footer height
           }),
         });
       });
     }
+
+    view.contentDOM.style.paddingBottom = `calc(${footerHeight}px + var(--keyboard-height) + var(--safe-bottom))`;
+
+    lastKeyboardHeight = keyboardHeight;
   };
 
   syncLayout();

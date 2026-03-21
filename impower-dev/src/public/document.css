@@ -90,22 +90,24 @@ body {
   display: flex;
   flex-direction: column;
 
+  position: relative;
+
   padding: 0;
   margin: 0;
 
   font-size: 0.875rem;
   font-family: var(--theme-font-sans);
 }
-body.keyboard-open {
-  position: fixed;
-  width: 100%;
-}
 
 main {
-  height: 100%;
+  position: absolute;
+  inset: 0;
+
+  overflow: hidden;
+  overscroll-behavior: contain;
+
   display: flex;
   flex-direction: column;
-  overscroll-behavior: contain;
 
   padding: 0;
   margin: 0;
