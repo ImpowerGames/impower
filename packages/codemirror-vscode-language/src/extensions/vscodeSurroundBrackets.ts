@@ -4,6 +4,7 @@ import {
   EditorSelection,
   EditorState,
   Extension,
+  Facet,
   MapMode,
   RangeSet,
   RangeValue,
@@ -13,9 +14,23 @@ import {
   Transaction,
   codePointAt,
   codePointSize,
+  combineConfig,
   fromCodePoint,
 } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+
+export interface VSCodeSurroundBracketsConfig {
+  surroundingPairs?: string[][];
+}
+
+export const vscodeSurroundBracketsConfig = Facet.define<
+  VSCodeSurroundBracketsConfig,
+  Required<VSCodeSurroundBracketsConfig>
+>({
+  combine(configs) {
+    return combineConfig(configs, {});
+  },
+});
 
 /// Configures bracket closing behavior for a syntax (via
 /// [language data](#state.EditorState.languageDataAt)) using the `"surroundBrackets"`
@@ -79,8 +94,10 @@ const bracketState = StateField.define<RangeSet<typeof surroundedBracket>>({
 /// after the cursor. When closing a bracket directly in front of a
 /// closing bracket inserted by the extension, the cursor moves over
 /// that bracket.
-export function vscodeSurroundBrackets(): Extension {
-  return [inputHandler, bracketState];
+export function vscodeSurroundBrackets(
+  config: VSCodeSurroundBracketsConfig,
+): Extension {
+  return [inputHandler, bracketState, vscodeSurroundBracketsConfig.of(config)];
 }
 
 const definedClosing = "()[]{}<>";

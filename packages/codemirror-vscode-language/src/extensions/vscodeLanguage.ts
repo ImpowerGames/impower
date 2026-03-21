@@ -1,5 +1,3 @@
-import { bracketMatching } from "@codemirror/language";
-
 import { type GrammarDefinition } from "@impower/textmate-grammar-tree/src/grammar/types/GrammarDefinition";
 
 import { VSCodeLanguageSupport } from "../classes/VSCodeLanguageSupport";
@@ -7,6 +5,7 @@ import { CodeMirrorLanguageData } from "../types/CodeMirrorLanguageData";
 import { VSCodeConfigDefinition } from "../types/VSCodeConfigDefinition";
 import { convertConfigToLanguageData } from "../utils/convertConfigToLanguageData";
 import { convertGrammarToLanguageData } from "../utils/convertGrammarToLanguageData";
+import { vscodeBracketMatching } from "./vscodeBracketMatching";
 import { vscodeCloseBrackets } from "./vscodeCloseBrackets";
 import { vscodeIndentationRules } from "./vscodeIndentationRules";
 import { vscodeOnEnterRules } from "./vscodeOnEnterRules";
@@ -56,8 +55,8 @@ export const vscodeLanguage = (options: VSCodeLanguageFeaturesConfig) => {
   };
 
   return new VSCodeLanguageSupport(name, grammar, vscodeLanguageData, [
-    bracketMatching(),
-    vscodeSurroundBrackets(),
+    vscodeBracketMatching(config),
+    vscodeSurroundBrackets(config),
     vscodeCloseBrackets(config),
     vscodeOnEnterRules(config),
     vscodeIndentationRules(config),
