@@ -87,8 +87,9 @@ body {
 }
 
 body.keyboard-open {
-  position: fixed;
   overflow: hidden;
+  height: 100%;
+  position: fixed;
   width: 100%;
 }
 
@@ -108,21 +109,6 @@ main {
   background-color: var(--theme-color-panel);
 }
 
-.fixed-keyboard-element {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0; /* The TS script will dynamically update this value */
-  width: 100%;
-  z-index: 1000;
-
-  /* Add a transition so the element moves smoothly as the keyboard animates */
-  transition: bottom 0.1s ease-out;
-
-  /* iOS Safe Area padding so it doesn't overlap the home bar when the keyboard is closed */
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
 #bottom-toolbar {
   position: fixed;
   left: 0;
@@ -134,6 +120,7 @@ main {
   /* CRITICAL: Prevents iOS from applying its own weird offsets */
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
 
   /* Visual Polish */
   background-color: blueviolet;

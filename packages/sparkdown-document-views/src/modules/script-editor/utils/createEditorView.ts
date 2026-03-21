@@ -452,10 +452,15 @@ const createEditorView = (
           focus: (event, view) => {
             // This prevents the browser from jumping the page to the input
             // and allows our Visual Viewport code to handle the positioning.
+            document.body.classList.add("keyboard-open");
+            // Force a scroll reset immediately on focus
             setTimeout(() => {
               window.scrollTo(0, 0);
               document.body.scrollTop = 0;
-            }, 0);
+            }, 10);
+          },
+          blur: (event, view) => {
+            document.body.classList.remove("keyboard-open");
           },
         }),
       ],

@@ -117,11 +117,11 @@ export class KeyboardAvoider {
 
     this.element.style.bottom = `${finalOffset}px`;
 
-    // 3. Prevent the page from "drifting" on iOS
-    if (offsetBottom > 0) {
-      // If keyboard is open, ensure the layout doesn't scroll away
+    // 3. Force the layout back to (0,0)
+    // This prevents the "obscuring" effect where the body is scrolled up.
+    if (viewport.offsetTop !== 0) {
       window.scrollTo(0, 0);
-      document.body.style.top = `-${viewport.offsetTop}px`;
+      document.body.scrollTop = 0;
     }
   };
 
