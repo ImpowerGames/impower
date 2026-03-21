@@ -268,7 +268,7 @@ const EDITOR_THEME: {
       padding: "0 8px",
       justifyContent: "center",
       alignItems: "center",
-      backgroundColor: "inherit",
+      backgroundColor: EDITOR_COLORS.inputBackground,
       color: "rgba(255,255,255,0.5)",
     },
     "& .cm-textfield": {
