@@ -471,16 +471,16 @@ const createEditorView = (
               willChange: "transform",
             },
             // Platform specific logic inside the theme using the body classes
-            ".platform-android & .cm-panels-bottom": {
-              bottom: "0 !important",
-              top: "auto !important",
-              transform: "translateY(calc(-1 * var(--cm-bottom-offset)))",
-            },
             ".platform-ios & .cm-panels-bottom": {
               top: "0 !important",
               bottom: "auto !important",
               transform:
                 "translateY(calc(var(--vv-offset-top) + var(--vv-height) - var(--cm-bottom-offset)))",
+            },
+            ".platform-android & .cm-panels-bottom": {
+              bottom: "0 !important",
+              top: "auto !important",
+              transform: "translateY(calc(-1 * var(--cm-bottom-offset)))",
             },
           },
           { dark: true },
