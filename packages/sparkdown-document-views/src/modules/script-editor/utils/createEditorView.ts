@@ -519,6 +519,7 @@ const createEditorView = (
     view.dispatch({
       effects: marginConf.reconfigure(
         EditorView.scrollMargins.of(() => ({
+          ...scrollMargin,
           bottom: bottomOffset + extraBottomOffset,
         })),
       ),
