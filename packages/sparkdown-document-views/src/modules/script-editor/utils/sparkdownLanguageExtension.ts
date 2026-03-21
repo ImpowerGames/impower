@@ -3,26 +3,13 @@ import { Extension, Prec } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import { vscodeLanguage } from "@impower/codemirror-vscode-language/src";
 import {
-  contextMenu,
   findReferencesKeymap,
   formatKeymap,
   jumpToDefinitionKeymap,
+  languageServerExtensions,
   LSPClient,
   renameKeymap,
   serverAutoSync,
-  serverColorDecorations,
-  serverCompletions,
-  serverDefinitions,
-  serverDiagnostics,
-  serverDocumentLinks,
-  serverDocumentSymbols,
-  serverFolding,
-  serverFormatting,
-  serverHovers,
-  serverReferences,
-  serverRenaming,
-  serverSemanticHighlighting,
-  serverSignatureHelp,
   WorkerTransport,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
@@ -59,23 +46,7 @@ export const sparkdownLanguageExtension = (config: {
 
   let client = new LSPClient({
     workspace: serverWorkspace,
-    extensions: [
-      serverCompletions(),
-      serverFolding(),
-      serverColorDecorations(),
-      serverDocumentSymbols(),
-      serverSemanticHighlighting(),
-      serverHovers(),
-      serverRenaming(),
-      serverReferences(),
-      serverFormatting(),
-      serverDefinitions(),
-      serverSignatureHelp(),
-      serverDiagnostics(),
-      serverDocumentLinks(),
-      serverAutoSync({ delay: 0 }),
-      contextMenu(),
-    ],
+    extensions: [...languageServerExtensions(), serverAutoSync({ delay: 0 })],
   }).connect(
     new WorkerTransport(serverWorker, serverConnection),
     serverInitializeParams,

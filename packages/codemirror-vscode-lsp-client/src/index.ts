@@ -100,6 +100,7 @@ import { serverSemanticHighlighting } from "./semantics";
 import { serverSignatureHelp } from "./signature";
 import { serverDocumentSymbols } from "./symbols";
 import { serverAutoSync } from "./sync";
+import { contextToolbar } from "./toolbar";
 
 /// This function bundles all the extensions defined in this package,
 /// in a way that can be passed to the
@@ -125,5 +126,6 @@ export function languageServerExtensions(): readonly (
     serverDiagnostics(),
     serverAutoSync(),
     contextMenu(),
+    contextToolbar(),
   ];
 }

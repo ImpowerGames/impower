@@ -1,10 +1,7 @@
 import { Extension, Facet } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { StyleModule } from "style-mod";
-import { jumpToDefinition, jumpToDefinitionKeymap } from "./definition";
-import { formatDocument, formatKeymap } from "./formatting";
-import { findReferences, findReferencesKeymap } from "./references";
-import { renameKeymap, renameSymbol } from "./rename";
+import { ContextMenuItem, defaultContextMenuItems, isMobile } from "./context";
 
 const contextMenuStyles = new StyleModule({
   ".cm-context-menu": {
@@ -53,23 +50,6 @@ const contextMenuStyles = new StyleModule({
     ".cm-context-menu .cm-menu-item:hover .cm-menu-item-shortcut": {
       color: "#ffffff",
     },
-  },
-});
-
-export type ContextMenuItem =
-  | {
-      label: string;
-      shortcut?: string;
-      command: (view: EditorView) => void;
-    }
-  | { type: "separator" };
-
-const contextMenuConfig = Facet.define<
-  LSPContextMenuConfig,
-  LSPContextMenuConfig
->({
-  combine: (values) => {
-    return { items: values.map((v) => v.items).flat() };
   },
 });
 
@@ -183,51 +163,30 @@ const contextMenuPlugin = ViewPlugin.fromClass(
   },
 );
 
-export function getShortcutLabel(key: string) {
-  return key
-    .split("-")
-    .map((k) => {
-      const key = k.length === 1 ? k.toUpperCase() : k;
-      if (key === "Mod") {
-        return /Mac/.test(navigator.platform) ? "Cmd" : "Ctrl";
-      }
-      return key;
-    })
-    .join("+");
-}
-
 export interface LSPContextMenuConfig {
   items?: ContextMenuItem[];
 }
 
-export const defaultContextMenu: LSPContextMenuConfig = {
-  items: [
-    {
-      label: "Rename Symbol",
-      command: renameSymbol,
-      shortcut: getShortcutLabel(renameKeymap[0]?.key),
-    },
-    {
-      label: "Format Document",
-      command: formatDocument,
-      shortcut: getShortcutLabel(formatKeymap[0]?.key),
-    },
-    { type: "separator" },
-    {
-      label: "Find References",
-      command: findReferences,
-      shortcut: getShortcutLabel(findReferencesKeymap[0]?.key),
-    },
-    {
-      label: "Go to Definition",
-      command: jumpToDefinition,
-      shortcut: getShortcutLabel(jumpToDefinitionKeymap[0]?.key),
-    },
-  ],
-};
+const contextMenuConfig = Facet.define<
+  LSPContextMenuConfig,
+  LSPContextMenuConfig
+>({
+  combine: (values) => {
+    return { items: values.map((v) => v.items).flat() };
+  },
+});
 
 export function contextMenu(
-  config: LSPContextMenuConfig = defaultContextMenu,
+  config: LSPContextMenuConfig = { items: defaultContextMenuItems },
 ): readonly Extension[] {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return [];
+  }
+
+  //If it's a mobile browser, return an empty extension so it does absolutely nothing
+  if (isMobile()) {
+    return [];
+  }
+
   return [contextMenuConfig.of(config), contextMenuPlugin];
 }
