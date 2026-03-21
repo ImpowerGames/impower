@@ -512,6 +512,43 @@ export abstract class SparkdownWorkspace {
     return result?.program;
   }
 
+  stripMarkdown(markdown: string): string {
+    if (!markdown) return "";
+
+    let output = markdown;
+
+    // Remove Images: ![alt](url) -> alt
+    output = output.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1");
+
+    // Remove Links: [text](url) -> text
+    output = output.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1");
+
+    // Remove Blockquotes: > quote -> quote
+    output = output.replace(/^\s*>\s+/gm, "");
+
+    // Remove Headers: # Header -> Header
+    output = output.replace(/^#{1,6}\s+(.*)$/gm, "$1");
+
+    // Remove Bold/Italic: **text**, __text__, *text*, _text_
+    output = output.replace(/([\*_]{1,3})(\S.*?\S{0,1})\1/g, "$2");
+
+    // Remove Inline Code: `code` -> 'code'
+    output = output.replace(/`(.+?)`/g, "'$1'");
+
+    // Remove Code Blocks: ```code``` -> code
+    output = output.replace(/```([\s\S]*?)```/g, "$1");
+
+    // Remove Horizontal Rules: ---, ***, ___
+    output = output.replace(/^([\s\t]*[\*\-\_]){3,}\s*$/gm, "");
+
+    // Remove List Bullets: * item, - item, + item, 1. item -> item
+    output = output.replace(/^[\s\t]*[\*\-\+]\s+/gm, "");
+    output = output.replace(/^[\s\t]*\d+\.\s+/gm, "");
+
+    // Final trim to clean up leading/trailing whitespace
+    return output.trim();
+  }
+
   getDiagnostics(program: SparkProgram, uri: string) {
     const programDiagnostics = program.diagnostics?.[uri] || [];
     const diagnostics = this.clientCapabilities?.textDocument?.diagnostic
@@ -523,9 +560,7 @@ export abstract class SparkdownWorkspace {
             message:
               typeof d.message === "string"
                 ? d.message
-                : d.message.value
-                    .replaceAll("\`\`\`", "")
-                    .replaceAll("\`", "'"),
+                : this.stripMarkdown(d.message.value),
           };
         });
 

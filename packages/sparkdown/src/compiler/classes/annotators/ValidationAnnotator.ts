@@ -86,7 +86,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         IMAGE_CLAUSE_KEYWORDS.includes(text) ||
         AUDIO_CLAUSE_KEYWORDS.includes(text)
       ) {
-        const message = `'${text}' is not allowed as a defined name`;
+        const message = `\`${text}\` is not allowed as a defined name`;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
             message,
@@ -272,7 +272,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           nextValueNodeType !== "TimeValue" &&
           nextValueNodeType !== "NumberValue"
         ) {
-          const message = `'${text}' should be followed by a time value (e.g. 'after 2' or 'after 2s' or 'after 200ms')`;
+          const message = `\`${text}\` should be followed by a time value\n> e.g. \`after 2\`, \`after 2s\`, \`after 200ms\``;
           const errorFrom = nextValueNode
             ? nextValueNode.from
             : nextNonWhitespacePos;
@@ -294,7 +294,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           nextValueNodeType !== "TimeValue" &&
           nextValueNodeType !== "NumberValue"
         ) {
-          const message = `'${text}' should be followed by a time value (e.g. 'over 2' or 'over 2s' or 'over 200ms')`;
+          const message = `\`${text}\` should be followed by a time value\n> e.g. \`over 2\`, \`over 2s\`, \`over 200ms\``;
           const errorFrom = nextValueNode
             ? nextValueNode.from
             : nextNonWhitespacePos;
@@ -317,7 +317,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "NameValue"
         ) {
-          const message = `'${text}' should be followed by the name of a transition or animation (e.g. 'with shake')`;
+          const message = `\`${text}\` should be followed by the name of a transition or animation\n> e.g. \`with shake\``;
           const errorFrom = nextValueNode
             ? nextValueNode.from
             : nextNonWhitespacePos;
@@ -338,7 +338,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           nextValueNodeType !== "NameValue"
         ) {
           const message =
-            "'with' should be followed by the name of a modulation (e.g. 'with echo')";
+            "\`with\` should be followed by the name of a modulation\n> e.g. \`with echo\`";
           const errorFrom = nextValueNode
             ? nextValueNode.from
             : nextNonWhitespacePos;
@@ -361,7 +361,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "NameValue"
         ) {
-          const message = `'${text}' should be followed by the name of an ease (e.g. 'ease linear')`;
+          const message = `\`${text}\` should be followed by the name of an ease\n> e.g. \`ease linear\``;
           const errorFrom = nextValueNode
             ? nextValueNode.from
             : nextNonWhitespacePos;
@@ -383,7 +383,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             nextValueNodeType !== "NumberValue") ||
           (nextValueNodeType === "NumberValue" && Number(nextValueNodeText) < 0)
         ) {
-          const message = `'${text}' should be followed by a number greater than 0 (e.g. 'to 0' or 'to 0.5' or 'to 1')`;
+          const message = `\`${text}\` should be followed by a number greater than 0\n> e.g. \`to 0\`, \`to 0.5\`, \`to 1\``;
           const errorFrom = nextValueNode
             ? nextValueNode.from
             : nextNonWhitespacePos;
@@ -413,7 +413,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
             nextValueNodeType === "TimeValue" ||
             nextValueNodeType === "NumberValue")
         ) {
-          const message = `'${text}' is a flag and cannot take an argument`;
+          const message = `\`${text}\` is a flag and cannot take an argument`;
           const nodeCharacterOffset = nextValueNode.to - nodeRef.to;
           annotations.push(
             SparkdownAnnotation.mark<Diagnostic>({
