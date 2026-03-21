@@ -37,6 +37,18 @@ const contextMenuStyles = new StyleModule({
     margin: "8px 0",
   },
 
+  ".cm-context-menu .cm-menu-item:active": {
+    color: "#ffffff",
+  },
+  ".cm-context-menu .cm-menu-item:active::after": {
+    content: "''",
+    position: "absolute",
+    inset: "0",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+  },
+  ".cm-context-menu .cm-menu-item:active .cm-menu-item-shortcut": {
+    color: "#ffffff",
+  },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-context-menu .cm-menu-item:hover": {
       color: "#ffffff",

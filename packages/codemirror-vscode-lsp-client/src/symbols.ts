@@ -42,6 +42,9 @@ export const stickyScrollTheme = EditorView.theme({
     cursor: "pointer",
   },
 
+  ".cm-sticky-header-row .cm-sticky-header-text.cm-line:active": {
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+  },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-sticky-header-row .cm-sticky-header-text.cm-line:hover": {
       backgroundColor: "rgba(255, 255, 255, 0.06)",

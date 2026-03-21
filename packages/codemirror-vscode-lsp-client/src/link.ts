@@ -29,6 +29,10 @@ const documentLinkTheme = EditorView.baseTheme({
   ".cm-lsp-link-follow": { color: "#4e94ce", cursor: "pointer" },
   ".cm-lsp-link-shortcut": { color: "#808080" },
 
+  ".cm-mod-pressed .cm-lsp-link:active span": {
+    cursor: "pointer",
+    color: "#4daafc",
+  },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-mod-pressed .cm-lsp-link:hover span": {
       cursor: "pointer",

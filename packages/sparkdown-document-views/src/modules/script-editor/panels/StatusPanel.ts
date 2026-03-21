@@ -279,44 +279,51 @@ const statusPanelTheme = EditorView.baseTheme({
       position: "relative",
     },
   },
+  "& .cm-statusIcon": {
+    display: "inline-block",
+    width: "16px",
+    height: "16px",
+    verticalAlign: "middle",
+    backgroundColor: "transparent",
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "center",
+  },
+  "& .cm-statusLabel": {
+    display: "inline-block",
+    verticalAlign: "middle",
+  },
+  "& .cm-problemsToggleIcon": {
+    marginRight: "3px",
+    backgroundColor: "currentColor",
+    maskImage: CHEVRON_SVG_URL,
+    webkitMaskImage: CHEVRON_SVG_URL,
+    maskRepeat: "no-repeat",
+    webkitMaskRepeat: "no-repeat",
+    maskPosition: "center",
+    webkitMaskPosition: "center",
+  },
+  "& .cm-problemsToggleIcon.collapsed": {
+    transform: "rotate(-90deg)",
+  },
+  "& .cm-collapse-references-button": {
+    color: "#cccccc",
+  },
+  "& .cm-collapse-lint-button": {
+    color: "#cccccc",
+  },
+
+  ".cm-button:active::after": {
+    content: "''",
+    position: "absolute",
+    inset: "0",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+  },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-button:hover::after": {
       content: "''",
       position: "absolute",
       inset: "0",
       backgroundColor: "rgba(255, 255, 255, 0.06)",
-    },
-    "& .cm-statusIcon": {
-      display: "inline-block",
-      width: "16px",
-      height: "16px",
-      verticalAlign: "middle",
-      backgroundColor: "transparent",
-      backgroundRepeat: "no-repeat",
-      backgroundPosition: "center",
-    },
-    "& .cm-statusLabel": {
-      display: "inline-block",
-      verticalAlign: "middle",
-    },
-    "& .cm-problemsToggleIcon": {
-      marginRight: "3px",
-      backgroundColor: "currentColor",
-      maskImage: CHEVRON_SVG_URL,
-      webkitMaskImage: CHEVRON_SVG_URL,
-      maskRepeat: "no-repeat",
-      webkitMaskRepeat: "no-repeat",
-      maskPosition: "center",
-      webkitMaskPosition: "center",
-    },
-    "& .cm-problemsToggleIcon.collapsed": {
-      transform: "rotate(-90deg)",
-    },
-    "& .cm-collapse-references-button": {
-      color: "#cccccc",
-    },
-    "& .cm-collapse-lint-button": {
-      color: "#cccccc",
     },
   },
 });

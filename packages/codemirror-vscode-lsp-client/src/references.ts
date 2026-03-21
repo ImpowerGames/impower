@@ -103,6 +103,19 @@ export const referencesTheme = EditorView.baseTheme({
     display: "none",
   },
 
+  ".cm-lsp-reference:active::after": {
+    content: "''",
+    position: "absolute",
+    inset: "0",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+  },
+  ".cm-lsp-reference-file:active::after": {
+    content: "''",
+    position: "absolute",
+    inset: "0",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+  },
+  ".cm-dialog-close:active": { color: "#007acc" },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-lsp-reference:hover::after": {
       content: "''",

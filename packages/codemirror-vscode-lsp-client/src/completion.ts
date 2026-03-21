@@ -65,6 +65,9 @@ const completionTheme = EditorView.baseTheme({
     width: "calc(100% + 2px)",
   },
 
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li:active:not(:disabled)": {
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+  },
   "@media (hover: hover) and (pointer: fine)": {
     ".cm-tooltip.cm-tooltip-autocomplete > ul > li:hover:not(:disabled)": {
       backgroundColor: "rgba(255, 255, 255, 0.06)",
