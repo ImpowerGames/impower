@@ -28,22 +28,26 @@ const contextMenuStyles = new StyleModule({
     alignItems: "center",
     padding: "7px 26px",
     cursor: "default",
-    "&:hover": {
-      color: "#ffffff",
-    },
-    "&:hover::after": {
-      content: "''",
-      position: "absolute",
-      inset: "0",
-      backgroundColor: "rgba(255, 255, 255, 0.1)",
+    "@media (hover: hover) and (pointer: fine)": {
+      "&:hover": {
+        color: "#ffffff",
+      },
+      "&:hover::after": {
+        content: "''",
+        position: "absolute",
+        inset: "0",
+        backgroundColor: "rgba(255, 255, 255, 0.1)",
+      },
     },
   },
   ".cm-context-menu .cm-menu-item-shortcut": {
     color: "#858585",
     marginLeft: "2em",
   },
-  ".cm-context-menu .cm-menu-item:hover .cm-menu-item-shortcut": {
-    color: "#ffffff",
+  "@media (hover: hover) and (pointer: fine)": {
+    ".cm-context-menu .cm-menu-item:hover .cm-menu-item-shortcut": {
+      color: "#ffffff",
+    },
   },
   ".cm-context-menu .cm-menu-separator": {
     border: "none",

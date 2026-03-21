@@ -277,11 +277,13 @@ const statusPanelTheme = EditorView.baseTheme({
       alignItems: "center",
       gap: "4px",
       position: "relative",
-      "&:hover::after": {
-        content: "''",
-        position: "absolute",
-        inset: "0",
-        backgroundColor: "rgba(255, 255, 255, 0.5)",
+      "@media (hover: hover) and (pointer: fine)": {
+        "&:hover::after": {
+          content: "''",
+          position: "absolute",
+          inset: "0",
+          backgroundColor: "rgba(255, 255, 255, 0.5)",
+        },
       },
     },
     "& .cm-statusIcon": {

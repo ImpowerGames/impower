@@ -41,12 +41,14 @@ export const renameTheme = EditorView.baseTheme({
     padding: "6px 12px",
     cursor: "pointer",
     whiteSpace: "nowrap",
-    "&:hover:not(:disabled)": {
-      backgroundColor: " #026ec1",
-    },
     "&:disabled": {
       opacity: "0.5",
       cursor: "not-allowed",
+    },
+    "@media (hover: hover) and (pointer: fine)": {
+      "&:hover:not(:disabled)": {
+        backgroundColor: " #026ec1",
+      },
     },
   },
 });

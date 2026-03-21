@@ -45,11 +45,13 @@ export const referencesTheme = EditorView.baseTheme({
     cursor: "pointer",
     userSelect: "none",
     backgroundColor: "inherit",
-    "&:hover::after": {
-      content: "''",
-      position: "absolute",
-      inset: "0",
-      backgroundColor: "rgba(255, 255, 255, 0.1)",
+    "@media (hover: hover) and (pointer: fine)": {
+      "&:hover::after": {
+        content: "''",
+        position: "absolute",
+        inset: "0",
+        backgroundColor: "rgba(255, 255, 255, 0.1)",
+      },
     },
   },
   ".cm-lsp-reference": {
@@ -62,11 +64,13 @@ export const referencesTheme = EditorView.baseTheme({
     textOverflow: "ellipsis",
     display: "flex",
     gap: "8px",
-    "&:hover::after": {
-      content: "''",
-      position: "absolute",
-      inset: "0",
-      backgroundColor: "rgba(255, 255, 255, 0.1)",
+    "@media (hover: hover) and (pointer: fine)": {
+      "&:hover::after": {
+        content: "''",
+        position: "absolute",
+        inset: "0",
+        backgroundColor: "rgba(255, 255, 255, 0.1)",
+      },
     },
     "&[aria-selected]": {
       backgroundColor: "#04395e",
@@ -91,7 +95,9 @@ export const referencesTheme = EditorView.baseTheme({
     color: "#ffffff",
     cursor: "pointer",
     zIndex: 10,
-    "&:hover": { color: "#007acc" },
+    "@media (hover: hover) and (pointer: fine)": {
+      "&:hover": { color: "#007acc" },
+    },
   },
   ".cm-lsp-collapse-icon": {
     display: "inline-block",

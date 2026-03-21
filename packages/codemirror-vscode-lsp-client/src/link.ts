@@ -20,9 +20,11 @@ const documentLinkTheme = EditorView.baseTheme({
   ".cm-lsp-link span": {
     textDecoration: "underline",
   },
-  ".cm-mod-pressed .cm-lsp-link:hover span": {
-    cursor: "pointer",
-    color: "#4daafc",
+  "@media (hover: hover) and (pointer: fine)": {
+    ".cm-mod-pressed .cm-lsp-link:hover span": {
+      cursor: "pointer",
+      color: "#4daafc",
+    },
   },
   ".cm-lsp-link-tooltip": {
     display: "flex",
