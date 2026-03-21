@@ -181,7 +181,6 @@ export function serverCompletions(
   let editorExtension: Extension[];
   const autocompletionConfig = {
     positionInfo,
-    aboveCursor: true,
     filterStrict: true,
   };
   if (config.override) {
