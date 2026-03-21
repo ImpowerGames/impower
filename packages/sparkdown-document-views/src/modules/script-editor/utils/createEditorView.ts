@@ -201,13 +201,6 @@ const createEditorView = (
   let prevPinpointLineNumbers = pinpointLineNumbers;
   let prevHighlightLineNumbers = highlightLineNumbers;
 
-  document.documentElement.style.setProperty("--cm-top-offset", `${top}px`);
-
-  document.documentElement.style.setProperty(
-    "--cm-bottom-offset",
-    `${bottom}px`,
-  );
-
   // Using state.doc.line() errors on Mac
   const lines = doc.replace(NEWLINE_REGEX, "\n").split("\n");
   const initialText = Text.of(lines);
@@ -223,6 +216,13 @@ const createEditorView = (
         { y: "start" },
       )
     : undefined;
+
+  document.documentElement.style.setProperty("--cm-top-offset", `${top}px`);
+  document.documentElement.style.setProperty(
+    "--cm-bottom-offset",
+    `${bottom}px`,
+  );
+
   const view: EditorView = new EditorView({
     parent,
     scrollTo,
@@ -489,7 +489,7 @@ const createEditorView = (
   const footer = document.querySelector("footer");
 
   const footerHeight = 80;
-  const extraYMarginOffset = 40;
+  const extraYMarginOffset = 0;
   const extraBottomOffset = 20;
 
   const syncLayout = () => {
