@@ -75,6 +75,8 @@ export const readOnly = new Compartment();
 
 export const editable = new Compartment();
 
+export const marginConf = new Compartment();
+
 interface EditorConfig {
   serverWorker: Worker;
   serverConnection: MessageConnection;
@@ -199,6 +201,13 @@ const createEditorView = (
   let prevPinpointLineNumbers = pinpointLineNumbers;
   let prevHighlightLineNumbers = highlightLineNumbers;
 
+  document.documentElement.style.setProperty("--cm-top-offset", `${top}px`);
+
+  document.documentElement.style.setProperty(
+    "--cm-bottom-offset",
+    `${bottom}px`,
+  );
+
   // Using state.doc.line() errors on Mac
   const lines = doc.replace(NEWLINE_REGEX, "\n").split("\n");
   const initialText = Text.of(lines);
@@ -293,20 +302,6 @@ const createEditorView = (
           }
           return decorations;
         }),
-        EditorView.scrollMargins.of(() => {
-          return scrollMargin ?? null;
-        }),
-        EditorView.theme(
-          {
-            "& .cm-panels.cm-panels-top": {
-              top: `${top}px !important`,
-            },
-            "& .cm-panels.cm-panels-bottom": {
-              bottom: `${bottom}px !important`,
-            },
-          },
-          { dark: true },
-        ),
         sparkdownLanguageExtension({
           textDocument,
           serverWorker,
@@ -460,6 +455,23 @@ const createEditorView = (
             document.body.classList.remove("keyboard-open");
           },
         }),
+        marginConf.of(
+          EditorView.scrollMargins.of(() => ({
+            ...scrollMargin,
+            bottom: scrollMargin?.bottom,
+          })),
+        ),
+        EditorView.theme(
+          {
+            "& .cm-panels.cm-panels-top": {
+              top: `var(--cm-top-offset) !important`,
+            },
+            "& .cm-panels.cm-panels-bottom": {
+              bottom: `var(--cm-bottom-offset) !important`,
+            },
+          },
+          { dark: true },
+        ),
       ],
     }),
   });
@@ -477,8 +489,8 @@ const createEditorView = (
   const footer = document.querySelector("footer");
 
   const footerHeight = 80;
-
-  let lastKeyboardHeight = 0;
+  const extraYMarginOffset = 40;
+  const extraBottomOffset = 20;
 
   const syncLayout = () => {
     if (!isMobile()) {
@@ -494,7 +506,23 @@ const createEditorView = (
       window.scrollTo(0, 0);
     }
 
-    view.contentDOM.style.paddingBottom = `calc(${footerHeight}px + var(--keyboard-height) + var(--safe-bottom))`;
+    const keyboardHeight = window.innerHeight - vv.height;
+    const bottomOffset = keyboardHeight + footerHeight;
+
+    // Update the CSS variable used by .cm-panels-bottom
+    document.documentElement.style.setProperty(
+      "--cm-bottom-offset",
+      `${bottomOffset}px`,
+    );
+
+    // 1. Dynamically reconfigure scroll margins via Compartment
+    view.dispatch({
+      effects: marginConf.reconfigure(
+        EditorView.scrollMargins.of(() => ({
+          bottom: bottomOffset + extraBottomOffset,
+        })),
+      ),
+    });
 
     if (header) {
       header.style.display = "block";
@@ -502,8 +530,6 @@ const createEditorView = (
     if (footer) {
       footer.style.display = "block";
     }
-
-    const keyboardHeight = window.innerHeight - vv.height;
 
     // Update CSS variables for padding-bottom
     document.documentElement.style.setProperty(
@@ -533,24 +559,15 @@ const createEditorView = (
       }
     }
 
-    // 3. CodeMirror Specific: Only force scroll when the keyboard ACTUALLY opens/changes
-    // Triggering this on every click fights the user's natural scrolling
-    if (
-      view.hasFocus &&
-      keyboardHeight > 0 &&
-      keyboardHeight !== lastKeyboardHeight
-    ) {
-      requestAnimationFrame(() => {
-        view.dispatch({
-          effects: EditorView.scrollIntoView(view.state.selection.main, {
-            y: "center",
-            yMargin: footerHeight, // Ensures it clears the footer height
-          }),
-        });
+    // Ensure cursor is visible
+    if (view.hasFocus && keyboardHeight > 0) {
+      view.dispatch({
+        effects: EditorView.scrollIntoView(view.state.selection.main, {
+          y: "center",
+          yMargin: bottomOffset + extraYMarginOffset,
+        }),
       });
     }
-
-    lastKeyboardHeight = keyboardHeight;
   };
 
   syncLayout();
