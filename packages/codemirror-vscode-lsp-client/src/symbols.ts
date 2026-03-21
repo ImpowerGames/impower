@@ -40,10 +40,11 @@ export const stickyScrollTheme = EditorView.theme({
     flex: 1,
     pointerEvents: "auto", // Enable clicking
     cursor: "pointer",
-    "@media (hover: hover) and (pointer: fine)": {
-      "&:hover": {
-        backgroundColor: "rgba(255, 255, 255, 0.05)",
-      },
+  },
+
+  "@media (hover: hover) and (pointer: fine)": {
+    ".cm-sticky-header-row .cm-sticky-header-text.cm-line:hover": {
+      backgroundColor: "rgba(255, 255, 255, 0.05)",
     },
   },
 });
