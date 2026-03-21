@@ -59,3 +59,78 @@ if ("serviceWorker" in navigator) {
 } else {
   console.error("Service workers are not supported.");
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  const myDiv = document.getElementById("bottom-toolbar");
+
+  if (myDiv) {
+    // Pass the element and an optional 10px buffer
+    const avoider = new KeyboardAvoider(myDiv, 10);
+
+    console.log("myDiv", myDiv);
+
+    // If you ever remove the div dynamically, remember to clean up:
+    // avoider.destroy();
+  }
+});
+
+export class KeyboardAvoider {
+  private element: HTMLElement;
+  private offsetBuffer: number;
+
+  /**
+   * @param element The HTML element you want to fix above the keyboard.
+   * @param offsetBuffer Optional extra padding (in px) above the keyboard.
+   */
+  constructor(element: HTMLElement, offsetBuffer: number = 0) {
+    this.element = element;
+    this.offsetBuffer = offsetBuffer;
+
+    this.init();
+  }
+
+  private init(): void {
+    if (!window.visualViewport) {
+      console.warn("Visual Viewport API is not supported in this browser.");
+      return;
+    }
+
+    // Bind the event listener to preserve the 'this' context
+    window.visualViewport.addEventListener("resize", this.handleViewportChange);
+    window.visualViewport.addEventListener("scroll", this.handleViewportChange);
+
+    // Run once on initialization to set the initial state
+    this.handleViewportChange();
+  }
+
+  private handleViewportChange = (): void => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    // Calculate how much of the layout viewport is covered by the keyboard
+    // viewport.offsetTop handles cases where the user scrolls while the keyboard is open (especially on iOS)
+    const offsetBottom =
+      window.innerHeight - viewport.height - viewport.offsetTop;
+
+    // If offsetBottom is greater than 0, the keyboard is likely open.
+    // We apply the offset using `bottom`. (Alternatively, you could use transform: translateY for smoother animations)
+    const finalOffset = Math.max(0, offsetBottom) + this.offsetBuffer;
+    this.element.style.bottom = `${finalOffset}px`;
+  };
+
+  /**
+   * Call this method when the element is removed from the DOM to prevent memory leaks.
+   */
+  public destroy(): void {
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener(
+        "resize",
+        this.handleViewportChange,
+      );
+      window.visualViewport.removeEventListener(
+        "scroll",
+        this.handleViewportChange,
+      );
+    }
+  }
+}
