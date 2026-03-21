@@ -61,6 +61,12 @@
 :root {
   color-scheme: dark;
   --screenplay-preview-texture: url("/noisetexture.png");
+  /* Environment Safe Areas */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Updated by JS */
+  --keyboard-height: 0px;
+  --viewport-offset-top: 0px;
 }
 
 html {
