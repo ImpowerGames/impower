@@ -73,6 +73,8 @@ html {
   overflow: hidden;
 }
 
+/* When the keyboard is active, we may need to prevent body scrolling 
+   to stop iOS from "rubber-banding" the bottom-fixed toolbar away. */
 body {
   height: 100%;
   padding: 0;
@@ -82,6 +84,12 @@ body {
   font-size: 0.875rem;
   font-family: var(--theme-font-sans);
   min-height: 100dvh;
+}
+
+body.keyboard-open {
+  position: fixed;
+  overflow: hidden;
+  width: 100%;
 }
 
 main {
@@ -119,30 +127,15 @@ main {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0; /* Updated dynamically by the TypeScript class */
+  bottom: 0;
   width: 100%;
+  z-index: 9999;
 
-  text-align: center;
-
-  /* Layering */
-  z-index: 9999; /* Ensure it stays above modals and page content */
+  /* CRITICAL: Prevents iOS from applying its own weird offsets */
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
 
   /* Visual Polish */
-  background-color: blueviolet; /* Or your preferred color */
-  border-top: 1px solid #e0e0e0;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-
-  /* This prevents the div from overlapping the "Home Bar" on iPhone 
-     when the keyboard is CLOSED. When the keyboard OPENS, the TS 
-     code takes over. */
-  padding-bottom: env(safe-area-inset-bottom, 20px);
-
-  /* Smooth Movement */
-  /* A subtle transition makes the div follow the keyboard animation 
-     rather than snapping instantly. */
-  transition: bottom 0.1s ease-out;
-
-  /* Fix for iOS "Rubber Banding" */
-  /* Prevents the div from disappearing if the user over-scrolls the page */
-  will-change: bottom;
+  background-color: blueviolet;
+  text-align: center;
 }

@@ -107,15 +107,22 @@ export class KeyboardAvoider {
     const viewport = window.visualViewport;
     if (!viewport) return;
 
-    // Calculate how much of the layout viewport is covered by the keyboard
-    // viewport.offsetTop handles cases where the user scrolls while the keyboard is open (especially on iOS)
-    const offsetBottom =
-      window.innerHeight - viewport.height - viewport.offsetTop;
+    // 1. Calculate the keyboard height
+    const offsetBottom = window.innerHeight - viewport.height;
 
-    // If offsetBottom is greater than 0, the keyboard is likely open.
-    // We apply the offset using `bottom`. (Alternatively, you could use transform: translateY for smoother animations)
-    const finalOffset = Math.max(0, offsetBottom) + this.offsetBuffer;
+    // 2. Handle the "Offset Top" (The iOS Scroll Issue)
+    // On iOS, the viewport.offsetTop is non-zero if the page has shifted.
+    // We subtract it to keep the div pinned to the actual bottom of the screen.
+    const finalOffset = Math.max(0, offsetBottom - viewport.offsetTop);
+
     this.element.style.bottom = `${finalOffset}px`;
+
+    // 3. Prevent the page from "drifting" on iOS
+    if (offsetBottom > 0) {
+      // If keyboard is open, ensure the layout doesn't scroll away
+      window.scrollTo(0, 0);
+      document.body.style.top = `-${viewport.offsetTop}px`;
+    }
   };
 
   /**
