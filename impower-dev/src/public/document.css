@@ -109,7 +109,7 @@ main {
   background-color: var(--theme-color-panel);
 }
 
-#bottom-toolbar {
+#fixed-bottom-toolbar {
   position: fixed;
   left: 0;
   right: 0;
@@ -129,6 +129,6 @@ main {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-body.keyboard-open #bottom-toolbar {
+body.keyboard-open #fixed-bottom-toolbar {
   background-color: lightseagreen;
 }

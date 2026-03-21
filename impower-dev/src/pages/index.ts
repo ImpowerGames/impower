@@ -61,21 +61,36 @@ if ("serviceWorker" in navigator) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const myDiv = document.getElementById("bottom-toolbar");
+  const myDiv = document.getElementById("fixed-bottom-toolbar");
   if (myDiv) {
-    new KeyboardAvoider(myDiv);
+    new MobileKeyboardAvoider(myDiv, true);
   }
 });
 
-export class KeyboardAvoider {
+export class MobileKeyboardAvoider {
   private element: HTMLElement;
+  private isMobile: boolean;
   private isIOS: boolean;
 
-  constructor(element: HTMLElement) {
+  constructor(element: HTMLElement, hideOnDesktop: boolean) {
     this.element = element;
+    // Mobile detection
+    this.isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent,
+      ) ||
+      (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
+      navigator.maxTouchPoints > 0;
+
     // Simple iOS detection
     this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    this.init();
+
+    if (hideOnDesktop && !this.isMobile) {
+      element.hidden = true;
+      element.style.display = "none";
+    } else {
+      this.init();
+    }
   }
 
   private init(): void {
