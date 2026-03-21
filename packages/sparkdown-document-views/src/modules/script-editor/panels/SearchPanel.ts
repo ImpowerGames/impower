@@ -63,7 +63,10 @@ export class SearchPanel implements Panel {
     this.searchInput.name = "search";
     this.searchInput.placeholder = "Find";
     this.searchInput.ariaLabel = "Find";
+    this.searchInput.type = "text";
     this.searchInput.autocomplete = "off";
+    this.searchInput.inputMode = "text";
+    this.searchInput.setAttribute("data-form-type", "other");
     this.searchInput.setAttribute("main-field", "");
     this.searchInput.value = query.search;
     this.searchInput.onchange = this.commit;
@@ -74,7 +77,10 @@ export class SearchPanel implements Panel {
     this.replaceInput.name = "replace";
     this.replaceInput.placeholder = "Replace";
     this.replaceInput.ariaLabel = "Replace";
+    this.replaceInput.type = "text";
     this.replaceInput.autocomplete = "off";
+    this.replaceInput.inputMode = "text";
+    this.replaceInput.setAttribute("data-form-type", "other");
     this.replaceInput.value = query.replace;
     this.replaceInput.onchange = this.commit;
     this.replaceInput.onkeyup = this.commit;

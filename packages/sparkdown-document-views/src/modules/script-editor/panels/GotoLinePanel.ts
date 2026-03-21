@@ -1,17 +1,17 @@
 import {
   EditorSelection,
-  StateField,
-  StateEffect,
-  Prec,
   EditorState,
+  Prec,
+  StateEffect,
+  StateField,
 } from "@codemirror/state";
 import {
-  EditorView,
   Command,
+  EditorView,
   Panel,
   getPanel,
-  showPanel,
   keymap,
+  showPanel,
 } from "@codemirror/view";
 
 export class GotoLinePanel implements Panel {
@@ -42,7 +42,10 @@ export class GotoLinePanel implements Panel {
     this.input.name = "line";
     this.input.placeholder = view.state.phrase("Go to line");
     this.input.ariaLabel = view.state.phrase("Go to line");
+    this.input.type = "text";
     this.input.autocomplete = "off";
+    this.input.inputMode = "text";
+    this.input.setAttribute("data-form-type", "other");
     this.input.setAttribute("main-field", "");
 
     this.submitButton = document.createElement("button");

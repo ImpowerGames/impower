@@ -90,7 +90,10 @@ function createRenameTooltip(pos: number, word: string): Tooltip {
       const input = dom.appendChild(document.createElement("input"));
       input.value = word;
       input.className = "cm-lsp-rename-input";
+      input.type = "text";
       input.autocomplete = "off";
+      input.inputMode = "text";
+      input.setAttribute("data-form-type", "other");
 
       const button = dom.appendChild(document.createElement("button"));
       button.className = "cm-lsp-rename-submit";
