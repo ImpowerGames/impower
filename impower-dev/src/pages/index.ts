@@ -62,15 +62,8 @@ if ("serviceWorker" in navigator) {
 
 document.addEventListener("DOMContentLoaded", () => {
   const myDiv = document.getElementById("bottom-toolbar");
-
   if (myDiv) {
-    // Pass the element and an optional 10px buffer
-    const avoider = new KeyboardAvoider(myDiv, 10);
-
-    console.log("myDiv", myDiv);
-
-    // If you ever remove the div dynamically, remember to clean up:
-    // avoider.destroy();
+    new KeyboardAvoider(myDiv);
   }
 });
 
