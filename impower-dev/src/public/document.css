@@ -126,3 +126,7 @@ main {
   background-color: blueviolet;
   text-align: center;
 }
+
+body.keyboard-open #bottom-toolbar {
+  background-color: lightseagreen;
+}
