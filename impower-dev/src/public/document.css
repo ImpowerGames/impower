@@ -170,13 +170,13 @@ body.keyboard-open footer {
   background-color: lightseagreen;
 }
 /* Responsive Footer Transform Logic */
-.platform-ios footer {
+.ios footer {
   top: 0;
   bottom: auto;
   /* On iOS, shift down relative to the visual viewport height */
   transform: translateY(calc(var(--vv-offset-top) + var(--vv-height) - 100%));
 }
-.platform-android footer {
+.android footer {
   bottom: 0;
   top: auto;
   /* On Android, shift up by the keyboard height */

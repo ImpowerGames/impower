@@ -60,5 +60,9 @@ export function isMobile() {
 }
 
 export function isIOS() {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+  return isMobile() && /iPad|iPhone|iPod/.test(navigator.userAgent);
+}
+
+export function isAndroid() {
+  return isMobile() && /iPad|iPhone|iPod/.test(navigator.userAgent);
 }

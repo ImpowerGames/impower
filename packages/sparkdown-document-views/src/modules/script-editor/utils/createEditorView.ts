@@ -25,6 +25,7 @@ import {
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import {
+  isAndroid,
   isIOS,
   isMobile,
 } from "@impower/codemirror-vscode-lsp-client/src/context";
@@ -465,7 +466,11 @@ const createEditorView = (
         ),
         editorAttributesConfig.of(
           EditorView.editorAttributes.of({
-            "data-platform": isIOS() ? "platform-ios" : "platform-android",
+            "data-platform": isIOS()
+              ? "ios"
+              : isAndroid()
+                ? "android"
+                : "desktop",
             style: "",
           }),
         ),
@@ -481,14 +486,14 @@ const createEditorView = (
               willChange: "transform",
             },
             // Platform specific logic inside the theme using the body classes
-            "&[data-platform=platform-ios] .cm-panels-bottom": {
+            "&[data-platform=ios] .cm-panels-bottom": {
               position: "fixed !important",
               top: "0 !important",
               bottom: "auto !important",
               transform:
                 "translateY(calc(var(--vv-offset-top) + var(--vv-height) - 100%))",
             },
-            "&[data-platform=platform-android] .cm-panels-bottom": {
+            "&[data-platform=android] .cm-panels-bottom": {
               position: "fixed !important",
               bottom: "0 !important",
               top: "auto !important",
@@ -534,8 +539,10 @@ const createEditorView = (
     body.style.setProperty("--cm-bottom-offset", `${keyboardHeight}px`);
     body.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
     body.style.setProperty("--vv-height", `${vv.height}px`);
-    body.classList.add(isIOS() ? "platform-ios" : "platform-android");
-    view.dom.classList.add(isIOS() ? "platform-ios" : "platform-android");
+    body.classList.add(isIOS() ? "ios" : isAndroid() ? "android" : "desktop");
+    view.dom.classList.add(
+      isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
+    );
 
     if (header) {
       header.style.display = "block";
@@ -548,7 +555,11 @@ const createEditorView = (
     view.dispatch({
       effects: editorAttributesConfig.reconfigure(
         EditorView.editorAttributes.of({
-          "data-platform": isIOS() ? "platform-ios" : "platform-android",
+          "data-platform": isIOS()
+            ? "ios"
+            : isAndroid()
+              ? "android"
+              : "desktop",
           style: "",
         }),
       ),
