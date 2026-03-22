@@ -241,70 +241,68 @@ const createEditorView = (
     const vv = window.visualViewport;
     if (!vv) return;
 
-    // LOCKDOWN FIRST: Force scroll to 0 before reading viewport math
-    // This stops the browser's native scroll from poisoning our calculations
-    if (window.scrollY !== 0 || window.scrollX !== 0) {
-      window.scrollTo(0, 0);
-    }
+    // Use requestAnimationFrame so we don't move the UI
+    // at the exact millisecond the user is touching the screen.
+    requestAnimationFrame(() => {
+      const keyboardHeight = window.innerHeight - vv.height;
+      const keyboardOpen = keyboardHeight > 0;
 
-    const keyboardHeight = window.innerHeight - vv.height;
-    const keyboardOpen = keyboardHeight > 0;
-
-    // Dynamically reconfigure editorAttributes via Compartment
-    view.dispatch({
-      effects: editorAttributesConfig.reconfigure(
-        EditorView.editorAttributes.of({
-          "data-platform": isIOS()
-            ? "ios"
-            : isAndroid()
-              ? "android"
-              : "desktop",
-          "data-keyboard": keyboardOpen ? "open" : "closed",
-          style: "",
-        }),
-      ),
-    });
-
-    // Update CSS variables for padding-bottom
-    const body = document.body;
-    body.style.setProperty("--cm-keyboard-height", `${keyboardHeight}px`);
-    body.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
-    body.style.setProperty("--vv-height", `${vv.height}px`);
-    document.documentElement.classList.add(
-      isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
-    );
-
-    if (header) {
-      header.style.display = "block";
-    }
-    if (footer) {
-      footer.style.display = "block";
-    }
-
-    // Dynamically reconfigure scroll margins via Compartment
-    view.dispatch({
-      effects: scrollMarginsConfig.reconfigure(
-        EditorView.scrollMargins.of(() => ({
-          ...scrollMargin,
-          bottom: keyboardHeight,
-        })),
-      ),
-    });
-
-    if (keyboardOpen) {
-      document.documentElement.classList.add("keyboard-open");
-    } else {
-      document.documentElement.classList.remove("keyboard-open");
-    }
-
-    if (keyboardOpen && view.hasFocus) {
-      // Ensure cursor is visible
+      // Dynamically reconfigure editorAttributes via Compartment
       view.dispatch({
-        effects: EditorView.scrollIntoView(view.state.selection.main, {
-          y: "center",
-        }),
+        effects: editorAttributesConfig.reconfigure(
+          EditorView.editorAttributes.of({
+            "data-platform": isIOS()
+              ? "ios"
+              : isAndroid()
+                ? "android"
+                : "desktop",
+            "data-keyboard": keyboardOpen ? "open" : "closed",
+            style: "",
+          }),
+        ),
       });
-    }
+
+      // Update CSS variables for padding-bottom
+      const body = document.body;
+      body.style.setProperty("--cm-keyboard-height", `${keyboardHeight}px`);
+      body.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
+      body.style.setProperty("--vv-height", `${vv.height}px`);
+      document.documentElement.classList.add(
+        isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
+      );
+
+      if (header) {
+        header.style.display = "block";
+      }
+      if (footer) {
+        footer.style.display = "block";
+      }
+
+      // Dynamically reconfigure scroll margins via Compartment
+      view.dispatch({
+        effects: scrollMarginsConfig.reconfigure(
+          EditorView.scrollMargins.of(() => ({
+            ...scrollMargin,
+            bottom: keyboardHeight,
+          })),
+        ),
+      });
+
+      if (keyboardOpen) {
+        document.documentElement.classList.add("keyboard-open");
+      } else {
+        document.documentElement.classList.remove("keyboard-open");
+      }
+
+      if (keyboardOpen && view.hasFocus) {
+        // Ensure cursor is visible
+        view.dispatch({
+          effects: EditorView.scrollIntoView(view.state.selection.main, {
+            y: "center",
+          }),
+        });
+      }
+    });
   };
 
   // Create Editor View
@@ -638,6 +636,14 @@ const createEditorView = (
   };
 
   syncLayout();
+
+  // CRITICAL: Prevent the browser from trying to scroll the hidden body
+  // when the input is focused.
+  window.addEventListener("focusin", () => {
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+    });
+  });
 
   window.visualViewport?.addEventListener("resize", syncLayout);
   window.visualViewport?.addEventListener("scroll", syncLayout);
