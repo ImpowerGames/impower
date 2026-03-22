@@ -99,8 +99,8 @@ import { scrollY } from "../../../utils/scrollY";
 import { SparkdownCodemirrorWorkspace } from "../classes/SparkdownCodemirrorWorkspace";
 import { gotoLinePanelOpen } from "../panels/GotoLinePanel";
 import createEditorView, {
-  editable,
-  readOnly,
+  editableConfig,
+  readOnlyConfig,
 } from "../utils/createEditorView";
 import spec from "./_sparkdown-script-editor";
 
@@ -1144,15 +1144,15 @@ export default class SparkdownScriptEditor extends Component(spec) {
     if (allowed) {
       this._view?.dispatch({
         effects: [
-          readOnly.reconfigure(EditorState.readOnly.of(false)),
-          editable.reconfigure(EditorView.editable.of(true)),
+          readOnlyConfig.reconfigure(EditorState.readOnly.of(false)),
+          editableConfig.reconfigure(EditorView.editable.of(true)),
         ],
       });
     } else {
       this._view?.dispatch({
         effects: [
-          readOnly.reconfigure(EditorState.readOnly.of(true)),
-          editable.reconfigure(EditorView.editable.of(false)),
+          readOnlyConfig.reconfigure(EditorState.readOnly.of(true)),
+          editableConfig.reconfigure(EditorView.editable.of(false)),
         ],
       });
     }

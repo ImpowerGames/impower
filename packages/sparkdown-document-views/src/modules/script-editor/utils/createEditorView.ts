@@ -71,11 +71,13 @@ import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
 
 const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
-export const readOnly = new Compartment();
+export const readOnlyConfig = new Compartment();
 
-export const editable = new Compartment();
+export const editableConfig = new Compartment();
 
-export const marginConf = new Compartment();
+export const scrollMarginsConfig = new Compartment();
+
+export const editorAttributesConfig = new Compartment();
 
 interface EditorConfig {
   serverWorker: Worker;
@@ -242,8 +244,8 @@ const createEditorView = (
         }),
         statusPanel(),
         gotoLinePanel(),
-        readOnly.of(EditorState.readOnly.of(false)),
-        editable.of(EditorView.editable.of(true)),
+        readOnlyConfig.of(EditorState.readOnly.of(false)),
+        editableConfig.of(EditorView.editable.of(true)),
         breakpointsField.init(() => {
           const gutterMarkers: Range<GutterMarker>[] =
             breakpointLineNumbers
@@ -455,11 +457,17 @@ const createEditorView = (
             document.body.classList.remove("keyboard-open");
           },
         }),
-        marginConf.of(
+        scrollMarginsConfig.of(
           EditorView.scrollMargins.of(() => ({
             ...scrollMargin,
             bottom: scrollMargin?.bottom,
           })),
+        ),
+        editorAttributesConfig.of(
+          EditorView.editorAttributes.of({
+            "data-platform": isIOS() ? "platform-ios" : "platform-android",
+            style: "",
+          }),
         ),
         EditorView.theme(
           {
@@ -468,16 +476,20 @@ const createEditorView = (
             },
             // Replaces global CSS for panels
             ".cm-panels-bottom": {
+              left: 0,
+              right: 0,
               willChange: "transform",
             },
             // Platform specific logic inside the theme using the body classes
-            ".platform-ios & .cm-panels-bottom": {
+            "&[data-platform=platform-ios] .cm-panels-bottom": {
+              position: "fixed !important",
               top: "0 !important",
               bottom: "auto !important",
               transform:
-                "translateY(calc(var(--vv-offset-top) + var(--vv-height) - var(--cm-bottom-offset)))",
+                "translateY(calc(var(--vv-offset-top) + var(--vv-height) - 100%))",
             },
-            ".platform-android & .cm-panels-bottom": {
+            "&[data-platform=platform-android] .cm-panels-bottom": {
+              position: "fixed !important",
               bottom: "0 !important",
               top: "auto !important",
               transform: "translateY(calc(-1 * var(--cm-bottom-offset)))",
@@ -509,7 +521,7 @@ const createEditorView = (
     const vv = window.visualViewport;
     if (!vv) return;
 
-    // 1. LOCKDOWN FIRST: Force scroll to 0 before reading viewport math
+    // LOCKDOWN FIRST: Force scroll to 0 before reading viewport math
     // This stops the browser's native scroll from poisoning our calculations
     if (window.scrollY !== 0 || window.scrollX !== 0) {
       window.scrollTo(0, 0);
@@ -518,12 +530,12 @@ const createEditorView = (
     const keyboardHeight = window.innerHeight - vv.height;
 
     // Update CSS variables for padding-bottom
-    const documentEl = document.documentElement;
-    documentEl.style.setProperty("--cm-bottom-offset", `${keyboardHeight}px`);
-    documentEl.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
-    documentEl.style.setProperty("--vv-height", `${vv.height}px`);
-
-    document.body.classList.add(isIOS() ? "platform-ios" : "platform-android");
+    const body = document.body;
+    body.style.setProperty("--cm-bottom-offset", `${keyboardHeight}px`);
+    body.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
+    body.style.setProperty("--vv-height", `${vv.height}px`);
+    body.classList.add(isIOS() ? "platform-ios" : "platform-android");
+    view.dom.classList.add(isIOS() ? "platform-ios" : "platform-android");
 
     if (header) {
       header.style.display = "block";
@@ -532,9 +544,19 @@ const createEditorView = (
       footer.style.display = "block";
     }
 
-    // 1. Dynamically reconfigure scroll margins via Compartment
+    // Dynamically reconfigure editorAttributes via Compartment
     view.dispatch({
-      effects: marginConf.reconfigure(
+      effects: editorAttributesConfig.reconfigure(
+        EditorView.editorAttributes.of({
+          "data-platform": isIOS() ? "platform-ios" : "platform-android",
+          style: "",
+        }),
+      ),
+    });
+
+    // Dynamically reconfigure scroll margins via Compartment
+    view.dispatch({
+      effects: scrollMarginsConfig.reconfigure(
         EditorView.scrollMargins.of(() => ({
           ...scrollMargin,
           bottom: keyboardHeight,
