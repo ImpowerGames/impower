@@ -305,6 +305,14 @@ const createEditorView = (
     });
   };
 
+  // CRITICAL: Prevent the browser from trying to scroll the hidden body
+  // when the input is focused.
+  const scrollToTop = () => {
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+    });
+  };
+
   // Create Editor View
   const view: EditorView = new EditorView({
     parent,
@@ -637,19 +645,13 @@ const createEditorView = (
 
   syncLayout();
 
-  // CRITICAL: Prevent the browser from trying to scroll the hidden body
-  // when the input is focused.
-  window.addEventListener("focusin", () => {
-    requestAnimationFrame(() => {
-      window.scrollTo(0, 0);
-    });
-  });
-
+  window.addEventListener("focusin", scrollToTop);
   window.visualViewport?.addEventListener("resize", syncLayout);
   window.visualViewport?.addEventListener("scroll", syncLayout);
   window.addEventListener(MessageProtocol.event, handleProtocol);
   const disposable = {
     dispose: () => {
+      window.visualViewport?.removeEventListener("focusin", scrollToTop);
       window.visualViewport?.removeEventListener("resize", syncLayout);
       window.visualViewport?.removeEventListener("scroll", syncLayout);
       window.removeEventListener(MessageProtocol.event, handleProtocol);
