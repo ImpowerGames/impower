@@ -64,5 +64,5 @@ export function isIOS() {
 }
 
 export function isAndroid() {
-  return isMobile() && /iPad|iPhone|iPod/.test(navigator.userAgent);
+  return isMobile() && !isIOS();
 }

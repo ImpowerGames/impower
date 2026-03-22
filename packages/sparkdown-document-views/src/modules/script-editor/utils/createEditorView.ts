@@ -539,7 +539,9 @@ const createEditorView = (
     body.style.setProperty("--cm-bottom-offset", `${keyboardHeight}px`);
     body.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
     body.style.setProperty("--vv-height", `${vv.height}px`);
-    body.classList.add(isIOS() ? "ios" : isAndroid() ? "android" : "desktop");
+    document.documentElement.classList.add(
+      isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
+    );
     view.dom.classList.add(
       isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
     );
