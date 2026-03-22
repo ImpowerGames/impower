@@ -457,15 +457,6 @@ const createEditorView = (
           }
           setEditorState?.(editorState);
         }),
-        EditorView.domEventHandlers({
-          focus: (event, view) => {
-            document.documentElement.classList.add("keyboard-open");
-            view.dom.classList.add("keyboard-open");
-          },
-          blur: (event, view) => {
-            document.documentElement.classList.remove("keyboard-open");
-          },
-        }),
         scrollMarginsConfig.of(
           EditorView.scrollMargins.of(() => ({
             ...scrollMargin,
@@ -525,7 +516,7 @@ const createEditorView = (
               transition: "transform 0.05s linear",
               transform: "translateY(calc(-1 * var(--cm-bottom-offset)))",
             },
-            "&[data-platform=android].cm-focused .cm-panels-bottom": {
+            "&[data-platform=android][data-keyboard=open] .cm-panels-bottom": {
               transform: "translateY(calc(-1 * var(--cm-keyboard-height)))",
             },
           },
@@ -590,20 +581,6 @@ const createEditorView = (
       footer.style.display = "block";
     }
 
-    // Dynamically reconfigure editorAttributes via Compartment
-    view.dispatch({
-      effects: editorAttributesConfig.reconfigure(
-        EditorView.editorAttributes.of({
-          "data-platform": isIOS()
-            ? "ios"
-            : isAndroid()
-              ? "android"
-              : "desktop",
-          style: "",
-        }),
-      ),
-    });
-
     // Dynamically reconfigure scroll margins via Compartment
     view.dispatch({
       effects: scrollMarginsConfig.reconfigure(
@@ -614,7 +591,30 @@ const createEditorView = (
       ),
     });
 
-    if (view.hasFocus && keyboardHeight > 0) {
+    const keyboardOpen = keyboardHeight > 0;
+
+    if (keyboardOpen) {
+      document.documentElement.classList.add("keyboard-open");
+    } else {
+      document.documentElement.classList.remove("keyboard-open");
+    }
+
+    // Dynamically reconfigure editorAttributes via Compartment
+    view.dispatch({
+      effects: editorAttributesConfig.reconfigure(
+        EditorView.editorAttributes.of({
+          "data-platform": isIOS()
+            ? "ios"
+            : isAndroid()
+              ? "android"
+              : "desktop",
+          "data-keyboard": keyboardOpen ? "open" : "closed",
+          style: "",
+        }),
+      ),
+    });
+
+    if (keyboardOpen && view.hasFocus) {
       // Ensure cursor is visible
       view.dispatch({
         effects: EditorView.scrollIntoView(view.state.selection.main, {
