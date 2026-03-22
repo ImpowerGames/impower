@@ -602,6 +602,32 @@ const createEditorView = (
         scrollPastEnd(),
         // This ensures the bottom panel container always has at least one child
         showPanel.of(emptyPanel),
+        EditorView.domEventHandlers({
+          touchend: (event, view) => {
+            // 1. Stop the native browser tap/focus/scroll behavior
+            event.preventDefault();
+
+            // 2. Get the exact screen coordinates of the tap
+            const touch = event.changedTouches[0]!;
+            const pos = view.posAtCoords({
+              x: touch.clientX,
+              y: touch.clientY,
+            });
+
+            // 3. If they tapped inside the text, manually move the cursor there
+            if (pos !== null) {
+              view.dispatch({
+                selection: { anchor: pos, head: pos },
+              });
+            }
+
+            // 4. Manually focus the editor's internal element without scrolling the body
+            view.contentDOM.focus({ preventScroll: true });
+
+            // 5. Return true to tell CodeMirror we successfully handled the event
+            return true;
+          },
+        }),
         EditorView.domEventObservers({
           focus: () => {
             syncLayout();
