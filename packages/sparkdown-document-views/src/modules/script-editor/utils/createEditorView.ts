@@ -607,6 +607,9 @@ const createEditorView = (
             // 1. Stop the native browser tap/focus/scroll behavior
             event.preventDefault();
 
+            // 4. Manually focus the editor's internal element without scrolling the body
+            view.focus();
+
             // 2. Get the exact screen coordinates of the tap
             const touch = event.changedTouches[0]!;
             const pos = view.posAtCoords({
@@ -620,9 +623,6 @@ const createEditorView = (
                 selection: { anchor: pos, head: pos },
               });
             }
-
-            // 4. Manually focus the editor's internal element without scrolling the body
-            view.contentDOM.focus({ preventScroll: true });
 
             // 5. Return true to tell CodeMirror we successfully handled the event
             return true;
