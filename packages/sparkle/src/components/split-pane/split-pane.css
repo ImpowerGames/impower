@@ -37,7 +37,7 @@
   align-self: stretch;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: clip;
 }
 :host(:not([vertical])) > .root > .panel {
   max-width: calc(100% - var(--_min-panel-width));
@@ -51,7 +51,7 @@
 :host > .root > .panel > .resize {
   pointer-events: var(--_interactable);
   opacity: 0;
-  overflow: hidden;
+  overflow: clip;
 }
 :host(:not([vertical])) > .root > .panel > .resize {
   min-width: calc(var(--_min-panel-width) + var(--_resizer-width));
