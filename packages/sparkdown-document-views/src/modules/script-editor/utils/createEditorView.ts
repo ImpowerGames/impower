@@ -603,7 +603,7 @@ const createEditorView = (
         // This ensures the bottom panel container always has at least one child
         showPanel.of(emptyPanel),
         EditorView.domEventHandlers({
-          touchend: (event, view) => {
+          touchstart: (event, view) => {
             // 1. Stop the native browser tap/focus/scroll behavior
             event.preventDefault();
 
