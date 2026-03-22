@@ -483,11 +483,19 @@ const createEditorView = (
         ),
         EditorView.theme(
           {
-            "&:is([data-platform=ios], [data-platform=android]) .cm-content": {
+            "&[data-platform=ios] .cm-content": {
               paddingBottom:
                 "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) + var(--safe-bottom)) !important",
             },
-            "&:is([data-platform=ios], [data-platform=android]) .cm-gutters": {
+            "&[data-platform=android] .cm-content": {
+              paddingBottom:
+                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) + var(--safe-bottom)) !important",
+            },
+            "&[data-platform=ios] .cm-gutters": {
+              paddingBottom:
+                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) + var(--safe-bottom)) !important",
+            },
+            "&[data-platform=android] .cm-gutters": {
               paddingBottom:
                 "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) + var(--safe-bottom)) !important",
             },
