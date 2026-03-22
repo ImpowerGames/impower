@@ -603,7 +603,7 @@ const createEditorView = (
         // This ensures the bottom panel container always has at least one child
         showPanel.of(emptyPanel),
         EditorView.domEventHandlers({
-          touchstart: (event, view) => {
+          touchend: (event, view) => {
             // 1. Stop the native browser tap/focus/scroll behavior
             event.preventDefault();
 
@@ -651,11 +651,19 @@ const createEditorView = (
 
   syncLayout();
 
+  const preventDefault = (event: Event) => {
+    event.preventDefault();
+  };
+
+  view.dom?.addEventListener("touchstart", preventDefault, { passive: true });
+  view.dom?.addEventListener("touchmove", preventDefault, { passive: true });
   window.visualViewport?.addEventListener("resize", syncLayout);
   window.visualViewport?.addEventListener("scroll", syncLayout);
   window.addEventListener(MessageProtocol.event, handleProtocol);
   const disposable = {
     dispose: () => {
+      view.dom?.removeEventListener("touchstart", preventDefault);
+      view.dom?.removeEventListener("touchmove", preventDefault);
       window.visualViewport?.removeEventListener("resize", syncLayout);
       window.visualViewport?.removeEventListener("scroll", syncLayout);
       window.removeEventListener(MessageProtocol.event, handleProtocol);
