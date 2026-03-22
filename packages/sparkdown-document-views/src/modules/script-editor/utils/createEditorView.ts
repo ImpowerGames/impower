@@ -485,19 +485,19 @@ const createEditorView = (
           {
             "&[data-platform=ios] .cm-content": {
               paddingBottom:
-                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) + var(--safe-bottom)) !important",
+                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) - var(--cm-focused-bottom) + var(--safe-bottom)) !important",
             },
             "&[data-platform=android] .cm-content": {
               paddingBottom:
-                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) + var(--safe-bottom)) !important",
+                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) - var(--cm-focused-bottom) + var(--safe-bottom)) !important",
             },
             "&[data-platform=ios] .cm-gutters": {
               paddingBottom:
-                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) + var(--safe-bottom)) !important",
+                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) - var(--cm-focused-bottom) + var(--safe-bottom)) !important",
             },
             "&[data-platform=android] .cm-gutters": {
               paddingBottom:
-                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) + var(--safe-bottom)) !important",
+                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) - var(--cm-focused-bottom) + var(--safe-bottom)) !important",
             },
             "& .cm-panels.cm-panels-top": {
               top: `var(--cm-top-offset) !important`,
