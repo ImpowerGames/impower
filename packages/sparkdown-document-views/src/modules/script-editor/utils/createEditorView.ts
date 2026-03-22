@@ -107,8 +107,8 @@ interface EditorConfig {
   breakpointLineNumbers?: number[];
   pinpointLineNumbers?: number[];
   highlightLineNumbers?: number[];
-  topContainer?: HTMLElement;
-  bottomContainer?: HTMLElement;
+  mobileTopContainer?: HTMLElement;
+  mobileBottomContainer?: HTMLElement;
   scrollToLineNumber?: number;
   getEditorState?: () => SerializableEditorState;
   setEditorState?: (value: SerializableEditorState) => void;
@@ -153,8 +153,8 @@ const createEditorView = (
   const breakpointLineNumbers = config?.breakpointLineNumbers;
   const pinpointLineNumbers = config?.pinpointLineNumbers;
   const highlightLineNumbers = config?.highlightLineNumbers;
-  const topContainer = config.topContainer;
-  const bottomContainer = config.bottomContainer;
+  const mobileTopContainer = config.mobileTopContainer;
+  const mobileBottomContainer = config.mobileBottomContainer;
   const scrollToLineNumber = config?.scrollToLineNumber;
   const onReady = config?.onReady;
   const onViewUpdate = config?.onViewUpdate;
@@ -227,11 +227,8 @@ const createEditorView = (
       )
     : undefined;
 
-  document.documentElement.style.setProperty("--cm-top-offset", `${top}px`);
-  document.documentElement.style.setProperty(
-    "--cm-bottom-offset",
-    `${bottom}px`,
-  );
+  document.body.style.setProperty("--cm-top-offset", `${top}px`);
+  document.body.style.setProperty("--cm-bottom-offset", `${bottom}px`);
 
   const view: EditorView = new EditorView({
     parent,
@@ -243,7 +240,10 @@ const createEditorView = (
         ...restoredExtensions,
         EditorView.theme(EDITOR_THEME, { dark: true }),
         EDITOR_EXTENSIONS,
-        panels({ topContainer, bottomContainer }),
+        panels({
+          topContainer: isMobile() ? mobileTopContainer : undefined,
+          bottomContainer: isMobile() ? mobileBottomContainer : undefined,
+        }),
         search({
           createPanel: (view) => new SearchPanel(view),
           scrollToMatch: (range: SelectionRange) =>
@@ -459,10 +459,11 @@ const createEditorView = (
         }),
         EditorView.domEventHandlers({
           focus: (event, view) => {
-            document.body.classList.add("keyboard-open");
+            document.documentElement.classList.add("keyboard-open");
+            view.dom.classList.add("keyboard-open");
           },
           blur: (event, view) => {
-            document.body.classList.remove("keyboard-open");
+            document.documentElement.classList.remove("keyboard-open");
           },
         }),
         scrollMarginsConfig.of(
@@ -485,19 +486,19 @@ const createEditorView = (
           {
             "&[data-platform=ios] .cm-content": {
               paddingBottom:
-                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) - var(--cm-focused-bottom) + var(--safe-bottom)) !important",
+                "calc(var(--cm-bottom-panels-height) + var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
             },
             "&[data-platform=android] .cm-content": {
               paddingBottom:
-                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) - var(--cm-focused-bottom) + var(--safe-bottom)) !important",
+                "calc(var(--cm-bottom-panels-height) + var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
             },
             "&[data-platform=ios] .cm-gutters": {
               paddingBottom:
-                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) - var(--cm-focused-bottom) + var(--safe-bottom)) !important",
+                "calc(var(--cm-bottom-panels-height) + var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
             },
             "&[data-platform=android] .cm-gutters": {
               paddingBottom:
-                "calc(var(--cm-bottom-panels-height) + var(--cm-bottom-offset) - var(--cm-focused-bottom) + var(--safe-bottom)) !important",
+                "calc(var(--cm-bottom-panels-height) + var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
             },
             "& .cm-panels.cm-panels-top": {
               top: `var(--cm-top-offset) !important`,
@@ -513,6 +514,7 @@ const createEditorView = (
               position: "fixed !important",
               top: "0 !important",
               bottom: "auto !important",
+              transition: "transform 0.05s linear",
               transform:
                 "translateY(calc(var(--vv-offset-top) + var(--vv-height) - 100%))",
             },
@@ -520,8 +522,11 @@ const createEditorView = (
               position: "fixed !important",
               bottom: "0 !important",
               top: "auto !important",
-              transform:
-                "translateY(calc(-1 * var(--cm-bottom-offset) + var(--cm-focused-bottom)))",
+              transition: "transform 0.05s linear",
+              transform: "translateY(calc(-1 * var(--cm-bottom-offset)))",
+            },
+            "&[data-platform=android].cm-focused .cm-panels-bottom": {
+              transform: "translateY(calc(-1 * var(--cm-keyboard-height)))",
             },
           },
           { dark: true },
@@ -571,13 +576,10 @@ const createEditorView = (
       "--cm-bottom-panels-height",
       `${bottomPanelsHeight}px`,
     );
-    body.style.setProperty("--cm-bottom-offset", `${keyboardHeight}px`);
+    body.style.setProperty("--cm-keyboard-height", `${keyboardHeight}px`);
     body.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
     body.style.setProperty("--vv-height", `${vv.height}px`);
     document.documentElement.classList.add(
-      isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
-    );
-    view.dom.classList.add(
       isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
     );
 
@@ -613,16 +615,12 @@ const createEditorView = (
     });
 
     if (view.hasFocus && keyboardHeight > 0) {
-      // Shift down bottom panels since bottom fixed navigation bar is not visible when keyboard is visible
-      body.style.setProperty("--cm-focused-bottom", `${bottom}px`);
       // Ensure cursor is visible
       view.dispatch({
         effects: EditorView.scrollIntoView(view.state.selection.main, {
           y: "nearest",
         }),
       });
-    } else {
-      body.style.setProperty("--cm-focused-bottom", `0px`);
     }
   };
 
