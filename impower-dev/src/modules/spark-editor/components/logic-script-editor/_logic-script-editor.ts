@@ -19,7 +19,7 @@ export default spec({
           id="sparkdownScriptEditor"
           scroll-margin="0 0 0 0"
           top="0px"
-          bottom="0px"
+          bottom="60px"
         ></sparkdown-script-editor>
       </s-box>
     `;
