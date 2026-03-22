@@ -20,6 +20,7 @@ import {
   PanelConstructor,
   ViewUpdate,
   panels,
+  scrollPastEnd,
   showPanel,
 } from "@codemirror/view";
 import {
@@ -265,7 +266,7 @@ const createEditorView = (
       ),
     });
 
-    // Update CSS variables for padding-bottom
+    // Update CSS variables
     const body = document.body;
     body.style.setProperty("--cm-keyboard-height", `${keyboardHeight}px`);
     body.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
@@ -567,22 +568,6 @@ const createEditorView = (
               overflow: "auto !important",
               WebkitOverflowScrolling: "touch !important",
             },
-            "&[data-platform=ios] .cm-content": {
-              paddingBottom:
-                "calc(var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
-            },
-            "&[data-platform=android] .cm-content": {
-              paddingBottom:
-                "calc(var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
-            },
-            "&[data-platform=ios] .cm-gutters": {
-              paddingBottom:
-                "calc(var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
-            },
-            "&[data-platform=android] .cm-gutters": {
-              paddingBottom:
-                "calc(var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
-            },
             "& .cm-panels.cm-panels-top": {
               top: `var(--cm-top-offset) !important`,
             },
@@ -614,6 +599,7 @@ const createEditorView = (
           },
           { dark: true },
         ),
+        scrollPastEnd(),
         // This ensures the bottom panel container always has at least one child
         showPanel.of(emptyPanel),
         EditorView.domEventObservers({
