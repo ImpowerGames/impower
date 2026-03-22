@@ -230,6 +230,94 @@ const createEditorView = (
   document.body.style.setProperty("--cm-top-offset", `${top}px`);
   document.body.style.setProperty("--cm-bottom-offset", `${bottom}px`);
 
+  const header = document.querySelector("header");
+  const footer = document.querySelector("footer");
+
+  const syncLayout = () => {
+    if (!isMobile()) {
+      return;
+    }
+
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    // LOCKDOWN FIRST: Force scroll to 0 before reading viewport math
+    // This stops the browser's native scroll from poisoning our calculations
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+      window.scrollTo(0, 0);
+    }
+
+    const keyboardHeight = window.innerHeight - vv.height;
+
+    // Query for bottom panels
+    const bottomPanels =
+      view.dom.querySelector<HTMLElement>(".cm-panels-bottom");
+    const bottomPanelsHeight = bottomPanels ? bottomPanels.offsetHeight : 0;
+
+    // Update CSS variables for padding-bottom
+    const body = document.body;
+    body.style.setProperty(
+      "--cm-bottom-panels-height",
+      `${bottomPanelsHeight}px`,
+    );
+    body.style.setProperty("--cm-keyboard-height", `${keyboardHeight}px`);
+    body.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
+    body.style.setProperty("--vv-height", `${vv.height}px`);
+    document.documentElement.classList.add(
+      isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
+    );
+
+    if (header) {
+      header.style.display = "block";
+    }
+    if (footer) {
+      footer.style.display = "block";
+    }
+
+    // Dynamically reconfigure scroll margins via Compartment
+    view.dispatch({
+      effects: scrollMarginsConfig.reconfigure(
+        EditorView.scrollMargins.of(() => ({
+          ...scrollMargin,
+          bottom: keyboardHeight + bottomPanelsHeight,
+        })),
+      ),
+    });
+
+    const keyboardOpen = keyboardHeight > 0;
+
+    if (keyboardOpen) {
+      document.documentElement.classList.add("keyboard-open");
+    } else {
+      document.documentElement.classList.remove("keyboard-open");
+    }
+
+    // Dynamically reconfigure editorAttributes via Compartment
+    view.dispatch({
+      effects: editorAttributesConfig.reconfigure(
+        EditorView.editorAttributes.of({
+          "data-platform": isIOS()
+            ? "ios"
+            : isAndroid()
+              ? "android"
+              : "desktop",
+          "data-keyboard": keyboardOpen ? "open" : "closed",
+          style: "",
+        }),
+      ),
+    });
+
+    if (keyboardOpen && view.hasFocus) {
+      // Ensure cursor is visible
+      view.dispatch({
+        effects: EditorView.scrollIntoView(view.state.selection.main, {
+          y: "nearest",
+        }),
+      });
+    }
+  };
+
+  // Create Editor View
   const view: EditorView = new EditorView({
     parent,
     scrollTo,
@@ -519,6 +607,14 @@ const createEditorView = (
         ),
         // This ensures the bottom panel container always has at least one child
         showPanel.of(emptyPanel),
+        EditorView.domEventObservers({
+          focus: () => {
+            syncLayout();
+          },
+          blur: () => {
+            syncLayout();
+          },
+        }),
       ],
     }),
   });
@@ -532,98 +628,7 @@ const createEditorView = (
     }
   };
 
-  const header = document.querySelector("header");
-  const footer = document.querySelector("footer");
-
-  const syncLayout = () => {
-    if (!isMobile()) {
-      return;
-    }
-
-    const vv = window.visualViewport;
-    if (!vv) return;
-
-    // LOCKDOWN FIRST: Force scroll to 0 before reading viewport math
-    // This stops the browser's native scroll from poisoning our calculations
-    if (window.scrollY !== 0 || window.scrollX !== 0) {
-      window.scrollTo(0, 0);
-    }
-
-    const keyboardHeight = window.innerHeight - vv.height;
-
-    // Query for bottom panels
-    const bottomPanels =
-      view.dom.querySelector<HTMLElement>(".cm-panels-bottom");
-    const bottomPanelsHeight = bottomPanels ? bottomPanels.offsetHeight : 0;
-
-    // Update CSS variables for padding-bottom
-    const body = document.body;
-    body.style.setProperty(
-      "--cm-bottom-panels-height",
-      `${bottomPanelsHeight}px`,
-    );
-    body.style.setProperty("--cm-keyboard-height", `${keyboardHeight}px`);
-    body.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
-    body.style.setProperty("--vv-height", `${vv.height}px`);
-    document.documentElement.classList.add(
-      isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
-    );
-
-    if (header) {
-      header.style.display = "block";
-    }
-    if (footer) {
-      footer.style.display = "block";
-    }
-
-    // Dynamically reconfigure scroll margins via Compartment
-    view.dispatch({
-      effects: scrollMarginsConfig.reconfigure(
-        EditorView.scrollMargins.of(() => ({
-          ...scrollMargin,
-          bottom: keyboardHeight + bottomPanelsHeight,
-        })),
-      ),
-    });
-
-    const keyboardOpen = keyboardHeight > 0;
-
-    if (keyboardOpen) {
-      document.documentElement.classList.add("keyboard-open");
-    } else {
-      document.documentElement.classList.remove("keyboard-open");
-    }
-
-    // Dynamically reconfigure editorAttributes via Compartment
-    view.dispatch({
-      effects: editorAttributesConfig.reconfigure(
-        EditorView.editorAttributes.of({
-          "data-platform": isIOS()
-            ? "ios"
-            : isAndroid()
-              ? "android"
-              : "desktop",
-          "data-keyboard": keyboardOpen ? "open" : "closed",
-          style: "",
-        }),
-      ),
-    });
-
-    if (keyboardOpen && view.hasFocus) {
-      // Ensure cursor is visible
-      view.dispatch({
-        effects: EditorView.scrollIntoView(view.state.selection.main, {
-          y: "nearest",
-        }),
-      });
-    }
-  };
-
   syncLayout();
-
-  // Listen for selection changes inside CodeMirror
-  view.dom.addEventListener("click", () => setTimeout(syncLayout, 100));
-  view.dom.addEventListener("focusin", () => setTimeout(syncLayout, 100));
 
   window.visualViewport?.addEventListener("resize", syncLayout);
   window.visualViewport?.addEventListener("scroll", syncLayout);
