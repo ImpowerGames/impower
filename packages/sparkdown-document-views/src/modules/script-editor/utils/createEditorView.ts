@@ -544,8 +544,6 @@ const createEditorView = (
   const header = document.querySelector("header");
   const footer = document.querySelector("footer");
 
-  let lastKeyboardHeight = 0;
-
   const syncLayout = () => {
     if (!isMobile()) {
       return;
@@ -614,23 +612,18 @@ const createEditorView = (
       ),
     });
 
-    if (keyboardHeight !== lastKeyboardHeight) {
-      // Ensure cursor is visible when keyboard is opening or closing
+    if (view.hasFocus && keyboardHeight > 0) {
+      // Ensure cursor is visible
       view.dispatch({
         effects: EditorView.scrollIntoView(view.state.selection.main, {
-          y: "center",
+          y: "nearest",
         }),
       });
-    }
-
-    if (view.hasFocus && keyboardHeight > 0) {
       // Shift down bottom panels since bottom fixed navigation bar is not visible when keyboard is visible
       body.style.setProperty("--cm-focused-bottom", `${bottom}px`);
     } else {
       body.style.setProperty("--cm-focused-bottom", `0px`);
     }
-
-    lastKeyboardHeight = keyboardHeight;
   };
 
   syncLayout();
