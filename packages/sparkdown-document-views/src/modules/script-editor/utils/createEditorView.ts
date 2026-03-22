@@ -553,8 +553,19 @@ const createEditorView = (
         ),
         EditorView.theme(
           {
+            "&": {
+              height: "100% !important",
+              display: "flex !important",
+              flexDirection: "column !important",
+              overscrollBehavior: "contain !important",
+            },
             "& *": {
-              overscrollBehavior: "contain",
+              overscrollBehavior: "contain !important",
+            },
+            ".cm-scroller": {
+              flexGrow: "1 !important",
+              overflow: "auto !important",
+              WebkitOverflowScrolling: "touch !important",
             },
             "&[data-platform=ios] .cm-content": {
               paddingBottom:
@@ -577,9 +588,10 @@ const createEditorView = (
             },
             // Replaces global CSS for panels
             ".cm-panels-bottom": {
-              left: 0,
-              right: 0,
-              willChange: "transform",
+              left: "0 !important",
+              right: "0 !important",
+              flexShrink: "0 !important",
+              willChange: "transform !important",
             },
             // Platform specific logic inside the theme using the body classes
             "&[data-platform=ios] .cm-panels-bottom": {
