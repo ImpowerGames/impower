@@ -265,17 +265,8 @@ const createEditorView = (
       ),
     });
 
-    // Query for bottom panels
-    const bottomPanels =
-      view.dom.querySelector<HTMLElement>(".cm-panels-bottom");
-    const bottomPanelsHeight = bottomPanels ? bottomPanels.offsetHeight : 0;
-
     // Update CSS variables for padding-bottom
     const body = document.body;
-    body.style.setProperty(
-      "--cm-bottom-panels-height",
-      `${bottomPanelsHeight}px`,
-    );
     body.style.setProperty("--cm-keyboard-height", `${keyboardHeight}px`);
     body.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
     body.style.setProperty("--vv-height", `${vv.height}px`);
@@ -567,19 +558,19 @@ const createEditorView = (
             },
             "&[data-platform=ios] .cm-content": {
               paddingBottom:
-                "calc(var(--cm-bottom-panels-height) + var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
+                "calc(var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
             },
             "&[data-platform=android] .cm-content": {
               paddingBottom:
-                "calc(var(--cm-bottom-panels-height) + var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
+                "calc(var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
             },
             "&[data-platform=ios] .cm-gutters": {
               paddingBottom:
-                "calc(var(--cm-bottom-panels-height) + var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
+                "calc(var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
             },
             "&[data-platform=android] .cm-gutters": {
               paddingBottom:
-                "calc(var(--cm-bottom-panels-height) + var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
+                "calc(var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
             },
             "& .cm-panels.cm-panels-top": {
               top: `var(--cm-top-offset) !important`,
