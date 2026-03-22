@@ -37,6 +37,7 @@
   align-self: stretch;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 :host(:not([vertical])) > .root > .panel {
   max-width: calc(100% - var(--_min-panel-width));
