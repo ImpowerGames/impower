@@ -613,14 +613,14 @@ const createEditorView = (
     });
 
     if (view.hasFocus && keyboardHeight > 0) {
+      // Shift down bottom panels since bottom fixed navigation bar is not visible when keyboard is visible
+      body.style.setProperty("--cm-focused-bottom", `${bottom}px`);
       // Ensure cursor is visible
       view.dispatch({
         effects: EditorView.scrollIntoView(view.state.selection.main, {
           y: "nearest",
         }),
       });
-      // Shift down bottom panels since bottom fixed navigation bar is not visible when keyboard is visible
-      body.style.setProperty("--cm-focused-bottom", `${bottom}px`);
     } else {
       body.style.setProperty("--cm-focused-bottom", `0px`);
     }
