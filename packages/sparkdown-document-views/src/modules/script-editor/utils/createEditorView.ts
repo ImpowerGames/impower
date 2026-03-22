@@ -476,6 +476,14 @@ const createEditorView = (
         ),
         EditorView.theme(
           {
+            "& .cm-content": {
+              paddingBottom:
+                "calc(var(--cm-bottom-offset) + var(--safe-bottom)) !important",
+            },
+            "& .cm-gutters": {
+              paddingBottom:
+                "calc(var(--cm-bottom-offset) + var(--safe-bottom)) !important",
+            },
             "& .cm-panels.cm-panels-top": {
               top: `var(--cm-top-offset) !important`,
             },
