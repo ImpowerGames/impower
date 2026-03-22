@@ -248,6 +248,22 @@ const createEditorView = (
     }
 
     const keyboardHeight = window.innerHeight - vv.height;
+    const keyboardOpen = keyboardHeight > 0;
+
+    // Dynamically reconfigure editorAttributes via Compartment
+    view.dispatch({
+      effects: editorAttributesConfig.reconfigure(
+        EditorView.editorAttributes.of({
+          "data-platform": isIOS()
+            ? "ios"
+            : isAndroid()
+              ? "android"
+              : "desktop",
+          "data-keyboard": keyboardOpen ? "open" : "closed",
+          style: "",
+        }),
+      ),
+    });
 
     // Query for bottom panels
     const bottomPanels =
@@ -284,28 +300,11 @@ const createEditorView = (
       ),
     });
 
-    const keyboardOpen = keyboardHeight > 0;
-
     if (keyboardOpen) {
       document.documentElement.classList.add("keyboard-open");
     } else {
       document.documentElement.classList.remove("keyboard-open");
     }
-
-    // Dynamically reconfigure editorAttributes via Compartment
-    view.dispatch({
-      effects: editorAttributesConfig.reconfigure(
-        EditorView.editorAttributes.of({
-          "data-platform": isIOS()
-            ? "ios"
-            : isAndroid()
-              ? "android"
-              : "desktop",
-          "data-keyboard": keyboardOpen ? "open" : "closed",
-          style: "",
-        }),
-      ),
-    });
 
     if (keyboardOpen && view.hasFocus) {
       // Ensure cursor is visible
