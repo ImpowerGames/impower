@@ -605,6 +605,9 @@ const createEditorView = (
               transition: "transform 0.05s linear",
               transform: "translateY(calc(-1 * var(--cm-keyboard-height)))",
             },
+            "&[data-platform=android][data-keyboard=open] .cm-panels-bottom": {
+              transform: "translateY(var(--cm-bottom-offset))",
+            },
           },
           { dark: true },
         ),
