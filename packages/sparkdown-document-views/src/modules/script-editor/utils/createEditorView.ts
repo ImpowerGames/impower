@@ -607,7 +607,7 @@ const createEditorView = (
       effects: scrollMarginsConfig.reconfigure(
         EditorView.scrollMargins.of(() => ({
           ...scrollMargin,
-          bottom: keyboardHeight + bottomPanelsHeight,
+          bottom: keyboardHeight + bottomPanelsHeight - bottom,
         })),
       ),
     });
