@@ -311,7 +311,7 @@ const createEditorView = (
       // Ensure cursor is visible
       view.dispatch({
         effects: EditorView.scrollIntoView(view.state.selection.main, {
-          y: "nearest",
+          y: "center",
         }),
       });
     }
