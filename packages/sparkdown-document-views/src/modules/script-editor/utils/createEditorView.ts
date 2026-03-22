@@ -563,6 +563,9 @@ const createEditorView = (
         ),
         EditorView.theme(
           {
+            "& *": {
+              overscrollBehavior: "contain",
+            },
             "&[data-platform=ios] .cm-content": {
               paddingBottom:
                 "calc(var(--cm-bottom-panels-height) + var(--cm-keyboard-height) - var(--cm-bottom-offset) + var(--safe-bottom)) !important",
