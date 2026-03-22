@@ -502,7 +502,6 @@ const createEditorView = (
             },
             // Platform specific logic inside the theme using the body classes
             "&[data-platform=ios] .cm-panels-bottom": {
-              position: "fixed !important",
               top: "0 !important",
               bottom: "auto !important",
               transition: "transform 0.05s linear",
@@ -510,13 +509,9 @@ const createEditorView = (
                 "translateY(calc(var(--vv-offset-top) + var(--vv-height) - 100%))",
             },
             "&[data-platform=android] .cm-panels-bottom": {
-              position: "fixed !important",
-              bottom: "0 !important",
+              bottom: `var(--cm-bottom-offset) !important`,
               top: "auto !important",
               transition: "transform 0.05s linear",
-              transform: "translateY(calc(-1 * var(--cm-bottom-offset)))",
-            },
-            "&[data-platform=android][data-keyboard=open] .cm-panels-bottom": {
               transform: "translateY(calc(-1 * var(--cm-keyboard-height)))",
             },
           },
