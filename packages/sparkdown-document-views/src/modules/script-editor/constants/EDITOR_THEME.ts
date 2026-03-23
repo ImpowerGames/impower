@@ -181,6 +181,10 @@ const EDITOR_THEME: {
     backgroundColor: "transparent",
     outline: "2px solid #FFFFFF12",
   },
+  "&.cm-selected .cm-activeLine": {
+    backgroundColor: "transparent",
+    outline: "none",
+  },
   "& .cm-gutterElement *": {
     userSelect: "none",
   },

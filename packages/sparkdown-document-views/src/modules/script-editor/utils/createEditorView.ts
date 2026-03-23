@@ -8,6 +8,7 @@ import {
   Range,
   RangeSet,
   SelectionRange,
+  StateField,
   Text,
   Transaction,
   TransactionSpec,
@@ -84,11 +85,53 @@ export const scrollMarginsConfig = new Compartment();
 
 export const editorAttributesConfig = new Compartment();
 
+const selectionStateField = StateField.define({
+  create(state) {
+    return state.selection.ranges.some((r) => !r.empty);
+  },
+  update(value, tr) {
+    if (tr.newSelection) {
+      return tr.state.selection.ranges.some((r) => !r.empty);
+    }
+    return value;
+  },
+});
+const selectionAttributeExtension = EditorView.editorAttributes.from(
+  selectionStateField,
+  (value) => {
+    return value ? { class: "cm-selected" } : { class: "" };
+  },
+);
+export function selectionClassManager() {
+  return [selectionStateField, selectionAttributeExtension];
+}
+
+const platformStateField = StateField.define({
+  create() {
+    return isIOS() ? "ios" : isAndroid() ? "android" : "desktop";
+  },
+  update(value, tr) {
+    if (tr.startState) {
+      return isIOS() ? "ios" : isAndroid() ? "android" : "desktop";
+    }
+    return value;
+  },
+});
+const platformAttributeExtension = EditorView.editorAttributes.from(
+  platformStateField,
+  (value) => {
+    return { class: value };
+  },
+);
+export function platformClassManager() {
+  return [platformStateField, platformAttributeExtension];
+}
+
 /**
  * A custom CodeMirror 6 extension to handle mobile touch interactions
  * without triggering the "scroll-to-input" browser behavior.
  */
-export const mobileTouchHandlers = () => {
+export function mobileTouchHandlers() {
   if (!isMobile()) {
     return [];
   }
@@ -270,7 +313,7 @@ export const mobileTouchHandlers = () => {
       },
     }),
   ];
-};
+}
 
 // Create a panel that returns an empty div
 const emptyPanel: PanelConstructor = () => ({
@@ -444,11 +487,6 @@ const createEditorView = (
     view.dispatch({
       effects: editorAttributesConfig.reconfigure(
         EditorView.editorAttributes.of({
-          "data-platform": isIOS()
-            ? "ios"
-            : isAndroid()
-              ? "android"
-              : "desktop",
           "data-keyboard": keyboardOpen ? "open" : "closed",
           style: "",
         }),
@@ -733,65 +771,58 @@ const createEditorView = (
         ),
         editorAttributesConfig.of(
           EditorView.editorAttributes.of({
-            "data-platform": isIOS()
-              ? "ios"
-              : isAndroid()
-                ? "android"
-                : "desktop",
             style: "",
           }),
         ),
-        EditorView.theme(
-          {
-            "&": {
-              height: "100% !important",
-              display: "flex !important",
-              flexDirection: "column !important",
-              overscrollBehavior: "contain !important",
-            },
-            "& *": {
-              overscrollBehavior: "contain !important",
-            },
-            ".cm-scroller": {
-              flexGrow: "1 !important",
-              overflow: "auto !important",
-              WebkitOverflowScrolling: "touch !important",
-            },
-            "& .cm-panels.cm-panels-top": {
-              top: `var(--cm-top-offset) !important`,
-            },
-            // Replaces global CSS for panels
-            ".cm-panels-bottom": {
-              left: "0 !important",
-              right: "0 !important",
-              flexShrink: "0 !important",
-              willChange: "transform !important",
-            },
-            // Platform specific logic inside the theme using the body classes
-            "&[data-platform=ios] .cm-panels-bottom": {
-              top: "0 !important",
-              bottom: "auto !important",
-              transition: "transform 0.05s linear",
-              transform:
-                "translateY(calc(var(--vv-offset-top) + var(--vv-height) - 100%))",
-            },
-            "&[data-platform=android] .cm-panels-bottom": {
-              bottom: `var(--cm-bottom-offset) !important`,
-              top: "auto !important",
-              transition: "transform 0.05s linear",
-              transform: "translateY(calc(-1 * var(--cm-keyboard-height)))",
-            },
-            "&[data-platform=android][data-keyboard=open] .cm-panels-bottom": {
-              transform:
-                "translateY(calc(-1 * var(--cm-keyboard-height) + var(--cm-bottom-offset)))",
-            },
+        platformClassManager(),
+        selectionClassManager(),
+        EditorView.baseTheme({
+          "&": {
+            height: "100% !important",
+            display: "flex !important",
+            flexDirection: "column !important",
+            overscrollBehavior: "contain !important",
           },
-          { dark: true },
-        ),
+          "& *": {
+            overscrollBehavior: "contain !important",
+          },
+          ".cm-scroller": {
+            flexGrow: "1 !important",
+            overflow: "auto !important",
+            WebkitOverflowScrolling: "touch !important",
+          },
+          "& .cm-panels.cm-panels-top": {
+            top: `var(--cm-top-offset) !important`,
+          },
+          // Replaces global CSS for panels
+          ".cm-panels-bottom": {
+            left: "0 !important",
+            right: "0 !important",
+            flexShrink: "0 !important",
+            willChange: "transform !important",
+          },
+          // Platform specific logic inside the theme using the body classes
+          "&.ios .cm-panels-bottom": {
+            top: "0 !important",
+            bottom: "auto !important",
+            transition: "transform 0.05s linear",
+            transform:
+              "translateY(calc(var(--vv-offset-top) + var(--vv-height) - 100%))",
+          },
+          "&.android .cm-panels-bottom": {
+            bottom: `var(--cm-bottom-offset) !important`,
+            top: "auto !important",
+            transition: "transform 0.05s linear",
+            transform: "translateY(calc(-1 * var(--cm-keyboard-height)))",
+          },
+          "&.android[data-keyboard=open] .cm-panels-bottom": {
+            transform:
+              "translateY(calc(-1 * var(--cm-keyboard-height) + var(--cm-bottom-offset)))",
+          },
+        }),
         scrollPastEnd(),
-        // This ensures the bottom panel container always has at least one child
-        showPanel.of(emptyPanel),
         mobileTouchHandlers(),
+        showPanel.of(emptyPanel),
         EditorView.domEventObservers({
           focus: () => {
             syncLayout();
