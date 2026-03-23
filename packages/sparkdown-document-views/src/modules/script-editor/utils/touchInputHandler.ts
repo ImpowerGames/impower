@@ -271,6 +271,9 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       scheduleUpdate(state: EditorState) {
         this.view.requestMeasure({
           read: (view) => {
+            // Don't show handles if not focused
+            if (!view.hasFocus) return null;
+
             const sel = state.selection.main;
             const editorRect = view.dom.getBoundingClientRect();
 
