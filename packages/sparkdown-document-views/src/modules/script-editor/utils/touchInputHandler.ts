@@ -14,6 +14,7 @@ import {
 export interface TouchInputHandlerConfig {
   showContextMenu?: (view: EditorView, pos: number, end: number) => void;
   hideContextMenu?: (view: EditorView) => void;
+  isContextMenuOpen?: (view: EditorView) => boolean;
 }
 
 const touchInputHandlerConfig = Facet.define<
@@ -486,8 +487,10 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           }
 
           if (isScrolling) {
-            wasShowingContextMenuBeforeScroll = true;
             console.log("scrolling so hide context menu");
+            if (config.isContextMenuOpen?.(view)) {
+              wasShowingContextMenuBeforeScroll = true;
+            }
             config.hideContextMenu?.(view);
             const deltaY = lastTouchY - touch.clientY;
             view.scrollDOM.scrollTop += deltaY;

@@ -25,6 +25,7 @@ import {
 } from "@codemirror/view";
 import {
   hideContextMenu,
+  isContextMenuOpen,
   LSPClient,
   showContextMenu,
   Workspace,
@@ -597,6 +598,7 @@ const createEditorView = (
         touchInputHandler({
           showContextMenu,
           hideContextMenu,
+          isContextMenuOpen,
         }),
         showPanel.of(emptyPanel),
         EditorView.domEventObservers({
