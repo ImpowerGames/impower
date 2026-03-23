@@ -602,32 +602,6 @@ const createEditorView = (
         scrollPastEnd(),
         // This ensures the bottom panel container always has at least one child
         showPanel.of(emptyPanel),
-        EditorView.domEventHandlers({
-          touchend: (event, view) => {
-            // 1. Stop the native browser tap/focus/scroll behavior
-            event.preventDefault();
-
-            // 4. Manually focus the editor's internal element without scrolling the body
-            view.focus();
-
-            // 2. Get the exact screen coordinates of the tap
-            const touch = event.changedTouches[0]!;
-            const pos = view.posAtCoords({
-              x: touch.clientX,
-              y: touch.clientY,
-            });
-
-            // 3. If they tapped inside the text, manually move the cursor there
-            if (pos !== null) {
-              view.dispatch({
-                selection: { anchor: pos, head: pos },
-              });
-            }
-
-            // 5. Return true to tell CodeMirror we successfully handled the event
-            return true;
-          },
-        }),
         EditorView.domEventObservers({
           focus: () => {
             syncLayout();
@@ -651,19 +625,29 @@ const createEditorView = (
 
   syncLayout();
 
-  const preventDefault = (event: Event) => {
-    event.preventDefault();
+  let scrollX = 0;
+  let scrollY = 0;
+
+  const onTouchStart = () => {
+    scrollX = window.scrollX;
+    scrollY = window.scrollY;
   };
 
-  view.dom?.addEventListener("touchstart", preventDefault, { passive: true });
-  view.dom?.addEventListener("touchmove", preventDefault, { passive: true });
+  const onFocusIn = () => {
+    window.scrollTo(scrollX, scrollY);
+    // A 0ms timeout catches the delayed scroll paint iOS sometimes does
+    setTimeout(() => window.scrollTo(scrollX, scrollY), 0);
+  };
+
+  view.dom.addEventListener("touchstart", onTouchStart, { passive: true });
+  view.dom.addEventListener("focusin", onFocusIn);
   window.visualViewport?.addEventListener("resize", syncLayout);
   window.visualViewport?.addEventListener("scroll", syncLayout);
   window.addEventListener(MessageProtocol.event, handleProtocol);
   const disposable = {
     dispose: () => {
-      view.dom?.removeEventListener("touchstart", preventDefault);
-      view.dom?.removeEventListener("touchmove", preventDefault);
+      view.dom?.removeEventListener("touchstart", onTouchStart);
+      view.dom?.removeEventListener("focusin", onFocusIn);
       window.visualViewport?.removeEventListener("resize", syncLayout);
       window.visualViewport?.removeEventListener("scroll", syncLayout);
       window.removeEventListener(MessageProtocol.event, handleProtocol);
