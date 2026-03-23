@@ -145,6 +145,7 @@ const contextMenuTheme = EditorView.baseTheme({
 
 const openContextMenu = StateEffect.define<{
   pos: number;
+  end: number;
   page?: number;
 }>();
 const closeContextMenu = StateEffect.define<void>();
@@ -156,24 +157,38 @@ const contextMenuState = StateField.define<Tooltip | null>({
   update(value, tr) {
     for (const e of tr.effects) {
       if (e.is(openContextMenu)) {
-        value = createContextMenuTooltip(e.value.pos, e.value.page || 0);
+        value = createContextMenuTooltip(
+          e.value.pos,
+          e.value.end,
+          e.value.page || 0,
+        );
       } else if (e.is(closeContextMenu)) {
         value = null;
       }
     }
     if (value && tr.docChanged) {
-      value = { ...value, pos: tr.changes.mapPos(value.pos) };
+      value = {
+        ...value,
+        pos: tr.changes.mapPos(value.pos),
+        end: tr.changes.mapPos(value.end),
+      };
     }
     return value;
   },
   provide: (f) => showTooltip.from(f),
 });
 
-function createContextMenuTooltip(pos: number, page: number): Tooltip {
+function createContextMenuTooltip(
+  pos: number,
+  end: number,
+  page: number,
+): Tooltip {
   return {
     pos,
+    end,
     above: true,
     arrow: false,
+    clip: false,
     create(view: EditorView) {
       const dom = document.createElement("div");
       dom.className = "cm-context-menu";
@@ -228,7 +243,7 @@ function createContextMenuTooltip(pos: number, page: number): Tooltip {
           view.dispatch({
             effects: [
               closeContextMenu.of(),
-              openContextMenu.of({ pos, page: page - 1 }),
+              openContextMenu.of({ pos, end, page: page - 1 }),
             ],
           });
         };
@@ -285,7 +300,7 @@ function createContextMenuTooltip(pos: number, page: number): Tooltip {
           view.dispatch({
             effects: [
               closeContextMenu.of(),
-              openContextMenu.of({ pos, page: page + 1 }),
+              openContextMenu.of({ pos, end, page: page + 1 }),
             ],
           });
         };
@@ -300,9 +315,9 @@ function createContextMenuTooltip(pos: number, page: number): Tooltip {
 const contextMenuHandlers = EditorView.domEventHandlers({
   contextmenu(event, view) {
     event.preventDefault();
-    const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-    const safePos = pos !== null ? pos : view.state.selection.main.head;
-    view.dispatch({ effects: openContextMenu.of({ pos: safePos }) });
+    const anchor = view.state.selection.main.anchor;
+    const head = view.state.selection.main.head;
+    view.dispatch({ effects: openContextMenu.of({ pos: anchor, end: head }) });
     return true;
   },
 });
@@ -335,12 +350,16 @@ const contextMenuClosePlugin = ViewPlugin.fromClass(
   },
 );
 
-export function showContextMenu(view: EditorView, pos: number) {
-  view.dispatch({ effects: openContextMenu.of({ pos }) });
+export function showContextMenu(view: EditorView, pos: number, end: number) {
+  view.dispatch({ effects: openContextMenu.of({ pos, end }) });
 }
 
 export function hideContextMenu(view: EditorView) {
   view.dispatch({ effects: closeContextMenu.of() });
+}
+
+export function isContextMenuOpen(view: EditorView) {
+  return Boolean(view.state.field(contextMenuState, false));
 }
 
 export interface ContextMenuConfig {

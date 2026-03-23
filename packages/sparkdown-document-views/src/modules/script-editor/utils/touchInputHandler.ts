@@ -1,4 +1,9 @@
-import { combineConfig, Facet } from "@codemirror/state";
+import {
+  combineConfig,
+  EditorSelection,
+  EditorState,
+  Facet,
+} from "@codemirror/state";
 import {
   drawSelection,
   EditorView,
@@ -7,7 +12,7 @@ import {
 } from "@codemirror/view";
 
 export interface TouchInputHandlerConfig {
-  showContextMenu?: (view: EditorView, pos: number) => void;
+  showContextMenu?: (view: EditorView, pos: number, end: number) => void;
   hideContextMenu?: (view: EditorView) => void;
 }
 
@@ -30,6 +35,9 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
   let isDragging = false;
   let isScrolling = false;
   let isLongPressing = false;
+  let wasShowingContextMenuBeforeScroll = false;
+  let touchStartPos: number | null = null;
+  let touchEndPos: number | null = null;
   let selectionAnchor: number | null = null;
   let selectionHead: number | null = null;
   let longPressTimer: any = undefined;
@@ -58,7 +66,12 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
 
   const applyMomentum = (view: EditorView) => {
     if (Math.abs(velocityY) < VELOCITY_LIMIT) {
+      // Done scrolling
       rafId = null;
+      if (wasShowingContextMenuBeforeScroll) {
+        const selection = view.state.selection.main;
+        config.showContextMenu?.(view, selection.from, selection.to);
+      }
       return;
     }
     view.scrollDOM.scrollTop += velocityY;
@@ -97,6 +110,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       endHandle: HTMLElement;
       cursorHandle: HTMLElement;
       view: EditorView;
+      isSelecting = false;
 
       constructor(view: EditorView) {
         this.view = view;
@@ -119,84 +133,77 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         this.view.dom.appendChild(this.endHandle);
         this.view.dom.appendChild(this.cursorHandle);
 
-        this.attachHandleListeners(this.startHandle, true);
-        this.attachHandleListeners(this.endHandle, false);
-        this.attachCursorListeners(this.cursorHandle);
+        this.attachRangeHandleListeners(this.startHandle, true);
+        this.attachRangeHandleListeners(this.endHandle, false);
+        this.attachCursorHandleListeners(this.cursorHandle);
 
-        this.scheduleUpdate();
+        this.scheduleUpdate(view.state);
       }
 
-      attachHandleListeners(handle: HTMLElement, isStart: boolean) {
+      attachRangeHandleListeners(handle: HTMLElement, isStartHandle: boolean) {
         let selectionHandleAnchor: number | null = null;
         let selectionHandleHead: number | null = null;
 
         // Prevent default to stop scrolling, stop propagation so the main
         // editor touchstart doesn't wipe the selection.
         handle.addEventListener("touchstart", (e) => {
+          this.isSelecting = true;
           e.preventDefault();
           e.stopPropagation();
           config.hideContextMenu?.(this.view);
+          const selection = this.view.state.selection.main;
+          if (selection) {
+            selectionHandleAnchor = selection.anchor;
+            selectionHandleHead = selection.head;
+          }
         });
 
         handle.addEventListener("touchmove", (e) => {
           e.preventDefault();
           e.stopPropagation();
 
-          if (selectionHandleAnchor != null) {
+          if (selectionHandleAnchor != null && selectionHandleHead != null) {
             const touch = e.touches[0]!;
-            if (touch) {
-              const pos = this.view.posAtCoords(
-                {
+            const pos = touch
+              ? this.view.posAtCoords({
                   x: touch.clientX,
                   y: touch.clientY - handle.offsetHeight,
-                },
-                false,
-              );
+                })
+              : null;
+            if (isStartHandle) {
+              selectionHandleAnchor = pos;
+            } else {
               selectionHandleHead = pos;
-              if (selectionHandleAnchor != null) {
-                this.view.dispatch({
-                  selection: {
-                    anchor: selectionHandleAnchor,
-                    head: selectionHandleHead,
-                  },
-                  scrollIntoView: false,
-                  userEvent: "select.touch",
-                });
-              }
             }
-          } else {
-            const selection = this.view.state.selection.main;
-            if (selection) {
-              selectionHandleAnchor = selection.anchor;
-              selectionHandleHead = selection.head;
+            if (selectionHandleAnchor != null && selectionHandleHead != null) {
               this.view.dispatch({
                 selection: {
                   anchor: selectionHandleAnchor,
                   head: selectionHandleHead,
                 },
                 scrollIntoView: false,
-                userEvent: "select.touch",
+                userEvent: "select.touch.handle",
               });
             }
           }
         });
 
         handle.addEventListener("touchend", (e) => {
+          this.isSelecting = false;
           e.preventDefault();
           e.stopPropagation();
           // Wait for dispatch to finish, then show menu
           setTimeout(() => {
-            const currentSel = this.view.state.selection.main;
-            config.showContextMenu?.(
-              this.view,
-              isStart ? currentSel.from : currentSel.to,
-            );
+            const from = this.view.state.selection.main.from;
+            const to = this.view.state.selection.main.to;
+            config.showContextMenu?.(this.view, from, to);
           }, 10);
         });
       }
 
-      attachCursorListeners(handle: HTMLElement) {
+      attachCursorHandleListeners(handle: HTMLElement) {
         handle.addEventListener("touchstart", (e) => {
+          if (this.isSelecting) return;
           e.preventDefault();
           e.stopPropagation();
           const config = this.view.state.facet(touchInputHandlerConfig);
@@ -204,6 +211,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         });
 
         handle.addEventListener("touchmove", (e) => {
+          if (this.isSelecting) return;
           const touch = e.touches[0]!;
           if (touch == null) return;
 
@@ -222,20 +230,20 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             this.view.dispatch({
               selection: { anchor: pos },
               scrollIntoView: true,
-              userEvent: "select.touch",
+              userEvent: "select.touch.handle",
             });
           }
         });
 
         handle.addEventListener("touchend", (e) => {
+          if (this.isSelecting) return;
           e.preventDefault();
           e.stopPropagation();
           const config = this.view.state.facet(touchInputHandlerConfig);
           setTimeout(() => {
-            config.showContextMenu?.(
-              this.view,
-              this.view.state.selection.main.head,
-            );
+            const from = this.view.state.selection.main.from;
+            const to = this.view.state.selection.main.to;
+            config.showContextMenu?.(this.view, from, to);
           }, 50);
         });
       }
@@ -245,16 +253,19 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           update.selectionSet ||
           update.geometryChanged ||
           update.viewportChanged ||
-          update.docChanged
+          update.docChanged ||
+          update.focusChanged
         ) {
-          this.scheduleUpdate();
+          this.scheduleUpdate(update.state);
         }
       }
 
-      scheduleUpdate() {
+      scheduleUpdate(state: EditorState) {
         this.view.requestMeasure({
           read: (view) => {
-            const sel = view.state.selection.main;
+            if (!view.hasFocus) return null;
+
+            const sel = state.selection.main;
             const editorRect = view.dom.getBoundingClientRect();
 
             // We need to know if the handle is actually within the visible scroller area
@@ -270,24 +281,29 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
                 coords.top < scrollRect.bottom;
 
               return {
+                pos,
                 left: coords.left - editorRect.left,
                 top: coords.bottom - editorRect.top,
                 visible: isVisible,
               };
             };
 
-            if (sel.empty) {
-              return { type: "cursor", cursor: getHandleInfo(sel.head) };
-            } else {
-              return {
-                type: "range",
-                start: getHandleInfo(sel.from),
-                end: getHandleInfo(sel.to),
-              };
-            }
+            return {
+              type: !sel.empty || this.isSelecting ? "range" : "cursor",
+              anchor: getHandleInfo(sel.anchor),
+              head: getHandleInfo(sel.head),
+            };
           },
           write: (measure) => {
-            if (!measure) return;
+            if (!measure) {
+              this.startHandle.style.opacity = "0";
+              this.startHandle.style.pointerEvents = "none";
+              this.endHandle.style.opacity = "0";
+              this.endHandle.style.pointerEvents = "none";
+              this.cursorHandle.style.opacity = "0";
+              this.cursorHandle.style.pointerEvents = "none";
+              return;
+            }
 
             const updateHandle = (
               el: HTMLElement,
@@ -298,21 +314,26 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             ) => {
               if (info && info.visible) {
                 el.style.opacity = "1";
+                el.style.pointerEvents = "auto";
                 el.style.left = `${info.left}px`;
                 el.style.top = `${info.top}px`;
               } else {
                 el.style.opacity = "0";
+                el.style.pointerEvents = "none";
               }
             };
 
             if (measure.type === "cursor") {
               this.startHandle.style.opacity = "0";
+              this.startHandle.style.pointerEvents = "none";
               this.endHandle.style.opacity = "0";
-              updateHandle(this.cursorHandle, measure.cursor);
+              this.endHandle.style.pointerEvents = "none";
+              updateHandle(this.cursorHandle, measure.head);
             } else {
               this.cursorHandle.style.opacity = "0";
-              updateHandle(this.startHandle, measure.start);
-              updateHandle(this.endHandle, measure.end);
+              this.cursorHandle.style.pointerEvents = "none";
+              updateHandle(this.startHandle, measure.anchor);
+              updateHandle(this.endHandle, measure.head);
             }
           },
         });
@@ -327,8 +348,8 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
     {
       /* Listen to scroll events specifically to re-measure handle positions */
       eventHandlers: {
-        scroll() {
-          this.scheduleUpdate();
+        scroll(event, view) {
+          this.scheduleUpdate(view.state);
         },
       },
     },
@@ -364,9 +385,12 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         isDragging = false;
         isScrolling = false;
         isLongPressing = false;
+        wasShowingContextMenuBeforeScroll = false;
 
         const pos = view.posAtCoords({ x: startX, y: startY });
         if (pos == null) return;
+
+        touchStartPos = pos;
 
         const now = Date.now();
 
@@ -378,29 +402,33 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           isLongPressing = true;
 
           const word = view.state.wordAt(pos);
-          isDragging = true;
           selectionAnchor = word ? word.from : pos;
           selectionHead = word ? word.to : pos;
 
+          const selection = EditorSelection.range(
+            selectionAnchor,
+            selectionHead,
+          );
           view.dispatch({
-            selection: { anchor: selectionAnchor, head: selectionHead },
+            selection,
             scrollIntoView: false,
             userEvent: "select.touch",
           });
 
-          config.showContextMenu?.(view, pos);
+          config.showContextMenu?.(view, selection.from, selection.to);
         }, LONG_PRESS_DURATION);
 
         if (now - lastTapTime < 300) {
           clearTimeout(longPressTimer);
           const word = view.state.wordAt(pos);
           if (word) {
+            const selection = EditorSelection.range(word.from, word.to);
             view.dispatch({
-              selection: { anchor: word.from, head: word.to },
+              selection,
               scrollIntoView: false,
               userEvent: "select.touch",
             });
-            config.showContextMenu?.(view, pos);
+            config.showContextMenu?.(view, selection.from, selection.to);
           }
           lastTapTime = 0;
           return true;
@@ -416,6 +444,14 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         const touch = event.touches[0]!;
         if (touch == null) return;
 
+        const pos = view.posAtCoords(
+          { x: touch.clientX, y: touch.clientY },
+          false,
+        );
+        if (pos != null) {
+          touchEndPos = pos;
+        }
+
         const now = Date.now();
         const dt = now - lastTimestamp;
 
@@ -424,7 +460,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
 
         const config = view.state.facet(touchInputHandlerConfig);
 
-        if (!isDragging) {
+        if (!isLongPressing) {
           if (
             !isScrolling &&
             (diffY > SCROLL_THRESHOLD || diffX > SCROLL_THRESHOLD)
@@ -434,16 +470,18 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           }
 
           if (isScrolling) {
+            wasShowingContextMenuBeforeScroll = true;
             config.hideContextMenu?.(view);
             const deltaY = lastTouchY - touch.clientY;
             view.scrollDOM.scrollTop += deltaY;
             if (dt > 0) velocityY = deltaY / (dt / 16);
           }
-        } else if (isDragging && selectionAnchor != null) {
+        } else if (isLongPressing && selectionAnchor != null) {
+          isDragging = true;
           config.hideContextMenu?.(view);
           selectionHead = view.posAtCoords({
             x: touch.clientX,
-            y: touch.clientY - 30,
+            y: touch.clientY,
           });
 
           if (selectionHead !== null) {
@@ -466,13 +504,10 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
 
         if (isScrolling) {
           rafId = requestAnimationFrame(() => applyMomentum(view));
-        } else if (isDragging) {
-          if (selectionHead != null) {
-            if (!isLongPressing) {
-              config.showContextMenu?.(view, selectionHead);
-            }
-          }
-        } else {
+        } else if (isDragging && touchStartPos !== touchEndPos) {
+          const selection = view.state.selection.main;
+          config.showContextMenu?.(view, selection.from, selection.to);
+        } else if (!isLongPressing) {
           config.hideContextMenu?.(view);
           if (!view.hasFocus) view.focus();
           if (selectionAnchor != null) {
@@ -481,26 +516,20 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
               scrollIntoView: false,
               userEvent: "select.touch",
             });
-          } else {
-            const touch = event.touches[0]!;
-            if (touch) {
-              const pos = view.posAtCoords({
-                x: touch.clientX,
-                y: touch.clientY,
-              });
-              if (pos != null) {
-                view.dispatch({
-                  selection: { anchor: pos },
-                  scrollIntoView: false,
-                  userEvent: "select.touch",
-                });
-              }
-            }
+          } else if (touchEndPos != null) {
+            view.dispatch({
+              selection: { anchor: touchEndPos },
+              scrollIntoView: false,
+              userEvent: "select.touch",
+            });
           }
         }
 
-        isDragging = false;
         isScrolling = false;
+        isLongPressing = false;
+        isDragging = false;
+        touchStartPos = null;
+        touchEndPos = null;
         selectionAnchor = null;
         selectionHead = null;
       },
@@ -508,9 +537,13 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       touchcancel() {
         clearTimeout(longPressTimer);
         stopMomentum();
-        isDragging = false;
         isScrolling = false;
+        isLongPressing = false;
+        isDragging = false;
+        touchStartPos = null;
+        touchEndPos = null;
         selectionAnchor = null;
+        selectionHead = null;
       },
     }),
   ];

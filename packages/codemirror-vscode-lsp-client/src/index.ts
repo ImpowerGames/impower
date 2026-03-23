@@ -61,6 +61,7 @@ export {
 export {
   contextMenu,
   hideContextMenu,
+  isContextMenuOpen,
   showContextMenu,
   type ContextMenuConfig,
 } from "./menu";

@@ -594,7 +594,10 @@ const createEditorView = (
           },
         }),
         scrollPastEnd(),
-        touchInputHandler({ showContextMenu, hideContextMenu }),
+        touchInputHandler({
+          showContextMenu,
+          hideContextMenu,
+        }),
         showPanel.of(emptyPanel),
         EditorView.domEventObservers({
           focus: () => {
