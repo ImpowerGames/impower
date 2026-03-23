@@ -307,7 +307,55 @@ function createContextMenuTooltip(
         dom.appendChild(moreBtn);
       }
 
-      return { dom };
+      return {
+        dom,
+        getCoords(pos: number) {
+          const coords = view.coordsAtPos(pos);
+          const scrollRect = view.scrollDOM.getBoundingClientRect();
+          const padding = 5;
+
+          // 1. Measure the tooltip's actual height
+          const tooltipHeight = dom.getBoundingClientRect().height;
+
+          // 2. Add the tooltip height to our minimum top boundary
+          const minTop = scrollRect.top + padding + tooltipHeight;
+
+          // Fallback for Virtualization
+          if (!coords) {
+            const isAbove = pos < view.viewport.from;
+            // Use minTop if it's scrolling off the top
+            const fallbackY = isAbove ? minTop : scrollRect.bottom - padding;
+
+            return {
+              left: scrollRect.left + padding,
+              right: scrollRect.left + padding,
+              top: fallbackY,
+              bottom: fallbackY,
+            };
+          }
+
+          // 3. Clamp the anchor coordinates using the new minTop
+          const top = Math.max(
+            minTop,
+            Math.min(coords.top, scrollRect.bottom - padding),
+          );
+          const bottom = Math.max(
+            minTop,
+            Math.min(coords.bottom, scrollRect.bottom - padding),
+          );
+
+          const left = Math.max(
+            scrollRect.left + padding,
+            Math.min(coords.left, scrollRect.right - padding),
+          );
+          const right = Math.max(
+            scrollRect.left + padding,
+            Math.min(coords.right, scrollRect.right - padding),
+          );
+
+          return { left, right, top, bottom };
+        },
+      };
     },
   };
 }
