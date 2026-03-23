@@ -149,7 +149,7 @@ export const mobileTouchHandlers = () => {
         if (word) {
           view.dispatch({
             selection: { anchor: word.from, head: word.to },
-            scrollIntoView: false, // Critical: don't let CM trigger its own scroll
+            scrollIntoView: false,
           });
         }
         lastTapTime = 0;
@@ -162,7 +162,10 @@ export const mobileTouchHandlers = () => {
       selectionAnchor = pos;
 
       // Move cursor to tap location immediately
-      view.dispatch({ selection: { anchor: pos } });
+      view.dispatch({
+        selection: { anchor: pos },
+        scrollIntoView: false,
+      });
       return true;
     },
 
@@ -186,7 +189,7 @@ export const mobileTouchHandlers = () => {
       if (head !== null) {
         view.dispatch({
           selection: { anchor: selectionAnchor, head: head },
-          scrollIntoView: false, // Critical: don't let CM trigger its own scrolls
+          scrollIntoView: false,
         });
       }
     },
