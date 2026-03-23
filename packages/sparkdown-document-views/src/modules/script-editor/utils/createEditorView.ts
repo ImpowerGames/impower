@@ -19,6 +19,7 @@ import {
   GutterMarker,
   PanelConstructor,
   ViewUpdate,
+  drawSelection,
   panels,
   scrollPastEnd,
   showPanel,
@@ -94,119 +95,181 @@ export const mobileTouchHandlers = () => {
 
   let lastTapTime = 0;
   let isDragging = false;
+  let isScrolling = false;
   let selectionAnchor: number | null = null;
   let longPressTimer: number | undefined = undefined;
-  const LONG_PRESS_DURATION = 500; // ms
 
-  return EditorView.domEventHandlers({
-    touchstart(event, view) {
-      // Prevent default to stop the auto-scroll jump
-      event.preventDefault();
+  let startX = 0;
+  let startY = 0;
+  let startScrollTop = 0;
 
-      // Ensure editor is focused
-      if (!view.hasFocus) {
-        view.focus();
-      }
+  // Momentum variables
+  let lastTouchY = 0;
+  let lastTimestamp = 0;
+  let velocityY = 0;
+  let rafId: number | null = null;
 
-      if (event.touches.length === 0) {
-        return;
-      }
+  const LONG_PRESS_DURATION = 500;
+  const SCROLL_THRESHOLD = 10;
+  const FRICTION = 0.95; // Higher = slides longer
+  const VELOCITY_LIMIT = 0.5; // Stop when slow enough
 
-      const touch = event.touches[0]!;
-      const pos = view.posAtCoords({ x: touch.clientX, y: touch.clientY });
-      if (pos == null) {
-        return;
-      }
+  const stopMomentum = () => {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    velocityY = 0;
+  };
 
-      const now = Date.now();
+  const applyMomentum = (view: EditorView) => {
+    if (Math.abs(velocityY) < VELOCITY_LIMIT) {
+      rafId = null;
+      return;
+    }
 
-      // Handle Long Press Detection
-      // We start a timer. If the finger stays down, we trigger selection.
-      longPressTimer = setTimeout(() => {
-        const word = view.state.wordAt(pos);
-        if (word) {
-          view.dispatch({
-            selection: { anchor: word.from, head: word.to },
-            scrollIntoView: false,
-          });
+    view.scrollDOM.scrollTop += velocityY;
+    velocityY *= FRICTION;
+    rafId = requestAnimationFrame(() => applyMomentum(view));
+  };
 
-          // To show the native Context Menu (Copy/Paste):
-          // We dispatch a fake contextmenu event to the DOM element
-          const contextEvent = new MouseEvent("contextmenu", {
-            bubbles: true,
-            cancelable: true,
-            clientX: touch.clientX,
-            clientY: touch.clientY,
-          });
-          view.contentDOM.dispatchEvent(contextEvent);
+  return [
+    EditorView.baseTheme({
+      "& .cm-line": {
+        padding: "0 0 0 6px !important",
+      },
+    }),
+    drawSelection(),
+    EditorView.domEventHandlers({
+      touchstart(event, view) {
+        // 1. Core Fix: Prevent default to stop the iOS auto-scroll jump
+        event.preventDefault();
+
+        // Stop any existing momentum scroll if the user taps during a slide
+        stopMomentum();
+
+        const touch = event.touches[0]!;
+        startX = touch.clientX;
+        startY = touch.clientY;
+        lastTouchY = startY;
+        lastTimestamp = Date.now();
+        startScrollTop = view.scrollDOM.scrollTop;
+
+        isDragging = false;
+        isScrolling = false;
+
+        const pos = view.posAtCoords({ x: startX, y: startY });
+        if (pos == null) return;
+
+        const now = Date.now();
+
+        // --- 2. Handle Long Press Detection ---
+        longPressTimer = setTimeout(() => {
+          if (isScrolling) return;
+
+          const word = view.state.wordAt(pos);
+          if (word) {
+            isDragging = true;
+            selectionAnchor = word.from;
+            view.dispatch({
+              selection: { anchor: word.from, head: word.to },
+              scrollIntoView: false,
+            });
+
+            const contextEvent = new MouseEvent("contextmenu", {
+              bubbles: true,
+              cancelable: true,
+              clientX: touch.clientX,
+              clientY: touch.clientY,
+            });
+            view.contentDOM.dispatchEvent(contextEvent);
+          }
+        }, LONG_PRESS_DURATION);
+
+        // --- 3. Handle Double Tap ---
+        if (now - lastTapTime < 300) {
+          clearTimeout(longPressTimer);
+          const word = view.state.wordAt(pos);
+          if (word) {
+            view.dispatch({ selection: { anchor: word.from, head: word.to } });
+          }
+          lastTapTime = 0;
+          return true;
         }
-      }, LONG_PRESS_DURATION);
 
-      // Handle Double Tap (Word Selection)
-      if (now - lastTapTime < 300) {
-        clearTimeout(longPressTimer); // Cancel long press if it's a double tap
-        const word = view.state.wordAt(pos);
-        if (word) {
-          view.dispatch({
-            selection: { anchor: word.from, head: word.to },
-            scrollIntoView: false,
-          });
-        }
-        lastTapTime = 0;
+        lastTapTime = now;
+        selectionAnchor = pos;
         return true;
-      }
+      },
 
-      // Prepare for Single Tap / Drag
-      lastTapTime = now;
-      isDragging = true;
-      selectionAnchor = pos;
+      touchmove(event, view) {
+        const touch = event.touches[0]!;
+        const now = Date.now();
+        const dt = now - lastTimestamp;
 
-      // Move cursor to tap location immediately
-      view.dispatch({
-        selection: { anchor: pos },
-        scrollIntoView: false,
-      });
-      return true;
-    },
+        const diffX = Math.abs(touch.clientX - startX);
+        const diffY = Math.abs(touch.clientY - startY);
 
-    touchmove(event, view) {
-      // If the finger moves significantly, it's a drag or scroll, not a long press
-      clearTimeout(longPressTimer);
+        if (!isDragging) {
+          if (
+            !isScrolling &&
+            (diffY > SCROLL_THRESHOLD || diffX > SCROLL_THRESHOLD)
+          ) {
+            isScrolling = true;
+            clearTimeout(longPressTimer);
+          }
 
-      if (!isDragging || selectionAnchor == null) {
-        return;
-      }
+          if (isScrolling) {
+            const deltaY = lastTouchY - touch.clientY;
+            view.scrollDOM.scrollTop += deltaY;
 
-      // Prevent the whole page from bouncing/scrolling while selecting text
-      event.preventDefault();
+            // Calculate velocity for momentum (pixels per frame/ms)
+            if (dt > 0) {
+              velocityY = deltaY / (dt / 16); // Normalized to ~60fps frame
+            }
+          }
+        } else if (isDragging && selectionAnchor !== null) {
+          const head = view.posAtCoords({ x: touch.clientX, y: touch.clientY });
+          if (head !== null) {
+            view.dispatch({
+              selection: { anchor: selectionAnchor, head: head },
+              scrollIntoView: false,
+            });
+          }
+        }
 
-      if (event.touches.length === 0) {
-        return;
-      }
+        lastTouchY = touch.clientY;
+        lastTimestamp = now;
+      },
 
-      const touch = event.touches[0]!;
-      const head = view.posAtCoords({ x: touch.clientX, y: touch.clientY });
-      if (head !== null) {
-        view.dispatch({
-          selection: { anchor: selectionAnchor, head: head },
-          scrollIntoView: false,
-        });
-      }
-    },
+      touchend(event, view) {
+        clearTimeout(longPressTimer);
 
-    touchend(event, view) {
-      // Finger lifted: cancel any pending long press timer
-      clearTimeout(longPressTimer);
-      isDragging = false;
-      selectionAnchor = null;
-    },
+        if (isScrolling) {
+          // Initiate momentum scroll
+          rafId = requestAnimationFrame(() => applyMomentum(view));
+        } else if (!isDragging) {
+          // Simple Tap
+          if (!view.hasFocus) view.focus();
+          if (selectionAnchor !== null) {
+            view.dispatch({ selection: { anchor: selectionAnchor } });
+          }
+        }
 
-    touchcancel(event, view) {
-      clearTimeout(longPressTimer);
-      isDragging = false;
-      selectionAnchor = null;
-    },
-  });
+        isDragging = false;
+        isScrolling = false;
+        selectionAnchor = null;
+      },
+
+      touchcancel() {
+        clearTimeout(longPressTimer);
+        stopMomentum();
+        isDragging = false;
+        isScrolling = false;
+        selectionAnchor = null;
+      },
+    }),
+  ];
 };
 
 // Create a panel that returns an empty div
