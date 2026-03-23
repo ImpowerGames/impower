@@ -13,13 +13,18 @@ export {
 } from "./color";
 export { serverCompletions, serverCompletionSource } from "./completion";
 export {
+  copy,
+  cut,
   defaultContextMenuItems,
+  getShortcutLabel,
   historyContextMenuItems,
   isAndroid,
   isIOS,
   isMobile,
   lspContextMenuItems,
+  paste,
   textContextMenuItems,
+  type ContextMenuItem,
 } from "./context";
 export {
   jumpToDeclaration,
@@ -53,7 +58,12 @@ export {
   updateDocumentLinks,
   type DocumentLink,
 } from "./link";
-export { contextMenu, hideContextMenu, showContextMenu } from "./menu";
+export {
+  contextMenu,
+  hideContextMenu,
+  showContextMenu,
+  type ContextMenuConfig,
+} from "./menu";
 export { LSPPlugin } from "./plugin";
 export {
   convertFromPosition,

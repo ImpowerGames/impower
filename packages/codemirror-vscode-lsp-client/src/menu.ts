@@ -143,11 +143,11 @@ const contextMenuTheme = EditorView.baseTheme({
   },
 });
 
-export const openContextMenu = StateEffect.define<{
+const openContextMenu = StateEffect.define<{
   pos: number;
   page?: number;
 }>();
-export const closeContextMenu = StateEffect.define<void>();
+const closeContextMenu = StateEffect.define<void>();
 
 const contextMenuState = StateField.define<Tooltip | null>({
   create() {
