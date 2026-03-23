@@ -184,10 +184,11 @@ function createContextMenuTooltip(
   end: number,
   page: number,
 ): Tooltip {
+  const above = isMobile();
   return {
     pos,
     end,
-    above: true,
+    above,
     arrow: false,
     clip: false,
     create(view: EditorView) {
@@ -316,17 +317,26 @@ function createContextMenuTooltip(
           const scrollRect = view.scrollDOM.getBoundingClientRect();
           const padding = 5;
 
-          // 1. Measure the tooltip's actual height
           const tooltipHeight = dom.getBoundingClientRect().height;
 
-          // 2. Add the tooltip height to our minimum top boundary
-          const minTop = scrollRect.top + padding + tooltipHeight;
+          // Define the safe boundaries for the anchor point based on tooltip direction
+          let minTop: number;
+          let maxBottom: number;
+
+          if (above) {
+            // Anchor must be at least one tooltip height away from the top
+            minTop = scrollRect.top + padding + tooltipHeight;
+            maxBottom = scrollRect.bottom - padding;
+          } else {
+            // Anchor must be at least one tooltip height away from the bottom
+            minTop = scrollRect.top + padding;
+            maxBottom = scrollRect.bottom - padding - tooltipHeight;
+          }
 
           // Fallback for Virtualization
           if (!coords) {
-            const isAbove = pos < view.viewport.from;
-            // Use minTop if it's scrolling off the top
-            const fallbackY = isAbove ? minTop : scrollRect.bottom - padding;
+            const isScrolledPast = pos < view.viewport.from;
+            const fallbackY = isScrolledPast ? minTop : maxBottom;
 
             return {
               left: scrollRect.left + padding,
@@ -336,15 +346,9 @@ function createContextMenuTooltip(
             };
           }
 
-          // 3. Clamp the anchor coordinates using the new minTop
-          const top = Math.max(
-            minTop,
-            Math.min(coords.top, scrollRect.bottom - padding),
-          );
-          const bottom = Math.max(
-            minTop,
-            Math.min(coords.bottom, scrollRect.bottom - padding),
-          );
+          // Clamp the anchor coordinates
+          const top = Math.max(minTop, Math.min(coords.top, maxBottom));
+          const bottom = Math.max(minTop, Math.min(coords.bottom, maxBottom));
 
           const left = Math.max(
             scrollRect.left + padding,
