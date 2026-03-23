@@ -13,6 +13,15 @@ export {
 } from "./color";
 export { serverCompletions, serverCompletionSource } from "./completion";
 export {
+  defaultContextMenuItems,
+  historyContextMenuItems,
+  isAndroid,
+  isIOS,
+  isMobile,
+  lspContextMenuItems,
+  textContextMenuItems,
+} from "./context";
+export {
   jumpToDeclaration,
   jumpToDefinition,
   jumpToDefinitionKeymap,
@@ -44,7 +53,7 @@ export {
   updateDocumentLinks,
   type DocumentLink,
 } from "./link";
-export { contextMenu } from "./menu";
+export { contextMenu, hideContextMenu, showContextMenu } from "./menu";
 export { LSPPlugin } from "./plugin";
 export {
   convertFromPosition,
@@ -100,7 +109,6 @@ import { serverSemanticHighlighting } from "./semantics";
 import { serverSignatureHelp } from "./signature";
 import { serverDocumentSymbols } from "./symbols";
 import { serverAutoSync } from "./sync";
-import { contextToolbar } from "./toolbar";
 
 /// This function bundles all the extensions defined in this package,
 /// in a way that can be passed to the
@@ -126,6 +134,5 @@ export function languageServerExtensions(): readonly (
     serverDiagnostics(),
     serverAutoSync(),
     contextMenu(),
-    contextToolbar(),
   ];
 }

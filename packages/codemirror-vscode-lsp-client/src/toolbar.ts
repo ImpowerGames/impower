@@ -6,7 +6,7 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
-import { ContextMenuItem, defaultContextMenuItems, isMobile } from "./context";
+import { ContextMenuItem, defaultContextMenuItems } from "./context";
 
 // CSS Theme to style the panel and enforce flex behavior
 const contextToolbarTheme = EditorView.theme({
@@ -157,15 +157,6 @@ const contextToolbarConfig = Facet.define<
 export function contextToolbar(
   config: LSPContextToolbarConfig = { items: defaultContextMenuItems },
 ): Extension {
-  if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return [];
-  }
-
-  //If it's a desktop browser, return an empty extension so it does absolutely nothing
-  if (!isMobile()) {
-    return [];
-  }
-
   return [
     contextToolbarConfig.of(config),
     showPanel.of(createKeyboardPanel),

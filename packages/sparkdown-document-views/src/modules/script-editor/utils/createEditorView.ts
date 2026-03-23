@@ -8,7 +8,6 @@ import {
   Range,
   RangeSet,
   SelectionRange,
-  StateField,
   Text,
   Transaction,
   TransactionSpec,
@@ -19,14 +18,15 @@ import {
   EditorView,
   GutterMarker,
   PanelConstructor,
-  ViewUpdate,
-  drawSelection,
   panels,
   scrollPastEnd,
   showPanel,
+  ViewUpdate,
 } from "@codemirror/view";
 import {
+  hideContextMenu,
   LSPClient,
+  showContextMenu,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import {
@@ -73,7 +73,10 @@ import {
   SerializableFoldedState,
   SerializableHistoryState,
 } from "../types/editor";
+import { platformClassManager } from "./platformClassManager";
+import { selectionClassManager } from "./selectionClassManager";
 import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
+import { touchInputHandler } from "./touchInputHandler";
 
 const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
@@ -84,236 +87,6 @@ export const editableConfig = new Compartment();
 export const scrollMarginsConfig = new Compartment();
 
 export const editorAttributesConfig = new Compartment();
-
-const selectionStateField = StateField.define({
-  create(state) {
-    return state.selection.ranges.some((r) => !r.empty);
-  },
-  update(value, tr) {
-    if (tr.newSelection) {
-      return tr.state.selection.ranges.some((r) => !r.empty);
-    }
-    return value;
-  },
-});
-const selectionAttributeExtension = EditorView.editorAttributes.from(
-  selectionStateField,
-  (value) => {
-    return value ? { class: "cm-selected" } : { class: "" };
-  },
-);
-export function selectionClassManager() {
-  return [selectionStateField, selectionAttributeExtension];
-}
-
-const platformStateField = StateField.define({
-  create() {
-    return isIOS() ? "ios" : isAndroid() ? "android" : "desktop";
-  },
-  update(value, tr) {
-    if (tr.startState) {
-      return isIOS() ? "ios" : isAndroid() ? "android" : "desktop";
-    }
-    return value;
-  },
-});
-const platformAttributeExtension = EditorView.editorAttributes.from(
-  platformStateField,
-  (value) => {
-    return { class: value };
-  },
-);
-export function platformClassManager() {
-  return [platformStateField, platformAttributeExtension];
-}
-
-/**
- * A custom CodeMirror 6 extension to handle mobile touch interactions
- * without triggering the "scroll-to-input" browser behavior.
- */
-export function mobileTouchHandlers() {
-  if (!isMobile()) {
-    return [];
-  }
-
-  let lastTapTime = 0;
-  let isDragging = false;
-  let isScrolling = false;
-  let selectionAnchor: number | null = null;
-  let longPressTimer: number | undefined = undefined;
-
-  let startX = 0;
-  let startY = 0;
-  let startScrollTop = 0;
-
-  // Momentum variables
-  let lastTouchY = 0;
-  let lastTimestamp = 0;
-  let velocityY = 0;
-  let rafId: number | null = null;
-
-  const LONG_PRESS_DURATION = 500;
-  const SCROLL_THRESHOLD = 10;
-  const FRICTION = 0.95; // Higher = slides longer
-  const VELOCITY_LIMIT = 0.5; // Stop when slow enough
-
-  const stopMomentum = () => {
-    if (rafId) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
-    velocityY = 0;
-  };
-
-  const applyMomentum = (view: EditorView) => {
-    if (Math.abs(velocityY) < VELOCITY_LIMIT) {
-      rafId = null;
-      return;
-    }
-
-    view.scrollDOM.scrollTop += velocityY;
-    velocityY *= FRICTION;
-    rafId = requestAnimationFrame(() => applyMomentum(view));
-  };
-
-  return [
-    EditorView.baseTheme({
-      "& .cm-line": {
-        padding: "0 0 0 6px !important",
-      },
-    }),
-    drawSelection(),
-    EditorView.domEventHandlers({
-      touchstart(event, view) {
-        // 1. Core Fix: Prevent default to stop the iOS auto-scroll jump
-        event.preventDefault();
-
-        // Stop any existing momentum scroll if the user taps during a slide
-        stopMomentum();
-
-        const touch = event.touches[0]!;
-        startX = touch.clientX;
-        startY = touch.clientY;
-        lastTouchY = startY;
-        lastTimestamp = Date.now();
-        startScrollTop = view.scrollDOM.scrollTop;
-
-        isDragging = false;
-        isScrolling = false;
-
-        const pos = view.posAtCoords({ x: startX, y: startY });
-        if (pos == null) return;
-
-        const now = Date.now();
-
-        // --- 2. Handle Long Press Detection ---
-        longPressTimer = setTimeout(() => {
-          if (isScrolling) return;
-
-          const word = view.state.wordAt(pos);
-          if (word) {
-            isDragging = true;
-            selectionAnchor = word.from;
-            view.dispatch({
-              selection: { anchor: word.from, head: word.to },
-              scrollIntoView: false,
-            });
-
-            const contextEvent = new MouseEvent("contextmenu", {
-              bubbles: true,
-              cancelable: true,
-              clientX: touch.clientX,
-              clientY: touch.clientY,
-            });
-            view.contentDOM.dispatchEvent(contextEvent);
-          }
-        }, LONG_PRESS_DURATION);
-
-        // --- 3. Handle Double Tap ---
-        if (now - lastTapTime < 300) {
-          clearTimeout(longPressTimer);
-          const word = view.state.wordAt(pos);
-          if (word) {
-            view.dispatch({ selection: { anchor: word.from, head: word.to } });
-          }
-          lastTapTime = 0;
-          return true;
-        }
-
-        lastTapTime = now;
-        selectionAnchor = pos;
-        return true;
-      },
-
-      touchmove(event, view) {
-        const touch = event.touches[0]!;
-        const now = Date.now();
-        const dt = now - lastTimestamp;
-
-        const diffX = Math.abs(touch.clientX - startX);
-        const diffY = Math.abs(touch.clientY - startY);
-
-        if (!isDragging) {
-          if (
-            !isScrolling &&
-            (diffY > SCROLL_THRESHOLD || diffX > SCROLL_THRESHOLD)
-          ) {
-            isScrolling = true;
-            clearTimeout(longPressTimer);
-          }
-
-          if (isScrolling) {
-            const deltaY = lastTouchY - touch.clientY;
-            view.scrollDOM.scrollTop += deltaY;
-
-            // Calculate velocity for momentum (pixels per frame/ms)
-            if (dt > 0) {
-              velocityY = deltaY / (dt / 16); // Normalized to ~60fps frame
-            }
-          }
-        } else if (isDragging && selectionAnchor !== null) {
-          const head = view.posAtCoords({ x: touch.clientX, y: touch.clientY });
-          if (head !== null) {
-            view.dispatch({
-              selection: { anchor: selectionAnchor, head: head },
-              scrollIntoView: false,
-            });
-          }
-        }
-
-        lastTouchY = touch.clientY;
-        lastTimestamp = now;
-      },
-
-      touchend(event, view) {
-        clearTimeout(longPressTimer);
-
-        if (isScrolling) {
-          // Initiate momentum scroll
-          rafId = requestAnimationFrame(() => applyMomentum(view));
-        } else if (!isDragging) {
-          // Simple Tap
-          if (!view.hasFocus) view.focus();
-          if (selectionAnchor !== null) {
-            view.dispatch({ selection: { anchor: selectionAnchor } });
-          }
-        }
-
-        isDragging = false;
-        isScrolling = false;
-        selectionAnchor = null;
-      },
-
-      touchcancel() {
-        clearTimeout(longPressTimer);
-        stopMomentum();
-        isDragging = false;
-        isScrolling = false;
-        selectionAnchor = null;
-      },
-    }),
-  ];
-}
 
 // Create a panel that returns an empty div
 const emptyPanel: PanelConstructor = () => ({
@@ -821,7 +594,7 @@ const createEditorView = (
           },
         }),
         scrollPastEnd(),
-        mobileTouchHandlers(),
+        touchInputHandler({ showContextMenu, hideContextMenu }),
         showPanel.of(emptyPanel),
         EditorView.domEventObservers({
           focus: () => {

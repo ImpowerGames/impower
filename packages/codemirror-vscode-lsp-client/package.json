@@ -4,13 +4,14 @@
   "description": "Use vscode .language-grammar.json and .language-config.json files to power codemirror 6 syntax highlighting, indentation, bracket matching, on-enter rules, and more.",
   "version": "1.0.0",
   "peerDependencies": {
-    "marked": "^15.0.12",
     "@codemirror/autocomplete": "^6.20.0",
+    "@codemirror/commands": "^6.10.3",
     "@codemirror/language": "^6.11.0",
     "@codemirror/lint": "^6.8.5",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.37.0",
     "@lezer/highlight": "^1.2.1",
+    "marked": "^15.0.12",
     "vscode-languageserver-protocol": "^3.17.5"
   }
 }
