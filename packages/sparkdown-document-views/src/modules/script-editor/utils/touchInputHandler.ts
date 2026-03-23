@@ -482,8 +482,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             view.scrollDOM.scrollTop += deltaY;
             if (dt > 0) velocityY = deltaY / (dt / 16);
           }
-        } else if (isLongPressing && selectionAnchor != null) {
-          isDragging = true;
+        } else if (isDragging) {
           console.log("dragging so hide context menu");
           config.hideContextMenu?.(view);
           selectionHead = view.posAtCoords({
@@ -491,13 +490,15 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             y: touch.clientY,
           });
 
-          if (selectionHead !== null) {
+          if (selectionAnchor != null && selectionHead !== null) {
             view.dispatch({
               selection: { anchor: selectionAnchor, head: selectionHead },
               scrollIntoView: false,
               userEvent: "select.touch",
             });
           }
+        } else if (isLongPressing && touchStartPos !== touchEndPos) {
+          isDragging = true;
         }
 
         lastTouchY = touch.clientY;
