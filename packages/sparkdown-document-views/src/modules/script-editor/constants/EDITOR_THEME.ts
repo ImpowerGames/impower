@@ -473,7 +473,7 @@ const EDITOR_THEME: {
   },
   "& .cm-tooltip": {
     backgroundColor: EDITOR_COLORS.panel,
-    zIndex: "99999",
+    zIndex: "150",
   },
   "& .cm-tooltip-autocomplete ul li[aria-selected]": {
     background: EDITOR_COLORS.selectedBackground,

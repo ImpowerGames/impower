@@ -16,6 +16,7 @@ const contextMenuTheme = EditorView.baseTheme({
   ".cm-tooltip.cm-context-menu": {
     fontFamily: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`,
     borderRadius: "20px",
+    zIndex: "1000",
   },
   ".cm-context-menu": {
     display: "flex",
@@ -309,6 +310,7 @@ function createContextMenuTooltip(
 
       return {
         dom,
+        overlap: true,
         getCoords(pos: number) {
           const coords = view.coordsAtPos(pos);
           const scrollRect = view.scrollDOM.getBoundingClientRect();
@@ -363,12 +365,30 @@ function createContextMenuTooltip(
 const contextMenuHandlers = EditorView.domEventHandlers({
   contextmenu(event, view) {
     event.preventDefault();
+    event.stopPropagation();
     const anchor = view.state.selection.main.anchor;
     const head = view.state.selection.main.head;
     view.dispatch({ effects: openContextMenu.of({ pos: anchor, end: head }) });
     return true;
   },
 });
+
+const defaultContextMenuBlocker = ViewPlugin.fromClass(
+  class {
+    constructor(public view: EditorView) {
+      this.handleEvent = this.handleEvent.bind(this);
+      window.addEventListener("contextmenu", this.handleEvent);
+    }
+
+    handleEvent(e: Event) {
+      e.preventDefault();
+    }
+
+    destroy() {
+      window.removeEventListener("contextmenu", this.handleEvent);
+    }
+  },
+);
 
 const contextMenuClosePlugin = ViewPlugin.fromClass(
   class {
@@ -437,6 +457,7 @@ export function contextMenu(
     contextMenuState,
     contextMenuHandlers,
     contextMenuClosePlugin,
+    defaultContextMenuBlocker,
     contextMenuTheme,
   ];
 }
