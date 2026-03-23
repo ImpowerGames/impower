@@ -83,13 +83,24 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
   const selectionHandleTheme = EditorView.baseTheme({
     ".cm-touch-selection-handle": {
       position: "absolute",
-      width: "18px",
-      height: "18px",
+      width: "20px",
+      height: "20px",
       backgroundColor: "#1976d2",
       borderRadius: "50%",
       zIndex: 100,
       pointerEvents: "auto",
       transition: "opacity 0.05s linear",
+      /* Invisible Touch Target */
+      "&::after": {
+        pointerEvents: "auto",
+        content: "''",
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "48px",
+        height: "48px",
+      },
     },
     ".cm-touch-selection-handle-start": {
       borderTopRightRadius: "0",
