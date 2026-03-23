@@ -190,6 +190,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
               selectionHandleHead = pos;
             }
             if (selectionHandleAnchor != null && selectionHandleHead != null) {
+              if (!this.view.hasFocus) this.view.focus();
               this.view.dispatch({
                 selection: {
                   anchor: selectionHandleAnchor,
@@ -243,6 +244,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           );
 
           if (pos != null) {
+            if (!this.view.hasFocus) this.view.focus();
             this.view.dispatch({
               selection: { anchor: pos },
               scrollIntoView: true,
@@ -419,6 +421,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             selectionAnchor,
             selectionHead,
           );
+          if (!view.hasFocus) view.focus();
           view.dispatch({
             selection,
             scrollIntoView: false,
@@ -435,6 +438,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           console.log("word select", word);
           if (word) {
             const selection = EditorSelection.range(word.from, word.to);
+            if (!view.hasFocus) view.focus();
             view.dispatch({
               selection,
               scrollIntoView: false,
@@ -503,6 +507,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           });
 
           if (selectionAnchor != null && selectionHead !== null) {
+            if (!view.hasFocus) view.focus();
             view.dispatch({
               selection: { anchor: selectionAnchor, head: selectionHead },
               scrollIntoView: false,
@@ -532,14 +537,15 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         } else if (!isLongPressing) {
           console.log("hide context menu since plain tap");
           config.hideContextMenu?.(view);
-          if (!view.hasFocus) view.focus();
           if (selectionAnchor != null) {
+            if (!view.hasFocus) view.focus();
             view.dispatch({
               selection: { anchor: selectionAnchor },
               scrollIntoView: false,
               userEvent: "select.touch",
             });
           } else if (touchEndPos != null) {
+            if (!view.hasFocus) view.focus();
             view.dispatch({
               selection: { anchor: touchEndPos },
               scrollIntoView: false,
