@@ -8,6 +8,8 @@ import {
   textContextMenuItems,
 } from "./context";
 
+let keyboardHeight = 0;
+
 const DOTS_VERTICAL_SVG_URL = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>')`;
 
 const CHEVRON_LEFT_SVG_URL = `url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="white"><path d="M9.14601 3.14623L4.64601 7.64623C4.45101 7.84123 4.45101 8.15823 4.64601 8.35323L9.14601 12.8532C9.34101 13.0482 9.65801 13.0482 9.85301 12.8532C10.048 12.6582 10.048 12.3412 9.85301 12.1462L5.70701 8.00023L9.85301 3.85423C10.048 3.65923 10.048 3.34223 9.85301 3.14723C9.65801 2.95223 9.34101 2.95223 9.14601 3.14723V3.14623Z"/></svg>')`;
@@ -326,11 +328,12 @@ function createContextMenuTooltip(
           if (above) {
             // Anchor must be at least one tooltip height away from the top
             minTop = scrollRect.top + padding + tooltipHeight;
-            maxBottom = scrollRect.bottom - padding;
+            maxBottom = scrollRect.bottom - keyboardHeight - padding;
           } else {
             // Anchor must be at least one tooltip height away from the bottom
             minTop = scrollRect.top + padding;
-            maxBottom = scrollRect.bottom - padding - tooltipHeight;
+            maxBottom =
+              scrollRect.bottom - keyboardHeight - padding - tooltipHeight;
           }
 
           // Fallback for Virtualization
@@ -422,6 +425,27 @@ const contextMenuClosePlugin = ViewPlugin.fromClass(
   },
 );
 
+const keyboardMeasurer = ViewPlugin.fromClass(
+  class {
+    constructor(public view: EditorView) {
+      this.measure = this.measure.bind(this);
+      window.visualViewport?.addEventListener("resize", this.measure);
+      window.visualViewport?.addEventListener("scroll", this.measure);
+    }
+
+    measure() {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      keyboardHeight = window.innerHeight - vv.height;
+    }
+
+    destroy() {
+      window.visualViewport?.removeEventListener("resize", this.measure);
+      window.visualViewport?.removeEventListener("scroll", this.measure);
+    }
+  },
+);
+
 export function showContextMenu(view: EditorView, pos: number, end: number) {
   view.dispatch({ effects: openContextMenu.of({ pos, end }) });
 }
@@ -457,6 +481,7 @@ export function contextMenu(
   },
 ): Extension {
   return [
+    keyboardMeasurer,
     contextMenuConfig.of(config),
     contextMenuState,
     contextMenuHandlers,
