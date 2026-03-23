@@ -83,6 +83,129 @@ export const scrollMarginsConfig = new Compartment();
 
 export const editorAttributesConfig = new Compartment();
 
+/**
+ * A custom CodeMirror 6 extension to handle mobile touch interactions
+ * without triggering the "scroll-to-input" browser behavior.
+ */
+export const mobileTouchHandlers = () => {
+  if (!isMobile()) {
+    return [];
+  }
+
+  let lastTapTime = 0;
+  let isDragging = false;
+  let selectionAnchor: number | null = null;
+  let longPressTimer: number | undefined = undefined;
+  const LONG_PRESS_DURATION = 500; // ms
+
+  return EditorView.domEventHandlers({
+    touchstart(event, view) {
+      // Prevent default to stop the auto-scroll jump
+      event.preventDefault();
+
+      // Ensure editor is focused
+      if (!view.hasFocus) {
+        view.focus();
+      }
+
+      if (event.touches.length === 0) {
+        return;
+      }
+
+      const touch = event.touches[0]!;
+      const pos = view.posAtCoords({ x: touch.clientX, y: touch.clientY });
+      if (pos == null) {
+        return;
+      }
+
+      const now = Date.now();
+
+      // Handle Long Press Detection
+      // We start a timer. If the finger stays down, we trigger selection.
+      longPressTimer = setTimeout(() => {
+        const word = view.state.wordAt(pos);
+        if (word) {
+          view.dispatch({
+            selection: { anchor: word.from, head: word.to },
+            scrollIntoView: false,
+          });
+
+          // To show the native Context Menu (Copy/Paste):
+          // We dispatch a fake contextmenu event to the DOM element
+          const contextEvent = new MouseEvent("contextmenu", {
+            bubbles: true,
+            cancelable: true,
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+          });
+          view.contentDOM.dispatchEvent(contextEvent);
+        }
+      }, LONG_PRESS_DURATION);
+
+      // Handle Double Tap (Word Selection)
+      if (now - lastTapTime < 300) {
+        clearTimeout(longPressTimer); // Cancel long press if it's a double tap
+        const word = view.state.wordAt(pos);
+        if (word) {
+          view.dispatch({
+            selection: { anchor: word.from, head: word.to },
+            scrollIntoView: false, // Critical: don't let CM trigger its own scroll
+          });
+        }
+        lastTapTime = 0;
+        return true;
+      }
+
+      // Prepare for Single Tap / Drag
+      lastTapTime = now;
+      isDragging = true;
+      selectionAnchor = pos;
+
+      // Move cursor to tap location immediately
+      view.dispatch({ selection: { anchor: pos } });
+      return true;
+    },
+
+    touchmove(event, view) {
+      // If the finger moves significantly, it's a drag or scroll, not a long press
+      clearTimeout(longPressTimer);
+
+      if (!isDragging || selectionAnchor == null) {
+        return;
+      }
+
+      // Prevent the whole page from bouncing/scrolling while selecting text
+      event.preventDefault();
+
+      if (event.touches.length === 0) {
+        return;
+      }
+
+      const touch = event.touches[0]!;
+      const head = view.posAtCoords({ x: touch.clientX, y: touch.clientY });
+      if (head !== null) {
+        view.dispatch({
+          selection: { anchor: selectionAnchor, head: head },
+          scrollIntoView: false, // Critical: don't let CM trigger its own scrolls
+        });
+      }
+    },
+
+    touchend(event, view) {
+      // Finger lifted: cancel any pending long press timer
+      clearTimeout(longPressTimer);
+      isDragging = false;
+      selectionAnchor = null;
+    },
+
+    touchcancel(event, view) {
+      clearTimeout(longPressTimer);
+      isDragging = false;
+      selectionAnchor = null;
+    },
+  });
+};
+
 // Create a panel that returns an empty div
 const emptyPanel: PanelConstructor = () => ({
   dom: document.createElement("div"),
@@ -602,6 +725,7 @@ const createEditorView = (
         scrollPastEnd(),
         // This ensures the bottom panel container always has at least one child
         showPanel.of(emptyPanel),
+        mobileTouchHandlers(),
         EditorView.domEventObservers({
           focus: () => {
             syncLayout();
@@ -625,29 +749,11 @@ const createEditorView = (
 
   syncLayout();
 
-  let scrollX = 0;
-  let scrollY = 0;
-
-  const onTouchStart = () => {
-    scrollX = window.scrollX;
-    scrollY = window.scrollY;
-  };
-
-  const onFocusIn = () => {
-    window.scrollTo(scrollX, scrollY);
-    // A 0ms timeout catches the delayed scroll paint iOS sometimes does
-    setTimeout(() => window.scrollTo(scrollX, scrollY), 0);
-  };
-
-  view.dom.addEventListener("touchstart", onTouchStart, { passive: true });
-  view.dom.addEventListener("focusin", onFocusIn);
   window.visualViewport?.addEventListener("resize", syncLayout);
   window.visualViewport?.addEventListener("scroll", syncLayout);
   window.addEventListener(MessageProtocol.event, handleProtocol);
   const disposable = {
     dispose: () => {
-      view.dom?.removeEventListener("touchstart", onTouchStart);
-      view.dom?.removeEventListener("focusin", onFocusIn);
       window.visualViewport?.removeEventListener("resize", syncLayout);
       window.visualViewport?.removeEventListener("scroll", syncLayout);
       window.removeEventListener(MessageProtocol.event, handleProtocol);
