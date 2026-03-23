@@ -505,6 +505,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       },
 
       touchend(event, view) {
+        console.log("touchend", event);
         clearTimeout(longPressTimer);
 
         const config = view.state.facet(touchInputHandlerConfig);
@@ -543,7 +544,8 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         selectionHead = null;
       },
 
-      touchcancel() {
+      touchcancel(event) {
+        console.log("touchcancel", event);
         clearTimeout(longPressTimer);
         stopMomentum();
         isScrolling = false;
