@@ -82,7 +82,7 @@ export const historyContextMenuItems: ContextMenuItem[] = [
   {
     label: "Redo",
     command: redo,
-    shortcut: getShortcutLabel("Mod-Shift-z"),
+    shortcut: getShortcutLabel("Mod-y"),
   },
 ];
 
