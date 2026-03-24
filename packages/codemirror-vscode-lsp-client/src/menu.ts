@@ -151,6 +151,7 @@ export interface ContextMenuSpec {
   end?: number;
   page?: number;
   clip?: boolean;
+  above?: boolean;
 }
 
 const openContextMenu = StateEffect.define<ContextMenuSpec>();
@@ -181,14 +182,13 @@ const contextMenuState = StateField.define<Tooltip | null>({
 });
 
 function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
-  const { x, y, pos, end, clip = false, page = 0 } = spec;
-  const above = isMobile();
+  const { x, y, pos, end, above, clip = false, page = 0 } = spec;
   return {
     pos,
     end,
     above,
-    arrow: false,
     clip,
+    arrow: false,
     create(view: EditorView) {
       const dom = document.createElement("div");
       dom.className = "cm-context-menu";
@@ -243,7 +243,7 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
           view.dispatch({
             effects: [
               closeContextMenu.of(),
-              openContextMenu.of({ pos, end, page: page - 1 }),
+              openContextMenu.of({ ...spec, page: page - 1 }),
             ],
           });
         };
@@ -300,7 +300,7 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
           view.dispatch({
             effects: [
               closeContextMenu.of(),
-              openContextMenu.of({ pos, end, page: page + 1 }),
+              openContextMenu.of({ ...spec, page: page + 1 }),
             ],
           });
         };
@@ -377,21 +377,28 @@ const contextMenuHandlers = EditorView.domEventHandlers({
     event.preventDefault();
     event.stopPropagation();
 
-    const pos = view.posAtCoords(
-      {
-        x: event.clientX,
-        y: event.clientY,
-      },
-      false,
-    );
-
-    view.dispatch({
-      effects: openContextMenu.of({
-        pos,
-        x: event.clientX,
-        y: event.clientY,
-      }),
-    });
+    if (isMobile()) {
+      const from = view.state.selection.main.from;
+      const to = view.state.selection.main.to;
+      view.dispatch({
+        effects: openContextMenu.of({ pos: from, end: to }),
+      });
+    } else {
+      const pos = view.posAtCoords(
+        {
+          x: event.clientX,
+          y: event.clientY,
+        },
+        false,
+      );
+      view.dispatch({
+        effects: openContextMenu.of({
+          pos,
+          x: event.clientX,
+          y: event.clientY,
+        }),
+      });
+    }
 
     return true;
   },

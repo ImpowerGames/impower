@@ -14,7 +14,7 @@ import {
 export interface TouchInputHandlerConfig {
   showContextMenu?: (
     view: EditorView,
-    spec: { pos: number; end?: number },
+    spec: { pos: number; end?: number; above?: boolean },
   ) => void;
   hideContextMenu?: (view: EditorView) => void;
   isContextMenuOpen?: (view: EditorView) => boolean;
@@ -90,6 +90,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         config.showContextMenu?.(view, {
           pos: selection.from,
           end: selection.to,
+          above: true,
         });
       }
       return;
@@ -231,6 +232,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             config.showContextMenu?.(this.view, {
               pos: from,
               end: to,
+              above: true,
             });
           }, 10);
         });
@@ -452,6 +454,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           config.showContextMenu?.(this.view, {
             pos: selection.from,
             end: selection.to,
+            above: true,
           });
 
           isLongPressing = true;
@@ -543,6 +546,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             config.showContextMenu?.(this.view, {
               pos: selection.from,
               end: selection.to,
+              above: true,
             });
           }
         } else if (!isLongPressing) {
