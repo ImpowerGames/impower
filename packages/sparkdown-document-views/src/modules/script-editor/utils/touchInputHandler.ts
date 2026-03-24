@@ -68,6 +68,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
   let lastTouchY = 0;
   let rafId: number | null = null;
   let lastFrameTime = 0;
+  let stoppedMomentum = false;
 
   const LONG_PRESS_DURATION = 500;
   const SCROLL_THRESHOLD = 10;
@@ -451,6 +452,9 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       onTouchStart = (event: TouchEvent) => {
         event.preventDefault();
         event.stopPropagation();
+
+        stoppedMomentum = rafId !== null;
+
         stopMomentum();
 
         const touch = event.touches[0]!;
@@ -626,7 +630,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
               above: true,
             });
           }
-        } else if (!isLongPressing) {
+        } else if (!isLongPressing && !stoppedMomentum) {
           config.hideContextMenu?.(this.view);
           const tapPos = selectionAnchor ?? touchEndPos;
           if (tapPos != null) {
