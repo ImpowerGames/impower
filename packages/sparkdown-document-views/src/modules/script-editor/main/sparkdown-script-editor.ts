@@ -6,6 +6,7 @@ import {
   convertToChangeEvents,
   convertToPosition,
   getDocumentVersion,
+  isMobile,
   LSPClient,
   LSPPlugin,
 } from "@impower/codemirror-vscode-lsp-client/src";
@@ -511,6 +512,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected loadTextDocument(params: LoadEditorParams) {
     const {
       textDocument,
+      focused,
       visibleRange,
       selectedRange,
       breakpointLines,
@@ -562,6 +564,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       if (this._disposable) {
         this._disposable.dispose();
       }
+      this._initialFocused = focused;
       this._initialVisibleRange = visibleRange;
       this._initialSelectedRange = selectedRange;
       this._loaded = false;
@@ -1009,6 +1012,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected handleIdle = () => {
     if (!this._loaded) {
+      const initialFocused = this._initialFocused;
       const initialSelectedRange = this._initialSelectedRange;
       const initialVisibleRange =
         this._initialVisibleRange == null ||
@@ -1034,7 +1038,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
             this.selectRange(
               initialSelectedRange,
               scrollStrategy ?? false,
-              false,
+              isMobile() ? false : initialFocused,
             );
           }
         }, 100);
