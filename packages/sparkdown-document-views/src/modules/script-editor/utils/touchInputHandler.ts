@@ -15,6 +15,7 @@ export interface TouchInputHandlerConfig {
   showContextMenu?: (view: EditorView, pos: number, end: number) => void;
   hideContextMenu?: (view: EditorView) => void;
   isContextMenuOpen?: (view: EditorView) => boolean;
+  isTouchEnvironment?: () => boolean;
 }
 
 const touchInputHandlerConfig = Facet.define<
@@ -26,12 +27,24 @@ const touchInputHandlerConfig = Facet.define<
   },
 });
 
+const isTouchEnvironment = () =>
+  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  ) ||
+  (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
+  navigator.maxTouchPoints > 0;
+
 /**
  * A custom CodeMirror 6 extension to handle mobile touch interactions
  * without triggering the "scroll-to-input" browser behavior,
  * (includes manual context menu management and drag handles)
  */
 export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
+  const isTouch = config.isTouchEnvironment ?? isTouchEnvironment;
+  if (!isTouch()) {
+    return [];
+  }
+
   let startedFocused = false;
   let isDragging = false;
   let isScrolling = false;
@@ -575,11 +588,5 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
     selectionHandlePlugin,
 
     touchEventsPlugin,
-
-    EditorView.baseTheme({
-      "& .cm-line": {
-        paddingLeft: "0 !important",
-      },
-    }),
   ];
 }

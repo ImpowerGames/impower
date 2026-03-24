@@ -536,6 +536,9 @@ const createEditorView = (
             overflow: "auto !important",
             WebkitOverflowScrolling: "touch !important",
           },
+          "& .cm-line": {
+            paddingLeft: "0 !important",
+          },
         }),
         scrollPastEnd(),
         touchInputHandler({
