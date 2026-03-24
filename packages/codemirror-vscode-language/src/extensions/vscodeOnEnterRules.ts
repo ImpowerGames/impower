@@ -192,7 +192,7 @@ export const vscodeOnEnterRules = (
     vscodeOnEnterRulesConfig.of(
       regexConfig as VSCodeOnEnterRulesConfig<RegExp>,
     ),
-    Prec.highest(
+    Prec.high(
       keymap.of([
         {
           key: "Enter",
