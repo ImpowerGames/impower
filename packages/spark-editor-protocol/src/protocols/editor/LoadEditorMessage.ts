@@ -8,7 +8,6 @@ export type LoadEditorMethod = typeof LoadEditorMessage.method;
 
 export interface LoadEditorParams {
   textDocument: TextDocumentItem;
-  focused?: boolean;
   visibleRange?: Range | "nearest" | "start" | "end" | "center";
   selectedRange?: Range;
   breakpointLines?: number[];

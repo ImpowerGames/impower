@@ -156,7 +156,6 @@ export default class LogicScriptEditor extends Component(spec) {
       const editor = Workspace.window.getActiveEditorForFile(filename);
       if (editor) {
         const uri = editor.uri;
-        const focused = editor.focused;
         const visibleRange = editor.visibleRange;
         const selectedRange = editor.selectedRange;
         const breakpointLines = editor.breakpointLines;
@@ -185,7 +184,6 @@ export default class LogicScriptEditor extends Component(spec) {
               version,
               text,
             },
-            focused,
             visibleRange,
             selectedRange,
             breakpointLines,

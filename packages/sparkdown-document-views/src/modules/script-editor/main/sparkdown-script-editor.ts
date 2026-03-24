@@ -21,7 +21,10 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/HideEditorStatusBarMessage";
 import { HoveredOffEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HoveredOffEditorMessage";
 import { HoveredOnEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
-import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
+import {
+  LoadEditorMessage,
+  LoadEditorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import {
   ScrollEditorMessage,
@@ -78,8 +81,6 @@ import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocol
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import {
-  InitializeParams,
-  InitializeResult,
   MessageConnection,
   Range,
   TextDocumentItem,
@@ -308,30 +309,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     await this.loadFonts();
     if (this._loadingRequest.id === message.id) {
       const params = message.params;
-      const textDocument = params.textDocument;
-      const focused = params.focused;
-      const visibleRange = params.visibleRange;
-      const selectedRange = params.selectedRange;
-      const breakpointLines = params.breakpointLines;
-      const pinpointLines = params.pinpointLines;
-      const highlightLines = params.highlightLines;
-      const languageServerInitializeParams =
-        params.languageServerInitializeParams;
-      const languageServerInitializeResult =
-        params.languageServerInitializeResult;
-      const preserveEditor = params.preserveEditor;
-      this.loadTextDocument(
-        textDocument,
-        focused,
-        visibleRange,
-        selectedRange,
-        breakpointLines,
-        pinpointLines,
-        highlightLines,
-        languageServerInitializeParams,
-        languageServerInitializeResult,
-        preserveEditor,
-      );
+      this.loadTextDocument(params);
     }
     return LoadEditorMessage.type.response(message.id, {});
   };
@@ -530,18 +508,18 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this._searchInputFocused = false;
   };
 
-  protected loadTextDocument(
-    textDocument: TextDocumentItem,
-    focused: boolean | undefined,
-    visibleRange: Range | "nearest" | "start" | "end" | "center" | undefined,
-    selectedRange: Range | undefined,
-    breakpointLines: number[] | undefined,
-    pinpointLines: number[] | undefined,
-    highlightLines: number[] | undefined,
-    serverInitializeParams: InitializeParams,
-    serverInitializeResult: InitializeResult,
-    preserveEditor: boolean | undefined,
-  ) {
+  protected loadTextDocument(params: LoadEditorParams) {
+    const {
+      textDocument,
+      visibleRange,
+      selectedRange,
+      breakpointLines,
+      pinpointLines,
+      highlightLines,
+      languageServerInitializeParams,
+      languageServerInitializeResult,
+      preserveEditor,
+    } = params;
     if (preserveEditor && this._view) {
       // We are loading a new text document, but the old editor should be preserved
       // (This is necessary when renaming a file)
@@ -584,7 +562,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
       if (this._disposable) {
         this._disposable.dispose();
       }
-      this._initialFocused = focused;
       this._initialVisibleRange = visibleRange;
       this._initialSelectedRange = selectedRange;
       this._loaded = false;
@@ -599,8 +576,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
         [this._view, this._disposable] = createEditorView(editorContainer, {
           serverWorker: SparkdownScriptEditor.languageServerWorker,
           serverConnection: SparkdownScriptEditor.languageServerConnection,
-          serverInitializeParams: serverInitializeParams,
-          serverInitializeResult: serverInitializeResult,
+          serverInitializeParams: languageServerInitializeParams,
+          serverInitializeResult: languageServerInitializeResult,
           serverWorkspace: (client: LSPClient) =>
             new SparkdownCodemirrorWorkspace(client, {
               showDocument: async (params) => {
@@ -1032,7 +1009,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected handleIdle = () => {
     if (!this._loaded) {
-      const initialFocused = this._initialFocused;
       const initialSelectedRange = this._initialSelectedRange;
       const initialVisibleRange =
         this._initialVisibleRange == null ||
@@ -1058,7 +1034,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
             this.selectRange(
               initialSelectedRange,
               scrollStrategy ?? false,
-              initialFocused,
+              false,
             );
           }
         }, 100);
