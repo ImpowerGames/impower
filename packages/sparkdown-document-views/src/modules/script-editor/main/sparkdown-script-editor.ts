@@ -6,7 +6,6 @@ import {
   convertToChangeEvents,
   convertToPosition,
   getDocumentVersion,
-  isMobile,
   LSPClient,
   LSPPlugin,
 } from "@impower/codemirror-vscode-lsp-client/src";
@@ -1038,7 +1037,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
             this.selectRange(
               initialSelectedRange,
               scrollStrategy ?? false,
-              isMobile() ? false : initialFocused,
+              initialFocused,
             );
           }
         }, 100);
