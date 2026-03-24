@@ -549,12 +549,6 @@ const createEditorView = (
     }),
   });
 
-  const handleFocusIn = () => {
-    // Prevent the browser from trying to scroll the hidden body
-    // when the input is focused.
-    window.scrollTo(0, 0);
-  };
-
   const handleProtocol = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
@@ -569,13 +563,13 @@ const createEditorView = (
 
   window.visualViewport?.addEventListener("resize", syncLayout);
   window.visualViewport?.addEventListener("scroll", syncLayout);
-  window.addEventListener("focusin", handleFocusIn);
+  window.addEventListener("focusin", syncLayout);
   window.addEventListener(MessageProtocol.event, handleProtocol);
   const disposable = {
     dispose: () => {
       window.visualViewport?.removeEventListener("resize", syncLayout);
       window.visualViewport?.removeEventListener("scroll", syncLayout);
-      window.removeEventListener("focusin", handleFocusIn);
+      window.removeEventListener("focusin", syncLayout);
       window.removeEventListener(MessageProtocol.event, handleProtocol);
     },
   };
