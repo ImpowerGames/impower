@@ -110,6 +110,11 @@ html.keyboard-open {
   background-color: var(--theme-color-panel);
 }
 
+.keyboard-open body {
+  background-color: var(--theme-color-panel);
+  --navbar-display: none;
+}
+
 main {
   position: absolute;
   top: 0;

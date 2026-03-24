@@ -258,13 +258,9 @@ const createEditorView = (
     if (keyboardOpen) {
       // Add keyboard-open class
       document.documentElement.classList.add("keyboard-open");
-      // Hide navbar
-      body.style.setProperty("--navbar-display", "none");
     } else {
       // Remove keyboard-open class
       document.documentElement.classList.remove("keyboard-open");
-      // Show navbar
-      body.style.setProperty("--navbar-display", "flex");
     }
 
     if (keyboardOpen && view.hasFocus) {
