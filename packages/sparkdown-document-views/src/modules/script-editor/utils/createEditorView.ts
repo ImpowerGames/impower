@@ -245,6 +245,10 @@ const createEditorView = (
     const vv = window.visualViewport;
     if (!vv) return;
 
+    // Prevent the browser from trying to scroll the hidden body
+    // when the input is focused.
+    window.scrollTo(0, 0);
+
     // Update container layout
     document.body.style.height = `${vv.height}px`;
 
