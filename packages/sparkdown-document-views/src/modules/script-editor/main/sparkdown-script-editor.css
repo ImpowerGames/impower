@@ -5,7 +5,7 @@
 }
 
 :host * {
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
   pointer-events: auto;
   touch-action: pan-y;
 }

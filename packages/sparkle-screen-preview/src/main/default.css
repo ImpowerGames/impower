@@ -133,7 +133,7 @@ style {
   max-width: 100%;
   max-height: 100%;
   overflow-y: scroll;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
   scroll-behavior: smooth;
   scrollbar-color: var(--theme-color-scrollbar-thumb)
     var(--theme-color-scrollbar-track);

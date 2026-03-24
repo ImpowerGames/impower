@@ -75,7 +75,7 @@
 }
 
 * {
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
   touch-action: pan-y;
 }
 
@@ -128,7 +128,7 @@ main {
   height: 100%;
 
   overflow: clip;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 
   display: flex;
   flex-direction: column;
@@ -211,7 +211,7 @@ footer {
 
 input,
 textarea {
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 }
 
 .picker * {

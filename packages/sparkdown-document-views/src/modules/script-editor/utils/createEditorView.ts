@@ -545,10 +545,10 @@ const createEditorView = (
             height: "100% !important",
             display: "flex !important",
             flexDirection: "column !important",
-            overscrollBehavior: "contain !important",
+            overscrollBehavior: "none !important",
           },
           "& *": {
-            overscrollBehavior: "contain !important",
+            overscrollBehavior: "none !important",
           },
           ".cm-scroller": {
             flexGrow: "1 !important",
