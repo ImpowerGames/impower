@@ -390,16 +390,10 @@ const contextMenuHandlers = EditorView.domEventHandlers({
         pos,
         x: event.clientX,
         y: event.clientY,
-        clip: true,
       }),
     });
 
     return true;
-  },
-  scroll(event, view) {
-    if (getOpenContextMenu(view)?.clip) {
-      view.dispatch({ effects: closeContextMenu.of() });
-    }
   },
 });
 
