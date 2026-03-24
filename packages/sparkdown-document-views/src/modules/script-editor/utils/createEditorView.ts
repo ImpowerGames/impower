@@ -276,13 +276,6 @@ const createEditorView = (
       isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
     );
 
-    if (header) {
-      header.style.display = "block";
-    }
-    if (footer) {
-      footer.style.display = "block";
-    }
-
     // Dynamically reconfigure scroll margins via Compartment
     view.dispatch({
       effects: scrollMarginsConfig.reconfigure(
