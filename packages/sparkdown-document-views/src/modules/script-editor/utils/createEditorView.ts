@@ -275,14 +275,14 @@ const createEditorView = (
     );
 
     // Dynamically reconfigure scroll margins via Compartment
-    // view.dispatch({
-    //   effects: scrollMarginsConfig.reconfigure(
-    //     EditorView.scrollMargins.of(() => ({
-    //       ...scrollMargin,
-    //       bottom: keyboardHeight - bottom,
-    //     })),
-    //   ),
-    // });
+    view.dispatch({
+      effects: scrollMarginsConfig.reconfigure(
+        EditorView.scrollMargins.of(() => ({
+          ...scrollMargin,
+          bottom: -bottom,
+        })),
+      ),
+    });
 
     if (keyboardOpen) {
       document.documentElement.classList.add("keyboard-open");
@@ -566,24 +566,14 @@ const createEditorView = (
             flexShrink: "0 !important",
             willChange: "transform !important",
           },
-          // // Platform specific logic inside the theme using the body classes
-          // "&.ios .cm-panels-bottom": {
-          //   top: "0 !important",
-          //   bottom: "auto !important",
-          //   transition: "transform 0.05s linear",
-          //   transform:
-          //     "translateY(calc(var(--vv-offset-top) + var(--vv-height) - 100%))",
-          // },
-          // "&.android .cm-panels-bottom": {
-          //   bottom: `var(--cm-bottom-offset) !important`,
-          //   top: "auto !important",
-          //   transition: "transform 0.05s linear",
-          //   transform: "translateY(calc(-1 * var(--cm-keyboard-height)))",
-          // },
-          // "&.android[data-keyboard=open] .cm-panels-bottom": {
-          //   transform:
-          //     "translateY(calc(-1 * var(--cm-keyboard-height) + var(--cm-bottom-offset)))",
-          // },
+          "& .cm-panels-bottom": {
+            bottom: `var(--cm-bottom-offset) !important`,
+            top: "auto !important",
+            transition: "transform 0.05s linear",
+          },
+          "&[data-keyboard=open] .cm-panels-bottom": {
+            transform: "translateY(var(--cm-bottom-offset))",
+          },
         }),
         scrollPastEnd(),
         touchInputHandler({
@@ -605,11 +595,9 @@ const createEditorView = (
   });
 
   const handleFocusIn = () => {
-    requestAnimationFrame(() => {
-      // Prevent the browser from trying to scroll the hidden body
-      // when the input is focused.
-      window.scrollTo(0, 0);
-    });
+    // Prevent the browser from trying to scroll the hidden body
+    // when the input is focused.
+    window.scrollTo(0, 0);
   };
 
   const handleProtocol = (e: Event) => {
