@@ -31,12 +31,12 @@ const EDITOR_THEME: {
     minHeight: "100%",
     lineHeight: "1.4",
     fontFamily: "Courier Prime Sans",
-    fontSize: "1rem",
+    fontSize: "16px",
   },
   "& .cm-scroller": {
     padding: "6px 2px 0 0",
     fontFamily: "Courier Prime Sans",
-    fontSize: "1rem",
+    fontSize: "16px",
     overscrollBehavior: "none",
   },
   "kbd, code, pre": {
