@@ -66,6 +66,7 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   /* Fixed heights */
   --navbar-height: 60px;
+  --cm-keyboard-background-color: hsl(210.6, 100%, 10%);
   /* Updated by JS */
   --cm-top-offset: 0px;
   --cm-bottom-offset: 0px;
@@ -100,6 +101,13 @@ body {
   margin: 0;
 
   font-family: var(--theme-font-sans);
+}
+
+html {
+  background-color: var(--theme-color-primary-bg);
+}
+html.keyboard-open {
+  background-color: var(--theme-color-panel);
 }
 
 main {
