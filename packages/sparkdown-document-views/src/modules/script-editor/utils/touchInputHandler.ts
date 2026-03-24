@@ -226,6 +226,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
               selectionHandleHead = pos;
             }
             if (selectionHandleAnchor != null && selectionHandleHead != null) {
+              console.log("range handle focus");
               if (!this.view.hasFocus) this.view.focus();
               this.view.dispatch({
                 selection: {
@@ -282,6 +283,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           );
 
           if (pos != null) {
+            console.log("cursor handle focus");
             if (!this.view.hasFocus) this.view.focus();
             this.view.dispatch({
               selection: { anchor: pos },
@@ -486,6 +488,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             selectionAnchor,
             selectionHead,
           );
+          console.log("longpress focus");
           if (!this.view.hasFocus) this.view.focus();
           this.view.dispatch({
             selection,
@@ -627,6 +630,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           config.hideContextMenu?.(this.view);
           const tapPos = selectionAnchor ?? touchEndPos;
           if (tapPos != null) {
+            console.log("tap focus", tapPos);
             if (!this.view.hasFocus) this.view.focus();
             this.view.dispatch({
               selection: { anchor: tapPos },
