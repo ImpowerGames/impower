@@ -373,7 +373,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           passive: false,
         });
         view.contentDOM.addEventListener("touchmove", this.onTouchMove, {
-          passive: false,
+          passive: true,
         });
         view.contentDOM.addEventListener("touchend", this.onTouchEnd, {
           passive: false,
@@ -437,9 +437,6 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       };
 
       onTouchMove = (event: TouchEvent) => {
-        event.preventDefault();
-        event.stopPropagation();
-
         const touch = event.touches[0]!;
         if (touch == null) return;
 
