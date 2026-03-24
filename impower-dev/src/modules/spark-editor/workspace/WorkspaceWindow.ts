@@ -675,15 +675,17 @@ export default class WorkspaceWindow {
     if (pane && panel) {
       const activeEditor = this.store.panes[pane].panels[panel]?.activeEditor;
       const isRenaming = Boolean(oldFilename);
-      const visibleRange = isRenaming
-        ? activeEditor?.visibleRange
-        : {
-            start: { line: 0, character: 0 },
-            end: { line: 0, character: 0 },
-          };
-      const selectedRange = isRenaming
-        ? activeEditor?.selectedRange
-        : undefined;
+      const visibleRange =
+        isRenaming || activeEditor?.filename === filename
+          ? activeEditor?.visibleRange
+          : {
+              start: { line: 0, character: 0 },
+              end: { line: 0, character: 0 },
+            };
+      const selectedRange =
+        isRenaming || activeEditor?.filename === filename
+          ? activeEditor?.selectedRange
+          : undefined;
       this.update({
         ...this.store,
         panes: {
