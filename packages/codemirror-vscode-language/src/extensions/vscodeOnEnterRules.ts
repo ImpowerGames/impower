@@ -1,12 +1,6 @@
 import { getIndentUnit, indentString } from "@codemirror/language";
-import {
-  EditorSelection,
-  EditorState,
-  Facet,
-  Transaction,
-  TransactionSpec,
-  combineConfig,
-} from "@codemirror/state";
+import { EditorSelection, Facet, Prec, combineConfig } from "@codemirror/state";
+import { EditorView, keymap } from "@codemirror/view";
 
 const INDENT_REGEX = /([ \t]*)/;
 
@@ -33,43 +27,17 @@ export const vscodeOnEnterRulesConfig = Facet.define<
   },
 });
 
-export function onEnterRulesFilter(tr: Transaction): TransactionSpec {
-  // 1. We only care about transactions that actually change the document
-  if (!tr.docChanged) {
-    return tr;
-  }
-
-  // 2. Ensure this is a typed input (like hitting Enter).
-  // We explicitly reject pastes, drops, and non-inputs (like undo/redo).
-  if (
-    !tr.isUserEvent("input") ||
-    tr.isUserEvent("input.paste") ||
-    tr.isUserEvent("input.drop")
-  ) {
-    return tr;
-  }
-
-  // 3. Detect if this transaction is inserting a new line.
-  let isInsertingNewline = false;
-  tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
-    // A standard Enter key press inserts a line break, meaning inserted.lines > 1
-    if (inserted.lines > 1) {
-      isInsertingNewline = true;
-    }
-  });
-  if (!isInsertingNewline) {
-    return tr;
-  }
+export function onEnterRulesCommand(view: EditorView) {
+  const state = view.state;
 
   // 4. Get the configured onEnterRules
-  const config = tr.state.facet(vscodeOnEnterRulesConfig);
+  const config = state.facet(vscodeOnEnterRulesConfig);
   const onEnterRules = config.onEnterRules;
 
   // 5. Evaluate the rules against the state BEFORE the transaction occurred
-  const state = tr.startState;
   const doc = state.doc;
   let triggeredRule = undefined;
-  const changeSpec = state.changeByRange((range) => {
+  const modifiedTransactionSpec = state.changeByRange((range) => {
     const pos = range.from;
     const beforeLine = doc.lineAt(pos);
     if (!onEnterRules || state.selection.ranges.length !== 1) {
@@ -176,16 +144,28 @@ export function onEnterRulesFilter(tr: Transaction): TransactionSpec {
   });
 
   if (triggeredRule) {
-    return {
-      changes: changeSpec.changes,
-      selection: changeSpec.selection,
-      effects: changeSpec.effects,
-      userEvent: "input.type",
-    };
+    view.dispatch(
+      state.update(modifiedTransactionSpec, { userEvent: "input.type" }),
+    );
+    return true;
   }
 
-  // 6. If no rules matched, return the original transaction unmodified.
-  return tr;
+  const defaultChanges = state.changeByRange((range) => {
+    const pos = range.from;
+    const insert = state.lineBreak;
+    return {
+      range: EditorSelection.cursor(pos + insert.length),
+      changes: [
+        {
+          from: pos,
+          to: pos,
+          insert,
+        },
+      ],
+    };
+  });
+  view.dispatch(state.update(defaultChanges, { userEvent: "input.type" }));
+  return true;
 }
 
 export const vscodeOnEnterRules = (
@@ -212,6 +192,13 @@ export const vscodeOnEnterRules = (
     vscodeOnEnterRulesConfig.of(
       regexConfig as VSCodeOnEnterRulesConfig<RegExp>,
     ),
-    EditorState.transactionFilter.of(onEnterRulesFilter),
+    Prec.highest(
+      keymap.of([
+        {
+          key: "Enter",
+          run: onEnterRulesCommand,
+        },
+      ]),
+    ),
   ];
 };
