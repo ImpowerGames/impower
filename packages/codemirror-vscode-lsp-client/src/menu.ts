@@ -144,11 +144,14 @@ const contextMenuTheme = EditorView.baseTheme({
   },
 });
 
-const openContextMenu = StateEffect.define<{
+interface ContextMenuSpec {
   pos: number;
-  end: number;
+  end?: number;
   page?: number;
-}>();
+  clip?: boolean;
+}
+
+const openContextMenu = StateEffect.define<ContextMenuSpec>();
 const closeContextMenu = StateEffect.define<void>();
 
 const contextMenuState = StateField.define<Tooltip | null>({
@@ -158,11 +161,7 @@ const contextMenuState = StateField.define<Tooltip | null>({
   update(value, tr) {
     for (const e of tr.effects) {
       if (e.is(openContextMenu)) {
-        value = createContextMenuTooltip(
-          e.value.pos,
-          e.value.end,
-          e.value.page || 0,
-        );
+        value = createContextMenuTooltip(e.value);
       } else if (e.is(closeContextMenu)) {
         value = null;
       }
@@ -179,18 +178,15 @@ const contextMenuState = StateField.define<Tooltip | null>({
   provide: (f) => showTooltip.from(f),
 });
 
-function createContextMenuTooltip(
-  pos: number,
-  end: number,
-  page: number,
-): Tooltip {
+function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
+  const { pos, end, clip = false, page = 0 } = spec;
   const above = isMobile();
   return {
     pos,
     end,
     above,
     arrow: false,
-    clip: false,
+    clip,
     create(view: EditorView) {
       const dom = document.createElement("div");
       dom.className = "cm-context-menu";
@@ -312,55 +308,60 @@ function createContextMenuTooltip(
       return {
         dom,
         overlap: true,
-        getCoords(pos: number) {
-          const coords = view.coordsAtPos(pos);
-          const scrollRect = view.scrollDOM.getBoundingClientRect();
-          const padding = 5;
+        getCoords: clip
+          ? undefined
+          : (pos: number) => {
+              const coords = view.coordsAtPos(pos);
+              const scrollRect = view.scrollDOM.getBoundingClientRect();
+              const padding = 5;
 
-          const tooltipHeight = dom.getBoundingClientRect().height;
+              const tooltipHeight = dom.getBoundingClientRect().height;
 
-          // Define the safe boundaries for the anchor point based on tooltip direction
-          let minTop: number;
-          let maxBottom: number;
+              // Define the safe boundaries for the anchor point based on tooltip direction
+              let minTop: number;
+              let maxBottom: number;
 
-          if (above) {
-            // Anchor must be at least one tooltip height away from the top
-            minTop = scrollRect.top + padding + tooltipHeight;
-            maxBottom = scrollRect.bottom - padding;
-          } else {
-            // Anchor must be at least one tooltip height away from the bottom
-            minTop = scrollRect.top + padding;
-            maxBottom = scrollRect.bottom - padding - tooltipHeight;
-          }
+              if (above) {
+                // Anchor must be at least one tooltip height away from the top
+                minTop = scrollRect.top + padding + tooltipHeight;
+                maxBottom = scrollRect.bottom - padding;
+              } else {
+                // Anchor must be at least one tooltip height away from the bottom
+                minTop = scrollRect.top + padding;
+                maxBottom = scrollRect.bottom - padding - tooltipHeight;
+              }
 
-          // Fallback for Virtualization
-          if (!coords) {
-            const isScrolledPast = pos < view.viewport.from;
-            const fallbackY = isScrolledPast ? minTop : maxBottom;
+              // Fallback for Virtualization
+              if (!coords) {
+                const isScrolledPast = pos < view.viewport.from;
+                const fallbackY = isScrolledPast ? minTop : maxBottom;
 
-            return {
-              left: scrollRect.left + padding,
-              right: scrollRect.left + padding,
-              top: fallbackY,
-              bottom: fallbackY,
-            };
-          }
+                return {
+                  left: scrollRect.left + padding,
+                  right: scrollRect.left + padding,
+                  top: fallbackY,
+                  bottom: fallbackY,
+                };
+              }
 
-          // Clamp the anchor coordinates
-          const top = Math.max(minTop, Math.min(coords.top, maxBottom));
-          const bottom = Math.max(minTop, Math.min(coords.bottom, maxBottom));
+              // Clamp the anchor coordinates
+              const top = Math.max(minTop, Math.min(coords.top, maxBottom));
+              const bottom = Math.max(
+                minTop,
+                Math.min(coords.bottom, maxBottom),
+              );
 
-          const left = Math.max(
-            scrollRect.left + padding,
-            Math.min(coords.left, scrollRect.right - padding),
-          );
-          const right = Math.max(
-            scrollRect.left + padding,
-            Math.min(coords.right, scrollRect.right - padding),
-          );
+              const left = Math.max(
+                scrollRect.left + padding,
+                Math.min(coords.left, scrollRect.right - padding),
+              );
+              const right = Math.max(
+                scrollRect.left + padding,
+                Math.min(coords.right, scrollRect.right - padding),
+              );
 
-          return { left, right, top, bottom };
-        },
+              return { left, right, top, bottom };
+            },
       };
     },
   };
@@ -370,10 +371,17 @@ const contextMenuHandlers = EditorView.domEventHandlers({
   contextmenu(event, view) {
     event.preventDefault();
     event.stopPropagation();
-    const from = view.state.selection.main.from;
-    const to = view.state.selection.main.to;
-    view.dispatch({ effects: openContextMenu.of({ pos: from, end: to }) });
+    const pos = view.posAtCoords({
+      x: event.clientX,
+      y: event.clientY,
+    });
+    view.dispatch({ effects: openContextMenu.of({ pos, clip: true }) });
     return true;
+  },
+  scroll(event, view) {
+    if (getOpenContextMenu(view)?.clip) {
+      view.dispatch({ effects: closeContextMenu.of() });
+    }
   },
 });
 
@@ -422,7 +430,7 @@ const contextMenuClosePlugin = ViewPlugin.fromClass(
   },
 );
 
-export function showContextMenu(view: EditorView, pos: number, end: number) {
+export function showContextMenu(view: EditorView, pos: number, end?: number) {
   view.dispatch({ effects: openContextMenu.of({ pos, end }) });
 }
 
@@ -432,6 +440,10 @@ export function hideContextMenu(view: EditorView) {
 
 export function isContextMenuOpen(view: EditorView) {
   return Boolean(view.state.field(contextMenuState, false));
+}
+
+export function getOpenContextMenu(view: EditorView) {
+  return view.state.field(contextMenuState, false);
 }
 
 export interface ContextMenuConfig {
