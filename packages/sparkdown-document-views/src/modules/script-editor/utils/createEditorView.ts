@@ -252,18 +252,9 @@ const createEditorView = (
     // Update container layout
     document.body.style.height = `${vv.height}px`;
 
+    // Measure keyboard height
     const keyboardHeight = window.innerHeight - vv.height;
     const keyboardOpen = keyboardHeight > 0;
-
-    // Dynamically reconfigure editorAttributes via Compartment
-    view.dispatch({
-      effects: editorAttributesConfig.reconfigure(
-        EditorView.editorAttributes.of({
-          "data-keyboard": keyboardOpen ? "open" : "closed",
-          style: "",
-        }),
-      ),
-    });
 
     // Update CSS variables
     const body = document.body;
@@ -275,15 +266,19 @@ const createEditorView = (
     );
 
     if (keyboardOpen) {
+      // Add keyboard-open class
       document.documentElement.classList.add("keyboard-open");
+      // Hide navbar
       body.style.setProperty("--navbar-display", "none");
     } else {
+      // Remove keyboard-open class
       document.documentElement.classList.remove("keyboard-open");
+      // Show navbar
       body.style.setProperty("--navbar-display", "flex");
     }
 
     if (keyboardOpen && view.hasFocus) {
-      // Ensure cursor is visible
+      // Scroll so cursor remains visible
       view.dispatch({
         effects: EditorView.scrollIntoView(view.state.selection.main, {
           y: "nearest",
