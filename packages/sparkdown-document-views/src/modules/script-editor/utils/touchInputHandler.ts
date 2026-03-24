@@ -416,6 +416,14 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       }
 
       bind() {
+        this.view.scrollDOM.addEventListener(
+          "pointerdown",
+          this.onPointerDown,
+          {
+            capture: true,
+            passive: false,
+          },
+        );
         this.view.scrollDOM.addEventListener("touchstart", this.onTouchStart, {
           passive: false,
         });
@@ -435,6 +443,10 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       }
 
       unbind() {
+        this.view.scrollDOM.removeEventListener(
+          "pointerdown",
+          this.onPointerDown,
+        );
         this.view.scrollDOM.removeEventListener(
           "touchstart",
           this.onTouchStart,
@@ -663,6 +675,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
 
       onPointerDown = (event: PointerEvent) => {
         // Only interfere with touch pointer events. Let mouse events pass through to CM.
+        // This prevents focusing, collapsing the virtual keyboard, and then scrolling, from showing the keyboard again
         if (event.pointerType === "touch") {
           event.stopPropagation();
         }
