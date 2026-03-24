@@ -32,7 +32,7 @@ const touchInputHandlerConfig = Facet.define<
  * (includes manual context menu management and drag handles)
  */
 export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
-  let lastTapTime = 0;
+  let startedFocused = false;
   let isDragging = false;
   let isScrolling = false;
   let isLongPressing = false;
@@ -391,6 +391,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         lastTouchY = startY;
         lastTimestamp = Date.now();
 
+        startedFocused = view.hasFocus;
         isDragging = false;
         isScrolling = false;
         isLongPressing = false;
@@ -400,8 +401,6 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         if (pos == null) return;
 
         touchStartPos = pos;
-
-        const now = Date.now();
 
         const config = view.state.facet(touchInputHandlerConfig);
 
@@ -428,24 +427,6 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           config.showContextMenu?.(view, selection.from, selection.to);
         }, LONG_PRESS_DURATION);
 
-        if (now - lastTapTime < 300) {
-          clearTimeout(longPressTimer);
-          const word = view.state.wordAt(pos);
-          if (word) {
-            const selection = EditorSelection.range(word.from, word.to);
-            if (!view.hasFocus) view.focus();
-            view.dispatch({
-              selection,
-              scrollIntoView: false,
-              userEvent: "select.touch",
-            });
-            config.showContextMenu?.(view, selection.from, selection.to);
-          }
-          lastTapTime = 0;
-          return true;
-        }
-
-        lastTapTime = now;
         selectionAnchor = pos;
         selectionHead = pos;
         return true;
@@ -490,19 +471,21 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             if (dt > 0) velocityY = deltaY / (dt / 16);
           }
         } else if (isDragging) {
-          config.hideContextMenu?.(view);
-          selectionHead = view.posAtCoords({
-            x: touch.clientX,
-            y: touch.clientY,
-          });
-
-          if (selectionAnchor != null && selectionHead !== null) {
-            if (!view.hasFocus) view.focus();
-            view.dispatch({
-              selection: { anchor: selectionAnchor, head: selectionHead },
-              scrollIntoView: false,
-              userEvent: "select.touch",
+          if (startedFocused) {
+            config.hideContextMenu?.(view);
+            selectionHead = view.posAtCoords({
+              x: touch.clientX,
+              y: touch.clientY,
             });
+
+            if (selectionAnchor != null && selectionHead !== null) {
+              if (!view.hasFocus) view.focus();
+              view.dispatch({
+                selection: { anchor: selectionAnchor, head: selectionHead },
+                scrollIntoView: false,
+                userEvent: "select.touch",
+              });
+            }
           }
         } else if (isLongPressing && touchStartPos !== touchEndPos) {
           isDragging = true;
@@ -520,8 +503,10 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         if (isScrolling) {
           rafId = requestAnimationFrame(() => applyMomentum(view));
         } else if (isDragging && touchStartPos !== touchEndPos) {
-          const selection = view.state.selection.main;
-          config.showContextMenu?.(view, selection.from, selection.to);
+          if (startedFocused) {
+            const selection = view.state.selection.main;
+            config.showContextMenu?.(view, selection.from, selection.to);
+          }
         } else if (!isLongPressing) {
           config.hideContextMenu?.(view);
           if (selectionAnchor != null) {
