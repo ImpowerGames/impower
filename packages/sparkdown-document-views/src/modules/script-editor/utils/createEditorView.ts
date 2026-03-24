@@ -87,8 +87,6 @@ export const editableConfig = new Compartment();
 
 export const scrollMarginsConfig = new Compartment();
 
-export const editorAttributesConfig = new Compartment();
-
 // Create a panel that returns an empty div
 const emptyPanel: PanelConstructor = () => ({
   dom: document.createElement("div"),
@@ -520,11 +518,6 @@ const createEditorView = (
             ...scrollMargin,
             bottom: scrollMargin?.bottom,
           })),
-        ),
-        editorAttributesConfig.of(
-          EditorView.editorAttributes.of({
-            style: "",
-          }),
         ),
         platformClassManager(),
         selectionClassManager(),
