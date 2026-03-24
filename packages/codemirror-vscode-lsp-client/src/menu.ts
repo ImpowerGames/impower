@@ -370,9 +370,9 @@ const contextMenuHandlers = EditorView.domEventHandlers({
   contextmenu(event, view) {
     event.preventDefault();
     event.stopPropagation();
-    const anchor = view.state.selection.main.anchor;
-    const head = view.state.selection.main.head;
-    view.dispatch({ effects: openContextMenu.of({ pos: anchor, end: head }) });
+    const from = view.state.selection.main.from;
+    const to = view.state.selection.main.to;
+    view.dispatch({ effects: openContextMenu.of({ pos: from, end: to }) });
     return true;
   },
 });
