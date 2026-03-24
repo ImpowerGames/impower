@@ -476,6 +476,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         this.keyboardHeight = window.innerHeight - vv.height;
         if (oldKeyboardHeight > this.keyboardHeight) {
           // Is closing keyboard, so unfocus editor
+          console.log("BLUR");
           this.view.contentDOM.blur();
         }
       };
