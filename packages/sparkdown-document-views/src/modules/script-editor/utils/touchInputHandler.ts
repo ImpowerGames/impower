@@ -418,7 +418,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         startX = touch.clientX;
         startY = touch.clientY;
         lastTouchY = startY;
-        lastTimestamp = Date.now();
+        lastTimestamp = performance.now();
 
         startedFocused = this.view.hasFocus;
         isDragging = false;
@@ -476,7 +476,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           touchEndPos = pos;
         }
 
-        const now = Date.now();
+        const now = performance.now();
         const dt = now - lastTimestamp;
 
         const diffX = Math.abs(touch.clientX - startX);
