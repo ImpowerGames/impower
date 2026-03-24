@@ -17,9 +17,7 @@ import {
   DecorationSet,
   EditorView,
   GutterMarker,
-  PanelConstructor,
   panels,
-  showPanel,
   ViewUpdate,
 } from "@codemirror/view";
 import {
@@ -85,11 +83,6 @@ export const readOnlyConfig = new Compartment();
 export const editableConfig = new Compartment();
 
 export const scrollMarginsConfig = new Compartment();
-
-// Create a panel that returns an empty div
-const emptyPanel: PanelConstructor = () => ({
-  dom: document.createElement("div"),
-});
 
 interface EditorConfig {
   serverWorker: Worker;
@@ -544,7 +537,6 @@ const createEditorView = (
           hideContextMenu,
           isContextMenuOpen,
         }),
-        showPanel.of(emptyPanel),
         EditorView.domEventObservers({
           focus: () => {
             syncLayout();
