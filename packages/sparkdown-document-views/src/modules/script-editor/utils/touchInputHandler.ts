@@ -407,25 +407,24 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         longPressTimer = setTimeout(() => {
           if (isScrolling) return;
 
+          const word = view.state.wordAt(pos);
+          selectionAnchor = word ? word.from : pos;
+          selectionHead = word ? word.to : pos;
+
+          const selection = EditorSelection.range(
+            selectionAnchor,
+            selectionHead,
+          );
+          if (!view.hasFocus) view.focus();
+          view.dispatch({
+            selection,
+            scrollIntoView: false,
+            userEvent: "select.touch",
+          });
+
+          config.showContextMenu?.(view, selection.from, selection.to);
+
           isLongPressing = true;
-
-          if (startedFocused && view.hasFocus) {
-            const word = view.state.wordAt(pos);
-            selectionAnchor = word ? word.from : pos;
-            selectionHead = word ? word.to : pos;
-
-            const selection = EditorSelection.range(
-              selectionAnchor,
-              selectionHead,
-            );
-            view.dispatch({
-              selection,
-              scrollIntoView: false,
-              userEvent: "select.touch",
-            });
-
-            config.showContextMenu?.(view, selection.from, selection.to);
-          }
         }, LONG_PRESS_DURATION);
 
         selectionAnchor = pos;
@@ -478,7 +477,6 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
               x: touch.clientX,
               y: touch.clientY,
             });
-
             if (selectionAnchor != null && selectionHead !== null) {
               view.dispatch({
                 selection: { anchor: selectionAnchor, head: selectionHead },
@@ -487,7 +485,12 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
               });
             }
           }
-        } else if (isLongPressing && touchStartPos !== touchEndPos) {
+        } else if (
+          isLongPressing &&
+          touchStartPos !== touchEndPos &&
+          startedFocused &&
+          view.hasFocus
+        ) {
           isDragging = true;
         }
 
@@ -511,6 +514,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           config.hideContextMenu?.(view);
           const tapPos = selectionAnchor ?? touchEndPos;
           if (tapPos != null) {
+            if (!view.hasFocus) view.focus();
             view.dispatch({
               selection: { anchor: tapPos },
               scrollIntoView: false,
