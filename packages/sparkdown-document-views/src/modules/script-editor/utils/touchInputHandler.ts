@@ -72,7 +72,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
 
   const LONG_PRESS_DURATION = 500;
   const SCROLL_THRESHOLD = 10;
-  const FRICTION = 0.98; // Applied per 60fps frame (16.66ms)
+  const FRICTION = 0.97; // Applied per 60fps frame (16.66ms)
   const VELOCITY_LIMIT = 0.4;
   const TRACKING_WINDOW_MS = 100;
   const MS_PER_FRAME = 16.66; // 16.66ms is roughly 1 frame at 60fps.
