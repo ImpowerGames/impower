@@ -48,6 +48,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
     return [];
   }
 
+  let isManuallyHandlingTouchEvents = true;
   let startedFocused = false;
   let isDragging = false;
   let isScrolling = false;
@@ -417,14 +418,6 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       }
 
       bind() {
-        this.view.scrollDOM.addEventListener(
-          "pointerdown",
-          this.onPointerDown,
-          {
-            capture: true,
-            passive: false,
-          },
-        );
         this.view.scrollDOM.addEventListener("touchstart", this.onTouchStart, {
           passive: false,
         });
@@ -444,10 +437,6 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       }
 
       unbind() {
-        this.view.scrollDOM.removeEventListener(
-          "pointerdown",
-          this.onPointerDown,
-        );
         this.view.scrollDOM.removeEventListener(
           "touchstart",
           this.onTouchStart,
@@ -676,15 +665,6 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         selectionHead = null;
       };
 
-      onPointerDown = (event: PointerEvent) => {
-        // Only interfere with touch pointer events. Let mouse events pass through to CM.
-        if (event.pointerType === "touch") {
-          // This prevents focusing, collapsing the virtual keyboard, and then scrolling, from showing the keyboard again
-          event.stopPropagation();
-          event.preventDefault();
-        }
-      };
-
       destroy() {
         this.unbind();
       }
@@ -700,5 +680,24 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
     selectionHandlePlugin,
 
     touchEventsPlugin,
+
+    EditorView.domEventHandlers({
+      // Block mousedown in touch environments to prevent a collapsed virtual keyboard from uncollapsing on scroll
+      mousedown: (event, view) => {
+        if (!isManuallyHandlingTouchEvents) {
+          return false;
+        }
+        const path = event.composedPath();
+        if (
+          !path.some(
+            (n) =>
+              n instanceof HTMLElement && n.classList.contains("cm-scroller"),
+          )
+        ) {
+          return false;
+        }
+        return true;
+      },
+    }),
   ];
 }
