@@ -237,9 +237,6 @@ const createEditorView = (
   document.body.style.setProperty("--cm-top-offset", `${top}px`);
   document.body.style.setProperty("--cm-bottom-offset", `${bottom}px`);
 
-  const header = document.querySelector("header");
-  const footer = document.querySelector("footer");
-
   const syncLayout = () => {
     if (!isMobile()) {
       return;
