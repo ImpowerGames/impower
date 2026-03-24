@@ -5,8 +5,8 @@
     border-color, text-decoration-color, fill, stroke;
 }
 
-[display] {
-  display: var(--_display, flex) !important;
+:is([display], [displayed]) {
+  display: var(--_displayed, flex) !important;
 }
 
 [position] {

@@ -1,3 +1,4 @@
+import { CSS_ALIASES } from "../../../sparkle-style-transformer/src/constants/CSS_ALIASES";
 import { STYLE_ALIASES } from "../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
 import { STYLE_TRANSFORMERS } from "../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
 import {
@@ -29,6 +30,7 @@ export const DEFAULT_SPARKLE_ATTRIBUTES = {
   disabled: "disabled",
   rippleColor: "ripple-color",
   ...getAttributeNameMap(getKeys(STYLE_TRANSFORMERS)),
+  ...getAttributeNameMap(getKeys(CSS_ALIASES)),
   ...ARIA_PROPERTY_NAME_MAP,
 };
 
@@ -38,9 +40,10 @@ export const DEFAULT_SPARKLE_TRANSFORMERS = {
   "ripple-color": getCssColor,
 };
 
-const DEFAULT_SPARKLE_ALIAS_ATTRIBUTES = getAttributeNameMap(
-  getKeys(STYLE_ALIASES),
-);
+const DEFAULT_SPARKLE_ALIAS_ATTRIBUTES = {
+  ...STYLE_ALIASES,
+  ...CSS_ALIASES,
+};
 
 const DEFAULT_SPARKLE_ATTRIBUTE_AND_ALIAS_NAMES = [
   ...Object.values(DEFAULT_SPARKLE_ATTRIBUTES),
@@ -62,7 +65,7 @@ export default class SparkleElement
   }
 
   get aliases(): Record<string, string> {
-    return STYLE_ALIASES;
+    return DEFAULT_SPARKLE_ALIAS_ATTRIBUTES;
   }
 
   override get props() {
@@ -70,10 +73,12 @@ export default class SparkleElement
   }
 
   static override get observedAttributes() {
-    return Object.values({
-      ...this.attrs,
-      ...DEFAULT_SPARKLE_ALIAS_ATTRIBUTES,
-    });
+    return [
+      ...Object.values({
+        ...this.attrs,
+      }),
+      ...DEFAULT_SPARKLE_ATTRIBUTE_AND_ALIAS_NAMES,
+    ];
   }
 
   /**

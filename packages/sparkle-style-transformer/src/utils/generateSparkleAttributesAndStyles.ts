@@ -1,3 +1,4 @@
+import { CSS_ALIASES } from "../constants/CSS_ALIASES.js";
 import { STYLE_ALIASES } from "../constants/STYLE_ALIASES.js";
 import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS.js";
 import {
@@ -76,6 +77,7 @@ export const getSparklePropName = (
     : propName;
   const normalizedName: string =
     STYLE_ALIASES[unprefixedPropName as keyof typeof STYLE_ALIASES] ??
+    CSS_ALIASES[unprefixedPropName as keyof typeof CSS_ALIASES] ??
     unprefixedPropName;
   return normalizedName;
 };
