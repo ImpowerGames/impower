@@ -216,11 +216,6 @@ const EDITOR_THEME: {
     overflowWrap: "break-word",
     whiteSpace: "pre-wrap",
   },
-  "& .cm-line": {
-    "& span": {
-      verticalAlign: "baseline",
-    },
-  },
   ".cm-sticky-header-row .cm-gutters": {
     paddingTop: "2px",
   },
