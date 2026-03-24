@@ -48,7 +48,6 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
     return [];
   }
 
-  let isManuallyHandlingTouchEvents = true;
   let startedFocused = false;
   let isDragging = false;
   let isScrolling = false;
@@ -75,6 +74,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
   const SCROLL_THRESHOLD = 10;
   const FRICTION = 0.95; // Applied per 60fps frame (16.66ms)
   const VELOCITY_LIMIT = 0.5;
+  const VELOCITY_BOOST = 1.2;
   const TRACKING_WINDOW_MS = 100;
   const MS_PER_FRAME = 16.66; // 16.66ms is roughly 1 frame at 60fps.
 
@@ -411,6 +411,9 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
   const touchEventsPlugin = ViewPlugin.fromClass(
     class {
       view: EditorView;
+
+      keyboardHeight = 0;
+
       constructor(view: EditorView) {
         this.view = view;
         this.bind();
@@ -433,6 +436,15 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             passive: false,
           },
         );
+        window.visualViewport?.addEventListener(
+          "resize",
+          this.onVisualViewportChange,
+        );
+        window.visualViewport?.addEventListener(
+          "scroll",
+          this.onVisualViewportChange,
+        );
+        window.addEventListener("focusin", this.onVisualViewportChange);
       }
 
       unbind() {
@@ -446,7 +458,27 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           "touchcancel",
           this.onTouchCancel,
         );
+        window.visualViewport?.removeEventListener(
+          "resize",
+          this.onVisualViewportChange,
+        );
+        window.visualViewport?.removeEventListener(
+          "scroll",
+          this.onVisualViewportChange,
+        );
+        window.removeEventListener("focusin", this.onVisualViewportChange);
       }
+
+      onVisualViewportChange = () => {
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const oldKeyboardHeight = this.keyboardHeight;
+        this.keyboardHeight = window.innerHeight - vv.height;
+        if (oldKeyboardHeight > this.keyboardHeight) {
+          // Is closing keyboard, so unfocus editor
+          this.view.contentDOM.blur();
+        }
+      };
 
       onTouchStart = (event: TouchEvent) => {
         event.preventDefault();
@@ -608,8 +640,15 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
 
             if (dt > 0) {
               // Calculate velocity normalized to a 60fps frame
-              // and apply a slight boost factor to compensate for the "heaviness" of main-thread DOM updates.
-              velocityY = ((oldest.y - newest.y) / dt) * MS_PER_FRAME;
+              const rawVelocity = ((oldest.y - newest.y) / dt) * MS_PER_FRAME;
+              // Apply non-linear scaling to amplify fast flicks and dampen slow ones.
+              // Squaring the velocity magnitude creates a more expressive curve.
+              const magnitude = Math.abs(rawVelocity);
+              const direction = Math.sign(rawVelocity);
+
+              // Using Math.pow(magnitude, 1.2) for a subtle curve,
+              // or magnitude * magnitude for a very aggressive one.
+              velocityY = direction * Math.pow(magnitude, VELOCITY_BOOST);
             }
           }
 
@@ -678,24 +717,5 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
     selectionHandlePlugin,
 
     touchEventsPlugin,
-
-    EditorView.domEventHandlers({
-      // Block mousedown in touch environments to prevent a collapsed virtual keyboard from uncollapsing on scroll
-      mousedown: (event, view) => {
-        if (!isManuallyHandlingTouchEvents) {
-          return false;
-        }
-        const path = event.composedPath();
-        if (
-          !path.some(
-            (n) =>
-              n instanceof HTMLElement && n.classList.contains("cm-scroller"),
-          )
-        ) {
-          return false;
-        }
-        return true;
-      },
-    }),
   ];
 }
