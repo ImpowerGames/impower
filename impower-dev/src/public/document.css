@@ -72,6 +72,7 @@
   --cm-keyboard-height: 0px;
   --vv-offset-top: 0px;
   --vv-height: 100vh;
+  --navbar-display: flex;
 }
 
 * {

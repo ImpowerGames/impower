@@ -274,20 +274,12 @@ const createEditorView = (
       isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
     );
 
-    // Dynamically reconfigure scroll margins via Compartment
-    view.dispatch({
-      effects: scrollMarginsConfig.reconfigure(
-        EditorView.scrollMargins.of(() => ({
-          ...scrollMargin,
-          bottom: -bottom,
-        })),
-      ),
-    });
-
     if (keyboardOpen) {
       document.documentElement.classList.add("keyboard-open");
+      body.style.setProperty("--navbar-display", "none");
     } else {
       document.documentElement.classList.remove("keyboard-open");
+      body.style.setProperty("--navbar-display", "flex");
     }
 
     if (keyboardOpen && view.hasFocus) {
@@ -555,24 +547,6 @@ const createEditorView = (
             flexGrow: "1 !important",
             overflow: "auto !important",
             WebkitOverflowScrolling: "touch !important",
-          },
-          "& .cm-panels.cm-panels-top": {
-            top: `var(--cm-top-offset) !important`,
-          },
-          // Replaces global CSS for panels
-          ".cm-panels-bottom": {
-            left: "0 !important",
-            right: "0 !important",
-            flexShrink: "0 !important",
-            willChange: "transform !important",
-          },
-          "& .cm-panels-bottom": {
-            bottom: `var(--cm-bottom-offset) !important`,
-            top: "auto !important",
-            transition: "transform 0.05s linear",
-          },
-          "&[data-keyboard=open] .cm-panels-bottom": {
-            transform: "translateY(var(--cm-bottom-offset))",
           },
         }),
         scrollPastEnd(),

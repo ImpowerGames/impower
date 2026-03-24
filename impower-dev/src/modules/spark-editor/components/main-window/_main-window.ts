@@ -40,53 +40,54 @@ export default spec({
         </s-box>
       </s-split-pane>
       <se-notifications></se-notifications>
-      <s-box height="footer-nav"></s-box>
-      <s-box position="fixed-bottom">
-        <s-box position="relative" bg-color="primary-bg">
-          <s-divider
-            position="absolute"
-            i="0 0 auto 0"
-            bg-color="fg-06"
-          ></s-divider>
-          <s-tabs indicator="none" height="footer-nav" active="${pane}">
-            <s-tab
-              active-text-color="tab-active-text"
-              inactive-text-color="tab-inactive-text"
-              shrink
-              disable-ripple
-              icon="bolt"
-              active-icon="bolt-fill"
-              value="logic"
-              ${pane === "logic" ? "active" : ""}
-            >
-              Logic
-            </s-tab>
-            <s-tab
-              active-text-color="tab-active-text"
-              inactive-text-color="tab-inactive-text"
-              shrink
-              disable-ripple
-              icon="photo"
-              active-icon="photo-fill"
-              value="assets"
-              ${pane === "assets" ? "active" : ""}
-            >
-              Assets
-            </s-tab>
-            <s-tab
-              active-text-color="tab-active-text"
-              inactive-text-color="tab-inactive-text"
-              shrink
-              disable-ripple
-              icon="share"
-              active-icon="share-fill"
-              value="share"
-              ${pane === "share" ? "active" : ""}
-            >
-              Share
-            </s-tab>
-          </s-tabs>
-        </s-box>
+      <s-box
+        display="var(--navbar-display)"
+        position="relative"
+        bg-color="primary-bg"
+      >
+        <s-divider
+          position="absolute"
+          i="0 0 auto 0"
+          bg-color="fg-06"
+        ></s-divider>
+        <s-tabs indicator="none" height="footer-nav" active="${pane}">
+          <s-tab
+            active-text-color="tab-active-text"
+            inactive-text-color="tab-inactive-text"
+            shrink
+            disable-ripple
+            icon="bolt"
+            active-icon="bolt-fill"
+            value="logic"
+            ${pane === "logic" ? "active" : ""}
+          >
+            Logic
+          </s-tab>
+          <s-tab
+            active-text-color="tab-active-text"
+            inactive-text-color="tab-inactive-text"
+            shrink
+            disable-ripple
+            icon="photo"
+            active-icon="photo-fill"
+            value="assets"
+            ${pane === "assets" ? "active" : ""}
+          >
+            Assets
+          </s-tab>
+          <s-tab
+            active-text-color="tab-active-text"
+            inactive-text-color="tab-inactive-text"
+            shrink
+            disable-ripple
+            icon="share"
+            active-icon="share-fill"
+            value="share"
+            ${pane === "share" ? "active" : ""}
+          >
+            Share
+          </s-tab>
+        </s-tabs>
       </s-box>
     `;
   },
