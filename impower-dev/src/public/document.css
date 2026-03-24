@@ -74,6 +74,11 @@
   --vv-height: 100vh;
 }
 
+* {
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
 html {
   position: fixed;
   top: 0;
