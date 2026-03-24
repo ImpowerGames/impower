@@ -12,7 +12,10 @@ import {
 } from "@codemirror/view";
 
 export interface TouchInputHandlerConfig {
-  showContextMenu?: (view: EditorView, pos: number, end: number) => void;
+  showContextMenu?: (
+    view: EditorView,
+    spec: { pos: number; end?: number },
+  ) => void;
   hideContextMenu?: (view: EditorView) => void;
   isContextMenuOpen?: (view: EditorView) => boolean;
   isTouchEnvironment?: () => boolean;
@@ -84,7 +87,10 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       rafId = null;
       if (wasShowingContextMenuBeforeScroll) {
         const selection = view.state.selection.main;
-        config.showContextMenu?.(view, selection.from, selection.to);
+        config.showContextMenu?.(view, {
+          pos: selection.from,
+          end: selection.to,
+        });
       }
       return;
     }
@@ -222,7 +228,10 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           setTimeout(() => {
             const from = this.view.state.selection.main.from;
             const to = this.view.state.selection.main.to;
-            config.showContextMenu?.(this.view, from, to);
+            config.showContextMenu?.(this.view, {
+              pos: from,
+              end: to,
+            });
           }, 10);
         });
       }
@@ -440,7 +449,10 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             userEvent: "select.touch",
           });
 
-          config.showContextMenu?.(this.view, selection.from, selection.to);
+          config.showContextMenu?.(this.view, {
+            pos: selection.from,
+            end: selection.to,
+          });
 
           isLongPressing = true;
         }, LONG_PRESS_DURATION);
@@ -528,7 +540,10 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         } else if (isDragging && touchStartPos !== touchEndPos) {
           if (startedFocused) {
             const selection = this.view.state.selection.main;
-            config.showContextMenu?.(this.view, selection.from, selection.to);
+            config.showContextMenu?.(this.view, {
+              pos: selection.from,
+              end: selection.to,
+            });
           }
         } else if (!isLongPressing) {
           config.hideContextMenu?.(this.view);

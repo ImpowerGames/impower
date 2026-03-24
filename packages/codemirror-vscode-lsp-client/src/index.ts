@@ -64,6 +64,7 @@ export {
   isContextMenuOpen,
   showContextMenu,
   type ContextMenuConfig,
+  type ContextMenuSpec,
 } from "./menu";
 export { LSPPlugin } from "./plugin";
 export {
