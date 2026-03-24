@@ -369,16 +369,16 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       view: EditorView;
       constructor(view: EditorView) {
         this.view = view;
-        view.dom.addEventListener("touchstart", this.onTouchStart, {
+        view.contentDOM.addEventListener("touchstart", this.onTouchStart, {
           passive: false,
         });
-        view.dom.addEventListener("touchmove", this.onTouchMove, {
+        view.contentDOM.addEventListener("touchmove", this.onTouchMove, {
           passive: false,
         });
-        view.dom.addEventListener("touchend", this.onTouchEnd, {
+        view.contentDOM.addEventListener("touchend", this.onTouchEnd, {
           passive: false,
         });
-        view.dom.addEventListener("touchcancel", this.onTouchCancel, {
+        view.contentDOM.addEventListener("touchcancel", this.onTouchCancel, {
           passive: false,
         });
       }
@@ -555,10 +555,16 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       };
 
       destroy() {
-        this.view.dom.removeEventListener("touchstart", this.onTouchStart);
-        this.view.dom.removeEventListener("touchmove", this.onTouchMove);
-        this.view.dom.removeEventListener("touchend", this.onTouchEnd);
-        this.view.dom.removeEventListener("touchcancel", this.onTouchCancel);
+        this.view.contentDOM.removeEventListener(
+          "touchstart",
+          this.onTouchStart,
+        );
+        this.view.contentDOM.removeEventListener("touchmove", this.onTouchMove);
+        this.view.contentDOM.removeEventListener("touchend", this.onTouchEnd);
+        this.view.contentDOM.removeEventListener(
+          "touchcancel",
+          this.onTouchCancel,
+        );
       }
     },
   );
