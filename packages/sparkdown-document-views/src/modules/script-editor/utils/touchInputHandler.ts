@@ -381,6 +381,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
     EditorView.domEventHandlers({
       touchstart(event, view) {
         event.preventDefault();
+        event.stopPropagation();
         stopMomentum();
 
         const touch = event.touches[0]!;
@@ -433,6 +434,9 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       },
 
       touchmove(event, view) {
+        event.preventDefault();
+        event.stopPropagation();
+
         const touch = event.touches[0]!;
         if (touch == null) return;
 
@@ -499,6 +503,9 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       },
 
       touchend(event, view) {
+        event.preventDefault();
+        event.stopPropagation();
+
         clearTimeout(longPressTimer);
 
         const config = view.state.facet(touchInputHandlerConfig);
