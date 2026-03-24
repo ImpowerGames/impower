@@ -63,15 +63,18 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
   let startY = 0;
 
   // Momentum variables
-  let lastTouchY = 0;
-  let lastTimestamp = 0;
+  let velocityTracker: { y: number; time: number }[] = [];
   let velocityY = 0;
+  let lastTouchY = 0;
   let rafId: number | null = null;
+  let lastFrameTime = 0;
 
   const LONG_PRESS_DURATION = 500;
   const SCROLL_THRESHOLD = 10;
-  const FRICTION = 0.95;
+  const FRICTION = 0.95; // Applied per 60fps frame (16.66ms)
   const VELOCITY_LIMIT = 0.5;
+  const TRACKING_WINDOW_MS = 100;
+  const MS_PER_FRAME = 16.66; // 16.66ms is roughly 1 frame at 60fps.
 
   const stopMomentum = () => {
     if (rafId) {
@@ -81,10 +84,12 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
     velocityY = 0;
   };
 
-  const applyMomentum = (view: EditorView) => {
+  const applyMomentum = (time: DOMHighResTimeStamp, view: EditorView) => {
+    const dt = time - lastFrameTime;
+    lastFrameTime = time;
+
     if (Math.abs(velocityY) < VELOCITY_LIMIT) {
-      // Done scrolling
-      rafId = null;
+      rafId = null; // Done scrolling
       if (wasShowingContextMenuBeforeScroll) {
         const selection = view.state.selection.main;
         config.showContextMenu?.(view, {
@@ -95,9 +100,22 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       }
       return;
     }
+
+    const prevScrollTop = view.scrollDOM.scrollTop;
     view.scrollDOM.scrollTop += velocityY;
-    velocityY *= FRICTION;
-    rafId = requestAnimationFrame(() => applyMomentum(view));
+
+    // If we hit the top or bottom, the browser clamps scrollTop.
+    // If it didn't change, we hit a wall and should stop animating.
+    if (view.scrollDOM.scrollTop === prevScrollTop) {
+      rafId = null;
+      return;
+    }
+
+    // Apply time-based friction (frame-rate independent)
+    // 16.66ms is roughly 1 frame at 60fps.
+    velocityY *= Math.pow(FRICTION, dt / MS_PER_FRAME);
+
+    rafId = requestAnimationFrame((time) => applyMomentum(time, view));
   };
 
   const selectionHandleTheme = EditorView.baseTheme({
@@ -393,18 +411,39 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       view: EditorView;
       constructor(view: EditorView) {
         this.view = view;
-        view.contentDOM.addEventListener("touchstart", this.onTouchStart, {
+        this.bind();
+      }
+
+      bind() {
+        this.view.contentDOM.addEventListener("touchstart", this.onTouchStart, {
           passive: false,
         });
-        view.contentDOM.addEventListener("touchmove", this.onTouchMove, {
-          passive: true,
-        });
-        view.contentDOM.addEventListener("touchend", this.onTouchEnd, {
+        this.view.contentDOM.addEventListener("touchmove", this.onTouchMove, {
           passive: false,
         });
-        view.contentDOM.addEventListener("touchcancel", this.onTouchCancel, {
+        this.view.contentDOM.addEventListener("touchend", this.onTouchEnd, {
           passive: false,
         });
+        this.view.contentDOM.addEventListener(
+          "touchcancel",
+          this.onTouchCancel,
+          {
+            passive: false,
+          },
+        );
+      }
+
+      unbind() {
+        this.view.contentDOM.removeEventListener(
+          "touchstart",
+          this.onTouchStart,
+        );
+        this.view.contentDOM.removeEventListener("touchmove", this.onTouchMove);
+        this.view.contentDOM.removeEventListener("touchend", this.onTouchEnd);
+        this.view.contentDOM.removeEventListener(
+          "touchcancel",
+          this.onTouchCancel,
+        );
       }
 
       onTouchStart = (event: TouchEvent) => {
@@ -418,13 +457,16 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         startX = touch.clientX;
         startY = touch.clientY;
         lastTouchY = startY;
-        lastTimestamp = performance.now();
 
         startedFocused = this.view.hasFocus;
         isDragging = false;
         isScrolling = false;
         isLongPressing = false;
         wasShowingContextMenuBeforeScroll = false;
+
+        // Reset velocity tracking
+        velocityTracker = [{ y: startY, time: performance.now() }];
+        velocityY = 0;
 
         const pos = this.view.posAtCoords({ x: startX, y: startY });
         if (pos == null) return;
@@ -465,6 +507,9 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       };
 
       onTouchMove = (event: TouchEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+
         const touch = event.touches[0]!;
         if (touch == null) return;
 
@@ -477,8 +522,6 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         }
 
         const now = performance.now();
-        const dt = now - lastTimestamp;
-
         const diffX = Math.abs(touch.clientX - startX);
         const diffY = Math.abs(touch.clientY - startY);
 
@@ -498,9 +541,17 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
               wasShowingContextMenuBeforeScroll = true;
             }
             config.hideContextMenu?.(this.view);
+
             const deltaY = lastTouchY - touch.clientY;
             this.view.scrollDOM.scrollTop += deltaY;
-            if (dt > 0) velocityY = deltaY / (dt / 16);
+
+            // Track movement for velocity calculation
+            velocityTracker.push({ y: touch.clientY, time: now });
+
+            // Prune old tracking points (keep only the last 100ms)
+            velocityTracker = velocityTracker.filter(
+              (p) => now - p.time <= TRACKING_WINDOW_MS,
+            );
           }
         } else if (isDragging) {
           if (startedFocused && this.view.hasFocus) {
@@ -527,7 +578,6 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         }
 
         lastTouchY = touch.clientY;
-        lastTimestamp = now;
       };
 
       onTouchEnd = (event: TouchEvent) => {
@@ -539,7 +589,31 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         const config = this.view.state.facet(touchInputHandlerConfig);
 
         if (isScrolling) {
-          rafId = requestAnimationFrame(() => applyMomentum(this.view));
+          const now = performance.now();
+
+          // Clean up points that are older than our window just before releasing
+          velocityTracker = velocityTracker.filter(
+            (p) => now - p.time <= TRACKING_WINDOW_MS,
+          );
+
+          if (velocityTracker.length > 1) {
+            const oldest = velocityTracker[0]!;
+            const newest = velocityTracker[velocityTracker.length - 1]!;
+            const dt = newest.time - oldest.time;
+
+            if (dt > 0) {
+              // Calculate velocity normalized to a 60fps frame
+              velocityY = ((oldest.y - newest.y) / dt) * 16.66;
+            }
+          }
+
+          // If there is enough velocity, start the momentum loop
+          if (Math.abs(velocityY) > VELOCITY_LIMIT) {
+            lastFrameTime = performance.now();
+            rafId = requestAnimationFrame((time) =>
+              applyMomentum(time, this.view),
+            );
+          }
         } else if (isDragging && touchStartPos !== touchEndPos) {
           if (startedFocused) {
             const selection = this.view.state.selection.main;
@@ -584,16 +658,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       };
 
       destroy() {
-        this.view.contentDOM.removeEventListener(
-          "touchstart",
-          this.onTouchStart,
-        );
-        this.view.contentDOM.removeEventListener("touchmove", this.onTouchMove);
-        this.view.contentDOM.removeEventListener("touchend", this.onTouchEnd);
-        this.view.contentDOM.removeEventListener(
-          "touchcancel",
-          this.onTouchCancel,
-        );
+        this.unbind();
       }
     },
   );
