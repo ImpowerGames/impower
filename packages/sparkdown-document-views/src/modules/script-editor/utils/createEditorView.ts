@@ -19,7 +19,6 @@ import {
   GutterMarker,
   PanelConstructor,
   panels,
-  scrollPastEnd,
   showPanel,
   ViewUpdate,
 } from "@codemirror/view";
@@ -540,7 +539,6 @@ const createEditorView = (
             paddingLeft: "0",
           },
         }),
-        scrollPastEnd(),
         touchInputHandler({
           showContextMenu,
           hideContextMenu,
