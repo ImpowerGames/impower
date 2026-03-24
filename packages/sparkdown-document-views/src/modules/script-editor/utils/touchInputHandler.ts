@@ -675,9 +675,10 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
 
       onPointerDown = (event: PointerEvent) => {
         // Only interfere with touch pointer events. Let mouse events pass through to CM.
-        // This prevents focusing, collapsing the virtual keyboard, and then scrolling, from showing the keyboard again
         if (event.pointerType === "touch") {
+          // This prevents focusing, collapsing the virtual keyboard, and then scrolling, from showing the keyboard again
           event.stopPropagation();
+          event.preventDefault();
         }
       };
 
