@@ -245,11 +245,8 @@ const createEditorView = (
     const vv = window.visualViewport;
     if (!vv) return;
 
-    // LOCKDOWN FIRST: Force scroll to 0 before reading viewport math
-    // This stops the browser's native scroll from poisoning our calculations
-    if (window.scrollY !== 0 || window.scrollX !== 0) {
-      window.scrollTo(0, 0);
-    }
+    // Update container layout
+    document.body.style.height = `${vv.height}px`;
 
     const keyboardHeight = window.innerHeight - vv.height;
     const keyboardOpen = keyboardHeight > 0;
