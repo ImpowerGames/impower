@@ -416,16 +416,16 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       }
 
       bind() {
-        this.view.contentDOM.addEventListener("touchstart", this.onTouchStart, {
+        this.view.scrollDOM.addEventListener("touchstart", this.onTouchStart, {
           passive: false,
         });
-        this.view.contentDOM.addEventListener("touchmove", this.onTouchMove, {
+        this.view.scrollDOM.addEventListener("touchmove", this.onTouchMove, {
           passive: false,
         });
-        this.view.contentDOM.addEventListener("touchend", this.onTouchEnd, {
+        this.view.scrollDOM.addEventListener("touchend", this.onTouchEnd, {
           passive: false,
         });
-        this.view.contentDOM.addEventListener(
+        this.view.scrollDOM.addEventListener(
           "touchcancel",
           this.onTouchCancel,
           {
@@ -435,13 +435,13 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
       }
 
       unbind() {
-        this.view.contentDOM.removeEventListener(
+        this.view.scrollDOM.removeEventListener(
           "touchstart",
           this.onTouchStart,
         );
-        this.view.contentDOM.removeEventListener("touchmove", this.onTouchMove);
-        this.view.contentDOM.removeEventListener("touchend", this.onTouchEnd);
-        this.view.contentDOM.removeEventListener(
+        this.view.scrollDOM.removeEventListener("touchmove", this.onTouchMove);
+        this.view.scrollDOM.removeEventListener("touchend", this.onTouchEnd);
+        this.view.scrollDOM.removeEventListener(
           "touchcancel",
           this.onTouchCancel,
         );
@@ -659,6 +659,13 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         touchEndPos = null;
         selectionAnchor = null;
         selectionHead = null;
+      };
+
+      onPointerDown = (event: PointerEvent) => {
+        // Only interfere with touch pointer events. Let mouse events pass through to CM.
+        if (event.pointerType === "touch") {
+          event.stopPropagation();
+        }
       };
 
       destroy() {
