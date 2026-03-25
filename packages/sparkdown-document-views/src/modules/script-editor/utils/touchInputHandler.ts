@@ -78,10 +78,22 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
   const TRACKING_WINDOW_MS = 100;
   const MS_PER_FRAME = 16.66; // 16.66ms is roughly 1 frame at 60fps.
 
-  const stopMomentum = () => {
+  const finishScroll = (view: EditorView) => {
+    if (wasShowingContextMenuBeforeScroll) {
+      const selection = view.state.selection.main;
+      config.showContextMenu?.(view, {
+        pos: selection.from,
+        end: selection.to,
+        above: true,
+      });
+    }
+  };
+
+  const stopMomentum = (view: EditorView) => {
     if (rafId) {
       cancelAnimationFrame(rafId);
       rafId = null;
+      finishScroll(view);
     }
     velocityY = 0;
   };
@@ -92,14 +104,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
 
     if (Math.abs(velocityY) < VELOCITY_LIMIT) {
       rafId = null; // Done scrolling
-      if (wasShowingContextMenuBeforeScroll) {
-        const selection = view.state.selection.main;
-        config.showContextMenu?.(view, {
-          pos: selection.from,
-          end: selection.to,
-          above: true,
-        });
-      }
+      finishScroll(view);
       return;
     }
 
@@ -110,6 +115,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
     // If it didn't change, we hit a wall and should stop animating.
     if (view.scrollDOM.scrollTop === prevScrollTop) {
       rafId = null;
+      finishScroll(view);
       return;
     }
 
@@ -497,7 +503,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
 
         stoppedMomentum = rafId !== null;
 
-        stopMomentum();
+        stopMomentum(this.view);
 
         const touch = event.touches[0]!;
 
@@ -719,7 +725,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
 
       onTouchCancel = () => {
         clearTimeout(longPressTimer);
-        stopMomentum();
+        stopMomentum(this.view);
         isScrolling = false;
         isLongPressing = false;
         isDragging = false;
