@@ -1,4 +1,4 @@
-import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
+import { searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
@@ -98,11 +98,14 @@ import { getScrollTop } from "../../../utils/getScrollTop";
 import { getVisibleRange } from "../../../utils/getVisibleRange";
 import { scrollY } from "../../../utils/scrollY";
 import { SparkdownCodemirrorWorkspace } from "../classes/SparkdownCodemirrorWorkspace";
-import { gotoLinePanelOpen } from "../panels/GotoLinePanel";
 import createEditorView, {
   editableConfig,
   readOnlyConfig,
 } from "../utils/createEditorView";
+import {
+  customGotoLinePanelOpen,
+  openCustomSearchPanel,
+} from "../utils/extensions/customSearch";
 import spec from "./_sparkdown-script-editor";
 
 export default class SparkdownScriptEditor extends Component(spec) {
@@ -785,7 +788,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
           onViewUpdate: (update) => {
             if (
               searchPanelOpen(update.state) ||
-              gotoLinePanelOpen(update.state)
+              customGotoLinePanelOpen(update.state)
             ) {
               if (!this._searching) {
                 // Opened panel
@@ -1005,7 +1008,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected openSearchPanel() {
     const view = this._view;
     if (view) {
-      openSearchPanel(view);
+      openCustomSearchPanel(view);
     }
   }
 

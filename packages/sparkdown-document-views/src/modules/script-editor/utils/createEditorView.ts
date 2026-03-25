@@ -1,13 +1,11 @@
 import { historyField } from "@codemirror/commands";
 import { syntaxParserRunning } from "@codemirror/language";
-import { search } from "@codemirror/search";
 import {
   Compartment,
   EditorSelection,
   EditorState,
   Range,
   RangeSet,
-  SelectionRange,
   Text,
   Transaction,
   TransactionSpec,
@@ -58,8 +56,6 @@ import { variableWidgets } from "../../../cm-variable-widgets/variableWidgets";
 import debounce from "../../../utils/debounce";
 import EDITOR_EXTENSIONS from "../constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../constants/EDITOR_THEME";
-import { gotoLinePanel } from "../panels/GotoLinePanel";
-import { SearchPanel } from "../panels/SearchPanel";
 import { statusPanel } from "../panels/StatusPanel";
 import {
   SerializableEditorSelection,
@@ -67,6 +63,10 @@ import {
   SerializableFoldedState,
   SerializableHistoryState,
 } from "../types/editor";
+import {
+  customGotoLinePanel,
+  customSearchPanel,
+} from "./extensions/customSearch";
 import { mobileViewportManager } from "./extensions/mobileViewportManager";
 import { platformClassManager } from "./extensions/platformClassManager";
 import { selectionClassManager } from "./extensions/selectionClassManager";
@@ -239,14 +239,9 @@ const createEditorView = (
           topContainer: isMobile() ? mobileTopContainer : undefined,
           bottomContainer: isMobile() ? mobileBottomContainer : undefined,
         }),
-        search({
-          createPanel: (view) => new SearchPanel(view),
-          scrollToMatch: (range: SelectionRange) =>
-            EditorView.scrollIntoView(range, { y: "center" }),
-          top: true,
-        }),
+        customSearchPanel(),
+        customGotoLinePanel(),
         statusPanel(),
-        gotoLinePanel(),
         readOnlyConfig.of(EditorState.readOnly.of(false)),
         editableConfig.of(EditorView.editable.of(true)),
         breakpointsField.init(() => {

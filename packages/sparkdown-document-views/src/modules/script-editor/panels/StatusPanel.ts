@@ -14,10 +14,10 @@ import {
 } from "@impower/codemirror-vscode-lsp-client/src";
 import EDITOR_COLORS from "../constants/EDITOR_COLORS";
 import {
-  closeGotoLinePanel,
-  gotoLinePanelOpen,
-  openGotoLinePanel,
-} from "./GotoLinePanel";
+  closeCustomGotoLinePanel,
+  customGotoLinePanelOpen,
+  openCustomGotoLinePanel,
+} from "../utils/extensions/customSearch";
 
 const CHEVRON_SVG_URL = `url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="black"><path d="M7.97612 10.0719L12.3334 5.7146L12.9521 6.33332L8.28548 11L7.66676 11L3.0001 6.33332L3.61882 5.7146L7.97612 10.0719Z"/></svg>')`;
 
@@ -97,10 +97,10 @@ export class StatusPanel implements Panel {
   }
 
   toggleGotoLinePanel(state: EditorState) {
-    if (gotoLinePanelOpen(state)) {
-      closeGotoLinePanel(this.view);
+    if (customGotoLinePanelOpen(state)) {
+      closeCustomGotoLinePanel(this.view);
     } else {
-      openGotoLinePanel(this.view);
+      openCustomGotoLinePanel(this.view);
     }
   }
 
