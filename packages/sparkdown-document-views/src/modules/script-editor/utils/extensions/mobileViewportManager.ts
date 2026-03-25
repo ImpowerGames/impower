@@ -47,11 +47,15 @@ const viewportPlugin = ViewPlugin.fromClass(
       window.scrollTo(0, 0);
 
       // Update container layout
-      const bodyHeight = `${vv.height}px`;
+      // (Safari doesn't send a visual viewport update until LONG AFTER the keyboard animation has played,
+      // so we have to check for focusout so we can catch the close as early as other browsers.
+      // 'focusout' is technically only supported on Safari, but that makes it good enough for this Safari-only bug.)
+      const bodyHeight = e?.type === "focusout" ? "" : `${vv.height}px`;
       document.body.style.height = bodyHeight;
 
       // Measure keyboard height
-      const keyboardHeight = window.innerHeight - vv.height;
+      const keyboardHeight =
+        e?.type === "focusout" ? 0 : window.innerHeight - vv.height;
 
       if (keyboardHeight > this.lastKeyboardHeight) {
         // Is opening keyboard
