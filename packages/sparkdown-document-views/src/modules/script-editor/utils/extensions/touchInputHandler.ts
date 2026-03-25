@@ -472,7 +472,7 @@ const touchEventsPlugin = ViewPlugin.fromClass(
 
       if (keyboardHeight < this.lastKeyboardHeight) {
         // Is closing keyboard, so unfocus editor
-        this.view.contentDOM.blur();
+        // this.view.contentDOM.blur();
       }
 
       this.lastKeyboardHeight = keyboardHeight;
