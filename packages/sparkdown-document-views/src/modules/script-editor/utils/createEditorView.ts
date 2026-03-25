@@ -227,7 +227,9 @@ const createEditorView = (
   document.body.style.setProperty("--cm-top-offset", `${top}px`);
   document.body.style.setProperty("--cm-bottom-offset", `${bottom}px`);
 
-  const syncLayout = () => {
+  let lastKeyboardHeight = 0;
+
+  const syncLayout = (e?: Event) => {
     if (!isMobile()) {
       return;
     }
@@ -243,7 +245,11 @@ const createEditorView = (
     document.body.style.height = `${vv.height}px`;
 
     // Measure keyboard height
-    const keyboardHeight = window.innerHeight - vv.height;
+    // (Safari doesn't send a visual viewport update until AFTER the keyboard animation has played,
+    // so we have to check for focusout so we can catch the close as early as other browsers.
+    // 'focusout' is technically only supported on Safari, but that makes it good enough for fixing this Safari-only bug.)
+    const keyboardHeight =
+      e?.type === "focusout" ? 0 : window.innerHeight - vv.height;
     const keyboardOpen = keyboardHeight > 0;
 
     // Update CSS variables
@@ -255,11 +261,11 @@ const createEditorView = (
       isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
     );
 
-    if (keyboardOpen) {
-      // Add keyboard-open class
+    if (keyboardHeight > lastKeyboardHeight) {
+      // Is opening
       document.documentElement.classList.add("keyboard-open");
-    } else {
-      // Remove keyboard-open class
+    } else if (keyboardHeight === 0 || keyboardHeight < lastKeyboardHeight) {
+      // Is closing
       document.documentElement.classList.remove("keyboard-open");
     }
 
@@ -271,6 +277,8 @@ const createEditorView = (
         }),
       });
     }
+
+    lastKeyboardHeight = keyboardHeight;
   };
 
   // Create Editor View
