@@ -262,10 +262,10 @@ const createEditorView = (
     );
 
     if (keyboardHeight > lastKeyboardHeight) {
-      // Is opening
+      // Is opening keyboard
       document.documentElement.classList.add("keyboard-open");
     } else if (keyboardHeight === 0 || keyboardHeight < lastKeyboardHeight) {
-      // Is closing
+      // Is closing keyboard
       document.documentElement.classList.remove("keyboard-open");
     }
 
