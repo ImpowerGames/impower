@@ -84,6 +84,10 @@ function createRenameTooltip(pos: number, word: string): Tooltip {
       input.type = "text";
       input.autocomplete = "off";
       input.inputMode = "text";
+      input.readOnly = true;
+      input.onfocus = () => {
+        input.readOnly = false;
+      };
       input.setAttribute("data-form-type", "other");
 
       const button = dom.appendChild(document.createElement("button"));

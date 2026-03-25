@@ -45,6 +45,10 @@ export class GotoLinePanel implements Panel {
     this.input.type = "text";
     this.input.autocomplete = "off";
     this.input.inputMode = "text";
+    this.input.readOnly = true;
+    this.input.onfocus = () => {
+      this.input.readOnly = false;
+    };
     this.input.setAttribute("data-form-type", "other");
     this.input.setAttribute("main-field", "");
 
