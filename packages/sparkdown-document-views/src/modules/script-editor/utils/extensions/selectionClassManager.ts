@@ -12,12 +12,14 @@ const selectionStateField = StateField.define({
     return value;
   },
 });
+
 const selectionAttributeExtension = EditorView.editorAttributes.from(
   selectionStateField,
   (value) => {
     return value ? { class: "cm-selected" } : { class: "" };
   },
 );
+
 export function selectionClassManager() {
   return [selectionStateField, selectionAttributeExtension];
 }

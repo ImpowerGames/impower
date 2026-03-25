@@ -4,6 +4,7 @@ import { keymap } from "@codemirror/view";
 import { vscodeLanguage } from "@impower/codemirror-vscode-language/src";
 import {
   findReferencesKeymap,
+  formatDocument,
   formatKeymap,
   jumpToDefinitionKeymap,
   languageServerExtensions,
@@ -13,15 +14,26 @@ import {
   WorkerTransport,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
+import CONFIG_DEFINITION from "@impower/sparkdown/language/sparkdown.language-config.json";
+import GRAMMAR_DEFINITION from "@impower/sparkdown/language/sparkdown.language-grammar.json";
 import {
   type InitializeParams,
   type InitializeResult,
   type MessageConnection,
 } from "vscode-languageserver-protocol";
-import CONFIG_DEFINITION from "../../../../../sparkdown/language/sparkdown.language-config.json";
-import GRAMMAR_DEFINITION from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
-import EDITOR_HIGHLIGHTS from "../constants/EDITOR_HIGHLIGHTS";
-import { sparkdownKeymap } from "./sparkdownKeymap";
+import EDITOR_HIGHLIGHTS from "../../constants/EDITOR_HIGHLIGHTS";
+
+const sparkdownKeymap = [
+  {
+    key: "PageUp",
+    run: () => true, // Used by preview
+  },
+  {
+    key: "PageDown",
+    run: () => true, // Used by preview
+  },
+  { key: "Mod-s", run: formatDocument, preventDefault: true },
+] as const;
 
 export const sparkdownLanguageExtension = (config: {
   textDocument: { uri: string; version: number };

@@ -27,11 +27,7 @@ import {
   showContextMenu,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
-import {
-  isAndroid,
-  isIOS,
-  isMobile,
-} from "@impower/codemirror-vscode-lsp-client/src/context";
+import { isMobile } from "@impower/codemirror-vscode-lsp-client/src/context";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
   InitializeParams,
@@ -71,10 +67,11 @@ import {
   SerializableFoldedState,
   SerializableHistoryState,
 } from "../types/editor";
-import { platformClassManager } from "./platformClassManager";
-import { selectionClassManager } from "./selectionClassManager";
-import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
-import { touchInputHandler } from "./touchInputHandler";
+import { mobileViewportManager } from "./extensions/mobileViewportManager";
+import { platformClassManager } from "./extensions/platformClassManager";
+import { selectionClassManager } from "./extensions/selectionClassManager";
+import { sparkdownLanguageExtension } from "./extensions/sparkdownLanguageExtension";
+import { touchInputHandler } from "./extensions/touchInputHandler";
 
 const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
@@ -226,60 +223,6 @@ const createEditorView = (
 
   document.body.style.setProperty("--cm-top-offset", `${top}px`);
   document.body.style.setProperty("--cm-bottom-offset", `${bottom}px`);
-
-  let lastKeyboardHeight = 0;
-
-  const syncLayout = (e?: Event) => {
-    if (!isMobile()) {
-      return;
-    }
-
-    const vv = window.visualViewport;
-    if (!vv) return;
-
-    // Prevent the browser from trying to scroll the hidden body
-    // when the input is focused.
-    window.scrollTo(0, 0);
-
-    // Update container layout
-    // (Safari doesn't send a visual viewport update until long AFTER the keyboard animation has played,
-    // so we have to check for focusout so we can catch the close as early as other browsers.
-    // 'focusout' is technically only supported on Safari, but that makes it good enough for this Safari-only bug.)
-    const bodyHeight = e?.type === "focusout" ? "" : `${vv.height}px`;
-    document.body.style.height = bodyHeight;
-
-    // Measure keyboard height
-    const keyboardHeight =
-      e?.type === "focusout" ? 0 : window.innerHeight - vv.height;
-
-    // Update CSS variables
-    const body = document.body;
-    body.style.setProperty("--cm-keyboard-height", `${keyboardHeight}px`);
-    body.style.setProperty("--vv-offset-top", `${vv.offsetTop}px`);
-    body.style.setProperty("--vv-height", `${vv.height}px`);
-    document.documentElement.classList.add(
-      isIOS() ? "ios" : isAndroid() ? "android" : "desktop",
-    );
-
-    if (keyboardHeight > lastKeyboardHeight) {
-      // Is opening keyboard
-      document.documentElement.classList.add("keyboard-open");
-    } else if (keyboardHeight === 0 || keyboardHeight < lastKeyboardHeight) {
-      // Is closing keyboard
-      document.documentElement.classList.remove("keyboard-open");
-    }
-
-    if (keyboardHeight > 0 && view.hasFocus) {
-      // Scroll so cursor remains visible
-      view.dispatch({
-        effects: EditorView.scrollIntoView(view.state.selection.main, {
-          y: "nearest",
-        }),
-      });
-    }
-
-    lastKeyboardHeight = keyboardHeight;
-  };
 
   // Create Editor View
   const view: EditorView = new EditorView({
@@ -517,38 +460,12 @@ const createEditorView = (
         ),
         platformClassManager(),
         selectionClassManager(),
-        EditorView.baseTheme({
-          "&": {
-            height: "100% !important",
-            display: "flex !important",
-            flexDirection: "column !important",
-            overscrollBehavior: "none !important",
-          },
-          "& *": {
-            overscrollBehavior: "none !important",
-          },
-          ".cm-scroller": {
-            flexGrow: "1 !important",
-            overflow: "auto !important",
-            WebkitOverflowScrolling: "touch !important",
-          },
-          "& .cm-content .cm-line": {
-            paddingLeft: "0",
-          },
-        }),
         touchInputHandler({
           showContextMenu,
           hideContextMenu,
           isContextMenuOpen,
         }),
-        EditorView.domEventObservers({
-          focus: () => {
-            syncLayout();
-          },
-          blur: () => {
-            syncLayout();
-          },
-        }),
+        mobileViewportManager(),
       ],
     }),
   });
@@ -563,19 +480,9 @@ const createEditorView = (
     }
   };
 
-  syncLayout();
-
-  window.visualViewport?.addEventListener("resize", syncLayout);
-  window.visualViewport?.addEventListener("scroll", syncLayout);
-  window.addEventListener("focusin", syncLayout);
-  window.addEventListener("focusout", syncLayout);
   window.addEventListener(MessageProtocol.event, handleProtocol);
   const disposable = {
     dispose: () => {
-      window.visualViewport?.removeEventListener("resize", syncLayout);
-      window.visualViewport?.removeEventListener("scroll", syncLayout);
-      window.removeEventListener("focusin", syncLayout);
-      window.removeEventListener("focusout", syncLayout);
       window.removeEventListener(MessageProtocol.event, handleProtocol);
     },
   };

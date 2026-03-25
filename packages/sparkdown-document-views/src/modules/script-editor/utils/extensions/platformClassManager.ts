@@ -13,12 +13,14 @@ const platformStateField = StateField.define({
     return value;
   },
 });
+
 const platformAttributeExtension = EditorView.editorAttributes.from(
   platformStateField,
   (value) => {
     return { class: value };
   },
 );
+
 export function platformClassManager() {
   return [platformStateField, platformAttributeExtension];
 }

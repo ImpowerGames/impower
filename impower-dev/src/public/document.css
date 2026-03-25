@@ -61,19 +61,14 @@
 :root {
   color-scheme: dark;
   --screenplay-preview-texture: url("/noisetexture.png");
+  --navbar-height: 60px;
+  --navbar-display: flex;
   /* Environment Safe Areas */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  /* Fixed heights */
-  --navbar-height: 60px;
-  --cm-keyboard-background-color: hsl(210.6, 100%, 10%);
   /* Updated by JS */
   --cm-top-offset: 0px;
   --cm-bottom-offset: 0px;
-  --cm-keyboard-height: 0px;
-  --vv-offset-top: 0px;
-  --vv-height: 100vh;
-  --navbar-display: flex;
 }
 
 * {
@@ -132,78 +127,6 @@ main {
 
   padding: 0;
   margin: 0;
-}
-
-header {
-  display: none;
-
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-
-  width: 100%;
-
-  z-index: 9999;
-
-  /* CRITICAL: Prevents iOS from applying its own weird offsets */
-  will-change: transform;
-  transition: transform 0.05s linear;
-
-  /* Position according to visual viewport */
-  padding-top: var(--safe-top);
-  transform: translate3d(0, var(--vv-offset-top), 0);
-
-  /* Visual Polish */
-  background-color: blueviolet;
-  text-align: center;
-}
-.keyboard-open header {
-  background-color: lightseagreen;
-}
-
-footer {
-  display: none;
-
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-
-  width: 100%;
-
-  z-index: 9999;
-
-  /* CRITICAL: Prevents iOS from applying its own weird offsets */
-  will-change: transform;
-  transition: transform 0.05s linear;
-
-  /* Position according to visual viewport */
-  padding-bottom: var(--safe-bottom);
-
-  /* Visual Polish */
-  background-color: blueviolet;
-  text-align: center;
-}
-.keyboard-open footer {
-  background-color: lightseagreen;
-}
-/* Responsive Footer Transform Logic */
-.ios footer {
-  top: 0;
-  bottom: auto;
-  /* On iOS, shift down relative to the visual viewport height */
-  transform: translateY(calc(var(--vv-offset-top) + var(--vv-height) - 100%));
-}
-.android footer {
-  bottom: 0;
-  top: auto;
-  /* On Android, when keyboard is closed, shift up by the navbar height */
-  transform: translateY(calc(-1 * var(--navbar-height)));
-}
-.android.keyboard-open footer {
-  /* On Android, when keyboard is open, shift up by keyboard height */
-  transform: translateY(calc(-1 * var(--cm-keyboard-height)));
 }
 
 input,
