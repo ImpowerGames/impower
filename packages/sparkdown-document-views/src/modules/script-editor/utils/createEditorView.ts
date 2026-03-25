@@ -560,12 +560,14 @@ const createEditorView = (
   window.visualViewport?.addEventListener("resize", syncLayout);
   window.visualViewport?.addEventListener("scroll", syncLayout);
   window.addEventListener("focusin", syncLayout);
+  window.addEventListener("focusout", syncLayout);
   window.addEventListener(MessageProtocol.event, handleProtocol);
   const disposable = {
     dispose: () => {
       window.visualViewport?.removeEventListener("resize", syncLayout);
       window.visualViewport?.removeEventListener("scroll", syncLayout);
       window.removeEventListener("focusin", syncLayout);
+      window.removeEventListener("focusout", syncLayout);
       window.removeEventListener(MessageProtocol.event, handleProtocol);
     },
   };

@@ -445,6 +445,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           this.onVisualViewportChange,
         );
         window.addEventListener("focusin", this.onVisualViewportChange);
+        window.addEventListener("focusout", this.onVisualViewportChange);
       }
 
       unbind() {
@@ -467,6 +468,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           this.onVisualViewportChange,
         );
         window.removeEventListener("focusin", this.onVisualViewportChange);
+        window.removeEventListener("focusout", this.onVisualViewportChange);
       }
 
       onVisualViewportChange = () => {
