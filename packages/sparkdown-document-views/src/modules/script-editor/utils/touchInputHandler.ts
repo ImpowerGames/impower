@@ -685,6 +685,8 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             rafId = requestAnimationFrame((time) =>
               applyMomentum(time, this.view),
             );
+          } else {
+            finishScroll(this.view);
           }
         } else if (isDragging && touchStartPos !== touchEndPos) {
           if (startedFocused) {
