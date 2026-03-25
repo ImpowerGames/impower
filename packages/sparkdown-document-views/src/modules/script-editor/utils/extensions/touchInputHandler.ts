@@ -458,19 +458,32 @@ const touchEventsPlugin = ViewPlugin.fromClass(
     }
 
     onVisualViewportUpdate = (e?: Event) => {
+      const config = this.view.state.facet(touchInputHandlerConfig);
+
+      if (!config.isTouchEnvironment()) {
+        return;
+      }
+
       const vv = window.visualViewport;
       if (!vv) return;
-      // (Safari doesn't send a visual viewport update until LONG AFTER the keyboard animation has played,
-      // so we have to check for focusout so we can catch the close as early as other browsers.
-      // 'focusout' is technically only supported on Safari, but that makes it good enough for this Safari-only bug.)
-      const keyboardHeight =
-        e?.type === "focusout" || e?.type === "blur"
-          ? 0
-          : window.innerHeight - vv.height;
+
+      const isBlurEvent = e?.type === "focusout" || e?.type === "blur";
+
+      // If the editor is losing focus or doesn't currently have focus,
+      // ignore the trailing resize events from the keyboard animation.
+      if (isBlurEvent || !this.view.hasFocus) {
+        this.lastKeyboardHeight = 0;
+        return;
+      }
+
+      // Measure keyboard height
+      const keyboardHeight = window.innerHeight - vv.height;
+
       if (keyboardHeight < this.lastKeyboardHeight) {
         // Is closing keyboard, so unfocus editor
         this.view.contentDOM.blur();
       }
+
       this.lastKeyboardHeight = keyboardHeight;
     };
 

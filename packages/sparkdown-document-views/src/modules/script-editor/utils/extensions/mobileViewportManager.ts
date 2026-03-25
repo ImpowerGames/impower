@@ -42,23 +42,28 @@ const viewportPlugin = ViewPlugin.fromClass(
       const vv = window.visualViewport;
       if (!vv) return;
 
+      const isBlurEvent = e?.type === "focusout" || e?.type === "blur";
+
+      // If the editor is losing focus or doesn't currently have focus,
+      // release the height constraint and ignore the trailing resize events
+      // from the keyboard animation.
+      if (isBlurEvent || !this.view.hasFocus) {
+        document.body.style.height = "";
+        document.documentElement.classList.remove("keyboard-open");
+        this.lastKeyboardHeight = 0;
+        return;
+      }
+
       // Prevent the browser from trying to scroll the hidden body
       // when the input is focused.
       window.scrollTo(0, 0);
 
-      // Update container layout
-      // (Safari doesn't send a visual viewport update until LONG AFTER the keyboard animation has played,
-      // so we have to check for focusout so we can catch the close as early as other browsers.
-      // 'focusout' is technically only supported on Safari, but that makes it good enough for this Safari-only bug.)
-      const bodyHeight =
-        e?.type === "focusout" || e?.type === "blur" ? "" : `${vv.height}px`;
-      document.body.style.height = bodyHeight;
+      // We only reach here if the editor has focus, so we can safely
+      // lock the body height to the visual viewport.
+      document.body.style.height = `${vv.height}px`;
 
       // Measure keyboard height
-      const keyboardHeight =
-        e?.type === "focusout" || e?.type === "blur"
-          ? 0
-          : window.innerHeight - vv.height;
+      const keyboardHeight = window.innerHeight - vv.height;
 
       if (keyboardHeight > this.lastKeyboardHeight) {
         // Is opening keyboard
@@ -71,7 +76,7 @@ const viewportPlugin = ViewPlugin.fromClass(
         document.documentElement.classList.remove("keyboard-open");
       }
 
-      if (keyboardHeight > 0 && this.view.hasFocus) {
+      if (keyboardHeight > 0) {
         // Scroll so cursor remains visible
         this.view.dispatch({
           effects: EditorView.scrollIntoView(this.view.state.selection.main, {
