@@ -64,7 +64,7 @@ const viewportPlugin = ViewPlugin.fromClass(
         document.documentElement.classList.remove("keyboard-open");
       }
 
-      if (keyboardHeight > 0) {
+      if (keyboardHeight > 0 && this.view.hasFocus) {
         // Scroll so cursor remains visible
         this.view.dispatch({
           effects: EditorView.scrollIntoView(this.view.state.selection.main, {
