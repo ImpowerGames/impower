@@ -137,22 +137,30 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         position: "absolute",
         top: "50%",
         left: "50%",
-        transform: "translate(-50%, -50%)",
-        width: "48px",
-        height: "48px",
+        width: "32px",
+        height: "32px",
       },
     },
     ".cm-touch-selection-handle-start": {
       borderTopRightRadius: "0",
       transform: "translate(-100%, 0)",
+      "&::after": {
+        transform: "translate(-50%, -30%)",
+      },
     },
     ".cm-touch-selection-handle-end": {
       borderTopLeftRadius: "0",
+      "&::after": {
+        transform: "translate(-50%, -30%)",
+      },
     },
     ".cm-touch-selection-handle-cursor": {
       /* Android-style cursor handle: balanced teardrop pointing up */
       borderTopLeftRadius: "0",
       transform: "translate(-50%, 0) rotate(45deg)",
+      "&::after": {
+        transform: "translate(-30%, -30%)",
+      },
     },
   });
 
@@ -196,8 +204,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         let selectionHandleAnchor: number | null = null;
         let selectionHandleHead: number | null = null;
 
-        // Prevent default to stop scrolling, stop propagation so the main
-        // editor touchstart doesn't wipe the selection.
+        // Prevent default to stop scrolling
         handle.addEventListener("touchstart", (e) => {
           this.isSelecting = true;
           e.preventDefault();
@@ -256,6 +263,11 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             });
           }, 10);
         });
+
+        handle.addEventListener("touchcancel", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
       }
 
       attachCursorHandleListeners(handle: HTMLElement) {
@@ -295,6 +307,11 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
 
         handle.addEventListener("touchend", (e) => {
           if (this.isSelecting) return;
+          e.preventDefault();
+          e.stopPropagation();
+        });
+
+        handle.addEventListener("touchcancel", (e) => {
           e.preventDefault();
           e.stopPropagation();
         });
@@ -349,12 +366,9 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
           },
           write: (measure) => {
             if (!measure) {
-              this.startHandle.style.opacity = "0";
-              this.startHandle.style.pointerEvents = "none";
-              this.endHandle.style.opacity = "0";
-              this.endHandle.style.pointerEvents = "none";
-              this.cursorHandle.style.opacity = "0";
-              this.cursorHandle.style.pointerEvents = "none";
+              this.startHandle.style.display = "none";
+              this.endHandle.style.display = "none";
+              this.cursorHandle.style.display = "none";
               return;
             }
 
@@ -366,25 +380,20 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
                 | undefined,
             ) => {
               if (info && info.visible) {
-                el.style.opacity = "1";
-                el.style.pointerEvents = "auto";
+                el.style.display = "block";
                 el.style.left = `${info.left}px`;
                 el.style.top = `${info.top}px`;
               } else {
-                el.style.opacity = "0";
-                el.style.pointerEvents = "none";
+                el.style.display = "none";
               }
             };
 
             if (measure.type === "cursor") {
-              this.startHandle.style.opacity = "0";
-              this.startHandle.style.pointerEvents = "none";
-              this.endHandle.style.opacity = "0";
-              this.endHandle.style.pointerEvents = "none";
+              this.startHandle.style.display = "none";
+              this.endHandle.style.display = "none";
               updateHandle(this.cursorHandle, measure.head);
             } else {
-              this.cursorHandle.style.opacity = "0";
-              this.cursorHandle.style.pointerEvents = "none";
+              this.cursorHandle.style.display = "none";
               updateHandle(this.startHandle, measure.anchor);
               updateHandle(this.endHandle, measure.head);
             }
@@ -491,6 +500,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         stopMomentum();
 
         const touch = event.touches[0]!;
+
         if (touch == null) return;
 
         startX = touch.clientX;
@@ -507,14 +517,19 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         velocityY = 0;
 
         const pos = this.view.posAtCoords({ x: startX, y: startY });
+
         if (pos == null) return;
 
         touchStartPos = pos;
+        touchEndPos = pos;
 
-        const config = this.view.state.facet(touchInputHandlerConfig);
+        selectionAnchor = pos;
+        selectionHead = pos;
 
         longPressTimer = setTimeout(() => {
           if (isScrolling) return;
+
+          const config = this.view.state.facet(touchInputHandlerConfig);
 
           const word = this.view.state.wordAt(pos);
           selectionAnchor = word ? word.from : pos;
@@ -524,7 +539,9 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             selectionAnchor,
             selectionHead,
           );
+
           if (!this.view.hasFocus) this.view.focus();
+
           this.view.dispatch({
             selection,
             scrollIntoView: false,
@@ -539,9 +556,6 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
 
           isLongPressing = true;
         }, LONG_PRESS_DURATION);
-
-        selectionAnchor = pos;
-        selectionHead = pos;
       };
 
       onTouchMove = (event: TouchEvent) => {
@@ -594,13 +608,19 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         } else if (isDragging) {
           if (startedFocused && this.view.hasFocus) {
             config.hideContextMenu?.(this.view);
-            selectionHead = this.view.posAtCoords({
+            const pos = this.view.posAtCoords({
               x: touch.clientX,
               y: touch.clientY,
             });
-            if (selectionAnchor != null && selectionHead !== null) {
+            const from = Math.min(
+              ...[pos, selectionAnchor].filter((n) => n != null),
+            );
+            const to = Math.max(
+              ...[pos, selectionHead].filter((n) => n != null),
+            );
+            if (from != null && to != null) {
               this.view.dispatch({
-                selection: { anchor: selectionAnchor, head: selectionHead },
+                selection: { anchor: from, head: to },
                 scrollIntoView: false,
                 userEvent: "select.touch",
               });
@@ -669,10 +689,15 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
               above: true,
             });
           }
-        } else if (!isLongPressing && !stoppedMomentum) {
+        } else if (
+          !isLongPressing &&
+          !isDragging &&
+          !stoppedMomentum &&
+          touchStartPos === touchEndPos
+        ) {
           wasShowingContextMenuBeforeScroll = false;
           config.hideContextMenu?.(this.view);
-          const tapPos = selectionAnchor ?? touchEndPos;
+          const tapPos = touchStartPos;
           if (tapPos != null) {
             if (!this.view.hasFocus) this.view.focus();
             this.view.dispatch({
@@ -719,5 +744,11 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
     selectionHandlePlugin,
 
     touchEventsPlugin,
+    EditorView.domEventHandlers({
+      touchstart: () => true,
+      touchmove: () => true,
+      touchend: () => true,
+      touchcancel: () => true,
+    }),
   ];
 }
