@@ -427,14 +427,14 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       });
       window.visualViewport?.addEventListener(
         "resize",
-        this.onVisualViewportChange,
+        this.onVisualViewportUpdate,
       );
       window.visualViewport?.addEventListener(
         "scroll",
-        this.onVisualViewportChange,
+        this.onVisualViewportUpdate,
       );
-      window.addEventListener("focusin", this.onVisualViewportChange);
-      window.addEventListener("focusout", this.onVisualViewportChange);
+      window.addEventListener("focusin", this.onVisualViewportUpdate);
+      window.addEventListener("focusout", this.onVisualViewportUpdate);
     }
 
     unbind() {
@@ -447,17 +447,17 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       );
       window.visualViewport?.removeEventListener(
         "resize",
-        this.onVisualViewportChange,
+        this.onVisualViewportUpdate,
       );
       window.visualViewport?.removeEventListener(
         "scroll",
-        this.onVisualViewportChange,
+        this.onVisualViewportUpdate,
       );
-      window.removeEventListener("focusin", this.onVisualViewportChange);
-      window.removeEventListener("focusout", this.onVisualViewportChange);
+      window.removeEventListener("focusin", this.onVisualViewportUpdate);
+      window.removeEventListener("focusout", this.onVisualViewportUpdate);
     }
 
-    onVisualViewportChange = (e?: Event) => {
+    onVisualViewportUpdate = (e?: Event) => {
       const vv = window.visualViewport;
       if (!vv) return;
       // (Safari doesn't send a visual viewport update until LONG AFTER the keyboard animation has played,
@@ -769,6 +769,12 @@ export function touchInputHandler(options: TouchInputHandlerOptions = {}) {
       touchmove: () => true,
       touchend: () => true,
       touchcancel: () => true,
+      focus: (e, view) => {
+        view.plugin(touchEventsPlugin)?.onVisualViewportUpdate(e);
+      },
+      blur: (e, view) => {
+        view.plugin(touchEventsPlugin)?.onVisualViewportUpdate(e);
+      },
     }),
   ];
 }

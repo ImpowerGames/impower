@@ -149,11 +149,11 @@ export function mobileViewportManager(
     viewportPlugin,
     mobileViewportManagerConfig.of(config),
     EditorView.domEventObservers({
-      focus: (_, view) => {
-        view.plugin(viewportPlugin)?.onVisualViewportUpdate();
+      focus: (e, view) => {
+        view.plugin(viewportPlugin)?.onVisualViewportUpdate(e);
       },
-      blur: (_, view) => {
-        view.plugin(viewportPlugin)?.onVisualViewportUpdate();
+      blur: (e, view) => {
+        view.plugin(viewportPlugin)?.onVisualViewportUpdate(e);
       },
     }),
   ];
