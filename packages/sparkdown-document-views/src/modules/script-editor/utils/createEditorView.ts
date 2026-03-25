@@ -251,7 +251,6 @@ const createEditorView = (
     // Measure keyboard height
     const keyboardHeight =
       e?.type === "focusout" ? 0 : window.innerHeight - vv.height;
-    const keyboardOpen = keyboardHeight > 0;
 
     // Update CSS variables
     const body = document.body;
@@ -270,7 +269,7 @@ const createEditorView = (
       document.documentElement.classList.remove("keyboard-open");
     }
 
-    if (keyboardOpen && view.hasFocus) {
+    if (keyboardHeight > 0 && view.hasFocus) {
       // Scroll so cursor remains visible
       view.dispatch({
         effects: EditorView.scrollIntoView(view.state.selection.main, {
