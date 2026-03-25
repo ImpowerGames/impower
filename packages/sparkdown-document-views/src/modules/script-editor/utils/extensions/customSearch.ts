@@ -20,8 +20,6 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 
-let previousEditorSelection: SelectionRange | null = null;
-
 export class SearchPanel implements Panel {
   dom: HTMLElement;
 
@@ -310,8 +308,6 @@ export class SearchPanel implements Panel {
 }
 
 export function openCustomSearchPanel(view: EditorView) {
-  previousEditorSelection = view.state.selection.main;
-
   openSearchPanel(view);
 
   return true;
@@ -319,12 +315,8 @@ export function openCustomSearchPanel(view: EditorView) {
 
 export function closeCustomSearchPanel(view: EditorView) {
   closeSearchPanel(view);
-
-  if (previousEditorSelection) {
-    view.focus();
-    view.dispatch({ selection: previousEditorSelection });
-  }
-
+  view.focus();
+  view.dispatch({ selection: view.state.selection.main });
   return true;
 }
 
@@ -506,8 +498,6 @@ function getGotoLineInput(view: EditorView) {
 /// column position by adding `:` and a second number after the line
 /// number.
 export const openCustomGotoLinePanel: Command = (view) => {
-  previousEditorSelection = view.state.selection.main;
-
   if (customGotoLinePanelOpen(view.state)) {
     let input = getGotoLineInput(view);
     if (input && input != view.root.activeElement) {
@@ -523,10 +513,8 @@ export const openCustomGotoLinePanel: Command = (view) => {
 
 export const closeCustomGotoLinePanel: Command = (view) => {
   view.dispatch({ effects: [goToLineEffect.of(false)] });
-  if (previousEditorSelection) {
-    view.focus();
-    view.dispatch({ selection: previousEditorSelection });
-  }
+  view.focus();
+  view.dispatch({ selection: view.state.selection.main });
   return true;
 };
 
