@@ -501,7 +501,6 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
         isDragging = false;
         isScrolling = false;
         isLongPressing = false;
-        wasShowingContextMenuBeforeScroll = false;
 
         // Reset velocity tracking
         velocityTracker = [{ y: startY, time: performance.now() }];
@@ -671,6 +670,7 @@ export function touchInputHandler(config: TouchInputHandlerConfig = {}) {
             });
           }
         } else if (!isLongPressing && !stoppedMomentum) {
+          wasShowingContextMenuBeforeScroll = false;
           config.hideContextMenu?.(this.view);
           const tapPos = selectionAnchor ?? touchEndPos;
           if (tapPos != null) {
