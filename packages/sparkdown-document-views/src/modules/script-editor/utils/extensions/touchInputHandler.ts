@@ -464,7 +464,9 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       // so we have to check for focusout so we can catch the close as early as other browsers.
       // 'focusout' is technically only supported on Safari, but that makes it good enough for this Safari-only bug.)
       const keyboardHeight =
-        e?.type === "focusout" ? 0 : window.innerHeight - vv.height;
+        e?.type === "focusout" || e?.type === "blur"
+          ? 0
+          : window.innerHeight - vv.height;
       if (keyboardHeight < this.lastKeyboardHeight) {
         // Is closing keyboard, so unfocus editor
         this.view.contentDOM.blur();
