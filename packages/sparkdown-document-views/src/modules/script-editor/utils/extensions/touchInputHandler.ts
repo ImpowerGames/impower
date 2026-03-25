@@ -467,32 +467,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       const vv = window.visualViewport;
       if (!vv) return;
 
-      // Get the root (either document or the ShadowRoot)
-      const root = this.view.dom.getRootNode() as Document | ShadowRoot;
-
-      // Check if focus is in the main text area OR inside any editor panel/widget
-      // We check both the global activeElement and the ShadowRoot's activeElement
-      const activeElt = root.activeElement;
-      const isActiveEltEditable =
-        activeElt &&
-        (activeElt instanceof HTMLInputElement ||
-          activeElt instanceof HTMLTextAreaElement ||
-          (activeElt as HTMLElement).isContentEditable);
-      const isEditorInputFocused =
-        this.view.hasFocus ||
-        (activeElt && this.view.dom.contains(activeElt) && isActiveEltEditable);
-
-      const isFocusEvent = e?.type === "focusin" || e?.type === "focus";
-
-      const isBlurEvent = e?.type === "focusout" || e?.type === "blur";
-
-      // If the editor is losing focus or doesn't currently have focus,
-      // ignore the trailing resize events from the keyboard animation.
-      if (!isFocusEvent && (isBlurEvent || !isEditorInputFocused)) {
-        this.lastKeyboardHeight = 0;
-        return;
-      }
-
       // Measure keyboard height
       const keyboardHeight = window.innerHeight - vv.height;
 
