@@ -405,6 +405,8 @@ const touchEventsPlugin = ViewPlugin.fromClass(
   class {
     view: EditorView;
 
+    lastKeyboardHeight = 0;
+
     constructor(view: EditorView) {
       this.view = view;
       this.bind();
@@ -468,10 +470,12 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       // Measure keyboard height
       const keyboardHeight = window.innerHeight - vv.height;
 
-      if (keyboardHeight === 0) {
-        // Closed keyboard, so unfocus editor
+      if (keyboardHeight < this.lastKeyboardHeight) {
+        // Is closing keyboard, so unfocus editor
         this.view.contentDOM.blur();
       }
+
+      this.lastKeyboardHeight = keyboardHeight;
     };
 
     onTouchStart = (event: TouchEvent) => {
