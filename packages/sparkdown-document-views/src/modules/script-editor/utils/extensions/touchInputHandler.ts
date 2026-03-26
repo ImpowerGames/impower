@@ -433,8 +433,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
         "scroll",
         this.onVisualViewportUpdate,
       );
-      window.addEventListener("focusin", this.onVisualViewportUpdate);
-      window.addEventListener("focusout", this.onVisualViewportUpdate);
     }
 
     unbind() {
@@ -453,8 +451,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
         "scroll",
         this.onVisualViewportUpdate,
       );
-      window.removeEventListener("focusin", this.onVisualViewportUpdate);
-      window.removeEventListener("focusout", this.onVisualViewportUpdate);
     }
 
     onVisualViewportUpdate = (e?: Event) => {
@@ -472,7 +468,7 @@ const touchEventsPlugin = ViewPlugin.fromClass(
 
       if (keyboardHeight < this.lastKeyboardHeight) {
         // Is closing keyboard, so unfocus editor
-        // this.view.contentDOM.blur();
+        this.view.contentDOM.blur();
       }
 
       this.lastKeyboardHeight = keyboardHeight;
