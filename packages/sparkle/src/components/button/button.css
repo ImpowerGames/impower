@@ -153,13 +153,12 @@
   --_background-color: transparent;
 }
 :host([variant="outlined"]) > .root {
-  --_text-color: var(--_color);
   font-weight: var(--_text-weight);
   color: var(--_text-color);
   box-shadow: var(--_shadow);
   background-color: var(--_background-color);
   border-style: solid;
-  border-color: var(--_color);
+  border-color: var(--_text-color);
   border-width: var(--_border-width);
 }
 @media (hover: hover) and (pointer: fine) {
@@ -275,7 +274,7 @@
   border-radius: inherit;
   position: absolute;
   inset: 0;
-  background-color: var(--_color);
+  background-color: var(--_background-color);
 }
 
 :host > .root > .icon {

@@ -14,7 +14,7 @@ export default spec({
     }) as const,
   html: () => {
     return html`
-      <s-box bg-color="editor-bg" grow>
+      <s-box z="2" bg-color="editor-bg" grow>
         <sparkdown-script-editor
           id="sparkdownScriptEditor"
           scroll-margin="0 0 0 0"

@@ -20,16 +20,7 @@ export default spec({
       openedDocumentUri,
     } as const;
   },
-  html: ({ context }) => {
-    const { openedDocumentUri } = context;
-    const optionComponents = () =>
-      openedDocumentUri
-        ? html`
-            <s-option id="searchOption" icon="search" value="search"
-              >Find & Replace</s-option
-            >
-          `
-        : "";
+  html: () => {
     return html`
       <s-dropdown id="menuDropdown" key="project-menu">
         <s-button
@@ -41,7 +32,7 @@ export default spec({
           height="56"
           color="fg-50"
         ></s-button>
-        <slot slot="options"> ${optionComponents} </slot>
+        <slot slot="options"></slot>
       </s-dropdown>
 
       <s-button
