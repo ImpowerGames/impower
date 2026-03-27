@@ -5,10 +5,10 @@ const EDITOR_THEME: {
   [selector: string]: StyleSpec;
 } = {
   "&.keyboard-open .cm-panel-lint": {
-    display: "none",
+    visibility: "hidden",
   },
   "&.keyboard-open .cm-lsp-reference-panel": {
-    display: "none",
+    visibility: "hidden",
   },
   ".lsp-semantic-token.lsp-type-keyword *": {
     color: EDITOR_COLORS.sectionNameAccessor,
