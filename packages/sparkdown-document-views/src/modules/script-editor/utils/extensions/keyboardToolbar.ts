@@ -1,5 +1,4 @@
 import { indentLess, indentMore, redo, undo } from "@codemirror/commands";
-import { closeLintPanel } from "@codemirror/lint";
 import { openSearchPanel } from "@codemirror/search";
 import {
   EditorState,
@@ -14,17 +13,9 @@ import {
   Panel,
   PanelConstructor,
   showPanel,
-  ViewPlugin,
-  ViewUpdate,
 } from "@codemirror/view";
-import {
-  closeReferencePanel,
-  formatDocument,
-} from "@impower/codemirror-vscode-lsp-client/src";
-import {
-  ContextMenuItem,
-  isMobile,
-} from "@impower/codemirror-vscode-lsp-client/src/context";
+import { formatDocument } from "@impower/codemirror-vscode-lsp-client/src";
+import { ContextMenuItem } from "@impower/codemirror-vscode-lsp-client/src/context";
 
 const SEARCH_SVG_URL = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></svg>')`;
 
@@ -179,97 +170,8 @@ function createKeyboardToolbarPanel(view: EditorView): Panel {
   return {
     top: false, // Setting top to false forces it to the bottom of the editor
     dom,
-    update(update: ViewUpdate) {
-      // You can handle state changes here if your buttons need to react
-      // to editor changes (e.g., disabling 'Undo' if history is empty)
-    },
   };
 }
-
-// ViewPlugin to handle the VisualViewport resizing
-const keyboardToolbarManager = ViewPlugin.fromClass(
-  class {
-    constructor(public view: EditorView) {
-      this.handleVisualViewportChange =
-        this.handleVisualViewportChange.bind(this);
-      window.visualViewport?.addEventListener(
-        "resize",
-        this.handleVisualViewportChange,
-      );
-      window.visualViewport?.addEventListener(
-        "scroll",
-        this.handleVisualViewportChange,
-      );
-      window.addEventListener("focusout", this.handleVisualViewportChange);
-      this.view.scrollDOM.addEventListener(
-        "blur",
-        this.handleVisualViewportChange,
-      );
-      this.handleVisualViewportChange(); // Trigger immediately to set initial state
-    }
-
-    handleVisualViewportChange(e?: Event) {
-      if (!window.visualViewport) return;
-
-      if (!isMobile()) return;
-
-      const vv = window.visualViewport;
-
-      // Get the root (either document or the ShadowRoot)
-      const root = this.view.dom.getRootNode() as Document | ShadowRoot;
-
-      // Check if focus is in the main text area OR inside any editor panel/widget
-      // We check both the global activeElement and the ShadowRoot's activeElement
-      const activeElt = root.activeElement;
-      const isActiveEltEditable =
-        activeElt &&
-        (activeElt instanceof HTMLInputElement ||
-          activeElt instanceof HTMLTextAreaElement ||
-          (activeElt as HTMLElement).isContentEditable);
-      const isEditorInputFocused =
-        this.view.hasFocus ||
-        (activeElt && this.view.dom.contains(activeElt) && isActiveEltEditable);
-
-      const isFocusEvent = e?.type === "focusin" || e?.type === "focus";
-
-      const isBlurEvent = e?.type === "focusout" || e?.type === "blur";
-
-      // If the editor is losing focus or doesn't currently have focus,
-      // release the height constraint and ignore the trailing resize events
-      // from the keyboard animation.
-      if (!isFocusEvent && (isBlurEvent || !isEditorInputFocused)) {
-        closeKeyboardToolbar(this.view);
-        return;
-      }
-
-      const keyboardHeight = window.innerHeight - vv.height;
-
-      if (keyboardHeight > 0) {
-        openKeyboardToolbar(this.view);
-        closeLintPanel(this.view);
-        closeReferencePanel(this.view);
-      } else {
-        closeKeyboardToolbar(this.view);
-      }
-    }
-
-    destroy() {
-      window.visualViewport?.removeEventListener(
-        "resize",
-        this.handleVisualViewportChange,
-      );
-      window.visualViewport?.removeEventListener(
-        "scroll",
-        this.handleVisualViewportChange,
-      );
-      window.removeEventListener("focusout", this.handleVisualViewportChange);
-      this.view.scrollDOM.removeEventListener(
-        "blur",
-        this.handleVisualViewportChange,
-      );
-    }
-  },
-);
 
 export const openKeyboardToolbar: Command = (view) => {
   let data: KeyboardToolbarState = { panel: createKeyboardToolbarPanel };
@@ -334,9 +236,5 @@ export function keyboardToolbar(
     ],
   },
 ): Extension {
-  return [
-    keyboardToolbarConfig.of(config),
-    keyboardToolbarTheme,
-    keyboardToolbarManager,
-  ];
+  return [keyboardToolbarConfig.of(config), keyboardToolbarTheme];
 }

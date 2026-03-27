@@ -1,5 +1,8 @@
+import { closeLintPanel } from "@codemirror/lint";
 import { combineConfig, Extension, Facet } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
+import { closeReferencePanel } from "@impower/codemirror-vscode-lsp-client/src";
+import { closeKeyboardToolbar, openKeyboardToolbar } from "./keyboardToolbar";
 
 const isTouchEnvironment = () =>
   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -72,6 +75,7 @@ const viewportPlugin = ViewPlugin.fromClass(
       // from the keyboard animation.
       if (!isFocusEvent && (isBlurEvent || !isEditorInputFocused)) {
         document.body.style.height = "";
+        closeKeyboardToolbar(this.view);
         document.documentElement.classList.remove("keyboard-open");
         this.lastKeyboardHeight = 0;
         return;
@@ -83,6 +87,14 @@ const viewportPlugin = ViewPlugin.fromClass(
 
       // Measure keyboard height
       const keyboardHeight = window.innerHeight - vv.height;
+
+      if (keyboardHeight > 0) {
+        openKeyboardToolbar(this.view);
+        closeLintPanel(this.view);
+        closeReferencePanel(this.view);
+      } else {
+        closeKeyboardToolbar(this.view);
+      }
 
       if (keyboardHeight > this.lastKeyboardHeight) {
         // Is opening keyboard
