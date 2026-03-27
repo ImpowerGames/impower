@@ -236,7 +236,7 @@ const EDITOR_THEME: {
     color: EDITOR_COLORS.toolbarForeground,
   },
   "& .cm-panels-bottom > :not(.cm-toolbar)": {
-    minHeight: "var(--keyboard-height)",
+    minHeight: "calc(var(--keyboard-height) - var(--statusbar-height))",
   },
   "& .cm-panel.cm-panel-lint ul": {
     minHeight: "100%",
