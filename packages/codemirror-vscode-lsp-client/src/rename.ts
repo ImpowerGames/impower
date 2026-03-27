@@ -81,13 +81,13 @@ function createRenameTooltip(pos: number, word: string): Tooltip {
       const input = dom.appendChild(document.createElement("input"));
       input.value = word;
       input.className = "cm-lsp-rename-input";
-      input.type = "text";
-      input.autocomplete = "off";
-      input.inputMode = "text";
-      input.readOnly = true;
-      input.onfocus = () => {
-        input.readOnly = false;
-      };
+      input.spellcheck = false;
+      input.autocorrect = false;
+      input.translate = false;
+      input.autocapitalize = "off";
+      input.writingSuggestions = "false";
+      input.role = "textbox";
+      input.ariaAutoComplete = "list";
       input.setAttribute("data-form-type", "other");
 
       const button = dom.appendChild(document.createElement("button"));

@@ -66,13 +66,13 @@ export class SearchPanel implements Panel {
     this.searchInput.name = "search";
     this.searchInput.placeholder = "Find";
     this.searchInput.ariaLabel = "Find";
-    this.searchInput.type = "text";
-    this.searchInput.autocomplete = "off";
-    this.searchInput.inputMode = "text";
-    this.searchInput.readOnly = true;
-    this.searchInput.onfocus = () => {
-      this.searchInput.readOnly = false;
-    };
+    this.searchInput.spellcheck = false;
+    this.searchInput.autocorrect = false;
+    this.searchInput.translate = false;
+    this.searchInput.autocapitalize = "off";
+    this.searchInput.writingSuggestions = "false";
+    this.searchInput.role = "textbox";
+    this.searchInput.ariaAutoComplete = "list";
     this.searchInput.setAttribute("data-form-type", "other");
     this.searchInput.setAttribute("main-field", "");
     this.searchInput.value = query.search;
@@ -84,13 +84,13 @@ export class SearchPanel implements Panel {
     this.replaceInput.name = "replace";
     this.replaceInput.placeholder = "Replace";
     this.replaceInput.ariaLabel = "Replace";
-    this.replaceInput.type = "text";
-    this.replaceInput.autocomplete = "off";
-    this.replaceInput.inputMode = "text";
-    this.replaceInput.readOnly = true;
-    this.replaceInput.onfocus = () => {
-      this.replaceInput.readOnly = false;
-    };
+    this.replaceInput.spellcheck = false;
+    this.replaceInput.autocorrect = false;
+    this.replaceInput.translate = false;
+    this.replaceInput.autocapitalize = "off";
+    this.replaceInput.writingSuggestions = "false";
+    this.replaceInput.role = "textbox";
+    this.replaceInput.ariaAutoComplete = "list";
     this.replaceInput.setAttribute("data-form-type", "other");
     this.replaceInput.value = query.replace;
     this.replaceInput.onchange = this.commit;
@@ -368,15 +368,15 @@ export class GotoLinePanel implements Panel {
     this.input = document.createElement("input");
     this.input.className = "cm-textfield";
     this.input.name = "line";
+    this.input.spellcheck = false;
+    this.input.autocorrect = false;
+    this.input.translate = false;
+    this.input.autocapitalize = "off";
+    this.input.writingSuggestions = "false";
+    this.input.role = "textbox";
+    this.input.ariaAutoComplete = "list";
     this.input.placeholder = view.state.phrase("Go to line");
     this.input.ariaLabel = view.state.phrase("Go to line");
-    this.input.type = "text";
-    this.input.autocomplete = "off";
-    this.input.inputMode = "text";
-    this.input.readOnly = true;
-    this.input.onfocus = () => {
-      this.input.readOnly = false;
-    };
     this.input.setAttribute("data-form-type", "other");
     this.input.setAttribute("main-field", "");
 
