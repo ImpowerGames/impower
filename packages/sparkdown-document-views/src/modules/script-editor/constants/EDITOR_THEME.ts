@@ -7,14 +7,10 @@ const EDITOR_THEME: {
   "& .cm-panel-lint:not(:focus-within)": {
     position: "fixed",
     opacity: "0",
-    minHeight: "0 !important",
-    height: "0",
   },
   "& .cm-lsp-reference-panel:not(:focus-within)": {
     position: "fixed",
     opacity: "0",
-    minHeight: "0 !important",
-    height: "0",
   },
   ".lsp-semantic-token.lsp-type-keyword *": {
     color: EDITOR_COLORS.sectionNameAccessor,
