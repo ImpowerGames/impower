@@ -11,9 +11,11 @@ const isTouchEnvironment = () =>
 const viewportTheme = EditorView.baseTheme({
   "&": {
     overscrollBehavior: "none !important",
+    touchAction: "pan-y !important",
   },
   "& *": {
     overscrollBehavior: "none !important",
+    touchAction: "pan-y !important",
   },
   ".cm-scroller": {
     WebkitOverflowScrolling: "touch !important",
