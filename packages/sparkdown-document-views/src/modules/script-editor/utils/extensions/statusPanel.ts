@@ -78,8 +78,18 @@ export class StatusPanel implements Panel {
     this.revealBottomPanelButton.className = "cm-button";
     this.revealBottomPanelButton.name = "reveal";
     this.revealBottomPanelButton.type = "button";
-    this.revealBottomPanelButton.onpointerdown = () => {
+    this.revealBottomPanelButton.onpointerdown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       this.toggleBottomPanel(view.state);
+    };
+    this.revealBottomPanelButton.onmousedown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    this.revealBottomPanelButton.ontouchstart = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
     };
 
     this.revealBottomPanelIcon = document.createElement("span");
