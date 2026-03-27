@@ -70,16 +70,32 @@ export class StatusPanel implements Panel {
 
   lineColumnLabel: HTMLSpanElement;
 
+  previouslyFocused: boolean;
+
   constructor(readonly view: EditorView) {
     this.dom = document.createElement("div");
     this.dom.className = "cm-toolbar cm-status";
+
+    this.previouslyFocused = view.hasFocus;
 
     this.revealBottomPanelButton = document.createElement("button");
     this.revealBottomPanelButton.className = "cm-button";
     this.revealBottomPanelButton.name = "reveal";
     this.revealBottomPanelButton.type = "button";
-    this.revealBottomPanelButton.onclick = () =>
+    this.revealBottomPanelButton.onpointerdown = () => {
+      this.previouslyFocused = view.hasFocus;
+    };
+    this.revealBottomPanelButton.onfocus = () => {
+      if (this.previouslyFocused) {
+        view.focus();
+      }
+    };
+    this.revealBottomPanelButton.onclick = () => {
       this.toggleBottomPanel(view.state);
+      if (this.previouslyFocused) {
+        view.focus();
+      }
+    };
 
     this.revealBottomPanelIcon = document.createElement("span");
     this.revealBottomPanelIcon.className =
@@ -101,7 +117,20 @@ export class StatusPanel implements Panel {
     this.gotoLineButton.className = "cm-button";
     this.gotoLineButton.name = "problems";
     this.gotoLineButton.type = "button";
-    this.gotoLineButton.onclick = () => this.toggleGotoLinePanel(view.state);
+    this.gotoLineButton.onpointerdown = () => {
+      this.previouslyFocused = view.hasFocus;
+    };
+    this.gotoLineButton.onfocus = () => {
+      if (this.previouslyFocused) {
+        view.focus();
+      }
+    };
+    this.gotoLineButton.onclick = () => {
+      this.toggleGotoLinePanel(view.state);
+      if (this.previouslyFocused) {
+        view.focus();
+      }
+    };
 
     this.lineColumnLabel = document.createElement("span");
     this.lineColumnLabel.className = "cm-statusLabel cm-lineColumnLabel";
