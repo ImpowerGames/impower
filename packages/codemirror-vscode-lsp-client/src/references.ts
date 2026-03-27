@@ -4,8 +4,10 @@ import {
   EditorView,
   KeyBinding,
   keymap,
+  Panel,
   PanelConstructor,
   showPanel,
+  ViewUpdate,
 } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClient, LSPClientExtension, WorkspaceMapping } from "./client";
@@ -52,7 +54,7 @@ export const referencesTheme = EditorView.baseTheme({
     padding: "4px 32px",
     cursor: "pointer",
     whiteSpace: "nowrap",
-    overflow: "hidden",
+    overflow: "clip",
     textOverflow: "ellipsis",
     display: "flex",
     gap: "8px",
@@ -151,13 +153,17 @@ export interface ReferenceLocation {
 }
 
 export const findReferences: Command = (view) => {
+  return requestReferences(view, view.state.selection.main.head);
+};
+
+export function requestReferences(view: EditorView, pos: number) {
   const plugin = LSPPlugin.get(view);
   if (!plugin || plugin.client.hasCapability("referencesProvider") === false)
     return false;
   plugin.client.sync();
   let mapping = plugin.client.workspaceMapping(),
     passedMapping = false;
-  const pos = view.state.selection.main.head;
+
   getReferences(plugin, pos)
     .then(
       (response) => {
@@ -179,7 +185,13 @@ export const findReferences: Command = (view) => {
               }
               return false;
             });
-            displayReferences(plugin.view, locs, mapping, initiallySelected);
+            displayReferences(
+              plugin.view,
+              pos,
+              locs,
+              mapping,
+              initiallySelected,
+            );
             passedMapping = true;
           }
         });
@@ -190,7 +202,7 @@ export const findReferences: Command = (view) => {
       if (!passedMapping) mapping.destroy();
     });
   return true;
-};
+}
 
 export function isReferencePanelOpen(state: EditorState) {
   return Boolean(state.field(referencesState, false));
@@ -202,65 +214,89 @@ export const closeReferencePanel: Command = (view) => {
   return true;
 };
 
-type ReferenceState = {
+export interface ReferenceState {
   uri: string;
+  pos: number;
   locs: readonly ReferenceLocation[];
   mapping: WorkspaceMapping;
-  panel: PanelConstructor;
-};
+  initiallySelected: number;
+}
 
 const referencesState = StateField.define<ReferenceState | null>({
   create() {
     return null;
   },
   update(value, tr) {
+    let next = value;
+    if (next && tr.docChanged) {
+      next = { ...next, pos: tr.changes.mapPos(next.pos) };
+    }
     for (let e of tr.effects) if (e.is(setReferencePanel)) return e.value;
-    return value;
+    return next;
   },
-  provide: (f) => showPanel.from(f, (val) => (val ? val.panel : null)),
+  provide: (f) => showPanel.from(f, (val) => (val ? referencePanel : null)),
 });
 
-const setReferencePanel = StateEffect.define<ReferenceState | null>();
+export const setReferencePanel = StateEffect.define<ReferenceState | null>();
 
 function displayReferences(
   view: EditorView,
+  pos: number,
   locs: readonly ReferenceLocation[],
   mapping: WorkspaceMapping,
   initiallySelected: number,
 ) {
-  let panel = createReferencePanel(locs, mapping, initiallySelected);
   const plugin = LSPPlugin.get(view);
   const uri = plugin.uri;
-  let data: ReferenceState = { uri, locs, mapping, panel };
+  let data: ReferenceState = { uri, pos, locs, mapping, initiallySelected };
+
   let effect =
     view.state.field(referencesState, false) === undefined
       ? StateEffect.appendConfig.of(referencesState.init(() => data))
       : setReferencePanel.of(data);
+
   view.dispatch({ effects: effect });
 }
 
-function createReferencePanel(
-  locs: readonly ReferenceLocation[],
-  mapping: WorkspaceMapping,
-  initiallySelected: number,
-): PanelConstructor {
-  let created = false;
-  setTimeout(() => {
-    if (!created) mapping.destroy();
-  }, 500);
+export class ReferencePanel implements Panel {
+  view: EditorView;
 
-  return (view) => {
-    created = true;
+  currentData: ReferenceState;
+
+  dom: HTMLElement;
+
+  listContainer: HTMLDivElement;
+
+  options: HTMLElement[] = [];
+
+  constructor(view: EditorView) {
+    this.view = view;
+
+    this.dom = document.createElement("div");
+    this.dom.className = "cm-lsp-reference-panel";
+
+    this.listContainer = this.dom.appendChild(document.createElement("div"));
+    this.listContainer.className = "cm-lsp-reference-list";
+    this.listContainer.role = "listbox";
+    this.listContainer.tabIndex = 0;
+
+    let close = this.dom.appendChild(document.createElement("button"));
+    close.className = "cm-dialog-close";
+    close.textContent = "×";
+    close.onclick = () => closeReferencePanel(view);
+
+    this.currentData = view.state.field(referencesState)!;
+    this.render(this.currentData);
+  }
+
+  // Internal function to render the list content
+  render(data: ReferenceState) {
+    // Only clear the list container, not the whole panel
+    this.listContainer.innerHTML = "";
+    this.currentData = data;
+
+    let { locs, mapping } = data;
     let prefixLen = findCommonPrefix(locs.map((l) => l.file.uri));
-    let dom = document.createElement("div");
-    dom.className = "cm-lsp-reference-panel";
-
-    let listContainer = dom.appendChild(document.createElement("div"));
-    listContainer.className = "cm-lsp-reference-list";
-    listContainer.role = "listbox";
-    listContainer.tabIndex = 0;
-
-    let options: HTMLElement[] = [];
     let curFile = null;
     let currentGroup: HTMLElement | null = null;
 
@@ -270,15 +306,17 @@ function createReferencePanel(
 
       if (fileName !== curFile) {
         curFile = fileName;
-        const header = listContainer.appendChild(document.createElement("div"));
+        const header = this.listContainer.appendChild(
+          document.createElement("div"),
+        );
         header.className = "cm-lsp-reference-file";
-
         const collapseIcon = header.appendChild(document.createElement("span"));
         collapseIcon.className = "cm-lsp-collapse-icon";
-
         header.appendChild(document.createTextNode(fileName));
 
-        currentGroup = listContainer.appendChild(document.createElement("div"));
+        currentGroup = this.listContainer.appendChild(
+          document.createElement("div"),
+        );
         currentGroup.className = "cm-lsp-reference-group";
 
         header.onclick = (e) => {
@@ -312,7 +350,13 @@ function createReferencePanel(
       matchSpan.textContent = matchText;
       snippet.appendChild(document.createTextNode(textAfter));
 
-      if (initiallySelected === i) {
+      // Simple selection logic for the update
+      entry.onclick = (e) => {
+        // Handle selection and navigation here
+        this.showReference(this.view, i, e.detail === 2);
+      };
+
+      if (this.currentData.initiallySelected === i) {
         entry.setAttribute("aria-selected", "true");
         // Ensure parent is expanded if initially selected
         let header = currentGroup!.previousElementSibling as HTMLElement;
@@ -322,83 +366,64 @@ function createReferencePanel(
         setTimeout(() => entry.scrollIntoView({ block: "center" }), 0);
       }
 
-      options.push(entry);
+      this.options.push(entry);
+    }
+  }
+
+  setSelection(index: number) {
+    let targetIndex = index;
+    const prevIdx = this.options.findIndex((o) =>
+      o.hasAttribute("aria-selected"),
+    );
+    const step = index > prevIdx ? 1 : -1;
+
+    // Skip collapsed items
+    while (
+      this.options[targetIndex] &&
+      this.options[targetIndex].offsetParent === null
+    ) {
+      targetIndex += step;
     }
 
-    function setSelection(index: number) {
-      let targetIndex = index;
-      const prevIdx = options.findIndex((o) => o.hasAttribute("aria-selected"));
-      const step = index > prevIdx ? 1 : -1;
+    if (targetIndex < 0 || targetIndex >= this.options.length) return;
 
-      // Skip collapsed items
-      while (
-        options[targetIndex] &&
-        options[targetIndex].offsetParent === null
-      ) {
-        targetIndex += step;
-      }
-
-      if (targetIndex < 0 || targetIndex >= options.length) return;
-
-      options.forEach((opt, i) => {
-        if (i === targetIndex) {
-          opt.setAttribute("aria-selected", "true");
-          opt.scrollIntoView({ block: "nearest" });
-          showReference(i, false);
-        } else {
-          opt.removeAttribute("aria-selected");
-        }
-      });
-    }
-
-    function showReference(index: number, takeFocus: boolean) {
-      let { file, range } = locs[index];
-      let plugin = LSPPlugin.get(view);
-      if (!plugin) return;
-      plugin.client.workspace.displayFile(
-        { uri: file.uri, selection: range, takeFocus },
-        "select.reference",
-      );
-    }
-
-    listContainer.addEventListener("keydown", (e) => {
-      const idx = options.findIndex((o) => o.hasAttribute("aria-selected"));
-      if (e.key === "ArrowUp") setSelection(idx - 1);
-      else if (e.key === "ArrowDown") setSelection(idx + 1);
-      else if (e.key === "Enter") {
-        showReference(idx, true);
-        closeReferencePanel(view);
-      } else if (e.key === "Escape") {
-        closeReferencePanel(view);
-        view.focus();
-      } else return;
-      e.preventDefault();
-    });
-
-    listContainer.addEventListener("click", (e) => {
-      const target = (e.target as HTMLElement).closest(".cm-lsp-reference");
-      if (target) {
-        const idx = options.indexOf(target as HTMLElement);
-        setSelection(idx);
-        if (e.detail === 2) {
-          showReference(idx, true);
-          closeReferencePanel(view);
-        }
+    this.options.forEach((opt, i) => {
+      if (i === targetIndex) {
+        opt.setAttribute("aria-selected", "true");
+        opt.scrollIntoView({ block: "nearest" });
+        this.showReference(this.view, i, false);
+      } else {
+        opt.removeAttribute("aria-selected");
       }
     });
+  }
 
-    let close = dom.appendChild(document.createElement("button"));
-    close.className = "cm-dialog-close";
-    close.textContent = "×";
-    close.onclick = () => closeReferencePanel(view);
+  showReference(view: EditorView, index: number, takeFocus: boolean) {
+    showReference(view, this.currentData.locs[index], takeFocus);
+  }
 
-    return {
-      dom,
-      destroy: () => mapping.destroy(),
-      mount: () => listContainer.focus(),
-    };
-  };
+  mount() {
+    this.listContainer.focus();
+  }
+
+  update(update: ViewUpdate) {
+    let nextData = update.state.field(referencesState);
+    // Only re-render if the locations or mapping actually changed
+    if (nextData && nextData !== this.currentData) {
+      this.render(nextData);
+    }
+  }
+
+  destroy() {
+    if (this.currentData) {
+      this.currentData.mapping.destroy();
+    }
+  }
 }
+
+const referencePanel: PanelConstructor = (view: EditorView) => {
+  return new ReferencePanel(view);
+};
 
 function findCommonPrefix(uris: string[]) {
   let first = uris[0],
@@ -415,6 +440,21 @@ function findCommonPrefix(uris: string[]) {
   }
   while (prefix && first[prefix - 1] != "/") prefix--;
   return prefix;
+}
+
+function showReference(
+  view: EditorView,
+  reference: ReferenceLocation,
+  takeFocus: boolean,
+) {
+  let { file, range } = reference;
+  let plugin = LSPPlugin.get(view);
+  if (!plugin) return;
+  plugin.client.workspace.displayFile(
+    { uri: file.uri, selection: range, takeFocus },
+    "select.reference",
+  );
+  if (takeFocus) closeReferencePanel(view);
 }
 
 /**
@@ -449,14 +489,47 @@ export const findReferencesKeymap: readonly KeyBinding[] = [
   { key: "Escape", run: closeReferencePanel },
 ];
 
+export function updateDocumentReferences(client: LSPClient) {
+  for (const file of client.workspace.files) {
+    const view = file.getView();
+    if (view) {
+      const refState = view.state.field(referencesState, false);
+      // Only trigger if the panel is open; use the mapped original position
+      if (refState) {
+        requestReferences(view, refState.pos);
+      }
+    }
+  }
+}
+
 export function serverReferences(): LSPClientExtension {
   return {
     clientCapabilities: { textDocument: { references: {} } },
-    onRefreshTextDocumentContent: (client: LSPClient) => {
-      for (const file of client.workspace.files) {
-        const view = file.getView();
-        if (view && isReferencePanelOpen(view.state)) findReferences(view);
-      }
+    requestHandlers: {
+      "workspace/references/refresh": (client): null => {
+        updateDocumentReferences(client);
+        return null;
+      },
+    },
+    notificationListeners: {
+      "textDocument/didOpen": (
+        client,
+        params: lsp.DidOpenTextDocumentParams,
+      ) => {
+        updateDocumentReferences(client);
+      },
+      "textDocument/didChange": (
+        client,
+        params: lsp.DidChangeTextDocumentParams,
+      ) => {
+        updateDocumentReferences(client);
+      },
+      "textDocument/publishDiagnostics": (
+        client,
+        params: lsp.PublishDiagnosticsParams,
+      ) => {
+        updateDocumentReferences(client);
+      },
     },
     editorExtension: [referencesTheme, keymap.of([...findReferencesKeymap])],
   };
