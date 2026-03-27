@@ -75,8 +75,8 @@ const viewportPlugin = ViewPlugin.fromClass(
       // from the keyboard animation.
       if (!isFocusEvent && (isBlurEvent || !isEditorInputFocused)) {
         document.body.style.height = "";
-        closeKeyboardToolbar(this.view);
         document.documentElement.classList.remove("keyboard-open");
+        closeKeyboardToolbar(this.view);
         this.lastKeyboardHeight = 0;
         return;
       }
@@ -88,7 +88,7 @@ const viewportPlugin = ViewPlugin.fromClass(
       // Measure keyboard height
       const keyboardHeight = window.innerHeight - vv.height;
 
-      if (keyboardHeight > 0) {
+      if (isFocusEvent || keyboardHeight > 0) {
         openKeyboardToolbar(this.view);
         closeLintPanel(this.view);
         closeReferencePanel(this.view);
@@ -96,13 +96,16 @@ const viewportPlugin = ViewPlugin.fromClass(
         closeKeyboardToolbar(this.view);
       }
 
-      if (keyboardHeight > this.lastKeyboardHeight) {
-        // Is opening keyboard
-        document.documentElement.classList.add("keyboard-open");
+      if (keyboardHeight > 0) {
         document.body.style.setProperty(
           "--keyboard-height",
           `${keyboardHeight}px`,
         );
+      }
+
+      if (keyboardHeight > this.lastKeyboardHeight) {
+        // Is opening keyboard
+        document.documentElement.classList.add("keyboard-open");
       } else if (
         keyboardHeight === 0 ||
         keyboardHeight < this.lastKeyboardHeight
@@ -133,6 +136,10 @@ const viewportPlugin = ViewPlugin.fromClass(
         this.onVisualViewportUpdate,
       );
       window.addEventListener("focusout", this.onVisualViewportUpdate);
+      this.view.scrollDOM.addEventListener(
+        "focus",
+        this.onVisualViewportUpdate,
+      );
       this.view.scrollDOM.addEventListener("blur", this.onVisualViewportUpdate);
     }
 
@@ -146,6 +153,10 @@ const viewportPlugin = ViewPlugin.fromClass(
         this.onVisualViewportUpdate,
       );
       window.removeEventListener("focusout", this.onVisualViewportUpdate);
+      this.view.scrollDOM.addEventListener(
+        "focus",
+        this.onVisualViewportUpdate,
+      );
       this.view.scrollDOM.addEventListener("blur", this.onVisualViewportUpdate);
     }
 
