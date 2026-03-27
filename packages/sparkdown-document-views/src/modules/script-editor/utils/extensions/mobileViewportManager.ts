@@ -89,7 +89,7 @@ const viewportPlugin = ViewPlugin.fromClass(
       // Measure keyboard height
       const keyboardHeight = window.innerHeight - vv.height;
 
-      if (isFocusEvent || keyboardHeight > 0) {
+      if (keyboardHeight > 0) {
         openKeyboardToolbar(this.view);
         closeLintPanel(this.view);
         closeReferencePanel(this.view);

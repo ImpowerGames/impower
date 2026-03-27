@@ -75,7 +75,7 @@ export class StatusPanel implements Panel {
     this.dom.className = "cm-toolbar cm-status";
 
     this.revealBottomPanelButton = document.createElement("button");
-    this.revealBottomPanelButton.className = "cm-button";
+    this.revealBottomPanelButton.className = "cm-button cm-revealBottomPanel";
     this.revealBottomPanelButton.name = "reveal";
     this.revealBottomPanelButton.type = "button";
     this.revealBottomPanelButton.onpointerdown = (e) => {
@@ -148,18 +148,7 @@ export class StatusPanel implements Panel {
   }
 
   updateStatus(update: ViewUpdate) {
-    if (isLintPanelOpen(update.state) || isReferencePanelOpen(update.state)) {
-      this.revealBottomPanelIcon.classList.remove("collapsed");
-    } else {
-      this.revealBottomPanelIcon.classList.add("collapsed");
-    }
-
     if (isReferencePanelOpen(update.state)) {
-      this.revealBottomPanelButton.classList.add(
-        "cm-collapse-references-button",
-      );
-      this.revealBottomPanelButton.classList.remove("cm-reveal-lint-button");
-      this.revealBottomPanelButton.classList.remove("cm-collapse-lint-button");
       let referenceCount = 0;
       const files = new Set<string>();
       forEachReference(update.state, (ref: ReferenceLocation) => {
@@ -185,18 +174,6 @@ export class StatusPanel implements Panel {
       this.warningsLabel.hidden = true;
       this.infosLabel.hidden = true;
     } else {
-      if (isLintPanelOpen(update.state)) {
-        this.revealBottomPanelButton.classList.add("cm-collapse-lint-button");
-        this.revealBottomPanelButton.classList.remove("cm-reveal-lint-button");
-      } else {
-        this.revealBottomPanelButton.classList.add("cm-reveal-lint-button");
-        this.revealBottomPanelButton.classList.remove(
-          "cm-collapse-lint-button",
-        );
-      }
-      this.revealBottomPanelButton.classList.remove(
-        "cm-collapse-references-button",
-      );
       this.referencesLabel.hidden = true;
       let errorCount = 0;
       let warningCount = 0;
@@ -364,21 +341,21 @@ const statusPanelTheme = EditorView.baseTheme({
     webkitMaskRepeat: "no-repeat",
     maskPosition: "center",
     webkitMaskPosition: "center",
-  },
-  "& .cm-problemsToggleIcon.collapsed": {
     transform: "rotate(-90deg)",
   },
+  "& .cm-panels-bottom:has(> :not(.cm-toolbar):focus-within) .cm-problemsToggleIcon":
+    {
+      transform: "rotate(0)",
+    },
   "& .cm-icon-button": {
     padding: "1px 4px",
     minWidth: "24px",
     justifyContent: "center",
   },
-  "& .cm-collapse-references-button": {
-    color: "#cccccc",
-  },
-  "& .cm-collapse-lint-button": {
-    color: "#cccccc",
-  },
+  "& .cm-panels-bottom:has(> :not(.cm-toolbar):focus-within) .cm-revealBottomPanel":
+    {
+      color: "#cccccc",
+    },
 
   "& .cm-button:active::after": {
     content: "''",

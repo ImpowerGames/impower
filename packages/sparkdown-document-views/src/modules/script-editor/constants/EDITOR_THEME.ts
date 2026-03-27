@@ -4,12 +4,12 @@ import EDITOR_COLORS from "./EDITOR_COLORS";
 const EDITOR_THEME: {
   [selector: string]: StyleSpec;
 } = {
-  "&.keyboard-open .cm-panel-lint": {
+  "& .cm-panel-lint:not(:focus-within)": {
     opacity: "0",
     minHeight: "0 !important",
     height: "0",
   },
-  "&.keyboard-open .cm-lsp-reference-panel": {
+  "& .cm-lsp-reference-panel:not(:focus-within)": {
     opacity: "0",
     minHeight: "0 !important",
     height: "0",
