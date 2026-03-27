@@ -1,4 +1,5 @@
 import { indentLess, indentMore, redo, undo } from "@codemirror/commands";
+import { closeLintPanel } from "@codemirror/lint";
 import { openSearchPanel } from "@codemirror/search";
 import {
   EditorState,
@@ -16,7 +17,10 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
-import { formatDocument } from "@impower/codemirror-vscode-lsp-client/src";
+import {
+  closeReferencePanel,
+  formatDocument,
+} from "@impower/codemirror-vscode-lsp-client/src";
 import {
   ContextMenuItem,
   isMobile,
@@ -242,6 +246,8 @@ const keyboardToolbarManager = ViewPlugin.fromClass(
 
       if (keyboardHeight > 0) {
         openKeyboardToolbar(this.view);
+        closeLintPanel(this.view);
+        closeReferencePanel(this.view);
       } else {
         closeKeyboardToolbar(this.view);
       }
