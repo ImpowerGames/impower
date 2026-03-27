@@ -88,12 +88,14 @@ export class StatusPanel implements Panel {
     this.revealBottomPanelButton.onfocus = () => {
       if (this.previouslyFocused) {
         view.focus();
+        window.scrollTo(0, 0);
       }
     };
     this.revealBottomPanelButton.onclick = () => {
       this.toggleBottomPanel(view.state);
       if (this.previouslyFocused) {
         view.focus();
+        window.scrollTo(0, 0);
       }
     };
 
@@ -123,12 +125,14 @@ export class StatusPanel implements Panel {
     this.gotoLineButton.onfocus = () => {
       if (this.previouslyFocused) {
         view.focus();
+        window.scrollTo(0, 0);
       }
     };
     this.gotoLineButton.onclick = () => {
       this.toggleGotoLinePanel(view.state);
       if (this.previouslyFocused) {
         view.focus();
+        window.scrollTo(0, 0);
       }
     };
 
