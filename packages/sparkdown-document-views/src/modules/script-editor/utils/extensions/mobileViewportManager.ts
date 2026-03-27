@@ -46,6 +46,35 @@ const viewportPlugin = ViewPlugin.fromClass(
       // when the input is focused.
       window.scrollTo(0, 0);
 
+      // Get the root (either document or the ShadowRoot)
+      const root = this.view.dom.getRootNode() as Document | ShadowRoot;
+
+      // Check if focus is in the main text area OR inside any editor panel/widget
+      // We check both the global activeElement and the ShadowRoot's activeElement
+      const activeElt = root.activeElement;
+      const isActiveEltEditable =
+        activeElt &&
+        (activeElt instanceof HTMLInputElement ||
+          activeElt instanceof HTMLTextAreaElement ||
+          (activeElt as HTMLElement).isContentEditable);
+      const isEditorInputFocused =
+        this.view.hasFocus ||
+        (activeElt && this.view.dom.contains(activeElt) && isActiveEltEditable);
+
+      const isFocusEvent = e?.type === "focusin" || e?.type === "focus";
+
+      const isBlurEvent = e?.type === "focusout" || e?.type === "blur";
+
+      // If the editor is losing focus or doesn't currently have focus,
+      // release the height constraint and ignore the trailing resize events
+      // from the keyboard animation.
+      if (!isFocusEvent && (isBlurEvent || !isEditorInputFocused)) {
+        document.body.style.height = "";
+        document.documentElement.classList.remove("keyboard-open");
+        this.lastKeyboardHeight = 0;
+        return;
+      }
+
       // We only reach here if the editor has focus, so we can safely
       // lock the body height to the visual viewport.
       document.body.style.height = `${vv.height}px`;
@@ -89,8 +118,8 @@ const viewportPlugin = ViewPlugin.fromClass(
         "scroll",
         this.onVisualViewportUpdate,
       );
-      window.addEventListener("focusin", this.onVisualViewportUpdate);
       window.addEventListener("focusout", this.onVisualViewportUpdate);
+      this.view.scrollDOM.addEventListener("blur", this.onVisualViewportUpdate);
     }
 
     unbind() {
@@ -102,8 +131,8 @@ const viewportPlugin = ViewPlugin.fromClass(
         "scroll",
         this.onVisualViewportUpdate,
       );
-      window.removeEventListener("focusin", this.onVisualViewportUpdate);
       window.removeEventListener("focusout", this.onVisualViewportUpdate);
+      this.view.scrollDOM.addEventListener("blur", this.onVisualViewportUpdate);
     }
 
     destroy() {
