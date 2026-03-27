@@ -114,7 +114,7 @@ const EDITOR_THEME: {
     outline: `2px solid ${EDITOR_COLORS.focus}`,
   },
   "& ul:focus-visible": {
-    outline: `2px solid ${EDITOR_COLORS.focus}`,
+    outline: "none",
   },
   "& label:has(input[type='checkbox']:focus-visible)::before": {
     outline: `2px solid ${EDITOR_COLORS.focus}`,
