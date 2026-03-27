@@ -237,7 +237,7 @@ const EDITOR_THEME: {
   },
   "& .cm-panels-bottom > :not(.cm-toolbar)": {
     minHeight:
-      "calc(var(--keyboard-height) - var(--statusbar-height) - var(--toolbar-height) - var(--navbar-height))",
+      "calc(var(--keyboard-height) - var(--statusbar-height) - var(--navbar-height))",
   },
   "& .cm-panel.cm-panel-lint ul": {
     minHeight: "100%",
