@@ -26,7 +26,7 @@ export const renameTheme = EditorView.baseTheme({
     color: "white",
     border: "1px solid #3c3c3c",
     outline: "none",
-    padding: "2px 4px",
+    padding: "4px",
     fontFamily: "inherit",
     minWidth: "150px",
     "&:focus": {
@@ -50,6 +50,7 @@ export const renameTheme = EditorView.baseTheme({
 
 const openRename = StateEffect.define<{
   pos: number;
+  end: number;
   word: string;
   placeholder?: string;
 }>();
@@ -61,8 +62,7 @@ const renameField = StateField.define<Tooltip | null>({
   },
   update(value, tr) {
     for (let effect of tr.effects) {
-      if (effect.is(openRename))
-        return createRenameTooltip(effect.value.pos, effect.value.word);
+      if (effect.is(openRename)) return createRenameTooltip(effect.value);
       if (effect.is(closeRename)) return null;
     }
     return value;
@@ -70,17 +70,26 @@ const renameField = StateField.define<Tooltip | null>({
   provide: (f) => showTooltip.from(f),
 });
 
-function createRenameTooltip(pos: number, word: string): Tooltip {
+function createRenameTooltip(spec: {
+  pos: number;
+  end: number;
+  word: string;
+}): Tooltip {
+  const { pos, end, word } = spec;
+  console.log(pos, end, word);
   return {
     pos,
+    end,
     arrow: false,
     create(view) {
       const dom = document.createElement("div");
       dom.className = "cm-lsp-rename-tooltip";
 
-      const input = dom.appendChild(document.createElement("input"));
-      input.value = word;
-      input.className = "cm-lsp-rename-input";
+      const input = dom.appendChild(document.createElement("div"));
+      input.textContent = word;
+      input.className = "cm-textfield cm-lsp-rename-input";
+      input.setAttribute("contenteditable", "true");
+      input.setAttribute("name", "line");
       input.setAttribute("spellcheck", "false");
       input.setAttribute("autocorrect", "off");
       input.setAttribute("writingsuggestions", "false");
@@ -88,7 +97,13 @@ function createRenameTooltip(pos: number, word: string): Tooltip {
       input.setAttribute("role", "textbox");
       input.setAttribute("aria-multiline", "true");
       input.setAttribute("aria-autocomplete", "list");
-      input.setAttribute("data-form-type", "other");
+      input.ariaLabel = view.state.phrase("Rename");
+      input.addEventListener("input", () => {
+        if (!input.textContent) {
+          // Force-clear hidden <br> tags
+          input.innerHTML = "";
+        }
+      });
 
       const button = dom.appendChild(document.createElement("button"));
       button.className = "cm-lsp-rename-submit";
@@ -105,8 +120,8 @@ function createRenameTooltip(pos: number, word: string): Tooltip {
       };
 
       const submit = () => {
-        if (input.value && input.value !== word) {
-          doRename(view, input.value, pos);
+        if (input.textContent && input.textContent !== word) {
+          doRename(view, input.textContent, pos);
         }
         close();
       };
@@ -138,7 +153,11 @@ function createRenameTooltip(pos: number, word: string): Tooltip {
 
       setTimeout(() => {
         input.focus();
-        input.select();
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(input);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
       }, 0);
 
       return {
@@ -206,19 +225,23 @@ export const renameSymbol: Command = (view) => {
           const to = mapping.mapPosition(uri, range.end, -1);
           const word = file.doc.sliceString(from, to);
           view.dispatch({
-            effects: openRename.of({ pos: from, word, placeholder }),
+            effects: openRename.of({ pos: from, end: to, word, placeholder }),
           });
         } else if (prepareResult.defaultBehavior) {
           const from = mapping.mapPos(uri, pos, 1);
           view.dispatch({
-            effects: openRename.of({ pos: from, word }),
+            effects: openRename.of({ pos: from, end: from, word }),
           });
         }
       }
     });
   } else {
     view.dispatch({
-      effects: openRename.of({ pos, word }),
+      effects: openRename.of({
+        pos: defaultWordSelectionRange.from,
+        end: defaultWordSelectionRange.to,
+        word,
+      }),
     });
   }
 

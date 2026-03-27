@@ -7,6 +7,8 @@ const EDITOR_COLORS = {
   toolbarBackground: "hsl(210, 89%, 18%)",
   toolbarForeground: "hsl(211, 24%, 60%)",
   statusLabel: "hsl(211, 24%, 42%)",
+  checkboxCheckedBackground: "rgba(36, 137, 219, 0.51)",
+  checkboxCheckedBorder: "#2488db",
 
   error: "#ef4343",
   warning: "#f59f0a",
@@ -28,7 +30,6 @@ const EDITOR_COLORS = {
   selectedForeground: "#0DA2E7",
   selectedBackground: "#04395E",
   focus: "#0DA2E7",
-  checked: "#0078D4",
   closeButton: "#315881",
   closeButtonHover: "#3689E2",
 

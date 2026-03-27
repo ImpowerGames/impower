@@ -44,6 +44,7 @@ const EDITOR_THEME: {
   "& .cm-content": {
     caretColor: "white",
     minHeight: "100%",
+    paddingLeft: "2px",
   },
   "& .cm-panel": {
     backgroundColor: "inherit",
@@ -122,7 +123,7 @@ const EDITOR_THEME: {
     outline: `2px solid ${EDITOR_COLORS.focus}`,
   },
   "& .cm-textfield": {
-    minHeight: "25px",
+    minHeight: "32px",
     width: "225px",
     borderRadius: "4px",
     fontSize: "16px",
@@ -287,7 +288,7 @@ const EDITOR_THEME: {
       position: "absolute",
       top: "12px",
       right: "186px",
-      height: "34px",
+      height: "30px",
       display: "flex",
       padding: "0 8px",
       justifyContent: "center",
@@ -297,8 +298,16 @@ const EDITOR_THEME: {
     },
     "& .cm-textfield": {
       margin: "3px 5px 3px 0px",
+      padding: "4px",
+    },
+    "& label": {
+      margin: "3px 5px 3px 0px",
+    },
+    "& input[type='checkbox']": {
+      margin: "0",
     },
     "& input:not([type='checkbox']), & [contenteditable]": {
+      display: "inline-block",
       width: "calc(100% - 78px)",
     },
     "& input[name='search'], & [contenteditable][name='search']": {
@@ -359,8 +368,8 @@ const EDITOR_THEME: {
     },
     "& label:has(input[type='checkbox'])": {
       display: "inline-block",
-      width: "36px",
-      height: "36px",
+      width: "30px",
+      height: "30px",
       verticalAlign: "middle",
       borderRadius: "4px",
       textIndent: "-99999em",
@@ -376,7 +385,7 @@ const EDITOR_THEME: {
       "&::before": {
         content: "''",
         position: "absolute",
-        inset: "5px",
+        inset: "2px",
         marginTop: "1.5px",
         borderRadius: "4px",
         backgroundRepeat: "no-repeat",
@@ -384,10 +393,11 @@ const EDITOR_THEME: {
       },
     },
     "& label:has(input[type='checkbox']:checked)::before": {
-      backgroundColor: EDITOR_COLORS.checked,
+      backgroundColor: EDITOR_COLORS.checkboxCheckedBackground,
+      border: `1px solid ${EDITOR_COLORS.checkboxCheckedBorder}`,
     },
     "& label:has(input[name='case'])": {
-      right: "calc(80px + 36px + 36px - 8px)",
+      right: "calc(83px + 33px + 33px - 8px)",
       "&::before": {
         backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(
           EDITOR_COLORS.foreground,
@@ -402,7 +412,7 @@ const EDITOR_THEME: {
       },
     },
     "& label:has(input[name='word'])": {
-      right: "calc(80px + 36px - 4px)",
+      right: "calc(83px + 33px - 4px)",
       "&::before": {
         backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(
           EDITOR_COLORS.foreground,
@@ -417,7 +427,7 @@ const EDITOR_THEME: {
       },
     },
     "& label:has(input[name='re'])": {
-      right: "80px",
+      right: "83px",
       "&::before": {
         backgroundImage: `url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="${encodeURIComponent(
           EDITOR_COLORS.foreground,

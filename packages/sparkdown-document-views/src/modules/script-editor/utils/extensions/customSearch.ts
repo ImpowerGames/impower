@@ -21,16 +21,24 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 
+const searchPanelTheme = EditorView.baseTheme({
+  "[contenteditable]:empty::after": {
+    content: "attr(data-placeholder)",
+    color: "#888",
+    cursor: "text",
+  },
+});
+
 export class SearchPanel implements Panel {
   dom: HTMLElement;
 
-  searchInput: HTMLInputElement;
+  searchInput: HTMLElement;
 
   matchesDisplay: HTMLDivElement;
 
   matchesLabel: HTMLSpanElement;
 
-  replaceInput: HTMLInputElement;
+  replaceInput: HTMLElement;
 
   caseCheckbox: HTMLInputElement;
 
@@ -62,10 +70,11 @@ export class SearchPanel implements Panel {
     let query = (this.query = getSearchQuery(view.state));
     this.commit = this.commit.bind(this);
 
-    this.searchInput = document.createElement("input");
+    this.searchInput = document.createElement("div");
     this.searchInput.className = "cm-textfield";
-    this.searchInput.name = "search";
-    this.searchInput.placeholder = "Find";
+    this.searchInput.setAttribute("contenteditable", "true");
+    this.searchInput.setAttribute("name", "search");
+    this.searchInput.setAttribute("data-placeholder", "Find");
     this.searchInput.ariaLabel = "Find";
     this.searchInput.setAttribute("spellcheck", "false");
     this.searchInput.setAttribute("autocorrect", "off");
@@ -74,16 +83,22 @@ export class SearchPanel implements Panel {
     this.searchInput.setAttribute("role", "textbox");
     this.searchInput.setAttribute("aria-multiline", "true");
     this.searchInput.setAttribute("aria-autocomplete", "list");
-    this.searchInput.setAttribute("data-form-type", "other");
-    this.searchInput.setAttribute("main-field", "");
-    this.searchInput.value = query.search;
+    this.searchInput.textContent = query.search;
     this.searchInput.onchange = this.commit;
     this.searchInput.onkeyup = this.commit;
+    this.searchInput.addEventListener("input", () => {
+      if (!this.searchInput.textContent) {
+        // Force-clear hidden <br> tags
+        this.searchInput.innerHTML = "";
+      }
+      this.commit();
+    });
 
-    this.replaceInput = document.createElement("input");
+    this.replaceInput = document.createElement("div");
     this.replaceInput.className = "cm-textfield";
-    this.replaceInput.name = "replace";
-    this.replaceInput.placeholder = "Replace";
+    this.replaceInput.setAttribute("contenteditable", "true");
+    this.replaceInput.setAttribute("name", "replace");
+    this.replaceInput.setAttribute("data-placeholder", "Replace");
     this.replaceInput.ariaLabel = "Replace";
     this.replaceInput.setAttribute("spellcheck", "false");
     this.replaceInput.setAttribute("autocorrect", "off");
@@ -92,10 +107,13 @@ export class SearchPanel implements Panel {
     this.replaceInput.setAttribute("role", "textbox");
     this.replaceInput.setAttribute("aria-multiline", "true");
     this.replaceInput.setAttribute("aria-autocomplete", "list");
-    this.replaceInput.setAttribute("data-form-type", "other");
-    this.replaceInput.value = query.replace;
-    this.replaceInput.onchange = this.commit;
-    this.replaceInput.onkeyup = this.commit;
+    this.replaceInput.textContent = query.replace;
+    this.replaceInput.addEventListener("input", () => {
+      if (!this.replaceInput.textContent) {
+        // Force-clear hidden <br> tags
+        this.replaceInput.innerHTML = "";
+      }
+    });
 
     this.matchesDisplay = document.createElement("div");
     this.matchesDisplay.className = "cm-search-matches";
@@ -200,11 +218,11 @@ export class SearchPanel implements Panel {
 
   commit() {
     let query = new SearchQuery({
-      search: this.searchInput.value,
+      search: this.searchInput.textContent,
       caseSensitive: this.caseCheckbox.checked,
       regexp: this.reCheckbox.checked,
       wholeWord: this.wordCheckbox.checked,
-      replace: this.replaceInput.value,
+      replace: this.replaceInput.textContent,
     });
     if (!query.eq(this.query)) {
       this.query = query;
@@ -287,8 +305,8 @@ export class SearchPanel implements Panel {
 
   setQuery(query: SearchQuery) {
     this.query = query;
-    this.searchInput.value = query.search;
-    this.replaceInput.value = query.replace;
+    this.searchInput.textContent = query.search;
+    this.replaceInput.textContent = query.replace;
     this.caseCheckbox.checked = query.caseSensitive;
     this.reCheckbox.checked = query.regexp;
     this.wordCheckbox.checked = query.wholeWord;
@@ -296,7 +314,11 @@ export class SearchPanel implements Panel {
 
   mount() {
     this.searchInput.focus();
-    this.searchInput.select();
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(this.searchInput);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
   }
 
   get pos() {
@@ -315,22 +337,23 @@ export function closeCustomSearchPanel(view: EditorView) {
   return true;
 }
 
+const customSearchPanelKeymap = [
+  {
+    key: "Mod-f",
+    run: openSearchPanel,
+    scope: "editor search-panel",
+  },
+  {
+    key: "Escape",
+    run: closeCustomSearchPanel,
+    scope: "editor search-panel",
+  },
+];
+
 export function customSearchPanel() {
   return [
-    Prec.highest(
-      keymap.of([
-        {
-          key: "Mod-f",
-          run: openSearchPanel,
-          scope: "editor search-panel",
-        },
-        {
-          key: "Escape",
-          run: closeCustomSearchPanel,
-          scope: "editor search-panel",
-        },
-      ]),
-    ),
+    searchPanelTheme,
+    Prec.highest(keymap.of(customSearchPanelKeymap)),
     search({
       createPanel: (view) => new SearchPanel(view),
       scrollToMatch: (range: SelectionRange) =>
@@ -382,8 +405,6 @@ export class GotoLinePanel implements Panel {
       view.state.phrase("Go to line"),
     );
     this.input.ariaLabel = view.state.phrase("Go to line");
-    this.input.setAttribute("data-form-type", "other");
-    this.input.setAttribute("main-field", "");
     this.input.addEventListener("input", () => {
       if (!this.input.textContent) {
         // Force-clear hidden <br> tags
@@ -536,8 +557,6 @@ const gotoLinePanelTheme = EditorView.baseTheme({
     padding: "2px 6px 4px",
     "& label": { fontSize: "80%" },
   },
-  "[contenteditable]": {},
-
   "[contenteditable]:empty::after": {
     content: "attr(data-placeholder)",
     color: "#888",
