@@ -384,6 +384,12 @@ export class GotoLinePanel implements Panel {
     this.input.ariaLabel = view.state.phrase("Go to line");
     this.input.setAttribute("data-form-type", "other");
     this.input.setAttribute("main-field", "");
+    this.input.addEventListener("input", () => {
+      if (!this.input.textContent) {
+        // Force-clear hidden <br> tags
+        this.input.innerHTML = "";
+      }
+    });
 
     this.submitButton = document.createElement("button");
     this.submitButton.className = "cm-button";
@@ -532,14 +538,10 @@ const gotoLinePanelTheme = EditorView.baseTheme({
   },
   "[contenteditable]": {},
 
-  "[contenteditable]:empty::before": {
+  "[contenteditable]:empty::after": {
     content: "attr(data-placeholder)",
     color: "#888",
     cursor: "text",
-  },
-
-  "[contenteditable]:focus::before": {
-    content: "''",
   },
 });
 

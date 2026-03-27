@@ -134,7 +134,7 @@ const EDITOR_THEME: {
       outline: "none",
       borderColor: EDITOR_COLORS.selectedForeground,
     },
-    "&::placeholder, &::before": {
+    "&::placeholder, &::after": {
       color: EDITOR_COLORS.placeholder,
     },
   },
