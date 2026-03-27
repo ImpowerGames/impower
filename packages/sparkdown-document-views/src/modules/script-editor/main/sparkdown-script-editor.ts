@@ -1,4 +1,4 @@
-import { searchPanelOpen } from "@codemirror/search";
+import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
 import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
@@ -102,10 +102,7 @@ import createEditorView, {
   editableConfig,
   readOnlyConfig,
 } from "../utils/createEditorView";
-import {
-  customGotoLinePanelOpen,
-  openCustomSearchPanel,
-} from "../utils/extensions/customSearch";
+import { customGotoLinePanelOpen } from "../utils/extensions/customSearch";
 import spec from "./_sparkdown-script-editor";
 
 export default class SparkdownScriptEditor extends Component(spec) {
@@ -1005,10 +1002,35 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   }
 
+  isSelectionRangeVisible(range: Range) {
+    const view = this._view;
+    if (view) {
+      const doc = view.state.doc;
+      const from = convertFromPosition(doc, range.start);
+      const to = convertFromPosition(doc, range.end);
+
+      // Get the bounding box of the selection
+      const startCoords = view.coordsAtPos(from);
+      const endCoords = view.coordsAtPos(to);
+
+      // If the selection isn't rendered, coordsAtPos might return null
+      if (!startCoords || !endCoords) return false;
+
+      const editorRect = view.scrollDOM.getBoundingClientRect();
+
+      // Check if the vertical positions are within the editor's visible window
+      const isAbove = endCoords.bottom < editorRect.top;
+      const isBelow = startCoords.top > editorRect.bottom;
+
+      return !isAbove && !isBelow;
+    }
+    return false;
+  }
+
   protected openSearchPanel() {
     const view = this._view;
     if (view) {
-      openCustomSearchPanel(view);
+      openSearchPanel(view);
     }
   }
 
@@ -1032,7 +1054,13 @@ export default class SparkdownScriptEditor extends Component(spec) {
       if (document.hasFocus() && this._view) {
         clearInterval(this._focusIntervalTimeout);
         this._focusIntervalTimeout = window.setInterval(() => {
-          if (this._view !== view || !this._view || this._view.hasFocus) {
+          if (
+            this._view !== view ||
+            !this._view ||
+            this._view.hasFocus ||
+            !initialSelectedRange ||
+            this.isSelectionRangeVisible(initialSelectedRange)
+          ) {
             clearInterval(this._focusIntervalTimeout);
             return;
           }

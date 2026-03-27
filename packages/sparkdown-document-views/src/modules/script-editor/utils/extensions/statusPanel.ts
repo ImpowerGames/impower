@@ -4,22 +4,52 @@ import {
   linter,
   openLintPanel,
 } from "@codemirror/lint";
-import { EditorState, Extension, StateField } from "@codemirror/state";
-import { EditorView, Panel, showPanel, ViewUpdate } from "@codemirror/view";
+import {
+  EditorState,
+  Extension,
+  StateEffect,
+  StateField,
+} from "@codemirror/state";
+import {
+  Command,
+  EditorView,
+  Panel,
+  PanelConstructor,
+  showPanel,
+  ViewUpdate,
+} from "@codemirror/view";
 import {
   closeReferencePanel,
   forEachReference,
   isReferencePanelOpen,
   ReferenceLocation,
+  setReferencePanel,
 } from "@impower/codemirror-vscode-lsp-client/src";
-import EDITOR_COLORS from "../constants/EDITOR_COLORS";
+import EDITOR_COLORS from "../../constants/EDITOR_COLORS";
 import {
   closeCustomGotoLinePanel,
   customGotoLinePanelOpen,
   openCustomGotoLinePanel,
-} from "../utils/extensions/customSearch";
+} from "./customSearch";
 
 const CHEVRON_SVG_URL = `url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="black"><path d="M7.97612 10.0719L12.3334 5.7146L12.9521 6.33332L8.28548 11L7.66676 11L3.0001 6.33332L3.61882 5.7146L7.97612 10.0719Z"/></svg>')`;
+
+type StatusPanelState = {
+  panel: PanelConstructor;
+};
+
+const statusPanelState = StateField.define<StatusPanelState | null>({
+  create() {
+    return null;
+  },
+  update(value, tr) {
+    for (let e of tr.effects) if (e.is(setStatusPanel)) return e.value;
+    return value;
+  },
+  provide: (f) => showPanel.from(f, (val) => (val ? val.panel : null)),
+});
+
+export const setStatusPanel = StateEffect.define<StatusPanelState | null>();
 
 export class StatusPanel implements Panel {
   dom: HTMLElement;
@@ -42,7 +72,7 @@ export class StatusPanel implements Panel {
 
   constructor(readonly view: EditorView) {
     this.dom = document.createElement("div");
-    this.dom.className = "cm-status";
+    this.dom.className = "cm-toolbar cm-status";
 
     this.revealBottomPanelButton = document.createElement("button");
     this.revealBottomPanelButton.className = "cm-button";
@@ -261,11 +291,31 @@ export class StatusPanel implements Panel {
 const statusPanelTheme = EditorView.baseTheme({
   ".cm-status": {
     height: "28px",
-    color: "#516A85",
+    color: EDITOR_COLORS.statusLabel,
     backgroundColor: EDITOR_COLORS.panel,
     display: "flex",
     justifyContent: "space-between",
+    "& .cm-diagnosticNav": {
+      display: "flex",
+      alignItems: "center",
+      overflow: "hidden",
+      flex: 1,
+      marginRight: "8px",
+    },
     "& .cm-button": {
+      height: "100%",
+      border: "none",
+      backgroundImage: "none",
+      whiteSpace: "pre",
+      padding: "1px 8px",
+      fontSize: "14px",
+      textAlign: "center",
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      position: "relative",
+    },
+    "& .cm-problemsLabel": {
       height: "100%",
       border: "none",
       backgroundImage: "none",
@@ -305,6 +355,11 @@ const statusPanelTheme = EditorView.baseTheme({
   "& .cm-problemsToggleIcon.collapsed": {
     transform: "rotate(-90deg)",
   },
+  "& .cm-icon-button": {
+    padding: "1px 4px",
+    minWidth: "24px",
+    justifyContent: "center",
+  },
   "& .cm-collapse-references-button": {
     color: "#cccccc",
   },
@@ -312,7 +367,7 @@ const statusPanelTheme = EditorView.baseTheme({
     color: "#cccccc",
   },
 
-  ".cm-button:active::after": {
+  "& .cm-button:active::after": {
     content: "''",
     position: "absolute",
     inset: "0",
@@ -335,9 +390,33 @@ export function isLintPanelOpen(state: EditorState) {
   return state.field(lintState, false)?.panel != null;
 }
 
+function createStatusPanel(view: EditorView) {
+  return new StatusPanel(view);
+}
+
+export const openStatusPanel: Command = (view) => {
+  let data: StatusPanelState = { panel: createStatusPanel };
+  let effect =
+    view.state.field(statusPanelState, false) === undefined
+      ? StateEffect.appendConfig.of(statusPanelState.init(() => data))
+      : setStatusPanel.of(data);
+  view.dispatch({ effects: effect });
+  return true;
+};
+
+export function isStatusPanelOpen(state: EditorState) {
+  return Boolean(state.field(statusPanelState, false));
+}
+
+export const closeStatusPanel: Command = (view) => {
+  if (!view.state.field(statusPanelState, false)) return false;
+  view.dispatch({ effects: setReferencePanel.of(null) });
+  return true;
+};
+
 export const statusPanel = () => {
   return [
-    showPanel.of((view) => new StatusPanel(view)),
+    showPanel.of(createStatusPanel),
     statusPanelTheme,
     EditorView.updateListener.of((update) => {
       if (isReferencePanelOpen(update.state)) {

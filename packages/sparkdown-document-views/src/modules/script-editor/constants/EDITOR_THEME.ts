@@ -30,7 +30,6 @@ const EDITOR_THEME: {
     flex: 1,
     minHeight: "100%",
     lineHeight: "1.4",
-    fontFamily: "Courier Prime Sans",
     fontSize: "16px",
   },
   "& .cm-scroller": {
@@ -77,6 +76,7 @@ const EDITOR_THEME: {
     position: "relative",
     cursor: "pointer",
     backgroundColor: "transparent",
+    fontFamily: "inherit",
   },
 
   ".cm-textfield:active": {
@@ -227,6 +227,20 @@ const EDITOR_THEME: {
   },
   "& .cm-panels.cm-panels-bottom": {
     borderTop: `1px solid ${EDITOR_COLORS.panelBorder}`,
+    display: "flex",
+    flexDirection: "column",
+  },
+  "& .cm-keyboard-toolbar": {
+    order: "100",
+    backgroundColor: EDITOR_COLORS.toolbarBackground,
+    color: EDITOR_COLORS.toolbarForeground,
+  },
+  "& .cm-panels-bottom > :not(.cm-toolbar)": {
+    minHeight:
+      "calc(var(--keyboard-height) - var(--statusbar-height) - var(--toolbar-height) - var(--navbar-height))",
+  },
+  "& .cm-panel.cm-panel-lint ul": {
+    minHeight: "100%",
   },
   "& .cm-panels.cm-panels-top": {
     "& .cm-panel": {

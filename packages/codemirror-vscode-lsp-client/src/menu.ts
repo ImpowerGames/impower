@@ -2,7 +2,6 @@ import { Extension, Facet, StateEffect, StateField } from "@codemirror/state";
 import { EditorView, showTooltip, Tooltip, ViewPlugin } from "@codemirror/view";
 import {
   ContextMenuItem,
-  historyContextMenuItems,
   isMobile,
   lspContextMenuItems,
   textContextMenuItems,
@@ -277,7 +276,7 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
             item.command(view);
           };
           dom.appendChild(itemEl);
-        } else if (item.type === "separator") {
+        } else if ("type" in item && item.type === "separator") {
           const sep = document.createElement("div");
           sep.className = "cm-menu-separator";
           dom.appendChild(sep);
@@ -480,11 +479,7 @@ const contextMenuConfig = Facet.define<ContextMenuConfig, ContextMenuConfig>({
 export function contextMenu(
   config: ContextMenuConfig = {
     items: [...textContextMenuItems],
-    moreItems: [
-      ...historyContextMenuItems,
-      { type: "separator" },
-      ...lspContextMenuItems,
-    ],
+    moreItems: [...lspContextMenuItems],
   },
 ): Extension {
   return [

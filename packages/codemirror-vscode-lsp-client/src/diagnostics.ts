@@ -54,9 +54,13 @@ export function convertFromDiagnosticDataToActions(
   return actions;
 }
 
+interface ServerDiagnostic extends Omit<lsp.Diagnostic, "message"> {
+  message: string | lsp.MarkupContent;
+}
+
 export function convertFromServerDiagnostics(
   plugin: LSPPlugin,
-  diagnostics: lsp.Diagnostic[],
+  diagnostics: ServerDiagnostic[],
 ): Diagnostic[] {
   const result: Diagnostic[] = diagnostics
     .map(
@@ -68,7 +72,10 @@ export function convertFromServerDiagnostics(
           plugin.fromPosition(d.range.end, plugin.syncedDoc),
         ),
         severity: convertFromServerSeverity(d.severity ?? 1),
-        message: d.message,
+        message:
+          typeof d.message === "object" && "value" in d.message
+            ? d.message.value
+            : d.message,
         actions: convertFromDiagnosticDataToActions(d.data),
         renderMessage: () => {
           return renderDiagnosticMessage(plugin, d.message);

@@ -7,7 +7,8 @@ import { renameKeymap, renameSymbol } from "./rename";
 
 export type ContextMenuItem =
   | {
-      label: string;
+      label?: string;
+      icon?: string;
       shortcut?: string;
       command: (view: EditorView) => void;
     }
@@ -134,8 +135,6 @@ export const lspContextMenuItems: ContextMenuItem[] = [
 ];
 
 export const defaultContextMenuItems: ContextMenuItem[] = [
-  ...historyContextMenuItems,
-  { type: "separator" },
   ...textContextMenuItems,
   { type: "separator" },
   ...lspContextMenuItems,

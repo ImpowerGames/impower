@@ -56,7 +56,6 @@ import { variableWidgets } from "../../../cm-variable-widgets/variableWidgets";
 import debounce from "../../../utils/debounce";
 import EDITOR_EXTENSIONS from "../constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../constants/EDITOR_THEME";
-import { statusPanel } from "../panels/StatusPanel";
 import {
   SerializableEditorSelection,
   SerializableEditorState,
@@ -67,10 +66,12 @@ import {
   customGotoLinePanel,
   customSearchPanel,
 } from "./extensions/customSearch";
+import { keyboardToolbar } from "./extensions/keyboardToolbar";
 import { mobileViewportManager } from "./extensions/mobileViewportManager";
 import { platformClassManager } from "./extensions/platformClassManager";
 import { selectionClassManager } from "./extensions/selectionClassManager";
 import { sparkdownLanguageExtension } from "./extensions/sparkdownLanguageExtension";
+import { statusPanel } from "./extensions/statusPanel";
 import { touchInputHandler } from "./extensions/touchInputHandler";
 
 const NEWLINE_REGEX = /\r\n|\r|\n/g;
@@ -242,6 +243,7 @@ const createEditorView = (
         customSearchPanel(),
         customGotoLinePanel(),
         statusPanel(),
+        keyboardToolbar(),
         readOnlyConfig.of(EditorState.readOnly.of(false)),
         editableConfig.of(EditorView.editable.of(true)),
         breakpointsField.init(() => {

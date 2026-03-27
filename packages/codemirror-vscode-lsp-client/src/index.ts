@@ -80,6 +80,7 @@ export {
   forEachReference,
   isReferencePanelOpen,
   serverReferences,
+  setReferencePanel,
   type ReferenceLocation,
 } from "./references";
 export { renameKeymap, renameSymbol, serverRenaming } from "./rename";

@@ -61,12 +61,15 @@
 :root {
   color-scheme: dark;
   --screenplay-preview-texture: url("/noisetexture.png");
+  --statusbar-height: 28px;
+  --toolbar-height: 41px;
   --navbar-height: 60px;
   --navbar-display: flex;
   /* Environment Safe Areas */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   /* Updated by JS */
+  --cm-keyboard-height: 0px;
   --cm-top-offset: 0px;
   --cm-bottom-offset: 0px;
 }
@@ -101,12 +104,8 @@ body {
 html {
   background-color: var(--theme-color-primary-bg);
 }
-html.keyboard-open {
-  background-color: var(--theme-color-panel);
-}
 
 .keyboard-open body {
-  background-color: var(--theme-color-panel);
   --navbar-display: none;
 }
 

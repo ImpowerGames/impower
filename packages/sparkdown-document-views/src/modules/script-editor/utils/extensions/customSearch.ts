@@ -307,12 +307,6 @@ export class SearchPanel implements Panel {
   }
 }
 
-export function openCustomSearchPanel(view: EditorView) {
-  openSearchPanel(view);
-
-  return true;
-}
-
 export function closeCustomSearchPanel(view: EditorView) {
   closeSearchPanel(view);
   view.focus();
@@ -326,12 +320,12 @@ export function customSearchPanel() {
       keymap.of([
         {
           key: "Mod-f",
-          run: openCustomSearchPanel,
+          run: openSearchPanel,
           scope: "editor search-panel",
         },
         {
           key: "Escape",
-          run: closeSearchPanel,
+          run: closeCustomSearchPanel,
           scope: "editor search-panel",
         },
       ]),

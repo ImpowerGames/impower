@@ -4,6 +4,9 @@ const EDITOR_COLORS = {
   activeLineNumber: "#99D9FF",
   lineNumber: "#2B83B7",
   lineMark: "#66c7ff",
+  toolbarBackground: "hsl(210, 89%, 18%)",
+  toolbarForeground: "hsl(211, 24%, 60%)",
+  statusLabel: "hsl(211, 24%, 42%)",
 
   error: "#ef4343",
   warning: "#f59f0a",
