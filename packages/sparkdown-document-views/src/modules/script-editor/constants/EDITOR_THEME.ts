@@ -6,9 +6,13 @@ const EDITOR_THEME: {
 } = {
   "&.keyboard-open .cm-panel-lint": {
     visibility: "hidden",
+    minHeight: "0 !important",
+    height: "0",
   },
   "&.keyboard-open .cm-lsp-reference-panel": {
     visibility: "hidden",
+    minHeight: "0 !important",
+    height: "0",
   },
   ".lsp-semantic-token.lsp-type-keyword *": {
     color: EDITOR_COLORS.sectionNameAccessor,
