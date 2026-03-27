@@ -239,6 +239,9 @@ const EDITOR_THEME: {
     minHeight: "100%",
     maxHeight: "164px",
   },
+  "& .cm-panel.cm-panel-lint ul:focus li[aria-selected]": {
+    background: EDITOR_COLORS.selectedBackground,
+  },
   "& .cm-panels.cm-panels-top": {
     "& .cm-panel": {
       // Top panels should cover up panel header
