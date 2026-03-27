@@ -5,12 +5,12 @@ const EDITOR_THEME: {
   [selector: string]: StyleSpec;
 } = {
   "&.keyboard-open .cm-panel-lint": {
-    visibility: "hidden",
+    opacity: "0",
     minHeight: "0 !important",
     height: "0",
   },
   "&.keyboard-open .cm-lsp-reference-panel": {
-    visibility: "hidden",
+    opacity: "0",
     minHeight: "0 !important",
     height: "0",
   },
