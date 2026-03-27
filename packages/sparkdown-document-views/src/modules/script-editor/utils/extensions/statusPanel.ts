@@ -85,6 +85,15 @@ export class StatusPanel implements Panel {
     this.revealBottomPanelButton.onpointerdown = () => {
       this.previouslyFocused = view.hasFocus;
     };
+    this.revealBottomPanelButton.onfocus = () => {
+      if (this.previouslyFocused) {
+        view.focus();
+        window.scrollTo(0, 0);
+        window.requestAnimationFrame(() => {
+          window.scrollTo(0, 0);
+        });
+      }
+    };
     this.revealBottomPanelButton.onclick = () => {
       this.toggleBottomPanel(view.state);
       if (this.previouslyFocused) {
