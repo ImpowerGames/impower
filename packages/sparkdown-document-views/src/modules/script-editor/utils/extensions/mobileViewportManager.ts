@@ -29,8 +29,6 @@ const viewportPlugin = ViewPlugin.fromClass(
   class {
     view: EditorView;
 
-    lastKeyboardHeight = 0;
-
     constructor(view: EditorView) {
       this.view = view;
       this.bind();
@@ -74,11 +72,11 @@ const viewportPlugin = ViewPlugin.fromClass(
       // release the height constraint and ignore the trailing resize events
       // from the keyboard animation.
       if (!isFocusEvent && (isBlurEvent || !isEditorInputFocused)) {
+        // Keyboard will close
         document.body.style.height = "";
         document.documentElement.classList.remove("keyboard-open");
         this.view.dom.classList.remove("keyboard-open");
         closeKeyboardToolbar(this.view);
-        this.lastKeyboardHeight = 0;
         return;
       }
 
@@ -90,31 +88,21 @@ const viewportPlugin = ViewPlugin.fromClass(
       const keyboardHeight = window.innerHeight - vv.height;
 
       if (keyboardHeight > 0) {
-        openKeyboardToolbar(this.view);
-        closeLintPanel(this.view);
-        closeReferencePanel(this.view);
-      } else {
-        closeKeyboardToolbar(this.view);
-      }
-
-      if (keyboardHeight > 0) {
+        // Keyboard is open
         document.body.style.setProperty(
           "--keyboard-height",
           `${keyboardHeight}px`,
         );
-      }
-
-      if (keyboardHeight > this.lastKeyboardHeight) {
-        // Is opening keyboard
         document.documentElement.classList.add("keyboard-open");
         this.view.dom.classList.add("keyboard-open");
-      } else if (
-        keyboardHeight === 0 ||
-        keyboardHeight < this.lastKeyboardHeight
-      ) {
-        // Is closing keyboard
+        openKeyboardToolbar(this.view);
+        closeLintPanel(this.view);
+        closeReferencePanel(this.view);
+      } else {
+        // Keyboard is closed
         document.documentElement.classList.remove("keyboard-open");
         this.view.dom.classList.remove("keyboard-open");
+        closeKeyboardToolbar(this.view);
       }
 
       if (keyboardHeight > 0 && this.view.hasFocus) {
@@ -125,8 +113,6 @@ const viewportPlugin = ViewPlugin.fromClass(
           }),
         });
       }
-
-      this.lastKeyboardHeight = keyboardHeight;
     };
 
     bind() {

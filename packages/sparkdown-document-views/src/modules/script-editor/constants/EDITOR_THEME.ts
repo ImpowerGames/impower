@@ -4,14 +4,11 @@ import EDITOR_COLORS from "./EDITOR_COLORS";
 const EDITOR_THEME: {
   [selector: string]: StyleSpec;
 } = {
-  "& .cm-panel-lint:not(:focus-within)": {
-    position: "fixed",
-    opacity: "0",
-  },
-  "& .cm-lsp-reference-panel:not(:focus-within)": {
-    position: "fixed",
-    opacity: "0",
-  },
+  "&.keyboard-open .cm-panels-bottom > :not(.cm-toolbar), & .cm-panels-bottom > :not(.cm-toolbar):not(:focus-within)":
+    {
+      position: "fixed",
+      opacity: "0",
+    },
   ".lsp-semantic-token.lsp-type-keyword *": {
     color: EDITOR_COLORS.sectionNameAccessor,
   },

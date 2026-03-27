@@ -343,7 +343,7 @@ const statusPanelTheme = EditorView.baseTheme({
     webkitMaskPosition: "center",
     transform: "rotate(-90deg)",
   },
-  "& .cm-panels-bottom:has(> :not(.cm-toolbar):focus-within) .cm-problemsToggleIcon":
+  "&:not(.keyboard-open) .cm-panels-bottom:has(> :not(.cm-toolbar):focus-within) .cm-problemsToggleIcon":
     {
       transform: "rotate(0)",
     },
@@ -352,7 +352,7 @@ const statusPanelTheme = EditorView.baseTheme({
     minWidth: "24px",
     justifyContent: "center",
   },
-  "& .cm-panels-bottom:has(> :not(.cm-toolbar):focus-within) .cm-revealBottomPanel":
+  "&:not(.keyboard-open) .cm-panels-bottom:has(> :not(.cm-toolbar):focus-within) .cm-revealBottomPanel":
     {
       color: "#cccccc",
     },
