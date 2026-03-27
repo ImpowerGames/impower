@@ -119,21 +119,8 @@ export class StatusPanel implements Panel {
     this.gotoLineButton.className = "cm-button";
     this.gotoLineButton.name = "problems";
     this.gotoLineButton.type = "button";
-    this.gotoLineButton.onpointerdown = () => {
-      this.previouslyFocused = view.hasFocus;
-    };
-    this.gotoLineButton.onfocus = () => {
-      if (this.previouslyFocused) {
-        view.focus();
-        window.scrollTo(0, 0);
-      }
-    };
     this.gotoLineButton.onclick = () => {
       this.toggleGotoLinePanel(view.state);
-      if (this.previouslyFocused) {
-        view.focus();
-        window.scrollTo(0, 0);
-      }
     };
 
     this.lineColumnLabel = document.createElement("span");
