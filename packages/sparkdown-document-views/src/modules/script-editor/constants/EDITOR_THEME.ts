@@ -5,11 +5,13 @@ const EDITOR_THEME: {
   [selector: string]: StyleSpec;
 } = {
   "& .cm-panel-lint:not(:focus-within)": {
+    position: "fixed",
     opacity: "0",
     minHeight: "0 !important",
     height: "0",
   },
   "& .cm-lsp-reference-panel:not(:focus-within)": {
+    position: "fixed",
     opacity: "0",
     minHeight: "0 !important",
     height: "0",
