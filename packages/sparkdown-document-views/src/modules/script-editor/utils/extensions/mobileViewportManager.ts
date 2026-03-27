@@ -53,14 +53,13 @@ const viewportPlugin = ViewPlugin.fromClass(
       // Measure keyboard height
       const keyboardHeight = window.innerHeight - vv.height;
 
-      document.body.style.setProperty(
-        "--keyboard-height",
-        `${keyboardHeight}px`,
-      );
-
       if (keyboardHeight > this.lastKeyboardHeight) {
         // Is opening keyboard
         document.documentElement.classList.add("keyboard-open");
+        document.body.style.setProperty(
+          "--keyboard-height",
+          `${keyboardHeight}px`,
+        );
       } else if (
         keyboardHeight === 0 ||
         keyboardHeight < this.lastKeyboardHeight
