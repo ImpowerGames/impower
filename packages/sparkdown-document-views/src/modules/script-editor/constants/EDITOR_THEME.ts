@@ -4,6 +4,12 @@ import EDITOR_COLORS from "./EDITOR_COLORS";
 const EDITOR_THEME: {
   [selector: string]: StyleSpec;
 } = {
+  "&.keyboard-open .cm-panel-lint": {
+    display: "none",
+  },
+  "&.keyboard-open .cm-lsp-reference-panel": {
+    display: "none",
+  },
   ".lsp-semantic-token.lsp-type-keyword *": {
     color: EDITOR_COLORS.sectionNameAccessor,
   },
