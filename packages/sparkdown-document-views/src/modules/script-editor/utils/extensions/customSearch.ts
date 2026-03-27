@@ -7,6 +7,7 @@ import {
   replaceAll,
   replaceNext,
   search,
+  searchPanelOpen,
   SearchQuery,
   selectMatches,
   setSearchQuery,
@@ -513,7 +514,7 @@ export const closeCustomGotoLinePanel: Command = (view) => {
 };
 
 export function customGotoLinePanelOpen(state: EditorState) {
-  return state.field(gotoLineField, false);
+  return state.field(gotoLineField, false) ?? false;
 }
 
 const gotoLinePanelTheme = EditorView.baseTheme({
@@ -539,5 +540,26 @@ const gotoLinePanelKeymap = Prec.high(
 );
 
 export function customGotoLinePanel() {
-  return [gotoLineField, gotoLinePanelTheme, gotoLinePanelKeymap];
+  let wasSearchPanelOpen = false;
+  let wasGoToPanelOpen = false;
+  return [
+    gotoLineField,
+    gotoLinePanelTheme,
+    gotoLinePanelKeymap,
+    EditorView.updateListener.of((update) => {
+      const isSearchPanelOpen = searchPanelOpen(update.state);
+      const isGoToPanelOpen = customGotoLinePanelOpen(update.state);
+      if (isSearchPanelOpen !== wasSearchPanelOpen) {
+        wasSearchPanelOpen = searchPanelOpen(update.state);
+        if (isSearchPanelOpen) {
+          update.view.dispatch({ effects: [goToLineEffect.of(false)] });
+        }
+      } else if (isGoToPanelOpen !== wasGoToPanelOpen) {
+        wasGoToPanelOpen = isGoToPanelOpen;
+        if (isGoToPanelOpen) {
+          closeSearchPanel(update.view);
+        }
+      }
+    }),
+  ];
 }
