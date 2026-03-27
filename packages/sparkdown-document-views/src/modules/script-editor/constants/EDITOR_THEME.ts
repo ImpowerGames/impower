@@ -475,6 +475,7 @@ const EDITOR_THEME: {
     backgroundColor: "#ffdd991a",
   },
   "& .cm-diagnosticText": {
+    fontSize: "14px",
     marginRight: "16px",
     display: "flex",
   },
