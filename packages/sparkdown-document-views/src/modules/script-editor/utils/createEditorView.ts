@@ -234,7 +234,6 @@ const createEditorView = (
       selection,
       extensions: [
         ...restoredExtensions,
-        EditorView.theme(EDITOR_THEME, { dark: true }),
         EDITOR_EXTENSIONS,
         panels({
           topContainer: isMobile() ? mobileTopContainer : undefined,
@@ -463,6 +462,7 @@ const createEditorView = (
           isContextMenuOpen,
         }),
         mobileViewportManager(),
+        EditorView.theme(EDITOR_THEME, { dark: true }),
       ],
     }),
   });

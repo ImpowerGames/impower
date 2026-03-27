@@ -237,6 +237,7 @@ const EDITOR_THEME: {
   },
   "& .cm-panel.cm-panel-lint ul": {
     minHeight: "100%",
+    maxHeight: "164px",
   },
   "& .cm-panels.cm-panels-top": {
     "& .cm-panel": {

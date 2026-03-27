@@ -20,7 +20,7 @@ export const referencesTheme = EditorView.baseTheme({
   ".cm-lsp-reference-panel": {
     display: "flex",
     flexDirection: "column",
-    maxHeight: "300px",
+    maxHeight: "164px",
     backgroundColor: "inherit",
     color: "#cccccc",
     fontFamily:
