@@ -348,7 +348,7 @@ export class GotoLinePanel implements Panel {
 
   closeButton: HTMLButtonElement;
 
-  input: HTMLInputElement;
+  input: HTMLElement;
 
   submitButton: HTMLButtonElement;
 
@@ -366,9 +366,10 @@ export class GotoLinePanel implements Panel {
     this.closeButton.type = "button";
     this.closeButton.onclick = () => closeCustomGotoLinePanel(view);
 
-    this.input = document.createElement("input");
+    this.input = document.createElement("div");
     this.input.className = "cm-textfield";
-    this.input.name = "line";
+    this.input.setAttribute("contenteditable", "true");
+    this.input.setAttribute("name", "line");
     this.input.setAttribute("spellcheck", "false");
     this.input.setAttribute("autocorrect", "off");
     this.input.setAttribute("writingsuggestions", "false");
@@ -376,7 +377,10 @@ export class GotoLinePanel implements Panel {
     this.input.setAttribute("role", "textbox");
     this.input.setAttribute("aria-multiline", "true");
     this.input.setAttribute("aria-autocomplete", "list");
-    this.input.placeholder = view.state.phrase("Go to line");
+    this.input.setAttribute(
+      "data-placeholder",
+      view.state.phrase("Go to line"),
+    );
     this.input.ariaLabel = view.state.phrase("Go to line");
     this.input.setAttribute("data-form-type", "other");
     this.input.setAttribute("main-field", "");
@@ -411,7 +415,7 @@ export class GotoLinePanel implements Panel {
   }
 
   go() {
-    let match = /^([+-])?(\d+)?(:\d+)?(%)?$/.exec(this.input.value);
+    let match = /^([+-])?(\d+)?(:\d+)?(%)?$/.exec(this.input.textContent);
     if (!match) return;
     let { state } = this.view;
     let startLine = state.doc.lineAt(state.selection.main.head);
@@ -443,7 +447,11 @@ export class GotoLinePanel implements Panel {
 
   mount() {
     this.input.focus();
-    this.input.select();
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(this.input);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
   }
 
   get pos() {
@@ -521,6 +529,17 @@ const gotoLinePanelTheme = EditorView.baseTheme({
   ".cm-panel.cm-gotoLine": {
     padding: "2px 6px 4px",
     "& label": { fontSize: "80%" },
+  },
+  "[contenteditable]": {},
+
+  "[contenteditable]:empty::before": {
+    content: "attr(data-placeholder)",
+    color: "#888",
+    cursor: "text",
+  },
+
+  "[contenteditable]:focus::before": {
+    content: "''",
   },
 });
 

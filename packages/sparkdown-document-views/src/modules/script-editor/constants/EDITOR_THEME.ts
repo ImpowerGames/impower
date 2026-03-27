@@ -126,7 +126,6 @@ const EDITOR_THEME: {
     width: "225px",
     borderRadius: "4px",
     fontSize: "16px",
-    padding: "8px",
     borderWidth: "1px",
     borderStyle: "solid",
     borderColor: EDITOR_COLORS.border,
@@ -135,7 +134,7 @@ const EDITOR_THEME: {
       outline: "none",
       borderColor: EDITOR_COLORS.selectedForeground,
     },
-    "&::placeholder": {
+    "&::placeholder, &::before": {
       color: EDITOR_COLORS.placeholder,
     },
   },
@@ -299,10 +298,10 @@ const EDITOR_THEME: {
     "& .cm-textfield": {
       margin: "3px 5px 3px 0px",
     },
-    "& input:not([type='checkbox'])": {
+    "& input:not([type='checkbox']), & [contenteditable]": {
       width: "calc(100% - 78px)",
     },
-    "& input[name='search']": {
+    "& input[name='search'], & [contenteditable][name='search']": {
       paddingRight: "100px",
     },
     "& button[name='close']": {
