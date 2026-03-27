@@ -138,9 +138,9 @@ export class StatusPanel implements Panel {
       if (this.view.hasFocus) {
         this.view.focus();
       }
-      window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
         openLintPanel(this.view);
-      });
+      }, 50);
     }
   }
 
