@@ -241,6 +241,7 @@ const EDITOR_THEME: {
   },
   "& .cm-panel.cm-panel-lint ul:focus li[aria-selected]": {
     background: EDITOR_COLORS.selectedBackground,
+    color: EDITOR_COLORS.white,
   },
   "& .cm-panels.cm-panels-top": {
     "& .cm-panel": {
@@ -495,6 +496,7 @@ const EDITOR_THEME: {
   },
   "& .cm-tooltip-autocomplete ul li[aria-selected]": {
     background: EDITOR_COLORS.selectedBackground,
+    color: EDITOR_COLORS.white,
   },
   "& .cm-valueInfo": {
     fontFamily: "monospace",
