@@ -133,7 +133,7 @@ function createRenameTooltip(spec: {
       };
 
       requestAnimationFrame(() => {
-        window.addEventListener("mousedown", handleOutsideClick);
+        window.addEventListener("pointerdown", handleOutsideClick);
       });
 
       button.onclick = (e) => {
