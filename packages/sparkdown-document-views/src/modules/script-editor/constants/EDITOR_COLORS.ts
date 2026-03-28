@@ -4,7 +4,7 @@ const EDITOR_COLORS = {
   activeLineNumber: "#99D9FF",
   lineNumber: "#2B83B7",
   lineMark: "#66c7ff",
-  toolbarBackground: "hsl(210, 89%, 18%)",
+  toolbarBackground: "hsl(210.7, 89.1%, 18%)",
   toolbarForeground: "hsl(211, 24%, 60%)",
   statusLabel: "hsl(211, 24%, 42%)",
   checkboxCheckedBackground: "rgba(36, 137, 219, 0.51)",
