@@ -68,24 +68,28 @@ const viewportPlugin = ViewPlugin.fromClass(
 
       const isBlurEvent = e?.type === "focusout" || e?.type === "blur";
 
+      // Measure keyboard height
+      const keyboardHeight = window.innerHeight - vv.height;
+
       // If the editor is losing focus or doesn't currently have focus,
       // release the height constraint and ignore the trailing resize events
       // from the keyboard animation.
-      if (!isFocusEvent && (isBlurEvent || !isEditorInputFocused)) {
+      if (
+        keyboardHeight > 0 &&
+        !isFocusEvent &&
+        (isBlurEvent || !isEditorInputFocused)
+      ) {
         // Keyboard will close
         document.body.style.height = "";
-        document.documentElement.classList.remove("keyboard-open");
-        this.view.dom.classList.remove("keyboard-open");
-        closeKeyboardToolbar(this.view);
+        // document.documentElement.classList.remove("keyboard-open");
+        // this.view.dom.classList.remove("keyboard-open");
+        // closeKeyboardToolbar(this.view);
         return;
       }
 
       // We only reach here if the editor has focus, so we can safely
       // lock the body height to the visual viewport.
       document.body.style.height = `${vv.height}px`;
-
-      // Measure keyboard height
-      const keyboardHeight = window.innerHeight - vv.height;
 
       if (keyboardHeight > 0) {
         // Keyboard is open
