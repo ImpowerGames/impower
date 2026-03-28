@@ -310,15 +310,25 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
         update.docChanged ||
         update.focusChanged
       ) {
-        this.scheduleUpdate(update.state);
+        this.scheduleUpdate(update.state, update);
       }
     }
 
-    scheduleUpdate(state: EditorState) {
+    scheduleUpdate(state: EditorState, update?: ViewUpdate) {
       this.view.requestMeasure({
         read: (view) => {
           // Don't show handles if not focused
-          if (!view.hasFocus) return null;
+          if (!view.hasFocus) {
+            return null;
+          }
+
+          const isProgrammaticSelection =
+            update?.selectionSet &&
+            !update?.transactions.some((tr) => tr.isUserEvent("select.touch"));
+
+          const isTouchSelection =
+            update?.selectionSet &&
+            update?.transactions.some((tr) => tr.isUserEvent("select.touch"));
 
           const sel = state.selection.main;
           const editorRect = view.dom.getBoundingClientRect();
@@ -335,6 +345,8 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
               coords.bottom > scrollRect.top && coords.top < scrollRect.bottom;
 
             return {
+              isProgrammaticSelection,
+              isTouchSelection,
               pos,
               left: coords.left - editorRect.left,
               top: coords.bottom - editorRect.top,
@@ -343,13 +355,15 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
           };
 
           return {
+            isProgrammaticSelection,
+            isTouchSelection,
             type: !sel.empty || this.isSelecting ? "range" : "cursor",
             anchor: getHandleInfo(sel.anchor),
             head: getHandleInfo(sel.head),
           };
         },
         write: (measure) => {
-          if (!measure) {
+          if (!measure || measure.isProgrammaticSelection) {
             this.startHandle.style.display = "none";
             this.endHandle.style.display = "none";
             this.cursorHandle.style.display = "none";
@@ -364,7 +378,9 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
               | undefined,
           ) => {
             if (info && info.visible) {
-              el.style.display = "block";
+              if (measure.isTouchSelection) {
+                el.style.display = "block";
+              }
               el.style.left = `${info.left}px`;
               el.style.top = `${info.top}px`;
             } else {
