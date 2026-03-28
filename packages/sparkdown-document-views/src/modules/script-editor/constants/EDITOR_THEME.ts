@@ -235,7 +235,7 @@ const EDITOR_THEME: {
     display: "flex",
     flexDirection: "column",
   },
-  "& .cm-keyboard-toolbar": {
+  "& .cm-panel.cm-keyboard-toolbar": {
     order: "100",
     backgroundColor: EDITOR_COLORS.toolbarBackground,
     color: EDITOR_COLORS.toolbarForeground,
