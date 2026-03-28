@@ -80,11 +80,11 @@ const viewportPlugin = ViewPlugin.fromClass(
         (isBlurEvent || !isEditorInputFocused)
       ) {
         // Keyboard will close
-        // document.body.style.height = "";
-        // document.documentElement.classList.remove("keyboard-open");
-        // this.view.dom.classList.remove("keyboard-open");
-        // closeKeyboardToolbar(this.view);
-        // return;
+        document.body.style.height = "";
+        document.documentElement.classList.remove("keyboard-open");
+        this.view.dom.classList.remove("keyboard-open");
+        closeKeyboardToolbar(this.view);
+        return;
       }
 
       // We only reach here if the editor has focus, so we can safely
