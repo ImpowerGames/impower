@@ -135,9 +135,6 @@ export class StatusPanel implements Panel {
       closeLintPanel(this.view);
       closeReferencePanel(this.view);
     } else {
-      if (this.view.hasFocus) {
-        this.view.focus();
-      }
       window.setTimeout(() => {
         openLintPanel(this.view);
       }, 200);
