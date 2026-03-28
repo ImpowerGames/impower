@@ -74,9 +74,9 @@ const viewportPlugin = ViewPlugin.fromClass(
       if (!isFocusEvent && (isBlurEvent || !isEditorInputFocused)) {
         // Keyboard will close
         document.body.style.height = "";
-        document.documentElement.classList.remove("keyboard-open");
-        this.view.dom.classList.remove("keyboard-open");
-        closeKeyboardToolbar(this.view);
+        // document.documentElement.classList.remove("keyboard-open");
+        // this.view.dom.classList.remove("keyboard-open");
+        // closeKeyboardToolbar(this.view);
         return;
       }
 
