@@ -132,8 +132,8 @@ export class StatusPanel implements Panel {
 
   toggleBottomPanel(state: EditorState) {
     if (isLintPanelOpen(state) || isReferencePanelOpen(state)) {
-      closeLintPanel(this.view);
       closeReferencePanel(this.view);
+      this.view.focus();
     } else {
       openLintPanel(this.view);
     }
