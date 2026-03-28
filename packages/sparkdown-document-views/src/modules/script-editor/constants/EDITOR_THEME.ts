@@ -8,6 +8,7 @@ const EDITOR_THEME: {
     {
       position: "fixed",
       opacity: "0",
+      top: "-10000px",
     },
   ".lsp-semantic-token.lsp-type-keyword *": {
     color: EDITOR_COLORS.sectionNameAccessor,

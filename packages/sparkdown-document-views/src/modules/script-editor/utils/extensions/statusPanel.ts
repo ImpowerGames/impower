@@ -81,15 +81,17 @@ export class StatusPanel implements Panel {
     this.revealBottomPanelButton.onpointerdown = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.toggleBottomPanel(view.state);
     };
     this.revealBottomPanelButton.onmousedown = (e) => {
-      e.preventDefault();
       e.stopPropagation();
     };
     this.revealBottomPanelButton.ontouchstart = (e) => {
+      e.stopPropagation();
+    };
+    this.revealBottomPanelButton.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
+      this.toggleBottomPanel(view.state);
     };
 
     this.revealBottomPanelIcon = document.createElement("span");
@@ -131,11 +133,11 @@ export class StatusPanel implements Panel {
   }
 
   toggleBottomPanel(state: EditorState) {
-    if (isLintPanelOpen(state) || isReferencePanelOpen(state)) {
+    if (this.view.hasFocus) {
+      openLintPanel(this.view);
+    } else {
       closeReferencePanel(this.view);
       this.view.focus();
-    } else {
-      openLintPanel(this.view);
     }
   }
 
