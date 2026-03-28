@@ -135,7 +135,9 @@ export class StatusPanel implements Panel {
       closeLintPanel(this.view);
       closeReferencePanel(this.view);
     } else {
-      openLintPanel(this.view);
+      window.requestAnimationFrame(() => {
+        openLintPanel(this.view);
+      });
     }
   }
 
