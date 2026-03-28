@@ -137,7 +137,7 @@ export class StatusPanel implements Panel {
     } else {
       window.setTimeout(() => {
         openLintPanel(this.view);
-      }, 300);
+      }, 600);
     }
   }
 
