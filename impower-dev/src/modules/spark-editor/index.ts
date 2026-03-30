@@ -8,7 +8,6 @@ import AssetsFiles from "./components/assets-files/assets-files";
 import AssetsUrls from "./components/assets-urls/assets-urls";
 import Assets from "./components/assets/assets";
 import Demo from "./components/demo/demo";
-import EditToggleButton from "./components/edit-toggle-button/edit-toggle-button";
 import FileAddButton from "./components/file-add-button/file-add-button";
 import FileDropzone from "./components/file-dropzone/file-dropzone";
 import FileEditorNavigation from "./components/file-editor-navigation/file-editor-navigation";
@@ -18,8 +17,8 @@ import FileList from "./components/file-list/file-list";
 import FileOptionsButton from "./components/file-options-button/file-options-button";
 import FileUploadButton from "./components/file-upload-button/file-upload-button";
 import HeaderMenuButton from "./components/header-menu-button/header-menu-button";
-import HeaderNavigation from "./components/header-navigation/header-navigation";
 import HeaderNavigationPlaceholder from "./components/header-navigation-placeholder/header-navigation-placeholder";
+import HeaderNavigation from "./components/header-navigation/header-navigation";
 import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/header-sync-conflict-toolbar";
 import HeaderSyncToolbar from "./components/header-sync-toolbar/header-sync-toolbar";
 import HeaderTitleButton from "./components/header-title-button/header-title-button";
@@ -80,7 +79,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   PreviewScreenplayToolbar,
   PreviewScreenplay,
   PreviewToggleButton,
-  EditToggleButton,
   Preview,
   Notifications,
   Account,

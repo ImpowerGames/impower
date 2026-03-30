@@ -5,30 +5,15 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-preview-screenplay-toolbar",
   stores: { workspace },
-  reducer: ({ stores }) =>
-    ({
-      running:
-        stores?.workspace?.current?.preview?.modes?.game?.running || false,
-      paused: stores?.workspace?.current?.preview?.modes?.game?.paused || false,
-      debugging:
-        stores?.workspace?.current?.preview?.modes?.game?.debugging || false,
-      loading:
-        stores?.workspace?.current?.preview?.modes?.game?.loading || false,
-      horizontalLayout: stores?.workspace?.current?.screen?.horizontalLayout,
-    }) as const,
-  html: ({ context }) => {
-    const { horizontalLayout } = context;
+  html: () => {
     return html`
-      <s-box
-        bg-color="${horizontalLayout ? "panel" : "black"}"
-        position="sticky-top"
-      >
+      <s-box bg-color="panel" position="sticky-top">
         <s-box
           height="panel-nav"
           position="relative"
           child-layout="row"
           child-align="center"
-          bg-color="${horizontalLayout ? "panel" : "black"}"
+          bg-color="panel"
           z="1"
           grow
         >

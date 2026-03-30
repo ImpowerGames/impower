@@ -7,7 +7,6 @@ import AssetsFiles from "./components/assets-files/_assets-files";
 import AssetsUrls from "./components/assets-urls/_assets-urls";
 import Assets from "./components/assets/_assets";
 import Demo from "./components/demo/_demo";
-import EditToggleButton from "./components/edit-toggle-button/_edit-toggle-button";
 import FileAddButton from "./components/file-add-button/_file-add-button";
 import FileDropzone from "./components/file-dropzone/_file-dropzone";
 import FileEditorNavigation from "./components/file-editor-navigation/_file-editor-navigation";
@@ -17,8 +16,8 @@ import FileList from "./components/file-list/_file-list";
 import FileOptionsButton from "./components/file-options-button/_file-options-button";
 import FileUploadButton from "./components/file-upload-button/_file-upload-button";
 import HeaderMenuButton from "./components/header-menu-button/_header-menu-button";
-import HeaderNavigation from "./components/header-navigation/_header-navigation";
 import HeaderNavigationPlaceholder from "./components/header-navigation-placeholder/_header-navigation-placeholder";
+import HeaderNavigation from "./components/header-navigation/_header-navigation";
 import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/_header-sync-conflict-toolbar";
 import HeaderSyncToolbar from "./components/header-sync-toolbar/_header-sync-toolbar";
 import HeaderTitleButton from "./components/header-title-button/_header-title-button";
@@ -104,7 +103,6 @@ const components = [
   style(ShareGame),
   style(ShareScreenplay),
   style(MainWindow),
-  style(EditToggleButton),
   style(PreviewToggleButton),
   style(Preview),
   style(Notifications),

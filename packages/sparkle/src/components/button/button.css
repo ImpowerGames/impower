@@ -217,6 +217,16 @@
   z-index: 1;
   transition-duration: var(--_duration);
   will-change: transform, opacity;
+  flex-basis: content;
+}
+:host([basis]) > .root > .label {
+  flex-basis: var(--_basis);
+}
+:host([shrink]) > .root > .label {
+  flex-shrink: var(--_shrink);
+}
+:host([grow]) > .root > .label {
+  flex-grow: var(--_grow);
 }
 :host([text-overflow="ellipsis"]) > .root > .label {
   display: block;
@@ -224,13 +234,33 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-:host([child-justify]) > .root > .label {
-  flex-grow: var(--_grow);
-}
 :host([loading]) > .root > .label {
   visibility: hidden;
 }
 :host([icon]:not([variant="icon"])) > .root > .label {
+  padding-left: var(--_spacing);
+}
+:host([label][active-label][active]) > .root > .label {
+  display: none;
+}
+
+:host > .root > .active-label {
+  display: block;
+  flex-basis: content;
+}
+:host([basis]) > .root > .active-label {
+  flex-basis: var(--_basis);
+}
+:host([shrink]) > .root > .active-label {
+  flex-shrink: var(--_shrink);
+}
+:host([grow]) > .root > .active-label {
+  flex-grow: var(--_grow);
+}
+:host([active-label]:not([active])) > .root > .active-label {
+  display: none;
+}
+:host([icon]:not([variant="icon"])) > .root > .active-label {
   padding-left: var(--_spacing);
 }
 

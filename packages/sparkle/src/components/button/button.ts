@@ -42,6 +42,7 @@ const DEFAULT_ATTRIBUTES = {
     "disabled",
     "variant",
     "label",
+    "active-label",
     "value",
     "active",
     "disable-ripple",
@@ -278,6 +279,16 @@ export default class Button
   }
 
   /**
+   * The button's active label.
+   */
+  get activeLabel(): string | null {
+    return this.getStringAttribute(Button.attrs.activeLabel);
+  }
+  set activeLabel(value) {
+    this.setStringAttribute(Button.attrs.activeLabel, value);
+  }
+
+  /**
    * The toggle state of this button.
    */
   get active(): boolean {
@@ -349,6 +360,12 @@ export default class Button
       const label = newValue;
       if (label) {
         this.setAssignedToSlot(label);
+      }
+    }
+    if (name === Button.attrs.activeLabel) {
+      const activeLabel = newValue;
+      if (activeLabel) {
+        this.setAssignedToSlot(activeLabel, "active-label");
       }
     }
     if (name === Button.attrs.active) {
