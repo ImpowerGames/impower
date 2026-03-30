@@ -227,7 +227,11 @@ export class StatusPanel implements Panel {
   }
 
   toggleBottomPanel(state: EditorState) {
-    if (this.view.hasFocus) {
+    if (
+      this.view.hasFocus ||
+      (!isReferencePanelOpen(this.view.state) &&
+        !isLintPanelOpen(this.view.state))
+    ) {
       openLintPanel(this.view);
     } else {
       closeReferencePanel(this.view);
@@ -497,6 +501,13 @@ export class StatusPanel implements Panel {
 }
 
 const statusPanelTheme = EditorView.baseTheme({
+  "&.keyboard-open .cm-panels-bottom > :not(.cm-toolbar), & .cm-panels-bottom > :not(.cm-toolbar):not(:focus-within)":
+    {
+      position: "fixed",
+      opacity: "0",
+      top: "-10000px",
+    },
+
   ".cm-status": {
     height: "28px",
     color: EDITOR_COLORS.statusLabel,
