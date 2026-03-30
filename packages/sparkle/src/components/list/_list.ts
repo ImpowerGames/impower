@@ -5,10 +5,11 @@ import html from "./list.html";
 
 export default spec({
   tag: "s-list",
+  shadowDOM: false,
   html,
   css: [...sharedCSS, css],
   selectors: {
-    spacer: "",
-    content: "",
+    spacer: ".spacer",
+    content: ".content",
   },
 });

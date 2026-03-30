@@ -11,6 +11,10 @@ export default class List<T = any> extends SparkleElement {
     return spec.tag;
   }
 
+  override get shadowDOM() {
+    return spec.shadowDOM;
+  }
+
   override get html() {
     return spec.html({
       graphics: this.graphics,

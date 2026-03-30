@@ -22,7 +22,7 @@ export default class StyleCache {
     return sheet;
   }
 
-  getStyleElement(el: Element | ShadowRoot | Document, css: string) {
+  getStyleElement(el: Node, css: string) {
     const cached = this._styleElements[css];
     if (cached) {
       return cached;
@@ -34,13 +34,15 @@ export default class StyleCache {
     return targetEl.appendChild(styleEl);
   }
 
-  adoptStyle(el: Element | ShadowRoot | Document, css: string) {
+  adoptStyle(el: Node, css: string) {
     if (css) {
       try {
         const targetEl =
           el instanceof Document || el instanceof ShadowRoot
             ? el
-            : el.shadowRoot;
+            : el instanceof HTMLElement
+              ? (el.shadowRoot ?? document)
+              : document;
         if (targetEl) {
           targetEl.adoptedStyleSheets.push(this.getStyleSheet(css));
         }

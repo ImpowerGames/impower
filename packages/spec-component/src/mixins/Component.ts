@@ -157,7 +157,7 @@ const Component = <
         this.innerHTML = innerHTML;
         const tagName = this.tagName.toLowerCase();
         this.css.forEach((c) => {
-          STYLES.adoptStyle(this.ownerDocument, augmentCSS(c, tagName));
+          STYLES.adoptStyle(this.getRootNode(), augmentCSS(c, tagName));
         });
       }
       this.#refs = this.getRefMap(this.selectors);

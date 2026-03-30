@@ -16,14 +16,14 @@
   -webkit-overflow-scrolling: touch;
 }
 
-:host > .root #spacer {
+:host > .root > .spacer {
   position: absolute;
   top: 0;
   left: 0;
   width: 1px;
 }
 
-:host > .root #content {
+:host > .root > .content {
   position: absolute;
   top: 0;
   left: 0;
