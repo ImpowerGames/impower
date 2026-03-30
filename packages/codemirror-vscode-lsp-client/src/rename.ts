@@ -114,7 +114,6 @@ function createRenameTooltip(spec: {
       };
 
       const close = () => {
-        console.warn("CLOSE");
         view.dispatch({ effects: closeRename.of(null) });
         view.focus();
       };
