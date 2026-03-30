@@ -100,12 +100,12 @@
   --_shadow: var(--theme-shadow-box-1);
 }
 @media (hover: hover) and (pointer: fine) {
-  :host(:not([variant])):has(.root:hover),
-  :host([variant="filled"]):has(.root:hover) {
+  :host(:not([variant]):has(.root:hover)),
+  :host([variant="filled"]:has(.root:hover)) {
     --_shadow: var(--theme-shadow-box-2);
   }
-  :host(:not([variant])):has(.root:active),
-  :host([variant="filled"]):has(.root:active) {
+  :host(:not([variant]):has(.root:active)),
+  :host([variant="filled"]:has(.root:active)) {
     --_shadow: var(--theme-shadow-box-0);
   }
 }
