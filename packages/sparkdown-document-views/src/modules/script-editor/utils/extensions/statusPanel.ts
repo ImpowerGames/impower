@@ -124,7 +124,7 @@ export class StatusPanel implements Panel {
     this.revealBottomPanelButton.onclick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      this.toggleBottomPanel(view.state);
+      this.toggleBottomPanel();
     };
 
     this.revealBottomPanelIcon = this.revealBottomPanelButton.appendChild(
@@ -226,7 +226,7 @@ export class StatusPanel implements Panel {
     this.lineColumnLabel.className = "cm-statusLabel cm-lineColumnLabel";
   }
 
-  toggleBottomPanel(state: EditorState) {
+  toggleBottomPanel() {
     if (
       this.view.hasFocus ||
       (!isReferencePanelOpen(this.view.state) &&
