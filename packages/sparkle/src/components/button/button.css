@@ -15,7 +15,7 @@
   --_transition-property:
     transform, background-color, color, border, box-shadow;
   --_duration: 100ms;
-  --_background_color: var(--theme-color-primary-60);
+  --_background-color: var(--theme-color-primary-60);
   --_text-color: var(--theme-color-neutral-0);
   --_spacing: 8px;
   --_border-width: 1px;
@@ -116,7 +116,7 @@
 :host(:not([variant])) > .root,
 :host([variant="filled"]) > .root {
   color: var(--_text-color);
-  background-color: var(--_background_color);
+  background-color: var(--_background-color);
   font-weight: var(--_text-weight);
   box-shadow: var(--_shadow);
 }
@@ -131,9 +131,9 @@
   color: var(--_text-color);
   font-weight: var(--_text-weight);
   box-shadow: var(--_shadow);
-  background-color: var(--_background_color);
+  background-color: var(--_background-color);
   border-style: solid;
-  border-color: var(--_background_color);
+  border-color: var(--_background-color);
   border-width: var(--_border-width);
 }
 :host([variant="tonal"]) > .root::after {
@@ -167,11 +167,11 @@
   }
   :host([variant="outlined"]:not([disabled])) > .root:hover,
   :host([variant="outlined"][checked]:not([disabled])) > .root {
-    background-color: var(--_background_color);
+    background-color: var(--_background-color);
     color: var(--_text-color);
   }
   :host([variant="outlined"]:not([disabled])) > .root:active {
-    background-color: var(--_background_color);
+    background-color: var(--_background-color);
     color: var(--_text-color);
   }
 }

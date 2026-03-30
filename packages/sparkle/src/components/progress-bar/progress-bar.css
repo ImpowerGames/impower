@@ -8,9 +8,8 @@
   --_text-font: var(--theme-font-sans);
   --_text-size: var(--theme-text-xs-font-size);
   --_text-weight: 400;
-  --_text-color: var(--theme-color-neutral-0);
   --_background-color: var(--theme-color-neutral-30);
-  --_color: var(--theme-color-primary-60);
+  --_text-color: var(--theme-color-primary-60);
   --_speed: 2.5;
   --_duration: 400ms;
 }
@@ -35,7 +34,7 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  background-color: var(--_color);
+  background-color: currentColor;
   color: var(--_text-color);
   line-height: var(--_height);
   text-align: center;

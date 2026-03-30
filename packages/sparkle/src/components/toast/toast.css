@@ -82,6 +82,6 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: flex-end;
-  color: var(--_color);
+  color: var(--_text-color);
   font-size: var(--_icon-size);
 }

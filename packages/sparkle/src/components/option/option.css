@@ -19,12 +19,12 @@
   --_border-width: 1px;
   --_corner: 0;
   --_shadow: none;
-  --_color: var(--theme-color-neutral-100);
+  --_text-color: var(--theme-color-neutral-100);
   --_active-color: var(--theme-color-neutral-100);
 }
 
 :host([value]) {
-  --_color: var(--theme-color-neutral-70);
+  --_text-color: var(--theme-color-neutral-70);
 }
 
 :host([active]:not([disabled])) > .root {
@@ -91,7 +91,7 @@
   border-radius: var(--_corner);
   padding-inline: var(--_padding-lr);
   will-change: transform;
-  color: var(--_color);
+  color: var(--_text-color);
   box-shadow: var(--_shadow);
   background-color: var(--_background-color);
 }
@@ -155,7 +155,7 @@
   height: 100%;
   will-change: transform, opacity;
   transition-property: none;
-  color: var(--_color);
+  color: var(--_text-color);
 }
 :host([icon][active-icon][active]) > .root > .icon > .normal-icon {
   display: none;
