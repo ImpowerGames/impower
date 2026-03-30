@@ -76,7 +76,6 @@ function createRenameTooltip(spec: {
   word: string;
 }): Tooltip {
   const { pos, end, word } = spec;
-  console.log(pos, end, word);
   return {
     pos,
     end,
@@ -115,6 +114,7 @@ function createRenameTooltip(spec: {
       };
 
       const close = () => {
+        console.warn("CLOSE");
         view.dispatch({ effects: closeRename.of(null) });
         view.focus();
       };
@@ -127,7 +127,13 @@ function createRenameTooltip(spec: {
       };
 
       const handleOutsideClick = (event: MouseEvent) => {
-        if (!dom.contains(event.target as Node)) {
+        const path = event.composedPath();
+        const includesTooltip = path.some(
+          (n) =>
+            n instanceof HTMLElement &&
+            n.classList.contains("cm-lsp-rename-tooltip"),
+        );
+        if (!includesTooltip) {
           close();
         }
       };
