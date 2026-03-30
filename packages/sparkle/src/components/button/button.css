@@ -15,12 +15,11 @@
   --_transition-property:
     transform, background-color, color, border, box-shadow;
   --_duration: 100ms;
-  --_color: var(--theme-color-primary-60);
+  --_background_color: var(--theme-color-primary-60);
   --_text-color: var(--theme-color-neutral-0);
   --_spacing: 8px;
   --_border-width: 1px;
   --_corner: 4px;
-  --_background-color: var(--_color);
   --_ease: ease-out;
 }
 
@@ -96,17 +95,17 @@
 }
 
 /* Filled */
-:host(:not([variant])) > .root,
-:host([variant="filled"]) > .root {
+:host(:not([variant])),
+:host([variant="filled"]) {
   --_shadow: var(--theme-shadow-box-1);
 }
 @media (hover: hover) and (pointer: fine) {
-  :host(:not([variant])) > .root:hover,
-  :host([variant="filled"]) > .root:hover {
+  :host(:not([variant])):has(.root:hover),
+  :host([variant="filled"]):has(.root:hover) {
     --_shadow: var(--theme-shadow-box-2);
   }
-  :host(:not([variant])) > .root:active,
-  :host([variant="filled"]) > .root:active {
+  :host(:not([variant])):has(.root:active),
+  :host([variant="filled"]):has(.root:active) {
     --_shadow: var(--theme-shadow-box-0);
   }
 }
@@ -117,7 +116,7 @@
 :host(:not([variant])) > .root,
 :host([variant="filled"]) > .root {
   color: var(--_text-color);
-  background-color: var(--_color);
+  background-color: var(--_background_color);
   font-weight: var(--_text-weight);
   box-shadow: var(--_shadow);
 }
@@ -132,9 +131,9 @@
   color: var(--_text-color);
   font-weight: var(--_text-weight);
   box-shadow: var(--_shadow);
-  background-color: var(--_color);
+  background-color: var(--_background_color);
   border-style: solid;
-  border-color: var(--_color);
+  border-color: var(--_background_color);
   border-width: var(--_border-width);
 }
 :host([variant="tonal"]) > .root::after {
@@ -162,15 +161,17 @@
   border-width: var(--_border-width);
 }
 @media (hover: hover) and (pointer: fine) {
+  :host([variant="outlined"]:not([disabled])),
+  :host([variant="outlined"][checked]:not([disabled])) {
+    --_text-color: var(--theme-color-neutral-0);
+  }
   :host([variant="outlined"]:not([disabled])) > .root:hover,
   :host([variant="outlined"][checked]:not([disabled])) > .root {
-    --_text-color: var(--theme-color-neutral-0);
-    background-color: var(--_color);
+    background-color: var(--_background_color);
     color: var(--_text-color);
   }
   :host([variant="outlined"]:not([disabled])) > .root:active {
-    --_text-color: var(--theme-color-neutral-0);
-    background-color: var(--_color);
+    background-color: var(--_background_color);
     color: var(--_text-color);
   }
 }
@@ -182,7 +183,6 @@
   --_background-color: transparent;
 }
 :host([variant="text"]) > .root {
-  --_text-color: var(--_color);
   font-weight: var(--_text-weight);
   color: var(--_text-color);
   box-shadow: var(--_shadow);
@@ -198,7 +198,6 @@
   --_padding: 0;
 }
 :host([variant="icon"]) > .root {
-  --_text-color: var(--_color);
   aspect-ratio: var(--_aspect);
   color: var(--_text-color);
   box-shadow: var(--_shadow);
