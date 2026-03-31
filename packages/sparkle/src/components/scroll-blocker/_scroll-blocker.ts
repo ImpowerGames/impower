@@ -6,5 +6,6 @@ import html from "./scroll-blocker.html";
 export default spec({
   tag: "s-scroll-blocker",
   html,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

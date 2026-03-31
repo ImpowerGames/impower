@@ -1,14 +1,13 @@
 import * as dotenv from "dotenv";
-import { FastifyPluginCallback } from "fastify";
+import { FastifyPluginAsync } from "fastify";
 
-const env: FastifyPluginCallback = async (app, opts, next) => {
+const env: FastifyPluginAsync<any> = async (app, opts) => {
   try {
     const envConfig = dotenv.config();
     app.decorate("config", envConfig.parsed);
   } catch (err) {
     console.error(err);
   }
-  next();
 };
 
 export default env;

@@ -11,5 +11,6 @@ export default spec({
     close: ".close",
     actionSlot: "slot[name=action]",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

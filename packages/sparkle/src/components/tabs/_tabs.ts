@@ -11,5 +11,6 @@ export default spec({
     nav: ".nav",
     tab: "s-tab",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

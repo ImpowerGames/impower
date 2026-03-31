@@ -13,7 +13,9 @@ export default abstract class SparkdownScriptEditor {
     const name = options?.tag ?? Main.tag;
     Main.languageServerWorker = options.languageServerWorker;
     Main.languageServerConnection = options.languageServerConnection;
-    customElements.define(name, Main);
+    if (!customElements.get(name)) {
+      customElements.define(name, Main);
+    }
     return customElements.whenDefined(name);
   }
 }

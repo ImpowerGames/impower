@@ -6,5 +6,6 @@ import html from "./navigation.html";
 export default spec({
   tag: "s-navigation",
   html,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

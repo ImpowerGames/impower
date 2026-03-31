@@ -7,7 +7,8 @@ export default spec({
   tag: "s-list",
   shadowDOM: false,
   html,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
   selectors: {
     spacer: ".spacer",
     content: ".content",

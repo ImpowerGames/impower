@@ -6,5 +6,6 @@ import html from "./tooltip.html";
 export default spec({
   tag: "s-tooltip",
   html,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

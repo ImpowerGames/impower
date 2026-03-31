@@ -1,5 +1,6 @@
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
-import css from "../../styles/shared";
+import css from "../../styles/core/core.css";
+import sharedCSS from "../../styles/shared";
 import workspace from "../../workspace/WorkspaceStore";
 
 export default spec({
@@ -63,6 +64,7 @@ export default spec({
     `;
   },
   css,
+  sharedCSS,
   selectors: {
     downloadButton: null,
     progressBar: null,

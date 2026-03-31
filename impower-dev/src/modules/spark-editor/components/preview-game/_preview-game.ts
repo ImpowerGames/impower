@@ -26,5 +26,6 @@ export default spec({
       </s-box>
     `;
   },
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

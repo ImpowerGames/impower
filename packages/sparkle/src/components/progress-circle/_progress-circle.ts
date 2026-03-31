@@ -10,5 +10,6 @@ export default spec({
     indicator: ".indicator",
     label: ".label",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

@@ -10,5 +10,6 @@ export default spec({
     resize: ".resize",
     divider: ".divider",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

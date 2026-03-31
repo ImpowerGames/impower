@@ -12,5 +12,6 @@ export default spec({
     const svg = () => (typeof name === "string" ? graphics?.[name] || "" : "");
     return html`<div class="root icon" part="root"><slot>${svg}</slot></div>`;
   },
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

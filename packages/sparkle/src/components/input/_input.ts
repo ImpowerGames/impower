@@ -101,5 +101,6 @@ export default spec({
     input: "input",
     ripple: "s-ripple",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

@@ -17,7 +17,8 @@ const spec = <
     reducer: spec.reducer ?? (() => ({}) as Context),
     stores: spec.stores ?? ({} as Stores),
     props: spec.props ?? ({} as Props),
-    css: typeof spec.css === "string" ? [spec.css] : spec.css || [],
+    css: spec.css,
+    sharedCSS: spec.sharedCSS,
     html: (args: {
       graphics: Graphics;
       stores: Stores;

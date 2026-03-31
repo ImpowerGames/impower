@@ -1,5 +1,6 @@
 import { spec } from "../../../../../../packages/spec-component/src/spec";
-import css from "../../styles/shared";
+import css from "../../styles/core/core.css";
+import sharedCSS from "../../styles/shared";
 import workspace from "../../workspace/WorkspaceStore";
 import html from "./share-screenplay.html";
 
@@ -8,6 +9,7 @@ export default spec({
   stores: { workspace },
   html,
   css,
+  sharedCSS,
   selectors: {
     htmlButton: "",
     pdfButton: "",

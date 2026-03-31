@@ -53,5 +53,6 @@ export default spec({
     ripple: "s-ripple",
     badge: "s-badge",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

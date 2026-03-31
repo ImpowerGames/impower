@@ -17,5 +17,6 @@ export default spec({
     list: "",
     outlet: "",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

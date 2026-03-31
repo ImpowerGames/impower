@@ -9,5 +9,6 @@ export default spec({
   selectors: {
     button: "s-button",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

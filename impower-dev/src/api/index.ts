@@ -1,28 +1,24 @@
-import fastifyFormbody from "@fastify/formbody";
-import fastifyMultipart from "@fastify/multipart";
-import fastifySecureSession from "@fastify/secure-session";
 import Fastify, { FastifyInstance } from "fastify";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import pino from "pino";
-import env from "./plugins/env.js";
-import livereload from "./plugins/livereload.js";
-import googleDriveSyncProvider from "./plugins/providers/googleDriveSyncProvider.js";
+import env from "./plugins/env";
+import googleDriveSyncProvider from "./plugins/providers/googleDriveSyncProvider";
 import router from "./plugins/router.js";
 
-const DEV_HTTPS_KEY_PATH = join(process.cwd(), "https", "key.pem");
-const DEV_HTTPS_CERT_PATH = join(process.cwd(), "https", "cert.pem");
+const DEV_HTTPS_KEY_PATH = join(process?.cwd?.() || "", "https", "key.pem");
+const DEV_HTTPS_CERT_PATH = join(process?.cwd?.() || "", "https", "cert.pem");
 
-const IS_GOOGLE_CLOUD_RUN = process.env["K_SERVICE"] !== undefined;
+const IS_GOOGLE_CLOUD_RUN = process?.env?.["K_SERVICE"] !== undefined;
 const IS_PRODUCTION =
-  process.env["NODE_ENV"] === "production" || IS_GOOGLE_CLOUD_RUN;
+  process?.env?.["NODE_ENV"] === "production" || IS_GOOGLE_CLOUD_RUN;
 
 const app = IS_PRODUCTION
   ? (Fastify({
       logger: pino({
         messageKey: "message",
         formatters: {
-          level(label: string, number: number) {
+          level(label: string) {
             return { severity: label };
           },
         },
@@ -64,9 +60,10 @@ export const startServer = async () => {
       app.register(env);
       await app.after();
     }
+
     const cookieKey = process.env["SERVER_SESSION_COOKIE_KEY"];
     if (cookieKey) {
-      app.register(fastifySecureSession, {
+      app.register(import("@fastify/secure-session"), {
         key: Buffer.from(cookieKey, "hex"),
         cookie: {
           path: "/",
@@ -76,23 +73,36 @@ export const startServer = async () => {
         },
       });
     }
-    app.register(fastifyFormbody);
-    app.register(fastifyMultipart, {
+
+    app.register(import("@fastify/formbody"));
+    app.register(import("@fastify/multipart"), {
       limits: {
         fileSize: 1000000000,
       },
     });
-    app.register(googleDriveSyncProvider);
-    app.register(router);
-    if (!IS_PRODUCTION) {
-      app.register(livereload);
+
+    const oauthClientId = process.env["BROWSER_GOOGLE_OAUTH_CLIENT_ID"];
+    const oauthClientSecret = process.env["SERVER_GOOGLE_OAUTH_CLIENT_SECRET"];
+    if (oauthClientId && oauthClientSecret) {
+      app.register(googleDriveSyncProvider, {
+        oauthClientId,
+        oauthClientSecret,
+      });
     }
-    await app.ready();
-    const port = Number(process.env["PORT"] || 8080);
-    const host = IS_GOOGLE_CLOUD_RUN
-      ? "0.0.0.0"
-      : process.env["HOST"] || "localhost";
-    await app.listen({ host, port });
+
+    app.register(router);
+
+    if (IS_PRODUCTION) {
+      const port = Number(process.env["PORT"] || 8080);
+      const host = IS_GOOGLE_CLOUD_RUN
+        ? "0.0.0.0"
+        : process.env["HOST"] || "localhost";
+      await app.ready();
+      await app.listen({ host, port });
+    } else {
+      await app.register(import("@fastify/middie"));
+      await app.ready();
+    }
     return app;
   } catch (error) {
     console.error(error);

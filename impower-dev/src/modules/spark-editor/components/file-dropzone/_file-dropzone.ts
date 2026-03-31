@@ -11,5 +11,6 @@ export default spec({
   selectors: {
     dragover: "",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

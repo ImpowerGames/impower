@@ -14,5 +14,6 @@ export default spec({
     headerTemplatesSlot: "slot[name=header-templates]",
     footerTemplatesSlot: "slot[name=footer-templates]",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

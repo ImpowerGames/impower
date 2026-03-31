@@ -9,5 +9,6 @@ export default spec({
   selectors: {
     popup: ".popup",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

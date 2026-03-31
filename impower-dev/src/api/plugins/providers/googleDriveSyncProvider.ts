@@ -1,4 +1,4 @@
-import { FastifyPluginCallback, FastifyReply, FastifyRequest } from "fastify";
+import { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 import { Auth, google } from "googleapis";
 import deleteSessionCookie from "../../utils/deleteSessionCookie";
 import getSessionCookieData from "../../utils/getSessionCookieData";
@@ -81,6 +81,7 @@ const secure = async <T>(
  * Only allow authenticated requests (with valid session cookie)
  */
 const authenticated = async <T>(
+  opts: GoogleDriveSyncProviderOptions,
   request: FastifyRequest,
   reply: FastifyReply,
   response: (auth: Auth.OAuth2Client) => Promise<T>,
@@ -92,8 +93,8 @@ const authenticated = async <T>(
       return ERROR.UNAUTHENTICATED.data;
     }
     const auth = new google.auth.OAuth2(
-      process.env["BROWSER_GOOGLE_OAUTH_CLIENT_ID"],
-      process.env["SERVER_GOOGLE_OAUTH_CLIENT_SECRET"],
+      opts.oauthClientId,
+      opts.oauthClientSecret,
     );
     auth.setCredentials({ refresh_token: sessionCookieData.refresh_token });
     const data = await response(auth);
@@ -138,11 +139,14 @@ const getAccountInfo = async (auth: Auth.OAuth2Client) => {
   };
 };
 
-const googleDriveSyncProvider: FastifyPluginCallback = async (
-  app,
-  opts,
-  next,
-) => {
+interface GoogleDriveSyncProviderOptions {
+  oauthClientId: string;
+  oauthClientSecret: string;
+}
+
+const googleDriveSyncProvider: FastifyPluginAsync<
+  GoogleDriveSyncProviderOptions
+> = async (app, opts) => {
   // SIGN-IN
   app.post<{
     Body: {
@@ -152,8 +156,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
     const { code } = request.body;
     return secure(request, reply, async () => {
       const auth = new google.auth.OAuth2(
-        process.env["BROWSER_GOOGLE_OAUTH_CLIENT_ID"],
-        process.env["SERVER_GOOGLE_OAUTH_CLIENT_SECRET"],
+        opts.oauthClientId,
+        opts.oauthClientSecret,
         "postmessage",
       );
       let { tokens } = await auth.getToken(code);
@@ -185,8 +189,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       }
       try {
         const auth = new google.auth.OAuth2(
-          process.env["BROWSER_GOOGLE_OAUTH_CLIENT_ID"],
-          process.env["SERVER_GOOGLE_OAUTH_CLIENT_SECRET"],
+          opts.oauthClientId,
+          opts.oauthClientSecret,
         );
         auth.setCredentials({ refresh_token: sessionCookieData.refresh_token });
         const account = await getAccountInfo(auth);
@@ -213,7 +217,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
 
   // GET ACCESS
   app.get("/api/auth/access", async (request, reply) => {
-    return authenticated(request, reply, async (auth) => {
+    return authenticated(opts, request, reply, async (auth) => {
       const res = await auth.refreshAccessToken();
       const token = res.credentials.access_token;
       const expires = res.credentials.expiry_date;
@@ -238,7 +242,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       reply.status(ERROR.INVALID_FILE_UPLOAD_REQUEST.status);
       return ERROR.INVALID_FILE_UPLOAD_REQUEST.data;
     }
-    return authenticated(request, reply, async (auth) => {
+    return authenticated(opts, request, reply, async (auth) => {
       const drive = google.drive({ version: "v3", auth });
       const res = await drive.files.create({
         requestBody: {
@@ -270,7 +274,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       reply.status(ERROR.INVALID_FILE_UPLOAD_REQUEST.status);
       return ERROR.INVALID_FILE_UPLOAD_REQUEST.data;
     }
-    return authenticated(request, reply, async (auth) => {
+    return authenticated(opts, request, reply, async (auth) => {
       const drive = google.drive({ version: "v3", auth });
       const isZipFile = mimeType === "application/zip";
       const res = await drive.files.update({
@@ -326,7 +330,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
     };
   }>("/api/storage/files/:fileId/revisions", async (request, reply) => {
     const { fileId } = request.params;
-    return authenticated(request, reply, async (auth) => {
+    return authenticated(opts, request, reply, async (auth) => {
       const drive = google.drive({ version: "v3", auth });
       const res = await drive.revisions.list({
         fileId,
@@ -346,7 +350,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
     "/api/storage/files/:fileId/revisions/:revisionId",
     async (request, reply) => {
       const { fileId, revisionId } = request.params;
-      return authenticated(request, reply, async (auth) => {
+      return authenticated(opts, request, reply, async (auth) => {
         const drive = google.drive({ version: "v3", auth });
         const revisionResult = await drive.revisions.get({
           fileId,
@@ -369,8 +373,6 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       });
     },
   );
-
-  next();
 };
 
 export default googleDriveSyncProvider;

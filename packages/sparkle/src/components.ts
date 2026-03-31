@@ -32,6 +32,7 @@ import Tooltip from "./components/tooltip/_tooltip";
 import Transition from "./components/transition/_transition";
 import Viewport from "./components/viewport/_viewport";
 import animations from "./styles/animations/animations.css";
+import core from "./styles/core/core.css";
 import dark from "./styles/dark/dark.css";
 import easings from "./styles/easings/easings.css";
 import elements from "./styles/elements/elements.css";
@@ -39,13 +40,15 @@ import gradients from "./styles/gradients/gradients.css";
 import keyframes from "./styles/keyframes/keyframes.css";
 import light from "./styles/light/light.css";
 import masks from "./styles/masks/masks.css";
-import normalize from "./styles/normalize/normalize.css";
+import sparkleNormalize from "./styles/normalize/normalize.css";
 import {
   default as patterns,
   default as patternsCSS,
 } from "./styles/patterns/patterns.css";
 import shadows from "./styles/shadows/shadows.css";
 import theme from "./styles/theme/theme.css";
+import utility from "./styles/utility/utility.css";
+import scopeCssToChild from "./utils/scopeCssToChild";
 
 const config = {
   patterns: [patternsCSS],
@@ -73,8 +76,10 @@ const style = <
 };
 
 const components = [
+  { tag: "", css: core },
+  { tag: "", css: scopeCssToChild(utility) },
   { tag: "", css: baseNormalize },
-  { tag: "", css: normalize },
+  { tag: "", css: sparkleNormalize },
   { tag: "", css: easings },
   { tag: "", css: keyframes },
   { tag: "", css: animations },

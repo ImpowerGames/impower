@@ -11,5 +11,6 @@ export default spec({
     option: "s-option",
     optionsSlot: "slot[name=options]",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

@@ -31,7 +31,8 @@ export default spec({
     resetButton: "#reset-button",
     fullscreenButton: "#fullscreen-button",
   } as const,
-  css: [resetCSS, css],
+  css,
+  sharedCSS: { resetCSS },
   html: ({ props }) => {
     const { toolbar, playButton, fullscreenButton, playLabel } = props;
     const fullscreenButtonComponent = () => html`

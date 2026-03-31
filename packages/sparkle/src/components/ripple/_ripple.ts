@@ -6,5 +6,6 @@ import html from "./ripple.html";
 export default spec({
   tag: "s-ripple",
   html,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

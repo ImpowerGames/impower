@@ -46,5 +46,6 @@ export default spec({
     inactiveIcon: ".inactive-icon",
     activeIcon: ".active-icon",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

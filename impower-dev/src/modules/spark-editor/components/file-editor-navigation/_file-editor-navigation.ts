@@ -8,5 +8,6 @@ export default spec({
   tag: "se-file-editor-navigation",
   stores: { workspace },
   html,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

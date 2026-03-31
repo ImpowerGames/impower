@@ -9,5 +9,6 @@ export default spec({
   selectors: {
     toast: "s-toast",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

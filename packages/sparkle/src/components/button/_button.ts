@@ -88,5 +88,6 @@ export default spec({
     label: ".label",
     spinner: ".spinner",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

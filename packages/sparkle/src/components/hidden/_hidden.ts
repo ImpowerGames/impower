@@ -17,5 +17,6 @@ export default spec({
       ></slot>
     `;
   },
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

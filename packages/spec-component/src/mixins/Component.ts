@@ -1,4 +1,3 @@
-import STYLES from "../caches/STYLE_CACHE";
 import Idiomorph from "../idiomorph/idiomorph";
 import { ComponentSpec } from "../types/ComponentSpec";
 import { IStore } from "../types/IStore";
@@ -7,6 +6,10 @@ import augmentCSS from "../utils/augmentCSS";
 import convertCamelToKebabCase from "../utils/convertCamelToKebabCase";
 import emit from "../utils/emit";
 import getPropValue from "../utils/getPropValue";
+
+abstract class Styles {
+  static cache = new Map<string, CSSStyleSheet>();
+}
 
 const Component = <
   Props extends Record<string, unknown>,
@@ -113,8 +116,17 @@ const Component = <
      * The css to adopt for this component.
      */
     get css() {
-      return spec.css;
+      return this.#css;
     }
+    #css = spec.css;
+
+    /**
+     * The css that is shared between this component and others.
+     */
+    get sharedCSS() {
+      return this.#sharedCSS;
+    }
+    #sharedCSS = spec.sharedCSS;
 
     /**
      * The innerHTML for this component.
@@ -140,27 +152,113 @@ const Component = <
       return this.self.querySelector(`slot:not([name])`) || null;
     }
 
+    get styleSheetRoot() {
+      if (this.shadowRoot) {
+        return this.shadowRoot;
+      }
+      const rootNode = this.getRootNode();
+      const root =
+        rootNode instanceof ShadowRoot
+          ? rootNode
+          : rootNode instanceof HTMLElement
+            ? (rootNode.shadowRoot ?? document)
+            : document;
+      return root;
+    }
+
+    get adoptedStyleSheets() {
+      return this.styleSheetRoot.adoptedStyleSheets;
+    }
+
     constructor(..._args: any[]) {
       super();
+      const css = this.css;
+      this.#css = css;
+      const sharedCSS = this.sharedCSS;
+      this.#sharedCSS = sharedCSS;
       const innerHTML = this.html;
       this.#html = innerHTML;
+
       if (this.shadowDOM) {
         const shadowRoot = this.attachShadow({
           mode: "open",
           delegatesFocus: true,
         });
         shadowRoot.innerHTML = innerHTML;
-        this.css.forEach((c) => {
-          STYLES.adoptStyle(shadowRoot, c);
-        });
       } else {
         this.innerHTML = innerHTML;
-        const tagName = this.tagName.toLowerCase();
-        this.css.forEach((c) => {
-          STYLES.adoptStyle(this.getRootNode(), augmentCSS(c, tagName));
-        });
       }
+
       this.#refs = this.getRefMap(this.selectors);
+    }
+
+    reload(spec: ComponentSpec<Props, Stores, Context, Graphics, Selectors>) {
+      if (spec.css !== this.#css) {
+        this.loadCSS(spec.css);
+        this.#css = spec.css;
+      }
+      if (spec.sharedCSS !== this.#sharedCSS) {
+        if (spec.sharedCSS) {
+          for (const [name, css] of Object.entries(spec.sharedCSS)) {
+            if (css !== this.#sharedCSS?.[name]) {
+              this.loadSharedCSS(name, css);
+            }
+          }
+        }
+        this.#sharedCSS = spec.sharedCSS;
+      }
+      const newHtml = spec.html({
+        graphics: spec.graphics,
+        stores: spec.stores,
+        context: spec.reducer({ props: spec.props, stores: spec.stores }),
+        props: spec.props,
+      });
+      if (newHtml !== this.#html) {
+        this.#html = spec.html({
+          graphics: spec.graphics,
+          stores: spec.stores,
+          context: spec.reducer({ props: spec.props, stores: spec.stores }),
+          props: spec.props,
+        });
+        this.disconnectedCallback();
+        this.render(false);
+        this.connectedCallback();
+      }
+    }
+
+    loadCSS(css: string | undefined) {
+      const tag = this.tagName.toLowerCase();
+      if (tag) {
+        if (css) {
+          let sheet = Styles.cache.get(tag);
+          if (sheet && this.adoptedStyleSheets.includes(sheet)) {
+            sheet.replaceSync(css);
+          } else {
+            sheet ??= new CSSStyleSheet();
+            const augmentedCSS = this.shadowDOM ? css : augmentCSS(css, tag);
+            sheet.replaceSync(augmentedCSS);
+            Styles.cache.set(tag, sheet);
+            this.adoptedStyleSheets.push(sheet);
+          }
+        } else {
+          const sheet = Styles.cache.get(tag);
+          sheet?.replaceSync("");
+        }
+      }
+    }
+
+    loadSharedCSS(name: string, css: string) {
+      if (name) {
+        let sheet = Styles.cache.get(name);
+        if (sheet && this.adoptedStyleSheets.includes(sheet)) {
+          sheet.replaceSync(css);
+        } else {
+          sheet ??= new CSSStyleSheet();
+          sheet.replaceSync(css);
+          Styles.cache.set(name, sheet);
+          this.adoptedStyleSheets.push(sheet);
+        }
+      }
     }
 
     getRefMap<S extends Record<string, null | string | string[]>>(
@@ -222,6 +320,12 @@ const Component = <
      */
     connectedCallback(): void {
       if (!this.#initialized) {
+        this.loadCSS(this.#css);
+        if (this.#sharedCSS) {
+          for (const [name, css] of Object.entries(this.#sharedCSS)) {
+            this.loadSharedCSS(name, css);
+          }
+        }
         this.onInit();
         this.#initialized = true;
       }
@@ -328,15 +432,24 @@ const Component = <
       const innerHTML = this.html;
       this.#html = innerHTML;
       this.disconnectedCallback();
-      this.render();
+      this.render(true);
       this.connectedCallback();
     }
 
-    render() {
-      if (this.shadowRoot) {
-        this.morph(this.shadowRoot, this.#html);
+    render(morph: boolean) {
+      if (morph) {
+        if (this.shadowRoot) {
+          this.morph(this.shadowRoot, this.#html);
+        } else {
+          this.morph(this, this.#html);
+        }
       } else {
-        this.morph(this, this.#html);
+        if (this.shadowRoot) {
+          this.shadowRoot.innerHTML = this.#html;
+        } else {
+          this.morph(this, this.#html);
+          this.innerHTML = this.#html;
+        }
       }
       this.rebindRefs();
       this.onRender();

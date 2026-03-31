@@ -1,8 +1,8 @@
 import { spec } from "../../../../../../packages/spec-component/src/spec";
 import sharedCSS from "../../styles/shared";
 import workspace from "../../workspace/WorkspaceStore";
-import html from "./header-navigation-placeholder.html";
 import css from "./header-navigation-placeholder.css";
+import html from "./header-navigation-placeholder.html";
 
 export default spec({
   tag: "se-header-navigation-placeholder",
@@ -12,5 +12,6 @@ export default spec({
     doneButton: "",
     previewButton: "",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

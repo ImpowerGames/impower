@@ -43,8 +43,8 @@ import ShareGame from "./components/share-game/_share-game";
 import ShareScreenplay from "./components/share-screenplay/_share-screenplay";
 import Share from "./components/share/_share";
 import Main from "./main/_spark-editor";
-import normalize from "./styles/normalize/normalize.css";
-import theme from "./styles/theme/theme.css";
+import editorNormalize from "./styles/normalize/normalize.css";
+import editorTheme from "./styles/theme/theme.css";
 
 const config = {
   patterns: [sparklePatternsCSS],
@@ -73,8 +73,8 @@ const style = <
 
 const components = [
   { tag: "", css: baseNormalize },
-  { tag: "", css: normalize },
-  { tag: "", css: theme },
+  { tag: "", css: editorNormalize },
+  { tag: "", css: editorTheme },
   style(InteractionBlocker),
   style(Scrollable),
   style(OptionButton),

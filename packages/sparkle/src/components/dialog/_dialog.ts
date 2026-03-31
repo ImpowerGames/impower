@@ -16,5 +16,6 @@ export default spec({
     confirmSlot: "slot[name=confirm]",
     cancelSlot: "slot[name=cancel]",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

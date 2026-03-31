@@ -95,5 +95,6 @@ export default spec({
     splitPane: "",
     footerVisibilityManager: "",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

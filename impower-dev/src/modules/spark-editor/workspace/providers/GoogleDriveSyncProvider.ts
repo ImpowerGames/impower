@@ -12,9 +12,9 @@ type DocsView = google.picker.DocsView & {
   setQuery(query: string): google.picker.DocsView;
 };
 
-const BROWSER_GOOGLE_API_KEY = process.env["BROWSER_GOOGLE_API_KEY"]!;
+const BROWSER_GOOGLE_API_KEY = process?.env?.["BROWSER_GOOGLE_API_KEY"]!;
 const BROWSER_GOOGLE_OAUTH_CLIENT_ID =
-  process.env["BROWSER_GOOGLE_OAUTH_CLIENT_ID"]!;
+  process?.env?.["BROWSER_GOOGLE_OAUTH_CLIENT_ID"]!;
 
 // App Id must match first part of OAuth Client Id
 // https://stackoverflow.com/a/17204637

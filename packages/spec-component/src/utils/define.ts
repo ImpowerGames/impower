@@ -2,7 +2,9 @@ const define = async (
   tag: string,
   constructor: CustomElementConstructor,
 ): Promise<CustomElementConstructor> => {
-  customElements.define(tag, constructor);
+  if (!customElements.get(tag)) {
+    customElements.define(tag, constructor);
+  }
   return customElements.whenDefined(tag);
 };
 

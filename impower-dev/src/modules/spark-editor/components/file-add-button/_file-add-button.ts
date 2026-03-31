@@ -12,5 +12,6 @@ export default spec({
   selectors: {
     button: "",
   } as const,
-  css: [...sharedCSS, css],
+  css,
+  sharedCSS,
 });

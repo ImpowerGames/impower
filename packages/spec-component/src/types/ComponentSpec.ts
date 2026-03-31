@@ -12,7 +12,8 @@ export interface ComponentSpec<
   stores: Stores;
   graphics: Graphics;
   reducer: (args: { props: Props; stores: Stores }) => Context;
-  css: string[];
+  css?: string;
+  sharedCSS?: Record<string, string>;
   html: (args: {
     props: Props;
     stores: Stores;

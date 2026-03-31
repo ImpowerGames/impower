@@ -2,7 +2,7 @@ import { ComponentSpec } from "./ComponentSpec";
 import expandHtml from "./expandHtml.js";
 import populateDocument from "./populateDocument.js";
 
-const renderPage = (
+const staticallyRenderPage = (
   documentHtml: string,
   page: {
     css?: string;
@@ -28,4 +28,4 @@ const renderPage = (
   });
 };
 
-export default renderPage;
+export default staticallyRenderPage;

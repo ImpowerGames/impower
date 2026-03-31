@@ -5,7 +5,9 @@ export default abstract class SparkWebPlayer {
   static async init(options: { tag?: string; workspace: SparkdownWorkspace }) {
     Main.workspace = options?.workspace;
     const name = options?.tag ?? Main.tag;
-    customElements.define(name, Main);
+    if (!customElements.get(name)) {
+      customElements.define(name, Main);
+    }
     return customElements.whenDefined(name);
   }
 }
