@@ -222,10 +222,10 @@ const Component = <
       });
       if (newHtml !== this.#html) {
         this.#html = spec.html({
-          graphics: spec.graphics,
-          stores: spec.stores,
-          context: spec.reducer({ props: spec.props, stores: spec.stores }),
-          props: spec.props,
+          graphics: this.graphics,
+          stores: this.stores,
+          context: this.context,
+          props: this.props,
         });
         this.disconnectedCallback();
         this.render(false);
