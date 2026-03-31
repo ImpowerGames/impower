@@ -67,6 +67,10 @@ export default class Router
     return DEFAULT_ATTRIBUTES;
   }
 
+  override get skipMorph() {
+    return true;
+  }
+
   /**
    * The unique key that identifies this router.
    */

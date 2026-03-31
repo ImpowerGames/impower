@@ -170,6 +170,10 @@ const Component = <
       return this.styleSheetRoot.adoptedStyleSheets;
     }
 
+    get skipMorph() {
+      return false;
+    }
+
     constructor(..._args: any[]) {
       super();
       const css = this.css;
@@ -484,7 +488,7 @@ const Component = <
         morphStyle: "innerHTML",
         callbacks: {
           beforeNodeMorphed: (oldNode: Element, newNode: Element): boolean => {
-            if (oldNode?.tagName?.toLowerCase() === "s-router") {
+            if ("skipMorph" in oldNode && oldNode?.skipMorph) {
               for (const attr of newNode.attributes) {
                 oldNode.setAttribute(attr.name, attr.value);
               }
