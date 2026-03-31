@@ -1,3 +1,7 @@
+:host {
+  display: contents;
+}
+
 :host > .root {
   position: relative;
   inset: 0 0 auto 0;
