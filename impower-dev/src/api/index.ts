@@ -1,7 +1,6 @@
 import Fastify, { FastifyInstance } from "fastify";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
-import pino from "pino";
 import env from "./plugins/env";
 import googleDriveSyncProvider from "./plugins/providers/googleDriveSyncProvider";
 import router from "./plugins/router.js";
@@ -15,14 +14,7 @@ const IS_PRODUCTION =
 
 const app = IS_PRODUCTION
   ? (Fastify({
-      logger: pino({
-        messageKey: "message",
-        formatters: {
-          level(label: string) {
-            return { severity: label };
-          },
-        },
-      }),
+      logger: true,
       trustProxy: true,
     }) as unknown as FastifyInstance)
   : existsSync(DEV_HTTPS_KEY_PATH) && existsSync(DEV_HTTPS_CERT_PATH)
