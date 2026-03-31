@@ -1,50 +1,45 @@
-import Fastify, { FastifyInstance } from "fastify";
+import Fastify from "fastify";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import env from "./plugins/env";
 import googleDriveSyncProvider from "./plugins/providers/googleDriveSyncProvider";
 import router from "./plugins/router.js";
 
-const DEV_HTTPS_KEY_PATH = join(process?.cwd?.() || "", "https", "key.pem");
-const DEV_HTTPS_CERT_PATH = join(process?.cwd?.() || "", "https", "cert.pem");
-
 const IS_GOOGLE_CLOUD_RUN = process?.env?.["K_SERVICE"] !== undefined;
 const IS_PRODUCTION =
   process?.env?.["NODE_ENV"] === "production" || IS_GOOGLE_CLOUD_RUN;
 
-const app = IS_PRODUCTION
-  ? (Fastify({
-      logger: true,
-      trustProxy: true,
-    }) as unknown as FastifyInstance)
-  : existsSync(DEV_HTTPS_KEY_PATH) && existsSync(DEV_HTTPS_CERT_PATH)
-    ? (Fastify({
+const DEV_HTTPS_KEY_PATH = join(process?.cwd?.() || "", "https", "key.pem");
+const DEV_HTTPS_CERT_PATH = join(process?.cwd?.() || "", "https", "cert.pem");
+
+const HTTPS_CONFIG =
+  existsSync(DEV_HTTPS_KEY_PATH) && existsSync(DEV_HTTPS_CERT_PATH)
+    ? {
         http2: true,
         https: {
           key: readFileSync(DEV_HTTPS_KEY_PATH),
           cert: readFileSync(DEV_HTTPS_CERT_PATH),
         },
-        logger: {
-          transport: {
-            target: "pino-pretty",
-            options: {
-              translateTime: "HH:MM:ss Z",
-              ignore: "pid,hostname",
-            },
+      }
+    : {};
+
+const app = IS_PRODUCTION
+  ? Fastify({
+      logger: true,
+      trustProxy: true,
+    })
+  : Fastify({
+      ...HTTPS_CONFIG,
+      logger: {
+        transport: {
+          target: "pino-pretty",
+          options: {
+            translateTime: "HH:MM:ss Z",
+            ignore: "pid,hostname",
           },
         },
-      }) as unknown as FastifyInstance)
-    : (Fastify({
-        logger: {
-          transport: {
-            target: "pino-pretty",
-            options: {
-              translateTime: "HH:MM:ss Z",
-              ignore: "pid,hostname",
-            },
-          },
-        },
-      }) as unknown as FastifyInstance);
+      },
+    });
 
 export const startServer = async () => {
   try {
