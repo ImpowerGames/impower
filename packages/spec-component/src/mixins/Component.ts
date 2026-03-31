@@ -453,10 +453,12 @@ const Component = <
 
     #update() {
       const innerHTML = this.html;
-      this.#html = innerHTML;
-      this.disconnectedCallback();
-      this.render(true);
-      this.connectedCallback();
+      if (innerHTML !== this.#html) {
+        this.#html = innerHTML;
+        this.disconnectedCallback();
+        this.render(true);
+        this.connectedCallback();
+      }
     }
 
     render(morph: boolean) {
