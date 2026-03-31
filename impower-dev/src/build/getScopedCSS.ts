@@ -4,18 +4,14 @@ import {
   parse,
   stringify,
 } from "@adobe/css-tools";
-
-const augmentCSS = (css: string, tagName: string): string =>
-  css
-    .replace(/(:host)[(]\s*([^>{]+)\s*[)](\s*(?:[>]|[{]|$))/g, `${tagName}$2$3`)
-    .replace(/(:host)/g, `${tagName}`);
+import convertHostToTagSelectors from "./convertHostToTagSelectors.js";
 
 const scopeRules = (arr: Array<CssAtRuleAST>, scopeTo: string) => {
   arr.forEach((v) => {
     if (v.type === "rule") {
       if (v?.selectors) {
         v.selectors = v.selectors.map((s) => {
-          return augmentCSS(s, scopeTo);
+          return convertHostToTagSelectors(s, scopeTo);
         });
       }
     } else if ("rules" in v && v.rules) {

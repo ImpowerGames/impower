@@ -2,8 +2,8 @@ import Idiomorph from "../idiomorph/idiomorph";
 import { ComponentSpec } from "../types/ComponentSpec";
 import { IStore } from "../types/IStore";
 import { RefMap } from "../types/RefMap";
-import augmentCSS from "../utils/augmentCSS";
 import convertCamelToKebabCase from "../utils/convertCamelToKebabCase";
+import convertHostToTagSelectors from "../utils/convertHostToTagSelectors";
 import emit from "../utils/emit";
 import getPropValue from "../utils/getPropValue";
 
@@ -239,7 +239,7 @@ const Component = <
         if (cssText) {
           const augmentedCSS = this.shadowDOM
             ? cssText
-            : augmentCSS(cssText, tag);
+            : convertHostToTagSelectors(cssText, tag);
           let style = Styles.cache.get(tag);
           if (style && this.adoptedStyleSheets.includes(style.sheet)) {
             if (style.cssText !== augmentedCSS) {
