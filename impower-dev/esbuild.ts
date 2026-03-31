@@ -187,14 +187,14 @@ const viteLoadersPlugin = (): Plugin => ({
 });
 
 /**
- * HMR Plugin for Web Components
+ * HMR Plugin for Spec Components
  * We inject HMR boundaries into all App JS/TS files.
  * If the updated module is a ComponentSpec, it patches the live instances.
  * If it's a dependency (like a utility), it invalidates itself to bubble the update
  * up to the web component that imported it.
  */
-const viteWebComponentHmrPlugin = (): Plugin => ({
-  name: "vite-web-component-hmr",
+const viteSpecComponentHmrPlugin = (): Plugin => ({
+  name: "vite-spec-component-hmr",
   apply: "serve",
   transform(code, id) {
     // Only apply to source files (exclude node_modules, workers, and server API logic)
@@ -873,7 +873,7 @@ const serve = async () => {
       viteDefineProcessPlugin(),
       viteInlineWorkerPlugin(),
       viteLoadersPlugin(),
-      viteWebComponentHmrPlugin(),
+      viteSpecComponentHmrPlugin(),
       viteStaticallyRenderedPagesPlugin(),
     ],
   });
