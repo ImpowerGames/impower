@@ -189,6 +189,13 @@ const Component = <
         this.innerHTML = innerHTML;
       }
 
+      this.loadCSS(this.#css);
+      if (this.#sharedCSS) {
+        for (const [name, css] of Object.entries(this.#sharedCSS)) {
+          this.loadSharedCSS(name, css);
+        }
+      }
+
       this.#refs = this.getRefMap(this.selectors);
     }
 
@@ -320,12 +327,6 @@ const Component = <
      */
     connectedCallback(): void {
       if (!this.#initialized) {
-        this.loadCSS(this.#css);
-        if (this.#sharedCSS) {
-          for (const [name, css] of Object.entries(this.#sharedCSS)) {
-            this.loadSharedCSS(name, css);
-          }
-        }
         this.onInit();
         this.#initialized = true;
       }
