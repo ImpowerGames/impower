@@ -470,7 +470,6 @@ const Component = <
         if (this.shadowRoot) {
           this.shadowRoot.innerHTML = this.#html;
         } else {
-          this.morph(this, this.#html);
           this.innerHTML = this.#html;
         }
       }
