@@ -488,7 +488,7 @@ const Component = <
         morphStyle: "innerHTML",
         callbacks: {
           beforeNodeMorphed: (oldNode: Element, newNode: Element): boolean => {
-            if ("skipMorph" in oldNode && oldNode?.skipMorph) {
+            if ("skipChildMorphing" in oldNode && oldNode?.skipChildMorphing) {
               for (const attr of newNode.attributes) {
                 oldNode.setAttribute(attr.name, attr.value);
               }
