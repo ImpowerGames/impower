@@ -8,7 +8,7 @@ import emit from "../utils/emit";
 import getPropValue from "../utils/getPropValue";
 
 abstract class Styles {
-  static cache = new Map<string, CSSStyleSheet>();
+  static cache = new Map<string, { cssText: string; sheet: CSSStyleSheet }>();
 }
 
 const Component = <
@@ -233,37 +233,59 @@ const Component = <
       }
     }
 
-    loadCSS(css: string | undefined) {
+    loadCSS(cssText: string | undefined) {
       const tag = this.tagName.toLowerCase();
       if (tag) {
-        if (css) {
-          let sheet = Styles.cache.get(tag);
-          if (sheet && this.adoptedStyleSheets.includes(sheet)) {
-            sheet.replaceSync(css);
+        if (cssText) {
+          const augmentedCSS = this.shadowDOM
+            ? cssText
+            : augmentCSS(cssText, tag);
+          let style = Styles.cache.get(tag);
+          if (style && this.adoptedStyleSheets.includes(style.sheet)) {
+            if (style.cssText !== augmentedCSS) {
+              style.sheet.replaceSync(augmentedCSS);
+              style.cssText = augmentedCSS;
+            }
+          } else if (style) {
+            if (style.cssText !== augmentedCSS) {
+              style.sheet.replaceSync(augmentedCSS);
+              style.cssText = augmentedCSS;
+            }
+            this.adoptedStyleSheets.push(style.sheet);
           } else {
-            sheet ??= new CSSStyleSheet();
-            const augmentedCSS = this.shadowDOM ? css : augmentCSS(css, tag);
-            sheet.replaceSync(augmentedCSS);
-            Styles.cache.set(tag, sheet);
-            this.adoptedStyleSheets.push(sheet);
+            const style = { cssText: augmentedCSS, sheet: new CSSStyleSheet() };
+            style.sheet.replaceSync(augmentedCSS);
+            style.cssText = cssText;
+            Styles.cache.set(tag, style);
+            this.adoptedStyleSheets.push(style.sheet);
           }
         } else {
-          const sheet = Styles.cache.get(tag);
-          sheet?.replaceSync("");
+          const style = Styles.cache.get(tag);
+          style?.sheet?.replaceSync("");
         }
       }
     }
 
-    loadSharedCSS(name: string, css: string) {
+    loadSharedCSS(name: string, cssText: string) {
       if (name) {
-        let sheet = Styles.cache.get(name);
-        if (sheet && this.adoptedStyleSheets.includes(sheet)) {
-          sheet.replaceSync(css);
+        let style = Styles.cache.get(name);
+        if (style && this.adoptedStyleSheets.includes(style.sheet)) {
+          if (style.cssText !== cssText) {
+            style.sheet.replaceSync(cssText);
+            style.cssText = cssText;
+          }
+        } else if (style) {
+          if (style.cssText !== cssText) {
+            style.sheet.replaceSync(cssText);
+            style.cssText = cssText;
+          }
+          this.adoptedStyleSheets.push(style.sheet);
         } else {
-          sheet ??= new CSSStyleSheet();
-          sheet.replaceSync(css);
-          Styles.cache.set(name, sheet);
-          this.adoptedStyleSheets.push(sheet);
+          const style = { cssText: cssText, sheet: new CSSStyleSheet() };
+          style.sheet.replaceSync(cssText);
+          style.cssText = cssText;
+          Styles.cache.set(name, style);
+          this.adoptedStyleSheets.push(style.sheet);
         }
       }
     }
