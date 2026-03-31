@@ -170,7 +170,7 @@ const Component = <
       return this.styleSheetRoot.adoptedStyleSheets;
     }
 
-    get skipMorph() {
+    get skipChildMorphing() {
       return false;
     }
 

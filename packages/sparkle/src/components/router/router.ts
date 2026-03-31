@@ -67,7 +67,7 @@ export default class Router
     return DEFAULT_ATTRIBUTES;
   }
 
-  override get skipMorph() {
+  override get skipChildMorphing() {
     return true;
   }
 
