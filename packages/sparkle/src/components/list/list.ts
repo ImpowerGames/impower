@@ -18,14 +18,20 @@ export default class List<T = any> extends SparkleComponent(spec) {
 
   protected _scrollTimeout?: number;
 
+  protected _renderFrameId: number | null = null;
+
+  // Cache to store parsed templates or nodes
+  protected _parsedCache = new Map<number, HTMLTemplateElement | Node>();
+
   protected _items: T[] = [];
   get items() {
     return this._items;
   }
   set items(newItems) {
     this._items = newItems;
+    this._parsedCache.clear(); // Invalidate cache when items change
     this._updateSpacer();
-    this.rerender();
+    this.requestRerender();
   }
 
   protected _itemHeight = 72;
@@ -35,7 +41,7 @@ export default class List<T = any> extends SparkleComponent(spec) {
   set itemHeight(height) {
     this._itemHeight = height;
     this._updateSpacer();
-    this.rerender();
+    this.requestRerender();
   }
 
   protected _renderItem?: (item: T, index: number) => Node | string;
@@ -44,7 +50,8 @@ export default class List<T = any> extends SparkleComponent(spec) {
   }
   set renderItem(fn) {
     this._renderItem = fn;
-    this.rerender();
+    this._parsedCache.clear(); // Invalidate cache when render function changes
+    this.requestRerender();
   }
 
   // Set an external callback to report internal stats
@@ -74,6 +81,9 @@ export default class List<T = any> extends SparkleComponent(spec) {
 
   override onDisconnected() {
     this.unbindScroller();
+    if (this._renderFrameId !== null) {
+      cancelAnimationFrame(this._renderFrameId);
+    }
   }
 
   bindScroller() {
@@ -96,7 +106,7 @@ export default class List<T = any> extends SparkleComponent(spec) {
       // Handle resizing of the scroll container
       this.resizeObserver = new ResizeObserver(() => {
         this._updateMeasurements(); // Recalculate cache when layout changes
-        this.rerender();
+        this.requestRerender();
       });
       this.resizeObserver.observe(
         this._scroller instanceof Window
@@ -110,7 +120,7 @@ export default class List<T = any> extends SparkleComponent(spec) {
       }
 
       this._updateSpacer();
-      this.rerender();
+      this.requestRerender();
     });
   }
 
@@ -180,11 +190,21 @@ export default class List<T = any> extends SparkleComponent(spec) {
     // Throttle scroll events to animation frames for performance
     if (!this._ticking) {
       window.requestAnimationFrame(() => {
-        this.rerender();
+        this.requestRerender();
         this._ticking = false;
       });
       this._ticking = true;
     }
+  }
+
+  requestRerender() {
+    if (this._renderFrameId) {
+      window.cancelAnimationFrame(this._renderFrameId);
+    }
+    this._renderFrameId = requestAnimationFrame(() => {
+      this._renderFrameId = null;
+      this.rerender();
+    });
   }
 
   rerender() {
@@ -251,7 +271,6 @@ export default class List<T = any> extends SparkleComponent(spec) {
     // Inject content
     for (let i = 0; i < requiredNodes; i++) {
       const itemIndex = startIndex + i;
-      const nodeContent = this._renderItem(this._items[itemIndex]!, itemIndex);
       const rowWrapper = currentNodes[i] as HTMLElement & {
         _renderedIndex: number;
       };
@@ -259,6 +278,36 @@ export default class List<T = any> extends SparkleComponent(spec) {
       rowWrapper.style.height = `${this._itemHeight}px`;
 
       if (rowWrapper._renderedIndex !== itemIndex) {
+        let nodeContent: Node;
+
+        // 1. Check Cache
+        if (!this._parsedCache.has(itemIndex)) {
+          const rawContent = this._renderItem(
+            this._items[itemIndex]!,
+            itemIndex,
+          );
+
+          if (typeof rawContent === "string") {
+            // Parse string ONCE into a template
+            const template = document.createElement("template");
+            template.innerHTML = rawContent;
+            this._parsedCache.set(itemIndex, template);
+          } else {
+            // Cache raw DOM node directly
+            this._parsedCache.set(itemIndex, rawContent);
+          }
+        }
+
+        // 2. Retrieve & Prepare
+        const cachedItem = this._parsedCache.get(itemIndex)!;
+        if (cachedItem instanceof HTMLTemplateElement) {
+          // Fast native clone avoids DOM parsing latency
+          nodeContent = cachedItem.content.cloneNode(true);
+        } else {
+          nodeContent = cachedItem;
+        }
+
+        // 3. Morph
         this.morph(rowWrapper, nodeContent);
         rowWrapper._renderedIndex = itemIndex;
       }
