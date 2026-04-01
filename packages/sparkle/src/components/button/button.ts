@@ -43,7 +43,6 @@ export default class Button extends SparkleComponent(
   }
 
   override onAttributeChanged(name: string, newValue: string) {
-    console.log(this.attrs);
     if (
       name === this.attrs.ariaHasPopup ||
       name === this.attrs.ariaExpanded ||
