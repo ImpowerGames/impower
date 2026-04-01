@@ -16,5 +16,7 @@ export default spec({
   props: {
     key: null as string | null,
     active: null as string | null,
+    placement: "bottom",
+    strategy: "fixed",
   },
 });

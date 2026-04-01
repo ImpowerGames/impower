@@ -20,26 +20,6 @@ const CHANGED_EVENT = "changed";
  * Dropdowns display additional information based on a specific action.
  */
 export default class Dropdown extends PopupComponent(spec) {
-  override get placement():
-    | "top"
-    | "top-start"
-    | "top-end"
-    | "bottom"
-    | "bottom-start"
-    | "bottom-end"
-    | "right"
-    | "right-start"
-    | "right-end"
-    | "left"
-    | "left-start"
-    | "left-end" {
-    return this.getStringAttribute(this.attrs.placement) || "bottom";
-  }
-
-  override get strategy(): "absolute" | "fixed" {
-    return this.getStringAttribute(this.attrs.strategy) || "fixed";
-  }
-
   protected _options: Option[] = [];
   get options(): Option[] {
     return this._options;
@@ -79,13 +59,13 @@ export default class Dropdown extends PopupComponent(spec) {
     this.refs.dialog.addEventListener("click", this.handleLightDismiss);
     this.refs.dialog.addEventListener("cancel", this.handleCancel);
     this.root.addEventListener("click", this.handleClick);
-  }
-
-  override onParsed() {
     const popupEl = this.refs.popup;
     if (popupEl) {
       popupEl.hidden = !this.open;
     }
+  }
+
+  override onParsed() {
     // If the dropdown is visible on init, update its position
     if (this.open) {
       this.reposition();

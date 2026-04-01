@@ -1,11 +1,14 @@
+import { RefMap } from "../../../../spec-component/src/component";
 import { ComponentSpec } from "../../../../spec-component/src/types/ComponentSpec";
 import { IStore } from "../../../../spec-component/src/types/IStore";
 import { getAttributeNameMap } from "../../../../spec-component/src/utils/getAttributeNameMap";
-import { getPropDefaultsMap } from "../../../../spec-component/src/utils/getPropDefaultsMap";
-import { SparkleComponent } from "../../core/sparkle-component";
+import {
+  DEFAULT_SPARKLE_PROPS,
+  SparkleComponent,
+} from "../../core/sparkle-component";
 import { offsetParent } from "../../utils/composed-offset-position";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
-import spec from "./_popup";
+import popupSpec from "./_popup";
 import { flip } from "./floating-ui/core/src/middleware/flip";
 import { offset } from "./floating-ui/core/src/middleware/offset";
 import { shift } from "./floating-ui/core/src/middleware/shift";
@@ -14,30 +17,6 @@ import { computePosition } from "./floating-ui/dom/src";
 import { platform } from "./floating-ui/dom/src/platform";
 
 const REPOSITION_EVENT = "reposition";
-
-export const POPUP_ATTRIBUTES = getAttributeNameMap([
-  "open",
-  "anchor",
-  "placement",
-  "strategy",
-  "distance",
-  "skidding",
-  "arrow",
-  "arrow-placement",
-  "arrow-padding",
-  "disable-auto-flip",
-  "flip-fallback-placements",
-  "flip-fallback-strategy",
-  "flip-boundary",
-  "flip-padding",
-  "disable-auto-shift",
-  "shift-boundary",
-  "shift-padding",
-  "auto-size",
-  "sync-size",
-  "auto-size-boundary",
-  "auto-size-padding",
-]);
 
 export function PopupComponent<
   Props extends Record<string, unknown>,
@@ -49,261 +28,22 @@ export function PopupComponent<
   const augmentedSpec = {
     ...spec,
     props: {
+      ...popupSpec.props,
       ...(spec.props || {}),
-      ...getPropDefaultsMap(POPUP_ATTRIBUTES),
     },
     selectors: {
+      ...popupSpec.selectors,
       ...(spec.selectors || {}),
-      popup: ".popup",
     },
   };
-  const cls = class extends SparkleComponent(augmentedSpec) {
-    /**
-     * The element the popup will be anchored to. If the anchor lives outside of the popup, you can provide its `id` or a
-     * reference to it here. If the anchor lives inside the popup, use the `anchor` slot instead.
-     */
-    get anchor(): string | null {
-      return this.getStringAttribute(cls.attrs.anchor);
-    }
-    set anchor(value) {
-      this.setStringAttribute(cls.attrs.anchor, value);
-    }
-
-    /**
-     * Activates the positioning logic and shows the popup. When this attribute is removed, the positioning logic is torn
-     * down and the popup will be hidden.
-     */
-    get open(): boolean {
-      return this.getBooleanAttribute(cls.attrs.open);
-    }
-    set open(value: boolean) {
-      this.setBooleanAttribute(cls.attrs.open, value);
-    }
-
-    /**
-     * The preferred placement of the popup. Note that the actual placement will vary as configured to keep the
-     * panel inside of the viewport.
-     */
-    get placement():
-      | "top"
-      | "top-start"
-      | "top-end"
-      | "bottom"
-      | "bottom-start"
-      | "bottom-end"
-      | "right"
-      | "right-start"
-      | "right-end"
-      | "left"
-      | "left-start"
-      | "left-end" {
-      return this.getStringAttribute(cls.attrs.placement) || "top";
-    }
-    set placement(value) {
-      this.setStringAttribute(cls.attrs.placement, value);
-    }
-
-    /**
-     * Determines how the popup is positioned. The `absolute` strategy works well in most cases, but if overflow is
-     * clipped, using a `fixed` position strategy can often workaround it.
-     */
-    get strategy(): "absolute" | "fixed" {
-      return this.getStringAttribute(cls.attrs.strategy) || "absolute";
-    }
-    set strategy(value) {
-      this.setStringAttribute(cls.attrs.strategy, value);
-    }
-
-    /**
-     * The distance in pixels from which to offset the panel away from its anchor.
-     */
-    get distance(): number | null {
-      return this.getNumberAttribute(cls.attrs.distance) ?? 8;
-    }
-    set distance(value) {
-      this.setStringAttribute(cls.attrs.distance, value);
-    }
-
-    /**
-     * The distance in pixels from which to offset the panel along its anchor.
-     */
-    get skidding(): number | null {
-      return this.getNumberAttribute(cls.attrs.skidding);
-    }
-    set skidding(value) {
-      this.setStringAttribute(cls.attrs.skidding, value);
-    }
-
-    /**
-     * Attaches an arrow to the popup. The arrow's size and color can be customized using the `--arrow-size` and
-     * `--arrow-color` custom properties. For additional customizations, you can also target the arrow using
-     * `::part(arrow)` in your stylesheet.
-     */
-    get arrow(): boolean {
-      return this.getBooleanAttribute(cls.attrs.arrow);
-    }
-    set arrow(value) {
-      this.setStringAttribute(cls.attrs.arrow, value);
-    }
-
-    /**
-     * The placement of the arrow. The default is `anchor`, which will align the arrow as close to the center of the
-     * anchor as possible, considering available space and `arrow-padding`. A value of `start`, `end`, or `center` will
-     * align the arrow to the start, end, or center of the popover instead.
-     */
-    get arrowPlacement(): "anchor" | "start" | "end" | "center" | null {
-      return this.getStringAttribute(cls.attrs.arrowPlacement);
-    }
-    set arrowPlacement(value) {
-      this.setStringAttribute(cls.attrs.arrowPlacement, value);
-    }
-
-    /**
-     * The amount of padding between the arrow and the edges of the popup. If the popup has a border-radius, for example,
-     * this will prevent it from overflowing the corners.
-     */
-    get arrowPadding(): number | null {
-      return this.getNumberAttribute(cls.attrs.arrowPadding);
-    }
-    set arrowPadding(value) {
-      this.setStringAttribute(cls.attrs.arrowPadding, value);
-    }
-
-    /**
-     * By default, when the popup's position will cause it to be clipped,
-     * it will automatically flip to the opposite site to keep it in view.
-     * This disables that behavior.
-     * You can use `flipFallbackPlacements` to further configure how the fallback placement is determined.
-     */
-    get disableAutoFlip(): boolean {
-      return this.getBooleanAttribute(cls.attrs.disableAutoFlip);
-    }
-    set disableAutoFlip(value) {
-      this.setStringAttribute(cls.attrs.disableAutoFlip, value);
-    }
-
-    /**
-     * If the preferred placement doesn't fit, popup will be tested in these fallback placements until one fits. Must be a
-     * string of any number of placements separated by a space, e.g. "top bottom left". If no placement fits, the flip
-     * fallback strategy will be used instead.
-     * */
-    get flipFallbackPlacements(): string | null {
-      return this.getStringAttribute(cls.attrs.flipFallbackPlacements);
-    }
-    set flipFallbackPlacements(value) {
-      this.setStringAttribute(cls.attrs.flipFallbackPlacements, value);
-    }
-
-    /**
-     * When neither the preferred placement nor the fallback placements fit, this value will be used to determine whether
-     * the popup should be positioned using the best available fit based on available space or as it was initially
-     * preferred.
-     */
-    get flipFallbackStrategy(): "best-fit" | "initial" | null {
-      return this.getStringAttribute(cls.attrs.flipFallbackStrategy);
-    }
-    set flipFallbackStrategy(value) {
-      this.setStringAttribute(cls.attrs.flipFallbackStrategy, value);
-    }
-
-    /**
-     * The id of the clipping element(s) that overflow will be checked relative to when flipping. By
-     * default, the boundary includes overflow ancestors that will cause the element to be clipped. If needed, you can
-     * change the boundary by passing a reference to one or more elements to this property.
-     */
-    get flipBoundary(): string | null {
-      return this.getStringAttribute(cls.attrs.flipBoundary);
-    }
-    set flipBoundary(value) {
-      this.setStringAttribute(cls.attrs.flipBoundary, value);
-    }
-
-    /**
-     * The amount of padding, in pixels, to exceed before the flip behavior will occur.
-     */
-    get flipPadding(): number | null {
-      return this.getNumberAttribute(cls.attrs.flipPadding);
-    }
-    set flipPadding(value) {
-      this.setStringAttribute(cls.attrs.flipPadding, value);
-    }
-
-    /**
-     * By default, the when the popup's position will cause it to be clipped,
-     * the popup will automatically reposition itself along the axis to keep it in view.
-     * This disables that behavior.
-     */
-    get disableAutoShift(): boolean {
-      return this.getBooleanAttribute(cls.attrs.disableAutoShift);
-    }
-    set disableAutoShift(value) {
-      this.setStringAttribute(cls.attrs.disableAutoShift, value);
-    }
-
-    /**
-     * The id of the clipping element(s) that overflow will be checked relative to when shifting. By
-     * default, the boundary includes overflow ancestors that will cause the element to be clipped. If needed, you can
-     * change the boundary by passing a reference to one or more elements to this property.
-     */
-    get shiftBoundary(): string | null {
-      return this.getStringAttribute(cls.attrs.shiftBoundary);
-    }
-    set shiftBoundary(value) {
-      this.setStringAttribute(cls.attrs.shiftBoundary, value);
-    }
-
-    /**
-     * The amount of padding, in pixels, to exceed before the shift behavior will occur.
-     */
-    get shiftPadding(): number | null {
-      return this.getNumberAttribute(cls.attrs.shiftPadding);
-    }
-    set shiftPadding(value) {
-      this.setStringAttribute(cls.attrs.shiftPadding, value);
-    }
-
-    /**
-     * When set, this will cause the popup to automatically resize itself to prevent it from overflowing.
-     */
-    get autoSize(): "horizontal" | "vertical" | "both" | null {
-      return this.getStringAttribute(cls.attrs.autoSize);
-    }
-    set autoSize(value) {
-      this.setStringAttribute(cls.attrs.autoSize, value);
-    }
-
-    /**
-     * Syncs the popup's width or height to that of the anchor element.
-     */
-    get syncSize(): "width" | "height" | "both" | null {
-      return this.getStringAttribute(cls.attrs.syncSize);
-    }
-    set syncSize(value) {
-      this.setStringAttribute(cls.attrs.syncSize, value);
-    }
-
-    /**
-     * The id of the clipping element(s) that overflow will be checked relative to when resizing. By
-     * default, the boundary includes overflow ancestors that will cause the element to be clipped. If needed, you can
-     * change the boundary by passing a reference to one or more elements to this property.
-     */
-    get autoSizeBoundary(): string | null {
-      return this.getStringAttribute(cls.attrs.autoSizeBoundary);
-    }
-    set autoSizeBoundary(value) {
-      this.setStringAttribute(cls.attrs.autoSizeBoundary, value);
-    }
-
-    /**
-     * The amount of padding, in pixels, to exceed before the auto-size behavior will occur.
-     */
-    get autoSizePadding(): number | null {
-      return this.getNumberAttribute(cls.attrs.autoSizePadding);
-    }
-    set autoSizePadding(value) {
-      this.setStringAttribute(cls.attrs.autoSizePadding, value);
-    }
-
+  const cls = class extends SparkleComponent<
+    typeof popupSpec.props,
+    Stores,
+    Context,
+    Graphics,
+    typeof popupSpec.selectors,
+    typeof HTMLElement
+  >(augmentedSpec as any) {
     get anchorEl(): HTMLElement | null {
       let el: HTMLElement | null = null;
       if (this.anchor && typeof this.anchor === "string") {
@@ -329,7 +69,7 @@ export function PopupComponent<
     #intersectionObserver?: IntersectionObserver;
 
     override onAttributeChanged(name: string, newValue: string) {
-      if (name === cls.attrs.strategy) {
+      if (name === this.attrs.strategy) {
         const popupEl = this.refs.popup;
         if (popupEl) {
           const fixed = newValue === "fixed";
@@ -342,11 +82,17 @@ export function PopupComponent<
       }
 
       // Update the anchorEl when anchor changes
-      if (name === cls.attrs.anchor) {
+      if (name === this.attrs.anchor) {
         this.setupAnchor();
       }
 
-      if ((Object.values(POPUP_ATTRIBUTES) as string[]).includes(name)) {
+      if (
+        (
+          Object.values(
+            getAttributeNameMap(Object.keys(popupSpec.props)),
+          ) as string[]
+        ).includes(name)
+      ) {
         this.reposition();
       }
     }
@@ -536,9 +282,9 @@ export function PopupComponent<
 
       if (popupEl) {
         const { x, y, placement } = await computePosition(anchorEl, popupEl, {
-          placement: this.placement,
+          placement: this.placement ?? undefined,
           middleware,
-          strategy: this.strategy,
+          strategy: this.strategy ?? undefined,
           platform: {
             ...platform,
             getOffsetParent,
@@ -555,13 +301,38 @@ export function PopupComponent<
     }
   };
 
-  return cls;
+  return cls as typeof cls & {
+    new (...args: any[]): Props &
+      InstanceType<
+        ReturnType<
+          typeof SparkleComponent<
+            Props,
+            Stores,
+            Context,
+            Graphics,
+            Selectors,
+            typeof HTMLElement
+          >
+        >
+      > & {
+        readonly attrs: Record<
+          | keyof Props
+          | keyof typeof DEFAULT_SPARKLE_PROPS
+          | keyof typeof popupSpec.props,
+          string
+        >;
+        readonly refs: RefMap<Selectors>;
+        readonly props: Props;
+        readonly stores: Stores;
+        readonly context: Context;
+      };
+  };
 }
 
 /**
  * Popup is a utility that lets you declaratively anchor "popup" containers to another element.
  */
-export default class Popup extends PopupComponent(spec) {}
+export default class Popup extends PopupComponent(popupSpec) {}
 
 declare global {
   interface HTMLElementTagNameMap {

@@ -19,9 +19,6 @@ export default class Drawer extends SparkleComponent(spec) {
   override onConnected() {
     this.dialog.addEventListener("click", this.handleLightDismiss);
     this.dialog.addEventListener("close", this.handleEscapeClose);
-  }
-
-  override onParsed() {
     this.root.hidden = !this.open;
   }
 

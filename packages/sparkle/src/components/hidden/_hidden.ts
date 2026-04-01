@@ -1,15 +1,16 @@
 import { html, spec } from "../../../../spec-component/src/spec";
 import sharedCSS from "../../styles/shared";
+import { SizeName } from "../../types/sizeName";
 import css from "./hidden.css";
 
 export default spec({
   tag: "s-hidden",
   props: {
     initial: null as string | null,
-    hideBelow: null as string | null,
-    hideAbove: null as string | null,
-    ifBelow: null as string | null,
-    ifAbove: null as string | null,
+    hideBelow: null as SizeName | null,
+    hideAbove: null as SizeName | null,
+    ifBelow: null as SizeName | null,
+    ifAbove: null as SizeName | null,
     hideEvent: null as string | null,
     showEvent: null as string | null,
     hideInstantly: null as string | null,

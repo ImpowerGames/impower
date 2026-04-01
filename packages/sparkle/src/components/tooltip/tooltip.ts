@@ -55,13 +55,13 @@ export default class Tooltip extends PopupComponent(spec) {
     this.root.addEventListener("keydown", this.handleKeyDown);
     this.root.addEventListener("mouseover", this.handleMouseOver);
     this.root.addEventListener("mouseout", this.handleMouseOut);
-  }
-
-  override onParsed() {
     const popupEl = this.refs.popup;
     if (popupEl) {
       popupEl.hidden = !this.open;
     }
+  }
+
+  override onParsed() {
     // If the tooltip is visible on init, update its position
     if (this.open) {
       this.reposition();

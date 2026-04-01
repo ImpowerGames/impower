@@ -325,6 +325,7 @@ export const Component = <
      * (This will happen each time the node is moved, and may happen before the element's contents have been fully parsed.)
      */
     connectedCallback(): void {
+      this.rebindRefs();
       if (!this.#initialized) {
         this.onInit();
         this.#initialized = true;
@@ -456,7 +457,6 @@ export const Component = <
           this.replaceChildren(fragment);
         }
       }
-      this.rebindRefs();
       this.onRender();
     }
 

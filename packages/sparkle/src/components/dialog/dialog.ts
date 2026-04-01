@@ -128,9 +128,6 @@ export default class Dialog extends SparkleComponent(
         Array.from(this.refs.confirmSlot.children || []),
       );
     }
-  }
-
-  override onParsed() {
     this.root.hidden = !this.open;
   }
 
