@@ -1,3 +1,4 @@
-const scopeCssToChild = (css: string) => css.replace(/(.+)([{])/g, `$1> * $2`);
+const scopeCssToChild = (css: string, childSelector?: string) =>
+  css.replace(/(.+)([{])/g, `$1> ${childSelector ? childSelector : "*"} $2`);
 
 export default scopeCssToChild;

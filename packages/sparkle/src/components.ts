@@ -77,7 +77,7 @@ const style = <
 
 const components = [
   { tag: "", css: core },
-  { tag: "", css: scopeCssToChild(utility) },
+  { tag: "", css: scopeCssToChild(utility, ".root") },
   { tag: "", css: baseNormalize },
   { tag: "", css: sparkleNormalize },
   { tag: "", css: easings },

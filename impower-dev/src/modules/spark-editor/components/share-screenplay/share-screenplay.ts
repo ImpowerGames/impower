@@ -13,13 +13,13 @@ export default class ShareScreenplay extends Component(spec) {
   }
 
   get pdfProgressBarEl() {
-    return this.refs.pdfProgressBar.shadowRoot
-      ?.firstElementChild as HTMLElement;
+    return (this.refs.pdfProgressBar.shadowRoot?.firstElementChild ||
+      this.refs.pdfProgressBar) as HTMLElement;
   }
 
   get htmlProgressBarEl() {
-    return this.refs.htmlProgressBar.shadowRoot
-      ?.firstElementChild as HTMLElement;
+    return (this.refs.htmlProgressBar.shadowRoot?.firstElementChild ||
+      this.refs.htmlProgressBar) as HTMLElement;
   }
 
   override onConnected() {

@@ -169,8 +169,12 @@ export const Component = <
       return root;
     }
 
-    get skipChildMorphing() {
+    get skipMorphingChildren() {
       return false;
+    }
+
+    get skipMorphingAttributes(): string[] {
+      return [];
     }
 
     constructor(..._args: any[]) {
@@ -194,7 +198,9 @@ export const Component = <
         });
         shadowRoot.replaceChildren(fragment);
       } else {
-        this.replaceChildren(fragment);
+        if (this.#html) {
+          this.replaceChildren(fragment);
+        }
       }
 
       this.loadCSS(this.#css);
@@ -203,6 +209,8 @@ export const Component = <
           this.loadSharedCSS(name, css);
         }
       }
+
+      this.onRender();
 
       this.#refs = this.getRefMap(this.selectors);
     }
@@ -454,7 +462,9 @@ export const Component = <
         if (this.shadowRoot) {
           this.shadowRoot.replaceChildren(fragment);
         } else {
-          this.replaceChildren(fragment);
+          if (this.#html) {
+            this.replaceChildren(fragment);
+          }
         }
       }
       this.onRender();
@@ -464,14 +474,36 @@ export const Component = <
       Idiomorph.morph(parent, innerHTML, {
         morphStyle: "innerHTML",
         callbacks: {
+          beforeAttributeUpdated: (
+            attributeName: string,
+            node: Element,
+            mutationType: "update" | "remove",
+          ) => {
+            if (
+              "skipMorphingAttributes" in node &&
+              node?.skipMorphingAttributes &&
+              Array.isArray(node?.skipMorphingAttributes) &&
+              node?.skipMorphingAttributes.includes(attributeName)
+            ) {
+              return false;
+            }
+            return true;
+          },
           beforeNodeMorphed: (oldNode: Element, newNode: Element): boolean => {
-            if ("skipChildMorphing" in oldNode && oldNode?.skipChildMorphing) {
-              for (const attr of newNode.attributes) {
-                oldNode.setAttribute(attr.name, attr.value);
+            if (
+              "skipMorphingChildren" in oldNode &&
+              oldNode?.skipMorphingChildren
+            ) {
+              if (newNode && newNode.attributes) {
+                for (const attr of newNode.attributes) {
+                  oldNode.setAttribute(attr.name, attr.value);
+                }
               }
-              for (const attr of oldNode.attributes) {
-                if (newNode.getAttribute(attr.name) == null) {
-                  oldNode.removeAttribute(attr.name);
+              if (oldNode && oldNode.attributes) {
+                for (const attr of oldNode.attributes) {
+                  if (newNode.getAttribute(attr.name) == null) {
+                    oldNode.removeAttribute(attr.name);
+                  }
                 }
               }
               return false;

@@ -6,7 +6,7 @@ import utility from "../styles/utility/utility.css";
 import scopeCssToChild from "../utils/scopeCssToChild";
 import scopeCssToHost from "../utils/scopeCssToHost";
 
-const scopedUtility = scopeCssToHost(scopeCssToChild(utility));
+const scopedUtility = scopeCssToHost(scopeCssToChild(utility, ".root"));
 const scopedCore = scopeCssToHost(core);
 
 export default {

@@ -84,6 +84,10 @@ export function SparkleComponent<
     Selectors,
     T
   >(augmentedSpec as any, Base) {
+    override get skipMorphingAttributes() {
+      return ["style"];
+    }
+
     get transformers(): Record<string, (v: string) => string> {
       return { ...DEFAULT_SPARKLE_TRANSFORMERS, ...transformers };
     }

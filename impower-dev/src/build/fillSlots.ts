@@ -80,7 +80,9 @@ const fillSlots = (node: Element, template: Element) => {
   }
 
   const nodeChildNodes = node.childNodes;
-  nodeChildNodes.splice(0, nodeChildNodes.length, ...template.childNodes);
+  if (template.childNodes.length > 0) {
+    nodeChildNodes.splice(0, nodeChildNodes.length, ...template.childNodes);
+  }
 };
 
 export default fillSlots;

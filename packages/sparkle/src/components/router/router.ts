@@ -16,7 +16,7 @@ const ENTER_EVENT = "enter";
  * All other children are unloaded.
  */
 export default class Router extends SparkleComponent(spec) {
-  override get skipChildMorphing() {
+  override get skipMorphingChildren() {
     return true;
   }
 

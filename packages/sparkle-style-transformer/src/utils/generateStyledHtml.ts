@@ -5,7 +5,7 @@ import {
   setSparkleStyle,
 } from "./generateSparkleAttributesAndStyles.js";
 
-const ATTR_REGEX = /([a-z-]+[=]["][^"]*["])/g;
+const ATTR_REGEX = /([a-z-]+(?:$|[=]["][^"]*["]|[ ]+))/g;
 const QUOTE_REGEX = /([\\]["]|["'`])/g;
 
 const generateStyledHtml = (

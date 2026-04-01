@@ -37,7 +37,7 @@ export default spec({
       <s-skeleton id="name-skeleton">Untitled Game</s-skeleton>
     `;
     return html`
-      <s-box child-layout="row" child-align="center">
+      <s-box child-layout="row" child-align="center" width="100%">
         <s-box position="relative" height="28" width-max="600" grow>
           <s-box position="absolute" i="0">
             ${name && syncState ? nameInput : nameSkeleton}
