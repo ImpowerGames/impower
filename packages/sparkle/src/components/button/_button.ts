@@ -13,6 +13,18 @@ export default spec({
     disableRipple: false,
     activeIcon: null as string | null,
     variant: null as string | null,
+    key: null as string | null,
+    target: null as string | null,
+    autofocus: false,
+    disabled: false,
+    label: null as string | null,
+    activeLabel: null as string | null,
+    value: null as string | null,
+    active: false,
+    activeColor: null as string | null,
+    size: null as string | null,
+    iconSize: null as string | null,
+    spacing: null as string | null,
   },
   html: ({ props }) => {
     const {

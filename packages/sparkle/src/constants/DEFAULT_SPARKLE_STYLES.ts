@@ -1,27 +1,27 @@
-import animations from "../styles/animations/animations.css";
-import dark from "../styles/dark/dark.css";
-import easings from "../styles/easings/easings.css";
-import elements from "../styles/elements/elements.css";
-import gradients from "../styles/gradients/gradients.css";
-import keyframes from "../styles/keyframes/keyframes.css";
-import light from "../styles/light/light.css";
-import masks from "../styles/masks/masks.css";
-import patterns from "../styles/patterns/patterns.css";
-import shadows from "../styles/shadows/shadows.css";
-import theme from "../styles/theme/theme.css";
+import sparkleAnimations from "../styles/animations/animations.css";
+import sparkleDark from "../styles/dark/dark.css";
+import sparkleEasings from "../styles/easings/easings.css";
+import sparkleElements from "../styles/elements/elements.css";
+import sparkleGradients from "../styles/gradients/gradients.css";
+import sparkleKeyframes from "../styles/keyframes/keyframes.css";
+import sparkleLight from "../styles/light/light.css";
+import sparkleMasks from "../styles/masks/masks.css";
+import sparklePatterns from "../styles/patterns/patterns.css";
+import sparkleShadows from "../styles/shadows/shadows.css";
+import sparkleTheme from "../styles/theme/theme.css";
 
 const DEFAULT_SPARKLE_STYLES = {
-  dark,
-  light,
-  theme,
-  elements,
-  shadows,
-  gradients,
-  masks,
-  easings,
-  keyframes,
-  animations,
-  patterns,
+  sparkleDark,
+  sparkleLight,
+  sparkleTheme,
+  sparkleElements,
+  sparkleShadows,
+  sparkleGradients,
+  sparkleMasks,
+  sparkleEasings,
+  sparkleKeyframes,
+  sparkleAnimations,
+  sparklePatterns,
 } as const;
 
 export default DEFAULT_SPARKLE_STYLES;

@@ -8,6 +8,18 @@ export default spec({
     disableRipple: false,
     icon: null as string | null,
     activeIcon: null as string | null,
+    active: false,
+    value: null as string | null,
+    disabled: false,
+    status: null as string | null,
+    iconSize: null as string | null,
+    activeTextColor: null as string | null,
+    inactiveTextColor: null as string | null,
+    activeBackgroundColor: null as string | null,
+    inactiveBackgroundColor: null as string | null,
+    activeBorderColor: null as string | null,
+    inactiveBorderColor: null as string | null,
+    hoverColor: null as string | null,
   },
   html: ({ props }) => {
     const { icon, activeIcon, disableRipple } = props;

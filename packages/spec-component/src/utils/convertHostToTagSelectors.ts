@@ -1,4 +1,4 @@
-export default function convertHostToTagSelectors(
+export function convertHostToTagSelectors(
   css: string,
   tagName: string,
 ): string {

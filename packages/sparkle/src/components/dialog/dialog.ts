@@ -1,12 +1,5 @@
 import { getCssIcon } from "../../../../sparkle-style-transformer/src/utils/transformers";
-import { RefMap } from "../../../../spec-component/src/component";
-import { Properties } from "../../../../spec-component/src/types/Properties";
-import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getKeys from "../../../../spec-component/src/utils/getKeys";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-  DEFAULT_SPARKLE_TRANSFORMERS,
-} from "../../core/sparkle-element";
+import { SparkleComponent } from "../../core/sparkle-component";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import spec from "./_dialog";
@@ -18,148 +11,30 @@ const OPENED_EVENT = "opened";
 const REMOVED_EVENT = "removed";
 
 const DEFAULT_TRANSFORMERS = {
-  ...DEFAULT_SPARKLE_TRANSFORMERS,
-  icon: (v: string) => getCssIcon(v),
-};
-
-const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap([
-    "loading",
-    "open",
-    "dismissable",
-    "label",
-    "cancel",
-    "confirm",
-    ...getKeys(DEFAULT_TRANSFORMERS),
-  ]),
+  icon: getCssIcon,
 };
 
 /**
  * Dialogs, sometimes called "modals", appear above the page and require the user's immediate attention.
  */
-export default class Dialog
-  extends SparkleElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return { ...super.selectors, ...spec.selectors } as typeof spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
-  static override get attrs() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  override get transformers() {
-    return DEFAULT_TRANSFORMERS;
-  }
-
-  /**
-   * Whether or not the confirm button should be replaced with a loading spinner.
-   */
-  get loading(): boolean {
-    return this.getBooleanAttribute(Dialog.attrs.loading);
-  }
-  set loading(value: boolean) {
-    this.setBooleanAttribute(Dialog.attrs.loading, value);
-  }
-
-  /**
-   * Indicates whether or not the dialog is open. You can toggle this attribute to show and hide the dialog, or you can
-   * use the `show()` and `hide()` methods and this attribute will reflect the dialog's open state.
-   */
-  get open(): boolean {
-    return this.getBooleanAttribute(Dialog.attrs.open);
-  }
-  set open(value: boolean) {
-    this.setBooleanAttribute(Dialog.attrs.open, value);
-  }
-
-  /**
-   * Indicates whether or not the dialog can be dismissed by clicking the backdrop behind it.
-   */
-  get dismissable(): boolean {
-    return this.getBooleanAttribute(Dialog.attrs.dismissable);
-  }
-  set dismissable(value) {
-    this.setStringAttribute(Dialog.attrs.dismissable, value);
-  }
-
-  /**
-   * The name of the icon to display.
-   */
-  get icon(): string | null {
-    return this.getStringAttribute(Dialog.attrs.icon);
-  }
-  set icon(value) {
-    this.setStringAttribute(Dialog.attrs.icon, value);
-  }
-
-  /**
-   * The title text.
-   */
-  get label(): string | null {
-    return this.getStringAttribute(Dialog.attrs.label);
-  }
-  set label(value) {
-    this.setStringAttribute(Dialog.attrs.label, value);
-  }
-
-  /**
-   * The cancel text.
-   */
-  get cancel(): string | null {
-    return this.getStringAttribute(Dialog.attrs.cancel);
-  }
-  set cancel(value) {
-    this.setStringAttribute(Dialog.attrs.cancel, value);
-  }
-
-  /**
-   * The confirm text.
-   */
-  get confirm(): string | null {
-    return this.getStringAttribute(Dialog.attrs.confirm);
-  }
-  set confirm(value) {
-    this.setStringAttribute(Dialog.attrs.confirm, value);
-  }
-
+export default class Dialog extends SparkleComponent(
+  spec,
+  DEFAULT_TRANSFORMERS,
+) {
   override onAttributeChanged(name: string, newValue: string) {
-    if (name === Dialog.attrs.open) {
+    if (name === this.attrs.open) {
       if (newValue != null) {
         this.animateOpen(true);
       }
     }
-    if (name === Dialog.attrs.icon) {
+    if (name === this.attrs.icon) {
       const icon = newValue;
       const iconEl = this.refs.icon;
       if (iconEl) {
         iconEl.hidden = icon == null;
       }
     }
-    if (name === Dialog.attrs.label) {
+    if (name === this.attrs.label) {
       const label = newValue;
       if (label) {
         this.setAssignedToSlot(label, "label");
@@ -169,7 +44,7 @@ export default class Dialog
         labelEl.hidden = label == null;
       }
     }
-    if (name === Dialog.attrs.cancel) {
+    if (name === this.attrs.cancel) {
       const cancel = newValue;
       if (cancel) {
         this.setAssignedToSlot(cancel, "cancel");
@@ -179,7 +54,7 @@ export default class Dialog
         cancelButton.hidden = cancel == null;
       }
     }
-    if (name === Dialog.attrs.confirm) {
+    if (name === this.attrs.confirm) {
       const confirm = newValue;
       if (confirm) {
         this.setAssignedToSlot(confirm, "confirm");
@@ -189,7 +64,7 @@ export default class Dialog
         confirmButton.hidden = confirm == null;
       }
     }
-    if (name === Dialog.attrs.loading) {
+    if (name === this.attrs.loading) {
       if (newValue != null) {
         this.refs.confirm.setAttribute("loading", "");
       } else {

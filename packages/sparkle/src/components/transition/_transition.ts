@@ -8,4 +8,7 @@ export default spec({
   html,
   css,
   sharedCSS,
+  props: {
+    router: null as string | null,
+  },
 });

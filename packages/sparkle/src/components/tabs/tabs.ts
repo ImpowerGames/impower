@@ -2,15 +2,7 @@ import {
   getCssColor,
   getCssSize,
 } from "../../../../sparkle-style-transformer/src/utils/transformers";
-import { RefMap } from "../../../../spec-component/src/component";
-import { Properties } from "../../../../spec-component/src/types/Properties";
-import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getKeys from "../../../../spec-component/src/utils/getKeys";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-  DEFAULT_SPARKLE_TRANSFORMERS,
-} from "../../core/sparkle-element";
-import { SizeName } from "../../types/sizeName";
+import { SparkleComponent } from "../../core/sparkle-component";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getSlotChildren } from "../../utils/getSlotChildren";
 import { navEndKey } from "../../utils/navEndKey";
@@ -25,125 +17,15 @@ const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
 
 const DEFAULT_TRANSFORMERS = {
-  ...DEFAULT_SPARKLE_TRANSFORMERS,
   "indicator-width": getCssSize,
   "indicator-color": getCssColor,
-};
-
-const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap([
-    "key",
-    "indicator",
-    "vertical",
-    "active",
-    ...getKeys(DEFAULT_TRANSFORMERS),
-  ]),
 };
 
 /**
  * Tabs indicate which child tab is currently active.
  */
-export default class Tabs
-  extends SparkleElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
+export default class Tabs extends SparkleComponent(spec, DEFAULT_TRANSFORMERS) {
   protected _indicatorInitialized = false;
-
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
-  static override get attrs() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  override get transformers() {
-    return DEFAULT_TRANSFORMERS;
-  }
-
-  /**
-   * Key that is included in all emitted events.
-   */
-  get key(): string | null {
-    return this.getStringAttribute(Tabs.attrs.key);
-  }
-  set key(value) {
-    this.setStringAttribute(Tabs.attrs.key, value);
-  }
-
-  /**
-   * The placement of the indicator relative to the tabs.
-   *
-   * Defaults to "after".
-   */
-  get indicator(): "" | "before" | "after" | "none" | null {
-    return this.getStringAttribute(Tabs.attrs.indicator);
-  }
-  set indicator(value) {
-    this.setStringAttribute(Tabs.attrs.indicator, value);
-  }
-
-  /**
-   * Orients the tabs vertically.
-   */
-  get vertical(): boolean {
-    return this.getBooleanAttribute(Tabs.attrs.vertical);
-  }
-  set vertical(value) {
-    this.setStringAttribute(Tabs.attrs.vertical, value);
-  }
-
-  /**
-   * The value of the active tab.
-   */
-  get active(): string | null {
-    return this.getStringAttribute(Tabs.attrs.active);
-  }
-  set active(value) {
-    this.setStringAttribute(Tabs.attrs.active, value);
-  }
-
-  /**
-   * The width of the indicator.
-   */
-  get indicatorWidth(): SizeName | string | null {
-    return this.getStringAttribute(Tabs.attrs.indicatorWidth);
-  }
-  set indicatorWidth(value) {
-    this.setStringAttribute(Tabs.attrs.indicatorWidth, value);
-  }
-
-  /**
-   * The color of the indicator.
-   */
-  get indicatorColor(): SizeName | string | null {
-    return this.getStringAttribute(Tabs.attrs.indicatorColor);
-  }
-  set indicatorColor(value) {
-    this.setStringAttribute(Tabs.attrs.indicatorColor, value);
-  }
 
   protected _tabs: Tab[] = [];
   get tabs(): Tab[] {
@@ -153,17 +35,17 @@ export default class Tabs
   protected _activatingValue: string | null = null;
 
   override onAttributeChanged(name: string, newValue: string) {
-    if (name === Tabs.attrs.indicator) {
+    if (name === this.attrs.indicator) {
       this.updateTabs(false);
       const indicatorEl = this.refs.indicator;
       if (indicatorEl && newValue === "none") {
         indicatorEl.hidden = true;
       }
     }
-    if (name === Tabs.attrs.vertical) {
+    if (name === this.attrs.vertical) {
       const vertical = newValue != null;
       this.updateRootAttribute(
-        Tabs.attrs.ariaOrientation,
+        this.attrs.ariaOrientation,
         vertical ? "vertical" : "horizontal",
       );
       this.updateTabs(false);
@@ -179,7 +61,7 @@ export default class Tabs
     }
     const vertical = this.vertical;
     this.updateRootAttribute(
-      Tabs.attrs.ariaOrientation,
+      this.attrs.ariaOrientation,
       vertical ? "vertical" : "horizontal",
     );
   }

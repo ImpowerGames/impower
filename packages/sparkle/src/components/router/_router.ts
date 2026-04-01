@@ -16,4 +16,14 @@ export default spec({
   } as const,
   css,
   sharedCSS,
+  props: {
+    key: null as string | null,
+    active: null as string | null,
+    enterEvent: null as string | null,
+    exitEvent: null as string | null,
+    eventSource: null as string | null,
+    swipeable: null as string | null,
+    directional: null as string | null,
+    unmount: null as string | null,
+  },
 });

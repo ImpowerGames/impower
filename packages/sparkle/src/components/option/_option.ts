@@ -10,6 +10,16 @@ export default spec({
     disableRipple: false,
     icon: null as string | null,
     activeIcon: null as string | null,
+    key: null as string | null,
+    active: false,
+    value: null as string | null,
+    autofocus: false,
+    disabled: false,
+    label: null as string | null,
+    action: null as string | null,
+    size: null as string | null,
+    iconSize: null as string | null,
+    spacing: null as string | null,
   },
   html: ({ props }) => {
     const { type, href, icon, activeIcon, disableRipple } = props;

@@ -5,8 +5,7 @@
  * Released under the Apache-2.0 license.
  */
 
-import { RefMap } from "../../../../spec-component/src/component";
-import SparkleElement from "../../core/sparkle-element";
+import { SparkleComponent } from "../../core/sparkle-component";
 import { getDimensions } from "../../utils/getDimensions";
 import spec from "./_ripple";
 
@@ -36,32 +35,7 @@ const UNPRESSED_EVENT = "unpressed";
 /**
  * A ripple component.
  */
-export default class Ripple extends SparkleElement {
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
+export default class Ripple extends SparkleComponent(spec) {
   private _hovered = false;
   get hovered(): boolean {
     return this._hovered;
@@ -101,7 +75,7 @@ export default class Ripple extends SparkleElement {
   private endPointY = 0;
 
   override onAttributeChanged(name: string, newValue: string) {
-    if (name === SparkleElement.attrs.hidden) {
+    if (name === this.attrs.hidden) {
       if (newValue != null) {
         this.pressed = false;
       }

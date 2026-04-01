@@ -1,5 +1,4 @@
-import { RefMap } from "../../../../spec-component/src/component";
-import SparkleElement from "../../core/sparkle-element";
+import { SparkleComponent } from "../../core/sparkle-component";
 import spec from "./_scroll-blocker";
 
 /**
@@ -7,32 +6,7 @@ import spec from "./_scroll-blocker";
  * This component is literally just an empty and invisible button that you can stick inside positioned elements
  * (Because this hackery is the kind of shit that Safari forces us to resort to.)
  */
-export default class ScrollBlocker extends SparkleElement {
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
+export default class ScrollBlocker extends SparkleComponent(spec) {
   override onConnected() {
     this.root.addEventListener("click", this.handleClick);
     this.root.addEventListener("pointerdown", this.handlePointerDown);

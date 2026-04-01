@@ -1,7 +1,7 @@
 import { IStore } from "../types/IStore";
-import emit from "../utils/emit";
+import { emit } from "../utils/emit";
 
-const Store = <T extends object>(
+export const Store = <T extends object>(
   data: T,
   event?: string,
   target?: EventTarget,
@@ -27,5 +27,3 @@ const Store = <T extends object>(
     }
   };
 };
-
-export default Store;

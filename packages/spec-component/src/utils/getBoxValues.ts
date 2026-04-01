@@ -1,6 +1,6 @@
-import getUnitlessValue from "./getUnitlessValue";
+import { getUnitlessValue } from "./getUnitlessValue";
 
-const getBoxValues = (
+export const getBoxValues = (
   value: string | null,
 ): {
   top?: number;
@@ -42,5 +42,3 @@ const getBoxValues = (
     right: v,
   };
 };
-
-export default getBoxValues;

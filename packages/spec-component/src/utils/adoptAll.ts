@@ -1,9 +1,7 @@
-import STYLES from "../caches/STYLE_CACHE";
+import { Styles } from "../caches/Styles";
 
-const adoptAll = (styles: Record<string, string>): void => {
-  Object.values(styles).forEach((css) => {
-    STYLES.adoptStyle(document, css);
+export const adoptAll = (styles: Record<string, string>): void => {
+  Object.entries(styles).forEach(([name, cssText]) => {
+    Styles.adoptStyle(document, name, cssText);
   });
 };
-
-export default adoptAll;

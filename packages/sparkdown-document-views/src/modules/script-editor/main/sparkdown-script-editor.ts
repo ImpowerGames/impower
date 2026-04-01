@@ -88,8 +88,8 @@ import {
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/RequestMessage";
 import { Component } from "../../../../../spec-component/src/component";
-import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
-import getUnitlessValue from "../../../../../spec-component/src/utils/getUnitlessValue";
+import { getBoxValues } from "../../../../../spec-component/src/utils/getBoxValues";
+import { getUnitlessValue } from "../../../../../spec-component/src/utils/getUnitlessValue";
 import { setHighlights } from "../../../cm-highlight-lines/highlightLines";
 import { setPinpoints } from "../../../cm-pinpoints/pinpoints";
 import { getScrollableParent } from "../../../utils/getScrollableParent";
@@ -281,7 +281,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
   };
 
   override onAttributeChanged(name: string, newValue: string) {
-    if (name === SparkdownScriptEditor.attrs.readonly) {
+    if (name === this.attrs.readonly) {
       if (newValue != null) {
         this.allowEditing(false);
       } else {

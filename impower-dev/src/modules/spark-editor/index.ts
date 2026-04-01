@@ -44,8 +44,8 @@ import ShareGame from "./components/share-game/share-game";
 import ShareScreenplay from "./components/share-screenplay/share-screenplay";
 import Share from "./components/share/share";
 import Main from "./main/spark-editor";
-import icons from "./styles/icons/icons.css";
-import theme from "./styles/theme/theme.css";
+import editorIcons from "./styles/icons/icons.css";
+import editorTheme from "./styles/theme/theme.css";
 
 export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   InteractionBlocker,
@@ -93,8 +93,8 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
 ] as const;
 
 export const DEFAULT_SPARK_EDITOR_STYLES = {
-  theme,
-  icons,
+  editorTheme,
+  editorIcons,
 } as const;
 
 interface InitOptions extends DefineOptions {

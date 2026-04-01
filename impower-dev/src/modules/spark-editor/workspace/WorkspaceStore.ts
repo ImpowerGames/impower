@@ -1,5 +1,5 @@
 import { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
-import Store from "../../../../../packages/spec-component/src/mixins/Store";
+import { Store } from "../../../../../packages/spec-component/src/mixins/Store";
 
 const cache: WorkspaceCache = {
   project: { id: "" },

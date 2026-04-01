@@ -51,7 +51,10 @@ export default spec({
           child-layout="row"
           child-align="center"
         >
-          <se-logic-diagnostics-label filename="${filename}">
+          <se-logic-diagnostics-label
+            id="diagnosticsLabel"
+            filename="${filename}"
+          >
             <s-box
               position="relative"
               height="100%"
@@ -77,6 +80,7 @@ export default spec({
   },
   selectors: {
     button: "",
+    diagnosticsLabel: "",
     nameInput: null,
   } as const,
   css,

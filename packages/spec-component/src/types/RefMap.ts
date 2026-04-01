@@ -11,5 +11,5 @@ export type Ref<T> = T extends keyof HTMLElementTagNameMap
       : HTMLElement | null;
 
 export type RefMap<T> = {
-  [K in keyof T]: T[K] extends Array<infer Item> ? Ref<Item>[] : Ref<T[K]>;
+  [K in keyof T]: Ref<T[K]>;
 };

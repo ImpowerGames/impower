@@ -1,14 +1,6 @@
 import { getCssDurationMS } from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
 import { getCssDuration } from "../../../../sparkle-style-transformer/src/utils/transformers";
-import { RefMap } from "../../../../spec-component/src/component";
-import { Properties } from "../../../../spec-component/src/types/Properties";
-import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getKeys from "../../../../spec-component/src/utils/getKeys";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-  DEFAULT_SPARKLE_TRANSFORMERS,
-} from "../../core/sparkle-element";
-import { SizeName } from "../../types/sizeName";
+import { SparkleComponent } from "../../core/sparkle-component";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getBreakpointValue } from "../../utils/getBreakpointValue";
 import { getCurrentBreakpoint } from "../../utils/getCurrentBreakpoint";
@@ -19,186 +11,17 @@ const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
 
 const DEFAULT_TRANSFORMERS = {
-  ...DEFAULT_SPARKLE_TRANSFORMERS,
   "hide-delay": getCssDuration,
   "show-delay": getCssDuration,
-};
-
-const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap([
-    "initial",
-    "hide-below",
-    "hide-above",
-    "if-below",
-    "if-above",
-    "hide-event",
-    "show-event",
-    "hide-instantly",
-    "show-instantly",
-    ...getKeys(DEFAULT_TRANSFORMERS),
-  ]),
 };
 
 /**
  * Hidden is used to hide or unhide elements when a certain events are fired.
  */
-export default class Hidden
-  extends SparkleElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get props() {
-    return {
-      ...super.props,
-      initial: this.initial,
-    };
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
-  static override get attrs() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  override get transformers() {
-    return DEFAULT_TRANSFORMERS;
-  }
-
-  /**
-   * Determines if the element is initially hidden or not.
-   *
-   * Defaults to `show`.
-   */
-  get initial(): "hide" | "show" | null {
-    return this.getStringAttribute(Hidden.attrs.initial);
-  }
-  set initial(value) {
-    this.setStringAttribute(Hidden.attrs.initial, value);
-  }
-
-  /**
-   * If provided, the element will be hidden when the width of the screen is below the specified breakpoint and shown otherwise.
-   */
-  get hideBelow(): SizeName | null {
-    return this.getStringAttribute(Hidden.attrs.hideBelow);
-  }
-  set hideBelow(value) {
-    this.setStringAttribute(Hidden.attrs.hideBelow, value);
-  }
-
-  /**
-   * If provided, the element will be hidden when the width of the screen is above the specified breakpoint and shown otherwise.
-   */
-  get hideAbove(): SizeName | null {
-    return this.getStringAttribute(Hidden.attrs.hideAbove);
-  }
-  set hideAbove(value) {
-    this.setStringAttribute(Hidden.attrs.hideAbove, value);
-  }
-
-  /**
-   * If provided, the element will only listen for events when the width of the screen is below the specified breakpoint.
-   */
-  get ifBelow(): SizeName | null {
-    return this.getStringAttribute(Hidden.attrs.ifBelow);
-  }
-  set ifBelow(value) {
-    this.setStringAttribute(Hidden.attrs.ifBelow, value);
-  }
-
-  /**
-   * If provided, the element will only listen for events when the width of the screen is above the specified breakpoint.
-   */
-  get ifAbove(): SizeName | null {
-    return this.getStringAttribute(Hidden.attrs.ifAbove);
-  }
-  set ifAbove(value) {
-    this.setStringAttribute(Hidden.attrs.ifAbove, value);
-  }
-
-  /**
-   * The element will hide when this event is fired
-   */
-  get hideEvent(): string | null {
-    return this.getStringAttribute(Hidden.attrs.hideEvent);
-  }
-  set hideEvent(value) {
-    this.setStringAttribute(Hidden.attrs.hideEvent, value);
-  }
-
-  /**
-   * The element will be shown again when this event is fired
-   */
-  get showEvent(): string | null {
-    return this.getStringAttribute(Hidden.attrs.showEvent);
-  }
-  set showEvent(value) {
-    this.setStringAttribute(Hidden.attrs.showEvent, value);
-  }
-
-  /**
-   * Disable the hide transition
-   */
-  get hideInstantly(): string | null {
-    return this.getStringAttribute(Hidden.attrs.hideInstantly);
-  }
-  set hideInstantly(value) {
-    this.setStringAttribute(Hidden.attrs.hideInstantly, value);
-  }
-
-  /**
-   * Disable the show transition
-   */
-  get showInstantly(): string | null {
-    return this.getStringAttribute(Hidden.attrs.showInstantly);
-  }
-  set showInstantly(value) {
-    this.setStringAttribute(Hidden.attrs.showInstantly, value);
-  }
-
-  /**
-   * The delay before the element is hidden
-   */
-  get hideDelay(): string | null {
-    return this.getStringAttribute(Hidden.attrs.hideDelay);
-  }
-  set hideDelay(value) {
-    this.setStringAttribute(Hidden.attrs.hideDelay, value);
-  }
-
-  /**
-   * The delay before the element is shown again
-   */
-  get showDelay(): string | null {
-    return this.getStringAttribute(Hidden.attrs.showDelay);
-  }
-  set showDelay(value) {
-    this.setStringAttribute(Hidden.attrs.showDelay, value);
-  }
-
+export default class Hidden extends SparkleComponent(
+  spec,
+  DEFAULT_TRANSFORMERS,
+) {
   _breakpointValue = 0;
 
   _hideTransitionTimeout = 0;

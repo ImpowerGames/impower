@@ -8,4 +8,10 @@ export default spec({
   html,
   css,
   sharedCSS,
+  props: {
+    label: null as string | null,
+    trigger: null as string | null,
+    showDelay: null as string | null,
+    hideDelay: null as string | null,
+  },
 });

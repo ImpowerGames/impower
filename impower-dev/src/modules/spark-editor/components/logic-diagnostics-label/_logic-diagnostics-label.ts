@@ -1,4 +1,3 @@
-import type { Diagnostic } from "@impower/spark-editor-protocol/src/types";
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/core/core.css";
 import sharedCSS from "../../styles/shared";
@@ -13,7 +12,7 @@ export default spec({
   reducer: ({ props, stores }) => {
     const filename = props.filename;
     const diagnostics = stores?.workspace?.current?.debug?.diagnostics;
-    const relevantDiagnostics: Diagnostic[] = [];
+    const relevantDiagnostics = [];
     if (diagnostics) {
       if (filename) {
         // Display diagnostics that match filename

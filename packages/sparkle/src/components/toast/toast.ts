@@ -1,10 +1,5 @@
 import { getCssDurationMS } from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
-import { RefMap } from "../../../../spec-component/src/component";
-import { Properties } from "../../../../spec-component/src/types/Properties";
-import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-} from "../../core/sparkle-element";
+import { SparkleComponent } from "../../core/sparkle-component";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
 import spec from "./_toast";
@@ -14,102 +9,16 @@ const CLOSED_EVENT = "closed";
 const OPENING_EVENT = "opening";
 const OPENED_EVENT = "opened";
 
-const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap(["open", "message", "action", "timeout"]),
-};
-
 /**
  * Toasts are used to display important messages inline or as alert notifications.
  */
-export default class Toast
-  extends SparkleElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
-  static override get attrs() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  /**
-   * Indicates whether or not the toast is open. You can toggle this attribute to show and hide the toast, or you can
-   * use the `show()` and `hide()` methods and this attribute will reflect the toast's open state.
-   */
-  get open(): boolean {
-    return this.getBooleanAttribute(Toast.attrs.open);
-  }
-  set open(value: boolean) {
-    this.setBooleanAttribute(Toast.attrs.open, value);
-  }
-
-  /**
-   * The message to display inside the toast.
-   */
-  get message(): string | null {
-    return this.getStringAttribute(Toast.attrs.message);
-  }
-  set message(value: string | null) {
-    this.setStringAttribute(Toast.attrs.message, value);
-  }
-
-  /**
-   * The label for the action button.
-   *
-   * (Clicking this button will dismiss the toast.)
-   */
-  get action(): string | null {
-    return this.getStringAttribute(Toast.attrs.action);
-  }
-  set action(value: string | null) {
-    this.setStringAttribute(Toast.attrs.action, value);
-  }
-
-  /**
-   * The length of time, in milliseconds, the toast will show before closing itself.
-   * If the user interacts with the toast before it closes (e.g. moves the mouse over it),
-   * the timer will restart.
-   *
-   * Set to `none`, to make it so toast will remain indefinitely (or until the user dismisses it).
-   *
-   * Defaults to `4000`.
-   */
-  get timeout(): string | null {
-    return this.getStringAttribute(Toast.attrs.timeout);
-  }
-  set timeout(value: string | null) {
-    this.setStringAttribute(Toast.attrs.timeout, value);
-  }
-
+export default class Toast extends SparkleComponent(spec) {
   private _setup = false;
 
   private _autoHideTimeout?: number;
 
   override onAttributeChanged(name: string, newValue: string) {
-    if (name === Toast.attrs.color) {
+    if (name === this.attrs.color) {
       const buttonEl = this.refs.button;
       if (buttonEl) {
         if (newValue != null) {
@@ -119,24 +28,24 @@ export default class Toast
         }
       }
     }
-    if (name === Toast.attrs.open) {
+    if (name === this.attrs.open) {
       const open = newValue != null;
       this.ariaHidden = open ? "false" : "true";
       const durationMS = getCssDurationMS(this.timeout, 4000);
       this.changeState(open, durationMS);
     }
-    if (name === Toast.attrs.timeout) {
+    if (name === this.attrs.timeout) {
       const open = this.open;
       const durationMS = getCssDurationMS(newValue, 4000);
       this.restartAutoClose(open, durationMS);
     }
-    if (name === Toast.attrs.message) {
+    if (name === this.attrs.message) {
       const message = newValue;
       if (message) {
         this.setAssignedToSlot(message);
       }
     }
-    if (name === Toast.attrs.action) {
+    if (name === this.attrs.action) {
       const action = newValue;
       if (action) {
         this.setAssignedToSlot(action, "action");
@@ -191,7 +100,7 @@ export default class Toast
     }
   }
 
-  protected override onContentAssigned(children: Element[]) {
+  override onContentAssigned(children: Element[]) {
     const assignedElement = children[0];
     if (assignedElement) {
       if (this.message == null) {

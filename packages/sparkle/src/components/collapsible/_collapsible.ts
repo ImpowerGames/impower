@@ -11,4 +11,8 @@ export default spec({
   } as const,
   css,
   sharedCSS,
+  props: {
+    collapsed: null as string | null,
+    sentinel: null as string | null,
+  },
 });

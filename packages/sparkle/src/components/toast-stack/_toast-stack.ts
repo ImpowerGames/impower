@@ -11,4 +11,7 @@ export default spec({
   } as const,
   css,
   sharedCSS,
+  props: {
+    alert: null as string | null,
+  },
 });

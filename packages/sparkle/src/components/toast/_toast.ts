@@ -13,4 +13,10 @@ export default spec({
   } as const,
   css,
   sharedCSS,
+  props: {
+    open: false,
+    message: null as string | null,
+    action: null as string | null,
+    timeout: null as string | null,
+  },
 });

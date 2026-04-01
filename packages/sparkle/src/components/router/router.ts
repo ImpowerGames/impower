@@ -1,10 +1,5 @@
 import { getCssAnimation } from "../../../../sparkle-style-transformer/src/utils/transformers";
-import { RefMap } from "../../../../spec-component/src/component";
-import { Properties } from "../../../../spec-component/src/types/Properties";
-import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-} from "../../core/sparkle-element";
+import { SparkleComponent } from "../../core/sparkle-component";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { cancelAnimations } from "../../utils/cancelAnimations";
 import { getDirection } from "../../utils/getDirection";
@@ -14,157 +9,15 @@ import spec from "./_router";
 const EXIT_EVENT = "exit";
 const ENTER_EVENT = "enter";
 
-const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap([
-    "key",
-    "active",
-    "enter-event",
-    "exit-event",
-    "event-source",
-    "swipeable",
-    "directional",
-    "unmount",
-  ]),
-};
-
 /**
  * Routers are used to lazy-load templates when their value matches an observed value.
  *
  * This element loads any child template whose value attribute matches an observed value.
  * All other children are unloaded.
  */
-export default class Router
-  extends SparkleElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
-  static override get attrs() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
+export default class Router extends SparkleComponent(spec) {
   override get skipChildMorphing() {
     return true;
-  }
-
-  /**
-   * The unique key that identifies this router.
-   */
-  get key(): string | null {
-    return this.getStringAttribute(Router.attrs.key);
-  }
-  set key(value) {
-    this.setStringAttribute(Router.attrs.key, value);
-  }
-
-  /**
-   * The value of the active route.
-   */
-  get active(): string | null {
-    return this.getStringAttribute(Router.attrs.active);
-  }
-  set active(value) {
-    this.setStringAttribute(Router.attrs.active, value);
-  }
-
-  /**
-   * The element to listen to.
-   *
-   * Defaults to `this`
-   */
-  get eventSource(): "this" | "window" {
-    return this.getStringAttribute(Router.attrs.eventSource) || "this";
-  }
-  set eventSource(value) {
-    this.setStringAttribute(Router.attrs.eventSource, value);
-  }
-
-  /**
-   * The event to listen for that causes the current route to exit.
-   *
-   * Defaults to `changing`
-   */
-  get exitEvent(): "changing" {
-    return this.getStringAttribute(Router.attrs.exitEvent) || "changing";
-  }
-  set exitEvent(value) {
-    this.setStringAttribute(Router.attrs.exitEvent, value);
-  }
-
-  /**
-   * The event to listen for that causes the new route to enter.
-   *
-   * Defaults to `changed`
-   */
-  get enterEvent(): "changed" {
-    return this.getStringAttribute(Router.attrs.enterEvent) || "changed";
-  }
-  set enterEvent(value) {
-    this.setStringAttribute(Router.attrs.enterEvent, value);
-  }
-
-  /**
-   * Determines if the enter and exit animations should be direction-dependent
-   *
-   * If not provided a value, defaults to `x`.
-   */
-  get directional(): "x" | "y" | "z" | null {
-    return this.getStringAttribute(Router.attrs.directional);
-  }
-  set directional(value) {
-    this.setStringAttribute(Router.attrs.directional, value);
-  }
-
-  /**
-   * Determines when the exiting panel should be unmounted from the dom
-   *
-   * Defaults to `on-exit`.
-   */
-  get unmount(): "on-exit" | "on-enter" | "never" | null {
-    return this.getStringAttribute(Router.attrs.unmount);
-  }
-  set unmount(value) {
-    this.setStringAttribute(Router.attrs.unmount, value);
-  }
-
-  /**
-   * Allow panels to be swiped.
-   *
-   * Set to `touch` to limit swipe detection to touch devices.
-   * Set to `mouse` to limit swipe detection to mouse devices.
-   * Set to `pointer` to support swipe detection for any device.
-   *
-   * If not provided a value, defaults to `pointer`.
-   */
-  get swipeable(): "pointer" | "touch" | "mouse" | null {
-    return this.getStringAttribute(Router.attrs.swipeable);
-  }
-  set swipeable(value) {
-    this.setStringAttribute(Router.attrs.swipeable, value);
   }
 
   get exitFadeEl() {
@@ -237,8 +90,14 @@ export default class Router
 
   override onConnected() {
     const eventSourceEl = this.eventSource === "window" ? window : this;
-    eventSourceEl.addEventListener(this.exitEvent, this.handleChanging);
-    eventSourceEl.addEventListener(this.enterEvent, this.handleChanged);
+    eventSourceEl.addEventListener(
+      this.exitEvent || "changing",
+      this.handleChanging,
+    );
+    eventSourceEl.addEventListener(
+      this.enterEvent || "changed",
+      this.handleChanged,
+    );
     if (this.active) {
       this.loadRoute(this.active);
     }
@@ -246,12 +105,18 @@ export default class Router
 
   override onDisconnected() {
     const eventSourceEl = this.eventSource === "window" ? window : this;
-    eventSourceEl.removeEventListener(this.exitEvent, this.handleChanging);
-    eventSourceEl.removeEventListener(this.enterEvent, this.handleChanged);
+    eventSourceEl.removeEventListener(
+      this.exitEvent || "changing",
+      this.handleChanging,
+    );
+    eventSourceEl.removeEventListener(
+      this.enterEvent || "changed",
+      this.handleChanged,
+    );
   }
 
   override onAttributeChanged(name: string, newValue: string) {
-    if (name === Router.attrs.active) {
+    if (name === this.attrs.active) {
       this.loadRoute(newValue);
     }
   }

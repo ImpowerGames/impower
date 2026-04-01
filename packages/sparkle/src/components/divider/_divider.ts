@@ -8,4 +8,8 @@ export default spec({
   html,
   css,
   sharedCSS,
+  props: {
+    vertical: null as string | null,
+    size: null as string | null,
+  },
 });

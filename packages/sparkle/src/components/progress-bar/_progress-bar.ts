@@ -8,4 +8,10 @@ export default spec({
   html,
   css,
   sharedCSS,
+  props: {
+    value: null as string | null,
+    trackWidth: null as string | null,
+    indicatorWidth: null as string | null,
+    speed: null as string | null,
+  },
 });

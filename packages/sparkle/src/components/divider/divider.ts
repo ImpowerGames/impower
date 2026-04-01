@@ -1,89 +1,22 @@
 import { getCssSize } from "../../../../sparkle-style-transformer/src/utils/transformers";
-import { RefMap } from "../../../../spec-component/src/component";
-import { Properties } from "../../../../spec-component/src/types/Properties";
-import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getKeys from "../../../../spec-component/src/utils/getKeys";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-  DEFAULT_SPARKLE_TRANSFORMERS,
-} from "../../core/sparkle-element";
-import { SizeName } from "../../types/sizeName";
+import { SparkleComponent } from "../../core/sparkle-component";
 import spec from "./_divider";
 
 const DEFAULT_TRANSFORMERS = {
-  ...DEFAULT_SPARKLE_TRANSFORMERS,
   size: getCssSize,
-};
-
-const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap(["vertical", ...getKeys(DEFAULT_TRANSFORMERS)]),
 };
 
 /**
  * Dividers are used to visually separate or group elements.
  */
-export default class Divider
-  extends SparkleElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
-  static override get attrs() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  override get transformers() {
-    return DEFAULT_TRANSFORMERS;
-  }
-
-  /**
-   * Whether or not the divider is vertical instead of horizontal.
-   */
-  get vertical(): boolean {
-    return this.getBooleanAttribute(Divider.attrs.vertical);
-  }
-  set vertical(value) {
-    this.setStringAttribute(Divider.attrs.vertical, value);
-  }
-
-  /**
-   * The size of the divider
-   */
-  get size(): SizeName | string | null {
-    return this.getStringAttribute(Divider.attrs.size);
-  }
-  set size(value) {
-    this.setStringAttribute(Divider.attrs.size, value);
-  }
-
+export default class Divider extends SparkleComponent(
+  spec,
+  DEFAULT_TRANSFORMERS,
+) {
   override onAttributeChanged(name: string, newValue: string) {
-    if (name === Divider.attrs.vertical) {
+    if (name === this.attrs.vertical) {
       this.updateRootAttribute(
-        Divider.attrs.ariaOrientation,
+        this.attrs.ariaOrientation,
         newValue != null ? "vertical" : "horizontal",
       );
     }

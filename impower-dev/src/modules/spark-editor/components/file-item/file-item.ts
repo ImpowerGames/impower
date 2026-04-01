@@ -58,8 +58,15 @@ export default class FileItem extends Component(spec) {
     }
   };
 
-  override shouldAttributeTriggerUpdate() {
-    return true;
+  override shouldAttributeTriggerUpdate(
+    name: string,
+    oldValue: string,
+    newValue: string,
+  ) {
+    if (name === this.attrs.filename || name === this.attrs.renaming) {
+      return true;
+    }
+    return super.shouldAttributeTriggerUpdate(name, oldValue, newValue);
   }
 
   handleButtonClick = (e: Event) => {

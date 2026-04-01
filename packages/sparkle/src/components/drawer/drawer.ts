@@ -1,9 +1,4 @@
-import { RefMap } from "../../../../spec-component/src/component";
-import { Properties } from "../../../../spec-component/src/types/Properties";
-import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-} from "../../core/sparkle-element";
+import { SparkleComponent } from "../../core/sparkle-component";
 import { animationsComplete } from "../../utils/animationsComplete";
 import spec from "./_drawer";
 
@@ -13,58 +8,10 @@ const OPENING_EVENT = "opening";
 const OPENED_EVENT = "opened";
 const REMOVED_EVENT = "removed";
 
-const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap(["open"]),
-};
-
 /**
  * Drawers slide in from a container to expose additional options and information.
  */
-export default class Drawer
-  extends SparkleElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
-  static override get attrs() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  /**
-   * Indicates whether or not the drawer is open. You can toggle this attribute to show and hide the drawer, or you can
-   * use the `show()` and `hide()` methods and this attribute will reflect the drawer's open state.
-   */
-  get open(): boolean {
-    return this.getBooleanAttribute(Drawer.attrs.open);
-  }
-  set open(value: boolean) {
-    this.setBooleanAttribute(Drawer.attrs.open, value);
-  }
-
+export default class Drawer extends SparkleComponent(spec) {
   get dialog(): HTMLDialogElement {
     return this.root as HTMLDialogElement;
   }

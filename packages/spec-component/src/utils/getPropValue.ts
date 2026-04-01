@@ -1,4 +1,7 @@
-const getPropValue = (attrValue: string | null, defaultPropValue: unknown) => {
+export const getPropValue = (
+  attrValue: string | null,
+  defaultPropValue: unknown,
+) => {
   if (attrValue === undefined) {
     return defaultPropValue;
   } else if (attrValue === null) {
@@ -11,5 +14,3 @@ const getPropValue = (attrValue: string | null, defaultPropValue: unknown) => {
     return attrValue;
   }
 };
-
-export default getPropValue;

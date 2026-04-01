@@ -1,7 +1,3 @@
-import { RefMap } from "../../../../spec-component/src/component";
-import { Properties } from "../../../../spec-component/src/types/Properties";
-import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import { DEFAULT_SPARKLE_ATTRIBUTES } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
 import { navEndKey } from "../../utils/navEndKey";
@@ -10,7 +6,7 @@ import { navPrevKey } from "../../utils/navPrevKey";
 import { navStartKey } from "../../utils/navStartKey";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import Option from "../option/option";
-import Popup from "../popup/popup";
+import { PopupComponent } from "../popup/popup";
 import spec from "./_dropdown";
 
 const CLOSING_EVENT = "closing";
@@ -20,91 +16,10 @@ const OPENED_EVENT = "opened";
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
 
-const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap([
-    "key",
-    "active",
-    "open",
-    "anchor",
-    "placement",
-    "strategy",
-    "distance",
-    "skidding",
-    "arrow",
-    "arrow-placement",
-    "arrow-padding",
-    "disable-auto-flip",
-    "flip-fallback-placements",
-    "flip-fallback-strategy",
-    "flip-boundary",
-    "flip-padding",
-    "disable-auto-shift",
-    "shift-boundary",
-    "shift-padding",
-    "auto-size",
-    "sync-size",
-    "auto-size-boundary",
-    "auto-size-padding",
-  ]),
-};
-
 /**
  * Dropdowns display additional information based on a specific action.
  */
-export default class Dropdown
-  extends Popup
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return { ...super.selectors, ...spec.selectors };
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
-  static override get attrs() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  /**
-   * Key that is included in all emitted events.
-   */
-  get key(): string | null {
-    return this.getStringAttribute(Dropdown.attrs.key);
-  }
-  set key(value) {
-    this.setStringAttribute(Dropdown.attrs.key, value);
-  }
-
-  /**
-   * The value of the active option.
-   */
-  get active(): string | null {
-    return this.getStringAttribute(Dropdown.attrs.active);
-  }
-  set active(value) {
-    this.setStringAttribute(Dropdown.attrs.active, value);
-  }
-
+export default class Dropdown extends PopupComponent(spec) {
   override get placement():
     | "top"
     | "top-start"
@@ -118,11 +33,11 @@ export default class Dropdown
     | "left"
     | "left-start"
     | "left-end" {
-    return this.getStringAttribute(Dropdown.attrs.placement) || "bottom";
+    return this.getStringAttribute(this.attrs.placement) || "bottom";
   }
 
   override get strategy(): "absolute" | "fixed" {
-    return this.getStringAttribute(Popup.attrs.strategy) || "fixed";
+    return this.getStringAttribute(this.attrs.strategy) || "fixed";
   }
 
   protected _options: Option[] = [];
@@ -134,10 +49,10 @@ export default class Dropdown
 
   override onAttributeChanged(name: string, newValue: string) {
     const popupEl = this.refs.popup;
-    if (name === Dropdown.attrs.open) {
+    if (name === this.attrs.open) {
       const open = newValue != null;
       if (popupEl) {
-        popupEl.setAttribute(Dropdown.attrs.ariaLive, open ? "polite" : "off");
+        popupEl.setAttribute(this.attrs.ariaLive, open ? "polite" : "off");
       }
       if (open) {
         this.animateOpen();
@@ -146,13 +61,13 @@ export default class Dropdown
       }
     }
     if (
-      name === Dropdown.attrs.distance ||
-      name === Dropdown.attrs.placement ||
-      name === Dropdown.attrs.skidding
+      name === this.attrs.distance ||
+      name === this.attrs.placement ||
+      name === this.attrs.skidding
     ) {
       this.reposition();
     }
-    if (name === Dropdown.attrs.disabled) {
+    if (name === this.attrs.disabled) {
       if (this.disabled && this.open) {
         this.hide();
       }

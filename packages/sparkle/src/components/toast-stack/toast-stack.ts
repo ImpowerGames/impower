@@ -1,74 +1,18 @@
-import { RefMap } from "../../../../spec-component/src/component";
-import { Properties } from "../../../../spec-component/src/types/Properties";
-import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-} from "../../core/sparkle-element";
+import { SparkleComponent } from "../../core/sparkle-component";
 import Queue from "../../helpers/queue";
 import Toast from "../toast/toast";
 import spec from "./_toast-stack";
 
-const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap(["alert"]),
-};
-
 /**
  * Toast Stacks are used to display alert notifications in a stack.
  */
-export default class ToastStack
-  extends SparkleElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
-  static override get attrs() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  /**
-   * The alert to display inside the toast stack.
-   *
-   * Alerts are of the format `<label>;<action>;<timeout>`
-   * (e.g. `Photo deleted.;Undo;5000`)
-   *
-   */
-  get alert(): string | null {
-    return this.getStringAttribute(ToastStack.attrs.alert);
-  }
-  set alert(value: string | null) {
-    this.setStringAttribute(ToastStack.attrs.alert, value);
-  }
-
+export default class ToastStack extends SparkleComponent(spec) {
   protected _templates: HTMLTemplateElement[] = [];
 
   protected _queue = new Queue();
 
   override onAttributeChanged(name: string, newValue: string) {
-    if (name === ToastStack.attrs.alert) {
+    if (name === this.attrs.alert) {
       if (newValue != null) {
         const [message, action, timeout, type] = newValue.split(";");
         if (message) {
@@ -78,7 +22,7 @@ export default class ToastStack
     }
   }
 
-  protected override onContentAssigned(children: Element[]) {
+  override onContentAssigned(children: Element[]) {
     this._templates = children.filter(
       (el) => el.tagName.toLowerCase() === "template",
     ) as HTMLTemplateElement[];

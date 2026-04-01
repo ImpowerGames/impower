@@ -1,6 +1,6 @@
-import sanitize from "./sanitize";
+import { sanitize } from "./sanitize";
 
-const html = (
+export const html = (
   raw: readonly string[] | ArrayLike<string>,
   ...substitutions: (false | number | string | (() => string))[]
 ) =>
@@ -16,5 +16,3 @@ const html = (
             : sanitize(s),
     ),
   );
-
-export default html;

@@ -8,8 +8,8 @@ export default spec({
     type: null as string | null,
     name: null as string | null,
     autocomplete: null as string | null,
-    autocorrect: null as string | null,
-    autofocus: null as string | null,
+    autocorrect: false,
+    autofocus: false,
     autocapitalize: null as string | null,
     pattern: null as string | null,
     maxLength: 0 as number | null,
@@ -22,6 +22,11 @@ export default spec({
     required: false,
     value: null as string | null,
     disableRipple: false,
+    size: null as string | null,
+    min: null as string | null,
+    max: null as string | null,
+    noSpinButtons: null as string | null,
+    placeholderColor: null as string | null,
   },
   html: ({ props }) => {
     const {
@@ -49,7 +54,7 @@ export default spec({
       ? () => html`autocomplete="${autocomplete}"`
       : "";
     const autocorrectAttr = autocorrect
-      ? () => html`autocorrect="${autocorrect}"`
+      ? () => html`autocorrect="${autocorrect ? "on" : "off"}"`
       : "";
     const autofocusAttr = autofocus ? () => html`autofocus` : "";
     const autocapitalizeAttr = autocapitalize

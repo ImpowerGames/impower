@@ -1,5 +1,4 @@
-import { RefMap } from "../../../../spec-component/src/component";
-import SparkleElement from "../../core/sparkle-element";
+import { SparkleComponent } from "../../core/sparkle-component";
 import { isFocusableElement } from "../../utils/isFocusableElement";
 import { navEndKey } from "../../utils/navEndKey";
 import { navNextKey } from "../../utils/navNextKey";
@@ -10,32 +9,7 @@ import spec from "./_navigation";
 /**
  * Allows the user to navigate children in an accessible way.
  */
-export default class Navigation extends SparkleElement {
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
+export default class Navigation extends SparkleComponent(spec) {
   get focusableChildren(): HTMLElement[] {
     if (this.shadowRoot) {
       const elements = this.contentSlot?.assignedElements({ flatten: true });
@@ -169,7 +143,7 @@ export default class Navigation extends SparkleElement {
     }
   }
 
-  protected override onContentAssigned(children: Element[]) {
+  override onContentAssigned(children: Element[]) {
     this.unbindNavigation();
     this.bindNavigation();
   }

@@ -56,7 +56,7 @@ import {
   TextDocumentItem,
 } from "@impower/spark-editor-protocol/src/types";
 import { Component } from "../../../../../spec-component/src/component";
-import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
+import { getBoxValues } from "../../../../../spec-component/src/utils/getBoxValues";
 import debounce from "../../../utils/debounce.js";
 import { getScrollableParent } from "../../../utils/getScrollableParent.js";
 import { getScrollClientHeight } from "../../../utils/getScrollClientHeight.js";

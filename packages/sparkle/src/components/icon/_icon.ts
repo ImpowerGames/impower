@@ -4,9 +4,6 @@ import css from "./icon.css";
 
 export default spec({
   tag: "s-icon",
-  props: {
-    name: null as string | null,
-  },
   html: ({ props, graphics }) => {
     const { name } = props;
     const svg = () => (typeof name === "string" ? graphics?.[name] || "" : "");
@@ -14,4 +11,8 @@ export default spec({
   },
   css,
   sharedCSS,
+  props: {
+    name: null as string | null,
+    iconSize: null as string | null,
+  },
 });

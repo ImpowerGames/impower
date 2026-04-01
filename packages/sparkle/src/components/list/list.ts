@@ -1,41 +1,11 @@
-import { RefMap } from "../../../../spec-component/src/component";
-import SparkleElement from "../../core/sparkle-element";
+import { SparkleComponent } from "../../core/sparkle-component";
 import { getScrollableParent } from "../../utils/getScrollableParent";
 import spec from "./_list";
 
 /**
  * Lists render large amounts of items in a virtual window.
  */
-export default class List<T = any> extends SparkleElement {
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get shadowDOM() {
-    return spec.shadowDOM;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
+export default class List<T = any> extends SparkleComponent(spec) {
   protected _buffer = 5;
 
   protected _ticking = false;

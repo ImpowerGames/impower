@@ -1,4 +1,4 @@
-const getUnitlessValue = (
+export const getUnitlessValue = (
   value: string | null,
   defaultValue: number,
   emptyValue = defaultValue,
@@ -23,5 +23,3 @@ const getUnitlessValue = (
   }
   return Number(v);
 };
-
-export default getUnitlessValue;

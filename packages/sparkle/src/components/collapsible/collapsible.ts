@@ -2,13 +2,8 @@ import {
   getCssDuration,
   getCssEase,
 } from "../../../../sparkle-style-transformer/src/utils/transformers";
-import { RefMap } from "../../../../spec-component/src/component";
-import { Properties } from "../../../../spec-component/src/types/Properties";
-import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getUnitlessValue from "../../../../spec-component/src/utils/getUnitlessValue";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-} from "../../core/sparkle-element";
+import { getUnitlessValue } from "../../../../spec-component/src/utils/getUnitlessValue";
+import { SparkleComponent } from "../../core/sparkle-component";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getScrollableParent } from "../../utils/getScrollableParent";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
@@ -31,71 +26,10 @@ const getCollapsedIconOffset = (
   return buttonX - iconX - iconWidth / 4 + buttonPaddingLeft;
 };
 
-const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap(["collapsed", "sentinel"]),
-};
-
 /**
  * Collapsibles can be used to collapse child buttons so that only their icon is visible.
  */
-export default class Collapsible
-  extends SparkleElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
-  static override get attrs() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  /**
-   * Collapses any child labels.
-   */
-  get collapsed(): "" | "scrolled" | null {
-    return this.getStringAttribute(Collapsible.attrs.collapsed);
-  }
-  set collapsed(value) {
-    this.setStringAttribute(Collapsible.attrs.collapsed, value);
-  }
-
-  /**
-   * Id of sentinel that is observed to determine if the parent has scrolled.
-   *
-   * Defaults to `scroll-sentinel`.
-   */
-  get sentinel(): string {
-    return (
-      this.getStringAttribute(Collapsible.attrs.sentinel) || "scroll-sentinel"
-    );
-  }
-  set sentinel(value) {
-    this.setStringAttribute(Collapsible.attrs.sentinel, value);
-  }
-
+export default class Collapsible extends SparkleComponent(spec) {
   protected _buttonEl: HTMLElement | null = null;
 
   get buttonEl(): HTMLElement | null {
@@ -116,8 +50,11 @@ export default class Collapsible
       const scrollParent =
         this.closestAncestor(`:is([overflow-x], [overflow-y])`)?.shadowRoot
           ?.firstElementChild || getScrollableParent(this.root);
-      if (scrollParent) {
-        const sentinelId = this.sentinel;
+      if (
+        scrollParent instanceof HTMLElement ||
+        scrollParent instanceof Document
+      ) {
+        const sentinelId = this.sentinel || "scroll-sentinel";
         const sentinel = scrollParent.querySelector(`#${sentinelId}`);
         if (sentinel instanceof HTMLElement) {
           this._sentinelEl = sentinel;
@@ -155,7 +92,7 @@ export default class Collapsible
   protected _cachedCSSVariables: Record<string, string> = {};
 
   override onAttributeChanged(name: string, newValue: string) {
-    if (name === Collapsible.attrs.collapsed) {
+    if (name === this.attrs.collapsed) {
       this.updateState(true);
       if (newValue === "scrolled") {
         const sentinelEl = this.sentinelEl;
@@ -259,9 +196,9 @@ export default class Collapsible
         const transitionProperty = `transform, opacity`;
         const duration = getCssDuration(
           this.getAttribute("duration"),
-          this.duration || "150ms",
+          this.transitionDuration || "150ms",
         );
-        const ease = getCssEase(this.ease, "ease-out");
+        const ease = getCssEase(this.transitionEasing, "ease-out");
         buttonEl.style.setProperty("transition-property", transitionProperty);
         buttonEl.style.setProperty("transition-duration", duration);
         buttonEl.style.setProperty("transition-timing-function", ease);
@@ -538,7 +475,7 @@ export default class Collapsible
     }
   };
 
-  protected override onContentAssigned(children: Element[]) {
+  override onContentAssigned(children: Element[]) {
     const elements = children;
     const buttons = elements.filter(
       (el) => el.tagName.toLowerCase() === this.selectors.button,

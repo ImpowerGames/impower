@@ -12,4 +12,11 @@ export default spec({
   } as const,
   css,
   sharedCSS,
+  props: {
+    value: null as string | null,
+    size: null as string | null,
+    trackWidth: null as string | null,
+    indicatorWidth: null as string | null,
+    speed: null as string | null,
+  },
 });

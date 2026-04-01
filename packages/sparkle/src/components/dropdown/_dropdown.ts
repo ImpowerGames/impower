@@ -13,4 +13,8 @@ export default spec({
   } as const,
   css,
   sharedCSS,
+  props: {
+    key: null as string | null,
+    active: null as string | null,
+  },
 });

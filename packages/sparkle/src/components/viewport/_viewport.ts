@@ -8,4 +8,9 @@ export default spec({
   html,
   css,
   sharedCSS,
+  props: {
+    constrainedEvent: null as string | null,
+    unconstrainedEvent: null as string | null,
+    offset: null as string | null,
+  },
 });

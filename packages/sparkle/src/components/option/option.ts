@@ -3,22 +3,13 @@ import {
   getCssMask,
   getCssSize,
 } from "../../../../sparkle-style-transformer/src/utils/transformers";
-import { RefMap } from "../../../../spec-component/src/component";
-import { Properties } from "../../../../spec-component/src/types/Properties";
-import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getKeys from "../../../../spec-component/src/utils/getKeys";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-  DEFAULT_SPARKLE_TRANSFORMERS,
-} from "../../core/sparkle-element";
-import { SizeName } from "../../types/sizeName";
+import { SparkleComponent } from "../../core/sparkle-component";
 import spec from "./_option";
 
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
 
 const DEFAULT_TRANSFORMERS = {
-  ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v),
   "active-icon": (v: string) => getCssIcon(v),
   spacing: getCssSize,
@@ -26,215 +17,15 @@ const DEFAULT_TRANSFORMERS = {
   "icon-size": getCssSize,
 };
 
-const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap([
-    "key",
-    "type",
-    "href",
-    "active",
-    "value",
-    "autofocus",
-    "disabled",
-    "label",
-    "action",
-    "disable-ripple",
-    ...getKeys(DEFAULT_TRANSFORMERS),
-  ]),
-};
-
 /**
  * Options represent actions that are available to the user.
  */
-export default class Option
-  extends SparkleElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get tag() {
-    return spec.tag;
-  }
-
-  override get props() {
-    return {
-      ...super.props,
-      type: this.type,
-      href: this.href,
-      disableRipple: this.disableRipple,
-      icon: this.icon,
-      activeIcon: this.activeIcon,
-    };
-  }
-
-  override get html() {
-    return spec.html({
-      graphics: this.graphics,
-      stores: this.stores,
-      context: this.context,
-      props: this.props,
-    });
-  }
-
-  override get css() {
-    return spec.css;
-  }
-
-  override get selectors() {
-    return spec.selectors;
-  }
-
-  override get refs() {
-    return super.refs as RefMap<typeof this.selectors>;
-  }
-
-  static override get attrs() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  override get transformers() {
-    return DEFAULT_TRANSFORMERS;
-  }
-
-  /**
-   * Key that is included in all emitted events.
-   */
-  get key(): string | null {
-    return this.getStringAttribute(Option.attrs.key);
-  }
-  set key(value) {
-    this.setStringAttribute(Option.attrs.key, value);
-  }
-
-  /**
-   * The default behavior of the button. Possible values are:
-   *
-   * `div`: The button is a `div` that looks like a button (the root tag will be `div` instead of `button`).
-   * `a`: The button behaves like a link (the root tag will be `a` instead of `button`).
-   * `toggle`: The button can be toggled between an active and inactive state.
-   *
-   * Defaults to `button`
-   */
-  get type(): "div" | "a" | "toggle" | null {
-    return this.getStringAttribute(Option.attrs.type);
-  }
-  set type(value) {
-    this.setStringAttribute(Option.attrs.type, value);
-  }
-
-  /**
-   * The URL that the link button points to.
-   * (Component will be wrapped in `a` instead of `button`)
-   */
-  get href(): string | null {
-    return this.getStringAttribute(Option.attrs.href);
-  }
-  set href(value) {
-    this.setStringAttribute(Option.attrs.href, value);
-  }
-
-  /**
-   * Draws the option in an active state.
-   */
-  get active(): boolean {
-    return this.getBooleanAttribute(Option.attrs.active);
-  }
-  set active(value: boolean) {
-    this.setBooleanAttribute(Option.attrs.active, value);
-  }
-
-  /**
-   * The value this option is associated with.
-   */
-  get value(): string | null {
-    return this.getStringAttribute(Option.attrs.value);
-  }
-  set value(value) {
-    this.setStringAttribute(Option.attrs.value, value);
-  }
-
-  /**
-   * Determines whether or not background should ripple when pressed.
-   */
-  get disableRipple(): boolean {
-    return this.getBooleanAttribute(Option.attrs.disableRipple);
-  }
-  set disableRipple(value) {
-    this.setBooleanAttribute(Option.attrs.disableRipple, value);
-  }
-
-  /**
-   * The name of the icon to display.
-   */
-  get icon(): string | null {
-    return this.getStringAttribute(Option.attrs.icon);
-  }
-  set icon(value) {
-    this.setStringAttribute(Option.attrs.icon, value);
-  }
-
-  /**
-   * The name of the icon to display when this option is active.
-   */
-  get activeIcon(): string | null {
-    return this.getStringAttribute(Option.attrs.activeIcon);
-  }
-  set activeIcon(value) {
-    this.setStringAttribute(Option.attrs.activeIcon, value);
-  }
-
-  /**
-   * The size of the option.
-   *
-   * Default is `md`.
-   */
-  get size(): SizeName | string | null {
-    return this.getStringAttribute(Option.attrs.size);
-  }
-  set size(value) {
-    this.setStringAttribute(Option.attrs.size, value);
-  }
-
-  /**
-   * The size of the icon.
-   */
-  get iconSize(): SizeName | string | null {
-    return this.getStringAttribute(Option.attrs.iconSize);
-  }
-  set iconSize(value) {
-    this.setStringAttribute(Option.attrs.iconSize, value);
-  }
-
-  /**
-   * The spacing between the icon and the label.
-   */
-  get spacing(): SizeName | string | null {
-    return this.getStringAttribute(Option.attrs.spacing);
-  }
-  set spacing(value) {
-    this.setStringAttribute(Option.attrs.spacing, value);
-  }
-
-  /**
-   * The option label.
-   */
-  get label(): string | null {
-    return this.getStringAttribute(Option.attrs.label);
-  }
-  set label(value) {
-    this.setStringAttribute(Option.attrs.label, value);
-  }
-
-  /**
-   * The action to perform when clicking this option.
-   */
-  get action(): string | null {
-    return this.getStringAttribute(Option.attrs.action);
-  }
-  set action(value) {
-    this.setStringAttribute(Option.attrs.action, value);
-  }
-
+export default class Option extends SparkleComponent(
+  spec,
+  DEFAULT_TRANSFORMERS,
+) {
   structuralAttributes = Object.keys(spec.props).map(
-    (prop) => Option.attrs[prop as keyof typeof Option.attrs],
+    (prop) => this.attrs[prop as keyof typeof this.attrs],
   );
 
   override shouldAttributeTriggerUpdate(
@@ -242,7 +33,7 @@ export default class Option
     oldValue: string,
     newValue: string,
   ) {
-    if (this.structuralAttributes.includes(name)) {
+    if (this.structuralAttributes.includes(name as any)) {
       return true;
     }
     return super.shouldAttributeTriggerUpdate(name, oldValue, newValue);
@@ -250,20 +41,20 @@ export default class Option
 
   override onAttributeChanged(name: string, newValue: string) {
     if (
-      name === Option.attrs.ariaHasPopup ||
-      name === Option.attrs.ariaExpanded ||
-      name === Option.attrs.autofocus ||
-      name === Option.attrs.href
+      name === this.attrs.ariaHasPopup ||
+      name === this.attrs.ariaExpanded ||
+      name === this.attrs.autofocus ||
+      name === this.attrs.href
     ) {
       this.updateRootAttribute(name, newValue);
     }
-    if (name === Option.attrs.disabled) {
+    if (name === this.attrs.disabled) {
       const ripple = this.refs.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
-    if (name === Option.attrs.mask) {
+    if (name === this.attrs.mask) {
       const ripple = this.refs.ripple;
       if (ripple) {
         if (newValue) {
@@ -273,13 +64,13 @@ export default class Option
         }
       }
     }
-    if (name === Option.attrs.icon) {
+    if (name === this.attrs.icon) {
       const iconEl = this.refs.icon;
       if (iconEl) {
         iconEl.hidden = newValue == null;
       }
     }
-    if (name === Option.attrs.label) {
+    if (name === this.attrs.label) {
       const label = newValue;
       if (label) {
         this.setAssignedToSlot(label);
@@ -327,7 +118,7 @@ export default class Option
     this.emit(CHANGED_EVENT, detail);
   }
 
-  protected override onContentAssigned(children: Element[]) {
+  override onContentAssigned(children: Element[]) {
     const nodes = children;
     nodes.forEach((node) => {
       if (node.nodeName.toLowerCase() === this.selectors.badge) {

@@ -1,4 +1,4 @@
-const define = async (
+export const define = async (
   tag: string,
   constructor: CustomElementConstructor,
 ): Promise<CustomElementConstructor> => {
@@ -7,5 +7,3 @@ const define = async (
   }
   return customElements.whenDefined(tag);
 };
-
-export default define;

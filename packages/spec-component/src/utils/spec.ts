@@ -2,7 +2,7 @@ import { ComponentConfig } from "../types/ComponentConfig";
 import { ComponentSpec } from "../types/ComponentSpec";
 import { IStore } from "../types/IStore";
 
-const spec = <
+export const spec = <
   Props extends Record<string, unknown>,
   Stores extends Record<string, IStore>,
   Context extends Record<string, unknown>,
@@ -30,5 +30,3 @@ const spec = <
     shadowDOM: spec.shadowDOM ?? true,
   };
 };
-
-export default spec;

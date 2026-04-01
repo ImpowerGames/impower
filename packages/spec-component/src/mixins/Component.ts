@@ -1,17 +1,15 @@
+import { Styles } from "../caches/Styles";
+import { Templates } from "../caches/Templates";
 import Idiomorph from "../idiomorph/idiomorph";
 import { ComponentSpec } from "../types/ComponentSpec";
 import { IStore } from "../types/IStore";
 import { RefMap } from "../types/RefMap";
-import convertCamelToKebabCase from "../utils/convertCamelToKebabCase";
-import convertHostToTagSelectors from "../utils/convertHostToTagSelectors";
-import emit from "../utils/emit";
-import getPropValue from "../utils/getPropValue";
+import { convertCamelToKebabCase } from "../utils/convertCamelToKebabCase";
+import { convertHostToTagSelectors } from "../utils/convertHostToTagSelectors";
+import { emit } from "../utils/emit";
+import { getPropValue } from "../utils/getPropValue";
 
-abstract class Styles {
-  static cache = new Map<string, { cssText: string; sheet: CSSStyleSheet }>();
-}
-
-const Component = <
+export const Component = <
   Props extends Record<string, unknown>,
   Stores extends Record<string, IStore>,
   Context extends Record<string, unknown>,
@@ -105,11 +103,16 @@ const Component = <
       return propToAttrMap;
     }
 
+    get attrs() {
+      return propToAttrMap;
+    }
+
     /**
      * Attributes that will cause attributeChangedCallback to be called whenever they are added, removed, or changed.
      */
     static get observedAttributes() {
-      return Object.values(this.attrs);
+      const observed = Object.values(this.attrs);
+      return observed;
     }
 
     /**
@@ -166,31 +169,32 @@ const Component = <
       return root;
     }
 
-    get adoptedStyleSheets() {
-      return this.styleSheetRoot.adoptedStyleSheets;
-    }
-
     get skipChildMorphing() {
       return false;
     }
 
     constructor(..._args: any[]) {
       super();
+
       const css = this.css;
       this.#css = css;
       const sharedCSS = this.sharedCSS;
       this.#sharedCSS = sharedCSS;
-      const innerHTML = this.html;
-      this.#html = innerHTML;
+      const html = this.html;
+      this.#html = html;
+
+      // Fetch from cache (parses only if it's the first time this exact string is seen)
+      const template = this.#getTemplate(this.#html);
+      const fragment = template.content.cloneNode(true);
 
       if (this.shadowDOM) {
         const shadowRoot = this.attachShadow({
           mode: "open",
           delegatesFocus: true,
         });
-        shadowRoot.innerHTML = innerHTML;
+        shadowRoot.replaceChildren(fragment);
       } else {
-        this.innerHTML = innerHTML;
+        this.replaceChildren(fragment);
       }
 
       this.loadCSS(this.#css);
@@ -201,6 +205,16 @@ const Component = <
       }
 
       this.#refs = this.getRefMap(this.selectors);
+    }
+
+    #getTemplate(htmlString: string): HTMLTemplateElement {
+      let template = Templates.cache.get(htmlString);
+      if (!template) {
+        template = document.createElement("template");
+        template.innerHTML = htmlString;
+        Templates.cache.set(htmlString, template);
+      }
+      return template;
     }
 
     reload(spec: ComponentSpec<Props, Stores, Context, Graphics, Selectors>) {
@@ -239,59 +253,18 @@ const Component = <
 
     loadCSS(cssText: string | undefined) {
       const tag = this.tagName.toLowerCase();
-      if (tag) {
-        if (cssText) {
-          const augmentedCSS = this.shadowDOM
-            ? cssText
-            : convertHostToTagSelectors(cssText, tag);
-          let style = Styles.cache.get(tag);
-          if (style && this.adoptedStyleSheets.includes(style.sheet)) {
-            if (style.cssText !== augmentedCSS) {
-              style.sheet.replaceSync(augmentedCSS);
-              style.cssText = augmentedCSS;
-            }
-          } else if (style) {
-            if (style.cssText !== augmentedCSS) {
-              style.sheet.replaceSync(augmentedCSS);
-              style.cssText = augmentedCSS;
-            }
-            this.adoptedStyleSheets.push(style.sheet);
-          } else {
-            const style = { cssText: augmentedCSS, sheet: new CSSStyleSheet() };
-            style.sheet.replaceSync(augmentedCSS);
-            style.cssText = cssText;
-            Styles.cache.set(tag, style);
-            this.adoptedStyleSheets.push(style.sheet);
-          }
-        } else {
-          const style = Styles.cache.get(tag);
-          style?.sheet?.replaceSync("");
-        }
+      if (cssText) {
+        const augmentedCSS = this.shadowDOM
+          ? cssText
+          : convertHostToTagSelectors(cssText, tag);
+        Styles.adoptStyle(this.styleSheetRoot, tag, augmentedCSS);
+      } else {
+        Styles.removeStyle(this.styleSheetRoot, tag);
       }
     }
 
     loadSharedCSS(name: string, cssText: string) {
-      if (name) {
-        let style = Styles.cache.get(name);
-        if (style && this.adoptedStyleSheets.includes(style.sheet)) {
-          if (style.cssText !== cssText) {
-            style.sheet.replaceSync(cssText);
-            style.cssText = cssText;
-          }
-        } else if (style) {
-          if (style.cssText !== cssText) {
-            style.sheet.replaceSync(cssText);
-            style.cssText = cssText;
-          }
-          this.adoptedStyleSheets.push(style.sheet);
-        } else {
-          const style = { cssText: cssText, sheet: new CSSStyleSheet() };
-          style.sheet.replaceSync(cssText);
-          style.cssText = cssText;
-          Styles.cache.set(name, style);
-          this.adoptedStyleSheets.push(style.sheet);
-        }
-      }
+      Styles.adoptStyle(this.styleSheetRoot, name, cssText);
     }
 
     getRefMap<S extends Record<string, null | string | string[]>>(
@@ -456,9 +429,9 @@ const Component = <
     }
 
     #update() {
-      const innerHTML = this.html;
-      if (innerHTML !== this.#html) {
-        this.#html = innerHTML;
+      const html = this.html;
+      if (html !== this.#html) {
+        this.#html = html;
         this.disconnectedCallback();
         this.render(true);
         this.connectedCallback();
@@ -466,17 +439,21 @@ const Component = <
     }
 
     render(morph: boolean) {
+      // Fetch from cache (parses only if it's the first time this exact string is seen)
+      const template = this.#getTemplate(this.#html);
+      const fragment = template.content.cloneNode(true);
+
       if (morph) {
         if (this.shadowRoot) {
-          this.morph(this.shadowRoot, this.#html);
+          this.morph(this.shadowRoot, fragment);
         } else {
-          this.morph(this, this.#html);
+          this.morph(this, fragment);
         }
       } else {
         if (this.shadowRoot) {
-          this.shadowRoot.innerHTML = this.#html;
+          this.shadowRoot.replaceChildren(fragment);
         } else {
-          this.innerHTML = this.#html;
+          this.replaceChildren(fragment);
         }
       }
       this.rebindRefs();
@@ -564,12 +541,12 @@ const Component = <
     });
   }
 
-  return cls as {
-    new (...params: any[]): InstanceType<typeof cls> & Props;
-    readonly tag: typeof cls.tag;
-    readonly attrs: typeof cls.attrs;
-    readonly observedAttributes: typeof cls.observedAttributes;
-  } & T;
+  return cls as typeof cls & {
+    new (...args: any[]): Props & {
+      readonly refs: RefMap<Selectors>;
+      readonly props: Props;
+      readonly stores: Stores;
+      readonly context: Context;
+    };
+  };
 };
-
-export default Component;

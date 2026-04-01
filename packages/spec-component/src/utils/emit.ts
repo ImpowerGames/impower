@@ -1,4 +1,4 @@
-const emit = <T>(event: string, detail: T, target: EventTarget) =>
+export const emit = <T>(event: string, detail: T, target: EventTarget) =>
   target.dispatchEvent(
     new CustomEvent(event, {
       bubbles: true,
@@ -7,5 +7,3 @@ const emit = <T>(event: string, detail: T, target: EventTarget) =>
       detail,
     }),
   );
-
-export default emit;

@@ -45,7 +45,7 @@ export default class LogicScriptEditor extends Component(spec) {
   }
 
   override onAttributeChanged(name: string, newValue: string) {
-    if (name === LogicScriptEditor.attrs.filename) {
+    if (name === this.attrs.filename) {
       this.loadFile();
     }
   }

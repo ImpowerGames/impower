@@ -33,11 +33,9 @@ const proxy = <T extends object, F extends (data: T) => void>(
   });
 };
 
-const reactive = <T extends object, F extends (data: T) => void>(
+export const reactive = <T extends object, F extends (data: T) => void>(
   data: T,
   callback: F,
 ): T => {
   return proxy(data, callback);
 };
-
-export default reactive;

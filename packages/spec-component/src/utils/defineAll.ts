@@ -1,8 +1,8 @@
 import { DefineOptions } from "../component";
 import { SpecComponentConstructor } from "../types/SpecComponentConstructor";
-import define from "./define";
+import { define } from "./define";
 
-const defineAll = (
+export const defineAll = (
   constructors: readonly SpecComponentConstructor[],
   options?: DefineOptions,
 ) => {
@@ -19,5 +19,3 @@ const defineAll = (
     constructors.map((constructor) => define(constructor.tag!, constructor)),
   );
 };
-
-export default defineAll;

@@ -18,4 +18,13 @@ export default spec({
   } as const,
   css,
   sharedCSS,
+  props: {
+    loading: null as string | null,
+    open: false,
+    dismissable: null as string | null,
+    label: null as string | null,
+    cancel: null as string | null,
+    confirm: null as string | null,
+    icon: null as string | null,
+  },
 });
