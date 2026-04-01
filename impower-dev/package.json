@@ -56,7 +56,7 @@
     "vite": "^8.0.3"
   },
   "devDependencies": {
-    "@adobe/css-tools": "^4.3.0-beta.2",
+    "@adobe/css-tools": "^4.4.4",
     "@types/browser-resolve": "^2.0.4",
     "@types/gapi": "^0.0.47",
     "@types/gapi.client.drive-v3": "^0.0.5",
