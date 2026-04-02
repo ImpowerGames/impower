@@ -4,6 +4,8 @@ const LIGHT_DOM_COMPONENTS = [
   "s-circle",
   "s-collapsible",
   "s-divider",
+  "s-hidden",
+  "s-icon",
   "s-list",
   "s-navigation",
   "s-ripple",

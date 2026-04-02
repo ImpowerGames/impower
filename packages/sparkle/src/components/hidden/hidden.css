@@ -1,26 +1,25 @@
 :host {
-  display: contents;
   --_duration: 150ms;
 }
 
-:host > .root {
+:host {
   display: flex;
   position: relative;
   transition-property: opacity;
 }
 
-:host > .root[loaded] {
+:host([loaded]) {
   transition-duration: var(--_duration);
 }
 
-:host > .root:not([loaded]) {
+:host(:not([loaded])) {
   transition-duration: 0 !important;
 }
 
-:host > .root[status="hiding"] {
+:host([status="hiding"]) {
   opacity: 0;
 }
-:host > .root[status="hiding"]::after {
+:host([status="hiding"]::after) {
   content: "";
   position: absolute;
   inset: 0;
@@ -28,16 +27,16 @@
   pointer-events: auto;
 }
 
-:host([initial="hide"]) > .root:not([loaded]),
-:host > .root[status="hidden"] {
+:host([initial="hide"]:not([loaded])),
+:host([status="hidden"]) {
   display: none;
 }
 
-:host > .root[loaded][status="mounting"] {
+:host([loaded][status="mounting"]) {
   display: flex;
   opacity: 0;
 }
 
-:host > .root[loaded]:is([status="showing"], [status="shown"]) {
+:host([loaded]:is([status="showing"], [status="shown"])) {
   opacity: 1;
 }

@@ -32,11 +32,11 @@ export default class Hidden extends SparkleComponent(
 
   override onConnected() {
     if (this.initial === "hide") {
-      this.root.hidden = true;
+      this.hidden = true;
     } else {
-      this.root.hidden = false;
+      this.hidden = false;
     }
-    this._shown = !this.root.hidden;
+    this._shown = this.initial !== "hide";
     window.addEventListener("resize", this.handleWindowResize, {
       passive: true,
     });
@@ -106,7 +106,7 @@ export default class Hidden extends SparkleComponent(
   async load() {
     this.checkBreakpoint();
     await nextAnimationFrame();
-    this.root.setAttribute("loaded", "");
+    this.setAttribute("loaded", "");
   }
 
   async hide() {
@@ -128,12 +128,12 @@ export default class Hidden extends SparkleComponent(
   async animateHide() {
     this.emit(CHANGING_EVENT, { hidden: true });
     if (this.hideInstantly != null) {
-      this.root.hidden = true;
-      this.root.setAttribute("status", "hidden");
+      this.hidden = true;
+      this.setAttribute("status", "hidden");
     } else {
-      this.root.setAttribute("status", "hiding");
-      await animationsComplete(this.root);
-      this.root.hidden = true;
+      this.setAttribute("status", "hiding");
+      await animationsComplete(this);
+      this.hidden = true;
     }
     this.emit(CHANGED_EVENT, { hidden: true });
   }
@@ -157,15 +157,15 @@ export default class Hidden extends SparkleComponent(
   async animateShow() {
     this.emit(CHANGING_EVENT, { hidden: false });
     if (this.showInstantly != null) {
-      this.root.hidden = false;
-      this.root.setAttribute("status", "shown");
+      this.hidden = false;
+      this.setAttribute("status", "shown");
     } else {
-      this.root.hidden = false;
-      this.root.setAttribute("status", "mounting");
-      await animationsComplete(this.root);
-      this.root.setAttribute("status", "showing");
-      await animationsComplete(this.root);
-      this.root.setAttribute("status", "shown");
+      this.hidden = false;
+      this.setAttribute("status", "mounting");
+      await animationsComplete(this);
+      this.setAttribute("status", "showing");
+      await animationsComplete(this);
+      this.setAttribute("status", "shown");
     }
     this.emit(CHANGED_EVENT, { hidden: false });
   }

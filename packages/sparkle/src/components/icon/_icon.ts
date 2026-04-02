@@ -4,10 +4,11 @@ import css from "./icon.css";
 
 export default spec({
   tag: "s-icon",
+  shadowDOM: false,
   html: ({ props, graphics }) => {
     const { name } = props;
     const svg = () => (typeof name === "string" ? graphics?.[name] || "" : "");
-    return html`<div class="root icon" part="root"><slot>${svg}</slot></div>`;
+    return html`${svg}`;
   },
   css,
   sharedCSS,

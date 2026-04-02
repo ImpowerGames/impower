@@ -1,10 +1,9 @@
 :host {
-  display: contents;
   --_child-justify: center;
   --_child-align: center;
 }
 
-:host > .root {
+:host {
   display: flex;
   justify-content: var(--_child-justify);
   align-items: var(--_child-align);
