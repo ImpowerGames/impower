@@ -84,10 +84,6 @@ export function SparkleComponent<
     Selectors,
     T
   >(augmentedSpec as any, Base) {
-    override get skipMorphingAttributes() {
-      return ["style"];
-    }
-
     get transformers(): Record<string, (v: string) => string> {
       return { ...DEFAULT_SPARKLE_TRANSFORMERS, ...transformers };
     }
@@ -1725,6 +1721,13 @@ export function SparkleComponent<
     }
 
     override onRender() {
+      for (let i = 0; i < this.attributes.length; i++) {
+        const attr = this.attributes[i]!;
+        this.propagateAttribute(attr.name, attr.value);
+      }
+    }
+
+    override afterNodeMorphed(oldNode: Element, newNode: Element) {
       for (let i = 0; i < this.attributes.length; i++) {
         const attr = this.attributes[i]!;
         this.propagateAttribute(attr.name, attr.value);

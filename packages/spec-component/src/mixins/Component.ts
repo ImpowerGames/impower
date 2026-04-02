@@ -508,11 +508,31 @@ export const Component = <
               }
               return false;
             }
+            if (
+              "beforeNodeMorphed" in newNode &&
+              typeof newNode?.beforeNodeMorphed === "function"
+            ) {
+              return newNode.beforeNodeMorphed(oldNode, newNode);
+            }
             return true;
+          },
+          afterNodeMorphed: (oldNode: Element, newNode: Element): void => {
+            if (
+              "afterNodeMorphed" in oldNode &&
+              typeof oldNode?.afterNodeMorphed === "function"
+            ) {
+              oldNode.afterNodeMorphed(oldNode, newNode);
+            }
           },
         },
       });
     }
+
+    beforeNodeMorphed(oldNode: Element, newNode: Element): boolean {
+      return true;
+    }
+
+    afterNodeMorphed(oldNode: Element, newNode: Element): void {}
 
     rebindRefs() {
       this.#refs = this.getRefMap(this.selectors);
