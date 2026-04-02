@@ -76,7 +76,7 @@ export default class List<T = any> extends SparkleComponent(spec) {
   }
 
   override get root() {
-    return this.self.firstElementChild;
+    return this.self.firstElementChild as HTMLElement;
   }
 
   override onConnected() {
