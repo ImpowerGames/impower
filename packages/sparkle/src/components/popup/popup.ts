@@ -141,8 +141,8 @@ export function PopupComponent<
 
     stop(): void {
       this.removeAttribute("data-current-placement");
-      this.updateRootCssVariable("auto-size-available-width", null);
-      this.updateRootCssVariable("auto-size-available-height", null);
+      this.updateCssVariable("auto-size-available-width", null);
+      this.updateCssVariable("auto-size-available-height", null);
     }
 
     override update = () => {
@@ -252,11 +252,11 @@ export function PopupComponent<
                 this.autoSize === "horizontal" || this.autoSize === "both"
                   ? `${availableWidth}px`
                   : null;
-              this.updateRootCssVariable(
+              this.updateCssVariable(
                 "--_auto-size-available-height",
                 autoSizeAvailableHeight,
               );
-              this.updateRootCssVariable(
+              this.updateCssVariable(
                 "--_auto-size-available-width",
                 autoSizeAvailableWidth,
               );
@@ -265,8 +265,8 @@ export function PopupComponent<
         );
       } else {
         // Cleanup styles if we're no longer using auto-size
-        this.updateRootCssVariable("auto-size-available-height", null);
-        this.updateRootCssVariable("auto-size-available-width", null);
+        this.updateCssVariable("auto-size-available-height", null);
+        this.updateCssVariable("auto-size-available-width", null);
       }
 
       //

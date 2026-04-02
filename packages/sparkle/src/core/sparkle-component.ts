@@ -1890,9 +1890,9 @@ export function SparkleComponent<
       return [];
     }
 
-    updateRootCssVariable(name: string, value: string | null) {
+    updateCssVariable(name: string, value: string | null) {
       const varName = name.startsWith("--_") ? name : `--_${name}`;
-      this.root.style.setProperty(varName, value ?? null);
+      this.style.setProperty(varName, value ?? null);
     }
 
     updateRootClass(name: string, active: boolean | string | null): boolean {
@@ -1930,9 +1930,9 @@ export function SparkleComponent<
           ? valueFormatter(newValue)
           : newValue;
       if (formattedValue) {
-        this.updateRootCssVariable(varName, formattedValue);
+        this.updateCssVariable(varName, formattedValue);
       } else {
-        this.updateRootCssVariable(varName, null);
+        this.updateCssVariable(varName, null);
       }
     }
 

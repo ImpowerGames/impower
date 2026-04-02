@@ -22,7 +22,7 @@ export default class ProgressCircle extends SparkleComponent(
   override onAttributeChanged(name: string, newValue: string) {
     if (name === this.attrs.value) {
       const proportion = getCssProportion(newValue, 0);
-      this.updateRootCssVariable(name, String(proportion));
+      this.updateCssVariable(name, String(proportion));
       this.updateRootAttribute(this.attrs.ariaValueNow, newValue);
       const labelEl = this.refs.label;
       if (labelEl) {

@@ -141,9 +141,9 @@ export default class Router extends SparkleComponent(spec) {
     } else {
       const directionSuffix = direction ? `-${direction}` : "";
       const enter = getCssAnimation(this.enter, directionSuffix);
-      this.updateRootCssVariable("enter", enter);
+      this.updateCssVariable("enter", enter);
       const exit = getCssAnimation(this.exit, directionSuffix);
-      this.updateRootCssVariable("exit", exit);
+      this.updateCssVariable("exit", exit);
       this.cacheAnimationNames();
       this.playExitTransition();
     }

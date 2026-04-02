@@ -18,7 +18,7 @@ export default class ProgressBar extends SparkleComponent(
   override onAttributeChanged(name: string, newValue: string) {
     if (name === this.attrs.value) {
       this.updateRootAttribute(this.attrs.ariaValueNow, newValue);
-      this.updateRootCssVariable(
+      this.updateCssVariable(
         name,
         newValue.endsWith("%") ? newValue : `${newValue}%`,
       );
