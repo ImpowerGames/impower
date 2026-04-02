@@ -75,6 +75,10 @@ export default class List<T = any> extends SparkleComponent(spec) {
     this.onScroll = this.onScroll.bind(this);
   }
 
+  override get root() {
+    return this.self.firstElementChild;
+  }
+
   override onConnected() {
     this.bindScroller();
   }
