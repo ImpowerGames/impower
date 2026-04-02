@@ -148,7 +148,7 @@ export const Component = <
     }
 
     get root(): HTMLElement {
-      return this.self.firstElementChild as HTMLElement;
+      return (this.shadowRoot?.firstElementChild as HTMLElement) || this;
     }
 
     get contentSlot(): HTMLSlotElement | null {
