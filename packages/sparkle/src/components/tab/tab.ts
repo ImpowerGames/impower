@@ -24,9 +24,7 @@ const DEFAULT_TRANSFORMERS = {
  * Tabs are used to represent and activate panels.
  */
 export default class Tab extends SparkleComponent(spec, DEFAULT_TRANSFORMERS) {
-  structuralAttributes = Object.keys(spec.props).map(
-    (prop) => this.attrs[prop as keyof typeof this.attrs],
-  );
+  structuralAttributes = ["icon", "active-icon", "disable-ripple"];
 
   override shouldAttributeTriggerUpdate(
     name: string,

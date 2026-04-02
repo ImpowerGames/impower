@@ -13,9 +13,25 @@ export default class Input extends SparkleComponent(
   spec,
   DEFAULT_TRANSFORMERS,
 ) {
-  structuralAttributes = Object.keys(spec.props).map(
-    (prop) => this.attrs[prop as keyof typeof this.attrs],
-  );
+  structuralAttributes = [
+    "type",
+    "name",
+    "autocomplete",
+    "autocorrect",
+    "autofocus",
+    "autocapitalize",
+    "pattern",
+    "max-length",
+    "min-length",
+    "label",
+    "enter-key-hint",
+    "input-mode",
+    "spellcheck",
+    "readonly",
+    "required",
+    "value",
+    "disable-ripple",
+  ];
 
   override shouldAttributeTriggerUpdate(
     name: string,

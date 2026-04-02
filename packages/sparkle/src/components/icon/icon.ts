@@ -10,9 +10,7 @@ const DEFAULT_TRANSFORMERS = {
  * Icons are symbols that can be used to represent various options within an application.
  */
 export default class Icon extends SparkleComponent(spec, DEFAULT_TRANSFORMERS) {
-  structuralAttributes = Object.keys(spec.props).map(
-    (prop) => this.attrs[prop as keyof typeof this.attrs],
-  );
+  structuralAttributes = ["name"];
 
   override shouldAttributeTriggerUpdate(
     name: string,

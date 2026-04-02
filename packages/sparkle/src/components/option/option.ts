@@ -24,9 +24,13 @@ export default class Option extends SparkleComponent(
   spec,
   DEFAULT_TRANSFORMERS,
 ) {
-  structuralAttributes = Object.keys(spec.props).map(
-    (prop) => this.attrs[prop as keyof typeof this.attrs],
-  );
+  structuralAttributes = [
+    "type",
+    "href",
+    "icon",
+    "active-icon",
+    "disable-ripple",
+  ];
 
   override shouldAttributeTriggerUpdate(
     name: string,

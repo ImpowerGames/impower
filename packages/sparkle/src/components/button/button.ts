@@ -27,9 +27,16 @@ export default class Button extends SparkleComponent(
   spec,
   DEFAULT_TRANSFORMERS,
 ) {
-  structuralAttributes = Object.keys(spec.props).map(
-    (prop) => this.attrs[prop as keyof typeof this.attrs],
-  );
+  structuralAttributes = [
+    "type",
+    "href",
+    "accept",
+    "multiple",
+    "icon",
+    "active-icon",
+    "variant",
+    "disable-ripple",
+  ];
 
   override shouldAttributeTriggerUpdate(
     name: string,
