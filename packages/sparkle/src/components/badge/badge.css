@@ -1,5 +1,4 @@
 :host {
-  display: contents;
   --_overflow-x: clip;
   --_selectable: none;
   --_background-color: var(--theme-color-primary-60);
@@ -20,7 +19,7 @@
   --_padding-lr: 8px;
 }
 
-:host > .root {
+:host {
   display: flex;
   cursor: inherit;
   overflow-x: var(--_overflow-x);
@@ -45,15 +44,15 @@
   will-change: transform;
 }
 
-:host([float=""]) > .root,
-:host([float="right"]) > .root {
+:host([float=""]),
+:host([float="right"]) {
   position: absolute;
   top: 0;
   right: 0;
   transform: translate(50%, -50%);
   pointer-events: none;
 }
-:host([float="left"]) > .root {
+:host([float="left"]) {
   position: absolute;
   top: 0;
   left: 0;

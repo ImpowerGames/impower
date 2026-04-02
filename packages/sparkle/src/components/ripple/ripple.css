@@ -1,8 +1,4 @@
 :host {
-  display: contents;
-  border-radius: inherit;
-  -webkit-mask: inherit;
-  mask: inherit;
   --_hover-opacity: var(--theme-opacity-hover);
   --_press-opacity: var(--theme-opacity-press);
   --_ripple-duration: 150ms;
@@ -11,7 +7,7 @@
   --_min-color-stop-length: 75%;
 }
 
-:host > .root {
+:host {
   display: flex;
   pointer-events: auto;
   border-radius: inherit;
@@ -24,8 +20,8 @@
   will-change: transform, opacity;
 }
 
-:host > .root::before,
-:host > .root::after {
+:host::before,
+:host::after {
   display: inline-block;
   position: absolute;
   inset: 0;
@@ -38,14 +34,14 @@
   will-change: transform, opacity;
 }
 
-:host > .root::before {
+:host::before {
   background-color: var(--_ripple-color, currentColor);
   transition-property: opacity, background-color;
   transition-timing-function: linear;
   transition-duration: var(--_hover-duration);
 }
 
-:host > .root::after {
+:host::after {
   background: radial-gradient(
     closest-side,
     currentColor max(calc(100% - 70px), var(--_min-color-stop-length)),
@@ -57,18 +53,18 @@
   transform-origin: center center;
 }
 
-:host > .root.pressed::after {
+:host.pressed::after {
   opacity: var(--_press-opacity);
   transition-property: opacity;
   transition-duration: var(--_press-duration);
 }
 
-:host([animation="none"]) > .root::after {
+:host([animation="none"])::after {
   visibility: hidden;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :host > .root:hover::before {
+  :host:hover::before {
     opacity: var(--_hover-opacity);
   }
 }

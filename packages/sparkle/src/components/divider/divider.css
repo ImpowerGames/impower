@@ -1,24 +1,23 @@
 :host {
-  display: contents;
   --_background-color: var(--theme-color-divider);
   --_size: 1px;
   --_width: 100%;
   --_height: 100%;
 }
 
-:host > .root {
+:host {
   display: flex;
   background-color: var(--_background-color);
   opacity: var(--_opacity);
 }
 
-:host(:not([vertical])) > .root {
+:host(:not([vertical])) {
   display: block;
   width: var(--_width);
   height: var(--_size);
 }
 
-:host([vertical]) > .root {
+:host([vertical]) {
   display: inline-block;
   width: var(--_size);
   height: var(--_height);

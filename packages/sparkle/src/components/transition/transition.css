@@ -1,33 +1,32 @@
 :host {
-  display: contents;
   --_exit: var(--theme-animation-close);
   --_enter: var(--theme-animation-open);
   --_ease: ease-out;
   --_position: relative;
 }
 
-:host > .root {
+:host {
   display: flex;
   position: relative;
   flex: 1;
   will-change: transform, opacity;
 }
-:host > .root[status] {
+:host[status] {
   overflow-x: clip;
   overflow-y: clip;
 }
-:host > .root[status="exiting"]::after {
+:host[status="exiting"]::after {
   content: "";
   position: absolute;
   inset: 0;
   /* Block input during exit animation */
   pointer-events: auto;
 }
-:host > .root[status="exiting"] {
+:host[status="exiting"] {
   animation: var(--_exit) both;
   animation-timing-function: var(--_ease);
 }
-:host > .root[status="entering"] {
+:host[status="entering"] {
   animation: var(--_enter) both;
   animation-timing-function: var(--_ease);
 }

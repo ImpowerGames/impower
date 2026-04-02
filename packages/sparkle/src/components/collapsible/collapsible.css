@@ -1,12 +1,8 @@
 :host {
-  display: contents;
-}
-
-:host > .root {
   display: flex;
   flex-shrink: 0;
 }
 
-:host > .root * {
+:host * {
   filter: none;
 }

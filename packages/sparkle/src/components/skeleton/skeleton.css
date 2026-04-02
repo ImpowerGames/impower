@@ -1,5 +1,4 @@
 :host {
-  display: contents;
   --_text-color: var(--theme-color-fg-05);
   --_sheen-color: var(--theme-color-fg-15);
   --_width-min: 40px;
@@ -7,9 +6,6 @@
   --_shrink: 0;
   --_background-fit: 400% 100%;
   --_corner: 9999px;
-}
-
-:host > .root {
   --_background-gradient: linear-gradient(
     270deg,
     var(--_sheen-color),
@@ -17,6 +13,9 @@
     var(--_text-color),
     var(--_sheen-color)
   );
+}
+
+:host {
   display: flex;
   min-width: var(--_width-min);
   width: var(--_width);

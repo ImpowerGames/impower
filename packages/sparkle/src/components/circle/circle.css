@@ -1,5 +1,4 @@
 :host {
-  display: contents;
   --_aspect: 1/1;
   --_child-layout: column;
   --_child-justify: center;
@@ -12,7 +11,7 @@
   --_height: var(--_size);
 }
 
-:host > .root {
+:host {
   display: flex;
   flex-direction: var(--_child-layout);
   justify-content: var(--_child-justify);

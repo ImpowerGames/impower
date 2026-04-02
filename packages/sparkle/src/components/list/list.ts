@@ -75,10 +75,6 @@ export default class List<T = any> extends SparkleComponent(spec) {
     this.onScroll = this.onScroll.bind(this);
   }
 
-  override get root() {
-    return this.self.firstElementChild as HTMLElement;
-  }
-
   override onConnected() {
     this.bindScroller();
   }
@@ -145,13 +141,13 @@ export default class List<T = any> extends SparkleComponent(spec) {
     if (!this._scroller) return;
 
     if (this._scroller === this) {
-      this._cachedViewportHeight = this.root.clientHeight;
+      this._cachedViewportHeight = this.clientHeight;
       return;
     }
 
     // Calling getBoundingClientRect is expensive. By doing this ONLY on resize,
     // we prevent the browser from doing synchronous layout passes during scrolling.
-    const rect = this.root.getBoundingClientRect();
+    const rect = this.getBoundingClientRect();
 
     if (this._scroller instanceof Window) {
       this._cachedOffsetTop = window.scrollY + rect.top;
@@ -174,10 +170,10 @@ export default class List<T = any> extends SparkleComponent(spec) {
     // to push the parent's scrollbar.
     if (this._scroller === this || !this._scroller) {
       this.refs.spacer.style.height = `${totalHeight}px`;
-      this.root.style.height = "";
+      this.style.height = "";
     } else {
       this.refs.spacer.style.height = "0px";
-      this.root.style.height = `${totalHeight}px`;
+      this.style.height = `${totalHeight}px`;
     }
   }
 

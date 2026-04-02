@@ -1,6 +1,7 @@
 import transformer from "../../sparkle-style-transformer/src/index";
 import { ComponentSpec } from "../../spec-component/src/spec";
 import baseNormalize from "../../spec-component/src/styles/normalize/normalize.css";
+import { scopeSelectorsToTag } from "../../spec-component/src/utils/scopeSelectorsToTag";
 import Badge from "./components/badge/_badge";
 import Box from "./components/box/_box";
 import Button from "./components/button/_button";
@@ -31,6 +32,7 @@ import Toast from "./components/toast/_toast";
 import Tooltip from "./components/tooltip/_tooltip";
 import Transition from "./components/transition/_transition";
 import Viewport from "./components/viewport/_viewport";
+import LIGHT_DOM_COMPONENTS from "./constants/LIGHT_DOM_COMPONENTS";
 import animations from "./styles/animations/animations.css";
 import core from "./styles/core/core.css";
 import dark from "./styles/dark/dark.css";
@@ -75,9 +77,17 @@ const style = <
   };
 };
 
+const shadowRootScopedUtility = scopeCssToChild(utility, ".root");
+
+const tagScopedUtility = scopeSelectorsToTag(
+  utility,
+  `:is(${LIGHT_DOM_COMPONENTS.join(",")})`,
+);
+
 const components = [
   { tag: "", css: core },
-  { tag: "", css: scopeCssToChild(utility, ".root") },
+  { tag: "", css: shadowRootScopedUtility },
+  { tag: "", css: tagScopedUtility },
   { tag: "", css: baseNormalize },
   { tag: "", css: sparkleNormalize },
   { tag: "", css: easings },
