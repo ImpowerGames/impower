@@ -6,7 +6,7 @@ import spec from "./_preview-screenplay-toolbar";
 
 export default class PreviewScreenplayToolbar extends Component(spec) {
   get progressBarEl() {
-    return this.refs.progressBar?.shadowRoot?.firstElementChild as HTMLElement;
+    return this.refs.progressBar as HTMLElement;
   }
 
   override onConnected() {
