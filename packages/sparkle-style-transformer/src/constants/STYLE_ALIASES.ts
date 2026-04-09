@@ -25,11 +25,17 @@ export const STYLE_ALIASES = {
   "b-style-b": "border-style-bottom",
   "b-style-l": "border-style-left",
 
-  i: "inset",
-  "i-t": "inset-top",
-  "i-r": "inset-right",
-  "i-b": "inset-bottom",
-  "i-l": "inset-left",
+  a: "anchor",
+  "a-t": "anchor-top",
+  "a-r": "anchor-right",
+  "a-b": "anchor-bottom",
+  "a-l": "anchor-left",
+
+  i: "anchor",
+  "i-t": "anchor-top",
+  "i-r": "anchor-right",
+  "i-b": "anchor-bottom",
+  "i-l": "anchor-left",
 
   m: "margin",
   "m-t": "margin-top",

@@ -105,11 +105,11 @@ export const STYLE_TRANSFORMERS = {
   "border-style-bottom": getCssBorderStyle,
   "border-style-left": getCssBorderStyle,
 
-  inset: getCssSize,
-  "inset-top": getCssSize,
-  "inset-right": getCssSize,
-  "inset-bottom": getCssSize,
-  "inset-left": getCssSize,
+  anchor: getCssSize,
+  "anchor-top": getCssSize,
+  "anchor-right": getCssSize,
+  "anchor-bottom": getCssSize,
+  "anchor-left": getCssSize,
 
   margin: getCssSize,
   "margin-top": getCssSize,

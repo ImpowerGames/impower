@@ -171,20 +171,20 @@
   border-right-style: var(--_border-style-right, solid) !important;
 }
 
-:is([i], [inset]) {
-  inset: var(--_inset, 8px) !important;
+:is([a], [anchor], [i], [inset]) {
+  inset: var(--_anchor, 8px) !important;
 }
-:is([i-t], [inset-top]) {
-  top: var(--_inset-top, 8px) !important;
+:is([a-t], [anchor-top], [i-t], [inset-top], [top]) {
+  top: var(--_anchor-top, 8px) !important;
 }
-:is([i-b], [inset-bottom]) {
-  bottom: var(--_inset-bottom, 8px) !important;
+:is([a-b], [anchor-bottom], [i-b], [inset-bottom], [bottom]) {
+  bottom: var(--_anchor-bottom, 8px) !important;
 }
-:is([i-l], [inset-left]) {
-  left: var(--_inset-left, 8px) !important;
+:is([a-l], [anchor-left], [i-l], [inset-left], [left]) {
+  left: var(--_anchor-left, 8px) !important;
 }
-:is([i-r], [inset-right]) {
-  right: var(--_inset-right, 8px) !important;
+:is([a-r], [anchor-right], [i-r], [inset-right], [right]) {
+  right: var(--_anchor-right, 8px) !important;
 }
 
 :is([m], [margin]) {

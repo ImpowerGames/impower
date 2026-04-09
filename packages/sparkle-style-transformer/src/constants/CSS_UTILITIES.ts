@@ -127,19 +127,19 @@ export const CSS_UTILITIES = {
     "": { "border-right-style": "" },
   },
 
-  inset: {
+  anchor: {
     "": { inset: "" },
   },
-  "inset-top": {
+  "anchor-top": {
     "": { top: "" },
   },
-  "inset-bottom": {
+  "anchor-bottom": {
     "": { bottom: "" },
   },
-  "inset-left": {
+  "anchor-left": {
     "": { left: "" },
   },
-  "inset-right": {
+  "anchor-right": {
     "": { right: "" },
   },
 

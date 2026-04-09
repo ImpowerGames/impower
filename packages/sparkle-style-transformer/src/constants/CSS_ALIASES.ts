@@ -28,10 +28,11 @@ export const CSS_ALIASES = {
   "border-bottom-style": "border-style-bottom",
   "border-left-style": "border-style-left",
 
-  top: "inset-top",
-  right: "inset-right",
-  bottom: "inset-bottom",
-  left: "inset-left",
+  inset: "anchor",
+  top: "anchor-top",
+  right: "anchor-right",
+  bottom: "anchor-bottom",
+  left: "anchor-left",
 
   "flex-direction": "child-layout",
 
