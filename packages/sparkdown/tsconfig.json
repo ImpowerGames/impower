@@ -3,7 +3,6 @@
     "module": "commonjs",
     "target": "ESNext",
     "lib": ["ESNext", "WebWorker"],
-    "outDir": "dist",
     "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,

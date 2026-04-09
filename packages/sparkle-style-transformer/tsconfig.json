@@ -2,7 +2,6 @@
   "compilerOptions": {
     "module": "esnext",
     "moduleResolution": "nodenext",
-    "outDir": "dist/mjs",
     "target": "es2020",
     "lib": ["esnext"],
     "declaration": true,

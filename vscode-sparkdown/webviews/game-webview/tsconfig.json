@@ -3,7 +3,6 @@
     "module": "commonjs",
     "target": "es2020",
     "lib": ["es2020", "WebWorker", "DOM"],
-    "outDir": "dist",
     "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,
