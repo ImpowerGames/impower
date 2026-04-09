@@ -10,6 +10,7 @@ import {
   Loader,
   LoaderParser,
   LoaderParserPriority,
+  loadTextures,
   Renderer,
   ResolvedAsset,
   WebGLRenderer,
@@ -174,6 +175,11 @@ export class Application implements IApplication {
     audioContext?: AudioContext,
   ) {
     this._game = game;
+
+    if (loadTextures.config) {
+      // these workers don't work in iframe environments
+      loadTextures.config.preferWorkers = false;
+    }
 
     this._view = view;
     this._overlay = overlay;
