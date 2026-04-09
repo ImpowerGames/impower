@@ -3,6 +3,7 @@
 }
 
 :host > .root {
+  z-index: 2;
   display: flex;
   position: absolute;
   inset: 0;
