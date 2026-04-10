@@ -1,0 +1,40 @@
+{
+  "name": "@pixi/devtools",
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://pixijs.io/devtools/",
+  "bugs": "https://github.com/pixijs/devtools/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pixijs/devtools.git"
+  },
+  "license": "MIT",
+  "version": "2.3.1",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "global.d.ts"
+  ],
+  "scripts": {
+    "build": "vite build && tsc",
+    "watch": "vite build --watch",
+    "start": "npm run watch"
+  },
+  "devDependencies": {
+    "pixi.js": "^8.14.3"
+  },
+  "peerDependencies": {
+    "pixi.js": "^7 || ^8"
+  }
+}

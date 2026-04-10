@@ -1,0 +1,15 @@
+{
+  "name": "@devtool/example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite dev",
+    "start": "npm run watch"
+  },
+  "dependencies": {
+    "pixi.js": "^8.14.3",
+    "@pixi/devtools": "*"
+  }
+}
