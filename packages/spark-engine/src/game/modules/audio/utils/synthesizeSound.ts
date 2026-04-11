@@ -13,44 +13,98 @@ import { OscillatorType } from "../types/OscillatorType";
 import { Synth } from "../types/Synth";
 import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequencyFactor";
 
-const FREEVERB_COMB_A_SIZES = [1557, 1617, 1491, 1422];
-const FREEVERB_COMB_B_SIZES = [1277, 1356, 1188, 1116];
-const FREEVERB_ALLPASS_SIZES = [525, 556, 641, 537];
+const WAHWAH_MIN_RESONANCE = 4000;
+const WAHWAH_MIN_CUTOFF = 0.6;
 
-export interface CombState {
+class CombFilter {
   buffer: Float32Array;
-  index: number;
-  filter: number;
-  feedback: number;
-  damp: number;
+  bufIdx: number = 0;
+  filterStore: number = 0;
+  damp1: number = 0;
+  damp2: number = 0;
+  feedback: number = 0;
+
+  constructor(size: number) {
+    this.buffer = new Float32Array(size);
+  }
+
+  process(input: number): number {
+    const output = this.buffer[this.bufIdx]!;
+    this.filterStore = output * this.damp2 + this.filterStore * this.damp1;
+    this.buffer[this.bufIdx] = input + this.filterStore * this.feedback;
+    if (++this.bufIdx >= this.buffer.length) this.bufIdx = 0;
+    return output;
+  }
 }
 
-export interface AllpassState {
+class AllpassFilter {
   buffer: Float32Array;
-  index: number;
+  bufIdx: number = 0;
+  feedback: number = 0.5;
+
+  constructor(size: number) {
+    this.buffer = new Float32Array(size);
+  }
+
+  process(input: number): number {
+    const bufOut = this.buffer[this.bufIdx]!;
+    const output = -input + bufOut;
+    this.buffer[this.bufIdx] = input + bufOut * this.feedback;
+    if (++this.bufIdx >= this.buffer.length) this.bufIdx = 0;
+    return output;
+  }
 }
 
-export interface ReverbState {
-  combAStates: CombState[];
-  combBStates: CombState[];
-  allpassStates: AllpassState[];
+class ReverbState {
+  combs: CombFilter[];
+  allpasses: AllpassFilter[];
+
+  constructor(sampleRate: number) {
+    const scale = sampleRate / 44100;
+    this.combs = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617].map(
+      (s) => new CombFilter(Math.floor(s * scale)),
+    );
+    this.allpasses = [225, 341, 441, 556].map(
+      (s) => new AllpassFilter(Math.floor(s * scale)),
+    );
+  }
+
+  process(input: number, roomSize: number, damp: number): number {
+    let out = 0;
+    const combFeedback = 0.7 + 0.28 * roomSize;
+    const combDamp = 0.4 * damp;
+
+    for (let i = 0; i < this.combs.length; i++) {
+      this.combs[i]!.feedback = combFeedback;
+      this.combs[i]!.damp1 = combDamp;
+      this.combs[i]!.damp2 = 1 - combDamp;
+      out += this.combs[i]!.process(input);
+    }
+
+    out *= 0.15;
+
+    for (let i = 0; i < this.allpasses.length; i++) {
+      out = this.allpasses[i]!.process(out);
+    }
+
+    return out;
+  }
 }
 
-export interface SynthesisState extends ReverbState {
+export interface SynthesisState {
   waveState: OscillatorState;
   vibratoState: OscillatorState;
   tremoloState: OscillatorState;
   wahwahState: OscillatorState;
+  reverbState: ReverbState | null;
   lowpassInput: [number, number];
   lowpassOutput: [number, number, number];
   highpassInput: [number, number];
   highpassOutput: [number, number, number];
 }
 
-export const createSynthesisState = (synth: Synth): SynthesisState => {
+export const createSynthesisState = (): SynthesisState => {
   const noise_seed = "";
-  const reverb_level = synth.reverb.level;
-  const reverb_delay = synth.reverb.delay;
   const rng = randomizer(noise_seed);
   const waveState: OscillatorState = {
     rng,
@@ -68,24 +122,6 @@ export const createSynthesisState = (synth: Synth): SynthesisState => {
   const lowpassOutput: [number, number, number] = [0, 0, 0];
   const highpassInput: [number, number] = [0, 0];
   const highpassOutput: [number, number, number] = [0, 0, 0];
-  const combAStates = FREEVERB_COMB_A_SIZES.map((size) => ({
-    buffer: new Float32Array(size),
-    index: 0,
-    filter: 0,
-    feedback: lerp(reverb_delay, 0.28, 0.7),
-    damp: lerp(reverb_level, 0, 0.4),
-  }));
-  const combBStates = FREEVERB_COMB_B_SIZES.map((size) => ({
-    buffer: new Float32Array(size),
-    index: 0,
-    filter: 0,
-    feedback: lerp(reverb_delay, 0.28, 0.7),
-    damp: lerp(reverb_level, 0, 0.4),
-  }));
-  const allpassStates = FREEVERB_ALLPASS_SIZES.map((size) => ({
-    buffer: new Float32Array(size),
-    index: 0,
-  }));
   return {
     waveState,
     vibratoState,
@@ -95,69 +131,8 @@ export const createSynthesisState = (synth: Synth): SynthesisState => {
     lowpassOutput,
     highpassInput,
     highpassOutput,
-    combAStates,
-    combBStates,
-    allpassStates,
+    reverbState: null,
   };
-};
-
-const comb = (gain: number, state: CombState): number => {
-  const scale = 0.015;
-  const sample = state.buffer[state.index] || 0;
-  state.filter = sample * (1 - state.damp) + state.filter * state.damp;
-  state.buffer[state.index] = gain * scale + state.filter * state.feedback;
-  if (++state.index === state.buffer.length) {
-    state.index = 0;
-  }
-  return sample;
-};
-
-const allpass = (gain: number, state: AllpassState): number => {
-  const scale = 0.5;
-  const sample = state.buffer[state.index] || 0;
-  state.buffer[state.index] = gain + sample * scale;
-  if (++state.index === state.buffer.length) {
-    state.index = 0;
-  }
-  return sample - gain;
-};
-
-/*
- * Based on Freeverb <https://github.com/sinshu/freeverb>
- *
- * Written by Jezar, Released as Public Domain.
- *
- * More Info: https://ccrma.stanford.edu/~jos/pasp/Freeverb.html
- */
-const reverb = (
-  gain: number,
-  combAStates: {
-    buffer: Float32Array;
-    index: number;
-    filter: number;
-    feedback: number;
-    damp: number;
-  }[],
-  combBStates: {
-    buffer: Float32Array;
-    index: number;
-    filter: number;
-    feedback: number;
-    damp: number;
-  }[],
-  allpassStates: {
-    buffer: Float32Array;
-    index: number;
-  }[],
-) => {
-  const scale = 0.2;
-  // Apply comb filters in parallel
-  let output =
-    combAStates.map((s) => comb(gain, s)).reduce((p, n) => p + n) +
-    combBStates.map((s) => comb(gain, s)).reduce((p, n) => p + n);
-  // Apply allpass filters in series
-  output = allpassStates.reduce((p, s) => p + allpass(gain, s), output);
-  return output * scale;
 };
 
 const roundToNearestMultiple = (n: number, period: number): number => {
@@ -413,8 +388,10 @@ export const fillSoundBuffer = (
   const env_sustain_duration = synth.envelope.sustain;
   const env_release_duration = synth.envelope.release;
   const env_sustain_level = synth.envelope.level;
+  const lowpass_on = synth.lowpass.on;
   const lowpass_cutoff = synth.lowpass.cutoff;
   const lowpass_resonance = synth.lowpass.resonance;
+  const highpass_on = synth.highpass.on;
   const highpass_cutoff = synth.highpass.cutoff;
   const vibrato_on = synth.vibrato.on;
   const vibrato_shape = synth.vibrato.shape;
@@ -435,9 +412,9 @@ export const fillSoundBuffer = (
   const arpeggio_rate = synth.arpeggio.rate;
   const arpeggio_max_octaves = synth.arpeggio.max_octaves;
   const arpeggio_max_notes = synth.arpeggio.max_notes;
-  const arpeggio_tones = synth.arpeggio.tones;
-  const arpeggio_shapes = synth.arpeggio.shapes;
-  const arpeggio_levels = synth.arpeggio.levels;
+  const arpeggio_tones = [...synth.arpeggio.tones];
+  const arpeggio_shapes = [...synth.arpeggio.shapes];
+  const arpeggio_levels = [...synth.arpeggio.levels];
   const maxArpeggioLength = Math.max(
     arpeggio_tones?.length ?? 0,
     arpeggio_shapes?.length ?? 0,
@@ -653,26 +630,34 @@ export const fillSoundBuffer = (
         Math.sign(sampleValue);
     }
 
+    let activeCutoff = lowpassCutoff;
+
     // Wah-Wah Effect
     if (wahwah_on && wahwahRate > 0 && wahwahStrength > 0) {
-      const wahwahMod = modulate(
-        sampleRate,
-        localIndex,
-        wahwah_shape,
-        wahwahRate,
-        wahwahStrength,
-        currentState.wahwahState,
+      const wahMod = normalizeOsc(
+        modulate(
+          sampleRate,
+          localIndex,
+          wahwah_shape,
+          wahwahRate,
+          wahwahStrength,
+          currentState.wahwahState,
+        ),
+        0.1,
+        1,
       );
-      const wahwahMultiplier = normalizeOsc(wahwahMod, 0.5, 1);
-      sampleResonance *= wahwahMultiplier;
+      activeCutoff =
+        (lowpassCutoff > 0 ? lowpassCutoff : WAHWAH_MIN_CUTOFF) * wahMod;
+      sampleResonance =
+        sampleResonance > 0 ? sampleResonance : WAHWAH_MIN_RESONANCE;
     }
 
     // Lowpass Filter
-    if (lowpassCutoff > 0) {
+    if ((lowpass_on || wahwah_on) && activeCutoff > 0) {
       sampleValue = filter(
         sampleRate,
         sampleValue,
-        lowpassCutoff,
+        activeCutoff,
         sampleResonance,
         currentState.lowpassInput,
         currentState.lowpassOutput,
@@ -680,7 +665,7 @@ export const fillSoundBuffer = (
     }
 
     // Highpass Filter
-    if (highpassCutoff > 0) {
+    if (highpass_on && highpassCutoff > 0) {
       sampleValue = filter(
         sampleRate,
         sampleValue,
@@ -757,24 +742,6 @@ export const fillSoundBuffer = (
   }
 };
 
-export const applyReverbFilter = (
-  startIndex: number,
-  endIndex: number,
-  reverbState: ReverbState,
-  soundBuffer: Float32Array,
-) => {
-  for (let i = startIndex; i < endIndex; i += 1) {
-    const sampleValue = soundBuffer[i] ?? 0;
-    // Set Buffer
-    soundBuffer[i] = reverb(
-      sampleValue,
-      reverbState.combAStates,
-      reverbState.combBStates,
-      reverbState.allpassStates,
-    );
-  }
-};
-
 export const synthesizeSound = (
   synth: Synth,
   sustainSound: boolean,
@@ -790,7 +757,7 @@ export const synthesizeSound = (
   frequency?: number | Float32Array,
   currentState?: SynthesisState,
 ): void => {
-  const state = currentState ?? createSynthesisState(synth);
+  const state = currentState ?? createSynthesisState();
 
   // Fundamental Wave
   fillSoundBuffer(
@@ -812,6 +779,14 @@ export const synthesizeSound = (
   // Reverb Filter
   const reverb_on = synth.reverb.on;
   if (reverb_on) {
-    applyReverbFilter(startIndex, endIndex, state, soundBuffer);
+    if (!state.reverbState) state.reverbState = new ReverbState(sampleRate);
+    const room = synth.reverb.room_size ?? 0.8;
+    const damp = synth.reverb.damping ?? 0.2;
+    const mix = synth.reverb.mix ?? 0.5;
+    for (let i = startIndex; i < endIndex; i++) {
+      const dry = soundBuffer[i]!;
+      const wet = state.reverbState.process(dry, room, damp);
+      soundBuffer[i] = dry * (1 - mix) + wet * mix;
+    }
   }
 };

@@ -54,8 +54,8 @@ export const random_synth: Create<Random<Synth>> = () => ({
   },
   reverb: {
     on: [true, false],
-    level: [0, 1],
-    delay: [0, 1],
+    mix: [0, 1],
+    room_size: [0, 1],
   },
 });
 
@@ -228,8 +228,8 @@ export const random_synth_boom: Create<Random<Synth>> = () => ({
   },
   reverb: {
     on: [true, true, false],
-    level: [0.01, 0.7],
-    delay: [0.3, 0.8],
+    mix: [0.01, 0.35],
+    room_size: [0.15, 0.4],
   },
   vibrato: {
     on: [true, false],

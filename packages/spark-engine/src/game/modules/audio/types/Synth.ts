@@ -31,11 +31,13 @@ export interface Synth extends Reference<"synth"> {
     phase: number;
   };
   lowpass: {
+    on: boolean;
     cutoff: number;
     cutoff_ramp: number;
     resonance: number;
   };
   highpass: {
+    on: boolean;
     cutoff: number;
     cutoff_ramp: number;
   };
@@ -62,8 +64,9 @@ export interface Synth extends Reference<"synth"> {
   wahwah: Modulator;
   reverb: {
     on: boolean;
-    level: number;
-    delay: number;
+    mix: number;
+    room_size: number;
+    damping: number;
   };
 }
 
