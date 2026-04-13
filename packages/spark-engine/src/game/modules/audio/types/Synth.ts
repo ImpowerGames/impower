@@ -15,6 +15,7 @@ export interface Synth extends Reference<"synth"> {
   name?: string;
   shape: OscillatorType;
   volume: number;
+  compression: number;
   envelope: {
     offset: number;
     attack: number;

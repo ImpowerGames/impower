@@ -28,6 +28,7 @@ export interface Modulator {
 export interface Synth {
   shape: OscillatorType;
   volume: number;
+  compression: number;
   envelope: {
     offset: number;
     attack: number;
@@ -637,6 +638,7 @@ export const fillSoundBuffer = (
   frequency?: number | Float32Array,
 ): void => {
   const shape_wave = synth.shape;
+  const compression_amount = synth.compression;
   const pitch_freq =
     (typeof frequency === "number"
       ? frequency
@@ -755,6 +757,8 @@ export const fillSoundBuffer = (
   let arpFrequencyFactor = 1;
   let arpAmplitudeFactor = 1;
 
+  const compressionFactor = 1 / (1 + compression_amount);
+
   const fundamentalFrequency =
     typeof pitch_freq === "number" ? pitch_freq : (pitch_freq[startIndex] ?? 0);
 
@@ -765,7 +769,7 @@ export const fillSoundBuffer = (
 
   // Fill buffer
   for (let i = startIndex; i < endIndex; i += 1) {
-    const sampleVolume =
+    const masterVolume =
       typeof nodeGain === "number" ? nodeGain : (nodeGain?.[i] ?? 1);
     const pitchFreqFactor = convertSemitonesToFrequencyFactor(
       pitchFreqOffset * 10,
@@ -976,12 +980,20 @@ export const fillSoundBuffer = (
       sustainSound,
       limitSound,
     );
-    sampleValue *= Math.max(0, envelopeVolume);
-    sampleValue *= Math.max(0, sampleVolume);
-    sampleValue *= Math.max(0, arpAmplitudeFactor);
 
     if (volumeBuffer) {
       volumeBuffer[i] = envelopeVolume;
+    }
+
+    sampleValue *= Math.max(0, masterVolume);
+    sampleValue *= Math.max(0, envelopeVolume);
+    sampleValue *= Math.max(0, arpAmplitudeFactor);
+
+    // Compressor
+    if (sampleValue > 0) {
+      sampleValue = Math.pow(sampleValue, compressionFactor);
+    } else {
+      sampleValue = -Math.pow(-sampleValue, compressionFactor);
     }
 
     // Set Buffer
