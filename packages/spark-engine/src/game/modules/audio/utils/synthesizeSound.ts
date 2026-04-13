@@ -5,16 +5,279 @@
  * Released under the MIT license.
  */
 
-import { lerp } from "../../../core/utils/lerp";
-import { randomizer } from "../../../core/utils/randomizer";
-import { unlerp } from "../../../core/utils/unlerp";
-import { OSCILLATORS, OscillatorState } from "../constants/OSCILLATORS";
-import { OscillatorType } from "../types/OscillatorType";
-import { Synth } from "../types/Synth";
-import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequencyFactor";
+export type OscillatorType =
+  | "sine"
+  | "triangle"
+  | "sawtooth"
+  | "square"
+  | "tangent"
+  | "jitter"
+  | "brownnoise"
+  | "pinknoise"
+  | "whitenoise";
 
-const WAHWAH_MIN_RESONANCE = 4000;
-const WAHWAH_MIN_CUTOFF = 0.6;
+export interface Modulator {
+  on: boolean;
+  shape: OscillatorType;
+  rate: number;
+  rate_ramp: number;
+  strength: number;
+  strength_ramp: number;
+}
+
+export interface Synth {
+  shape: OscillatorType;
+  volume: number;
+  envelope: {
+    offset: number;
+    attack: number;
+    decay: number;
+    sustain: number;
+    release: number;
+    level: number;
+  };
+  pitch: {
+    frequency: number;
+    frequency_ramp: number;
+    frequency_torque: number;
+    frequency_jerk: number;
+    phase: number;
+  };
+  lowpass: {
+    on: boolean;
+    cutoff: number;
+    cutoff_ramp: number;
+    resonance: number;
+  };
+  highpass: {
+    on: boolean;
+    cutoff: number;
+    cutoff_ramp: number;
+  };
+  distortion: {
+    on: boolean;
+    grit: number;
+    grit_ramp: number;
+    edge: number;
+    edge_ramp: number;
+  };
+  arpeggio: {
+    on: boolean;
+    rate: number;
+    rate_ramp: number;
+    max_octaves: number;
+    max_notes: number;
+    direction: "up" | "down" | "down-up" | "up-down";
+    tones: number[];
+    levels: number[];
+    shapes: OscillatorType[];
+  };
+  vibrato: Modulator;
+  tremolo: Modulator;
+  wahwah: Modulator;
+  reverb: {
+    on: boolean;
+    mix: number;
+    room_size: number;
+    damping: number;
+  };
+}
+
+export interface OscillatorState {
+  prevPhase?: number;
+  prevRandom?: number;
+  b?: [number, number, number, number, number, number, number];
+  rng?: () => number;
+}
+
+const PI2 = 2 * Math.PI;
+
+const fix = (x: number, fractionDigits = 10): number => {
+  // Fix float precision errors
+  const result = Number(x.toFixed(fractionDigits));
+  return result === 0 ? 0 : result;
+};
+
+const clamp = (x: number, min: number, max: number) => {
+  if (x < min) {
+    return min;
+  }
+  if (x > max) {
+    return max;
+  }
+  return x;
+};
+
+const frac = (x: number): number => {
+  return x - Math.floor(x);
+};
+
+const random = (range: number, rng: (() => number) | undefined): number => {
+  const r = rng || Math.random;
+  return Math.ceil(r() * range) * (Math.round(r()) ? 1 : -1);
+};
+
+const sin = (x: number): number => {
+  return Math.sin(x);
+};
+
+const sgn = (x: number): number => {
+  return x > 0 ? 1 : x < 0 ? -1 : 0;
+};
+
+const sine = (x: number): number => {
+  return sin(PI2 * x);
+};
+
+const triangle = (x: number): number => {
+  return 1 - 4 * Math.abs(Math.round(x - 1 / 4) - (x - 1 / 4));
+};
+
+const sawtooth = (x: number): number => {
+  if (x % 0.5 === 0) {
+    return 0;
+  }
+  return 2 * (x - Math.round(x));
+};
+
+const square = (x: number): number => {
+  return sgn(fix(sin(PI2 * x)));
+};
+
+const tangent = (x: number): number => {
+  return clamp(0.3 * Math.tan(Math.PI * x), -1, 1);
+};
+
+const jitter = (x: number): number => {
+  return 0.75 * Math.sin(PI2 * x) + 0.25 * Math.sin(20 * PI2 * x);
+};
+
+export const randomizer = (seed: number): (() => number) => {
+  return function (): number {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const rng = randomizer(0);
+
+const whiteState: OscillatorState = {
+  prevPhase: 0,
+  prevRandom: 0,
+  b: [0, 0, 0, 0, 0, 0, 0],
+  rng,
+};
+
+const whitenoise = (x: number, state?: OscillatorState): number => {
+  const s = state || whiteState;
+  const prevPhase = s.prevPhase || 0;
+  const prevRandom = s.prevRandom || 0;
+  const currPhase = frac(x * 2);
+  const currRandom = currPhase < prevPhase ? random(1, s.rng) : prevRandom;
+  const value = currRandom;
+  s.prevPhase = currPhase;
+  s.prevRandom = currRandom;
+  return value;
+};
+
+const pinkState: OscillatorState = {
+  prevPhase: 0,
+  prevRandom: 0,
+  b: [0, 0, 0, 0, 0, 0, 0],
+  rng,
+};
+
+const pinknoise = (x: number, state?: OscillatorState): number => {
+  const s = state || pinkState;
+  const prevPhase = s.prevPhase || 0;
+  const prevRandom = s.prevRandom || 0;
+  const currPhase = frac(x * 2);
+  let currRandom = prevRandom;
+  if (currPhase < prevPhase) {
+    const white = random(1, s.rng) * 2;
+    if (!s.b) {
+      s.b = [0, 0, 0, 0, 0, 0, 0];
+    }
+    s.b[0] = 0.99886 * s.b[0] + white * 0.0555179;
+    s.b[1] = 0.99332 * s.b[1] + white * 0.0750759;
+    s.b[2] = 0.969 * s.b[2] + white * 0.153852;
+    s.b[3] = 0.8665 * s.b[3] + white * 0.3104856;
+    s.b[4] = 0.55 * s.b[4] + white * 0.5329522;
+    s.b[5] = -0.7616 * s.b[5] + white * 0.016898;
+    currRandom =
+      (s.b[0] +
+        s.b[1] +
+        s.b[2] +
+        s.b[3] +
+        s.b[4] +
+        s.b[5] +
+        s.b[6] +
+        white * 0.5362) /
+      7;
+    s.b[6] = white * 0.115926;
+  }
+  const value = currRandom;
+  s.prevPhase = currPhase;
+  s.prevRandom = currRandom;
+  return value;
+};
+
+const brownState: OscillatorState = {
+  prevPhase: 0,
+  prevRandom: 0,
+  b: [0, 0, 0, 0, 0, 0, 0],
+  rng,
+};
+
+const brownnoise = (x: number, state?: OscillatorState): number => {
+  const s = state || brownState;
+  const prevPhase = s.prevPhase || 0;
+  const prevRandom = s.prevRandom || 0;
+  const currPhase = frac(x * 2);
+  const currRandom =
+    currPhase < prevPhase
+      ? clamp(prevRandom + random(1, s.rng), -1, 1)
+      : prevRandom;
+  const value = currRandom;
+  s.prevPhase = currPhase;
+  s.prevRandom = currRandom;
+  return value;
+};
+
+export const OSCILLATORS: Record<
+  OscillatorType,
+  (t: number, state?: OscillatorState) => number
+> = {
+  sine,
+  triangle,
+  sawtooth,
+  square,
+  tangent,
+  jitter,
+  whitenoise,
+  brownnoise,
+  pinknoise,
+};
+
+export const lerp = (t: number, a: number, b: number): number => {
+  if (t <= 0) {
+    return a;
+  }
+  const p = t > 1 ? t - Math.floor(t) : t;
+  return a * (1 - p) + b * p;
+};
+
+export const unlerp = (value: number, min: number, max: number) => {
+  return (value - min) / (max - min);
+};
+
+export const convertSemitonesToFrequencyFactor = (
+  semitones: number,
+): number => {
+  return Math.pow(2, semitones / 12);
+};
 
 class CombFilter {
   buffer: Float32Array;
@@ -96,16 +359,17 @@ export interface SynthesisState {
   vibratoState: OscillatorState;
   tremoloState: OscillatorState;
   wahwahState: OscillatorState;
-  reverbState: ReverbState | null;
+  reverbState: ReverbState;
   lowpassInput: [number, number];
   lowpassOutput: [number, number, number];
   highpassInput: [number, number];
   highpassOutput: [number, number, number];
 }
 
-export const createSynthesisState = (): SynthesisState => {
-  const noise_seed = "";
-  const rng = randomizer(noise_seed);
+export const createSynthesisState = (
+  sampleRate: number,
+  rng: () => number,
+): SynthesisState => {
   const waveState: OscillatorState = {
     rng,
   };
@@ -131,7 +395,7 @@ export const createSynthesisState = (): SynthesisState => {
     lowpassOutput,
     highpassInput,
     highpassOutput,
-    reverbState: null,
+    reverbState: new ReverbState(sampleRate),
   };
 };
 
@@ -174,12 +438,13 @@ const getOctaveSemitones = (
 
 const choose = <T>(
   choices: T[],
+  numNotesInArp: number,
   numNotesPlayed: number,
   isReversed: boolean,
 ): T | undefined => {
   const index = isReversed
-    ? (choices.length - 1 - numNotesPlayed) % choices.length
-    : numNotesPlayed % choices.length;
+    ? (numNotesInArp - 1 - numNotesPlayed) % numNotesInArp
+    : numNotesPlayed % numNotesInArp;
   return choices[index];
 };
 
@@ -353,6 +618,9 @@ const getEnvelopeVolume = (
   return 0;
 };
 
+const WAHWAH_MIN_RESONANCE = 4000;
+const WAHWAH_MIN_CUTOFF = 0.6;
+
 export const fillSoundBuffer = (
   synth: Synth,
   sustainSound: boolean,
@@ -412,19 +680,9 @@ export const fillSoundBuffer = (
   const arpeggio_rate = synth.arpeggio.rate;
   const arpeggio_max_octaves = synth.arpeggio.max_octaves;
   const arpeggio_max_notes = synth.arpeggio.max_notes;
-  const arpeggio_tones = [...synth.arpeggio.tones];
-  const arpeggio_shapes = [...synth.arpeggio.shapes];
-  const arpeggio_levels = [...synth.arpeggio.levels];
-  const maxArpeggioLength = Math.max(
-    arpeggio_tones?.length ?? 0,
-    arpeggio_shapes?.length ?? 0,
-    arpeggio_levels?.length ?? 0,
-  );
-  for (let i = 0; i < maxArpeggioLength; i += 1) {
-    arpeggio_tones[i] = arpeggio_tones[i] ?? 0;
-    arpeggio_shapes[i] = arpeggio_shapes[i] ?? shape_wave;
-    arpeggio_levels[i] = arpeggio_levels[i] ?? 1;
-  }
+  const arpeggio_tones = synth.arpeggio.tones;
+  const arpeggio_shapes = synth.arpeggio.shapes;
+  const arpeggio_levels = synth.arpeggio.levels;
   const arpeggio_direction = synth.arpeggio.direction;
 
   let freqAccelDelta = getDeltaPerSample(
@@ -561,13 +819,29 @@ export const fillSoundBuffer = (
         isReversed,
         arpeggio_max_octaves,
       );
+      const numNotesInArp = Math.max(
+        arpeggio_tones?.length ?? 0,
+        arpeggio_shapes?.length ?? 0,
+        arpeggio_levels?.length ?? 0,
+      );
       sampleShape =
-        choose(arpeggio_shapes, arpNumNotesPlayed, isReversed) ?? shape_wave;
+        choose(arpeggio_shapes, numNotesInArp, arpNumNotesPlayed, isReversed) ??
+        shape_wave;
       if (arpLengthLeft <= 0) {
         arpAmplitudeFactor =
-          choose(arpeggio_levels, arpNumNotesPlayed, isReversed) ?? 1;
+          choose(
+            arpeggio_levels,
+            numNotesInArp,
+            arpNumNotesPlayed,
+            isReversed,
+          ) ?? 1;
         const arpNoteSemitones =
-          choose(arpeggio_tones, arpNumNotesPlayed, isReversed) ?? 0;
+          choose(
+            arpeggio_tones,
+            numNotesInArp,
+            arpNumNotesPlayed,
+            isReversed,
+          ) ?? 0;
         const arpSemitones = arpOctaveSemitones + arpNoteSemitones;
         const secondsPerNote = 1 / arpeggioRate;
         const samplesPerNote = sampleRate * secondsPerNote;
@@ -757,7 +1031,7 @@ export const synthesizeSound = (
   frequency?: number | Float32Array,
   currentState?: SynthesisState,
 ): void => {
-  const state = currentState ?? createSynthesisState();
+  const state = currentState ?? createSynthesisState(sampleRate, rng);
 
   // Fundamental Wave
   fillSoundBuffer(
@@ -779,10 +1053,9 @@ export const synthesizeSound = (
   // Reverb Filter
   const reverb_on = synth.reverb.on;
   if (reverb_on) {
-    if (!state.reverbState) state.reverbState = new ReverbState(sampleRate);
-    const room = synth.reverb.room_size ?? 0.8;
-    const damp = synth.reverb.damping ?? 0.2;
-    const mix = synth.reverb.mix ?? 0.5;
+    const room = synth.reverb.room_size;
+    const damp = synth.reverb.damping;
+    const mix = synth.reverb.mix;
     for (let i = startIndex; i < endIndex; i++) {
       const dry = soundBuffer[i]!;
       const wet = state.reverbState.process(dry, room, damp);
