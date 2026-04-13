@@ -908,20 +908,17 @@ export const fillSoundBuffer = (
 
     // Wah-Wah Effect
     if (wahwah_on && wahwahRate > 0 && wahwahStrength > 0) {
-      const wahMod = normalizeOsc(
-        modulate(
-          sampleRate,
-          localIndex,
-          wahwah_shape,
-          wahwahRate,
-          wahwahStrength,
-          currentState.wahwahState,
-        ),
-        0.1,
-        1,
+      const wahMod = modulate(
+        sampleRate,
+        localIndex,
+        wahwah_shape,
+        wahwahRate,
+        wahwahStrength,
+        currentState.wahwahState,
       );
+      const wahMultiplier = normalizeOsc(wahMod, 0.1, 1);
       activeCutoff =
-        (lowpassCutoff > 0 ? lowpassCutoff : WAHWAH_MIN_CUTOFF) * wahMod;
+        (lowpassCutoff > 0 ? lowpassCutoff : WAHWAH_MIN_CUTOFF) * wahMultiplier;
       sampleResonance =
         sampleResonance > 0 ? sampleResonance : WAHWAH_MIN_RESONANCE;
     }
