@@ -25,14 +25,40 @@ const viewportTheme = EditorView.baseTheme({
   },
 });
 
+const CLOSE_KEYBOARD_DELAY = 150;
+
 const viewportPlugin = ViewPlugin.fromClass(
   class {
     view: EditorView;
+    closeTimeout?: ReturnType<typeof setTimeout>;
 
     constructor(view: EditorView) {
       this.view = view;
       this.bind();
       this.onVisualViewportUpdate();
+    }
+
+    openKeyboardUI(keyboardHeight: number) {
+      requestAnimationFrame(() => {
+        document.body.style.setProperty(
+          "--keyboard-height",
+          `${keyboardHeight}px`,
+        );
+        document.documentElement.classList.add("keyboard-open");
+        this.view.dom.classList.add("keyboard-open");
+        openKeyboardToolbar(this.view);
+        closeLintPanel(this.view);
+        closeReferencePanel(this.view);
+      });
+    }
+
+    closeKeyboardUI() {
+      requestAnimationFrame(() => {
+        document.body.style.height = "";
+        document.documentElement.classList.remove("keyboard-open");
+        this.view.dom.classList.remove("keyboard-open");
+        closeKeyboardToolbar(this.view);
+      });
     }
 
     onVisualViewportUpdate = (e?: Event) => {
@@ -80,41 +106,44 @@ const viewportPlugin = ViewPlugin.fromClass(
         (isBlurEvent || !isEditorInputFocused)
       ) {
         // Keyboard will close
-        document.body.style.height = "";
-        document.documentElement.classList.remove("keyboard-open");
-        this.view.dom.classList.remove("keyboard-open");
-        closeKeyboardToolbar(this.view);
+        if (!this.closeTimeout) {
+          this.closeTimeout = setTimeout(() => {
+            this.closeKeyboardUI();
+            this.closeTimeout = undefined;
+          }, CLOSE_KEYBOARD_DELAY);
+        }
         return;
+      }
+
+      // If we reach here, we are actively focused (or the keyboard is natively closed).
+      // Cancel any pending close teardown to maintain the locked layout.
+      if (this.closeTimeout) {
+        clearTimeout(this.closeTimeout);
+        this.closeTimeout = undefined;
       }
 
       // We only reach here if the editor has focus, so we can safely
       // lock the body height to the visual viewport.
       document.body.style.height = `${vv.height}px`;
 
-      if (keyboardHeight > 0) {
+      const isKeyboardVisible = keyboardHeight > 0;
+
+      if (isKeyboardVisible) {
         // Keyboard is open
-        document.body.style.setProperty(
-          "--keyboard-height",
-          `${keyboardHeight}px`,
-        );
-        document.documentElement.classList.add("keyboard-open");
-        this.view.dom.classList.add("keyboard-open");
-        openKeyboardToolbar(this.view);
-        closeLintPanel(this.view);
-        closeReferencePanel(this.view);
+        this.openKeyboardUI(keyboardHeight);
       } else {
         // Keyboard is closed
-        document.documentElement.classList.remove("keyboard-open");
-        this.view.dom.classList.remove("keyboard-open");
-        closeKeyboardToolbar(this.view);
+        this.closeKeyboardUI();
       }
 
-      if (keyboardHeight > 0 && this.view.hasFocus) {
+      if (isKeyboardVisible && this.view.hasFocus) {
         // Scroll so cursor remains visible
-        this.view.dispatch({
-          effects: EditorView.scrollIntoView(this.view.state.selection.main, {
-            y: "nearest",
-          }),
+        requestAnimationFrame(() => {
+          this.view.dispatch({
+            effects: EditorView.scrollIntoView(this.view.state.selection.main, {
+              y: "nearest",
+            }),
+          });
         });
       }
     };
@@ -154,6 +183,9 @@ const viewportPlugin = ViewPlugin.fromClass(
         "blur",
         this.onVisualViewportUpdate,
       );
+      if (this.closeTimeout) {
+        clearTimeout(this.closeTimeout);
+      }
     }
 
     destroy() {
