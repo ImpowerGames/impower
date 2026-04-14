@@ -5,8 +5,8 @@ export const Store = <T extends object>(
   data: T,
   event?: string,
   target?: EventTarget,
-) => {
-  return class Store implements IStore<T> {
+): new () => IStore<T> => {
+  class Store implements IStore<T> {
     #event = event;
     get event() {
       return this.#event || "update:store";
@@ -25,5 +25,6 @@ export const Store = <T extends object>(
       this.#current = v;
       emit(this.event, v, this.target);
     }
-  };
+  }
+  return Store;
 };
