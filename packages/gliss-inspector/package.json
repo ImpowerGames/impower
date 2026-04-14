@@ -1,0 +1,15 @@
+{
+  "name": "@impower/gliss",
+  "displayName": "Gliss",
+  "description": "Web component that allows users to visually edit a javascript object through mobile-friendly slide controls.",
+  "version": "0.0.1",
+  "type": "module",
+  "devDependencies": {
+    "vite": "^8.0.8"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+}

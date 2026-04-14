@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Gliss Synthesizer</title>
+</head>
+
+<body>
+
+  <div id="app">
+    <header id="main-header">
+      <h1 id="header-title">GlissTone</h1>
+      <p class="subtitle" id="header-subtitle">Tap canvas to play sound</p>
+      <button id="btn-power" class="power-btn" title="Toggle Modulator">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path
+            d="M16.56 5.44l-1.45 1.45C16.84 8.29 18 10.51 18 13c0 3.31-2.69 6-6 6s-6-2.69-6-6c0-2.49 1.16-4.71 2.89-6.11L7.44 5.44C5.36 7.18 4 9.94 4 13c0 4.42 3.58 8 8 8s8-3.58 8-8c0-3.06-1.36-5.82-3.44-7.56zM11 3h2v10h-2z" />
+        </svg>
+      </button>
+    </header>
+
+    <div id="editor-container">
+      <canvas id="play-canvas"></canvas>
+      <div id="instructions" class="instructions">
+        ↕ Swipe to choose parameter<br>↔ Swipe to adjust
+      </div>
+    </div>
+
+    <!-- Main View Toolbar -->
+    <div class="toolbar" id="toolbar-main">
+      <button class="toolbar-btn" id="btn-open-randomize">RANDOMIZE</button>
+      <button class="toolbar-btn" id="btn-open-edit">EDIT</button>
+    </div>
+
+    <!-- Edit View Toolbar -->
+    <div class="toolbar" id="toolbar-edit">
+      <button class="toolbar-btn" id="btn-cancel">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path
+            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+        </svg>
+      </button>
+      <button class="toolbar-btn" id="btn-menu">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path
+            d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z" />
+        </svg>
+      </button>
+      <button class="toolbar-btn" id="btn-apply">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Tools Horizontal Overlay -->
+    <div class="tile-drawer" id="edit-drawer">
+      <div class="tile-grid" id="tile-grid"></div>
+    </div>
+
+    <!-- Randomize Horizontal Overlay -->
+    <div class="tile-drawer" id="randomize-drawer">
+      <div class="tile-grid" id="randomize-grid"></div>
+    </div>
+  </div>
+
+
+  <script type="module" src="/src/demo.ts"></script>
+</body>
+
+</html>
