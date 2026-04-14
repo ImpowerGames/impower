@@ -41,6 +41,12 @@ const EDITOR_THEME: {
   "kbd, code, pre": {
     fontFamily: "Courier Prime Sans",
   },
+  "& .cm-sticky-headers": {
+    fontFamily: "Courier Prime Sans",
+  },
+  "& .cm-sticky-header-text": {
+    marginLeft: "2px",
+  },
   "& .cm-content": {
     caretColor: "white",
     minHeight: "100%",
