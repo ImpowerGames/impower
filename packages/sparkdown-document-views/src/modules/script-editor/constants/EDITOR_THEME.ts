@@ -31,6 +31,8 @@ const EDITOR_THEME: {
     minHeight: "100%",
     lineHeight: "1.4",
     fontSize: "16px",
+    "--indent-marker-bg-color": "#1a293a",
+    "--indent-marker-active-bg-color": "#4d5866",
   },
   "& .cm-scroller": {
     padding: "6px 2px 0 0",
@@ -185,7 +187,13 @@ const EDITOR_THEME: {
   },
   "& .cm-activeLine": {
     backgroundColor: "transparent",
-    outline: "2px solid #FFFFFF12",
+    "&::after": {
+      display: "block",
+      content: "''",
+      position: "absolute",
+      inset: "2px",
+      outline: "2px solid #FFFFFF12",
+    },
   },
   "&.cm-selected .cm-activeLine": {
     backgroundColor: "transparent",
