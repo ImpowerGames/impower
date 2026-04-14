@@ -63,17 +63,26 @@ function createGradient(
 function makeBackgroundCSS(
   entry: IndentEntry,
   indentWidth: number,
+  visualLength: number,
   hideFirstIndent: boolean,
 ) {
-  const { level, active } = entry;
+  let { level, active, skipCapping } = entry;
+
+  // Cap the level to prevent drawing guides past the visual length of the line.
+  // We skip capping for empty lines that logically connect blocks.
+  // Using Math.ceil ensures the guide appears as soon as the line is 1 space past the boundary.
+  const maxLevel = skipCapping ? level : Math.ceil(visualLength / indentWidth);
+  level = Math.min(level, maxLevel);
+
   if (hideFirstIndent && level === 0) {
-    return [];
+    return "";
   }
 
   const startAt = hideFirstIndent ? 1 : 0;
   const backgrounds = [];
 
-  if (active !== undefined && active >= startAt + 1) {
+  // Only render the active marker if it falls within the line's allowed visual length
+  if (active !== undefined && active <= maxLevel && active >= startAt + 1) {
     const guidesBeforeActive = active - startAt - 1;
 
     if (guidesBeforeActive > 0) {
@@ -107,6 +116,7 @@ function makeBackgroundCSS(
       );
     }
   } else {
+    // Fallback: draw regular guides up to the capped level
     if (level > startAt) {
       backgrounds.push(
         createGradient(
@@ -128,6 +138,7 @@ export interface IndentEntry {
   level: number;
   empty: boolean;
   active?: number;
+  skipCapping?: boolean;
 }
 
 /**
@@ -216,10 +227,11 @@ export class IndentationMap {
    * @param line - The {@link Line} to set the entry for.
    * @param col - The visual beginning whitespace width of the line.
    * @param level - The indentation level of the line.
+   * @param skipCapping - Whether to bypass visual line length caps.
    */
-  private set(line: Line, col: number, level: number) {
+  private set(line: Line, col: number, level: number, skipCapping = false) {
     const empty = !line.text.trim().length;
-    const entry: IndentEntry = { line, col, level, empty };
+    const entry: IndentEntry = { line, col, level, empty, skipCapping };
     this.map.set(entry.line.number, entry);
 
     return entry;
@@ -251,25 +263,27 @@ export class IndentationMap {
       const prev = this.closestNonEmpty(line, -1);
       const next = this.closestNonEmpty(line, 1);
 
+      const skipCapping = next.level >= prev.level;
+
       // if the next line ends the block, we'll use the previous line's indentation
       if (prev.level >= next.level) {
-        return this.set(line, 0, prev.level);
+        return this.set(line, 0, prev.level, skipCapping);
       }
 
       // having an indent marker that starts from an empty line looks weird
       if (prev.empty && prev.level === 0 && next.level !== 0) {
-        return this.set(line, 0, 0);
+        return this.set(line, 0, 0, skipCapping);
       }
 
       // if the next indentation level is greater than the previous,
       // we'll only increment up to the next indentation level. this prevents
       // a weirdly "backwards propagating" indentation.
       if (next.level > prev.level) {
-        return this.set(line, 0, prev.level + 1);
+        return this.set(line, 0, prev.level + 1, skipCapping);
       }
 
       // else, we default to the next line's indentation
-      return this.set(line, 0, next.level);
+      return this.set(line, 0, next.level, skipCapping);
     }
 
     const col = numColumns(line.text, this.state.tabSize);
@@ -404,6 +418,26 @@ export function numColumns(str: string, tabSize: number) {
 }
 
 /**
+ * Calculates the total visual length of a string, accounting for tabs.
+ *
+ * @param str - The string to check.
+ * @param tabSize - The size of a tab character.
+ */
+export function getVisualLength(str: string, tabSize: number) {
+  let length = 0;
+
+  for (let i = 0; i < str.length; i++) {
+    if (str[i] === "\t") {
+      length += tabSize - (length % tabSize);
+    } else {
+      length += 1;
+    }
+  }
+
+  return length;
+}
+
+/**
  * Gets the line at the position of the primary cursor.
  *
  * @param state - The editor state from which to extract the line.
@@ -479,16 +513,16 @@ class IndentGuideClass implements PluginValue {
     const lines = getVisibleLines(this.view, state);
     const map = new IndentationMap(lines, state, this.unitWidth);
     const { hideFirstIndent } = state.facet(indentationGuideConfig);
+    const tabSize = state.tabSize;
 
     for (const line of lines) {
       const entry = map.get(line.number);
-      if (!entry?.level || this.unitWidth * entry.level > line.text.length) {
-        continue;
-      }
+      const visualLength = getVisualLength(line.text, tabSize);
 
       const backgrounds = makeBackgroundCSS(
         entry,
         this.unitWidth,
+        visualLength,
         hideFirstIndent,
       );
 
