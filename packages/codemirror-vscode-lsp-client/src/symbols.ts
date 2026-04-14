@@ -3,6 +3,7 @@ import {
   language as languageFacet,
 } from "@codemirror/language";
 import {
+  Compartment,
   EditorSelection,
   EditorState,
   StateEffect,
@@ -136,10 +137,14 @@ export async function updateDocumentSymbols(client: LSPClient, uri: string) {
   }
 }
 
+// Compartment for dynamically configuring top scroll margins
+export const stickyScrollMargin = new Compartment();
+
 export const stickyScrollPlugin = ViewPlugin.fromClass(
   class {
     dom: HTMLElement;
     view: EditorView;
+    lastHeight: number = 0;
 
     constructor(view: EditorView) {
       this.view = view;
@@ -167,10 +172,17 @@ export const stickyScrollPlugin = ViewPlugin.fromClass(
           const symbols = view.state.field(documentSymbolsField, false);
           if (!symbols || symbols.length === 0) return null;
 
+          const gutter = view.scrollDOM.querySelector(
+            ".cm-gutter.cm-lineNumbers",
+          );
+          const lineNumbersGutterWidth = gutter
+            ? (gutter as HTMLElement).clientWidth
+            : 0;
+
           const topPos = view.posAtCoords(
             {
-              x: view.scrollDOM.getBoundingClientRect().left + 50,
-              y: view.scrollDOM.getBoundingClientRect().top + 1,
+              x: view.scrollDOM.getBoundingClientRect().left,
+              y: view.scrollDOM.getBoundingClientRect().top,
             },
             false,
           );
@@ -191,12 +203,6 @@ export const stickyScrollPlugin = ViewPlugin.fromClass(
             return lineCoords && lineCoords.top <= scrollRect.top + 1;
           });
 
-          const gutter = view.scrollDOM.querySelector(
-            ".cm-gutter.cm-lineNumbers",
-          );
-          const lineNumbersGutterWidth = gutter
-            ? (gutter as HTMLElement).clientWidth
-            : 0;
           const contentDOM = view.contentDOM;
           const contentOffsetLeft = contentDOM.offsetLeft;
 
@@ -211,16 +217,28 @@ export const stickyScrollPlugin = ViewPlugin.fromClass(
           if (!data || data.stickySymbols.length === 0) {
             this.dom.style.display = "none";
             this.dom.innerHTML = "";
-            return;
+          } else {
+            this.dom.style.display = "block";
+            this.renderHeaders(
+              data.stickySymbols,
+              data.doc,
+              data.contentOffsetLeft,
+              data.lineNumbersGutterWidth,
+            );
           }
 
-          this.dom.style.display = "block";
-          this.renderHeaders(
-            data.stickySymbols,
-            data.doc,
-            data.contentOffsetLeft,
-            data.lineNumbersGutterWidth,
-          );
+          // Dynamically adjust the top margin based on the new DOM height
+          const newHeight = this.dom.offsetHeight;
+          if (this.lastHeight !== newHeight) {
+            this.lastHeight = newHeight;
+            window.requestAnimationFrame(() => {
+              this.view.dispatch({
+                effects: stickyScrollMargin.reconfigure(
+                  EditorView.scrollMargins.of(() => ({ top: newHeight })),
+                ),
+              });
+            });
+          }
         },
       });
     }
@@ -357,6 +375,8 @@ export function serverDocumentSymbols(): LSPClientExtension {
       documentSymbolsField,
       stickyScrollPlugin,
       stickyScrollTheme,
+      // Initialize the compartment with a 0 margin
+      stickyScrollMargin.of(EditorView.scrollMargins.of(() => ({ top: 0 }))),
     ],
   };
 }

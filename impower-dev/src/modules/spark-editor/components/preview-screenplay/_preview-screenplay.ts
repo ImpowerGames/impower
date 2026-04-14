@@ -16,7 +16,7 @@ export default spec({
       <s-box position="relative" grow>
         <se-scrollable>
           <sparkdown-screenplay-preview
-            scroll-margin="0 0 60px 0"
+            scroll-margin="auto auto 60px auto"
             top="48px"
           ></sparkdown-screenplay-preview>
         </se-scrollable>

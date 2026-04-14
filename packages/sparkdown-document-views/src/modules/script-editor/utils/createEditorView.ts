@@ -141,6 +141,7 @@ const createEditorView = (
   const serverInitializeResult = config.serverInitializeResult;
   const serverWorkspace = config.serverWorkspace;
   const scrollMargin = config?.scrollMargin;
+  console.log("scrollMargin", scrollMargin);
   const top = config?.top;
   const bottom = config?.bottom;
   const defaultState = config?.defaultState;

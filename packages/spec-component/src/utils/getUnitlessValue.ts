@@ -1,10 +1,13 @@
 export const getUnitlessValue = (
   value: string | null,
-  defaultValue: number,
-  emptyValue = defaultValue,
-): number => {
+  defaultValue?: number,
+  emptyValue: number | undefined = defaultValue,
+): number | undefined => {
   if (value === "") {
     return emptyValue;
+  }
+  if (value === "auto") {
+    return defaultValue;
   }
   if (value == null) {
     return defaultValue;

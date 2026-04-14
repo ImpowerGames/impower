@@ -13,8 +13,8 @@ export const getBoxValues = (
   }
   const parts = value?.split(/\s+/);
   if (parts.length === 2) {
-    const block = getUnitlessValue(parts[0]!, 0);
-    const inline = getUnitlessValue(parts[1]!, 0);
+    const block = getUnitlessValue(parts[0]!);
+    const inline = getUnitlessValue(parts[1]!);
     return {
       top: block,
       bottom: block,
@@ -23,10 +23,10 @@ export const getBoxValues = (
     };
   }
   if (parts.length === 4) {
-    const top = getUnitlessValue(parts[0]!, 0);
-    const right = getUnitlessValue(parts[1]!, 0);
-    const bottom = getUnitlessValue(parts[2]!, 0);
-    const left = getUnitlessValue(parts[3]!, 0);
+    const top = getUnitlessValue(parts[0]!);
+    const right = getUnitlessValue(parts[1]!);
+    const bottom = getUnitlessValue(parts[2]!);
+    const left = getUnitlessValue(parts[3]!);
     return {
       top,
       bottom,
@@ -34,7 +34,7 @@ export const getBoxValues = (
       right,
     };
   }
-  const v = getUnitlessValue(parts[0]!, 0);
+  const v = getUnitlessValue(parts[0]!);
   return {
     top: v,
     bottom: v,

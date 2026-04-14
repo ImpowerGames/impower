@@ -18,7 +18,6 @@ export default spec({
       <s-box z="2" bg-color="editor-bg" grow>
         <sparkdown-script-editor
           id="sparkdownScriptEditor"
-          scroll-margin="0 0 0 0"
           top="0px"
           bottom="60px"
         ></sparkdown-script-editor>
