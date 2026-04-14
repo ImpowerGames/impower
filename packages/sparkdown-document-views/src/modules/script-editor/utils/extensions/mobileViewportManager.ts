@@ -146,11 +146,14 @@ const viewportPlugin = ViewPlugin.fromClass(
         this.onVisualViewportUpdate,
       );
       window.removeEventListener("focusout", this.onVisualViewportUpdate);
-      this.view.scrollDOM.addEventListener(
+      this.view.scrollDOM.removeEventListener(
         "focus",
         this.onVisualViewportUpdate,
       );
-      this.view.scrollDOM.addEventListener("blur", this.onVisualViewportUpdate);
+      this.view.scrollDOM.removeEventListener(
+        "blur",
+        this.onVisualViewportUpdate,
+      );
     }
 
     destroy() {
