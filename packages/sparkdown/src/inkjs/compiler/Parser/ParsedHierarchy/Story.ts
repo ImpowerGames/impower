@@ -550,20 +550,22 @@ export class Story extends FlowBase {
     typeNameOverride: string = "",
   ): void => {
     const typeNameToPrint: string = typeNameOverride || obj.typeName;
-    for (const part of identifier?.name.split(".")) {
-      if (Story.IsReservedKeyword(part)) {
-        obj.Error(
-          `\`${part}\` cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a reserved keyword`,
-          identifier?.debugMetadata,
-        );
-        return;
-      } else if (FunctionCall.IsBuiltIn(part)) {
-        obj.Error(
-          `\`${part}\` cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a built in function`,
-          identifier?.debugMetadata,
-        );
+    if (identifier?.name) {
+      for (const part of identifier.name.split(".")) {
+        if (Story.IsReservedKeyword(part)) {
+          obj.Error(
+            `\`${part}\` cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a reserved keyword`,
+            identifier?.debugMetadata,
+          );
+          return;
+        } else if (FunctionCall.IsBuiltIn(part)) {
+          obj.Error(
+            `\`${part}\` cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a built in function`,
+            identifier?.debugMetadata,
+          );
 
-        return;
+          return;
+        }
       }
     }
 
