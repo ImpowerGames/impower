@@ -851,13 +851,12 @@ export const fillSoundBuffer = (
         const samplesPerNote = sampleRate * secondsPerNote;
         arpFrequencyFactor = convertSemitonesToFrequencyFactor(arpSemitones);
         const newPitch = Math.max(0, sampleFrequency) * arpFrequencyFactor;
-        const newPeriodLength = isReversed
-          ? sampleRate / newPitch
-          : periodLength;
-        // Ensure frequency changes only occur at zero crossings (to minimize crackles)
+        // Calculate the period using the new pitch (safeguard against 0Hz division)
+        const newPeriodLength =
+          newPitch > 0 ? sampleRate / newPitch : periodLength;
+        // Ensure frequency changes occur exactly at the nearest integer zero-crossing (to minimize crackles)
         const arpLimit =
-          roundToNearestMultiple(samplesPerNote, newPeriodLength) -
-          1 +
+          Math.round(roundToNearestMultiple(samplesPerNote, newPeriodLength)) +
           (arpNumNotesPlayed === 0 ? startPhaseOffset : 0);
         arpLengthLeft = arpLimit;
         arpPhaseOffset =
