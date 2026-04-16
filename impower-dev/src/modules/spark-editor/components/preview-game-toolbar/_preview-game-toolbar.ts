@@ -60,13 +60,14 @@ export default spec({
         bg-color="popup"
         text-color="fg"
       >
-        <s-option
+        <s-Button
           key="debug"
+          variant="option"
           type="toggle"
           icon="bug-off"
           active-icon="check"
           ${debugging ? "active" : ""}
-          >Debugging</s-option
+          >Debugging</s-button
         >
       </s-box>
     `;

@@ -6,7 +6,7 @@ import { navNextKey } from "../../utils/navNextKey";
 import { navPrevKey } from "../../utils/navPrevKey";
 import { navStartKey } from "../../utils/navStartKey";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
-import Option from "../option/option";
+import Button from "../button/button";
 import spec from "./_box";
 
 const CLOSING_EVENT = "closing";
@@ -20,8 +20,8 @@ const CHANGED_EVENT = "changed";
  * Boxes are basic surfaces for styling and laying out content.
  */
 export default class Box extends SparkleComponent(spec) {
-  protected _options: Option[] = [];
-  get options(): Option[] {
+  protected _options: Button[] = [];
+  get options(): Button[] {
     return this._options;
   }
 
@@ -259,7 +259,7 @@ export default class Box extends SparkleComponent(spec) {
     }
   }
 
-  async activateOption(option: Option): Promise<void> {
+  async activateOption(option: Button): Promise<void> {
     const oldOption = this.options.find((option) => option.active);
     const newValue = option.value;
     const changed = this.active !== newValue;
@@ -315,7 +315,7 @@ export default class Box extends SparkleComponent(spec) {
     return this._activatingValue !== newValue;
   }
 
-  async deactivateOption(option: Option): Promise<void> {
+  async deactivateOption(option: Button): Promise<void> {
     option.active = false;
   }
 
@@ -362,7 +362,7 @@ export default class Box extends SparkleComponent(spec) {
     });
   }
 
-  focusOption(option: Option, activate: boolean) {
+  focusOption(option: Button, activate: boolean) {
     for (var i = 0; i < this.options.length; i += 1) {
       var t = this.options[i];
       if (t === option) {
@@ -375,7 +375,7 @@ export default class Box extends SparkleComponent(spec) {
     }
   }
 
-  focusPreviousOption(option: Option, activate: boolean) {
+  focusPreviousOption(option: Button, activate: boolean) {
     const firstOption = this.options[0];
     const lastOption = this.options[this.options.length - 1];
     if (option === firstOption) {
@@ -391,7 +391,7 @@ export default class Box extends SparkleComponent(spec) {
     }
   }
 
-  focusNextOption(option: Option, activate: boolean) {
+  focusNextOption(option: Button, activate: boolean) {
     const firstOption = this.options[0];
     const lastOption = this.options[this.options.length - 1];
     if (option === lastOption) {
@@ -410,7 +410,7 @@ export default class Box extends SparkleComponent(spec) {
   handleKeyDownOption = (e: KeyboardEvent) => {
     if (e.currentTarget instanceof HTMLElement) {
       const option = (e.currentTarget.getRootNode() as ShadowRoot)
-        ?.host as Option;
+        ?.host as Button;
       const dir = "column";
       switch (e.key) {
         case navPrevKey(dir):
@@ -448,7 +448,7 @@ export default class Box extends SparkleComponent(spec) {
   handleClickOption = (e: MouseEvent) => {
     if (e.currentTarget instanceof HTMLElement) {
       const option = (e.currentTarget.getRootNode() as ShadowRoot)
-        ?.host as Option;
+        ?.host as Button;
       if (option.type !== "toggle") {
         this._activatingValue = option.value;
         this.updateOptions();
@@ -460,11 +460,9 @@ export default class Box extends SparkleComponent(spec) {
     this._triggers = this.anchorInteraction?.split(" ").sort() || [];
   }
 
-  protected setupOptions(children: Element[]) {
+  protected setupOptions(children: Button[]) {
     this.unbindOptions();
-    this._options = children.filter(
-      (el) => el.tagName.toLowerCase() === this.selectors.option,
-    ) as Option[];
+    this._options = children;
     this.bindOptions();
     this.updateOptions();
   }

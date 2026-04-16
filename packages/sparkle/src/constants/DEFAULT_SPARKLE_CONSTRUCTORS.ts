@@ -11,7 +11,6 @@ import Icon from "../components/icon/icon";
 import Input from "../components/input/input";
 import List from "../components/list/list";
 import Navigation from "../components/navigation/navigation";
-import Option from "../components/option/option";
 import ProgressBar from "../components/progress-bar/progress-bar";
 import ProgressCircle from "../components/progress-circle/progress-circle";
 import Ripple from "../components/ripple/ripple";
@@ -44,7 +43,6 @@ const DEFAULT_SPARKLE_CONSTRUCTORS = [
   Collapsible,
   Input,
   Button,
-  Option,
   Tab,
   Tabs,
   ToastStack,

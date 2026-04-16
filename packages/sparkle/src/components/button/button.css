@@ -15,37 +15,30 @@
   --_transition-property:
     transform, background-color, color, border, box-shadow;
   --_duration: 100ms;
-  --_background-color: var(--theme-color-primary-60);
-  --_text-color: var(--theme-color-neutral-0);
-  --_spacing: 8px;
   --_border-width: 1px;
-  --_corner: 4px;
   --_ease: ease-out;
 }
 
-:host([size="xs"]) > .root {
+:host([size="xs"]) {
   --_height-min: 24px;
   --_text-size: var(--theme-text-2xs-font-size);
   --_text-leading: var(--theme-text-2xs-line-height);
   --_padding-lr: 8px;
 }
-
-:host([size="sm"]) > .root {
+:host([size="sm"]) {
   --_height-min: 32px;
   --_text-size: var(--theme-text-sm-font-size);
   --_text-leading: var(--theme-text-sm-line-height);
   --_padding-lr: 10px;
 }
-
 :host,
-:host([size="md"]) > .root {
+:host([size="md"]) {
   --_height-min: 40px;
   --_text-size: var(--theme-text-sm-font-size);
   --_text-leading: var(--theme-text-sm-line-height);
   --_padding-lr: 16px;
 }
-
-:host([size="lg"]) > .root {
+:host([size="lg"]) {
   --_height-min: 48px;
   --_text-size: var(--theme-text-md-font-size);
   --_text-leading: var(--theme-text-md-line-height);
@@ -97,6 +90,11 @@
 /* Filled */
 :host(:not([variant])),
 :host([variant="filled"]) {
+  --_spacing: 8px;
+  --_corner: 4px;
+  --_text-color: var(--theme-color-neutral-0);
+  --_text-weight: 500;
+  --_background-color: var(--theme-color-primary-60);
   --_shadow: var(--theme-shadow-box-1);
 }
 @media (hover: hover) and (pointer: fine) {
@@ -109,10 +107,6 @@
     --_shadow: var(--theme-shadow-box-0);
   }
 }
-:host(:not([variant])),
-:host([variant="filled"]) {
-  --_text-weight: 500;
-}
 :host(:not([variant])) > .root,
 :host([variant="filled"]) > .root {
   color: var(--_text-color);
@@ -121,8 +115,40 @@
   box-shadow: var(--_shadow);
 }
 
+/* Option */
+:host([variant="option"]) {
+  --_spacing: 12px;
+  --_corner: 0;
+  --_text-weight: 400;
+  --_shadow: none;
+  --_background-color: transparent;
+  --_child-justify: flex-start;
+}
+:host([variant="option"]) > .root {
+  font-weight: var(--_text-weight);
+  color: var(--_text-color);
+  box-shadow: var(--_shadow);
+  background-color: var(--_background-color);
+  justify-content: var(--_child-justify);
+}
+:host([variant="option"][size="xs"]) {
+  --_padding-lr: 12px;
+}
+:host([variant="option"][size="sm"]) {
+  --_padding-lr: 14px;
+}
+:host,
+:host([variant="option"][size="md"]) {
+  --_padding-lr: 20px;
+}
+:host([variant="option"][size="lg"]) {
+  --_padding-lr: 24px;
+}
+
 /* Tonal */
 :host([variant="tonal"]) {
+  --_spacing: 8px;
+  --_corner: 4px;
   --_text-color: white;
   --_text-weight: 400;
   --_shadow: none;
@@ -147,6 +173,8 @@
 
 /* Outlined */
 :host([variant="outlined"]) {
+  --_spacing: 8px;
+  --_corner: 4px;
   --_text-weight: 500;
   --_shadow: none;
   --_background-color: transparent;
@@ -178,6 +206,8 @@
 
 /* Text */
 :host([variant="text"]) {
+  --_spacing: 8px;
+  --_corner: 4px;
   --_text-weight: 500;
   --_shadow: none;
   --_background-color: transparent;
@@ -191,10 +221,10 @@
 
 /* Icon */
 :host([variant="icon"]) {
+  --_corner: 50%;
   --_shadow: none;
   --_background-color: transparent;
   --_aspect: 1;
-  --_corner: 50%;
   --_padding: 0;
 }
 :host([variant="icon"]) > .root {

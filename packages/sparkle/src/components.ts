@@ -15,7 +15,6 @@ import Icon from "./components/icon/_icon";
 import Input from "./components/input/_input";
 import List from "./components/list/_list";
 import Navigation from "./components/navigation/_navigation";
-import Option from "./components/option/_option";
 import ProgressBar from "./components/progress-bar/_progress-bar";
 import ProgressCircle from "./components/progress-circle/_progress-circle";
 import Ripple from "./components/ripple/_ripple";
@@ -115,7 +114,6 @@ const components = [
   style(Collapsible),
   style(Input),
   style(Button),
-  style(Option),
   style(Tab),
   style(Tabs),
   style(ToastStack),

@@ -34,11 +34,21 @@ export default spec({
         bg-color="popup"
         text-color="fg"
       >
-        <s-option id="renameOption" icon="pencil" value="rename"
-          >Rename</s-option
+        <s-button
+          id="renameOption"
+          variant="option"
+          text-color="fg-70"
+          icon="pencil"
+          value="rename"
+          >Rename</s-button
         >
-        <s-option id="deleteOption" icon="trash" value="delete"
-          >Delete</s-option
+        <s-button
+          id="deleteOption"
+          variant="option"
+          text-color="fg-70"
+          icon="trash"
+          value="delete"
+          >Delete</s-button
         >
       </s-box>
     `;
