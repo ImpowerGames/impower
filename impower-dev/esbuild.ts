@@ -200,7 +200,8 @@ const viteSpecComponentHmrPlugin = (): Plugin => ({
     // Only apply to source files (exclude node_modules, workers, and server API logic)
     if (
       !id.includes("\0") &&
-      !id.includes("node_modules") &&
+      (id.includes("/node_modules/@impower") ||
+        !id.includes("/node_modules/")) &&
       !id.includes(`/${apiInDir}/`) &&
       !id.includes(`/${workersInDir}/`) &&
       !id.includes(".worker.") &&
