@@ -40,25 +40,35 @@ export default spec({
       ></s-button>
     `;
     const settingsDropdown = () => html`
-      <s-dropdown id="settingsDropdown">
+      <s-box anchor-id="--popup-settings">
         <s-button
           width="48"
           height="48"
           color="fg-50"
           variant="icon"
           icon="gear"
-        ></s-button>
-        <slot slot="options">
-          <s-option
-            key="debug"
-            type="toggle"
-            icon="bug-off"
-            active-icon="check"
-            ${debugging ? "active" : ""}
-            >Debugging</s-option
-          >
-        </slot>
-      </s-dropdown>
+        ></s-button
+      ></s-box>
+      <s-box
+        id="settingsDropdown"
+        anchor-to="--popup-settings"
+        anchor-interaction="click"
+        a-t="bottom"
+        a-r="right"
+        c="8"
+        p="8 0"
+        bg-color="popup"
+        text-color="fg"
+      >
+        <s-option
+          key="debug"
+          type="toggle"
+          icon="bug-off"
+          active-icon="check"
+          ${debugging ? "active" : ""}
+          >Debugging</s-option
+        >
+      </s-box>
     `;
     const playbackControls = () => html`
       <s-button

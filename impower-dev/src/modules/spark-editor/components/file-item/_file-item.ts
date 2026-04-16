@@ -73,7 +73,9 @@ export default spec({
               </s-box>
             </s-box>
           </se-logic-diagnostics-label>
-          <se-file-options-button></se-file-options-button>
+          <se-file-options-button
+            filename="${filename}"
+          ></se-file-options-button>
         </s-box>
       </s-button>
     `;

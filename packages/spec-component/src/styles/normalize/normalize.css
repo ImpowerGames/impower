@@ -74,3 +74,9 @@ button,
 [hidden] {
   display: none !important;
 }
+
+[popover] {
+  margin: 0;
+  padding: 0;
+  inset: auto;
+}

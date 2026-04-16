@@ -10,14 +10,12 @@ import Collapsible from "./components/collapsible/_collapsible";
 import Dialog from "./components/dialog/_dialog";
 import Divider from "./components/divider/_divider";
 import Drawer from "./components/drawer/_drawer";
-import Dropdown from "./components/dropdown/_dropdown";
 import Hidden from "./components/hidden/_hidden";
 import Icon from "./components/icon/_icon";
 import Input from "./components/input/_input";
 import List from "./components/list/_list";
 import Navigation from "./components/navigation/_navigation";
 import Option from "./components/option/_option";
-import Popup from "./components/popup/_popup";
 import ProgressBar from "./components/progress-bar/_progress-bar";
 import ProgressCircle from "./components/progress-circle/_progress-circle";
 import Ripple from "./components/ripple/_ripple";
@@ -29,7 +27,6 @@ import Tab from "./components/tab/_tab";
 import Tabs from "./components/tabs/_tabs";
 import ToastStack from "./components/toast-stack/_toast-stack";
 import Toast from "./components/toast/_toast";
-import Tooltip from "./components/tooltip/_tooltip";
 import Transition from "./components/transition/_transition";
 import Viewport from "./components/viewport/_viewport";
 import LIGHT_DOM_COMPONENTS from "./constants/LIGHT_DOM_COMPONENTS";
@@ -109,7 +106,6 @@ const components = [
   style(ScrollBlocker),
   style(Circle),
   style(Icon),
-  style(Popup),
   style(Divider),
   style(ProgressBar),
   style(ProgressCircle),
@@ -122,8 +118,6 @@ const components = [
   style(Option),
   style(Tab),
   style(Tabs),
-  style(Tooltip),
-  style(Dropdown),
   style(ToastStack),
   style(Toast),
   style(Drawer),

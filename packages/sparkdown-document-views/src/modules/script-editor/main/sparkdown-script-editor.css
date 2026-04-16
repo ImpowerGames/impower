@@ -89,6 +89,12 @@
   display: none !important;
 }
 
+[popover] {
+  margin: 0;
+  padding: 0;
+  inset: auto;
+}
+
 :host > .root #loading {
   margin-top: -2px;
   z-index: 1;

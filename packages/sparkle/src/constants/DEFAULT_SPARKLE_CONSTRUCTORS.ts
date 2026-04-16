@@ -6,14 +6,12 @@ import Collapsible from "../components/collapsible/collapsible";
 import Dialog from "../components/dialog/dialog";
 import Divider from "../components/divider/divider";
 import Drawer from "../components/drawer/drawer";
-import Dropdown from "../components/dropdown/dropdown";
 import Hidden from "../components/hidden/hidden";
 import Icon from "../components/icon/icon";
 import Input from "../components/input/input";
 import List from "../components/list/list";
 import Navigation from "../components/navigation/navigation";
 import Option from "../components/option/option";
-import Popup from "../components/popup/popup";
 import ProgressBar from "../components/progress-bar/progress-bar";
 import ProgressCircle from "../components/progress-circle/progress-circle";
 import Ripple from "../components/ripple/ripple";
@@ -25,7 +23,6 @@ import Tab from "../components/tab/tab";
 import Tabs from "../components/tabs/tabs";
 import ToastStack from "../components/toast-stack/toast-stack";
 import Toast from "../components/toast/toast";
-import Tooltip from "../components/tooltip/tooltip";
 import Transition from "../components/transition/transition";
 import Viewport from "../components/viewport/viewport";
 
@@ -38,7 +35,6 @@ const DEFAULT_SPARKLE_CONSTRUCTORS = [
   ScrollBlocker,
   Circle,
   Icon,
-  Popup,
   Divider,
   ProgressBar,
   ProgressCircle,
@@ -51,8 +47,6 @@ const DEFAULT_SPARKLE_CONSTRUCTORS = [
   Option,
   Tab,
   Tabs,
-  Tooltip,
-  Dropdown,
   ToastStack,
   Toast,
   Drawer,

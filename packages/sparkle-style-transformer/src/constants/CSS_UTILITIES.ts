@@ -142,6 +142,30 @@ export const CSS_UTILITIES = {
   "anchor-right": {
     "": { right: "" },
   },
+  "anchor-id": {
+    "": { "anchor-name": "" },
+  },
+  "anchor-to": {
+    "": { "position-anchor": "" },
+  },
+  "anchor-placement": {
+    "": { "position-area": "" },
+  },
+  "anchor-bounds": {
+    "": { "anchor-scope": "" },
+  },
+  "anchor-try": {
+    "": { "position-try": "" },
+  },
+  "anchor-try-fallbacks": {
+    "": { "position-try-fallbacks": "" },
+  },
+  "anchor-try-order": {
+    "": { "position-try-order": "" },
+  },
+  "anchor-visibility": {
+    "": { "position-visibility": "" },
+  },
 
   margin: {
     "": { margin: "" },

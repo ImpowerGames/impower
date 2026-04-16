@@ -187,6 +187,31 @@
   right: var(--_anchor-right, 8px) !important;
 }
 
+[anchor-id] {
+  anchor-name: var(--_anchor-id) !important;
+}
+[anchor-to] {
+  position-anchor: var(--_anchor-to) !important;
+}
+[anchor-placement] {
+  position-area: var(--_anchor-placement) !important;
+}
+[anchor-bounds] {
+  anchor-scope: var(--_anchor-bounds) !important;
+}
+[anchor-try] {
+  position-try: var(--_anchor-try) !important;
+}
+[anchor-try-fallbacks] {
+  position-try-fallbacks: var(--_anchor-try-fallbacks) !important;
+}
+[anchor-try-order] {
+  position-try-order: var(--_anchor-try-order) !important;
+}
+[anchor-visibility] {
+  position-visibility: var(--_anchor-visibility) !important;
+}
+
 :is([m], [margin]) {
   margin: var(--_margin, 8px) !important;
 }

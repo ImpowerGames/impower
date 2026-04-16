@@ -9,9 +9,7 @@ export type Separator = "-" | "_";
 
 export type CamelCase<S extends string> =
   S extends `${infer T}${Separator}${infer U}`
-    ? StringLength<U> extends 2
-      ? `${T}${Uppercase<CamelCase<U>>}`
-      : `${T}${Capitalize<CamelCase<U>>}`
+    ? `${T}${Capitalize<CamelCase<U>>}`
     : S;
 
 export type Unprefix<

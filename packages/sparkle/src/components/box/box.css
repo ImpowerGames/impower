@@ -1,3 +1,16 @@
 :host {
   display: flex;
+  --_exit: var(--theme-animation-exit-zoom), var(--theme-animation-exit-fade);
+  --_enter:
+    var(--theme-animation-enter-zoom), var(--theme-animation-enter-fade);
+}
+
+:host([open][anchored]) {
+  animation: var(--_enter) forwards;
+  animation-timing-function: var(--_ease);
+}
+
+:host(:not([open])[anchored]) {
+  animation: var(--_exit) forwards;
+  animation-timing-function: var(--_ease);
 }

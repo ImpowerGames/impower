@@ -156,6 +156,12 @@ Make sure disabled buttons don't get the pointer cursor.
   display: none;
 }
 
+[popover] {
+  margin: 0;
+  padding: 0;
+  inset: auto;
+}
+
 label {
   text-align: left;
 }

@@ -14,6 +14,7 @@ html {
   --theme-size-footer-nav: 60px;
   --theme-size-panel-nav: 48px;
 
+  --theme-color-popup: rgb(18, 18, 18);
   --theme-color-panel: hsl(210.6, 100%, 10%);
   --theme-color-editor-bg: hsl(210.6, 100%, 7%);
   --theme-color-tab-active-text: hsl(0, 0%, 95%);

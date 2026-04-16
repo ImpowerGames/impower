@@ -139,6 +139,22 @@ function isBoundary(css: string, start: number, end: number): boolean {
   return isStartOk && isEndOk;
 }
 
+export const getCssAnchorVisibility = (value: string | boolean): string => {
+  if (value === true || value === "true" || value === "") {
+    return "always";
+  }
+  if (value === "valid") {
+    return "anchors-valid";
+  }
+  if (value === "visible") {
+    return "anchors-visible";
+  }
+  if (value === false || value === "false") {
+    return "no-overflow";
+  }
+  return value;
+};
+
 export const getCssAnimation = (value: string | null, suffix = ""): string => {
   if (!value || value === "none") {
     return "none";
@@ -911,7 +927,7 @@ export const isVariableValue = (
   if (isNumberChar(value[0])) {
     return false;
   }
-  return true;
+  return !value.includes("(");
 };
 
 export const getCssSize = (
@@ -938,6 +954,39 @@ export const getCssSize = (
   }
   if (value === "xl") {
     return defaultUnit === "px" ? "24px" : "1.5rem";
+  }
+  if (value === "top") {
+    return "anchor(top)";
+  }
+  if (value === "bottom") {
+    return "anchor(bottom)";
+  }
+  if (value === "left") {
+    return "anchor(left)";
+  }
+  if (value === "right") {
+    return "anchor(right)";
+  }
+  if (value === "center") {
+    return "anchor(center)";
+  }
+  if (value === "inside") {
+    return "anchor(inside)";
+  }
+  if (value === "outside") {
+    return "anchor(outside)";
+  }
+  if (value === "start") {
+    return "anchor(start)";
+  }
+  if (value === "end") {
+    return "anchor(end)";
+  }
+  if (value === "self-start") {
+    return "anchor(self-start)";
+  }
+  if (value === "self-end") {
+    return "anchor(self-end)";
   }
   if (typeof value === "string" && value.startsWith("var(")) {
     return value;

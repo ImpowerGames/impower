@@ -1,4 +1,5 @@
 import {
+  getCssAnchorVisibility,
   getCssAnimation,
   getCssBasis,
   getCssBgAlign,
@@ -110,6 +111,15 @@ export const STYLE_TRANSFORMERS = {
   "anchor-right": getCssSize,
   "anchor-bottom": getCssSize,
   "anchor-left": getCssSize,
+
+  "anchor-id": get,
+  "anchor-to": get,
+  "anchor-placement": get,
+  "anchor-bounds": get,
+  "anchor-try": get,
+  "anchor-try-fallbacks": get,
+  "anchor-try-order": get,
+  "anchor-visibility": getCssAnchorVisibility,
 
   margin: getCssSize,
   "margin-top": getCssSize,

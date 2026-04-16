@@ -79,6 +79,16 @@ export const CSS_ALIASES = {
   "animation-timing-function": "animation-easing",
   "animation-iteration-count": "animation-iterations",
   "animation-fill-mode": "animation-fill",
+
+  "anchor-name": "anchor-id",
+  "position-anchor": "anchor-to",
+  "position-area": "anchor-placement",
+  "inset-area": "anchor-placement",
+  "anchor-scope": "anchor-bounds",
+  "position-try": "anchor-try",
+  "position-try-fallbacks": "anchor-try-fallbacks",
+  "position-try-order": "anchor-try-order",
+  "position-visibility": "anchor-visibility",
 };
 
 export const SPARKLE_TO_CSS_NAME_MAP = Object.fromEntries(

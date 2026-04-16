@@ -1741,8 +1741,10 @@ export function SparkleComponent<
         attrName === "tabindex" ||
         attrName.startsWith("aria-")
       ) {
-        // Forward all aria attributes to root element
-        this.updateRootAttribute(attrName, value);
+        if (this.root !== this) {
+          // Forward all aria attributes to root element
+          this.root.setAttribute(attrName, value);
+        }
       } else {
         const transformer = this.transformers[attrName];
         if (transformer) {

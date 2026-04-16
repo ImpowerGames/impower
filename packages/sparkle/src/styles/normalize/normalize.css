@@ -10,6 +10,12 @@
   display: none !important;
 }
 
+[popover] {
+  margin: 0;
+  padding: 0;
+  inset: auto;
+}
+
 slot {
   border-radius: inherit;
   color: inherit;
