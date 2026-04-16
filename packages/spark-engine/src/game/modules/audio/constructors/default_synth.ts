@@ -44,7 +44,7 @@ export const default_synth: Create<Synth> = (obj) => ({
     on: false,
     cutoff: 4000,
     cutoff_ramp: 0,
-    resonance: 0.6,
+    resonance: 0.5,
     ...(obj?.lowpass || {}),
   },
   wahwah: {
